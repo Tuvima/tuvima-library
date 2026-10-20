@@ -3319,6 +3319,7 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchEditRequ
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchEditResult
   UpdatedCount: System.Int32 | nullability=not-null | accessors=get,init
+  UnchangedCount: System.Int32 | nullability=not-null | accessors=get,init
   SentToReviewCount: System.Int32 | nullability=not-null | accessors=get,init
   RefusedCount: System.Int32 | nullability=not-null | accessors=get,init
   Items: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryBatchItemResult> | nullability=not-null | accessors=get,init

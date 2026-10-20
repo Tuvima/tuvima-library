@@ -19,6 +19,9 @@ public sealed class LibraryCurationReadService(IDatabaseConnection db) : ILibrar
     // A show sits at most three levels above an episode (show, season, episode); one more level of slack.
     private const int MaxAncestorDepth = 4;
 
+    // Where each kind of title keeps its name (an episode or movie "title", a show's "show_name", and so on), best first.
+    private static readonly string[] TitleKeys = ["title", "show_name", "season_title", "album", "series"];
+
     // SQL literal for an empty JSON object (a raw interpolated string cannot spell the braces itself).
     private const string EmptyJsonObject = "'{}'";
 
@@ -48,12 +51,12 @@ public sealed class LibraryCurationReadService(IDatabaseConnection db) : ILibrar
         var selected = await QueryByIdsAsync<SelectedRow>(conn, ids, values =>
             $"""
             WITH requested(input_id) AS (VALUES {values})
-            SELECT r.input_id AS RequestedEntityId, w.id AS WorkId, NULL AS AssetId,
+            SELECT r.input_id AS RequestedEntityId, w.id AS WorkId,
                    w.media_type AS MediaType, w.work_kind AS WorkKind, w.parent_work_id AS ParentWorkId
             FROM requested r
             JOIN works w ON w.id = r.input_id
             UNION
-            SELECT r.input_id, w.id, ma.id, w.media_type, w.work_kind, w.parent_work_id
+            SELECT r.input_id, w.id, w.media_type, w.work_kind, w.parent_work_id
             FROM requested r
             JOIN media_assets ma ON ma.id = r.input_id
             JOIN editions e ON e.id = ma.edition_id
@@ -100,27 +103,7 @@ public sealed class LibraryCurationReadService(IDatabaseConnection db) : ILibrar
             JOIN media_assets ma ON ma.edition_id = e.id;
             """, ct).ConfigureAwait(false);
 
-        // 4. A file a Needs Review entry can point at: the work's own, else the nearest descendant's.
-        var representatives = (await QueryByIdsAsync<RepresentativeRow>(conn, selectedWorkIds, values =>
-            $"""
-            WITH RECURSIVE requested(input_id) AS (VALUES {values}),
-            descendants(WorkId, CandidateId, Depth) AS (
-                SELECT input_id, input_id, 0 FROM requested
-                UNION ALL
-                SELECT d.WorkId, child.id, d.Depth + 1
-                FROM descendants d JOIN works child ON child.parent_work_id = d.CandidateId
-            ),
-            ranked AS (
-                SELECT d.WorkId, ma.id AS AssetId,
-                       ROW_NUMBER() OVER (PARTITION BY d.WorkId ORDER BY d.Depth, ma.id) AS AssetRank
-                FROM descendants d
-                JOIN editions e ON e.work_id = d.CandidateId
-                JOIN media_assets ma ON ma.edition_id = e.id
-            )
-            SELECT WorkId, AssetId FROM ranked WHERE AssetRank = 1;
-            """, ct).ConfigureAwait(false)).ToDictionary(row => row.WorkId, row => row.AssetId);
-
-        // 5. Stored presentation overrides. SQLite reads the JSON, so a malformed document simply has no entries.
+        // 4. Stored presentation overrides. SQLite reads the JSON, so a malformed document simply has no entries.
         var overrides = new Dictionary<Guid, Dictionary<string, string>>();
         foreach (var row in await QueryByIdsAsync<OverrideRow>(conn, allWorkIds, values =>
             $"""
@@ -141,9 +124,9 @@ public sealed class LibraryCurationReadService(IDatabaseConnection db) : ILibrar
             perWork[row.Key] = row.Value;
         }
 
-        // 6. Provider data on those records for the requested fields (and the title, to name items).
+        // 5. Provider data on those records for the requested fields (and the title, to name items).
         var ownerIds = owners.Select(row => row.OwnerId).Distinct().ToArray();
-        var wantedKeys = keys.Append("title").Distinct(StringComparer.Ordinal).ToArray();
+        var wantedKeys = keys.Concat(TitleKeys).Distinct(StringComparer.Ordinal).ToArray();
         var arrayRows = await QueryByIdsAsync<ValueRow>(conn, ownerIds, values =>
             $"""
             WITH requested(input_id) AS (VALUES {values})
@@ -249,7 +232,8 @@ public sealed class LibraryCurationReadService(IDatabaseConnection db) : ILibrar
             var title = OverrideOf(row.WorkId, "title");
             if (string.IsNullOrWhiteSpace(title))
             {
-                title = OwnValues(row.WorkId, "title").FirstOrDefault();
+                title = TitleKeys.Select(key => OwnValues(row.WorkId, key).FirstOrDefault())
+                    .FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate));
             }
 
             result[row.RequestedEntityId] = new BatchEditItemRead(
@@ -258,12 +242,37 @@ public sealed class LibraryCurationReadService(IDatabaseConnection db) : ILibrar
                 row.MediaType,
                 row.WorkKind,
                 row.ParentWorkId is not null,
-                row.AssetId ?? (representatives.TryGetValue(row.WorkId, out var assetId) ? assetId : null),
                 title,
                 fields);
         }
 
         return result;
+    }
+
+    public async Task<IReadOnlySet<Guid>> FindNonTitleIdsAsync(
+        IReadOnlyCollection<Guid> entityIds,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(entityIds);
+        ct.ThrowIfCancellationRequested();
+
+        var ids = entityIds.Where(id => id != Guid.Empty).Distinct().ToArray();
+        if (ids.Length == 0)
+        {
+            return new HashSet<Guid>();
+        }
+
+        using var conn = db.CreateConnection();
+        var found = await QueryByIdsAsync<IdRow>(conn, ids, values =>
+            $"""
+            WITH requested(input_id) AS (VALUES {values})
+            SELECT r.input_id AS Id FROM requested r JOIN editions e ON e.id = r.input_id
+            UNION
+            SELECT r.input_id FROM requested r JOIN collections c ON c.id = r.input_id
+            UNION
+            SELECT r.input_id FROM requested r JOIN persons p ON p.id = r.input_id;
+            """, ct).ConfigureAwait(false);
+        return found.Select(row => row.Id).ToHashSet();
     }
 
     private static string KeyList(IEnumerable<string> keys) =>
@@ -301,10 +310,14 @@ public sealed class LibraryCurationReadService(IDatabaseConnection db) : ILibrar
     {
         public Guid RequestedEntityId { get; init; }
         public Guid WorkId { get; init; }
-        public Guid? AssetId { get; init; }
         public string MediaType { get; init; } = string.Empty;
         public string WorkKind { get; init; } = string.Empty;
         public Guid? ParentWorkId { get; init; }
+    }
+
+    private sealed class IdRow
+    {
+        public Guid Id { get; init; }
     }
 
     private sealed class AncestorRow
@@ -319,12 +332,6 @@ public sealed class LibraryCurationReadService(IDatabaseConnection db) : ILibrar
         public Guid WorkId { get; init; }
         public Guid OwnerId { get; init; }
         public int Rank { get; init; }
-    }
-
-    private sealed class RepresentativeRow
-    {
-        public Guid WorkId { get; init; }
-        public Guid AssetId { get; init; }
     }
 
     private sealed class OverrideRow

@@ -15,6 +15,14 @@ public interface ILibraryCurationReadService
         IReadOnlyCollection<Guid> entityIds,
         IReadOnlyCollection<string> fieldKeys,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Which of the given ids belong to something in the library that is not a title a batch edit can change
+    /// (an edition, a collection or a person), so a refusal can say so instead of "gone".
+    /// </summary>
+    Task<IReadOnlySet<Guid>> FindNonTitleIdsAsync(
+        IReadOnlyCollection<Guid> entityIds,
+        CancellationToken ct = default);
 }
 
 public interface ILibraryOverviewReadService

@@ -26,13 +26,19 @@ public static class LibraryBatchFieldKinds
 /// <summary>The outcome of one selected item in a batch apply.</summary>
 public static class LibraryBatchItemOutcomes
 {
-    /// <summary>Every requested change was applied to the item.</summary>
+    /// <summary>The item was saved with the requested changes.</summary>
     public const string Updated = "updated";
 
-    /// <summary>Nothing was changed on the item; a Needs Review entry names the fields that did not apply and why.</summary>
+    /// <summary>The item already matched every requested change, so nothing was written.</summary>
+    public const string Unchanged = "unchanged";
+
+    /// <summary>Nothing was changed on the item; a Needs Review entry (trigger <c>BatchEditFailed</c>) names the fields that did not apply and why.</summary>
     public const string SentToReview = "sent_to_review";
 
-    /// <summary>The caller may not edit the item, or it is gone or still being updated. Nothing was changed and no review entry exists.</summary>
+    /// <summary>
+    /// Nothing was changed and no review entry exists: the caller may not edit the item, it is gone, it is not a title
+    /// a batch can change, it is still being updated, or the change would leave a genre list empty.
+    /// </summary>
     public const string Refused = "refused";
 }
 
@@ -51,7 +57,7 @@ public sealed class LibraryBatchEditRequest
 
 /// <summary>
 /// One field operation. <c>set</c> needs <see cref="Value"/>; <c>add</c>, <c>replace</c> and <c>remove</c> carry
-/// <see cref="Values"/> (<c>replace</c> may carry none, which empties the list); <c>clear</c> carries neither.
+/// <see cref="Values"/> (<c>replace</c> may carry none, which empties a tag list; a genre list can never be emptied here, because an empty genre override means "use the provider's genres", so such an item is refused); <c>clear</c> carries neither.
 /// </summary>
 public sealed class LibraryFieldChange
 {
@@ -78,13 +84,13 @@ public sealed class LibraryBatchItemResult
     [JsonPropertyName("outcome")]
     public required string Outcome { get; init; }
 
-    /// <summary>Plain-English reason; empty when the item was updated.</summary>
+    /// <summary>Plain-English reason; empty when the item was updated or already matched.</summary>
     [JsonPropertyName("reason")]
     public string? Reason { get; init; }
 
     /// <summary>
-    /// The field keys that did not apply (sent to review only). An item is applied together or not at all, so this is every
-    /// field the batch asked for; <see cref="Reason"/> names the ones that blocked it.
+    /// The field keys that did not apply (sent to review or refused for an emptied genre list). An item's changes are saved
+    /// together or not at all, so this is every field the batch asked for; <see cref="Reason"/> names the ones that blocked it.
     /// </summary>
     [JsonPropertyName("fields_not_applied")]
     public List<string> FieldsNotApplied { get; init; } = [];
@@ -94,10 +100,18 @@ public sealed class LibraryBatchItemResult
     public Guid? ReviewId { get; init; }
 }
 
+/// <summary>
+/// One Apply for the whole batch; each item then saves on its own, so an item that cannot take the change never undoes
+/// the others. Items that fail go to Needs Review (or are refused, see <see cref="LibraryBatchItemOutcomes.Refused"/>).
+/// </summary>
 public sealed class LibraryBatchEditResult
 {
     [JsonPropertyName("updated_count")]
     public int UpdatedCount { get; init; }
+
+    /// <summary>Items that already matched, so nothing was written for them.</summary>
+    [JsonPropertyName("unchanged_count")]
+    public int UnchangedCount { get; init; }
 
     [JsonPropertyName("sent_to_review_count")]
     public int SentToReviewCount { get; init; }

@@ -11,10 +11,14 @@ namespace MediaEngine.Api.Services.BatchEdit;
 /// <summary>
 /// <see cref="ILibraryBatchEditService"/> over the pencil's own write path (<c>works.display_overrides_json</c>).
 /// <para>
-/// Transactions: each item is saved with one write, which is atomic on its own, and its outcome is recorded before the
-/// next item starts. There is deliberately no transaction around the whole batch: a single item that cannot take the
-/// change (an inherited value, a deleted item, a write error) must not undo the items that did, because the person
-/// asked for those and the failing one is handed to Needs Review instead.
+/// One Apply per batch, written item by item: each item is saved with one write, which is atomic on its own, and its outcome
+/// is recorded before the next item starts. There is deliberately no transaction around the whole batch: a single item that
+/// cannot take the change (an inherited value, a write error) must not undo the items that did, because the person asked for
+/// those and the failing one is handed to Needs Review instead.
+/// </para>
+/// <para>
+/// Once the writing loop starts it does not watch the request's cancellation token: a caller that gives up mid-batch must not
+/// leave it half applied with no record, so the loop finishes and logs one summary line.
 /// </para>
 /// </summary>
 public sealed class LibraryBatchEditService(
@@ -25,7 +29,6 @@ public sealed class LibraryBatchEditService(
     ILogger<LibraryBatchEditService> logger) : ILibraryBatchEditService
 {
     private const int MaxDistinctValuesShown = 5;
-    private const string GoneReason = "This item is no longer in your library.";
     private const string InheritedReason = "This value comes from its parent (show, season or album). Change it there.";
 
     public async Task<LibraryBatchEditPreview> PreviewAsync(
@@ -46,6 +49,7 @@ public sealed class LibraryBatchEditService(
             ids.Where(id => !refusals.ContainsKey(id)).ToList(),
             fields.Select(field => field.Key).ToList(),
             ct).ConfigureAwait(false);
+        var missingReasons = await ReasonsForMissingAsync(ids, refusals, items, ct).ConfigureAwait(false);
 
         var unavailable = new List<LibraryBatchLockedItem>();
         var available = new List<BatchEditItemRead>();
@@ -61,7 +65,7 @@ public sealed class LibraryBatchEditService(
             }
             else
             {
-                unavailable.Add(new LibraryBatchLockedItem { EntityId = id, Reason = GoneReason });
+                unavailable.Add(new LibraryBatchLockedItem { EntityId = id, Reason = missingReasons[id] });
             }
         }
 
@@ -89,12 +93,14 @@ public sealed class LibraryBatchEditService(
             ids.Where(id => !refusals.ContainsKey(id)).ToList(),
             changes.Select(change => change.Field.Key).ToList(),
             ct).ConfigureAwait(false);
+        var missingReasons = await ReasonsForMissingAsync(ids, refusals, items, ct).ConfigureAwait(false);
 
+        // From here on the batch is being written: it runs to the end whatever the caller does.
+        var write = CancellationToken.None;
         var results = new List<LibraryBatchItemResult>(ids.Count);
         var byWork = new Dictionary<Guid, LibraryBatchItemResult>();
         foreach (var id in ids)
         {
-            ct.ThrowIfCancellationRequested();
             if (refusals.TryGetValue(id, out var refusal))
             {
                 results.Add(Refused(id, refusal));
@@ -103,7 +109,7 @@ public sealed class LibraryBatchEditService(
 
             if (!items.TryGetValue(id, out var item))
             {
-                results.Add(Refused(id, GoneReason));
+                results.Add(Refused(id, missingReasons[id]));
                 continue;
             }
 
@@ -121,18 +127,50 @@ public sealed class LibraryBatchEditService(
                 continue;
             }
 
-            var result = await ApplyToItemAsync(item, changes, ct).ConfigureAwait(false);
+            var result = await ApplyToItemAsync(item, changes, write).ConfigureAwait(false);
             byWork[item.WorkId] = result;
             results.Add(result);
         }
 
-        return new LibraryBatchEditResult
+        var summary = new LibraryBatchEditResult
         {
-            UpdatedCount = results.Count(result => result.Outcome == LibraryBatchItemOutcomes.Updated),
-            SentToReviewCount = results.Count(result => result.Outcome == LibraryBatchItemOutcomes.SentToReview),
-            RefusedCount = results.Count(result => result.Outcome == LibraryBatchItemOutcomes.Refused),
+            UpdatedCount = CountOf(results, LibraryBatchItemOutcomes.Updated),
+            UnchangedCount = CountOf(results, LibraryBatchItemOutcomes.Unchanged),
+            SentToReviewCount = CountOf(results, LibraryBatchItemOutcomes.SentToReview),
+            RefusedCount = CountOf(results, LibraryBatchItemOutcomes.Refused),
             Items = results,
         };
+        logger.LogInformation(
+            "Batch edit of {Items} item(s) on {Fields}: {Updated} updated, {Unchanged} unchanged, {Review} sent to Needs Review, {Refused} refused.",
+            results.Count,
+            string.Join(", ", changes.Select(change => change.Field.Key)),
+            summary.UpdatedCount,
+            summary.UnchangedCount,
+            summary.SentToReviewCount,
+            summary.RefusedCount);
+        return summary;
+    }
+
+    private static int CountOf(IReadOnlyList<LibraryBatchItemResult> results, string outcome) =>
+        results.Count(result => result.Outcome == outcome);
+
+    /// <summary>Why each selected id that is neither refused nor found is left out: a different kind of record, or gone.</summary>
+    private async Task<IReadOnlyDictionary<Guid, string>> ReasonsForMissingAsync(
+        IReadOnlyList<Guid> ids,
+        IReadOnlyDictionary<Guid, string> refusals,
+        IReadOnlyDictionary<Guid, BatchEditItemRead> items,
+        CancellationToken ct)
+    {
+        var missing = ids.Where(id => !refusals.ContainsKey(id) && !items.ContainsKey(id)).ToList();
+        if (missing.Count == 0)
+        {
+            return new Dictionary<Guid, string>();
+        }
+
+        var notTitles = await curationReadService.FindNonTitleIdsAsync(missing, ct).ConfigureAwait(false);
+        return missing.ToDictionary(
+            id => id,
+            id => notTitles.Contains(id) ? LibraryBatchEditReasons.NotATitle : LibraryBatchEditReasons.Gone);
     }
 
     private async Task<LibraryBatchItemResult> ApplyToItemAsync(
@@ -161,22 +199,40 @@ public sealed class LibraryBatchEditService(
             var state = await itemCanonicalRepository.LoadDisplayOverridesAsync(item.WorkId, ct).ConfigureAwait(false);
             if (!state.WorkExists)
             {
-                return Refused(item.RequestedEntityId, GoneReason);
+                return Refused(item.RequestedEntityId, LibraryBatchEditReasons.Gone);
             }
 
             var current = state.Values;
             var before = Snapshot(current);
             var updates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var emptied = new List<BatchEditField>();
             foreach (var change in changes)
             {
-                var stored = ValueToStore(item, current, change);
+                var stored = ValueToStore(item, current, change, blocked, emptied);
+                if (stored is null)
+                {
+                    continue;
+                }
+
                 if (!DetailDisplayOverrideCatalog.TryValidateValue(change.Field.Key, stored, out _, out var invalid))
                 {
-                    // The pencil's own limits reject the result for this item (for example a list that would grow too long).
                     blocked.Add((change.Field, invalid ?? "The new value is not allowed."));
+                    continue;
                 }
 
                 updates[change.Field.Key] = stored;
+            }
+
+            // A genre list that would end up empty can't be saved as empty (that means "use the provider's"), so nothing is written.
+            if (emptied.Count > 0)
+            {
+                return new LibraryBatchItemResult
+                {
+                    EntityId = item.RequestedEntityId,
+                    Outcome = LibraryBatchItemOutcomes.Refused,
+                    Reason = string.Join(" ", emptied.Select(field => LibraryBatchEditReasons.EmptiedList(field.Label))),
+                    FieldsNotApplied = changes.Select(change => change.Field.Key).ToList(),
+                };
             }
 
             if (blocked.Count > 0)
@@ -184,22 +240,20 @@ public sealed class LibraryBatchEditService(
                 return await SendToReviewAsync(item, changes, blocked, ct).ConfigureAwait(false);
             }
 
-            updatedKeys = DetailDisplayOverrideCatalog.ApplyChanges(current, updates);
-            if (!string.Equals(before, Snapshot(current), StringComparison.Ordinal))
+            updatedKeys = updates.Count == 0 ? [] : DetailDisplayOverrideCatalog.ApplyChanges(current, updates);
+            if (string.Equals(before, Snapshot(current), StringComparison.Ordinal))
             {
-                if (!await itemCanonicalRepository.SaveDisplayOverridesAsync(item.WorkId, current, ct).ConfigureAwait(false))
+                return new LibraryBatchItemResult
                 {
-                    return Refused(item.RequestedEntityId, GoneReason);
-                }
+                    EntityId = item.RequestedEntityId,
+                    Outcome = LibraryBatchItemOutcomes.Unchanged,
+                };
             }
-            else
+
+            if (!await itemCanonicalRepository.SaveDisplayOverridesAsync(item.WorkId, current, ct).ConfigureAwait(false))
             {
-                updatedKeys = [];
+                return Refused(item.RequestedEntityId, LibraryBatchEditReasons.Gone);
             }
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
         catch (Exception ex)
         {
@@ -211,11 +265,7 @@ public sealed class LibraryBatchEditService(
                 ct).ConfigureAwait(false);
         }
 
-        if (updatedKeys.Count > 0)
-        {
-            await LogActivityAsync(item, updatedKeys, ct).ConfigureAwait(false);
-        }
-
+        await LogActivityAsync(item, updatedKeys, ct).ConfigureAwait(false);
         return new LibraryBatchItemResult
         {
             EntityId = item.RequestedEntityId,
@@ -230,8 +280,17 @@ public sealed class LibraryBatchEditService(
             overrides.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(pair => $"{pair.Key.ToLowerInvariant()}={pair.Value}"));
 
-    /// <summary>The override text one change leads to for one item (a list operation starts from what the item shows now).</summary>
-    private static string ValueToStore(BatchEditItemRead item, IReadOnlyDictionary<string, string> current, BatchEditChange change)
+    /// <summary>
+    /// The override text one change leads to for one item (a list operation starts from what the item shows now), or
+    /// <c>null</c> when the item already shows the result. A result the field's limits reject is added to
+    /// <paramref name="blocked"/>; a genre list that would be left empty is added to <paramref name="emptied"/>.
+    /// </summary>
+    private static string? ValueToStore(
+        BatchEditItemRead item,
+        IReadOnlyDictionary<string, string> current,
+        BatchEditChange change,
+        List<(BatchEditField Field, string Reason)> blocked,
+        List<BatchEditField> emptied)
     {
         if (change.Field.Kind == BatchEditFieldKind.Scalar)
         {
@@ -241,9 +300,25 @@ public sealed class LibraryBatchEditService(
         var shown = current.TryGetValue(change.Field.Key, out var stored)
             ? BatchEditFieldCatalog.ParseList(stored)
             : item.Fields.TryGetValue(change.Field.Key, out var field) ? field.OwnValues : [];
-        return BatchEditFieldCatalog.ToOverrideValue(
-            change.Field,
-            BatchEditFieldCatalog.ApplyListOperation(shown, change.Operation, change.Values));
+        var result = BatchEditFieldCatalog.ApplyListOperation(shown, change.Operation, change.Values);
+        if (BatchEditFieldCatalog.SameItems(shown, result))
+        {
+            return null;
+        }
+
+        if (!BatchEditFieldCatalog.TryNormalizeList(change.Field, result, out var normalized, out var error))
+        {
+            blocked.Add((change.Field, error ?? "The new list is not allowed."));
+            return null;
+        }
+
+        if (normalized.Count == 0 && !BatchEditFieldCatalog.CanBeEmptied(change.Field))
+        {
+            emptied.Add(change.Field);
+            return null;
+        }
+
+        return BatchEditFieldCatalog.ToOverrideValue(change.Field, normalized);
     }
 
     /// <summary>Why a pencil would refuse this field on this item, or <c>null</c> when it is editable.</summary>
@@ -270,8 +345,10 @@ public sealed class LibraryBatchEditService(
     }
 
     /// <summary>
-    /// Hands an item that could not take the batch to Needs Review. Nothing was changed on it, so every requested field is
-    /// listed as not applied and the reason names the ones that blocked it.
+    /// Hands an item that could not take the batch to Needs Review as a <c>BatchEditFailed</c> row on the work that was being
+    /// edited (a show, season or album as readily as an episode), which has its own trigger so it never merges into a pipeline
+    /// row. Nothing was changed on the item, so every requested field is listed as not applied and the reason names the ones
+    /// that blocked it.
     /// </summary>
     private async Task<LibraryBatchItemResult> SendToReviewAsync(
         BatchEditItemRead item,
@@ -281,11 +358,6 @@ public sealed class LibraryBatchEditService(
     {
         var reason = string.Join(" ", blocked.Select(entry => $"{entry.Field.Label}: {entry.Reason}"));
         var keys = changes.Select(change => change.Field.Key).ToList();
-        if (item.RepresentativeAssetId is not { } assetId)
-        {
-            return Refused(item.RequestedEntityId, $"{reason} It has no file in your library, so it cannot be sent to Needs Review.");
-        }
-
         try
         {
             var now = DateTimeOffset.UtcNow;
@@ -293,9 +365,9 @@ public sealed class LibraryBatchEditService(
             var reviewId = await reviewQueueRepository.InsertAsync(new ReviewQueueEntry
             {
                 Id = Guid.NewGuid(),
-                EntityId = assetId,
-                EntityType = "MediaAsset",
-                Trigger = ReviewTrigger.MetadataConflict,
+                EntityId = item.WorkId,
+                EntityType = "Work",
+                Trigger = ReviewTrigger.BatchEditFailed,
                 Detail = $"A batch edit did not change {name}. {reason} Not changed: {string.Join(", ", changes.Select(change => change.Field.Label))}.",
                 CreatedAt = now,
                 ReviewReadyAt = now,
@@ -310,10 +382,16 @@ public sealed class LibraryBatchEditService(
                 ReviewId = reviewId,
             };
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
         {
             logger.LogWarning(ex, "Batch edit could not send work {WorkId} to Needs Review.", item.WorkId);
-            return Refused(item.RequestedEntityId, $"{reason} It could not be sent to Needs Review.");
+            return new LibraryBatchItemResult
+            {
+                EntityId = item.RequestedEntityId,
+                Outcome = LibraryBatchItemOutcomes.Refused,
+                Reason = $"{reason} It could not be sent to Needs Review.",
+                FieldsNotApplied = keys,
+            };
         }
     }
 
@@ -331,7 +409,7 @@ public sealed class LibraryBatchEditService(
                 Detail = $"Batch edit saved display overrides for {updatedKeys.Count} field(s): {string.Join(", ", updatedKeys.Distinct(StringComparer.OrdinalIgnoreCase))}.",
             }, ct).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
         {
             // The change is saved; a missing activity line must not turn a finished item into a failure.
             logger.LogWarning(ex, "Batch edit saved work {WorkId} but could not record the activity entry.", item.WorkId);

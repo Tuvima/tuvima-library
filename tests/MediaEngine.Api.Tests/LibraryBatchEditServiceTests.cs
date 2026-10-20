@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Api.Services.BatchEdit;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
@@ -175,7 +176,9 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
         var result = await CreateService().ApplyAsync(
             show.EpisodeIds, [ListChange("custom_tags", "add", "Favourite")], NoRefusals);
 
-        Assert.Equal(3, result.UpdatedCount);
+        // Two of the three already carried the tag, so only one item was written.
+        Assert.Equal(1, result.UpdatedCount);
+        Assert.Equal(2, result.UnchangedCount);
         Assert.Equal(["Favourite"], await TagsOfAsync(show.Episodes[0].WorkId));
         Assert.Equal(["favourite", "Rewatch"], await TagsOfAsync(show.Episodes[1].WorkId));
         Assert.Equal(["Favourite"], await TagsOfAsync(show.Episodes[2].WorkId));
@@ -247,7 +250,8 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
         var clear = await CreateService().ApplyAsync(show.EpisodeIds, [ScalarChange("language", "clear")], NoRefusals);
 
         Assert.Equal(2, set.UpdatedCount);
-        Assert.Equal(2, clear.UpdatedCount);
+        Assert.Equal(1, clear.UpdatedCount);
+        Assert.Equal(1, clear.UnchangedCount);
         var first = await OverridesOfAsync(show.Episodes[0].WorkId);
         var second = await OverridesOfAsync(show.Episodes[1].WorkId);
         Assert.Equal("8.5", first["rating"]);
@@ -275,15 +279,208 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Apply_WhenAnItemAlreadyMatches_CountsItUpdatedButWritesAndLogsNothing()
+    public async Task Apply_WhenAnItemAlreadyMatches_ReportsItUnchangedAndWritesAndLogsNothing()
     {
         var show = SeedShow(episodeCount: 1);
         await SetOverridesAsync(show.Episodes[0].WorkId, new() { ["custom_tags"] = "Same" });
 
         var result = await CreateService().ApplyAsync(show.EpisodeIds, [ListChange("custom_tags", "add", "same")], NoRefusals);
 
-        Assert.Equal(1, result.UpdatedCount);
+        Assert.Equal(0, result.UpdatedCount);
+        Assert.Equal(1, result.UnchangedCount);
+        Assert.Equal(LibraryBatchItemOutcomes.Unchanged, Assert.Single(result.Items).Outcome);
         Assert.Empty(await ActivityForAsync(show.Episodes[0].WorkId));
+    }
+
+    [Fact]
+    public async Task Apply_AddingAGenreTheItemAlreadyShowsOrRemovingOneItDoesNotHave_LeavesTheItemUntouched()
+    {
+        var show = SeedShow(episodeCount: 2);
+        SeedGenre(show.Episodes[0].AssetId, "Drama");
+
+        var add = await CreateService().ApplyAsync([show.Episodes[0].WorkId], [ListChange("genre", "add", "drama")], NoRefusals);
+        var remove = await CreateService().ApplyAsync(show.EpisodeIds, [ListChange("genre", "remove", "Horror")], NoRefusals);
+
+        Assert.Equal(1, add.UnchangedCount);
+        Assert.Equal(2, remove.UnchangedCount);
+        Assert.Equal(0, remove.UpdatedCount);
+        foreach (var episode in show.Episodes)
+        {
+            Assert.Empty(OverridesOfSync(episode.WorkId));
+            Assert.Empty(await ActivityForAsync(episode.WorkId));
+        }
+    }
+
+    [Fact]
+    public async Task Apply_WhenOnlySomeChangesAreNoOps_TheItemIsStillUpdatedForTheOthers()
+    {
+        var show = SeedShow(episodeCount: 1);
+        await SetOverridesAsync(show.Episodes[0].WorkId, new() { ["custom_tags"] = "Same" });
+
+        var result = await CreateService().ApplyAsync(
+            show.EpisodeIds, [ListChange("custom_tags", "add", "Same"), ScalarChange("rating", "set", "9")], NoRefusals);
+
+        Assert.Equal(1, result.UpdatedCount);
+        Assert.Equal("9", (await OverridesOfAsync(show.Episodes[0].WorkId))["rating"]);
+    }
+
+    // ── Apply: genres can't be emptied ──────────────────────────────────────
+
+    [Fact]
+    public async Task Apply_RemovingTheLastGenre_RefusesTheItemWithTheReasonAndWritesNothing()
+    {
+        var show = SeedShow(episodeCount: 2);
+        SeedGenre(show.Episodes[0].AssetId, "Drama");
+        await SetOverridesAsync(show.Episodes[1].WorkId, new() { ["genre"] = "Drama" });
+
+        var result = await CreateService().ApplyAsync(show.EpisodeIds, [ListChange("genre", "remove", "Drama")], NoRefusals);
+
+        Assert.Equal(0, result.UpdatedCount);
+        Assert.Equal(2, result.RefusedCount);
+        Assert.All(result.Items, row =>
+        {
+            Assert.Equal(LibraryBatchItemOutcomes.Refused, row.Outcome);
+            Assert.Equal("Genres can't be emptied here; the provider's genres would come back.", row.Reason);
+            Assert.Null(row.ReviewId);
+        });
+        Assert.Empty(OverridesOfSync(show.Episodes[0].WorkId));
+        Assert.Equal("Drama", OverridesOfSync(show.Episodes[1].WorkId)["genre"]);
+        Assert.Empty(await _reviews.GetPendingAsync(50));
+        Assert.Empty(await ActivityForAsync(show.Episodes[0].WorkId));
+    }
+
+    [Fact]
+    public async Task Apply_ReplacingGenresWithAnEmptyList_RefusesTheItem()
+    {
+        var show = SeedShow(episodeCount: 1);
+        await SetOverridesAsync(show.Episodes[0].WorkId, new() { ["genre"] = "Drama, Comedy" });
+
+        var result = await CreateService().ApplyAsync(show.EpisodeIds, [ListChange("genre", "replace")], NoRefusals);
+
+        Assert.Equal(1, result.RefusedCount);
+        Assert.Equal("Drama, Comedy", OverridesOfSync(show.Episodes[0].WorkId)["genre"]);
+    }
+
+    [Fact]
+    public async Task Apply_WhenOneItemWouldEmptyItsGenres_TheOthersStillApply()
+    {
+        var show = SeedShow(episodeCount: 2);
+        await SetOverridesAsync(show.Episodes[0].WorkId, new() { ["genre"] = "Drama" });
+        await SetOverridesAsync(show.Episodes[1].WorkId, new() { ["genre"] = "Drama, Comedy" });
+
+        var result = await CreateService().ApplyAsync(show.EpisodeIds, [ListChange("genre", "remove", "Drama")], NoRefusals);
+
+        Assert.Equal(1, result.UpdatedCount);
+        Assert.Equal(1, result.RefusedCount);
+        Assert.Equal("Comedy", OverridesOfSync(show.Episodes[1].WorkId)["genre"]);
+    }
+
+    [Fact]
+    public async Task Apply_TooManyGenres_IsReviewedWithGenreWordingNotTagWording()
+    {
+        var show = SeedShow(episodeCount: 1);
+        var full = string.Join(", ", Enumerable.Range(1, BatchEditFieldCatalog.MaximumGenres).Select(i => $"Genre {i}"));
+        await SetOverridesAsync(show.Episodes[0].WorkId, new() { ["genre"] = full });
+
+        var result = await CreateService().ApplyAsync(show.EpisodeIds, [ListChange("genre", "add", "One more")], NoRefusals);
+
+        var row = Assert.Single(result.Items);
+        Assert.Equal(LibraryBatchItemOutcomes.SentToReview, row.Outcome);
+        Assert.Contains("genres", row.Reason, StringComparison.Ordinal);
+        Assert.DoesNotContain("tag", row.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ── Apply: the review row, cancellation, missing kinds ──────────────────
+
+    [Fact]
+    public async Task Apply_WhenTheFailingItemIsASeason_TheReviewRowPointsAtTheSeasonItself()
+    {
+        var show = SeedShow(episodeCount: 1);
+        SeedGenre(show.ShowId, "Drama");
+
+        var result = await CreateService().ApplyAsync([show.SeasonId], [ListChange("genre", "add", "Thriller")], NoRefusals);
+
+        var row = Assert.Single(result.Items);
+        Assert.Equal(LibraryBatchItemOutcomes.SentToReview, row.Outcome);
+        var review = await _reviews.GetByIdAsync(row.ReviewId!.Value);
+        Assert.Equal(show.SeasonId, review!.EntityId);
+        Assert.Equal("Work", review.EntityType);
+        Assert.Equal(ReviewTrigger.BatchEditFailed, review.Trigger);
+    }
+
+    [Fact]
+    public async Task Apply_AFailureDoesNotOverwriteAPipelineConflictRowOnTheSameItem()
+    {
+        var show = SeedShow(episodeCount: 1);
+        SeedGenre(show.SeasonId, "Drama");
+        var pipelineRow = await _reviews.InsertAsync(new MediaEngine.Domain.Entities.ReviewQueueEntry
+        {
+            Id = Guid.NewGuid(),
+            EntityId = show.Episodes[0].WorkId,
+            EntityType = "Work",
+            Trigger = ReviewTrigger.MetadataConflict,
+            Detail = "Two sources disagree.",
+        });
+
+        var result = await CreateService().ApplyAsync(show.EpisodeIds, [ListChange("genre", "add", "Thriller")], NoRefusals);
+
+        var batchRow = Assert.Single(result.Items).ReviewId!.Value;
+        Assert.NotEqual(pipelineRow, batchRow);
+        Assert.Equal("Two sources disagree.", (await _reviews.GetByIdAsync(pipelineRow))!.Detail);
+    }
+
+    [Fact]
+    public async Task Apply_WhenTheCallerGivesUpMidBatch_FinishesEveryItemAndLogsOneSummary()
+    {
+        var show = SeedShow(episodeCount: 3);
+        using var cancellation = new CancellationTokenSource();
+        var logger = new CapturingLogger<LibraryBatchEditService>();
+        var service = new LibraryBatchEditService(
+            new CancelAfterLoadReadService(new LibraryCurationReadService(_db), cancellation),
+            _items,
+            _reviews,
+            _activity,
+            logger);
+
+        var result = await service.ApplyAsync(show.EpisodeIds, [ListChange("custom_tags", "add", "Binge")], NoRefusals, cancellation.Token);
+
+        Assert.True(cancellation.IsCancellationRequested);
+        Assert.Equal(3, result.UpdatedCount);
+        foreach (var episode in show.Episodes)
+        {
+            Assert.Equal(["Binge"], await TagsOfAsync(episode.WorkId));
+        }
+
+        var summary = Assert.Single(logger.Messages, message => message.Contains("Batch edit of", StringComparison.Ordinal));
+        Assert.Contains("3 updated", summary, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Apply_ForAnEditionOrACollection_RefusesWithTheNotATitleReasonWhileAGoneIdGetsTheGoneReason()
+    {
+        var show = SeedShow(episodeCount: 1);
+        var editionId = Guid.NewGuid();
+        Guid collectionId;
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute(
+                """
+                INSERT INTO works (id, media_type, work_kind) VALUES (@workId, 'Books', 'standalone');
+                INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
+                """,
+                new { workId = GuidSql.ToBlob(Guid.NewGuid()), editionId = GuidSql.ToBlob(editionId) });
+            collectionId = SeedCollection(conn);
+        }
+
+        var gone = Guid.NewGuid();
+        var result = await CreateService().ApplyAsync(
+            [.. show.EpisodeIds, editionId, collectionId, gone], [ListChange("custom_tags", "add", "Binge")], NoRefusals);
+
+        Assert.Equal(1, result.UpdatedCount);
+        Assert.Equal(3, result.RefusedCount);
+        Assert.Equal(LibraryBatchEditReasons.NotATitle, result.Items.Single(row => row.EntityId == editionId).Reason);
+        Assert.Equal(LibraryBatchEditReasons.NotATitle, result.Items.Single(row => row.EntityId == collectionId).Reason);
+        Assert.Equal(LibraryBatchEditReasons.Gone, result.Items.Single(row => row.EntityId == gone).Reason);
     }
 
     // ── Apply: one request, per-row outcome, Needs Review ───────────────────
@@ -329,8 +526,9 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
 
         var review = await _reviews.GetByIdAsync(row.ReviewId!.Value);
         Assert.NotNull(review);
-        Assert.Equal(locked.AssetId, review.EntityId);
-        Assert.Equal(ReviewTrigger.MetadataConflict, review.Trigger);
+        Assert.Equal(locked.WorkId, review.EntityId);
+        Assert.Equal("Work", review.EntityType);
+        Assert.Equal(ReviewTrigger.BatchEditFailed, review.Trigger);
         Assert.Equal(ReviewStatus.Pending, review.Status);
         Assert.NotNull(review.ReviewReadyAt);
         Assert.Contains("Episode 3", review.Detail, StringComparison.Ordinal);
@@ -361,7 +559,7 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
         var row = Assert.Single(result.Items, item => item.Outcome == LibraryBatchItemOutcomes.SentToReview);
         Assert.Equal(failing.WorkId, row.EntityId);
         var review = await _reviews.GetByIdAsync(row.ReviewId!.Value);
-        Assert.Equal(failing.AssetId, review!.EntityId);
+        Assert.Equal(failing.WorkId, review!.EntityId);
         Assert.Empty(await OverridesOfAsync(failing.WorkId));
         Assert.Equal(["Binge"], await TagsOfAsync(show.Episodes[0].WorkId));
         Assert.Equal(["Binge"], await TagsOfAsync(show.Episodes[2].WorkId));
@@ -461,6 +659,9 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
         Assert.True(await _items.SaveDisplayOverridesAsync(workId, overrides));
     }
 
+    private Dictionary<string, string> OverridesOfSync(Guid workId) =>
+        new(_items.LoadDisplayOverridesAsync(workId).GetAwaiter().GetResult().Values, StringComparer.OrdinalIgnoreCase);
+
     private async Task<Dictionary<string, string>> OverridesOfAsync(Guid workId) =>
         new((await _items.LoadDisplayOverridesAsync(workId)).Values, StringComparer.OrdinalIgnoreCase);
 
@@ -473,6 +674,15 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
         (await _activity.GetRecentAsync(200))
             .Where(entry => entry.EntityId == workId && entry.ActionType == SystemActionType.MetadataManualOverride)
             .ToList();
+
+    private static Guid SeedCollection(System.Data.IDbConnection conn)
+    {
+        var id = Guid.NewGuid();
+        conn.Execute(
+            "INSERT INTO collections (id, display_name) VALUES (@id, 'A series');",
+            new { id = GuidSql.ToBlob(id) });
+        return id;
+    }
 
     private void SeedGenre(Guid ownerId, string genre)
     {
@@ -521,6 +731,37 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
         }
 
         return new SeededShow(showId, seasonId, episodes);
+    }
+
+    /// <summary>Hand-written spy: reads like the real service, then has the caller give up before any writing starts.</summary>
+    private sealed class CancelAfterLoadReadService(ILibraryCurationReadService inner, CancellationTokenSource cancellation) : ILibraryCurationReadService
+    {
+        public async Task<IReadOnlyDictionary<Guid, MediaEngine.Application.ReadModels.BatchEditItemRead>> LoadBatchEditItemsAsync(
+            IReadOnlyCollection<Guid> entityIds, IReadOnlyCollection<string> fieldKeys, CancellationToken ct = default)
+        {
+            var items = await inner.LoadBatchEditItemsAsync(entityIds, fieldKeys, ct);
+            await cancellation.CancelAsync();
+            return items;
+        }
+
+        public Task<IReadOnlySet<Guid>> FindNonTitleIdsAsync(IReadOnlyCollection<Guid> entityIds, CancellationToken ct = default) =>
+            inner.FindNonTitleIdsAsync(entityIds, ct);
+    }
+
+    private sealed class CapturingLogger<T> : Microsoft.Extensions.Logging.ILogger<T>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            Microsoft.Extensions.Logging.LogLevel logLevel,
+            Microsoft.Extensions.Logging.EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) => Messages.Add(formatter(state, exception));
     }
 
     private sealed record SeededEpisode(Guid WorkId, Guid AssetId);

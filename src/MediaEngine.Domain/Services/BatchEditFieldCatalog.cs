@@ -40,6 +40,9 @@ public static class BatchEditFieldCatalog
     public const string OpReplace = "replace";
     public const string OpRemove = "remove";
 
+    public const int MaximumGenres = 30;
+    public const int MaximumGenreLength = 100;
+
     private const string ProviderFactReason = "Credits come from the catalogue and cannot be edited.";
 
     private static readonly char[] ListSeparators = [',', ';', '|', '\r', '\n'];
@@ -178,18 +181,60 @@ public static class BatchEditFieldCatalog
             return false;
         }
 
-        if (given.Any(item => item.IndexOfAny(ListSeparators) >= 0))
-        {
-            error = $"A {field.Label.ToLowerInvariant()} value cannot contain a comma, semicolon, pipe or line break.";
-            return false;
-        }
-
-        if (!LibraryTagCatalog.TryNormalize(given, out var normalizedList, out error))
+        if (!TryNormalizeList(field, given, out var normalizedList, out error))
         {
             return false;
         }
 
         change = new BatchEditChange(field, operation, null, normalizedList);
+        return true;
+    }
+
+    /// <summary>
+    /// Whether a list can end up empty. An empty tag list is stored as an explicit empty value, but an empty genre
+    /// override means "use the provider's genres" (as it does for the pencil), so a genre list cannot be emptied here.
+    /// </summary>
+    public static bool CanBeEmptied(BatchEditField field) =>
+        string.Equals(field.Key, "custom_tags", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Trims, de-duplicates and checks a list against the field's limits, with wording that names the field.</summary>
+    public static bool TryNormalizeList(
+        BatchEditField field,
+        IEnumerable<string> values,
+        out IReadOnlyList<string> normalized,
+        out string? error)
+    {
+        if (string.Equals(field.Key, "custom_tags", StringComparison.OrdinalIgnoreCase))
+        {
+            return LibraryTagCatalog.TryNormalize(values, out normalized, out error);
+        }
+
+        var items = values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        normalized = [];
+        if (items.Count > MaximumGenres)
+        {
+            error = $"Use at most {MaximumGenres} genres.";
+            return false;
+        }
+
+        if (items.Any(item => item.Length > MaximumGenreLength))
+        {
+            error = $"Each genre must be {MaximumGenreLength} characters or fewer.";
+            return false;
+        }
+
+        if (items.Any(item => item.IndexOfAny(ListSeparators) >= 0))
+        {
+            error = "A genre cannot contain a comma, semicolon, pipe or line break.";
+            return false;
+        }
+
+        normalized = items;
+        error = null;
         return true;
     }
 

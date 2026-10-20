@@ -1,4 +1,5 @@
 using MediaEngine.Api.Security;
+using MediaEngine.Application.Services;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
@@ -6,18 +7,15 @@ using MediaEngine.Storage.Contracts;
 namespace MediaEngine.Api.Services.BatchEdit;
 
 /// <summary>
-/// Decides, item by item, which of a batch's selected items the caller may edit. The route already requires an effective
+/// Decides, item by item, which of a batch's selected items the caller may not edit. The route already requires an effective
 /// administrator; this adds the same resource check a single edit gets (the caller's library grants and content limit, and
 /// the "still being ingested" guard), so an item the caller cannot edit is refused by name instead of being skipped quietly.
 /// </summary>
 internal sealed class LibraryBatchEditAccessService(
     CatalogueResourceAuthorizationService resources,
+    ILibraryCurationReadService curationReadService,
     IDatabaseConnection database)
 {
-    public const string NotAllowedReason = "You are not allowed to edit this item.";
-    public const string GoneReason = "This item is no longer in your library.";
-    public const string UpdatingReason = "This item is still being updated. Try again when it finishes.";
-
     /// <summary>The selected items the caller may not edit, each with the reason shown to the person.</summary>
     public async Task<IReadOnlyDictionary<Guid, string>> FindRefusalsAsync(
         HttpContext http,
@@ -25,6 +23,7 @@ internal sealed class LibraryBatchEditAccessService(
         CancellationToken ct = default)
     {
         var refusals = new Dictionary<Guid, string>();
+        var notFound = new List<Guid>();
         foreach (var id in entityIds.Where(id => id != Guid.Empty).Distinct())
         {
             ct.ThrowIfCancellationRequested();
@@ -32,15 +31,24 @@ internal sealed class LibraryBatchEditAccessService(
                 http, id, ApplicationPermissionIds.MetadataWrite, ct).ConfigureAwait(false);
             if (access == CatalogueResourceAccess.Denied)
             {
-                refusals[id] = NotAllowedReason;
+                refusals[id] = LibraryBatchEditReasons.NotAllowed;
             }
             else if (access == CatalogueResourceAccess.NotFound)
             {
-                refusals[id] = GoneReason;
+                notFound.Add(id);
             }
             else if (await IngestionAvailability.IsUpdatingAsync(database, id, ct).ConfigureAwait(false))
             {
-                refusals[id] = UpdatingReason;
+                refusals[id] = LibraryBatchEditReasons.Updating;
+            }
+        }
+
+        if (notFound.Count > 0)
+        {
+            var notTitles = await curationReadService.FindNonTitleIdsAsync(notFound, ct).ConfigureAwait(false);
+            foreach (var id in notFound)
+            {
+                refusals[id] = notTitles.Contains(id) ? LibraryBatchEditReasons.NotATitle : LibraryBatchEditReasons.Gone;
             }
         }
 

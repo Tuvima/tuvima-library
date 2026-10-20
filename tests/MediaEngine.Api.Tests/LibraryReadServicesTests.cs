@@ -94,12 +94,10 @@ public sealed class LibraryReadServicesTests : IDisposable
         var show = items[rootWorkId];
         Assert.Equal(rootWorkId, show.WorkId);
         Assert.False(show.HasParentWork);
-        Assert.Equal(assetId, show.RepresentativeAssetId);
         Assert.Equal(["Drama"], show.Fields["genre"].OwnValues);
         var episode = items[assetId];
         Assert.Equal(episodeWorkId, episode.WorkId);
         Assert.True(episode.HasParentWork);
-        Assert.Equal(assetId, episode.RepresentativeAssetId);
         Assert.Empty(episode.Fields["genre"].OwnValues);
         Assert.Equal(["Drama"], episode.Fields["genre"].InheritedValues);
     }

@@ -179,7 +179,8 @@ public sealed class LibraryBatchEditEndpointTests : IDisposable
         Assert.Equal("genre", review.GetProperty("fields_not_applied")[0].GetString());
         var reviews = new ReviewQueueRepository(_db);
         var entry = await reviews.GetByIdAsync(Guid.Parse(review.GetProperty("review_id").GetString()!));
-        Assert.Equal(episodes[2].AssetId, entry!.EntityId);
+        Assert.Equal(episodes[2].WorkId, entry!.EntityId);
+        Assert.Equal("BatchEditFailed", entry.Trigger);
         Assert.Equal("Comedy, Thriller", OverridesOf(episodes[0].WorkId)["genre"]);
         Assert.Empty(OverridesOf(episodes[2].WorkId));
     }

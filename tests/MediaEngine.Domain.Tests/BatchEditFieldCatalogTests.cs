@@ -127,6 +127,32 @@ public sealed class BatchEditFieldCatalogTests
     }
 
     [Fact]
+    public void OnlyTagsCanBeEmptied_BecauseAnEmptyGenreOverrideMeansUseTheProvidersGenres()
+    {
+        BatchEditFieldCatalog.TryGet("custom_tags", out var tags);
+        BatchEditFieldCatalog.TryGet("genre", out var genre);
+
+        Assert.True(BatchEditFieldCatalog.CanBeEmptied(tags));
+        Assert.False(BatchEditFieldCatalog.CanBeEmptied(genre));
+    }
+
+    [Fact]
+    public void GenreLimits_UseGenreWordingNotTagWording()
+    {
+        BatchEditFieldCatalog.TryGet("genre", out var genre);
+        var tooMany = Enumerable.Range(1, BatchEditFieldCatalog.MaximumGenres + 1).Select(i => $"Genre {i}").ToList();
+
+        Assert.False(BatchEditFieldCatalog.TryNormalizeList(genre, tooMany, out _, out var countError));
+        Assert.False(BatchEditFieldCatalog.TryNormalizeList(genre, [new string('x', BatchEditFieldCatalog.MaximumGenreLength + 1)], out _, out var lengthError));
+        Assert.False(BatchEditFieldCatalog.TryNormalizeList(genre, ["Sci-Fi; Fantasy"], out _, out var separatorError));
+        foreach (var error in new[] { countError, lengthError, separatorError })
+        {
+            Assert.Contains("genre", error, StringComparison.Ordinal);
+            Assert.DoesNotContain("tag", error, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
     public void ListStoredText_UsesTheSeparatorTheEditorUsesForThatField()
     {
         BatchEditFieldCatalog.TryGet("custom_tags", out var tags);
