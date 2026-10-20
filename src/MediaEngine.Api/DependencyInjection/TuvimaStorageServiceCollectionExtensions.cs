@@ -149,6 +149,7 @@ public static class TuvimaStorageServiceCollectionExtensions
             (IAiFeaturePersistenceRepository)sp.GetRequiredService<ICanonicalValueRepository>());
         services.AddSingleton<IPersonRepository, PersonRepository>();
         services.AddSingleton<IWorkRepository, WorkRepository>();
+        services.AddSingleton<IVideoOrderRepository, VideoOrderRepository>();
         services.AddSingleton<ISeriesManifestRepository, SeriesManifestRepository>();
         services.AddSingleton<IBookFormatSiblingFinder, BookFormatSiblingFinder>();
         services.AddSingleton<HierarchyResolver>();

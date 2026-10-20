@@ -3366,6 +3366,22 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.PlaybackTechnicalSummary
   AudioLanguages: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   SubtitleLanguages: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoOrderEntryDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoOrderGroupDto
+  ParentId: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Entries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.VideoOrderEntryDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoOrderRequest
+  ParentId: System.Guid | nullability=not-null | accessors=get,init
+  OrderedIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoOrderResponse
+  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.VideoOrderGroupDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchEditPreview
   AffectedCount: System.Int32 | nullability=not-null | accessors=get,init
   Changes: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryFieldChangePreview> | nullability=not-null | accessors=get,init

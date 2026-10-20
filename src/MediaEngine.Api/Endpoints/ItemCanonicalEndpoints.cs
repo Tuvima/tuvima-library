@@ -303,6 +303,104 @@ public static class ItemCanonicalEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
         .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
 
+        group.MapGet("/{entityId:guid}/video-order", async (
+            Guid entityId,
+            IVideoOrderRepository order,
+            IItemCanonicalRepository itemCanonicalData,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            var groups = await order.LoadAsync(workId, ct);
+            return Results.Ok(new VideoOrderResponse
+            {
+                Groups = groups.Select(group => new VideoOrderGroupDto
+                {
+                    ParentId = group.ParentWorkId,
+                    Title = group.Title,
+                    Entries = group.Entries.Select(entry => new VideoOrderEntryDto { Id = entry.WorkId, Title = entry.Title }).ToList(),
+                }).ToList(),
+            });
+        })
+        .WithName("GetVideoOrder")
+        .WithSummary("The videos of a series (or each section of it) in their shown order.")
+        .Produces<VideoOrderResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
+        // The order is Tuvima's own: it is saved as the videos' positions and never renames a file.
+        group.MapPut("/{entityId:guid}/video-order", async (
+            Guid entityId,
+            VideoOrderRequest request,
+            IVideoOrderRepository order,
+            IMetadataClaimRepository claimRepo,
+            ICanonicalValueRepository canonicalRepo,
+            ISystemActivityRepository activityRepo,
+            IItemCanonicalRepository itemCanonicalData,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            var allowed = (await order.LoadAsync(workId, ct)).Any(group => group.ParentWorkId == request.ParentId);
+            if (!allowed)
+            {
+                return ApiErrors.NotFound("These videos are not part of that series.");
+            }
+
+            var placements = await order.ReorderAsync(request.ParentId, request.OrderedIds, ct);
+            if (placements is null)
+            {
+                return ApiErrors.Conflict("The list of videos changed. Reload the page and try again.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var claims = new List<MetadataClaim>();
+            var canonicals = new List<CanonicalValue>();
+            foreach (var placement in placements)
+            {
+                foreach (var key in new[] { MetadataFieldConstants.EpisodeNumber, MetadataFieldConstants.VideoEpisodeIndex })
+                {
+                    var value = placement.Position.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    claims.Add(new MetadataClaim
+                    {
+                        Id = Guid.NewGuid(),
+                        EntityId = placement.AssetId,
+                        ProviderId = WellKnownProviders.UserManual,
+                        ClaimKey = key,
+                        ClaimValue = value,
+                        ClaimedAt = now,
+                        Confidence = 1.0,
+                        IsUserLocked = true,
+                    });
+                    canonicals.Add(new CanonicalValue
+                    {
+                        EntityId = placement.AssetId,
+                        Key = key,
+                        Value = value,
+                        LastScoredAt = now,
+                        WinningProviderId = WellKnownProviders.UserManual,
+                    });
+                }
+            }
+
+            await claimRepo.InsertBatchAsync(claims, ct);
+            await canonicalRepo.UpsertBatchAsync(canonicals, ct);
+            await activityRepo.LogAsync(new SystemActivityEntry
+            {
+                OccurredAt = now,
+                ActionType = SystemActionType.MetadataManualOverride,
+                EntityId = request.ParentId,
+                EntityType = "Work",
+                Detail = $"Put {placements.Count} videos in a new order.",
+            }, ct);
+            return Results.NoContent();
+        })
+        .WithName("SaveVideoOrder")
+        .WithSummary("Put the videos of a series in a new order. Files are never renamed.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
         group.MapPut("/{entityId:guid}/display-overrides", async (
             Guid entityId,
             ItemDisplayOverridesRequest request,

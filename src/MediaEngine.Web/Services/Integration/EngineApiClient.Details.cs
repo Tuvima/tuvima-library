@@ -300,6 +300,42 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<MediaEngine.Contracts.Items.VideoOrderResponse?> GetVideoOrderAsync(Guid entityId, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<MediaEngine.Contracts.Items.VideoOrderResponse>($"/library/items/{entityId}/video-order", ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "GET /library/items/{EntityId}/video-order failed", entityId);
+            return null;
+        }
+    }
+
+    public async Task<bool> SaveVideoOrderAsync(Guid entityId, Guid parentId, IReadOnlyList<Guid> orderedIds, CancellationToken ct = default)
+    {
+        try
+        {
+            var body = new MediaEngine.Contracts.Items.VideoOrderRequest { ParentId = parentId, OrderedIds = orderedIds.ToList() };
+            var resp = await _http.PutAsJsonAsync($"/library/items/{entityId}/video-order", body, ct);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var detail = await resp.Content.ReadAsStringAsync(ct);
+                _logger.LogWarning("PUT /library/items/{EntityId}/video-order returned {Status}: {Detail}", entityId, (int)resp.StatusCode, detail);
+                LastError = $"HTTP {(int)resp.StatusCode}: {detail}";
+            }
+
+            return resp.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "PUT /library/items/{EntityId}/video-order failed", entityId);
+            LastError = ex.Message;
+            return false;
+        }
+    }
+
     public Task<bool> SaveCollectionDisplayOverridesAsync(Guid collectionId, Dictionary<string, string> fields, CancellationToken ct = default)
         => SaveDisplayOverridesAsync($"/collections/{collectionId}/display-overrides", collectionId, fields, ct);
 

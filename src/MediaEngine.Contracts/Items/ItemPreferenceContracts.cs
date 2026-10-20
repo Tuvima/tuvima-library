@@ -65,3 +65,27 @@ public sealed class ItemExplicitResponse
     /// <summary>True for a video or a series of videos, the only kind that offers the Explicit mark.</summary>
     [JsonPropertyName("supported")] public bool Supported { get; init; }
 }
+
+public sealed class VideoOrderResponse
+{
+    [JsonPropertyName("groups")] public IReadOnlyList<VideoOrderGroupDto> Groups { get; init; } = [];
+}
+
+public sealed class VideoOrderGroupDto
+{
+    [JsonPropertyName("parent_id")] public Guid ParentId { get; init; }
+    [JsonPropertyName("title")] public string Title { get; init; } = "";
+    [JsonPropertyName("entries")] public IReadOnlyList<VideoOrderEntryDto> Entries { get; init; } = [];
+}
+
+public sealed class VideoOrderEntryDto
+{
+    [JsonPropertyName("id")] public Guid Id { get; init; }
+    [JsonPropertyName("title")] public string Title { get; init; } = "";
+}
+
+public sealed class VideoOrderRequest
+{
+    [JsonPropertyName("parent_id")] public Guid ParentId { get; init; }
+    [JsonPropertyName("ordered_ids")] public List<Guid> OrderedIds { get; init; } = [];
+}

@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1072; api=0; web-client=54
+# scopes: contracts=1076; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4057,6 +4057,30 @@
   AudioLanguages: System.Collections.Generic.IReadOnlyList<System.String> | json=audio_languages | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubtitleLanguages: System.Collections.Generic.IReadOnlyList<System.String> | json=subtitle_languages | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"video_resolution_label":"sample","video_codec":"sample","audio_language":"sample","audio_codec":"sample","audio_channels":"sample","subtitle_summary":"sample","audio_languages":[],"subtitle_languages":[]}
+
+[contracts] MediaEngine.Contracts.Items.VideoOrderEntryDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","title":"sample"}
+
+[contracts] MediaEngine.Contracts.Items.VideoOrderGroupDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ParentId: System.Guid | json=parent_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Entries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.VideoOrderEntryDto> | json=entries | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"parent_id":"11111111-2222-3333-4444-555555555555","title":"sample","entries":[]}
+
+[contracts] MediaEngine.Contracts.Items.VideoOrderRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ParentId: System.Guid | json=parent_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OrderedIds: System.Collections.Generic.List<System.Guid> | json=ordered_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"parent_id":"11111111-2222-3333-4444-555555555555","ordered_ids":[]}
+
+[contracts] MediaEngine.Contracts.Items.VideoOrderResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.VideoOrderGroupDto> | json=groups | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"groups":[]}
 
 [contracts] MediaEngine.Contracts.Library.LibraryBatchEditPreview
   kind=class | converter=default | number-handling=default | unmapped=default

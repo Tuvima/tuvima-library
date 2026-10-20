@@ -154,6 +154,10 @@ public partial interface IEngineApiClient
     Task<MediaEngine.Contracts.Items.ItemExplicitResponse?> GetItemExplicitAsync(Guid entityId, CancellationToken ct = default);
     /// <summary>PUT /library/items/{entityId}/explicit — mark an item or series Explicit, or remove the mark.</summary>
     Task<bool> SaveItemExplicitAsync(Guid entityId, bool isExplicit, CancellationToken ct = default);
+    /// <summary>GET /library/items/{entityId}/video-order — the videos of a series (or each section) in their shown order.</summary>
+    Task<MediaEngine.Contracts.Items.VideoOrderResponse?> GetVideoOrderAsync(Guid entityId, CancellationToken ct = default);
+    /// <summary>PUT /library/items/{entityId}/video-order — put the videos of a series in a new order; files are never renamed.</summary>
+    Task<bool> SaveVideoOrderAsync(Guid entityId, Guid parentId, IReadOnlyList<Guid> orderedIds, CancellationToken ct = default);
     Task<bool> SaveCollectionDisplayOverridesAsync(Guid collectionId, Dictionary<string, string> fields, CancellationToken ct = default);
     Task<MediaEngine.Contracts.Items.ItemEditorPreferencesResponse?> GetItemEditorPreferencesAsync(Guid entityId, Guid profileId, CancellationToken ct = default);
     Task<ItemEditorPreferencesSaveResultDto> SaveItemEditorPreferencesAsync(Guid entityId, Guid profileId, MediaEngine.Contracts.Items.ItemEditorPreferencesRequest request, CancellationToken ct = default);
