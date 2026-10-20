@@ -169,7 +169,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
         }
     }
 
-    private async Task<IReadOnlyList<MusicBrainzCandidate>> LoadCandidatesAsync(CancellationToken ct)
+    internal async Task<IReadOnlyList<MusicBrainzCandidate>> LoadCandidatesAsync(CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
         var rows = await conn.QueryAsync<MusicBrainzCandidate>(new CommandDefinition(
@@ -212,6 +212,13 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
               AND COALESCE(a.file_path_root, '') NOT LIKE '%\.data\staging\%'
               AND COALESCE(a.file_path_root, '') NOT LIKE '%/quarantine/%'
               AND COALESCE(a.file_path_root, '') NOT LIKE '%\quarantine\%'
+              -- A track whose identity job is still running gets its MusicBrainz identity from that job;
+              -- a second lookup now would race it for the album's release and cover.
+              AND NOT EXISTS (
+                    SELECT 1 FROM identity_jobs active_job
+                    WHERE active_job.entity_id = a.id
+                      AND active_job.state NOT IN ('Ready', 'ReadyWithoutUniverse', 'Failed', 'RetailNoMatch', 'QidNoMatch', 'QidNeedsReview')
+                  )
               AND (
                     NOT EXISTS (
                         SELECT 1 FROM canonical_values mb
@@ -342,7 +349,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
         }
     }
 
-    private sealed class MusicBrainzCandidate
+    internal sealed class MusicBrainzCandidate
     {
         public Guid AssetId { get; set; }
         public Guid WorkId { get; set; }

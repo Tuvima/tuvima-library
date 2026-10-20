@@ -329,11 +329,21 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
             IdentityJobState.BridgeSearching or
             IdentityJobState.Hydrating;
 
+        // A job that reaches its outcome has its own result: a provider outage or timeout it retried past
+        // earlier is history, and whether one happened depends on load, not on what the Library decided.
+        var finished = newState is
+            IdentityJobState.Ready or
+            IdentityJobState.ReadyWithoutUniverse or
+            IdentityJobState.RetailNoMatch or
+            IdentityJobState.QidNoMatch or
+            IdentityJobState.QidNeedsReview;
+
         using var conn = _db.CreateConnection();
         conn.Execute("""
             UPDATE identity_jobs
             SET    state            = @state,
                    last_error       = @error,
+                   last_outcome_category = CASE WHEN @finished = 1 THEN NULL ELSE last_outcome_category END,
                    lease_owner      = CASE WHEN @preserveLease = 1 THEN lease_owner ELSE NULL END,
                    lease_expires_at = CASE WHEN @preserveLease = 1 THEN lease_expires_at ELSE NULL END,
                    attempt_count    = attempt_count + @attemptIncrement,
@@ -345,6 +355,7 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                 jobId,
                 state = newState.ToString(),
                 error,
+                finished = finished ? 1 : 0,
                 preserveLease = preserveLease ? 1 : 0,
                 attemptIncrement = preserveLease ? 1 : 0,
                 now = DateTimeOffset.UtcNow.ToString("O"),
@@ -518,6 +529,7 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                    lease_owner      = NULL,
                    lease_expires_at = NULL,
                    last_error       = NULL,
+                   last_outcome_category = NULL,
                    updated_at       = @now
             WHERE  state = 'UniverseEnriching'
               AND  @processingState = 'UniverseEnriching'
