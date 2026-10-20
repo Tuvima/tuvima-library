@@ -57,6 +57,20 @@ public sealed class BaselineComparerTests : IDisposable
     }
 
     [Fact]
+    public void Report_ListsEveryRequestTheRecordingDidNotHold_OnEachSide()
+    {
+        var before = Record(Item("books/Dune.epub", "Dune"));
+        var after = Record(Item("books/Dune.epub", "Dune"));
+        after.Metadata.ProviderAnswersNotRecorded = ["GET https://itunes.apple.com/search?term=Dune -"];
+
+        var report = BaselineComparer.RenderReport(before, after, BaselineComparer.Compare(before, after));
+
+        Assert.Contains("## After: requests not in the recording (1)", report, StringComparison.Ordinal);
+        Assert.Contains("- `GET https://itunes.apple.com/search?term=Dune -`", report, StringComparison.Ordinal);
+        Assert.DoesNotContain("## Before: requests not in the recording", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Compare_DoesNotCareWhichOrderTheItemsWereExportedIn()
     {
         var left = Record(Item("books/A.epub", "A"), Item("books/B.epub", "B"));

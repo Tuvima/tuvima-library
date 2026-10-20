@@ -152,7 +152,10 @@ public static partial class BaselineRun
             var misses = File.Exists(missLog) ? File.ReadAllLines(missLog).Count(line => line.Length > 0) : 0;
             var answers = ProviderAnswerStore.Describe(answersMode, answersFolder, misses);
             Console.WriteLine($"Provider answers: {answers}");
-            RecordRunFacts(repo, configDirectory, label, startedAt, endedAt, waitExit == BaselineWait.ExitSettled, engineLog, answers);
+            var missedRequests = File.Exists(missLog)
+                ? File.ReadAllLines(missLog).Where(line => line.Length > 0).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList()
+                : [];
+            RecordRunFacts(repo, configDirectory, label, startedAt, endedAt, waitExit == BaselineWait.ExitSettled, engineLog, answers, missedRequests);
             await BaselineExport.RunAsync(configDirectory, recordPath).ConfigureAwait(false);
             if (label.Length > 0)
             {
@@ -503,7 +506,8 @@ public static partial class BaselineRun
 
     private static void RecordRunFacts(
         string repo, string configDirectory, string label, DateTimeOffset startedAt, DateTimeOffset endedAt, bool settled, string engineLog,
-        string providerAnswers)
+        string providerAnswers,
+        IReadOnlyList<string> missedRequests)
     {
         var hosts = new JsonObject();
         if (File.Exists(engineLog))
@@ -534,6 +538,7 @@ public static partial class BaselineRun
         info["settled"] = settled;
         info["http_hosts"] = hosts;
         info["provider_answers"] = providerAnswers;
+        info["provider_answers_not_recorded"] = new JsonArray(missedRequests.Select(request => (JsonNode)request).ToArray());
         File.WriteAllText(path, info.ToJsonString(RealMediaHarness.Json));
     }
 

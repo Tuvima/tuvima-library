@@ -56,7 +56,7 @@ public sealed class ProviderAnswerStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task ReplayMiss_ReturnsNotFound_SoTheRunSettles_AndListsTheRequestWithoutItsKey()
+    public async Task ReplayMiss_ReturnsNotFound_AndListsTheRequestWithoutItsKey()
     {
         using (var recording = Client(Store(ProviderAnswerMode.Record), new FakeNetwork(_ => Json(HttpStatusCode.OK, "{}"))))
         {
