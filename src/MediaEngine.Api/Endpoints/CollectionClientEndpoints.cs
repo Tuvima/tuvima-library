@@ -181,7 +181,7 @@ public static class CollectionClientEndpoints
     private static async Task<IReadOnlySet<Guid>> LoadAllowedWorkIdsAsync(
         IDisplayProjectionReadService display,
         CancellationToken ct) =>
-        (await display.LoadWorksAsync(ct)).Select(work => work.WorkId).ToHashSet();
+        await display.LoadVisibleWorkIdsAsync(ct);
 
     // The profile always comes from the device token, never from a request value.
     internal static async Task<Profile?> ResolveActiveProfileAsync(
