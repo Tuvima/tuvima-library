@@ -112,6 +112,7 @@
 
 .shelf-grid-page__more {
     display: flex;
+    min-height: 48px;
     flex-direction: column;
     align-items: center;
     gap: var(--tl-space-2);

@@ -52,10 +52,10 @@ public partial interface IEngineApiClient
 
     /// <summary>
     /// GET /api/v1/display/grids/{lane}/{shelfKey} - one page of a shelf's full list for the View all grid. A blank
-    /// <paramref name="sort"/> lets the Engine apply the profile's remembered sort. Returns null on failure; a 404 (no such
-    /// grid) is told apart from other failures by <see cref="LastStatusCode"/>.
+    /// <paramref name="sort"/> lets the Engine apply the profile's remembered sort. The result says why there is no page:
+    /// no such grid (404), a bad sort or filter value (400), or any other failure.
     /// </summary>
-    Task<DisplayGridPageDto?> GetDisplayGridAsync(
+    Task<DisplayGridLoadResult> GetDisplayGridAsync(
         string lane,
         string shelfKey,
         string? sort,

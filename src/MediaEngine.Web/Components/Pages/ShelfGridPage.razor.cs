@@ -3,6 +3,7 @@ using MediaEngine.Contracts.Display;
 using MediaEngine.Web.Components.Browse;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
+using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.MediaTiles;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
@@ -43,6 +44,7 @@ public partial class ShelfGridPage
     private bool _moreFailed;
     private bool _hasMore;
     private bool _observeRequested;
+    private bool _savingSort;
     private CancellationTokenSource? _cts;
 
     private ElementReference _sentinel;
@@ -133,7 +135,7 @@ public partial class ShelfGridPage
         _moreFailed = false;
         _hasMore = false;
 
-        var page = await ApiClient.GetDisplayGridAsync(
+        var result = await ApiClient.GetDisplayGridAsync(
             Lane, ShelfKey, Clean(SortQuery), Clean(TypeQuery), Clean(GenreQuery), Clean(FormatQuery), Clean(StatusQuery),
             0, DisplayGridValues.DefaultPageSize, cts.Token);
         if (version != _version)
@@ -141,21 +143,33 @@ public partial class ShelfGridPage
             return;
         }
 
-        _loading = false;
-        if (page is null)
+        if (result.Page is not { } page)
         {
-            if (ApiClient.LastStatusCode == 404)
+            if (result.Failure == DisplayGridLoadFailure.BadRequest && HasChoicesInAddress)
             {
-                _notFound = true;
-            }
-            else
-            {
-                _failed = true;
+                // A bookmarked address with a sort or filter the Engine no longer accepts: fall back to the defaults once.
+                // The new address carries no choices, so a second refusal lands in the normal error state instead of looping.
+                // _loading stays on; the address change starts the reload.
+                Nav.NavigateTo(
+                    Nav.GetUriWithQueryParameters(new Dictionary<string, object?>
+                    {
+                        ["sort"] = null,
+                        [DisplayGridValues.FilterType] = null,
+                        [DisplayGridValues.FilterGenre] = null,
+                        [DisplayGridValues.FilterFormat] = null,
+                        [DisplayGridValues.FilterStatus] = null,
+                    }),
+                    replace: true);
+                return;
             }
 
+            _loading = false;
+            _notFound = result.Failure == DisplayGridLoadFailure.NotFound;
+            _failed = !_notFound;
             return;
         }
 
+        _loading = false;
         _page = page;
         Append(page);
         _observeRequested = true;
@@ -174,7 +188,7 @@ public partial class ShelfGridPage
         _moreFailed = false;
         StateHasChanged();
 
-        var page = await ApiClient.GetDisplayGridAsync(
+        var result = await ApiClient.GetDisplayGridAsync(
             Lane, ShelfKey, Clean(SortQuery), Clean(TypeQuery), Clean(GenreQuery), Clean(FormatQuery), Clean(StatusQuery),
             _nextOffset, DisplayGridValues.DefaultPageSize, token);
         if (version != _version)
@@ -184,7 +198,7 @@ public partial class ShelfGridPage
         }
 
         _loadingMore = false;
-        if (page is null)
+        if (result.Page is not { } page)
         {
             _moreFailed = true;
         }
@@ -258,18 +272,27 @@ public partial class ShelfGridPage
 
     private async Task OnSortChangedAsync(string? sort)
     {
-        if (string.IsNullOrWhiteSpace(sort) || string.Equals(sort, CurrentSort, StringComparison.Ordinal))
+        // A second choice while the first is still being saved is ignored; the page settles on the first.
+        if (_savingSort || string.IsNullOrWhiteSpace(sort) || string.Equals(sort, CurrentSort, StringComparison.Ordinal))
         {
             return;
         }
 
-        if (_page?.RememberKey is { } rememberKey && !await ApiClient.SetDisplayGridSortAsync(rememberKey, sort))
+        _savingSort = true;
+        try
         {
-            // The new sort still applies for this visit; only next time is affected.
-            Toasts.Add("Your sort could not be remembered. It still applies for now.", AppSeverity.Warning);
-        }
+            if (_page?.RememberKey is { } rememberKey && !await ApiClient.SetDisplayGridSortAsync(rememberKey, sort))
+            {
+                // The new sort still applies for this visit; only next time is affected.
+                Toasts.Add("Your sort could not be remembered. It still applies for now.", AppSeverity.Warning);
+            }
 
-        Nav.NavigateTo(Nav.GetUriWithQueryParameter("sort", sort), replace: true);
+            Nav.NavigateTo(Nav.GetUriWithQueryParameter("sort", sort), replace: true);
+        }
+        finally
+        {
+            _savingSort = false;
+        }
     }
 
     private Task OnFilterChangedAsync(string key, string? value)
@@ -298,6 +321,8 @@ public partial class ShelfGridPage
             new AppSelectOption(AnyValue, "Any"),
             .. group.Options.Select(option => new AppSelectOption(option.Value, $"{option.Label} ({option.Count.ToString("N0", CultureInfo.CurrentCulture)})")),
         ];
+
+    private bool HasChoicesInAddress => Clean(SortQuery) is not null || FilterKeys.Any(key => QueryValue(key) is not null);
 
     private string? QueryValue(string key) => Clean(key switch
     {

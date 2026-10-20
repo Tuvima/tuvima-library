@@ -21,7 +21,7 @@
                       Title="This list isn't available"
                       Message="It may have been removed, or it isn't part of the libraries you can see.">
             <Actions>
-                <AppButton Href="/" Label="Go to Home" />
+                <AppButton Href="/" Label="Go to Home" Size="AppControlSize.Large" />
             </Actions>
         </AppPageState>
     }
@@ -36,10 +36,13 @@
                     <p class="shelf-grid-page__subtitle">@header.Subtitle</p>
                 }
             }
-            else if (_loading)
+            else
             {
-                <h1 id="shelf-grid-title" class="sr-only">Loading</h1>
-                <AppSkeleton Class="shelf-grid-page__title-skeleton" />
+                <h1 id="shelf-grid-title" class="sr-only">@(_loading ? "Loading" : "View all")</h1>
+                @if (_loading)
+                {
+                    <AppSkeleton Class="shelf-grid-page__title-skeleton" />
+                }
             }
             <p class="shelf-grid-page__count" role="status" aria-live="polite" data-shelf-grid-count>@CountText</p>
         </header>
@@ -54,6 +57,7 @@
                         <div class="shelf-grid-page__controls @(inSheet ? "is-sheet" : "")">
                             <div class="shelf-grid-page__control">
                                 <AppSelect Label="Sort by"
+                                           Size="AppControlSize.Large"
                                            Value="@CurrentSort"
                                            ValueChanged="OnSortChangedAsync"
                                            Options="@SortChoices" />
@@ -63,6 +67,7 @@
                                 var filterKey = group.Key;
                                 <div class="shelf-grid-page__control" @key="filterKey">
                                     <AppSelect Label="@group.Label"
+                                               Size="AppControlSize.Large"
                                                Value="@SelectedValue(group)"
                                                ValueChanged="@(value => OnFilterChangedAsync(filterKey, value))"
                                                Options="@FilterChoices(group)" />
@@ -101,7 +106,7 @@
             {
                 <AppEmptyState Title="Nothing matches these filters"
                                Message="Try removing a filter to see more.">
-                    <Action><AppButton Label="Clear filters" OnClick="ClearFiltersAsync" /></Action>
+                    <Action><AppButton Label="Clear filters" Size="AppControlSize.Large" OnClick="ClearFiltersAsync" /></Action>
                 </AppEmptyState>
             }
             else
@@ -125,12 +130,13 @@
                     @if (_moreFailed)
                     {
                         <p class="shelf-grid-page__more-error" role="status">Couldn't load more titles.</p>
-                        <AppButton Label="Try again" Loading="@_loadingMore" OnClick="LoadMoreAsync" />
+                        <AppButton Label="Try again" Size="AppControlSize.Large" Loading="@_loadingMore" OnClick="LoadMoreAsync" />
                     }
                     else
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Filled"
                                    Tone="AppUiTone.Primary"
+                                   Size="AppControlSize.Large"
                                    Label="Load more"
                                    Loading="@_loadingMore"
                                    OnClick="LoadMoreAsync" />

@@ -25,8 +25,11 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
     private readonly List<GridCall> _gridCalls = [];
     private readonly List<(string RememberKey, string Sort)> _sortSaves = [];
     private Func<GridCall, DisplayGridPageDto?> _grid = _ => null;
+    private Func<GridCall, DisplayGridLoadFailure> _failure = _ => DisplayGridLoadFailure.Failed;
+    // Holds a read or a save until the test releases it, so overlapping requests can be played out.
+    private Func<GridCall, Task?> _holdRead = _ => null;
+    private Task? _holdSave;
     private bool _saveSucceeds = true;
-    private int? _statusCode;
     private IEngineApiClient _api = null!;
 
     private sealed record GridCall(string Lane, string ShelfKey, string? Sort, string? Type, string? Genre, string? Format, string? Status, int Offset, int Limit);
@@ -42,23 +45,37 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
 
         _api = EngineApiClientStub.Create(stub =>
         {
-            stub.SetHandler(nameof(IEngineApiClient.GetDisplayGridAsync), args =>
-            {
-                var call = new GridCall((string)args![0]!, (string)args[1]!, (string?)args[2], (string?)args[3], (string?)args[4],
-                    (string?)args[5], (string?)args[6], (int)args[7]!, (int)args[8]!);
-                _gridCalls.Add(call);
-                return Task.FromResult(_grid(call));
-            });
-            stub.SetHandler(nameof(IEngineApiClient.SetDisplayGridSortAsync), args =>
-            {
-                _sortSaves.Add(((string)args![0]!, (string)args[1]!));
-                return Task.FromResult(_saveSucceeds);
-            });
-            stub.SetHandler("get_LastStatusCode", _ => _statusCode);
+            stub.SetHandler(nameof(IEngineApiClient.GetDisplayGridAsync), args => ReadGridAsync(new GridCall((string)args![0]!, (string)args[1]!,
+                (string?)args[2], (string?)args[3], (string?)args[4], (string?)args[5], (string?)args[6], (int)args[7]!, (int)args[8]!)));
+            stub.SetHandler(nameof(IEngineApiClient.SetDisplayGridSortAsync), args => SaveSortAsync((string)args![0]!, (string)args[1]!));
         });
         Services.AddSingleton(_api);
         _device = new DeviceContextService(_api);
         Services.AddSingleton(_device);
+    }
+
+    private async Task<DisplayGridLoadResult> ReadGridAsync(GridCall call)
+    {
+        _gridCalls.Add(call);
+        if (_holdRead(call) is { } gate)
+        {
+            await gate;
+        }
+
+        return _grid(call) is { } page
+            ? DisplayGridLoadResult.Loaded(page)
+            : DisplayGridLoadResult.Failed(_failure(call));
+    }
+
+    private async Task<bool> SaveSortAsync(string rememberKey, string sort)
+    {
+        _sortSaves.Add((rememberKey, sort));
+        if (_holdSave is not null)
+        {
+            await _holdSave;
+        }
+
+        return _saveSucceeds;
     }
 
     private static DisplayArtworkDto Art()
@@ -330,7 +347,7 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
     public async Task ANotFoundGridShowsTheUnavailableStateWithALinkHome()
     {
         await UseAsync("desktop");
-        _statusCode = 404;
+        _failure = _ => DisplayGridLoadFailure.NotFound;
         _grid = _ => null;
 
         var cut = RenderPage();
@@ -420,6 +437,126 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
             .Add(page => page.ShelfKey, "continue"));
 
         cut.WaitForAssertion(() => Assert.Contains("is-landscape", cut.Find("article.media-tile").ClassName));
+    }
+
+    [Fact]
+    public async Task AResponseThatArrivesAfterANewerRequestWasMadeIsDropped()
+    {
+        await UseAsync("desktop");
+        var slow = new TaskCompletionSource();
+        _holdRead = call => call.Genre is null ? slow.Task : null;
+        _grid = call => call.Genre is null ? Grid([Card(1)], total: 1) : Grid([Card(2)], total: 1, filters: [GenreGroup(call.Genre)]);
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.Single(_gridCalls));
+
+        Nav.NavigateTo($"{Route}?genre=Drama");
+        cut.WaitForAssertion(() => Assert.Equal(["Film 2"], Titles(cut)));
+        slow.SetResult();
+        await Task.Delay(100);
+
+        Assert.Equal(["Film 2"], Titles(cut));
+        Assert.Equal("1 title", cut.Find("[data-shelf-grid-count]").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task TheScrollTriggerIsIgnoredWhileAPageIsAlreadyOnItsWay()
+    {
+        await UseAsync("desktop");
+        var gate = new TaskCompletionSource();
+        _holdRead = call => call.Offset > 0 ? gate.Task : null;
+        _grid = call => call.Offset == 0
+            ? Grid([Card(1), Card(2)], total: 3, hasMore: true)
+            : Grid([Card(3)], total: 3, offset: 2);
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.Equal(2, Titles(cut).Length));
+
+        cut.FindAll("button").First(button => button.TextContent.Contains("Load more", StringComparison.Ordinal)).Click();
+        cut.WaitForAssertion(() => Assert.Equal(2, _gridCalls.Count));
+        await cut.InvokeAsync(() => cut.Instance.LoadMoreFromObserverAsync());
+        await cut.InvokeAsync(() => cut.Instance.LoadMoreFromObserverAsync());
+
+        Assert.Equal(2, _gridCalls.Count);
+        gate.SetResult();
+        cut.WaitForAssertion(() => Assert.Equal(3, Titles(cut).Length));
+        Assert.Equal(2, _gridCalls.Count);
+    }
+
+    [Fact]
+    public async Task AGridWithNoFilterChoicesShowsTheSortOnlyAndNoFilterChips()
+    {
+        await UseAsync("desktop");
+        _grid = _ => Grid([Card(1)], total: 1, rememberKey: DisplayGridValues.RememberMyList, filters: []);
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() => Assert.Single(Titles(cut)));
+        Assert.Equal(["Sort by"], cut.FindComponents<AppSelect>().Select(select => select.Instance.Label));
+        Assert.Empty(cut.FindAll(".app-active-filter-summary"));
+    }
+
+    [Fact]
+    public async Task AGridWithNoFilterChoicesOnAPhoneShowsFiltersWithNoCount()
+    {
+        await UseAsync("phone");
+        _grid = _ => Grid([Card(1)], total: 1, rememberKey: DisplayGridValues.RememberMyList, filters: []);
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() => Assert.Single(Titles(cut)));
+        Assert.Equal("Filters", cut.Find("button.browse-filter-sheet__trigger").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task ABadSortOrFilterInTheAddressFallsBackToTheDefaultsOnceWithoutAddingABackStep()
+    {
+        await UseAsync("desktop");
+        _grid = call => call.Sort is null && call.Genre is null ? Grid([Card(1)], total: 1) : null;
+        _failure = _ => DisplayGridLoadFailure.BadRequest;
+
+        var cut = RenderPage($"{Route}?sort=bogus&genre=Nope");
+
+        cut.WaitForAssertion(() => Assert.Equal(["Film 1"], Titles(cut)));
+        Assert.Equal(2, _gridCalls.Count);
+        Assert.Equal("bogus", _gridCalls[0].Sort);
+        Assert.Null(_gridCalls[1].Sort);
+        Assert.Null(_gridCalls[1].Genre);
+        Assert.DoesNotContain("sort=", Nav.Uri);
+        Assert.DoesNotContain("genre=", Nav.Uri);
+        Assert.True(Nav.History.First().Options.ReplaceHistoryEntry);
+    }
+
+    [Fact]
+    public async Task AnEngineThatRefusesEvenTheDefaultsShowsTheErrorStateInsteadOfLooping()
+    {
+        await UseAsync("desktop");
+        _grid = _ => null;
+        _failure = _ => DisplayGridLoadFailure.BadRequest;
+
+        var cut = RenderPage($"{Route}?sort=bogus");
+
+        cut.WaitForAssertion(() => Assert.Contains("This list could not load", cut.Markup));
+        await Task.Delay(100);
+        Assert.Equal(2, _gridCalls.Count);
+        Assert.Equal("View all", cut.Find("h1").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task ASecondSortChoiceWhileTheFirstIsBeingSavedIsIgnored()
+    {
+        await UseAsync("desktop");
+        var gate = new TaskCompletionSource();
+        _holdSave = gate.Task;
+        _grid = call => Grid([Card(1)], total: 1, sort: call.Sort ?? DisplayGridValues.SortAdded);
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.Single(Titles(cut)));
+
+        var first = cut.InvokeAsync(() => Select(cut, "Sort by").Instance.ValueChanged.InvokeAsync(DisplayGridValues.SortTitle));
+        await cut.InvokeAsync(() => Select(cut, "Sort by").Instance.ValueChanged.InvokeAsync(DisplayGridValues.SortYear));
+        gate.SetResult();
+        await first;
+
+        Assert.Equal([(DisplayGridValues.RememberWatch, DisplayGridValues.SortTitle)], _sortSaves);
+        Assert.Contains("sort=title", Nav.Uri);
     }
 
     private sealed class ToastSpy : IAppToastService
