@@ -91,6 +91,10 @@
     min-height: 1.35rem;
 }
 
+:where(.tl-detail-page) .tl-detail-hero__not-matched {
+    margin: 0.35rem 0 0;
+}
+
 :where(.tl-detail-page) .tl-detail-hero__universe-link {
     margin: 0.35rem 0 0;
     font-size: clamp(0.82rem, 0.9vw, 0.95rem);

@@ -70,7 +70,7 @@ public partial class SharedMediaEditorShell
         }
         else if (HasStagedEditorChanges)
         {
-            await SaveAsyncCore(applyMembershipMove: false);
+            await SaveAsyncCore();
         }
 
         return !HasPendingNavigationChanges && string.IsNullOrWhiteSpace(_saveError);

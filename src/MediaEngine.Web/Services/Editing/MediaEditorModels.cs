@@ -52,6 +52,12 @@ public sealed class MediaEditorLaunchRequest
     public string? CoverUrl { get; init; }
     public Func<Task>? OnArtworkChanged { get; init; }
     public List<MediaEditorPreviewItem> PreviewItems { get; init; } = [];
+
+    /// <summary>
+    /// True when the item being edited was added to its album, season or series with "Add anyway" (no number, "Not matched"). The
+    /// Match and Identity section then offers "Match" in place of "Move" (details overlay spec D13).
+    /// </summary>
+    public bool IsUnmatched { get; init; }
 }
 
 public sealed class MediaEditorPreviewItem

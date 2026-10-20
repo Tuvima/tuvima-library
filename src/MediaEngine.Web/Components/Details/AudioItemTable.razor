@@ -54,6 +54,10 @@
                     {
                         var item = VisibleItems[index];
                         var isPlaying = IsCurrentItem(item);
+                        @if (StartsUnnumberedGroup(VisibleItems, index))
+                        {
+                            <tr class="tl-audio-item-table__group-row" data-card-role="hidden"><th colspan="4" scope="colgroup">Unnumbered</th></tr>
+                        }
                         <tr @key="item.Id"
                             class="@RowClass(item, isPlaying)"
                             data-audio-row="true"
@@ -61,7 +65,13 @@
                             tabindex="@(item.IsOwned ? 0 : -1)"
                             @onclick="@(() => PlayItemAsync(item))"
                             @onkeydown="@((args) => HandleCardKeyDownAsync(args, item))">
-                            <td data-card-role="title">@DisplayOrdinal(item, index). @item.Title</td>
+                            <td data-card-role="title">
+                                @(item.IsUnmatched ? string.Empty : $"{DisplayOrdinal(item, index)}. ")@item.Title
+                                @if (item.IsUnmatched)
+                                {
+                                    <NotMatchedTag />
+                                }
+                            </td>
                             <td data-card-role="subtitle">@CardSubtitle(item)</td>
                             <td data-card-role="value">@DisplayDuration(item)</td>
                             <td data-card-role="actions" class="tl-audio-item-cards__actions" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
@@ -123,6 +133,10 @@
                     {
                         var item = CompactVisibleItems[index];
                         var isPlaying = IsCurrentItem(item);
+                        @if (StartsUnnumberedGroup(CompactVisibleItems, index))
+                        {
+                            <div class="tl-audio-item-table__group-heading" role="row"><span role="columnheader">Unnumbered</span></div>
+                        }
                         <div class="@CompactRowClass(item, isPlaying)"
                              role="row"
                              draggable="@CanQueue(item)"
@@ -155,6 +169,10 @@
                                 @if (item.IsExplicit)
                                 {
                                     <span>E</span>
+                                }
+                                @if (item.IsUnmatched)
+                                {
+                                    <NotMatchedTag />
                                 }
                             </div>
                             <div class="tl-embedded-audio__duration" role="cell">@DisplayDuration(item)</div>
@@ -243,6 +261,10 @@
                         {
                             var item = VisibleItems[index];
                             var isPlaying = IsCurrentItem(item);
+                            @if (StartsUnnumberedGroup(VisibleItems, index))
+                            {
+                                <tr class="tl-audio-item-table__group-row"><th colspan="@VisibleColumns.Count" scope="colgroup">Unnumbered</th></tr>
+                            }
                             <tr class="@RowClass(item, isPlaying)"
                                 draggable="@CanQueue(item)"
                                 data-audio-row="true"
@@ -284,6 +306,10 @@
                                                 @if (item.IsExplicit)
                                                 {
                                                     <span class="tl-detail-track-row__badge">E</span>
+                                                }
+                                                @if (item.IsUnmatched)
+                                                {
+                                                    <NotMatchedTag />
                                                 }
                                             </td>
                                             break;
@@ -681,7 +707,21 @@
             || string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
     }
 
+    // Items added anyway have no number: they always sit in an Unnumbered group at the end, whatever the sort (details overlay D13).
     private IReadOnlyList<MediaGroupingItemViewModel> SortItems(IEnumerable<MediaGroupingItemViewModel> items)
+    {
+        var all = items.ToList();
+        return
+        [
+            .. SortNumbered(all.Where(item => !item.IsUnmatched)),
+            .. all.Where(item => item.IsUnmatched).OrderBy(item => item.Title, StringComparer.OrdinalIgnoreCase),
+        ];
+    }
+
+    private static bool StartsUnnumberedGroup(IReadOnlyList<MediaGroupingItemViewModel> list, int index) =>
+        list[index].IsUnmatched && (index == 0 || !list[index - 1].IsUnmatched);
+
+    private IReadOnlyList<MediaGroupingItemViewModel> SortNumbered(IEnumerable<MediaGroupingItemViewModel> items)
     {
         var ordered = _sortColumn switch
         {
@@ -828,7 +868,9 @@
         => item.DurationSeconds ?? (TryParseDurationSeconds(item.Duration, out var parsed) ? parsed : double.MaxValue);
 
     private static string DisplayOrdinal(MediaGroupingItemViewModel item, int index)
-        => string.IsNullOrWhiteSpace(item.TrackNumber) ? (index + 1).ToString(CultureInfo.InvariantCulture) : item.TrackNumber;
+        => item.IsUnmatched
+            ? "–"
+            : string.IsNullOrWhiteSpace(item.TrackNumber) ? (index + 1).ToString(CultureInfo.InvariantCulture) : item.TrackNumber;
 
     private static string FormatSeconds(double seconds, bool forceHours)
     {
