@@ -1,6 +1,6 @@
 # Spec: Library list speed
 
-> **Status:** In progress (locked by Shy 2026-10-19, with Q1 answered yes) · **Version:** 2 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Report: Slow library and Home reads at 4,000 works](../reports/slow-reads-2026-10.md) (causes 1–2, fix options A, B, C) · [Benchmarks README](../../benchmarks/README.md)
+> **Status:** Built (2026-10-19; locked by Shy 2026-10-19, with Q1 answered yes) · **Version:** 2 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../../product/overview.md) · [Report: Slow library and Home reads at 4,000 works](../../reports/slow-reads-2026-10.md) (causes 1–2, fix options A, B, C) · [Benchmarks README](../../../benchmarks/README.md)
 
 ## 1. Goal
 
