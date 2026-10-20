@@ -234,6 +234,41 @@
         "mode": "tuvima_standard",
         "write_tags": true
       }
+    },
+    {
+      "id": "77777777-7777-4777-8777-777777777777",
+      "name": "Videos",
+      "category": "Videos",
+      "kind": "catalogued",
+      "area": "watch",
+      "presentation": "catalogue",
+      "metadata_policy": "local_only",
+      "media_types": [
+        "Videos"
+      ],
+      "sources": [
+        {
+          "id": "77777777-aaaa-4777-8777-777777777777",
+          "path": "{TuvimaData}/library/Videos",
+          "management_mode": "managed_by_tuvima",
+          "source_type": "local_folder",
+          "include_subdirectories": true,
+          "access_mode": "writable",
+          "conversion_state": "none"
+        }
+      ],
+      "primary_destination_source_id": "77777777-aaaa-4777-8777-777777777777",
+      "visibility": "household",
+      "authorized_profile_ids": [],
+      "accepted_intake_modes": [
+        "incoming_folder",
+        "drag_and_drop",
+        "browser_upload"
+      ],
+      "organization_policy": {
+        "mode": "keep_original_folders",
+        "write_tags": false
+      }
     }
   ],
   "file_handling": {

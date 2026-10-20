@@ -57,7 +57,7 @@ public static class AppMediaPresentation
     }
 
     /// <summary>
-    /// The one media-type icon mapping: six distinct icons (Books, Audiobooks, Movies, TV, Music, Comics) and the generic
+    /// The one media-type icon mapping: seven distinct icons (Books, Audiobooks, Movies, TV, Music, Comics, Videos) and the generic
     /// folder icon for anything else. Library lists and the folder picker use the outlined family.
     /// </summary>
     public static string IconFor(string? mediaType, bool outlined = false)
@@ -69,7 +69,8 @@ public static class AppMediaPresentation
                 "Audiobook" or "Audio" => AppMaterialIcons.Outlined.Headphones,
                 "Book" => AppMaterialIcons.Outlined.MenuBook,
                 "Comic" => AppMaterialIcons.Outlined.AutoStories,
-                "Movie" or "Video" => AppMaterialIcons.Outlined.Movie,
+                "Movie" => AppMaterialIcons.Outlined.Movie,
+                "Video" => AppMaterialIcons.Outlined.VideoLibrary,
                 "TV" => AppMaterialIcons.Outlined.Tv,
                 "Music" => AppMaterialIcons.Outlined.MusicNote,
                 _ => AppMaterialIcons.Outlined.Folder,
@@ -79,7 +80,8 @@ public static class AppMediaPresentation
                 "Audiobook" or "Audio" => AppMaterialIcons.Filled.Headphones,
                 "Book" => AppMaterialIcons.Filled.MenuBook,
                 "Comic" => AppMaterialIcons.Filled.AutoStories,
-                "Movie" or "Video" => AppMaterialIcons.Filled.Movie,
+                "Movie" => AppMaterialIcons.Filled.Movie,
+                "Video" => AppMaterialIcons.Filled.VideoLibrary,
                 "TV" => AppMaterialIcons.Filled.Tv,
                 "Music" => AppMaterialIcons.Filled.MusicNote,
                 _ => AppMaterialIcons.Filled.Folder,

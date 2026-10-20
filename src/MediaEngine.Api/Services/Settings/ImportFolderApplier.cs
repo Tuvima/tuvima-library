@@ -3,7 +3,7 @@ using MediaEngine.Ingestion.Contracts;
 namespace MediaEngine.Api.Services.Settings;
 
 /// <summary>
-/// Puts the optional import folder to work after the folder settings are saved: creates its six per-type folders and asks the
+/// Puts the optional import folder to work after the folder settings are saved: creates its seven per-type folders and asks the
 /// engine to start watching it and file what is already inside. Removing the folder deletes nothing; everything stays on disk.
 /// </summary>
 public sealed class ImportFolderApplier

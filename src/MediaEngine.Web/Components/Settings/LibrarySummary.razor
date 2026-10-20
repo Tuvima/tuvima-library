@@ -138,6 +138,7 @@
                 MediaItem("TV Episodes", counts, "TV"),
                 MediaItem("Music", counts, "Music"),
                 MediaItem("Comics", counts, "Comics"),
+                MediaItem("Videos", counts, "Videos"),
             };
 
             var total = items.Sum(item => item.Count);
@@ -217,7 +218,8 @@
         {
             "Books" => new[] { "book", "books", "epub" },
             "Audiobooks" => new[] { "audiobook", "audiobooks", "m4b" },
-            "Movies" => new[] { "movie", "movies", "film", "video" },
+            "Movies" => new[] { "movie", "movies", "film" },
+            "Videos" => new[] { "video", "videos" },
             "TV Episodes" => new[] { "tv", "tv episode", "tv episodes", "episode", "episodes" },
             "Music" => new[] { "music", "track", "tracks", "song", "songs", "album" },
             "Comics" => new[] { "comic", "comics", "cbz", "cbr" },

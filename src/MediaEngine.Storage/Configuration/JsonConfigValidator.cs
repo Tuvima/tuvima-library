@@ -535,7 +535,22 @@ public static class JsonConfigValidator
                 errors.Add($"{prefix}.catalogued libraries must use the catalogue presentation.");
             }
 
-            if (library.MetadataPolicy != LibraryMetadataPolicies.Enriched)
+            // Videos are the one catalogued type with no movie, TV or book database behind it: local identity only.
+            var isVideosLibrary = library.MediaTypes.Count > 0
+                && library.MediaTypes.All(type => string.Equals(type, nameof(MediaEngine.Domain.Enums.MediaType.Videos), StringComparison.OrdinalIgnoreCase));
+            if (isVideosLibrary)
+            {
+                if (library.Area != LibraryAreas.Watch)
+                {
+                    errors.Add($"{prefix}.videos libraries must use the watch area.");
+                }
+
+                if (library.MetadataPolicy != LibraryMetadataPolicies.LocalOnly)
+                {
+                    errors.Add($"{prefix}.videos libraries must use local_only metadata.");
+                }
+            }
+            else if (library.MetadataPolicy != LibraryMetadataPolicies.Enriched)
             {
                 errors.Add($"{prefix}.catalogued libraries must use enriched metadata.");
             }

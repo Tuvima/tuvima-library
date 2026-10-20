@@ -68,6 +68,7 @@
         ["Books"] = "{Author} {Title} {Year} {Ext}",
         ["Audiobooks"] = "{Author} {BookTitle} {Year} {TrackNumber} {TrackTitle} {Ext}",
         ["Comics"] = "{Series} {IssueNumber} {Year} {Ext}",
+        ["Videos"] = "{Title} {Ext}",
     };
 
     private static readonly Dictionary<string, string> FallbackExamples = new(StringComparer.OrdinalIgnoreCase)
@@ -78,6 +79,7 @@
         ["Books"] = "Books/Frank Herbert/Dune (1965)/Dune (1965).epub",
         ["Audiobooks"] = "Audiobooks/Frank Herbert/Dune (1965)/01 Chapter 1.m4b",
         ["Comics"] = "Comics/Saga/Saga - 001 (2012).cbz",
+        ["Videos"] = "Videos/Python Course/01 - Introduction.mp4",
     };
 
     [Parameter] public IReadOnlyList<AdvancedType> Types { get; set; } = [];

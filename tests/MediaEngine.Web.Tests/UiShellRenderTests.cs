@@ -837,7 +837,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Equal(6, cut.FindAll(".library-summary__media").Count);
+            Assert.Equal(7, cut.FindAll(".library-summary__media").Count);
             var segments = cut.FindAll(".library-summary__segment");
             Assert.Equal(3, segments.Count);
             Assert.Contains("width:50%", segments[0].GetAttribute("style"), StringComparison.Ordinal);

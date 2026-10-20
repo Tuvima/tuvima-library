@@ -201,6 +201,7 @@ public sealed class WritebackConfigState : IDisposable
     private static int TaggerVersionFor(string mediaType) => mediaType switch
     {
         "Movies" => VideoMetadataTagger.Version,
+        "Videos" => VideoMetadataTagger.Version,
         "TV" => VideoMetadataTagger.Version,
         "Music" => AudioMetadataTagger.Version,
         "Audiobooks" => AudioMetadataTagger.Version,
@@ -211,7 +212,7 @@ public sealed class WritebackConfigState : IDisposable
 
     private static readonly string[] MediaTypeKeys =
     [
-        "Books", "Audiobooks", "Movies", "TV", "Music", "Comics",
+        "Books", "Audiobooks", "Movies", "TV", "Music", "Comics", "Videos",
     ];
 
     private void TryStartWatcher()

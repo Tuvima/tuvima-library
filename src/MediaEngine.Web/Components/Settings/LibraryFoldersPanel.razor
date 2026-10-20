@@ -262,6 +262,7 @@
         new("tv", "TV Shows", "TV shows", "watch", ["TV", "TVShows"], AppMediaPresentation.IconFor("TV", outlined: true)),
         new("music", "Music", "Music", "listen", ["Music"], AppMediaPresentation.IconFor("Music", outlined: true)),
         new("comics", "Comics", "Comics", "read", ["Comics"], AppMediaPresentation.IconFor("Comics", outlined: true)),
+        new("videos", "Videos", "Videos", "watch", ["Videos"], AppMediaPresentation.IconFor("Videos", outlined: true)),
     ];
 
     /// <summary>True when the first-run setup session is in use instead of the signed-in Settings endpoints.</summary>
@@ -285,7 +286,7 @@
     // Advanced tabs follow the order people think in; the template key is the type's entry in organization_templates.
     private static readonly (string Key, string TemplateKey)[] AdvancedOrder =
     [
-        ("movies", "Movies"), ("tv", "TV"), ("music", "Music"), ("books", "Books"), ("audiobooks", "Audiobooks"), ("comics", "Comics"),
+        ("movies", "Movies"), ("tv", "TV"), ("music", "Music"), ("books", "Books"), ("audiobooks", "Audiobooks"), ("comics", "Comics"), ("videos", "Videos"),
     ];
 
     private IReadOnlyList<LibraryAdvancedSettings.AdvancedType> AdvancedTypes => AdvancedOrder

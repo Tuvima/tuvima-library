@@ -37,6 +37,11 @@ public static class MediaTypeClassifier
             return MediaType.Movies;
         }
 
+        if (t is "videos")
+        {
+            return MediaType.Videos;
+        }
+
         if (t is "tv")
         {
             return MediaType.TV;
@@ -105,6 +110,7 @@ public static class MediaTypeClassifier
         MediaType.TV => "TV",
         MediaType.Music => "Music",
         MediaType.Comics => "Comic",
+        MediaType.Videos => "Video",
         _ => "Unknown",
     };
 
@@ -125,6 +131,7 @@ public static class MediaTypeClassifier
         MediaType.TV => "Tv",
         MediaType.Music => "MusicNote",
         MediaType.Comics => "AutoStories",
+        MediaType.Videos => "VideoLibrary",
         _ => "InsertDriveFile",
     };
 }
