@@ -674,6 +674,12 @@ public sealed partial class IngestionEngine
                     ? FolderCoverImageReader.TryReadForVideo(candidate.Path, coverRoot)
                     : null;
 
+        // A video with no picture of its own gets a good still frame (never a black tile); the pick is cached.
+        if (context.FolderCover is null && !hasEmbeddedCover && resolvedMediaType == MediaType.Videos && _videoFrames is not null)
+        {
+            context.FolderCover = await _videoFrames.GetOrCreateAsync(candidate.Path, ct).ConfigureAwait(false);
+        }
+
         if (hasEmbeddedCover || context.FolderCover is not null)
         {
             canonicals.Add(new CanonicalValue

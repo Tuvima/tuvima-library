@@ -94,6 +94,9 @@ public static class MediaEngineIngestionServiceCollectionExtensions
             sp.GetService<IWorkRepository>(),
             sp.GetService<ICanonicalValueRepository>(),
             sp.GetService<Microsoft.Extensions.Logging.ILogger<MediaEngine.Ingestion.Videos.VideoLibraryReader>>()));
+        services.TryAddSingleton(sp => new VideoStillFrameService(
+            sp.GetService<IFFmpegService>(),
+            Path.Combine(sp.GetService<AssetPathService>()?.DerivedRoot ?? Path.Combine(Path.GetTempPath(), "tuvima"), "video-frames")));
         services.TryAddSingleton<IMediaTypeResolver, MediaTypeResolver>();
         services.TryAddSingleton<IDuplicateResolver, DuplicateResolver>();
         services.TryAddSingleton<IIngestionLogScribe, IngestionLogScribe>();
