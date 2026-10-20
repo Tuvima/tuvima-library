@@ -26,6 +26,12 @@ public sealed class ViewStorageService(
     /// True when the path is inside the staging folder of a profile folder (<c>Profiles/{label}/.tuvima-staging</c>), so scans and
     /// watchers can skip it. A folder that merely has the same name somewhere else is an ordinary folder.
     /// </summary>
+    /// <remarks>
+    /// This reads the path as written and does not follow links, on purpose (it runs for every file of every scan). A managed source
+    /// reaches a profile only through <c>Profiles/{label}</c> and <c>ResolveManagedRelativePath</c> refuses any link on that way, and a
+    /// linked source may not sit inside the managed root (<c>AddLinkedSourceAsync</c>), so no source can reach a profile's staging
+    /// folder through a link. Empty Trash itself also never stages through a link (it resolves the folder before moving anything).
+    /// </remarks>
     public static bool IsInsideStagingFolder(string path)
     {
         if (string.IsNullOrEmpty(path))

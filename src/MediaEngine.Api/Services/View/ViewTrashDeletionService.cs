@@ -218,7 +218,18 @@ public sealed class ViewTrashDeletionService(
             foreach (var item in group)
             {
                 // If the item's records did go before the error, it is gone from Trash and counts as deleted.
-                var stillThere = await purge.ItemExistsAsync(item.ItemId, CancellationToken.None).ConfigureAwait(false);
+                // If that cannot be read either, the item is reported as failed (it stays in Trash if it is still there) and the rest go on.
+                bool stillThere;
+                try
+                {
+                    stillThere = await purge.ItemExistsAsync(item.ItemId, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception lookupFailure) when (IsRecoverable(lookupFailure))
+                {
+                    logger.LogError(lookupFailure, "Could not tell whether an item was removed after an unexpected error; it is reported as not deleted");
+                    stillThere = true;
+                }
+
                 outcomes[item.ItemId] = stillThere
                     ? ItemOutcome.Failed(UnexpectedReason)
                     : ItemOutcome.Deleted(item.Files.Where(file => file.Action == ViewTrashFileAction.Delete).Sum(file => file.Bytes));

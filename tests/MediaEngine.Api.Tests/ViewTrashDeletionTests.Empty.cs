@@ -607,7 +607,6 @@ public sealed partial class ViewTrashDeletionTests
     [Theory]
     [InlineData("C:/Library/View/Profiles/abc/.tuvima-staging/1234/0000_a.jpg", true)]
     [InlineData("C:\\Library\\View\\Profiles\\abc\\.tuvima-staging", true)]
-    [InlineData("/library/view/profiles/abc/.TUVIMA-STAGING/1234/a.jpg", true)]
     [InlineData("/home/me/.tuvima-staging/1234/a.jpg", false)]
     [InlineData("/library/view/Profiles/abc/Timeline/.tuvima-staging/a.jpg", false)]
     [InlineData("/library/view/Profiles/.tuvima-staging/a.jpg", false)]
@@ -617,6 +616,14 @@ public sealed partial class ViewTrashDeletionTests
     public void TheStagingFolder_IsRecognisedByAnyStepOfAPath(string path, bool expected)
     {
         Assert.Equal(expected, ViewStorageService.IsInsideStagingFolder(path));
+    }
+
+    [Fact]
+    public void TheStagingFolder_IsMatchedWithoutRegardToCase_OnlyWhereThePlatformIgnoresCase()
+    {
+        // Windows folders ignore case; elsewhere ".TUVIMA-STAGING" is a different folder.
+        Assert.Equal(OperatingSystem.IsWindows(),
+            ViewStorageService.IsInsideStagingFolder("/library/view/profiles/abc/.TUVIMA-STAGING/1234/a.jpg"));
     }
 
     // ---------------------------------------------------------------- the recovery sweep
@@ -742,14 +749,14 @@ public sealed partial class ViewTrashDeletionTests
     }
 
     /// <summary>A service built by hand around a given gate, planning with the same gate.</summary>
-    private ScopedService BuildService(ISourceMutationPolicyGate gate, IViewTrashFileMover? mover = null)
+    private ScopedService BuildService(ISourceMutationPolicyGate gate, IViewTrashFileMover? mover = null, IViewTrashPurgeRepository? purgeOverride = null)
     {
         var scope = _app.Services.CreateScope();
         var planner = new ViewTrashDeletionPlanner(
             new ViewTrashRepository(_database), _spaces, _policies, _storage, gate,
             scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
             NullLogger<ViewTrashDeletionPlanner>.Instance);
-        var purge = new ViewTrashPurgeRepository(_database);
+        var purge = purgeOverride ?? new ViewTrashPurgeRepository(_database);
         var recovery = new ViewTrashRecoveryService(_spaces, _storage, purge, NullLogger<ViewTrashRecoveryService>.Instance);
         return new ScopedService(
             new ViewTrashDeletionService(planner, _spaces, _storage, gate, purge, recovery, _assetPaths,
@@ -1070,5 +1077,99 @@ public sealed partial class ViewTrashDeletionTests
 
             File.Move(source, destination);
         }
+    }
+
+    [Fact]
+    public async Task EmptyTrash_ASecondLibraryThatIndexesTheSamePathAfterThePlan_StopsTheRemoval_AndEveryFileGoesBack()
+    {
+        var alice = await CreatePerson();
+        var bob = await CreatePerson();
+        var photo = await AddPhoto(alice, "also-indexed-elsewhere", size: 300);
+        var fingerprint = (await PlanAsync(alice)).Preview.Fingerprint;
+        var bobsItem = Guid.NewGuid();
+        // This service's gate is asked once while it plans and once at the re-check (call 2); the other library picks the path up then.
+        using var service = BuildService(new ActionOnCallGate(new MediaEngine.Ingestion.SourceMutationPolicyGate(), 2, () =>
+        {
+            var now = DateTimeOffset.UtcNow;
+            Execute("""
+                INSERT INTO local_items (id, scope_kind, personal_space_id, owner_profile_id, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
+                VALUES (@bobsItem, 'personal', @space, @profile, @library, 'image', 'x.jpg', 'image/jpeg', @now, @now);
+                INSERT INTO local_item_files (item_id, file_id, role, position, added_at)
+                SELECT @bobsItem, lif.file_id, 'primary', 0, @now FROM local_item_files lif WHERE lif.item_id = @item;
+                INSERT INTO local_file_sources (id, file_id, library_id, file_path, modified_at, indexed_at)
+                SELECT @sourceId, lif.file_id, @library, @path, @now, @now FROM local_item_files lif WHERE lif.item_id = @item;
+                """, new
+            {
+                bobsItem,
+                space = bob.Space.Id,
+                profile = bob.ProfileId,
+                library = bob.Space.LibraryId,
+                item = photo.ItemId,
+                sourceId = Guid.NewGuid(),
+                path = photo.Paths[0].ToUpperInvariant(),
+                now,
+            });
+        }));
+
+        var outcome = await service.EmptyAsync(alice.Authority, fingerprint);
+
+        var failure = Assert.Single(outcome.Result!.Failed);
+        Assert.Equal(photo.ItemId, failure.ItemId);
+        Assert.Equal(ViewTrashDeletionService.FileChangedReason, failure.Reason);
+        Assert.True(File.Exists(photo.Paths[0]), "the file is back where it was");
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM local_items WHERE id = @id AND trashed_at IS NOT NULL;", new { id = photo.ItemId }));
+        Assert.Equal(1, CountItems(bobsItem));
+        Assert.False(Directory.Exists(StagingRoot(alice)));
+    }
+
+    [Fact]
+    public async Task EmptyTrash_WhenEvenTheLookupAfterAnUnexpectedErrorFails_ThatItemIsReportedNotDeleted_AndTheRestStillGo()
+    {
+        var alice = await CreatePerson();
+        var bad = await AddPhoto(alice, "bad", size: 111);
+        var good = await AddPhoto(alice, "good", size: 222);
+        var fingerprint = (await PlanAsync(alice)).Preview.Fingerprint;
+        var real = new ViewTrashPurgeRepository(_database);
+        // Two files are planned (calls 1 and 2); the safety gate then fails in an unexpected way while re-checking the bad one.
+        using var service = BuildService(
+            new ThrowAfterGate(new MediaEngine.Ingestion.SourceMutationPolicyGate(), 2, "bad.jpg"), null, new FailingLookupPurge(real, bad.ItemId));
+
+        var outcome = await service.EmptyAsync(alice.Authority, fingerprint);
+
+        Assert.Equal(ViewTrashEmptyStatus.Ok, outcome.Status);
+        Assert.Equal(1, outcome.Result!.DeletedCount);
+        Assert.Equal(222, outcome.Result.BytesFreed);
+        var failure = Assert.Single(outcome.Result.Failed);
+        Assert.Equal(bad.ItemId, failure.ItemId);
+        Assert.Equal(ViewTrashDeletionService.UnexpectedReason, failure.Reason);
+        Assert.False(File.Exists(good.Paths[0]));
+        Assert.Equal(0, CountItems(good.ItemId));
+        Assert.Equal(1, CountItems(bad.ItemId));
+        Assert.True(File.Exists(bad.Paths[0]), "the failed item's file stays where it was");
+        Assert.False(Directory.Exists(StagingRoot(alice)));
+        using var connection = _database.CreateConnection();
+        Assert.Equal("1 item, 222 B freed, 1 skipped", connection.QuerySingle<string>(
+            "SELECT detail FROM system_activity WHERE action_type = 'PersonalTrashEmptied';"));
+    }
+
+    /// <summary>Cannot answer whether one item still exists, as if the data store went away at the worst moment.</summary>
+    private sealed class FailingLookupPurge(IViewTrashPurgeRepository inner, Guid badItem) : IViewTrashPurgeRepository
+    {
+        public Task<ViewTrashPurgeResult> PurgeItemsAsync(IReadOnlyList<ViewTrashPurgeRequest> requests, CancellationToken ct = default) =>
+            inner.PurgeItemsAsync(requests, ct);
+
+        public Task<bool> ItemExistsAsync(Guid itemId, CancellationToken ct = default) =>
+            itemId == badItem ? throw new TimeoutException("the test made the lookup fail") : inner.ItemExistsAsync(itemId, ct);
+    }
+
+    /// <summary>Allows every call, then throws an unexpected exception for any path ending in a given suffix once a number of calls were made.</summary>
+    private sealed class ThrowAfterGate(ISourceMutationPolicyGate inner, int afterCalls, string suffix) : ISourceMutationPolicyGate
+    {
+        private int _calls;
+
+        public SourceMutationDecision Evaluate(SourceMutationRequest request) =>
+            Interlocked.Increment(ref _calls) > afterCalls && request.Path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
+                ? throw new InvalidCastException("the test made the gate fail")
+                : inner.Evaluate(request);
     }
 }

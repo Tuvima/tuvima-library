@@ -56,13 +56,14 @@ public sealed class ViewTrashPurgeRepository(IDatabaseConnection database) : IVi
                 var fileIds = connection.Query<Guid>(new CommandDefinition(
                     "SELECT DISTINCT file_id FROM local_item_files WHERE item_id = @ItemId;",
                     new { request.ItemId }, transaction, cancellationToken: token)).ToList();
-                var places = connection.Query<Guid>(new CommandDefinition("""
-                    SELECT DISTINCT lfs.id
+                var placeRows = connection.Query<(Guid Id, string FilePath, Guid LibraryId)>(new CommandDefinition("""
+                    SELECT DISTINCT lfs.id AS Id, lfs.file_path AS FilePath, li.library_id AS LibraryId
                       FROM local_items li
                       JOIN local_item_files lif ON lif.item_id = li.id
                       JOIN local_file_sources lfs ON lfs.file_id = lif.file_id AND lfs.library_id = li.library_id
                      WHERE li.id = @ItemId;
                     """, new { request.ItemId }, transaction, cancellationToken: token)).ToList();
+                var places = placeRows.Select(row => row.Id).ToList();
                 if (places.Any(place => !request.PlannedSourceRowIds.Contains(place)))
                 {
                     return new ViewTrashPurgeResult(ViewTrashPurgeOutcome.ChangedSincePlanned, request.ItemId);
@@ -80,6 +81,24 @@ public sealed class ViewTrashPurgeRepository(IDatabaseConnection database) : IVi
                          WHERE me.id = @ItemId;
                         """, new { request.ItemId, fileId }, transaction, cancellationToken: token));
                     if (users.Any(user => !groupIds.Contains(user)))
+                    {
+                        return new ViewTrashPurgeResult(ViewTrashPurgeOutcome.ChangedSincePlanned, request.ItemId);
+                    }
+                }
+
+                // The same path indexed in another library and used by an item there is the same file on disk, however that other
+                // library got it since the plan was made. This is the planner's own rule (path compared without regard to case).
+                foreach (var row in placeRows.Where(row => request.RemovedSourceRowIds.Contains(row.Id)))
+                {
+                    var elsewhere = connection.ExecuteScalar<long>(new CommandDefinition("""
+                        SELECT COUNT(*)
+                          FROM local_file_sources lfs2
+                          JOIN local_item_files oif ON oif.file_id = lfs2.file_id
+                          JOIN local_items other ON other.id = oif.item_id AND other.library_id = lfs2.library_id
+                         WHERE lfs2.library_id <> @LibraryId
+                           AND lfs2.file_path = @FilePath COLLATE NOCASE;
+                        """, new { row.LibraryId, row.FilePath }, transaction, cancellationToken: token));
+                    if (elsewhere > 0)
                     {
                         return new ViewTrashPurgeResult(ViewTrashPurgeOutcome.ChangedSincePlanned, request.ItemId);
                     }
