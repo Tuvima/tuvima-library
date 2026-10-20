@@ -29,6 +29,8 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddScoped<ICastAssetAuthorizer, CatalogueCastAssetAuthorizer>();
         services.AddSingleton<AdaptiveHlsCleanupService>();
         services.AddSingleton<PlayerSessionRepository>();
+        services.AddSingleton<PlayerDeviceStateRepository>();
+        services.AddSingleton<CompanionSessionRepository>();
         services.AddSingleton<AudiobookListenHistoryRepository>();
         services.AddSingleton<MusicPlayStatsRepository>();
         services.AddSingleton<AudiobookBookmarkRepository>();
@@ -45,6 +47,7 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddScoped<PlaybackTelemetryReadService>();
         services.AddHostedService<PlaybackTelemetryMaintenanceService>();
         services.AddSingleton<PlayerService>();
+        services.AddSingleton<ICompanionSessionService, CompanionSessionService>();
         services.AddSingleton<MediaEngine.Api.Security.PlayerCatalogueScope>();
         services.AddSingleton<IUserPlaybackSettingsService, UserPlaybackSettingsService>();
         services.AddSingleton<IVideoMetadataExtractor, FFmpegVideoMetadataExtractor>();

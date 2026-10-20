@@ -135,10 +135,23 @@ public sealed class WorkReadinessGuardrailTests
     }
 
     [Fact]
+    public void TheLiveIngestionPage_DecidesReadyWithTheSharedRule_NotFromIdentityJobs()
+    {
+        var path = Path.Combine(FindRepositoryRoot(), "src", "MediaEngine.Api", "Services", "ReadServices", "IngestionPresentationReadService.cs");
+        var text = File.ReadAllText(path);
+
+        Assert.DoesNotContain("IdentityReadySql", text, StringComparison.Ordinal);
+        Assert.Contains("WorkReadinessSql.ReadyMarkPredicate", text, StringComparison.Ordinal);
+        Assert.Contains("WorkReadinessSql.MatchedPredicate", text, StringComparison.Ordinal);
+        Assert.Contains("WorkReadinessSql.PlacedPredicate", text, StringComparison.Ordinal);
+        Assert.Contains("WorkReadinessSql.ArtworkPresentOrSettledPredicate", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RetiredVisibilityRules_AreNotDefinedAgain()
     {
         var repoRoot = FindRepositoryRoot();
-        string[] retired = ["VisibleWorkPredicate", "LatestNeedsReviewStateExclusion", "LatestTerminalIdentityStateExclusion", "IsIdentityReady", "ReadyGroupPredicate"];
+        string[] retired = ["VisibleWorkPredicate", "LatestNeedsReviewStateExclusion", "LatestTerminalIdentityStateExclusion", "IsIdentityReady", "ReadyGroupPredicate", "IdentityReadySql"];
 
         var offenders = SourceFiles(Path.Combine(repoRoot, "src"))
             .SelectMany(path => retired

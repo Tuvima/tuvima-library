@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaEngine.Api.Endpoints;
+using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Domain.Entities;
 
@@ -36,9 +37,12 @@ public sealed class UniverseGraphEndpointTests
 
         var graphRoute = source[start..end];
         Assert.Contains("LoadVisibleUniverseScopeAsync(", graphRoute, StringComparison.Ordinal);
-        Assert.Contains("entityRepo.GetWorkLinksAsync(", source, StringComparison.Ordinal);
-        Assert.Contains("allEntities.Select(entity => entity.Id)", source, StringComparison.Ordinal);
-        Assert.Contains("visibleWorkQids.Contains(link.WorkQid)", source, StringComparison.Ordinal);
+        // The visible-scope read moved into the shared connections read service.
+        var scopeSource = File.ReadAllText(GetRepoFilePath(
+            @"src/MediaEngine.Api/Services/ReadServices/UniverseConnectionsReadService.cs"));
+        Assert.Contains("entityRepo.GetWorkLinksAsync(", scopeSource, StringComparison.Ordinal);
+        Assert.Contains("allEntities.Select(entity => entity.Id)", scopeSource, StringComparison.Ordinal);
+        Assert.Contains("visibleWorkQids.Contains(link.WorkQid)", scopeSource, StringComparison.Ordinal);
         Assert.Contains("eraActorResolver.ResolveActorsForEraAsync(", graphRoute, StringComparison.Ordinal);
         Assert.Contains("BuildEgoNetwork(center, maxDepth, entityQids, relationships)", graphRoute, StringComparison.Ordinal);
         Assert.Contains("ApiImageUrls.BuildPersonHeadshotUrl(", graphRoute, StringComparison.Ordinal);
@@ -57,7 +61,7 @@ public sealed class UniverseGraphEndpointTests
             new(visible.Id, "Q100", "Visible work", "appears_in"),
         ];
 
-        var filtered = UniverseGraphEndpoints.FilterVisibleEntities(
+        var filtered = UniverseConnectionsReadService.FilterVisibleEntities(
             [visible, withheld], visibleLinks);
 
         Assert.Equal(visible.Id, Assert.Single(filtered).Id);

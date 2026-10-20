@@ -119,7 +119,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.Equal(17, one.FileCount);
         Assert.Null(one.ChildExpected);
         Assert.Equal("tracks", one.ChildUnit);
-        Assert.Equal("notApplicable", one.Relationships.State);
+        // A Ready album with no relationship work left is settled with nothing found, not "queued".
+        Assert.Equal("complete", one.Relationships.State);
+        Assert.Equal("No relationships found", one.Relationships.Label);
 
         var partial = Assert.Single(page.Items, item => item.GroupId == partialAlbum);
         Assert.Equal(14, partial.ChildCompleted);
@@ -397,7 +399,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         // A long first-run import is one running batch; its finished items must show up while it runs.
         var batchId = AddBatch("running", 3, 3);
         var addedWork = AddStandalone(batchId, "Movies", "Already Added", presented: true);
-        var inFlightWork = AddStandalone(batchId, "Movies", "Still Hydrating", presented: false);
+        var inFlightWork = AddStandalone(batchId, "Movies", "Still Hydrating", presented: false, ready: false);
         using (var conn = _db.CreateConnection())
         {
             var inFlightAsset = conn.QuerySingle<Guid>(
@@ -423,6 +425,8 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
             conn.Execute("UPDATE identity_jobs SET state = 'Ready';");
             conn.Execute("UPDATE ingestion_batches SET status = 'completed', completed_at = @now;", new { now = DateTimeOffset.UtcNow.ToString("O") });
         }
+
+        MarkReady(inFlightWork);
 
         var afterCompletion = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
         Assert.Contains(afterCompletion.Items, item => item.GroupId == addedWork);
@@ -699,7 +703,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         var batch = AddBatch("running", 15, 15);
         for (var index = 1; index <= 15; index++)
         {
-            AddStandalone(batch, "Movies", $"In Flight {index}");
+            AddStandalone(batch, "Movies", $"In Flight {index}", ready: false);
         }
 
         using (var conn = _db.CreateConnection())
@@ -721,7 +725,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     public async Task MultiFileBookUsesIdentityUnitsAndUnmatchedWorkIsNotACompletedAddition()
     {
         var batch = AddBatch("running", 40, 40);
-        var work = AddStandalone(batch, "Audiobooks", "A forty-file book", presented: true);
+        var work = AddStandalone(batch, "Audiobooks", "A forty-file book", presented: true, ready: false);
         using var conn = _db.CreateConnection();
         var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id=ma.edition_id WHERE e.work_id=@work", new { work });
         conn.Execute("""
@@ -738,6 +742,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.Equal("review", Assert.Single((await presentation.GetCurrentMediaAsync(0, 50)).Items).Availability);
         Assert.Empty((await presentation.GetSnapshotAsync()).RecentDays);
         conn.Execute("UPDATE identity_jobs SET state='ReadyWithoutUniverse';");
+        MarkReady(work);
         Assert.Single((await presentation.GetSnapshotAsync()).RecentDays);
         await new MediaOperationRepository(_db).EnsureAsync(new MediaEngine.Domain.Entities.MediaOperation
         {
@@ -754,6 +759,218 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.True(enriching.ProgressIsIndeterminate);
         Assert.Equal("Finishing enrichment", enriching.CurrentStage);
         Assert.NotEqual(99, enriching.ProgressPercent);
+    }
+
+    [Fact]
+    public async Task NotReadyRow_QueuedForMatching_WaitsForMatchingOnly()
+    {
+        var batch = AddBatch("running", 1, 1);
+        var work = AddStandalone(batch, "Movies", "Queued Movie", ready: false);
+        AddIdentityJob(batch, work, "Queued", "Movies");
+        SettleArtwork(work);
+
+        var item = await CurrentItemAsync(work);
+
+        Assert.Equal("adding", item.Availability);
+        Assert.Equal(["matching"], item.WaitingFor);
+    }
+
+    [Fact]
+    public async Task NotReadyRow_MatchedEpisodeWithNoShow_WaitsForPlacing()
+    {
+        var batch = AddBatch("running", 1, 1);
+        var work = AddStandalone(batch, "TV", "Orphan Episode", ready: false);
+        AddIdentityJob(batch, work, "Ready", "TV");
+        SettleArtwork(work);
+
+        var item = await CurrentItemAsync(work);
+
+        Assert.Equal("adding", item.Availability);
+        Assert.Equal(["placing"], item.WaitingFor);
+    }
+
+    [Fact]
+    public async Task NotReadyRow_MatchedAndPlacedMovieWithoutArtwork_WaitsForArtwork()
+    {
+        var batch = AddBatch("running", 1, 1);
+        var work = AddStandalone(batch, "Movies", "Plain Movie", ready: false);
+        AddIdentityJob(batch, work, "Ready", "Movies");
+
+        var item = await CurrentItemAsync(work);
+
+        Assert.Equal("adding", item.Availability);
+        Assert.Equal(["artwork"], item.WaitingFor);
+    }
+
+    [Fact]
+    public async Task NotReadyRow_MissingEverything_ListsReasonsInTheFixedOrder()
+    {
+        var batch = AddBatch("running", 1, 1);
+        var work = AddStandalone(batch, "TV", "Brand New Episode", ready: false);
+        AddIdentityJob(batch, work, "Queued", "TV");
+
+        var item = await CurrentItemAsync(work);
+
+        Assert.Equal(["matching", "placing", "artwork"], item.WaitingFor);
+    }
+
+    [Fact]
+    public async Task NotReadyRow_InALibraryThatSkipsIdentity_DoesNotWaitForMatching()
+    {
+        var batch = AddBatch("running", 1, 1);
+        var work = AddStandalone(batch, "Movies", "Local Movie", ready: false);
+        string library;
+        using (var conn = _db.CreateConnection())
+        {
+            library = Guid.NewGuid().ToString("D");
+            conn.Execute(
+                "UPDATE media_assets SET library_id = @library WHERE edition_id IN (SELECT id FROM editions WHERE work_id = @work);",
+                new { library, work });
+        }
+
+        var item = await CurrentItemAsync(work, new FixedBypassLibraries(library));
+
+        Assert.Equal(["artwork"], item.WaitingFor);
+    }
+
+    [Fact]
+    public async Task ReadyRow_WithTheStoredMark_IsReadyAndWaitsForNothing()
+    {
+        var batch = AddBatch("running", 1, 1);
+        var work = AddStandalone(batch, "Movies", "Marked Movie");
+
+        var item = await CurrentItemAsync(work);
+
+        Assert.Equal("ready", item.Availability);
+        Assert.Empty(item.WaitingFor);
+    }
+
+    [Fact]
+    public async Task Row_WhoseIdentityJobSaysReadyButHasNoStoredMark_IsNotReady()
+    {
+        var batch = AddBatch("running", 1, 1);
+        var work = AddStandalone(batch, "Movies", "Job Says Ready", ready: false);
+        AddIdentityJob(batch, work, "Ready", "Movies");
+
+        var item = await CurrentItemAsync(work);
+
+        Assert.NotEqual("ready", item.Availability);
+        Assert.Equal(0, item.ChildCompleted);
+    }
+
+    [Fact]
+    public async Task ReviewRow_SendsNoWaitingReasons()
+    {
+        var batch = AddBatch("running", 1, 1);
+        var work = AddStandalone(batch, "Movies", "Needs A Look", ready: false);
+        AddIdentityJob(batch, work, "RetailNoMatch", "Movies");
+
+        var item = await CurrentItemAsync(work);
+
+        Assert.Equal("review", item.Availability);
+        Assert.Empty(item.WaitingFor);
+    }
+
+    [Fact]
+    public async Task AddedDay_FollowsTheWorksFirstReadyTime_NotTheIdentityJob()
+    {
+        var firstReady = new DateTimeOffset(2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
+        var batch = AddBatch("completed", 1, 1, firstReady);
+        var work = AddStandalone(batch, "Movies", "Added Long Ago", occurredAt: firstReady);
+        AddIdentityJob(batch, work, "Ready", "Movies");
+
+        var snapshot = await new IngestionPresentationReadService(_db).GetSnapshotAsync(currentLimit: 4, recentDayLimit: 7, recentItemsPerDay: 4);
+
+        var day = Assert.Single(snapshot.RecentDays);
+        Assert.Equal(DateOnly.FromDateTime(firstReady.ToLocalTime().DateTime), day.Date);
+        Assert.Equal(work, Assert.Single(day.Items).GroupId);
+    }
+
+    [Fact]
+    public async Task Facets_ThatDoNotApplyToTheType_AreNotApplicable_AndThatApplyButHaveNotStarted_ArePending()
+    {
+        var batch = AddBatch("running", 2, 2);
+        var book = AddStandalone(batch, "Books", "A Book");
+        var movie = AddStandalone(batch, "Movies", "A Movie");
+        MarkNotReady(movie);
+
+        var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+
+        Assert.Equal("notApplicable", Assert.Single(page.Items, item => item.GroupId == book).TextTracks.State);
+        var movieItem = Assert.Single(page.Items, item => item.GroupId == movie);
+        Assert.Equal("pending", movieItem.TextTracks.State);
+        Assert.Equal("Subtitles queued", movieItem.TextTracks.Label);
+    }
+
+    [Fact]
+    public async Task Facets_ThatApplyButHaveNothingToDo_OnAReadyRow_AreSettledWithNothingFound_NotQueued()
+    {
+        var batch = AddBatch("running", 1, 1);
+        var movie = AddStandalone(batch, "Movies", "A Ready Movie");
+        MarkReady(movie);
+
+        var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+
+        var item = Assert.Single(page.Items, row => row.GroupId == movie);
+        Assert.Equal("ready", item.Availability);
+        Assert.Equal("complete", item.TextTracks.State);
+        Assert.Equal("No subtitles found", item.TextTracks.Label);
+        Assert.Equal("No relationships found", item.Relationships.Label);
+    }
+
+    [Fact]
+    public async Task ArtworkSearch_ThatFinishedWithoutACover_IsASettledOutcomeNotNotApplicable()
+    {
+        var batch = AddBatch("running", 1, 1);
+        var work = AddStandalone(batch, "Movies", "No Cover Movie");
+        using (var conn = _db.CreateConnection())
+        {
+            var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @work;", new { work });
+            conn.Execute("DELETE FROM entity_assets;");
+            conn.Execute("""
+                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,entity_kind,batch_id,status,stage,position_key,created_at,updated_at,idempotency_key)
+                VALUES (@id,'enrichment.artwork','enrichment',@asset,'MediaAsset',@batch,'completed','artwork',1,@now,@now,@key);
+                """, new { id = Guid.NewGuid(), asset, batch, now = DateTimeOffset.UtcNow.ToString("O"), key = Guid.NewGuid().ToString() });
+        }
+
+        var item = await CurrentItemAsync(work);
+
+        Assert.Equal("complete", item.Artwork.State);
+        Assert.Equal("No artwork found", item.Artwork.Label);
+    }
+
+    private async Task<MediaEngine.Contracts.Ingestion.IngestionMediaGroupDto> CurrentItemAsync(
+        Guid groupId,
+        MediaEngine.Api.Services.IIdentityBypassLibraries? bypass = null)
+    {
+        var page = await new IngestionPresentationReadService(_db, bypassLibraries: bypass).GetCurrentMediaAsync(0, 50);
+        return Assert.Single(page.Items, item => item.GroupId == groupId);
+    }
+
+    private void AddIdentityJob(Guid batch, Guid workId, string state, string mediaType)
+    {
+        using var conn = _db.CreateConnection();
+        var asset = conn.QuerySingle<Guid>(
+            "SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @workId;",
+            new { workId });
+        conn.Execute("""
+            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
+            VALUES (@id,@asset,'MediaAsset',@mediaType,@batch,@state,'Quick',@now,@now);
+            """, new { id = Guid.NewGuid(), asset, batch, state, mediaType, now = DateTimeOffset.UtcNow.ToString("O") });
+    }
+
+    // Artwork counts as present when the Work carries a stored cover state, the same value the Ready rule reads.
+    private void SettleArtwork(Guid workId)
+    {
+        using var conn = _db.CreateConnection();
+        conn.Execute(
+            "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@workId, 'cover_state', 'present', @now);",
+            new { workId, now = DateTimeOffset.UtcNow.ToString("O") });
+    }
+
+    private sealed class FixedBypassLibraries(params string[] ids) : MediaEngine.Api.Services.IIdentityBypassLibraries
+    {
+        public IReadOnlyCollection<string> GetLibraryIds() => ids;
     }
 
     private Guid AddBatch(string status, int total, int processed, DateTimeOffset? occurredAt = null)
@@ -777,7 +994,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     public async Task SharedBatchProgressStaysIncompleteUntilIdentityFinishes()
     {
         var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "Books", "Still identifying");
+        var work = AddStandalone(batch, "Books", "Still identifying", ready: false);
         using var conn = _db.CreateConnection();
         var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id=ma.edition_id WHERE e.work_id=@work", new { work });
         conn.Execute("""
@@ -790,6 +1007,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.False(active.IsComplete);
         Assert.Equal(0, active.ProgressPercent);
         conn.Execute("UPDATE identity_jobs SET state='Ready';");
+        MarkReady(work);
         var complete = await service.GetProgressAsync(batch);
         Assert.True(complete!.IsComplete);
         Assert.Equal(100, complete.ProgressPercent);
@@ -835,7 +1053,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     public async Task CurrentPreviewFollowsIdentityActivityAndCountsReadyFiles()
     {
         var batch = AddBatch("running", 2, 2);
-        var older = AddStandalone(batch, "Books", "Older intake", occurredAt: DateTimeOffset.UtcNow.AddHours(-1));
+        var older = AddStandalone(batch, "Books", "Older intake", occurredAt: DateTimeOffset.UtcNow.AddHours(-1), ready: false);
         var newer = AddStandalone(batch, "Books", "Newer intake");
         using var conn = _db.CreateConnection();
         var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @older", new { older });
@@ -847,6 +1065,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         var service = new IngestionPresentationReadService(_db);
         Assert.Equal(older, Assert.Single((await service.GetCurrentMediaAsync(0, 1)).Items).GroupId);
         conn.Execute("UPDATE identity_jobs SET state = 'Ready';");
+        MarkReady(older);
         var ready = (await service.GetCurrentMediaAsync(0, 50)).Items.Single(item => item.GroupId == older);
         Assert.Equal(1, ready.ChildCompleted);
         Assert.Equal("ready", ready.Availability);
@@ -859,7 +1078,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         var batch = AddBatch("running", 1, 1);
         var show = AddContainer("TV", "Root Show");
         var season = AddContainer("TV", "Season 1", show);
-        AddChildren(batch, season, "TV", "Episode", 1, "episode_number", seasonNumber: 1);
+        AddChildren(batch, season, "TV", "Episode", 1, "episode_number", seasonNumber: 1, ready: false);
         using var conn = _db.CreateConnection();
         var child = conn.QuerySingle<Guid>("SELECT id FROM works WHERE parent_work_id=@season", new { season });
         var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id=ma.edition_id WHERE e.work_id=@child", new { child });
@@ -922,7 +1141,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     public async Task ResumedBatchRemainsCurrentUntilDurableWorkFinishes(string status, string state, bool leased)
     {
         var batch = AddBatch(status, 1, 1, DateTimeOffset.UtcNow.AddDays(-2));
-        var work = AddStandalone(batch, "Books", "Resumed book");
+        var work = AddStandalone(batch, "Books", "Resumed book", ready: false);
         var newer = AddBatch("completed", 1, 1);
         using var conn = _db.CreateConnection();
         var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id=ma.edition_id WHERE e.work_id=@work", new { work });
@@ -960,6 +1179,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         }
 
         conn.Execute("UPDATE identity_jobs SET state='Ready',lease_owner=NULL;");
+        MarkReady(work);
         await progress.EmitProgressAsync(batch, isFinal: true, CancellationToken.None);
         Assert.Empty(await batches.GetActiveAsync());
         Assert.Empty((await presentation.GetCurrentMediaAsync(0, 50)).Items);
@@ -1064,7 +1284,8 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         int count,
         string? ordinalKey = null,
         int? seasonNumber = null,
-        int? partCount = null)
+        int? partCount = null,
+        bool ready = true)
     {
         for (var index = 1; index <= count; index++)
         {
@@ -1074,7 +1295,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
             var logId = Guid.NewGuid();
             var now = DateTimeOffset.UtcNow.ToString("O");
             using var conn = _db.CreateConnection();
-            conn.Execute("INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal) VALUES (@workId, @mediaType, 'child', @parentId, @index);", new { workId, mediaType, parentId, index });
+            conn.Execute(
+                "INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ready_at, first_ready_at) VALUES (@workId, @mediaType, 'child', @parentId, @index, @readyAt, @readyAt);",
+                new { workId, mediaType, parentId, index, readyAt = ready ? now : null });
             conn.Execute("INSERT INTO editions (id, work_id, format_label) VALUES (@editionId, @workId, 'Test');", new { editionId, workId });
             conn.Execute("INSERT INTO media_assets (id, edition_id, content_hash, file_path_root) VALUES (@assetId, @editionId, @hash, @path);", new { assetId, editionId, hash = $"hash-{assetId:N}", path = $"C:/watch/{assetId:N}.media" });
             conn.Execute("INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@workId, 'title', @title, @now);", new { workId, title = $"{titlePrefix} {index:00}", now });
@@ -1102,7 +1325,8 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         string mediaType,
         string title,
         bool presented = false,
-        DateTimeOffset? occurredAt = null)
+        DateTimeOffset? occurredAt = null,
+        bool ready = true)
     {
         var workId = Guid.NewGuid();
         var editionId = Guid.NewGuid();
@@ -1110,7 +1334,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         var logId = Guid.NewGuid();
         var now = (occurredAt ?? DateTimeOffset.UtcNow).ToString("O");
         using var conn = _db.CreateConnection();
-        conn.Execute("INSERT INTO works (id, media_type, work_kind) VALUES (@workId, @mediaType, 'standalone');", new { workId, mediaType });
+        conn.Execute(
+            "INSERT INTO works (id, media_type, work_kind, ready_at, first_ready_at) VALUES (@workId, @mediaType, 'standalone', @readyAt, @readyAt);",
+            new { workId, mediaType, readyAt = ready ? now : null });
         conn.Execute("INSERT INTO editions (id, work_id, format_label) VALUES (@editionId, @workId, 'Test');", new { editionId, workId });
         conn.Execute("INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at) VALUES (@assetId, @editionId, @hash, @path, @presentedAt);", new { assetId, editionId, hash = $"hash-{assetId:N}", path = $"C:/watch/{assetId:N}.media", presentedAt = presented ? now : null });
         conn.Execute("INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@workId, 'title', @title, @now);", new { workId, title, now });
@@ -1120,6 +1346,20 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
             """, new { artId = Guid.NewGuid(), workId, now });
         InsertLog(conn, logId, batchId, assetId, mediaType, title, now);
         return workId;
+    }
+
+    // The stored Ready mark is the one Ready rule; these set or clear it directly, as the readiness service would.
+    private void MarkReady(Guid workId, DateTimeOffset? at = null)
+    {
+        using var conn = _db.CreateConnection();
+        var stamp = (at ?? DateTimeOffset.UtcNow).ToString("O");
+        conn.Execute("UPDATE works SET ready_at = @stamp, first_ready_at = COALESCE(first_ready_at, @stamp) WHERE id = @workId;", new { workId, stamp });
+    }
+
+    private void MarkNotReady(Guid workId)
+    {
+        using var conn = _db.CreateConnection();
+        conn.Execute("UPDATE works SET ready_at = NULL WHERE id = @workId;", new { workId });
     }
 
     private void AddReadyIdentityJob(Guid batch, Guid workId)
