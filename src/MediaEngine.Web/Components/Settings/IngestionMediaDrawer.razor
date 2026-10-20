@@ -8,7 +8,7 @@
 
 @if (Item is not null)
 {
-    <div class="ingestion-drawer" role="region" aria-labelledby="ingestion-drawer-title" @onkeydown="OnKeyDown">
+    <div class="ingestion-drawer" role="region" aria-label="@($"Ingestion details for {IngestionMediaCard.DisplayTitleFor(Item.Title)}")" @onkeydown="OnKeyDown">
             <aside class="ingestion-drawer__surface">
                 <header>
                     <span><AppMaterialIcon Icon="@IngestionMediaCard.MediaIcon(Item.MediaType)" />@IngestionMediaCard.FriendlyType(Item.MediaType)</span>

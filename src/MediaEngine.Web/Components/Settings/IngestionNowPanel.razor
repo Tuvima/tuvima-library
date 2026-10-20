@@ -38,7 +38,7 @@
                             </ChildContent>
                             <ErrorContent>
                                 <div class="ingestion-now__row-error" role="row" data-testid="row-error" data-group-id="@item.GroupId">
-                                    <span role="cell">
+                                    <span role="cell" aria-colspan="5">
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ReportProblem" aria-hidden="true" />
                                         <span><strong>@AppRowErrorBoundary.Headline</strong><small title="@IngestionMediaCard.DisplayTitleFor(item.Title)">@IngestionMediaCard.DisplayTitleFor(item.Title)</small></span>
                                     </span>
