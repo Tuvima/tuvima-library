@@ -80,6 +80,10 @@ public sealed class BaselineMetadata
     /// <summary>Whether the run recorded outside answers or replayed a recording, with counts and the folder.</summary>
     [JsonPropertyName("provider_answers")]
     public string? ProviderAnswers { get; set; }
+
+    /// <summary>Replays only: the distinct requests the recording did not hold (each answered "not found").</summary>
+    [JsonPropertyName("provider_answers_not_recorded")]
+    public List<string> ProviderAnswersNotRecorded { get; set; } = [];
 }
 
 public sealed class BaselineCounts
@@ -429,7 +433,8 @@ public sealed record BaselineRunInfo(
     string? StartedAt,
     string? EndedAt,
     IReadOnlyDictionary<string, int> HttpHosts,
-    string? ProviderAnswers = null)
+    string? ProviderAnswers = null,
+    IReadOnlyList<string>? ProviderAnswersNotRecorded = null)
 {
     public static BaselineRunInfo? Load(string configDirectory)
     {
@@ -455,7 +460,8 @@ public sealed record BaselineRunInfo(
 
         return new BaselineRunInfo(
             Text("sample_root") ?? string.Empty, List("catalogue_folders"), List("view_folders"),
-            Text("label"), Text("build_commit"), Text("started_at"), Text("ended_at"), hosts, Text("provider_answers"));
+            Text("label"), Text("build_commit"), Text("started_at"), Text("ended_at"), hosts, Text("provider_answers"),
+            List("provider_answers_not_recorded"));
     }
 }
 

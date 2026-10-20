@@ -15,7 +15,7 @@
   <run>/provider-answers/ (key values and sign-in tokens removed, and checked before the copied keys are deleted). A run
   with -ReplayFrom answers every outside request from that recording instead and never reaches the network, so comparing
   two replays of one build shows only what our own code does differently. Requests the recording does not hold get a
-  "service unavailable" answer and are listed in <run>/provider-answers-not-recorded.txt (exit code 5).
+  "not found" answer (a definite no-answer, never a provider outage) and are listed in <run>/provider-answers-not-recorded.txt (exit code 5).
 
   It never writes to config/ or to the user's data store, never stops a process it did not start, and only reads a
   -SampleRoot (a before/after listing proves nothing there changed).

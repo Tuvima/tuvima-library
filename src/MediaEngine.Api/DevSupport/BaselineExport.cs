@@ -713,6 +713,7 @@ public static class BaselineExport
             ProviderClaims = new SortedDictionary<string, int>(data.ProviderClaims, StringComparer.Ordinal),
             HttpHosts = new SortedDictionary<string, int>(runInfo.HttpHosts.ToDictionary(pair => pair.Key, pair => pair.Value), StringComparer.Ordinal),
             ProviderAnswers = runInfo.ProviderAnswers,
+            ProviderAnswersNotRecorded = runInfo.ProviderAnswersNotRecorded?.ToList() ?? [],
         };
         if (DateTimeOffset.TryParse(runInfo.StartedAt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var started)
             && DateTimeOffset.TryParse(runInfo.EndedAt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var ended))
