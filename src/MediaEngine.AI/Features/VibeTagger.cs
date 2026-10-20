@@ -1,5 +1,5 @@
 using MediaEngine.AI.Configuration;
-using MediaEngine.AI.Llama;
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using Microsoft.Extensions.Logging;
@@ -8,13 +8,15 @@ namespace MediaEngine.AI.Features;
 
 public sealed class VibeTagger : IVibeTagger
 {
-    private readonly ILlamaInferenceService _llama;
+    private static readonly AiCaller Caller = AiCaller.LibraryBackground(AiCallerIds.VibeTags);
+
+    private readonly IAiEngineRoom _engineRoom;
     private readonly AiSettings _settings;
     private readonly ILogger<VibeTagger> _logger;
 
-    public VibeTagger(ILlamaInferenceService llama, AiSettings settings, ILogger<VibeTagger> logger)
+    public VibeTagger(IAiEngineRoom engineRoom, AiSettings settings, ILogger<VibeTagger> logger)
     {
-        _llama = llama;
+        _engineRoom = engineRoom;
         _settings = settings;
         _logger = logger;
     }
@@ -60,8 +62,8 @@ public sealed class VibeTagger : IVibeTagger
             ws     ::= [ \t\n]*
             """;
 
-        var result = await _llama.InferJsonAsync<List<string>>(
-            AiModelRole.TextQuality, prompt, grammar, ct);
+        var result = await _engineRoom.ExtractJsonOrThrowAsync<List<string>>(
+            Caller, AiAbility.Classify, prompt, grammar, ct: ct);
 
         if (result is null || result.Count == 0)
         {

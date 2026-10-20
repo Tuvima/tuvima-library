@@ -18,11 +18,15 @@
     "audio_pack_enabled": { "type": "boolean" },
     "idle_unload_seconds": { "type": "integer", "minimum": 1 },
     "inference_timeout_seconds": { "type": "integer", "minimum": 1 },
-    "max_concurrent_inferences": { "const": 1 },
     "reserved_cpu_cores": { "type": "integer", "minimum": 1 },
     "background_quiet_seconds": { "type": "integer", "minimum": 1, "maximum": 300 },
     "minimum_free_disk_mb": { "type": "integer", "minimum": 256 },
     "enrichment_batch_size": { "type": "integer", "minimum": 1, "maximum": 50 },
+    "plugin_budget": { "$ref": "#/$defs/pluginBudget" },
+    "plugin_budget_overrides": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/pluginBudgetOverride" }
+    },
     "features": {
       "type": "object",
       "additionalProperties": false,
@@ -62,6 +66,24 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
       "uniqueItems": true
+    },
+    "pluginBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests_per_hour": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "busy_seconds_per_hour": { "type": "integer", "minimum": 1, "maximum": 3600 },
+        "max_wait_seconds": { "type": "integer", "minimum": 1, "maximum": 3600 }
+      }
+    },
+    "pluginBudgetOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests_per_hour": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "busy_seconds_per_hour": { "type": "integer", "minimum": 1, "maximum": 3600 },
+        "max_wait_seconds": { "type": "integer", "minimum": 1, "maximum": 3600 }
+      }
     }
   }
 }

@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1056; api=0; web-client=54
+# scopes: contracts=1061; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -158,7 +158,6 @@
   NativeRuntimeDirectory: System.String | json=native_runtime_directory | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IdleUnloadSeconds: System.Int32 | json=idle_unload_seconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   InferenceTimeoutSeconds: System.Int32 | json=inference_timeout_seconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  MaxConcurrentInferences: System.Int32 | json=max_concurrent_inferences | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MinimumFreeDiskMB: System.Int32 | json=minimum_free_disk_mb | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ResourceProfile: System.String | json=resource_profile | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   EffectiveResourceProfile: System.String | json=effective_resource_profile | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -169,7 +168,7 @@
   VibeVocabulary: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<System.String>> | json=vibe_vocabulary | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Scheduling: System.Collections.Generic.Dictionary<System.String, System.Object> | json=scheduling | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   EnrichmentBatchSize: System.Int32 | json=enrichment_batch_size | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"dev_skip_download":true,"models_directory":"sample","native_runtime_directory":"sample","idle_unload_seconds":7,"inference_timeout_seconds":7,"max_concurrent_inferences":7,"minimum_free_disk_mb":7,"resource_profile":"sample","effective_resource_profile":"sample","audio_pack_enabled":true,"features":{},"feature_info":{},"approvals":{},"vibe_vocabulary":{},"scheduling":{},"enrichment_batch_size":7}
+  sample={"dev_skip_download":true,"models_directory":"sample","native_runtime_directory":"sample","idle_unload_seconds":7,"inference_timeout_seconds":7,"minimum_free_disk_mb":7,"resource_profile":"sample","effective_resource_profile":"sample","audio_pack_enabled":true,"features":{},"feature_info":{},"approvals":{},"vibe_vocabulary":{},"scheduling":{},"enrichment_batch_size":7}
 
 [contracts] MediaEngine.Contracts.Ai.AiDownloadCancelledResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10204,6 +10203,7 @@
   cover_image: System.String | json=cover_image | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   relationship_to_parent: System.String | json=relationship_to_parent | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   children: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseAdaptationNodeDto> | json=children | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  source: System.String | json=source | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Universe.UniverseAdaptationTreeResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10230,6 +10230,15 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   universe_qid: System.String | json=universe_qid | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   characters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseCastCharacterDto> | json=characters | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Universe.UniverseCharacterDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Qid: System.String | json=qid | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WorkCount: System.Int32 | json=work_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NoPlotDetails: System.Boolean | json=no_plot_details | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | json=sources | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"qid":"sample","label":"sample","work_count":7,"no_plot_details":true,"sources":[]}
 
 [contracts] MediaEngine.Contracts.Universe.UniverseClientAdaptationDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10269,6 +10278,14 @@
   Cast: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseClientCastMemberDto> | json=cast | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Adaptations: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseClientAdaptationDto> | json=adaptations | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"qid":"sample","name":"sample","description":"sample","group_type":"sample","item_count":7,"series_count":7,"media_types":[],"shelves":[],"cast":[],"adaptations":[]}
+
+[contracts] MediaEngine.Contracts.Universe.UniverseConnectionsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Characters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseCharacterDto> | json=characters | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CharacterCount: System.Int32 | json=character_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Cast: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourcedCastMemberDto> | json=cast | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Adaptations: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourcedAdaptationDto> | json=adaptations | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"characters":[],"character_count":7,"cast":[],"adaptations":[]}
 
 [contracts] MediaEngine.Contracts.Universe.UniverseDetailRef
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10447,12 +10464,13 @@
 [contracts] MediaEngine.Contracts.Universe.UniversePageDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Detail: MediaEngine.Contracts.Universe.UniverseClientDetailDto | json=detail | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Connections: MediaEngine.Contracts.Universe.UniverseConnectionsDto | json=connections | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Standalone: MediaEngine.Contracts.Display.DisplayShelfDto | json=standalone | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Missing: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseShelfMissingDto> | json=missing | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Enrichment: MediaEngine.Contracts.Universe.UniverseEnrichmentStateDto | json=enrichment | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   GraphEntityCount: System.Int32 | json=graph_entity_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   GraphRelationshipCount: System.Int32 | json=graph_relationship_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"detail":null,"standalone":null,"missing":[],"enrichment":null,"graph_entity_count":7,"graph_relationship_count":7}
+  sample={"detail":null,"connections":null,"standalone":null,"missing":[],"enrichment":null,"graph_entity_count":7,"graph_relationship_count":7}
 
 [contracts] MediaEngine.Contracts.Universe.UniversePathsResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10468,6 +10486,24 @@
   MissingCount: System.Int32 | json=missing_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseMissingItemDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"collection_id":"11111111-2222-3333-4444-555555555555","show_missing":true,"missing_count":7,"items":[]}
+
+[contracts] MediaEngine.Contracts.Universe.UniverseSourceDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"kind":"sample","label":"sample"}
+
+[contracts] MediaEngine.Contracts.Universe.UniverseSourcedAdaptationDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Adaptation: MediaEngine.Contracts.Universe.UniverseClientAdaptationDto | json=adaptation | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | json=sources | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"adaptation":null,"sources":[]}
+
+[contracts] MediaEngine.Contracts.Universe.UniverseSourcedCastMemberDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Member: MediaEngine.Contracts.Universe.UniverseClientCastMemberDto | json=member | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | json=sources | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"member":null,"sources":[]}
 
 [web-client] MediaEngine.Web.Models.ViewDTOs.AiOperationResultDto
   kind=class | converter=default | number-handling=default | unmapped=default

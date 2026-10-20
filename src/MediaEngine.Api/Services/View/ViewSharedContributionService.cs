@@ -249,8 +249,9 @@ public sealed class ViewSharedContributionService(
                -- Without Documents, a contribution that holds only documents is left out entirely.
                AND (@documentsAllowed = 1 OR EXISTS (
                         SELECT 1 FROM view_shared_contribution_items ci
-                          JOIN local_items li ON li.id = ci.item_id
-                         WHERE ci.contribution_id = view_shared_contributions.id AND li.media_kind <> 'document'))
+                          LEFT JOIN local_items li ON li.id = ci.item_id
+                         -- An item removed by Empty Trash leaves its history row with no item; that row is not a document.
+                         WHERE ci.contribution_id = view_shared_contributions.id AND (li.id IS NULL OR li.media_kind <> 'document')))
              ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, submitted_at DESC
              LIMIT @take OFFSET @offset;
             """, new
@@ -494,6 +495,8 @@ public sealed class ViewSharedContributionService(
               FROM view_shared_contributions c
               JOIN view_shared_contribution_items ci ON ci.contribution_id = c.id
              WHERE c.status = 'accepted'
+               -- An item removed by Empty Trash has no item left to copy; its history row is only history.
+               AND ci.item_id IS NOT NULL
                AND ci.execution_state IN ('waiting', 'transferring', 'cleanup_pending', 'needs_attention', 'failed');
             """, cancellationToken: ct)).ToList();
     }
@@ -506,7 +509,8 @@ public sealed class ViewSharedContributionService(
             "SELECT decided_by_profile_id FROM view_shared_contributions WHERE id = @contributionId;",
             new { contributionId }, cancellationToken: ct))
             ?? throw new InvalidOperationException("The accepting household administrator is unavailable.");
-        foreach (var item in batch.Items.Where(value => value.ExecutionState is "waiting" or "failed" or "needs_attention" or "cleanup_pending"))
+        foreach (var item in batch.Items.Where(value => value.ItemId != Guid.Empty
+            && value.ExecutionState is "waiting" or "failed" or "needs_attention" or "cleanup_pending"))
         {
             await SetItemStateAsync(item.Id, "transferring", null, ct);
             try
@@ -690,11 +694,12 @@ public sealed class ViewSharedContributionService(
         }
 
         var items = connection.Query<ContributionItemRow>(new CommandDefinition("""
-            SELECT sci.id AS Id, sci.item_id AS ItemId, COALESCE(li.title, li.primary_file_name) AS Title,
-                   li.media_kind AS MediaKind, sci.operation AS Operation,
+            SELECT sci.id AS Id, sci.item_id AS ItemId,
+                   CASE WHEN li.id IS NULL THEN 'Removed item' ELSE COALESCE(li.title, li.primary_file_name) END AS Title,
+                   COALESCE(li.media_kind, 'other') AS MediaKind, sci.operation AS Operation,
                    sci.execution_state AS ExecutionState, sci.error AS Error
               FROM view_shared_contribution_items sci
-              JOIN local_items li ON li.id = sci.item_id
+              LEFT JOIN local_items li ON li.id = sci.item_id
              WHERE sci.contribution_id = @id ORDER BY sci.position;
             """, new { id }, cancellationToken: ct)).ToList();
         var hidden = includeDocuments ? 0 : items.Count(value => value.MediaKind == LocalAssetMediaKinds.Document);
@@ -705,7 +710,7 @@ public sealed class ViewSharedContributionService(
 
         var visibleItems = items.Where(value => includeDocuments || value.MediaKind != LocalAssetMediaKinds.Document)
             .Select(value => new ViewSharedContributionItemDto(
-                value.Id, value.ItemId, value.Title ?? "Untitled", value.MediaKind, value.Operation,
+                value.Id, value.ItemId ?? Guid.Empty, value.Title ?? "Untitled", value.MediaKind, value.Operation,
                 value.ExecutionState, value.Error)).ToList();
         var events = connection.Query<ContributionEventRow>(new CommandDefinition("""
             SELECT id AS Id, actor_name AS ActorName, event_type AS EventType,
@@ -787,7 +792,7 @@ public sealed class ViewSharedContributionService(
     private sealed class ContributionItemRow
     {
         public Guid Id { get; init; }
-        public Guid ItemId { get; init; }
+        public Guid? ItemId { get; init; }
         public string? Title { get; init; }
         public string MediaKind { get; init; } = "";
         public string Operation { get; init; } = "";

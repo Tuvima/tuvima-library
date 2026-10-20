@@ -40,7 +40,11 @@ internal sealed class FakeOcrService : IOcrService
 
     public string TemporaryRoot { get; } = Path.Combine(Path.GetTempPath(), $"tuvima-fake-ocr-{Guid.NewGuid():N}");
 
-    public Task<OcrCapability> GetCapabilityAsync(CancellationToken ct = default) => Task.FromResult(Capability);
+    /// <summary>When set, asking about the helper throws it, like a failing settings or file read would.</summary>
+    public Exception? CapabilityFailure { get; set; }
+
+    public Task<OcrCapability> GetCapabilityAsync(CancellationToken ct = default) =>
+        CapabilityFailure is null ? Task.FromResult(Capability) : Task.FromException<OcrCapability>(CapabilityFailure);
 
     public Task<OcrRecognition> RecognizeAsync(string imagePath, OcrRunOptions options, CancellationToken ct = default)
     {

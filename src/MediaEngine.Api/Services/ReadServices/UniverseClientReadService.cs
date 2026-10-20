@@ -50,22 +50,30 @@ public sealed partial class UniverseClientReadService(
     /// holds an item the profile may see. The caller answers all of those the same way.
     /// </summary>
     public async Task<UniverseClientDetailDto?> LoadAsync(string qid, Profile? profile, CancellationToken ct = default) =>
-        (await BuildAsync(qid, profile, includeStandalone: false, ct).ConfigureAwait(false))?.Detail;
+        (await BuildAsync(qid, profile, includeStandalone: false, includeCharacters: false, ct).ConfigureAwait(false))?.Detail;
 
     /// <summary>A Universe's detail, plus the visible works that belong directly to the Universe and to no Series.</summary>
     internal sealed record UniverseBuild(
         UniverseClientDetailDto Detail,
         Guid UniverseId,
         IReadOnlyList<DisplayWorkRow> AllRows,
-        IReadOnlyList<DisplayWorkRow> StandaloneRows);
+        IReadOnlyList<DisplayWorkRow> StandaloneRows,
+        UniverseConnectionsDto Connections);
 
     /// <summary>
     /// The Universe detail <see cref="LoadAsync"/> returns (its shelves, totals and lists count Series members only), and,
     /// when <paramref name="includeStandalone"/> is set, the standalone works too. Without them the answer is the helper-app
     /// answer exactly: null when no Series shelf has a visible item. With them, a Universe whose only visible works are
-    /// standalone is still a Universe (empty shelves, the standalone rows returned beside the detail).
+    /// standalone is still a Universe (empty shelves, the standalone rows returned beside the detail). The detail's Cast and
+    /// Adaptations are the plain rows of <see cref="UniverseBuild.Connections"/>, which also lists the Universe's characters
+    /// when <paramref name="includeCharacters"/> is set; every row there carries its source.
     /// </summary>
-    internal async Task<UniverseBuild?> BuildAsync(string qid, Profile? profile, bool includeStandalone, CancellationToken ct)
+    internal async Task<UniverseBuild?> BuildAsync(
+        string qid,
+        Profile? profile,
+        bool includeStandalone,
+        bool includeCharacters,
+        CancellationToken ct)
     {
         var normalized = qid.Trim();
         var scope = await ResolveVisibleUniverseAsync(normalized, profile, includeStandalone, ct).ConfigureAwait(false);
@@ -84,7 +92,7 @@ public sealed partial class UniverseClientReadService(
             .ToDictionary(group => group.Key, group => group.ToList());
 
         // One read for every member shelf's manifest rows, not one per shelf.
-        var placementsByShelf = await LoadManifestPlacementsAsync(members.Select(member => member.Id).ToList(), ct).ConfigureAwait(false);
+        var placementsByShelf = await SeriesShelfSplit.LoadPlacementsAsync(manifests, members.Select(member => member.Id).ToList(), ct).ConfigureAwait(false);
 
         var shelves = new List<UniverseMemberShelfDto>();
         var mediaTypes = new List<string>();
@@ -148,7 +156,8 @@ public sealed partial class UniverseClientReadService(
             .Where(workQid => !string.IsNullOrWhiteSpace(workQid))
             .Select(workQid => workQid!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var helperLists = await connections.GetHelperListsAsync(normalized, visibleWorkQids, ct).ConfigureAwait(false);
+        var universeConnections = await connections.GetConnectionsAsync(
+            normalized, visibleWorkQids, includeCharacters, ct).ConfigureAwait(false);
 
         return new UniverseBuild(
             new UniverseClientDetailDto
@@ -160,12 +169,13 @@ public sealed partial class UniverseClientReadService(
                 SeriesCount = shelves.Count,
                 MediaTypes = mediaTypes,
                 Shelves = shelves,
-                Cast = helperLists.Cast,
-                Adaptations = helperLists.Adaptations,
+                Cast = universeConnections.Cast.Select(row => row.Member).ToList(),
+                Adaptations = universeConnections.Adaptations.Select(row => row.Adaptation).ToList(),
             },
             universe.Id,
             allRows,
-            standaloneRows);
+            standaloneRows,
+            universeConnections);
     }
 
     // Works that belong directly to the Universe collection itself, not to any Series below it.
@@ -344,86 +354,15 @@ public sealed partial class UniverseClientReadService(
         return members;
     }
 
-    /// <summary>The manifest row that places each owned work on this Series shelf, for the shared Series ordering.</summary>
-    private async Task<IReadOnlyDictionary<Guid, IReadOnlyDictionary<Guid, ManifestItem>>> LoadManifestPlacementsAsync(
-        IReadOnlyCollection<Guid> shelfIds,
-        CancellationToken ct)
-    {
-        if (manifests is null || shelfIds.Count == 0)
-        {
-            return new Dictionary<Guid, IReadOnlyDictionary<Guid, ManifestItem>>();
-        }
-
-        var rows = await manifests.GetLinkedItemsByCollectionIdsAsync(shelfIds, ct).ConfigureAwait(false);
-        return rows
-            .GroupBy(item => item.CollectionId)
-            .ToDictionary(
-                shelf => shelf.Key,
-                shelf => (IReadOnlyDictionary<Guid, ManifestItem>)shelf
-                    .GroupBy(item => item.LinkedWorkId!.Value)
-                    .ToDictionary(
-                        group => group.Key,
-                        group => group
-                            .OrderBy(item => item.IsExpandedFromCollection)
-                            .ThenBy(item => SeriesPlacementRule.ScopeRank(item.MembershipScope))
-                            .First()));
-    }
-
     private ShelfCards BuildCards(
         IReadOnlyList<DisplayWorkRow> rows,
         IReadOnlyDictionary<Guid, ManifestItem> manifestByWork)
     {
-        var run = new List<DisplayCardDto>();
-        var also = new List<DisplayCardDto>();
-        var kinds = new List<string>();
-        var tvRows = rows.Where(row => DisplayMediaRules.NormalizeDisplayKind(row.MediaType) == "TV").ToList();
-        run.AddRange(cards.BuildTvShowCards(tvRows));
-        if (tvRows.Count > 0)
-        {
-            kinds.Add("TV");
-        }
-
-        // The same Series ordering as the shelf and the item page: the manifest's ordinal, then the work's own decimal
-        // position, then publication date, then title, with "Also in this world" members after the Series run.
-        var seriesRows = rows
-            .Where(row => DisplayMediaRules.NormalizeDisplayKind(row.MediaType) != "TV")
-            .GroupBy(row => row.WorkId)
-            .Select(group => group.First())
-            .ToList();
-        var ordered = SeriesOrdering.Order(seriesRows, row =>
-        {
-            manifestByWork.TryGetValue(row.WorkId, out var placement);
-            return SeriesOrdering.BuildInput(
-                placement?.MembershipScope,
-                placement?.ParsedOrdinal,
-                placement?.OrdinalScopeQid,
-                placement?.SeriesQid,
-                DisplayMediaRules.ParseDouble(row.SeriesPosition),
-                row.Year,
-                row.SortTitle ?? row.Title);
-        });
-        foreach (var row in ordered)
-        {
-            var kind = DisplayMediaRules.NormalizeDisplayKind(row.MediaType);
-            if (!kinds.Contains(kind, StringComparer.Ordinal))
-            {
-                kinds.Add(kind);
-            }
-
-            // The same split the item page uses: supplementary, collected and broader members are "Also in this world".
-            manifestByWork.TryGetValue(row.WorkId, out var placement);
-            var card = cards.FromWork(row, "collection", null);
-            if (SeriesOrdering.SplitsAlsoInThisWorld(kind) && SeriesOrdering.IsAlsoInThisWorld(placement?.MembershipScope))
-            {
-                also.Add(card);
-            }
-            else
-            {
-                run.Add(card);
-            }
-        }
-
-        return new ShelfCards(run, also, kinds);
+        var split = SeriesShelfSplit.Split(rows, manifestByWork);
+        var run = new List<DisplayCardDto>(cards.BuildTvShowCards(split.TvRows));
+        run.AddRange(split.Run.Select(row => cards.FromWork(row, "collection", null)));
+        var also = split.Also.Select(row => cards.FromWork(row, "collection", null)).ToList();
+        return new ShelfCards(run, also, split.Kinds);
     }
 
     private sealed record ShelfCards(

@@ -28,6 +28,13 @@ sub execute()
         response = request("GET", "/api/v1/collections?limit=24", invalid, true)
     else if m.top.operation = "collectionItems"
         response = request("GET", "/api/v1/collections/" + encode(payload.id) + "/items?limit=100", invalid, true)
+    else if m.top.operation = "universe"
+        ' Only a Wikidata QID (Q + digits) is ever sent; anything else is treated as a Universe the profile cannot see.
+        if isQid(payload.qid)
+            response = request("GET", "/api/v1/universe/" + encode(payload.qid), invalid, true)
+        else
+            response = { ok: false, status: 404, body: FormatJson({ error: "not_found", error_description: "That Universe could not be found." }) }
+        end if
     else if m.top.operation = "photos"
         response = request("GET", "/api/v1/view/timeline?limit=60", invalid, true)
     else if m.top.operation = "photoFile"
@@ -121,6 +128,13 @@ function absoluteUrl(path as String) as String
     if Left(path, 7) = "http://" or Left(path, 8) = "https://" then return path
     if Left(path, 1) <> "/" then path = "/" + path
     return m.top.serverOrigin + path
+end function
+
+function isQid(value as Dynamic) as Boolean
+    if value = invalid then return false
+    if Type(value) <> "roString" and Type(value) <> "String" then return false
+    matcher = CreateObject("roRegex", "^Q[0-9]+$", "")
+    return matcher.IsMatch(value)
 end function
 
 function encode(value as String) as String

@@ -4,6 +4,18 @@ using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Services.View;
 
+/// <summary>Moves one file from one place to another on the same volume (a rename). A seam so tests can make a move fail in ways a real disk rarely does.</summary>
+public interface IViewTrashFileMover
+{
+    void Move(string source, string destination);
+}
+
+/// <summary>The real thing: <see cref="File.Move(string, string)"/>, which never overwrites.</summary>
+public sealed class FileSystemViewTrashFileMover : IViewTrashFileMover
+{
+    public void Move(string source, string destination) => File.Move(source, destination);
+}
+
 /// <summary>One file parked in an item's staging folder: where it came from, and its name inside the folder (a name only, never a path).</summary>
 public sealed record ViewTrashManifestEntry(string Original, string Staged);
 
@@ -38,17 +50,38 @@ internal static class ViewTrashStaging
     public static string ItemFolder(string profileRoot, Guid itemId) =>
         Path.Combine(StagingRoot(profileRoot), itemId.ToString("D"));
 
+    /// <summary>Creates the item's staging folder, and the hidden staging folder above it when it is new (marked Hidden on Windows).</summary>
+    public static void CreateItemFolder(string itemFolder, ILogger logger)
+    {
+        var stagingRoot = Path.GetDirectoryName(itemFolder)!;
+        var isNew = !Directory.Exists(stagingRoot);
+        Directory.CreateDirectory(itemFolder);
+        if (isNew && OperatingSystem.IsWindows())
+        {
+            try
+            {
+                File.SetAttributes(stagingRoot, File.GetAttributes(stagingRoot) | FileAttributes.Hidden);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Hiding the folder is a courtesy; the folder works the same visible.
+                logger.LogDebug(exception, "The Trash staging folder could not be marked hidden");
+            }
+        }
+    }
+
     /// <summary>Writes the manifest (to a temporary name, flushed to disk, then renamed) so a crash never leaves half of one.</summary>
     public static void WriteManifest(string itemFolder, ViewTrashManifest manifest)
     {
         var temporary = Path.Combine(itemFolder, ManifestTempName);
-        using (var stream = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
+        // CreateNew and no overwrite: a manifest that is already there belongs to an earlier, unfinished removal and is never replaced.
+        using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
         {
             JsonSerializer.Serialize(stream, manifest, Json);
             stream.Flush(flushToDisk: true);
         }
 
-        File.Move(temporary, Path.Combine(itemFolder, ManifestFileName), overwrite: true);
+        File.Move(temporary, Path.Combine(itemFolder, ManifestFileName), overwrite: false);
     }
 
     /// <summary>Reads a manifest, or null (with the reason logged) when it is missing or not understood.</summary>

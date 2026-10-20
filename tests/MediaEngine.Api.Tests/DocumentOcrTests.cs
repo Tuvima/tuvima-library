@@ -2,6 +2,7 @@ using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Enums;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -167,6 +168,28 @@ public sealed class DocumentOcrTests
     }
 
     [Fact]
+    public async Task EveryPageRead_LeavesOneLibraryBackgroundUsageRecord_ForTheTextReader()
+    {
+        var ocr = new FakeOcrService();
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        fixture.WritePersonal("lease.pdf", OcrFixtures.Pdf(string.Empty, string.Empty));
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+        await fixture.DrainTextQueueAsync();
+        var usage = new InMemoryUsageRepository();
+
+        await Worker(fixture, ocr, new ManualPlaybackProbe(), usage).RunOnceAsync(CancellationToken.None);
+
+        Assert.Equal(2, ocr.Calls);
+        Assert.Equal(2, usage.Records.Count);
+        Assert.All(usage.Records, record =>
+        {
+            Assert.Equal(AiCallerKind.LibraryBackground, record.CallerKind);
+            Assert.Equal("document_text_reading", record.CallerId);
+            Assert.Equal((AiAbility.ReadTextFromImage, AiEngine.Tesseract, AiRequestStatus.Succeeded), (record.Ability, record.Engine, record.Outcome));
+        });
+    }
+
+    [Fact]
     public async Task PdfWithSomeTextLayer_KeepsThoseWordsAndIsMarkedMixed()
     {
         var ocr = new FakeOcrService
@@ -233,7 +256,7 @@ public sealed class DocumentOcrTests
             item.Id, new LocalAssetDocumentTextWrite("previously recognised quartermaster ledger", LocalAssetTextSources.Ocr));
 
         var outcome = await new DocumentOcrService(
-            fixture.Repository, fixture.Configuration, ocr, NullLogger<DocumentOcrService>.Instance)
+            fixture.Repository, fixture.Configuration, ocr, OcrEngineRoom.For(ocr, fixture.Configuration), NullLogger<DocumentOcrService>.Instance)
             .ReadItemAsync(item.Id, null, CancellationToken.None);
 
         Assert.Equal(DocumentOcrStatus.Failed, outcome.Status);
@@ -464,9 +487,12 @@ public sealed class DocumentOcrTests
     }
 
     private static DocumentOcrOperationWorker Worker(
-        ViewLibraryServiceTests.ViewFixture fixture, FakeOcrService ocr, ManualPlaybackProbe probe) => new(
+        ViewLibraryServiceTests.ViewFixture fixture,
+        FakeOcrService ocr,
+        ManualPlaybackProbe probe,
+        InMemoryUsageRepository? usage = null) => new(
             fixture.Operations,
-            new DocumentOcrService(fixture.Repository, fixture.Configuration, ocr, NullLogger<DocumentOcrService>.Instance),
+            new DocumentOcrService(fixture.Repository, fixture.Configuration, ocr, OcrEngineRoom.For(ocr, fixture.Configuration, usage), NullLogger<DocumentOcrService>.Instance),
             fixture.OcrQueue!,
             probe,
             fixture.Configuration,

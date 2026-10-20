@@ -33,6 +33,32 @@ Inference runs on the local machine. Model downloads and configured metadata-pro
 
 ---
 
+## The Local AI engine room
+
+Nothing talks to the text model or the text reader directly. Every caller (the Library's own AI features, the hardware benchmark, plugins and the scanned-document reader) asks `IAiEngineRoom` (`src/MediaEngine.AI/EngineRoom/`) for an **ability**; the implementation, `LocalAiEngineRoom` (`src/MediaEngine.Api/Services/LocalAi/`), picks the engine. `LocalAiEngineRoomGuardrailTests` fails the build if any other source file uses the inference services or `IOcrService.RecognizeAsync`.
+
+| Ability | Engine | Text model role | Notes |
+|---|---|---|---|
+| Write text (quick) | Text model | `text_fast` | |
+| Write text (careful) | Text model | `text_quality` | |
+| Write text (long) | Text model | `text_scholar` | |
+| Pull out structured facts | Text model | `text_quality` | Grammar required |
+| Classify | Text model | `text_quality` | Grammar required |
+| Read text from images | Tesseract | none | A tool: works with Local AI off |
+| Transcribe speech, Find similar, Describe image | none yet | none | Recorded for later; always answer "Not available yet" |
+
+Any text ability may carry a grammar. `text_cjk` and the audio role get no ability yet.
+
+**One queue per engine.** The text model has one slot. Waiting requests are served in caller-kind order (a person using the app, then ingestion, then the Library's background work, then plugins), first come first served within a kind. A person never waits behind background work: their arrival cancels running Library background and plugin work on that engine (ingestion is never cancelled). Ingestion is never turned away by the machine rules, only ordered. Library background work is **deferred** at once, writing nothing, when first-run setup is unfinished, someone used the app recently, resources are tight or another background request is running; the batch services then skip the run and try again later. A plugin instead **waits** (up to `plugin_budget.max_wait_seconds`) and then times out. Text reading (Tesseract) has no slot limit today, so its throughput is unchanged.
+
+**Plugin allowance.** A plugin that has made `requests_per_hour` requests, or run for `busy_seconds_per_hour`, in the last rolling hour is refused without running, and its health reports degraded with "Used its Local AI allowance for this hour" (shown as Needs attention). The count is read from the durable `ai_usage_records` table, so a restart does not reset it.
+
+**Usage records.** Every request that reaches the engine room, whatever its outcome, writes one `ai_usage_records` row (who, which ability, which engine, how long it waited and ran, how it ended). Deferred requests write none. A failed record write is logged as a warning and never fails the AI request.
+
+**Readiness is read from the machine.** A text ability is available when Local AI is on (for plugins), the native runtime loads (`AiRuntimeStatus`, cached and re-checked on tool install or refresh) and the text model file is on disk. `GET /ai/status` reports ready only on those last two; the optional audio pack never decides it. Reading text from images needs text recognition switched on and Tesseract installed, and nothing else.
+
+---
+
 ## Project Structure
 
 All AI implementations live in `MediaEngine.AI`. This project sits alongside `MediaEngine.Providers` in the dependency chain - it references `MediaEngine.Domain` and `MediaEngine.Contracts`, without depending on `MediaEngine.Storage`.
@@ -45,7 +71,7 @@ NuGet dependencies:
 
 ## Model Roles
 
-The machine selects one text resource profile. `AiResourceProfileCatalog.CreateDefinitions` clones that one artifact into `text_fast`, `text_quality`, `text_scholar`, and `text_cjk` with role-specific context and output limits. Those logical roles are not four separate text downloads. A single-resident runtime serializes inference, and idle models unload after the configured timeout.
+The machine selects one text resource profile. `AiResourceProfileCatalog.CreateDefinitions` clones that one artifact into `text_fast`, `text_quality`, `text_scholar`, and `text_cjk` with role-specific context and output limits. Those logical roles are not four separate text downloads. A single-resident runtime serializes inference (the engine room's one text slot), and idle models unload after the configured timeout.
 
 | Resource profile | Selected text artifact | Declared download size | Catalog memory envelope |
 |---|---|---:|---:|
@@ -234,6 +260,7 @@ All AI settings live in `config/ai.json`:
 - Per-category vibe vocabularies (Books, Movies, Music, Comics)
 - Scheduling parameters for background services
 - Idle unload timeout
+- Plugin allowances (`plugin_budget`, `plugin_budget_overrides`)
 
 ## Related
 

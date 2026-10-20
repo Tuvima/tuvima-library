@@ -2,7 +2,7 @@ using System.Net;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
-using MediaEngine.AI.Llama;
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Enums;
@@ -107,7 +107,7 @@ public sealed class PluginCapabilityAuthorizationTests
         var aiPermission = new PluginAiPermission { Role = "text_fast", MaxTokens = 128, Schedule = "scheduled", ResourceClass = "ai" };
         using var fixture = new CatalogFixture(Manifest([PluginPermissionIds.AiInfer], ai: [aiPermission]));
         fixture.Enable();
-        var inference = new RecordingInference();
+        var inference = new RecordingEngineRoom();
         var client = new BoundPluginAiClient(TestPlugin.Id, new PluginPermissionGate(fixture.Catalog), new PluginAiClient(inference));
 
         Assert.Equal("ok", await client.InferTextAsync("text_fast", "prompt"));
@@ -141,7 +141,7 @@ public sealed class PluginCapabilityAuthorizationTests
 
         using var deniedFixture = new CatalogFixture(Manifest([], ai: [aiPermission]));
         deniedFixture.Enable();
-        var deniedInference = new RecordingInference();
+        var deniedInference = new RecordingEngineRoom();
         var denied = new BoundPluginAiClient(TestPlugin.Id, new PluginPermissionGate(deniedFixture.Catalog), new PluginAiClient(deniedInference));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => denied.InferTextAsync("text_fast", "prompt"));
         Assert.Equal(0, deniedInference.CallCount);
@@ -151,6 +151,51 @@ public sealed class PluginCapabilityAuthorizationTests
         fixture.Catalog.SetEnabled(TestPlugin.Id, false);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => client.InferTextAsync("text_fast", "prompt"));
         Assert.Equal(2, inference.CallCount);
+    }
+
+    [Fact]
+    public async Task PluginAiRequests_GoToTheEngineRoomAsThatPlugin_WithTheirTokenLimit()
+    {
+        var aiPermission = new PluginAiPermission { Role = "text_fast", MaxTokens = 128, Schedule = "scheduled", ResourceClass = "ai" };
+        using var fixture = new CatalogFixture(Manifest([PluginPermissionIds.AiInfer], ai: [aiPermission]));
+        fixture.Enable();
+        var room = new RecordingEngineRoom();
+        var client = new BoundPluginAiClient(TestPlugin.Id, new PluginPermissionGate(fixture.Catalog), new PluginAiClient(room));
+
+        await client.InferTextAsync("text_fast", "prompt", new PluginAiOptions { MaxTokens = 64 });
+        await client.InferJsonAsync<object>("text_fast", "prompt", "root ::= \"{}\"", new PluginAiOptions { MaxTokens = 32 });
+        await client.InferTextAsync("text_fast", "prompt");
+
+        Assert.Equal(
+            [
+                (new AiCaller(AiCallerKind.Plugin, TestPlugin.Id), AiAbility.WriteTextQuick, (int?)64),
+                (new AiCaller(AiCallerKind.Plugin, TestPlugin.Id), AiAbility.WriteTextQuick, (int?)32),
+                (new AiCaller(AiCallerKind.Plugin, TestPlugin.Id), AiAbility.WriteTextQuick, (int?)null),
+            ],
+            room.Requests);
+    }
+
+    [Theory]
+    [InlineData("text_fast", AiAbility.WriteTextQuick)]
+    [InlineData("text_quality", AiAbility.WriteTextCareful)]
+    [InlineData("text_scholar", AiAbility.WriteTextLong)]
+    [InlineData("text_cjk", AiAbility.WriteTextCareful)]
+    public async Task PluginRoleWords_AreMappedToAbilities(string role, AiAbility expected)
+    {
+        var room = new RecordingEngineRoom();
+
+        await new PluginAiClient(room).InferTextAsync(TestPlugin.Id, role, "prompt");
+
+        Assert.Equal(expected, Assert.Single(room.Requests).Ability);
+    }
+
+    [Theory]
+    [InlineData("audio")]
+    [InlineData("vision")]
+    public async Task PluginAudioAndVisionRoles_StayReservedForLater(string role)
+    {
+        await Assert.ThrowsAsync<NotSupportedException>(
+            () => new PluginAiClient(new RecordingEngineRoom()).InferTextAsync(TestPlugin.Id, role, "prompt"));
     }
 
     [Fact]
@@ -450,19 +495,30 @@ public sealed class PluginCapabilityAuthorizationTests
         }
     }
 
-    private sealed class RecordingInference : ILlamaInferenceService
+    private sealed class RecordingEngineRoom : IAiEngineRoom
     {
-        public int CallCount { get; private set; }
-        public Task<string> InferAsync(AiModelRole role, string prompt, string? gbnfGrammar = null, CancellationToken ct = default)
+        public int CallCount => Requests.Count;
+
+        public List<(AiCaller Caller, AiAbility Ability, int? MaxTokens)> Requests { get; } = [];
+
+        public Task<AiTextResult> WriteTextAsync(
+            AiCaller caller, AiAbility ability, string prompt, string? grammar = null, AiRequestOptions? options = null, CancellationToken ct = default)
         {
-            CallCount++;
-            return Task.FromResult("ok");
+            Requests.Add((caller, ability, options?.MaxTokens));
+            return Task.FromResult(new AiTextResult("ok", new AiRequestOutcome(AiRequestStatus.Succeeded, "Done")));
         }
 
-        public Task<T?> InferJsonAsync<T>(AiModelRole role, string prompt, string gbnfGrammar, CancellationToken ct = default) where T : class
+        public Task<AiJsonResult<T>> ExtractJsonAsync<T>(
+            AiCaller caller, AiAbility ability, string prompt, string grammar, AiRequestOptions? options = null, CancellationToken ct = default) where T : class
         {
-            CallCount++;
-            return Task.FromResult<T?>(null);
+            Requests.Add((caller, ability, options?.MaxTokens));
+            return Task.FromResult(new AiJsonResult<T>(null, new AiRequestOutcome(AiRequestStatus.Succeeded, "Done")));
         }
+
+        public Task<AiImageTextResult> ReadTextFromImageAsync(AiCaller caller, AiImageTextRequest request, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<AiAvailability> GetAvailabilityAsync(AiAbility ability, CancellationToken ct = default) =>
+            Task.FromResult(AiAvailability.Available);
     }
 }

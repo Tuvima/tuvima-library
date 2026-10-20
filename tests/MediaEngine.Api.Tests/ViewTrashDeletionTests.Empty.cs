@@ -588,10 +588,10 @@ public sealed partial class ViewTrashDeletionTests
         await EmptyTrashAsync(alice);
         var indexer = new ViewLibraryService(_assets, _configuration, _spaces, _storage, NullLogger<ViewLibraryService>.Instance);
 
-        // A real picture goes in beside a copy hidden in a staging folder; only the first can be added.
+        // A real picture goes in beside a copy parked in the profile's staging folder; only the first can be added.
         Directory.CreateDirectory(alice.UploadFolder);
         WritePng(Path.Combine(alice.UploadFolder, "fresh.png"));
-        var staging = Directory.CreateDirectory(Path.Combine(alice.UploadFolder, ViewStorageService.StagingFolderName, Guid.NewGuid().ToString("D"))).FullName;
+        var staging = Directory.CreateDirectory(Path.Combine(StagingRoot(alice), Guid.NewGuid().ToString("D"))).FullName;
         var parked = Path.Combine(staging, "0000_parked.png");
         WritePng(parked);
 
@@ -607,12 +607,23 @@ public sealed partial class ViewTrashDeletionTests
     [Theory]
     [InlineData("C:/Library/View/Profiles/abc/.tuvima-staging/1234/0000_a.jpg", true)]
     [InlineData("C:\\Library\\View\\Profiles\\abc\\.tuvima-staging", true)]
+    [InlineData("/home/me/.tuvima-staging/1234/a.jpg", false)]
+    [InlineData("/library/view/Profiles/abc/Timeline/.tuvima-staging/a.jpg", false)]
+    [InlineData("/library/view/Profiles/.tuvima-staging/a.jpg", false)]
     [InlineData("/library/view/profiles/abc/Timeline/a.jpg", false)]
     [InlineData("/library/view/profiles/abc/Timeline/not.tuvima-staging.jpg", false)]
     [InlineData("", false)]
     public void TheStagingFolder_IsRecognisedByAnyStepOfAPath(string path, bool expected)
     {
         Assert.Equal(expected, ViewStorageService.IsInsideStagingFolder(path));
+    }
+
+    [Fact]
+    public void TheStagingFolder_IsMatchedWithoutRegardToCase_OnlyWhereThePlatformIgnoresCase()
+    {
+        // Windows folders ignore case; elsewhere ".TUVIMA-STAGING" is a different folder.
+        Assert.Equal(OperatingSystem.IsWindows(),
+            ViewStorageService.IsInsideStagingFolder("/library/view/profiles/abc/.TUVIMA-STAGING/1234/a.jpg"));
     }
 
     // ---------------------------------------------------------------- the recovery sweep
@@ -738,18 +749,18 @@ public sealed partial class ViewTrashDeletionTests
     }
 
     /// <summary>A service built by hand around a given gate, planning with the same gate.</summary>
-    private ScopedService BuildService(ISourceMutationPolicyGate gate)
+    private ScopedService BuildService(ISourceMutationPolicyGate gate, IViewTrashFileMover? mover = null, IViewTrashPurgeRepository? purgeOverride = null)
     {
         var scope = _app.Services.CreateScope();
         var planner = new ViewTrashDeletionPlanner(
             new ViewTrashRepository(_database), _spaces, _policies, _storage, gate,
             scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
             NullLogger<ViewTrashDeletionPlanner>.Instance);
-        var purge = new ViewTrashPurgeRepository(_database);
+        var purge = purgeOverride ?? new ViewTrashPurgeRepository(_database);
         var recovery = new ViewTrashRecoveryService(_spaces, _storage, purge, NullLogger<ViewTrashRecoveryService>.Instance);
         return new ScopedService(
             new ViewTrashDeletionService(planner, _spaces, _storage, gate, purge, recovery, _assetPaths,
-                new SystemActivityRepository(_database), NullLogger<ViewTrashDeletionService>.Instance),
+                new SystemActivityRepository(_database), NullLogger<ViewTrashDeletionService>.Instance, mover),
             scope);
     }
 
@@ -950,4 +961,215 @@ public sealed partial class ViewTrashDeletionTests
     private void AddToGallery(Guid galleryId, Guid itemId) =>
         Execute("INSERT INTO view_gallery_items (gallery_id, item_id, position, added_at) VALUES (@galleryId, @itemId, 0, @now);",
             new { galleryId, itemId, now = DateTimeOffset.UtcNow });
+
+    // ---------------------------------------------------------------- review fixes
+
+    [Fact]
+    public async Task EmptyTrash_AnotherItemThatLinksTheSameFileAfterThePlan_StopsTheRemoval_AndEveryFileGoesBack()
+    {
+        var alice = await CreatePerson();
+        var live = await AddItem(alice, LocalAssetMediaKinds.Image, "live",
+            Part(alice, "IMG_7.heic", 1000, LocalAssetFileRoles.Primary, alice.Upload),
+            Part(alice, "IMG_7.mov", 3000, LocalAssetFileRoles.LivePhotoVideo, alice.Upload));
+        var fingerprint = (await PlanAsync(alice)).Preview.Fingerprint;
+        var newcomer = Guid.NewGuid();
+        // This service's gate is asked once per file while it plans (two files, calls 1 and 2) and once per file at the re-check;
+        // the other item appears at the first re-check (call 3).
+        using var service = BuildService(new ActionOnCallGate(new MediaEngine.Ingestion.SourceMutationPolicyGate(), 3, () =>
+        {
+            var now = DateTimeOffset.UtcNow;
+            Execute("""
+                INSERT INTO local_items (id, scope_kind, personal_space_id, owner_profile_id, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
+                VALUES (@newcomer, 'personal', @space, @profile, @library, 'video', 'IMG_7.mov', 'video/quicktime', @now, @now);
+                INSERT INTO local_item_files (item_id, file_id, role, position, added_at)
+                SELECT @newcomer, lif.file_id, 'primary', 0, @now FROM local_item_files lif
+                 WHERE lif.item_id = @item AND lif.role = 'live_photo_video';
+                """, new { newcomer, space = alice.Space.Id, profile = alice.ProfileId, library = alice.Space.LibraryId, item = live.ItemId, now });
+        }));
+
+        var outcome = await service.EmptyAsync(alice.Authority, fingerprint);
+
+        var failure = Assert.Single(outcome.Result!.Failed);
+        Assert.Equal(live.ItemId, failure.ItemId);
+        Assert.Equal(ViewTrashDeletionService.FileChangedReason, failure.Reason);
+        Assert.Equal(0, outcome.Result.DeletedCount);
+        Assert.All(live.Paths, path => Assert.True(File.Exists(path), "every file is back where it was"));
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM local_items WHERE id = @id AND trashed_at IS NOT NULL;", new { id = live.ItemId }));
+        Assert.Equal(1, CountItems(newcomer));
+        Assert.False(Directory.Exists(StagingRoot(alice)));
+    }
+
+    [Fact]
+    public async Task EmptyTrash_AStagingFolderThatAlreadyExists_IsNeverReusedOrOverwritten_AndItsItemStaysInTrash()
+    {
+        var alice = await CreatePerson();
+        var photo = await AddPhoto(alice, "blocked-by-leftovers");
+        var folder = Path.Combine(StagingRoot(alice), photo.ItemId.ToString("D"));
+        Directory.CreateDirectory(folder);
+        var manifestPath = Path.Combine(folder, "manifest.json");
+        var leftover = JsonSerializer.Serialize(new { ItemId = photo.ItemId, Files = Array.Empty<object>() });
+        await File.WriteAllTextAsync(manifestPath, leftover);
+        await File.WriteAllBytesAsync(Path.Combine(folder, "0000_earlier.jpg"), new byte[3]);
+
+        var (_, result) = await EmptyTrashAsync(alice);
+
+        Assert.Equal(0, result!.DeletedCount);
+        var failure = Assert.Single(result.Failed);
+        Assert.Equal(ViewTrashDeletionService.NotPreparedReason, failure.Reason);
+        Assert.True(File.Exists(photo.Paths[0]));
+        Assert.Equal(1, CountItems(photo.ItemId));
+        Assert.Equal(leftover, await File.ReadAllTextAsync(manifestPath));
+        Assert.True(File.Exists(Path.Combine(folder, "0000_earlier.jpg")));
+    }
+
+    [Fact]
+    public async Task EmptyTrash_AMoveThatFailsInAnUnexpectedWay_PutsThatItemsFilesBack_AndTheOtherItemsStillGo()
+    {
+        var alice = await CreatePerson();
+        var bad = await AddItem(alice, LocalAssetMediaKinds.Image, "bad",
+            Part(alice, "bad.heic", 1000, LocalAssetFileRoles.Primary, alice.Upload),
+            Part(alice, "bad.mov", 3000, LocalAssetFileRoles.LivePhotoVideo, alice.Upload));
+        var good = await AddPhoto(alice, "good", size: 700);
+        var fingerprint = (await PlanAsync(alice)).Preview.Fingerprint;
+        using var service = BuildService(new MediaEngine.Ingestion.SourceMutationPolicyGate(),
+            new ThrowingMover(path => path.EndsWith("bad.mov", StringComparison.OrdinalIgnoreCase)));
+
+        var outcome = await service.EmptyAsync(alice.Authority, fingerprint);
+
+        Assert.Equal(ViewTrashEmptyStatus.Ok, outcome.Status);
+        Assert.Equal(1, outcome.Result!.DeletedCount);
+        Assert.Equal(700, outcome.Result.BytesFreed);
+        var failure = Assert.Single(outcome.Result.Failed);
+        Assert.Equal(bad.ItemId, failure.ItemId);
+        Assert.Equal(ViewTrashDeletionService.NotPreparedReason, failure.Reason);
+        Assert.DoesNotContain("NotSupported", failure.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.All(bad.Paths, path => Assert.True(File.Exists(path)));
+        Assert.False(File.Exists(good.Paths[0]));
+        Assert.Equal(1, CountItems(bad.ItemId));
+        Assert.Equal(0, CountItems(good.ItemId));
+        Assert.False(Directory.Exists(StagingRoot(alice)));
+        // The activity entry still records what was removed.
+        using var connection = _database.CreateConnection();
+        Assert.Equal("1 item, 700 B freed, 1 skipped", connection.QuerySingle<string>(
+            "SELECT detail FROM system_activity WHERE action_type = 'PersonalTrashEmptied';"));
+    }
+
+    [WindowsOnlyFact]
+    public void TheStagingFolder_IsHidden_OnWindows()
+    {
+        var root = Path.Combine(_root, "hidden-check", "Profiles", "abc");
+        var itemFolder = Path.Combine(root, ViewStorageService.StagingFolderName, Guid.NewGuid().ToString("D"));
+
+        ViewTrashStaging.CreateItemFolder(itemFolder, NullLogger.Instance);
+
+        Assert.True((File.GetAttributes(Path.GetDirectoryName(itemFolder)!) & FileAttributes.Hidden) != 0);
+    }
+
+    /// <summary>Moves like the real thing, except it throws a surprising exception for the files the test picks.</summary>
+    private sealed class ThrowingMover(Func<string, bool> throwFor) : IViewTrashFileMover
+    {
+        public void Move(string source, string destination)
+        {
+            if (throwFor(source))
+            {
+                throw new NotSupportedException("the test made this move fail");
+            }
+
+            File.Move(source, destination);
+        }
+    }
+
+    [Fact]
+    public async Task EmptyTrash_ASecondLibraryThatIndexesTheSamePathAfterThePlan_StopsTheRemoval_AndEveryFileGoesBack()
+    {
+        var alice = await CreatePerson();
+        var bob = await CreatePerson();
+        var photo = await AddPhoto(alice, "also-indexed-elsewhere", size: 300);
+        var fingerprint = (await PlanAsync(alice)).Preview.Fingerprint;
+        var bobsItem = Guid.NewGuid();
+        // This service's gate is asked once while it plans and once at the re-check (call 2); the other library picks the path up then.
+        using var service = BuildService(new ActionOnCallGate(new MediaEngine.Ingestion.SourceMutationPolicyGate(), 2, () =>
+        {
+            var now = DateTimeOffset.UtcNow;
+            Execute("""
+                INSERT INTO local_items (id, scope_kind, personal_space_id, owner_profile_id, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
+                VALUES (@bobsItem, 'personal', @space, @profile, @library, 'image', 'x.jpg', 'image/jpeg', @now, @now);
+                INSERT INTO local_item_files (item_id, file_id, role, position, added_at)
+                SELECT @bobsItem, lif.file_id, 'primary', 0, @now FROM local_item_files lif WHERE lif.item_id = @item;
+                INSERT INTO local_file_sources (id, file_id, library_id, file_path, modified_at, indexed_at)
+                SELECT @sourceId, lif.file_id, @library, @path, @now, @now FROM local_item_files lif WHERE lif.item_id = @item;
+                """, new
+            {
+                bobsItem,
+                space = bob.Space.Id,
+                profile = bob.ProfileId,
+                library = bob.Space.LibraryId,
+                item = photo.ItemId,
+                sourceId = Guid.NewGuid(),
+                path = photo.Paths[0].ToUpperInvariant(),
+                now,
+            });
+        }));
+
+        var outcome = await service.EmptyAsync(alice.Authority, fingerprint);
+
+        var failure = Assert.Single(outcome.Result!.Failed);
+        Assert.Equal(photo.ItemId, failure.ItemId);
+        Assert.Equal(ViewTrashDeletionService.FileChangedReason, failure.Reason);
+        Assert.True(File.Exists(photo.Paths[0]), "the file is back where it was");
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM local_items WHERE id = @id AND trashed_at IS NOT NULL;", new { id = photo.ItemId }));
+        Assert.Equal(1, CountItems(bobsItem));
+        Assert.False(Directory.Exists(StagingRoot(alice)));
+    }
+
+    [Fact]
+    public async Task EmptyTrash_WhenEvenTheLookupAfterAnUnexpectedErrorFails_ThatItemIsReportedNotDeleted_AndTheRestStillGo()
+    {
+        var alice = await CreatePerson();
+        var bad = await AddPhoto(alice, "bad", size: 111);
+        var good = await AddPhoto(alice, "good", size: 222);
+        var fingerprint = (await PlanAsync(alice)).Preview.Fingerprint;
+        var real = new ViewTrashPurgeRepository(_database);
+        // Two files are planned (calls 1 and 2); the safety gate then fails in an unexpected way while re-checking the bad one.
+        using var service = BuildService(
+            new ThrowAfterGate(new MediaEngine.Ingestion.SourceMutationPolicyGate(), 2, "bad.jpg"), null, new FailingLookupPurge(real, bad.ItemId));
+
+        var outcome = await service.EmptyAsync(alice.Authority, fingerprint);
+
+        Assert.Equal(ViewTrashEmptyStatus.Ok, outcome.Status);
+        Assert.Equal(1, outcome.Result!.DeletedCount);
+        Assert.Equal(222, outcome.Result.BytesFreed);
+        var failure = Assert.Single(outcome.Result.Failed);
+        Assert.Equal(bad.ItemId, failure.ItemId);
+        Assert.Equal(ViewTrashDeletionService.UnexpectedReason, failure.Reason);
+        Assert.False(File.Exists(good.Paths[0]));
+        Assert.Equal(0, CountItems(good.ItemId));
+        Assert.Equal(1, CountItems(bad.ItemId));
+        Assert.True(File.Exists(bad.Paths[0]), "the failed item's file stays where it was");
+        Assert.False(Directory.Exists(StagingRoot(alice)));
+        using var connection = _database.CreateConnection();
+        Assert.Equal("1 item, 222 B freed, 1 skipped", connection.QuerySingle<string>(
+            "SELECT detail FROM system_activity WHERE action_type = 'PersonalTrashEmptied';"));
+    }
+
+    /// <summary>Cannot answer whether one item still exists, as if the data store went away at the worst moment.</summary>
+    private sealed class FailingLookupPurge(IViewTrashPurgeRepository inner, Guid badItem) : IViewTrashPurgeRepository
+    {
+        public Task<ViewTrashPurgeResult> PurgeItemsAsync(IReadOnlyList<ViewTrashPurgeRequest> requests, CancellationToken ct = default) =>
+            inner.PurgeItemsAsync(requests, ct);
+
+        public Task<bool> ItemExistsAsync(Guid itemId, CancellationToken ct = default) =>
+            itemId == badItem ? throw new TimeoutException("the test made the lookup fail") : inner.ItemExistsAsync(itemId, ct);
+    }
+
+    /// <summary>Allows every call, then throws an unexpected exception for any path ending in a given suffix once a number of calls were made.</summary>
+    private sealed class ThrowAfterGate(ISourceMutationPolicyGate inner, int afterCalls, string suffix) : ISourceMutationPolicyGate
+    {
+        private int _calls;
+
+        public SourceMutationDecision Evaluate(SourceMutationRequest request) =>
+            Interlocked.Increment(ref _calls) > afterCalls && request.Path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
+                ? throw new InvalidCastException("the test made the gate fail")
+                : inner.Evaluate(request);
+    }
 }

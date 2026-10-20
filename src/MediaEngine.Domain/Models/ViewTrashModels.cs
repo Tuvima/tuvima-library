@@ -39,13 +39,16 @@ public sealed record ViewTrashTotals(
 /// What Empty Trash asks the data store to remove for one item. <see cref="PlannedSourceRowIds"/> is every indexed place
 /// (<c>local_file_sources</c> row) the plan saw under the item's files, whatever was decided for it; <see cref="RemovedSourceRowIds"/>
 /// is the subset whose files were removed from disk or were already gone. Places for files kept on disk are never in the second list.
+/// <see cref="DeleteFileIds"/> is the file records whose files are being removed from disk: the data store refuses if an item outside
+/// the group being removed now uses any of them.
 /// </summary>
 public sealed record ViewTrashPurgeRequest(
     Guid ItemId,
     Guid PersonalSpaceId,
     Guid OwnerProfileId,
     IReadOnlyCollection<Guid> PlannedSourceRowIds,
-    IReadOnlyCollection<Guid> RemovedSourceRowIds);
+    IReadOnlyCollection<Guid> RemovedSourceRowIds,
+    IReadOnlyCollection<Guid> DeleteFileIds);
 
 /// <summary>What happened when an item's records were removed.</summary>
 public enum ViewTrashPurgeOutcome
