@@ -920,3 +920,51 @@
 .sme-match-comparison-row .is-negative { color: var(--tl-status-error); }
 
 .sme-match-verdict { display: block; color: inherit; font-size: var(--tl-font-size-caption); }
+
+/* In an Editing Mode section (the full width of the page) Match and Identity stays at a readable width, centred. */
+.sme-shell--section .sme-match-tab {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+}
+
+/* Refresh metadata: a quiet row at the top of Match and Identity. The button says what it does; a reason, a result or an error
+   shows under it in plain words. */
+.sme-match-refresh {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-3) var(--tl-space-4);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-lg);
+    background: var(--tl-bg-surface);
+}
+
+.sme-match-refresh__copy {
+    display: grid;
+    gap: var(--tl-space-1);
+    min-width: 0;
+}
+
+.sme-match-refresh__copy strong {
+    color: var(--tl-text-primary);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.sme-match-refresh__copy span,
+.sme-match-refresh__note {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+    line-height: 1.4;
+}
+
+.sme-match-refresh__note {
+    flex-basis: 100%;
+    margin: 0;
+}
+
+.sme-match-refresh__note--error {
+    color: var(--tl-status-error);
+}

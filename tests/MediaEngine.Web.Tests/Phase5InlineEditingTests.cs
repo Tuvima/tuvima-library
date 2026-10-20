@@ -224,9 +224,10 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("AriaLabel=\"@GetArtworkRemovalLabel(focusedItem)\"", source, StringComparison.Ordinal);
         Assert.Contains("Delete uploaded image", code, StringComparison.Ordinal);
         Assert.Contains("Remove from item", code, StringComparison.Ordinal);
-        Assert.Contains("AppMaterialIcons.Outlined.Check", source, StringComparison.Ordinal);
-        Assert.Contains("AppMaterialIcons.Outlined.Close", source, StringComparison.Ordinal);
-        Assert.Contains("GetArtworkRemovalConfirmLabel", source, StringComparison.Ordinal);
+        // Remove asks first in the shared confirmation dialog (details overlay spec D7 and D17), not in a strip on the image.
+        Assert.Contains("ArtworkRemoveConfirmation.AskRemoveAsync", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetArtworkRemovalConfirmLabel", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("sme-artwork-delete-confirm", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<span>@GetArtworkRemovalQuestion(focusedItem)</span>", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<div class=\"sme-artwork-primary-actions\">", source, StringComparison.Ordinal);
     }

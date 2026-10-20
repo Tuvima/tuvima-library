@@ -93,6 +93,7 @@ public partial class SharedMediaEditorShell
         }
     }
     [Inject] protected IAppDialogService DialogService { get; set; } = null!;
+    [Inject] protected IServiceProvider ServiceProvider { get; set; } = null!;
     [Inject] protected ILogger<SharedMediaEditorShell> Logger { get; set; } = null!;
 
     [CascadingParameter] private IAppDialogContext? DialogContext { get; set; }
@@ -162,7 +163,6 @@ public partial class SharedMediaEditorShell
     private string? _selectedWikidataCandidateId;
     private string? _selectedArtworkAssetType;
     private string? _focusedArtworkVariantKey;
-    private string? _deleteConfirmArtworkVariantKey;
     private readonly MediaEditorEditionCoverReviewState _editionCoverReview = new();
     private bool _editionCoverReviewing;
     private bool _editionCoverSaving;
@@ -233,6 +233,8 @@ public partial class SharedMediaEditorShell
     private string? _focusedAudiobookChapterKey;
     private EnrichmentRefreshScheduleDto? _refreshSchedule;
     private bool _refreshQueueing;
+    private string? _refreshStatus;
+    private string? _refreshError;
     private IReadOnlyList<string> _genreSuggestions = [];
     private IReadOnlyList<string> _tagSuggestions = [];
     private PendingTargetSwitch? _pendingTargetSwitch;
@@ -399,8 +401,34 @@ public partial class SharedMediaEditorShell
     protected bool ShouldShowEditorFooter =>
         _confirmDiscard
         || _pendingMembershipPreview is not null
-        || (HasStagedEditorChanges && !HasPendingDetailsInlineEdit)
+        || (HasStagedEditorChanges && !HasPendingDetailsInlineEdit && !IsOnlyArtworkUploadInFlight)
         || Request.Mode == SharedMediaEditorMode.Review;
+
+    // In an Editing Mode section a picked image is applied at once, so a staged file is either on its way (the footer stays
+    // out of the way) or the upload failed and the footer offers to retry it (details overlay spec D7). Nothing else is staged
+    // by artwork in a section, so there is never a Save for it.
+    private bool OnlyArtworkUploadsStaged =>
+        _pendingArtworkFiles.Count > 0
+        && _editedValues.Count == 0
+        && !HasPendingDetailsInlineEdit
+        && !_unifiedArtworkPending
+        && _audiobookChapterEdits.Count == 0
+        && _audiobookChapterResetKeys.Count == 0
+        && !_sharedEntityDirty;
+    protected bool IsOnlyArtworkUploadInFlight => IsSection && OnlyArtworkUploadsStaged && _artworkApplyingKeys.Count > 0;
+    protected bool ShowArtworkUploadRetryFooter => IsSection && OnlyArtworkUploadsStaged && _artworkApplyingKeys.Count == 0;
+
+    protected async Task RetryFailedArtworkUploadsAsync()
+    {
+        foreach (var (scopedKey, file) in _pendingArtworkFiles.ToList())
+        {
+            var parsed = ParseScopedKey(scopedKey);
+            if (GetScopeById(parsed.ScopeId) is { } scope)
+            {
+                await UploadPendingArtworkAsync(scope, parsed.Key, file, scopedKey);
+            }
+        }
+    }
     protected bool ShouldShowNonInlineEditorFooter =>
         (!Inline || IsSection) && (_confirmDiscard || (ShouldShowEditorFooter && _activeTab != "links"));
     private bool _automaticArtworkRestoring;
@@ -754,10 +782,26 @@ public partial class SharedMediaEditorShell
         }
     }
 
+    /// <summary>The line shown when a refresh was started; the Engine's own wording is for logs, this one is for the person.</summary>
+    internal const string RefreshStartedMessage = "Refresh started. Details update when it finishes.";
+
+    /// <summary>
+    /// Refresh metadata (details overlay spec D11) is only for people the Engine accepts for the run-now action: an effective
+    /// administrator, the same check Delete from library and Universe editing use. The Engine decides again when it is called.
+    /// </summary>
+    protected bool CanRefreshMetadata =>
+        IsSingleItem && ServiceProvider.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
+
+    /// <summary>Why Refresh metadata is off right now, or null when it can be used.</summary>
+    protected string? RefreshMetadataDisabledReason =>
+        string.Equals(_refreshSchedule?.Status, "Queued", StringComparison.OrdinalIgnoreCase)
+            ? "A refresh is already waiting to run for this item."
+            : null;
+
     protected async Task QueueFullEnrichmentAsync()
     {
         var target = _refreshSchedule;
-        if (_refreshQueueing)
+        if (_refreshQueueing || RefreshMetadataDisabledReason is not null)
         {
             return;
         }
@@ -770,21 +814,27 @@ public partial class SharedMediaEditorShell
         }
 
         _refreshQueueing = true;
+        _refreshStatus = null;
+        _refreshError = null;
+        StateHasChanged();
         try
         {
             var result = await ApiClient.QueueEnrichmentRefreshNowAsync(entityType, entityId);
             if (result is null)
             {
-                Snackbar.Add("The enrichment refresh could not be queued.", AppSeverity.Error);
+                _refreshError = string.IsNullOrWhiteSpace(ApiClient.LastError)
+                    ? "The refresh could not be started. Try again in a moment."
+                    : ApiClient.LastError;
                 return;
             }
 
-            Snackbar.Add(result.Message, AppSeverity.Success);
+            _refreshStatus = RefreshStartedMessage;
             await LoadRefreshScheduleAsync();
         }
         finally
         {
             _refreshQueueing = false;
+            StateHasChanged();
         }
     }
 
@@ -1578,9 +1628,7 @@ public partial class SharedMediaEditorShell
         {
             return;
         }
-        if (await DialogService.ShowMessageBoxAsync("Restore automatic artwork?",
-            "Remove this shelf's custom covers and use artwork from its owned titles?",
-            yesText: "Restore automatic artwork", cancelText: "Keep custom covers") != true)
+        if (!await ArtworkRemoveConfirmation.AskRestoreAutomaticAsync(DialogService))
         {
             return;
         }
@@ -3255,7 +3303,6 @@ public partial class SharedMediaEditorShell
             _artworkAddMenuAssetType = null;
             _artworkUrlInput = string.Empty;
             _showArtworkUrlInput = false;
-            _deleteConfirmArtworkVariantKey = null;
         }
 
         _focusedArtworkVariantKey = GetArtworkGalleryItems(assetType).FirstOrDefault(item => item.IsPending)?.Key
@@ -3268,43 +3315,25 @@ public partial class SharedMediaEditorShell
     protected bool IsFocusedArtworkVariant(string variantKey) =>
         string.Equals(_focusedArtworkVariantKey, variantKey, StringComparison.Ordinal);
 
-    protected bool IsArtworkDeleteConfirming(ArtworkVariantDisplayItem item) =>
-        string.Equals(_deleteConfirmArtworkVariantKey, item.Key, StringComparison.Ordinal);
-
+    // Remove asks first in the shared confirmation dialog, with the image shown (details overlay spec D7 and D17). The same
+    // dialog opens in an Editing Mode section and in the Needs Review modal. Keep or closing it leaves the image alone.
     protected async Task DeleteArtworkVariantWithConfirmationAsync(ArtworkVariantDisplayItem item)
     {
-        if (item.VariantId == Guid.Empty)
+        if (item.VariantId == Guid.Empty || IsArtworkBusy)
         {
             return;
         }
 
         FocusArtworkVariant(item.Key);
-        if (!IsArtworkDeleteConfirming(item))
-        {
-            _deleteConfirmArtworkVariantKey = item.Key;
-            StateHasChanged();
-            return;
-        }
-
-        await ConfirmArtworkDeleteAsync(item);
-    }
-
-    protected void CancelArtworkDelete(ArtworkVariantDisplayItem item)
-    {
-        if (IsArtworkDeleteConfirming(item))
-        {
-            _deleteConfirmArtworkVariantKey = null;
-        }
-    }
-
-    protected async Task ConfirmArtworkDeleteAsync(ArtworkVariantDisplayItem item)
-    {
-        if (item.VariantId == Guid.Empty)
+        var slotLabel = ArtworkSlots
+            .FirstOrDefault(slot => string.Equals(slot.AssetType, item.AssetType, StringComparison.OrdinalIgnoreCase))?.Label
+            ?? SelectedArtworkSlot?.Label;
+        if (!await ArtworkRemoveConfirmation.AskRemoveAsync(
+                DialogService, slotLabel, item.ImageUrl, GetArtworkRemovalQuestion(item)))
         {
             return;
         }
 
-        _deleteConfirmArtworkVariantKey = null;
         await DeleteArtworkVariantAsync(item.VariantId);
     }
 
@@ -3621,7 +3650,6 @@ public partial class SharedMediaEditorShell
             return;
         }
 
-        _deleteConfirmArtworkVariantKey = null;
         if (string.Equals(_focusedArtworkVariantKey, BuildVariantKey(variantId), StringComparison.Ordinal))
         {
             _focusedArtworkVariantKey = null;
@@ -3682,13 +3710,8 @@ public partial class SharedMediaEditorShell
 
     protected static string GetArtworkRemovalQuestion(ArtworkVariantDisplayItem item) =>
         string.Equals(item.Origin, "Uploaded", StringComparison.OrdinalIgnoreCase)
-            ? "Delete this uploaded image from Library?"
-            : "Remove this provider artwork from the item? The shared cached file may remain available.";
-
-    protected static string GetArtworkRemovalConfirmLabel(ArtworkVariantDisplayItem item) =>
-        string.Equals(item.Origin, "Uploaded", StringComparison.OrdinalIgnoreCase)
-            ? "Confirm delete uploaded image"
-            : "Confirm remove from item";
+            ? "This deletes the uploaded image from your library."
+            : "This removes the provider artwork from the item. The shared cached file may remain available.";
 
     protected async Task SearchCanonicalAsync()
     {
