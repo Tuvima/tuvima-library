@@ -120,6 +120,117 @@ public static partial class MediaDateSql
             """;
     }
 
+    /// <summary>The stored entities a display year can come from (see <see cref="DisplayOriginalYearFromPivots"/>).</summary>
+    public enum YearSlot
+    {
+        Work,
+        Root,
+        Asset,
+    }
+
+    private static readonly (string[] Likes, string? MediaType)[] YearMediaTypeBranches =
+    [
+        (["%book%", "%audio%"], "Books"),
+        (["%movie%", "%film%"], "Movies"),
+        (["%tv%", "%television%"], "TV"),
+        (["%comic%", "%manga%"], "Comics"),
+        (["%music%", "%album%", "%song%"], "Music"),
+    ];
+
+    /// <summary>
+    /// Every stored name any media type reads a year from, original or explicit. A read that pivots values (one
+    /// column per name, see <see cref="YearPivotAggregate"/>) needs a year column for each of them.
+    /// </summary>
+    public static IReadOnlyList<string> AllOriginalYearKeys() =>
+        new[] { "Books", "Movies", "TV", "Comics", "Music", null }
+            .SelectMany(mediaType => MediaDateSemantics.OriginalYearKeys(mediaType)
+                .Concat(MediaDateSemantics.ExplicitOriginalYearKeys(mediaType)))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>
+    /// One column of a value pivot (a <c>GROUP BY entity</c> over <c>canonical_values</c>) holding the four-digit year
+    /// of <paramref name="key"/>, or NULL when that value does not start with four digits after trimming spaces and '+'.
+    /// The column is what <see cref="DisplayOriginalYearFromPivots"/> reads for the key.
+    /// </summary>
+    public static string YearPivotAggregate(string keyExpression, string valueExpression, string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(keyExpression);
+        ArgumentException.ThrowIfNullOrWhiteSpace(valueExpression);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        return $"MAX(CASE WHEN {keyExpression} = {SqlLiteral(key)} AND {YearPrefix(valueExpression)} GLOB '[0-9][0-9][0-9][0-9]' THEN {YearPrefix(valueExpression)} END)";
+    }
+
+    /// <summary>
+    /// Same choice of year as <see cref="DisplayOriginalYear"/> (same media-type rules, same order of keys and entities),
+    /// reading the per-entity year columns of a value pivot instead of issuing a look-up for each key.
+    /// </summary>
+    /// <param name="yearColumn">
+    /// The SQL expression holding the year of a stored name for one entity, built with <see cref="YearPivotAggregate"/>
+    /// (already four digits, or NULL).
+    /// </param>
+    /// <param name="relatedBookYearExpression">The borrowed audiobook year, as for <see cref="DisplayOriginalYear"/>.</param>
+    public static string DisplayOriginalYearFromPivots(
+        string mediaTypeExpression,
+        Func<YearSlot, string, string> yearColumn,
+        string relatedBookYearExpression)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaTypeExpression);
+        ArgumentNullException.ThrowIfNull(yearColumn);
+        ArgumentException.ThrowIfNullOrWhiteSpace(relatedBookYearExpression);
+
+        string Year(YearSlot slot, bool explicitOnly) => YearByMediaType(
+            mediaTypeExpression,
+            mediaType => "COALESCE(" + string.Join(
+                ", ",
+                (explicitOnly
+                    ? MediaDateSemantics.ExplicitOriginalYearKeys(mediaType)
+                    : MediaDateSemantics.OriginalYearKeys(mediaType))
+                .Select(key => yearColumn(slot, key))) + ")");
+
+        var workYear = Year(YearSlot.Work, explicitOnly: false);
+        var rootYear = Year(YearSlot.Root, explicitOnly: false);
+        var assetYear = Year(YearSlot.Asset, explicitOnly: false);
+        var explicitWorkYear = Year(YearSlot.Work, explicitOnly: true);
+        var explicitRootYear = Year(YearSlot.Root, explicitOnly: true);
+        var explicitAssetYear = Year(YearSlot.Asset, explicitOnly: true);
+
+        return $"""
+            CASE
+                WHEN LOWER(COALESCE({mediaTypeExpression}, '')) LIKE '%audio%'
+                THEN COALESCE(
+                    {explicitWorkYear},
+                    {explicitAssetYear},
+                    {relatedBookYearExpression},
+                    {workYear},
+                    {assetYear},
+                    {rootYear})
+                WHEN LOWER(COALESCE({mediaTypeExpression}, '')) LIKE '%music%'
+                THEN COALESCE(
+                    {explicitRootYear},
+                    {explicitWorkYear},
+                    {workYear},
+                    {assetYear},
+                    {rootYear})
+                WHEN LOWER(COALESCE({mediaTypeExpression}, '')) LIKE '%tv%'
+                  OR LOWER(COALESCE({mediaTypeExpression}, '')) LIKE '%television%'
+                THEN COALESCE({rootYear}, {workYear}, {assetYear})
+                ELSE COALESCE({workYear}, {assetYear}, {rootYear})
+            END
+            """;
+    }
+
+    private static string YearByMediaType(string mediaTypeExpression, Func<string?, string> forMediaType)
+    {
+        var branches = YearMediaTypeBranches.Select(branch =>
+            $"WHEN {string.Join(" OR ", branch.Likes.Select(like => $"LOWER(COALESCE({mediaTypeExpression}, '')) LIKE '{like}'"))} THEN {forMediaType(branch.MediaType)}");
+        return $"CASE {string.Join(" ", branches)} ELSE {forMediaType(null)} END";
+    }
+
+    private static string YearPrefix(string valueExpression) =>
+        $"SUBSTR(LTRIM(TRIM({valueExpression}), '+'), 1, 4)";
+
     public static string RelatedBookOriginalYear(
         string audiobookWorkIdExpression,
         string audiobookAssetIdExpression)
@@ -396,7 +507,7 @@ public static partial class MediaDateSql
         => string.Join(
             "," + Environment.NewLine,
             keys.Select(key =>
-                $"MAX(CASE WHEN {keyExpression} = {SqlLiteral(key)} AND SUBSTR(LTRIM(TRIM({valueExpression}), '+'), 1, 4) GLOB '[0-9][0-9][0-9][0-9]' THEN SUBSTR(LTRIM(TRIM({valueExpression}), '+'), 1, 4) END)"));
+                YearPivotAggregate(keyExpression, valueExpression, key)));
 
     private static string SqlLiteral(string value) =>
         $"'{value.Replace("'", "''", StringComparison.Ordinal)}'";

@@ -36,7 +36,6 @@ public sealed class DisplayWorkProjectionReader
     {
         var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
-        var visibleEditionAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("editionAsset.file_path_root");
         var detailPredicate = hasDetail ? """
             -- readiness: fragment of the projection query, which filters on the Ready rule
             AND (w.id = @detailId OR p.id = @detailId OR gp.id = @detailId
@@ -63,12 +62,25 @@ public sealed class DisplayWorkProjectionReader
             "projection_credits",
             "SELECT AssetId FROM chosen",
             "pc_");
-        var displayYearSql = MediaDateSql.DisplayOriginalYear(
-            "WorkId",
-            "RootWorkId",
-            "AssetId",
-            "MediaType",
-            relatedBookYearExpression: MediaDateSql.RelatedBookYearLookup("related_book_year", "WorkId", "AssetId"));
+
+        // Every display field is chosen from the stored values of the chosen rows' entities, which are read once (below).
+        var reads = new PivotReads();
+        var selectList = new List<string>();
+        foreach (var column in ProjectionColumns())
+        {
+            // Search-only columns are never shown on a card, so list pages skip them (and the values only they read).
+            var columnReads = new PivotReads();
+            var expression = column.Build(columnReads);
+            if (!lean || !column.SearchOnly)
+            {
+                reads.Add(columnReads);
+            }
+
+            selectList.Add(column.SearchOnly
+                ? $"/*search-only:begin*/{expression}/*search-only:end*/ AS {column.Name}"
+                : column.Name == expression ? column.Name : $"{expression} AS {column.Name}");
+        }
+
         var sql = $"""
             WITH asset_dates AS MATERIALIZED (
                 SELECT entity_id, MIN(claimed_at) AS claimed_at
@@ -141,141 +153,351 @@ public sealed class DisplayWorkProjectionReader
                         AND person.wikidata_qid = credit.person_qid COLLATE NOCASE
                     )
                 WHERE credit.credit_key = 'artist'
-            )
+            ),
+            {reads.PivotCtes()}
             SELECT
-                LibraryId,
-                WorkId,
-                CollectionId,
-                MediaType,
-                WorkKind,
-                RootWorkId,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('episode_still_url', 'still_url') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('episode_still_url', 'still_url') LIMIT 1)) AS EpisodeStillUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('episode_still_url_s', 'still_url_s') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('episode_still_url_s', 'still_url_s') LIMIT 1)) AS EpisodeStillSmallUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('episode_still_url_m', 'still_url_m') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('episode_still_url_m', 'still_url_m') LIMIT 1)) AS EpisodeStillMediumUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('episode_still_url_l', 'still_url_l') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('episode_still_url_l', 'still_url_l') LIMIT 1)) AS EpisodeStillLargeUrl,
+                {string.Join("," + Environment.NewLine + "    ", selectList)}
+            FROM chosen
+            LEFT JOIN works own_work ON own_work.id = chosen.WorkId
+            LEFT JOIN collections own_collection ON own_collection.id = chosen.CollectionId
+            {reads.PivotJoins()}
+            ORDER BY CreatedAt DESC, WorkId, LibraryId;
+            """;
+        // Search-only columns are never shown on a card, so list pages skip their per-row lookups.
+        return lean
+            ? System.Text.RegularExpressions.Regex.Replace(sql, @"/\*search-only:begin\*/.*?/\*search-only:end\*/", "NULL", System.Text.RegularExpressions.RegexOptions.Singleline)
+            : sql;
+    }
 
-                EditionId,
-                AssetId,
-                CASE WHEN {IngestionAvailability.UpdatingWorkPredicate("WorkId")} THEN 1 ELSE 0 END AS IsUpdatingDetails,
-                COALESCE(
-                    NULLIF(TRIM((SELECT wikidata_qid FROM works WHERE id = WorkId LIMIT 1)), ''),
-                    NULLIF(TRIM((SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'wikidata_qid' LIMIT 1)), ''),
-                    NULLIF(TRIM((SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'wikidata_qid' LIMIT 1)), ''),
-                    NULLIF(TRIM((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'wikidata_qid' LIMIT 1)), '')
-                ) AS IdentityQid,
-                COALESCE(CreatedAt, CURRENT_TIMESTAMP) AS CreatedAt,
-                COALESCE(NULLIF(TRIM(json_extract((SELECT display_overrides_json FROM works WHERE id = WorkId LIMIT 1), '$.title')), ''),
-                         (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'issue_title' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'issue_title' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'episode_title' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'episode_title' LIMIT 1),
-                         CASE WHEN MediaType = 'Books' THEN (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'title' LIMIT 1) END,
-                         (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'title' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'title' LIMIT 1),
-                         'Untitled') AS Title,
-                NULLIF(TRIM(json_extract((SELECT display_overrides_json FROM works WHERE id = WorkId LIMIT 1), '$.sort_title')), '') AS SortTitle,
-                COALESCE(
-                    NULLIF(TRIM(json_extract((SELECT display_overrides_json FROM works WHERE id = WorkId LIMIT 1), '$.tagline')), ''),
-                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = WorkId AND key = 'tagline' LIMIT 1),
-                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = RootWorkId AND key = 'tagline' LIMIT 1),
-                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = AssetId AND key = 'tagline' LIMIT 1)
-                ) AS Tagline,
-                COALESCE(
-                    NULLIF(TRIM(json_extract((SELECT display_overrides_json FROM works WHERE id = WorkId LIMIT 1), '$.description')), ''),
-                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = WorkId AND key IN ('episode_description', 'short_description') ORDER BY CASE key WHEN 'episode_description' THEN 0 ELSE 1 END LIMIT 1),
-                    CASE WHEN MediaType <> 'TV' THEN (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = RootWorkId AND key = 'short_description' LIMIT 1) END,
-                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = AssetId AND key IN ('episode_description', 'short_description') ORDER BY CASE key WHEN 'episode_description' THEN 0 ELSE 1 END LIMIT 1)
-                ) AS Description,
-                (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = RootWorkId AND key = 'short_description' LIMIT 1) AS RootDescription,
-                COALESCE(
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key IN ('author', 'creator', 'writer') ORDER BY ordinal)),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key IN ('author', 'creator', 'writer') ORDER BY ordinal)),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = AssetId AND key IN ('author', 'creator', 'writer') ORDER BY ordinal))
-                ) AS Author,
-                COALESCE(
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key IN ('artist', 'album_artist', 'performer') ORDER BY ordinal)),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key IN ('artist', 'album_artist', 'performer') ORDER BY ordinal)),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = AssetId AND key IN ('artist', 'album_artist', 'performer') ORDER BY ordinal))
-                ) AS Artist,
+    // ---- The display fields, chosen from one pass over the stored values (home-and-detail-speed D2) ----
+    //
+    // The old read looked each field up separately for every row (about 280 look-ups a row). Now the stored values of
+    // every entity the chosen rows touch (file, work, show or album, edition, series) are read once into two pivots,
+    // `value_pivot` (canonical_values) and `array_pivot` (canonical_value_arrays), one column per stored name, and each
+    // field below is chosen from those columns in the order it always was.
+    //
+    // Two quiet rules of the old read are kept on purpose:
+    //  * Where a field accepts several stored names, the data store gave the alphabetically first name that exists for
+    //    the entity (the key order of the primary index), not the first one listed. `Value` does the same.
+    //  * An empty value is a value: it ends a COALESCE. Only a missing name is NULL.
+
+    private enum Slot { Asset, Work, Root, Edition, Collection }
+
+    /// <summary>An array field: the stored names it joins, in order of position (ties broken by name), with its separator.</summary>
+    private sealed record ArrayGroup(string Name, string[] Keys, string? Separator);
+
+    // A static field can only use fields declared above it, so the shared list of network names comes first.
+    private static readonly string[] NetworkKeys = ["network", "studio", "broadcaster", "streaming_service", "platform"];
+
+    private static readonly ArrayGroup AuthorArray = new("author", ["author", "creator", "writer"], "; ");
+    private static readonly ArrayGroup ArtistArray = new("artist", ["artist", "album_artist", "performer"], "; ");
+    private static readonly ArrayGroup GenreArray = new("genre", ["genre"], ";");
+    private static readonly ArrayGroup DirectorArray = new("director", ["director"], "; ");
+    private static readonly ArrayGroup NetworkArray = new("network", NetworkKeys, "; ");
+    private static readonly ArrayGroup CountryArray = new("country_of_origin", ["country_of_origin"], "; ");
+    private static readonly ArrayGroup FranchiseArray = new("franchise", ["franchise"], "; ");
+
+    /// <summary>Only the first narrator (the lowest position), no joined list.</summary>
+    private static readonly ArrayGroup NarratorFirst = new("narrator", ["narrator"], null);
+
+    private sealed record ProjectionColumn(string Name, bool SearchOnly, Func<PivotReads, string> Build);
+
+    /// <summary>Which stored names, groups and entities a set of columns reads, and the SQL that pivots exactly those.</summary>
+    private sealed class PivotReads
+    {
+        private readonly SortedSet<string> _valueKeys = new(StringComparer.Ordinal);
+        private readonly SortedSet<string> _yearKeys = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, ArrayGroup> _arrayGroups = new(StringComparer.Ordinal);
+        private readonly HashSet<Slot> _valueSlots = [];
+        private readonly HashSet<Slot> _arraySlots = [];
+
+        private static string ValueAlias(Slot slot) => "v" + SlotLetter(slot);
+
+        private static string ArrayAlias(Slot slot) => "a" + SlotLetter(slot);
+
+        private static char SlotLetter(Slot slot) => slot switch
+        {
+            Slot.Asset => 'a',
+            Slot.Work => 'w',
+            Slot.Root => 'r',
+            Slot.Edition => 'e',
+            _ => 'c',
+        };
+
+        private static string SlotId(Slot slot) => slot switch
+        {
+            Slot.Asset => "AssetId",
+            Slot.Work => "WorkId",
+            Slot.Root => "RootWorkId",
+            Slot.Edition => "EditionId",
+            _ => "CollectionId",
+        };
+
+        /// <summary>The stored value of the first of <paramref name="keys"/> that exists for the entity, in alphabetical (index) order.</summary>
+        public string Value(Slot slot, params string[] keys)
+        {
+            var ordered = keys.ToArray();
+            Array.Sort(ordered, StringComparer.Ordinal);
+            return ValueInOrder(slot, ordered);
+        }
+
+        /// <summary>As <see cref="Value"/>, but the data store was told to prefer <paramref name="keys"/> in the order given.</summary>
+        public string ValueInOrder(Slot slot, params string[] keys)
+        {
+            _valueSlots.Add(slot);
+            var columns = keys.Select(key =>
+            {
+                _valueKeys.Add(key);
+                return $"{ValueAlias(slot)}.v_{key}";
+            }).ToList();
+            return columns.Count == 1 ? columns[0] : $"COALESCE({string.Join(", ", columns)})";
+        }
+
+        /// <summary>The value as non-empty text (NULL when empty), taken from the first existing name in alphabetical order.</summary>
+        public string Text(Slot slot, params string[] keys) => $"NULLIF(CAST({Value(slot, keys)} AS TEXT), '')";
+
+        public string TextInOrder(Slot slot, params string[] keys) => $"NULLIF(CAST({ValueInOrder(slot, keys)} AS TEXT), '')";
+
+        public string ArrayValue(Slot slot, ArrayGroup group)
+        {
+            _arraySlots.Add(slot);
+            _arrayGroups[group.Name] = group;
+            return $"{ArrayAlias(slot)}.a_{group.Name}";
+        }
+
+        /// <summary>The four-digit year of a stored date or year name for the entity (NULL when it does not start with four digits).</summary>
+        public string Year(MediaDateSql.YearSlot slot, string key)
+        {
+            var asSlot = slot switch
+            {
+                MediaDateSql.YearSlot.Work => Slot.Work,
+                MediaDateSql.YearSlot.Root => Slot.Root,
+                _ => Slot.Asset,
+            };
+            _valueSlots.Add(asSlot);
+            _yearKeys.Add(key);
+            return $"{ValueAlias(asSlot)}.y_{key}";
+        }
+
+        public void Add(PivotReads other)
+        {
+            _valueKeys.UnionWith(other._valueKeys);
+            _yearKeys.UnionWith(other._yearKeys);
+            foreach (var group in other._arrayGroups)
+            {
+                _arrayGroups[group.Key] = group.Value;
+            }
+
+            _valueSlots.UnionWith(other._valueSlots);
+            _arraySlots.UnionWith(other._arraySlots);
+        }
+
+        /// <summary>The CTEs that read the values: the entities involved, then one pivot per table. Ends with a comma.</summary>
+        public string PivotCtes()
+        {
+            var entities = _valueSlots.Union(_arraySlots)
+                .Select(slot => $"SELECT {SlotId(slot)} AS id FROM chosen WHERE {SlotId(slot)} IS NOT NULL");
+            var valueColumns = _valueKeys
+                // (entity_id, key) is the primary key, so at most one row matches and MAX returns it as it is.
+                .Select(key => $"MAX(cv.value) FILTER (WHERE cv.key = '{key}') AS v_{key}")
+                .Concat(_yearKeys.Select(key => MediaDateSql.YearPivotAggregate("cv.key", "cv.value", key) + $" AS y_{key}"));
+            var valueNames = string.Join(", ", _valueKeys.Union(_yearKeys, StringComparer.Ordinal).Select(key => $"'{key}'"));
+            var arrayColumns = _arrayGroups.Values.OrderBy(group => group.Name, StringComparer.Ordinal).Select(group =>
+            {
+                var filter = group.Keys.Length == 1
+                    ? $"cva.key = '{group.Keys[0]}'"
+                    : $"cva.key IN ({string.Join(", ", group.Keys.Select(key => $"'{key}'"))})";
+                var aggregate = group.Separator is null
+                    // The first value by position: the old read took ORDER BY ordinal LIMIT 1.
+                    ? "json_group_array(cva.value ORDER BY cva.ordinal)"
+                    : $"group_concat(cva.value, '{group.Separator}' ORDER BY cva.ordinal, cva.key)";
+                return group.Separator is null
+                    ? $"({aggregate} FILTER (WHERE {filter})) ->> 0 AS a_{group.Name}"
+                    : $"{aggregate} FILTER (WHERE {filter}) AS a_{group.Name}";
+            });
+            var arrayNames = string.Join(", ", _arrayGroups.Values.SelectMany(group => group.Keys).Distinct(StringComparer.Ordinal).Select(key => $"'{key}'"));
+
+            // CROSS JOIN keeps the order written: the chosen entities first, then each one's own rows by the primary key
+            // (left to itself the data store may scan the whole table instead, which grows with the library). Unary plus
+            // on the key stops it probing the index once per name per entity: it reads the entity's short run of rows
+            // and tests each name against the list.
+            return $"""
+                chosen_entities AS MATERIALIZED (
+                    {string.Join(Environment.NewLine + "        UNION" + Environment.NewLine + "        ", entities)}
+                ),
+                value_pivot AS MATERIALIZED (
+                    SELECT cv.entity_id,
+                           {string.Join("," + Environment.NewLine + "           ", valueColumns)}
+                    FROM chosen_entities ce
+                    CROSS JOIN canonical_values cv ON cv.entity_id = ce.id
+                    WHERE +cv.key IN ({valueNames})
+                    GROUP BY cv.entity_id
+                ),
+                array_pivot AS MATERIALIZED (
+                    SELECT cva.entity_id,
+                           {string.Join("," + Environment.NewLine + "           ", arrayColumns)}
+                    FROM chosen_entities ce
+                    CROSS JOIN canonical_value_arrays cva ON cva.entity_id = ce.id
+                    WHERE +cva.key IN ({arrayNames})
+                    GROUP BY cva.entity_id
+                )
+                """;
+        }
+
+        /// <summary>The joins of <c>chosen</c> to the pivots, one per entity kind the columns read.</summary>
+        public string PivotJoins()
+        {
+            var values = _valueSlots.OrderBy(slot => slot)
+                .Select(slot => $"LEFT JOIN value_pivot {ValueAlias(slot)} ON {ValueAlias(slot)}.entity_id = chosen.{SlotId(slot)}");
+            var arrays = _arraySlots.OrderBy(slot => slot)
+                .Select(slot => $"LEFT JOIN array_pivot {ArrayAlias(slot)} ON {ArrayAlias(slot)}.entity_id = chosen.{SlotId(slot)}");
+            return string.Join(Environment.NewLine, values.Concat(arrays));
+        }
+    }
+
+    /// <summary>The columns of <see cref="DisplayWorkRow"/> in the order the read returns them, each with how it is chosen.</summary>
+    private static IReadOnlyList<ProjectionColumn> ProjectionColumns()
+    {
+        var visibleEditionAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("editionAsset.file_path_root");
+        var updatingPredicate = IngestionAvailability.UpdatingWorkPredicate("WorkId");
+
+        // The entities a field is read from, in the order they are tried (the first that has a value wins).
+        Slot[] asset = [Slot.Asset];
+        Slot[] root = [Slot.Root];
+        Slot[] collection = [Slot.Collection];
+        Slot[] assetWork = [Slot.Asset, Slot.Work];
+        Slot[] assetWorkRoot = [Slot.Asset, Slot.Work, Slot.Root];
+        Slot[] workRootAsset = [Slot.Work, Slot.Root, Slot.Asset];
+        Slot[] rootWorkAsset = [Slot.Root, Slot.Work, Slot.Asset];
+
+        static string FirstOf(IEnumerable<string> parts)
+        {
+            var list = parts.ToList();
+            return list.Count == 1 ? list[0] : $"COALESCE({string.Join(", ", list)})";
+        }
+
+        // The user's own title, tagline and so on, edited on the detail page (the work is joined once per row).
+        static string Override(string field) => $"NULLIF(TRIM(json_extract(own_work.display_overrides_json, '$.{field}')), '')";
+
+        static ProjectionColumn Plain(string name) => new(name, false, _ => name);
+        static ProjectionColumn Column(string name, Func<PivotReads, string> build) => new(name, false, build);
+        static ProjectionColumn SearchOnly(string name, Func<PivotReads, string> build) => new(name, true, build);
+        static ProjectionColumn From(string name, Slot[] slots, params string[] keys) =>
+            Column(name, r => FirstOf(slots.Select(slot => r.Value(slot, keys))));
+        static ProjectionColumn ArrayFrom(string name, Slot[] slots, ArrayGroup group) =>
+            Column(name, r => FirstOf(slots.Select(slot => r.ArrayValue(slot, group))));
+        // Artwork comes in three more sizes, each with its own stored names.
+        static IEnumerable<ProjectionColumn> Sizes(string prefix, Slot[] slots, Func<string, string[]> keysFor) =>
+            new[] { ("Small", "_s"), ("Medium", "_m"), ("Large", "_l") }
+                .Select(size => From($"{prefix}{size.Item1}Url", slots, keysFor(size.Item2)));
+        // Searching also looks at the edition and at every stored spelling of the field, arrays first.
+        static ProjectionColumn SearchAll(string name, ArrayGroup group, params string[] keys) =>
+            SearchOnly(name, r => FirstOf(
+                new[] { Slot.Work, Slot.Edition, Slot.Asset, Slot.Root }
+                    .SelectMany(slot => new[] { r.ArrayValue(slot, group), r.Value(slot, keys) })));
+
+        var columns = new List<ProjectionColumn>
+        {
+            Plain("LibraryId"),
+            Plain("WorkId"),
+            Plain("CollectionId"),
+            Plain("MediaType"),
+            Plain("WorkKind"),
+            Plain("RootWorkId"),
+            From("EpisodeStillUrl", assetWork, "episode_still_url", "still_url"),
+        };
+        columns.AddRange(Sizes("EpisodeStill", assetWork, suffix => [$"episode_still_url{suffix}", $"still_url{suffix}"]));
+        columns.AddRange(
+        [
+            Plain("EditionId"),
+            Plain("AssetId"),
+            Column("IsUpdatingDetails", _ => $"CASE WHEN {updatingPredicate} THEN 1 ELSE 0 END"),
+            Column("IdentityQid", r => FirstOf(
+            [
+                "NULLIF(TRIM(own_work.wikidata_qid), '')",
+                $"NULLIF(TRIM({r.Value(Slot.Work, "wikidata_qid")}), '')",
+                $"NULLIF(TRIM({r.Value(Slot.Root, "wikidata_qid")}), '')",
+                $"NULLIF(TRIM({r.Value(Slot.Asset, "wikidata_qid")}), '')",
+            ])),
+            Column("CreatedAt", _ => "COALESCE(CreatedAt, CURRENT_TIMESTAMP)"),
+            Column("Title", r => FirstOf(
+            [
+                Override("title"),
+                r.Value(Slot.Asset, "issue_title"),
+                r.Value(Slot.Work, "issue_title"),
+                r.Value(Slot.Asset, "episode_title"),
+                r.Value(Slot.Work, "episode_title"),
+                $"CASE WHEN MediaType = 'Books' THEN {r.Value(Slot.Work, "title")} END",
+                r.Value(Slot.Asset, "title"),
+                r.Value(Slot.Root, "title"),
+                "'Untitled'",
+            ])),
+            Column("SortTitle", _ => Override("sort_title")),
+            Column("Tagline", r => FirstOf(
+            [
+                Override("tagline"),
+                r.Text(Slot.Work, "tagline"),
+                r.Text(Slot.Root, "tagline"),
+                r.Text(Slot.Asset, "tagline"),
+            ])),
+            Column("Description", r => FirstOf(
+            [
+                Override("description"),
+                r.TextInOrder(Slot.Work, "episode_description", "short_description"),
+                $"CASE WHEN MediaType <> 'TV' THEN {r.Text(Slot.Root, "short_description")} END",
+                r.TextInOrder(Slot.Asset, "episode_description", "short_description"),
+            ])),
+            Column("RootDescription", r => r.Text(Slot.Root, "short_description")),
+            ArrayFrom("Author", workRootAsset, AuthorArray),
+            ArrayFrom("Artist", workRootAsset, ArtistArray),
+            Column("ArtistPersonId", _ => """
                 (SELECT primary_credit.person_id
                  FROM canonical_artist_credits primary_credit
                  WHERE primary_credit.media_asset_id = AssetId
                    AND primary_credit.identity_rank = 1
-                 LIMIT 1) AS ArtistPersonId,
+                 LIMIT 1)
+                """),
+            Column("ArtistPersonName", _ => """
                 (SELECT primary_credit.person_name
                  FROM canonical_artist_credits primary_credit
                  WHERE primary_credit.media_asset_id = AssetId
                    AND primary_credit.identity_rank = 1
-                 LIMIT 1) AS ArtistPersonName,
+                 LIMIT 1)
+                """),
+            From("Album", workRootAsset, "album"),
+            Column("Year", r => MediaDateSql.DisplayOriginalYearFromPivots(
+                "MediaType",
+                r.Year,
+                MediaDateSql.RelatedBookYearLookup("related_book_year", "WorkId", "AssetId"))),
+            From("SeriesEndYear", rootWorkAsset, "series_end_year"),
+            From("ContentRating", workRootAsset, "content_rating", "certification"),
+            From("Runtime", workRootAsset, "runtime"),
+            From("Duration", workRootAsset, "duration", "duration_sec", "duration_seconds"),
+            From("PageCount", workRootAsset, "page_count"),
+            From("Rating", rootWorkAsset, "rating"),
+            Column("Genre", r => FirstOf(
+            [
+                Override("genre"),
+                r.ArrayValue(Slot.Work, GenreArray),
+                r.ArrayValue(Slot.Root, GenreArray),
+                r.ArrayValue(Slot.Asset, GenreArray),
+            ])),
+            From("Series", workRootAsset, "series"),
+            Column("SeriesPosition", r => FirstOf(
+            [
+                r.Value(Slot.Asset, "issue_number"),
+                r.Value(Slot.Work, "issue_number"),
+                r.Value(Slot.Asset, "series_position"),
+            ])),
+            Column("CollectionTitle", _ => "own_collection.display_name"),
+            Column("CollectionDescription", _ => "own_collection.description"),
+            Column("CollectionType", _ => "own_collection.collection_type"),
+            Column("CollectionGroupByField", _ => "own_collection.group_by_field"),
+            Column("CollectionManifestTotalCount", r => $"""
                 COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'album' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'album' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'album' LIMIT 1)
-                ) AS Album,
-                {displayYearSql} AS Year,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'series_end_year' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'series_end_year' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'series_end_year' LIMIT 1)
-                ) AS SeriesEndYear,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('content_rating', 'certification') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('content_rating', 'certification') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('content_rating', 'certification') LIMIT 1)
-                ) AS ContentRating,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'runtime' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'runtime' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'runtime' LIMIT 1)
-                ) AS Runtime,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('duration', 'duration_sec', 'duration_seconds') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('duration', 'duration_sec', 'duration_seconds') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('duration', 'duration_sec', 'duration_seconds') LIMIT 1)
-                ) AS Duration,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'page_count' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'page_count' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'page_count' LIMIT 1)
-                ) AS PageCount,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'rating' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'rating' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'rating' LIMIT 1)
-                ) AS Rating,
-                COALESCE(
-                    NULLIF(TRIM(json_extract((SELECT display_overrides_json FROM works WHERE id = WorkId LIMIT 1), '$.genre')), ''),
-                    (SELECT group_concat(value, ';') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key = 'genre' ORDER BY ordinal)),
-                    (SELECT group_concat(value, ';') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key = 'genre' ORDER BY ordinal)),
-                    (SELECT group_concat(value, ';') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = AssetId AND key = 'genre' ORDER BY ordinal))
-                ) AS Genre,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'series' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'series' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'series' LIMIT 1)
-                ) AS Series,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'issue_number' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'issue_number' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'series_position' LIMIT 1)
-                ) AS SeriesPosition,
-                (SELECT display_name FROM collections WHERE id = CollectionId LIMIT 1) AS CollectionTitle,
-                (SELECT description FROM collections WHERE id = CollectionId LIMIT 1) AS CollectionDescription,
-                (SELECT collection_type FROM collections WHERE id = CollectionId LIMIT 1) AS CollectionType,
-                (SELECT group_by_field FROM collections WHERE id = CollectionId LIMIT 1) AS CollectionGroupByField,
-                COALESCE(
-                    (SELECT CAST(value AS INTEGER)
-                     FROM canonical_values
-                     WHERE entity_id = CollectionId
-                       AND key = 'sequence_total'
-                       AND CAST(value AS INTEGER) > 0
-                       AND EXISTS (
-                           SELECT 1
-                           FROM canonical_values scope
-                           WHERE scope.entity_id = CollectionId
-                             AND scope.key = 'sequence_total_scope'
-                             AND scope.value = 'MainSequence')
-                     LIMIT 1),
+                    CASE WHEN CAST({r.Value(Slot.Collection, "sequence_total")} AS INTEGER) > 0
+                          AND {r.Value(Slot.Collection, "sequence_total_scope")} = 'MainSequence'
+                         THEN CAST({r.Value(Slot.Collection, "sequence_total")} AS INTEGER) END,
                     (
                         SELECT MAX(COALESCE(
                             CAST(json_extract(api_metadata_json, '$.expectedTotal') AS INTEGER),
@@ -284,18 +506,12 @@ public sealed class DisplayWorkProjectionReader
                         WHERE collection_id = CollectionId
                           AND json_extract(api_metadata_json, '$.completeness') = 'Complete'
                     )
-                ) AS CollectionManifestTotalCount,
-                COALESCE(
-                    (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key = 'narrator' ORDER BY ordinal LIMIT 1),
-                    (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key = 'narrator' ORDER BY ordinal LIMIT 1),
-                    (SELECT value FROM canonical_value_arrays WHERE entity_id = AssetId AND key = 'narrator' ORDER BY ordinal LIMIT 1)
-                ) AS Narrator,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('publisher', 'imprint') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('publisher', 'imprint') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('publisher', 'imprint') LIMIT 1)
-                ) AS Publisher,
-                /*search-only:begin*/(SELECT group_concat(value, '; ')
+                )
+                """),
+            ArrayFrom("Narrator", workRootAsset, NarratorFirst),
+            From("Publisher", workRootAsset, "publisher", "imprint"),
+            SearchOnly("SearchPublisher", _ => $"""
+                (SELECT group_concat(value, '; ')
                  FROM (
                     SELECT DISTINCT value
                     FROM (
@@ -351,169 +567,84 @@ public sealed class DisplayWorkProjectionReader
                     ) publisherValues
                     WHERE NULLIF(TRIM(value), '') IS NOT NULL
                     ORDER BY value COLLATE NOCASE
-                 ))/*search-only:end*/ AS SearchPublisher,
-                COALESCE(
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key = 'director' ORDER BY ordinal)),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key = 'director' ORDER BY ordinal)),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = AssetId AND key = 'director' ORDER BY ordinal))
-                ) AS Director,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1)
-                ) AS Network,
-                /*search-only:begin*/COALESCE(
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') ORDER BY ordinal)),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = EditionId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') ORDER BY ordinal)),
-                    (SELECT value FROM canonical_values WHERE entity_id = EditionId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = AssetId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') ORDER BY ordinal)),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') ORDER BY ordinal)),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1)
-                ) /*search-only:end*/ AS SearchNetwork,
-                /*search-only:begin*/COALESCE(
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key = 'country_of_origin' ORDER BY ordinal)),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'country_of_origin' LIMIT 1),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = EditionId AND key = 'country_of_origin' ORDER BY ordinal)),
-                    (SELECT value FROM canonical_values WHERE entity_id = EditionId AND key = 'country_of_origin' LIMIT 1),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = AssetId AND key = 'country_of_origin' ORDER BY ordinal)),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'country_of_origin' LIMIT 1),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key = 'country_of_origin' ORDER BY ordinal)),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'country_of_origin' LIMIT 1)
-                ) /*search-only:end*/ AS CountryOfOrigin,
-                /*search-only:begin*/COALESCE(
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key = 'franchise' ORDER BY ordinal)),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'franchise' LIMIT 1),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = EditionId AND key = 'franchise' ORDER BY ordinal)),
-                    (SELECT value FROM canonical_values WHERE entity_id = EditionId AND key = 'franchise' LIMIT 1),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = AssetId AND key = 'franchise' ORDER BY ordinal)),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'franchise' LIMIT 1),
-                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key = 'franchise' ORDER BY ordinal)),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'franchise' LIMIT 1)
-                ) /*search-only:end*/ AS Franchise,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('source_service', 'source_platform') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('source_service', 'source_platform') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('source_service', 'source_platform') LIMIT 1)
-                ) AS Source,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('quality', 'video_quality', 'resolution', 'video_resolution', 'video_resolution_label') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('quality', 'video_quality', 'resolution', 'video_resolution', 'video_resolution_label') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('quality', 'video_quality', 'resolution', 'video_resolution', 'video_resolution_label') LIMIT 1)
-                ) AS Quality,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'show_name' LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'title' LIMIT 1)
-                ) AS ShowName,
-                (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'season_number' LIMIT 1) AS SeasonNumber,
-                (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'episode_number' LIMIT 1) AS EpisodeNumber,
-                (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'track_number' LIMIT 1) AS TrackNumber,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('cover_url', 'cover', 'poster_url', 'poster', 'episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('cover_url', 'cover', 'poster_url', 'poster', 'episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('cover_url', 'cover', 'poster_url', 'poster', 'episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1)
-                ) AS CoverUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('cover_url_s', 'poster_url_s', 'episode_still_url_s', 'still_url_s') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('cover_url_s', 'poster_url_s', 'episode_still_url_s', 'still_url_s') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('cover_url_s', 'poster_url_s', 'episode_still_url_s', 'still_url_s') LIMIT 1)) AS CoverSmallUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('cover_url_m', 'poster_url_m', 'episode_still_url_m', 'still_url_m') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('cover_url_m', 'poster_url_m', 'episode_still_url_m', 'still_url_m') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('cover_url_m', 'poster_url_m', 'episode_still_url_m', 'still_url_m') LIMIT 1)) AS CoverMediumUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('cover_url_l', 'poster_url_l', 'episode_still_url_l', 'still_url_l') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('cover_url_l', 'poster_url_l', 'episode_still_url_l', 'still_url_l') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('cover_url_l', 'poster_url_l', 'episode_still_url_l', 'still_url_l') LIMIT 1)) AS CoverLargeUrl,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('square_url', 'square') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('square_url', 'square') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('square_url', 'square') LIMIT 1)
-                ) AS SquareUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'square_url_s' LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'square_url_s' LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'square_url_s' LIMIT 1)) AS SquareSmallUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'square_url_m' LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'square_url_m' LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'square_url_m' LIMIT 1)) AS SquareMediumUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'square_url_l' LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'square_url_l' LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'square_url_l' LIMIT 1)) AS SquareLargeUrl,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('banner_url', 'banner', 'episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('banner_url', 'banner', 'episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('banner_url', 'banner', 'episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1)
-                ) AS BannerUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('banner_url_s', 'episode_still_url_s', 'still_url_s') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('banner_url_s', 'episode_still_url_s', 'still_url_s') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('banner_url_s', 'episode_still_url_s', 'still_url_s') LIMIT 1)) AS BannerSmallUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('banner_url_m', 'episode_still_url_m', 'still_url_m') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('banner_url_m', 'episode_still_url_m', 'still_url_m') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('banner_url_m', 'episode_still_url_m', 'still_url_m') LIMIT 1)) AS BannerMediumUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('banner_url_l', 'episode_still_url_l', 'still_url_l') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('banner_url_l', 'episode_still_url_l', 'still_url_l') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('banner_url_l', 'episode_still_url_l', 'still_url_l') LIMIT 1)) AS BannerLargeUrl,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('background_url', 'background', 'episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('background_url', 'background', 'episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('background_url', 'background', 'episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1)
-                ) AS BackgroundUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('background_url_s', 'episode_still_url_s', 'still_url_s') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('background_url_s', 'episode_still_url_s', 'still_url_s') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('background_url_s', 'episode_still_url_s', 'still_url_s') LIMIT 1)) AS BackgroundSmallUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('background_url_m', 'episode_still_url_m', 'still_url_m') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('background_url_m', 'episode_still_url_m', 'still_url_m') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('background_url_m', 'episode_still_url_m', 'still_url_m') LIMIT 1)) AS BackgroundMediumUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('background_url_l', 'episode_still_url_l', 'still_url_l') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('background_url_l', 'episode_still_url_l', 'still_url_l') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('background_url_l', 'episode_still_url_l', 'still_url_l') LIMIT 1)) AS BackgroundLargeUrl,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('logo_url', 'logo') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('logo_url', 'logo') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('logo_url', 'logo') LIMIT 1)
-                ) AS LogoUrl,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'cover_state' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'cover_state' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'cover_state' LIMIT 1)) AS CoverState,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'square_state' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'square_state' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'square_state' LIMIT 1)) AS SquareState,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'banner_state' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'banner_state' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'banner_state' LIMIT 1)) AS BannerState,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'background_state' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'background_state' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'background_state' LIMIT 1)) AS BackgroundState,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'logo_state' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'logo_state' LIMIT 1),
-                         (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'logo_state' LIMIT 1)) AS LogoState,
-                (SELECT value FROM canonical_values WHERE entity_id = CollectionId AND key IN ('cover_url', 'cover', 'poster_url', 'poster') LIMIT 1) AS CollectionCoverUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = CollectionId AND key IN ('square_url', 'square') LIMIT 1) AS CollectionSquareUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = CollectionId AND key IN ('banner_url', 'banner') LIMIT 1) AS CollectionBannerUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = CollectionId AND key IN ('background_url', 'background', 'hero_url', 'hero') LIMIT 1) AS CollectionBackgroundUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = CollectionId AND key IN ('logo_url', 'logo') LIMIT 1) AS CollectionLogoUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = CollectionId AND key = 'artwork_accent_hex' LIMIT 1) AS CollectionAccentColor,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('cover_url', 'cover', 'poster_url', 'poster') LIMIT 1) AS RootCoverUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('cover_url_s', 'poster_url_s') LIMIT 1) AS RootCoverSmallUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('cover_url_m', 'poster_url_m') LIMIT 1) AS RootCoverMediumUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('cover_url_l', 'poster_url_l') LIMIT 1) AS RootCoverLargeUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('square_url', 'square') LIMIT 1) AS RootSquareUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'square_url_s' LIMIT 1) AS RootSquareSmallUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'square_url_m' LIMIT 1) AS RootSquareMediumUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'square_url_l' LIMIT 1) AS RootSquareLargeUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('banner_url', 'banner') LIMIT 1) AS RootBannerUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'banner_url_s' LIMIT 1) AS RootBannerSmallUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'banner_url_m' LIMIT 1) AS RootBannerMediumUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'banner_url_l' LIMIT 1) AS RootBannerLargeUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('background_url', 'background', 'hero_url', 'hero') LIMIT 1) AS RootBackgroundUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('background_url_s', 'hero_url_s') LIMIT 1) AS RootBackgroundSmallUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('background_url_m', 'hero_url_m') LIMIT 1) AS RootBackgroundMediumUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('background_url_l', 'hero_url_l') LIMIT 1) AS RootBackgroundLargeUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('logo_url', 'logo') LIMIT 1) AS RootLogoUrl,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'cover_state' LIMIT 1) AS RootCoverState,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'square_state' LIMIT 1) AS RootSquareState,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'banner_state' LIMIT 1) AS RootBannerState,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'background_state' LIMIT 1) AS RootBackgroundState,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'logo_state' LIMIT 1) AS RootLogoState,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'cover_width_px' LIMIT 1) AS RootCoverWidthPx,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'cover_height_px' LIMIT 1) AS RootCoverHeightPx,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'square_width_px' LIMIT 1) AS RootSquareWidthPx,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'square_height_px' LIMIT 1) AS RootSquareHeightPx,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'banner_width_px' LIMIT 1) AS RootBannerWidthPx,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'banner_height_px' LIMIT 1) AS RootBannerHeightPx,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'background_width_px' LIMIT 1) AS RootBackgroundWidthPx,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'background_height_px' LIMIT 1) AS RootBackgroundHeightPx,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'artwork_accent_hex' LIMIT 1) AS RootAccentColor,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('cover_width_px', 'episode_still_width_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('cover_width_px', 'episode_still_width_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('cover_width_px', 'episode_still_width_px') LIMIT 1)) AS CoverWidthPx,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('cover_height_px', 'episode_still_height_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('cover_height_px', 'episode_still_height_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('cover_height_px', 'episode_still_height_px') LIMIT 1)) AS CoverHeightPx,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'square_width_px' LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'square_width_px' LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'square_width_px' LIMIT 1)) AS SquareWidthPx,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'square_height_px' LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'square_height_px' LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'square_height_px' LIMIT 1)) AS SquareHeightPx,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('banner_width_px', 'episode_still_width_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('banner_width_px', 'episode_still_width_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('banner_width_px', 'episode_still_width_px') LIMIT 1)) AS BannerWidthPx,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('banner_height_px', 'episode_still_height_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('banner_height_px', 'episode_still_height_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('banner_height_px', 'episode_still_height_px') LIMIT 1)) AS BannerHeightPx,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('background_width_px', 'episode_still_width_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('background_width_px', 'episode_still_width_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('background_width_px', 'episode_still_width_px') LIMIT 1)) AS BackgroundWidthPx,
-                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('background_height_px', 'episode_still_height_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('background_height_px', 'episode_still_height_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('background_height_px', 'episode_still_height_px') LIMIT 1)) AS BackgroundHeightPx,
-                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'artwork_accent_hex' LIMIT 1) AS AccentColor
-            FROM chosen
-            ORDER BY CreatedAt DESC, WorkId, LibraryId;
-            """;
-        // Search-only columns are never shown on a card, so list pages skip their per-row lookups.
-        return lean
-            ? System.Text.RegularExpressions.Regex.Replace(sql, @"/\*search-only:begin\*/.*?/\*search-only:end\*/", "NULL", System.Text.RegularExpressions.RegexOptions.Singleline)
-            : sql;
+                 ))
+                """),
+            ArrayFrom("Director", workRootAsset, DirectorArray),
+            From("Network", rootWorkAsset, NetworkKeys),
+            SearchAll("SearchNetwork", NetworkArray, NetworkKeys),
+            SearchAll("CountryOfOrigin", CountryArray, "country_of_origin"),
+            SearchAll("Franchise", FranchiseArray, "franchise"),
+            From("Source", rootWorkAsset, "source_service", "source_platform"),
+            From("Quality", assetWorkRoot, "quality", "video_quality", "resolution", "video_resolution", "video_resolution_label"),
+            Column("ShowName", r => FirstOf([r.Value(Slot.Root, "show_name"), r.Value(Slot.Root, "title")])),
+            From("SeasonNumber", asset, "season_number"),
+            From("EpisodeNumber", asset, "episode_number"),
+            From("TrackNumber", asset, "track_number"),
+            From("CoverUrl", assetWorkRoot, "cover_url", "cover", "poster_url", "poster", "episode_still_url", "episode_still", "still_url", "still"),
+        ]);
+        columns.AddRange(Sizes("Cover", assetWorkRoot, suffix => [$"cover_url{suffix}", $"poster_url{suffix}", $"episode_still_url{suffix}", $"still_url{suffix}"]));
+        columns.Add(From("SquareUrl", assetWorkRoot, "square_url", "square"));
+        columns.AddRange(Sizes("Square", assetWorkRoot, suffix => [$"square_url{suffix}"]));
+        columns.Add(From("BannerUrl", assetWorkRoot, "banner_url", "banner", "episode_still_url", "episode_still", "still_url", "still"));
+        columns.AddRange(Sizes("Banner", assetWorkRoot, suffix => [$"banner_url{suffix}", $"episode_still_url{suffix}", $"still_url{suffix}"]));
+        columns.Add(From("BackgroundUrl", assetWorkRoot, "background_url", "background", "episode_still_url", "episode_still", "still_url", "still"));
+        columns.AddRange(Sizes("Background", assetWorkRoot, suffix => [$"background_url{suffix}", $"episode_still_url{suffix}", $"still_url{suffix}"]));
+        columns.Add(From("LogoUrl", assetWorkRoot, "logo_url", "logo"));
+        foreach (var kind in new[] { "cover", "square", "banner", "background", "logo" })
+        {
+            columns.Add(From(char.ToUpperInvariant(kind[0]) + kind[1..] + "State", assetWorkRoot, kind + "_state"));
+        }
+
+        columns.AddRange(
+        [
+            From("CollectionCoverUrl", collection, "cover_url", "cover", "poster_url", "poster"),
+            From("CollectionSquareUrl", collection, "square_url", "square"),
+            From("CollectionBannerUrl", collection, "banner_url", "banner"),
+            From("CollectionBackgroundUrl", collection, "background_url", "background", "hero_url", "hero"),
+            From("CollectionLogoUrl", collection, "logo_url", "logo"),
+            From("CollectionAccentColor", collection, "artwork_accent_hex"),
+            From("RootCoverUrl", root, "cover_url", "cover", "poster_url", "poster"),
+            From("RootCoverSmallUrl", root, "cover_url_s", "poster_url_s"),
+            From("RootCoverMediumUrl", root, "cover_url_m", "poster_url_m"),
+            From("RootCoverLargeUrl", root, "cover_url_l", "poster_url_l"),
+            From("RootSquareUrl", root, "square_url", "square"),
+            From("RootSquareSmallUrl", root, "square_url_s"),
+            From("RootSquareMediumUrl", root, "square_url_m"),
+            From("RootSquareLargeUrl", root, "square_url_l"),
+            From("RootBannerUrl", root, "banner_url", "banner"),
+            From("RootBannerSmallUrl", root, "banner_url_s"),
+            From("RootBannerMediumUrl", root, "banner_url_m"),
+            From("RootBannerLargeUrl", root, "banner_url_l"),
+            From("RootBackgroundUrl", root, "background_url", "background", "hero_url", "hero"),
+            From("RootBackgroundSmallUrl", root, "background_url_s", "hero_url_s"),
+            From("RootBackgroundMediumUrl", root, "background_url_m", "hero_url_m"),
+            From("RootBackgroundLargeUrl", root, "background_url_l", "hero_url_l"),
+            From("RootLogoUrl", root, "logo_url", "logo"),
+            From("RootCoverState", root, "cover_state"),
+            From("RootSquareState", root, "square_state"),
+            From("RootBannerState", root, "banner_state"),
+            From("RootBackgroundState", root, "background_state"),
+            From("RootLogoState", root, "logo_state"),
+            From("RootCoverWidthPx", root, "cover_width_px"),
+            From("RootCoverHeightPx", root, "cover_height_px"),
+            From("RootSquareWidthPx", root, "square_width_px"),
+            From("RootSquareHeightPx", root, "square_height_px"),
+            From("RootBannerWidthPx", root, "banner_width_px"),
+            From("RootBannerHeightPx", root, "banner_height_px"),
+            From("RootBackgroundWidthPx", root, "background_width_px"),
+            From("RootBackgroundHeightPx", root, "background_height_px"),
+            From("RootAccentColor", root, "artwork_accent_hex"),
+            From("CoverWidthPx", assetWorkRoot, "cover_width_px", "episode_still_width_px"),
+            From("CoverHeightPx", assetWorkRoot, "cover_height_px", "episode_still_height_px"),
+            From("SquareWidthPx", assetWorkRoot, "square_width_px"),
+            From("SquareHeightPx", assetWorkRoot, "square_height_px"),
+            From("BannerWidthPx", assetWorkRoot, "banner_width_px", "episode_still_width_px"),
+            From("BannerHeightPx", assetWorkRoot, "banner_height_px", "episode_still_height_px"),
+            From("BackgroundWidthPx", assetWorkRoot, "background_width_px", "episode_still_width_px"),
+            From("BackgroundHeightPx", assetWorkRoot, "background_height_px", "episode_still_height_px"),
+            From("AccentColor", root, "artwork_accent_hex"),
+        ]);
+        return columns;
     }
 
     /// <summary>

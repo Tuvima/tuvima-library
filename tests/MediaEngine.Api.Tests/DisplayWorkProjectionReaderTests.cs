@@ -729,6 +729,170 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
         Assert.False(Assert.Single(builder.BuildCollectionCards([Row(false), Row(false)], "watch")).IsSettling);
     }
 
+    [Fact]
+    public async Task LoadAsync_TvEpisodeTakesItsCoverFromTheShowWhenItsFileAndWorkHaveNone()
+    {
+        Guid showId;
+        Guid episodeWorkId;
+        using (var conn = _db.CreateConnection())
+        {
+            showId = await InsertWorkAsync(conn, "TV", "parent");
+            (episodeWorkId, _, _) = await InsertFileAsync(conn, "TV", "child", showId);
+            await SetValueAsync(conn, showId, "poster_url", "/art/show-poster.jpg");
+            await SetValueAsync(conn, showId, "cover_state", "present");
+        }
+
+        var row = Assert.Single(await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None));
+
+        Assert.Equal(episodeWorkId, row.WorkId);
+        Assert.Equal(showId, row.RootWorkId);
+        Assert.Equal("/art/show-poster.jpg", row.CoverUrl);
+        Assert.Equal("/art/show-poster.jpg", row.RootCoverUrl);
+    }
+
+    [Fact]
+    public async Task LoadAsync_AFieldWithSeveralStoredNamesReturnsTheAlphabeticallyFirstNamePresent()
+    {
+        Guid assetId;
+        using (var conn = _db.CreateConnection())
+        {
+            (_, _, assetId) = await InsertFileAsync(conn, "TV", "standalone");
+            // Written in this order, but the data store has always answered with the alphabetically first name.
+            await SetValueAsync(conn, assetId, "poster_url_s", "/small/poster.jpg");
+            await SetValueAsync(conn, assetId, "episode_still_url_s", "/small/still.jpg");
+            await SetValueAsync(conn, assetId, "still_url_s", "/small/other-still.jpg");
+        }
+
+        var row = Assert.Single(await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None));
+
+        Assert.Equal("/small/still.jpg", row.CoverSmallUrl);
+        Assert.Equal("/small/still.jpg", row.BannerSmallUrl);
+    }
+
+    [Fact]
+    public async Task LoadAsync_AnEmptyValueOnTheFirstStoredNameStillCountsAsTheValue()
+    {
+        Guid workId;
+        using (var conn = _db.CreateConnection())
+        {
+            (workId, _, var assetId) = await InsertFileAsync(conn, "TV", "standalone");
+            // The file's first name is empty, so the file answers with the empty text and the work's cover is not looked at.
+            await SetValueAsync(conn, assetId, "cover_url_s", "");
+            await SetValueAsync(conn, assetId, "poster_url_s", "/small/poster.jpg");
+            await SetValueAsync(conn, workId, "cover_url_s", "/small/work.jpg");
+            // A description is plain text: empty on its first name means nothing, even though another name has text.
+            await SetValueAsync(conn, workId, "episode_description", "");
+            await SetValueAsync(conn, workId, "short_description", "Hidden behind the empty first name");
+            await SetValueAsync(conn, assetId, "short_description", "From the file");
+        }
+
+        var row = Assert.Single(await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None));
+
+        Assert.Equal("", row.CoverSmallUrl);
+        Assert.Equal("From the file", row.Description);
+    }
+
+    [Fact]
+    public async Task LoadAsync_JoinsAuthorsAndGenresInPositionOrderWithTheirSeparators()
+    {
+        using (var conn = _db.CreateConnection())
+        {
+            var (workId, _, _) = await InsertFileAsync(conn, "Books", "standalone");
+            // Several stored names for one field are interleaved by position; names that tie keep alphabetical order.
+            await SetArrayAsync(conn, workId, "writer", 0, "Writer Zero");
+            await SetArrayAsync(conn, workId, "author", 1, "Author One");
+            await SetArrayAsync(conn, workId, "author", 0, "Author Zero");
+            await SetArrayAsync(conn, workId, "creator", 1, "Creator One");
+            await SetArrayAsync(conn, workId, "genre", 1, "Drama");
+            await SetArrayAsync(conn, workId, "genre", 0, "Comedy");
+            await SetArrayAsync(conn, workId, "genre", 2, "Western");
+        }
+
+        var row = Assert.Single(await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None));
+
+        Assert.Equal("Author Zero; Writer Zero; Author One; Creator One", row.Author);
+        Assert.Equal("Comedy;Drama;Western", row.Genre);
+    }
+
+    [Fact]
+    public async Task LoadAsync_LeanReadReturnsNullForSearchOnlyColumnsAndFullReadFillsThem()
+    {
+        using (var conn = _db.CreateConnection())
+        {
+            var (workId, editionId, assetId) = await InsertFileAsync(conn, "TV", "standalone");
+            await SetArrayAsync(conn, editionId, "publisher", 0, "Edition House");
+            await SetArrayAsync(conn, workId, "network", 0, "Northstar TV");
+            await SetArrayAsync(conn, workId, "country_of_origin", 0, "Japan");
+            await SetArrayAsync(conn, workId, "franchise", 0, "Skyward Saga");
+            await SetValueAsync(conn, assetId, "title", "Still shown when lean");
+        }
+
+        var reader = new DisplayWorkProjectionReader(_db);
+        var full = Assert.Single(await reader.LoadAsync(CancellationToken.None));
+        var lean = Assert.Single(await reader.LoadAsync(CancellationToken.None, lean: true));
+
+        Assert.Equal("Edition House", full.SearchPublisher);
+        Assert.Equal("Northstar TV", full.SearchNetwork);
+        Assert.Equal("Japan", full.CountryOfOrigin);
+        Assert.Equal("Skyward Saga", full.Franchise);
+        Assert.Null(lean.SearchPublisher);
+        Assert.Null(lean.SearchNetwork);
+        Assert.Null(lean.CountryOfOrigin);
+        Assert.Null(lean.Franchise);
+        Assert.Equal(full.Title, lean.Title);
+    }
+
+    [Fact]
+    public async Task LoadAsync_MovieWithOnlyANonNumericYearOnTheWorkFallsBackToTheFilesYear()
+    {
+        using (var conn = _db.CreateConnection())
+        {
+            var (workId, _, assetId) = await InsertFileAsync(conn, "Movies", "standalone");
+            await SetValueAsync(conn, workId, "year", "circa 1999");
+            await SetValueAsync(conn, workId, "release_date", "unknown");
+            await SetValueAsync(conn, assetId, "release_date", "+2011-04-02");
+        }
+
+        var row = Assert.Single(await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None));
+
+        Assert.Equal("2011", row.Year);
+    }
+
+    private static async Task<Guid> InsertWorkAsync(System.Data.IDbConnection conn, string mediaType, string workKind, Guid? parentId = null)
+    {
+        var workId = Guid.NewGuid();
+        await conn.ExecuteAsync(
+            "INSERT INTO works (id, media_type, work_kind, parent_work_id, curator_state) VALUES (@workId, @mediaType, @workKind, @parentId, 'accepted');",
+            new { workId, mediaType, workKind, parentId });
+        return workId;
+    }
+
+    private static async Task<(Guid WorkId, Guid EditionId, Guid AssetId)> InsertFileAsync(
+        System.Data.IDbConnection conn, string mediaType, string workKind, Guid? parentId = null)
+    {
+        var workId = await InsertWorkAsync(conn, mediaType, workKind, parentId);
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at, library_id)
+            VALUES (@assetId, @editionId, @hash, @path, CURRENT_TIMESTAMP, 'test-library');
+            """,
+            new { workId, editionId, assetId, hash = Guid.NewGuid().ToString("N"), path = $"C:/library/{workId:N}.mkv" });
+        return (workId, editionId, assetId);
+    }
+
+    private static Task SetValueAsync(System.Data.IDbConnection conn, Guid entityId, string key, string value) =>
+        conn.ExecuteAsync(
+            "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@entityId, @key, @value, CURRENT_TIMESTAMP);",
+            new { entityId, key, value });
+
+    private static Task SetArrayAsync(System.Data.IDbConnection conn, Guid entityId, string key, int ordinal, string value) =>
+        conn.ExecuteAsync(
+            "INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value) VALUES (@entityId, @key, @ordinal, @value);",
+            new { entityId, key, ordinal, value });
+
     private static Task InsertBookAsync(System.Data.IDbConnection conn, Guid workId, string title, IReadOnlyList<string> authors, Guid? existingAssetId = null)
     {
         var editionId = Guid.NewGuid();

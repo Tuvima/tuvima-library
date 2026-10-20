@@ -148,6 +148,60 @@ public sealed class MediaDateSqlTests : IDisposable
         Assert.Null(YearOf(page, unmatched));
     }
 
+    [Fact]
+    public void DisplayYearFromPivots_ChoosesTheSameYearAsTheLookUpFormOnMessyValues()
+    {
+        // Every media type, every stored year or date name, values that are years, dates with a '+' or spaces, text and empty.
+        var random = new Random(20261020);
+        var mediaTypes = new[] { "Books", "Audiobooks", "Movies", "TV", "Music", "Comics", "Photos" };
+        var values = new[] { "1999", "+2001-05-06", " 1987-01-01", "abc", "12", "", "2005", "20" };
+        var keys = MediaDateSql.AllOriginalYearKeys();
+        using var conn = _db.CreateConnection();
+        conn.Execute("CREATE TEMP TABLE year_cases (WorkId BLOB, RootId BLOB, AssetId BLOB, MediaType TEXT);");
+        for (var index = 0; index < 400; index++)
+        {
+            var entities = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+            conn.Execute(
+                "INSERT INTO year_cases VALUES (@work, @root, @asset, @mediaType);",
+                new { work = entities[0], root = entities[1], asset = entities[2], mediaType = mediaTypes[index % mediaTypes.Length] });
+            foreach (var entity in entities)
+            {
+                foreach (var key in keys.Where(_ => random.NextDouble() < 0.12))
+                {
+                    conn.Execute(
+                        "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@entity, @key, @value, CURRENT_TIMESTAMP);",
+                        new { entity, key, value = values[random.Next(values.Length)] });
+                }
+            }
+        }
+
+        var pivotColumns = string.Join(", ", keys.Select(key => $"{MediaDateSql.YearPivotAggregate("key", "value", key)} AS y_{key}"));
+        var lookUpForm = MediaDateSql.DisplayOriginalYear("c.WorkId", "c.RootId", "c.AssetId", "c.MediaType", relatedBookYearExpression: "NULL");
+        var pivotForm = MediaDateSql.DisplayOriginalYearFromPivots(
+            "c.MediaType",
+            (slot, key) => slot switch
+            {
+                MediaDateSql.YearSlot.Work => $"pw.y_{key}",
+                MediaDateSql.YearSlot.Root => $"pr.y_{key}",
+                _ => $"pa.y_{key}",
+            },
+            "NULL");
+        var rows = conn.Query<YearPair>(
+            $"""
+            WITH value_pivot AS MATERIALIZED (SELECT entity_id, {pivotColumns} FROM canonical_values GROUP BY entity_id)
+            SELECT {lookUpForm} AS LookUp, {pivotForm} AS Pivot
+            FROM year_cases c
+            LEFT JOIN value_pivot pw ON pw.entity_id = c.WorkId
+            LEFT JOIN value_pivot pr ON pr.entity_id = c.RootId
+            LEFT JOIN value_pivot pa ON pa.entity_id = c.AssetId;
+            """).ToList();
+
+        Assert.Equal(400, rows.Count);
+        Assert.All(rows, row => Assert.Equal(row.LookUp, row.Pivot));
+        Assert.Contains(rows, row => row.LookUp is not null);
+        Assert.Contains(rows, row => row.LookUp is null);
+    }
+
     private async Task AssertYearAsync(SeededWork work, string? expected)
     {
         var repository = new LibraryItemRepository(_db);
@@ -255,4 +309,11 @@ public sealed class MediaDateSqlTests : IDisposable
     }
 
     private sealed record SeededWork(Guid WorkId, Guid AssetId);
+
+    private sealed class YearPair
+    {
+        public string? LookUp { get; init; }
+
+        public string? Pivot { get; init; }
+    }
 }
