@@ -208,16 +208,25 @@ public static class BaselinePrepare
             """, new { now, administrator = GuidSql.ToBlob(administratorProfileId) });
     }
 
-    /// <summary>A valid cron time that cannot fall inside a run (29 February, next in a leap year).</summary>
-    public const string HeldSchedule = "0 0 29 2 *";
+    /// <summary>How far after the run starts the held schedules next fire: well past any run, and inside the longest
+    /// wait a scheduled task can sleep for (Task.Delay tops out at about 49.7 days; a later time stops the Engine).</summary>
+    public static readonly TimeSpan HeldScheduleOffset = TimeSpan.FromDays(30);
+
+    /// <summary>A one-off cron time <see cref="HeldScheduleOffset"/> after <paramref name="now"/>, in local time.</summary>
+    public static string HeldScheduleFrom(DateTimeOffset now)
+    {
+        var at = now.ToLocalTime().Add(HeldScheduleOffset);
+        return $"{at.Minute} {at.Hour} {at.Day} {at.Month} *";
+    }
 
     /// <summary>
     /// Holds the clock-scheduled maintenance tasks for the run (in the copied <c>maintenance.json</c> only): every
-    /// schedule moves to <see cref="HeldSchedule"/> and the off-hours retag and storage sweeps are switched off, so a
+    /// schedule moves to one time 30 days after the run starts (<see cref="HeldScheduleFrom"/>) and the off-hours retag and storage sweeps are switched off, so a
     /// run that crosses the night (02:00 to 06:00) gives the same result as one that does not.
     /// </summary>
-    public static void HoldClockSchedules(string configDirectory)
+    public static void HoldClockSchedules(string configDirectory, DateTimeOffset? now = null)
     {
+        var held = HeldScheduleFrom(now ?? DateTimeOffset.Now);
         var path = Path.Combine(configDirectory, "maintenance.json");
         if (!File.Exists(path))
         {
@@ -229,7 +238,7 @@ public static class BaselinePrepare
         {
             foreach (var key in schedules.Select(pair => pair.Key).ToList())
             {
-                schedules[key] = HeldSchedule;
+                schedules[key] = held;
             }
         }
 
