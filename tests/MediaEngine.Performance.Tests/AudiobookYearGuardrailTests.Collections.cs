@@ -39,53 +39,44 @@ public sealed partial class AudiobookYearGuardrailTests
 
     private async Task<long> MeasureCollectionDetailsAsync(Guid listenerId)
     {
-        var workIds = await ListenerAudiobookWorkIdsAsync(_fixture.Small, listenerId);
+        var workIds = PlayedAudiobookWorkIds(listenerId);
         Assert.NotEmpty(workIds);
 
-        return await MeasureAsync(
-            $"Collection editor details ({workIds.Count} audiobooks of {listenerId:N})",
-            _fixture.Small,
-            async database =>
-            {
-                var items = await new CollectionMediaLookupReadService(database)
-                    .ResolveMetadataAsync(workIds, CancellationToken.None);
-                Assert.Equal(workIds.Count, items.Count);
-                return items.Count;
-            });
+        return await MeasureAsync(async database =>
+        {
+            var items = await new CollectionMediaLookupReadService(database)
+                .ResolveMetadataAsync(workIds, CancellationToken.None);
+            Assert.Equal(workIds.Count, items.Count);
+            return items.Count;
+        });
     }
 
     private async Task<long> MeasureAddMediaAsync(Guid listenerId)
     {
-        var audiobooks = (await ListenerAudiobookWorkIdsAsync(_fixture.Small, listenerId)).ToHashSet();
+        var audiobooks = PlayedAudiobookWorkIds(listenerId).ToHashSet();
         Assert.True(audiobooks.Count >= 24);
 
-        return await MeasureAsync(
-            $"Add media (first page of {audiobooks.Count} audiobooks of {listenerId:N})",
-            _fixture.Small,
-            async database =>
-            {
-                var found = await new CollectionMediaLookupReadService(database)
-                    .LookupAsync(null, "Audiobooks", new HashSet<Guid>(), audiobooks, 0, 24, CancellationToken.None);
-                Assert.Equal(24, found.Count);
-                return found.Count;
-            });
+        return await MeasureAsync(async database =>
+        {
+            var found = await new CollectionMediaLookupReadService(database)
+                .LookupAsync(null, "Audiobooks", new HashSet<Guid>(), audiobooks, 0, 24, CancellationToken.None);
+            Assert.Equal(24, found.Count);
+            return found.Count;
+        });
     }
 
     private async Task<long> MeasurePersonCreditsAsync(Guid personId)
     {
-        return await MeasureAsync(
-            $"Person credits ({personId:N})",
-            _fixture.Small,
-            async database =>
-            {
-                var service = new PersonCreditReadService(
-                    new CanonicalValueArrayRepository(database),
-                    new PersonRepository(database),
-                    database);
-                var credits = await service.GetLibraryCreditsAsync(personId, CancellationToken.None);
-                Assert.NotEmpty(credits);
-                return credits.Count;
-            });
+        return await MeasureAsync(async database =>
+        {
+            var service = new PersonCreditReadService(
+                new CanonicalValueArrayRepository(database),
+                new PersonRepository(database),
+                database);
+            var credits = await service.GetLibraryCreditsAsync(personId, CancellationToken.None);
+            Assert.NotEmpty(credits);
+            return credits.Count;
+        });
     }
 
     // Measured at 4,000 works when the budgets were set (thousand SQLite instructions, the same on every run): the borrowed
