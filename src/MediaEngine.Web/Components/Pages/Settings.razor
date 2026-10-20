@@ -271,15 +271,22 @@ else
             StateHasChanged();
         }
     }
-    [SupplyParameterFromQuery(Name = "view")] public string? IngestionView { get; set; }
-    [SupplyParameterFromQuery(Name = "review")] public string? ReviewState { get; set; }
-    [SupplyParameterFromQuery(Name = "tab")] public string? LogsTab { get; set; }
-    [SupplyParameterFromQuery(Name = "filter")] public string? LogsFilter { get; set; }
+
+    // The address this page was routed with (see RoutedPageQuery): the page under the details overlay keeps its own query.
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
+    private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
+    public string? IngestionView => Query.String("view");
+    public string? ReviewState => Query.String("review");
+    public string? LogsTab => Query.String("tab");
+    public string? LogsFilter => Query.String("filter");
 
     /// <summary>Opens the Activity page already narrowed to one person, household or everyone (for example from a person's page).</summary>
-    [SupplyParameterFromQuery(Name = "scope")] public string? ActivityScope { get; set; }
-    [SupplyParameterFromQuery(Name = "q")] public string? RecentSearch { get; set; }
-    [SupplyParameterFromQuery(Name = "profile")] public Guid? PlaybackProfileId { get; set; }
+    public string? ActivityScope => Query.String("scope");
+    public string? RecentSearch => Query.String("q");
+    public Guid? PlaybackProfileId => Query.Guid("profile");
     private string? _playbackTargetName;
     private void OnPlaybackTargetNameChanged(string? name)
     {
@@ -660,7 +667,7 @@ else
             return;
         }
 
-        var currentPath = NormalizePath(Nav.ToBaseRelativePath(Nav.Uri));
+        var currentPath = NormalizePath(Nav.ToBaseRelativePath(RoutedPageAddress.AbsoluteFor(Nav, Overlay)));
         var targetRoute = _activeSection == SettingsSection.Libraries && IsLibraryRouteSegment(Subsection)
             ? $"/settings/libraries/{_activeSubsection}"
             : IsProfileDetailRoute

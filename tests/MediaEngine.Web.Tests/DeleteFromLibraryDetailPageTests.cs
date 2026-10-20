@@ -100,7 +100,9 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
     private static void StartEditing(IRenderedComponent<DetailPage> cut)
     {
-        cut.Find("button.tl-editing-toggle").Click();
+        // Edit is an entry in the page's "..." menu; there is no standing Edit button.
+        cut.Find("button[aria-label='More actions']").Click();
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
         cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
     }
 

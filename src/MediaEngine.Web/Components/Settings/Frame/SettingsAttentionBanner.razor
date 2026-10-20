@@ -55,7 +55,10 @@
     private bool Offered => Attention.IsServerAdministrator && !DeviceContext.IsMobile && Attention.IsLoaded;
 
     private bool OnToolsPage =>
-        new Uri(Navigation.Uri).AbsolutePath.StartsWith("/settings/tools", StringComparison.OrdinalIgnoreCase);
+        new Uri(RoutedPageAddress.AbsoluteFor(Navigation, Overlay)).AbsolutePath.StartsWith("/settings/tools", StringComparison.OrdinalIgnoreCase);
+
+    // The page under the details overlay counts as the current page while it is open.
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
 
     private IReadOnlyList<Line> Lines => Offered ? BuildLines().Take(MaxLines).ToList() : [];
 

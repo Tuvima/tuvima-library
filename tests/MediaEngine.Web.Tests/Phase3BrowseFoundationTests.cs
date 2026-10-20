@@ -63,7 +63,8 @@ public sealed class Phase3BrowseFoundationTests : AsyncBunitContext
         {
             builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
-            builder.OpenComponent<SearchPage>(1);
+            // The page reads its query from the address it was routed with; the host plays the route view's part.
+            builder.OpenComponent<RoutedPageHost<SearchPage>>(1);
             builder.CloseComponent();
         });
         cut.WaitForAssertion(() =>

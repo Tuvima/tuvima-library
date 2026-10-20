@@ -152,7 +152,7 @@ public sealed class BookReaderGuardrailTests
     {
         var page = Read($"{Web}/Components/Pages/EpubReader.razor");
 
-        Assert.Contains("[SupplyParameterFromQuery(Name = \"reader\")]", page);
+        Assert.Contains("Query.String(\"reader\")", page);
         Assert.Contains("\"new\"", page);
         Assert.Contains("<BookReader ", page);
         // The choice is made once when the page opens.
