@@ -32,7 +32,9 @@ public sealed class AlsoAppearsInPanelTests : AsyncBunitContext
         Func<string?, Guid?, Task<EntityAppearancesDto?>> respond,
         IReadOnlyList<(string Qid, string Label)> characters,
         Guid? personId = null,
-        string? personName = null)
+        string? personName = null,
+        IAppDialogContext? dialog = null,
+        EventCallback onClose = default)
     {
         Services.AddSingleton(EngineApiClientStub.Create(stub => stub.SetHandler(
             nameof(IEngineApiClient.GetEntityAppearancesAsync),
@@ -48,11 +50,20 @@ public sealed class AlsoAppearsInPanelTests : AsyncBunitContext
                 return respond(entity, person);
             })));
 
-        return Render<AlsoAppearsInPanel>(parameters => parameters
-            .Add(component => component.UniverseQid, Universe)
-            .Add(component => component.Characters, characters)
-            .Add(component => component.PersonId, personId)
-            .Add(component => component.PersonName, personName));
+        return Render<AlsoAppearsInPanel>(parameters =>
+        {
+            if (dialog is not null)
+            {
+                parameters.AddCascadingValue(dialog);
+            }
+
+            parameters
+                .Add(component => component.OnClose, onClose)
+                .Add(component => component.UniverseQid, Universe)
+                .Add(component => component.Characters, characters)
+                .Add(component => component.PersonId, personId)
+                .Add(component => component.PersonName, personName);
+        });
     }
 
     private static Task<EntityAppearancesDto?> Ok(EntityAppearancesDto dto) => Task.FromResult<EntityAppearancesDto?>(dto);
@@ -249,6 +260,39 @@ public sealed class AlsoAppearsInPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ASubjectTheEngineSaysNothingVisibleAbout_ShowsTheEmptyWording_NotAnErrorWithRetry()
+    {
+        // The client turns the Engine's 404 into this empty result; only a real failure (null) is an error.
+        var cut = RenderPanel(
+            (_, _) => Ok(new EntityAppearancesDto { UniverseQid = Universe, SubjectKind = EntityAppearanceSubjectKinds.Person, PersonId = Person }),
+            [],
+            Person,
+            "Dana Test");
+
+        Assert.Equal("Nothing else in your Library features Dana Test.", cut.Find(".also-appears-in__empty").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".app-error-state"));
+        Assert.Empty(cut.FindAll(".app-error-state__retry"));
+    }
+
+    [Fact]
+    public async Task OnClose_IsRaisedOnce_WhenTheDialogServiceClosesThePanel()
+    {
+        var dialog = new RecordingDialogContext();
+        var raised = 0;
+        RenderPanel(
+            (_, _) => Ok(Appearances("Hal Jordan")),
+            [("Q1", "Hal Jordan")],
+            dialog: dialog,
+            onClose: EventCallback.Factory.Create(this, () => raised++));
+
+        // Escape and a tap outside close through the dialog context, never through the panel's own close button.
+        await dialog.CancelAsync();
+        await dialog.CancelAsync();
+
+        Assert.Equal(1, raised);
+    }
+
+    [Fact]
     public async Task OpeningThePanel_AsksForABottomSheetOnPhoneAndTablet_AndPassesWhatItWasGiven()
     {
         var dialogs = new RecordingDialogService();
@@ -264,6 +308,47 @@ public sealed class AlsoAppearsInPanelTests : AsyncBunitContext
         Assert.Equal(Person, parameters[nameof(AlsoAppearsInPanel.PersonId)]);
         Assert.Equal("Dana Test", parameters[nameof(AlsoAppearsInPanel.PersonName)]);
         Assert.Equal([("Q1", "Hal Jordan")], (IReadOnlyList<(string Qid, string Label)>)parameters[nameof(AlsoAppearsInPanel.Characters)]!);
+    }
+
+    /// <summary>A dialog context that runs the registered close guard when it is closed, as the real one does.</summary>
+    private sealed class RecordingDialogContext : IAppDialogContext
+    {
+        private Func<Task<bool>>? _guard;
+
+        public Guid Id { get; } = Guid.NewGuid();
+        public AppDialogOptions Options { get; } = new();
+        public string? PresentationClass { get; private set; }
+        public void Close(AppDialogResult? result = null) => _ = CloseAsync(result);
+        public void Cancel() => _ = CancelAsync();
+        public async Task CloseAsync(AppDialogResult? result = null)
+        {
+            if (_guard is not null)
+            {
+                await _guard();
+            }
+        }
+
+        public Task CancelAsync() => CloseAsync(AppDialogResult.Cancel());
+        public Task SetOptionsAsync(AppDialogOptions options) => Task.CompletedTask;
+        public Task SetPresentationClassAsync(string? value)
+        {
+            PresentationClass = value;
+            return Task.CompletedTask;
+        }
+
+        public void SetCloseGuard(Func<Task<bool>>? guard) => _guard = guard;
+        public IDisposable RegisterCloseGuard(Func<Task<bool>> guard)
+        {
+            _guard = guard;
+            return new Registration();
+        }
+
+        private sealed class Registration : IDisposable
+        {
+            public void Dispose()
+            {
+            }
+        }
     }
 
     /// <summary>Records what the panel asked the dialog service to show and closes it at once.</summary>

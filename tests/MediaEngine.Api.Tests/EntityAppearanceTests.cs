@@ -177,22 +177,24 @@ public sealed class EntityAppearanceTests : IDisposable
     public async Task WorksWithNoCharacterData_AreCountedNotGuessed()
     {
         var series = Guid.NewGuid();
-        var withData = Guid.NewGuid();
-        var checkedEmpty = Guid.NewGuid();
-        var checkedEmptyToo = Guid.NewGuid();
-        var notChecked = Guid.NewGuid();
-        var outsideUniverse = Guid.NewGuid();
         SeedUniverse(series);
         await CreateEntityAsync(HalQid, "Hal Jordan", "Character");
         await LinkAsync(HalQid, "Q-with-data");
-        MarkUniverseEnriched(withData, checkedEmpty, checkedEmptyToo);
+        var withData = Row(Guid.NewGuid(), "Movies", "Q-with-data", "Has Data", 2011, series);
+        var checkedEmpty = Row(Guid.NewGuid(), "Movies", "Q-checked-empty", "Looked Up, Nothing Found", 2012, series);
+        var checkedEmptyToo = Row(Guid.NewGuid(), "Books", "Q-checked-empty-too", "Also Nothing Found", 2013, series);
+        var notChecked = Row(Guid.NewGuid(), "Movies", "Q-not-checked", "Not Looked Up Yet", 2014, series);
+        // A work whose core pass linked entities keeps stage3_enriched_at; one whose core pass linked none has it cleared,
+        // and only stage3_enhanced_at (written once the enhancer step finishes) remains. Both markers sit on the media asset.
+        MarkUniverseEnriched("stage3_enriched_at", withData);
+        MarkUniverseEnriched("stage3_enhanced_at", checkedEmpty, checkedEmptyToo);
         var service = CreateService(
-            Row(withData, "Movies", "Q-with-data", "Has Data", 2011, series),
-            Row(checkedEmpty, "Movies", "Q-checked-empty", "Looked Up, Nothing Found", 2012, series),
-            Row(checkedEmptyToo, "Books", "Q-checked-empty-too", "Also Nothing Found", 2013, series),
-            Row(notChecked, "Movies", "Q-not-checked", "Not Looked Up Yet", 2014, series),
+            withData,
+            checkedEmpty,
+            checkedEmptyToo,
+            notChecked,
             // Not a member of this Universe: never counted as a gap in it.
-            Row(outsideUniverse, "Movies", "Q-elsewhere", "Elsewhere", 2015));
+            Row(Guid.NewGuid(), "Movies", "Q-elsewhere", "Elsewhere", 2015));
 
         var result = await service.GetForEntityAsync(UniverseQid, HalQid, profile: null);
 
@@ -208,15 +210,16 @@ public sealed class EntityAppearanceTests : IDisposable
     {
         var series = Guid.NewGuid();
         var show = Guid.NewGuid();
-        var episodeOne = Guid.NewGuid();
-        var episodeTwo = Guid.NewGuid();
         SeedUniverse(series);
         await CreateEntityAsync(HalQid, "Hal Jordan", "Character");
         await LinkAsync(HalQid, "Q-elsewhere-film");
-        MarkUniverseEnriched(episodeOne, episodeTwo);
+        // Episodes carry no QID of their own, so each row's identity is the show's.
+        var episodeOne = TvEpisode(show, Guid.NewGuid(), "Q-show", "One", 2024, series);
+        var episodeTwo = TvEpisode(show, Guid.NewGuid(), "Q-show", "Two", 2024, series);
+        MarkUniverseEnriched("stage3_enhanced_at", episodeOne, episodeTwo);
         var service = CreateService(
-            TvEpisode(show, episodeOne, "Q-ep-1", "One", 2024, series),
-            TvEpisode(show, episodeTwo, "Q-ep-2", "Two", 2024, series),
+            episodeOne,
+            episodeTwo,
             Row(Guid.NewGuid(), "Movies", "Q-elsewhere-film", "Linked Elsewhere", 2001));
 
         var result = await service.GetForEntityAsync(UniverseQid, HalQid, profile: null);
@@ -286,6 +289,24 @@ public sealed class EntityAppearanceTests : IDisposable
 
         Assert.NotNull(result);
         Assert.Equal("Sample Film", Assert.Single(Assert.Single(result.Groups).Works).Title);
+    }
+
+    [Fact]
+    public async Task PersonWithNoVisibleCredits_IsNotFound_AndRevealsNoName()
+    {
+        var personId = Guid.NewGuid();
+        SeedPersonCredits(personId, Guid.NewGuid(), Guid.NewGuid(), [Guid.NewGuid()], Guid.NewGuid());
+        // The person exists and has credits, but none of those works is visible to this profile.
+        var service = CreateService(Row(Guid.NewGuid(), "Movies", "Q-unrelated", "Unrelated Film", 2000));
+
+        Assert.Null(await service.GetForPersonAsync(UniverseQid, personId));
+
+        var result = await UniverseAppearanceEndpoints.GetAlsoAppearsInAsync(
+            UniverseQid, null, personId, HttpContextWithNoActiveProfile(), new ProfileRepository(_database), service, CancellationToken.None);
+        Assert.Equal(StatusCodes.Status404NotFound, Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode);
+        var problem = Assert.IsType<ProblemHttpResult>(result);
+        Assert.DoesNotContain("Dana Test", problem.ProblemDetails.Detail ?? string.Empty, StringComparison.Ordinal);
+        Assert.DoesNotContain("Dana Test", problem.ProblemDetails.Title ?? string.Empty, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -394,15 +415,15 @@ public sealed class EntityAppearanceTests : IDisposable
             new { universe = Guid.NewGuid(), series, qid = UniverseQid });
     }
 
-    /// <summary>Marks these works as having had their universe enrichment run.</summary>
-    private void MarkUniverseEnriched(params Guid[] entityIds)
+    /// <summary>Writes a universe-enrichment completion marker on each row's media asset, where the enrichment pass puts it.</summary>
+    private void MarkUniverseEnriched(string marker, params DisplayWorkRow[] rows)
     {
         using var connection = _database.CreateConnection();
-        foreach (var id in entityIds)
+        foreach (var row in rows)
         {
             connection.Execute(
-                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@id, 'stage3_enriched_at', '2026-01-01T00:00:00Z', datetime('now'));",
-                new { id });
+                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@id, @marker, '2026-01-01T00:00:00Z', datetime('now'));",
+                new { id = row.AssetId, marker });
         }
     }
 

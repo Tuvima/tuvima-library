@@ -123,6 +123,7 @@
     private readonly List<Section> _sections = [];
     private readonly CancellationTokenSource _lifetime = new();
     private bool _closed;
+    private IDisposable? _closeGuard;
 
     /// <summary>
     /// Opens the panel through the dialog service: a bottom sheet on phones and tablets, a dialog panel on desktop and TV.
@@ -160,6 +161,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Escape, a tap outside and the close button all close through the dialog context, so OnClose is raised from here.
+        _closeGuard = Dialog?.RegisterCloseGuard(NotifyClosedAsync);
         foreach (var (qid, label) in Characters.Take(MaxCharacters))
         {
             _sections.Add(new Section
@@ -241,25 +244,34 @@
 
     private async Task CloseAsync()
     {
-        if (_closed)
+        if (Dialog is not null)
         {
+            // The close guard below raises OnClose, the same as when the dialog service closes the panel itself.
+            await Dialog.CancelAsync();
             return;
         }
 
-        _closed = true;
-        if (OnClose.HasDelegate)
+        await NotifyClosedAsync();
+    }
+
+    /// <summary>Raises OnClose once, whichever way the panel closes; never blocks the close.</summary>
+    private async Task<bool> NotifyClosedAsync()
+    {
+        if (!_closed)
         {
-            await OnClose.InvokeAsync();
+            _closed = true;
+            if (OnClose.HasDelegate)
+            {
+                await OnClose.InvokeAsync();
+            }
         }
 
-        if (Dialog is not null)
-        {
-            await Dialog.CancelAsync();
-        }
+        return true;
     }
 
     public void Dispose()
     {
+        _closeGuard?.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();
     }

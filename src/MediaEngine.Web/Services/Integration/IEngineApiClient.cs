@@ -106,7 +106,8 @@ public partial interface IEngineApiClient
 
     /// <summary>
     /// GET /universe/{qid}/also-appears-in — where else a character, place, organisation (<paramref name="entityQid"/>) or
-    /// person (<paramref name="personId"/>) shows up across the Library. Give exactly one of the two. Null on failure.
+    /// person (<paramref name="personId"/>) shows up across the Library. Give exactly one of the two. A 404 (unknown, or nothing the
+    /// profile may see) is an empty result; null means a real failure.
     /// </summary>
     Task<EntityAppearancesDto?> GetEntityAppearancesAsync(
         string universeQid, string? entityQid, Guid? personId, CancellationToken ct = default);

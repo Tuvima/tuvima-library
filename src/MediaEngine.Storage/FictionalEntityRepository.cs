@@ -585,7 +585,7 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
             foreach (var id in conn.Query<byte[]>($"""
                 SELECT DISTINCT entity_id
                 FROM   canonical_values
-                WHERE  key = 'stage3_enriched_at'
+                WHERE  key IN ('stage3_enriched_at', 'stage3_enhanced_at')
                   AND  entity_id IN ({idClause});
                 """, parameters))
             {

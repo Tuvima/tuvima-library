@@ -92,7 +92,8 @@ public sealed class EntityAppearanceReadService(
 
     /// <summary>
     /// The Works a person is credited on, the same credits and visibility rule as the person page. Null when no such
-    /// person exists; a person with no visible credits comes back with no groups.
+    /// person exists or none of their credits is visible to the profile, so a person the profile cannot see credits for
+    /// is never named.
     /// </summary>
     public async Task<EntityAppearancesDto?> GetForPersonAsync(
         string universeQid,
@@ -108,6 +109,10 @@ public sealed class EntityAppearanceReadService(
         var credits = PersonLibraryCreditAuthorizationPolicy.Filter(
             await personCredits.GetLibraryCreditsAsync(personId, ct).ConfigureAwait(false),
             await display.LoadWorksAsync(ct).ConfigureAwait(false));
+        if (credits.Count == 0)
+        {
+            return null;
+        }
 
         // One entry per Work (one per show for TV); a person with two roles on one Work lists both.
         var entries = new Dictionary<(string Kind, Guid Id), Entry>();

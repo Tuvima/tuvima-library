@@ -136,7 +136,9 @@ public interface IFictionalEntityRepository
 
     /// <summary>
     /// Of the supplied entity IDs (works, root works or media assets), the ones whose universe enrichment has run, that
-    /// is, that carry the <c>stage3_enriched_at</c> completion marker.
+    /// is, that carry the <c>stage3_enriched_at</c> or <c>stage3_enhanced_at</c> completion marker. Both count: the
+    /// enrichment pass clears <c>stage3_enriched_at</c> when its core step linked no entities, but always writes
+    /// <c>stage3_enhanced_at</c> once the enhancer step finishes.
     /// </summary>
     Task<IReadOnlySet<Guid>> GetUniverseEnrichedEntityIdsAsync(
         IEnumerable<Guid> entityIds,
