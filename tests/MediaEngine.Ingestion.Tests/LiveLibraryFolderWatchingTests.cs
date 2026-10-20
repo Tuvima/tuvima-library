@@ -2,6 +2,7 @@ using Dapper;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
@@ -343,7 +344,99 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
         Assert.Equal(folder, (string)normalise.Invoke(null, [folder + Path.DirectorySeparatorChar])!);
     }
 
+    [Fact]
+    public async Task A_rescan_does_not_ingest_a_file_that_stayed_on_disk_when_its_title_was_deleted_and_does_not_read_it()
+    {
+        var h = NewHarness();
+        var watcher = new RecordingFileWatcher();
+        var logger = new CapturingLogger<IngestionEngine>();
+        var hasher = new CountingHasher();
+        var deleted = WriteFile(h.AsIsDir, "Dune.epub", "dune book");
+        var kept = WriteFile(h.AsIsDir, "Emma.epub", "emma book");
+        var excluded = new ExcludedSourceFileRepository(h.Db.Connection);
+        await ExcludeAsync(excluded, deleted);
+        var filter = NewFilter(h, excluded, hasher);
+
+        var run = await StartAsync(
+            h, watcher, BooksProcessor(deleted, kept), BuildOptions(h), logger: logger, excludedFilter: filter);
+        run.Monitor.Publish(BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir))));
+
+        await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(kept) is not null);
+        await WaitUntilAsync(() => Task.FromResult(logger.Messages.Any(message =>
+            message.StartsWith("Initial scan: left 1 excluded file(s)", StringComparison.Ordinal))));
+        Assert.Null(await h.Assets.FindByPathRootAsync(deleted));
+        Assert.Equal(0, hasher.Count);
+    }
+
+    [Fact]
+    public async Task The_folder_watcher_skips_an_excluded_file_and_still_ingests_a_new_one()
+    {
+        var h = NewHarness();
+        var watcher = new RecordingFileWatcher();
+        var deleted = WriteFile(h.AsIsDir, "Dune.epub", "dune book");
+        var excluded = new ExcludedSourceFileRepository(h.Db.Connection);
+        await ExcludeAsync(excluded, deleted);
+        var filter = NewFilter(h, excluded, new CountingHasher());
+        var options = BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir)));
+
+        // The folder is watched from the start, so its existing files are scanned first; the excluded file must stay out of that too.
+        var arrived = Path.Combine(h.AsIsDir, "Emma.epub");
+        var run = await StartAsync(h, watcher, BooksProcessor(deleted, arrived), options, excludedFilter: filter);
+        Assert.NotNull(run);
+        await Task.Delay(500);
+        Assert.Null(await h.Assets.FindByPathRootAsync(deleted));
+
+        File.WriteAllText(arrived, "emma book");
+        watcher.RaiseForTest(new FileEvent { Path = deleted, EventType = FileEventType.Modified, OccurredAt = DateTimeOffset.UtcNow });
+        watcher.RaiseForTest(new FileEvent { Path = arrived, EventType = FileEventType.Created, OccurredAt = DateTimeOffset.UtcNow });
+
+        await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(arrived) is not null);
+        Assert.Null(await h.Assets.FindByPathRootAsync(deleted));
+    }
+
     // -- Harness -----------------------------------------------------------
+
+    private static ExcludedSourceFileFilter NewFilter(
+        ImportFolderHarness h, IExcludedSourceFileRepository excluded, IAssetHasher hasher)
+        => new(
+            new LibraryFolderResolver(new ReloadableOptionsMonitor<IngestionOptions>(
+                BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir))))),
+            excluded,
+            hasher,
+            NullLogger<ExcludedSourceFileFilter>.Instance);
+
+    private static async Task ExcludeAsync(IExcludedSourceFileRepository excluded, string path)
+    {
+        var info = new FileInfo(path);
+        await excluded.AddOrReplaceAsync(new ExcludedSourceFile(
+            Guid.NewGuid(),
+            BooksLibraryId,
+            BooksSourceId,
+            ExcludedSourceFilePaths.RelativePathOf(Path.GetDirectoryName(path)!, path)!,
+            (await new TestAssetHasher().ComputeAsync(path)).Hex,
+            info.Length,
+            new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
+            Path.GetFileNameWithoutExtension(path),
+            DateTimeOffset.UtcNow,
+            null,
+            "Test",
+            ExcludedSourceFileReasons.AsIs));
+    }
+
+    /// <summary>Hashes like the real thing and counts how many files it was asked to read.</summary>
+    private sealed class CountingHasher : IAssetHasher
+    {
+        private readonly TestAssetHasher _inner = new();
+        private int _count;
+
+        public int Count => Volatile.Read(ref _count);
+
+        public Task<HashResult> ComputeAsync(string filePath, CancellationToken ct = default)
+        {
+            Interlocked.Increment(ref _count);
+            return _inner.ComputeAsync(filePath, ct);
+        }
+    }
 
     private ImportFolderHarness NewHarness()
     {
@@ -481,7 +574,8 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
         IngestionOptions options,
         ILogger<IngestionEngine>? logger = null,
         bool withHashCache = false,
-        Action<ReloadableOptionsMonitor<IngestionOptions>>? beforeStart = null)
+        Action<ReloadableOptionsMonitor<IngestionOptions>>? beforeStart = null,
+        IExcludedSourceFileFilter? excludedFilter = null)
     {
         var db = h.Db.Connection;
         var publisher = new StubEventPublisher();
@@ -550,7 +644,8 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
             sourceMutationPolicyGate: new SourceMutationPolicyGate(),
             importFolders: h.Importer,
             importFiler: h.Filer,
-            optionsMonitor: monitor);
+            optionsMonitor: monitor,
+            excludedFileFilter: excludedFilter);
 
         var run = new RunningEngine(engine, debounce, monitor);
         _disposables.Add(run);

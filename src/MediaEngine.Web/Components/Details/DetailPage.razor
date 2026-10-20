@@ -5,12 +5,14 @@
 @using Microsoft.JSInterop
 @using MediaEngine.Contracts.Progress
 @using MediaEngine.Contracts.Playback
+@using MediaEngine.Contracts.Realtime
 @using MediaEngine.Contracts.Universe
 @using MediaEngine.Domain.Enums
 @using MediaEngine.Web.Components.MediaEditor
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
 @inject IEngineApiClient ApiClient
 @inject MediaEditorLauncherService MediaEditorLauncher
@@ -23,6 +25,8 @@
 @inject NavigationManager Nav
 @inject IAppToastService Snackbar
 @inject IAppDialogService Dialogs
+@inject IJSRuntime JS
+@inject IServiceProvider Services
 @inject ILogger<DetailPage> Logger
 @implements IDisposable
 
@@ -140,6 +144,7 @@
         };
         _editing.Changed += OnEditingChanged;
         _editing.Fields.Saved += RefreshAfterFieldSavedAsync;
+        Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         UpdateEditingEligibility();
     }
 
@@ -150,6 +155,7 @@
     public void Dispose()
     {
         _disposed = true;
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         if (_editing is null)
         {
             return;
@@ -238,6 +244,112 @@
         {
             Logger.LogWarning(ex, "The detail page could not refresh after the editor drawer saved a change");
             Snackbar.Add("Saved, but the page could not refresh. Reload to see the change.", AppSeverity.Warning);
+        }
+    }
+
+    // Delete from library: the dialog is the only confirmation. While it is open (or once the page is on its way out) a live "removed"
+    // event for this title must not also toast and navigate: the dialog's own answer does that.
+    private bool _deleting;
+    private bool _leaving;
+    private bool _removedWhileDeleting;
+
+    private async Task DeleteFromLibraryAsync()
+    {
+        if (Model is null || _deleting || _leaving || !Guid.TryParse(Model.Id, out var workId))
+        {
+            return;
+        }
+
+        // The entry only shows to an administrator in Editing Mode on a desktop; a handler never trusts that.
+        if (LibraryItemDeletionFlow.TryRefuse(DeviceContext, Services.GetService<DashboardSessionAccessor>(), Snackbar))
+        {
+            return;
+        }
+
+        if (_editing is not { IsOn: true } || !LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType))
+        {
+            return;
+        }
+
+        _deleting = true;
+        var outcome = LibraryItemDeletionFlowOutcome.Canceled;
+        try
+        {
+            outcome = await LibraryItemDeletionFlow.RunAsync(Dialogs, Snackbar, [workId], Model.Title);
+        }
+        finally
+        {
+            _leaving = outcome != LibraryItemDeletionFlowOutcome.Canceled;
+            _deleting = false;
+        }
+
+        if (_leaving)
+        {
+            await LeaveAfterRemovalAsync();
+        }
+        else if (_removedWhileDeleting && !_disposed)
+        {
+            // Cancelled, but someone else deleted this title while the dialog was open.
+            _leaving = true;
+            Snackbar.Add(LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
+            await LeaveAfterRemovalAsync();
+        }
+    }
+
+    // Another window (or another person) deleted the title this page shows.
+    private void OnLibraryItemsRemoved(LibraryItemsRemovedEvent removed) => _ = InvokeAsync(async () =>
+    {
+        if (_disposed || _leaving || Model is null || !Guid.TryParse(Model.Id, out var id))
+        {
+            return;
+        }
+
+        if (!removed.WorkIds.Contains(id))
+        {
+            // A show, album, series or collection page that lists a deleted title refreshes so the row leaves it.
+            if (!_deleting && ListsRemovedTitle(removed))
+            {
+                try
+                {
+                    await RefreshCurrentDetailAsync();
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "The detail page could not refresh after titles were deleted from the library");
+                }
+            }
+
+            return;
+        }
+
+        if (_deleting)
+        {
+            _removedWhileDeleting = true;
+            return;
+        }
+
+        _leaving = true;
+        Snackbar.Add(LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
+        await LeaveAfterRemovalAsync();
+    });
+
+    private bool ListsRemovedTitle(LibraryItemsRemovedEvent removed) => Model is not null
+        && Model.MediaGroups.SelectMany(group => group.Items)
+            .Any(item => Guid.TryParse(item.Id, out var workId) && removed.WorkIds.Contains(workId));
+
+    // The title is gone: end Editing Mode (nothing typed matters now, and it must not ask) and go back to where the person came from.
+    private async Task LeaveAfterRemovalAsync()
+    {
+        if (Model is null)
+        {
+            return;
+        }
+
+        var fallback = DetailOriginInterop.FallbackRoute(Model.EntityType, Model.Facts?.MediaKind);
+        _editing?.Leave();
+        if (!await JS.TryBackAsync(fallback, Logger) && !_disposed)
+        {
+            Nav.NavigateTo(fallback);
         }
     }
 
@@ -333,6 +445,12 @@
             }
 
             await OpenMediaEditorAsync();
+            return;
+        }
+
+        if (action.Key == DetailActionKeys.DeleteFromLibrary)
+        {
+            await DeleteFromLibraryAsync();
             return;
         }
 

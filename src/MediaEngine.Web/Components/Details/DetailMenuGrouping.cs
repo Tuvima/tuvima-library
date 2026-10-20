@@ -24,9 +24,9 @@ public static class DetailMenuGrouping
     public static bool IsEditAction(DetailAction action) =>
         action.Key is DetailActionKeys.Edit or DetailActionKeys.EditMedia;
 
-    /// <summary>Anything flagged destructive, and Delete by key, is red and goes last.</summary>
+    /// <summary>Anything flagged destructive, and Delete by key (including Delete from library), is red and goes last.</summary>
     public static bool IsDestructive(DetailAction action) =>
-        action.IsDestructive || action.Key == "delete";
+        action.IsDestructive || action.Key is "delete" or DetailActionKeys.DeleteFromLibrary;
 
     public static int GroupOf(DetailAction action)
     {

@@ -40,6 +40,17 @@ public sealed class DetailMenuGroupingTests
     }
 
     [Fact]
+    public void Arrange_PutsDeleteFromLibraryInTheFinalRedGroupWithADividerBeforeIt()
+    {
+        var entries = DetailMenuGrouping.Arrange(
+            [Action(DetailActionKeys.DeleteFromLibrary), Action("status-history"), Action("add-queue")]);
+
+        Assert.Equal(["status-history", "add-queue", DetailActionKeys.DeleteFromLibrary], Keys(entries));
+        Assert.True(entries[^1].DividerBefore);
+        Assert.True(DetailMenuGrouping.IsDestructive(Action(DetailActionKeys.DeleteFromLibrary)));
+    }
+
+    [Fact]
     public void Arrange_PutsADividerBeforeTheFirstRowOfEveryLaterGroupOnly()
     {
         var entries = DetailMenuGrouping.Arrange(
