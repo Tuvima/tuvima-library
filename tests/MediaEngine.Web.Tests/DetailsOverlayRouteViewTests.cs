@@ -177,6 +177,52 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task Escape_IsOfferedToTheOpenPageFirst_AndWhenItUsesThePressTheOverlayStaysOpen()
+    {
+        var view = RenderAt("/listen", Underlay());
+        _nav.NavigateTo(DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+        var offered = 0;
+        var registration = State.RegisterEscapeHandler(() =>
+        {
+            offered++;
+            return ValueTask.FromResult(true);
+        });
+
+        await view.InvokeAsync(() => view.FindComponent<DetailsOverlayHost>().Instance.RequestCancel());
+
+        Assert.Equal(1, offered);
+        Assert.Empty(_history.Steps);
+        Assert.Single(view.FindAll("dialog[data-details-overlay]"));
+
+        // Once the page stops handling it (Editing Mode ended), Esc closes the overlay as before.
+        registration.Dispose();
+        await view.InvokeAsync(() => view.FindComponent<DetailsOverlayHost>().Instance.RequestCancel());
+
+        Assert.Equal(1, offered);
+        Assert.Equal([1], _history.Steps);
+    }
+
+    [Fact]
+    public async Task Escape_GoesOnToDismissTheOverlayWhenTheOpenPageDoesNotUseIt()
+    {
+        var view = RenderAt("/listen", Underlay());
+        _nav.NavigateTo(DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+        var offered = 0;
+        using var registration = State.RegisterEscapeHandler(() =>
+        {
+            offered++;
+            return ValueTask.FromResult(false);
+        });
+
+        await view.InvokeAsync(() => view.FindComponent<DetailsOverlayHost>().Instance.RequestCancel());
+
+        Assert.Equal(1, offered);
+        Assert.Equal([1], _history.Steps);
+    }
+
+    [Fact]
     public void AfterAReload_DismissingGoesToThePageUnderTheOverlayWithoutAddingAStep()
     {
         var home = new RouteData(typeof(HomePage), new Dictionary<string, object?>());

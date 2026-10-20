@@ -4,7 +4,7 @@ namespace MediaEngine.Web.Services.Navigation;
 /// Lets the open detail page veto leaving the details overlay (for example "Save or discard?" while a field has unsaved input).
 /// A page registers a guard through <see cref="DetailsOverlayState.RegisterDismissGuard"/> and removes it when it goes away.
 /// It is consulted by the close button, Esc, the backdrop and any navigation away from the open item, including browser Back.
-/// Nothing registers one yet; the Editing Mode work does.
+/// Editing Mode registers one while it is on (see <c>EditingModeContext</c>).
 /// </summary>
 public interface IDetailsOverlayDismissGuard
 {

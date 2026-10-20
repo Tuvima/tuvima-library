@@ -1002,8 +1002,3 @@
     }
 
 }
-
-/* Editing Mode: keep the drawer beside the page, not over it, so the hero identity stays visible. */
-.tl-detail-page--editing-drawer {
-    padding-inline-end: var(--tl-editing-drawer-width, 23.75rem);
-}

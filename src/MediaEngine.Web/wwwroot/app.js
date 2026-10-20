@@ -115,7 +115,8 @@ window.tuvimaEditorFocus = function (selector) {
     });
 };
 
-// Editing Mode drawer: remember the control that opened it and give focus back when it closes.
+// Editing Mode section slot: remember the control that opened it and give focus back when it closes. When that control is gone
+// (Done closes the section and the banner button with it) focus goes to the first fallback selector that still matches.
 window.tuvimaFocusReturn = (function () {
     var opener = null;
     return {
@@ -123,12 +124,18 @@ window.tuvimaFocusReturn = (function () {
             var active = document.activeElement;
             opener = active && active !== document.body ? active : null;
         },
-        restore: function () {
-            var target = opener;
+        restore: function (fallbackSelectors) {
+            var remembered = opener;
             opener = null;
-            if (target && target.isConnected && typeof target.focus === 'function') {
-                window.requestAnimationFrame(function () { target.focus({ preventScroll: true }); });
-            }
+            window.requestAnimationFrame(function () {
+                var target = remembered && remembered.isConnected ? remembered : null;
+                for (var index = 0; !target && fallbackSelectors && index < fallbackSelectors.length; index++) {
+                    target = document.querySelector(fallbackSelectors[index]);
+                }
+                if (target && typeof target.focus === 'function') {
+                    target.focus({ preventScroll: true });
+                }
+            });
         }
     };
 })();

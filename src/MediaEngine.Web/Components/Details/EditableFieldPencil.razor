@@ -58,7 +58,7 @@
                            Tone="AppUiTone.Neutral"
                            Tooltip="@($"Edit {field.Label.ToLowerInvariant()}")"
                            AriaLabel="@($"Edit {field.Label.ToLowerInvariant()}")"
-                           Disabled="@(fields.HasOpenDraft || fields.Saving || mode.DrawerDirty)"
+                           Disabled="@(fields.HasOpenDraft || fields.Saving || mode.SectionDirty)"
                            OnClick="BeginAsync" />
             @if (string.Equals(fields.LastSavedKey, field.Key, StringComparison.OrdinalIgnoreCase))
             {

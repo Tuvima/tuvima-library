@@ -13,6 +13,15 @@
     overflow: hidden;
 }
 
+/* An Editing Mode section slot: the slot sets the height (capped), so the editor fills what it is given and scrolls inside it. */
+.sme-inline-surface.sme-inline-surface--section {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    background: transparent;
+}
+
 @media (max-width: 960px) {
     .sme-inline-surface--hero {
         height: calc(84svh - var(--app-topbar-height, 65px));

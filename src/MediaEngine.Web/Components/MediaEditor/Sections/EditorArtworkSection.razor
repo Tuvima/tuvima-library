@@ -114,47 +114,24 @@
                                             <span class="sme-artwork-gallery-check" aria-label="Primary artwork"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /></span>
                                             <span class="sme-artwork-primary-badge">Primary</span>
                                         }
-                                        @if (!IsArtworkDeleteConfirming(focusedItem))
-                                        {
-                                            <div class="sme-artwork-image-actions">
-                                                <AppIconButton Icon="@AppMaterialIcons.Outlined.OpenInNew"
-                                                               Size="AppControlSize.Compact"
-                                                               Class="sme-artwork-image-action"
-                                                               Tooltip="Open full size in new tab"
-                                                               AriaLabel="Open full size in new tab"
-                                                               OnClick="@(() => OpenArtworkFullSizeAsync(focusedItem))" />
-                                                @if (focusedItem.VariantId != Guid.Empty && focusedItem.CanDelete)
-                                                {
-                                                <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline"
-                                                               Size="AppControlSize.Compact"
-                                                               Tone="AppUiTone.Error"
-                                                               Class="sme-artwork-image-action sme-artwork-image-action--delete"
-                                                               Tooltip="@GetArtworkRemovalLabel(focusedItem)"
-                                                               AriaLabel="@GetArtworkRemovalLabel(focusedItem)"
-                                                               OnClick="@(() => DeleteArtworkVariantWithConfirmationAsync(focusedItem))" />
-                                                }
-                                            </div>
-                                        }
-                                        @if (IsArtworkDeleteConfirming(focusedItem))
-                                        {
-                                            <div class="sme-artwork-delete-confirm"
-                                                 role="group"
-                                                 aria-label="@GetArtworkRemovalQuestion(focusedItem)">
-                                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Check"
-                                                               Size="AppControlSize.Compact"
-                                                               Tone="AppUiTone.Error"
-                                                               Class="sme-artwork-delete-confirm__action sme-artwork-delete-confirm__action--accept"
-                                                               Tooltip="@GetArtworkRemovalConfirmLabel(focusedItem)"
-                                                               AriaLabel="@GetArtworkRemovalConfirmLabel(focusedItem)"
-                                                               OnClick="@(() => ConfirmArtworkDeleteAsync(focusedItem))" />
-                                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
-                                                               Size="AppControlSize.Compact"
-                                                               Class="sme-artwork-delete-confirm__action sme-artwork-delete-confirm__action--cancel"
-                                                               Tooltip="Cancel"
-                                                               AriaLabel="Cancel artwork removal"
-                                                               OnClick="@(() => CancelArtworkDelete(focusedItem))" />
-                                            </div>
-                                        }
+                                        <div class="sme-artwork-image-actions">
+                                            <AppIconButton Icon="@AppMaterialIcons.Outlined.OpenInNew"
+                                                           Size="AppControlSize.Compact"
+                                                           Class="sme-artwork-image-action"
+                                                           Tooltip="Open full size in new tab"
+                                                           AriaLabel="Open full size in new tab"
+                                                           OnClick="@(() => OpenArtworkFullSizeAsync(focusedItem))" />
+                                            @if (focusedItem.VariantId != Guid.Empty && focusedItem.CanDelete)
+                                            {
+                                            <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline"
+                                                           Size="AppControlSize.Compact"
+                                                           Tone="AppUiTone.Error"
+                                                           Class="sme-artwork-image-action sme-artwork-image-action--delete"
+                                                           Tooltip="@GetArtworkRemovalLabel(focusedItem)"
+                                                           AriaLabel="@GetArtworkRemovalLabel(focusedItem)"
+                                                           OnClick="@(() => DeleteArtworkVariantWithConfirmationAsync(focusedItem))" />
+                                            }
+                                        </div>
                                     </div>
                                 }
                                 else if (HasAutomaticGroupArtwork)
@@ -245,14 +222,20 @@
                                 <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Class="sme-inline-btn" OnClick="@(() => ClearArtworkSelection(slot.AssetType))">Clear</AppButton>
                                 @if (HasArtworkUploadError(slot.AssetType))
                                 {
-                                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Class="sme-inline-btn" OnClick="@(() => RetryArtworkUploadAsync(slot.AssetType))">Retry Upload</AppButton>
+                                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Class="sme-inline-btn" OnClick="@(() => RetryArtworkUploadAsync(slot.AssetType))">Retry upload</AppButton>
                                 }
                             </div>
                         }
 
                         @if (HasArtworkUploadError(slot.AssetType))
                         {
-                            <div class="sme-artwork-import-error">@GetArtworkUploadError(slot.AssetType)</div>
+                            <div class="sme-artwork-import-error" role="alert">
+                                <span>@GetArtworkUploadError(slot.AssetType)</span>
+                                @if (HasPendingArtwork(slot.AssetType))
+                                {
+                                    <span class="sme-artwork-retry-note">The image was not added, so nothing has changed. Choose Retry upload to try again, or Clear to drop it.</span>
+                                }
+                            </div>
                         }
 
                         <div class="sme-artwork-tips sme-artwork-tips--banner">
@@ -328,10 +311,7 @@
     [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string?> GetArtworkThumbnailUrl { get; set; } = default!;
     [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string?> GetArtworkThumbnailSrcSet { get; set; } = default!;
     [Parameter] public Func<string, IReadOnlyList<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem>> GetArtworkRowItems { get; set; } = default!;
-    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, bool> IsArtworkDeleteConfirming { get; set; } = default!;
     [Parameter] public EventCallback<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem> DeleteArtworkVariantWithConfirmationAsyncRequested { get; set; }
-    [Parameter] public EventCallback<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem> CancelArtworkDeleteRequested { get; set; }
-    [Parameter] public EventCallback<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem> ConfirmArtworkDeleteAsyncRequested { get; set; }
     [Parameter] public EventCallback<string> RetryArtworkUploadAsyncRequested { get; set; }
     [Parameter] public EventCallback ApplyArtworkUrlAsyncRequested { get; set; }
     [Parameter] public EventCallback RefreshProviderArtworkAsyncRequested { get; set; }
@@ -341,8 +321,6 @@
     [Parameter] public EventCallback<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem> OpenArtworkFullSizeAsyncRequested { get; set; }
     [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkSlotDefinition, MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string> BuildArtworkVariantHoverLabel { get; set; } = default!;
     [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string> GetArtworkRemovalLabel { get; set; } = default!;
-    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string> GetArtworkRemovalQuestion { get; set; } = default!;
-    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string> GetArtworkRemovalConfirmLabel { get; set; } = default!;
     [Parameter] public Func<string> GetArtworkReadOnlyTitle { get; set; } = default!;
     [Parameter] public Func<string> GetArtworkReadOnlyText { get; set; } = default!;
     [Parameter] public Func<IReadOnlyList<MediaEngine.Contracts.Metadata.MediaEditorScopeDto>> GetArtworkReadOnlySwitchTargets { get; set; } = default!;
@@ -380,8 +358,6 @@
     private Task SetArtworkDragTarget(string assetType) => SetArtworkDragTargetRequested.InvokeAsync(assetType);
     private Task ClearArtworkDragTarget(string assetType) => ClearArtworkDragTargetRequested.InvokeAsync(assetType);
     private Task DeleteArtworkVariantWithConfirmationAsync(MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => DeleteArtworkVariantWithConfirmationAsyncRequested.InvokeAsync(item);
-    private Task CancelArtworkDelete(MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => CancelArtworkDeleteRequested.InvokeAsync(item);
-    private Task ConfirmArtworkDeleteAsync(MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => ConfirmArtworkDeleteAsyncRequested.InvokeAsync(item);
     private Task RetryArtworkUploadAsync(string assetType) => RetryArtworkUploadAsyncRequested.InvokeAsync(assetType);
     private Task ApplyArtworkUrlAsync() => ApplyArtworkUrlAsyncRequested.InvokeAsync();
     private Task RefreshProviderArtworkAsync() => RefreshProviderArtworkAsyncRequested.InvokeAsync();
