@@ -128,3 +128,40 @@
 /* Phones: the header is one 48px row, title on the left and See All on the right (the 640px stacking above is for tablets and small windows),
    so a shelf with no See All is exactly as tall as one that has it. */
 :root[data-form-factor="phone"] .media-tile-shelf-header { flex-direction:row; align-items:center; min-height:48px; }
+
+/* The View all tile ends every shelf that has a grid page: as wide as a tile and as tall as its artwork, never under 48px. */
+.media-tile-shelf-view-all {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: max(48px, var(--media-tile-media-height));
+    height: max(48px, var(--media-tile-media-height));
+    min-width: 48px;
+    min-height: 48px;
+    scroll-snap-align: start;
+    color: rgba(248, 250, 252, 0.88);
+    text-decoration: none;
+    font-family: var(--font-ui);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border-radius: var(--app-radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.media-tile-shelf-view-all:hover {
+    color: white;
+    border-color: rgba(136, 82, 252, 0.58);
+    background: rgba(136, 82, 252, 0.1);
+}
+
+.media-tile-shelf-view-all:focus-visible {
+    outline: 3px solid var(--tl-focus-ring, #a78bfa);
+    outline-offset: 3px;
+}

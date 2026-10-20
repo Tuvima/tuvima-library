@@ -281,23 +281,39 @@
         _ => "There are no items in this view.",
     };
 
-    /// <summary>The route of the My List grid (area and sort controls). A bare My List link opens the My Library page instead.</summary>
-    internal const string MyListGridRoute = "/for-me?view=my-list&area=all";
+    /// <summary>The route of the My List grid: the same View all grid every shelf uses. A bare My List link opens the My Library page instead.</summary>
+    internal const string MyListGridRoute = "/all/personal/my-list";
+
+    /// <summary>The route of the Liked grid, the same View all grid.</summary>
+    internal const string LikedGridRoute = "/all/personal/liked";
 
     // Old /for-me?view=my-list links (the desktop top bar, saved bookmarks) land on the My Library page. Links that carry an
     // area or sort, such as the lane sub-navigation's My List, still open the filtered grid.
     private bool OpensMyLibrary => ActiveView == "my-list" && RequestedArea is null && RequestedSort is null;
 
+    // Old all-areas My List and Liked links land on the View all grids and keep nothing else. A link for one area (Read, Watch,
+    // Listen or Collections) still opens the filtered grid on this page.
+    private string? GridRedirectRoute => ActiveView switch
+    {
+        "my-list" when Area == "all" => MyListGridRoute,
+        "liked" when Area == "all" => LikedGridRoute,
+        _ => null,
+    };
+
+    private bool Redirects => OpensMyLibrary || GridRedirectRoute is not null;
+
     protected override void OnParametersSet()
     {
         if (OpensMyLibrary)
             Nav.NavigateTo(ShellDock.MyLibraryPath, replace: true);
+        else if (GridRedirectRoute is { } route)
+            Nav.NavigateTo(route, replace: true);
     }
 
     protected override async Task OnInitializedAsync()
     {
         Orchestrator.OnProfileChanged += OnProfileChanged;
-        if (OpensMyLibrary)
+        if (Redirects)
         {
             return;
         }
@@ -449,6 +465,7 @@
         {
             "overview" => "/for-me",
             "my-list" => MyListGridRoute,
+            "liked" => LikedGridRoute,
             _ => $"/for-me?view={Uri.EscapeDataString(view)}",
         });
         return Task.CompletedTask;
