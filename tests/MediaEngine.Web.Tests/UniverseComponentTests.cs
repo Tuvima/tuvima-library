@@ -189,6 +189,7 @@ public sealed class UniverseComponentTests : AsyncBunitContext
         Assert.Equal($"/details/person/{person:D}", row.GetAttribute("href"));
         Assert.Equal("as Hero, Villain", cut.Find(".universe-cast__characters").TextContent);
         Assert.Empty(cut.FindAll("button.universe-cast__row"));
+        Assert.Equal("Source: Wikidata", cut.Find(".universe-cast__source").TextContent);
     }
 
     [Fact]
@@ -221,7 +222,195 @@ public sealed class UniverseComponentTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".universe-cast__characters"));
     }
 
+    // The adaptations list ------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void AdaptationRows_ShowTheirSourceAndTheMediaTypeTag()
+    {
+        var row = new UniverseSourcedAdaptationDto
+        {
+            Adaptation = new UniverseClientAdaptationDto { Qid = "a", Label = "Dune: Part One", Relationship = "based on", SourceQid = "Q9", SourceLabel = "Dune", MediaType = "Movie" },
+            Sources = [new UniverseSourceDto { Label = "Wikidata" }],
+        };
+
+        var cut = Render<UniverseAdaptationsList>(parameters => parameters.Add(p => p.Adaptations, [row]));
+
+        Assert.Equal("Dune: Part One — Based on Dune", cut.Find(".universe-adaptations__line").TextContent);
+        Assert.Equal("Source: Wikidata", cut.Find(".universe-adaptations__source").TextContent);
+        Assert.Equal("Movie", cut.Find(".universe-adaptations__kind").TextContent);
+    }
+
+    // The source and works lines --------------------------------------------------------------------------------------
+
+    [Fact]
+    public void TheSourcesLine_NamesOneOrSeveralSourcesInOrder_AndIsNullWhenThereAreNone()
+    {
+        Assert.Equal("Source: Wikidata", UniversePageText.SourcesLine([new UniverseSourceDto { Label = "Wikidata" }]));
+        Assert.Equal(
+            "Sources: Wikidata, Dune Wiki",
+            UniversePageText.SourcesLine([new UniverseSourceDto { Label = "Wikidata" }, new UniverseSourceDto { Label = "Dune Wiki" }]));
+        Assert.Null(UniversePageText.SourcesLine([]));
+    }
+
+    [Theory]
+    [InlineData(0, null)]
+    [InlineData(1, "In 1 of your work")]
+    [InlineData(3, "In 3 of your works")]
+    public void TheCharacterWorksLine_CountsTheOwnedWorks_AndIsNullForNone(int count, string? expected) =>
+        Assert.Equal(expected, UniversePageText.CharacterWorksLine(count));
+
+    // The character list --------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void ACharacterRowWithoutAListener_IsPlainText_WithItsWorksAndSource()
+    {
+        var cut = Render<UniverseCharacterList>(parameters => parameters
+            .Add(p => p.Characters, [Character("Q1", "Paul", 3)])
+            .Add(p => p.CharacterCount, 1));
+
+        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("a"));
+        Assert.Equal("Paul", cut.Find(".universe-characters__name").TextContent);
+        Assert.Equal("In 3 of your works", cut.Find(".universe-characters__works").TextContent);
+        Assert.Equal("Source: Wikidata", cut.Find(".universe-characters__source").TextContent);
+        Assert.Empty(cut.FindAll(".universe-characters__note"));
+    }
+
+    [Fact]
+    public void ACharacterRowWithAListener_IsAButtonThatRaisesTheCharacter()
+    {
+        UniverseCharacterDto? chosen = null;
+
+        var cut = Render<UniverseCharacterList>(parameters => parameters
+            .Add(p => p.Characters, [Character("Q1", "Paul", 3)])
+            .Add(p => p.OnCharacterSelected, character => chosen = character));
+        var button = cut.Find("button.universe-characters__row");
+        Assert.Contains("tl-list-item-button", button.ClassName);
+        Assert.Contains("universe-characters__item", button.ParentElement!.ClassName);
+        button.Click();
+
+        Assert.Equal("Q1", chosen!.Qid);
+    }
+
+    [Fact]
+    public void ACharacterWithNoPlotDetails_ShowsNameTagAndSourceOnly_AndIsNeverInteractive()
+    {
+        UniverseCharacterDto? chosen = null;
+
+        var cut = Render<UniverseCharacterList>(parameters => parameters
+            .Add(p => p.Characters, [Character("Q1", "Stilgar", 4, noPlotDetails: true), Character("Q2", "Paul", 2)])
+            .Add(p => p.OnCharacterSelected, character => chosen = character));
+
+        var spoilerItem = cut.FindAll(".universe-characters__item")[0];
+        Assert.Equal("Stilgar", spoilerItem.QuerySelector(".universe-characters__name")!.TextContent);
+        Assert.Contains("No plot details", spoilerItem.TextContent);
+        Assert.Equal("Source: Wikidata", spoilerItem.QuerySelector(".universe-characters__source")!.TextContent);
+        Assert.Null(spoilerItem.QuerySelector("button"));
+        Assert.Null(spoilerItem.QuerySelector(".universe-characters__works"));
+        Assert.DoesNotContain("of your work", spoilerItem.TextContent);
+        // The next row stays a normal, chosen-able one.
+        Assert.Single(cut.FindAll("button.universe-characters__row")).Click();
+        Assert.Equal("Q2", chosen!.Qid);
+    }
+
+    [Fact]
+    public void MoreThanTwelveCharacters_ShowTwelveFirst_AndAllAfterShowAll()
+    {
+        var characters = Enumerable.Range(1, 15).Select(index => Character($"Q{index}", $"Character {index}", 1)).ToList();
+
+        var cut = Render<UniverseCharacterList>(parameters => parameters
+            .Add(p => p.Characters, characters)
+            .Add(p => p.CharacterCount, 15));
+
+        Assert.Equal(12, cut.FindAll(".universe-characters__item").Count);
+        var showAll = cut.Find(".universe-characters__more button");
+        Assert.Equal("Show all 15 characters", showAll.TextContent.Trim());
+        showAll.Click();
+
+        Assert.Equal(15, cut.FindAll(".universe-characters__item").Count);
+        Assert.Empty(cut.FindAll(".universe-characters__more"));
+        Assert.Equal("Character 15", cut.FindAll(".universe-characters__name")[14].TextContent);
+    }
+
+    [Fact]
+    public void TwelveOrFewerCharacters_HaveNoShowAllButton()
+    {
+        var characters = Enumerable.Range(1, 12).Select(index => Character($"Q{index}", $"Character {index}", 1)).ToList();
+
+        var cut = Render<UniverseCharacterList>(parameters => parameters.Add(p => p.Characters, characters).Add(p => p.CharacterCount, 12));
+
+        Assert.Equal(12, cut.FindAll(".universe-characters__item").Count);
+        Assert.Empty(cut.FindAll(".universe-characters__more"));
+    }
+
+    [Fact]
+    public void TheCappedNote_AppearsOnlyWhenMoreCharactersExistThanAreListed()
+    {
+        var characters = new[] { Character("Q1", "Paul", 2), Character("Q2", "Chani", 1) };
+
+        var capped = Render<UniverseCharacterList>(parameters => parameters.Add(p => p.Characters, characters).Add(p => p.CharacterCount, 90));
+        Assert.Equal("Showing the 2 characters seen in the most works", capped.Find(".universe-characters__note").TextContent);
+
+        var complete = Render<UniverseCharacterList>(parameters => parameters.Add(p => p.Characters, characters).Add(p => p.CharacterCount, 2));
+        Assert.Empty(complete.FindAll(".universe-characters__note"));
+    }
+
+    // The explorer's adaptation tree --------------------------------------------------------------------------------
+
+    [Fact]
+    public void ANodeWithASource_NamesItAfterTheRelationship_AndARootAddsNothing()
+    {
+        var child = new UniverseAdaptationNodeDto("Q2", "Dune: Part One", 2021, "Movie", null, "based on", [], "Wikidata");
+        var root = new UniverseAdaptationNodeDto("Q1", "Dune", 1965, "Book", null, null, [child]);
+
+        var cut = Render<AdaptationTreeNode>(parameters => parameters.Add(p => p.Node, root));
+
+        var text = cut.Markup;
+        Assert.Contains("(based on · Wikidata)", Normalise(text));
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(Normalise(text), @"\(based on"));
+        Assert.DoesNotContain("()", Normalise(text));
+    }
+
+    [Fact]
+    public void AChildWithoutASource_ShowsOnlyTheRelationship()
+    {
+        var child = new UniverseAdaptationNodeDto("Q2", "Dune: Part One", 2021, "Movie", null, "based on", []);
+
+        var cut = Render<AdaptationTreeNode>(parameters => parameters.Add(p => p.Node, child));
+
+        Assert.Contains("(based on)", Normalise(cut.Markup));
+    }
+
+    [Fact]
+    public void TheAdaptationTree_SaysHonestlyThatNothingIsRecorded_WhenTheWorksListIsEmpty()
+    {
+        Services.AddSingleton(EngineApiClientStub.Create(stub => stub.SetHandler(
+            nameof(IEngineApiClient.GetUniverseAdaptationsAsync),
+            _ => Task.FromResult<UniverseAdaptationTreeResponse?>(new UniverseAdaptationTreeResponse("Q1", [])))));
+
+        var cut = Render<AdaptationTree>(parameters => parameters.Add(p => p.UniverseQid, "Q1"));
+
+        cut.WaitForAssertion(() => Assert.Contains(
+            "No adaptation relationships recorded yet. Works appear here when Wikidata links them as \"based on\", \"derivative work\" or \"inspired by\".",
+            Normalise(cut.Markup)));
+        Assert.Empty(cut.FindAll(".adaptation-tree"));
+    }
+
     // Helpers -------------------------------------------------------------------------------------------------------
+
+    private static string Normalise(string markup) =>
+        System.Text.RegularExpressions.Regex.Replace(System.Text.RegularExpressions.Regex.Replace(System.Net.WebUtility.HtmlDecode(markup), "<[^>]+>", " "), @"\s+", " ").Replace("( ", "(").Replace(" )", ")");
+
+    private static UniverseCharacterDto Character(string qid, string label, int workCount, bool noPlotDetails = false) => new()
+    {
+        Qid = qid,
+        Label = label,
+        WorkCount = workCount,
+        NoPlotDetails = noPlotDetails,
+        Sources = [new UniverseSourceDto { Kind = UniverseSourceDto.Wikidata, Label = "Wikidata" }],
+    };
+
+    // Component test helpers -------------------------------------------------------------------------------------------------------
 
     private IRenderedComponent<DetailHero> RenderHero(UniverseLinkViewModel? link)
     {
@@ -249,11 +438,15 @@ public sealed class UniverseComponentTests : AsyncBunitContext
         return (shelf, cards.Select(card => card.WorkId!.Value).ToList());
     }
 
-    private static UniverseClientCastMemberDto CastMember(Guid person, string name, params string[] characters) => new()
+    private static UniverseSourcedCastMemberDto CastMember(Guid person, string name, params string[] characters) => new()
     {
-        PersonId = person,
-        Name = name,
-        WorkCount = 1,
-        Characters = characters.Select((label, index) => new UniverseClientCastCharacterDto { Qid = $"Q{index}", Label = label }).ToList(),
+        Member = new UniverseClientCastMemberDto
+        {
+            PersonId = person,
+            Name = name,
+            WorkCount = 1,
+            Characters = characters.Select((label, index) => new UniverseClientCastCharacterDto { Qid = $"Q{index}", Label = label }).ToList(),
+        },
+        Sources = [new UniverseSourceDto { Kind = UniverseSourceDto.Wikidata, Label = "Wikidata" }],
     };
 }

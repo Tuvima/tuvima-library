@@ -38,7 +38,7 @@
                 @if (!string.IsNullOrWhiteSpace(Node.relationship_to_parent))
                 {
                     <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-888 tl-u-font-size-xs">
-                        (@Node.relationship_to_parent)
+                        (@RelationshipText)
                     </AppText>
                 }
             </AppStack>
@@ -57,6 +57,11 @@
 @code {
     [Parameter] public UniverseAdaptationNodeDto Node { get; set; } = default!;
     [Parameter] public int Depth { get; set; }
+
+    // "based on", or "based on · Wikidata" when the node says where the relationship was learned.
+    private string RelationshipText => string.IsNullOrWhiteSpace(Node.source)
+        ? Node.relationship_to_parent!
+        : $"{Node.relationship_to_parent} · {Node.source}";
 
     private static string GetMediaTypeIcon(string? mediaType) => mediaType?.ToLowerInvariant() switch
     {
