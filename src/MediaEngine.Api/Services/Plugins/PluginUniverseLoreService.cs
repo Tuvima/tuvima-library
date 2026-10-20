@@ -68,7 +68,7 @@ public sealed class PluginUniverseLoreService
                         {
                             _logger.LogInformation(
                                 "Ignored lore source {SourceKey} for {UniverseQid}: it is not on a Fandom address",
-                                candidate.SourceKey, universeQid);
+                                LogSafe(candidate.SourceKey), LogSafe(universeQid));
                             continue;
                         }
 
@@ -178,7 +178,7 @@ public sealed class PluginUniverseLoreService
             {
                 _logger.LogInformation(
                     "Skipped lore source {SourceKey} for {UniverseQid}: it is not on a Fandom address",
-                    source.SourceKey, universeQid);
+                    LogSafe(source.SourceKey), LogSafe(universeQid));
                 continue;
             }
 
@@ -299,6 +299,11 @@ public sealed class PluginUniverseLoreService
         var uri = new Uri(raw);
         return $"https://{uri.Host}";
     }
+
+    // Source keys come from wiki addresses an administrator or Wikidata supplied; line breaks are removed so a value can
+    // never start a forged log line.
+    private static string LogSafe(string? value) =>
+        (value ?? string.Empty).Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal);
 }
 
 public sealed record PluginLoreEnrichmentSummary(
