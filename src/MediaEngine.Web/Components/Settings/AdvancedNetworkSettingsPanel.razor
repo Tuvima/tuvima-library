@@ -23,7 +23,7 @@
     <details class="network-advanced-card">
         <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Router" /></span><span><strong>Port Forwarding &amp; Router Mapping</strong><small>Advanced direct access through your own local TLS reverse proxy.</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body network-advanced-fields">
-            <AppAlert Tone="AppUiTone.Warning">PCP, NAT-PMP, and UPnP are never enabled by default. Tuvima Library maps only the HTTPS reverse-proxy port below and never maps its Dashboard HTTP listener directly.</AppAlert>
+            <AppAlert Tone="AppUiTone.Warning">PCP, NAT-PMP, and UPnP are never enabled by default. Library maps only the HTTPS reverse-proxy port below and never maps its Dashboard HTTP listener directly.</AppAlert>
             <dl class="network-facts">
                 @Fact("Topology", Display(Status?.Topology))
                 @Fact("Observed gateway", Status?.RouterGateway ?? "Not detected")
@@ -99,10 +99,10 @@
 
 <AppDialog @bind-Visible="_resetDialogOpen"
            Title="Reset network settings?"
-           Subtitle="This turns off remote access and removes custom network configuration. Other Tuvima Library settings are not affected."
+           Subtitle="This turns off remote access and removes custom network configuration. Other Library settings are not affected."
            Icon="@AppMaterialIcons.Outlined.Restore"
            Size="Medium">
-    <ChildContent><AppAlert Tone="AppUiTone.Warning">Tuvima Library will attempt to remove any automatic mapping it owns during reconciliation or shutdown.</AppAlert></ChildContent>
+    <ChildContent><AppAlert Tone="AppUiTone.Warning">Library will attempt to remove any automatic mapping it owns during reconciliation or shutdown.</AppAlert></ChildContent>
     <FooterContent>
         <AppButton Label="Cancel" OnClick="CloseReset" />
         <AppButton Label="Reset Network Settings" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" OnClick="ResetAsync" />

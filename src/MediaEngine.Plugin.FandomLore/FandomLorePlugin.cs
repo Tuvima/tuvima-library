@@ -59,7 +59,7 @@ public sealed class FandomLorePlugin : ITuvimaPlugin
             "auto_discovery_enabled": {
               "type": "boolean",
               "title": "Suggest Fandom sources",
-              "description": "Allow Tuvima to propose Fandom wiki sources for admin approval.",
+              "description": "Allow Library to propose Fandom wiki sources for admin approval.",
               "default": true
             },
             "source_mode": {

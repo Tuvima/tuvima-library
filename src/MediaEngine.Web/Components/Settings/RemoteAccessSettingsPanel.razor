@@ -5,13 +5,13 @@
 
 <div class="network-panel">
     <header class="network-panel__heading">
-        <div><h3>Remote Access</h3><p>Optional. Add a secure outside address so apps and other devices can reach Tuvima away from home. Tuvima Library sign-in is always required.</p></div>
+        <div><h3>Remote Access</h3><p>Optional. Add a secure outside address so apps and other devices can reach Library away from home. Library sign-in is always required.</p></div>
     </header>
 
     <div id="remote-connection-mode">
-    <SettingsSectionPanel Title="How the internet reaches Tuvima" Icon="@AppMaterialIcons.Outlined.Public"
-                          Description="Local access works without router, DNS, or certificate setup. Pick a secure path only if you want to reach Tuvima from outside your home.">
-        <div class="network-mode-list" role="radiogroup" aria-label="How the internet reaches Tuvima">
+    <SettingsSectionPanel Title="How the internet reaches Library" Icon="@AppMaterialIcons.Outlined.Public"
+                          Description="Local access works without router, DNS, or certificate setup. Pick a secure path only if you want to reach Library from outside your home.">
+        <div class="network-mode-list" role="radiogroup" aria-label="How the internet reaches Library">
             @Mode("local-only", "Not set up — Default", "No public router mapping or remote tunnel is attempted.")
             @Mode("tailscale", "Tailscale", "Private HTTPS access through an independently installed Tailscale client and Tailscale Serve.")
             @Mode("custom", "HTTPS reverse proxy", "Use a trusted HTTPS hostname served by Caddy, nginx, Traefik, or another reverse proxy.")

@@ -191,12 +191,12 @@ public partial class ListenPage
             : IsArtistsSurface && !string.IsNullOrWhiteSpace(SelectedArtistName)
                 ? $"{SelectedArtistName} - Listen"
                 : IsDefaultEntry
-                    ? "Listen - Tuvima Library"
+                    ? "Listen - Library"
                 : IsMusicBrowseEntry
                     ? "Music - Listen"
                 : IsAudiobooksMode
                     ? "Audiobooks - Listen"
-                    : "Listen - Tuvima Library";
+                    : "Listen - Library";
 
     private IReadOnlyList<WorkViewModel> SortedSongs => SortSongs(_musicWorks);
     private IReadOnlyList<WorkViewModel> FilteredSongs => ApplySongFilters(SortedSongs);
@@ -1545,7 +1545,7 @@ public partial class ListenPage
                 {
                     Key = "my-list",
                     Label = _favoriteWorkIds.Contains(id) ? "In My List" : "My List",
-                    Icon = _favoriteWorkIds.Contains(id) ? "check" : "add",
+                    Icon = "favorite",
                     Tooltip = _favoriteWorkIds.Contains(id) ? "Remove from My List" : "Add to My List",
                     DisplayStyle = "icon",
                     IsSelected = _favoriteWorkIds.Contains(id),

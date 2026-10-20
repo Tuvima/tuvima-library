@@ -77,7 +77,7 @@
                                          Title="@MyList.Label"
                                          aria-pressed="@(MyList.IsSelected ? "true" : "false")"
                                          OnClick="@(_ => OnAction.InvokeAsync(MyList))">
-                            <AppMaterialIcon Icon="@(MyList.IsSelected ? AppMaterialIcons.Outlined.Check : AppMaterialIcons.Outlined.Add)" />
+                            <AppMaterialIcon Icon="@(MyList.IsSelected ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" />
                         </AppNativeButton>
                     }
                     @if (MoreActions.Count > 0)

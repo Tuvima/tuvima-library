@@ -11,7 +11,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         didConnect interfaceController: CPInterfaceController
     ) {
         self.interfaceController = interfaceController
-        let loading = CPListTemplate(title: "Tuvima Library", sections: [
+        let loading = CPListTemplate(title: "Library", sections: [
             CPListSection(items: [CPListItem(text: "Loading Listen…", detailText: nil)])
         ])
         interfaceController.setRootTemplate(loading, animated: false)
@@ -28,7 +28,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
     private func loadRoot() async {
         guard let api = AppEnvironment.shared.api else {
             let unavailable = CPInformationTemplate(
-                title: "Open Tuvima on iPhone",
+                title: "Open Library on iPhone",
                 layout: .leading,
                 items: [CPInformationItem(title: "Pairing required", detail: "Connect and pair this iPhone before using CarPlay.")],
                 actions: []
@@ -94,7 +94,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
                 animated: true
             )
         } catch {
-            let template = CPAlertTemplate(titleVariants: ["Tuvima could not load \(title)."], actions: [
+            let template = CPAlertTemplate(titleVariants: ["Library could not load \(title)."], actions: [
                 CPAlertAction(title: "OK", style: .default) { _ in }
             ])
             _ = try? await interfaceController?.presentTemplate(template, animated: true)

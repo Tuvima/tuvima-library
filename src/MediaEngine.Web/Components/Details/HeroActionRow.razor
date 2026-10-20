@@ -25,7 +25,7 @@
             }
             else
             {
-                <AppTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" data-phone-label="@PhoneLabelFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><PlaybackUtilityGlyph Glyph="@UtilityGlyphFor(action)" /></AppNativeButton></AppTooltip>
+                <AppTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" data-phone-label="@PhoneLabelFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><PlaybackUtilityGlyph Glyph="@UtilityGlyphFor(action)" Filled="@(action.Key == "my-list" && action.IsSelected)" /></AppNativeButton></AppTooltip>
             }
         }
         <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle" UsePlaybackGlyph="true" OnActionSelected="OnActionSelected" />
@@ -69,7 +69,7 @@
     private Task SelectReaction(DetailAction action) => Select(action);
     private static PlaybackUtilityGlyphKind UtilityGlyphFor(DetailAction action) => action.Key switch
     {
-        "my-list" => action.IsSelected ? PlaybackUtilityGlyphKind.Check : PlaybackUtilityGlyphKind.Add,
+        "my-list" => PlaybackUtilityGlyphKind.Favorite,
         "shuffle" => PlaybackUtilityGlyphKind.Shuffle,
         "favorite" or "favorite-song" => PlaybackUtilityGlyphKind.Favorite,
         _ => action.Icon switch
@@ -89,8 +89,11 @@
     private static string PhoneLabelFor(DetailAction action)
         => action.Key == "my-list" ? "My List" : action.Label;
 
+    /// <summary>My List's name follows its saved state, which the page toggles in place without rebuilding the action.</summary>
     private static string TooltipFor(DetailAction action)
-        => action.Tooltip ?? action.Label;
+        => action.Key == "my-list"
+            ? action.IsSelected ? "Remove from My List" : "Add to My List"
+            : action.Tooltip ?? action.Label;
 
     private static string ActionKeyClass(DetailAction action)
         => new string(action.Key.Select(character => char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : '-').ToArray()).Trim('-');

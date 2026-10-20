@@ -321,12 +321,12 @@ else
     private bool IsProfileDetailRoute => _activeSection == SettingsSection.Profiles && ProfileDetailId != Guid.Empty;
     private Guid ProfileDetailId => Guid.TryParse(_activeSubsection, out var id) ? id : Guid.Empty;
     private string BrowserTitle => IsProfileDetailRoute
-        ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Tuvima Library"
+        ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Library"
         : _activeSection == SettingsSection.Libraries
-        ? $"{(_activeSubsection == "view" ? "View" : "Libraries")} - Tuvima Library"
+        ? $"{(_activeSubsection == "view" ? "View" : "Libraries")} - Library"
         : CurrentLocation?.Parent is { } parent
-        ? $"{GetHeroTitle()} - {parent.Label} - Tuvima Library"
-        : $"{GetHeroTitle()} - Tuvima Library";
+        ? $"{GetHeroTitle()} - {parent.Label} - Library"
+        : $"{GetHeroTitle()} - Library";
     private bool ShouldDeferForRoleResolution =>
         SettingsNav.GetItem(_activeSection).AdminOnly
         && !_profileRoleLoaded;
@@ -824,7 +824,7 @@ else
     private string GetSectionDescription(SettingsSection section) => section switch
     {
         SettingsSection.Overview => _activeSubsection == SettingsNav.AppsSubsection
-            ? "Install the Tuvima app on your phone or TV and connect it to this server."
+            ? "Install the Library app on your phone or TV and connect it to this server."
             : _activeSubsection == SettingsNav.ActivitySubsection
                 ? "Everything you have watched, listened to and read, and what you added to My list."
             : _activeSubsection == SettingsNav.TasteSubsection
@@ -838,7 +838,7 @@ else
         SettingsSection.Listening => "How you listen.",
         SettingsSection.Reading => "How you read.",
         SettingsSection.Security => _activeSubsection == "devices"
-            ? "The phones, TVs and browsers signed in to Tuvima, and who they belong to."
+            ? "The phones, TVs and browsers signed in to Library, and who they belong to."
             : "Password, email and extra protection.",
         SettingsSection.AdminOverview => _activeSubsection == SettingsNav.LogsSubsection
             ? "What the Library did, the Engine's technical log, and how long logs are kept."
@@ -846,7 +846,7 @@ else
         SettingsSection.Libraries => "Manage structured libraries and storage roots.",
         SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",
         SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",
-        SettingsSection.Network => "Manage how devices reach Tuvima Library at home and away without exposing unnecessary technical detail.",
+        SettingsSection.Network => "Manage how devices reach Library at home and away without exposing unnecessary technical detail.",
         SettingsSection.DevHarness => "Reset development library data, seed deterministic fixtures, or rescan configured media.",
         SettingsSection.Providers => GetMetadataDescription(),
         SettingsSection.LocalAi => _activeSubsection switch
@@ -867,12 +867,12 @@ else
         SettingsSection.Tools => "See the tools and downloads the Library relies on, what each one affects, and fix anything that is missing.",
         SettingsSection.Access => _activeSubsection switch
         {
-            "applications" => "Credentials and webhooks that let other software use Tuvima Library.",
+            "applications" => "Credentials and webhooks that let other software use Library.",
             "authentication" => "How people sign in, and the rules for passwords, sessions and invitations.",
             _ => "Accounts, roles and invitations: who can sign in and what they can use.",
         },
-        SettingsSection.Server => "Protect your Tuvima Library configuration and recover it when needed.",
-        SettingsSection.Review => "Resolve items Tuvima Library could not identify confidently.",
+        SettingsSection.Server => "Protect your Library configuration and recover it when needed.",
+        SettingsSection.Review => "Resolve items Library could not identify confidently.",
         SettingsSection.ProviderTester => "Internal provider testing tool.",
         SettingsSection.EnrichmentTester => "Internal enrichment debugging tool.",
         _ => "Settings",

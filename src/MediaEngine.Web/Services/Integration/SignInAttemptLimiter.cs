@@ -34,8 +34,8 @@ public sealed class SignInAttemptLimiter
     public const int RemoteTotalPerMinute = 120;
     public const int MaxTrackedKeys = 4096;
     public const string TooManyAttemptsMessage = "Too many attempts. Try again in a minute.";
-    public const string AddressUnknownMessage = "Tuvima Library could not tell where this connection came from, so sign-in is not available from here.";
-    public const string UseProxyPortMessage = "This address reaches Tuvima Library through a reverse proxy on the main port, so sign-in is turned off here. Point the reverse proxy at the proxy port (remote.proxy_port) and use that address instead.";
+    public const string AddressUnknownMessage = "Library could not tell where this connection came from, so sign-in is not available from here.";
+    public const string UseProxyPortMessage = "This address reaches Library through a reverse proxy on the main port, so sign-in is turned off here. Point the reverse proxy at the proxy port (remote.proxy_port) and use that address instead.";
 
     private const string RemoteTotalKey = "remote:*";
 
