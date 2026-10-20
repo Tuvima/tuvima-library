@@ -9,7 +9,8 @@ namespace MediaEngine.Api.Services.Plugins.ApplicationServices;
 
 internal sealed partial class FandomLoreDiscoveryOperation(
     PluginCatalog catalog,
-    IPluginExecutionContextFactory contexts) : IPluginApplicationOperation
+    IPluginExecutionContextFactory contexts,
+    ILibraryUniverseQidGate libraryQids) : IPluginApplicationOperation
 {
     internal const string OperationId = "plugin.tuvima.fandom-lore.universe-lore.discover";
     private const int MaxSources = 100;
@@ -77,6 +78,14 @@ internal sealed partial class FandomLoreDiscoveryOperation(
             throw new JsonException("universe_qid must be a canonical Wikidata QID.");
         }
 
+        if (!await libraryQids.HoldsAsync(qid, ct).ConfigureAwait(false))
+        {
+            // Only Universes this Library holds are looked up; the request never reaches Wikidata or Fandom.
+            throw new PluginApplicationGatewayException(
+                PluginApplicationGatewayFailure.InvalidPayload,
+                "universe_qid is not a Universe in this Library.");
+        }
+
         var registration = catalog.Get(FandomLorePlugin.PluginId);
         if (!IsAvailable(out var reason) || registration is null)
         {
@@ -98,7 +107,9 @@ internal sealed partial class FandomLoreDiscoveryOperation(
             var provider = registration.Capabilities.OfType<IUniverseLoreProvider>().Single();
             var candidates = await provider.DiscoverSourcesAsync(new PluginUniverseLoreContext(qid, null), context, ct)
                 .ConfigureAwait(false);
-            var sources = candidates.Take(MaxSources).Select(candidate => new PluginLoreSourceCandidateDto(
+            var sources = candidates
+                .Where(candidate => FandomHostRule.IsFandomAddress(candidate.BaseUrl) && FandomHostRule.IsFandomAddress(candidate.ApiUrl))
+                .Take(MaxSources).Select(candidate => new PluginLoreSourceCandidateDto(
                 candidate.SourceKey,
                 candidate.SourceName,
                 candidate.BaseUrl,
