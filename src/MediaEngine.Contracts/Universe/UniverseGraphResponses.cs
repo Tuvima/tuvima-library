@@ -140,6 +140,8 @@ public sealed record UniverseAdaptationTreeResponse(
     string universe_qid,
     IReadOnlyList<UniverseAdaptationNodeDto> works);
 
+/// <summary>One work in the explorer's adaptation tree.</summary>
+/// <param name="source">Where the relationship to the parent was learned ("Wikidata"); null for a root.</param>
 public sealed record UniverseAdaptationNodeDto(
     string qid,
     string label,
@@ -147,4 +149,5 @@ public sealed record UniverseAdaptationNodeDto(
     string media_type,
     string? cover_image,
     string? relationship_to_parent,
-    IReadOnlyList<UniverseAdaptationNodeDto> children);
+    IReadOnlyList<UniverseAdaptationNodeDto> children,
+    string? source = null);

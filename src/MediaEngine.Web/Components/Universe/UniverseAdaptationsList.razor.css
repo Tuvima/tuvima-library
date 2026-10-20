@@ -21,8 +21,21 @@
     color: var(--tl-text-primary);
 }
 
+.universe-adaptations__copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
 .universe-adaptations__line {
     min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.universe-adaptations__source {
+    color: var(--tl-text-muted);
+    font-size: 0.78rem;
     overflow-wrap: anywhere;
 }
 

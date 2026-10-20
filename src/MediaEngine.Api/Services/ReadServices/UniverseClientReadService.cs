@@ -50,22 +50,30 @@ public sealed partial class UniverseClientReadService(
     /// holds an item the profile may see. The caller answers all of those the same way.
     /// </summary>
     public async Task<UniverseClientDetailDto?> LoadAsync(string qid, Profile? profile, CancellationToken ct = default) =>
-        (await BuildAsync(qid, profile, includeStandalone: false, ct).ConfigureAwait(false))?.Detail;
+        (await BuildAsync(qid, profile, includeStandalone: false, includeCharacters: false, ct).ConfigureAwait(false))?.Detail;
 
     /// <summary>A Universe's detail, plus the visible works that belong directly to the Universe and to no Series.</summary>
     internal sealed record UniverseBuild(
         UniverseClientDetailDto Detail,
         Guid UniverseId,
         IReadOnlyList<DisplayWorkRow> AllRows,
-        IReadOnlyList<DisplayWorkRow> StandaloneRows);
+        IReadOnlyList<DisplayWorkRow> StandaloneRows,
+        UniverseConnectionsDto Connections);
 
     /// <summary>
     /// The Universe detail <see cref="LoadAsync"/> returns (its shelves, totals and lists count Series members only), and,
     /// when <paramref name="includeStandalone"/> is set, the standalone works too. Without them the answer is the helper-app
     /// answer exactly: null when no Series shelf has a visible item. With them, a Universe whose only visible works are
-    /// standalone is still a Universe (empty shelves, the standalone rows returned beside the detail).
+    /// standalone is still a Universe (empty shelves, the standalone rows returned beside the detail). The detail's Cast and
+    /// Adaptations are the plain rows of <see cref="UniverseBuild.Connections"/>, which also lists the Universe's characters
+    /// when <paramref name="includeCharacters"/> is set; every row there carries its source.
     /// </summary>
-    internal async Task<UniverseBuild?> BuildAsync(string qid, Profile? profile, bool includeStandalone, CancellationToken ct)
+    internal async Task<UniverseBuild?> BuildAsync(
+        string qid,
+        Profile? profile,
+        bool includeStandalone,
+        bool includeCharacters,
+        CancellationToken ct)
     {
         var normalized = qid.Trim();
         var scope = await ResolveVisibleUniverseAsync(normalized, profile, includeStandalone, ct).ConfigureAwait(false);
@@ -148,7 +156,8 @@ public sealed partial class UniverseClientReadService(
             .Where(workQid => !string.IsNullOrWhiteSpace(workQid))
             .Select(workQid => workQid!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var helperLists = await connections.GetHelperListsAsync(normalized, visibleWorkQids, ct).ConfigureAwait(false);
+        var universeConnections = await connections.GetConnectionsAsync(
+            normalized, visibleWorkQids, includeCharacters, ct).ConfigureAwait(false);
 
         return new UniverseBuild(
             new UniverseClientDetailDto
@@ -160,12 +169,13 @@ public sealed partial class UniverseClientReadService(
                 SeriesCount = shelves.Count,
                 MediaTypes = mediaTypes,
                 Shelves = shelves,
-                Cast = helperLists.Cast,
-                Adaptations = helperLists.Adaptations,
+                Cast = universeConnections.Cast.Select(row => row.Member).ToList(),
+                Adaptations = universeConnections.Adaptations.Select(row => row.Adaptation).ToList(),
             },
             universe.Id,
             allRows,
-            standaloneRows);
+            standaloneRows,
+            universeConnections);
     }
 
     // Works that belong directly to the Universe collection itself, not to any Series below it.

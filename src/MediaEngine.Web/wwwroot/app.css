@@ -5703,6 +5703,7 @@ html[data-form-factor="tv"] {
     --media-shelf-gutter: 48px;
     --tl-control-height-sm: 56px;
     --tl-control-height-md: 56px;
+    --tl-control-height-lg: 56px;
 }
 
 html[data-form-factor="tv"] .layout-shell__intent-dock-link {
