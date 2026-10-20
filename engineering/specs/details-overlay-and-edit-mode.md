@@ -1,6 +1,6 @@
 # Spec: Details overlay and page-based Editing Mode
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail (archived, D12)](archive/item-detail.md) · [Editing Mode (archived, as-built)](archive/editing-mode.md) · [Delete from library](delete-from-library.md) · [Universe](universe.md) · Bug list items 16, 17, 18, 19
+> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail (archived, D12)](archive/item-detail.md) · [Editing Mode (archived, as-built)](archive/editing-mode.md) · [Delete from library](archive/delete-from-library.md) · [Universe](universe.md) · Bug list items 16, 17, 18, 19
 
 ## 1. Goal
 Titles open as an overlay you can dismiss and come back from. Editing becomes a clear mode of the page itself: choose Edit in the "..." menu, a banner makes it obvious you are editing, and everything (single fields, artwork, matching, batch edits) happens on the page. No side drawer, so nothing is squished and nothing is hidden.

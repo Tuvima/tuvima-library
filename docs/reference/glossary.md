@@ -93,6 +93,10 @@ The backend application (`MediaEngine.Api`) that runs ingestion, enrichment, sto
 
 Follow-up metadata work after basic identity is known, such as artwork, people, relationships, descriptions, summaries, and universe graph data.
 
+### Excluded file
+
+A media file that stayed on disk when its title was deleted from the library: a file in an As-is folder, the original of a merged file, or a file that could not be removed. Scans skip it so the title does not come back. **Settings > Libraries > Excluded files** lists it, and **Add back** scans it again. See [Manage library settings and operations](../guides/library-settings.md#excluded-files).
+
 ### Extra protection
 
 The **Extra protection** row under **Settings → Security**, which opens one sheet for optional sign-in protection: passkeys, two-step codes, linked sign-ins (when an external provider is set up) and recovery codes. The row appears once the account has a password and shows *Off*, *Passkey added*, *Two-step codes on*, or both.
