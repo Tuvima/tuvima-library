@@ -971,14 +971,27 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
+        // The borrowed audiobook year is worked out once for the person's audiobooks, not once per row.
+        var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "credit_related_book_year",
+            """
+            SELECT credit_work.id AS work_id, credit_asset.id AS asset_id
+            FROM effective_credit candidate_credit
+            INNER JOIN media_assets credit_asset ON credit_asset.id = candidate_credit.media_asset_id
+            INNER JOIN editions credit_edition ON credit_edition.id = credit_asset.edition_id
+            INNER JOIN works credit_work ON credit_work.id = credit_edition.work_id
+            WHERE LOWER(COALESCE(credit_work.media_type, '')) LIKE '%audio%'
+            """,
+            "rby_");
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
             "w.id",
             "COALESCE(gp.id, p.id, w.id)",
             "ma.id",
-            "w.media_type");
+            "w.media_type",
+            MediaDateSql.RelatedBookYearLookup("credit_related_book_year", "w.id", "ma.id"));
         var baseRows = (await conn.QueryAsync<PersonLibraryCreditRow>(
             $"""
-            WITH effective_credit AS (
+            WITH effective_credit AS MATERIALIZED (
                 SELECT direct_credit.media_asset_id,
                        direct_credit.person_id,
                        direct_credit.role,
@@ -1006,7 +1019,8 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
                 INNER JOIN persons group_person
                     ON group_person.id = membership.group_id
                 WHERE membership.member_id = @personId
-            )
+            ),
+            {relatedBookYearCte}
             SELECT w.id                                   AS WorkId,
                    COALESCE(gp.id, p.id, w.id)             AS RootWorkId,
                    w.collection_id                        AS CollectionId,

@@ -20,11 +20,22 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
         }
 
         using var conn = db.CreateConnection();
+        // The borrowed audiobook year is worked out once for the audiobooks among the requested works.
+        var resolvedRelatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "resolved_related_book_year",
+            """
+            SELECT ra_candidate.WorkId AS work_id, ra_candidate.AssetId AS asset_id
+            FROM representative_assets ra_candidate
+            INNER JOIN works audiobook_work ON audiobook_work.id = ra_candidate.WorkId
+            WHERE LOWER(COALESCE(audiobook_work.media_type, '')) LIKE '%audio%'
+            """,
+            "rby_");
         var resolvedDisplayYearSql = MediaDateSql.DisplayOriginalYear(
             "w.id",
             "COALESCE(gp.id, p.id, w.id)",
             "ra.AssetId",
-            "w.media_type");
+            "w.media_type",
+            MediaDateSql.RelatedBookYearLookup("resolved_related_book_year", "w.id", "ra.AssetId"));
         var rows = await conn.QueryAsync<ResolvedMetadataRow>(new CommandDefinition(
             $"""
             -- readiness: metadata for works the caller named by id, in the collection editor
@@ -37,13 +48,14 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
                 FROM works child
                 INNER JOIN work_tree ON child.parent_work_id = work_tree.WorkId
             ),
-            representative_assets AS (
+            representative_assets AS MATERIALIZED (
                 SELECT work_tree.RootWorkId AS WorkId, MIN(ma.id) AS AssetId
                 FROM work_tree
                 INNER JOIN work_owned_assets woa ON woa.work_id = work_tree.WorkId
                 INNER JOIN media_assets ma ON ma.id = woa.asset_id
                 GROUP BY work_tree.RootWorkId
-            )
+            ),
+            {resolvedRelatedBookYearCte}
             SELECT w.id AS WorkId,
                    w.media_type AS MediaType,
                    ra.AssetId,
@@ -182,11 +194,21 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
         using var conn = db.CreateConnection();
         var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
+        // The borrowed audiobook year is worked out once, for the rows of the requested page only.
+        var lookupRelatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "lookup_related_book_year",
+            """
+            SELECT page_candidate.SourceWorkId AS work_id, page_candidate.AssetId AS asset_id
+            FROM lookup_page page_candidate
+            WHERE LOWER(COALESCE(page_candidate.SourceMediaType, '')) LIKE '%audio%'
+            """,
+            "lby_");
         var lookupDisplayYearSql = MediaDateSql.DisplayOriginalYear(
-            "w.id",
-            "COALESCE(gp.id, p.id, w.id)",
-            "ra.AssetId",
-            "w.media_type");
+            "page.SourceWorkId",
+            "page.RootWorkId",
+            "page.AssetId",
+            "page.SourceMediaType",
+            MediaDateSql.RelatedBookYearLookup("lookup_related_book_year", "page.SourceWorkId", "page.AssetId"));
         var rows = (await conn.QueryAsync<CollectionMediaLookupRow>(new CommandDefinition(
             $"""
             WITH RECURSIVE work_descendants(root_id, work_id, depth) AS (
@@ -205,12 +227,16 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
                 INNER JOIN media_assets ma ON ma.id = woa.asset_id
                 WHERE {visibleAssetPredicate}
                 GROUP BY work_descendants.root_id
-            )
+            ),
+            lookup_page AS MATERIALIZED (
             SELECT CASE
                        WHEN w.work_kind = 'child' THEN COALESCE(gp.id, p.id, w.id)
                        WHEN w.work_kind = 'parent' AND p.id IS NOT NULL THEN COALESCE(gp.id, p.id, w.id)
                        ELSE w.id
                    END AS WorkId,
+                   w.id AS SourceWorkId,
+                   COALESCE(gp.id, p.id, w.id) AS RootWorkId,
+                   w.media_type AS SourceMediaType,
                    COALESCE(gp.collection_id, p.collection_id, w.collection_id) AS CollectionId,
                    w.media_type AS MediaType,
                    CASE
@@ -221,7 +247,6 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
                    ra.AssetId,
                    COALESCE(NULLIF(show_root.value, ''), NULLIF(title_root.value, ''), NULLIF(episode_title.value, ''), NULLIF(title_work.value, ''), NULLIF(title_asset.value, ''), 'Untitled') AS Title,
                    COALESCE(NULLIF(author_work.value, ''), NULLIF(artist_root.value, ''), NULLIF(artist_work.value, ''), NULLIF(author_asset.value, ''), NULLIF(artist_asset.value, '')) AS Creator,
-                   {lookupDisplayYearSql} AS Year,
                    CAST(NULLIF(cover_root.value, '') AS TEXT) AS RootArtworkUrl,
                    COALESCE(NULLIF(cover_root.value, ''), NULLIF(cover_work.value, ''), NULLIF(cover_asset.value, '')) AS ArtworkUrl,
                    COALESCE(NULLIF(show_root.value, ''), NULLIF(show_work.value, ''), NULLIF(title_root.value, '')) AS ShowName,
@@ -270,7 +295,26 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
                  OR show_work.value LIKE @searchLike
               )
             ORDER BY Title COLLATE NOCASE, w.id
-            LIMIT @limit OFFSET @offset;
+            LIMIT @limit OFFSET @offset
+            ),
+            {lookupRelatedBookYearCte}
+            SELECT page.WorkId,
+                   page.CollectionId,
+                   page.MediaType,
+                   page.WorkKind,
+                   page.Ordinal,
+                   page.AssetId,
+                   page.Title,
+                   page.Creator,
+                   {lookupDisplayYearSql} AS Year,
+                   page.RootArtworkUrl,
+                   page.ArtworkUrl,
+                   page.ShowName,
+                   page.SeasonNumber,
+                   page.Album,
+                   page.Artist
+            FROM lookup_page page
+            ORDER BY page.Title COLLATE NOCASE, page.SourceWorkId;
             """,
             new
             {
