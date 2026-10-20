@@ -20,6 +20,7 @@ public sealed class ActivityPruningService : BackgroundService
     private readonly ActivityRetentionPruner _pruner;
     private readonly IConfigurationLoader _configLoader;
     private readonly IEntityTimelineRepository _timelineRepo;
+    private readonly IAiUsageRecordRepository _aiUsage;
     private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<ActivityPruningService> _logger;
 
@@ -31,9 +32,11 @@ public sealed class ActivityPruningService : BackgroundService
         ActivityRetentionPruner pruner,
         IConfigurationLoader configLoader,
         IEntityTimelineRepository timelineRepo,
+        IAiUsageRecordRepository aiUsage,
         ScheduledTaskRunner runner,
         ILogger<ActivityPruningService> logger)
     {
+        ArgumentNullException.ThrowIfNull(aiUsage);
         ArgumentNullException.ThrowIfNull(activityRepo);
         ArgumentNullException.ThrowIfNull(pruner);
         ArgumentNullException.ThrowIfNull(configLoader);
@@ -45,6 +48,7 @@ public sealed class ActivityPruningService : BackgroundService
         _pruner = pruner;
         _configLoader = configLoader;
         _timelineRepo = timelineRepo;
+        _aiUsage = aiUsage;
         _runner = runner;
         _logger = logger;
     }
@@ -85,8 +89,9 @@ public sealed class ActivityPruningService : BackgroundService
     }
 
     /// <summary>
-    /// One cycle: the activity log prune (days first, then the event cap), then the timeline cull. A failure in either
-    /// is logged and recorded as the run's failure message, and the other part still runs.
+    /// One cycle: the activity log prune (days first, then the event cap), the timeline cull, then the Local AI usage
+    /// records older than 90 days. A failure in any of them
+    /// is logged and recorded as the run's failure message, and the other parts still run.
     /// </summary>
     private async Task<TaskRunResult> RunPruneCycleAsync(CancellationToken stoppingToken)
     {
@@ -159,6 +164,29 @@ public sealed class ActivityPruningService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Timeline cull failed; will retry next cycle");
+            failure ??= ex.Message;
+        }
+
+        // ── Local AI usage records ────────────────────────────────────
+        try
+        {
+            var usageRemoved = await _aiUsage.PruneAsync(DateTimeOffset.UtcNow, stoppingToken);
+            removed += usageRemoved;
+
+            if (usageRemoved > 0)
+            {
+                _logger.LogInformation(
+                    "AI usage prune: removed {Count} records older than {Days} days",
+                    usageRemoved, IAiUsageRecordRepository.RetentionDays);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "AI usage prune failed; will retry next cycle");
             failure ??= ex.Message;
         }
 

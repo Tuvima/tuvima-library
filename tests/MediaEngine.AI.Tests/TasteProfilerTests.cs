@@ -17,7 +17,7 @@ public sealed class TasteProfilerTests
             Signal("Movies", "drama"),
         ]);
         var profiler = new TasteProfiler(
-            StubLlamaInferenceService.ReturningJson("unused"),
+            StubAiEngineRoom.ReturningJson("unused"),
             repository,
             NullLogger<TasteProfiler>.Instance);
 
@@ -41,7 +41,7 @@ public sealed class TasteProfilerTests
             Signal("Movies", "drama", progress: 10),
         ]);
         var profiler = new TasteProfiler(
-            StubLlamaInferenceService.ReturningJson("A tailored profile."),
+            StubAiEngineRoom.ReturningJson("A tailored profile."),
             repository,
             NullLogger<TasteProfiler>.Instance);
 

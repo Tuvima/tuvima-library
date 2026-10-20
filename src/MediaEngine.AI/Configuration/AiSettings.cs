@@ -35,10 +35,6 @@ public sealed class AiSettings
     [JsonPropertyName("inference_timeout_seconds")]
     public int InferenceTimeoutSeconds { get; set; } = 60;
 
-    /// <summary>Global upper bound for concurrent local inference requests.</summary>
-    [JsonPropertyName("max_concurrent_inferences")]
-    public int MaxConcurrentInferences { get; set; } = 1;
-
     /// <summary>Logical CPU cores that local inference must leave available to the Engine and OS.</summary>
     [JsonPropertyName("reserved_cpu_cores")]
     public int ReservedCpuCores { get; set; } = 2;
@@ -137,6 +133,39 @@ public sealed class AiSettings
     /// <summary>Number of entities to process per batch run in background enrichment services.</summary>
     [JsonPropertyName("enrichment_batch_size")]
     public int EnrichmentBatchSize { get; set; } = 10;
+
+    /// <summary>How much Local AI each plugin may use per rolling hour, and how long a plugin request may wait for a turn.</summary>
+    [JsonPropertyName("plugin_budget")]
+    public AiPluginBudget PluginBudget { get; set; } = new();
+
+    /// <summary>Per-plugin replacements for <see cref="PluginBudget"/>, keyed by plugin id. Unset fields keep the default.</summary>
+    [JsonPropertyName("plugin_budget_overrides")]
+    public Dictionary<string, AiPluginBudgetOverride> PluginBudgetOverrides { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary>The budget that applies to one plugin: its override where it has one, otherwise the default.</summary>
+    public AiPluginBudget GetPluginBudget(string pluginId)
+    {
+        if (!PluginBudgetOverrides.TryGetValue(pluginId, out var overrides))
+        {
+            return PluginBudget;
+        }
+
+        return new AiPluginBudget
+        {
+            RequestsPerHour = overrides.RequestsPerHour ?? PluginBudget.RequestsPerHour,
+            BusySecondsPerHour = overrides.BusySecondsPerHour ?? PluginBudget.BusySecondsPerHour,
+            MaxWaitSeconds = overrides.MaxWaitSeconds ?? PluginBudget.MaxWaitSeconds,
+        };
+    }
+
+    /// <summary>
+    /// True when any Local AI feature or the audio pack is switched on. This is the meaning of "Local AI is on" for
+    /// plugins asking for text abilities.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsLocalAiEnabled =>
+        AudioPackEnabled || Features.SmartLabeling || Features.TypeLogic || Features.SeriesAlignment
+        || Features.VibeTags || Features.Tldr || Features.DescriptionIntelligence;
 
     /// <summary>Machine-local runtime state. Never serialized into deployable AI configuration.</summary>
     [JsonIgnore]
@@ -549,6 +578,35 @@ public sealed class AiFeatureFlags
 
     [JsonPropertyName("description_intelligence")]
     public bool DescriptionIntelligence { get; set; }
+}
+
+/// <summary>A plugin's Local AI allowance. Counted over the last rolling hour from the durable usage records.</summary>
+public sealed class AiPluginBudget
+{
+    /// <summary>Requests a plugin may make per rolling hour.</summary>
+    [JsonPropertyName("requests_per_hour")]
+    public int RequestsPerHour { get; set; } = 120;
+
+    /// <summary>Seconds of running time a plugin may use per rolling hour.</summary>
+    [JsonPropertyName("busy_seconds_per_hour")]
+    public int BusySecondsPerHour { get; set; } = 600;
+
+    /// <summary>Seconds a plugin request may wait for its turn before it times out.</summary>
+    [JsonPropertyName("max_wait_seconds")]
+    public int MaxWaitSeconds { get; set; } = 120;
+}
+
+/// <summary>A per-plugin change to the default allowance; a missing field keeps the default.</summary>
+public sealed class AiPluginBudgetOverride
+{
+    [JsonPropertyName("requests_per_hour")]
+    public int? RequestsPerHour { get; set; }
+
+    [JsonPropertyName("busy_seconds_per_hour")]
+    public int? BusySecondsPerHour { get; set; }
+
+    [JsonPropertyName("max_wait_seconds")]
+    public int? MaxWaitSeconds { get; set; }
 }
 
 /// <summary>Per-category controlled vocabulary for vibe tagging.</summary>

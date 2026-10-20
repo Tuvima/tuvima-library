@@ -5,7 +5,6 @@
   "audio_pack_enabled": false,
   "idle_unload_seconds": 300,
   "inference_timeout_seconds": 60,
-  "max_concurrent_inferences": 1,
   "reserved_cpu_cores": 2,
   "background_quiet_seconds": 10,
   "minimum_free_disk_mb": 2048,
@@ -28,5 +27,11 @@
     "series_check_cron": "0 3 * * *",
     "description_intelligence_cron": "*/15 * * * *"
   },
-  "enrichment_batch_size": 10
+  "enrichment_batch_size": 10,
+  "plugin_budget": {
+    "requests_per_hour": 120,
+    "busy_seconds_per_hour": 600,
+    "max_wait_seconds": 120
+  },
+  "plugin_budget_overrides": {}
 }

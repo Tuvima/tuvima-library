@@ -1,4 +1,5 @@
 using MediaEngine.AI.Configuration;
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.AI.Infrastructure;
 using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain;
@@ -27,7 +28,6 @@ public sealed class VibeBatchService : BackgroundService
     private readonly ICanonicalValueArrayRepository _canonicalArrays;
     private readonly IAiFeaturePersistenceRepository _featurePersistence;
     private readonly ILibraryItemRepository _libraryItems;
-    private readonly BackgroundAiAdmissionController _admission;
     private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<VibeBatchService> _logger;
 
@@ -40,7 +40,6 @@ public sealed class VibeBatchService : BackgroundService
         ICanonicalValueArrayRepository canonicalArrays,
         IAiFeaturePersistenceRepository featurePersistence,
         ILibraryItemRepository libraryItems,
-        BackgroundAiAdmissionController admission,
         ScheduledTaskRunner runner,
         ILogger<VibeBatchService> logger)
     {
@@ -53,7 +52,6 @@ public sealed class VibeBatchService : BackgroundService
         ArgumentNullException.ThrowIfNull(canonicalArrays);
         ArgumentNullException.ThrowIfNull(featurePersistence);
         ArgumentNullException.ThrowIfNull(libraryItems);
-        ArgumentNullException.ThrowIfNull(admission);
         ArgumentNullException.ThrowIfNull(logger);
 
         _settings = settings;
@@ -64,7 +62,6 @@ public sealed class VibeBatchService : BackgroundService
         _canonicalArrays = canonicalArrays;
         _featurePersistence = featurePersistence;
         _libraryItems = libraryItems;
-        _admission = admission;
         _runner = runner;
         _logger = logger;
     }
@@ -165,14 +162,6 @@ public sealed class VibeBatchService : BackgroundService
                 continue;
             }
 
-            using var admission = _admission.TryAcquire(
-                MediaEngine.Domain.Enums.AiModelRole.TextQuality,
-                ct);
-            if (admission is null)
-            {
-                return TaskRunResult.Skipped("Waiting: the machine is busy");
-            }
-
             try
             {
                 var tags = await _tagger.TagAsync(
@@ -180,7 +169,7 @@ public sealed class VibeBatchService : BackgroundService
                     description.Value,
                     genres,
                     mediaType?.Value ?? "books",
-                    admission.Token);
+                    ct);
 
                 var result = await _featurePersistence.ReplaceAiFeatureAsync(
                     new AiFeatureWriteRequest(
@@ -209,10 +198,15 @@ public sealed class VibeBatchService : BackgroundService
             {
                 throw;
             }
-            catch (OperationCanceledException) when (admission.WasPreempted)
+            catch (AiRequestPreemptedException)
             {
                 _logger.LogInformation("VibeBatchService: yielding to interactive traffic");
                 return TaskRunResult.Skipped("Paused to make way for something you were doing");
+            }
+            catch (AiRequestDeferredException)
+            {
+                // The engine room found the machine busy (first-run setup, someone using the app, or low resources).
+                return TaskRunResult.Skipped("Waiting: the machine is busy");
             }
             catch (Exception ex)
             {

@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0018 remove_ingestion_batches).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0019 ai_usage_records).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -143,6 +143,19 @@ CREATE TABLE ai_feature_artifacts (
     published_values_json TEXT NOT NULL DEFAULT '{}',
     updated_at            TEXT NOT NULL,
     PRIMARY KEY (entity_id, feature_key)
+);
+
+CREATE TABLE ai_usage_records (
+    id           BLOB    NOT NULL PRIMARY KEY,
+    started_at   TEXT    NOT NULL,   -- ISO 8601 UTC; when the request reached the engine room
+    caller_kind  TEXT    NOT NULL,   -- person | ingestion | library_background | plugin
+    caller_id    TEXT    NOT NULL,   -- stable key: a feature key such as smart_labeling, or the plugin manifest id
+    ability      TEXT    NOT NULL,   -- write_text_quick | write_text_careful | write_text_long | extract_structured | classify | read_text_from_image | ...
+    engine       TEXT    NOT NULL,   -- text_model | tesseract | none
+    wait_ms      INTEGER NOT NULL,   -- time spent waiting in the queue
+    duration_ms  INTEGER NOT NULL,   -- time spent running once it had a turn
+    outcome      TEXT    NOT NULL,   -- succeeded | failed | unavailable | refused_over_budget | cancelled | timed_out
+    message      TEXT    NULL        -- plain-English result or reason; never the prompt or the text read
 );
 
 CREATE TABLE alignment_jobs (
@@ -3117,6 +3130,10 @@ CREATE INDEX idx_works_wikidata_qid
 CREATE INDEX idx_works_work_kind      ON works(work_kind) WHERE work_kind != 'standalone';
 
 CREATE INDEX ix_accounts_household ON accounts(household_id);
+
+CREATE INDEX ix_ai_usage_records_caller ON ai_usage_records(caller_kind, caller_id, started_at);
+
+CREATE INDEX ix_ai_usage_records_started ON ai_usage_records(started_at);
 
 CREATE INDEX ix_application_events_library_sequence ON application_events(library_id, sequence);
 

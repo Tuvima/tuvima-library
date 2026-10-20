@@ -1,4 +1,5 @@
 using MediaEngine.AI.Configuration;
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.AI.Infrastructure;
 using MediaEngine.AI.Llama;
 using MediaEngine.Domain;
@@ -16,18 +17,20 @@ namespace MediaEngine.AI.Features;
 /// </summary>
 public sealed class DescriptionIntelligenceService : IDescriptionIntelligenceService
 {
-    private readonly ILlamaInferenceService _llama;
+    private static readonly AiCaller Caller = AiCaller.LibraryBackground(AiCallerIds.DescriptionIntelligence);
+
+    private readonly IAiEngineRoom _engineRoom;
     private readonly AiSettings _settings;
     private readonly ICanonicalValueRepository _canonicalRepo;
     private readonly ILogger<DescriptionIntelligenceService> _logger;
 
     public DescriptionIntelligenceService(
-        ILlamaInferenceService llama,
+        IAiEngineRoom engineRoom,
         AiSettings settings,
         ICanonicalValueRepository canonicalRepo,
         ILogger<DescriptionIntelligenceService> logger)
     {
-        _llama = llama;
+        _engineRoom = engineRoom;
         _settings = settings;
         _canonicalRepo = canonicalRepo;
         _logger = logger;
@@ -117,21 +120,22 @@ public sealed class DescriptionIntelligenceService : IDescriptionIntelligenceSer
             var moodVocab = _settings.VibeVocabulary.GetForCategory(mediaCategory);
 
             // Logical workloads share the one text artifact selected by resource profile.
-            var modelRole = AiModelRole.TextScholar;
+            const AiAbility ability = AiAbility.WriteTextLong;
 
             _logger.LogInformation(
-                "[DESCRIPTION-INTEL] Analyzing {Title} ({Category}) — {DescLen} chars of descriptions, model={Model}",
-                title, mediaCategory, combinedDescriptions.Length, modelRole);
+                "[DESCRIPTION-INTEL] Analyzing {Title} ({Category}) — {DescLen} chars of descriptions, ability={Ability}",
+                title, mediaCategory, combinedDescriptions.Length, ability);
 
             // ── Pass 1: Vocabulary extraction (themes, mood, setting, etc.) ──
             var vocabPrompt = PromptTemplates.DescriptionIntelligencePrompt(
                 title, mediaCategory, moodVocab, combinedDescriptions);
 
-            var vocabResult = await _llama.InferJsonAsync<VocabularyResponse>(
-                modelRole,
+            var vocabResult = await _engineRoom.ExtractJsonOrThrowAsync<VocabularyResponse>(
+                Caller,
+                ability,
                 vocabPrompt,
                 PromptTemplates.DescriptionIntelligenceGrammar,
-                ct);
+                ct: ct);
 
             if (vocabResult is null)
             {
@@ -146,11 +150,12 @@ public sealed class DescriptionIntelligenceService : IDescriptionIntelligenceSer
                 var peoplePrompt = PromptTemplates.DescriptionIntelligencePeoplePrompt(
                     title, combinedDescriptions);
 
-                var peopleResult = await _llama.InferJsonAsync<PeopleResponse>(
-                    modelRole,
+                var peopleResult = await _engineRoom.ExtractJsonOrThrowAsync<PeopleResponse>(
+                    Caller,
+                    ability,
                     peoplePrompt,
                     PromptTemplates.DescriptionIntelligencePeopleGrammar,
-                    ct);
+                    ct: ct);
 
                 if (peopleResult?.People is not null)
                 {
@@ -163,7 +168,7 @@ public sealed class DescriptionIntelligenceService : IDescriptionIntelligenceSer
                         .ToList();
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not AiRequestDeferredException)
             {
                 _logger.LogDebug(ex, "[DESCRIPTION-INTEL] Pass 2 (people) failed for {Title} — continuing without", title);
             }
@@ -193,6 +198,11 @@ public sealed class DescriptionIntelligenceService : IDescriptionIntelligenceSer
                 intelligence.Setting ?? "none", intelligence.Tldr is not null);
 
             return intelligence;
+        }
+        catch (AiRequestDeferredException)
+        {
+            // The machine became busy: the batch skips this run and tries again later, as it did before the engine room.
+            throw;
         }
         catch (Exception ex)
         {
