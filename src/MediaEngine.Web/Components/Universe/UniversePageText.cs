@@ -7,10 +7,18 @@ namespace MediaEngine.Web.Components.Universe;
 /// <summary>The sentences the Universe page and the item page's "Part of" line are built from, in one place.</summary>
 public static class UniversePageText
 {
-    /// <summary>"Part of the Dune Universe"; a name that already ends in "Universe" is not given a second one.</summary>
+    /// <summary>
+    /// "Part of the Dune Universe"; a name that already ends in "Universe" is not given a second one, and a name that
+    /// starts with "The" ("The Expanse") does not get a second "the".
+    /// </summary>
     public static string PartOfLine(string name)
     {
         var trimmed = name.Trim();
+        if (trimmed.StartsWith("The ", StringComparison.OrdinalIgnoreCase) && trimmed.Length > 4)
+        {
+            trimmed = trimmed[4..].TrimStart();
+        }
+
         return trimmed.EndsWith("Universe", StringComparison.OrdinalIgnoreCase)
             ? $"Part of the {trimmed}"
             : $"Part of the {trimmed} Universe";

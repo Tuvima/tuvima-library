@@ -29,7 +29,10 @@ public sealed class UniverseComponentTests : AsyncBunitContext
     [Theory]
     [InlineData("Dune", "Part of the Dune Universe")]
     [InlineData("Dune Universe", "Part of the Dune Universe")]
-    [InlineData("The Expanse universe", "Part of the The Expanse universe")]
+    [InlineData("The Expanse universe", "Part of the Expanse universe")]
+    [InlineData("The Arrakis Saga", "Part of the Arrakis Saga Universe")]
+    [InlineData("the Lord of the Rings", "Part of the Lord of the Rings Universe")]
+    [InlineData("Theseus", "Part of the Theseus Universe")]
     [InlineData("  Discworld  ", "Part of the Discworld Universe")]
     public void ThePartOfLine_NeverSaysUniverseTwice(string name, string expected) =>
         Assert.Equal(expected, UniversePageText.PartOfLine(name));

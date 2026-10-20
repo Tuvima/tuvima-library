@@ -5,9 +5,10 @@
     grid-template-columns: minmax(0, 1fr);
 }
 
+/* A card-sized cover stack, so the Series below start on the first screen rather than under a full-height hero. */
 .universe-hero__art {
+    width: min(100%, 16rem);
     min-width: 0;
-    max-width: 22rem;
 }
 
 .universe-hero__copy {
