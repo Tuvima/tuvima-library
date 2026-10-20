@@ -1,0 +1,274 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Web.Components.MediaEditor.Moves
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject IAppDialogService Dialogs
+@inject DeviceContextService Device
+
+@* "Move" from the selection bar (details overlay spec D8, D12): the same destination picker and Match step the single Move uses, with
+   every ticked row in the mapping table. Nothing changes until the person confirms, and the Engine checks again that the preview is
+   still true. *@
+<section class="tl-batch-move" aria-label="@Label">
+    @if (_stage == MoveStage.Picking)
+    {
+        <MoveDestinationPicker Heading="@Label"
+                               Destinations="_destinations"
+                               Query="@_query"
+                               Loading="_loadingDestinations"
+                               Busy="_busy"
+                               Error="@_error"
+                               QueryChanged="QueryChangedAsync"
+                               OnPick="PickDestinationAsync"
+                               OnCancel="CloseAsync" />
+    }
+    else if (_selection is not null)
+    {
+        <MatchStep Selection="_selection"
+                   Notice="@_notice"
+                   Error="@_error"
+                   Busy="_busy"
+                   OnApply="ApplyAsync"
+                   OnCancel="CloseAsync" />
+    }
+</section>
+
+@code {
+    private enum MoveStage
+    {
+        Picking,
+        Matching,
+    }
+
+    private MoveStage _stage = MoveStage.Picking;
+    private bool _busy;
+    private bool _loadingDestinations;
+    private string? _query;
+    private int _queryVersion;
+    private string? _error;
+    private string? _notice;
+    private IReadOnlyList<LibraryMoveDestination> _destinations = [];
+    private LibraryMoveSelection? _selection;
+    private Guid _destinationId;
+
+    /// <summary>The ticked rows, all one kind of single title.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<Guid> ItemIds { get; set; } = [];
+
+    [Parameter] public string? MediaType { get; set; }
+
+    /// <summary>Raised when the flow ends without a move (cancel) or after one.</summary>
+    [Parameter] public EventCallback OnClosed { get; set; }
+
+    /// <summary>Raised after a successful move with the result line, so the page behind can refresh.</summary>
+    [Parameter] public EventCallback<string> OnMoved { get; set; }
+
+    private string Label => LibraryMoveText.MoveLabel(MediaType);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (EditorDeviceRule.TryRefuse(Device, null) || ItemIds.Count == 0)
+        {
+            await OnClosed.InvokeAsync();
+            return;
+        }
+
+        await LoadDestinationsAsync();
+    }
+
+    private async Task QueryChangedAsync(string? value)
+    {
+        _query = value;
+        await LoadDestinationsAsync();
+    }
+
+    // The places that accept this kind are the same for every ticked row (they are all one kind), so the first row asks for them.
+    private async Task LoadDestinationsAsync()
+    {
+        var version = ++_queryVersion;
+        _loadingDestinations = true;
+        _error = null;
+        StateHasChanged();
+        var outcome = await Api.GetLibraryMoveDestinationsAsync(ItemIds[0], _query);
+        if (version != _queryVersion || _stage != MoveStage.Picking)
+        {
+            // A later search or a cancel has replaced this answer.
+            return;
+        }
+
+        _loadingDestinations = false;
+        if (outcome.IsOk)
+        {
+            _destinations = outcome.Value!.Destinations;
+        }
+        else
+        {
+            _destinations = [];
+            _error = Describe(outcome.Status, outcome.Message);
+        }
+    }
+
+    private async Task PickDestinationAsync(LibraryMoveDestination destination)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _destinationId = destination.Id;
+        _busy = true;
+        _error = null;
+        StateHasChanged();
+        try
+        {
+            var outcome = await Api.PreviewLibraryMoveAsync(new LibraryMovePreviewRequest
+            {
+                ItemIds = [.. ItemIds],
+                DestinationId = destination.Id,
+            });
+            if (!outcome.IsOk)
+            {
+                _error = Describe(outcome.Status, outcome.Message);
+                return;
+            }
+
+            _selection = LibraryMoveSelection.From(outcome.Value!);
+            _notice = null;
+            _stage = MoveStage.Matching;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // Apply was chosen with every row decided. One confirmation with the preview (D17); a stale preview shows the fresh one and asks again.
+    private async Task ApplyAsync(LibraryMoveSelection selection)
+    {
+        if (_busy || EditorDeviceRule.TryRefuse(Device, null))
+        {
+            return;
+        }
+
+        _error = null;
+        _notice = null;
+        string? changedLine = null;
+        while (true)
+        {
+            var confirmation = LibraryMoveText.Confirm(selection);
+            var answer = await AppConfirmDialog.ShowAsync(
+                Dialogs,
+                confirmation.Title,
+                changedLine is null ? confirmation.Message : $"{changedLine} {confirmation.Message}",
+                confirmation.PrimaryLabel,
+                confirmation.SecondaryLabel,
+                preview: ConfirmationPreview(confirmation));
+            if (answer == AppConfirmResult.Secondary && selection.HasAddAnyway)
+            {
+                // "Match instead": the rows added anyway go back to the Match step to be matched.
+                foreach (var row in selection.Rows.Where(row => row.Choice == LibraryMoveRowChoice.AddAnyway).ToList())
+                {
+                    selection.Clear(row.ItemId);
+                }
+
+                StateHasChanged();
+                return;
+            }
+
+            if (answer != AppConfirmResult.Primary)
+            {
+                return;
+            }
+
+            _busy = true;
+            StateHasChanged();
+            LibraryMoveOutcome<LibraryMoveCommitResult> outcome;
+            try
+            {
+                outcome = await Api.MoveLibraryItemsAsync(selection.ToCommitRequest());
+            }
+            finally
+            {
+                _busy = false;
+            }
+
+            switch (outcome.Status)
+            {
+                case LibraryMoveOutcomeStatus.Ok when outcome.Value is { } committed:
+                    await OnMoved.InvokeAsync(LibraryMoveText.ResultLine(selection, committed));
+                    return;
+                case LibraryMoveOutcomeStatus.Conflict when outcome.FreshPreview is { } fresh:
+                    // Nothing moved. The fresh preview replaces the old one, keeping every choice that still holds.
+                    selection = LibraryMoveSelection.From(fresh, selection);
+                    _selection = selection;
+                    changedLine = LibraryMoveText.ChangedLine;
+                    if (!selection.CanApply)
+                    {
+                        _notice = LibraryMoveText.ChangedLine;
+                        return;
+                    }
+
+                    continue;
+                case LibraryMoveOutcomeStatus.Expired:
+                    _error = outcome.Message ?? LibraryMoveText.ExpiredMessage;
+                    await RefreshPreviewAsync();
+                    return;
+                default:
+                    _error = Describe(outcome.Status, outcome.Message);
+                    return;
+            }
+        }
+    }
+
+    // The review expired: ask again for the same place so Apply has a fresh token, keeping the person's choices.
+    private async Task RefreshPreviewAsync()
+    {
+        var previous = _selection;
+        var outcome = await Api.PreviewLibraryMoveAsync(new LibraryMovePreviewRequest
+        {
+            ItemIds = [.. ItemIds],
+            DestinationId = _destinationId,
+        });
+        if (outcome.IsOk)
+        {
+            _selection = LibraryMoveSelection.From(outcome.Value!, previous);
+        }
+        else
+        {
+            _error = Describe(outcome.Status, outcome.Message);
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        _queryVersion++;
+        await OnClosed.InvokeAsync();
+    }
+
+    private static string Describe(LibraryMoveOutcomeStatus status, string? message) => status switch
+    {
+        LibraryMoveOutcomeStatus.Forbidden => LibraryMoveText.ForbiddenMessage,
+        LibraryMoveOutcomeStatus.Expired => message ?? LibraryMoveText.ExpiredMessage,
+        LibraryMoveOutcomeStatus.NotFound => message ?? "This item is no longer in your library.",
+        LibraryMoveOutcomeStatus.Invalid => message ?? LibraryMoveText.GenericRefusal,
+        _ => LibraryMoveText.UnavailableMessage,
+    };
+
+    private RenderFragment ConfirmationPreview(LibraryMoveText.Confirmation confirmation) => @<div class="tl-move-confirm">
+        <ul class="tl-move-confirm__lines" aria-label="What happens to the files">
+            @foreach (var line in confirmation.FileLines)
+            {
+                <li>@line</li>
+            }
+        </ul>
+        @if (confirmation.Notes.Count > 0)
+        {
+            <ul class="tl-move-confirm__notes" aria-label="What else changes">
+                @foreach (var note in confirmation.Notes)
+                {
+                    <li>@note</li>
+                }
+            </ul>
+        }
+    </div>;
+}

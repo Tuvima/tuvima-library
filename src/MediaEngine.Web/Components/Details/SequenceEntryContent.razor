@@ -53,11 +53,19 @@
         {
             <div class="tl-series-item__title-row">
                 <div class="@TitleClass">@DisplayTitle</div>
+                @if (Item.IsUnmatched)
+                {
+                    <NotMatchedTag />
+                }
             </div>
         }
         else
         {
             <div class="@TitleClass">@Title</div>
+            @if (Item.IsUnmatched)
+            {
+                <NotMatchedTag />
+            }
         }
         @if (IsSeasonContainer && (AirDate is not null || !string.IsNullOrWhiteSpace(Item.Duration)))
         {

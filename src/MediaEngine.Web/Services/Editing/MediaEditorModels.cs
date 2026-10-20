@@ -52,6 +52,12 @@ public sealed class MediaEditorLaunchRequest
     public string? CoverUrl { get; init; }
     public Func<Task>? OnArtworkChanged { get; init; }
     public List<MediaEditorPreviewItem> PreviewItems { get; init; } = [];
+
+    /// <summary>
+    /// True when the item being edited was added to its album, season or series with "Add anyway" (no number, "Not matched"). The
+    /// Match and Identity section then offers "Match" in place of "Move" (details overlay spec D13).
+    /// </summary>
+    public bool IsUnmatched { get; init; }
 }
 
 public sealed class MediaEditorPreviewItem
@@ -83,7 +89,6 @@ public sealed class MediaEditorFieldDefinition
     public required string Key { get; init; }
     public required string Label { get; init; }
     public string InputKind { get; init; } = "text";
-    public bool SupportsBatch { get; init; } = true;
     public bool IdentityField { get; init; }
     public string? Placeholder { get; init; }
 }
@@ -215,34 +220,6 @@ public static class MediaEditorSchemaCatalog
             "Comics" => Comics,
             _ => Books,
         };
-    }
-
-    public static IReadOnlyList<MediaEditorFieldDefinition> ResolveBatchFields(IEnumerable<string> mediaTypes)
-    {
-        var normalized = mediaTypes
-            .Select(ReviewTargetResolver.NormalizeMediaType)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (normalized.Count == 1)
-        {
-            return Resolve(normalized[0]).Groups
-                .Where(group => group.TabId is "details" or "options" or "sorting")
-                .SelectMany(group => group.Fields)
-                .Where(field => field.SupportsBatch)
-                .DistinctBy(field => field.Key, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-
-        return
-        [
-            new() { Key = "title", Label = "Title" },
-            new() { Key = "year", Label = "Year" },
-            new() { Key = "genre", Label = "Genre" },
-            new() { Key = "custom_tags", Label = "Tags" },
-            new() { Key = "language", Label = "Language" },
-            new() { Key = "rating", Label = "Rating" },
-        ];
     }
 
     public static IReadOnlyDictionary<string, string> BuildValueMap(
@@ -499,14 +476,12 @@ public static class MediaEditorSchemaCatalog
         string key,
         string label,
         string kind = "text",
-        bool batch = true,
         bool identity = false) =>
         new()
         {
             Key = key,
             Label = label,
             InputKind = kind,
-            SupportsBatch = batch,
             IdentityField = identity,
         };
 

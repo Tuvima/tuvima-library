@@ -84,6 +84,24 @@ public sealed class CanonicalValueRepository : ICanonicalValueRepository, IAiFea
         Microsoft.Data.Sqlite.SqliteTransaction tx,
         List<CanonicalValue> scalarValues)
     {
+        // An item added anyway stays unnumbered (Details overlay D13): no scan, re-read of its file or provider writes it a track,
+        // disc, episode, season, series position or part number. Only a later Match, which clears the mark, numbers it.
+        var numbered = scalarValues.Where(cv => PlacementNumbers.IsNumberKey(cv.Key)).Select(cv => cv.EntityId).Distinct().ToList();
+        if (numbered.Count > 0)
+        {
+            var unnumbered = PlacementNumbers.UnnumberedAmong(conn, tx, numbered);
+            if (unnumbered.Count > 0)
+            {
+                scalarValues = scalarValues
+                    .Where(cv => !(PlacementNumbers.IsNumberKey(cv.Key) && unnumbered.Contains(cv.EntityId)))
+                    .ToList();
+                if (scalarValues.Count == 0)
+                {
+                    return;
+                }
+            }
+        }
+
         // Update in place so the winner changes atomically without the
         // delete/reinsert side effects of INSERT OR REPLACE.
         conn.Execute("""
