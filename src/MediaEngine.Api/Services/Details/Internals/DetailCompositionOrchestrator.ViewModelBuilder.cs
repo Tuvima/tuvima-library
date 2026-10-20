@@ -357,6 +357,11 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyList<OwnedFormatViewModel> formats)
     {
         var pills = new List<MetadataPill>();
+        if (string.Equals(GetValue(canonicalValues, ItemMoveRepository.MatchStateKey), ItemMoveRepository.UnmatchedValue, StringComparison.Ordinal))
+        {
+            // Added anyway to a place with a known list (spec D13): no number, nothing borrowed from another entry.
+            pills.Add(new MetadataPill { Label = "Not matched", Kind = ItemMoveRepository.MatchStateKey, Tooltip = "Added without matching an entry in the list. Edit, then Match it to give it a number." });
+        }
         AddPlain(pills, StringHelpers.FirstNonBlankOr(string.Empty, GetValue(canonicalValues, "content_rating"), GetValue(canonicalValues, "certification")), "content_rating");
         AddPlain(pills, FormatRating(StringHelpers.FirstNonBlankOr(
             string.Empty,
