@@ -99,7 +99,7 @@ public sealed class ViewTrashDeletionPlanner(
     public const string SourceMissingReason = "Its folder is no longer set up in View, so the file was left where it is.";
     public const string StorageUnavailableReason = "View storage isn't available right now, so the file was left where it is.";
     public const string StorageReadOnlyReason = "View storage is read-only right now, so the file was left where it is.";
-    public const string NotAllowedReason = "Tuvima isn't allowed to change this file.";
+    public const string NotAllowedReason = "Library isn't allowed to change this file.";
     public const string NotAFileReason = "Something other than a file is at this location, so it was left where it is.";
 
     private static readonly StringComparer PathComparer = StringComparer.OrdinalIgnoreCase;
