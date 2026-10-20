@@ -3626,10 +3626,10 @@ window.detailOrigin = (() => {
         window.location.assign(fallback || '/');
     };
 
-    // Detail pages scroll inside the shell's main pane, not the frame content.
-    const freshScrollSelector = '.playback-app-frame__content, [data-detail-origin-scroll], .context-sidebar-shell__main';
+    // A title opens in the details overlay, which scrolls inside its own scroller. Only that scroller goes back to
+    // the top: the page under the overlay keeps its place for when the overlay is dismissed.
+    const freshScrollSelector = '[data-detail-origin-scroll="details-overlay"]';
     const resetFresh = () => {
-        window.scrollTo({ top: 0, behavior: 'instant' });
         document.querySelectorAll(freshScrollSelector).forEach(element => { element.scrollTop = 0; });
     };
     const fresh = route => {
@@ -3649,6 +3649,15 @@ window.detailOrigin = (() => {
     };
     return { initialize, capture, restore, back, fresh };
 })();
+
+// Dismissing the details overlay steps the browser back over every title opened inside it (the entries are tracked in
+// DetailsOverlayState, which records how many lie between the overlay and the page under it).
+window.detailsOverlay = {
+    goBack: function (steps) {
+        const count = Math.floor(Number(steps));
+        if (count > 0) window.history.go(-count);
+    }
+};
 
 // Register before the first detail link is clicked so the originating lane
 // position can be captured on the initial navigation.

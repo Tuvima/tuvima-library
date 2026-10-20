@@ -126,10 +126,10 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
     private IRenderedComponent<ShelfGridPage> RenderPage(string url = Route)
     {
         Nav.NavigateTo(url);
-        var cut = Render<ShelfGridPage>(parameters => parameters
-            .Add(page => page.Lane, "watch")
-            .Add(page => page.ShelfKey, "recently-added"));
-        return cut;
+        // The page reads its query from the address it was routed with; the host plays the route view's part.
+        return Render<RoutedPageHost<ShelfGridPage>>(parameters => parameters
+            .Add(host => host.PageParameters, new Dictionary<string, object?> { [nameof(ShelfGridPage.Lane)] = "watch", [nameof(ShelfGridPage.ShelfKey)] = "recently-added" }))
+            .FindComponent<ShelfGridPage>();
     }
 
     private static string[] Titles(IRenderedComponent<ShelfGridPage> cut) =>
@@ -432,9 +432,9 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
             DisplayGridValues.SortPlayed, DisplayGridValues.SortPlayed, null, SortOptions, []);
         Nav.NavigateTo("/all/watch/continue");
 
-        var cut = Render<ShelfGridPage>(parameters => parameters
-            .Add(page => page.Lane, "watch")
-            .Add(page => page.ShelfKey, "continue"));
+        var cut = Render<RoutedPageHost<ShelfGridPage>>(parameters => parameters
+            .Add(host => host.PageParameters, new Dictionary<string, object?> { [nameof(ShelfGridPage.Lane)] = "watch", [nameof(ShelfGridPage.ShelfKey)] = "continue" }))
+            .FindComponent<ShelfGridPage>();
 
         cut.WaitForAssertion(() => Assert.Contains("is-landscape", cut.Find("article.media-tile").ClassName));
     }

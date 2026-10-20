@@ -1,6 +1,7 @@
 @page "/who"
 @layout MediaEngine.Web.Shared.ProfilePickerLayout
 @namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Web.Services.Navigation
 @using Microsoft.AspNetCore.Components.Authorization
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Components.Profiles
@@ -183,14 +184,19 @@
 </section>
 
 @code {
+    // The address this page was routed with (see RoutedPageQuery).
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Navigation.Uri);
+
     /// <summary>Where to go once someone is chosen (a same-site path only).</summary>
-    [Parameter, SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
+    public string? ReturnUrl => Query.String("returnUrl");
 
     /// <summary>"1" opens the picker in Manage profiles mode (and keeps it open even for a one-person household).</summary>
-    [Parameter, SupplyParameterFromQuery(Name = "manage")] public string? ManageFlag { get; set; }
+    public string? ManageFlag => Query.String("manage");
 
     /// <summary>"1" opens the Add profile sheet as soon as the picker has loaded.</summary>
-    [Parameter, SupplyParameterFromQuery(Name = "add")] public string? AddFlag { get; set; }
+    public string? AddFlag => Query.String("add");
 
     private List<ProfileViewModel> _profiles = [];
     private ProfileViewModel? _active;

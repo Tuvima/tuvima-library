@@ -4520,13 +4520,48 @@ input[type="reset"],
 }
 
 .tl-detail-overflow-popover--compact {
-    width: 9.75rem !important;
+    width: max-content !important;
     min-width: 9.75rem !important;
     border-radius: 0.58rem !important;
 }
 
 .tl-detail-overflow-popover .tl-list {
     padding: 0.2rem !important;
+}
+
+/* Detail "..." menu (details overlay spec D5): labels are left-aligned beside one fixed-width icon column, so they
+   line up whether or not a row has a reason line. Scoped to the detail menu; other menus keep their own look. */
+.tl-detail-overflow-popover .tl-detail-menu-item,
+.tl-detail-more-sheet__items .tl-detail-menu-item {
+    justify-content: flex-start;
+    text-align: left;
+}
+
+.tl-detail-menu-item__text {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+}
+
+.tl-detail-menu-item__reason {
+    font-size: var(--tl-control-font-size-sm);
+    font-weight: 500;
+    color: var(--tl-text-muted);
+    white-space: normal;
+}
+
+/* The quiet "Edit on a computer" line: not a control, lined up with the labels above it. */
+.tl-detail-menu-note {
+    margin: 0;
+    padding: 0.5rem 1rem 0.5rem calc(1rem + 1.35rem + 0.6rem);
+    font-family: var(--font-ui);
+    font-size: var(--tl-control-font-size-sm);
+    line-height: 1.3;
+    color: var(--tl-text-muted);
+    cursor: default;
+    user-select: none;
 }
 
 /* Temporary drawers are rendered outside component CSS isolation. */

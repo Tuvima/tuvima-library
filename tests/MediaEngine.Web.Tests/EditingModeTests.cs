@@ -96,24 +96,45 @@ public sealed class EditingModeTests : AsyncBunitContext
     // -- The toggle ----------------------------------------------------------------------------
 
     [Fact]
-    public async Task ToggleShowsEditThenDoneForAnEditorOnADesktopWithAMouse()
+    public async Task ToggleRendersNothingWhileOffAndDoneWhileOnForAnEditorOnADesktopWithAMouse()
     {
         await UseDesktopAsync();
         var mode = await StartedAsync(turnOn: false);
         var cut = Render<EditingModeBar>(parameters => parameters.Add(component => component.Mode, mode));
 
-        var button = cut.Find("button.tl-editing-toggle");
-        Assert.Equal("Edit", button.TextContent.Trim());
-        Assert.Equal("false", button.GetAttribute("aria-pressed"));
+        // No standing Edit button: Edit is an entry in the "..." menu.
+        Assert.Empty(cut.FindAll("button"));
 
-        button.Click();
+        await cut.InvokeAsync(() => mode.EnterAsync());
         cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
         Assert.Equal("true", cut.Find("button.tl-editing-toggle").GetAttribute("aria-pressed"));
         Assert.True(mode.IsOn);
 
         cut.Find("button.tl-editing-toggle").Click();
-        cut.WaitForAssertion(() => Assert.Equal("Edit", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("button.tl-editing-toggle")));
         Assert.False(mode.IsOn);
+    }
+
+    [Fact]
+    public async Task ToggleRendersNothingWhileEditingModeIsOff()
+    {
+        await UseDesktopAsync();
+        var mode = await StartedAsync(turnOn: false);
+
+        var cut = Render<EditingModeToggle>(parameters => parameters.Add(component => component.Mode, mode));
+
+        Assert.Equal(string.Empty, cut.Markup.Trim());
+    }
+
+    [Fact]
+    public async Task ToggleShowsDoneWhenOn()
+    {
+        await UseDesktopAsync();
+        var mode = await StartedAsync();
+
+        var cut = Render<EditingModeToggle>(parameters => parameters.Add(component => component.Mode, mode));
+
+        Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim());
     }
 
     [Theory]
@@ -157,21 +178,19 @@ public sealed class EditingModeTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ABarThatHasUnavailableEditShowsItDisabledWithItsReason()
+    public async Task DoneStaysReachableWhileOnEvenIfEditingBecomesUnavailable()
     {
         await UseDesktopAsync();
-        var mode = await StartedAsync(turnOn: false);
+        var mode = await StartedAsync();
         mode.UnavailableReason = "Updating details. Editing is available when ingestion finishes.";
 
         var cut = Render<EditingModeBar>(parameters => parameters.Add(component => component.Mode, mode));
 
-        var button = cut.Find("button.tl-editing-toggle");
-        Assert.True(button.HasAttribute("disabled"));
-        Assert.Equal(mode.UnavailableReason, button.GetAttribute("title"));
+        Assert.False(cut.Find("button.tl-editing-toggle").HasAttribute("disabled"));
     }
 
     [Fact]
-    public async Task OnlyEditShowsWhileOffAndTheArtworkMatchAndMoreButtonsFollowWhenOn()
+    public async Task NothingShowsWhileOffAndDoneWithTheArtworkMatchAndMoreButtonsFollowWhenOn()
     {
         await UseDesktopAsync();
         var mode = await StartedAsync(turnOn: false);
@@ -179,13 +198,14 @@ public sealed class EditingModeTests : AsyncBunitContext
             .Add(component => component.Mode, mode)
             .Add(component => component.MoreActions, [new DetailAction { Key = "status-history", Label = "Viewing history", Icon = "history" }]));
 
-        Assert.Single(cut.FindAll("button.tl-editing-toggle"));
+        Assert.Empty(cut.FindAll("button"));
         Assert.Empty(cut.FindAll(".tl-editing-bar__action"));
 
         await cut.InvokeAsync(() => mode.EnterAsync());
 
         cut.WaitForAssertion(() =>
         {
+            Assert.Single(cut.FindAll("button.tl-editing-toggle"));
             Assert.Equal(["Manage Artwork", "Match and Identity"],
                 cut.FindAll(".tl-editing-bar__action").Select(button => button.TextContent.Trim()));
             Assert.NotEmpty(cut.FindAll("button[aria-label='More actions']"));
@@ -203,7 +223,7 @@ public sealed class EditingModeTests : AsyncBunitContext
         mode.Loader = () => session.LoadAsync(MovieId, "Movies", "movie", null);
         var cut = Render<EditingModeBar>(parameters => parameters.Add(component => component.Mode, mode));
 
-        cut.Find("button.tl-editing-toggle").Click();
+        await cut.InvokeAsync(() => mode.EnterAsync());
 
         cut.WaitForAssertion(() => Assert.Contains("could not be loaded", cut.Find(".tl-editing-decision[role='alert']").TextContent));
         Assert.True(mode.IsOn);

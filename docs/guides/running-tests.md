@@ -242,7 +242,10 @@ copied in for the run and deleted at the end), its own data store, logs and
 samples. The Engine is started from that copy on its own port, and the run stops
 only the process it started. Your `config/`, your data store and any sample folder
 you point it at are never written (a before/after listing of the sample folder
-proves it).
+proves it). The run's copied `maintenance.json` holds every clock-scheduled task
+(nightly sweeps, reconciliation, pruning) and switches off the off-hours retag and
+storage sweeps, so a run that crosses the night gives the same answer as one that
+does not.
 
 ```powershell
 # Generated samples: deterministic EPUB, two PDFs (one text, one "scanned"),

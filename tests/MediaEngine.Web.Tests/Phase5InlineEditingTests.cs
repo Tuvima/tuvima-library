@@ -4,14 +4,15 @@ namespace MediaEngine.Web.Tests;
 public sealed class Phase5InlineEditingTests
 {
     [Fact]
-    public void DetailPage_EditActionTogglesEditingModeAndKeepsTheModalForPeopleAndShelves()
+    public void DetailPage_EditActionTurnsEditingModeOnAndKeepsTheModalForPeopleAndShelves()
     {
         var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
 
-        // A single item edits in place: the More entry toggles Editing Mode, and the device rule is checked at the handler.
+        // A single item edits in place: the More entry only turns Editing Mode on (Done is the way out), and the device rule is checked at the handler.
         Assert.Contains("action.Key is DetailActionKeys.EditMedia or DetailActionKeys.Edit", source, StringComparison.Ordinal);
         Assert.Contains("EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)", source, StringComparison.Ordinal);
-        Assert.Contains("await _editing.ToggleAsync()", source, StringComparison.Ordinal);
+        Assert.Contains("await _editing.EnterAsync()", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_editing.ToggleAsync()", source, StringComparison.Ordinal);
         Assert.Contains("<EditingDrawer", source, StringComparison.Ordinal);
         // People, series shelves and curated collections keep their own editor dialogs.
         Assert.Contains("MediaEditorLauncherService MediaEditorLauncher", source, StringComparison.Ordinal);
