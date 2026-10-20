@@ -35,7 +35,7 @@ public sealed class LibraryEndpointRouteTests
 
         Assert.Contains("ILibraryWorkFeedReadService workFeedReadService", source, StringComparison.Ordinal);
         Assert.Contains("workFeedReadService.GetWorksAsync(page, ct, allowedWorkIds)", source, StringComparison.Ordinal);
-        Assert.Contains("display.LoadWorksAsync(ct)", source, StringComparison.Ordinal);
+        Assert.Contains("display.LoadVisibleWorkIdsAsync(ct)", source, StringComparison.Ordinal);
         Assert.DoesNotContain(".RequireAdminOrStandardUser()", source, StringComparison.Ordinal);
         Assert.DoesNotContain(".RequireAnyRole()", source, StringComparison.Ordinal);
         Assert.Contains("WorkReadinessSql.ReadyWorkPredicate(\"w\")", serviceSource, StringComparison.Ordinal);

@@ -35,6 +35,7 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddScoped<IDisplayProjectionReadService>(services =>
             services.GetRequiredService<AuthorizedDisplayProjectionReadService>());
         services.AddSingleton<DisplayWorkProjectionReader>();
+        services.AddSingleton<DisplayVisibleWorkReader>();
         services.AddScoped<ContributorShelfReadService>();
         services.AddSingleton<DisplayJourneyProjectionReader>();
         services.AddSingleton<DisplayFavoriteProjectionReader>();

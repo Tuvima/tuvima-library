@@ -41,27 +41,36 @@ public sealed class DisplayWorkProjectionReader
             -- readiness: fragment of the projection query, which filters on the Ready rule
             AND (w.id = @detailId OR p.id = @detailId OR gp.id = @detailId
                 OR w.collection_id = (SELECT collection_id FROM works WHERE id = @detailId)
-                OR EXISTS (
-                    SELECT 1 FROM projection_credits credit
-                    JOIN persons person ON person.id = @detailId
-                    WHERE credit.media_asset_id = ma.id
-                      AND (credit.person_name = person.name COLLATE NOCASE
-                           OR (NULLIF(credit.person_qid, '') IS NOT NULL AND credit.person_qid = person.wikidata_qid))))
+                -- the files that credit the person @detailId, found by LoadPersonAssetsAsync (a JSON array of hex ids)
+                OR ma.id IN (SELECT unhex(value) FROM json_each(@personAssetIds)))
             """ : "";
         // Recent pages only load the shows, albums and works that can appear on the page.
         var groupPredicate = hasGroupFilter ? """
             AND ((CASE WHEN w.media_type = 'Music' THEN COALESCE(p.id, w.id) ELSE COALESCE(gp.id, p.id, w.id) END) IN @rootIds
                  OR w.id IN @workIds)
             """ : "";
+        // The borrowed audiobook year is worked out once for the audiobook rows that were chosen, not once per row.
+        var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "related_book_year",
+            """
+            SELECT chosen_audiobook.WorkId AS work_id, chosen_audiobook.AssetId AS asset_id
+            FROM chosen chosen_audiobook
+            WHERE LOWER(COALESCE(chosen_audiobook.MediaType, '')) LIKE '%audio%'
+            """,
+            "rby_");
+        // Credits are worked out for the chosen rows' files only (the shared whole-library credit list stays for other screens).
+        var projectionCreditsCte = PersonCreditSql.ScopedCreditsCte(
+            "projection_credits",
+            "SELECT AssetId FROM chosen",
+            "pc_");
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
             "WorkId",
             "RootWorkId",
             "AssetId",
             "MediaType",
-            "projection_credits");
+            relatedBookYearExpression: MediaDateSql.RelatedBookYearLookup("related_book_year", "WorkId", "AssetId"));
         var sql = $"""
-            WITH projection_credits AS MATERIALIZED (SELECT * FROM primary_person_media_credits),
-            asset_dates AS MATERIALIZED (
+            WITH asset_dates AS MATERIALIZED (
                 SELECT entity_id, MIN(claimed_at) AS claimed_at
                 FROM metadata_claims GROUP BY entity_id
             ),
@@ -98,6 +107,15 @@ public sealed class DisplayWorkProjectionReader
                   {detailPredicate}
                   {groupPredicate}
             ),
+            -- The rows are chosen before any credit is worked out; ties on the added time keep a fixed order.
+            chosen AS MATERIALIZED (
+                SELECT * FROM ranked_assets
+                WHERE AssetRank = 1
+                ORDER BY COALESCE(CreatedAt, CURRENT_TIMESTAMP) DESC, WorkId, LibraryId
+                LIMIT @limit
+            ),
+            {relatedBookYearCte},
+            {projectionCreditsCte},
             canonical_artist_credits AS (
                 SELECT
                     credit.media_asset_id,
@@ -489,15 +507,117 @@ public sealed class DisplayWorkProjectionReader
                 COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('background_width_px', 'episode_still_width_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('background_width_px', 'episode_still_width_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('background_width_px', 'episode_still_width_px') LIMIT 1)) AS BackgroundWidthPx,
                 COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('background_height_px', 'episode_still_height_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('background_height_px', 'episode_still_height_px') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('background_height_px', 'episode_still_height_px') LIMIT 1)) AS BackgroundHeightPx,
                 (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'artwork_accent_hex' LIMIT 1) AS AccentColor
-            FROM ranked_assets
-            WHERE AssetRank = 1
-            ORDER BY CreatedAt DESC
-            LIMIT @limit;
+            FROM chosen
+            ORDER BY CreatedAt DESC, WorkId, LibraryId;
             """;
         // Search-only columns are never shown on a card, so list pages skip their per-row lookups.
         return lean
             ? System.Text.RegularExpressions.Regex.Replace(sql, @"/\*search-only:begin\*/.*?/\*search-only:end\*/", "NULL", System.Text.RegularExpressions.RegexOptions.Singleline)
             : sql;
+    }
+
+    /// <summary>
+    /// The files that credit the person <paramref name="personId"/>, by name (ignoring case) or by Wikidata id, with credits
+    /// worked out the way the shared credit list does, as a JSON array of hex ids for the main read's
+    /// <c>@personAssetIds</c>. Nothing is read beyond one look-up of the person when <paramref name="personId"/> is not a
+    /// person (a work, show or series page): the array is empty.
+    /// It stays proportional to the library in two steps. First the candidate files: every file whose show or album,
+    /// work or own id carries a stored credit for a person who matches (a superset, found by scanning the credit rows
+    /// once). Then credits are built for just those files and the match is checked on them. This is a separate statement
+    /// because SQLite copies a CTE at every place it is named, so this chain inside the main read would be copied
+    /// once per use of the chosen rows.
+    /// </summary>
+    internal static async Task<string> LoadPersonAssetsAsync(System.Data.IDbConnection conn, Guid personId, CancellationToken ct)
+    {
+        var isPerson = await conn.ExecuteScalarAsync<long?>(new CommandDefinition(
+            "SELECT 1 FROM persons WHERE id = @personId;", new { personId }, cancellationToken: ct));
+        if (isPerson is null)
+        {
+            return "[]";
+        }
+
+        var ids = await conn.QueryAsync<string>(new CommandDefinition(
+            $"WITH {PersonAssetsCtes()} SELECT hex(asset_id) FROM detail_person_assets;",
+            new { detailId = personId },
+            cancellationToken: ct));
+        return System.Text.Json.JsonSerializer.Serialize(ids);
+    }
+
+    private static string PersonAssetsCtes()
+    {
+        var keys = PersonCreditSql.CreditKeys;
+        var scopedCredits = PersonCreditSql.ScopedCreditsCte(
+            "detail_person_credits",
+            "SELECT asset_id FROM detail_candidate_assets",
+            "dp_");
+        return $"""
+            detail_person AS MATERIALIZED (
+                SELECT person.id, person.name, person.wikidata_qid FROM persons person WHERE person.id = @detailId
+            ),
+            -- Every person a credit could resolve to that the page's person matches (same name, or same Wikidata id).
+            detail_match_persons AS MATERIALIZED (
+                SELECT other.id, other.name, other.wikidata_qid
+                FROM detail_person person
+                INNER JOIN persons other ON other.name = person.name COLLATE NOCASE
+                UNION
+                SELECT other.id, other.name, other.wikidata_qid
+                FROM detail_person person
+                INNER JOIN persons other ON other.wikidata_qid = person.wikidata_qid
+                WHERE NULLIF(person.wikidata_qid, '') IS NOT NULL
+            ),
+            detail_credit_entities AS MATERIALIZED (
+                SELECT cva.entity_id
+                FROM detail_match_persons match_person
+                CROSS JOIN canonical_value_arrays cva
+                WHERE cva.key IN ({keys})
+                  AND (TRIM(cva.value) = match_person.name COLLATE NOCASE
+                       OR NULLIF(TRIM(cva.value_qid), '') = match_person.wikidata_qid COLLATE NOCASE)
+                UNION
+                SELECT mc.entity_id
+                FROM detail_match_persons match_person
+                CROSS JOIN metadata_claims mc
+                WHERE mc.claim_key IN ({keys})
+                  AND TRIM(mc.claim_value) = match_person.name COLLATE NOCASE
+                UNION
+                SELECT cv.entity_id
+                FROM detail_match_persons match_person
+                CROSS JOIN canonical_values cv
+                WHERE cv.key IN ({keys})
+                  AND TRIM(cv.value) = match_person.name COLLATE NOCASE
+            ),
+            detail_candidate_assets AS MATERIALIZED (
+                -- readiness: ids of files only; the main read applies the Ready rule to every row it returns
+                SELECT ma.id AS asset_id
+                FROM detail_credit_entities entity
+                INNER JOIN media_assets ma ON ma.id = entity.entity_id
+                UNION
+                SELECT ma.id
+                FROM detail_credit_entities entity
+                INNER JOIN editions e ON e.work_id = entity.entity_id
+                INNER JOIN media_assets ma ON ma.edition_id = e.id
+                UNION
+                SELECT ma.id
+                FROM detail_credit_entities entity
+                INNER JOIN works w ON w.parent_work_id = entity.entity_id
+                INNER JOIN editions e ON e.work_id = w.id
+                INNER JOIN media_assets ma ON ma.edition_id = e.id
+                UNION
+                SELECT ma.id
+                FROM detail_credit_entities entity
+                INNER JOIN works p ON p.parent_work_id = entity.entity_id
+                INNER JOIN works w ON w.parent_work_id = p.id
+                INNER JOIN editions e ON e.work_id = w.id
+                INNER JOIN media_assets ma ON ma.edition_id = e.id
+            ),
+            {scopedCredits},
+            detail_person_assets AS MATERIALIZED (
+                SELECT DISTINCT credit.media_asset_id AS asset_id
+                FROM detail_person_credits credit
+                INNER JOIN detail_person person
+                    ON credit.person_name = person.name COLLATE NOCASE
+                    OR (NULLIF(credit.person_qid, '') IS NOT NULL AND credit.person_qid = person.wikidata_qid)
+            )
+            """;
     }
 
     /// <summary>
@@ -548,11 +668,10 @@ public sealed class DisplayWorkProjectionReader
 
         var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
-        // The year rule only reads credits for audiobooks, so an empty credits relation keeps this listing cheap.
-        var displayYearSql = MediaDateSql.DisplayOriginalYear("WorkId", "RootWorkId", "AssetId", "MediaType", "projection_credits");
+        // This listing only reads TV rows, which never borrow a book's year, so the audiobook look-up is left out.
+        var displayYearSql = MediaDateSql.DisplayOriginalYear("WorkId", "RootWorkId", "AssetId", "MediaType", relatedBookYearExpression: "NULL");
         var sql = $"""
-            WITH projection_credits AS (SELECT * FROM primary_person_media_credits WHERE 0),
-            show_assets AS (
+            WITH show_assets AS (
                 SELECT
                     w.id AS WorkId,
                     ma.library_id AS LibraryId,
@@ -623,8 +742,9 @@ public sealed class DisplayWorkProjectionReader
         var startedAt = Stopwatch.GetTimestamp();
         using var conn = _db.CreateConnection();
         var sql = BuildSql(detailId.HasValue, lean, groups is not null);
+        var personAssetIds = detailId.HasValue ? await LoadPersonAssetsAsync(conn, detailId.Value, ct) : "[]";
 
-        var rows = (await conn.QueryAsync<DisplayWorkRow>(new CommandDefinition(sql, new { limit, detailId, rootIds = (groups?.RootIds ?? []).Select(GuidSql.ToBlob).ToArray(), workIds = (groups?.WorkIds ?? []).Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct))).ToList();
+        var rows = (await conn.QueryAsync<DisplayWorkRow>(new CommandDefinition(sql, new { limit, detailId, personAssetIds, rootIds = (groups?.RootIds ?? []).Select(GuidSql.ToBlob).ToArray(), workIds = (groups?.WorkIds ?? []).Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct))).ToList();
         var pseudonymNames = conn.Query<string>(new CommandDefinition(
                 "SELECT name FROM persons WHERE is_pseudonym = 1 AND NULLIF(TRIM(name), '') IS NOT NULL;",
                 cancellationToken: ct))

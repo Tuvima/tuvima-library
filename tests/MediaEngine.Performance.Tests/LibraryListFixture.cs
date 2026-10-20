@@ -54,9 +54,11 @@ public sealed class LibraryListFixture : IDisposable
     // Per 100 leaf works: 30 books, 20 movies, 20 TV episodes of one show (show -> season -> episode), 10 tracks of one
     // album, 10 audiobooks and 10 comics. Credits sit where the product puts them: on the book, movie, show or album, with
     // half the movies' directors only on the file so the list's "director from the file" fallback is exercised.
-    // Audiobooks carry their own original year, as an identified audiobook normally does. Without one the list borrows the
-    // matching book's year through a look-up over the whole credits view for each audiobook, which still grows with the
-    // square of the library; that look-up is a separate follow-up and is kept out of these budgets.
+    // Every book has an original year and every credited name (Person 0 to Person 799) has a persons row, as the credits view
+    // needs. Half the audiobooks carry their own original year, as an identified audiobook normally does. Of the other half, a
+    // third borrow the year of a book with the same title and the same author, a third have a book's title but another author
+    // (so they borrow nothing), and a third match no book; some borrowers spell the title in capitals with spaces around it.
+    // So the list, Home and detail reads exercise the audiobook year look-up, which must grow in proportion to the library.
     private static void Seed(DatabaseConnection database, int leafWorks)
     {
         using var connection = database.CreateConnection();
@@ -69,7 +71,9 @@ public sealed class LibraryListFixture : IDisposable
                 edition_id BLOB NOT NULL,
                 asset_id BLOB NOT NULL,
                 media_type TEXT NOT NULL,
-                group_no INTEGER NOT NULL);
+                group_no INTEGER NOT NULL,
+                twin_seq INTEGER,
+                twin_same_author INTEGER NOT NULL);
 
             WITH RECURSIVE sequence(value) AS (
                 SELECT 1
@@ -85,8 +89,20 @@ public sealed class LibraryListFixture : IDisposable
                        WHEN value % 10 = 8 THEN 'Audiobooks'
                        ELSE 'Comics'
                    END,
-                   value / 100
+                   value / 100,
+                   -- Audiobook 20k+18 without a year of its own takes the title of book 20k+1.
+                   CASE WHEN value % 20 = 18 AND (value / 20) % 3 < 2 THEN value - 17 END,
+                   CASE WHEN value % 20 = 18 AND (value / 20) % 3 = 0 THEN 1 ELSE 0 END
             FROM sequence;
+
+            INSERT INTO persons (id, name, is_pseudonym, created_at)
+            SELECT randomblob(16), 'Person ' || value, 0, @readyAt
+            FROM (
+                WITH RECURSIVE names(value) AS (
+                    SELECT 0
+                    UNION ALL
+                    SELECT value + 1 FROM names WHERE value < 799)
+                SELECT value FROM names);
 
             CREATE TEMP TABLE seed_group (
                 group_no INTEGER PRIMARY KEY,
@@ -128,16 +144,29 @@ public sealed class LibraryListFixture : IDisposable
 
             -- Display values on the file and on the work the list reads them from.
             INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
-            SELECT asset_id, 'title', media_type || ' item ' || seq, @readyAt FROM seed_leaf
+            SELECT asset_id, 'title',
+                   CASE
+                       WHEN twin_seq IS NULL THEN media_type || ' item ' || seq
+                       WHEN (seq / 40) % 2 = 0 THEN '  ' || UPPER('Books item ' || twin_seq) || ' '
+                       ELSE 'Books item ' || twin_seq
+                   END,
+                   @readyAt
+            FROM seed_leaf
             UNION ALL
             SELECT asset_id, 'file_name', seq || '.media', @readyAt FROM seed_leaf
             UNION ALL
-            SELECT work_id, 'title', media_type || ' work ' || seq, @readyAt FROM seed_leaf
+            SELECT work_id, 'title',
+                   CASE WHEN twin_seq IS NULL THEN media_type || ' work ' || seq ELSE 'Books work ' || twin_seq END,
+                   @readyAt
+            FROM seed_leaf
             UNION ALL
             SELECT work_id, 'cover_url', 'https://covers.invalid/' || seq || '.jpg', @readyAt FROM seed_leaf
             UNION ALL
             SELECT asset_id, 'original_publication_year', CAST(1950 + (seq * 31 % 75) AS TEXT), @readyAt
-            FROM seed_leaf WHERE media_type = 'Audiobooks'
+            FROM seed_leaf WHERE media_type = 'Audiobooks' AND seq % 20 = 8
+            UNION ALL
+            SELECT work_id, 'original_publication_year', CAST(1900 + (seq * 13 % 100) AS TEXT), @readyAt
+            FROM seed_leaf WHERE media_type = 'Books'
             UNION ALL
             SELECT show_id, 'show_name', 'Show ' || group_no, @readyAt FROM seed_group
             UNION ALL
@@ -145,7 +174,9 @@ public sealed class LibraryListFixture : IDisposable
 
             -- Credits on the book, audiobook, comic and movie works.
             INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value)
-            SELECT work_id, 'author', 0, 'Person ' || (seq * 7 % 800) FROM seed_leaf WHERE media_type IN ('Books', 'Audiobooks', 'Comics')
+            SELECT work_id, 'author', 0,
+                   'Person ' || (CASE WHEN twin_same_author = 1 THEN twin_seq ELSE seq END * 7 % 800)
+            FROM seed_leaf WHERE media_type IN ('Books', 'Audiobooks', 'Comics')
             UNION ALL
             SELECT work_id, 'author', 1, 'Person ' || (seq * 11 % 800) FROM seed_leaf WHERE media_type = 'Books' AND seq % 3 = 0
             UNION ALL
