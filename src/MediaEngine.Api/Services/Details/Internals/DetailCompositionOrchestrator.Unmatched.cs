@@ -81,7 +81,114 @@ internal sealed partial class DetailCompositionOrchestrator
             item.IsUnmatched = (Guid.TryParse(item.Id, out var id) && unmatchedWorks.Contains(id))
                 || (Guid.TryParse(item.AssetId, out var assetId) && unmatchedAssets.Contains(assetId));
         }
+
+        PresentUnmatchedWithoutNumbers(model, sequenceItems, groupItems);
     }
+
+    /// <summary>
+    /// A title added anyway is never shown with a number, however a number reached the page (a file tag read again, a provider, a
+    /// series list position), and it is listed in an "Unnumbered" group at the end of its list (Details overlay D13).
+    /// </summary>
+    private static void PresentUnmatchedWithoutNumbers(
+        DetailPageViewModel model,
+        IReadOnlyList<SequenceItemViewModel> sequenceItems,
+        IReadOnlyList<MediaGroupingItemViewModel> groupItems)
+    {
+        foreach (var item in sequenceItems.Where(item => item.IsUnmatched))
+        {
+            item.PositionNumber = null;
+            item.PositionSort = null;
+            item.PositionLabel = null;
+            item.PositionText = null;
+        }
+
+        foreach (var item in groupItems.Where(item => item.IsUnmatched))
+        {
+            item.TrackNumber = null;
+        }
+
+        if (model.IsUnmatched && model.SequencePlacement is { } own)
+        {
+            own.PositionNumber = null;
+            own.PositionSort = null;
+            own.PositionLabel = null;
+            own.PositionText = null;
+            own.PositionSummary = null;
+        }
+
+        if (model.SequencePlacement is { } placement)
+        {
+            var unnumbered = new List<SequenceItemViewModel>();
+            var groups = placement.Groups.ToList();
+            foreach (var group in groups)
+            {
+                var gone = group.Items.Where(item => item.IsUnmatched).ToList();
+                if (gone.Count == 0)
+                {
+                    continue;
+                }
+
+                unnumbered.AddRange(gone);
+                group.Items = [.. group.Items.Where(item => !item.IsUnmatched)];
+                group.OwnedCount = Math.Max(0, group.OwnedCount - gone.Count(item => item.IsOwned));
+                group.ItemCount = group.ItemCount > 0 ? Math.Max(group.Items.Count, group.ItemCount - gone.Count) : 0;
+            }
+
+            if (placement.OrderedItems.Any(item => item.IsUnmatched))
+            {
+                placement.OrderedItems = [.. placement.OrderedItems.Where(item => !item.IsUnmatched), .. placement.OrderedItems.Where(item => item.IsUnmatched)];
+            }
+
+            if (unnumbered.Count > 0)
+            {
+                groups.Add(new SequenceGroupViewModel
+                {
+                    Key = UnnumberedGroupKey,
+                    Title = UnnumberedGroupTitle,
+                    OwnedCount = unnumbered.Count(item => item.IsOwned),
+                    ItemCount = unnumbered.Count,
+                    Items = unnumbered,
+                });
+                placement.Groups = groups;
+            }
+        }
+
+        var mediaGroups = model.MediaGroups.ToList();
+        var unnumberedRows = new List<MediaGroupingItemViewModel>();
+        foreach (var group in mediaGroups)
+        {
+            var gone = group.Items.Where(item => item.IsUnmatched).ToList();
+            if (gone.Count == 0)
+            {
+                continue;
+            }
+
+            unnumberedRows.AddRange(gone);
+            var owned = gone.Count(item => item.IsOwned);
+            group.Items = [.. group.Items.Where(item => !item.IsUnmatched)];
+            group.OwnedCount = Math.Max(0, group.OwnedCount - owned);
+            group.TotalCount = Math.Max(group.OwnedCount, group.TotalCount - owned);
+            group.CompletionPercent = group.TotalCount > 0 ? Math.Round(100d * group.OwnedCount / group.TotalCount, 1) : 0;
+        }
+
+        if (unnumberedRows.Count > 0)
+        {
+            mediaGroups.Add(new MediaGroupingViewModel
+            {
+                Key = UnnumberedGroupKey,
+                Title = UnnumberedGroupTitle,
+                Items = unnumberedRows,
+                OwnedCount = unnumberedRows.Count(item => item.IsOwned),
+                TotalCount = unnumberedRows.Count,
+                MissingCount = 0,
+                CompletionPercent = 100,
+            });
+            model.MediaGroups = mediaGroups;
+        }
+    }
+
+    private const string UnnumberedGroupKey = "unnumbered";
+    private const string UnnumberedGroupTitle = "Unnumbered";
 
     private static IEnumerable<SequenceItemViewModel> EnumerateSequenceItems(DetailPageViewModel model)
     {

@@ -35,18 +35,9 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
     ];
 
     // The values that say where an item sits in its list. They come and go with a move, so they are never "details the person set".
-    private static readonly string[] NumberKeys =
-    [
-        MetadataFieldConstants.TrackNumber,
-        MetadataFieldConstants.DiscNumber,
-        MetadataFieldConstants.EpisodeNumber,
-        MetadataFieldConstants.SeasonNumber,
-        MetadataFieldConstants.SeriesPosition,
-        "series_index",
-        PartNumberKey,
-    ];
+    private static readonly string[] NumberKeys = PlacementNumbers.Keys;
 
-    private const string PartNumberKey = "audiobook_part_number";
+    private const string PartNumberKey = PlacementNumbers.AudiobookPartNumberKey;
     private const string PartCountKey = "audiobook_part_count";
     private const string IdentityRevisionKey = "identity_revision";
 

@@ -117,6 +117,11 @@ public sealed class MusicTrackRelocationRepository(IDatabaseConnection database)
             var target = destinations.SingleOrDefault();
             if (target != Guid.Empty)
             {
+                if (conn.ExecuteScalar<int>("SELECT placement_unmatched FROM works WHERE id=@target", new { target }, tx) == 1)
+                {
+                    return Conflict("The destination track was added without a number; match it from the Match step instead.");
+                }
+
                 // Throw before writes are committed: ExecuteWriteAsync rolls back the new album too.
                 if (conn.ExecuteScalar<int>("SELECT COUNT(*) FROM editions edition JOIN media_assets asset ON asset.edition_id=edition.id WHERE edition.work_id=@target", new { target }, tx) > 0)
                 {

@@ -1,6 +1,10 @@
 using MediaEngine.Api.Services.Libraries.Moves;
+using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Application.ReadModels;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Entities;
+using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;
 
@@ -349,6 +353,74 @@ public sealed class LibraryMoveSafetyTests : IDisposable
             new LibraryMoveCommitRequest { PreviewToken = free.PreviewToken, Rows = [Free(third)] },
             LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.WriteOnly);
         Assert.True(moved.IsSuccess, moved.Refusal?.Message);
+    }
+
+    // ----- add anyway stays unnumbered -----------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task AfterAddAnyway_ReReadingTheFileKeepsTheTitleUnnumbered_AndALaterMatchNumbersItAgain()
+    {
+        var bestOf = _world.AddParent("Music", "The Best Of");
+        var (song, _, songAsset) = _world.AddChild(bestOf, "Music", "Hidden Bonus Jam", 3);
+        _world.Put(song, "track_number", "9");
+        _world.Put(songAsset!.Value, "track_number", "9");
+        var okComputer = _world.AddParent("Music", "OK Computer", manifestJson: """{"tracks":[{"title":"Hidden Bonus Jam","track_number":11,"disc_number":1}]}""");
+        _world.AddChild(okComputer, "Music", "Airbag", 1);
+
+        var preview = await Preview([song], okComputer);
+        Assert.True((await Commit(preview, AddAnyway(song))).IsSuccess);
+        var canonicals = new CanonicalValueRepository(_world.Database);
+
+        // The file still carries its track number tag, and it is read again (re-scan, re-read, re-identify).
+        await canonicals.UpsertBatchAsync(
+        [
+            new CanonicalValue { EntityId = songAsset.Value, Key = "track_number", Value = "9", LastScoredAt = DateTimeOffset.UtcNow },
+            new CanonicalValue { EntityId = song, Key = "track_number", Value = "9", LastScoredAt = DateTimeOffset.UtcNow },
+            new CanonicalValue { EntityId = songAsset.Value, Key = "title", Value = "Hidden Bonus Jam", LastScoredAt = DateTimeOffset.UtcNow },
+        ]);
+
+        var state = _world.Work(song);
+        Assert.Null(state.Ordinal);
+        Assert.Null(state.OrdinalSort);
+        Assert.Equal(1, state.Unmatched);
+        Assert.Null(_world.Canonical(song, "track_number"));
+        Assert.Null(_world.Canonical(songAsset.Value, "track_number"));
+        Assert.Equal("Hidden Bonus Jam", _world.Canonical(songAsset.Value, "title"));
+
+        // Matching it to a real entry later clears the mark and numbers it.
+        var elsewhere = _world.AddParent("Music", "Another Album", manifestJson: """{"tracks":[{"title":"Hidden Bonus Jam","track_number":4,"disc_number":1}]}""");
+        _world.AddChild(elsewhere, "Music", "Opener", 1);
+        var second = await Preview([song], elsewhere);
+        var entry = second.Entries.Single(candidate => candidate.Title == "Hidden Bonus Jam");
+        Assert.True((await Commit(second, Match(song, entry.EntryKey))).IsSuccess);
+
+        var matched = _world.Work(song);
+        Assert.Equal(0, matched.Unmatched);
+        Assert.Equal(4, matched.Ordinal);
+        Assert.Equal("4", _world.Canonical(song, "track_number"));
+        Assert.Equal("4", _world.Canonical(songAsset.Value, "track_number"));
+        await canonicals.UpsertBatchAsync([new CanonicalValue { EntityId = songAsset.Value, Key = "track_number", Value = "4", LastScoredAt = DateTimeOffset.UtcNow }]);
+        Assert.Equal("4", _world.Canonical(songAsset.Value, "track_number"));
+    }
+
+    [Fact]
+    public async Task ACorrectionToTheOldMembershipRoute_NeverNumbersATitleAddedAnyway()
+    {
+        var show = _world.AddParent("TV", "Northwatch");
+        var season = _world.AddParent("TV", string.Empty, show, ordinal: 1);
+        var (episode, _, _) = _world.AddChild(season, "TV", "Pilot", null, ordinalSort: null);
+        _world.Execute("UPDATE works SET placement_unmatched = 1 WHERE id = @episode;", new { episode });
+        var request = new MembershipPreviewRequest(
+            null,
+            new Dictionary<string, string?> { ["show_name"] = "Northwatch", ["season_number"] = "1", ["episode_number"] = "5" },
+            null,
+            null);
+
+        var preview = await HierarchyAlignmentService.BuildMembershipPreviewAsync(episode, request, _world.Database, CancellationToken.None);
+
+        Assert.Equal("conflict", preview!.Action);
+        Assert.False(preview.CanApply);
+        Assert.Null(_world.Work(episode).Ordinal);
     }
 
     // ----- helpers ---------------------------------------------------------------------------------------------------------------

@@ -2113,7 +2113,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPageViewModel
   FullContributorGroups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.CreditGroupViewModel> | nullability=not-null | accessors=get,init
   PreviewContributors: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.EntityCreditViewModel> | nullability=not-null | accessors=get,init
   Tabs: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailTab> | nullability=not-null | accessors=get,init
-  MediaGroups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.MediaGroupingViewModel> | nullability=not-null | accessors=get,init
+  MediaGroups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.MediaGroupingViewModel> | nullability=not-null | accessors=get,set
   PrimaryModule: MediaEngine.Contracts.Details.DetailPrimaryModuleViewModel | nullability=not-null | accessors=get,init
   MusicAlbumCompanion: MediaEngine.Contracts.Details.MusicAlbumCompanionViewModel | nullability=nullable | accessors=get,init
   LibraryStatus: MediaEngine.Contracts.Details.LibraryStatus | nullability=not-null | accessors=get,init
@@ -2192,7 +2192,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.MediaGroupingItemVie
   Subtitle: System.String | nullability=nullable | accessors=get,init
   Description: System.String | nullability=nullable | accessors=get,init
   ArtworkUrl: System.String | nullability=nullable | accessors=get,init
-  TrackNumber: System.String | nullability=nullable | accessors=get,init
+  TrackNumber: System.String | nullability=nullable | accessors=get,set
   Duration: System.String | nullability=nullable | accessors=get,init
   DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
   Artist: System.String | nullability=nullable | accessors=get,init
@@ -2216,11 +2216,11 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.MediaGroupingItemVie
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.MediaGroupingViewModel
   Key: System.String | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
-  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.MediaGroupingItemViewModel> | nullability=not-null | accessors=get,init
-  OwnedCount: System.Int32 | nullability=not-null | accessors=get,init
-  TotalCount: System.Int32 | nullability=not-null | accessors=get,init
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.MediaGroupingItemViewModel> | nullability=not-null | accessors=get,set
+  OwnedCount: System.Int32 | nullability=not-null | accessors=get,set
+  TotalCount: System.Int32 | nullability=not-null | accessors=get,set
   MissingCount: System.Int32 | nullability=not-null | accessors=get,init
-  CompletionPercent: System.Double | nullability=not-null | accessors=get,init
+  CompletionPercent: System.Double | nullability=not-null | accessors=get,set
   InitiallyCollapsed: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.MetadataPill
@@ -2334,7 +2334,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceCoverageLink
   Route: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceGroupViewModel
-  OwnedCount: System.Int32 | nullability=not-null | accessors=get,init
+  OwnedCount: System.Int32 | nullability=not-null | accessors=get,set
   CompletedCount: System.Int32 | nullability=not-null | accessors=get,init
   Key: System.String | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
@@ -2344,9 +2344,9 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceGroupViewMod
   BackgroundArtworkUrl: System.String | nullability=nullable | accessors=get,init
   TotalKnownItems: System.Int32? | nullability=nullable | accessors=get,init
   HasAuthoritativeTotal: System.Boolean | nullability=not-null | accessors=get,init
-  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,set
   ItemOffset: System.Int32 | nullability=not-null | accessors=get,init
-  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,init
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceItemViewModel
   CoveredWith: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceCoverageLinkViewModel> | nullability=not-null | accessors=get,init
@@ -2367,10 +2367,10 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceItemViewMode
   Description: System.String | nullability=nullable | accessors=get,init
   Duration: System.String | nullability=nullable | accessors=get,init
   PublicationDate: System.String | nullability=nullable | accessors=get,init
-  PositionNumber: System.Int32? | nullability=nullable | accessors=get,init
-  PositionSort: System.Double? | nullability=nullable | accessors=get,init
-  PositionLabel: System.String | nullability=nullable | accessors=get,init
-  PositionText: System.String | nullability=nullable | accessors=get,init
+  PositionNumber: System.Int32? | nullability=nullable | accessors=get,set
+  PositionSort: System.Double? | nullability=nullable | accessors=get,set
+  PositionLabel: System.String | nullability=nullable | accessors=get,set
+  PositionText: System.String | nullability=nullable | accessors=get,set
   GroupKey: System.String | nullability=nullable | accessors=get,init
   GroupTitle: System.String | nullability=nullable | accessors=get,init
   MembershipScope: System.String | nullability=not-null | accessors=get,init
@@ -2398,20 +2398,20 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequencePlacementVie
   ItemPluralLabel: System.String | nullability=not-null | accessors=get,init
   GroupLabel: System.String | nullability=nullable | accessors=get,init
   CurrentGroupKey: System.String | nullability=nullable | accessors=get,init
-  PositionNumber: System.Int32? | nullability=nullable | accessors=get,init
-  PositionSort: System.Double? | nullability=nullable | accessors=get,init
+  PositionNumber: System.Int32? | nullability=nullable | accessors=get,set
+  PositionSort: System.Double? | nullability=nullable | accessors=get,set
   TotalKnownItems: System.Int32? | nullability=nullable | accessors=get,init
   HasAuthoritativeTotal: System.Boolean | nullability=not-null | accessors=get,init
-  PositionLabel: System.String | nullability=nullable | accessors=get,init
-  PositionText: System.String | nullability=nullable | accessors=get,init
-  PositionSummary: System.String | nullability=nullable | accessors=get,init
+  PositionLabel: System.String | nullability=nullable | accessors=get,set
+  PositionText: System.String | nullability=nullable | accessors=get,set
+  PositionSummary: System.String | nullability=nullable | accessors=get,set
   OrderingType: MediaEngine.Contracts.Details.SequenceOrderingType | nullability=not-null | accessors=get,init
   PreviousItem: MediaEngine.Contracts.Details.SequenceItemViewModel | nullability=nullable | accessors=get,init
   CurrentItem: MediaEngine.Contracts.Details.SequenceItemViewModel | nullability=not-null | accessors=get,init
   NextItem: MediaEngine.Contracts.Details.SequenceItemViewModel | nullability=nullable | accessors=get,init
-  OrderedItems: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,init
+  OrderedItems: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,set
   AlsoInThisWorld: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,init
-  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceGroupViewModel> | nullability=not-null | accessors=get,init
+  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceGroupViewModel> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SetDefaultSequenceRequest
   ContainerId: System.String | nullability=not-null | accessors=get,init

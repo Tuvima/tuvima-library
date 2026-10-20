@@ -580,6 +580,14 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                 return new MembershipPreviewEnvelope("none", currentPath, currentPath, false, false, false, plan.CurrentEntityId, plan.CurrentRootEntityId, plan.CurrentParentEntityId, "No season move is needed.", null);
             }
 
+            if (conn.ExecuteScalar<long>(
+                    "-- readiness: looks up one work by id\nSELECT placement_unmatched FROM works WHERE id = @workId;",
+                    new { workId = plan.CurrentEntityId },
+                    tx) == 1)
+            {
+                return new MembershipPreviewEnvelope("conflict", currentPath, currentPath, false, false, false, plan.CurrentEntityId, plan.CurrentRootEntityId, plan.CurrentParentEntityId, "This item was added without a number.", "Match it to an entry in the list instead; a correction never numbers it.");
+            }
+
             var conflictId = FindChildByOrdinal(conn, plan.CurrentParentEntityId.Value, plan.RequestedOrdinal.Value, tx);
             if (conflictId.HasValue && conflictId.Value != plan.CurrentEntityId)
             {
@@ -600,6 +608,15 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
             }
 
             return new MembershipPreviewEnvelope("move_season", currentPath, $"Season {plan.RequestedOrdinal.Value}", false, true, applyChanges, plan.CurrentEntityId, plan.CurrentRootEntityId, plan.CurrentParentEntityId, "The season will move to the requested position.", null);
+        }
+
+        // A title added anyway has no number and is never numbered by a correction: only a Match numbers it.
+        if (conn.ExecuteScalar<long>(
+                "-- readiness: looks up one work by id\nSELECT placement_unmatched FROM works WHERE id = @workId;",
+                new { workId = plan.CurrentEntityId },
+                tx) == 1)
+        {
+            return new MembershipPreviewEnvelope("conflict", currentPath, currentPath, false, false, false, plan.CurrentEntityId, plan.CurrentRootEntityId, plan.CurrentParentEntityId, "This item was added without a number.", "Match it to an entry in the list instead; a correction never numbers it.");
         }
 
         var resolvedTarget = ResolveMembershipMoveTarget(conn, tx, plan, request, applyChanges, ct);

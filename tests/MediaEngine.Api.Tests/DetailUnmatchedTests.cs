@@ -86,6 +86,41 @@ public sealed class DetailUnmatchedTests : IDisposable
         Assert.All(page.SequencePlacement!.Groups.SelectMany(group => group.Items), item => Assert.False(item.IsUnmatched));
     }
 
+    [Fact]
+    public async Task AnEpisodeAddedAnyway_IsShownWithNoNumber_InAnUnnumberedGroupAtTheEnd()
+    {
+        var (show, matched, unmatched) = SeedShow();
+        using (var connection = _database.CreateConnection())
+        {
+            // A number reaches the page by some other route (a series list position, data from before the mark): it must not show.
+            connection.Execute(
+                """
+                UPDATE works SET placement_unmatched = 1, ordinal = NULL, ordinal_sort = NULL WHERE id = @unmatched;
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@unmatched, 'episode_number', '2', CURRENT_TIMESTAMP)
+                ON CONFLICT(entity_id, key) DO NOTHING;
+                """,
+                new { unmatched });
+        }
+
+        var page = await _composer.BuildAuthorizedAsync(
+            DetailEntityType.TvShow, show, DetailPresentationContext.Watch, CancellationToken.None, null, Profile.SeedProfileId,
+            new DetailActionAuthorizationContext());
+
+        var groups = page!.SequencePlacement!.Groups;
+        var last = groups[^1];
+        Assert.Equal("unnumbered", last.Key);
+        Assert.Equal("Unnumbered", last.Title);
+        var row = Assert.Single(last.Items);
+        Assert.Equal(unmatched.ToString("D"), row.Id);
+        Assert.True(row.IsUnmatched);
+        Assert.Null(row.PositionNumber);
+        Assert.Null(row.PositionSort);
+        Assert.Null(row.PositionLabel);
+        Assert.Null(row.PositionText);
+        Assert.DoesNotContain(groups.Where(group => group.Key != "unnumbered").SelectMany(group => group.Items), item => item.Id == unmatched.ToString("D"));
+        Assert.Contains(groups.SelectMany(group => group.Items), item => item.Id == matched.ToString("D") && !item.IsUnmatched);
+    }
+
     private (Guid Show, Guid Matched, Guid Unmatched) SeedShow()
     {
         var show = Guid.NewGuid();

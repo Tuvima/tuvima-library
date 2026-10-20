@@ -45,7 +45,7 @@ public sealed class DetailPageViewModel
     public IReadOnlyList<EntityCreditViewModel> PreviewContributors { get; init; } = [];
 
     public IReadOnlyList<DetailTab> Tabs { get; init; } = [];
-    public IReadOnlyList<MediaGroupingViewModel> MediaGroups { get; init; } = [];
+    public IReadOnlyList<MediaGroupingViewModel> MediaGroups { get; set; } = [];
     public DetailPrimaryModuleViewModel PrimaryModule { get; init; } = new();
     public MusicAlbumCompanionViewModel? MusicAlbumCompanion { get; init; }
 
@@ -369,24 +369,24 @@ public sealed class SequencePlacementViewModel
     public string ItemPluralLabel { get; init; } = "Items";
     public string? GroupLabel { get; init; }
     public string? CurrentGroupKey { get; init; }
-    public int? PositionNumber { get; init; }
-    public double? PositionSort { get; init; }
+    public int? PositionNumber { get; set; }
+    public double? PositionSort { get; set; }
     public int? TotalKnownItems { get; init; }
     public bool HasAuthoritativeTotal { get; init; }
-    public string? PositionLabel { get; init; }
-    public string? PositionText { get; init; }
-    public string? PositionSummary { get; init; }
+    public string? PositionLabel { get; set; }
+    public string? PositionText { get; set; }
+    public string? PositionSummary { get; set; }
     public SequenceOrderingType OrderingType { get; init; } = SequenceOrderingType.LibraryOrder;
     public SequenceItemViewModel? PreviousItem { get; init; }
     public SequenceItemViewModel CurrentItem { get; init; } = new();
     public SequenceItemViewModel? NextItem { get; init; }
-    public IReadOnlyList<SequenceItemViewModel> OrderedItems { get; init; } = [];
+    public IReadOnlyList<SequenceItemViewModel> OrderedItems { get; set; } = [];
     /// <summary>
     /// Supplementary, collected-content and broader-context members of the same Series ("Also in this world"), in
     /// Series order. They are never numbered with, or counted in, the Series run in <see cref="OrderedItems"/>.
     /// </summary>
     public IReadOnlyList<SequenceItemViewModel> AlsoInThisWorld { get; init; } = [];
-    public IReadOnlyList<SequenceGroupViewModel> Groups { get; init; } = [];
+    public IReadOnlyList<SequenceGroupViewModel> Groups { get; set; } = [];
 }
 
 public sealed class SequenceContainerOptionViewModel
@@ -419,7 +419,7 @@ public enum SequenceOrderingType
 
 public sealed class SequenceGroupViewModel
 {
-    public int OwnedCount { get; init; }
+    public int OwnedCount { get; set; }
     public int CompletedCount { get; init; }
     public string Key { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
@@ -434,10 +434,10 @@ public sealed class SequenceGroupViewModel
     /// than <c>Items.Count</c> (or <c>Items</c> is empty), fetch the rest through the detail endpoint's sequence window.
     /// 0 means the group did not report a count and <c>Items</c> is complete.
     /// </summary>
-    public int ItemCount { get; init; }
+    public int ItemCount { get; set; }
     /// <summary>Position of <c>Items[0]</c> within the group's full ordering (0 when <c>Items</c> starts at the beginning).</summary>
     public int ItemOffset { get; init; }
-    public IReadOnlyList<SequenceItemViewModel> Items { get; init; } = [];
+    public IReadOnlyList<SequenceItemViewModel> Items { get; set; } = [];
 }
 
 /// <summary>Another episode that lives in the same physical file as a sequence item.</summary>
@@ -469,10 +469,10 @@ public sealed class SequenceItemViewModel
     public string? Description { get; init; }
     public string? Duration { get; init; }
     public string? PublicationDate { get; init; }
-    public int? PositionNumber { get; init; }
-    public double? PositionSort { get; init; }
-    public string? PositionLabel { get; init; }
-    public string? PositionText { get; init; }
+    public int? PositionNumber { get; set; }
+    public double? PositionSort { get; set; }
+    public string? PositionLabel { get; set; }
+    public string? PositionText { get; set; }
     public string? GroupKey { get; init; }
     public string? GroupTitle { get; init; }
     public string MembershipScope { get; init; } = "MainSequence";
@@ -610,11 +610,11 @@ public sealed class MediaGroupingViewModel
 {
     public string Key { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
-    public IReadOnlyList<MediaGroupingItemViewModel> Items { get; init; } = [];
-    public int OwnedCount { get; init; }
-    public int TotalCount { get; init; }
+    public IReadOnlyList<MediaGroupingItemViewModel> Items { get; set; } = [];
+    public int OwnedCount { get; set; }
+    public int TotalCount { get; set; }
     public int MissingCount { get; init; }
-    public double CompletionPercent { get; init; }
+    public double CompletionPercent { get; set; }
     public bool InitiallyCollapsed { get; init; }
 }
 
@@ -626,7 +626,7 @@ public sealed class MediaGroupingItemViewModel
     public string? Subtitle { get; init; }
     public string? Description { get; init; }
     public string? ArtworkUrl { get; init; }
-    public string? TrackNumber { get; init; }
+    public string? TrackNumber { get; set; }
     public string? Duration { get; init; }
     public double? DurationSeconds { get; init; }
     public string? Artist { get; init; }
