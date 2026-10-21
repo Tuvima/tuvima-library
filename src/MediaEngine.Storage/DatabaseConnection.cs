@@ -99,6 +99,23 @@ public sealed class DatabaseConnection : IDatabaseConnection
     /// </exception>
     public void InitializeSchema()
     {
+        // Test processes opt in (see SchemaTemplate): a brand-new default data store starts as a copy of one
+        // already-upgraded file, then goes through the normal checks below, which find nothing left to apply.
+        if (_upgradeSteps is null
+            && string.IsNullOrWhiteSpace(_startupOptions.BackupDirectory)
+            && SchemaTemplate.Enabled
+            && !File.Exists(_databasePath))
+        {
+            _connection?.Dispose();
+            _connection = null;
+            SchemaTemplate.TryCopyTo(_databasePath);
+        }
+
+        InitializeSchemaCore();
+    }
+
+    internal void InitializeSchemaCore()
+    {
         // The epoch guard may need to move an incompatible pre-beta database.
         // Release the shared connection first so Windows does not keep the file locked.
         _connection?.Dispose();

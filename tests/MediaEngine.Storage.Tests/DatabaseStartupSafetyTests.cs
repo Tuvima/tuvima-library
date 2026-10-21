@@ -959,7 +959,8 @@ public sealed class DatabaseStartupSafetyTests
     public void SecondStart_AppliesNoUpgradeStepsAndChangesNothing()
     {
         using var fixture = TempDatabase.Create();
-        fixture.Database.InitializeSchema();
+        // The real first-start upgrade, not the copy of the test template the other tests start from.
+        fixture.Database.InitializeSchemaCore();
         fixture.Database.RunStartupChecks();
         Assert.Contains(fixture.Database.StartupNotes, note => note.Contains("0001 (baseline)", StringComparison.Ordinal));
 
@@ -983,7 +984,8 @@ public sealed class DatabaseStartupSafetyTests
     public void FreshDataStore_IsAtTheLatestStep_AndHasTheBaselineStructure()
     {
         using var fixture = TempDatabase.Create();
-        fixture.Database.InitializeSchema();
+        // The real first-start upgrade, not the copy of the test template the other tests start from.
+        fixture.Database.InitializeSchemaCore();
         fixture.Database.RunStartupChecks();
 
         using var conn = fixture.Database.CreateConnection();

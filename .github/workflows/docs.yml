@@ -2,6 +2,13 @@ name: Docs
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "docs/**"
+      - "website/**"
+      - "scripts/docs/**"
+      - "engineering/**"
+      - "*.md"
+      - ".github/workflows/docs.yml"
   push:
     branches: [main]
   workflow_dispatch:

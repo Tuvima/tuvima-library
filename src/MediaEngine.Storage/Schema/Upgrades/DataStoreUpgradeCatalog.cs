@@ -25,9 +25,15 @@ internal static class DataStoreUpgradeCatalog
         "\\bPRAGMA\\s+(?:[\\w\"`\\[\\]]+\\s*\\.\\s*)?[\"`\\[]?(?<pragma>journal_mode|foreign_keys)\\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
+    // The shipped steps cannot change while the process runs, and every InitializeSchema call asks for them,
+    // so read and validate the embedded SQL once. PublicationOnly keeps a failed load from being cached.
+    private static readonly Lazy<IReadOnlyList<DataStoreUpgradeStep>> ProductSteps = new(
+        () => Load(typeof(DataStoreUpgradeCatalog).Assembly, ProductResourcePrefix),
+        LazyThreadSafetyMode.PublicationOnly);
+
     /// <summary>The steps this build of the Engine ships with. An empty catalog is valid.</summary>
     public static IReadOnlyList<DataStoreUpgradeStep> ForProduct()
-        => Load(typeof(DataStoreUpgradeCatalog).Assembly, ProductResourcePrefix);
+        => ProductSteps.Value;
 
     /// <summary>
     /// Discovers and validates the steps in <paramref name="assembly"/>.
