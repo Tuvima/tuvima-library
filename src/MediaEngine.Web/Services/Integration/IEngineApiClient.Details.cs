@@ -118,6 +118,12 @@ public partial interface IEngineApiClient
     Task<MediaEditorEditionCoverSaveResultDto?> SaveMediaEditorEditionCoverAsync(
         Guid entityId, MediaEditorEditionCoverSaveRequestDto request, CancellationToken ct = default);
 
+    /// <summary>GET /metadata/{entityId}/series-placement — the Series a Work is on, the Series that list it, and a search over other Series of its media type.</summary>
+    Task<SeriesPlacementDto?> GetSeriesPlacementAsync(Guid entityId, string? query = null, CancellationToken ct = default);
+
+    /// <summary>PUT /metadata/{entityId}/series-placement — save a person's Series choice as a lock (null collection = "Not in a Series"), or release it so the Library decides again.</summary>
+    Task<SeriesPlacementDto?> SaveSeriesPlacementAsync(Guid entityId, Guid? collectionId, bool locked, CancellationToken ct = default);
+
     /// <summary>POST /metadata/{entityId}/membership-preview — preview hierarchy changes before applying them.</summary>
     Task<MediaEditorMembershipPreviewDto?> PreviewMediaEditorMembershipAsync(
         Guid entityId,

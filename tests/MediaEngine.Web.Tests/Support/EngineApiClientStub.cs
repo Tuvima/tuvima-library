@@ -2,6 +2,7 @@ using System.Reflection;
 using MediaEngine.Contracts.Ai;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Library;
+using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Persons;
 using MediaEngine.Contracts.Playback;
@@ -64,6 +65,10 @@ internal class EngineApiClientStub : DispatchProxy
 
     private void RegisterDefaults()
     {
+        // Most tests do not care about the editor's Series block: an item with no Series support shows nothing.
+        _handlers[nameof(IEngineApiClient.GetSeriesPlacementAsync)] =
+            _ => Task.FromResult<SeriesPlacementDto?>(new SeriesPlacementDto { SupportsSeries = false });
+
         _handlers[nameof(IEngineApiClient.ToAbsoluteEngineUrl)] =
             args => args?[0]?.ToString() ?? string.Empty;
 

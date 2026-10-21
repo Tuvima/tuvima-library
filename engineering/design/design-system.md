@@ -69,7 +69,7 @@ New CSS may only break at **600 / 840 / 1180 px** (plus the touch query at 1023p
 
 ## Components and conventions
 
-- Use the first-party **`App*` components** in `src/MediaEngine.Web/Components/Shared/` — AppButton, AppIconButton, AppTextField, AppSelect, AppSwitchRow, AppCheckbox, AppDialog, AppTable, AppTabs, AppCard, AppAlert, AppStatusBadge, AppTooltip, AppProgressBar, AppSpinner, AppMediaArtwork, and the page-state trio AppPageState / AppEmptyState / AppErrorState. Don't build one-off controls.
+- Use the first-party **`App*` components** in `src/MediaEngine.Web/Components/Shared/` — AppButton, AppIconButton, AppTextField, AppSelect, AppSwitchRow, AppChoiceRow, AppCheckbox, AppDialog, AppTable, AppTabs, AppCard, AppAlert, AppStatusBadge, AppTooltip, AppProgressBar, AppSpinner, AppMediaArtwork, and the page-state trio AppPageState / AppEmptyState / AppErrorState. Don't build one-off controls.
 - **Every screen designs four states:** normal, empty, loading (skeletons), error (with a way forward).
 - **Phones:** dialogs can become bottom sheets, tables can become cards, row actions use a 44px "more" button — never hover-only or drag-only actions.
 - **Icons:** semantic keys map to FontAwesome Solid SVGs (`AppIcon`); buttons use a pinned Material icon set (`AppMaterialIcon`). Icons in the same row share family, size, stroke and target size. Icon-only buttons need a tooltip and an accessible name.

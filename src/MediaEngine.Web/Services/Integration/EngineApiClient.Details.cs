@@ -353,6 +353,20 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public Task<SeriesPlacementDto?> GetSeriesPlacementAsync(
+        Guid entityId, string? query = null, CancellationToken ct = default) =>
+        GetAsync<SeriesPlacementDto>("GET /metadata/{entityId}/series-placement",
+            $"/metadata/{entityId}/series-placement",
+            string.IsNullOrWhiteSpace(query) ? null : new Dictionary<string, string?> { ["q"] = query.Trim() },
+            ct: ct);
+
+    public Task<SeriesPlacementDto?> SaveSeriesPlacementAsync(
+        Guid entityId, Guid? collectionId, bool locked, CancellationToken ct = default) =>
+        PutAsync<SeriesPlacementChoiceRequestDto, SeriesPlacementDto>("PUT /metadata/{entityId}/series-placement",
+            $"/metadata/{entityId}/series-placement",
+            new SeriesPlacementChoiceRequestDto { CollectionId = collectionId, Locked = locked },
+            ct: ct);
+
     public Task<MediaEditorWorkVersionSelectorDto?> GetMediaEditorWorkVersionsAsync(
         Guid entityId, CancellationToken ct = default) =>
         GetAsync<MediaEditorWorkVersionSelectorDto>("GET /metadata/{entityId}/work-versions",

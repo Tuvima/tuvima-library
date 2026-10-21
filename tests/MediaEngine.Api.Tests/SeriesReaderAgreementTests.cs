@@ -171,14 +171,39 @@ public sealed class SeriesReaderAgreementTests : IDisposable
     [InlineData(DetailEntityType.ComicIssue, "Comics")]
     [InlineData(DetailEntityType.MovieSeries, "Movies")]
     [InlineData(DetailEntityType.TvEpisode, "TV")]
-    [InlineData(DetailEntityType.MusicAlbum, null)]
-    public void TheItemPageReadsManifestRowsFromTheShelfOfTheMediaItShows(DetailEntityType entityType, string? expected)
+    public async Task TheItemPage_ReadsOnlyTheRowsAndOrderOfTheShelfOfTheMediaItShows_WhenSeveralShelvesShareOneSeriesId(
+        DetailEntityType entityType,
+        string mediaType)
     {
-        var method = typeof(DetailComposerService).Assembly
-            .GetType("MediaEngine.Api.Services.Details.Internals.DetailCompositionOrchestrator", throwOnError: true)!
-            .GetMethod("SeriesMediaTypeName", BindingFlags.NonPublic | BindingFlags.Static)!;
+        // One Series id, five shelves (one per media type), each with its own stored manifest: the same two titles, but a
+        // different position for each media type.
+        string[] mediaTypes = ["Books", "Audiobooks", "Comics", "Movies", "TV"];
+        var collections = new CollectionRepository(_db);
+        var manifests = new SeriesManifestRepository(_db);
+        foreach (var (media, index) in mediaTypes.Select((media, index) => (media, index)))
+        {
+            var shelf = await UpsertShelfAsync(collections, $"Shared ({media})", Shared, media);
+            await UpsertSharedManifestAsync(manifests, shelf, media, firstPosition: (index + 1) * 10);
+        }
 
-        Assert.Equal(expected, (string?)method.Invoke(null, [entityType]));
+        var offset = Array.IndexOf(mediaTypes, mediaType);
+        var composer = new MediaEngine.Api.Services.Details.Internals.DetailCompositionOrchestrator(
+            _db, null!, null!, null!, null!, null!, null!, null!);
+        var items = new List<SequenceItemViewModel>
+        {
+            new() { Id = Guid.NewGuid().ToString("D"), EntityType = entityType, Title = "First", IsOwned = true },
+            new() { Id = Guid.NewGuid().ToString("D"), EntityType = entityType, Title = "Second", IsOwned = true },
+        };
+
+        var method = composer.GetType().GetMethod("ApplyExactManifestPositionsAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var task = (Task)method.Invoke(composer, [items, Shared, entityType, CancellationToken.None])!;
+        await task;
+        var read = (List<SequenceItemViewModel>)task.GetType().GetProperty("Result")!.GetValue(task)!;
+
+        // Only the rows of this media type's shelf were read: their positions, not another shelf's.
+        Assert.Equal(
+            [$"First:{(offset + 1) * 10}", $"Second:{(offset + 1) * 10 + 1}"],
+            read.Select(item => $"{item.Title}:{item.PositionLabel}"));
     }
 
     [Fact]
@@ -373,14 +398,52 @@ public sealed class SeriesReaderAgreementTests : IDisposable
         return new TwoSeries(trilogy, cycle, opener, both, sibling);
     }
 
-    private static async Task<Guid> UpsertShelfAsync(CollectionRepository collections, string name, string qid)
+    private const string Shared = "Q4242";
+
+    private static Task UpsertSharedManifestAsync(SeriesManifestRepository manifests, Guid collectionId, string mediaType, int firstPosition)
+        => manifests.UpsertManifestAsync(
+            new SeriesManifestHydration
+            {
+                SeriesQid = Shared,
+                CollectionId = collectionId,
+                SeriesLabel = $"Shared ({mediaType})",
+                WarningsJson = "[]",
+                ApiMetadataJson = "{}",
+                LastHydratedAt = DateTimeOffset.UtcNow,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            },
+            new[] { "First", "Second" }.Select((title, index) => new SeriesManifestItemRecord
+            {
+                Id = Guid.NewGuid(),
+                CollectionId = collectionId,
+                SeriesQid = Shared,
+                ItemQid = $"Q-{mediaType}-{title}",
+                ItemLabel = title,
+                MediaType = mediaType,
+                RawOrdinal = (firstPosition + index).ToString(CultureInfo.InvariantCulture),
+                ParsedOrdinal = firstPosition + index,
+                OrdinalScopeQid = Shared,
+                SortOrder = firstPosition + index,
+                OrderSource = "SeriesOrdinal",
+                OwnershipState = "Owned",
+                LinkedWorkId = null,
+                MembershipScope = SeriesMembershipScopeNames.MainSequence,
+                SourcePropertiesJson = "[]",
+                RelationshipsJson = "[]",
+                LastHydratedAt = DateTimeOffset.UtcNow,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            }).ToList());
+
+    private static async Task<Guid> UpsertShelfAsync(CollectionRepository collections, string name, string qid, string mediaType = "Books")
     {
         var collection = new Collection
         {
             Id = Guid.NewGuid(),
             DisplayName = name,
             WikidataQid = qid,
-            MediaType = "Books",
+            MediaType = mediaType,
             CreatedAt = DateTimeOffset.UtcNow,
         };
         collection.RestoreDefinition(
