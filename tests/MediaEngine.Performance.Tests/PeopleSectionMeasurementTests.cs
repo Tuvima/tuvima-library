@@ -63,7 +63,7 @@ public sealed class PeopleSectionMeasurementTests : IClassFixture<LibraryListFix
         Read ContentGroupsBody,
         double StampedeLoads);
 
-    [Fact]
+    [MeasurementFact]
     public async Task PeopleSection_MeasuresEachEngineReadAtFourAndEightThousandWorks()
     {
         var results = new List<SizeResult>

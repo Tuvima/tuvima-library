@@ -26,7 +26,7 @@ public sealed partial class LibraryOverviewGuardrailTests
     private const int Runs = 5;
     private static readonly TimeSpan IngestionWriteHold = TimeSpan.FromSeconds(2);
 
-    [Fact]
+    [MeasurementFact]
     [Trait("Category", "Measurement")]
     public async Task LibrarySummary_ReadsMeasuredAtTwoLibrarySizes()
     {
