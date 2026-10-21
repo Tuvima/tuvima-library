@@ -1,5 +1,5 @@
 using System.Globalization;
-using MediaEngine.AI.Configuration;
+using MediaEngine.AI.Infrastructure;
 using MediaEngine.Api.Security;
 using MediaEngine.Contracts.Taste;
 using MediaEngine.Domain.Authorization;
@@ -37,7 +37,7 @@ public sealed class PersonalTasteService(
     ITasteProfiler profiler,
     ITasteOverrideRepository overrides,
     IProfileRepository profiles,
-    AiSettings aiSettings,
+    IVibeVocabularySource vibeVocabulary,
     TimeProvider clock)
 {
     private const int GenreSuggestionLimit = 60;
@@ -127,7 +127,7 @@ public sealed class PersonalTasteService(
 
     private async Task<TasteSuggestionsDto> SuggestionsAsync(CancellationToken ct)
     {
-        var vocabulary = aiSettings.VibeVocabulary;
+        var vocabulary = vibeVocabulary.Current;
         var moods = vocabulary.Books
             .Concat(vocabulary.MoviesTv).Concat(vocabulary.Music).Concat(vocabulary.Comics)
             .Select(mood => mood.Trim().ToLowerInvariant())

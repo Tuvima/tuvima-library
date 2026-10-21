@@ -144,7 +144,7 @@ public sealed class SettingsNavTests
     }
 
     [Theory]
-    [InlineData(SettingsSection.LocalAi, "vocabulary", "/settings/ai/vocabulary")]
+    [InlineData(SettingsSection.LocalAi, "models", "/settings/ai/models")]
     [InlineData(SettingsSection.Delivery, "hardware", "/settings/delivery/hardware")]
     [InlineData(SettingsSection.Delivery, "optimized-copies", "/settings/delivery/optimized-copies")]
     [InlineData(SettingsSection.Providers, "providers", "/settings/metadata/providers")]
@@ -164,12 +164,8 @@ public sealed class SettingsNavTests
             .Select(item => item.Label)
             .ToArray();
 
-        // Local AI keeps today's content (Runtime, Vocabulary, Automation) until the Developer tools spec rebuilds it.
-        Assert.Equal([
-            "Runtime",
-            "Vocabulary",
-            "Automation",
-        ], labels);
+        // Which AI features run is decided on the Plugins page, so Local AI keeps only its Runtime page.
+        Assert.Equal(["Runtime"], labels);
         Assert.Equal("models", SettingsNav.GetDefaultSubsection(SettingsSection.LocalAi).Slug);
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.LocalAi, "unknown"));
     }
@@ -359,7 +355,7 @@ public sealed class SettingsNavTests
         Assert.Equal(["Hardware Acceleration", "Optimized Copies", "Diagnostics"], ChildLabels(groups, "Streaming"));
         Assert.Equal(["Sign-in Methods"], ChildLabels(groups, "Users and Sign-in"));
         Assert.Equal(["Tools and requirements", "Logs", "Backup and recovery"], ChildLabels(groups, "System"));
-        Assert.Equal(["Runtime", "Vocabulary", "Automation"], ChildLabels(groups, "Local AI"));
+        Assert.Equal(["Runtime"], ChildLabels(groups, "Local AI"));
         Assert.Empty(ChildLabels(groups, "Plugins"));
         Assert.Equal(["Enrichment Tester", "Development data"], ChildLabels(groups, "Developer Tools"));
         Assert.Empty(ChildLabels(groups, "Integrations"));
@@ -503,8 +499,7 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.Access, "users")]
     [InlineData(SettingsSection.Access, "applications")]
     [InlineData(SettingsSection.Access, "authentication")]
-    [InlineData(SettingsSection.LocalAi, "vocabulary")]
-    [InlineData(SettingsSection.LocalAi, "automation")]
+    [InlineData(SettingsSection.LocalAi, "models")]
     [InlineData(SettingsSection.Delivery, "hardware")]
     [InlineData(SettingsSection.Delivery, "optimized-copies")]
     [InlineData(SettingsSection.Delivery, "diagnostics")]

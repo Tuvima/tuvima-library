@@ -17,14 +17,13 @@ using MediaEngine.Storage.Contracts;
 namespace MediaEngine.Api.Services;
 
 /// <summary>
-/// Background service that runs Description Intelligence (LLM-powered structured
+/// One pass of the Description insights plugin, which runs Description Intelligence (LLM-powered structured
 /// analysis of descriptions) for entities that have a description or plot summary
 /// but have not yet been enriched with themes, mood, and other vocabulary.
 ///
-/// Runs on a configurable cron schedule (default: every 15 minutes).
-/// Initial delay of 3 minutes to let ingestion and hydration settle first.
+/// The plugin scheduler decides when it runs (default: every 15 minutes).
 /// </summary>
-public sealed class DescriptionIntelligenceBatchService : BackgroundService
+public sealed class DescriptionIntelligenceRunner
 {
     private const string FeatureKey = "description_intelligence";
     private const string PromptVersion = "description-intelligence-v1";
@@ -32,7 +31,6 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
     private readonly IConfigurationLoader _configLoader;
     private readonly ResourceMonitorService _resourceMonitor;
     private readonly AiFeatureGate _featureGate;
-    private readonly AiConfigurationService _configurationStore;
     private readonly ICanonicalValueRepository _canonicals;
     private readonly IAiFeaturePersistenceRepository _featurePersistence;
     private readonly IWorkRepository _works;
@@ -45,15 +43,13 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
     private readonly IReadOnlyList<IExternalMetadataProvider> _providers;
     private readonly IRecursiveIdentityService _identityService;
     private readonly IMetadataHarvestingService _harvesting;
-    private readonly ScheduledTaskRunner _runner;
-    private readonly ILogger<DescriptionIntelligenceBatchService> _logger;
+    private readonly ILogger<DescriptionIntelligenceRunner> _logger;
 
-    public DescriptionIntelligenceBatchService(
+    public DescriptionIntelligenceRunner(
         AiSettings settings,
         IConfigurationLoader configLoader,
         ResourceMonitorService resourceMonitor,
         AiFeatureGate featureGate,
-        AiConfigurationService configurationStore,
         ICanonicalValueRepository canonicals,
         IAiFeaturePersistenceRepository featurePersistence,
         IWorkRepository works,
@@ -66,15 +62,12 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         IEnumerable<IExternalMetadataProvider> providers,
         IRecursiveIdentityService identityService,
         IMetadataHarvestingService harvesting,
-        ScheduledTaskRunner runner,
-        ILogger<DescriptionIntelligenceBatchService> logger)
+        ILogger<DescriptionIntelligenceRunner> logger)
     {
-        ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(configLoader);
         ArgumentNullException.ThrowIfNull(resourceMonitor);
         ArgumentNullException.ThrowIfNull(featureGate);
-        ArgumentNullException.ThrowIfNull(configurationStore);
         ArgumentNullException.ThrowIfNull(canonicals);
         ArgumentNullException.ThrowIfNull(featurePersistence);
         ArgumentNullException.ThrowIfNull(works);
@@ -93,7 +86,6 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         _configLoader = configLoader;
         _resourceMonitor = resourceMonitor;
         _featureGate = featureGate;
-        _configurationStore = configurationStore;
         _canonicals = canonicals;
         _featurePersistence = featurePersistence;
         _works = works;
@@ -106,50 +98,10 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         _providers = providers.ToList();
         _identityService = identityService;
         _harvesting = harvesting;
-        _runner = runner;
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        // Initial delay — let ingestion and hydration pipelines settle.
-        try
-        {
-            await Task.Delay(TimeSpan.FromMinutes(3), stoppingToken);
-        }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-        {
-            return;
-        }
-
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await _runner.RunAsync(ScheduledTaskKeys.DescriptionInsights, ProcessBatchAsync, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[DESCRIPTION-INTEL-BATCH] Batch run failed");
-            }
-
-            var cron = _settings.Scheduling.DescriptionIntelligenceCron;
-            var nextRun = CronScheduler.NextRunAt(cron, TimeSpan.FromMinutes(15));
-
-            _logger.LogInformation("[DESCRIPTION-INTEL-BATCH] Next run at {NextRun}", nextRun.ToLocalTime());
-            try
-            {
-                await _configurationStore.WaitUntilOrChangeAsync(nextRun, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-        }
-    }
-
-    private async Task<TaskRunResult> ProcessBatchAsync(CancellationToken ct)
+    public async Task<TaskRunResult> ProcessBatchAsync(CancellationToken ct)
     {
         if (!_featureGate.CanExecute(AiFeature.DescriptionIntelligence, MediaEngine.Domain.Enums.AiModelRole.TextScholar))
         {

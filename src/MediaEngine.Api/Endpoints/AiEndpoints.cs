@@ -197,11 +197,10 @@ internal static class AiEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.AiManage);
 
         // ── PUT /ai/config ───────────────────────────────────────────────────
-        group.MapPut("/config", SaveAiConfigAsync)
+        group.MapPut("/config", SaveAiConfig)
         .WithName("SaveAiConfig")
-        .WithSummary("Saves updated AI configuration to config/ai.json. A feature switched from off to on needs its approval hash in 'approvals' (409 approval_required otherwise, nothing saved).")
+        .WithSummary("Saves updated AI configuration to config/ai.json.")
         .Produces<AiSettingsSavedResponse>(StatusCodes.Status200OK)
-        .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.AiManage);
 
         // ── GET /ai/profile ──────────────────────────────────────────────────
@@ -285,87 +284,17 @@ internal static class AiEndpoints
         return group;
     }
 
-    /// <summary>The saved configuration, with the Engine's plain words for what each feature may do.</summary>
-    internal static IResult GetAiConfig(AiConfigurationService configurationStore)
-    {
-        var config = AiContractMapper.ToContract(configurationStore.Current);
-        foreach (var feature in config.Features.Keys)
-        {
-            config.FeatureInfo[feature] = new AiFeatureInfoDto
-            {
-                AllowedTo = ApprovalStatementBuilder.AiFeatureAllowedTo(feature).ToList(),
-                SendsDataTo = ApprovalStatementBuilder.AiFeatureSendsDataTo(feature),
-            };
-        }
-
-        return Results.Ok(config);
-    }
+    /// <summary>The saved Local AI settings. Which AI features run is decided by their plugins, not here.</summary>
+    internal static IResult GetAiConfig(AiConfigurationService configurationStore) =>
+        Results.Ok(AiContractMapper.ToContract(configurationStore.Current));
 
     /// <summary>
-    /// Saves the AI configuration. The approval rule: a feature switched from off to on needs its current statement
-    /// confirmed (the hash in <see cref="AiConfigDto.Approvals"/>) or already recorded. Every such feature is listed in one
-    /// 409 and nothing is saved until all of them are covered; confirmed approvals are recorded before the save.
+    /// Saves the Local AI settings. Turning an AI feature on or off is done on its plugin, which has its own approval, so
+    /// nothing here needs one.
     /// </summary>
-    internal static async Task<IResult> SaveAiConfigAsync(
-        AiConfigDto request,
-        HttpContext http,
-        AiConfigurationService configurationStore,
-        IModelDownloadManager downloads,
-        [FromServices] ApprovalService approvals,
-        [FromServices] IRequestAuthorityResolver authorityResolver,
-        CancellationToken ct)
+    internal static IResult SaveAiConfig(AiConfigDto request, AiConfigurationService configurationStore)
     {
-        // The same feature written in two letter cases is ambiguous (which one wins depends on the order), so it is refused.
-        if (request.Features.Keys.GroupBy(key => key, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1))
-        {
-            return ApiErrors.BadRequest("A feature appears more than once with different letter case.");
-        }
-
-        // "Switched on" is judged on the canonical feature keys, using the same reading (case-insensitive) that the save
-        // itself applies, so changing the letter case of a key cannot switch a feature on without its approval.
-        var settings = AiContractMapper.ToSettings(request);
-        var wasOn = AiContractMapper.ToContract(configurationStore.Current).Features;
-        var willBeOn = AiContractMapper.ToContract(settings).Features;
-        var confirmed = new List<ApprovalPreviewResponse>();
-        var missing = new List<ApprovalPreviewResponse>();
-        var switchedOn = wasOn.Keys
-            .Where(key => willBeOn.TryGetValue(key, out var after) && after && !wasOn[key])
-            .Order(StringComparer.Ordinal);
-        foreach (var feature in switchedOn)
-        {
-            var preview = approvals.PreviewAiFeature(feature, ApprovalService.IsFeatureModelReady(downloads));
-            if (await approvals.IsCoveredAsync(ApprovalKinds.AiFeature, feature, preview.StatementHash, ct).ConfigureAwait(false))
-            {
-                continue;
-            }
-
-            if (request.Approvals?.Any(pair => string.Equals(pair.Key, feature, StringComparison.OrdinalIgnoreCase)
-                    && ApprovalService.HashMatches(pair.Value, preview.StatementHash)) == true)
-            {
-                confirmed.Add(preview);
-            }
-            else
-            {
-                missing.Add(preview);
-            }
-        }
-
-        if (missing.Count > 0)
-        {
-            return ApiErrors.ApprovalRequired(missing);
-        }
-
-        if (confirmed.Count > 0)
-        {
-            var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
-            var actor = await approvals.ResolveActorAsync(authority, ct).ConfigureAwait(false);
-            foreach (var preview in confirmed)
-            {
-                await approvals.RecordAsync(preview, ApprovalKinds.AiFeature, preview.ItemId, actor, ct).ConfigureAwait(false);
-            }
-        }
-
-        var errors = configurationStore.Save(settings);
+        var errors = configurationStore.Save(AiContractMapper.ToSettings(request));
         if (errors.Count > 0)
         {
             return Results.ValidationProblem(errors

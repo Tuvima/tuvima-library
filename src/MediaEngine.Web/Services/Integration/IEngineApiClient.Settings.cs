@@ -359,12 +359,6 @@ public partial interface IEngineApiClient
     /// <summary>PUT /ai/config — saves persisted AI configuration.</summary>
     Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default);
 
-    /// <summary>
-    /// PUT /ai/config, keeping the Engine's approval-required answer: when a feature was switched on that the person has not
-    /// seen yet nothing is saved and <see cref="AiConfigSaveResult.Approval"/> lists what to show.
-    /// </summary>
-    Task<AiConfigSaveResult> SaveAiConfigWithApprovalAsync(AiConfigDto config, CancellationToken ct = default);
-
     // ── AI Hardware Profile (/ai/profile, /ai/benchmark) ────────────────────
 
     /// <summary>GET /ai/profile — returns the cached hardware profile and performance tier.</summary>

@@ -15,7 +15,7 @@ namespace MediaEngine.Api.Services;
 /// Model confidence is preserved through the typed inference result and used
 /// directly by the publication/review thresholds.
 /// </summary>
-public sealed class SeriesAlignmentBackgroundService : BackgroundService
+public sealed class SeriesAlignmentRunner
 {
     private const string FeatureKey = "series_alignment";
     private const string ModelId = "text_quality";
@@ -23,29 +23,23 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
 
     private readonly AiSettings _settings;
     private readonly AiFeatureGate _featureGate;
-    private readonly AiConfigurationService _configurationStore;
     private readonly ISeriesAligner _aligner;
     private readonly ICanonicalValueRepository _canonicals;
     private readonly IAiFeaturePersistenceRepository _featurePersistence;
     private readonly ILibraryItemRepository _libraryItems;
-    private readonly ScheduledTaskRunner _runner;
-    private readonly ILogger<SeriesAlignmentBackgroundService> _logger;
+    private readonly ILogger<SeriesAlignmentRunner> _logger;
 
-    public SeriesAlignmentBackgroundService(
+    public SeriesAlignmentRunner(
         AiSettings settings,
         AiFeatureGate featureGate,
-        AiConfigurationService configurationStore,
         ISeriesAligner aligner,
         ICanonicalValueRepository canonicals,
         IAiFeaturePersistenceRepository featurePersistence,
         ILibraryItemRepository libraryItems,
-        ScheduledTaskRunner runner,
-        ILogger<SeriesAlignmentBackgroundService> logger)
+        ILogger<SeriesAlignmentRunner> logger)
     {
-        ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(featureGate);
-        ArgumentNullException.ThrowIfNull(configurationStore);
         ArgumentNullException.ThrowIfNull(aligner);
         ArgumentNullException.ThrowIfNull(canonicals);
         ArgumentNullException.ThrowIfNull(featurePersistence);
@@ -54,57 +48,14 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
 
         _settings = settings;
         _featureGate = featureGate;
-        _configurationStore = configurationStore;
         _aligner = aligner;
         _canonicals = canonicals;
         _featurePersistence = featurePersistence;
         _libraryItems = libraryItems;
-        _runner = runner;
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        try
-        {
-            await Task.Delay(TimeSpan.FromMinutes(3), stoppingToken);
-        }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-        {
-            return;
-        }
-
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await _runner.RunAsync(ScheduledTaskKeys.SeriesOrder, RunAlignmentAsync, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "SeriesAlignmentService batch failed");
-            }
-
-            var cron = _settings.Scheduling.SeriesCheckCron;
-            var nextRun = CronScheduler.NextRunAt(cron, TimeSpan.FromHours(24));
-            _logger.LogInformation("SeriesAlignmentService: next run at {NextRun}", nextRun.ToLocalTime());
-
-            try
-            {
-                await _configurationStore.WaitUntilOrChangeAsync(nextRun, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-        }
-    }
-
-    private async Task<TaskRunResult> RunAlignmentAsync(CancellationToken ct)
+    public async Task<TaskRunResult> RunAlignmentAsync(CancellationToken ct)
     {
         if (!_featureGate.CanExecute(AiFeature.SeriesAlignment, MediaEngine.Domain.Enums.AiModelRole.TextQuality))
         {

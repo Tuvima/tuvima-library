@@ -6,9 +6,7 @@
   "required": [
     "models_directory",
     "resource_profile",
-    "audio_pack_enabled",
-    "features",
-    "scheduling"
+    "audio_pack_enabled"
   ],
   "properties": {
     "dev_skip_download": { "type": "boolean" },
@@ -26,47 +24,9 @@
     "plugin_budget_overrides": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/pluginBudgetOverride" }
-    },
-    "features": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [ "smart_labeling", "type_logic", "series_alignment", "vibe_tags", "tldr", "description_intelligence" ],
-      "properties": {
-        "smart_labeling": { "type": "boolean" },
-        "type_logic": { "type": "boolean" },
-        "series_alignment": { "type": "boolean" },
-        "vibe_tags": { "type": "boolean" },
-        "tldr": { "type": "boolean" },
-        "description_intelligence": { "type": "boolean" }
-      }
-    },
-    "scheduling": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [ "vibe_batch_cron", "series_check_cron", "description_intelligence_cron" ],
-      "properties": {
-        "vibe_batch_cron": { "type": "string", "minLength": 1 },
-        "series_check_cron": { "type": "string", "minLength": 1 },
-        "description_intelligence_cron": { "type": "string", "minLength": 1 }
-      }
-    },
-    "vibe_vocabulary": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "books": { "$ref": "#/$defs/vocabulary" },
-        "movies_tv": { "$ref": "#/$defs/vocabulary" },
-        "music": { "$ref": "#/$defs/vocabulary" },
-        "comics": { "$ref": "#/$defs/vocabulary" }
-      }
     }
   },
   "$defs": {
-    "vocabulary": {
-      "type": "array",
-      "items": { "type": "string", "minLength": 1 },
-      "uniqueItems": true
-    },
     "pluginBudget": {
       "type": "object",
       "additionalProperties": false,

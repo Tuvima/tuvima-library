@@ -8,25 +8,6 @@
   "reserved_cpu_cores": 2,
   "background_quiet_seconds": 10,
   "minimum_free_disk_mb": 2048,
-  "features": {
-    "smart_labeling": false,
-    "type_logic": false,
-    "series_alignment": false,
-    "vibe_tags": false,
-    "tldr": false,
-    "description_intelligence": false
-  },
-  "vibe_vocabulary": {
-    "books": [ "page-turner", "slow-burn", "meditative", "dark", "uplifting", "haunting", "heartwarming", "atmospheric", "cozy", "gritty", "lyrical", "philosophical", "whimsical", "witty", "epic", "intimate", "cerebral" ],
-    "movies_tv": [ "slow-paced", "action-packed", "meditative", "dark", "uplifting", "haunting", "heartwarming", "tense", "nostalgic", "atmospheric", "gritty", "dreamlike", "visually-stunning", "humorous", "quirky", "epic", "intimate" ],
-    "music": [ "driving", "mellow", "energetic", "hypnotic", "dark", "uplifting", "melancholic", "nostalgic", "haunting", "ambient", "lush", "ethereal", "warm", "playful", "soulful", "groovy", "dreamy", "intimate" ],
-    "comics": [ "action-packed", "meditative", "dark", "uplifting", "haunting", "nostalgic", "atmospheric", "gritty", "noir", "surreal", "colorful", "whimsical", "humorous", "epic", "intimate" ]
-  },
-  "scheduling": {
-    "vibe_batch_cron": "0 4 * * *",
-    "series_check_cron": "0 3 * * *",
-    "description_intelligence_cron": "*/15 * * * *"
-  },
   "enrichment_batch_size": 10,
   "plugin_budget": {
     "requests_per_hour": 120,

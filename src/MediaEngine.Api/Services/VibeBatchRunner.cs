@@ -11,42 +11,35 @@ using MediaEngine.Storage.Contracts;
 namespace MediaEngine.Api.Services;
 
 /// <summary>
-/// Background service that generates vibe/mood tags for entities
-/// using Wikipedia summaries and per-category controlled vocabulary.
-/// Runs on a configurable cron schedule (default: 4 AM daily).
+/// One pass of the Vibe tags plugin: generates vibe/mood tags for entities using their descriptions and the
+/// per-category controlled vocabulary. The plugin scheduler decides when it runs (default: 4 AM daily).
 /// </summary>
-public sealed class VibeBatchService : BackgroundService
+public sealed class VibeBatchRunner
 {
     private const string FeatureKey = "vibe";
     private const string ModelId = "text_quality";
     private const string PromptVersion = "vibe-v1";
     private readonly AiSettings _settings;
     private readonly AiFeatureGate _featureGate;
-    private readonly AiConfigurationService _configurationStore;
     private readonly IVibeTagger _tagger;
     private readonly ICanonicalValueRepository _canonicals;
     private readonly ICanonicalValueArrayRepository _canonicalArrays;
     private readonly IAiFeaturePersistenceRepository _featurePersistence;
     private readonly ILibraryItemRepository _libraryItems;
-    private readonly ScheduledTaskRunner _runner;
-    private readonly ILogger<VibeBatchService> _logger;
+    private readonly ILogger<VibeBatchRunner> _logger;
 
-    public VibeBatchService(
+    public VibeBatchRunner(
         AiSettings settings,
         AiFeatureGate featureGate,
-        AiConfigurationService configurationStore,
         IVibeTagger tagger,
         ICanonicalValueRepository canonicals,
         ICanonicalValueArrayRepository canonicalArrays,
         IAiFeaturePersistenceRepository featurePersistence,
         ILibraryItemRepository libraryItems,
-        ScheduledTaskRunner runner,
-        ILogger<VibeBatchService> logger)
+        ILogger<VibeBatchRunner> logger)
     {
-        ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(featureGate);
-        ArgumentNullException.ThrowIfNull(configurationStore);
         ArgumentNullException.ThrowIfNull(tagger);
         ArgumentNullException.ThrowIfNull(canonicals);
         ArgumentNullException.ThrowIfNull(canonicalArrays);
@@ -56,57 +49,23 @@ public sealed class VibeBatchService : BackgroundService
 
         _settings = settings;
         _featureGate = featureGate;
-        _configurationStore = configurationStore;
         _tagger = tagger;
         _canonicals = canonicals;
         _canonicalArrays = canonicalArrays;
         _featurePersistence = featurePersistence;
         _libraryItems = libraryItems;
-        _runner = runner;
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        // Initial delay — let the Engine fully start.
-        try
-        {
-            await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken);
-        }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-        {
-            return;
-        }
-
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await _runner.RunAsync(ScheduledTaskKeys.VibeTags, RunBatchAsync, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "VibeBatchService batch failed");
-            }
-
-            var cron = _settings.Scheduling.VibeBatchCron;
-            var nextRun = CronScheduler.NextRunAt(cron, TimeSpan.FromHours(24));
-
-            _logger.LogInformation("VibeBatchService: next run at {NextRun}", nextRun.ToLocalTime());
-            await _configurationStore.WaitUntilOrChangeAsync(nextRun, stoppingToken);
-        }
-    }
-
-    private async Task<TaskRunResult> RunBatchAsync(CancellationToken ct)
+    public async Task<TaskRunResult> RunBatchAsync(CancellationToken ct)
     {
         if (!_featureGate.CanExecute(AiFeature.VibeTags, MediaEngine.Domain.Enums.AiModelRole.TextQuality))
         {
-            _logger.LogDebug("VibeBatchService: feature disabled or selected model unavailable — skipping before scan");
+            _logger.LogDebug("VibeBatchRunner: feature disabled or selected model unavailable — skipping before scan");
             return TaskRunResult.Skipped("Vibe tags is off");
         }
 
-        _logger.LogInformation("VibeBatchService: scanning for entities needing vibe tags");
+        _logger.LogInformation("VibeBatchRunner: scanning for entities needing vibe tags");
 
         // Page through the libraryItem to find entities (up to 200 candidates per batch).
         // We load a larger set then filter in-memory for those missing vibe tags.
@@ -190,7 +149,7 @@ public sealed class VibeBatchService : BackgroundService
                     tagged++;
 
                     _logger.LogDebug(
-                        "VibeBatchService: tagged entity {EntityId} with {Count} vibe tag(s)",
+                        "VibeBatchRunner: tagged entity {EntityId} with {Count} vibe tag(s)",
                         item.EntityId, tags.Count);
                 }
             }
@@ -200,7 +159,7 @@ public sealed class VibeBatchService : BackgroundService
             }
             catch (AiRequestPreemptedException)
             {
-                _logger.LogInformation("VibeBatchService: yielding to interactive traffic");
+                _logger.LogInformation("VibeBatchRunner: yielding to interactive traffic");
                 return TaskRunResult.Skipped("Paused to make way for something you were doing");
             }
             catch (AiRequestDeferredException)
@@ -221,15 +180,15 @@ public sealed class VibeBatchService : BackgroundService
                         ex.Message,
                         Category: BackgroundJobOutcomeClassifier.Classify(ex, ct)),
                     ct);
-                _logger.LogWarning(ex, "VibeBatchService: failed to tag entity {Id}", item.EntityId);
+                _logger.LogWarning(ex, "VibeBatchRunner: failed to tag entity {Id}", item.EntityId);
                 if (failure.Status == AiFeatureStatus.Poisoned)
                 {
-                    _logger.LogError("VibeBatchService: quarantined poison entity {Id} after {Attempts} attempts", item.EntityId, failure.Attempts);
+                    _logger.LogError("VibeBatchRunner: quarantined poison entity {Id} after {Attempts} attempts", item.EntityId, failure.Attempts);
                 }
             }
         }
 
-        _logger.LogInformation("VibeBatchService: tagged {Count} entities", tagged);
+        _logger.LogInformation("VibeBatchRunner: tagged {Count} entities", tagged);
         return TaskRunResult.Succeeded(tagged);
     }
 }

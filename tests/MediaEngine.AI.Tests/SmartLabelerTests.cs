@@ -1,6 +1,7 @@
 using MediaEngine.AI.Configuration;
 using MediaEngine.AI.EngineRoom;
 using MediaEngine.AI.Features;
+using MediaEngine.AI.Infrastructure;
 using MediaEngine.Domain.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -18,7 +19,7 @@ public sealed class SmartLabelerTests
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private static SmartLabeler Build(StubAiEngineRoom stub) =>
-        new(stub, new AiSettings { Features = new AiFeatureFlags { SmartLabeling = true } }, NullLogger<SmartLabeler>.Instance);
+        new(stub, new FakeAiFeatureSwitches(AiFeature.SmartLabeling), NullLogger<SmartLabeler>.Instance);
 
     // ── Goes through the engine room ──────────────────────────────────────────
 

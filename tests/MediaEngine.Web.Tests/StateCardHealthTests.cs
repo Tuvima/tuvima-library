@@ -194,49 +194,6 @@ public sealed class StateCardHealthTests
     // ── Local AI features and engine ─────────────────────────────────────────
 
     [Fact]
-    public void AiFeature_FlagOff_IsOff_EvenWhileLocalAiIsBlocked()
-    {
-        Assert.Equal(HealthWord.Off, StateCardHealth.ForAiFeature(enabled: false, localAiBlocked: true, "Local AI engine is missing", modelReady: false).Word);
-    }
-
-    [Fact]
-    public void AiFeature_FlagOnWhileLocalAiIsBlocked_IsBroken_WithTheFirstBlocker()
-    {
-        var result = StateCardHealth.ForAiFeature(enabled: true, localAiBlocked: true, "Local AI engine is missing", modelReady: true);
-
-        Assert.Equal(HealthWord.Broken, result.Word);
-        Assert.Equal("Local AI engine is missing", result.LastProblem);
-    }
-
-    [Fact]
-    public void AiFeature_FlagOnWithItsModelNotReady_NeedsAttention_WithModelNotReady()
-    {
-        var result = StateCardHealth.ForAiFeature(enabled: true, localAiBlocked: false, null, modelReady: false);
-
-        Assert.Equal(HealthWord.NeedsAttention, result.Word);
-        Assert.Equal("Model not ready", result.LastProblem);
-    }
-
-    [Fact]
-    public void AiFeature_FlagOnWithEverythingReady_IsWorking()
-    {
-        Assert.Equal(HealthWord.Working, StateCardHealth.ForAiFeature(enabled: true, localAiBlocked: false, null, modelReady: true).Word);
-    }
-
-    [Theory]
-    [InlineData("Ready", false, true)]
-    [InlineData("Loaded", false, true)]
-    [InlineData("Downloading", false, false)]
-    [InlineData("NotDownloaded", false, false)]
-    [InlineData("Error", false, false)]
-    [InlineData("NotDownloaded", true, true)]
-    public void IsModelReady_IsTrueForReadyOrLoadedModelsOnly(string state, bool loaded, bool expected)
-    {
-        Assert.Equal(expected, StateCardHealth.IsModelReady(new AiModelStatusDto { State = state, Loaded = loaded }));
-        Assert.False(StateCardHealth.IsModelReady(null));
-    }
-
-    [Fact]
     public void LocalAiEngine_Blocked_IsBroken()
     {
         var result = StateCardHealth.ForLocalAiEngine(localAiBlocked: true, "Local AI text model is missing", new AiModelStatusDto { State = "Ready" });
