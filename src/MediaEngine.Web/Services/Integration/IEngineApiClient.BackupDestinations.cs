@@ -14,6 +14,12 @@ public partial interface IEngineApiClient
     /// <summary>POST /backup/passphrase: sets or changes the backup passphrase. Null when it was refused.</summary>
     Task<BackupSettingsResponse?> SetBackupPassphraseAsync(SetBackupPassphraseRequest request, CancellationToken ct = default);
 
+    /// <summary>POST /backup/destinations: adds (or, with an id, changes) a destination. Null when it was refused.</summary>
+    Task<BackupSettingsResponse?> SaveBackupDestinationAsync(SaveBackupDestinationRequest request, CancellationToken ct = default);
+
+    /// <summary>DELETE /backup/destinations/{id}: stops using a destination that was added. False when it could not be removed.</summary>
+    Task<bool> RemoveBackupDestinationAsync(string destinationId, CancellationToken ct = default);
+
     /// <summary>POST /backup/run: backs up now and copies to every switched-on destination.</summary>
     Task<BackupRunResponse?> RunBackupNowAsync(CancellationToken ct = default);
 
