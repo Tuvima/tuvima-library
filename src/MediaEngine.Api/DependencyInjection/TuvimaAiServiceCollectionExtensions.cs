@@ -4,6 +4,7 @@ using MediaEngine.AI.Infrastructure;
 using MediaEngine.AI.Whisper;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.LocalAi;
+using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Domain.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -42,6 +43,14 @@ public static class TuvimaAiServiceCollectionExtensions
         services.AddSingleton<ModelInventory>();
         services.AddSingleton<AiModelSelectionAdvisor>();
         services.AddSingleton<AiFeatureGate>();
+
+        // The Local AI features are Official plugins: a feature is on exactly when its plugin is on, and the plugin
+        // scheduler runs the scheduled passes (see AddTuvimaPlugins).
+        services.AddSingleton<IAiFeatureSwitches, PluginAiFeatureSwitches>();
+        services.AddSingleton<IVibeVocabularySource, PluginVibeVocabularySource>();
+        services.AddSingleton<VibeBatchRunner>();
+        services.AddSingleton<SeriesAlignmentRunner>();
+        services.AddSingleton<DescriptionIntelligenceRunner>();
         services.AddSingleton(benchmarkStore);
         services.AddSingleton<IModelDownloadManager, ModelDownloadManager>();
         services.AddSingleton<IAiRuntimeStatus, AiRuntimeStatus>();

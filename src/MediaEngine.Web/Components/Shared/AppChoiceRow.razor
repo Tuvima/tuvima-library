@@ -1,0 +1,33 @@
+@namespace MediaEngine.Web.Components.Shared
+@* One choice in a list of single choices (a radio-style row): a title, an optional second line, and a selected state.
+   The row is its own button, so its styling is owned by this component and needs no deep rules from the page using it. *@
+<button type="button"
+        class="@RootClass"
+        disabled="@Disabled"
+        aria-pressed="@PressedText"
+        @onclick="OnClick">
+    <span class="app-choice-row__copy">
+        <strong>@Title</strong>
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <span>@Description</span>
+        }
+    </span>
+    <AppMaterialIcon Icon="@(Selected ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)"
+                     Class="app-choice-row__radio" />
+</button>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public bool Selected { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    // Screen readers need the text "true" or "false" on a toggle button.
+    private string PressedText => Selected ? "true" : "false";
+
+    private string RootClass => string.Join(" ", new[] { "app-choice-row", Selected ? "is-selected" : null, Class }
+        .Where(value => !string.IsNullOrWhiteSpace(value)));
+}

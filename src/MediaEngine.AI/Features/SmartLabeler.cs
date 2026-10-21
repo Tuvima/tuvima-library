@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
-using MediaEngine.AI.Configuration;
 using MediaEngine.AI.EngineRoom;
+using MediaEngine.AI.Infrastructure;
 using MediaEngine.AI.Llama;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
@@ -19,16 +19,16 @@ public sealed class SmartLabeler : ISmartLabeler
     private static readonly AiCaller Caller = AiCaller.Ingestion(AiCallerIds.SmartLabeling);
 
     private readonly IAiEngineRoom _engineRoom;
-    private readonly AiSettings _settings;
+    private readonly IAiFeatureSwitches _switches;
     private readonly ILogger<SmartLabeler> _logger;
 
     public SmartLabeler(
         IAiEngineRoom engineRoom,
-        AiSettings settings,
+        IAiFeatureSwitches switches,
         ILogger<SmartLabeler> logger)
     {
         _engineRoom = engineRoom;
-        _settings = settings;
+        _switches = switches;
         _logger = logger;
     }
 
@@ -42,7 +42,7 @@ public sealed class SmartLabeler : ISmartLabeler
         // Short-circuit when the feature is disabled — use regex-based extraction
         // for season/episode patterns so the ingestion pipeline still gets structured
         // TV metadata without invoking the LLM.
-        if (!_settings.Features.SmartLabeling)
+        if (!_switches.IsOn(AiFeature.SmartLabeling))
         {
             var fallbackStem = Path.GetFileNameWithoutExtension(rawFilename);
             var cleaned = fallbackStem.Replace('.', ' ').Replace('_', ' ').Trim();

@@ -124,16 +124,16 @@ public sealed class ScheduledTaskListEndpointTests : IDisposable
         Directory.CreateDirectory(_configDirectory);
         using var loader = new ConfigurationDirectoryLoader(_configDirectory);
         loader.SaveMaintenance(new MaintenanceSettings());
-        ScheduledTaskCatalog.RegisterAll(registry, loader, new AiSettings(), webhooks);
+        ScheduledTaskCatalog.RegisterAll(registry, loader, webhooks);
 
         var list = await ScheduledTaskListBuilder.BuildAsync(registry, _runs, DateTimeOffset.Now, default);
 
         Assert.Equal(
             [
-                "activity_pruning", "adaptive_streaming_cleanup", "description_insights", "enrichment_refresh_schedule",
+                "activity_pruning", "adaptive_streaming_cleanup", "enrichment_refresh_schedule",
                 "folder_health_check", "library_reconciliation", "log_file_retention", "missing_universe_sweep",
                 "pass2_nightly_sweep", "playback_session_cleanup", "plugin_segment_detection", "provider_health_checks",
-                "rejected_file_cleanup", "retag_sweep", "series_order", "storage_maintenance", "universe_enrichment", "vibe_tags",
+                "rejected_file_cleanup", "retag_sweep", "storage_maintenance", "universe_enrichment",
                 "webhook_delivery",
             ],
             list.Tasks.Select(task => task.Key).Order(StringComparer.Ordinal));
@@ -151,10 +151,6 @@ public sealed class ScheduledTaskListEndpointTests : IDisposable
         Assert.Equal("Plugin", segments.Owner);
         Assert.Equal("0 2 * * *", segments.Schedule);
         Assert.NotNull(segments.NextRunAt);
-
-        var vibe = Assert.Single(list.Tasks, task => task.Key == "vibe_tags");
-        Assert.Equal(new AiSettings().Scheduling.VibeBatchCron, vibe.Schedule);
-        Assert.Equal("Local AI", vibe.Owner);
     }
 
     [Fact]
@@ -164,7 +160,7 @@ public sealed class ScheduledTaskListEndpointTests : IDisposable
         Directory.CreateDirectory(_configDirectory);
         using var loader = new ConfigurationDirectoryLoader(_configDirectory);
         loader.SaveMaintenance(new MaintenanceSettings());
-        ScheduledTaskCatalog.RegisterAll(registry, loader, new AiSettings(), new ApplicationWebhookRepository(_database));
+        ScheduledTaskCatalog.RegisterAll(registry, loader, new ApplicationWebhookRepository(_database));
 
         var list = await ScheduledTaskListBuilder.BuildAsync(registry, _runs, DateTimeOffset.Now, default);
 

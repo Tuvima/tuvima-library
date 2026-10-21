@@ -1,5 +1,5 @@
-using MediaEngine.AI.Configuration;
 using MediaEngine.AI.EngineRoom;
+using MediaEngine.AI.Infrastructure;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using Microsoft.Extensions.Logging;
@@ -11,13 +11,13 @@ public sealed class VibeTagger : IVibeTagger
     private static readonly AiCaller Caller = AiCaller.LibraryBackground(AiCallerIds.VibeTags);
 
     private readonly IAiEngineRoom _engineRoom;
-    private readonly AiSettings _settings;
+    private readonly IVibeVocabularySource _vocabulary;
     private readonly ILogger<VibeTagger> _logger;
 
-    public VibeTagger(IAiEngineRoom engineRoom, AiSettings settings, ILogger<VibeTagger> logger)
+    public VibeTagger(IAiEngineRoom engineRoom, IVibeVocabularySource vocabulary, ILogger<VibeTagger> logger)
     {
         _engineRoom = engineRoom;
-        _settings = settings;
+        _vocabulary = vocabulary;
         _logger = logger;
     }
 
@@ -32,7 +32,7 @@ public sealed class VibeTagger : IVibeTagger
         // The English vibe vocabulary still works — Llama 3.x extracts mood/atmosphere
         // across Latin-script languages. CJK input has reduced accuracy.
 
-        var vocabulary = _settings.VibeVocabulary.GetForCategory(mediaCategory);
+        var vocabulary = _vocabulary.Current.GetForCategory(mediaCategory);
         if (vocabulary.Count == 0 || string.IsNullOrWhiteSpace(wikipediaSummary))
         {
             return [];

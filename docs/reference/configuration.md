@@ -79,7 +79,7 @@ Core Engine settings. Most changes are read at startup. Ingestion sources and de
 
 ## config/ai.json
 
-AI/ML subsystem configuration. Controls model selection, feature toggles, vibe vocabulary, and enrichment scheduling.
+AI/ML subsystem configuration. Controls model selection, the resource profile and the audio pack.
 
 ### models
 
@@ -104,44 +104,17 @@ The catalog lists current, baseline, candidate, experimental, and escalation mod
 
 Role requirements define the promotion gates for each role. Tuvima selects the smallest candidate that passes the role's latency, JSON validity, task accuracy, hallucination, WER, and timestamp drift requirements.
 
-### features
+### AI features are plugins
 
-Boolean toggles. All default to `true` unless noted.
+Which Local AI features run is no longer set in `config/ai.json`. Smart labelling, Type helper, Series order, Vibe tags and Description insights are Official plugins, each off until an administrator turns it on (and approves what it uses) on **Settings > Plugins**. Their schedules and the words Vibe tags may use are plugin settings, saved under `.data/plugin-config/{plugin id}.json` in the library root:
 
-| Field | Default | Description |
+| Plugin | Id | Default schedule |
 |---|---|---|
-| `smart_labeler` | `true` | AI-assisted file labeling during ingestion. Improves title/author extraction from filenames. |
-| `media_type_advisor` | `true` | AI classification for ambiguous formats (MP3, MP4). |
-| `qid_disambiguator` | `true` | AI-assisted candidate ranking during Wikidata reconciliation. |
-| `vibe_tagger` | `true` | Generates vibe tags per work during batch enrichment. |
-| `tldr_generator` | `true` | Generates TL;DR summaries from descriptions. |
-| `description_intelligence` | `true` | Two-pass LLM analysis of descriptions: vocabulary extraction + person name extraction. Runs as background batch service (15-min cron). |
-| `intent_search` | `true` | Natural-language search query parsing. Translates user queries to structured field filters. |
-| `batch_manifest` | `true` | AI-assisted batch ingestion manifest building for folder drops. |
-| `cover_art_hash` | `true` | Perceptual hashing (pHash) of cover art for visual matching during retail identification. |
-| `audio_similarity` | `false` | Audio fingerprint similarity for music matching. Disabled by default (high CPU). |
-| `subtitle_sync` | `false` | Subtitle alignment via Whisper transcription. Disabled by default. |
+| Series order | `tuvima.ai-series-order` | `0 3 * * *` |
+| Vibe tags | `tuvima.ai-vibe-tags` | `0 4 * * *` |
+| Description insights | `tuvima.ai-description-insights` | every 15 minutes |
 
-### vibe_vocabulary
-
-Per-media-type lists of vibe descriptors across four dimensions. Each media type has 25-30 entries total.
-
-| Key | Description |
-|---|---|
-| `{media_type}.theme` | Core conceptual themes (e.g., "redemption", "survival", "identity") |
-| `{media_type}.mood` | Emotional atmosphere (e.g., "tense", "melancholic", "uplifting") |
-| `{media_type}.setting` | Environment and world feel (e.g., "sprawling cities", "isolated wilderness") |
-| `{media_type}.pace` | Narrative rhythm (e.g., "slow-burn", "relentless", "contemplative") |
-
-### schedule
-
-Cron expressions for background AI enrichment batches.
-
-| Field | Default | Description |
-|---|---|---|
-| `enrichment_cron` | `"*/15 * * * *"` | How often the description intelligence batch service runs. |
-| `vibe_cron` | `"0 * * * *"` | How often the vibe tagging batch runs. |
-| `quality_enrichment_cron` | `"0 2 * * *"` | When heavy quality-model enrichment runs (Medium tier: overnight). |
+The Vibe tags plugin keeps its vocabulary in the settings lists `books`, `movies_tv`, `music` and `comics`; an empty list falls back to the built-in words. The old `features`, `vibe_vocabulary` and `scheduling` sections of `config/ai.json` were removed.
 
 ---
 
@@ -363,7 +336,7 @@ Scheduled maintenance task configuration.
 | `schedules.plugin_segment_detection` | cron | `0 2 * * *` | Scheduled playback segment detection run by enabled segment plugins. |
 | `schedules.log_file_retention` | cron | `30 3 * * *` | When Engine log files older than the limit are removed. |
 
-Every recurring task with its schedule, next run and last run is listed by `GET /system/scheduled-tasks`. The Local AI schedules (`vibe_batch_cron`, `series_check_cron`, `description_intelligence_cron`) stay in `config/ai.json` under `scheduling`. The keys `vibe_batch`, `series_check`, `description_intelligence`, `whisper_bake` and `taste_profile_update` were removed from the `schedules` defaults because no code read them.
+Every recurring task with its schedule, next run and last run is listed by `GET /system/scheduled-tasks`. The Local AI schedules are plugin schedules (see `config/ai.json` above) and are listed here with the key `plugin:{plugin id}:{job}`. The keys `vibe_batch`, `series_check`, `description_intelligence`, `whisper_bake` and `taste_profile_update` were removed from the `schedules` defaults because no code read them.
 
 Administrators can run the same maintenance manually with `POST /maintenance/storage/run?dryRun=true`.
 

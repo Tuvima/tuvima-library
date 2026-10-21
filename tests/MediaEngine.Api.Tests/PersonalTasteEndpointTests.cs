@@ -38,7 +38,7 @@ public sealed class PersonalTasteEndpointTests : IAsyncLifetime
         _world = PersonalActivityWorld.Create();
         _overrides = new TasteOverrideRepository(_world.Database);
         var service = new PersonalTasteService(
-            _world.Scope, new LearnedNothing(), _overrides, new ProfileRepository(_world.Database), new AiSettings(), _world.Clock);
+            _world.Scope, new LearnedNothing(), _overrides, new ProfileRepository(_world.Database), new FixedVibeVocabulary(), _world.Clock);
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.Services.AddAuthorization();

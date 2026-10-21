@@ -125,11 +125,11 @@ public sealed class AiReadinessTests : IDisposable
     public void FeatureGate_StopsWorkWhenTheRuntimeDoesNotLoad_AndAllowsItWhenEverythingIsInPlace()
     {
         var settings = Settings();
-        settings.Features.VibeTags = true;
+        var switches = new FakeAiFeatureSwitches(AiFeature.VibeTags);
         PlaceTextModel(settings);
         var inventory = Inventory(settings);
         var runtime = new FixedRuntimeStatus(textLoads: false);
-        var gate = new AiFeatureGate(settings, inventory, new AiModelSelectionAdvisor(settings, inventory, runtime));
+        var gate = new AiFeatureGate(switches, inventory, new AiModelSelectionAdvisor(settings, inventory, runtime));
 
         Assert.False(gate.CanExecute(AiFeature.VibeTags, AiModelRole.TextQuality));
 

@@ -56,4 +56,18 @@ public sealed class ReviewTargetResolverTests
             Assert.Contains("does not change the media type", target.Summary, StringComparison.OrdinalIgnoreCase);
         }
     }
+
+    [Theory]
+    [InlineData("Books")]
+    [InlineData("Audiobooks")]
+    [InlineData("Comics")]
+    [InlineData("Movies")]
+    public void Resolve_AmbiguousSeriesMembership_OpensMatchingWithTheSeriesChoice(string mediaType)
+    {
+        var target = ReviewTargetResolver.Resolve(mediaType, "AmbiguousSeriesMembership");
+
+        Assert.Equal("links", target.InitialTab);
+        Assert.Equal("Choose Series", target.PrimaryActionLabel);
+        Assert.Contains("Series", target.Summary, StringComparison.Ordinal);
+    }
 }

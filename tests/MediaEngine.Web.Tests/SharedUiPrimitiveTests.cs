@@ -276,6 +276,56 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AppChoiceRow_RendersTitleDescriptionAndTheSelectedState()
+    {
+        var cut = Render<AppChoiceRow>(parameters => parameters
+            .Add(component => component.Title, "Dune Novels")
+            .Add(component => component.Description, "In the main run (#3)")
+            .Add(component => component.Selected, true));
+
+        var row = cut.Find("button.app-choice-row");
+        Assert.Equal("button", row.GetAttribute("type"));
+        Assert.Equal("true", row.GetAttribute("aria-pressed"));
+        Assert.Contains("is-selected", row.ClassName);
+        Assert.Contains("Dune Novels", cut.Markup);
+        Assert.Contains("In the main run (#3)", cut.Markup);
+    }
+
+    [Fact]
+    public void AppChoiceRow_WhenNotSelected_IsNotPressed_AndClickRaisesTheCallbackUnlessDisabled()
+    {
+        var clicks = 0;
+        var cut = Render<AppChoiceRow>(parameters => parameters
+            .Add(component => component.Title, "Spice Wars")
+            .Add(component => component.OnClick, () => { clicks++; }));
+
+        var row = cut.Find("button.app-choice-row");
+        Assert.Equal("false", row.GetAttribute("aria-pressed"));
+        Assert.DoesNotContain("is-selected", row.ClassName);
+        row.Click();
+        Assert.Equal(1, clicks);
+
+        cut.Render(parameters => parameters
+            .Add(component => component.Title, "Spice Wars")
+            .Add(component => component.Disabled, true)
+            .Add(component => component.OnClick, () => { clicks++; }));
+        Assert.True(cut.Find("button.app-choice-row").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void AppChoiceRow_ShowsTheSharedFocusRing_OnKeyboardFocus_SoASelectedRowStillShowsFocus()
+    {
+        var css = File.ReadAllText(Path.Combine(
+            AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components", "Shared", "AppChoiceRow.razor.css"));
+
+        var focusRule = css[css.IndexOf(".app-choice-row:focus-visible", StringComparison.Ordinal)..];
+        focusRule = focusRule[..focusRule.IndexOf('}', StringComparison.Ordinal)];
+        Assert.Contains("var(--tl-focus-ring)", focusRule, StringComparison.Ordinal);
+        Assert.Contains("var(--tl-focus-ring-width)", focusRule, StringComparison.Ordinal);
+        Assert.Contains("var(--tl-focus-ring-offset)", focusRule, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AppSwitchRow_RendersLabelDescriptionAndDisabledState()
     {
         var cut = Render<AppSwitchRow>(parameters => parameters

@@ -31,7 +31,6 @@ public sealed class Phase7AiEndpointGuardrailTests
         Assert.Contains("configurationStore.Save", endpoint, StringComparison.Ordinal);
         Assert.Contains("ValidationProblem", endpoint, StringComparison.Ordinal);
         Assert.Contains("AiSettingsValidator.Validate", store, StringComparison.Ordinal);
-        Assert.Contains("CronExpression.Parse", store, StringComparison.Ordinal);
         Assert.Contains("Advanced requires a successful benchmark", store, StringComparison.Ordinal);
     }
 

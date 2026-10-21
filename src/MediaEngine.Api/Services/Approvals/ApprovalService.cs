@@ -46,14 +46,6 @@ internal sealed class ApprovalService(
         return ApprovalStatementBuilder.ToPreview(ApprovalKinds.Plugin, registration.Manifest.Id, statement);
     }
 
-    /// <param name="modelReady">True when the model the feature reads is already on this machine.</param>
-    public ApprovalPreviewResponse PreviewAiFeature(string featureKey, bool modelReady)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(featureKey);
-        var statement = ApprovalStatementBuilder.ForAiFeature(featureKey, modelReady);
-        return ApprovalStatementBuilder.ToPreview(ApprovalKinds.AiFeature, featureKey, statement);
-    }
-
     /// <summary>The key's reach is the application's permissions as the Engine sees them now (an administrator application holds every available one).</summary>
     public ApprovalPreviewResponse PreviewCredential(ApplicationResponse application, DateTimeOffset? expiresAt)
     {
@@ -123,13 +115,6 @@ internal sealed class ApprovalService(
     {
         var statement = ApprovalStatementBuilder.ForWebhook(receiver, eventTypes, allowLocalNetwork);
         return ApprovalStatementBuilder.ToPreview(ApprovalKinds.Webhook, itemId, statement);
-    }
-
-    /// <summary>True when the model every Local AI feature reads is already on this machine, so no download is needed first.</summary>
-    public static bool IsFeatureModelReady(IModelDownloadManager downloads)
-    {
-        ArgumentNullException.ThrowIfNull(downloads);
-        return downloads.GetStatus(AiModelRole.TextQuality).State is AiModelState.Ready or AiModelState.Loaded;
     }
 
     // ── Checking and recording ───────────────────────────────────────────────

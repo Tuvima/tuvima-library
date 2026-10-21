@@ -15,7 +15,7 @@ Run this handoff end to end per `.claude/rules/end-to-end-runs.md`, building in 
 | U-WP8 helper app screens (Android, Apple, TV web, Roku) | Built; Android parser tests PR 325 | PR 317 |
 | U-WP9 lore plugin privacy, part 1 | Built | PR 323 |
 | U-WP11 character properties, adaptation links, one spoiler rule everywhere, Spoilers preference | Built | U-WP11 PR (branch `claude/universe-wp11-spoilers-and-links`) |
-| U-WP3b Series lock in Matching plus 4 U-WP3 review should-fixes | See thread A | session "Universe collision check implementation" |
+| U-WP3b Series lock in Matching plus 4 U-WP3 review should-fixes | Done: merged in PR #365 (2026-10-21), awaiting Local checks; remediation open (thread H) | session "Universe collision check implementation" |
 | U-WP9 part 2, U-WP13, U-WP14, U-WP15 | Not started | threads B to F |
 
 Everything built is "Built, awaiting your Local checks": the checks are rows in [`engineering/validation/batch.md`](../validation/batch.md) (sittings 2 and 3 plus the U-WP4, U-WP9 part 1 and U-WP11 rows).
@@ -24,13 +24,14 @@ Everything built is "Built, awaiting your Local checks": the checks are rows in 
 
 | Step | Thread | Depends on | Runs beside | Needs from Shy |
 |---|---|---|---|---|
-| 1 | A: U-WP3b Series lock | U-WP4 on main | B, C | nothing (decision already made 2026-10-20) |
+| 1 | A: U-WP3b Series lock (**Done**, PR #365) | U-WP4 on main | B, C | nothing (decision already made 2026-10-20) |
 | 1 | B: U-WP13 phone companion screen (Dashboard) | U-WP10, U-WP11, U-WP12 on main | A, C | nothing |
 | 1 | C: U-WP14 subtitle text index | U-WP11 on main | A, B | nothing |
 | 2 | D: U-WP9 part 2, link to the plugin card | Developer tools wave 3 (PR 336) on main | any | nothing |
 | 3 | E: U-WP4 priority through Library-set weights | Developer tools WP20 on main | any | nothing |
 | 4 | F: U-WP15 AI feasibility spike | U-WP14, Developer tools WP15, WP27, WP28 on main | any | reviews the report (go / no-go per feature) |
-| 5 | G: close the spec | A to F merged, batch rows Validated | alone | the local validation sitting |
+| 1 | H: reconcile the U-WP3b Series block with Details overlay D20 | A merged | any | the D20 decision (recommended: narrow the block) |
+| 5 | G: close the spec | A to H merged, batch rows Validated | alone | the local validation sitting |
 
 At most three build threads at once (cloud-first rule). A, B and C touch different areas: A the editor's Matching section and Series identity, B a new phone page and the companion Engine actions, C subtitle parsing and storage. If two of them need a data store upgrade step, the second to merge takes the next number.
 
@@ -39,6 +40,9 @@ Owned elsewhere, not in this handoff: the Details overlay session moves Universe
 ## 3. Briefs (for the coordinator to pass to cloud sessions)
 
 ### Thread A: U-WP3b, a Series chosen in Matching stays chosen
+
+**Done** (PR #365, 2026-10-21). The visual check of the Series block and the real-media before/after comparison are Awaiting rows in `engineering/validation/batch.md`. Left as is: the sibling `membership-suggestions` action is not limited to Series the person can see (main has since retired that action). Merged as built at Shy's request (2026-10-21), with the Details overlay D20 conflict left for thread H.
+
 ```
 Build U-WP3b of engineering/specs/universe.md. Read CLAUDE.md, the spec (U-WP3, section 4.3 and section 7) and .claude/rules/cloud-first.md first.
 Shy decided 2026-10-20: a Series picked in the editor's Matching section is saved as a locked choice that the Engine always respects on later scans and re-identification.
@@ -89,8 +93,37 @@ Run U-WP15 of engineering/specs/universe.md once U-WP14 and Developer tools WP15
 The spike needs three real titles and local hardware, so it is a local item: write the plan and the harness in the cloud, and add the run to engineering/validation/batch.md for a local sitting. Deliver a written report with samples, time per title, hardware needed, and a go / no-go per feature for Shy to review.
 ```
 
+### Thread H: reconcile the U-WP3b Series block with Details overlay D20 (remediation)
+
+**Why.** Two of Shy's decisions from 2026-10-20 disagree.
+- **Details overlay D20:** "Series moves are dropped. A book, comic or movie is not moved into a Series by hand… Match chooses an entry of a list we already know, it does not invent membership." The only exception is Add anyway (D13).
+- **Universes U-WP3b:** "When I pick a Series in Matching, save it as a locked choice the Engine always respects."
+
+The Series block merged in PR #365 goes further than D20 allows: it offers a free search over any Series of the same media type, and a "Not in a Series" choice. Shy chose to merge as built and fix this later.
+
+**Decision needed from Shy first.** The recommendation is to narrow the block so it fits both decisions:
+- offer only the Series our known data already lists the title in (the manifest memberships, with their "In the main run" or "Also in this world" scope), plus the current Series;
+- a pick is saved as a lock, as built;
+- keep "Let the Library decide";
+- remove the free search and "Not in a Series".
+
+The other option is to keep the block as built and record it in the Details overlay spec as an exception to D20.
+
+```
+Remediate U-WP3b of engineering/specs/universe.md against Details overlay spec D20 (engineering/specs/details-overlay-and-edit-mode.md). Read CLAUDE.md, both specs, this thread and .claude/rules/cloud-first.md first. Shy's decision on this thread decides the shape; do not start before it.
+If Shy chose "narrow":
+- `EditorSeriesBlock.razor` (Components/MediaEditor/Sections) shows the current Series, the listed Series and "Let the Library decide"; remove the search box and "Not in a Series".
+- `GET /metadata/{entityId}/series-placement` (`MetadataEndpoints.SeriesPlacement.cs`, `SeriesPlacementRepository.cs`) stops returning search candidates; drop the `q` parameter and the candidates list from `SeriesPlacementContracts.cs` (wire change: refresh fixtures).
+- `PUT` accepts only a Series that lists the work, or its current Series (400 otherwise), and no null target.
+- The data store lock (`works.series_placement_locked`, step 0025) and the rule stay as they are. A lock to "no Series" can then only come from an existing row; leave that path in the rule.
+- Keep the Needs Review "Choose Series" path.
+- Update the U-WP3b entry and Status in the Universes spec, the D20 line in the Details overlay spec ("a Series pick in Matching is limited to known lists and stays chosen"), `docs/reference/api-endpoints.md`, and the U-WP3b row in engineering/validation/batch.md.
+If Shy chose "keep": record the exception in the Details overlay spec next to D20 and in the Universes spec section 7, and change nothing else.
+Finish with the CI-strength build, tests, reviewer, merge.
+```
+
 ### Thread G: close the spec
-When A to F are merged and the local sitting marks the Universe rows Validated: set the spec's Status to Built, move it to `engineering/specs/archive/`, update `engineering/README.md`, mark this handoff Done, and give Shy a Plain English close-out.
+When A to H are merged and the local sitting marks the Universe rows Validated: set the spec's Status to Built, move it to `engineering/specs/archive/`, update `engineering/README.md`, mark this handoff Done, and give Shy a Plain English close-out.
 
 ## 4. What Shy owes
 
@@ -99,3 +132,5 @@ When A to F are merged and the local sitting marks the Universe rows Validated: 
 - **Device checks:** companion on iPhone and Android (after thread B); the Universe page and Connections on TV; the helper app Universe screens on Android phone, Android TV, iPhone/iPad, TV web (Tizen, webOS) and Roku (sideload).
 - **Known gap to decide on:** the iPhone/iPad test project isn't wired into the app's project file, so the new Swift tests from U-WP8 have never run. A small follow-up can wire it.
 - **Later planning:** native app companion screens (after thread B proves the Dashboard version).
+- **Decision for thread H:** narrow the Matching Series block to fit Details overlay D20 (recommended), or keep it as built as a recorded exception.
+- **Open since 2026-10-19: character portraits.** The Q7 answer said to delete them, but cast credits still show character pictures through `/library/portraits/{id}`, so U-WP1 kept the action. Recommended: keep it, and record that as the Q7 answer for portraits.

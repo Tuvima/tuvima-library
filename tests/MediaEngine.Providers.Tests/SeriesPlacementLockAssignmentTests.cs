@@ -1,0 +1,704 @@
+using Dapper;
+using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Constants;
+using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Enums;
+using MediaEngine.Intelligence.Contracts;
+using MediaEngine.Providers.Helpers;
+using MediaEngine.Providers.Models;
+using MediaEngine.Providers.Services;
+using MediaEngine.Storage;
+using MediaEngine.TestSupport;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace MediaEngine.Providers.Tests;
+
+/// <summary>
+/// A Series a person picked is a lock the Engine always respects, and the "which Series?" question has one stable
+/// answer path. These run the real assignment service, reviewer and repositories against a temp data store.
+/// </summary>
+public sealed class SeriesPlacementLockAssignmentTests : IDisposable
+{
+    private readonly string _dbPath;
+    private readonly DatabaseConnection _db;
+    private readonly CollectionRepository _collections;
+    private readonly SeriesManifestRepository _manifests;
+    private readonly SeriesPlacementRepository _placements;
+    private readonly ReviewQueueRepository _reviews;
+    private readonly CollectionAssignmentService _assignment;
+    private readonly CollectionFinalizationService _finalization;
+    private readonly WikidataSeriesManifestHydrationService _hydration;
+    private readonly SeriesAmbiguityReviewer _reviewer;
+    private readonly SeriesPlacementChoiceService _choices;
+    private readonly RecordingParentResolver _parents = new();
+    private readonly CountingCanonicalValues _canonicalReads;
+
+    public SeriesPlacementLockAssignmentTests()
+    {
+        DapperConfiguration.Configure();
+        _dbPath = Path.Combine(Path.GetTempPath(), $"tuvima_series_lock_assign_{Guid.NewGuid():N}.db");
+        _db = new DatabaseConnection(_dbPath);
+        _db.InitializeSchema();
+        _db.RunStartupChecks();
+
+        _collections = new CollectionRepository(_db);
+        _manifests = new SeriesManifestRepository(_db);
+        _placements = new SeriesPlacementRepository(_db);
+        _reviews = new ReviewQueueRepository(_db);
+        var canonicals = new CanonicalValueRepository(_db);
+        var activity = new SystemActivityRepository(_db);
+        var outcomes = new StageOutcomeFactory(
+            _reviews,
+            activity,
+            new SilentEventPublisher(),
+            canonicals,
+            NullLogger<StageOutcomeFactory>.Instance);
+        _reviewer = new SeriesAmbiguityReviewer(
+            outcomes,
+            _collections,
+            NullLogger<SeriesAmbiguityReviewer>.Instance,
+            new MediaAssetRepository(_db),
+            _reviews,
+            _placements);
+        _canonicalReads = new CountingCanonicalValues(canonicals);
+        _assignment = new CollectionAssignmentService(
+            _collections,
+            _canonicalReads,
+            new WorkRepository(_db),
+            NullLogger<CollectionAssignmentService>.Instance,
+            new CanonicalValueArrayRepository(_db),
+            _manifests,
+            _reviewer,
+            _placements);
+        _finalization = new CollectionFinalizationService(
+            _assignment,
+            _parents,
+            activity,
+            NullLogger<CollectionFinalizationService>.Instance);
+        _choices = new SeriesPlacementChoiceService(
+            _placements,
+            _manifests,
+            _finalization,
+            _reviewer,
+            _parents,
+            NullLogger<SeriesPlacementChoiceService>.Instance);
+        _hydration = new WikidataSeriesManifestHydrationService(
+            null!,
+            _manifests,
+            _collections,
+            null!,
+            NullLogger<WikidataSeriesManifestHydrationService>.Instance,
+            _reviewer);
+    }
+
+    public void Dispose()
+    {
+        _db.Dispose();
+        TestTemp.DeleteDatabase(_dbPath);
+    }
+
+    [Fact]
+    public async Task AssigningAgain_KeepsAWorkWhereAPersonPutIt_WhateverTheClaimsAndManifestsSay()
+    {
+        var chosen = await CreateShelfAsync("QChosen", "Chosen");
+        var claimed = await CreateShelfAsync("QClaimed", "Claimed");
+        var work = AddWork("Work", seriesQid: "QClaimed", seriesLabel: "Claimed");
+        await StoreManifestAsync(claimed, "QClaimed", work);
+        await _placements.SetChoiceAsync(work.WorkId, chosen);
+
+        var first = await _assignment.AssignAsync(work.AssetId);
+        var second = await _assignment.AssignAsync(work.AssetId);
+
+        Assert.Equal(CollectionAssignmentOutcome.AlreadyAssigned, first.Outcome);
+        Assert.Equal(chosen, first.CollectionId);
+        Assert.Equal(CollectionAssignmentOutcome.AlreadyAssigned, second.Outcome);
+        Assert.Equal(chosen, await ShelfOfAsync(work));
+    }
+
+    [Fact]
+    public async Task AssigningAgain_KeepsANoSeriesChoice_EvenWhenTheWorkClaimsASeries()
+    {
+        var claimed = await CreateShelfAsync("QClaimed", "Claimed");
+        var work = AddWork("Work", seriesQid: "QClaimed", seriesLabel: "Claimed");
+        await StoreManifestAsync(claimed, "QClaimed", work);
+        await _placements.SetChoiceAsync(work.WorkId, collectionId: null);
+
+        var result = await _assignment.AssignAsync(work.AssetId);
+
+        Assert.Equal(CollectionAssignmentOutcome.SkippedNoShelfIdentity, result.Outcome);
+        Assert.Null(await ShelfOfAsync(work));
+    }
+
+    [Fact]
+    public async Task BackfillingThroughFinalization_KeepsALockedWorkWhereThePersonPutIt()
+    {
+        var chosen = await CreateShelfAsync("QChosen", "Chosen");
+        var locked = AddWork("Locked", seriesQid: "QClaimed", seriesLabel: "Claimed");
+        var nothing = AddWork("No Series", seriesQid: "QClaimed", seriesLabel: "Claimed");
+        await _placements.SetChoiceAsync(locked.WorkId, chosen);
+        await _placements.SetChoiceAsync(nothing.WorkId, collectionId: null);
+
+        await _finalization.FinalizeAsync(locked.AssetId, CollectionFinalizationReason.Backfill);
+        await _finalization.FinalizeAsync(nothing.AssetId, CollectionFinalizationReason.Backfill);
+
+        Assert.Equal(chosen, await ShelfOfAsync(locked));
+        Assert.Null(await ShelfOfAsync(nothing));
+    }
+
+    [Fact]
+    public async Task RefreshingAManifest_KeepsALockedWorkWhereThePersonPutIt_IncludingNoSeries()
+    {
+        var chosen = await CreateShelfAsync("QChosen", "Chosen");
+        var listing = await CreateShelfAsync("QListing", "Listing");
+        var other = await CreateShelfAsync("QOther", "Other");
+        var locked = AddWork("Locked", seriesQid: "QListing", seriesLabel: "Listing");
+        var nothing = AddWork("No Series", seriesQid: "QListing", seriesLabel: "Listing");
+        await _placements.SetChoiceAsync(locked.WorkId, chosen);
+        await _placements.SetChoiceAsync(nothing.WorkId, collectionId: null);
+
+        await StoreManifestAsync(listing, "QListing", locked, nothing);
+        await StoreManifestAsync(other, "QOther", locked, nothing);
+        await StoreManifestAsync(listing, "QListing", locked, nothing);
+
+        Assert.Equal(chosen, await ShelfOfAsync(locked));
+        Assert.Null(await ShelfOfAsync(nothing));
+    }
+
+    [Fact]
+    public async Task LettingTheLibraryDecideAgain_PlacesTheWorkWhereTheEvidenceSays()
+    {
+        var chosen = await CreateShelfAsync("QChosen", "Chosen");
+        var claimed = await CreateShelfAsync("QClaimed", "Claimed");
+        var work = AddWork("Work", seriesQid: "QClaimed", seriesLabel: "Claimed");
+        await StoreManifestAsync(claimed, "QClaimed", work);
+        await _placements.SetChoiceAsync(work.WorkId, chosen);
+
+        await _placements.ReleaseChoiceAsync(work.WorkId);
+        await _finalization.FinalizeAsync(work.AssetId, CollectionFinalizationReason.PersonReleasedSeriesChoice);
+
+        Assert.Equal(claimed, await ShelfOfAsync(work));
+        Assert.Null(await _placements.GetLockAsync(work.WorkId));
+    }
+
+    [Fact]
+    public async Task ASeriesTieBrokenByAClaimStoredOnlyOnTheFile_GivesTheSameShelfFromAssigningAndFromLinking()
+    {
+        var first = await CreateShelfAsync("QA1", "Series A");
+        var second = await CreateShelfAsync("QB1", "Series B");
+        var viaAssign = AddWork("Via assign", seriesQid: null, seriesLabel: null, claimOnFile: "QB1");
+        var viaLink = AddWork("Via link", seriesQid: null, seriesLabel: null, claimOnFile: "QB1");
+
+        // Both Series list both works as supplementary: a tie that is not at main sequence, so the claim decides.
+        await StoreManifestAsync(first, "QA1", viaLink, scope: SeriesMembershipScopeNames.Supplementary);
+        await StoreManifestAsync(second, "QB1", viaLink, scope: SeriesMembershipScopeNames.Supplementary);
+        await StoreManifestOnlyAsync(first, "QA1", viaAssign, SeriesMembershipScopeNames.Supplementary);
+        await StoreManifestOnlyAsync(second, "QB1", viaAssign, SeriesMembershipScopeNames.Supplementary);
+        await _assignment.AssignAsync(viaAssign.AssetId);
+
+        Assert.Equal(second, await ShelfOfAsync(viaLink));
+        Assert.Equal(second, await ShelfOfAsync(viaAssign));
+
+        // And running either path again, in the other order, changes nothing.
+        await _assignment.AssignAsync(viaLink.AssetId);
+        await StoreManifestAsync(first, "QA1", viaAssign, scope: SeriesMembershipScopeNames.Supplementary);
+        Assert.Equal(second, await ShelfOfAsync(viaLink));
+        Assert.Equal(second, await ShelfOfAsync(viaAssign));
+    }
+
+    [Fact]
+    public async Task AskingAboutTheSameAmbiguousWorkAgain_FromAnyFileOrRun_NeverCreatesASecondPendingItem()
+    {
+        var one = await CreateShelfAsync("QOne1", "Series One");
+        var two = await CreateShelfAsync("QTwo1", "Series Two");
+        var work = AddWork("Shared", seriesQid: "QOne1", seriesLabel: "Series One");
+        var secondFile = AddFile(work);
+        await StoreManifestOnlyAsync(one, "QOne1", work);
+        await StoreManifestOnlyAsync(two, "QTwo1", work);
+
+        await _assignment.AssignAsync(work.AssetId);
+        await _assignment.AssignAsync(secondFile);
+        await _assignment.AssignAsync(work.AssetId);
+        await StoreManifestAsync(two, "QTwo1", work);
+        await StoreManifestAsync(one, "QOne1", work);
+
+        var pending = (await _reviews.GetPendingAsync(50))
+            .Where(r => r.Trigger == ReviewTrigger.AmbiguousSeriesMembership)
+            .ToList();
+        var item = Assert.Single(pending);
+        // New items hang on the work's earliest-stored Normal file.
+        Assert.Equal(work.AssetId, item.EntityId);
+    }
+
+    [Fact]
+    public async Task AnAmbiguousQuestionRaisedOnAnotherFile_IsStillTheOnlyOne_WhenTheStableFileAsksAgain()
+    {
+        var one = await CreateShelfAsync("QOne1", "Series One");
+        var two = await CreateShelfAsync("QTwo1", "Series Two");
+        var work = AddWork("Shared", seriesQid: "QOne1", seriesLabel: "Series One");
+        var secondFile = AddFile(work);
+        await StoreManifestOnlyAsync(one, "QOne1", work);
+        await StoreManifestOnlyAsync(two, "QTwo1", work);
+        // An older run keyed its item on the second file.
+        await _reviews.InsertAsync(new ReviewQueueEntry
+        {
+            Id = Guid.NewGuid(),
+            EntityId = secondFile,
+            EntityType = "MediaAsset",
+            Trigger = ReviewTrigger.AmbiguousSeriesMembership,
+            Detail = "older",
+            ReviewReadyAt = DateTimeOffset.UtcNow,
+        });
+
+        await _assignment.AssignAsync(work.AssetId);
+
+        Assert.Single(
+            await _reviews.GetPendingAsync(50),
+            r => r.Trigger == ReviewTrigger.AmbiguousSeriesMembership);
+    }
+
+    [Fact]
+    public async Task WhenAPersonChoosesASeries_TheAmbiguousQuestionIsClosed_OnTheNextPlacement()
+    {
+        var one = await CreateShelfAsync("QOne1", "Series One");
+        var two = await CreateShelfAsync("QTwo1", "Series Two");
+        var work = AddWork("Shared", seriesQid: "QOne1", seriesLabel: "Series One");
+        await StoreManifestOnlyAsync(one, "QOne1", work);
+        await StoreManifestOnlyAsync(two, "QTwo1", work);
+        await _assignment.AssignAsync(work.AssetId);
+        Assert.Single(await _reviews.GetPendingAsync(50), r => r.Trigger == ReviewTrigger.AmbiguousSeriesMembership);
+
+        await _placements.SetChoiceAsync(work.WorkId, two);
+        await _assignment.AssignAsync(work.AssetId);
+
+        Assert.DoesNotContain(await _reviews.GetPendingAsync(50), r => r.Trigger == ReviewTrigger.AmbiguousSeriesMembership);
+        Assert.Equal(two, await ShelfOfAsync(work));
+    }
+
+    [Fact]
+    public async Task WhenALaterManifestSettlesTheTie_AssigningOrLinking_ClosesTheAmbiguousQuestion()
+    {
+        var one = await CreateShelfAsync("QOne1", "Series One");
+        var two = await CreateShelfAsync("QTwo1", "Series Two");
+        var viaAssign = AddWork("Assign", seriesQid: "QOne1", seriesLabel: "Series One");
+        var viaLink = AddWork("Link", seriesQid: "QOne1", seriesLabel: "Series One");
+        foreach (var work in new[] { viaAssign, viaLink })
+        {
+            await StoreManifestOnlyAsync(one, "QOne1", work);
+            await StoreManifestOnlyAsync(two, "QTwo1", work);
+            await _assignment.AssignAsync(work.AssetId);
+        }
+
+        Assert.Equal(2, (await _reviews.GetPendingAsync(50)).Count(r => r.Trigger == ReviewTrigger.AmbiguousSeriesMembership));
+
+        // Series Two stops claiming both works as main sequence (its manifest now lists them as supplementary).
+        await StoreManifestOnlyAsync(two, "QTwo1", viaAssign, SeriesMembershipScopeNames.Supplementary);
+        await StoreManifestOnlyAsync(two, "QTwo1", viaLink, SeriesMembershipScopeNames.Supplementary);
+        await _assignment.AssignAsync(viaAssign.AssetId);
+        await StoreManifestAsync(one, "QOne1", viaLink);
+
+        Assert.DoesNotContain(await _reviews.GetPendingAsync(50), r => r.Trigger == ReviewTrigger.AmbiguousSeriesMembership);
+        Assert.Equal(one, await ShelfOfAsync(viaAssign));
+        Assert.Equal(one, await ShelfOfAsync(viaLink));
+    }
+
+    [Fact]
+    public async Task AWorkWhoseFilesCarryDifferentClaims_GetsTheSameShelf_FromAssigningEitherFile_AndFromLinking()
+    {
+        var first = await CreateShelfAsync("QA1", "Series A");
+        var second = await CreateShelfAsync("QB1", "Series B");
+        var lowFile = Guid.Parse("00000000-0000-0000-0000-0000000000f1");
+        var highFile = Guid.Parse("00000000-0000-0000-0000-0000000000f2");
+        // The lower file id names Series B and the higher names Series A. Both paths read the files in file-id order, so B wins.
+        var work = AddWork("Two files", seriesQid: null, seriesLabel: null, claimOnFile: "QA1", fileId: highFile);
+        AddFile(work, lowFile, claim: "QB1");
+        await StoreManifestOnlyAsync(first, "QA1", work, SeriesMembershipScopeNames.Supplementary);
+        await StoreManifestOnlyAsync(second, "QB1", work, SeriesMembershipScopeNames.Supplementary);
+
+        await _assignment.AssignAsync(highFile);
+        Assert.Equal(second, await ShelfOfAsync(work));
+
+        await SetShelfAsync(work, null);
+        await _assignment.AssignAsync(lowFile);
+        Assert.Equal(second, await ShelfOfAsync(work));
+
+        await SetShelfAsync(work, null);
+        await StoreManifestAsync(first, "QA1", work, SeriesMembershipScopeNames.Supplementary);
+        Assert.Equal(second, await ShelfOfAsync(work));
+    }
+
+    [Fact]
+    public async Task ChoosingASeries_ClosesTheQuestion_AndRunsTheUniverseStepForTheNewAndTheOldShelf()
+    {
+        var old = await CreateShelfAsync("QOld", "Old");
+        var chosen = await CreateShelfAsync("QChosen", "Chosen");
+        var work = AddWork("Work", seriesQid: null, seriesLabel: null);
+        await SetShelfAsync(work, old);
+
+        var result = await _choices.ChooseAsync(work.WorkId, chosen);
+
+        Assert.Equal(SeriesPlacementChoiceResult.Applied, result);
+        Assert.Equal(chosen, await ShelfOfAsync(work));
+        Assert.Equal(new HashSet<Guid> { chosen, old }, _parents.Resolved.ToHashSet());
+    }
+
+    [Fact]
+    public async Task LettingTheLibraryDecide_ForAWorkWithAFile_PlacesItThroughAssignment_AndRunsTheUniverseStepForBothShelves()
+    {
+        var chosen = await CreateShelfAsync("QChosen", "Chosen");
+        var claimed = await CreateShelfAsync("QClaimed", "Claimed");
+        var work = AddWork("Work", seriesQid: "QClaimed", seriesLabel: "Claimed");
+        await _choices.ChooseAsync(work.WorkId, chosen);
+        _parents.Resolved.Clear();
+
+        var result = await _choices.ReleaseAsync(work.WorkId);
+
+        Assert.Equal(SeriesPlacementReleaseResult.Released, result);
+        Assert.Equal(claimed, await ShelfOfAsync(work));
+        Assert.Null(await _placements.GetLockAsync(work.WorkId));
+        Assert.Contains(claimed, _parents.Resolved);
+        Assert.Contains(chosen, _parents.Resolved);
+    }
+
+    [Fact]
+    public async Task LettingTheLibraryDecide_ForAWorkWithNoFile_PlacesItFromTheManifestsThatNameIt()
+    {
+        var chosen = await CreateShelfAsync("QChosen", "Chosen");
+        var listing = await CreateShelfAsync("QListing", "Listing");
+        var work = AddFileless("Catalog entry");
+        await StoreManifestOnlyAsync(listing, "QListing", work);
+        await _choices.ChooseAsync(work.WorkId, chosen);
+
+        var result = await _choices.ReleaseAsync(work.WorkId);
+
+        Assert.Equal(SeriesPlacementReleaseResult.Released, result);
+        Assert.Equal(listing, await ShelfOfAsync(work));
+        Assert.Null(await _placements.GetLockAsync(work.WorkId));
+        Assert.Contains(listing, _parents.Resolved);
+    }
+
+    [Fact]
+    public async Task LettingTheLibraryDecide_ForAWorkWithNoFileAndNoEvidence_LeavesItOnNoSeries()
+    {
+        var chosen = await CreateShelfAsync("QChosen", "Chosen");
+        var work = AddFileless("Catalog entry");
+        await _choices.ChooseAsync(work.WorkId, chosen);
+
+        var result = await _choices.ReleaseAsync(work.WorkId);
+
+        Assert.Equal(SeriesPlacementReleaseResult.Released, result);
+        Assert.Null(await ShelfOfAsync(work));
+        Assert.Null(await _placements.GetLockAsync(work.WorkId));
+    }
+
+    [Fact]
+    public async Task LettingTheLibraryDecide_ForAWorkWithNoFile_RaisesTheQuestionOnce_WhenTwoSeriesTie()
+    {
+        var one = await CreateShelfAsync("QOne1", "Series One");
+        var two = await CreateShelfAsync("QTwo1", "Series Two");
+        var work = AddFileless("Catalog entry");
+        await StoreManifestOnlyAsync(one, "QOne1", work);
+        await StoreManifestOnlyAsync(two, "QTwo1", work);
+        await _choices.ChooseAsync(work.WorkId, one);
+
+        await _choices.ReleaseAsync(work.WorkId);
+        await _choices.ReleaseAsync(work.WorkId);
+
+        Assert.Null(await ShelfOfAsync(work));
+        Assert.Single(await _reviews.GetPendingAsync(50), r => r.Trigger == ReviewTrigger.AmbiguousSeriesMembership);
+    }
+
+    [Fact]
+    public async Task ReadingTheClaims_IsOneBatchedRead_HoweverManyFilesTheWorkHas()
+    {
+        var oneFile = AddWork("One file", seriesQid: "QA1", seriesLabel: "Series A");
+        var manyFiles = AddWork("Many files", seriesQid: "QA1", seriesLabel: "Series A");
+        for (var index = 0; index < 5; index++)
+        {
+            AddFile(manyFiles, claim: "QA1");
+        }
+
+        _canonicalReads.Reset();
+        await _assignment.AssignAsync(oneFile.AssetId);
+        var singleReads = _canonicalReads.PerEntityReads;
+        var singleBatches = _canonicalReads.BatchedReads;
+
+        _canonicalReads.Reset();
+        await _assignment.AssignAsync(manyFiles.AssetId);
+
+        // The claims are one batched read; the per-entity reads are the fixed pair the retail identity needs, not one per file.
+        Assert.Equal(1, singleBatches);
+        Assert.Equal(1, _canonicalReads.BatchedReads);
+        Assert.Equal(singleReads, _canonicalReads.PerEntityReads);
+        Assert.True(_canonicalReads.PerEntityReads <= 2);
+    }
+
+    [Fact]
+    public async Task ABlankClaimIsNoClaim_OnBothPaths_SoTheNextFilesClaimDecides()
+    {
+        var first = await CreateShelfAsync("QA1", "Series A");
+        var second = await CreateShelfAsync("QB1", "Series B");
+        var lowFile = Guid.Parse("00000000-0000-0000-0000-0000000000a1");
+        var highFile = Guid.Parse("00000000-0000-0000-0000-0000000000a2");
+        // The lower file has a blank series_qid, the higher names Series B. A blank is dropped, so B is the claim; if the blank
+        // counted, the lowest Series id (A) would win instead.
+        var viaAssign = AddWork("Blank (assign)", seriesQid: null, seriesLabel: null, claimOnFile: "QB1", fileId: highFile);
+        AddFile(viaAssign, lowFile, claim: "   ");
+        await StoreManifestOnlyAsync(first, "QA1", viaAssign, SeriesMembershipScopeNames.Supplementary);
+        await StoreManifestOnlyAsync(second, "QB1", viaAssign, SeriesMembershipScopeNames.Supplementary);
+        var viaLink = AddWork("Blank (link)", seriesQid: null, seriesLabel: null, claimOnFile: "QB1", fileId: Guid.Parse("00000000-0000-0000-0000-0000000000b2"));
+        AddFile(viaLink, Guid.Parse("00000000-0000-0000-0000-0000000000b1"), claim: "   ");
+
+        await _assignment.AssignAsync(highFile);
+        await StoreManifestAsync(first, "QA1", viaLink, SeriesMembershipScopeNames.Supplementary);
+        await StoreManifestAsync(second, "QB1", viaLink, SeriesMembershipScopeNames.Supplementary);
+
+        Assert.Equal(second, await ShelfOfAsync(viaAssign));
+        Assert.Equal(second, await ShelfOfAsync(viaLink));
+    }
+
+    [Fact]
+    public async Task LettingTheLibraryDecide_ForAWorkWithAFile_RunsTheUniverseStepOncePerShelf()
+    {
+        var chosen = await CreateShelfAsync("QChosen", "Chosen");
+        var claimed = await CreateShelfAsync("QClaimed", "Claimed");
+        var work = AddWork("Work", seriesQid: "QClaimed", seriesLabel: "Claimed");
+        await _choices.ChooseAsync(work.WorkId, chosen);
+        _parents.Resolved.Clear();
+
+        await _choices.ReleaseAsync(work.WorkId);
+
+        Assert.Equal(1, _parents.Resolved.Count(id => id == claimed));
+        Assert.Equal(1, _parents.Resolved.Count(id => id == chosen));
+    }
+
+    // ----------------------------------------------------------------------------------------------------------------
+
+    private sealed record Library(Guid WorkId, Guid AssetId);
+
+    private Library AddWork(string title, string? seriesQid, string? seriesLabel, string? claimOnFile = null, Guid? fileId = null)
+    {
+        var workId = Guid.NewGuid();
+        var assetId = fileId ?? Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        conn.Execute(
+            "INSERT INTO works (id, collection_id, media_type, work_kind) VALUES (@workId, NULL, 'Books', 'standalone');",
+            new { workId });
+        AddFileRows(conn, workId, assetId, title);
+
+        var values = new Dictionary<string, string> { ["title"] = title, ["media_type"] = "Books" };
+        if (seriesQid is not null)
+        {
+            values["series_qid"] = seriesQid;
+            values["series"] = seriesLabel ?? seriesQid;
+        }
+
+        foreach (var (key, value) in values)
+        {
+            conn.Execute(
+                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@workId, @key, @value, @now);",
+                new { workId, key, value, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        if (claimOnFile is not null)
+        {
+            conn.Execute(
+                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@assetId, 'series_qid', @claim, @now);",
+                new { assetId, claim = claimOnFile, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        return new Library(workId, assetId);
+    }
+
+    private Guid AddFile(Library library, Guid? id = null, string? claim = null)
+    {
+        var assetId = id ?? Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        AddFileRows(conn, library.WorkId, assetId, "second");
+        if (claim is not null)
+        {
+            conn.Execute(
+                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@assetId, 'series_qid', @claim, @now);",
+                new { assetId, claim, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        return assetId;
+    }
+
+    private static void AddFileRows(System.Data.IDbConnection conn, Guid workId, Guid assetId, string name)
+        => conn.Execute(
+            """
+            INSERT INTO editions (id, work_id, format_label) VALUES (@editionId, @workId, 'Edition');
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+            VALUES (@assetId, @editionId, @contentHash, @filePath);
+            """,
+            new
+            {
+                editionId = Guid.NewGuid(),
+                workId,
+                assetId,
+                contentHash = Guid.NewGuid().ToString("N"),
+                filePath = $"{name}-{assetId:N}.bin",
+            });
+
+    private async Task<Guid> CreateShelfAsync(string qid, string name)
+    {
+        var collection = new Collection
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = name,
+            WikidataQid = qid,
+            MediaType = "Books",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        collection.RestoreDefinition(
+            CollectionType.ContentGroup,
+            CollectionScope.Library,
+            CollectionResolution.Materialized,
+            CollectionMatchMode.All,
+            CollectionSortDirection.Desc,
+            CollectionUniverseStatus.Unknown);
+        return await _collections.UpsertAsync(collection);
+    }
+
+    /// <summary>Stores the manifest rows and links the owned works through the hydration path (which also reports ambiguity).</summary>
+    private async Task StoreManifestAsync(Guid collectionId, string seriesQid, params Library[] works)
+        => await StoreManifestCoreAsync(collectionId, seriesQid, SeriesMembershipScopeNames.MainSequence, works);
+
+    private async Task StoreManifestAsync(Guid collectionId, string seriesQid, Library work, string scope)
+        => await StoreManifestCoreAsync(collectionId, seriesQid, scope, [work]);
+
+    private async Task StoreManifestCoreAsync(Guid collectionId, string seriesQid, string scope, Library[] works)
+    {
+        var items = Items(collectionId, seriesQid, scope, works);
+        await _manifests.UpsertManifestAsync(Hydrated(collectionId, seriesQid), items);
+        await _hydration.LinkAndReportAsync(collectionId, items, default);
+    }
+
+    /// <summary>Stores the manifest rows without linking, so a later assignment run is what places the work.</summary>
+    private async Task StoreManifestOnlyAsync(Guid collectionId, string seriesQid, Library work, string scope = SeriesMembershipScopeNames.MainSequence)
+        => await _manifests.UpsertManifestAsync(Hydrated(collectionId, seriesQid), Items(collectionId, seriesQid, scope, [work]));
+
+    private static SeriesManifestItemRecord[] Items(Guid collectionId, string seriesQid, string scope, Library[] works)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return works.Select((work, index) => new SeriesManifestItemRecord
+        {
+            Id = Guid.NewGuid(),
+            CollectionId = collectionId,
+            SeriesQid = seriesQid,
+            ItemQid = $"Q-{work.WorkId:N}",
+            ItemLabel = $"Item {index + 1}",
+            MediaType = "Books",
+            RawOrdinal = (index + 1).ToString(),
+            ParsedOrdinal = index + 1,
+            OrdinalScopeQid = seriesQid,
+            SortOrder = index + 1,
+            OrderSource = "SeriesOrdinal",
+            OwnershipState = "Owned",
+            LinkedWorkId = work.WorkId,
+            MembershipScope = scope,
+            SourcePropertiesJson = """["P179"]""",
+            RelationshipsJson = "[]",
+            LastHydratedAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
+        }).ToArray();
+    }
+
+    private static SeriesManifestHydration Hydrated(Guid collectionId, string seriesQid)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new SeriesManifestHydration
+        {
+            SeriesQid = seriesQid,
+            CollectionId = collectionId,
+            SeriesLabel = seriesQid,
+            WarningsJson = "[]",
+            ApiMetadataJson = "{}",
+            LastHydratedAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+    }
+
+    private async Task SetShelfAsync(Library work, Guid? shelf)
+    {
+        using var conn = _db.CreateConnection();
+        await conn.ExecuteAsync(
+            "UPDATE works SET collection_id = @shelf WHERE id = @id;",
+            new { shelf, id = work.WorkId });
+    }
+
+    /// <summary>A catalog entry with no file at all.</summary>
+    private Library AddFileless(string title)
+    {
+        var workId = Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        conn.Execute(
+            "INSERT INTO works (id, collection_id, media_type, work_kind) VALUES (@workId, NULL, 'Books', 'standalone');",
+            new { workId });
+        return new Library(workId, Guid.Empty);
+    }
+
+    private async Task<Guid?> ShelfOfAsync(Library work)
+    {
+        using var conn = _db.CreateConnection();
+        return await conn.ExecuteScalarAsync<Guid?>(
+            "-- readiness: test lookup of one work by id\nSELECT collection_id FROM works WHERE id = @id;",
+            new { id = work.WorkId });
+    }
+
+    private sealed class SilentEventPublisher : IEventPublisher
+    {
+        public Task PublishAsync<TPayload>(string eventName, TPayload payload, CancellationToken ct = default)
+            where TPayload : notnull
+            => Task.CompletedTask;
+    }
+
+    /// <summary>Counts how the canonical values are read, so a test can pin the batched read.</summary>
+    private sealed class CountingCanonicalValues(ICanonicalValueRepository inner) : ICanonicalValueRepository
+    {
+        public int PerEntityReads { get; private set; }
+        public int BatchedReads { get; private set; }
+
+        public void Reset()
+        {
+            PerEntityReads = 0;
+            BatchedReads = 0;
+        }
+
+        public Task<IReadOnlyList<CanonicalValue>> GetByEntityAsync(Guid entityId, CancellationToken ct = default)
+        {
+            PerEntityReads++;
+            return inner.GetByEntityAsync(entityId, ct);
+        }
+
+        public Task<IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalValue>>> GetByEntitiesAsync(
+            IReadOnlyList<Guid> entityIds, CancellationToken ct = default)
+        {
+            BatchedReads++;
+            return inner.GetByEntitiesAsync(entityIds, ct);
+        }
+
+        public Task UpsertBatchAsync(IReadOnlyList<CanonicalValue> values, CancellationToken ct = default) => inner.UpsertBatchAsync(values, ct);
+        public Task<IReadOnlyList<CanonicalValue>> GetConflictedAsync(CancellationToken ct = default) => inner.GetConflictedAsync(ct);
+        public Task DeleteByEntityAsync(Guid entityId, CancellationToken ct = default) => inner.DeleteByEntityAsync(entityId, ct);
+        public Task DeleteByKeyAsync(Guid entityId, string key, CancellationToken ct = default) => inner.DeleteByKeyAsync(entityId, key, ct);
+        public Task<IReadOnlyList<Guid>> FindByValueAsync(string key, string value, CancellationToken ct = default) => inner.FindByValueAsync(key, value, ct);
+        public Task<IReadOnlyList<CanonicalValue>> FindByKeyAndPrefixAsync(string key, string prefix, CancellationToken ct = default) => inner.FindByKeyAndPrefixAsync(key, prefix, ct);
+        public Task<IReadOnlyList<Guid>> GetEntitiesNeedingEnrichmentAsync(string hasField, string missingField, int limit, CancellationToken ct = default)
+            => inner.GetEntitiesNeedingEnrichmentAsync(hasField, missingField, limit, ct);
+    }
+
+    private sealed class RecordingParentResolver : IParentCollectionResolver
+    {
+        public List<Guid> Resolved { get; } = [];
+
+        public Task ResolveParentCollectionAsync(Guid collectionId, CancellationToken ct = default)
+        {
+            Resolved.Add(collectionId);
+            return Task.CompletedTask;
+        }
+    }
+}

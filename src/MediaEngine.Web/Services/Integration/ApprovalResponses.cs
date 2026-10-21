@@ -49,9 +49,3 @@ internal static class ApprovalResponses
         return null;
     }
 }
-
-/// <summary>
-/// The outcome of saving the Local AI configuration. <see cref="Approval"/> is set when a feature was switched on and the
-/// Engine wants the person to confirm what it can do first; nothing was saved in that case.
-/// </summary>
-public sealed record AiConfigSaveResult(bool Saved, ApprovalRequiredResponse? Approval = null);

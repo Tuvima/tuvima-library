@@ -253,6 +253,7 @@ internal static class OcrEngineRoom
         var records = usage ?? new InMemoryUsageRepository();
         return new LocalAiEngineRoom(
             settings,
+            new FakeAiFeatureSwitches(),
             new ModelInventory(settings, NullLogger<ModelInventory>.Instance),
             new StubRuntimeStatus(textLoads: false),
             new StubAdmissionRules(),
@@ -295,7 +296,7 @@ internal sealed class EngineRoomHarness : IDisposable
             definition.Sha256 = null;
         }
 
-        Settings.Features.SmartLabeling = localAiOn;
+        Switches = localAiOn ? new FakeAiFeatureSwitches(AiFeature.SmartLabeling) : new FakeAiFeatureSwitches();
         Settings.PluginBudget.MaxWaitSeconds = 1;
         if (modelPresent)
         {
@@ -306,6 +307,8 @@ internal sealed class EngineRoomHarness : IDisposable
     }
 
     public AiSettings Settings { get; }
+
+    public FakeAiFeatureSwitches Switches { get; }
 
     public ModelInventory Inventory { get; }
 
@@ -335,6 +338,7 @@ internal sealed class EngineRoomHarness : IDisposable
         var records = usage ?? Usage;
         return new LocalAiEngineRoom(
             Settings,
+            Switches,
             Inventory,
             Runtime,
             Admission,
