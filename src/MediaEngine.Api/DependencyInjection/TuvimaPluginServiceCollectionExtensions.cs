@@ -32,6 +32,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<DeclarativeAiStepRunner>();
         services.AddSingleton<PluginSettingsService>();
         services.AddSingleton<IPluginApprovalCheck, PluginApprovalCheck>();
+        services.AddSingleton<PluginBlocklist>();
         services.AddSingleton<PluginCatalog>();
         services.AddSingleton<PluginDirectoryService>();
         services.AddSingleton<ILibraryUniverseQidGate, LibraryUniverseQidGate>();

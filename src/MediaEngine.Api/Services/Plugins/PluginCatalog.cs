@@ -35,6 +35,7 @@ public sealed class PluginCatalog
     private readonly string _pluginRoot;
     private readonly string _libraryVersion;
     private readonly string _platform;
+    private readonly PluginBlocklist? _blocklist;
     private readonly object _lock = new();
     private List<PluginRegistration> _registrations = [];
     private bool _loaded;
@@ -50,8 +51,9 @@ public sealed class PluginCatalog
         PluginSettingsService settingsService,
         IConfigurationLoader configurationLoader,
         IPluginApprovalCheck approvals,
-        ILogger<PluginCatalog> logger)
-        : this(builtInPlugins, settingsService, configurationLoader, approvals, logger, LibraryVersion.Current, PluginCompatibility.CurrentRid)
+        ILogger<PluginCatalog> logger,
+        PluginBlocklist? blocklist = null)
+        : this(builtInPlugins, settingsService, configurationLoader, approvals, logger, LibraryVersion.Current, PluginCompatibility.CurrentRid, blocklist)
     {
     }
 
@@ -64,8 +66,15 @@ public sealed class PluginCatalog
         IPluginApprovalCheck approvals,
         ILogger<PluginCatalog> logger,
         string libraryVersion,
-        string platform)
+        string platform,
+        PluginBlocklist? blocklist = null)
     {
+        _blocklist = blocklist;
+        if (blocklist is not null)
+        {
+            blocklist.Changed += Reload;
+        }
+
         _builtInPlugins = builtInPlugins.ToList();
         _settingsService = settingsService;
         _approvals = approvals;
@@ -297,6 +306,15 @@ public sealed class PluginCatalog
         string? manifestPath)
     {
         var compatibility = PluginCompatibility.Evaluate(manifest, _libraryVersion, _platform, loadError);
+
+        // A plugin Tuvima has pulled is switched off with the reason showing, and cannot be switched back on.
+        if (!isBuiltIn && _blocklist?.Find(manifest.Id, manifest.Version) is { } block)
+        {
+            compatibility = PluginCompatibilityResult.Incompatible(
+                string.IsNullOrWhiteSpace(block.Reason)
+                    ? "Blocked: Tuvima has removed this plugin from its directory."
+                    : $"Blocked: {block.Reason}");
+        }
 
         // Trust is decided here, never read from the manifest. Anything in the plugins folder is a sideloaded
         // (private) plugin, even if it says it is official. Signature checks for verified plugins come in WP19.
