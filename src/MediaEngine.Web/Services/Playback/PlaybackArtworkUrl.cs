@@ -45,10 +45,6 @@ public static class PlaybackArtworkUrl
         {
             return null;
         }
-        if (MediaTileArtworkUrl.Sized(source, size) is { } sized)
-        {
-            return sized;
-        }
         var path = source.Split('?', '#')[0];
         if (Uri.TryCreate(source, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http")
         {
@@ -62,7 +58,12 @@ public static class PlaybackArtworkUrl
         if (segments.Length == 3 && segments[0].Equals("stream", StringComparison.OrdinalIgnoreCase)
             && Guid.TryParse(segments[1], out _) && segments[2].Equals("cover", StringComparison.OrdinalIgnoreCase))
         {
+            // A recording's own cover is not the book's cover: callers fall back to the owned work.
             return null;
+        }
+        if (MediaTileArtworkUrl.Sized(source, size) is { } sized)
+        {
+            return sized;
         }
         // Some already-delivered renditions have a different route family. Keep that
         // exact bounded URL; inventing s/m/l siblings would misrepresent its contract.
@@ -77,5 +78,5 @@ public static class PlaybackArtworkUrl
                 ? source : null;
     }
 
-    private static bool IsRendition(string size) => size.ToLowerInvariant() is "s" or "m" or "l";
+    private static bool IsRendition(string size) => ArtworkSize.IsKnown(size.ToLowerInvariant());
 }
