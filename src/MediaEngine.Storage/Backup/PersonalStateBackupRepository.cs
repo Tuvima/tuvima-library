@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Data.Sqlite;
 
@@ -80,31 +82,56 @@ public sealed class PersonalStateBackupRepository
             tables.Add(ExportTable(connection, transaction, rule, liveColumns, scope, book, ref dropped, ct));
         }
 
+        var choices = new List<BackupExportTable>();
+        foreach (var rule in BackupTableClassification.OfKind(BackupDataKind.Catalogue).Where(rule => rule.ChoiceColumns.Count > 0))
+        {
+            ct.ThrowIfCancellationRequested();
+            if (live.TryGetValue(rule.Table, out var liveColumns)
+                && ExportChoices(connection, transaction, rule, liveColumns, scope, book, ct) is { } choiceTable)
+            {
+                choices.Add(choiceTable);
+            }
+        }
+
         var configuration = tables.Where(table => table.Kind == BackupDataKind.Configuration).ToList();
         var contents = new BackupExportContents(
             scope,
             configuration.Count,
             configuration.Sum(table => table.Rows.Count),
             tables.Where(table => table.Kind == BackupDataKind.PersonalState).Sum(table => table.Rows.Count),
+            choices.Sum(table => table.Rows.Count),
             book.Titles.Count,
             book.Titles.Count(title => title.IsRecognisedByFileOnly),
             CountProfiles(connection, transaction, scope),
             dropped);
-        return new BackupExport(tables, book.Titles, contents);
+        return new BackupExport(tables, choices, book.Titles, contents);
     }
 
     private static BackupExportTable ExportTable(
         SqliteConnection connection,
         SqliteTransaction transaction,
         BackupTableRule rule,
-        IReadOnlyList<string> liveColumns,
+        IReadOnlyList<LiveColumn> liveColumns,
         BackupScope scope,
         TitleBook book,
         ref int dropped,
         CancellationToken ct)
     {
         var excluded = new HashSet<string>(rule.ExcludedColumns, StringComparer.OrdinalIgnoreCase);
-        var columns = liveColumns.Where(column => !excluded.Contains(column)).ToList();
+
+        // An excluded column is never read. One that may be NULL (and has no default) stays in the column list as NULL;
+        // any other is left out of the list, so a restore uses the table's own default.
+        var columns = liveColumns
+            .Where(column => !excluded.Contains(column.Name) || (!column.NotNull && column.Default is null))
+            .Select(column => column.Name)
+            .ToList();
+        var stripped = rule.ExcludedJsonProperties
+            .Select(property => (Index: columns.FindIndex(column => string.Equals(column, property.Column, StringComparison.OrdinalIgnoreCase)), property.Property))
+            .ToList();
+        if (stripped.Any(entry => entry.Index < 0))
+        {
+            throw new InvalidOperationException($"Backup rule for '{rule.Table}' names a JSON column that is not a kept column of that table.");
+        }
         var references = new Dictionary<int, CatalogueTarget>();
         foreach (var reference in rule.CatalogueReferences)
         {
@@ -118,6 +145,12 @@ public sealed class PersonalStateBackupRepository
             references[index] = reference.Target;
         }
 
+        // A reference that may be NULL is written as NULL when its catalogue row is gone (an activity entry outlives the
+        // title it names); a row whose NOT NULL reference is gone is dropped.
+        var nullableReferences = references.Keys
+            .Where(index => liveColumns.First(column => string.Equals(column.Name, columns[index], StringComparison.OrdinalIgnoreCase)) is { NotNull: false })
+            .ToHashSet();
+
         var kindIndex = columns.FindIndex(column => string.Equals(column, EntityKindColumn, StringComparison.OrdinalIgnoreCase));
         var where = new List<string>();
         using var command = connection.CreateCommand();
@@ -130,7 +163,7 @@ public sealed class PersonalStateBackupRepository
 
         if (scope.ProfileId is { } profileId)
         {
-            if (rule.OwnerColumn is null || !liveColumns.Contains(rule.OwnerColumn, StringComparer.OrdinalIgnoreCase))
+            if (rule.OwnerColumn is null || !liveColumns.Any(column => string.Equals(column.Name, rule.OwnerColumn, StringComparison.OrdinalIgnoreCase)))
             {
                 throw new InvalidOperationException($"Backup rule for '{rule.Table}' has no usable owner column.");
             }
@@ -138,12 +171,13 @@ public sealed class PersonalStateBackupRepository
             // Owner columns are BLOB in most tables and TEXT (the "D" format, lower case) in the reader tables.
             var owner = Quote(rule.OwnerColumn);
             where.Add($"((typeof({owner}) = 'blob' AND {owner} = $ownerBlob) OR (typeof({owner}) = 'text' AND lower({owner}) = $ownerText))");
+            var textForm = profileId.ToString("D", CultureInfo.InvariantCulture);
             command.Parameters.AddWithValue("$ownerBlob", GuidSql.ToBlob(profileId));
-            command.Parameters.AddWithValue("$ownerText", profileId.ToString("D", CultureInfo.InvariantCulture));
+            command.Parameters.AddWithValue("$ownerText", textForm);
         }
 
         command.CommandText =
-            $"SELECT {string.Join(", ", columns.Select(Quote))} FROM {Quote(rule.Table)}" +
+            $"SELECT {string.Join(", ", columns.Select(column => excluded.Contains(column) ? "NULL AS " + Quote(column) : Quote(column)))} FROM {Quote(rule.Table)}" +
             (where.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", where));
 
         var rows = new List<IReadOnlyList<BackupValue>>();
@@ -158,7 +192,7 @@ public sealed class PersonalStateBackupRepository
                     raw[i] = reader.IsDBNull(i) ? null : reader.GetValue(i);
                 }
 
-                var row = ConvertRow(raw, references, kindIndex, book);
+                var row = ConvertRow(rule.Table, raw, references, nullableReferences, kindIndex, stripped, book);
                 if (row is null)
                 {
                     dropped++;
@@ -173,11 +207,17 @@ public sealed class PersonalStateBackupRepository
         return new BackupExportTable(rule.Table, rule.Kind, columns, rows);
     }
 
-    /// <summary>Converts a raw row, swapping catalogue references for title references. Null when a reference cannot be resolved.</summary>
+    /// <summary>
+    /// Converts a raw row, swapping catalogue references for title references. An unresolved reference becomes NULL when
+    /// its column may be NULL; otherwise the whole row is dropped (null is returned).
+    /// </summary>
     private static List<BackupValue>? ConvertRow(
+        string table,
         object?[] raw,
         Dictionary<int, CatalogueTarget> references,
+        HashSet<int> nullableReferences,
         int kindIndex,
+        List<(int Index, string Property)> stripped,
         TitleBook book)
     {
         var row = new List<BackupValue>(raw.Length);
@@ -185,26 +225,236 @@ public sealed class PersonalStateBackupRepository
         {
             if (!references.TryGetValue(i, out var target) || raw[i] is null)
             {
-                row.Add(ToValue(raw[i]));
+                row.Add(ToValue(StripJsonProperties(table, raw[i], i, stripped)));
                 continue;
             }
 
-            if (raw[i] is not byte[] { Length: 16 } id)
+            // A reference is normally a 16-byte BLOB id. A TEXT reference that parses as a GUID is the same id; any other
+            // text (a Wikidata id, a provider key) is an external key, kept as written.
+            byte[] id;
+            switch (raw[i])
             {
-                return null;
+                case byte[] { Length: 16 } blob:
+                    id = blob;
+                    break;
+                case string text when Guid.TryParse(text, out var guid):
+                    id = GuidSql.ToBlob(guid);
+                    break;
+                case string:
+                    row.Add(ToValue(raw[i]));
+                    continue;
+                default:
+                    return null;
             }
 
             var kind = target == CatalogueTarget.Other && kindIndex >= 0 ? raw[kindIndex] as string : null;
             var key = book.Resolve(target, kind, id);
             if (key is null)
             {
-                return null;
+                if (!nullableReferences.Contains(i))
+                {
+                    return null;
+                }
+
+                row.Add(ToValue(null));
+                continue;
             }
 
             row.Add(BackupValue.FromTitleRef(key));
         }
 
         return row;
+    }
+
+    /// <summary>Removes the named JSON properties, at any depth, from a JSON text value. Fails rather than keep unreadable JSON.</summary>
+    private static object? StripJsonProperties(string table, object? value, int index, List<(int Index, string Property)> stripped)
+    {
+        if (value is not string json || stripped.Count == 0)
+        {
+            return value;
+        }
+
+        var names = stripped.Where(entry => entry.Index == index).Select(entry => entry.Property).ToList();
+        if (names.Count == 0)
+        {
+            return value;
+        }
+
+        JsonNode? node;
+        try
+        {
+            node = JsonNode.Parse(json);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException($"A JSON value in '{table}' could not be read, so it cannot be checked for secrets.", ex);
+        }
+
+        RemoveProperties(node, names);
+        return node?.ToJsonString() ?? value;
+    }
+
+    private static void RemoveProperties(JsonNode? node, List<string> names)
+    {
+        switch (node)
+        {
+            case JsonObject obj:
+                foreach (var name in names)
+                {
+                    obj.Remove(name);
+                }
+
+                foreach (var child in obj.Select(pair => pair.Value).ToList())
+                {
+                    RemoveProperties(child, names);
+                }
+
+                break;
+            case JsonArray array:
+                foreach (var child in array)
+                {
+                    RemoveProperties(child, names);
+                }
+
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Reads the person's own choices that sit on a Catalogue table (a favourite flag on a View item). Only rows where a
+    /// choice differs from the column's default are written, each as a reference to the row plus the choice values. A
+    /// column with a sibling <c>&lt;name&gt;_user_override</c> flag (a capture date) counts, and is kept, only while that
+    /// flag is set, so a date read from the file never enters the backup.
+    /// </summary>
+    private static BackupExportTable? ExportChoices(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        BackupTableRule rule,
+        IReadOnlyList<LiveColumn> liveColumns,
+        BackupScope scope,
+        TitleBook book,
+        CancellationToken ct)
+    {
+        var target = ChoiceTarget(rule.Table);
+        var byName = liveColumns.ToDictionary(column => column.Name, StringComparer.OrdinalIgnoreCase);
+        if (!byName.ContainsKey("id"))
+        {
+            throw new InvalidOperationException($"Backup rule for '{rule.Table}' has choices but the table has no id column.");
+        }
+
+        foreach (var column in rule.ChoiceColumns.Where(column => !byName.ContainsKey(column)))
+        {
+            throw new InvalidOperationException($"Backup rule for '{rule.Table}' names choice column '{column}', which is not a column of that table.");
+        }
+
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        var where = string.Empty;
+        if (scope.ProfileId is { } profileId)
+        {
+            // A profile export holds that profile's own items only; a table with no owner has none to give.
+            if (!byName.ContainsKey("owner_profile_id"))
+            {
+                return null;
+            }
+
+            where = " WHERE owner_profile_id = $owner";
+            command.Parameters.AddWithValue("$owner", GuidSql.ToBlob(profileId));
+        }
+
+        var choiceColumns = rule.ChoiceColumns.ToList();
+        command.CommandText =
+            $"SELECT {string.Join(", ", new[] { "id" }.Concat(choiceColumns).Select(Quote))} FROM {Quote(rule.Table)}{where}";
+
+        // The flag that says a value was set by the person, when the column has one.
+        var overrideIndex = choiceColumns
+            .Select(column => choiceColumns.FindIndex(other => string.Equals(other, column + "_user_override", StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        var rows = new List<IReadOnlyList<BackupValue>>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            ct.ThrowIfCancellationRequested();
+            if (reader.GetValue(0) is not byte[] { Length: 16 } id)
+            {
+                continue;
+            }
+
+            var values = new object?[choiceColumns.Count];
+            for (var i = 0; i < values.Length; i++)
+            {
+                values[i] = reader.IsDBNull(i + 1) ? null : reader.GetValue(i + 1);
+            }
+
+            var differs = false;
+            for (var i = 0; i < values.Length; i++)
+            {
+                if (overrideIndex[i] >= 0 && !IsSet(values[overrideIndex[i]]))
+                {
+                    values[i] = null;
+                    continue;
+                }
+
+                differs |= !MatchesDefault(values[i], byName[choiceColumns[i]].Default);
+            }
+
+            if (!differs)
+            {
+                continue;
+            }
+
+            var key = book.Resolve(target, null, id);
+            if (key is null)
+            {
+                continue;
+            }
+
+            var row = new List<BackupValue>(values.Length + 1) { BackupValue.FromTitleRef(key) };
+            row.AddRange(values.Select(ToValue));
+            rows.Add(row);
+        }
+
+        return new BackupExportTable(rule.Table, BackupDataKind.Catalogue, ["ref", .. choiceColumns], rows);
+    }
+
+    private static CatalogueTarget ChoiceTarget(string table) => table.ToLowerInvariant() switch
+    {
+        "local_items" => CatalogueTarget.LocalItem,
+        _ => throw new InvalidOperationException($"Backup rule for '{table}' has choices but no catalogue target is known for that table."),
+    };
+
+    private static bool IsSet(object? value) => value switch
+    {
+        long integer => integer != 0,
+        double real => real != 0,
+        string text => !string.IsNullOrEmpty(text) && text != "0",
+        _ => false,
+    };
+
+    /// <summary>Whether a stored value equals the column default (<c>dflt_value</c> as SQLite reports it; null means no default, so NULL).</summary>
+    private static bool MatchesDefault(object? value, string? defaultSql)
+    {
+        if (defaultSql is null || string.Equals(defaultSql, "NULL", StringComparison.OrdinalIgnoreCase))
+        {
+            return value is null;
+        }
+
+        if (value is null)
+        {
+            return false;
+        }
+
+        var literal = defaultSql.Length >= 2 && defaultSql[0] == '\'' && defaultSql[^1] == '\''
+            ? defaultSql[1..^1].Replace("''", "'", StringComparison.Ordinal)
+            : defaultSql;
+        return value switch
+        {
+            long integer => long.TryParse(literal, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed == integer,
+            double real => double.TryParse(literal, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) && parsed == real,
+            string text => string.Equals(text, literal, StringComparison.Ordinal),
+            _ => false,
+        };
     }
 
     private static BackupValue ToValue(object? value) => value switch
@@ -235,14 +485,14 @@ public sealed class PersonalStateBackupRepository
     }
 
     /// <summary>The tables that exist in the live data store, with their columns in order.</summary>
-    private static Dictionary<string, IReadOnlyList<string>> ReadLiveStructure(SqliteConnection connection, SqliteTransaction transaction)
+    private static Dictionary<string, IReadOnlyList<LiveColumn>> ReadLiveStructure(SqliteConnection connection, SqliteTransaction transaction)
     {
-        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        var result = new Dictionary<string, IReadOnlyList<LiveColumn>>(StringComparer.OrdinalIgnoreCase);
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText =
             """
-            SELECT t.name, c.name
+            SELECT t.name, c.name, c."notnull", c.dflt_value
             FROM sqlite_master t
             JOIN pragma_table_info(t.name) c
             WHERE t.type = 'table' AND t.name NOT LIKE 'sqlite\_%' ESCAPE '\'
@@ -254,15 +504,21 @@ public sealed class PersonalStateBackupRepository
             var table = reader.GetString(0);
             if (!result.TryGetValue(table, out var columns))
             {
-                columns = new List<string>();
+                columns = new List<LiveColumn>();
                 result[table] = columns;
             }
 
-            ((List<string>)columns).Add(reader.GetString(1));
+            ((List<LiveColumn>)columns).Add(new LiveColumn(
+                reader.GetString(1),
+                reader.GetInt64(2) != 0,
+                reader.IsDBNull(3) ? null : reader.GetString(3)));
         }
 
         return result;
     }
+
+    /// <summary>A column of the live data store: its name, whether it forbids NULL and its default as SQL text.</summary>
+    private sealed record LiveColumn(string Name, bool NotNull, string? Default);
 
     private static string Quote(string identifier) => "\"" + identifier.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
 

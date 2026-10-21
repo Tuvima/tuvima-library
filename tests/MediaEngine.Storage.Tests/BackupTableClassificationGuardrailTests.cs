@@ -62,6 +62,8 @@ public sealed class BackupTableClassificationGuardrailTests
                 var columns = ReadColumns(connection, rule.Table);
                 var named = rule.CatalogueReferences.Select(reference => reference.Column)
                     .Concat(rule.ExcludedColumns)
+                    .Concat(rule.ChoiceColumns)
+                    .Concat(rule.ExcludedJsonProperties.Select(property => property.Column))
                     .Concat(rule.OwnerColumn is null ? [] : [rule.OwnerColumn]);
                 foreach (var column in named.Where(column => !columns.Contains(column)))
                 {
@@ -129,12 +131,13 @@ public sealed class BackupTableClassificationGuardrailTests
     }
 
     [Fact]
-    public void CatalogueAndTransientTables_CarryNoColumnRules()
+    public void CatalogueAndTransientTables_CarryNoColumnRules_ExceptChoicesOnCatalogue()
     {
         var offenders = BackupTableClassification.Rules.Values
             .Where(rule => rule.Kind is BackupDataKind.Catalogue or BackupDataKind.Transient)
             .Where(rule => rule.CatalogueReferences.Count > 0
                 || rule.ExcludedColumns.Count > 0
+                || rule.ExcludedJsonProperties.Count > 0
                 || rule.OwnerColumn is not null
                 || rule.KeepWhere is not null)
             .Select(rule => rule.Table)
@@ -143,6 +146,20 @@ public sealed class BackupTableClassificationGuardrailTests
         Assert.True(
             offenders.Count == 0,
             "Catalogue and Transient tables are never kept, so they carry no column or row rules: " + string.Join(", ", offenders));
+    }
+
+    [Fact]
+    public void ChoiceColumns_AreOnlyAllowedOnCatalogueTables()
+    {
+        var offenders = BackupTableClassification.Rules.Values
+            .Where(rule => rule.Kind != BackupDataKind.Catalogue && rule.ChoiceColumns.Count > 0)
+            .Select(rule => rule.Table)
+            .ToList();
+
+        Assert.True(
+            offenders.Count == 0,
+            "Choice columns (a person's own choices on a catalogue row) belong to Catalogue tables only: " + string.Join(", ", offenders));
+        Assert.Contains(BackupTableClassification.Rules.Values, rule => rule.Table == "local_items" && rule.ChoiceColumns.Contains("favorite"));
     }
 
     [Fact]
@@ -205,6 +222,11 @@ public sealed class BackupTableClassificationGuardrailTests
                 connection,
                 DataStoreUpgradeCatalog.ForProduct(),
                 new DataStoreUpgradeOptions { EngineVersion = "backup-table-classification" });
+
+            // Guard against a store that was never built: an empty one would make every table check pass.
+            var tables = ReadTables(connection);
+            Assert.True(tables.Count > 100, $"The fresh data store has only {tables.Count} tables.");
+            Assert.Contains("works", tables);
             assertions(connection);
         }
         finally

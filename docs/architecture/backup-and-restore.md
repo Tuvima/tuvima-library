@@ -18,6 +18,7 @@ Every table in the Library's data store is classified as one of four kinds, in o
 - `src/MediaEngine.Storage/Backup/BackupTableClassification.cs` (the registry)
 - `src/MediaEngine.Storage/Backup/BackupTableRule.cs` and `BackupDataKind.cs`
 - `tests/MediaEngine.Storage.Tests/BackupTableClassificationGuardrailTests.cs` (the guardrail)
+- `src/MediaEngine.Storage/Backup/PersonalStateBackupRepository.cs`, `TitleRecognitionReader.cs` and `BackupArchiveFormat.cs` (the exporter that follows the registry, the one place that reads a title's recognition data, and the file format it writes)
 
 ## What a backup is for
 
@@ -31,11 +32,13 @@ After a restore and a rescan, your own state finds its way back to the right tit
 
 **Personal state** is a person's own state tied to a title: bookmarks, highlights, reading statistics, audiobook bookmarks and listening history, music play stats, consumption history, reactions, saved items, taste overrides, personal activity and playback positions. It is kept and re-attached to titles by recognition data. Each rule names an owner column (the profile or user the row belongs to), so one profile's state can be exported on its own.
 
-**Catalogue** is anything a rescan rebuilds: works, editions, media assets, canonical values, claims, artwork, fingerprints, subtitles, people, provider caches, search indexes, the Needs Review queue, and identity and enrichment jobs, and View items with what the Engine works out about them. It is never kept. The Vault's catalogue is in this group too.
+**Catalogue** is anything a rescan rebuilds: works, editions, media assets, canonical values, claims, artwork, fingerprints, subtitles, people, provider caches, search indexes, the Needs Review queue, and identity and enrichment jobs, and View items with what the Engine works out about them. It is never kept. The Vault's catalogue is in this group too. The one exception is a person's own choice on a catalogue row, such as a favourite View item: a rule can name choice columns, and the exporter keeps only those columns (as a reference to the row plus the values), only for rows where a choice differs from its default.
 
 **Transient** is not kept and not rebuilt from files: sessions and tokens, one-time codes and challenges, run, operation and audit logs, telemetry, device pairing requests, notifications already sent, job queues, backup copy records and data store bookkeeping.
 
-Tables that mix kinds are split in two ways. By column, a rule can name catalogue references (columns that point at catalogue rows, swapped for recognition data) and excluded columns (secret or machine-bound columns left out). By row, a rule can carry a keep condition (for example, only collections a person built, or only provider settings that are not secrets).
+Tables that mix kinds are split in three ways. By column, a rule can name catalogue references (columns that point at catalogue rows, swapped for recognition data), excluded columns (secret or machine-bound columns, never read: a column that may be empty is written as empty, any other is left out of the file) and excluded JSON properties (a named property removed, at any depth, from a JSON column, for example the machine-encrypted destination logins inside the backup settings). By row, a rule can carry a keep condition (for example, only collections a person built, or only provider settings that are not secrets).
+
+A catalogue reference is normally an id. A reference stored as text is treated the same way when it parses as an id; any other text (a Wikidata id, a provider key) is an external key and is kept as written. A reference whose catalogue row no longer exists drops the row, and the count of dropped rows is recorded.
 
 Secrets are never kept. Provider settings marked secret, webhook secrets and similar values are left out, in the same way as today's backups.
 
@@ -43,7 +46,7 @@ Secrets are never kept. Provider settings marked secret, webhook secrets and sim
 
 A backup's manifest will name its kind (`settings-and-personal-state`) and list what the backup leaves out: media files, folders, artwork, the catalogue, the Vault catalogue and secrets. The manifest and the export itself are built in a later step; this page defines only what is kept.
 
-## Configuration tables (58)
+## Configuration tables (60)
 
 | Table | Why | Points at the catalogue | Left out | Only rows where |
 |---|---|---|---|---|
@@ -62,7 +65,7 @@ A backup's manifest will name its kind (`settings-and-personal-state`) and list 
 | `profile_credentials` | Profile PIN hashes, needed to switch profile after a restore. | none | none | all rows |
 | `profile_grid_preferences` | How a profile sorts each grid. | none | none | all rows |
 | `profile_notice_dismissals` | Notices a profile has dismissed, so they do not return. | none | none | all rows |
-| `profile_sequence_preferences` | Whether a profile shows missing items in a series or sequence. | none | none | all rows |
+| `profile_sequence_preferences` | Whether a profile shows missing items in a series or sequence. | `container_key` (other, text) | none | all rows |
 | `profile_view_policies` | What a profile may do in View (access, sharing, documents). | none | none | all rows |
 | `profile_view_preferences` | A profile's View display preferences. | none | none | all rows |
 | `user_playback_settings` | A profile's playback settings. | none | none | all rows |
@@ -78,7 +81,7 @@ A backup's manifest will name its kind (`settings-and-personal-state`) and list 
 | `metadata_providers` | The list of metadata providers and whether each is switched on. | none | none | all rows |
 | `provider_config` | Provider settings; rows marked secret are left out of a backup. | none | none | `is_secret = 0` |
 | `notification_settings` | Notification channels and rules. | none | none | all rows |
-| `backup_settings` | Backup schedule, destination and retention settings. | none | none | all rows |
+| `backup_settings` | Backup schedule, destination and retention settings; the machine-encrypted destination logins are left out. | none | the `EncryptedSecret` property inside `value_json` | all rows |
 | `doc_types` | Document types a person defined. | none | none | all rows |
 | `doc_field_definitions` | Custom document fields a person defined. | none | none | all rows |
 | `doc_field_choices` | The choices offered by a document field. | none | none | all rows |
@@ -99,35 +102,37 @@ A backup's manifest will name its kind (`settings-and-personal-state`) and list 
 | `view_gallery_items` | The View items in a person-built gallery. | `item_id` (local item) | none | all rows |
 | `view_gallery_shares` | Who a person-built View gallery is shared with. | none | none | all rows |
 | `doc_field_values` | Values a person entered in custom document fields. | `item_id` (local item) | none | all rows |
+| `local_item_tag_links` | Which tags a person put on which View item. | `item_id` (local item) | none | all rows |
+| `doc_item_details` | Filing details a person entered for a document (machine suggestions are rebuilt). | `item_id` (local item) | `suggestions_json` | all rows |
 | `excluded_source_files` | Files a person removed from the library and chose to keep out, so a rescan does not add them back. | none | none | all rows |
-| `collections` | Collections and playlists a person built; collections built from providers (universes and series) are rebuilt. | `universe_id` (other), `parent_collection_id` (collection), `universe_qid` (other) | `cover_artwork_path`, `background_artwork_path`, `banner_artwork_path`, `logo_artwork_path` | `collection_type IN ('Custom', 'Playlist')` |
-| `collection_items` | The titles in a person-built collection. | `work_id` (work) | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist'))` |
-| `collection_placements` | Where a person-built collection appears. | none | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist'))` |
-| `collection_profile_audience` | Which profiles can see a person-built collection. | none | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist'))` |
-| `collection_view_sources` | The gallery or rule feeding a person-built collection. | `gallery_id` (other) | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist'))` |
+| `collections` | Collections and playlists a person built; collections built from providers (universes and series) are rebuilt. | `universe_id` (other), `parent_collection_id` (collection) | `cover_artwork_path`, `background_artwork_path`, `banner_artwork_path`, `logo_artwork_path` | `collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart')` |
+| `collection_items` | The titles in a person-built collection. | `work_id` (work) | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart'))` |
+| `collection_placements` | Where a person-built collection appears. | none | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart'))` |
+| `collection_profile_audience` | Which profiles can see a person-built collection. | none | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart'))` |
+| `collection_view_sources` | The gallery or rule feeding a person-built collection. | none | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart'))` |
 
 ## Personal state tables (16)
 
-| Table | Why | Owner column | Points at the catalogue |
-|---|---|---|---|
-| `reader_bookmarks` | Bookmarks a person placed in a book. | `user_id` | `asset_id` (media asset) |
-| `reader_highlights` | Highlights and notes a person made in a book. | `user_id` | `asset_id` (media asset) |
-| `reader_statistics` | A person's reading time and speed per book. | `user_id` | `asset_id` (media asset) |
-| `audiobook_bookmarks` | Bookmarks a person placed in an audiobook. | `profile_id` | `work_id` (work), `asset_id` (media asset) |
-| `audiobook_listen_history` | What a person listened to in audiobooks. | `profile_id` | `work_id` (work), `asset_id` (media asset) |
-| `music_play_stats` | Play counts and last played time per album or track. | `profile_id` | `work_id` (work) |
-| `consumption_history` | What a person watched, read or listened to, with progress. | `profile_id` | `asset_id` (media asset) |
-| `personal_activity` | A person's own activity feed (what they played and for how long). | `profile_id` | `work_id` (work), `asset_id` (media asset) |
-| `player_device_states` | Where a person stopped on each device (playback positions). | `profile_id` | `asset_id` (media asset), `work_id` (work) |
-| `user_states` | A person's progress and extended state per file. | `user_id` | `asset_id` (media asset) |
-| `user_taste_profiles` | A person's taste profile. | `user_id` | none |
-| `profile_reactions` | A person's reactions (likes and dislikes) to titles and other items. | `profile_id` | `entity_id` (other) |
-| `profile_saved_items` | Items a person saved (favourites and watch later). | `profile_id` | `entity_id` (other) |
-| `profile_taste_overrides` | Genres and tastes a person switched on or off. | `profile_id` | none |
-| `profile_work_preferences` | A person's own tags and preferences for a title. | `profile_id` | `work_id` (work) |
-| `profile_person_preferences` | A person's own tags and preferences for a creator or performer. | `profile_id` | `person_id` (person) |
+| Table | Why | Owner column | Points at the catalogue | Left out |
+|---|---|---|---|---|
+| `reader_bookmarks` | Bookmarks a person placed in a book. | `user_id` | `asset_id` (media asset) | none |
+| `reader_highlights` | Highlights and notes a person made in a book. | `user_id` | `asset_id` (media asset) | none |
+| `reader_statistics` | A person's reading time and speed per book. | `user_id` | `asset_id` (media asset) | none |
+| `audiobook_bookmarks` | Bookmarks a person placed in an audiobook. | `profile_id` | `work_id` (work), `asset_id` (media asset) | none |
+| `audiobook_listen_history` | What a person listened to in audiobooks. | `profile_id` | `work_id` (work), `asset_id` (media asset) | none |
+| `music_play_stats` | Play counts and last played time per album or track. | `profile_id` | `work_id` (work) | none |
+| `consumption_history` | What a person watched, read or listened to, with progress. | `profile_id` | `asset_id` (media asset) | none |
+| `personal_activity` | A person's own activity feed (what they played and for how long). | `profile_id` | `work_id` (work), `asset_id` (media asset) | `artwork_key` |
+| `player_device_states` | Where a person stopped on each device (playback positions). | `profile_id` | `asset_id` (media asset), `work_id` (work) | `player_session_id` |
+| `user_states` | A person's progress and extended state per file. | `user_id` | `asset_id` (media asset) | none |
+| `user_taste_profiles` | A person's taste profile. | `user_id` | none | none |
+| `profile_reactions` | A person's reactions (likes and dislikes) to titles and other items. | `profile_id` | `entity_id` (other) | none |
+| `profile_saved_items` | Items a person saved (favourites and watch later). | `profile_id` | `entity_id` (other) | none |
+| `profile_taste_overrides` | Genres and tastes a person switched on or off. | `profile_id` | none | none |
+| `profile_work_preferences` | A person's own tags and preferences for a title. | `profile_id` | `work_id` (work) | none |
+| `profile_person_preferences` | A person's own tags and preferences for a creator or performer. | `profile_id` | `person_id` (person) | none |
 
-## Catalogue tables (76)
+## Catalogue tables (74)
 
 None of these are kept. The search indexes (`search_index`, `local_item_search`, `artwork_asset_search`) are listed; their hidden storage tables are not.
 
@@ -191,16 +196,14 @@ None of these are kept. The search indexes (`search_index`, `local_item_search`,
 | `subtitle_lines` | Indexed subtitle text. |
 | `subtitle_name_tags` | Characters found in subtitle text. |
 | `text_tracks` | Subtitle and lyric tracks found for files. |
-| `local_items` | Photos, documents and other View items found on disk. |
+| `local_items` | Photos, documents and other View items found on disk; a person's own choices on them (favourite, hidden, archived, trashed, capture date they set) are kept: choice columns `favorite`, `hidden`, `archived_at`, `trashed_at`, `captured_at_user_override`, `captured_at`. |
 | `local_files` | Files behind View items. |
 | `local_file_sources` | Where View files were found. |
 | `local_item_files` | Which files belong to which View item. |
 | `local_item_metadata` | Metadata read from View items. |
 | `local_item_annotations` | Labels and detections found on View items. |
-| `local_item_tag_links` | Which tags are on which View item. |
 | `local_item_search` | Search index over View items. |
 | `local_item_search_keys` | Row numbers linking View items to their search index entries. |
-| `doc_item_details` | Filing details of documents (tied to View items, which have no stable id after a rescan). |
 | `doc_item_field_sources` | Where document field values came from (tied to View items). |
 | `view_shared_assets` | View items promoted to the shared library. |
 | `personal_activity_artwork` | Cached pictures for the activity feed. |
@@ -319,5 +322,6 @@ When you add a table through a numbered data store upgrade step, add one line fo
 
 - For Configuration or Personal state, list every column that holds the id of a catalogue row as a catalogue reference, and every secret or machine-bound column as an excluded column. Personal state also names its owner column.
 - If only some rows are kept, give the rule a keep condition.
+- If a secret sits inside a JSON column, name the JSON property to remove. If a person's own choice sits on a Catalogue row, name the choice columns on that Catalogue rule.
 - Add the table to the matching list on this page. A second test fails if a classified table is missing here.
 - If unsure whether a column holds a secret, exclude it and ask.

@@ -115,6 +115,7 @@ public sealed record BackupTitle(
 /// <param name="ConfigurationTables">Configuration tables written.</param>
 /// <param name="ConfigurationRows">Configuration rows written.</param>
 /// <param name="PersonalRows">Personal state rows written.</param>
+/// <param name="ChoiceRows">Rows of a person's own choices on catalogue rows (for example a favourite View item).</param>
 /// <param name="Titles">Titles written.</param>
 /// <param name="TitlesRecognisedByFileOnly">Titles with no external id, matched by exact file only on restore.</param>
 /// <param name="Profiles">Profiles in scope.</param>
@@ -124,13 +125,19 @@ public sealed record BackupExportContents(
     int ConfigurationTables,
     int ConfigurationRows,
     int PersonalRows,
+    int ChoiceRows,
     int Titles,
     int TitlesRecognisedByFileOnly,
     int Profiles,
     int DroppedRows);
 
-/// <summary>An export of configuration and personal state, with personal state keyed by recognition data.</summary>
+/// <summary>
+/// An export of configuration and personal state, with personal state keyed by recognition data.
+/// <see cref="Choices"/> hold a person's own choices on catalogue rows: each table's first column is <c>ref</c>, a
+/// title reference to the row itself, followed by the choice columns (their kind is <see cref="BackupDataKind.Catalogue"/>).
+/// </summary>
 public sealed record BackupExport(
     IReadOnlyList<BackupExportTable> Tables,
+    IReadOnlyList<BackupExportTable> Choices,
     IReadOnlyList<BackupTitle> Titles,
     BackupExportContents Contents);
