@@ -77,6 +77,15 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
             NullLogger<LibraryItemDeletionService>.Instance);
     }
 
+    private bool _moviesRecycleBin;
+
+    /// <summary>Turns on the Movies recycle bin, as a person can in Settings.</summary>
+    public void TurnOnMoviesRecycleBin()
+    {
+        _moviesRecycleBin = true;
+        _options.LibraryFolders = BuildFolders(moviesIsAsIs: false);
+    }
+
     /// <summary>Switches the managed Movies folder to as-is, as a person can in Settings, without touching any file.</summary>
     public void SwitchMoviesFolderToAsIs() => _options.LibraryFolders = BuildFolders(moviesIsAsIs: true);
 
@@ -86,6 +95,7 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
         {
             Id = "movies",
             Name = "Movies",
+            RecycleBin = _moviesRecycleBin,
             PrimaryDestinationSourceId = ManagedSourceId.ToString("D"),
             Sources =
             [

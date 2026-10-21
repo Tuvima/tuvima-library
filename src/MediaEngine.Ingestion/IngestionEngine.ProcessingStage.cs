@@ -135,6 +135,10 @@ public sealed partial class IngestionEngine
             {
                 result = Services.AudiobookFolderHints.Apply(result, audiobookSource);
             }
+            if (ResolveVideosRoot(_libraryFolderResolver?.ResolveForPath(filePath), filePath) is { } videosRoot)
+            {
+                result = _videoReader!.Apply(result, videosRoot);
+            }
             if (result.IsCorrupt)
             {
                 _logger.LogWarning(

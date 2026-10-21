@@ -31,6 +31,37 @@ internal static class DetailEditAction
         _ => "Edit",
     };
 
+    public const string IdentifyKey = "identify";
+    public const string ChangeThumbnailKey = "change-thumbnail";
+
+    /// <summary>
+    /// The "..." shortcuts of a video (Videos spec D42): straight into Editing Mode with Match and Identity, or Manage Artwork,
+    /// open. Identify is offered only while the video has not been matched online.
+    /// </summary>
+    public static IEnumerable<DetailAction> BuildVideoShortcuts(bool matched, bool updatingDetails)
+    {
+        if (!matched)
+        {
+            yield return new DetailAction
+            {
+                Key = IdentifyKey,
+                Label = "Identify",
+                Icon = "search",
+                IsDisabled = updatingDetails,
+                Tooltip = updatingDetails ? UpdatingReason : null,
+            };
+        }
+
+        yield return new DetailAction
+        {
+            Key = ChangeThumbnailKey,
+            Label = "Change thumbnail",
+            Icon = "image",
+            IsDisabled = updatingDetails,
+            Tooltip = updatingDetails ? UpdatingReason : null,
+        };
+    }
+
     /// <summary>Disabled while the item is still processing; the reason travels with it so the menu can say why.</summary>
     public static DetailAction Build(DetailEntityType entityType, bool updatingDetails) => new()
     {

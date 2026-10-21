@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Api.Security;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
@@ -35,6 +36,12 @@ public sealed class DisplayVisibleWorkReader
     {
         var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
+        var rating = ContentRatingSql.WithExplicit("WorkId", "RootWorkId", "AssetId", """
+            COALESCE(
+                (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('content_rating', 'certification') LIMIT 1),
+                (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('content_rating', 'certification') LIMIT 1),
+                (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('content_rating', 'certification') LIMIT 1))
+            """);
         return $"""
             WITH asset_dates AS MATERIALIZED (
                 SELECT entity_id, MIN(claimed_at) AS claimed_at
@@ -71,11 +78,7 @@ public sealed class DisplayVisibleWorkReader
                 LibraryId,
                 WorkId,
                 MediaType,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('content_rating', 'certification') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('content_rating', 'certification') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('content_rating', 'certification') LIMIT 1)
-                ) AS ContentRating
+                {rating} AS ContentRating
             FROM ranked_assets
             WHERE AssetRank = 1;
             """;

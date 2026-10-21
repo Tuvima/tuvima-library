@@ -123,6 +123,43 @@ public static class LibraryItemEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireEffectiveAdministratorInPerson();
 
+        // The recycle bin of the library types that have it switched on. Same audience as deleting: effective administrators at
+        // the Dashboard. Restoring never overwrites; emptying is the only step that removes files from the disk.
+        group.MapGet("/recycle-bin", ([FromServices] RecycleBinService bin) => Results.Ok(bin.List().Select(entry => new RecycleBinItemDto
+        {
+            Id = entry.Id,
+            FileName = entry.FileName,
+            Title = entry.Title,
+            SizeBytes = entry.SizeBytes,
+            DeletedAt = entry.DeletedAt,
+        }).ToList()))
+        .WithName("ListRecycleBin")
+        .WithSummary("The files waiting in the recycle bin.")
+        .Produces<IReadOnlyList<RecycleBinItemDto>>(StatusCodes.Status200OK)
+        .RequireEffectiveAdministratorInPerson();
+
+        group.MapPost("/recycle-bin/{id:guid}/restore", (Guid id, [FromServices] RecycleBinService bin) =>
+            bin.Restore(id) switch
+            {
+                RecycleBinRestoreResult.Restored => Results.NoContent(),
+                RecycleBinRestoreResult.NotFound => ApiErrors.NotFound("That file is no longer in the recycle bin."),
+                RecycleBinRestoreResult.PlaceTaken => ApiErrors.Conflict("Something is already at that place, so nothing was put back."),
+                _ => ApiErrors.BadRequest("The file could not be put back. It is still in the recycle bin."),
+            })
+        .WithName("RestoreFromRecycleBin")
+        .WithSummary("Put a file from the recycle bin back where it was. Nothing is overwritten.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireEffectiveAdministratorInPerson();
+
+        group.MapPost("/recycle-bin/empty", ([FromServices] RecycleBinService bin) => Results.Ok(new RecycleBinEmptiedDto { Removed = bin.Empty() }))
+        .WithName("EmptyRecycleBin")
+        .WithSummary("Remove every file in the recycle bin from the disk for good.")
+        .Produces<RecycleBinEmptiedDto>(StatusCodes.Status200OK)
+        .RequireEffectiveAdministratorInPerson();
+
         MapMoveEndpoints(group);
 
         return app;

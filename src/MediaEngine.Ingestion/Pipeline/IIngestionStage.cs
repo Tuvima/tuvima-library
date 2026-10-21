@@ -41,6 +41,9 @@ internal sealed class IngestionPipelineContext(IngestionCandidate candidate)
     public ProcessorResult? ProcessorResult { get; set; }
     /// <summary>Sibling cover image (cover.jpg, folder.jpg, …) used only when the file has no embedded cover.</summary>
     public FolderCoverImage? FolderCover { get; set; }
+
+    /// <summary>The thumbnail an online lookup returned, used when the video has no picture of its own.</summary>
+    public FolderCoverImage? LookupThumbnail { get; set; }
     public Guid AssetId { get; set; }
     public IReadOnlyList<MetadataClaim> Claims { get; set; } = [];
     public ScoringResult? Scored { get; set; }

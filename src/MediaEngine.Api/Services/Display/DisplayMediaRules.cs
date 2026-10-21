@@ -19,6 +19,7 @@ public static class DisplayMediaRules
     {
         "Movie" => "Movies",
         "TV" => "TV",
+        "Video" => "Videos",
         "Book" => "Books",
         "Comic" => "Comics",
         "Audiobook" => "Audiobooks",
@@ -39,7 +40,7 @@ public static class DisplayMediaRules
         };
     }
 
-    public static bool IsWatchKind(string mediaType) => NormalizeDisplayKind(mediaType) is "Movie" or "TV";
+    public static bool IsWatchKind(string mediaType) => NormalizeDisplayKind(mediaType) is "Movie" or "Video" or "TV";
 
     public static bool IsReadKind(string mediaType) => NormalizeDisplayKind(mediaType) is "Book" or "Comic";
 

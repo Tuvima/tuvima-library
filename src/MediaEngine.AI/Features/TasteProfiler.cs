@@ -1,5 +1,6 @@
 using System.Text;
 using MediaEngine.AI.EngineRoom;
+using MediaEngine.AI.Infrastructure;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
@@ -12,22 +13,27 @@ public sealed class TasteProfiler : ITasteProfiler
 {
     private const int MinimumTasteSignals = 3;
     private const int MaximumTasteSignals = 500;
+    private const string PlainSummary = "Profile generated from this profile's listening, reading, and viewing history.";
 
     private static readonly AiCaller Caller = AiCaller.Person(AiCallerIds.TasteSummary);
 
     private readonly IAiEngineRoom _engineRoom;
+    private readonly IAiFeatureSwitches _switches;
     private readonly ITasteProfileRepository _profiles;
     private readonly ILogger<TasteProfiler> _logger;
 
     public TasteProfiler(
         IAiEngineRoom engineRoom,
+        IAiFeatureSwitches switches,
         ITasteProfileRepository profiles,
         ILogger<TasteProfiler> logger)
     {
         ArgumentNullException.ThrowIfNull(engineRoom);
+        ArgumentNullException.ThrowIfNull(switches);
         ArgumentNullException.ThrowIfNull(profiles);
         ArgumentNullException.ThrowIfNull(logger);
         _engineRoom = engineRoom;
+        _switches = switches;
         _profiles = profiles;
         _logger = logger;
     }
@@ -115,6 +121,12 @@ public sealed class TasteProfiler : ITasteProfiler
         IReadOnlyDictionary<string, double> mediaTypes,
         CancellationToken ct)
     {
+        // The summary sentence is the Taste summary plugin's work; the numbers above it never need Local AI.
+        if (!_switches.IsOn(AiFeature.TasteSummary))
+        {
+            return PlainSummary;
+        }
+
         var topGenres = string.Join(", ", genres.OrderByDescending(pair => pair.Value).Take(3).Select(pair => pair.Key));
         var topTypes = string.Join(", ", mediaTypes.OrderByDescending(pair => pair.Value).Take(3).Select(pair => pair.Key));
         var topEras = string.Join(", ", eras.OrderByDescending(pair => pair.Value).Take(2).Select(pair => pair.Key));
@@ -131,7 +143,7 @@ public sealed class TasteProfiler : ITasteProfiler
             var summary = await _engineRoom.WriteTextOrThrowAsync(Caller, AiAbility.WriteTextQuick, prompt, ct: ct)
                 .ConfigureAwait(false);
             return string.IsNullOrWhiteSpace(summary)
-                ? "Profile generated from this profile's listening, reading, and viewing history."
+                ? PlainSummary
                 : summary.Trim();
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -141,7 +153,7 @@ public sealed class TasteProfiler : ITasteProfiler
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "TasteProfiler: summary generation failed; using a local fallback");
-            return "Profile generated from this profile's listening, reading, and viewing history.";
+            return PlainSummary;
         }
     }
 

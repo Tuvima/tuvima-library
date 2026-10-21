@@ -16,7 +16,7 @@ namespace MediaEngine.Api.Services;
 /// </summary>
 public sealed class VibeBatchRunner
 {
-    private const string FeatureKey = "vibe";
+    private const string FeatureKey = AiFeatureKeys.Vibe;
     private const string ModelId = "text_quality";
     private const string PromptVersion = "vibe-v1";
     private readonly AiSettings _settings;

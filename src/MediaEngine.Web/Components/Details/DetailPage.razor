@@ -387,6 +387,32 @@ else if (Model is not null)
     private string? _removedInputText;
     private bool _removedLostSectionInput;
 
+    /// <summary>
+    /// A video's "..." shortcuts (Videos spec D42): turn Editing Mode on if it is off, then open Match and Identity (Identify)
+    /// or Manage Artwork on the cover (Change thumbnail). The device rule is checked here again, like Edit.
+    /// </summary>
+    private async Task OpenEditShortcutAsync(DetailAction action)
+    {
+        if (action.IsDisabled || EditorDeviceRule.TryRefuse(DeviceContext, Snackbar) || !CanEditMedia || _editing is not { HasPermission: true } editing)
+        {
+            return;
+        }
+
+        if (!editing.IsOn && !await editing.EnterAsync())
+        {
+            return;
+        }
+
+        if (action.Key == DetailActionKeys.Identify)
+        {
+            await editing.ShowSectionAsync(EditingSection.Match);
+        }
+        else
+        {
+            await editing.ShowSectionAsync(EditingSection.Artwork, "CoverArt");
+        }
+    }
+
     private async Task DeleteFromLibraryAsync()
     {
         if (Model is null || _deleting || _leaving || _removed || !Guid.TryParse(Model.Id, out var workId))
@@ -646,6 +672,12 @@ else if (Model is not null)
             }
 
             await OpenMediaEditorAsync();
+            return;
+        }
+
+        if (action.Key is DetailActionKeys.Identify or DetailActionKeys.ChangeThumbnail)
+        {
+            await OpenEditShortcutAsync(action);
             return;
         }
 

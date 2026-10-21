@@ -1971,7 +1971,7 @@
     private string? PersonDetailContext => _activeTabId switch
     {
         "music" or "audiobooks" => "listen",
-        "movies" or "tv" => "watch",
+        "movies" or "tv" or "videos" => "watch",
         "books" or "comics" => "read",
         _ => null,
     };

@@ -11,7 +11,7 @@ public readonly record struct DetailMenuEntry(DetailAction? Action, string? Note
 /// <summary>
 /// The order of the detail "..." menu (details overlay spec D5): the personal and playback group, other utilities,
 /// the edit group, then a final destructive group that is always last. Groups 4 to 8 are left empty so actions that
-/// later sit after Edit and before Delete (Videos: Identify, Change thumbnail) slot in without reshuffling.
+/// later sit after Edit and before Delete (Videos: Identify, Change thumbnail, in the shortcut group) slot in without reshuffling.
 /// </summary>
 public static class DetailMenuGrouping
 {
@@ -19,6 +19,9 @@ public static class DetailMenuGrouping
     public const int VisibilityGroup = 1;
     public const int UtilityGroup = 2;
     public const int EditGroup = 3;
+
+    /// <summary>Shortcuts into Editing Mode sections (Videos: Identify, Change thumbnail): straight after Edit, before Delete.</summary>
+    public const int ShortcutGroup = 4;
     public const int DestructiveGroup = 9;
 
     /// <summary>
@@ -36,6 +39,10 @@ public static class DetailMenuGrouping
     public static bool IsEditAction(DetailAction action) =>
         action.Key is DetailActionKeys.Edit or DetailActionKeys.EditMedia;
 
+    /// <summary>The "..." shortcuts that open an Editing Mode section; like Edit, they disappear where the device cannot edit.</summary>
+    public static bool IsEditShortcut(DetailAction action) =>
+        action.Key is DetailActionKeys.Identify or DetailActionKeys.ChangeThumbnail;
+
     /// <summary>Anything flagged destructive, and Delete by key (including Delete from library), is red and goes last.</summary>
     public static bool IsDestructive(DetailAction action) =>
         action.IsDestructive || action.Key is "delete" or DetailActionKeys.DeleteFromLibrary;
@@ -52,6 +59,7 @@ public static class DetailMenuGrouping
             "play-from-beginning" or "restart" or "status-complete" or "status-reset" => PlaybackGroup,
             "status-hide" or "status-show" or "status-history" => VisibilityGroup,
             DetailActionKeys.Edit or DetailActionKeys.EditMedia => EditGroup,
+            DetailActionKeys.Identify or DetailActionKeys.ChangeThumbnail => ShortcutGroup,
             _ => UtilityGroup,
         };
     }

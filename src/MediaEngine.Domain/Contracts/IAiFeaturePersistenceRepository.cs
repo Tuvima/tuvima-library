@@ -12,6 +12,15 @@ public interface IAiFeaturePersistenceRepository
         AiFeatureWriteRequest request,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Removes what a feature published and still owns (values a person or a provider has since replaced are left
+    /// alone) and forgets its state, so switching the feature's plugin off takes its suggestions away. Returns how
+    /// many items had a record.
+    /// </summary>
+    Task<int> RetractAiFeatureAsync(
+        string featureKey,
+        CancellationToken ct = default);
+
     Task<AiFeatureState?> GetAiFeatureStateAsync(
         Guid entityId,
         string featureKey,

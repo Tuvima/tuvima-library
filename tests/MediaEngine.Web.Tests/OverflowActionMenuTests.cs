@@ -246,4 +246,34 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
 
         Assert.Equal("edit", chosen?.Key);
     }
+
+    private static readonly DetailAction IdentifyAction = new() { Key = "identify", Label = "Identify", Icon = "search" };
+    private static readonly DetailAction ThumbnailAction = new() { Key = "change-thumbnail", Label = "Change thumbnail", Icon = "image" };
+
+    [Fact]
+    public async Task DesktopThatCanEditShowsIdentifyAndChangeThumbnailBetweenEditAndNothingElse()
+    {
+        await UseAsync("desktop");
+        var menu = RenderMenu(History, IdentifyAction, ThumbnailAction, Edit());
+
+        menu.Find("button.hero-icon-circle").Click();
+
+        Assert.Equal(["Viewing history", EditLabel, "Identify", "Change thumbnail"], Labels(menu));
+    }
+
+    [Theory]
+    [InlineData("tablet")]
+    [InlineData("phone")]
+    [InlineData("tv")]
+    [InlineData("desktop-no-pointer")]
+    public async Task WhereTheDeviceCannotEdit_IdentifyAndChangeThumbnailDisappearWithEdit(string device)
+    {
+        await UseAsync(device);
+        var menu = RenderMenu(History, Edit(), IdentifyAction, ThumbnailAction);
+
+        menu.Find("button.hero-icon-circle").Click();
+
+        Assert.DoesNotContain("Identify", Labels(menu));
+        Assert.DoesNotContain("Change thumbnail", Labels(menu));
+    }
 }

@@ -1,0 +1,103 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Items
+@implements IDisposable
+@inject IEngineApiClient Api
+
+@* Editing Mode on a video or a series of videos: one switch that hides it from every profile with a content limit,
+   whatever the library setting says. It saves straight away, like a pencil. Nothing is drawn for other kinds. *@
+@if (Mode is { IsOn: true } mode && mode.Fields.Loaded && _state is { Supported: true })
+{
+    <section class="tl-editing-explicit" aria-label="Explicit mark">
+        <AppSwitchRow Label="Explicit"
+                      Description="Hidden from every profile that has a content limit, whatever the library setting says. Profiles set to Everything still see it."
+                      Value="@_state.IsExplicit"
+                      Disabled="@_saving"
+                      ValueChanged="@((bool value) => SaveAsync(value))" />
+        @if (_error is not null)
+        {
+            <p class="tl-editing-explicit__error" role="alert">@_error</p>
+        }
+    </section>
+}
+
+@code {
+    private EditingModeContext? _subscribed;
+    private Guid _loadedFor;
+    private ItemExplicitResponse? _state;
+    private bool _saving;
+    private string? _error;
+
+    [CascadingParameter] public EditingModeContext? Mode { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!ReferenceEquals(_subscribed, Mode))
+        {
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed -= OnModeChanged;
+            }
+
+            _subscribed = Mode;
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed += OnModeChanged;
+            }
+        }
+
+        await EnsureLoadedAsync();
+    }
+
+    private async Task EnsureLoadedAsync()
+    {
+        if (Mode is not { IsOn: true } mode || !mode.Fields.Loaded || mode.Fields.EntityId == Guid.Empty)
+        {
+            return;
+        }
+
+        var id = mode.Fields.EntityId;
+        if (id == _loadedFor)
+        {
+            return;
+        }
+
+        _loadedFor = id;
+        _state = await Api.GetItemExplicitAsync(id);
+    }
+
+    private async Task SaveAsync(bool value)
+    {
+        if (_state is null || Mode is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        var saved = await Api.SaveItemExplicitAsync(Mode.Fields.EntityId, value);
+        if (saved)
+        {
+            _state = new ItemExplicitResponse { EntityId = _state.EntityId, IsExplicit = value, Supported = true };
+        }
+        else
+        {
+            _error = "That could not be saved. Try again.";
+        }
+
+        _saving = false;
+    }
+
+    private void OnModeChanged() => _ = InvokeAsync(async () =>
+    {
+        await EnsureLoadedAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnModeChanged;
+        }
+    }
+}

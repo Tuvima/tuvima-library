@@ -49,6 +49,7 @@ public static class DisplayGridValues
 
     public const string TypeMovie = "movie";
     public const string TypeTv = "tv";
+    public const string TypeVideo = "video";
     public const string TypeBook = "book";
     public const string TypeComic = "comic";
     public const string TypeAudiobook = "audiobook";

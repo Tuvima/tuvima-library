@@ -128,7 +128,7 @@ public static class WorkReadinessSql
         """;
 
     /// <summary>
-    /// The "placed" condition of the Ready rule. An episode must sit under a show, directly or through a season that
+    /// The "placed" condition of the Ready rule. A Videos episode may stand alone or sit under a series (directly or through a section). A TV episode must sit under a show, directly or through a season that
     /// itself sits under a show (a season is a parent that has a number; one whose show is gone does not count as the
     /// show). A track must sit under an album. Other media types stand alone by design, so this is always true for them.
     /// </summary>
@@ -144,6 +144,18 @@ public static class WorkReadinessSql
                                 AND (
                                     (parent_p.parent_work_id IS NULL AND parent_p.ordinal IS NULL)
                                     OR EXISTS (SELECT 1 FROM works root_p WHERE root_p.id = parent_p.parent_work_id)
+                                )
+                          )
+                         THEN 1 ELSE 0 END
+                WHEN {workAlias}.media_type = 'Videos' THEN
+                    CASE WHEN {workAlias}.parent_work_id IS NULL THEN 1
+                         WHEN EXISTS (
+                              SELECT 1
+                              FROM works parent_v
+                              WHERE parent_v.id = {workAlias}.parent_work_id
+                                AND (
+                                    (parent_v.parent_work_id IS NULL AND parent_v.ordinal IS NULL)
+                                    OR EXISTS (SELECT 1 FROM works root_v WHERE root_v.id = parent_v.parent_work_id)
                                 )
                           )
                          THEN 1 ELSE 0 END

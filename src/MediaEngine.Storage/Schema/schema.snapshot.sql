@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0025 series_placement_lock).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0026 subtitle_text_index).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1285,6 +1285,15 @@ CREATE TABLE media_artwork_writeback (
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
+CREATE TABLE media_asset_chapters (
+    asset_id       BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    chapter_index  INTEGER NOT NULL CHECK (chapter_index >= 0),
+    start_ms       INTEGER NOT NULL CHECK (start_ms >= 0),
+    end_ms         INTEGER CHECK (end_ms IS NULL OR end_ms >= start_ms),
+    title          TEXT,
+    PRIMARY KEY (asset_id, chapter_index)
+);
+
 CREATE TABLE media_asset_coverage (
     asset_id      BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
     work_id       BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
@@ -2310,6 +2319,57 @@ CREATE TABLE storage_metadata (
     value TEXT NOT NULL
 );
 
+CREATE TABLE subtitle_index_assets (
+    asset_id             BLOB NOT NULL PRIMARY KEY REFERENCES media_assets(id) ON DELETE CASCADE,
+    state                TEXT NOT NULL CHECK (state IN ('Done', 'Failed')),
+    chapter_count        INTEGER NOT NULL DEFAULT 0,
+    embedded_stream_count INTEGER NOT NULL DEFAULT 0,
+    attempt_count        INTEGER NOT NULL DEFAULT 0,
+    last_error           TEXT,
+    next_retry_at        TEXT,
+    probed_at            TEXT NOT NULL
+);
+
+CREATE TABLE subtitle_index_tracks (
+    id                BLOB NOT NULL PRIMARY KEY,
+    asset_id          BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    source_kind       TEXT NOT NULL CHECK (source_kind IN ('TextTrack', 'Embedded')),
+    text_track_id     BLOB REFERENCES text_tracks(id) ON DELETE CASCADE,
+    stream_index      INTEGER,
+    language          TEXT NOT NULL DEFAULT 'und',
+    state             TEXT NOT NULL CHECK (state IN ('Indexed', 'Failed')),
+    source_stamp      TEXT NOT NULL,
+    line_count        INTEGER NOT NULL DEFAULT 0,
+    tag_count         INTEGER NOT NULL DEFAULT 0,
+    entity_signature  TEXT,
+    attempt_count     INTEGER NOT NULL DEFAULT 0,
+    last_error        TEXT,
+    next_retry_at     TEXT,
+    indexed_at        TEXT NOT NULL,
+    tagged_at         TEXT
+);
+
+CREATE TABLE subtitle_lines (
+    track_id    BLOB NOT NULL REFERENCES subtitle_index_tracks(id) ON DELETE CASCADE,
+    line_index  INTEGER NOT NULL CHECK (line_index >= 0),
+    start_ms    INTEGER NOT NULL CHECK (start_ms >= 0),
+    end_ms      INTEGER NOT NULL CHECK (end_ms >= start_ms),
+    text        TEXT NOT NULL,
+    PRIMARY KEY (track_id, line_index)
+);
+
+CREATE TABLE subtitle_name_tags (
+    track_id         BLOB NOT NULL REFERENCES subtitle_index_tracks(id) ON DELETE CASCADE,
+    entity_id        BLOB NOT NULL REFERENCES fictional_entities(id) ON DELETE CASCADE,
+    window_start_ms  INTEGER NOT NULL CHECK (window_start_ms >= 0),
+    window_end_ms    INTEGER NOT NULL CHECK (window_end_ms >= window_start_ms),
+    first_line_index INTEGER NOT NULL,
+    last_line_index  INTEGER NOT NULL,
+    mention_count    INTEGER NOT NULL CHECK (mention_count > 0),
+    matched_text     TEXT NOT NULL,
+    PRIMARY KEY (track_id, entity_id, window_start_ms)
+);
+
 CREATE TABLE system_activity (
     id           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     occurred_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -3107,6 +3167,16 @@ CREATE INDEX idx_series_members_series
 
 CREATE INDEX idx_setup_codes_active
     ON setup_codes(consumed_at, invalidated_at, expires_at);
+
+CREATE INDEX idx_subtitle_index_tracks_asset ON subtitle_index_tracks(asset_id);
+
+CREATE INDEX idx_subtitle_index_tracks_text_track ON subtitle_index_tracks(text_track_id);
+
+CREATE INDEX idx_subtitle_lines_time ON subtitle_lines(track_id, start_ms);
+
+CREATE INDEX idx_subtitle_name_tags_entity ON subtitle_name_tags(entity_id);
+
+CREATE INDEX idx_subtitle_name_tags_time ON subtitle_name_tags(track_id, window_start_ms);
 
 CREATE INDEX idx_system_activity_action_type
     ON system_activity (action_type);

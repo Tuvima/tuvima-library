@@ -11,7 +11,8 @@
     "Movies": "Movies/{Title} ({Year})/{Title} ({Year}){Ext}",
     "TV": "TV/{Series} ({Year})/Season {Season}/{Series} - {EpisodeCode?} - {EpisodeTitle}{Ext}",
     "Comics": "Comics/{Series}/{Series} - {IssueNumber} ({Year}){Ext}",
-    "Music": "Music/{AlbumArtist}/{Album} ({Year})/{TrackNumber?} - {Title}{Ext}"
+    "Music": "Music/{AlbumArtist}/{Album} ({Year})/{TrackNumber?} - {Title}{Ext}",
+    "Videos": "Videos/{Title}{Ext}"
   },
   "server_name": "Library",
   "language": {

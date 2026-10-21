@@ -294,6 +294,15 @@ sources remain supplemental and appear in Sources with their plugin and URL.
 
 ---
 
+## Subtitle Text Index
+
+The Engine reads the Library's subtitle text so that a time in a film or episode can later be tied to the characters and places named at that time. It is plain matching: no AI and no network.
+
+1. **Sources.** The index reads every stored, normalised subtitle track in `text_tracks` (whichever provider or sidecar supplied it; no source is named in the code), and the text subtitle streams embedded in the video file (extracted with FFmpeg, one per language, skipping forced and picture-based streams and any language a stored track already covers). The probe also stores the file's chapter times in `media_asset_chapters`.
+2. **Lines.** `SubtitleLineParser` (hand-written, WebVTT, SRT and ASS) turns a track into time-stamped plain lines in `subtitle_lines`.
+3. **Names.** `SubtitleNameMatcher` matches the labels of the Universe entities that belong to the file (entities linked to the file's Work or to the Works above it, and every entity of the Universe those Works sit in) against the lines, whole words only and ignoring case. A character's given name and surname count as aliases (four letters or more, capitalised in the label), and a name two entities share is not matched. Mentions of one entity less than 30 seconds apart form one window, stored in `subtitle_name_tags` (start, end, first and last line, mention count).
+4. **When.** `SubtitleIndexHostedService` runs the work in the background only: after a start-up delay, never while ingestion is working, ten items at a time. Its to-do list is durable (`subtitle_index_tracks`, `subtitle_index_assets`); a changed stored track, or a Universe graph that grew (the `entity_signature` differs), is picked up on the next pass. Tags are data only: no screen shows them yet.
+
 ## Query Efficiency
 
 Three layers prevent redundant Wikidata calls:

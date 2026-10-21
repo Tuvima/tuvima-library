@@ -745,6 +745,40 @@ Cached Wikidata display labels for QIDs, avoiding repeated API lookups.
 | `label` | TEXT | Display label in the configured metadata language |
 | `fetched_at` | TEXT | Timestamp |
 
+### subtitle_index_tracks, subtitle_lines, subtitle_name_tags
+
+The subtitle text index (Universes U-WP14). One `subtitle_index_tracks` row per subtitle track that was read: either a
+stored, normalised `text_tracks` row (whichever source supplied it) or a text subtitle stream embedded in the video file.
+Its lines and name tags go with it (`ON DELETE CASCADE`), and with the file (`asset_id`).
+
+| Table | Column | Type | Notes |
+|---|---|---|---|
+| `subtitle_index_tracks` | `id` | BLOB | Stable id derived from the source, so a re-read keeps it |
+| | `asset_id` | BLOB | FK -> `media_assets.id` |
+| | `source_kind` | TEXT | `TextTrack` or `Embedded` |
+| | `text_track_id` | BLOB | FK -> `text_tracks.id` for `TextTrack`; null for `Embedded` |
+| | `stream_index` | INTEGER | ffmpeg stream index for `Embedded` |
+| | `state` | TEXT | `Indexed` or `Failed` (with `attempt_count`, `last_error`, `next_retry_at`) |
+| | `source_stamp` | TEXT | Changes when the stored track changes; the track is then read again |
+| | `entity_signature` | TEXT | Hash of the Universe entities the tags were matched against |
+| | `tagged_at` | TEXT | When the tags were last made or checked |
+| `subtitle_lines` | `track_id`, `line_index` | BLOB, INTEGER | Primary key |
+| | `start_ms`, `end_ms` | INTEGER | Milliseconds from the start of the file |
+| | `text` | TEXT | Plain text with markup removed |
+| `subtitle_name_tags` | `track_id`, `entity_id`, `window_start_ms` | | Primary key; `entity_id` -> `fictional_entities.id` |
+| | `window_end_ms` | INTEGER | A window ends at the last mention before a gap of more than 30 seconds |
+| | `first_line_index`, `last_line_index`, `mention_count` | INTEGER | Lines in the window that name the entity |
+| | `matched_text` | TEXT | The name as written in the first mention |
+
+Tags are data only: plain name matching (labels, given names and surnames of characters, supplied aliases), never AI.
+Nothing displays them yet.
+
+### subtitle_index_assets and media_asset_chapters
+
+`subtitle_index_assets` is the durable to-do row of the background indexer for a video file (movies and TV): a row in
+state `Done` means the file was probed once; `Failed` rows are retried up to five times. `media_asset_chapters` holds that
+probe's chapter times (`start_ms`, `end_ms`, `title`) for the file.
+
 ---
 
 ## Providers

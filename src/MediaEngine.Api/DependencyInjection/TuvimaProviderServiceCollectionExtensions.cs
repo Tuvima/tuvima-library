@@ -111,6 +111,10 @@ public static class TuvimaProviderServiceCollectionExtensions
             "wikidata_reconciliation",
             TimeSpan.FromSeconds(30));
         services.AddTuvimaHttpClient("cover_download", TimeSpan.FromSeconds(20));
+        // The YouTube lookup follows no redirects, so a thumbnail address can never lead to another host.
+        services.AddTuvimaHttpClient(YoutubeVideoLookup.HttpClientName, TimeSpan.FromSeconds(10), addStandardResilience: false)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
+        services.AddSingleton<IVideoOnlineLookup, YoutubeVideoLookup>();
         services.AddTuvimaHttpClient("headshot_download", TimeSpan.FromSeconds(20));
         // Plugin tools can legitimately run for several minutes. The standard
         // resilience pipeline's much shorter attempt timeout would silently

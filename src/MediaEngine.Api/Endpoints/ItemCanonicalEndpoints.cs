@@ -19,6 +19,8 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
+using MediaEngine.Ingestion.Contracts;
+using MediaEngine.Ingestion.Organise;
 using MediaEngine.Providers.Contracts;
 using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Models;
@@ -220,6 +222,500 @@ public static class ItemCanonicalEndpoints
         .Produces<ItemPreferencesResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
+        group.MapGet("/{entityId:guid}/explicit", async (
+            Guid entityId,
+            ICanonicalValueRepository canonicalRepo,
+            IItemCanonicalRepository itemCanonicalData,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            var values = await canonicalRepo.GetByEntityAsync(workId, ct);
+            var supported = string.Equals(await itemCanonicalData.GetWorkMediaTypeAsync(workId, ct), nameof(MediaType.Videos), StringComparison.OrdinalIgnoreCase);
+            return Results.Ok(new ItemExplicitResponse { EntityId = entityId, IsExplicit = IsMarkedExplicit(values), Supported = supported });
+        })
+        .WithName("GetItemExplicit")
+        .WithSummary("Whether the item (or its series) is marked Explicit.")
+        .Produces<ItemExplicitResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
+        // Marking a series Explicit marks the series' own record, so every video inside it is hidden from
+        // content-limited profiles; marking one video marks only that video.
+        group.MapPut("/{entityId:guid}/explicit", async (
+            Guid entityId,
+            ItemExplicitRequest request,
+            IMetadataClaimRepository claimRepo,
+            ICanonicalValueRepository canonicalRepo,
+            ISystemActivityRepository activityRepo,
+            IItemCanonicalRepository itemCanonicalData,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            if (!(await itemCanonicalData.LoadDisplayOverridesAsync(workId, ct)).WorkExists)
+            {
+                return ApiErrors.NotFound($"No work found for {entityId}.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var value = request.IsExplicit ? "true" : "false";
+            await claimRepo.InsertBatchAsync(
+            [
+                new MetadataClaim
+                {
+                    Id = Guid.NewGuid(),
+                    EntityId = workId,
+                    ProviderId = WellKnownProviders.UserManual,
+                    ClaimKey = MetadataFieldConstants.Explicit,
+                    ClaimValue = value,
+                    ClaimedAt = now,
+                    Confidence = 1.0,
+                    IsUserLocked = true,
+                },
+            ], ct);
+            await canonicalRepo.UpsertBatchAsync(
+            [
+                new CanonicalValue
+                {
+                    EntityId = workId,
+                    Key = MetadataFieldConstants.Explicit,
+                    Value = value,
+                    LastScoredAt = now,
+                    WinningProviderId = WellKnownProviders.UserManual,
+                },
+            ], ct);
+
+            await activityRepo.LogAsync(new SystemActivityEntry
+            {
+                OccurredAt = now,
+                ActionType = SystemActionType.MetadataManualOverride,
+                EntityId = workId,
+                EntityType = "Work",
+                Detail = request.IsExplicit ? "Marked Explicit." : "Explicit mark removed.",
+            }, ct);
+
+            return Results.Ok(new ItemExplicitResponse { EntityId = entityId, IsExplicit = request.IsExplicit, Supported = true });
+        })
+        .WithName("SaveItemExplicit")
+        .WithSummary("Mark an item or series Explicit, or remove the mark.")
+        .Produces<ItemExplicitResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
+        group.MapGet("/{entityId:guid}/video-order", async (
+            Guid entityId,
+            IVideoOrderRepository order,
+            IItemCanonicalRepository itemCanonicalData,
+            VideoOrderRenamer renamer,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            var groups = await order.LoadAsync(workId, ct);
+            var dtos = new List<VideoOrderGroupDto>();
+            foreach (var group in groups)
+            {
+                dtos.Add(new VideoOrderGroupDto
+                {
+                    ParentId = group.ParentWorkId,
+                    Title = group.Title,
+                    Entries = group.Entries.Select(entry => new VideoOrderEntryDto { Id = entry.WorkId, Title = entry.Title }).ToList(),
+                    CanRenameFiles = await renamer.CanRenameAllAsync(group.Entries.Select(entry => entry.AssetId), ct),
+                });
+            }
+
+            return Results.Ok(new VideoOrderResponse { Groups = dtos });
+        })
+        .WithName("GetVideoOrder")
+        .WithSummary("The videos of a series (or each section of it) in their shown order.")
+        .Produces<VideoOrderResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
+        // The order is Tuvima's own: it is saved as the videos' positions and never renames a file.
+        group.MapPut("/{entityId:guid}/video-order", async (
+            Guid entityId,
+            VideoOrderRequest request,
+            IVideoOrderRepository order,
+            IMetadataClaimRepository claimRepo,
+            ICanonicalValueRepository canonicalRepo,
+            ISystemActivityRepository activityRepo,
+            IItemCanonicalRepository itemCanonicalData,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            var allowed = (await order.LoadAsync(workId, ct)).Any(group => group.ParentWorkId == request.ParentId);
+            if (!allowed)
+            {
+                return ApiErrors.NotFound("These videos are not part of that series.");
+            }
+
+            var placements = await order.ReorderAsync(request.ParentId, request.OrderedIds, ct);
+            if (placements is null)
+            {
+                return ApiErrors.Conflict("The list of videos changed. Reload the page and try again.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var claims = new List<MetadataClaim>();
+            var canonicals = new List<CanonicalValue>();
+            foreach (var placement in placements)
+            {
+                foreach (var key in new[] { MetadataFieldConstants.EpisodeNumber, MetadataFieldConstants.VideoEpisodeIndex })
+                {
+                    var value = placement.Position.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    claims.Add(new MetadataClaim
+                    {
+                        Id = Guid.NewGuid(),
+                        EntityId = placement.AssetId,
+                        ProviderId = WellKnownProviders.UserManual,
+                        ClaimKey = key,
+                        ClaimValue = value,
+                        ClaimedAt = now,
+                        Confidence = 1.0,
+                        IsUserLocked = true,
+                    });
+                    canonicals.Add(new CanonicalValue
+                    {
+                        EntityId = placement.AssetId,
+                        Key = key,
+                        Value = value,
+                        LastScoredAt = now,
+                        WinningProviderId = WellKnownProviders.UserManual,
+                    });
+                }
+            }
+
+            await claimRepo.InsertBatchAsync(claims, ct);
+            await canonicalRepo.UpsertBatchAsync(canonicals, ct);
+            await activityRepo.LogAsync(new SystemActivityEntry
+            {
+                OccurredAt = now,
+                ActionType = SystemActionType.MetadataManualOverride,
+                EntityId = request.ParentId,
+                EntityType = "Work",
+                Detail = $"Put {placements.Count} videos in a new order.",
+            }, ct);
+            return Results.NoContent();
+        })
+        .WithName("SaveVideoOrder")
+        .WithSummary("Put the videos of a series in a new order. Files are never renamed.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
+        // Renaming is optional and never part of saving an order. It reuses the organise job's file mover and its folder rules:
+        // only Managed folders are touched, and a group with one video in an as-is or read-only folder is refused whole.
+        group.MapPost("/{entityId:guid}/video-rename", async (
+            Guid entityId,
+            VideoRenameRequest request,
+            IVideoOrderRepository order,
+            IItemCanonicalRepository itemCanonicalData,
+            VideoOrderRenamer renamer,
+            ISystemActivityRepository activityRepo,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            var series = (await order.LoadAsync(workId, ct)).FirstOrDefault(candidate => candidate.ParentWorkId == request.ParentId);
+            if (series is null)
+            {
+                return ApiErrors.NotFound("These videos are not part of that series.");
+            }
+
+            if (!await renamer.CanRenameAllAsync(series.Entries.Select(entry => entry.AssetId), ct))
+            {
+                return ApiErrors.Conflict("Library can only rename files in a Managed folder. Some of these videos are in a folder it only reads, or a file is missing.");
+            }
+
+            var result = await renamer.RenameAsync(series.Entries.Select(entry => new VideoRenameItem(entry.AssetId, entry.Title)).ToList(), ct);
+            await activityRepo.LogAsync(new SystemActivityEntry
+            {
+                OccurredAt = DateTimeOffset.UtcNow,
+                ActionType = SystemActionType.PathUpdated,
+                EntityId = request.ParentId,
+                EntityType = "Work",
+                Detail = $"Renamed {result.Renamed} video files to match their order.",
+            }, ct);
+            return Results.Ok(new VideoRenameResponse { Renamed = result.Renamed, Skipped = result.Skipped + result.Failed });
+        })
+        .WithName("RenameVideoFilesToOrder")
+        .WithSummary("Rename the files of a series to match its order. Managed folders only; refused for as-is or read-only folders.")
+        .Produces<VideoRenameResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
+        group.MapGet("/{entityId:guid}/video-series", async (
+            Guid entityId,
+            HttpContext httpContext,
+            CatalogueResourceAuthorizationService resources,
+            IVideoSeriesRepository series,
+            IItemCanonicalRepository itemCanonicalData,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            var membership = await series.GetMembershipAsync(workId, ct);
+            if (membership is null)
+            {
+                return Results.Ok(new VideoSeriesStateResponse { Supported = false });
+            }
+
+            // Only series of the video's own library, and only ones this caller may change.
+            var targets = new List<VideoSeriesTarget>();
+            if (membership.ParentWorkId is null)
+            {
+                foreach (var candidate in await series.ListTargetsAsync(workId, ct))
+                {
+                    if (await resources.EvaluateAnyEntityAsync(
+                            httpContext, candidate.ParentWorkId, ApplicationPermissionIds.MetadataWrite, ct) == CatalogueResourceAccess.Allowed)
+                    {
+                        targets.Add(candidate);
+                    }
+                }
+            }
+
+            return Results.Ok(new VideoSeriesStateResponse
+            {
+                Supported = true,
+                InSeries = membership.ParentWorkId is not null,
+                SeriesTitle = membership.SeriesTitle,
+                Targets = targets.Select(target => new VideoSeriesTargetDto { Id = target.ParentWorkId, Title = target.Title, VideoCount = target.VideoCount }).ToList(),
+            });
+        })
+        .WithName("GetVideoSeries")
+        .WithSummary("Whether a video stands alone or belongs to a series, and the series it could join.")
+        .Produces<VideoSeriesStateResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
+        // Joining or leaving a series changes how Library shows the video. Nothing on disk moves, and the choice is saved as
+        // locked claims (in the same transaction as the move) so a re-scan does not undo it.
+        group.MapPut("/{entityId:guid}/video-series", async (
+            Guid entityId,
+            VideoSeriesPromoteRequest request,
+            HttpContext httpContext,
+            CatalogueResourceAuthorizationService resources,
+            IVideoSeriesRepository series,
+            ISystemActivityRepository activityRepo,
+            IItemCanonicalRepository itemCanonicalData,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            // A chosen series is checked like any other item the caller edits; a hidden one looks exactly like one that is gone.
+            if (request.ParentId is { } chosenId
+                && await resources.EvaluateAnyEntityAsync(
+                    httpContext, chosenId, ApplicationPermissionIds.MetadataWrite, ct) != CatalogueResourceAccess.Allowed)
+            {
+                return ApiErrors.Conflict("That series is no longer available. Reload the page and try again.");
+            }
+
+            // The repository saves the move and the locked series fields together, so a failure leaves the video as it was.
+            var change = request.ParentId is { } parentId
+                ? await series.PromoteAsync(workId, parentId, ct)
+                : await series.PromoteToNewSeriesAsync(workId, request.NewSeriesName ?? string.Empty, ct);
+            if (change.Outcome != VideoSeriesOutcome.Done)
+            {
+                return change.Outcome switch
+                {
+                    VideoSeriesOutcome.NotAVideo => ApiErrors.NotFound("That is not a video."),
+                    VideoSeriesOutcome.NameRequired => ApiErrors.BadRequest("Give the new series a name."),
+                    VideoSeriesOutcome.AlreadyInSeries => ApiErrors.Conflict("This video is already in a series."),
+                    VideoSeriesOutcome.Conflict => ApiErrors.Conflict("The series changed at the same moment. Reload the page and try again."),
+                    _ => ApiErrors.Conflict("That series is no longer available. Reload the page and try again."),
+                };
+            }
+
+            await activityRepo.LogAsync(new SystemActivityEntry
+            {
+                OccurredAt = DateTimeOffset.UtcNow,
+                ActionType = SystemActionType.MetadataManualOverride,
+                EntityId = workId,
+                EntityType = "Work",
+                Detail = $"Put a video in the series {change.SeriesTitle}.",
+            }, ct);
+            return Results.NoContent();
+        })
+        .WithName("PromoteVideoToSeries")
+        .WithSummary("Put a standalone video in a series, or start a new series for it. Files are never moved.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
+        group.MapPost("/{entityId:guid}/video-series/remove", async (
+            Guid entityId,
+            IVideoSeriesRepository series,
+            ISystemActivityRepository activityRepo,
+            IItemCanonicalRepository itemCanonicalData,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            var change = await series.RemoveAsync(workId, ct);
+            if (change.Outcome != VideoSeriesOutcome.Done)
+            {
+                return change.Outcome switch
+                {
+                    VideoSeriesOutcome.NotAVideo => ApiErrors.NotFound("That is not a video."),
+                    VideoSeriesOutcome.Conflict => ApiErrors.Conflict("The series changed at the same moment. Reload the page and try again."),
+                    _ => ApiErrors.Conflict("This video is not in a series."),
+                };
+            }
+
+            await activityRepo.LogAsync(new SystemActivityEntry
+            {
+                OccurredAt = DateTimeOffset.UtcNow,
+                ActionType = SystemActionType.MetadataManualOverride,
+                EntityId = workId,
+                EntityType = "Work",
+                Detail = "Took a video out of its series.",
+            }, ct);
+            return Results.NoContent();
+        })
+        .WithName("RemoveVideoFromSeries")
+        .WithSummary("Take a video out of its series so it stands alone. Files are never moved.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
+        group.MapGet("/{entityId:guid}/video-identify", async (
+            Guid entityId,
+            IVideoSeriesRepository series,
+            IItemCanonicalRepository itemCanonicalData,
+            ICanonicalValueRepository canonicalRepo,
+            IMediaAssetRepository assets,
+            ILibraryFolderResolver libraries,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            var membership = await series.GetMembershipAsync(workId, ct);
+            if (membership is null || membership.AssetId == Guid.Empty)
+            {
+                return Results.Ok(new VideoIdentifyStateResponse { Supported = false });
+            }
+
+            var values = await canonicalRepo.GetByEntityAsync(membership.AssetId, ct);
+            var asset = await assets.FindByIdAsync(membership.AssetId, ct);
+            return Results.Ok(new VideoIdentifyStateResponse
+            {
+                Supported = true,
+                Matched = values.Any(value => value.Key == MetadataFieldConstants.VideoLookupSource && !string.IsNullOrWhiteSpace(value.Value)),
+                LookupEnabled = asset is not null && libraries.ResolveForPath(asset.FilePathRoot)?.YoutubeLookup == true,
+            });
+        })
+        .WithName("GetVideoIdentifyState")
+        .WithSummary("Whether a video has been matched online yet, and whether its library allows the lookup.")
+        .Produces<VideoIdentifyStateResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
+        // Identify for a normal video: look it up on YouTube from a pasted link. Only the video ID is sent, only when the
+        // video's library has the lookup switched on, and the person's choice is saved as locked claims.
+        group.MapPost("/{entityId:guid}/video-identify", async (
+            Guid entityId,
+            VideoIdentifyRequest request,
+            IVideoSeriesRepository series,
+            IItemCanonicalRepository itemCanonicalData,
+            IMediaAssetRepository assets,
+            ILibraryFolderResolver libraries,
+            IVideoOnlineLookup lookup,
+            IMetadataClaimRepository claimRepo,
+            ICanonicalValueRepository canonicalRepo,
+            ISystemActivityRepository activityRepo,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            var membership = await series.GetMembershipAsync(workId, ct);
+            if (membership is null || membership.AssetId == Guid.Empty)
+            {
+                return ApiErrors.NotFound("That is not a video.");
+            }
+
+            if (!YoutubeLink.TryGetVideoId(request.Link, out var videoId))
+            {
+                return ApiErrors.BadRequest("That does not look like a YouTube link. Paste the video's link or its 11-character ID.");
+            }
+
+            var asset = await assets.FindByIdAsync(membership.AssetId, ct);
+            if (asset is null || libraries.ResolveForPath(asset.FilePathRoot)?.YoutubeLookup != true)
+            {
+                return ApiErrors.Conflict("Online lookup is switched off for this library. Turn it on in Settings first.");
+            }
+
+            var info = await lookup.LookupAsync(videoId, ct);
+            if (info is null || string.IsNullOrWhiteSpace(info.Title))
+            {
+                return ApiErrors.NotFound("No match found for that video.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var claims = new List<MetadataClaim>();
+            var canonicals = new List<CanonicalValue>();
+            void Lock(string key, string? value)
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    return;
+                }
+
+                claims.Add(new MetadataClaim
+                {
+                    Id = Guid.NewGuid(),
+                    EntityId = membership.AssetId,
+                    ProviderId = WellKnownProviders.UserManual,
+                    ClaimKey = key,
+                    ClaimValue = value,
+                    ClaimedAt = now,
+                    Confidence = 1.0,
+                    IsUserLocked = true,
+                });
+                canonicals.Add(new CanonicalValue
+                {
+                    EntityId = membership.AssetId,
+                    Key = key,
+                    Value = value,
+                    LastScoredAt = now,
+                    WinningProviderId = WellKnownProviders.UserManual,
+                });
+            }
+
+            Lock(MetadataFieldConstants.YoutubeVideoId, videoId);
+            Lock(MetadataFieldConstants.VideoLookupSource, "youtube");
+            Lock(MetadataFieldConstants.Title, info.Title);
+            Lock(MetadataFieldConstants.Network, info.Channel);
+            Lock(MetadataFieldConstants.Description, info.Description);
+            if (info.Published is { } published)
+            {
+                Lock(MetadataFieldConstants.OriginalReleaseDate, published.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+                Lock(MetadataFieldConstants.Year, published.Year.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            await claimRepo.InsertBatchAsync(claims, ct);
+            await canonicalRepo.UpsertBatchAsync(canonicals, ct);
+            await activityRepo.LogAsync(new SystemActivityEntry
+            {
+                OccurredAt = now,
+                ActionType = SystemActionType.MetadataManualOverride,
+                EntityId = workId,
+                EntityType = "Work",
+                Detail = "Identified a video from a YouTube link.",
+            }, ct);
+            return Results.Ok(new VideoIdentifyResponse { Title = info.Title });
+        })
+        .WithName("IdentifyVideoFromLink")
+        .WithSummary("Look a video up on YouTube from a pasted link or ID and save the match. Only the ID leaves the machine.")
+        .Produces<VideoIdentifyResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
         .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
 
@@ -2228,6 +2724,10 @@ public static class ItemCanonicalEndpoints
                 ct);
         }
     }
+
+    private static bool IsMarkedExplicit(IReadOnlyList<CanonicalValue> values) =>
+        values.Any(v => string.Equals(v.Key, MetadataFieldConstants.Explicit, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(v.Value, "true", StringComparison.OrdinalIgnoreCase));
 
     internal static Guid ResolveScopedTarget(Guid assetId, WorkLineage? lineage, string key)
     {

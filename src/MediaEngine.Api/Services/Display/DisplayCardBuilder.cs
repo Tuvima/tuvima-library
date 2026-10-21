@@ -169,6 +169,23 @@ public sealed class DisplayCardBuilder
             .OrderByDescending(card => card.SortTimestamp)
             .ToList();
 
+    /// <summary>
+    /// The Videos shelf: one card per series (opened as a show, with its sections and episodes) and one per standalone video.
+    /// </summary>
+    public IReadOnlyList<DisplayCardDto> BuildVideoCards(
+        IReadOnlyList<DisplayWorkRow> works,
+        IReadOnlyDictionary<Guid, DisplayJourneyRow>? progressByWork = null) =>
+        works
+            .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Video")
+            .GroupBy(TvShowGroupId)
+            .Select(group => group.Count() == 1 && group.Key == group.First().WorkId
+                ? FromWork(group.First(), "watch", progressByWork?.GetValueOrDefault(group.First().WorkId))
+                : ToTvShowCard(group.Key, group.ToList(), progressByWork) is { } show ? show with { MediaType = "Videos" } : null)
+            .Where(card => card is not null)
+            .Cast<DisplayCardDto>()
+            .OrderByDescending(card => card.SortTimestamp)
+            .ToList();
+
     public static DisplayHeroDto ToHero(DisplayCardDto card, string eyebrow) =>
         new(card.Title, card.Subtitle, eyebrow, card.Artwork, card.Progress, card.Actions)
         {
@@ -392,7 +409,7 @@ public sealed class DisplayCardBuilder
         var completed = row.ProgressPct >= TvEpisodeContextResolver.CompletionPercent;
         var label = completed ? DisplayMediaRules.NormalizeDisplayKind(row.MediaType) switch
         {
-            "Movie" or "TV" => "Watched",
+            "Movie" or "Video" or "TV" => "Watched",
             "Book" or "Comic" => "Read",
             _ => "Finished",
         } : $"{Math.Clamp(row.ProgressPct, 0, 100):F0}%";
@@ -427,11 +444,11 @@ public sealed class DisplayCardBuilder
             return new DisplayActionDto("playAsset", label, workId, assetId, collectionId, $"/watch/player/{workId:D}");
         }
 
-        if (mediaKind is "Movie" or "Music" or "Audiobook")
+        if (mediaKind is "Movie" or "Video" or "Music" or "Audiobook")
         {
             var label = isContinue
                 ? ContinueLabel(mediaKind)
-                : isComplete && mediaKind == "Movie"
+                : isComplete && mediaKind is "Movie" or "Video"
                     ? "Play Again"
                     : "Play";
             return new DisplayActionDto("playAsset", label, workId, assetId, collectionId, WebUrlFor(workId, collectionId, mediaKind));
@@ -467,7 +484,7 @@ public sealed class DisplayCardBuilder
         {
             return mediaKind switch
             {
-                "Movie" or "TV" => $"/watch/player/{workId:D}",
+                "Movie" or "Video" or "TV" => $"/watch/player/{workId:D}",
                 "Music" => SongPlaybackUrl(workId),
                 "Audiobook" => $"/details/work/{workId:D}?context=listen",
                 "Comic" => $"/details/work/{workId:D}?context=comics",
@@ -478,7 +495,7 @@ public sealed class DisplayCardBuilder
 
         return mediaKind switch
         {
-            "Movie" => $"/watch/player/{workId:D}",
+            "Movie" or "Video" => $"/watch/player/{workId:D}",
             "TV" => $"/watch/player/{workId:D}",
             "Music" => SongPlaybackUrl(workId),
             "Audiobook" => $"/details/work/{workId:D}?context=listen",
@@ -503,7 +520,7 @@ public sealed class DisplayCardBuilder
     private static string WorkDetailContext(string mediaKind) =>
         mediaKind switch
         {
-            "Movie" or "TV" => "watch",
+            "Movie" or "Video" or "TV" => "watch",
             "Music" or "Audiobook" => "listen",
             "Book" or "Comic" => "read",
             _ => "default",
@@ -668,7 +685,7 @@ public sealed class DisplayCardBuilder
             return "square";
         }
 
-        if (mediaKind is "Movie" or "TV")
+        if (mediaKind is "Movie" or "Video" or "TV")
         {
             return !string.IsNullOrWhiteSpace(backgroundUrl) || !string.IsNullOrWhiteSpace(bannerUrl)
                 ? "landscape"
@@ -686,7 +703,7 @@ public sealed class DisplayCardBuilder
     private static string PresentationFor(string mediaKind) => mediaKind switch
     {
         "TV" => "tvSeries",
-        "Movie" => "movie",
+        "Movie" or "Video" => "movie",
         "Music" => "album",
         "Audiobook" => "audiobook",
         "Comic" => "comic",
@@ -940,7 +957,7 @@ public sealed class DisplayCardBuilder
 
     private static int MediaCountOrder(string mediaType) => mediaType switch
     {
-        "Movie" or "TV" or "Watch" => 0,
+        "Movie" or "Video" or "TV" or "Watch" => 0,
         "Book" or "Comic" or "Read" => 1,
         "Music" or "Audiobook" or "Listen" => 2,
         _ => 3,
@@ -966,7 +983,7 @@ public sealed class DisplayCardBuilder
         Guid? tvShowRootId = null,
         IReadOnlyDictionary<Guid, DisplayJourneyRow>? progressByWork = null)
     {
-        if (mediaKind is not ("Book" or "Comic" or "Movie" or "TV" or "Audiobook" or "Music"))
+        if (mediaKind is not ("Book" or "Comic" or "Movie" or "Video" or "TV" or "Audiobook" or "Music"))
         {
             return [];
         }
@@ -1197,7 +1214,7 @@ public sealed class DisplayCardBuilder
         var normalizedKind = DisplayMediaRules.NormalizeDisplayKind(mediaKind);
         return normalizedKind switch
         {
-            "TV" or "Movie" => $"/details/work/{workId:D}?context=watch",
+            "TV" or "Movie" or "Video" => $"/details/work/{workId:D}?context=watch",
             "Music" => SongPlaybackUrl(workId),
             "Audiobook" => $"/details/work/{workId:D}?context=listen",
             "Book" or "Comic" => $"/details/work/{workId:D}?context=read",
@@ -1265,7 +1282,7 @@ public sealed class DisplayCardBuilder
             }
         }
 
-        if (mediaKind is "Book" or "Comic" or "Movie" or "Audiobook")
+        if (mediaKind is "Book" or "Comic" or "Movie" or "Video" or "Audiobook")
         {
             return OwnedSeriesCountLabel(mediaKind, ownedCount ?? DistinctOwnedSeriesMemberCount(works));
         }
@@ -1436,7 +1453,7 @@ public sealed class DisplayCardBuilder
 
     private static string ContinueLabel(string mediaKind) => mediaKind switch
     {
-        "Movie" or "TV" => "Continue Watching",
+        "Movie" or "Video" or "TV" => "Continue Watching",
         "Book" or "Comic" => "Continue Reading",
         "Music" or "Audiobook" => "Continue Listening",
         _ => "Continue",
@@ -1444,7 +1461,7 @@ public sealed class DisplayCardBuilder
 
     private static IReadOnlyList<DisplayCardBadgeDto> BuildBadges(string mediaKind, string? quality, string? source)
     {
-        if (mediaKind is not ("Movie" or "TV"))
+        if (mediaKind is not ("Movie" or "Video" or "TV"))
         {
             return [];
         }

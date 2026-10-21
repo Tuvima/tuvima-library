@@ -786,6 +786,7 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
         public Task UpdateWorkIdentityAsync(Guid workId, string wikidataQid, CancellationToken ct = default) => inner.UpdateWorkIdentityAsync(workId, wikidataQid, ct);
         public Task DeleteIdentityArtifactsAsync(IReadOnlyCollection<ItemCanonicalIdentityArtifact> artifacts, CancellationToken ct = default) => inner.DeleteIdentityArtifactsAsync(artifacts, ct);
         public Task ReplaceExternalIdentifiersAsync(Guid workId, IReadOnlyCollection<string> keysToRemove, IReadOnlyDictionary<string, string> replacements, CancellationToken ct = default) => inner.ReplaceExternalIdentifiersAsync(workId, keysToRemove, replacements, ct);
+        public Task<string?> GetWorkMediaTypeAsync(Guid workId, CancellationToken ct = default) => inner.GetWorkMediaTypeAsync(workId, ct);
         public Task<string> AppendRejectedQidAsync(Guid workId, string? rejectedQid, CancellationToken ct = default) => inner.AppendRejectedQidAsync(workId, rejectedQid, ct);
     }
 }

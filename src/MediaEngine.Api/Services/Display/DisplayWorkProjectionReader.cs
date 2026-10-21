@@ -481,7 +481,11 @@ public sealed class DisplayWorkProjectionReader
                 r.Year,
                 MediaDateSql.RelatedBookYearLookup("related_book_year", "WorkId", "AssetId"))),
             From("SeriesEndYear", rootWorkAsset, "series_end_year"),
-            From("ContentRating", workRootAsset, "content_rating", "certification"),
+            // An item or series marked Explicit counts as adults-only for the content limits.
+            Column("ContentRating", r => $"""
+                CASE WHEN {string.Join(" OR ", workRootAsset.Select(slot => $"{r.Value(slot, "explicit")} = 'true'"))} THEN 'NC-17'
+                     ELSE {FirstOf(workRootAsset.Select(slot => r.Value(slot, "content_rating", "certification")))} END
+                """),
             From("Runtime", workRootAsset, "runtime"),
             From("Duration", workRootAsset, "duration", "duration_sec", "duration_seconds"),
             From("PageCount", workRootAsset, "page_count"),
