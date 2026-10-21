@@ -1,6 +1,6 @@
 # Spec: Universes (explore, series grouping, helper apps, clean-up)
 
-> **Status:** In progress (U-WP0 to U-WP3, U-WP5 to U-WP8, U-WP10 and U-WP12 built) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
+> **Status:** In progress (U-WP0 to U-WP8, U-WP10 and U-WP12 built) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
 
 ## 0. Where we are today (verified by reading the code, nothing was run)
 
@@ -207,6 +207,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Files likely touched:** `NarrativeRootResolver.cs`, `ReconciliationAdapter.ClaimMapping.cs`, `config/pipeline-priority-defaults.json`, storage schema + repositories.
 - **Depends on:** U-WP3, DT-WP9 (priority changes via DT-WP20 weights). **Size:** Complex.
 - **Done when:** a book, its audiobook and its TV adaptation land in one Universe with three correct Series.
+- **Status:** Built (2026-10-20, PR #322; data store upgrade step 0021). One Universe record per Wikidata ID (`narrative_roots`, referenced by `collections.universe_qid`) chosen by one rule for the Universe shelf, the graph and the item page; every (Series, position) pair stored; the audiobook fallback per Shy's decision (section 7); precedence rules in `.claude/rules/data-store.md`. **Waits for Developer tools WP20:** `config/pipeline-priority-defaults.json` still gives retail providers `series` / `series_position` priority (Audiobooks, Movies, TV, Comics) and puts Wikidata first for audiobook title and author; aligning those with the precedence rules is a priority change made through WP20's Library-set weights, not by editing that file. Existing libraries need a data store reset and re-ingest. Ingestion comparison: the generated-sample before/after replay showed only intended changes plus known noise; the real-media after replay and the real-library checks are on `engineering/validation/batch.md`.
 
 ### U-WP5 — Universe page
 - **What it does:** the page in 4.2, entry points in 4.1, empty and partly-ready states, the "Part of …" line on item pages.
