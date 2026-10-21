@@ -3,29 +3,34 @@
 
 @* The Universe's characters as a read-only list: the name, how many of your works it appears in, and where the Library
    learned it. No portraits, no relationship graph and no character page. Choosing a row raises OnCharacterSelected (the
-   host opens "Also appears in"); without a listener a row is plain text. A character with no plot details (every visible
-   appearance is marked as a spoiler) is shown by name and source only, and is never a button. The first rows are shown and
+   host opens "Also appears in", which lists Works rather than plot, so a character with no plot details opens it too);
+   without a listener a row is plain text. A character with no plot details (the Library cannot place it within what you
+   have watched or read) is shown by name and source only, with no work count. Characters you have
+   not reached yet are not listed at all; one honest line says how many were held back. The first rows are shown and
    the rest sit behind a "Show all" toggle. As in the cast list, the frame belongs to the list item and a button row takes the shared
    list-row button class, because the scoped styles of this file cannot reach the button inside AppNativeButton. *@
-<ul class="universe-characters" aria-label="Characters">
-    @foreach (var character in VisibleCharacters)
-    {
-        <li class="universe-characters__item" @key="character.Qid">
-            @if (OnCharacterSelected.HasDelegate && !character.NoPlotDetails)
-            {
-                <AppNativeButton Type="button" Class="tl-list-item-button universe-characters__row" OnClick="@(() => OnCharacterSelected.InvokeAsync(character))">
-                    @RowContent(character)
-                </AppNativeButton>
-            }
-            else
-            {
-                <span class="universe-characters__row universe-characters__row--plain">
-                    @RowContent(character)
-                </span>
-            }
-        </li>
-    }
-</ul>
+@if (Characters.Count > 0)
+{
+    <ul class="universe-characters" aria-label="Characters">
+        @foreach (var character in VisibleCharacters)
+        {
+            <li class="universe-characters__item" @key="character.Qid">
+                @if (OnCharacterSelected.HasDelegate)
+                {
+                    <AppNativeButton Type="button" Class="tl-list-item-button universe-characters__row" OnClick="@(() => OnCharacterSelected.InvokeAsync(character))">
+                        @RowContent(character)
+                    </AppNativeButton>
+                }
+                else
+                {
+                    <span class="universe-characters__row universe-characters__row--plain">
+                        @RowContent(character)
+                    </span>
+                }
+            </li>
+        }
+    </ul>
+}
 
 @if (Characters.Count > InitialRows)
 {
@@ -43,6 +48,11 @@
     <p class="universe-characters__note">Showing the @Characters.Count characters seen in the most works</p>
 }
 
+@if (UniversePageText.HiddenCharactersLine(HiddenCount) is { } hidden)
+{
+    <p class="universe-characters__note" data-hidden-characters>@hidden</p>
+}
+
 @code {
     private const int InitialRows = 12;
 
@@ -53,7 +63,10 @@
     /// <summary>All visible characters of the Universe; larger than the list when the Engine capped it.</summary>
     [Parameter] public int CharacterCount { get; set; }
 
-    /// <summary>Raised when a character with plot details is chosen. When nothing listens, rows are plain text.</summary>
+    /// <summary>Characters the Engine left out to avoid spoilers (the profile has not reached them yet); 0 shows no line.</summary>
+    [Parameter] public int HiddenCount { get; set; }
+
+    /// <summary>Raised when a character is chosen (one with no plot details too: the panel lists Works, not plot). When nothing listens, rows are plain text.</summary>
     [Parameter] public EventCallback<UniverseCharacterDto> OnCharacterSelected { get; set; }
 
     private IEnumerable<UniverseCharacterDto> VisibleCharacters => _showAll ? Characters : Characters.Take(InitialRows);

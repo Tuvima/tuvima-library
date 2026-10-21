@@ -2,8 +2,10 @@ using System.Text.Json;
 using Dapper;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Api.Services.Playback;
 
@@ -37,6 +39,9 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         "60",
         PlaybackPreferenceValues.EndOfChapter,
         PlaybackPreferenceValues.EndOfEpisode);
+    private static readonly HashSet<string> SpoilerLevelValues = BuildSet(
+        SpoilerLevels.UpToProgress,
+        SpoilerLevels.Everything);
     private static readonly HashSet<string> OutputValues = BuildSet(
         PlaybackPreferenceValues.Auto,
         PlaybackPreferenceValues.Headphones,
@@ -103,6 +108,12 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         await EnsureProfileExistsAsync(profileId, ct);
 
         using var conn = _db.CreateConnection();
+        return ReadStored(conn, null, profileId);
+    }
+
+    // The stored settings, or the defaults when none are saved. Shared by the plain read and the merging writes.
+    private static UserPlaybackSettingsDto ReadStored(SqliteConnection conn, SqliteTransaction? tx, Guid profileId)
+    {
         var row = conn.QueryFirstOrDefault<SettingsRow>("""
             SELECT profile_id AS ProfileId,
                    settings_json AS SettingsJson,
@@ -110,7 +121,7 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
             FROM user_playback_settings
             WHERE profile_id = @profileId
             LIMIT 1;
-            """, new { profileId });
+            """, new { profileId }, tx);
 
         if (row is null)
         {
@@ -153,12 +164,47 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         }
 
         var normalized = Normalize(settings, profileId);
-        Validate(normalized);
+        // The spoiler level changes only through the person's own action (SetSpoilerLevelAsync); a bulk save, even by an
+        // administrator of the household, keeps what is stored. The stored level is read and the row written in one write
+        // transaction, so a level chosen a moment ago can never be put back by a save that read the old one.
+        return await _db.ExecuteWriteAsync((conn, tx, _) =>
+        {
+            normalized.General.SpoilerLevel = ReadStored(conn, tx, profileId).General.SpoilerLevel;
+            Validate(normalized);
+            return Save(conn, tx, normalized, profileId);
+        }, ct);
+    }
 
+    public async Task<SpoilerLevel> GetSpoilerLevelAsync(Guid profileId, CancellationToken ct = default) =>
+        SpoilerLevels.Parse((await GetAsync(profileId, ct)).General.SpoilerLevel);
+
+    public async Task<SpoilerLevel> SetSpoilerLevelAsync(Guid profileId, string level, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (!SpoilerLevels.IsValid(level))
+        {
+            throw new ArgumentException(
+                $"Spoiler level must be '{SpoilerLevels.UpToProgress}' or '{SpoilerLevels.Everything}'.", nameof(level));
+        }
+
+        await EnsureProfileExistsAsync(profileId, ct);
+        var chosen = SpoilerLevels.Parse(level);
+        // Merged onto the latest stored settings inside one write transaction, so a concurrent bulk save is not overwritten.
+        await _db.ExecuteWriteAsync((conn, tx, _) =>
+        {
+            var settings = Normalize(ReadStored(conn, tx, profileId), profileId);
+            settings.General.SpoilerLevel = SpoilerLevels.ToWire(chosen);
+            Validate(settings);
+            Save(conn, tx, settings, profileId);
+        }, ct);
+        return chosen;
+    }
+
+    private static UserPlaybackSettingsDto Save(SqliteConnection conn, SqliteTransaction tx, UserPlaybackSettingsDto normalized, Guid profileId)
+    {
         normalized.UpdatedAt = DateTimeOffset.UtcNow;
         var json = JsonSerializer.Serialize(normalized, JsonOptions);
 
-        using var conn = _db.CreateConnection();
         conn.Execute("""
             INSERT INTO user_playback_settings (profile_id, settings_json, updated_at)
             VALUES (@profileId, @json, @updatedAt)
@@ -170,7 +216,7 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
             profileId,
             json,
             updatedAt = normalized.UpdatedAt.ToString("O"),
-        });
+        }, tx);
 
         return normalized;
     }
@@ -287,6 +333,7 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         RequireAllowed(settings.General.SyncFrequencyMinutes, SyncFrequencyValues, nameof(settings.General.SyncFrequencyMinutes));
         RequireAllowed(settings.Watching.PreferredVideoQuality, VideoQualityValues, nameof(settings.Watching.PreferredVideoQuality));
         RequireAllowed(settings.Listening.DefaultSleepTimer, SleepTimerValues, nameof(settings.Listening.DefaultSleepTimer));
+        RequireAllowed(settings.General.SpoilerLevel, SpoilerLevelValues, nameof(settings.General.SpoilerLevel));
         RequireAllowed(settings.Listening.OutputPreference, OutputValues, nameof(settings.Listening.OutputPreference));
         RequireAllowed(settings.Reading.ReadingMode, ReadingModeValues, nameof(settings.Reading.ReadingMode));
         RequireAllowed(settings.Reading.LineSpacing, LineSpacingValues, nameof(settings.Reading.LineSpacing));

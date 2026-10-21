@@ -412,7 +412,7 @@ This file is the authoritative configuration for all Wikidata-related behaviour.
 | `edition_pivot` | Per-media-type rules for walking from Wikidata edition items to work items. Previously stored in `edition-pivot.json` (now removed). Keys: `audiobooks`, `books`, `music`. Each has `work_classes`, `edition_classes`, and `prefer_edition`. |
 | `exclude_classes` | P31 classes to exclude from reconciliation results. |
 | `bridge_resolution.scopes` | Entity-scoped bridge-ID policy. Each scope declares `target_ids`, `context_ids`, and whether constrained text fallback is allowed. Music uses `MusicTrack` to prefer recording/work/ISRC IDs before Apple track IDs, while release/release-group/artist IDs stay contextual unless resolving `MusicAlbum`. |
-| `data_extension` | Properties fetched during the Data Extension API call after QID resolution. |
+| `data_extension` | Properties fetched during the Data Extension API call after QID resolution. A property is read only when it is in the group for its entity type (`work_properties`, `character_properties`, and so on) and has a `property_labels` entry. Character relationships include significant person (P3342) and enemy (P7047); Works carry based on (P144) and derivative work (P4969), which become adaptation links between Works. |
 
 **Removed config files (consolidated here):**
 - `config/cirrus-type-filters.json` - merged into `instance_of_classes`

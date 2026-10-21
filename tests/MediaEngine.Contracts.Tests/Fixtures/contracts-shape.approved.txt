@@ -5951,7 +5951,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackGeneralSet
   MarkCompleteThresholdPercent: System.Int32 | nullability=not-null | accessors=get,set
   TrackPartiallyPlayedItems: System.Boolean | nullability=not-null | accessors=get,set
   SyncProgressBetweenBookAndAudiobook: System.Boolean | nullability=not-null | accessors=get,set
-  SpoilerSafeProgress: System.Boolean | nullability=not-null | accessors=get,set
+  SpoilerLevel: System.String | nullability=not-null | accessors=get,set
   SyncAcrossDevices: System.Boolean | nullability=not-null | accessors=get,set
   SyncFrequencyMinutes: System.Int32 | nullability=not-null | accessors=get,set
   UseBannerArtWhenAvailable: System.Boolean | nullability=not-null | accessors=get,set
@@ -6605,6 +6605,13 @@ MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ProfileResponseDto
   ContentLimit: System.String | nullability=nullable | accessors=get,init
   ContentLimitAllowUnrated: System.Boolean | nullability=not-null | accessors=get,init
   HasPin: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ProfileSpoilerPreferenceDto
+  ProfileId: System.Guid | nullability=not-null | accessors=get,init
+  SpoilerLevel: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.SaveProfileSpoilerPreferenceRequest
+  SpoilerLevel: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.TasteProfileDto
   UserId: System.Guid | nullability=not-null | accessors=get,init
@@ -8649,6 +8656,7 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.EntityAppearancesD
   TotalWorks: System.Int32 | nullability=not-null | accessors=get,init
   WorksWithoutCharacterData: System.Int32 | nullability=not-null | accessors=get,init
   WorksNotYetChecked: System.Int32 | nullability=not-null | accessors=get,init
+  HiddenForSpoilers: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.SharedEntityAppearanceDto
   work_qid: System.String | nullability=not-null | accessors=get,init
@@ -8848,6 +8856,7 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseClientDeta
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseConnectionsDto
   Characters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseCharacterDto> | nullability=not-null | accessors=get,init
   CharacterCount: System.Int32 | nullability=not-null | accessors=get,init
+  HiddenCharacterCount: System.Int32 | nullability=not-null | accessors=get,init
   Cast: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourcedCastMemberDto> | nullability=not-null | accessors=get,init
   Adaptations: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourcedAdaptationDto> | nullability=not-null | accessors=get,init
 
