@@ -27,6 +27,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP5 to U-WP8, U-WP10, U-WP12 built 2026-10-20) |
 | [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | In progress (v2): Waves 1–5 merged; WP8 left, see the 2026-10-21 handoff |
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v29, 2026-10-20) |
+| [Spec: Person credits and series search without the whole-library credit list](specs/person-credits-and-series-search-speed.md) | Locked (v2, 2026-10-20; follow-up of the audiobook year spec) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: The live ingestion page and when items appear](specs/archive/ingestion-and-readiness.md) | Built (v4, archived 2026-10-20; bug 13 still needs the log line from that moment) |
 | [Spec: Audiobook year on the remaining screens](specs/archive/audiobook-year-other-reads.md) | Built (v3, archived 2026-10-20; follow-ups: series search and person credits read the whole credit list) |
@@ -52,6 +53,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
 | [Handoff: finish the outstanding work, end to end (2026-10-19)](handoffs/2026-10-19-finish-outstanding-work.md) | Current |
 | [Handoff: finish the Details overlay and Editing Mode spec (2026-10-21)](handoffs/2026-10-21-details-overlay-finish.md) | Current: WP8 per-type pass and docs, plus follow-ups |
+| [Handoff: developer tools after wave 2, and the follow-ups it turned up (2026-10-21)](handoffs/2026-10-21-developer-tools-and-follow-ups.md) | Current |
 | [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — Shy chose to stay on Dapper (2026-10-17) |
 
 ## Architecture decisions
