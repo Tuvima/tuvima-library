@@ -453,6 +453,7 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddScoped<IGrantAdminUnlockService, GrantAdminUnlockService>();
         builder.Services.AddScoped<IAccountAccessMutationService, AccountAccessMutationService>();
         builder.Services.AddScoped<ApplicationAdministrationService>();
+        builder.Services.AddScoped<IntegrationHealthService>();
         builder.Services.AddSingleton<ClientAuthorizationService>();
         builder.Services.AddSingleton<AuthenticationPolicyMutationGate>();
         builder.Services.AddSingleton<AuthenticationProviderConfigurationService>();

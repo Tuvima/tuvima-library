@@ -171,6 +171,25 @@ public sealed class ApplicationWebhookRepository(IDatabaseConnection database)
                 "SELECT value FROM storage_metadata WHERE key='application_event_server_id';", transaction: transaction);
         }, ct);
 
+    /// <summary>
+    /// How many real deliveries in a row have failed for each webhook, counting back from the newest until one was delivered.
+    /// A "Send test" is the administrator trying, not the Library delivering, so it neither counts nor resets the run.
+    /// </summary>
+    public Task<IReadOnlyDictionary<Guid, int>> ConsecutiveFailuresAsync(CancellationToken ct = default)
+    {
+        using var connection = database.CreateConnection();
+        ct.ThrowIfCancellationRequested();
+        var rows = connection.Query<(Guid WebhookId, int Failures)>(new CommandDefinition("""
+            SELECT a.webhook_id WebhookId, COUNT(*) Failures
+            FROM application_webhook_attempts a
+            WHERE a.is_test=0 AND a.delivered=0
+              AND a.attempted_at > COALESCE((SELECT MAX(d.attempted_at) FROM application_webhook_attempts d
+                                             WHERE d.webhook_id=a.webhook_id AND d.is_test=0 AND d.delivered=1), '')
+            GROUP BY a.webhook_id;
+            """, cancellationToken: ct));
+        return Task.FromResult<IReadOnlyDictionary<Guid, int>>(rows.ToDictionary(row => row.WebhookId, row => row.Failures));
+    }
+
     /// <summary>A webhook's delivery attempts, newest first.</summary>
     public Task<IReadOnlyList<ApplicationWebhookAttempt>> ListAttemptsAsync(Guid webhookId, int limit, CancellationToken ct = default)
     {

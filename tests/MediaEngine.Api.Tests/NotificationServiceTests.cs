@@ -23,6 +23,7 @@ public sealed class NotificationServiceTests : IDisposable
     private readonly NotificationRepository _repository;
     private readonly AccountRepository _accounts;
     private readonly MutableClock _clock = new(Start);
+    private readonly SpyEvents _events = new();
     private readonly SpyChannel _email = new(NotificationChannelIds.Email, "Email");
     private readonly NotificationService _service;
     private readonly NotificationSettingsAccessor _settings;
@@ -36,7 +37,7 @@ public sealed class NotificationServiceTests : IDisposable
         _repository = new NotificationRepository(_db);
         _accounts = new AccountRepository(_db);
         _settings = new NotificationSettingsAccessor(_repository, _clock);
-        _service = new NotificationService(_repository, _settings, [_email], [], _accounts, _clock, NullLogger<NotificationService>.Instance);
+        _service = new NotificationService(_repository, _settings, [_email], [], _accounts, _events, _clock, NullLogger<NotificationService>.Instance);
     }
 
     public void Dispose()
@@ -265,6 +266,53 @@ public sealed class NotificationServiceTests : IDisposable
         Assert.Equal(256, kept.Count);
         Assert.Equal("999", kept[^1]);
         await Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task ANotification_IsAlsoOfferedToWebhooksAndPlugins_WithOnlyTheGenericTitle()
+    {
+        await _service.DispatchAsync(new NotificationRequest(NotificationEventIds.BackupFailed, "manual", "The drive at D: is full."), CancellationToken.None);
+
+        var published = Assert.Single(_events.Drafts);
+        Assert.Equal(NotificationEventIds.BackupFailed, published.EventType);
+        var payload = published.Payload.GetRawText();
+        Assert.Contains("A backup did not finish", payload);
+        Assert.DoesNotContain("D:", payload);
+    }
+
+    [Fact]
+    public async Task WithIncludeDetailsOn_TheEventCarriesTheDetailToo()
+    {
+        var settings = await _settings.LoadAsync(CancellationToken.None);
+        settings.IncludeDetails = true;
+        await _settings.SaveAsync(settings, CancellationToken.None);
+
+        await _service.DispatchAsync(new NotificationRequest(NotificationEventIds.BackupFailed, "manual", "The drive at D: is full."), CancellationToken.None);
+
+        Assert.Contains("D:", Assert.Single(_events.Drafts).Payload.GetRawText());
+    }
+
+    [Fact]
+    public void EveryNotificationEvent_IsInTheOneEventListThatWebhooksAndPluginsUse()
+    {
+        foreach (var definition in NotificationEventCatalogue.All)
+        {
+            Assert.True(MediaEngine.Api.Services.Events.ApplicationEventRegistry.IsKnownType(definition.Id), definition.Id);
+        }
+
+        // An event that is only a notification today is still there for webhooks: the list is one list.
+        Assert.True(MediaEngine.Api.Services.Events.ApplicationEventRegistry.IsKnownType(NotificationEventIds.DiskLow));
+    }
+
+    private sealed class SpyEvents : MediaEngine.Domain.Events.IApplicationEventProducer
+    {
+        public List<MediaEngine.Domain.Events.ApplicationEventDraft> Drafts { get; } = [];
+
+        public Task PublishAsync(MediaEngine.Domain.Events.ApplicationEventDraft value, CancellationToken ct = default)
+        {
+            Drafts.Add(value);
+            return Task.CompletedTask;
+        }
     }
 
     private async Task AddAccountAsync(string? email, bool administrator, bool enabled = true)

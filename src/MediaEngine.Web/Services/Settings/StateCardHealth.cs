@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Ai;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.System;
@@ -115,6 +116,67 @@ public static class StateCardHealth
         // but it is still the plugin's last problem and the card shows it.
         var lastProblem = StringHelpers.FirstNonBlank(plugin.HostServices?.LastProblem)?.Trim();
         return new(HealthWord.Working, lastProblem);
+    }
+
+    /// <summary>
+    /// An application's health word (spec D-W): switched off is Off; a live key that expires soon, or one nobody has used for
+    /// 90 days, needs attention. Revoked and expired keys are not live and say nothing here.
+    /// </summary>
+    public static StateCardHealthResult ForApplication(ApplicationResponse application, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        if (!application.IsEnabled)
+        {
+            return new(HealthWord.Off);
+        }
+
+        foreach (var credential in application.Credentials.Where(credential => credential.RevokedAt is null))
+        {
+            if (credential.ExpiresAt is { } expires && expires <= now)
+            {
+                continue;
+            }
+
+            if (IntegrationHealthRules.KeyNearExpiry(credential.ExpiresAt, now))
+            {
+                return new(HealthWord.NeedsAttention, $"The key \"{credential.Name}\" expires {RelativeFuture(credential.ExpiresAt!.Value, now)}.");
+            }
+
+            if (IntegrationHealthRules.KeyUnused(credential.CreatedAt, credential.LastUsedAt, now))
+            {
+                return new(HealthWord.NeedsAttention, $"The key \"{credential.Name}\" has not been used for {IntegrationHealthRules.UnusedKeyDays} days.");
+            }
+        }
+
+        return new(HealthWord.Working);
+    }
+
+    /// <summary>
+    /// A webhook's health word: failing deliveries in a row three times needs attention and five times is Broken (red in the
+    /// menu), because a switched-on webhook that keeps failing cannot do its job. One failure is not enough to alarm anyone.
+    /// </summary>
+    public static StateCardHealthResult ForWebhook(ApplicationWebhookResponse webhook)
+    {
+        ArgumentNullException.ThrowIfNull(webhook);
+        if (!webhook.IsEnabled)
+        {
+            return new(HealthWord.Off);
+        }
+
+        if (webhook.ConsecutiveFailures >= IntegrationHealthRules.WebhookBrokenFailures)
+        {
+            return new(HealthWord.Broken, $"The last {webhook.ConsecutiveFailures} deliveries failed: {webhook.LastStatus}");
+        }
+
+        return webhook.ConsecutiveFailures >= IntegrationHealthRules.WebhookAttentionFailures
+            ? new(HealthWord.NeedsAttention, $"The last {webhook.ConsecutiveFailures} deliveries failed: {webhook.LastStatus}")
+            : new(HealthWord.Working);
+    }
+
+    private static string RelativeFuture(DateTimeOffset when, DateTimeOffset now)
+    {
+        var days = (int)Math.Ceiling((when - now).TotalDays);
+        return days <= 1 ? "within a day" : $"in {days} days";
     }
 
     /// <summary>True when the plugin is switched on and cannot do its job; needs no health check or run record.</summary>

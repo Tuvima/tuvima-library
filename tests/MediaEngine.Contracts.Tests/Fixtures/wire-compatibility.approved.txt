@@ -829,6 +829,9 @@
 [method] GetIngestionQueueProgressAsync
   response | shape=084eecf54ae977049e15c3ebf74066c9a1fb3e2f6eb4674147a545da5d885794
 
+[method] GetIntegrationHealthAsync
+  response | shape=8770656dc4e6ceb1d0a2680ca798f0627edc2f9068ba613ac5167a02843b2468
+
 [method] GetItemEditorPreferencesAsync
   input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
   input profileId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
@@ -7814,6 +7817,12 @@ property=webVttEncoderAvailable | nullability=not-null | accessors=get,init | re
 property=preferredHardwareEncoder | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 property=activeJobs | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=d448a2d043cc049a7ff85803c00bdc1aa8f65678249bead90550fd265d46e403
 property=warnings | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=a1b55499ca5eddeb351d7c3fc16052ef538fff0f26b1638c9b2820994ef9c52f
+
+[shape] 8770656dc4e6ceb1d0a2680ca798f0627edc2f9068ba613ac5167a02843b2468
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=broken_webhooks | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=webhooks_needing_attention | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=keys_needing_attention | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
 
 [shape] 87bb63581586d5580f32e5878ed6baf70130e89c0809e868745832beb65d5962
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
