@@ -126,7 +126,7 @@ The application is Early Access; avoid claiming that code presence alone proves 
 
 ## Project architecture
 
-The Engine is `src/MediaEngine.Api`; the Dashboard is `src/MediaEngine.Web`. Domain owns core models, Contracts owns wire types, Storage owns SQLite persistence, and Providers, Processors, Ingestion and Intelligence own the media pipeline. Intelligence uses the Priority Cascade. Identity owns accounts and access, while Plugins defines in-process extension contracts.
+The Engine is `src/MediaEngine.Api`; the Dashboard is `src/MediaEngine.Web`. Domain owns core models, Contracts owns wire types, Storage owns SQLite persistence, and Providers, Processors, Ingestion and Intelligence own the media pipeline. Intelligence uses the Priority Cascade. Identity owns accounts and access, while Plugins defines the extension contracts every kind of plugin shares.
 
 Start with [AGENTS.md](../../AGENTS.md) and the [technical overview](https://tuvima.github.io/tuvima-library/architecture/technical-overview/). Do not add direct data access to Dashboard components.
 

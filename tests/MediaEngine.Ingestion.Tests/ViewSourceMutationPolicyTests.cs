@@ -71,7 +71,7 @@ public sealed class ViewSourceMutationPolicyTests
         Assert.False(policy.AllowDelete);
         var verdict = Delete(policy, Path.Combine(root, "beach.jpg"));
         Assert.False(verdict.Allowed);
-        Assert.Contains("read-only", verdict.Reason, StringComparison.Ordinal);
+        Assert.Contains("read-only", verdict.Reason, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

@@ -26,16 +26,16 @@ Libraries is one screen: **Settings > Libraries**. The seven media types (Books,
    - If a path does not exist, the picker says so in plain words.
    - Every folder asks **Videos (Watch)** or **Photos and videos (View)**. A folder that looks like untouched phone footage (for example `DCIM` with `IMG_` files) is suggested for View. Choosing Videos turns on the optional YouTube lookup and the **OK for limited profiles** switch; removing a Videos folder never touches the files.
    - Every library type has a **Recycle bin** switch (on for Videos). With it on, a deleted file is kept in Library's own data folder instead of being removed straight away. Settings lists what is waiting there; **Put back** returns a file to where it was (nothing is ever overwritten) and **Empty recycle bin** removes everything for good.
-3. If the folder already has files, choose **Use as-is** (recommended), **Merge into** a managed folder, or **Let Tuvima manage it**.
+3. If the folder already has files, choose **Use read-only** (recommended), **Merge into** a managed folder, or **Let Tuvima manage it**.
 
 Every folder is handled one of two ways:
 
-- **As-is** is read-only. Tuvima never moves, renames, tags, overwrites or deletes its files, so other apps are not affected.
+- **Read-only** means Tuvima never moves, renames, tags, overwrites or deletes its files, so other apps are not affected.
 - **Managed** means Tuvima may rename, move and (when the type's tag setting is on) tag the files, including the ones already there. Choose it only for folders no other app depends on.
 
 Each type has one **New media goes here** folder: the managed folder that receives new files. The first managed folder you add becomes it; use a managed folder's row menu to make another the place for new media. There is no priority order.
 
-The folder list is a table with Folder, Handling, New media and Files columns. The row menu offers Make this the place for new media, Organise files now, Merge into, Switch to As-is or Managed, Label and Remove folder. Removing a folder never deletes files.
+The folder list is a table with Folder, New media and Files columns. Each folder's icon shows how Library treats it: a plain folder for Managed (full access) and a folder with a lock for Read-only; hover it for the words. The row menu offers Make this the place for new media, Organise files now, Merge into, Switch to Read-only or Managed, Label and Remove folder. Removing a folder never deletes files.
 
 Keep music album folders intact. Tuvima uses tags or fingerprints to identify music before moving it.
 
@@ -45,7 +45,7 @@ Each type has an **Advanced** section with its naming template (**Naming templat
 
 ## Convert a folder to Managed
 
-Switching an As-is folder to Managed asks for confirmation and shows a preview of the proposed moves and renames. Confirming starts a background organising job.
+Switching a Read-only folder to Managed asks for confirmation and shows a preview of the proposed moves and renames. Confirming starts a background organising job.
 
 1. Choose **Switch to Managed** in the folder's row menu.
 2. Check the preview: unchanged, moved, renamed, conflicting and blocked counts.
@@ -71,7 +71,7 @@ A stopped merge reads "Merge stopped. Nothing was deleted. You can start it agai
 
 ## Excluded files
 
-When you delete a title from the library, the files that stayed on disk are listed under the folders of that library: files in an as-is folder, the original of a merged file, and any file Tuvima could not remove. Scans skip them, so the deleted title does not come back. The list appears only when there are excluded files, and shows each file, its folder, when it was excluded and who deleted the title.
+When you delete a title from the library, the files that stayed on disk are listed under the folders of that library: files in a read-only folder, the original of a merged file, and any file Tuvima could not remove. Scans skip them, so the deleted title does not come back. The list appears only when there are excluded files, and shows each file, its folder, when it was excluded and who deleted the title.
 
 1. Open **Settings > Libraries** and choose the media type.
 2. Find **Excluded files** and check the row for the file.
@@ -147,7 +147,7 @@ A group is its structural identity alone: a show, album or series is one group h
 
 A move preview has a short-lived plan fingerprint. The Engine checks the plan, access, rules, and each item before moving it. Some values may be unknown: the last move time, provider limits, or direct phase filters.
 
-The development tools include Reset & Seed Test Library, Rescan All Libraries, View Ingestion, and Advanced resets. Fixture cleanup uses a list of generated files and follows each one to wherever the Library filed it. Routine resets delete only what the Library created; your own files, as-is folders, the Import folder and photos stay, and the result lists the files it kept.
+The development tools include Reset & Seed Test Library, Rescan All Libraries, View Ingestion, and Advanced resets. Fixture cleanup uses a list of generated files and follows each one to wherever the Library filed it. Routine resets delete only what the Library created; your own files, read-only folders, the Import folder and photos stay, and the result lists the files it kept.
 
 </details>
 

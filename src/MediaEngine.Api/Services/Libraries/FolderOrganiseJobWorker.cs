@@ -186,8 +186,8 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
                 await _operations.MarkCancelledAsync(
                     operation.Id,
                     merging
-                        ? "The folder was switched to As-is, so Library stopped moving its files. What was already moved stays in the target; the log lists what remains."
-                        : "The folder was switched to As-is, so Library stopped organising it. Nothing was undone.",
+                        ? "The folder was switched to Read-only, so Library stopped moving its files. What was already moved stays in the target; the log lists what remains."
+                        : "The folder was switched to Read-only, so Library stopped organising it. Nothing was undone.",
                     ct).ConfigureAwait(false);
                 if (merging)
                 {

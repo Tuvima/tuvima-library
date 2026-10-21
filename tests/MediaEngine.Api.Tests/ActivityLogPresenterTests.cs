@@ -26,6 +26,25 @@ public sealed class ActivityLogPresenterTests
     }
 
     [Fact]
+    public void MediaAdded_CarriesTheSmallCoverOfItsWork_AndNoneWhenTheWorkIsUnknown()
+    {
+        var withWork = Present(SystemActionType.MediaAdded, name: "Dune", entityId: WorkId, changes: """{"media_type":"Movies"}""");
+        var withoutWork = Present(SystemActionType.MediaAdded, name: "Dune", changes: """{"media_type":"Movies"}""");
+
+        Assert.Equal($"/stream/entity/work/{WorkId:D}/cover?size=s", withWork.CoverUrl);
+        Assert.Null(withoutWork.CoverUrl);
+    }
+
+    [Fact]
+    public void MediaAdded_ForAnEpisode_StillCarriesACoverEvenThoughItHasNoLink()
+    {
+        var dto = Present(SystemActionType.MediaAdded, name: "Pilot", entityId: WorkId, changes: """{"media_type":"TV"}""");
+
+        Assert.Null(dto.Route);
+        Assert.Equal($"/stream/entity/work/{WorkId:D}/cover?size=s", dto.CoverUrl);
+    }
+
+    [Fact]
     public void MediaAdded_WithoutATitle_ReadsAsAnUntitledItem()
     {
         var dto = Present(SystemActionType.MediaAdded, name: null, changes: """{"media_type":"Books"}""");

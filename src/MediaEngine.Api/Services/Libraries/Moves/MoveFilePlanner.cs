@@ -22,8 +22,8 @@ public sealed record MoveFilePreview(LibraryMoveFileChange? Change, string? Note
 /// </summary>
 public sealed class MoveFilePlanner(IAutoOrganizeService organizer)
 {
-    public const string AsIsNote = "As-is folder: the file stays where it is.";
-    public const string AsIsNoteMany = "As-is folder: the files stay where they are.";
+    public const string AsIsNote = "Read-only folder: the file stays where it is.";
+    public const string AsIsNoteMany = "Read-only folder: the files stay where they are.";
     public const string ProtectedNote = "Protected original: the file is not touched.";
     public const string ProtectedNoteMany = "Protected originals: the files are not touched.";
     public const string ReadOnlyNote = "Read-only folder: the file stays where it is.";

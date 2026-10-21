@@ -126,7 +126,7 @@
 
     private string Title => AlreadyManaged ? $"Organise {Path} now?" : $"Let Library manage {Path}?";
     private string ConvertText => AlreadyManaged ? "Organise now" : "Convert";
-    private string KeepText => AlreadyManaged ? "Not now" : "Keep as-is";
+    private string KeepText => AlreadyManaged ? "Not now" : "Keep read-only";
 
     protected override async Task OnInitializedAsync()
     {
