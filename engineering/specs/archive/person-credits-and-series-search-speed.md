@@ -1,6 +1,6 @@
 # Spec: Person credits and series search without the whole-library credit list
 
-> **Status:** Locked (by Shy 2026-10-20 with Q1, Q2 and Q3 answered (a)) · **Version:** 2 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Spec: Audiobook year on the remaining screens](archive/audiobook-year-other-reads.md) (built; its section 8 lists these follow-ups, and its D12 accepted the person page's slower preparation on condition that this spec removes it) · [Spec: Home and item detail speed](archive/home-and-detail-speed.md) (built; the person page's two-step look-up this spec copies) · [Benchmarks README](../../benchmarks/README.md)
+> **Status:** Built (Locked by Shy 2026-10-20 with Q1, Q2 and Q3 answered (a); built and archived 2026-10-21, Local checks L1 and L2 listed in `engineering/validation/batch.md`) · **Version:** 2 · **Last updated:** 2026-10-21 · **Related docs:** [Product overview](../../product/overview.md) · [Spec: Audiobook year on the remaining screens](audiobook-year-other-reads.md) (built; its section 8 lists these follow-ups, and its D12 accepted the person page's slower preparation on condition that this spec removes it) · [Spec: Home and item detail speed](home-and-detail-speed.md) (built; the person page's two-step look-up this spec copies) · [Benchmarks README](../../../benchmarks/README.md)
 
 ## 1. Goal
 
@@ -153,4 +153,10 @@ The work SQLite does barely changes (a representative file is still found for ev
 
 ## 9. Gaps and drift
 
-Not built yet.
+Built 2026-10-21 as specified; no drift. Recorded results (benchmark `projection` library, 4,000 works, the same rows before and after):
+
+- **Comparison (D7).** `snapshot` on unchanged code (with WP1's seed additions) and after WP2 to WP4 gave the same sha256: every section identical, including `person-credits:*` (so D6's tied-row reorder moved no row on this library), `series-search:*`, `collection-lookup:*` and `detail:person`. `collection-lookup:*` also runs on the 100,000-work `full` file (2.1 to 4.4 s there).
+- **Timing on the cloud machine** (indicative only): `person-credits:*` 1.5 to 2.4 s before, 0.32 to 0.37 s after; `series-search:common-word` 45 s before, 0.07 s after; `series-search:person-name` 3.5 s before, 0.08 s after; `collection-lookup:*` 0.62 to 0.76 s before, 0.18 to 0.26 s after.
+- **Guardrail work (thousands of SQLite instructions).** A person's credits 989 (author) and 1,112 (group member), against 85,546 and 167,201 on the old form; series search with 40 index matches 324 against 3,135,159. A member of a group grows 1.81 times for twice the library. With the old code put back locally the budgets fail for the three work budgets and the text check; the growth check does not (the old form also grows in step with the library, as D10 said).
+- **Statement preparation (WP2 done-when).** Not timed separately: the whole read, including preparing the statement, takes 0.32 to 0.37 s on the cloud machine, so preparation is well under that. The 0.2 s figure on a quiet desktop is not claimed.
+- **Remaining.** R1 and R2 (section 8) are open follow-ups; the Local checks L1 and L2 are in `engineering/validation/batch.md`.

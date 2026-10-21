@@ -27,7 +27,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP4 to U-WP8, U-WP9 part 1, U-WP10 to U-WP12 built 2026-10-20, awaiting Local checks; rest in the [2026-10-20 Universes handoff](handoffs/2026-10-20-universe-remaining.md)) |
 | [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | Built, awaiting your Local checks (v2) |
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v29, 2026-10-20) |
-| [Spec: Person credits and series search without the whole-library credit list](specs/person-credits-and-series-search-speed.md) | Locked (v2, 2026-10-20; follow-up of the audiobook year spec) |
+| [Spec: Person credits and series search without the whole-library credit list](specs/archive/person-credits-and-series-search-speed.md) | Built (v2, archived 2026-10-21; follow-ups R1 and R2 in its section 8) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: The live ingestion page and when items appear](specs/archive/ingestion-and-readiness.md) | Built (v4, archived 2026-10-20; bug 13 still needs the log line from that moment) |
 | [Spec: Audiobook year on the remaining screens](specs/archive/audiobook-year-other-reads.md) | Built (v3, archived 2026-10-20; follow-ups: series search and person credits read the whole credit list) |
