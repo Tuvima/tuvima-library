@@ -1,0 +1,148 @@
+.notifications-page__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.notifications-page__count,
+.notifications-page__empty {
+    color: var(--tl-text-muted);
+}
+
+.notifications-page__list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.notifications-page__item {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--tl-border-subtle, transparent);
+}
+
+.notifications-page__item--unread {
+    border-left: 3px solid var(--tl-primary);
+}
+
+.notifications-page__item-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.notifications-page__item-head small {
+    margin-left: auto;
+    color: var(--tl-text-muted);
+}
+
+.notifications-page__item-body {
+    color: var(--tl-text-muted);
+}
+
+.notifications-page__badge {
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 0.8em;
+    background: var(--tl-surface-variant, rgba(127, 127, 127, 0.2));
+}
+
+.notifications-page__channels {
+    display: grid;
+    gap: 10px;
+}
+
+.notifications-page__channel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--tl-border-subtle, transparent);
+}
+
+.notifications-page__channel--needs_attention {
+    border-color: var(--tl-warning);
+}
+
+.notifications-page__channel--off {
+    border-color: var(--tl-error);
+}
+
+.notifications-page__channel-copy {
+    display: grid;
+    gap: 2px;
+}
+
+.notifications-page__channel-copy span {
+    color: var(--tl-text-muted);
+}
+
+.notifications-page__channel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.notifications-page__matrix {
+    display: grid;
+    gap: 6px;
+}
+
+.notifications-page__matrix-head,
+.notifications-page__matrix-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(auto-fit, minmax(84px, 120px));
+    align-items: center;
+    gap: 8px;
+}
+
+.notifications-page__matrix-head {
+    color: var(--tl-text-muted);
+    font-size: 0.85em;
+}
+
+.notifications-page__matrix-copy {
+    display: grid;
+    gap: 2px;
+}
+
+.notifications-page__matrix-copy small {
+    color: var(--tl-text-muted);
+}
+
+.notifications-page__matrix-cell {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.notifications-page__times {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+@media (max-width: 600px) {
+    .notifications-page__matrix-head {
+        display: none;
+    }
+
+    .notifications-page__matrix-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .notifications-page__matrix-copy {
+        grid-column: 1 / -1;
+    }
+}

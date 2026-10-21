@@ -29,17 +29,18 @@ internal static partial class DeclarativePluginParser
 
         var unknown = root.EnumerateObject()
             .Select(property => property.Name)
-            .FirstOrDefault(name => name is not ("ai_steps" or "channel_sources" or "metadata_sources"));
+            .FirstOrDefault(name => name is not ("ai_steps" or "channel_sources" or "metadata_sources" or "notification_channels"));
         if (unknown is not null)
         {
-            return DeclarativeParseResult.Fail($"The \"declarative\" section has an unknown part \"{unknown}\". Use ai_steps, channel_sources or metadata_sources.");
+            return DeclarativeParseResult.Fail($"The \"declarative\" section has an unknown part \"{unknown}\". Use ai_steps, channel_sources, metadata_sources or notification_channels.");
         }
 
         var aiSteps = new List<DeclarativeAiStep>();
         var channelSources = new List<DeclarativeChannelSource>();
         var metadataSources = new List<DeclarativeMetadataSource>();
+        var notificationChannels = new List<DeclarativeNotificationChannel>();
 
-        foreach (var (name, list) in new[] { ("ai_steps", root), ("channel_sources", root), ("metadata_sources", root) }
+        foreach (var (name, list) in new[] { ("ai_steps", root), ("channel_sources", root), ("metadata_sources", root), ("notification_channels", root) }
                      .Select(pair => (pair.Item1, root.TryGetProperty(pair.Item1, out var element) ? element : default)))
         {
             if (list.ValueKind == JsonValueKind.Undefined)
@@ -66,6 +67,7 @@ internal static partial class DeclarativePluginParser
                 {
                     "ai_steps" => ParseAiStep(manifest, item, label, aiSteps),
                     "channel_sources" => ParseChannelSource(manifest, item, label, channelSources),
+                    "notification_channels" => ParseNotificationChannel(manifest, item, label, notificationChannels),
                     _ => ParseMetadataSource(item, label, metadataSources),
                 };
                 if (problem is not null)
@@ -75,9 +77,9 @@ internal static partial class DeclarativePluginParser
             }
         }
 
-        if (aiSteps.Count + channelSources.Count + metadataSources.Count == 0)
+        if (aiSteps.Count + channelSources.Count + metadataSources.Count + notificationChannels.Count == 0)
         {
-            return DeclarativeParseResult.Fail("The \"declarative\" section is empty. Add at least one of ai_steps, channel_sources or metadata_sources.");
+            return DeclarativeParseResult.Fail("The \"declarative\" section is empty. Add at least one of ai_steps, channel_sources, metadata_sources or notification_channels.");
         }
 
         var duplicate = aiSteps.Select(step => step.Key).GroupBy(key => key).FirstOrDefault(group => group.Count() > 1)?.Key;
@@ -102,7 +104,13 @@ internal static partial class DeclarativePluginParser
             }
         }
 
-        return DeclarativeParseResult.Ok(new DeclarativeDefinition(aiSteps, channelSources, metadataSources));
+        duplicate = notificationChannels.Select(channel => channel.Key).GroupBy(key => key).FirstOrDefault(group => group.Count() > 1)?.Key;
+        if (duplicate is not null)
+        {
+            return DeclarativeParseResult.Fail($"The notification channel key \"{duplicate}\" is used more than once.");
+        }
+
+        return DeclarativeParseResult.Ok(new DeclarativeDefinition(aiSteps, channelSources, metadataSources, notificationChannels));
     }
 
     private static string? ParseAiStep(PluginManifest manifest, JsonElement item, string label, List<DeclarativeAiStep> into)
@@ -235,6 +243,130 @@ internal static partial class DeclarativePluginParser
         return null;
     }
 
+    private const int MaxChannelHeaders = 8;
+    private const int MaxChannelBodyLength = 4000;
+    private static readonly string[] ChannelPlaceholders = ["title", "body", "event"];
+
+    private static string? ParseNotificationChannel(PluginManifest manifest, JsonElement item, string label, List<DeclarativeNotificationChannel> into)
+    {
+        if (item.ValueKind != JsonValueKind.Object)
+        {
+            return $"{label} must be an object.";
+        }
+
+        if (!TryText(item, "key", out var key) || !KeyPattern().IsMatch(key))
+        {
+            return $"{label} needs a \"key\" of 1 to 64 lower-case letters, digits, hyphens or underscores.";
+        }
+
+        if (!TryText(item, "name", out var name) || name.Length > 80)
+        {
+            return $"Notification channel \"{key}\" needs a \"name\" of 1 to 80 characters.";
+        }
+
+        if (!TryText(item, "url", out var urlText)
+            || !Uri.TryCreate(urlText, UriKind.Absolute, out var url)
+            || url.Scheme != Uri.UriSchemeHttps
+            || !string.IsNullOrEmpty(url.UserInfo))
+        {
+            return $"Notification channel \"{key}\" needs a \"url\" that starts with https:// and holds no login. Put logins in \"secrets\" and refer to them as {{secret:name}} in a header.";
+        }
+
+        if (PluginNetworkRules.FindDestination(manifest.Network, url.Host) is null)
+        {
+            return $"Notification channel \"{key}\" sends to {url.Host}, which is not listed under \"network\". Declare the address and what is sent to it.";
+        }
+
+        var missing = new[] { PluginPermissionIds.NetworkHttp }
+            .FirstOrDefault(permission => !manifest.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase));
+        if (missing is not null)
+        {
+            return $"The plugin has notification channels but does not ask for the {missing} permission. A channel sends over the internet.";
+        }
+
+        var contentType = "application/json";
+        if (item.TryGetProperty("content_type", out var typeElement))
+        {
+            var chosen = typeElement.ValueKind == JsonValueKind.String ? typeElement.GetString() : null;
+            if (chosen is not ("application/json" or "text/plain" or "application/x-www-form-urlencoded"))
+            {
+                return $"Notification channel \"{key}\" has a \"content_type\" that cannot be used. Use application/json, text/plain or application/x-www-form-urlencoded.";
+            }
+
+            contentType = chosen;
+        }
+
+        var body = contentType == "application/json"
+            ? "{\"title\":\"{title}\",\"message\":\"{body}\",\"event\":\"{event}\"}"
+            : "{title}\n{body}";
+        if (item.TryGetProperty("body", out var bodyElement))
+        {
+            if (bodyElement.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(bodyElement.GetString()) || bodyElement.GetString()!.Length > MaxChannelBodyLength)
+            {
+                return $"Notification channel \"{key}\" needs a \"body\" of 1 to {MaxChannelBodyLength} characters.";
+            }
+
+            body = bodyElement.GetString()!;
+        }
+
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (item.TryGetProperty("headers", out var headersElement))
+        {
+            if (headersElement.ValueKind != JsonValueKind.Object || headersElement.EnumerateObject().Count() > MaxChannelHeaders)
+            {
+                return $"Notification channel \"{key}\" has \"headers\" that are not an object of at most {MaxChannelHeaders} entries.";
+            }
+
+            foreach (var header in headersElement.EnumerateObject())
+            {
+                if (!HeaderNamePattern().IsMatch(header.Name)
+                    || header.Name.Equals("Content-Type", StringComparison.OrdinalIgnoreCase)
+                    || header.Name.Equals("Host", StringComparison.OrdinalIgnoreCase)
+                    || header.Value.ValueKind != JsonValueKind.String
+                    || header.Value.GetString() is not { Length: > 0 and <= 500 } headerValue
+                    || headerValue.Any(char.IsControl))
+                {
+                    return $"Notification channel \"{key}\" has a header \"{header.Name}\" that cannot be used. Names are plain tokens, values are text up to 500 characters, and Content-Type is set with \"content_type\".";
+                }
+
+                headers[header.Name] = headerValue;
+            }
+        }
+
+        var declared = manifest.Secrets.Select(secret => secret.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var (where, text) in headers.Select(pair => ($"header \"{pair.Key}\"", pair.Value)).Append(("body", body)))
+        {
+            foreach (Match match in ChannelToken().Matches(text))
+            {
+                var token = match.Groups["token"].Value;
+                if (token.StartsWith("secret:", StringComparison.Ordinal))
+                {
+                    if (where == "body")
+                    {
+                        return $"Notification channel \"{key}\" uses {{{token}}} in the body. Secrets can only go in headers.";
+                    }
+
+                    if (!declared.Contains(token["secret:".Length..]))
+                    {
+                        return $"Notification channel \"{key}\" uses {{{token}}} in its {where}, but \"{token["secret:".Length..]}\" is not listed under \"secrets\".";
+                    }
+
+                    if (!manifest.Permissions.Contains(PluginPermissionIds.PluginSecrets, StringComparer.OrdinalIgnoreCase))
+                    {
+                        return $"Notification channel \"{key}\" uses a secret but the plugin does not ask for the {PluginPermissionIds.PluginSecrets} permission.";
+                    }
+                }
+                else if (!ChannelPlaceholders.Contains(token, StringComparer.Ordinal))
+                {
+                    return $"Notification channel \"{key}\" uses {{{token}}} in its {where}. Use {{title}}, {{body}} or {{event}}.";
+                }
+            }
+        }
+
+        into.Add(new DeclarativeNotificationChannel(key, name, url, contentType, headers, body));
+        return null;
+    }
+
     private static string? ParseMetadataSource(JsonElement item, string label, List<DeclarativeMetadataSource> into)
     {
         if (item.ValueKind != JsonValueKind.Object)
@@ -300,6 +432,12 @@ internal static partial class DeclarativePluginParser
         text = element.GetString()?.Trim() ?? "";
         return text.Length > 0;
     }
+
+    [GeneratedRegex(@"^[A-Za-z0-9-]{1,64}$")]
+    private static partial Regex HeaderNamePattern();
+
+    [GeneratedRegex(@"\{(?<token>[a-z][a-z0-9_:\-]{0,63})\}")]
+    private static partial Regex ChannelToken();
 
     [GeneratedRegex("^[a-z0-9][a-z0-9_-]{0,63}$")]
     private static partial Regex KeyPattern();

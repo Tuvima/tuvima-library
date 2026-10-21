@@ -73,7 +73,7 @@ Also confirm bug 22 (each TV file listed as its own show in Watch) with a test; 
 Continue engineering/specs/developer-tools.md (v3, In progress). Read CLAUDE.md and the spec first; run its collision check against ingestion-and-readiness.md and universe.md.
 Wave 1 is on main (WP0, WP3, WP13, WP32). Do, in this order:
 1. Finish WP0 repeatability: two baseline runs of the same build differed in 36 values. Add a record-and-replay mode to the baseline tool (src/MediaEngine.Api/DevSupport/Baseline*.cs, tools/Run-IngestionBaseline.ps1): the first run saves every provider answer under the run folder and later runs replay them. Development builds only, and no saved answer may contain a key. Done when two replayed runs of the same build compare with zero differences; list any remaining differences as our own nondeterminism.
-2. Ask Shy whether C:\Temp\real_import (books with PDFs, audiobooks, movies, tv, music, comics, personal_photos, personal_videos) is ready, and record a real-media baseline with -SampleRoot before WP9.
+2. Ask Shy whether Z:\Development\testing\media\real_media (books with PDFs, audiobooks, movies, tv, music, comics, personal_photos, personal_videos) is ready, and record a real-media baseline with -SampleRoot before WP9.
 3. WP1 (shared state card and health words; the Settings frame it needed is built) and WP27 (Local AI engine room), two at a time.
 4. Then WP14 (plugin secrets store), WP5 (Developer Tools made honest), WP2 (approval step and record), then WP9 (make all shipped providers declarative; compare before and after with the replay baseline).
 Run the checkpoint after each wave: build, tests, ingestion comparison, independent review, merge. Stop and ask Shy if the WP21 licence check or any security decision comes up. Finish with a Plain English summary and the list of next packets that are now unblocked.
@@ -133,7 +133,7 @@ Investigate why the library list takes about 14 seconds unfiltered and uncached 
 - **Lane "View all" grid (H4e) and My Library on desktop/tablet (H4c).** Not confirmed from the repo; decide whether to keep them in scope.
 
 ## 6. Owed by Shy
-Provide the Engine log for bug 13 (Cibola Burn). Confirm `C:\Temp\real_import` is ready. Device checks: iPhone book reader and Home; Android playback past 10 minutes then seek, pause 15 minutes, picture-in-picture; TV cast; phone and TV pairing and QR code from the Settings revamp.
+Provide the Engine log for bug 13 (Cibola Burn). Confirm `Z:\Development\testing\media\real_media` is ready. Device checks: iPhone book reader and Home; Android playback past 10 minutes then seek, pause 15 minutes, picture-in-picture; TV cast; phone and TV pairing and QR code from the Settings revamp.
 
 ## 7. Plain English summary
 Most testing bugs are fixed. Seven Claude Code threads finish the rest in a sensible order: tidy and land the Expanse fix first; then finish ingestion beside the plugin foundation; then the Library wording and heart icon beside the Universe page; then the remaining plugin waves, the deletion features and the slow-load investigation. The details pop-over and editing drawer need a plan from the planning project before they can be built.

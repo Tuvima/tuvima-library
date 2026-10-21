@@ -12,6 +12,7 @@ namespace MediaEngine.Web.Services.Navigation;
 /// <param name="IsSectionEnabled">Switches a page off for reasons that are not about rights (a feature flag). Null means all are on.</param>
 /// <param name="LocalAiBlocked">Local AI cannot work until the tools and libraries it needs are downloaded.</param>
 /// <param name="AiFeaturesOn">An AI feature plugin is switched on. Local AI has no switch of its own, so its row shows red with "Broken" only when it is blocked while something switched on needs it; nothing switched off is ever red.</param>
+/// <param name="IntegrationsBroken">A webhook that is switched on keeps failing; the Applications row shows red with "Broken".</param>
 /// <param name="PluginsBroken">A plugin that is switched on cannot do its job; the Plugins row shows red with "Broken". Nothing switched off counts.</param>
 public sealed record SettingsMenuContext(
     bool AdministrationAllowed,
@@ -22,7 +23,8 @@ public sealed record SettingsMenuContext(
     Func<SettingsSection, bool>? IsSectionEnabled = null,
     bool LocalAiBlocked = false,
     bool PluginsBroken = false,
-    bool AiFeaturesOn = true);
+    bool AiFeaturesOn = true,
+    bool IntegrationsBroken = false);
 
 /// <summary>One line of the phone page selector: a page and how deep it sits in the tree.</summary>
 public sealed record SettingsPhoneMenuOption(string Route, string Label, int Depth);
@@ -97,6 +99,7 @@ public static class SettingsMenuBuilder
         var count = showReview ? DisplayFormat.FormatCount(context.ReviewCount) : null;
         var localAiOff = node is { Section: SettingsSection.LocalAi, Subsection: null } && context.LocalAiBlocked && context.AiFeaturesOn && !context.IsMobile;
         var pluginsBroken = node is { Section: SettingsSection.Plugins, Subsection: null } && context.PluginsBroken && !context.IsMobile;
+        var integrationsBroken = node is { Section: SettingsSection.Access, Subsection: "applications" } && context.IntegrationsBroken && !context.IsMobile;
 
         return new MediaSectionNavigationItem(
             node.Label,
@@ -112,11 +115,11 @@ public static class SettingsMenuBuilder
                 ? $"{count} item{(context.ReviewCount == 1 ? "" : "s")} need review"
                 : null,
             AttentionDot: node is { Section: SettingsSection.Security, Subsection: null } && context.SecurityNeedsAttention,
-            Attention: localAiOff || pluginsBroken
+            Attention: localAiOff || pluginsBroken || integrationsBroken
                 ? MediaSectionAttentionLevel.Blocked
                 : showReview && !context.IsMobile
                     ? MediaSectionAttentionLevel.Waiting
                     : MediaSectionAttentionLevel.None,
-            AttentionLabel: localAiOff || pluginsBroken ? "Broken" : null);
+            AttentionLabel: localAiOff || pluginsBroken || integrationsBroken ? "Broken" : null);
     }
 }

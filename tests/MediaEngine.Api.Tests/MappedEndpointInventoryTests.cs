@@ -415,6 +415,8 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddTuvimaHostedServices();
         builder.Services.AddTuvimaScheduledTasks();
         builder.Services.AddTuvimaToolRequirements();
+        builder.Services.AddTuvimaNotifications();
+        builder.Services.AddTuvimaBackupDestinations();
         builder.Services.AddTuvimaPlugins();
         builder.Services.AddPluginApplicationServices();
         builder.Services.AddApplicationEvents();
@@ -451,6 +453,7 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddScoped<IGrantAdminUnlockService, GrantAdminUnlockService>();
         builder.Services.AddScoped<IAccountAccessMutationService, AccountAccessMutationService>();
         builder.Services.AddScoped<ApplicationAdministrationService>();
+        builder.Services.AddScoped<IntegrationHealthService>();
         builder.Services.AddSingleton<ClientAuthorizationService>();
         builder.Services.AddSingleton<AuthenticationPolicyMutationGate>();
         builder.Services.AddSingleton<AuthenticationProviderConfigurationService>();

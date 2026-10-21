@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using MediaEngine.Contracts.Plugins;
+using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Services.Plugins;
 
@@ -75,7 +76,7 @@ internal static class PluginHostMessages
 /// (a restart starts clean) and cleared when the plugin is switched on or off, which is also what un-pauses a plugin
 /// that was stopped for going over a limit. Thread-safe.
 /// </summary>
-internal sealed class PluginHostStatus(TimeProvider clock)
+internal sealed class PluginHostStatus(TimeProvider clock, Action<string>? onBroken = null)
 {
     private sealed record Problem(string Key, PluginHostSeverity Severity, string Message, DateTimeOffset? ExpiresAt);
 
@@ -116,11 +117,20 @@ internal sealed class PluginHostStatus(TimeProvider clock)
     /// <summary>Sets (or replaces) a problem. A problem with a <paramref name="lifetime"/> fades out unless it is set again.</summary>
     public void SetProblem(string key, PluginHostSeverity severity, string message, TimeSpan? lifetime = null)
     {
+        bool becameBroken;
         lock (_gate)
         {
+            // Only a problem that is new, or that has got worse or changed, is worth telling an administrator about.
+            becameBroken = severity == PluginHostSeverity.Broken
+                && !_problems.Any(problem => problem.Key == key && problem.Severity == severity && problem.Message == message);
             _problems.RemoveAll(problem => problem.Key == key);
             _problems.Add(new Problem(key, severity, message, lifetime is { } span ? clock.GetUtcNow() + span : null));
             _lastProblem = message;
+        }
+
+        if (becameBroken)
+        {
+            onBroken?.Invoke(message);
         }
     }
 
@@ -245,17 +255,28 @@ internal sealed class PluginHostStatusRegistry
 {
     private readonly ConcurrentDictionary<string, PluginHostStatus> _statuses = new(StringComparer.OrdinalIgnoreCase);
     private readonly TimeProvider _clock;
+    private readonly PluginCatalog _catalog;
+    private readonly INotificationPublisher _notifications;
 
-    public PluginHostStatusRegistry(PluginCatalog catalog, TimeProvider? clock = null)
+    public PluginHostStatusRegistry(PluginCatalog catalog, TimeProvider? clock = null, INotificationPublisher? notifications = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
+        _catalog = catalog;
         _clock = clock ?? TimeProvider.System;
+        _notifications = notifications ?? NullNotificationPublisher.Instance;
         catalog.EnabledChanged += pluginId => Get(pluginId).Reset();
     }
 
     public PluginHostStatus Get(string pluginId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
-        return _statuses.GetOrAdd(pluginId, _ => new PluginHostStatus(_clock));
+        return _statuses.GetOrAdd(pluginId, id => new PluginHostStatus(_clock, message => NotifyBroken(id, message)));
+    }
+
+    private void NotifyBroken(string pluginId, string message)
+    {
+        var name = _catalog.Get(pluginId)?.Manifest.Name;
+        var label = string.IsNullOrWhiteSpace(name) ? pluginId : name;
+        _notifications.Publish(new NotificationRequest(NotificationEventIds.PluginBroken, pluginId, $"{label} stopped working: {message}."));
     }
 }

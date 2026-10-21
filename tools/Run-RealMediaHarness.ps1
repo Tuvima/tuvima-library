@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$SourceRoot = 'C:\Temp\real_import',
+    [string]$SourceRoot = 'Z:\Development\testing\media\real_media',
     [Guid]$ProfileId = [Guid]::Empty,
     [string]$OutputPath = '',
     [switch]$NoBuild,

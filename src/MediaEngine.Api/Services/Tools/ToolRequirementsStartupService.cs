@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Services.Tools;
 
@@ -11,6 +12,7 @@ namespace MediaEngine.Api.Services.Tools;
 public sealed class ToolRequirementsStartupService(
     IToolRequirementsService tools,
     IToolAutoInstaller autoInstaller,
+    INotificationPublisher notifications,
     ILogger<ToolRequirementsStartupService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -24,6 +26,10 @@ public sealed class ToolRequirementsStartupService(
             {
                 logger.LogWarning("Tools check: {Summary}", summary);
                 await autoInstaller.StartMissingRequiredAsync(result, stoppingToken).ConfigureAwait(false);
+                foreach (var tool in result.Tools.Where(tool => tool.Requirement == ToolRequirementLevels.Required && tool.State != ToolRequirementStates.Ready))
+                {
+                    notifications.Publish(new NotificationRequest(NotificationEventIds.ToolMissing, tool.Id, $"{tool.Name}: {tool.Effect} {tool.Fix}".Trim()));
+                }
             }
             else
             {

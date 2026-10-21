@@ -775,6 +775,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Applic
   LastStatus: System.String | nullability=not-null | accessors=get,init
   LastAttemptAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   LastSuccessAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  ConsecutiveFailures: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ApplicationWebhookSecretResponse
   Webhook: MediaEngine.Contracts.Authentication.ApplicationWebhookResponse | nullability=not-null | accessors=get,init
@@ -1081,6 +1082,13 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Househ
   AccountCount: System.Int32 | nullability=not-null | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.IntegrationHealthResponse
+  BrokenWebhooks: System.Int32 | nullability=not-null | accessors=get,init
+  WebhooksNeedingAttention: System.Int32 | nullability=not-null | accessors=get,init
+  KeysNeedingAttention: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.IntegrationHealthRules
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.IntercomTokenResponse
   Token: System.String | nullability=not-null | accessors=get,init
   ExpiresAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
@@ -1357,6 +1365,75 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Update
   AvatarIcon: System.String | nullability=nullable | accessors=get,init
   ContentLimit: System.String | nullability=nullable | accessors=get,init
   ContentLimitAllowUnrated: System.Boolean? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupDestinationDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  LeavesMachine: System.Boolean | nullability=not-null | accessors=get,set
+  IsConfigured: System.Boolean | nullability=not-null | accessors=get,set
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+  State: System.String | nullability=not-null | accessors=get,set
+  StateLabel: System.String | nullability=not-null | accessors=get,set
+  LastCopyAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  LastCopyVerified: System.Boolean | nullability=not-null | accessors=get,set
+  FreeSpaceBytes: System.Int64? | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupDestinationIds
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupDestinationOutcomeDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Outcome: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupDestinationTestResponse
+  Success: System.Boolean | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupFrequencies
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupRunResponse
+  ArchiveName: System.String | nullability=not-null | accessors=get,set
+  Destinations: System.Collections.Generic.List<MediaEngine.Contracts.Backups.BackupDestinationOutcomeDto> | nullability=not-null | accessors=get,set
+  AllOk: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupScheduleDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+  Frequency: System.String | nullability=not-null | accessors=get,set
+  Time: System.String | nullability=not-null | accessors=get,set
+  Weekday: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupSettingsResponse
+  Schedule: MediaEngine.Contracts.Backups.BackupScheduleDto | nullability=not-null | accessors=get,set
+  KeepLast: System.Int32 | nullability=not-null | accessors=get,set
+  PassphraseSet: System.Boolean | nullability=not-null | accessors=get,set
+  Destinations: System.Collections.Generic.List<MediaEngine.Contracts.Backups.BackupDestinationDto> | nullability=not-null | accessors=get,set
+  NextRunAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  LastRestoreCheckAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  LastRestoreCheckResult: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.DestinationBackupDto
+  Name: System.String | nullability=not-null | accessors=get,set
+  SizeBytes: System.Int64 | nullability=not-null | accessors=get,set
+  ModifiedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+  Encrypted: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.DestinationBackupsResponse
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Backups.DestinationBackupDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.RestoreFromDestinationRequest
+  DestinationId: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Passphrase: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.SetBackupPassphraseRequest
+  Passphrase: System.String | nullability=not-null | accessors=get,set
+  CurrentPassphrase: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UpdateBackupSettingsRequest
+  Schedule: MediaEngine.Contracts.Backups.BackupScheduleDto | nullability=nullable | accessors=get,set
+  KeepLast: System.Int32? | nullability=nullable | accessors=get,set
+  EnabledDestinations: System.Collections.Generic.List<System.String> | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.UniverseEnrichmentTriggerResponse
   triggered: System.Boolean | nullability=not-null | accessors=get,init
@@ -5417,6 +5494,61 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.WikidataSearchItem
   id: System.String | nullability=nullable | accessors=get,init
   label: System.String | nullability=nullable | accessors=get,init
   description: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.MarkNotificationsReadRequest
+  Ids: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  IsExternal: System.Boolean | nullability=not-null | accessors=get,set
+  IsConfigured: System.Boolean | nullability=not-null | accessors=get,set
+  State: System.String | nullability=not-null | accessors=get,set
+  StateLabel: System.String | nullability=not-null | accessors=get,set
+  LastSuccessAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelIds
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelStates
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationEventDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  Description: System.String | nullability=not-null | accessors=get,set
+  Channels: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationItemDto
+  Id: System.Guid | nullability=not-null | accessors=get,set
+  EventId: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  Body: System.String | nullability=not-null | accessors=get,set
+  OccurrenceCount: System.Int32 | nullability=not-null | accessors=get,set
+  UpdatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+  IsRead: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationListResponse
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Notifications.NotificationItemDto> | nullability=not-null | accessors=get,set
+  UnreadCount: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationQuietHoursDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+  Start: System.String | nullability=not-null | accessors=get,set
+  End: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationSettingsResponse
+  Events: System.Collections.Generic.List<MediaEngine.Contracts.Notifications.NotificationEventDto> | nullability=not-null | accessors=get,set
+  Channels: System.Collections.Generic.List<MediaEngine.Contracts.Notifications.NotificationChannelDto> | nullability=not-null | accessors=get,set
+  QuietHours: MediaEngine.Contracts.Notifications.NotificationQuietHoursDto | nullability=not-null | accessors=get,set
+  IncludeDetails: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationTestResponse
+  Success: System.Boolean | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.UpdateNotificationSettingsRequest
+  Routes: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<System.String>> | nullability=not-null | accessors=get,set
+  QuietHours: MediaEngine.Contracts.Notifications.NotificationQuietHoursDto | nullability=nullable | accessors=get,set
+  IncludeDetails: System.Boolean? | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Operations.MediaEngine.Contracts.Operations.AssetStoreSweepResponse
   cleaned: System.Int32 | nullability=not-null | accessors=get,init

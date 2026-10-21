@@ -49,6 +49,10 @@
                                 <div class="access-phone-card__value">
                                     <span class="access-status @(app.IsEnabled ? "access-status--enabled" : "access-status--disabled")">@(app.IsEnabled ? "Enabled" : "Disabled")</span>
                                     <small>@(app.LastUsedAt is null ? "Never used" : $"Last used {app.LastUsedAt.Value.ToLocalTime():g}")</small>
+                                    @if (HealthOf(app) is { Word: HealthWord.NeedsAttention or HealthWord.Broken } health)
+                                    {
+                                        <small>@StateCardHealth.Text(health.Word): @health.LastProblem</small>
+                                    }
                                 </div>
                             </td>
                         </tr>
@@ -67,7 +71,13 @@
                         <div role="cell"><AppChip Text="@PresetLabel(app)" Tone="@(app.IsAdministrator ? AppUiTone.Warning : AppUiTone.Neutral)" /></div>
                         <div role="cell">@app.Credentials.Count(credential => credential.RevokedAt is null) active @if (CredentialExpirySummary(app) is { } summary) { <small>@summary</small> }</div>
                         <div role="cell"><small>@(app.LastUsedAt?.ToLocalTime().ToString("g") ?? "Never")</small></div>
-                        <div role="cell"><span class="access-status @(app.IsEnabled ? "access-status--enabled" : "access-status--disabled")">@(app.IsEnabled ? "Enabled" : "Disabled")</span></div>
+                        <div role="cell">
+                            <span class="access-status @(app.IsEnabled ? "access-status--enabled" : "access-status--disabled")">@(app.IsEnabled ? "Enabled" : "Disabled")</span>
+                            @if (HealthOf(app) is { Word: HealthWord.NeedsAttention or HealthWord.Broken } health)
+                            {
+                                <AppChip Text="@StateCardHealth.Text(health.Word)" Tone="@StateCardHealth.Tone(health.Word)" title="@health.LastProblem" />
+                            }
+                        </div>
                         <div class="access-applications__actions" role="cell">
                             <AppIconButton Icon="@AppMaterialIcons.Filled.MoreVert" AriaLabel="@($"Actions for {app.Name}")" OnClick="@(() => ToggleActions(app.Id))" />
                             @if (_actionApplicationId == app.Id)
@@ -163,7 +173,7 @@
                                 <div><AppButton Label="Rotate" Size="AppControlSize.Compact" Disabled="@(_saving || credential.RevokedAt is not null)" OnClick="@(() => RotateCredential(credential))" /><AppButton Label="Revoke" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@(_saving || credential.RevokedAt is not null)" OnClick="@(() => RevokeCredential(credential))" /></div>
                             </div>
                         }
-                        <div class="access-credential-issue"><AppTextField @bind-Value="_credentialName" Label="Credential name" FullWidth="true" /><AppButton Label="Generate credential" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || string.IsNullOrWhiteSpace(_credentialName))" OnClick="IssueCredential" /></div>
+                        <div class="access-credential-issue"><AppTextField @bind-Value="_credentialName" Label="Credential name" FullWidth="true" /><AppSelect Native="true" Label="Expires" Value="@_credentialExpiry" Options="@ExpiryOptions" ValueChanged="@(value => _credentialExpiry = value ?? SuggestedExpiry)" /><AppButton Label="Generate credential" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || string.IsNullOrWhiteSpace(_credentialName))" OnClick="IssueCredential" /></div>
                     </section>
                 }
                 @if (_plaintext is not null)
@@ -207,6 +217,25 @@
     private string _description = string.Empty;
     private string _clientIds = string.Empty;
     private string _credentialName = "Credential";
+
+    // A new key suggests a year, because a key that never expires is easy to forget about (spec D-W). "Never" stays available.
+    private const string SuggestedExpiry = "year";
+    private string _credentialExpiry = SuggestedExpiry;
+    private static readonly IReadOnlyList<AppSelectOption> ExpiryOptions =
+    [
+        new("year", "In 1 year (suggested)"),
+        new("quarter", "In 90 days"),
+        new("never", "Never"),
+    ];
+
+    private static DateTimeOffset? ExpiryFor(string choice, DateTimeOffset now) => choice switch
+    {
+        "quarter" => now.AddDays(90),
+        "never" => null,
+        _ => now.AddDays(IntegrationHealthRules.SuggestedKeyLifetimeDays),
+    };
+
+    private static StateCardHealthResult HealthOf(ApplicationResponse app) => StateCardHealth.ForApplication(app, DateTimeOffset.UtcNow);
     private string _presetId = "custom";
     private string _error = string.Empty;
     private string _message = string.Empty;
@@ -428,7 +457,7 @@
             ClearMessages();
             _plaintext = null;
             var applicationId = _editing.Id;
-            var request = new CreateApplicationCredentialRequest(_credentialName.Trim(), null);
+            var request = new CreateApplicationCredentialRequest(_credentialName.Trim(), ExpiryFor(_credentialExpiry, DateTimeOffset.UtcNow));
             var result = await Identity.IssueApplicationCredentialResultAsync(applicationId, request);
             if (!Current(generation)) return;
             if (result.Failure == DashboardAccessMutationFailure.ApprovalRequired && result.Approval is { } approval)
@@ -440,7 +469,7 @@
                 result = await Identity.IssueApplicationCredentialResultAsync(applicationId, request with { ApprovalHash = hashes.Values.First() });
                 if (!Current(generation)) return;
             }
-            if (result.Succeeded && result.Value is not null) { _plaintext = result.Value.PlaintextCredential; _credentialName = "Credential"; await ReloadEditing(generation); }
+            if (result.Succeeded && result.Value is not null) { _plaintext = result.Value.PlaintextCredential; _credentialName = "Credential"; _credentialExpiry = SuggestedExpiry; await ReloadEditing(generation); }
             else _error = FailureMessage(result.Failure);
         }
         finally { End(generation); }
@@ -570,7 +599,7 @@
     private static string? NullIfWhiteSpace(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private void ReplaceApplication(ApplicationResponse app) { var index = _applications.FindIndex(value => value.Id == app.Id); if (index < 0) _applications.Add(app); else _applications[index] = app; }
     private void ToggleActions(Guid id) => _actionApplicationId = _actionApplicationId == id ? null : id;
-    private void ResetDrawer() { _drawerGeneration++; _saving = false; _editing = null; _actionApplicationId = null; _selected = new(StringComparer.Ordinal); _type = ApplicationTypeDto.UserClient; _enabled = true; _administrator = _deleteMode = false; _name = _description = _clientIds = _error = _message = string.Empty; _credentialName = "Credential"; _presetId = "custom"; _plaintext = null; }
+    private void ResetDrawer() { _drawerGeneration++; _saving = false; _editing = null; _actionApplicationId = null; _selected = new(StringComparer.Ordinal); _type = ApplicationTypeDto.UserClient; _enabled = true; _administrator = _deleteMode = false; _name = _description = _clientIds = _error = _message = string.Empty; _credentialName = "Credential"; _credentialExpiry = SuggestedExpiry; _presetId = "custom"; _plaintext = null; }
     private bool Begin(out long generation) { generation = _drawerGeneration; if (_saving) return false; _saving = true; return true; }
     private bool Current(long generation) => generation == _drawerGeneration;
     private void End(long generation) { if (Current(generation)) _saving = false; }

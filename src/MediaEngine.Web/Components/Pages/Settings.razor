@@ -228,6 +228,9 @@ else
                             case SettingsSection.Tools:
                                 <ToolsRequirementsTab />
                                 break;
+                            case SettingsSection.Notifications:
+                                <NotificationsPanel />
+                                break;
                             case SettingsSection.Network:
                                 <NetworkRemoteAccessSettings Subsection="@_activeSubsection" RemoteAccessOffChanged="OnRemoteAccessOffChanged" />
                                 break;
@@ -332,7 +335,8 @@ else
         IsSectionOffered,
         Attention.LocalAiBlocked,
         Attention.PluginsBroken,
-        Attention.AiFeaturesOn);
+        Attention.AiFeaturesOn,
+        Attention.IntegrationsBroken);
 
     // One menu tree: the desktop rail and the phone page selector are both built from it.
     private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups => SettingsMenuBuilder.Build(MenuContext);
@@ -926,6 +930,7 @@ else
             "diagnostics" => "Technical checks on playback delivery reported by the server.",
             _ => "Set the limits and quality for streaming away from home.",
         },
+        SettingsSection.Notifications => "Choose what the Library tells you about, and where those messages go.",
         SettingsSection.Tools => "See the tools and downloads the Library relies on, what each one affects, and fix anything that is missing.",
         SettingsSection.Access => _activeSubsection switch
         {

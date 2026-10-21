@@ -48,6 +48,16 @@ public static class ApplicationEndpoints
             .WithSummary("List Applications and their credential lifecycle summaries.")
             .Produces<IReadOnlyList<ApplicationResponse>>();
 
+        group.MapGet("/integration-health", async (
+            HttpContext context,
+            IRequestAuthorityResolver authorityResolver,
+            [FromServices] IntegrationHealthService service,
+            CancellationToken ct) =>
+            await ExecuteAsync(context, authorityResolver, service.GetAsync, ct))
+            .WithName("GetIntegrationHealth")
+            .WithSummary("How many integrations are broken or need a look: webhooks failing repeatedly, and keys unused for 90 days or near expiry.")
+            .Produces<IntegrationHealthResponse>();
+
         group.MapGet("/{applicationId:guid}", async (
             Guid applicationId,
             HttpContext context,

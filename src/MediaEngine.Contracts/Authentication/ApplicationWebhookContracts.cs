@@ -12,7 +12,8 @@ public sealed record ApplicationWebhookResponse(
     [property: JsonPropertyName("version")] long Version,
     [property: JsonPropertyName("last_status")] string LastStatus,
     [property: JsonPropertyName("last_attempt_at")] DateTimeOffset? LastAttemptAt,
-    [property: JsonPropertyName("last_success_at")] DateTimeOffset? LastSuccessAt);
+    [property: JsonPropertyName("last_success_at")] DateTimeOffset? LastSuccessAt,
+    [property: JsonPropertyName("consecutive_failures")] int ConsecutiveFailures = 0);
 
 public sealed record SaveApplicationWebhookRequest(
     [property: JsonPropertyName("url")] string Url,

@@ -17,6 +17,9 @@ internal sealed class MutableClock(DateTimeOffset start) : TimeProvider
 
     public override DateTimeOffset GetUtcNow() => _now;
 
+    /// <summary>Local time is UTC, so a test that talks about "noon" means the same on every machine.</summary>
+    public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+
     public void Advance(TimeSpan by) => _now += by;
 }
 

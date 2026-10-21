@@ -184,7 +184,7 @@ without setting an API key during development.
 ### Protected real-media harness
 
 Use `tools/Run-RealMediaHarness.ps1` for an existing collection, defaulting to
-`C:\Temp\real_import`. It stops the development apps, builds them, hashes every
+`Z:\Development\testing\media\real_media`. It stops the development apps, builds them, hashes every
 original, backs up the database/configuration, and clears development library
 records offline while holding the Engine and Dashboard process leases. Accounts,
 profiles, permissions, and storage identity reservations remain. View content and

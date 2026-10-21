@@ -6,27 +6,10 @@ namespace MediaEngine.Api.Services.Events;
 
 public sealed class ApplicationEventRegistry(IPermissionRegistry permissions)
 {
+    // Webhooks, plugin subscriptions and notification routes all read the one list in LibraryEvents.
     private static readonly ApplicationEventDefinition[] Values =
     [
-        Definition("playback.started", ApplicationPermissionIds.PlaybackSessionsRead, true, true),
-        Definition("playback.paused", ApplicationPermissionIds.PlaybackSessionsRead, true, true),
-        Definition("playback.stopped", ApplicationPermissionIds.PlaybackSessionsRead, true, true),
-        Definition("playback.completed", ApplicationPermissionIds.PlaybackSessionsRead, true, true),
-        Definition("library.item_added", ApplicationPermissionIds.LibraryChangesRead, true),
-        Definition("library.item_removed", ApplicationPermissionIds.LibraryChangesRead, true),
-        Definition("library.item_updated", ApplicationPermissionIds.LibraryChangesRead, true),
-        Definition("ingestion.started", ApplicationPermissionIds.IngestionStatusRead, false),
-        // ingestion.progress is sent while the live queue is working, ingestion.completed once when it returns to idle;
-        // both are subject "ingestion/current" with payload { files_found, files_done, files_waiting, progress, state }.
-        Definition("ingestion.progress", ApplicationPermissionIds.IngestionStatusRead, false),
-        Definition("ingestion.completed", ApplicationPermissionIds.IngestionStatusRead, false),
-        Definition("ingestion.failed", ApplicationPermissionIds.IngestionStatusRead, false),
-        Definition("metadata.updated", ApplicationPermissionIds.MetadataRead, true),
-        Definition("metadata.review_required", ApplicationPermissionIds.ReviewRead, true),
-        Definition("provider.status_changed", ApplicationPermissionIds.ProvidersStatusRead, false),
-        Definition("plugin.job_started", ApplicationPermissionIds.PluginsJobsRead, false),
-        Definition("plugin.job_completed", ApplicationPermissionIds.PluginsJobsRead, false),
-        Definition("system.health_changed", ApplicationPermissionIds.SystemStatusRead, false),
+        .. LibraryEvents.All.Select(entry => new ApplicationEventDefinition(entry.EventType, entry.ReadPermission, entry.IsLibraryScoped, entry.IsProfileScoped)),
     ];
 
     private readonly IReadOnlyDictionary<string, ApplicationEventDefinition> _byType = Values.ToDictionary(value => value.EventType, StringComparer.Ordinal);
@@ -53,10 +36,4 @@ public sealed class ApplicationEventRegistry(IPermissionRegistry permissions)
 
     public bool TryGet(string eventType, out ApplicationEventDefinition definition) =>
         _byType.TryGetValue(eventType, out definition!);
-
-    private static ApplicationEventDefinition Definition(
-        string eventType,
-        ApplicationPermissionId permission,
-        bool library,
-        bool profile = false) => new(eventType, permission, library, profile);
 }
