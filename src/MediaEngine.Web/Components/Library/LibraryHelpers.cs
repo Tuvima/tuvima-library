@@ -293,6 +293,7 @@ public static class LibraryHelpers
         "WritebackFailed" => "Re-tagging this file failed. It may be locked, corrupt, or unwritable.",
         "MediaInspectionFailed" => "This file couldn't be read. It may be damaged or incomplete.",
         "AmbiguousSeriesMembership" => "Wikidata puts this in the main sequence of more than one Series. It is not on any Series until you choose.",
+        "BatchEditFailed" => "A batch edit changed the other items but couldn't change this one. Nothing was changed on it.",
         _ => "This item needs your attention.",
     };
 
@@ -317,6 +318,7 @@ public static class LibraryHelpers
         "RootWatchFolder" => "Dropped into root watch folder  -  please confirm the media type",
         "WritebackFailed" => "Re-tag failed  -  file may be locked or corrupt",
         "MediaInspectionFailed" => "This file couldn't be read",
+        "BatchEditFailed" => "A batch edit didn't apply",
         _ => trigger ?? "This item needs review",
     };
 

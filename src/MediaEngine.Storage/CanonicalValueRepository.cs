@@ -84,6 +84,28 @@ public sealed class CanonicalValueRepository : ICanonicalValueRepository, IAiFea
         Microsoft.Data.Sqlite.SqliteTransaction tx,
         List<CanonicalValue> scalarValues)
     {
+        // An item added anyway stays unnumbered (Details overlay D13): no scan, re-read of its file or provider writes it a track,
+        // disc, episode, season or series position (a title's mark) or a part number (an audiobook part's mark). Only a later Match,
+        // which clears the mark, numbers it. Each mark covers only its own list's numbers.
+        var workNumbered = scalarValues.Where(cv => PlacementNumbers.IsWorkKey(cv.Key)).Select(cv => cv.EntityId).Distinct().ToList();
+        var partNumbered = scalarValues.Where(cv => PlacementNumbers.IsPartKey(cv.Key)).Select(cv => cv.EntityId).Distinct().ToList();
+        if (workNumbered.Count > 0 || partNumbered.Count > 0)
+        {
+            var workUnnumbered = PlacementNumbers.WorkUnnumberedAmong(conn, tx, workNumbered);
+            var partUnnumbered = PlacementNumbers.PartUnnumberedAmong(conn, tx, partNumbered);
+            if (workUnnumbered.Count > 0 || partUnnumbered.Count > 0)
+            {
+                scalarValues = scalarValues
+                    .Where(cv => !(PlacementNumbers.IsWorkKey(cv.Key) && workUnnumbered.Contains(cv.EntityId))
+                        && !(PlacementNumbers.IsPartKey(cv.Key) && partUnnumbered.Contains(cv.EntityId)))
+                    .ToList();
+                if (scalarValues.Count == 0)
+                {
+                    return;
+                }
+            }
+        }
+
         // Update in place so the winner changes atomically without the
         // delete/reinsert side effects of INSERT OR REPLACE.
         conn.Execute("""

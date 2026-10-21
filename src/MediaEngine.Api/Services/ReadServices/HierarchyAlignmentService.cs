@@ -580,6 +580,14 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                 return new MembershipPreviewEnvelope("none", currentPath, currentPath, false, false, false, plan.CurrentEntityId, plan.CurrentRootEntityId, plan.CurrentParentEntityId, "No season move is needed.", null);
             }
 
+            if (conn.ExecuteScalar<long>(
+                    "-- readiness: looks up one work by id\nSELECT placement_unmatched FROM works WHERE id = @workId;",
+                    new { workId = plan.CurrentEntityId },
+                    tx) == 1)
+            {
+                return new MembershipPreviewEnvelope("conflict", currentPath, currentPath, false, false, false, plan.CurrentEntityId, plan.CurrentRootEntityId, plan.CurrentParentEntityId, "This item was added without a number.", "Match it to an entry in the list instead; a correction never numbers it.");
+            }
+
             var conflictId = FindChildByOrdinal(conn, plan.CurrentParentEntityId.Value, plan.RequestedOrdinal.Value, tx);
             if (conflictId.HasValue && conflictId.Value != plan.CurrentEntityId)
             {
@@ -606,6 +614,16 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
         if (!resolvedTarget.CanApply)
         {
             return new MembershipPreviewEnvelope(resolvedTarget.Action, currentPath, resolvedTarget.TargetPath, resolvedTarget.RequiresNewTarget, false, false, plan.CurrentEntityId, plan.CurrentRootEntityId, resolvedTarget.TargetParentEntityId, resolvedTarget.Message, resolvedTarget.ConflictMessage);
+        }
+
+        // A title added anyway (D13) is placed properly by a re-match against known data (D20): the re-match decides its parent
+        // and number, so the "Not matched" mark is cleared as it applies and its numbers are accepted again.
+        if (applyChanges)
+        {
+            conn.Execute(
+                "UPDATE works SET placement_unmatched = 0 WHERE id = @workId AND placement_unmatched = 1;",
+                new { workId = plan.CurrentEntityId },
+                tx);
         }
 
         var sourceParentWillBeEmpty = plan.CurrentParentEntityId is { } sourceParentId

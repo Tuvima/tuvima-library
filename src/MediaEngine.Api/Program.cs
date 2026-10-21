@@ -493,6 +493,7 @@ builder.Services.AddSingleton(sp => new SystemResourcesService(
     sp.GetRequiredService<IOptions<IngestionOptions>>(),
     dbPath));
 builder.Services.AddTuvimaDisplay();
+builder.Services.AddTuvimaLibraryMoves();
 builder.Services.AddTuvimaIntelligence();
 builder.Services.AddTuvimaProviders(configLoader);
 builder.Services.AddTuvimaAi(configLoader);

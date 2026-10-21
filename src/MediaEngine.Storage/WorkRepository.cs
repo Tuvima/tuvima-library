@@ -99,6 +99,7 @@ public sealed class WorkRepository : IWorkRepository
             FROM   works
             WHERE  parent_work_id = @parentId
               AND  ordinal        = @ordinal
+              AND  placement_unmatched = 0
               AND (media_type <> 'TV' OR work_kind = CASE
                 WHEN EXISTS (SELECT 1 FROM works parent WHERE parent.id=@parentId
                     AND parent.media_type='TV' AND parent.work_kind='parent' AND parent.parent_work_id IS NULL)
@@ -131,6 +132,7 @@ public sealed class WorkRepository : IWorkRepository
             FROM   works
             WHERE  parent_work_id = @parentId
               AND  ordinal_sort   = @ordinalSort
+              AND  placement_unmatched = 0
             LIMIT  1;
             """;
 
@@ -172,6 +174,7 @@ public sealed class WorkRepository : IWorkRepository
             LEFT   JOIN canonical_values cv_work
                     ON cv_work.entity_id  = w.id  AND cv_work.key  = 'title'
             WHERE  w.parent_work_id = @parentId
+              AND  w.placement_unmatched = 0
               AND  (cv_asset.value = @title COLLATE NOCASE
                  OR cv_work.value  = @title COLLATE NOCASE)
             LIMIT  1;
@@ -652,7 +655,7 @@ public sealed class WorkRepository : IWorkRepository
                 SET    work_kind       = CASE WHEN work_kind = 'catalog' THEN 'child' ELSE work_kind END,
                        is_catalog_only = CASE WHEN work_kind = 'catalog' THEN 0 ELSE is_catalog_only END,
                        ownership       = CASE WHEN work_kind = 'catalog' THEN 'Owned' ELSE ownership END,
-                       ordinal_sort    = COALESCE(ordinal_sort, @ordinalSort)
+                       ordinal_sort    = CASE WHEN placement_unmatched = 1 THEN ordinal_sort ELSE COALESCE(ordinal_sort, @ordinalSort) END
                 WHERE  id = @id;
                 """,
                 new { id = found, ordinalSort },
@@ -728,7 +731,7 @@ public sealed class WorkRepository : IWorkRepository
     internal static void UpdateOrdinalSort(
         SqliteConnection conn, SqliteTransaction? tx, Guid workId, double ordinalSort) =>
         conn.Execute(
-            "UPDATE works SET ordinal_sort = @ordinalSort WHERE id = @workId;",
+            "UPDATE works SET ordinal_sort = @ordinalSort WHERE id = @workId AND placement_unmatched = 0;",
             new { workId, ordinalSort },
             tx);
 

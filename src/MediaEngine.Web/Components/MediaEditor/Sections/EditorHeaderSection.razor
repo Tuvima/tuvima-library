@@ -13,26 +13,8 @@
                 <div class="sme-header-identity">
                 @if (!Inline)
                 {
-                    <div class="sme-cover-cluster @(HasParentGroupArtwork && string.IsNullOrWhiteSpace(StaticHeaderCoverUrl) ? "sme-cover-cluster--group" : "") @(IsSingleItem ? $"sme-cover-cluster--single {StaticHeaderArtworkShapeClass}" : "sme-cover-cluster--batch")">
-                    @if (IsBatchMode)
-                    {
-                        <div class="sme-batch-cover-grid">
-                            @foreach (var preview in PreviewItems.Take(4))
-                            {
-                                <div class="sme-batch-cover-cell">
-                                    @if (!string.IsNullOrWhiteSpace(preview.CoverUrl))
-                                    {
-                                        <img src="@SmallEditorArtworkUrl(preview.CoverUrl)" srcset="@EditorArtworkSrcSet(preview.CoverUrl)" sizes="92px" alt="" />
-                                    }
-                                    else
-                                    {
-                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Collections" Class="tl-u-font-size-20px tl-u-opacity-0-22" />
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
-                    else if (HasParentGroupArtwork && string.IsNullOrWhiteSpace(StaticHeaderCoverUrl))
+                    <div class="sme-cover-cluster @(HasParentGroupArtwork && string.IsNullOrWhiteSpace(StaticHeaderCoverUrl) ? "sme-cover-cluster--group" : "") @($"sme-cover-cluster--single {StaticHeaderArtworkShapeClass}")">
+                    @if (HasParentGroupArtwork && string.IsNullOrWhiteSpace(StaticHeaderCoverUrl))
                     {
                         <div class="sme-automatic-artwork"><MediaArtworkGroupPreview Items="ParentGroupArtwork" Layout="MediaArtworkGroupPreviewLayout.Cluster" ShowOverflowCount="false" AriaLabel="Automatic stacked shelf artwork" /></div>
                     }
@@ -212,14 +194,12 @@
     [Parameter] public bool Inline { get; set; } = default!;
     [Parameter] public string ActiveTab { get; set; } = default!;
     [Parameter] public bool IsSingleItem { get; set; } = default!;
-    [Parameter] public bool IsBatchMode { get; set; } = default!;
     [Parameter] public bool HasStagedEditorChanges { get; set; } = default!;
     [Parameter] public string EditorPageTitle { get; set; } = default!;
     [Parameter] public string EditorHeaderDescription { get; set; } = default!;
     [Parameter] public bool HasParentGroupArtwork { get; set; } = default!;
     [Parameter] public IReadOnlyList<ArtworkStackItem> ParentGroupArtwork { get; set; } = [];
     [Parameter] public bool Saving { get; set; } = default!;
-    [Parameter] public IReadOnlyList<MediaEditorPreviewItem> PreviewItems { get; set; } = [];
     [Parameter] public string? WikidataUrl { get; set; } = default!;
 
     // EventCallbacks retain the shell as the state-changing event receiver.

@@ -8,6 +8,7 @@
 @using MediaEngine.Web.Components.Library
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Components.Artwork
+@using MediaEngine.Web.Components.MediaEditor.Moves
 @using MediaEngine.Web.Components.MediaEditor.Sections
 
 @* Hosted in an Editing Mode section slot, the page (the banner and the overlay's dismiss guard) owns the "Save or discard?"
@@ -45,14 +46,12 @@
                         Inline="@(Inline)"
                         ActiveTab="@(_activeTab)"
                         IsSingleItem="@(IsSingleItem)"
-                        IsBatchMode="@(IsBatchMode)"
                         HasStagedEditorChanges="@(HasStagedEditorChanges)"
                         EditorPageTitle="@(EditorPageTitle)"
                         EditorHeaderDescription="@(EditorHeaderDescription)"
                         HasParentGroupArtwork="@(HasParentGroupArtwork)"
                         ParentGroupArtwork="@(ParentGroupArtwork)"
                         Saving="@(_saving)"
-                        PreviewItems="@(Request.PreviewItems)"
                         WikidataUrl="@(StaticHeaderIdentity?.WikidataQid is { } qid && !string.IsNullOrWhiteSpace(qid) ? ProviderCatalogue.GetExternalUrl("wikidata_qid", qid, EditorMediaType)?.Url : null)" />
                     }
                             @if (!IsSharedEntityMode && HasContextNavigator && EditorContextLevels.Count > 0)
@@ -150,30 +149,6 @@
                     </AppButton>
                     <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="SaveAndNavigateAsync">
                         @(!HasPendingNavigationChanges ? "Continue" : _saving ? "Saving..." : "Save and leave")
-                    </AppButton>
-                </div>
-            }
-
-            @if (Inline && !IsSection && _pendingMembershipPreview is not null)
-            {
-                <div class="sme-inline-decision" role="status">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountTree" />
-                    <div>
-                        <strong>@MembershipPreviewHeading</strong>
-                        <span>@_pendingMembershipPreview.Message</span>
-                        @if (MembershipPreviewCleanupNote is { } cleanupNote)
-                        {
-                            <small class="sme-membership-cleanup-note">@cleanupNote</small>
-                        }
-                    </div>
-                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="@(() => _pendingMembershipPreview = null)">
-                        Keep Editing
-                    </AppButton>
-                    <AppButton ButtonStyle="AppButtonStyle.Filled"
-                               Tone="AppUiTone.Primary"
-                               Disabled="@_saving"
-                               OnClick="ConfirmMembershipMoveAsync">
-                        @MembershipPreviewActionLabel
                     </AppButton>
                 </div>
             }
@@ -420,9 +395,14 @@
                                                      OnKeepAsFilm="KeepReviewAsFilmAsync" />
                         </div>
                     }
-                    @if (IsSingleItem && CanMoveCurrentTarget)
+                    @if (IsSingleItem && !IsSharedEntityMode)
                     {
-                        <ItemMovePanel WorkId="@CurrentEntityId" MediaType="@EditorMediaType" OnMoved="OnItemMovedAsync" />
+                        <ItemMoveArea ItemId="@MoveItemId"
+                                      MediaType="@EditorMediaType"
+                                      ScopeId="@(ActiveScope?.ScopeId)"
+                                      IsUnmatched="@IsUnmatchedNow"
+                                      Result="@MoveResultLine"
+                                      OnMoved="OnItemMovedAsync" />
                     }
                     <EditorMatchSection
                         ShowPageHeading="@(!IsSection)"
@@ -458,9 +438,6 @@
                         SelectCandidateRequested="@(SelectCandidate)"
                         CancelMatchDraftRequested="@(CancelMatchDraft)"
                         CanApplyRetailCandidate="@((MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => CanApplyRetailCandidate(candidate))"
-                        MusicTrackMovePrerequisite="@((MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => MusicTrackMovePrerequisite(candidate))"
-                        PreviewMusicTrackMoveAsyncRequested="@(PreviewMusicTrackMoveAsync)"
-                        SaveMusicTrackMoveAsyncRequested="@(SaveMusicTrackMoveAsync)"
                         GetRetailHierarchyImpactPreview="@((MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => GetRetailHierarchyImpactPreview(candidate))"
                         GetRetailHierarchyPreviewStatus="@((MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => GetRetailHierarchyPreviewStatus(candidate))"
                         CanApplyLinkedCandidate="@((MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto candidate) => CanApplyLinkedCandidate(candidate))"
@@ -514,7 +491,6 @@
                         HasCurrentCanonicalIdentity="@(HasCurrentCanonicalIdentity)"
                         IdentityStatus="@(_editorContext?.IdentityStatus)"
                         ArtworkSource="@(_editorContext?.ArtworkSource)"
-                        IsMusicTrackMoveTarget="@(IsMusicTrackMoveTarget)"
                         ArtworkShapeClass="@(ArtworkShapeClass)"
                         IsTvdbScopedMatching="@(IsTvdbScopedMatching)"
                         CanSelectTvdbCandidates="@(CanSelectTvdbCandidates)"
@@ -522,10 +498,6 @@
                         RetailCandidateDetail="@(_retailCandidateDetail)"
                         RetailMovePreview="@(_retailMovePreview)"
                         PendingRetailMoveCandidate="@(_pendingRetailMoveCandidate)"
-                        MusicTrackMovePreview="@(_musicTrackMovePreview)"
-                        MusicTrackMoveChoiceId="@(_musicTrackMoveChoiceId)"
-                        MusicTrackMoveError="@(_musicTrackMoveError)"
-                        MusicTrackMoveBusy="@(_musicTrackMoveBusy)"
                         MovedItemNotice="@(_movedItemNotice)"
                         MovedItemDestinationId="@(_movedItemDestinationId)"
                         MatchActionPending="@(_matchActionPending)"
@@ -540,7 +512,6 @@
                         ToAbsoluteEngineUrl="@(ApiClient.ToAbsoluteEngineUrl)"
                         CancelParentMove="@(() => { _retailMovePreview = null; _pendingRetailMoveCandidate = null; })"
                         CancelTvdbSelection="@(() => _selectedTvdbCandidate = null)"
-                        SelectMusicTrackMoveChoice="@((string value) => _musicTrackMoveChoiceId = value)"
                         GetRetailCandidateId="@((MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => GetCandidateId(candidate))" />
                     @if (CoverageAssetId is { } coverageAssetId)
                     {
@@ -913,30 +884,7 @@
                 else
                 {
                     <div class="sme-footer-spacer"></div>
-                    @if (_pendingMembershipPreview is not null)
-                    {
-                        <div class="sme-footer-note">
-                            <span>@_pendingMembershipPreview.Message</span>
-                            @if (MembershipPreviewCleanupNote is { } cleanupNote)
-                            {
-                                <small class="sme-membership-cleanup-note">@cleanupNote</small>
-                            }
-                        </div>
-                        <AppButton ButtonStyle="AppButtonStyle.Text"
-                                   Tone="AppUiTone.Neutral"
-                                   Class="sme-footer-btn sme-footer-btn--ghost"
-                                   OnClick="@(() => _pendingMembershipPreview = null)">
-                            Keep Editing
-                        </AppButton>
-                        <AppButton ButtonStyle="AppButtonStyle.Filled"
-                                   Tone="AppUiTone.Primary"
-                                   Class="sme-footer-btn sme-footer-btn--primary"
-                                   OnClick="ConfirmMembershipMoveAsync"
-                                   Disabled="@_saving">
-                            Save and Move
-                        </AppButton>
-                    }
-                    else if (ShowArtworkUploadRetryFooter)
+                    @if (ShowArtworkUploadRetryFooter)
                     {
                         <div class="sme-footer-note" role="alert">
                             <span>The image was not added, so nothing has changed yet.</span>

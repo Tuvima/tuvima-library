@@ -10,14 +10,9 @@ namespace MediaEngine.Api.Services.ReadServices;
 public sealed class CollectionSearchReadService : ICollectionSearchReadService
 {
     private readonly IDatabaseConnection _db;
-    private readonly ISearchIndexRepository? _searchIndex;
+    private readonly ISearchIndexRepository _searchIndex;
 
-    public CollectionSearchReadService(IDatabaseConnection db)
-        : this(db, null)
-    {
-    }
-
-    public CollectionSearchReadService(IDatabaseConnection db, ISearchIndexRepository? searchIndex)
+    public CollectionSearchReadService(IDatabaseConnection db, ISearchIndexRepository searchIndex)
     {
         _db = db;
         _searchIndex = searchIndex;
@@ -31,40 +26,12 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
         }
 
         var trimmed = query.Trim();
-        var like = $"%{trimmed}%";
-        IReadOnlyList<Guid>? matchedWorkIds = null;
-        if (_searchIndex is not null)
+        var matchedWorkIds = await _searchIndex.SearchAsync(trimmed, 80, ct).ConfigureAwait(false);
+        if (matchedWorkIds.Count == 0)
         {
-            matchedWorkIds = await _searchIndex.SearchAsync(trimmed, 80, ct).ConfigureAwait(false);
-            if (matchedWorkIds.Count == 0)
-            {
-                return [];
-            }
+            return [];
         }
 
-        var searchPredicate = matchedWorkIds is not null
-            ? "w.id IN @workIds"
-            : """
-              (c.display_name LIKE @like COLLATE NOCASE
-                   OR EXISTS (
-                       SELECT 1
-                       FROM canonical_values cv
-                       WHERE cv.entity_id IN (ma.id, w.id, w.collection_id)
-                         AND cv.value LIKE @like COLLATE NOCASE
-                   )
-                   OR EXISTS (
-                       SELECT 1
-                       FROM canonical_value_arrays cva
-                       WHERE cva.entity_id IN (ma.id, w.id)
-                         AND cva.value LIKE @like COLLATE NOCASE
-                   )
-                   OR EXISTS (
-                       SELECT 1
-                       FROM primary_person_media_credits credit
-                       WHERE credit.media_asset_id = ma.id
-                         AND credit.person_name LIKE @like COLLATE NOCASE
-                   ))
-              """;
         var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         // The borrowed audiobook year is worked out once, for the (at most 20) rows of the result page only.
@@ -83,6 +50,13 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
             "page.MediaType",
             MediaDateSql.RelatedBookYearLookup("search_related_book_year", "page.WorkId", "page.AssetId"));
 
+        // The author shown on a result is not used to match, filter or sort, so credits are worked out for the
+        // (at most 20) files of the chosen page only, never for every file the search index matched.
+        var searchCreditsCte = PersonCreditSql.ScopedCreditsCte(
+            "search_credit_rows",
+            "SELECT AssetId FROM search_page",
+            "sc_");
+
         using var conn = _db.CreateConnection();
         var rows = (await conn.QueryAsync<CollectionSearchRow>(new CommandDefinition($"""
             WITH matched AS (
@@ -100,32 +74,13 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
                         'Work ' || substr(w.id, 1, 8)
                     ) AS Title,
                     COALESCE(
-                        (SELECT credit.person_name
-                         FROM primary_person_media_credits credit
-                         WHERE credit.media_asset_id = ma.id
-                           AND (
-                               (w.media_type IN ('Books', 'Book', 'Comics', 'Comic') AND credit.credit_key = 'author')
-                               OR (w.media_type IN ('Movies', 'Movie', 'TV', 'Television') AND credit.credit_key = 'director')
-                               OR (w.media_type IN ('Music', 'Audio') AND credit.credit_key IN ('artist', 'performer'))
-                               OR (w.media_type IN ('Audiobooks', 'Audiobook') AND credit.credit_key IN ('author', 'narrator'))
-                           )
-                         ORDER BY CASE credit.credit_key
-                                      WHEN 'author' THEN 0
-                                      WHEN 'director' THEN 0
-                                      WHEN 'artist' THEN 0
-                                      WHEN 'performer' THEN 0
-                                      ELSE 1
-                                  END,
-                                  credit.billing_order,
-                                  credit.person_name COLLATE NOCASE
-                         LIMIT 1),
                         author_asset.value,
                         artist_asset.value,
                         director_asset.value,
                         author_work.value,
                         artist_work.value,
                         director_work.value
-                    ) AS Author,
+                    ) AS AuthorFallback,
                     COALESCE(
                         c.display_name,
                         collection_title.value,
@@ -216,14 +171,14 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
                 WHERE w.work_kind != 'parent'
                   AND {visibleWorkPredicate}
                   AND {visibleAssetPredicate}
-                  AND {searchPredicate}
+                  AND w.id IN @workIds
             ),
             search_page AS MATERIALIZED (
                 SELECT WorkId,
                        CollectionId,
                        MediaType,
                        Title,
-                       Author,
+                       AuthorFallback,
                        CollectionDisplayName,
                        Series,
                        SeriesPosition,
@@ -240,12 +195,35 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
                 ORDER BY Title COLLATE NOCASE, WorkId
                 LIMIT 20
             ),
-            {searchRelatedBookYearCte}
+            {searchRelatedBookYearCte},
+            {searchCreditsCte},
+            search_credits_saved AS MATERIALIZED (SELECT * FROM search_credit_rows)
             SELECT page.WorkId,
                    page.CollectionId,
                    page.MediaType,
                    page.Title,
-                   page.Author,
+                   COALESCE(
+                (SELECT credit.person_name
+                 FROM search_credits_saved credit
+                 WHERE credit.media_asset_id = page.AssetId
+                   AND (
+                       (page.MediaType IN ('Books', 'Book', 'Comics', 'Comic') AND credit.credit_key = 'author')
+                       OR (page.MediaType IN ('Movies', 'Movie', 'TV', 'Television') AND credit.credit_key = 'director')
+                       OR (page.MediaType IN ('Music', 'Audio') AND credit.credit_key IN ('artist', 'performer'))
+                       OR (page.MediaType IN ('Audiobooks', 'Audiobook') AND credit.credit_key IN ('author', 'narrator'))
+                   )
+                 ORDER BY CASE credit.credit_key
+                              WHEN 'author' THEN 0
+                              WHEN 'director' THEN 0
+                              WHEN 'artist' THEN 0
+                              WHEN 'performer' THEN 0
+                              ELSE 1
+                          END,
+                          credit.billing_order,
+                          credit.person_name COLLATE NOCASE
+                 LIMIT 1),
+                page.AuthorFallback
+            ) AS Author,
                    page.CollectionDisplayName,
                    page.Series,
                    page.SeriesPosition,
@@ -258,7 +236,7 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
                    page.Rating
             FROM search_page page
             ORDER BY page.Title COLLATE NOCASE, page.WorkId;
-            """, new { like, workIds = matchedWorkIds?.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct))).ToList();
+            """, new { workIds = matchedWorkIds.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct))).ToList();
 
         return rows.Select(row => new SearchResultDto
         {
