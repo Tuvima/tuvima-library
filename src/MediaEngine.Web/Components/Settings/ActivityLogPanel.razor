@@ -15,6 +15,13 @@
                                  ValueChanged="OnFilterChanged"
                                  AriaLabel="Filter the activity log" />
         </div>
+        <div class="activity-log__sort">
+            <AppSelect Label="Sort by"
+                       Value="@_sort"
+                       ValueChanged="OnSortChanged"
+                       Options="SortOptions"
+                       Size="AppControlSize.Compact" />
+        </div>
         <div class="activity-log__search">
             <AppSearchField Label="Search the activity log"
                             HideLabel="true"
@@ -55,7 +62,7 @@
     else
     {
         <ol class="activity-log__list" aria-label="Events, newest first" data-testid="activity-log-rows">
-            @foreach (var entry in _items)
+            @foreach (var entry in OrderedItems)
             {
                 @* An entry that cannot be drawn becomes a "couldn't be shown" row in the same list; the other entries stay. *@
                 <AppRowErrorBoundary ItemTitle="@entry.Title" ResetKey="@entry">
@@ -64,6 +71,12 @@
                     <time class="activity-log__time" datetime="@entry.OccurredAt.ToString("O")" title="@FullTime(entry.OccurredAt)">@ShortTime(entry.OccurredAt)</time>
                     <span class="activity-log__symbol" aria-hidden="true">
                         <AppMaterialIcon Icon="@SymbolFor(entry.Category)" Size="AppSize.Small" />
+                    </span>
+                    <span class="activity-log__art" aria-hidden="true">
+                        @if (HasArt(entry))
+                        {
+                            <AppMediaArtwork ImageUrl="@entry.CoverUrl" AspectRatio="1 / 1" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(entry.MediaType)" />
+                        }
                     </span>
                     <div class="activity-log__body">
                         <div class="activity-log__headline">
@@ -77,7 +90,12 @@
                             }
                             @if (!string.IsNullOrWhiteSpace(entry.MediaType))
                             {
-                                <span class="activity-log__media-type">@entry.MediaType</span>
+                                @* The type is an icon with its name as the tooltip and accessible name, the same icon the Now panel uses. *@
+                                <AppTooltip Text="@TypeLabel(entry)" Placement="AppPlacement.Top">
+                                    <span class="activity-log__media-type" role="img" aria-label="@TypeLabel(entry)">
+                                        <AppMaterialIcon Icon="@IngestionMediaCard.MediaIcon(entry.MediaType)" Size="AppSize.Small" aria-hidden="true" />
+                                    </span>
+                                </AppTooltip>
                             }
                         </div>
                         @if (!string.IsNullOrWhiteSpace(entry.Detail))
@@ -93,6 +111,7 @@
                         <span class="activity-log__symbol" aria-hidden="true">
                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ReportProblem" Size="AppSize.Small" />
                         </span>
+                        <span class="activity-log__art" aria-hidden="true"></span>
                         <div class="activity-log__body">
                             <div class="activity-log__headline"><strong class="activity-log__title">@AppRowErrorBoundary.Headline</strong></div>
                             @if (!string.IsNullOrWhiteSpace(entry.Title))
@@ -136,6 +155,15 @@
         new(ActivityLogCategoryValues.All, "All"),
     ];
 
+    private const string SortNewest = "newest";
+    private const string SortType = "type";
+
+    private static readonly IReadOnlyList<AppSelectOption> SortOptions =
+    [
+        new(SortNewest, "Newest first"),
+        new(SortType, "Type"),
+    ];
+
     /// <summary>The filter the log opens on: <c>added</c>, <c>review</c>, <c>failed</c>, <c>system</c> or <c>all</c> (the default).</summary>
     [Parameter] public string? Filter { get; set; }
 
@@ -145,6 +173,7 @@
     private string? _appliedParameter;
     private bool _parameterApplied;
     private string? _search;
+    private string _sort = SortNewest;
     private int _offset;
     private int? _total;
     private bool _hasMore;
@@ -171,6 +200,13 @@
         _filter = NormalizeFilter(value);
         _offset = 0;
         return LoadAsync();
+    }
+
+    // Sorting by type re-orders the page on screen (newest first within each type, entries with no type last); it does not reload.
+    private Task OnSortChanged(string? value)
+    {
+        _sort = value == SortType ? SortType : SortNewest;
+        return Task.CompletedTask;
     }
 
     private Task OnSearchChanged(string? value)
@@ -239,6 +275,21 @@
 
         _loading = false;
     }
+
+    private IEnumerable<ActivityLogEntryDto> OrderedItems => _sort == SortType
+        ? _items
+            .Select((entry, position) => (entry, position))
+            .OrderBy(pair => string.IsNullOrWhiteSpace(pair.entry.MediaType) ? 1 : 0)
+            .ThenBy(pair => string.IsNullOrWhiteSpace(pair.entry.MediaType) ? string.Empty : IngestionMediaCard.FriendlyType(pair.entry.MediaType), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(pair => pair.position)
+            .Select(pair => pair.entry)
+        : _items;
+
+    // A row shows a cover (or the type's icon in its place) when it is about an item of a known type.
+    private static bool HasArt(ActivityLogEntryDto entry) =>
+        !string.IsNullOrWhiteSpace(entry.CoverUrl) || !string.IsNullOrWhiteSpace(entry.MediaType);
+
+    private static string TypeLabel(ActivityLogEntryDto entry) => IngestionMediaCard.FriendlyType(entry.MediaType);
 
     private static string NormalizeFilter(string? value) => value?.ToLowerInvariant() switch
     {
