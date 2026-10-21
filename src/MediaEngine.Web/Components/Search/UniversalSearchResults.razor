@@ -14,7 +14,8 @@
                        @onfocus="@(() => SelectAsync(Response.TopResult))">
                         @if (!string.IsNullOrWhiteSpace(Response.TopResult.ArtworkUrl))
                         {
-                            <img src="@Response.TopResult.ArtworkUrl" alt="" />
+                            @* Drawn up to 152x228px (UniversalSearchResults.razor.css). *@
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(Response.TopResult.ArtworkUrl, 228)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Response.TopResult.ArtworkUrl, 228)" alt="" decoding="async" />
                         }
                         else
                         {
@@ -68,7 +69,8 @@
                                 <span class="@ArtworkClass("universal-results__card-art", result)">
                                     @if (!string.IsNullOrWhiteSpace(result.ArtworkUrl))
                                     {
-                                        <img src="@result.ArtworkUrl" alt="" loading="lazy" />
+                                        @* A five-column grid of cards, portrait up to about 200x300px (UniversalSearchResults.razor.css). *@
+                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(result.ArtworkUrl, 300)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(result.ArtworkUrl, 300)" alt="" loading="lazy" decoding="async" />
                                     }
                                     else
                                     {
@@ -100,7 +102,8 @@
                 <div class="@ArtworkClass("universal-results__preview-art", ActiveResult)">
                     @if (!string.IsNullOrWhiteSpace(ActiveResult.ArtworkUrl))
                     {
-                        <img src="@ActiveResult.ArtworkUrl" alt="" />
+                        @* The preview panel: up to 238px wide, 357px tall for a portrait (UniversalSearchResults.razor.css). *@
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(ActiveResult.ArtworkUrl, 360)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ActiveResult.ArtworkUrl, 360)" alt="" decoding="async" />
                     }
                     else
                     {

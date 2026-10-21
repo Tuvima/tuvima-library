@@ -18,6 +18,7 @@
                                       TotalCount="CollectionHeroArtworkTotal"
                                       Layout="MediaArtworkGroupPreviewLayout.Cluster"
                                       ShowOverflowCount="false"
+                                      DrawnPx="640"
                                       AriaLabel="@($"{Model.Title} representative artwork")" />
         </div>
     }
@@ -35,7 +36,8 @@
         <div class="tl-detail-person-portrait" aria-label="@Model.Title portrait">
             @if (!string.IsNullOrWhiteSpace(Model.Artwork.PortraitUrl))
             {
-                <img src="@Model.Artwork.PortraitUrl" alt="@Model.Title" />
+                @* Drawn up to 288x640px (DetailHero.razor.css): the medium copy. *@
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(Model.Artwork.PortraitUrl, 640)" alt="@Model.Title" />
             }
             else
             {

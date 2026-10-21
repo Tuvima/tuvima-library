@@ -5,7 +5,7 @@
 <div class="@RootClass" style="@RootStyle">
     @if (!string.IsNullOrWhiteSpace(ImageUrl))
     {
-        <img src="@(SmallUrl ?? ImageUrl)" srcset="@ResponsiveSources" sizes="@Sizes" alt="@Alt" class="app-media-artwork__image" loading="lazy" decoding="async" />
+        <img src="@MediaTileArtworkUrl.ForDrawnSize(ImageUrl, ResolvedDrawnPx)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ImageUrl, ResolvedDrawnPx)" alt="@Alt" class="app-media-artwork__image" loading="lazy" decoding="async" />
     }
     else
     {
@@ -29,7 +29,11 @@
 
 @code {
     [Parameter] public string? ImageUrl { get; set; }
+    /// <summary>How wide the picture is drawn, for example "148px". Used as the drawn size when <see cref="DrawnPx"/> is not set.</summary>
     [Parameter] public string Sizes { get; set; } = "96px";
+
+    /// <summary>The long side the picture is drawn at, in CSS pixels. 0 reads it from <see cref="Sizes"/> (96 by default: the tiny copy).</summary>
+    [Parameter] public int DrawnPx { get; set; }
     [Parameter] public string? Alt { get; set; }
     [Parameter] public string? FallbackText { get; set; }
     [Parameter] public string FallbackIcon { get; set; } = AppMaterialIcons.Outlined.Image;
@@ -39,8 +43,11 @@
     [Parameter] public RenderFragment? Badge { get; set; }
     [Parameter] public string? Class { get; set; }
 
-    private string? SmallUrl => MediaTileArtworkUrl.Sized(ImageUrl, "s");
-    private string? ResponsiveSources => MediaTileArtworkUrl.SrcSet(SmallUrl, MediaTileArtworkUrl.Sized(ImageUrl, "m"));
+    private int ResolvedDrawnPx => DrawnPx > 0
+        ? DrawnPx
+        : int.TryParse(Sizes.Trim().Replace("px", string.Empty, StringComparison.OrdinalIgnoreCase), out var fromSizes) && fromSizes > 0
+            ? fromSizes
+            : ArtworkSize.TinyPx;
 
     private string RootStyle =>
         string.IsNullOrWhiteSpace(AccentColor)

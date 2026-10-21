@@ -165,7 +165,7 @@
             <aside class="video-playback-host__end-card" aria-label="Next episode" data-playback-chrome data-chrome-hold>
                 <strong>Up next</strong>
                 <div class="video-playback-host__end-card-content">
-                    @if (MediaTileArtworkUrl.Sized(nextEpisode.StillUrl, "s") is { } still) { <img src="@still" srcset="@VideoContextPanel.EpisodeArtworkSrcSet(nextEpisode)" width="112" height="63" sizes="112px" data-artwork-purpose="episode-still" alt="" /> }
+                    @if (!string.IsNullOrWhiteSpace(nextEpisode.StillUrl)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(nextEpisode.StillUrl, 112)" srcset="@(VideoContextPanel.EpisodeArtworkSrcSet(nextEpisode) ?? MediaTileArtworkUrl.SrcSetForDrawnSize(nextEpisode.StillUrl, 112))" width="112" height="63" sizes="112px" data-artwork-purpose="episode-still" alt="" /> }
                     else { <span class="video-playback-host__end-card-placeholder" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" /></span> }
                     <span><strong>@nextEpisode.Title</strong>@if (_endCard.AutoAdvance) { <span role="status">Starts in @((int)Math.Ceiling(_endCard.RemainingSeconds)) seconds</span> }</span>
                 </div>

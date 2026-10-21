@@ -7,7 +7,8 @@
         @* Cover thumbnail *@
         @if (!string.IsNullOrWhiteSpace(Node.cover_image))
         {
-            <img src="@Node.cover_image" alt="@Node.label" class="adapt-thumb" />
+            @* Drawn 40x56px (AdaptationTreeNode.razor.css). *@
+            <img src="@MediaTileArtworkUrl.ForDrawnSize(Node.cover_image, 56)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Node.cover_image, 56)" alt="@Node.label" class="adapt-thumb" loading="lazy" decoding="async" />
         }
         else
         {

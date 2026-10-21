@@ -72,7 +72,7 @@
                                 <span class="tl-season-toggle__art">
                                     @if (!string.IsNullOrWhiteSpace(ActiveGroup?.ArtworkSmallUrl))
                                     {
-                                        <img src="@ActiveGroup.ArtworkSmallUrl" alt="" width="40" height="60" decoding="async" />
+                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(ActiveGroup.ArtworkSmallUrl, 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ActiveGroup.ArtworkSmallUrl, 64)" alt="" width="40" height="60" decoding="async" />
                                     }
                                     else
                                     {
@@ -174,7 +174,8 @@
                     <span class="tl-season-card__art">
                         @if (!string.IsNullOrWhiteSpace(season.ArtworkUrl))
                         {
-                            <img src="@season.ArtworkUrl"
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(season.ArtworkUrl, 340)"
+                                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(season.ArtworkUrl, 340)"
                                  alt=""
                                  width="280"
                                  height="420"
@@ -815,9 +816,10 @@ else
             ? null
             : VisibleGroups.FirstOrDefault(group => group.Key == SelectedGroupKey);
     private string SeasonToggleClass => $"tl-season-toggle{(_seasonBrowserOpen ? " is-open" : string.Empty)}";
+    // A full-width wash at 28% opacity under dark overlays: the medium copy.
     private string? SeasonAtmosphereStyle => string.IsNullOrWhiteSpace(ActiveGroup?.BackgroundArtworkUrl)
         ? null
-        : $"--tl-season-atmosphere:url('{ActiveGroup.BackgroundArtworkUrl.Replace("'", "%27", StringComparison.Ordinal)}');";
+        : $"--tl-season-atmosphere:url('{MediaTileArtworkUrl.ForDrawnSize(ActiveGroup.BackgroundArtworkUrl, ArtworkSize.MediumPx)!.Replace("'", "%27", StringComparison.Ordinal)}');";
 
     private IReadOnlyList<SequenceItemViewModel> GroupItems
         => ShowGroupSelector
