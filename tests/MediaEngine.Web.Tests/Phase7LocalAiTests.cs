@@ -80,7 +80,7 @@ public sealed class Phase7LocalAiTests
         Assert.DoesNotContain("NormalizedSubsection", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", localAi, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", plugins, StringComparison.Ordinal);
-        Assert.Contains("<AvailablePluginsPanel />", plugins, StringComparison.Ordinal);
+        Assert.Contains("<AvailablePluginsPanel OnChanged=\"ReloadAsync\" />", plugins, StringComparison.Ordinal);
         Assert.Contains("@AdvancedPluginPanel()", plugins, StringComparison.Ordinal);
         Assert.Contains("PluginHealthJobsPanel(plugin)", plugins, StringComparison.Ordinal);
         Assert.Contains("PluginCapabilitiesPanel(plugin)", plugins, StringComparison.Ordinal);

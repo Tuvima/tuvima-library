@@ -139,6 +139,7 @@ internal static class PluginDirectoryParser
             ReleaseUrl = ReadWebAddress(element, "release_url"),
             PackageUrl = ReadWebAddress(element, "package_url"),
             Sha256 = ReadChecksum(element, "sha256"),
+            Signature = ReadString(element, "signature")?.Trim() is { Length: > 0 and <= 512 } signature ? signature : null,
             AddedAt = ReadDate(element, "added_at"),
         };
     }

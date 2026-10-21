@@ -60,7 +60,7 @@ public sealed class ServerPageRegroupTests
         new("Plugin health and jobs", "/settings/plugins/jobs-health", "/settings/plugins", SettingsSection.Plugins, null,
             "PluginSettingsTab.razor", "PluginHealthJobsPanel(plugin)", null, null),
         new("Available plugins", "/settings/plugins/catalog", "/settings/plugins", SettingsSection.Plugins, null,
-            "PluginSettingsTab.razor", "<AvailablePluginsPanel />", null, null),
+            "PluginSettingsTab.razor", "<AvailablePluginsPanel OnChanged=\"ReloadAsync\" />", null, null),
         new("Plugin capabilities", "/settings/plugins/capabilities", "/settings/plugins", SettingsSection.Plugins, null,
             "PluginSettingsTab.razor", "PluginCapabilitiesPanel(plugin)", null, null),
         new("Plugin danger zone", "/settings/plugins/danger", "/settings/plugins", SettingsSection.Plugins, null,

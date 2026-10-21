@@ -124,6 +124,8 @@ public static class TuvimaProviderServiceCollectionExtensions
             TimeSpan.FromMinutes(10),
             addStandardResilience: false);
         services.AddTuvimaHttpClient("plugin_catalog", TimeSpan.FromSeconds(15));
+        // Plugin packages (install and update): a larger file than the directory list, fetched once, so no automatic retry.
+        services.AddTuvimaHttpClient("plugin_package", TimeSpan.FromMinutes(2), addStandardResilience: false);
         // The plugin web connection. Redirects are not followed by the handler: the Library follows them itself, one hop at
         // a time, so every hop is checked against the places the plugin declared. The standard retry pipeline is left off
         // because a hidden retry would send more requests than the plugin's requests-a-minute limit counts.

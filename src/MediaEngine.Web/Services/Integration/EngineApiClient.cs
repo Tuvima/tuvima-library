@@ -94,6 +94,30 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             new { },
             ct: ct);
 
+    public async Task<PluginInstallOutcome> InstallDirectoryPluginAsync(string pluginId, CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await _http.PostAsJsonAsync(
+                $"/plugins/directory/{Uri.EscapeDataString(pluginId)}/install", new { }, ct);
+            if (response.IsSuccessStatusCode)
+            {
+                return new PluginInstallOutcome(await response.Content.ReadFromJsonAsync<PluginInstallResponse>(ct));
+            }
+
+            return new PluginInstallOutcome(null, await ReadProblemDetailAsync(response, ct));
+        }
+        catch (OperationCanceledException) { return new PluginInstallOutcome(null); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /plugins/directory/{PluginId}/install failed", pluginId);
+            return new PluginInstallOutcome(null);
+        }
+    }
+
+    public Task<PluginRemovalImpactResponse?> GetPluginRemovalImpactAsync(string pluginId, CancellationToken ct = default) =>
+        GetAsync<PluginRemovalImpactResponse>("GET /plugins/{id}/removal-impact", $"/plugins/{Uri.EscapeDataString(pluginId)}/removal-impact", ct: ct);
+
     public async Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, string? approvalHash = null, CancellationToken ct = default)
     {
         try

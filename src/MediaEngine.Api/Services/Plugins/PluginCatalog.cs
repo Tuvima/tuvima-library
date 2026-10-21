@@ -33,6 +33,8 @@ public sealed class PluginCatalog
     private readonly IPluginApprovalCheck _approvals;
     private readonly ILogger<PluginCatalog> _logger;
     private readonly string _pluginRoot;
+    private readonly string _installRecordRoot;
+    private readonly string _stagingRoot;
     private readonly string _libraryVersion;
     private readonly string _platform;
     private readonly PluginBlocklist? _blocklist;
@@ -87,7 +89,52 @@ public sealed class PluginCatalog
             ? Path.GetFullPath(".data")
             : Path.Combine(core.LibraryRoot, ".data");
         _pluginRoot = Path.Combine(root, "plugins");
+        _installRecordRoot = Path.Combine(root, "plugin-installs");
+        _stagingRoot = Path.Combine(root, "plugin-staging");
+        InstallRecords = new PluginInstallRecords(_installRecordRoot, _pluginRoot);
     }
+
+    /// <summary>What the Library remembers about plugins it installed from the directory (their trust level and the manifest it checked).</summary>
+    public PluginInstallRecords InstallRecords { get; }
+
+    /// <summary>The folder installed plugins live in.</summary>
+    public string PluginRoot => _pluginRoot;
+
+    /// <summary>Where a package is unpacked and checked before it is moved into the plugins folder. Never scanned for plugins.</summary>
+    public string StagingRoot => _stagingRoot;
+
+    /// <summary>
+    /// What would have no source if this plugin were removed: each thing it provides (other than its own housekeeping)
+    /// that no other switched-on plugin provides too. Empty when nothing depends on it or it is switched off.
+    /// </summary>
+    public IReadOnlyList<string> DescribeRemovalImpact(string pluginId)
+    {
+        var registration = Get(pluginId)
+            ?? throw new InvalidOperationException($"Plugin '{pluginId}' is not registered.");
+        if (!registration.Enabled)
+        {
+            return [];
+        }
+
+        var others = List()
+            .Where(other => other.Enabled && !string.Equals(other.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase))
+            .SelectMany(other => other.Manifest.Capabilities.Select(capability => capability.Kind))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return registration.Manifest.Capabilities
+            .Where(capability => !string.IsNullOrWhiteSpace(capability.Kind) && !HousekeepingKinds.Contains(capability.Kind) && !others.Contains(capability.Kind))
+            .Select(capability => string.IsNullOrWhiteSpace(capability.Name) ? capability.Kind : capability.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(name => $"{name} would have no source.")
+            .ToList();
+    }
+
+    private static readonly HashSet<string> HousekeepingKinds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        PluginCapabilityKinds.HealthCheckKind,
+        PluginCapabilityKinds.ScheduledJobKind,
+        PluginCapabilityKinds.EventSubscriberKind,
+        PluginCapabilityKinds.BackgroundServiceKind,
+    };
 
     public IReadOnlyList<PluginRegistration> List()
     {
@@ -204,6 +251,7 @@ public sealed class PluginCatalog
         }
 
         Directory.Delete(pluginDirectory, recursive: true);
+        InstallRecords.Delete(registration.Manifest.Id);
         _settingsService.Delete(registration.Manifest.Id);
         Reload();
     }
@@ -317,8 +365,9 @@ public sealed class PluginCatalog
         }
 
         // Trust is decided here, never read from the manifest. Anything in the plugins folder is a sideloaded
-        // (private) plugin, even if it says it is official. Signature checks for verified plugins come in WP19.
-        var trust = isBuiltIn ? PluginTrustLevel.Official : PluginTrustLevel.Private;
+        // (private) plugin, even if it says it is official, unless the Library's own install record (written only after
+        // the package's checksum and, for checked plugins, signature were verified) vouches for exactly this manifest.
+        var trust = isBuiltIn ? PluginTrustLevel.Official : InstallRecords.TrustFor(manifest, manifestPath);
 
         var switchedOn = config.Enabled && compatibility.IsCompatible;
         var approved = !switchedOn || _approvals.IsCovered(manifest, trust);
