@@ -91,6 +91,187 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetSuggestionsAsync_MusicAlbum_OffersAnIngestedAlbumWhoseArtistIsOnlyInTheListTable()
+    {
+        var trackId = Guid.NewGuid();
+        var matchingAlbumId = Guid.NewGuid();
+        var otherAlbumId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership)
+                VALUES (@trackId, 'Music', 'child', 'Owned'),
+                       (@matchingAlbumId, 'Music', 'parent', 'Owned'),
+                       (@otherAlbumId, 'Music', 'parent', 'Owned');
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@matchingAlbumId, 'album', 'Discovery', datetime('now')),
+                       (@matchingAlbumId, 'year', '2001', datetime('now')),
+                       (@otherAlbumId, 'album', 'Other Record', datetime('now'));
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid)
+                VALUES (@matchingAlbumId, 'album_artist', 0, 'Daft Punk', NULL),
+                       (@otherAlbumId, 'album_artist', 0, 'Someone Else', NULL);
+                """, new { trackId, matchingAlbumId, otherAlbumId });
+        }
+
+        var service = new MediaEditorNavigationReadService(_database, new CapturingSearchService(), new HierarchyAlignmentService(_database, null!));
+
+        var suggestions = await service.GetSuggestionsAsync(trackId, "album", null, "local", null, "Daft Punk", CancellationToken.None);
+
+        var suggestion = Assert.Single(suggestions);
+        Assert.Equal(matchingAlbumId, suggestion.EntityId);
+        Assert.Equal("Discovery", suggestion.Label);
+        Assert.Contains("Daft Punk", suggestion.Subtitle, StringComparison.Ordinal);
+        Assert.Contains("2001", suggestion.Subtitle, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GetSuggestionsAsync_Series_ShowsTheAuthorListEntryAndNotThePublisher()
+    {
+        var issueId = Guid.NewGuid();
+        var seriesId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership)
+                VALUES (@issueId, 'Comics', 'child', 'Owned'),
+                       (@seriesId, 'Comics', 'parent', 'Owned');
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@seriesId, 'series', 'Saga', datetime('now')),
+                       (@seriesId, 'series_start_year', '2012', datetime('now'));
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid)
+                VALUES (@seriesId, 'publisher', 0, 'Image Comics', NULL),
+                       (@seriesId, 'author', 0, 'Brian K. Vaughan', NULL),
+                       (@seriesId, 'author', 1, 'Fiona Staples', NULL);
+                """, new { issueId, seriesId });
+        }
+
+        var service = new MediaEditorNavigationReadService(_database, new CapturingSearchService(), new HierarchyAlignmentService(_database, null!));
+
+        var suggestions = await service.GetSuggestionsAsync(issueId, "series", null, "local", null, null, CancellationToken.None);
+
+        var suggestion = Assert.Single(suggestions);
+        Assert.Equal(seriesId, suggestion.EntityId);
+        Assert.Contains("Brian K. Vaughan", suggestion.Subtitle, StringComparison.Ordinal);
+        Assert.Contains("2012", suggestion.Subtitle, StringComparison.Ordinal);
+        Assert.DoesNotContain("Image Comics", suggestion.Subtitle, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task HierarchyAlignment_NewAlbumAndSeriesFromAMove_StoreTheirCreditsAsListsNotSingleValues()
+    {
+        var albumTrackId = Guid.NewGuid();
+        var bookId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership)
+                VALUES (@albumTrackId, 'Music', 'child', 'Owned'),
+                       (@bookId, 'Books', 'child', 'Owned');
+                """, new { albumTrackId, bookId });
+        }
+
+        var service = new HierarchyAlignmentService(_database, new RecordingPipeline());
+        var bookRequest = new MembershipPreviewRequest(
+            "volume_issue",
+            new Dictionary<string, string?> { ["series"] = "Fresh Series", ["author"] = "Fresh Author", ["series_position"] = "1" },
+            null,
+            null);
+        var bookResult = await service.ApplyAsync(bookId, bookRequest, CancellationToken.None);
+
+        Assert.NotNull(bookResult);
+        Assert.True(bookResult.Applied);
+        var seriesId = bookResult.TargetParentEntityId!.Value;
+
+        var albumRequest = new MembershipPreviewRequest(
+            null,
+            new Dictionary<string, string?> { ["album"] = "Fresh Album", ["artist"] = "Fresh Artist", ["track_number"] = "1" },
+            null,
+            new Dictionary<string, MembershipSuggestionSelection>
+            {
+                ["album"] = new(null, "retail", false, "album", "Fresh Album", null, "musicbrainz", "release-1", "musicbrainz_release_id", "release-1"),
+            });
+        var albumResult = await service.ApplyAsync(albumTrackId, albumRequest, CancellationToken.None);
+
+        Assert.NotNull(albumResult);
+        Assert.True(albumResult.Applied);
+        var albumId = albumResult.TargetParentEntityId!.Value;
+
+        using var verification = _database.CreateConnection();
+        Assert.Equal("Fresh Author", verification.QuerySingle<string>(
+            "SELECT value FROM canonical_value_arrays WHERE entity_id = @seriesId AND key = 'author' AND ordinal = 0;", new { seriesId }));
+        Assert.Equal(0, verification.QuerySingle<int>(
+            "SELECT COUNT(*) FROM canonical_values WHERE entity_id = @seriesId AND key IN ('author', 'artist');", new { seriesId }));
+        Assert.Equal("Fresh Artist", verification.QuerySingle<string>(
+            "SELECT value FROM canonical_value_arrays WHERE entity_id = @albumId AND key = 'album_artist' AND ordinal = 0;", new { albumId }));
+        Assert.Equal(0, verification.QuerySingle<int>(
+            "SELECT COUNT(*) FROM canonical_values WHERE entity_id = @albumId AND key IN ('artist', 'album_artist');", new { albumId }));
+    }
+
+    [Fact]
+    public async Task HierarchyAlignment_RenamingAnAlbumWithoutChangingItsArtist_KeepsEveryCoCredit()
+    {
+        var albumId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
+                VALUES (@albumId, 'Music', 'parent', 'Owned', 'artist one|old album');
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid)
+                VALUES (@albumId, 'album_artist', 0, 'Artist One', 'Q1'),
+                       (@albumId, 'album_artist', 1, 'Artist Two', 'Q2');
+                """, new { albumId });
+        }
+
+        var service = new HierarchyAlignmentService(_database, new RecordingPipeline());
+        var request = new MembershipPreviewRequest(
+            null,
+            new Dictionary<string, string?> { ["album"] = "New Album", ["artist"] = "Artist One" },
+            null,
+            null);
+        var result = await service.ApplyAsync(albumId, request, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.True(result.Applied);
+        using var verification = _database.CreateConnection();
+        var credits = verification.Query<(string Value, string? Qid)>(
+            "SELECT value AS Value, value_qid AS Qid FROM canonical_value_arrays WHERE entity_id = @albumId AND key = 'album_artist' ORDER BY ordinal;",
+            new { albumId }).ToList();
+        Assert.Equal([("Artist One", "Q1"), ("Artist Two", "Q2")], credits);
+    }
+
+    [Fact]
+    public async Task HierarchyAlignment_RenamingAnAlbumWithNewArtists_StoresOneRowPerArtistAndKeepsKnownLinks()
+    {
+        var albumId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
+                VALUES (@albumId, 'Music', 'parent', 'Owned', 'artist one|old album');
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid)
+                VALUES (@albumId, 'album_artist', 0, 'Artist One', 'Q1'),
+                       (@albumId, 'album_artist', 1, 'Artist Two', 'Q2');
+                """, new { albumId });
+        }
+
+        var service = new HierarchyAlignmentService(_database, new RecordingPipeline());
+        var request = new MembershipPreviewRequest(
+            null,
+            new Dictionary<string, string?> { ["album"] = "Old Album", ["album_artist"] = "Artist One; Artist Three", ["artist"] = "Track Credit" },
+            null,
+            null);
+        var result = await service.ApplyAsync(albumId, request, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.True(result.Applied);
+        using var verification = _database.CreateConnection();
+        var credits = verification.Query<(string Value, string? Qid)>(
+            "SELECT value AS Value, value_qid AS Qid FROM canonical_value_arrays WHERE entity_id = @albumId AND key = 'album_artist' ORDER BY ordinal;",
+            new { albumId }).ToList();
+        Assert.Equal([("Artist One", "Q1"), ("Artist Three", null)], credits);
+    }
+
+    [Fact]
     public async Task GetNavigatorAsync_TvHierarchy_MakesOwnedSeasonAndEpisodeSelectable()
     {
         var seriesId = Guid.NewGuid();
@@ -1082,6 +1263,15 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
             directory = directory.Parent;
         }
         return directory?.FullName ?? throw new DirectoryNotFoundException();
+    }
+
+    private sealed class RecordingPipeline : IHydrationPipelineService
+    {
+        public ValueTask<Guid> EnqueueAsync(HarvestRequest request, CancellationToken ct = default) =>
+            ValueTask.FromResult(Guid.NewGuid());
+
+        public Task<HydrationResult> RunSynchronousAsync(HarvestRequest request, CancellationToken ct = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class CapturingSearchService : ISearchService

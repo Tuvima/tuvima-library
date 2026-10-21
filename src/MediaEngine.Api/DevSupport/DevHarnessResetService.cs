@@ -1,8 +1,11 @@
+using System.IO.Enumeration;
 using MediaEngine.Api.Services;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
@@ -46,6 +49,12 @@ public sealed class DevHarnessResetService
     private readonly ILogger<DevHarnessResetService> _logger;
     private readonly DevHarnessResetTimeouts _timeouts;
     private readonly SemaphoreSlim _singleReset = new(1, 1);
+    private readonly IDevelopmentFixtureLocationRepository _fixtureLocations;
+    private readonly RealMediaRun? _realMediaRun;
+
+    // How many files a reset lists by name when it reports the ones it kept, and how far it counts them.
+    private const int KeptFileExamples = 5;
+    private const int KeptFileCountLimit = 10_000;
 
     private static readonly HashSet<string> PreservedConfigurationTables = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -96,7 +105,9 @@ public sealed class DevHarnessResetService
         IIngestionEngine ingestionEngine,
         EnrichmentPipelineExecutionGate enrichmentPipelineGate,
         ILogger<DevHarnessResetService> logger,
-        DevHarnessResetTimeouts? timeouts = null)
+        DevHarnessResetTimeouts? timeouts = null,
+        IDevelopmentFixtureLocationRepository? fixtureLocations = null,
+        RealMediaRun? realMediaRun = null)
     {
         _db = db;
         _options = options;
@@ -105,6 +116,8 @@ public sealed class DevHarnessResetService
         _enrichmentPipelineGate = enrichmentPipelineGate;
         _logger = logger;
         _timeouts = timeouts ?? DevHarnessResetTimeouts.Default;
+        _fixtureLocations = fixtureLocations ?? new DevelopmentFixtureLocationRepository(db);
+        _realMediaRun = realMediaRun;
     }
 
     public static DevHarnessWipeScope ParseScope(string? value)
@@ -130,6 +143,7 @@ public sealed class DevHarnessResetService
         CancellationToken ct = default)
     {
         using var exclusive = BeginExclusiveReset();
+        EnsureNotRealMedia();
         var details = new List<string>();
         var completed = false;
 
@@ -138,18 +152,20 @@ public sealed class DevHarnessResetService
         try
         {
             await PauseEnrichmentPipelineAsync(details, ct).ConfigureAwait(false);
-            EnsureDestructivePathSafety(details);
+            var folders = ResolveResetFolders();
+            if (scope == DevHarnessWipeScope.Full)
+            {
+                EnsureFullWipeIsSafe(details, folders);
+            }
+
             using (await HoldWriteLockAsync(ct).ConfigureAwait(false))
             {
-                WipeGeneratedLibraryState(details);
-
+                // The data store says where each fixture was filed, so its files go before the data store is cleared.
+                WipeLibraryMadeFiles(details, folders);
+                WipeGeneratedCaches(details);
                 if (scope == DevHarnessWipeScope.Full)
                 {
                     WipeAllSourcePaths(details);
-                }
-                else
-                {
-                    WipeTrackedSeedFiles(details);
                 }
 
                 EnsureConfiguredSourcePathsExist(details);
@@ -161,6 +177,11 @@ public sealed class DevHarnessResetService
                 {
                     ResetLibraryDatabase(details, ct);
                 }
+            }
+
+            if (scope != DevHarnessWipeScope.Full)
+            {
+                ReportFilesKept(details, folders);
             }
 
             WipeRuntimeLogs(details);
@@ -188,6 +209,7 @@ public sealed class DevHarnessResetService
     public async Task<DevHarnessResetResult> PrepareForReingestAsync(CancellationToken ct = default)
     {
         using var exclusive = BeginExclusiveReset();
+        EnsureNotRealMedia();
         var details = new List<string>();
         var completed = false;
 
@@ -198,7 +220,9 @@ public sealed class DevHarnessResetService
             await PauseEnrichmentPipelineAsync(details, ct).ConfigureAwait(false);
             using (await HoldWriteLockAsync(ct).ConfigureAwait(false))
             {
-                WipeGeneratedCachesOnly(details);
+                // Reingest finds every file again at the path it has now, so the fixture list follows them first.
+                FollowFixturesToCurrentPaths(details);
+                WipeGeneratedCaches(details);
                 ResetLibraryDatabase(details, ct);
             }
 
@@ -230,6 +254,7 @@ public sealed class DevHarnessResetService
         CancellationToken ct = default)
     {
         using var exclusive = BeginExclusiveReset();
+        EnsureNotRealMedia();
         var details = new List<string>();
         var completed = false;
 
@@ -237,14 +262,16 @@ public sealed class DevHarnessResetService
         try
         {
             await PauseEnrichmentPipelineAsync(details, ct).ConfigureAwait(false);
-            EnsureDestructivePathSafety(details);
+            var folders = ResolveResetFolders();
             using (await HoldWriteLockAsync(ct).ConfigureAwait(false))
             {
-                WipeGeneratedLibraryState(details);
-                WipeTrackedSeedFiles(details);
+                WipeLibraryMadeFiles(details, folders);
+                WipeGeneratedCaches(details);
                 EnsureConfiguredSourcePathsExist(details);
                 ResetDatabase(details, ct);
             }
+
+            ReportFilesKept(details, folders);
 
             WipeRuntimeLogs(details);
             completed = true;
@@ -324,38 +351,236 @@ public sealed class DevHarnessResetService
         details.Add("Enrichment pipeline: resumed");
     }
 
-    private void WipeGeneratedLibraryState(List<string> details)
+    /// <summary>
+    /// Deletes the files development seeding created, wherever ingestion has filed them since, plus the subtitle and
+    /// lyric files the Engine wrote for them and the folders they leave empty. Only folders the Library may change are
+    /// touched; anything it did not create stays. Runs before the data store is cleared, because the data store is what
+    /// knows where each fixture went.
+    /// </summary>
+    private void WipeLibraryMadeFiles(List<string> details, ResetFolders folders)
     {
-        string? libraryRoot = _options.Value.LibraryRoot;
-        if (string.IsNullOrWhiteSpace(libraryRoot))
+        var seeded = DevFixtureManifestStore.Read(_options, _logger)
+            .Select(NormalizePathOrNull)
+            .Where(path => path is not null)
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var locations = _fixtureLocations.FindCurrentLocations(seeded)
+            .ToLookup(location => location.DetectedPath, StringComparer.OrdinalIgnoreCase);
+
+        int deleted = 0;
+        int filed = 0;
+        int generated = 0;
+        int refused = 0;
+        var retained = new List<string>();
+
+        foreach (var seedPath in seeded)
         {
-            details.Add("Library root: not configured - skipped");
+            var mediaPaths = new List<string> { seedPath };
+            var generatedPaths = new List<string>();
+            foreach (var location in locations[seedPath])
+            {
+                mediaPaths.Add(location.CurrentPath);
+                generatedPaths.AddRange(location.GeneratedFiles);
+            }
+
+            foreach (var mediaPath in mediaPaths.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                // A file that stays is listed by the path it has now: once the data store is cleared, nothing else
+                // remembers where it was filed.
+                switch (TryDeleteLibraryMadeFile(mediaPath, folders, details))
+                {
+                    case DeleteOutcome.Deleted:
+                        deleted++;
+                        if (!string.Equals(mediaPath, seedPath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            filed++;
+                        }
+
+                        break;
+                    case DeleteOutcome.Refused:
+                        refused++;
+                        retained.Add(mediaPath);
+                        break;
+                    case DeleteOutcome.Failed:
+                        retained.Add(mediaPath);
+                        break;
+                }
+
+                // Tag write-back keeps a short-lived copy beside the file; one left by an interrupted write goes too.
+                if (TryDeleteLibraryMadeFile(mediaPath + ".tuvima.bak", folders, details) == DeleteOutcome.Deleted)
+                {
+                    generated++;
+                }
+            }
+
+            // Track copies kept in the Library's data folder go with the generated caches.
+            foreach (var generatedPath in generatedPaths
+                         .Distinct(StringComparer.OrdinalIgnoreCase)
+                         .Where(path => !folders.IsProtected(path)))
+            {
+                if (TryDeleteLibraryMadeFile(generatedPath, folders, details) == DeleteOutcome.Deleted)
+                {
+                    generated++;
+                }
+            }
+        }
+
+        DevFixtureManifestStore.Replace(_options, retained, _logger);
+        details.Add(
+            $"Seed fixtures: {deleted} test file(s) deleted ({filed} after being filed), {generated} Library-made subtitle or backup file(s) deleted, {refused} kept because they are outside the folders the Library may change");
+    }
+
+    /// <summary>
+    /// Rewrites the fixture list to the paths its files have now, for a reset that clears the data store but keeps
+    /// the files, so a later reset can still find fixtures that were filed before it.
+    /// </summary>
+    private void FollowFixturesToCurrentPaths(List<string> details)
+    {
+        var seeded = DevFixtureManifestStore.Read(_options, _logger)
+            .Select(NormalizePathOrNull)
+            .Where(path => path is not null)
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (seeded.Count == 0)
+        {
             return;
         }
 
-        var assetPathService = new AssetPathService(libraryRoot);
-        WipePathWithReport(details, "Central artwork and renditions", assetPathService.AssetsRoot);
+        var locations = _fixtureLocations.FindCurrentLocations(seeded)
+            .ToLookup(location => location.DetectedPath, StringComparer.OrdinalIgnoreCase);
+        var current = seeded
+            .SelectMany(seedPath => locations[seedPath].Select(location => location.CurrentPath).Append(seedPath))
+            .Where(File.Exists)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        if (Directory.Exists(libraryRoot))
+        DevFixtureManifestStore.Replace(_options, current, _logger);
+        details.Add($"Seed fixtures: list updated to {current.Count} file(s) at their current paths");
+    }
+
+    private enum DeleteOutcome
+    {
+        Absent,
+        Deleted,
+        Refused,
+        Failed,
+    }
+
+    private DeleteOutcome TryDeleteLibraryMadeFile(string path, ResetFolders folders, List<string> details)
+    {
+        var normalized = NormalizePathOrNull(path);
+        if (normalized is null || !File.Exists(normalized))
+        {
+            return DeleteOutcome.Absent;
+        }
+
+        var root = folders.ChangeableRootFor(normalized);
+        if (root is null)
+        {
+            _logger.LogWarning(
+                "[HarnessReset] Kept {Path}: it is outside the folders a development reset may change",
+                normalized);
+            return DeleteOutcome.Refused;
+        }
+
+        try
+        {
+            File.SetAttributes(normalized, FileAttributes.Normal);
+            File.Delete(normalized);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "[HarnessReset] Failed to delete {Path}", normalized);
+            details.Add($"Seed fixture ({normalized}): FAILED - {ex.Message}");
+            return DeleteOutcome.Failed;
+        }
+
+        RemoveEmptyFolders(Path.GetDirectoryName(normalized), root);
+        return DeleteOutcome.Deleted;
+    }
+
+    /// <summary>Removes <paramref name="folder"/> and its parents while they are empty, stopping below <paramref name="root"/>.</summary>
+    private void RemoveEmptyFolders(string? folder, string root)
+    {
+        while (!string.IsNullOrEmpty(folder)
+            && !string.Equals(folder, root, StringComparison.OrdinalIgnoreCase)
+            && IsSameOrChild(root, folder)
+            && Directory.Exists(folder)
+            && !Directory.EnumerateFileSystemEntries(folder).Any())
         {
             try
             {
-                int count = WipeDirectoryContentsExcept(libraryRoot, ".data");
-                details.Add($"Library output ({libraryRoot}): {count} items deleted");
+                Directory.Delete(folder);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                _logger.LogError(ex, "[HarnessReset] Failed to wipe library output");
-                details.Add($"Library output ({libraryRoot}): FAILED - {ex.Message}");
+                _logger.LogDebug(ex, "[HarnessReset] Left empty folder {Folder} in place", folder);
+                return;
             }
-        }
-        else
-        {
-            details.Add($"Library output ({libraryRoot}): directory does not exist - skipped");
+
+            folder = Path.GetDirectoryName(folder);
         }
     }
 
-    private void WipeGeneratedCachesOnly(List<string> details)
+    /// <summary>
+    /// Lists the files a reset left in the folders it may change because the Library did not create them, so nothing
+    /// a person put there disappears silently and nothing is deleted on a guess.
+    /// </summary>
+    private void ReportFilesKept(List<string> details, ResetFolders folders)
+    {
+        var count = 0;
+        var examples = new List<string>();
+        foreach (var root in folders.TopChangeableRoots().Where(Directory.Exists))
+        {
+            // Protected and as-is folders are not walked at all, so a large photo space costs nothing here.
+            var files = new FileSystemEnumerable<string>(
+                root,
+                (ref FileSystemEntry entry) => entry.ToFullPath(),
+                new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true })
+            {
+                ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory,
+                ShouldRecursePredicate = (ref FileSystemEntry entry) => folders.ShouldLookInside(entry.ToFullPath()),
+            };
+            foreach (var file in files)
+            {
+                if (folders.ChangeableRootFor(file) is null)
+                {
+                    continue;
+                }
+
+                count++;
+                if (examples.Count < KeptFileExamples)
+                {
+                    examples.Add(file);
+                }
+
+                if (count >= KeptFileCountLimit)
+                {
+                    break;
+                }
+            }
+
+            if (count >= KeptFileCountLimit)
+            {
+                break;
+            }
+        }
+
+        if (count == 0)
+        {
+            details.Add("Kept files: none - every file left in the library folders was cleared or belongs to a protected folder");
+            return;
+        }
+
+        var total = count >= KeptFileCountLimit ? $"at least {KeptFileCountLimit}" : count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        details.Add($"Kept files: {total} file(s) the Library did not create were left in place, for example: {string.Join("; ", examples)}");
+        _logger.LogInformation("[HarnessReset] Kept {Count} file(s) the Library did not create", total);
+    }
+
+    /// <summary>Clears the regenerable folders inside the Library's own data folder; the data store itself stays.</summary>
+    private void WipeGeneratedCaches(List<string> details)
     {
         string? libraryRoot = _options.Value.LibraryRoot;
         if (string.IsNullOrWhiteSpace(libraryRoot))
@@ -372,6 +597,7 @@ public sealed class DevHarnessResetService
             Path.Combine(libraryRoot, ".data", "sidecars-cache"),
             Path.Combine(libraryRoot, ".data", "staging"),
             Path.Combine(libraryRoot, ".data", "generated"),
+            Path.Combine(libraryRoot, ".data", "variants"),
         };
 
         foreach (var dir in generatedDirs)
@@ -380,20 +606,12 @@ public sealed class DevHarnessResetService
         }
     }
 
-    private void EnsureDestructivePathSafety(List<string> details)
+    /// <summary>
+    /// The full wipe empties every managed source folder, so it must not run when one of them holds the Library's own
+    /// data folder or the photo space: emptying it would delete the data store or people's photos.
+    /// </summary>
+    private void EnsureFullWipeIsSafe(List<string> details, ResetFolders folders)
     {
-        string? libraryRoot = _options.Value.LibraryRoot;
-        if (string.IsNullOrWhiteSpace(libraryRoot))
-        {
-            return;
-        }
-
-        var normalizedLibraryRoot = NormalizePathOrNull(libraryRoot);
-        if (normalizedLibraryRoot is null)
-        {
-            return;
-        }
-
         foreach (var sourcePath in EnumerateConfiguredSourcePaths())
         {
             var normalizedSource = NormalizePathOrNull(sourcePath);
@@ -402,69 +620,142 @@ public sealed class DevHarnessResetService
                 continue;
             }
 
-            if (PathsOverlap(normalizedLibraryRoot, normalizedSource))
+            foreach (var protectedRoot in folders.ProtectedRoots)
             {
-                var message =
-                    $"The reset was stopped before anything was deleted. The library folder '{normalizedLibraryRoot}' and the source folder '{normalizedSource}' overlap, so clearing the library output would delete source media. Point the library folder (core.json library_root) somewhere outside every source folder, then try again.";
-                details.Add(message);
-                throw new DevHarnessResetBlockedException(message);
+                if (IsSameOrChild(normalizedSource, protectedRoot))
+                {
+                    var message =
+                        $"The full wipe was stopped before anything was deleted. The source folder '{normalizedSource}' contains '{protectedRoot}', which the Library must keep (its data store, the photo space or the Import folder). Use the standard reset, which removes only the files the Library created.";
+                    details.Add(message);
+                    throw new DevHarnessResetBlockedException(message);
+                }
             }
         }
     }
 
-    private void WipeTrackedSeedFiles(List<string> details)
+    private void EnsureNotRealMedia()
     {
-        var sourceRoots = EnumerateConfiguredSourcePaths()
-            .Select(NormalizePathOrNull)
-            .Where(path => path is not null)
-            .Cast<string>()
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        var seedFiles = DevFixtureManifestStore.Read(_options, _logger);
-        int deleted = 0;
-        int missing = 0;
-        int rejected = 0;
-        var retainedPaths = new List<string>();
-
-        foreach (string path in seedFiles)
+        if (_realMediaRun is not null)
         {
-            var normalizedPath = NormalizePathOrNull(path);
-            if (normalizedPath is null
-                || !sourceRoots.Any(root =>
-                    !string.Equals(root, normalizedPath, StringComparison.OrdinalIgnoreCase)
-                    && IsSameOrChild(root, normalizedPath)))
-            {
-                rejected++;
-                _logger.LogWarning(
-                    "[HarnessReset] Refused to delete untrusted fixture manifest path {Path}",
-                    path);
-                retainedPaths.Add(path);
-                continue;
-            }
+            throw new DevHarnessResetBlockedException(
+                "The reset was stopped before anything was deleted. Real-media protection is on for this Engine, so development resets are turned off; use tools/Run-RealMediaHarness.ps1 instead.");
+        }
+    }
 
-            if (!File.Exists(normalizedPath))
-            {
-                missing++;
-                continue;
-            }
+    private ResetFolders ResolveResetFolders()
+    {
+        var libraries = _configLoader.LoadLibraries();
+        var sources = libraries.Libraries
+            .SelectMany(library => library.Sources)
+            .Where(source => !string.IsNullOrWhiteSpace(source.Path))
+            .Select(source => (Path: NormalizePathOrNull(source.Path), source.AllowsFileMutation))
+            .Where(source => source.Path is not null)
+            .Select(source => new ResetSource(source.Path!, source.AllowsFileMutation))
+            .ToList();
 
-            try
-            {
-                File.SetAttributes(normalizedPath, FileAttributes.Normal);
-                File.Delete(normalizedPath);
-                deleted++;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[HarnessReset] Failed to delete seed fixture {Path}", normalizedPath);
-                details.Add($"Seed fixture ({normalizedPath}): FAILED - {ex.Message}");
-                retainedPaths.Add(normalizedPath);
-            }
+        var libraryRoot = string.IsNullOrWhiteSpace(_options.Value.LibraryRoot)
+            ? null
+            : NormalizePathOrNull(_options.Value.LibraryRoot);
+
+        var protectedRoots = new List<string>();
+        if (libraryRoot is not null)
+        {
+            protectedRoots.Add(Path.Combine(libraryRoot, ".data"));
         }
 
-        DevFixtureManifestStore.Replace(_options, retainedPaths, _logger);
-        details.Add(
-            $"Seed fixtures: {deleted} tracked fixture file(s) deleted, {missing} absent, {rejected} untrusted path(s) rejected");
+        if (ResolveViewRoot(libraries) is { } viewRoot)
+        {
+            protectedRoots.Add(viewRoot);
+        }
+
+        if (ImportFolderRules.Find(libraries) is { } importFolder && NormalizePathOrNull(importFolder.Path) is { } importPath)
+        {
+            protectedRoots.Add(importPath);
+        }
+
+        return new ResetFolders(libraryRoot, sources, protectedRoots);
+    }
+
+    private static string? ResolveViewRoot(LibrariesConfiguration libraries)
+    {
+        var storage = libraries.StorageLocations.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, libraries.ViewStorage.StorageLocationId, StringComparison.OrdinalIgnoreCase));
+        var relative = libraries.ViewStorage.RelativeRoot?.Trim();
+        if (storage is null || string.IsNullOrWhiteSpace(storage.Path) || string.IsNullOrWhiteSpace(relative)
+            || Path.IsPathRooted(relative))
+        {
+            return null;
+        }
+
+        return NormalizePathOrNull(Path.Combine(storage.Path, relative));
+    }
+
+    private sealed record ResetSource(string Path, bool AllowsFileMutation);
+
+    /// <summary>The folders a development reset may change, and the ones inside them it never touches.</summary>
+    private sealed record ResetFolders(string? LibraryRoot, IReadOnlyList<ResetSource> Sources, IReadOnlyList<string> ProtectedRoots)
+    {
+        /// <summary>
+        /// The folder a reset may delete <paramref name="path"/> from: its source folder when the Library manages and
+        /// may write it, otherwise the library folder for a file filed there; <c>null</c> for an as-is folder, the
+        /// Import folder, the photo space, the Library's data folder, or anywhere else.
+        /// </summary>
+        public string? ChangeableRootFor(string path)
+        {
+            if (ProtectedRoots.Any(root => IsSameOrChild(root, path)))
+            {
+                return null;
+            }
+
+            var source = Sources
+                .Where(candidate => !string.Equals(candidate.Path, path, StringComparison.OrdinalIgnoreCase)
+                    && IsSameOrChild(candidate.Path, path))
+                .OrderByDescending(candidate => candidate.Path.Length)
+                .FirstOrDefault();
+            if (source is not null)
+            {
+                return source.AllowsFileMutation ? source.Path : null;
+            }
+
+            return LibraryRoot is not null
+                && !string.Equals(LibraryRoot, path, StringComparison.OrdinalIgnoreCase)
+                && IsSameOrChild(LibraryRoot, path)
+                    ? LibraryRoot
+                    : null;
+        }
+
+        public bool IsProtected(string path) => ProtectedRoots.Any(root => IsSameOrChild(root, path));
+
+        /// <summary>Whether a folder can hold files a reset may change, so the kept-files walk goes into it.</summary>
+        public bool ShouldLookInside(string folder)
+        {
+            if (IsProtected(folder))
+            {
+                return false;
+            }
+
+            var source = Sources
+                .Where(candidate => IsSameOrChild(candidate.Path, folder))
+                .OrderByDescending(candidate => candidate.Path.Length)
+                .FirstOrDefault();
+            return source?.AllowsFileMutation ?? true;
+        }
+
+        /// <summary>The changeable folders that are not inside another one, so each file is looked at once.</summary>
+        public IEnumerable<string> TopChangeableRoots()
+        {
+            var roots = Sources.Where(source => source.AllowsFileMutation).Select(source => source.Path).ToList();
+            if (LibraryRoot is not null)
+            {
+                roots.Add(LibraryRoot);
+            }
+
+            return roots
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(root => !roots.Any(other =>
+                    !string.Equals(other, root, StringComparison.OrdinalIgnoreCase) && IsSameOrChild(other, root)))
+                .ToList();
+        }
     }
 
     private void WipeAllSourcePaths(List<string> details)
@@ -785,52 +1076,6 @@ public sealed class DevHarnessResetService
         return count;
     }
 
-    private static int WipeDirectoryContentsExcept(string dirPath, params string[] excludedChildNames)
-    {
-        if (!Directory.Exists(dirPath))
-        {
-            return 0;
-        }
-
-        var excluded = new HashSet<string>(excludedChildNames, StringComparer.OrdinalIgnoreCase);
-        int count = 0;
-        var dir = new DirectoryInfo(dirPath);
-
-        foreach (FileInfo file in dir.GetFiles())
-        {
-            try
-            {
-                file.Attributes = FileAttributes.Normal;
-                file.Delete();
-                count++;
-            }
-            catch
-            {
-                // Best-effort cleanup for dev harness state.
-            }
-        }
-
-        foreach (DirectoryInfo sub in dir.GetDirectories())
-        {
-            if (excluded.Contains(sub.Name))
-            {
-                continue;
-            }
-
-            try
-            {
-                sub.Delete(recursive: true);
-                count++;
-            }
-            catch
-            {
-                // Best-effort cleanup for dev harness state.
-            }
-        }
-
-        return count;
-    }
-
     private IEnumerable<string> EnumerateConfiguredSourcePaths()
     {
         var libConfig = _configLoader.LoadLibraries();
@@ -854,11 +1099,6 @@ public sealed class DevHarnessResetService
         {
             return null;
         }
-    }
-
-    private static bool PathsOverlap(string first, string second)
-    {
-        return IsSameOrChild(first, second) || IsSameOrChild(second, first);
     }
 
     private static bool IsSameOrChild(string maybeParent, string maybeChild)

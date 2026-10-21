@@ -79,7 +79,7 @@ else if (Model is not null)
         @* Batch editing: the selection bar and the section for the ticked rows sit above the rows, in the page's own column. *@
         @if (BatchRowNouns is { } nouns)
         {
-            <EditingBatchSection Mode="_editing" Singular="@nouns.Singular" Plural="@nouns.Plural" OnApplied="RefreshAfterSectionCommitAsync" />
+            <EditingBatchSection Mode="_editing" Singular="@nouns.Singular" Plural="@nouns.Plural" MoveMediaType="@BatchMoveMediaType" OnApplied="RefreshAfterSectionCommitAsync" />
         }
 
         @if (ShowPrimaryModuleAfterNavigation)
@@ -156,6 +156,14 @@ else if (Model is not null)
         DetailEntityType.TvShow or DetailEntityType.TvSeason => ("episode", "episode" + "s"),
         DetailEntityType.MusicAlbum => ("track", "track" + "s"),
         DetailEntityType.Audiobook => ("part", "part" + "s"),
+        _ => null,
+    };
+    // Where the ticked rows can be moved to (album, season, audiobook); the Engine still decides what each row accepts.
+    private string? BatchMoveMediaType => Model?.EntityType switch
+    {
+        DetailEntityType.TvShow or DetailEntityType.TvSeason => "TV",
+        DetailEntityType.MusicAlbum => "Music",
+        DetailEntityType.Audiobook => "Audiobooks",
         _ => null,
     };
     private bool IsAudiobook => PresentationCapabilities.IsAudiobook

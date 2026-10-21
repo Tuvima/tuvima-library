@@ -283,7 +283,7 @@ They are absent in any other environment.
 
 ### POST /dev/reset-and-seed
 
-This is the primary Development Tools workflow. It preserves application configuration and configured source media, clears catalogued library and derived ingestion state, creates the selected fixtures, queues them through normal ingestion, and resumes file watching. Generated fixture paths are recorded in a manifest; cleanup deletes only those recorded paths inside configured source roots.
+This is the primary Development Tools workflow. It preserves application configuration and configured source media, clears catalogued library and derived ingestion state, creates the selected fixtures, queues them through normal ingestion, and resumes file watching. Generated fixture paths are recorded in a manifest. Cleanup follows each one to wherever ingestion filed it and deletes it, the subtitle files the Engine wrote for it and the folders it leaves empty, only inside managed, writable source folders and the library folder. Anything else (your own files, as-is folders, the Import folder, photos) stays, and the result lists the files it kept. This works on the default layout, where the source folders sit inside the library folder.
 
 ```bash
 curl -X POST "http://localhost:61495/dev/reset-and-seed?types=books,tv,music&fixtureSet=standard"
@@ -291,7 +291,7 @@ curl -X POST "http://localhost:61495/dev/reset-and-seed?types=books,tv,music&fix
 
 Use `fixtureSet=standard` for a small deterministic structural regression set or `fixtureSet=stress` for the full high-volume fixture catalog.
 
-A reset that cannot start safely answers `409` straight away, with nothing deleted: when the library folder overlaps a source folder, or when a background worker or another data store writer does not let go within 20 seconds (the message names it). Try again once it has finished.
+A reset that cannot start safely answers `409` straight away, with nothing deleted: when another reset is running, when real-media protection is on, when a background worker or another data store writer does not let go within 20 seconds (the message names it), or, for the full wipe only, when a source folder holds the Library's data folder, the photo space or the Import folder.
 
 ### POST /dev/reset-library-data
 
