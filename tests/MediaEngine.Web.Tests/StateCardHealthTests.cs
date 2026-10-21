@@ -92,6 +92,71 @@ public sealed class StateCardHealthTests
     }
 
     [Fact]
+    public void Plugin_ThatReachedAHostServiceLimit_NeedsAttention_WithThePlainText()
+    {
+        var plugin = Plugin(enabled: true, host: new PluginHostServicesDto { State = "needs_attention", Problem = "Reached its storage limit (16 MB)" });
+
+        var result = StateCardHealth.ForPlugin(plugin, Health("healthy"), null);
+
+        Assert.Equal(HealthWord.NeedsAttention, result.Word);
+        Assert.Equal("Reached its storage limit (16 MB)", result.LastProblem);
+    }
+
+    [Theory]
+    [InlineData("Slow job paused after running too long 3 times")]
+    [InlineData("Stopped receiving events after 5 failures")]
+    [InlineData("Hit its limit of 60 requests a minute to api.example.com")]
+    public void Plugin_StoppedOrRefusedForGoingOverALimit_NeedsAttention(string problem)
+    {
+        var result = StateCardHealth.ForPlugin(
+            Plugin(enabled: true, host: new PluginHostServicesDto { State = "needs_attention", Problem = problem }), null, null);
+
+        Assert.Equal(HealthWord.NeedsAttention, result.Word);
+        Assert.Equal(problem, result.LastProblem);
+    }
+
+    [Fact]
+    public void Plugin_ThatIsWorking_StillShowsItsLastProblem_WithoutChangingTheWord()
+    {
+        var plugin = Plugin(enabled: true, host: new PluginHostServicesDto { LastProblem = "Tried to contact other.example.org, which it did not say it would contact" });
+
+        var result = StateCardHealth.ForPlugin(plugin, Health("healthy"), null);
+
+        Assert.Equal(HealthWord.Working, result.Word);
+        Assert.Equal("Tried to contact other.example.org, which it did not say it would contact", result.LastProblem);
+    }
+
+    [Fact]
+    public void Plugin_ThatIsWorking_WithNoProblem_HasNoLastProblem()
+    {
+        var result = StateCardHealth.ForPlugin(Plugin(enabled: true, host: new PluginHostServicesDto { LastProblem = "  " }), null, null);
+
+        Assert.Equal(HealthWord.Working, result.Word);
+        Assert.Null(result.LastProblem);
+    }
+
+    [Fact]
+    public void Plugin_WhoseAlwaysOnWorkStoppedAfterCrashing_IsBroken_AndShadesTheMenuRed()
+    {
+        var plugin = Plugin(enabled: true, host: new PluginHostServicesDto { State = "broken", Problem = "Stopped after crashing 5 times in an hour" });
+
+        var result = StateCardHealth.ForPlugin(plugin, Health("healthy"), null);
+
+        Assert.Equal(HealthWord.Broken, result.Word);
+        Assert.Equal("Stopped after crashing 5 times in an hour", result.LastProblem);
+        Assert.True(StateCardHealth.IsPluginBroken(plugin));
+    }
+
+    [Fact]
+    public void Plugin_SwitchedOffWithAHostServiceProblem_IsStillOff()
+    {
+        var plugin = Plugin(enabled: false, host: new PluginHostServicesDto { State = "broken", Problem = "Stopped after crashing 5 times in an hour" });
+
+        Assert.Equal(HealthWord.Off, StateCardHealth.ForPlugin(plugin, null, null).Word);
+        Assert.False(StateCardHealth.IsPluginBroken(plugin));
+    }
+
+    [Fact]
     public void LatestRun_PicksTheNewestRecordForThatPluginOnly()
     {
         var tasks = new List<ScheduledTaskDto>
@@ -127,49 +192,6 @@ public sealed class StateCardHealthTests
     }
 
     // ── Local AI features and engine ─────────────────────────────────────────
-
-    [Fact]
-    public void AiFeature_FlagOff_IsOff_EvenWhileLocalAiIsBlocked()
-    {
-        Assert.Equal(HealthWord.Off, StateCardHealth.ForAiFeature(enabled: false, localAiBlocked: true, "Local AI engine is missing", modelReady: false).Word);
-    }
-
-    [Fact]
-    public void AiFeature_FlagOnWhileLocalAiIsBlocked_IsBroken_WithTheFirstBlocker()
-    {
-        var result = StateCardHealth.ForAiFeature(enabled: true, localAiBlocked: true, "Local AI engine is missing", modelReady: true);
-
-        Assert.Equal(HealthWord.Broken, result.Word);
-        Assert.Equal("Local AI engine is missing", result.LastProblem);
-    }
-
-    [Fact]
-    public void AiFeature_FlagOnWithItsModelNotReady_NeedsAttention_WithModelNotReady()
-    {
-        var result = StateCardHealth.ForAiFeature(enabled: true, localAiBlocked: false, null, modelReady: false);
-
-        Assert.Equal(HealthWord.NeedsAttention, result.Word);
-        Assert.Equal("Model not ready", result.LastProblem);
-    }
-
-    [Fact]
-    public void AiFeature_FlagOnWithEverythingReady_IsWorking()
-    {
-        Assert.Equal(HealthWord.Working, StateCardHealth.ForAiFeature(enabled: true, localAiBlocked: false, null, modelReady: true).Word);
-    }
-
-    [Theory]
-    [InlineData("Ready", false, true)]
-    [InlineData("Loaded", false, true)]
-    [InlineData("Downloading", false, false)]
-    [InlineData("NotDownloaded", false, false)]
-    [InlineData("Error", false, false)]
-    [InlineData("NotDownloaded", true, true)]
-    public void IsModelReady_IsTrueForReadyOrLoadedModelsOnly(string state, bool loaded, bool expected)
-    {
-        Assert.Equal(expected, StateCardHealth.IsModelReady(new AiModelStatusDto { State = state, Loaded = loaded }));
-        Assert.False(StateCardHealth.IsModelReady(null));
-    }
 
     [Fact]
     public void LocalAiEngine_Blocked_IsBroken()
@@ -261,7 +283,8 @@ public sealed class StateCardHealthTests
         string? loadError = null,
         bool compatible = true,
         string? compatibilityProblem = null,
-        List<string>? permissions = null) =>
+        List<string>? permissions = null,
+        PluginHostServicesDto? host = null) =>
         new()
         {
             Id = "test.plugin",
@@ -271,6 +294,7 @@ public sealed class StateCardHealthTests
             IsCompatible = compatible,
             CompatibilityProblem = compatibilityProblem,
             Permissions = permissions ?? [],
+            HostServices = host ?? new PluginHostServicesDto(),
         };
 
     private static PluginHealthResponse Health(string status, string? message = null) =>

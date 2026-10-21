@@ -25,6 +25,12 @@ public sealed class LibraryFolderEntry
 
     public string MetadataPolicy { get; init; } = LibraryMetadataPolicies.Enriched;
 
+    /// <summary>Videos libraries: ask YouTube (by video ID only) about videos named with a YouTube ID.</summary>
+    public bool YoutubeLookup { get; init; } = true;
+
+    /// <summary>Deleting a title moves its files to the recycle bin instead of removing them from disk.</summary>
+    public bool RecycleBin { get; init; }
+
     public string Area { get; init; } = LibraryAreas.Read;
 
     public string Presentation { get; init; } = LibraryPresentations.Catalogue;
@@ -185,11 +191,11 @@ public sealed class IngestionOptions
         // Movies: Plex convention — `Title (Year)/Title (Year)`
         ["Movies"] = "Movies/{Title} ({Year})/{Title} ({Year}){Ext}",
         // TV: Plex convention — `Show (Year)/Season XX/Show - sXXeYY - Title`
-        ["TV"] = "TV/{Series} ({Year})/Season {Season}/{Series} - s{Season}e{Episode} - {EpisodeTitle}{Ext}",
+        ["TV"] = "TV/{Series} ({Year})/Season {Season}/{Series} - {EpisodeCode?} - {EpisodeTitle}{Ext}",
         // Music: Picard / Plex convention — `Artist/Album (Year)/[Disc]## - Title`
         // {Disc?} optional segment expands to e.g. "Disc 02/" for multi-disc
         // releases and collapses entirely for single-disc albums.
-        ["Music"] = "Music/{Artist}/{Album} ({Year})/{TrackNumber} - {Title}{Ext}",
+        ["Music"] = "Music/{Artist}/{Album} ({Year})/{TrackNumber?} - {Title}{Ext}",
         // Audiobooks: Author/Title (Year)/Title — matches Music pattern
         ["Audiobooks"] = "Audiobooks/{Author}/{Title} ({Year})/{Title}{Ext}",
         // Books: Author/Title (Year)/Title (Year) — matches Music pattern

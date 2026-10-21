@@ -837,7 +837,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Equal(6, cut.FindAll(".library-summary__media").Count);
+            Assert.Equal(7, cut.FindAll(".library-summary__media").Count);
             var segments = cut.FindAll(".library-summary__segment");
             Assert.Equal(3, segments.Count);
             Assert.Contains("width:50%", segments[0].GetAttribute("style"), StringComparison.Ordinal);
@@ -867,7 +867,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         {
             Assert.Empty(cut.FindAll(".tl-tabs"));
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
-            Assert.Equal(5, cut.FindAll(".playback-settings-card").Count);
+            // Five playback cards plus the Spoilers card (U-WP11), which sits with the profile's own preferences.
+            Assert.Equal(6, cut.FindAll(".playback-settings-card").Count);
+            Assert.Contains("Spoilers", cut.Markup);
             Assert.NotEmpty(cut.FindAll(".settings-section-header"));
             Assert.NotEmpty(cut.FindAll(".playback-preference-row"));
             Assert.Contains("Autoplay", cut.Markup);
@@ -974,19 +976,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AiFeatures_UsesEngineBackedConfigSavePath()
-    {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "AiFeaturesTab.razor"));
-
-        Assert.Contains("Save feature flags", source);
-        Assert.Contains("SaveAiConfigAsync", source);
-        Assert.Contains("GetAiConfigAsync", source);
-        Assert.Contains("GetAiModelStatusesAsync", source);
-        Assert.Contains("Planned", source);
-        Assert.DoesNotContain("Toggle persistence is not wired to the Engine yet", source);
-    }
-
-    [Fact]
     public void ModelsTab_UsesEngineBackedProfileAndBenchmarkActions()
     {
         var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ModelsTab.razor"));
@@ -1005,8 +994,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     {
         var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "LocalAiSettingsTab.razor"));
 
-        Assert.Contains("GetAiConfigAsync", source);
-        Assert.Contains("SaveAiConfigAsync", source);
         Assert.DoesNotContain("_status?.IsReady", source);
         Assert.DoesNotContain("Local AI is partially available", source);
         // The runtime (resource profile, benchmark, limits) lives once, on Tools and requirements; Local AI keeps AI settings only.

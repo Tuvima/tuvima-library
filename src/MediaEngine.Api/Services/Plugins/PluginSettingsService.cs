@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
 using MediaEngine.Storage.Contracts;
@@ -50,6 +51,7 @@ public sealed class PluginSettingsService
             }
 
             config.Settings ??= new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+            config.Schedules ??= new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var (key, value) in manifest.DefaultSettings)
             {
                 config.Settings.TryAdd(key, value);
@@ -106,4 +108,11 @@ public sealed class PluginUserConfiguration
     public string PluginId { get; set; } = "";
     public bool Enabled { get; set; }
     public Dictionary<string, JsonElement> Settings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Optional per-job schedule overrides for a plugin's recurring jobs: the job's key mapped to a cron expression or an
+    /// interval such as <c>30m</c> or <c>2h</c> (at least five minutes). Edited in this file by hand; there is no screen.
+    /// </summary>
+    [JsonPropertyName("schedules")]
+    public Dictionary<string, string> Schedules { get; set; } = new(StringComparer.Ordinal);
 }

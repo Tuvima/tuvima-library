@@ -77,6 +77,7 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<IImportFolderWaitingReader, ImportFolderWaitingReader>();
         services.TryAddSingleton<IOrganiseFileMover, SystemOrganiseFileMover>();
         services.TryAddSingleton<SidecarMover>();
+        services.TryAddSingleton<VideoOrderRenamer>();
         services.TryAddSingleton<AutoOrganizeService>();
         services.TryAddSingleton<IAutoOrganizeService>(sp => sp.GetRequiredService<AutoOrganizeService>());
         services.TryAddSingleton<IFileIntake, IngestionEngineFileIntake>();
@@ -88,6 +89,15 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<FolderMergeRunner>();
         services.TryAddSingleton<FolderMergePreviewer>();
         services.TryAddSingleton<ILibraryScanner, LibraryScanner>();
+        services.TryAddSingleton(sp => new MediaEngine.Ingestion.Videos.VideoNamingConfigurationProvider(sp.GetRequiredService<IConfigurationLoader>()));
+        services.TryAddSingleton<IVideoLibraryReader>(sp => new MediaEngine.Ingestion.Videos.VideoLibraryReader(
+            sp.GetRequiredService<MediaEngine.Ingestion.Videos.VideoNamingConfigurationProvider>(),
+            sp.GetService<IWorkRepository>(),
+            sp.GetService<ICanonicalValueRepository>(),
+            sp.GetService<Microsoft.Extensions.Logging.ILogger<MediaEngine.Ingestion.Videos.VideoLibraryReader>>()));
+        services.TryAddSingleton(sp => new VideoStillFrameService(
+            sp.GetService<IFFmpegService>(),
+            Path.Combine(sp.GetService<AssetPathService>()?.DerivedRoot ?? Path.Combine(Path.GetTempPath(), "tuvima"), "video-frames")));
         services.TryAddSingleton<IMediaTypeResolver, MediaTypeResolver>();
         services.TryAddSingleton<IDuplicateResolver, DuplicateResolver>();
         services.TryAddSingleton<IIngestionLogScribe, IngestionLogScribe>();

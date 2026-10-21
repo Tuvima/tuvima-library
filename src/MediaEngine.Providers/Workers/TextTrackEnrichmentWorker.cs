@@ -580,7 +580,7 @@ public sealed class TextTrackEnrichmentWorker
     private static bool IsRelevant(TextTrackKind kind, MediaType mediaType) =>
         kind == TextTrackKind.Lyrics
             ? mediaType == MediaType.Music
-            : mediaType is MediaType.Movies or MediaType.TV;
+            : mediaType is MediaType.Movies or MediaType.TV or MediaType.Videos;
 
     private static MediaType InferMediaType(string path)
     {

@@ -39,6 +39,7 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<INarrativeRootResolver, NarrativeRootResolver>();
         services.AddSingleton<IRecursiveFictionalEntityService, RecursiveFictionalEntityService>();
         services.AddSingleton<IRelationshipPopulationService, RelationshipPopulationService>();
+        services.AddSingleton<IWorkAdaptationEdgeService, WorkAdaptationEdgeService>();
         services.AddSingleton<IUniverseGraphQueryService, UniverseGraphQueryService>();
         services.AddSingleton<IArtworkPaletteService, ArtworkPaletteService>();
         services.AddSingleton<ILoreDeltaService, LoreDeltaService>();
@@ -66,6 +67,7 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<IUniverseEnrichmentScheduler>(sp =>
             sp.GetRequiredService<UniverseEnrichmentService>());
         services.AddSingleton<SeriesAmbiguityReviewer>();
+        services.AddSingleton<SeriesPlacementChoiceService>();
         services.AddSingleton<CollectionAssignmentService>();
         services.AddSingleton<CollectionFinalizationService>();
         services.AddSingleton<WikidataSeriesManifestHydrationService>();
@@ -109,6 +111,10 @@ public static class TuvimaProviderServiceCollectionExtensions
             "wikidata_reconciliation",
             TimeSpan.FromSeconds(30));
         services.AddTuvimaHttpClient("cover_download", TimeSpan.FromSeconds(20));
+        // The YouTube lookup follows no redirects, so a thumbnail address can never lead to another host.
+        services.AddTuvimaHttpClient(YoutubeVideoLookup.HttpClientName, TimeSpan.FromSeconds(10), addStandardResilience: false)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
+        services.AddSingleton<IVideoOnlineLookup, YoutubeVideoLookup>();
         services.AddTuvimaHttpClient("headshot_download", TimeSpan.FromSeconds(20));
         // Plugin tools can legitimately run for several minutes. The standard
         // resilience pipeline's much shorter attempt timeout would silently
@@ -118,6 +124,11 @@ public static class TuvimaProviderServiceCollectionExtensions
             TimeSpan.FromMinutes(10),
             addStandardResilience: false);
         services.AddTuvimaHttpClient("plugin_catalog", TimeSpan.FromSeconds(15));
+        // The plugin web connection. Redirects are not followed by the handler: the Library follows them itself, one hop at
+        // a time, so every hop is checked against the places the plugin declared. The standard retry pipeline is left off
+        // because a hidden retry would send more requests than the plugin's requests-a-minute limit counts.
+        services.AddTuvimaHttpClient("plugin_http", TimeSpan.FromSeconds(30), addStandardResilience: false)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 
         var providerConfigurations = configLoader.LoadAllProviders();
         foreach (var providerConfig in ConfigDrivenProviders(providerConfigurations).Where(config => config.RegistrationOrder <= 0))

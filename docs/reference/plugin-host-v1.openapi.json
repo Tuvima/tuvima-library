@@ -1,0 +1,233 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Tuvima plugin door",
+    "version": "1.0.0",
+    "description": "How a plugin that is a separate program talks to the Library. The Library starts the program and gives it a key in the TUVIMA_PLUGIN_KEY environment variable, and the address of the Library in TUVIMA_LIBRARY_URL. Every call sends the key in the X-Tuvima-Plugin-Key header. The key belongs to one plugin: the Library answers only for what that plugin was approved to do (403 otherwise), and the door answers only programs on the same machine. A program must also answer GET {health_path} (200 when healthy) and GET {lookup_path} (JSON) for the Library; both paths are set in the plugin's manifest."
+  },
+  "servers": [
+    {
+      "url": "{library}",
+      "variables": {
+        "library": {
+          "default": "http://localhost:61495"
+        }
+      }
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "pluginKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Tuvima-Plugin-Key"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "pluginKey": []
+    }
+  ],
+  "paths": {
+    "/plugin-host/v1/whoami": {
+      "get": {
+        "operationId": "PluginHostWhoAmI",
+        "summary": "Who the key belongs to and what that plugin was approved to do.",
+        "responses": {
+          "200": {
+            "description": "The plugin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "plugin_id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "permissions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The key is missing, wrong or no longer valid (the plugin was switched off or restarted)."
+          }
+        }
+      }
+    },
+    "/plugin-host/v1/ai/text": {
+      "post": {
+        "operationId": "PluginHostAiText",
+        "summary": "Ask Local AI for text as this plugin. Needs the ai.infer permission and a role listed in the manifest's ai_permissions.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "example": "text_fast"
+                  },
+                  "prompt": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "role",
+                  "prompt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A status, never an error: status is one of succeeded, refused, ai_unavailable, busy, over_allowance, timed_out, invalid_answer or failed. A plugin must always be able to carry on without AI.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request was not JSON with a role and a prompt."
+          },
+          "401": {
+            "description": "The key is missing, wrong or no longer valid."
+          },
+          "403": {
+            "description": "The plugin was not approved to use Local AI."
+          }
+        }
+      }
+    },
+    "/plugin-host/v1/records/{collection}/{key}": {
+      "parameters": [
+        {
+          "name": "collection",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "maxLength": 128
+          }
+        }
+      ],
+      "get": {
+        "operationId": "PluginHostGetRecord",
+        "summary": "Read one of this plugin's own records. Needs the plugin-records permission.",
+        "responses": {
+          "200": {
+            "description": "The record.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "collection": {
+                      "type": "string"
+                    },
+                    "key": {
+                      "type": "string"
+                    },
+                    "value": {},
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The key is missing, wrong or no longer valid."
+          },
+          "403": {
+            "description": "The plugin was not approved to keep records."
+          },
+          "404": {
+            "description": "There is no such record."
+          }
+        }
+      },
+      "put": {
+        "operationId": "PluginHostPutRecord",
+        "summary": "Save one of this plugin's own records (JSON, at most 64 KB). Needs the plugin-records permission; a plugin may keep a limited number of records.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Saved."
+          },
+          "400": {
+            "description": "The record was not JSON, or a name was not valid."
+          },
+          "401": {
+            "description": "The key is missing, wrong or no longer valid."
+          },
+          "403": {
+            "description": "The plugin was not approved to keep records."
+          },
+          "413": {
+            "description": "The record, or the plugin's total, is over its limit."
+          }
+        }
+      }
+    }
+  }
+}

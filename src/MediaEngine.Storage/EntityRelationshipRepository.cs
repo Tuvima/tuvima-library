@@ -81,6 +81,38 @@ public sealed class EntityRelationshipRepository : IEntityRelationshipRepository
         }, ct);
     }
 
+    public Task<int> DeleteByStatementKeysAsync(IReadOnlyCollection<string> statementKeys, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(statementKeys);
+        ct.ThrowIfCancellationRequested();
+        var keys = statementKeys
+            .Where(key => !string.IsNullOrWhiteSpace(key))
+            .Select(key => key.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (keys.Length == 0)
+        {
+            return Task.FromResult(0);
+        }
+
+        return _db.ExecuteWriteAsync((conn, tx, token) =>
+        {
+            var removed = 0;
+            foreach (var batch in keys.Chunk(SqliteBatching.MaxParametersPerQuery))
+            {
+                token.ThrowIfCancellationRequested();
+                conn.Execute("""
+                    DELETE FROM entity_relationship_qualifiers
+                    WHERE relationship_id IN (SELECT id FROM entity_relationships WHERE statement_key IN @keys);
+                    """, new { keys = batch }, tx);
+                removed += conn.Execute(
+                    "DELETE FROM entity_relationships WHERE statement_key IN @keys;", new { keys = batch }, tx);
+            }
+
+            return removed;
+        }, ct);
+    }
+
     public Task<IReadOnlyList<EntityRelationship>> GetBySubjectAsync(string subjectQid, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

@@ -5,7 +5,6 @@
 @inject UIOrchestratorService Orchestrator
 @inject DeviceContextService DeviceContext
 @inject SettingsAttentionState Attention
-@inject ApprovalFlow Approvals
 
 <div class="tl-page local-ai-settings">
     @switch (NormalizedSubsection)
@@ -16,12 +15,6 @@
             {
                 <LocalAiRuntimePanel />
             }
-            break;
-        case "vocabulary":
-            <VibeVocabularyTab />
-            break;
-        case "automation":
-            <AiScheduleTab />
             break;
         default:
             @OverviewContent()
@@ -35,24 +28,19 @@
     private string NormalizedSubsection => Subsection?.Trim().ToLowerInvariant() switch
     {
         "models" => "models",
-        "vocabulary" => "vocabulary",
-        "automation" => "automation",
         _ => "overview",
     };
 
     private EnrichmentProgressDto? _progress;
-    private AiConfigDto? _config;
+    private IReadOnlyList<PluginSummaryResponse> _featurePlugins = [];
     private List<AiModelStatusDto> _models = [];
     private string? _loadedSubsection;
     private bool _loading = true;
-    private bool _savingFeatures;
-    private string? _featureMessage;
 
     private AiModelStatusDto? ActiveModel => _models.FirstOrDefault(model => model.Active)
         ?? _models.FirstOrDefault(model => model.Loaded);
 
-    private int EnabledFeatureCount => FeatureDefinitions()
-        .Count(feature => feature.Connected && IsFeatureEnabled(feature.Key));
+    private int EnabledFeatureCount => _featurePlugins.Count(plugin => plugin.Enabled);
 
     protected override void OnInitialized() => Attention.Changed += OnAttentionChanged;
 
@@ -70,7 +58,10 @@
 
         if (NormalizedSubsection == "overview")
         {
-            _config = await Orchestrator.GetAiConfigAsync();
+            _featurePlugins = (await Orchestrator.GetPluginsAsync())
+                .Where(plugin => AiFeaturePluginIds.Contains(plugin.Id))
+                .OrderBy(plugin => plugin.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
             _models = (await Orchestrator.GetAiModelStatusesAsync()).ToList();
             _progress = await Orchestrator.GetEnrichmentProgressAsync();
         }
@@ -90,7 +81,7 @@
             <div class="local-ai-settings__summary-grid">
                 <AppCard Title="Features" Class="local-ai-settings__summary-card">
                     <strong>@EnabledFeatureCount enabled</strong>
-                    <span>Connected local capabilities</span>
+                    <span>Local AI features switched on</span>
                 </AppCard>
                 <AppCard Title="Automation" Class="local-ai-settings__summary-card">
                     <strong>@AutomationSummary()</strong>
@@ -100,38 +91,27 @@
 
             @if (!DeviceContext.IsMobile)
             {
-            <SettingsAdvancedLinkRow Title="Models and runtime" Description="The resource profile, runtime limits and diagnostics are on Runtime. Model files and downloads are on Tools and requirements." Href="/settings/ai/models" ActionLabel="Open" />
-            <section class="local-ai-settings__features" aria-label="Enabled features">
-                <AppText Typo="AppTypo.subtitle1">Enabled features</AppText>
-                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Choose which connected Local AI capabilities Library may use.</AppText>
-                @if (_config is null)
+                <SettingsAdvancedLinkRow Title="Models and runtime" Description="The resource profile, runtime limits and diagnostics are on Runtime. Model files and downloads are on Tools and requirements." Href="/settings/ai/models" ActionLabel="Open" />
+            }
+
+            @* Every Local AI feature is an Official plugin, switched on and approved on the Plugins page. *@
+            <section class="local-ai-settings__features" aria-label="AI features">
+                <AppText Typo="AppTypo.subtitle1">AI features</AppText>
+                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Each feature is a plugin. Turn it on, change its words or see when it runs on the Plugins page.</AppText>
+                @if (_featurePlugins.Count == 0)
                 {
-                    <AppEmptyState Title="AI configuration unavailable" Message="Feature controls are hidden until saved configuration can be loaded." />
+                    <AppEmptyState Title="AI features unavailable" Message="The AI feature plugins could not be loaded." />
                 }
                 else
                 {
-                    @if (!string.IsNullOrWhiteSpace(_featureMessage))
-                    {
-                        <AppAlert Tone="AppUiTone.Info">@_featureMessage</AppAlert>
-                    }
                     <div class="local-ai-settings__feature-grid">
-                        @foreach (var feature in FeatureDefinitions())
+                        @foreach (var plugin in _featurePlugins)
                         {
-                            @FeatureCard(feature)
+                            @FeatureCard(plugin)
                         }
-                    </div>
-                    <div>
-                        <AppButton Label="Save features" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                                   Disabled="@_savingFeatures" OnClick="@SaveFeaturesAsync" />
                     </div>
                 }
             </section>
-
-            @* Feature readiness is the model and hardware dependency view of the same feature switches, so it stays with them. *@
-            <AppCard Title="Feature readiness" Description="Inspect model and hardware dependencies for every Local AI capability.">
-                <AiFeaturesTab />
-            </AppCard>
-            }
         }
     </text>;
 
@@ -156,25 +136,25 @@
         ? null
         : @<AppButton Label="Models and runtime" Href="/settings/ai/models" Size="AppControlSize.Compact" />;
 
-    private RenderFragment FeatureCard(FeatureDefinition feature)
-    {
-        var enabled = IsFeatureEnabled(feature.Key);
-        var model = _models.FirstOrDefault(m => string.Equals(m.Role, StateCardHealth.FeatureModelRole, StringComparison.OrdinalIgnoreCase));
-        var health = StateCardHealth.ForAiFeature(enabled, Attention.LocalAiBlocked, FirstBlockerText(), StateCardHealth.IsModelReady(model));
-        return @<AppStateCard Name="@feature.Name"
-                              Kind="StateCardKind.Plugin"
-                              Description="@feature.Description"
-                              IsOn="@enabled"
-                              IsOnChanged="@(value => SetFeatureEnabled(feature.Key, value))"
-                              SwitchDisabledReason="@(feature.Connected ? null : "Planned: this is not connected to the Library yet.")"
-                              Health="@health.Word"
-                              LastProblem="@health.LastProblem"
-                              AllowedTo="@FeatureAllowedTo(feature.Key)"
-                              SendsDataOut="@(FeatureSendsDataTo(feature.Key) is not null)"
-                              SendsDataTo="@(FeatureSendsDataTo(feature.Key) ?? StateCardHealth.RunsOnThisMachine)">
-            <Badges><AppStatusBadge Text="Uses Local AI" Tone="AppUiTone.Info" /></Badges>
-        </AppStateCard>;
-    }
+    private static RenderFragment FeatureCard(PluginSummaryResponse plugin) =>
+        @<AppCard Title="@plugin.Name" Description="@plugin.Description" Class="local-ai-settings__feature-card">
+            <div class="local-ai-settings__feature-state">
+                <AppStatusBadge Text="@FeatureStateText(plugin)" Tone="@FeatureTone(plugin)" />
+                <AppButton Label="Open" Href="@($"/settings/plugins?plugin={Uri.EscapeDataString(plugin.Id)}")" Size="AppControlSize.Compact" />
+            </div>
+        </AppCard>;
+
+    private static string FeatureStateText(PluginSummaryResponse plugin) =>
+        plugin.LoadError is not null ? "Problem"
+        : plugin.NeedsApproval ? "Needs approval"
+        : plugin.Enabled ? "On"
+        : "Off";
+
+    private static AppUiTone FeatureTone(PluginSummaryResponse plugin) =>
+        plugin.LoadError is not null ? AppUiTone.Error
+        : plugin.NeedsApproval ? AppUiTone.Warning
+        : plugin.Enabled ? AppUiTone.Success
+        : AppUiTone.Neutral;
 
     private string ActiveModelName()
     {
@@ -188,46 +168,14 @@
 
     private string AutomationDescription() => _progress is null ? "Progress could not be loaded" : $"{_progress.CompletedCount} of {_progress.Total} completed";
 
-    // The Engine's own words for what a feature may do; the same ones the approval dialog shows.
-    private IReadOnlyList<string> FeatureAllowedTo(string key) =>
-        _config?.FeatureInfo.TryGetValue(key, out var info) == true ? info.AllowedTo : [];
-
-    private string? FeatureSendsDataTo(string key) =>
-        _config?.FeatureInfo.TryGetValue(key, out var info) == true ? info.SendsDataTo : null;
-
-    private bool IsFeatureEnabled(string key) => _config?.Features.TryGetValue(key, out var enabled) == true && enabled;
-
-    private void SetFeatureEnabled(string key, bool enabled)
+    // The Official plugins behind the Local AI features (Smart labelling, Type helper, Series order, Vibe tags, Description insights, Taste summary).
+    private static readonly HashSet<string> AiFeaturePluginIds = new(StringComparer.Ordinal)
     {
-        if (_config is not null)
-            _config.Features[key] = enabled;
-    }
-
-    private async Task SaveFeaturesAsync()
-    {
-        if (_config is null)
-            return;
-
-        _savingFeatures = true;
-        var outcome = await Approvals.SaveAiConfigAsync(Orchestrator, _config);
-        _savingFeatures = false;
-        _featureMessage = outcome switch
-        {
-            AiSaveOutcome.Saved => "Local AI features saved.",
-            AiSaveOutcome.Cancelled => "Nothing was turned on. The features are back to how they were saved.",
-            _ => "Local AI features could not be saved.",
-        };
-    }
-
-    private sealed record FeatureDefinition(string Key, string Name, string Description, bool Connected = true);
-
-    private static IReadOnlyList<FeatureDefinition> FeatureDefinitions() =>
-    [
-        new("smart_labeling", "Smart labeling", "Improve filenames and initial metadata."),
-        new("type_logic", "Media-type assistance", "Classify ambiguous incoming files."),
-        new("series_alignment", "Series alignment", "Assist structural order and grouping."),
-        new("vibe_tags", "Vibe tags", "Generate controlled local mood tags."),
-        new("tldr", "Description TL;DR", "Present concise summaries created by description intelligence."),
-        new("description_intelligence", "Description intelligence", "Extract themes, setting, entities, and useful context."),
-    ];
+        "tuvima.ai-smart-labelling",
+        "tuvima.ai-type-helper",
+        "tuvima.ai-series-order",
+        "tuvima.ai-vibe-tags",
+        "tuvima.ai-description-insights",
+        "tuvima.ai-taste-summary",
+    };
 }

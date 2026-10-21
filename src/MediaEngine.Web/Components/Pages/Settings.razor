@@ -220,7 +220,7 @@ else
                                 <LocalAiSettingsTab Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Plugins:
-                                <PluginSettingsTab />
+                                <PluginSettingsTab FocusPluginId="@PluginFocusId" />
                                 break;
                             case SettingsSection.Delivery:
                                 <PlaybackDeliverySettingsTab Subsection="@_activeSubsection" />
@@ -282,6 +282,9 @@ else
     public string? ReviewState => Query.String("review");
     public string? LogsTab => Query.String("tab");
     public string? LogsFilter => Query.String("filter");
+
+    /// <summary>Opens the Plugins page scrolled to this plugin's card (<c>/settings/plugins?plugin={id}</c>); an unknown id changes nothing.</summary>
+    public string? PluginFocusId => Query.String("plugin");
 
     /// <summary>Opens the Activity page already narrowed to one person, household or everyone (for example from a person's page).</summary>
     public string? ActivityScope => Query.String("scope");
@@ -892,8 +895,6 @@ else
         SettingsSection.LocalAi => _activeSubsection switch
         {
             "models" => "Choose the resource profile and set runtime limits.",
-            "vocabulary" => "Manage the controlled terms used by local enrichment.",
-            "automation" => "Control saved enrichment and maintenance schedules.",
             _ => "Manage local intelligence features while keeping technical details out of the way.",
         },
         SettingsSection.Plugins => "Manage installed extensions and keep plugin health under control.",

@@ -1,4 +1,5 @@
 using MediaEngine.AI.Features;
+using MediaEngine.AI.Infrastructure;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -18,6 +19,7 @@ public sealed class TasteProfilerTests
         ]);
         var profiler = new TasteProfiler(
             StubAiEngineRoom.ReturningJson("unused"),
+            new FakeAiFeatureSwitches(),
             repository,
             NullLogger<TasteProfiler>.Instance);
 
@@ -42,6 +44,7 @@ public sealed class TasteProfilerTests
         ]);
         var profiler = new TasteProfiler(
             StubAiEngineRoom.ReturningJson("A tailored profile."),
+            new FakeAiFeatureSwitches(AiFeature.TasteSummary),
             repository,
             NullLogger<TasteProfiler>.Instance);
 
@@ -52,6 +55,29 @@ public sealed class TasteProfilerTests
         Assert.True(result.Profile.GenreDistribution["science fiction"] > 0.90);
         Assert.Equal("A tailored profile.", result.Profile.Summary);
         Assert.NotEmpty(result.InputFingerprint);
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_WithTheTasteSummaryPluginOff_KeepsTheNumbersAndUsesAPlainSentenceWithoutAskingLocalAi()
+    {
+        var repository = new TasteRepositoryStub(
+        [
+            Signal("Books", "science fiction", progress: 100),
+            Signal("Books", "science fiction", progress: 50),
+            Signal("Movies", "drama", progress: 10),
+        ]);
+        var profiler = new TasteProfiler(
+            StubAiEngineRoom.ReturningJson("A tailored profile."),
+            new FakeAiFeatureSwitches(),
+            repository,
+            NullLogger<TasteProfiler>.Instance);
+
+        var result = await profiler.GetProfileAsync(Guid.NewGuid());
+
+        Assert.Equal(TasteProfileBuildStatus.Generated, result.Status);
+        Assert.True(result.Profile!.GenreDistribution["science fiction"] > 0.90);
+        Assert.DoesNotContain("tailored", result.Profile.Summary, StringComparison.Ordinal);
+        Assert.False(string.IsNullOrWhiteSpace(result.Profile.Summary));
     }
 
     private static TasteSignal Signal(string mediaType, string genre, double progress = 25) => new(

@@ -11,7 +11,7 @@ public sealed partial class EngineApiClient
 
     /// <summary>Null on a real failure (logged); an empty result when the Engine says there is nothing visible (404).</summary>
     public async Task<EntityAppearancesDto?> GetEntityAppearancesAsync(
-        string universeQid, string? entityQid, Guid? personId, CancellationToken ct = default)
+        string universeQid, string? entityQid, Guid? personId, CancellationToken ct = default, Guid? reachedWorkId = null)
     {
         // The Engine takes exactly one of the two; asking for neither or both is a mistake here, not a request.
         if ((string.IsNullOrWhiteSpace(entityQid)) == (personId is null))
@@ -25,8 +25,10 @@ public sealed partial class EngineApiClient
             var subject = string.IsNullOrWhiteSpace(entityQid)
                 ? $"person={personId!.Value:D}"
                 : $"entity={Uri.EscapeDataString(entityQid.Trim())}";
+            // The companion asks as someone standing at a Work; the Engine counts that place as reached.
+            var reached = reachedWorkId is { } workId && workId != Guid.Empty ? $"&reachedWorkId={workId:D}" : string.Empty;
             using var response = await _http.GetAsync(
-                $"universe/{Uri.EscapeDataString(universeQid)}/also-appears-in?{subject}", ct);
+                $"universe/{Uri.EscapeDataString(universeQid)}/also-appears-in?{subject}{reached}", ct);
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
                 // The Engine answers 404 for a subject the profile cannot see anything of (and for an unknown one). That is

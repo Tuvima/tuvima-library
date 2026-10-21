@@ -4,6 +4,7 @@ using MediaEngine.Api.Services.Display;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
@@ -14,7 +15,9 @@ public sealed class UniversalSearchReadService(
     IDatabaseConnection db,
     IDisplayProjectionReadService display,
     IHttpContextAccessor http,
-    IRequestAuthorityResolver authorities) : IUniversalSearchReadService
+    IRequestAuthorityResolver authorities,
+    CharacterSpoilerService spoilers,
+    IProfileRepository profiles) : IUniversalSearchReadService
 {
     public async Task<UniversalSearchResponseDto> SearchAsync(string? query, int limit, CancellationToken ct)
     {
@@ -48,7 +51,7 @@ public sealed class UniversalSearchReadService(
                 .GroupBy(row => row.WorkId)
                 .ToDictionary(group => group.Key, group => group.First().CoverUrl!)
             : null;
-        var peopleTask = SearchPeopleAsync(trimmed, Math.Min(8, take), allowedAssetIds, ct);
+        var peopleTask = SearchPeopleAsync(trimmed, Math.Min(8, take), allowedAssetIds, profileId, ct);
         var collectionsTask = SearchCollectionsAsync(
             trimmed, Math.Min(10, take), allowedWorkIds, profileId, safeCovers, ct);
         await Task.WhenAll(peopleTask, collectionsTask).ConfigureAwait(false);
@@ -73,6 +76,7 @@ public sealed class UniversalSearchReadService(
         string query,
         int limit,
         IReadOnlyCollection<Guid> allowedAssetIds,
+        Guid? profileId,
         CancellationToken ct)
     {
         if (allowedAssetIds.Count == 0)
@@ -81,8 +85,55 @@ public sealed class UniversalSearchReadService(
         }
 
         using var conn = db.CreateConnection();
-        var rows = (await conn.QueryAsync<PersonSearchRow>(new CommandDefinition(
+        // A character the profile has not reached neither matches the search nor is named beside an actor ("Plays ...").
+        var matchedCharacterIds = (await conn.QueryAsync<Guid>(new CommandDefinition(
             """
+            SELECT entity.id
+              FROM fictional_entities entity
+              LEFT JOIN fictional_entity_user_overrides user ON user.entity_id=entity.id
+             WHERE COALESCE(NULLIF(user.label, ''), entity.label) LIKE @Like COLLATE NOCASE;
+            """,
+            new { Like = $"%{query}%" },
+            cancellationToken: ct)).ConfigureAwait(false)).ToList();
+        var viewer = profileId is { } viewerId
+            ? await profiles.GetByIdAsync(viewerId, ct).ConfigureAwait(false)
+            : null;
+        var hiddenCharacterIds = await spoilers.HiddenEntityIdsAsync(viewer, matchedCharacterIds, ct).ConfigureAwait(false);
+        // Credits are worked out only for the files that could credit the people the text matches (never for the whole
+        // library), and the files the caller may see arrive as one JSON list, not one value per file.
+        var candidateAssetsCte = PersonCreditSql.CandidateAssetsCte(
+            "people_candidate_assets",
+            "SELECT id, name, wikidata_qid FROM matched_people",
+            "pc_");
+        var scopedCreditsCte = PersonCreditSql.ScopedCreditsCte(
+            "people_credit_rows",
+            "SELECT asset_id FROM people_candidate_assets",
+            "pr_");
+        var rows = (await conn.QueryAsync<PersonSearchRow>(new CommandDefinition(
+            $"""
+            WITH matched_people AS MATERIALIZED (
+                SELECT p.id, p.name, p.wikidata_qid
+                FROM persons p
+                WHERE p.name LIKE @Like COLLATE NOCASE
+                   OR EXISTS (
+                       SELECT 1
+                         FROM character_performer_links portrayal
+                         INNER JOIN fictional_entities entity ON entity.id=portrayal.fictional_entity_id AND entity.id NOT IN @HiddenCharacterIds
+                         LEFT JOIN fictional_entity_user_overrides user ON user.entity_id=entity.id
+                        WHERE portrayal.person_id=p.id
+                          AND COALESCE(NULLIF(user.label, ''), entity.label) LIKE @Like COLLATE NOCASE)
+            ),
+            {candidateAssetsCte},
+            {scopedCreditsCte},
+            allowed_assets AS MATERIALIZED (
+                SELECT unhex(value) AS asset_id FROM json_each(@AllowedAssetIds)
+            ),
+            allowed_people_credits AS MATERIALIZED (
+                SELECT DISTINCT credit.person_id
+                FROM people_credit_rows credit
+                WHERE credit.person_id IN (SELECT id FROM matched_people)
+                  AND credit.media_asset_id IN (SELECT asset_id FROM allowed_assets)
+            )
             SELECT p.id AS Id,
                    p.name AS Name,
                    p.biography AS Biography,
@@ -91,38 +142,27 @@ public sealed class UniversalSearchReadService(
                    GROUP_CONCAT(DISTINCT pr.role) AS Roles,
                    (SELECT GROUP_CONCAT(DISTINCT COALESCE(NULLIF(user.label, ''), entity.label))
                       FROM character_performer_links portrayal
-                      INNER JOIN fictional_entities entity ON entity.id=portrayal.fictional_entity_id
+                      INNER JOIN fictional_entities entity ON entity.id=portrayal.fictional_entity_id AND entity.id NOT IN @HiddenCharacterIds
                       LEFT JOIN fictional_entity_user_overrides user ON user.entity_id=entity.id
                      WHERE portrayal.person_id=p.id
                        AND COALESCE(NULLIF(user.label, ''), entity.label) LIKE @Like COLLATE NOCASE) AS MatchedCharacters
             FROM persons p
             LEFT JOIN person_roles pr ON pr.person_id = p.id
-            WHERE (p.name LIKE @Like COLLATE NOCASE
-                   OR EXISTS (
-                       SELECT 1
-                         FROM character_performer_links portrayal
-                         INNER JOIN fictional_entities entity ON entity.id=portrayal.fictional_entity_id
-                         LEFT JOIN fictional_entity_user_overrides user ON user.entity_id=entity.id
-                        WHERE portrayal.person_id=p.id
-                          AND COALESCE(NULLIF(user.label, ''), entity.label) LIKE @Like COLLATE NOCASE))
-              AND EXISTS (
-                  SELECT 1
-                  FROM primary_person_media_credits credit
-                  WHERE credit.person_id=p.id AND credit.media_asset_id IN @AllowedAssetIds)
+            WHERE p.id IN (SELECT person_id FROM allowed_people_credits)
             GROUP BY p.id, p.name, p.biography, p.occupation, p.local_headshot_path
             ORDER BY CASE WHEN lower(p.name) = lower(@Query) THEN 0
                           WHEN lower(p.name) LIKE lower(@Prefix) THEN 1
                           WHEN EXISTS (
                               SELECT 1
                                 FROM character_performer_links portrayal
-                                INNER JOIN fictional_entities entity ON entity.id=portrayal.fictional_entity_id
+                                INNER JOIN fictional_entities entity ON entity.id=portrayal.fictional_entity_id AND entity.id NOT IN @HiddenCharacterIds
                                 LEFT JOIN fictional_entity_user_overrides user ON user.entity_id=entity.id
                                WHERE portrayal.person_id=p.id
                                  AND lower(COALESCE(NULLIF(user.label, ''), entity.label))=lower(@Query)) THEN 2
                           WHEN EXISTS (
                               SELECT 1
                                 FROM character_performer_links portrayal
-                                INNER JOIN fictional_entities entity ON entity.id=portrayal.fictional_entity_id
+                                INNER JOIN fictional_entities entity ON entity.id=portrayal.fictional_entity_id AND entity.id NOT IN @HiddenCharacterIds
                                 LEFT JOIN fictional_entity_user_overrides user ON user.entity_id=entity.id
                                WHERE portrayal.person_id=p.id
                                  AND lower(COALESCE(NULLIF(user.label, ''), entity.label)) LIKE lower(@Prefix)) THEN 3
@@ -136,7 +176,10 @@ public sealed class UniversalSearchReadService(
                 Prefix = $"{query}%",
                 Like = $"%{query}%",
                 Limit = limit,
-                AllowedAssetIds = allowedAssetIds.Select(GuidSql.ToBlob).ToArray(),
+                AllowedAssetIds = GuidSql.ToJsonHexArray(allowedAssetIds),
+                HiddenCharacterIds = hiddenCharacterIds.Count > 0
+                    ? hiddenCharacterIds.Select(GuidSql.ToBlob).ToArray()
+                    : [GuidSql.ToBlob(Guid.Empty)],
             },
             cancellationToken: ct)).ConfigureAwait(false)).AsList();
 
@@ -176,13 +219,15 @@ public sealed class UniversalSearchReadService(
         IReadOnlyDictionary<Guid, string>? safeCovers,
         CancellationToken ct)
     {
-        var workIds = allowedWorkIds.Count > 0
-            ? allowedWorkIds.Select(GuidSql.ToBlob).ToArray()
-            : [GuidSql.ToBlob(Guid.Empty)];
+        // The works the caller may see arrive as one JSON list, so a library of any size stays under SQLite's value limit.
+        var workIds = GuidSql.ToJsonHexArray(allowedWorkIds);
         using var conn = db.CreateConnection();
         var rows = (await conn.QueryAsync<CollectionSearchRow>(new CommandDefinition(
             """
             -- readiness: searches only the works the Ready-gated display projection returned for the caller
+            WITH allowed_works AS MATERIALIZED (
+                SELECT unhex(value) AS work_id FROM json_each(@AllowedWorkIds)
+            )
             SELECT c.id AS Id,
                    COALESCE(c.display_name, title.value, 'Untitled collection') AS Name,
                    c.collection_type AS CollectionType,
@@ -196,7 +241,7 @@ public sealed class UniversalSearchReadService(
                                      OR (x.audience = 'SelectedProfiles'
                                          AND EXISTS (SELECT 1 FROM collection_profile_audience pa
                                                      WHERE pa.collection_id = x.id AND pa.profile_id = @ProfileId))))) FROM collections x WHERE x.id = c.id) THEN 1 ELSE 0 END AS IsRoot,
-                   COUNT(DISTINCT CASE WHEN member.id IN @AllowedWorkIds THEN member.id END) AS ItemCount
+                   COUNT(DISTINCT CASE WHEN member.id IN (SELECT work_id FROM allowed_works) THEN member.id END) AS ItemCount
             FROM collections c
             LEFT JOIN canonical_values title ON title.entity_id = c.id AND title.key = 'title'
             LEFT JOIN collection_items ci ON ci.collection_id = c.id
@@ -219,7 +264,7 @@ public sealed class UniversalSearchReadService(
               AND (COALESCE(c.display_name, title.value, '') LIKE @Like COLLATE NOCASE
                    OR COALESCE(c.description, '') LIKE @Like COLLATE NOCASE)
               AND (
-                  member.id IN @AllowedWorkIds
+                  member.id IN (SELECT work_id FROM allowed_works)
                   OR (c.profile_id=@ProfileId AND lower(c.collection_type) LIKE '%playlist%'))
             GROUP BY c.id, c.display_name, title.value, c.collection_type, c.description, c.cover_artwork_path,
                      c.wikidata_qid, c.parent_collection_id

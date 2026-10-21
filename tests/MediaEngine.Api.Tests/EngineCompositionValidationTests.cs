@@ -229,7 +229,7 @@ public sealed class EngineCompositionValidationTests
             .ToArray();
 
         Assert.Equal(6, strategies.Length);
-        Assert.Equal(6, plugins.Length);
+        Assert.Equal(11, plugins.Length);
         Assert.Equal(
             strategies.Select(strategy => strategy.GetType().FullName).Order(),
             strategies.Select(strategy => strategy.GetType().FullName));

@@ -32,6 +32,63 @@ public sealed class ReadingPlaybackContractTests
     }
 
     [Fact]
+    public void CompanionContextContract_KeepsItsWireNames_AndAnEmptyAnswerStaysHonest()
+    {
+        var context = new CompanionContextDto
+        {
+            WorkId = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            Kind = CompanionKinds.Episode,
+            Title = "Pilot",
+            ShowTitle = "Lanterns",
+            PositionLabel = "Season 1 · Episode 1",
+            SpoilerLevel = "up_to_progress",
+            Universe = new CompanionUniverseLinkDto { Qid = "Q4242", Name = "Lanterns" },
+            WhosHere = new CompanionWhosHereDto
+            {
+                HasCharacterDetails = true,
+                HeldBackCount = 2,
+                Characters =
+                [
+                    new CompanionCharacterDto
+                    {
+                        Qid = "Q-alice",
+                        Name = "Alice",
+                        UniverseQid = "Q4242",
+                        Source = "Wikidata",
+                        Visibility = CompanionCharacterVisibility.NoPlotDetails,
+                        OtherWorkCount = 0,
+                    },
+                ],
+            },
+            Picker = new CompanionPickerDto
+            {
+                Kind = CompanionPickerKinds.Chapter,
+                Choices = [new CompanionPickerChoiceDto { WorkId = Guid.Empty, ChapterIndex = 3, Label = "Chapter 4" }],
+            },
+        };
+
+        var json = JsonSerializer.Serialize(context, MediaEngineJson.Web);
+        var roundTrip = JsonSerializer.Deserialize<CompanionContextDto>(json, MediaEngineJson.Web);
+
+        Assert.Contains("\"positionLabel\":\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"spoilerLevel\":\"up_to_progress\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"whosHere\":{", json, StringComparison.Ordinal);
+        Assert.Contains("\"visibility\":\"no_plot_details\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"heldBackCount\":2", json, StringComparison.Ordinal);
+        Assert.Equal("Q-alice", roundTrip?.WhosHere.Characters[0].Qid);
+        Assert.Equal(3, roundTrip?.Picker?.Choices[0].ChapterIndex);
+
+        var empty = JsonSerializer.Deserialize<CompanionContextDto>("{}", MediaEngineJson.Web);
+        Assert.NotNull(empty);
+        Assert.False(empty.WhosHere.HasCharacterDetails);
+        Assert.Empty(empty.WhosHere.Characters);
+        Assert.Empty(empty.Cast);
+        Assert.Null(empty.Previously);
+        Assert.Null(empty.Picker);
+        Assert.Equal(CompanionKinds.Other, empty.Kind);
+    }
+
+    [Fact]
     public void ReaderHighlightContract_CarriesTheCfiRangeAndStaysReadableWithoutOne()
     {
         var request = new CreateReaderHighlightRequestDto(0, 0, 0, "The first words", "#EAB308", null, "epubcfi(/6/6!/4/2/4,/1:0,/1:24)");

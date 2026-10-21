@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0020 view_shared_history_survives_item_removal).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0026 subtitle_text_index).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -208,6 +208,21 @@ CREATE TABLE application_permission_grants (
     permission_id TEXT NOT NULL,
     granted_at TEXT NOT NULL,
     PRIMARY KEY (application_id, permission_id)
+);
+
+CREATE TABLE application_webhook_attempts (
+    id             BLOB NOT NULL PRIMARY KEY,
+    webhook_id     BLOB NOT NULL REFERENCES application_webhooks(id) ON DELETE CASCADE,
+    delivery_id    BLOB NOT NULL,      -- the delivery row this attempt belongs to (may be pruned before the attempt is)
+    event_id       BLOB NOT NULL,
+    event_type     TEXT NOT NULL,      -- for example ingestion.completed, or webhook.test for a test send
+    attempt_number INTEGER NOT NULL,   -- 1 for the first try of a delivery
+    attempted_at   TEXT NOT NULL,      -- ISO 8601 UTC
+    delivered      INTEGER NOT NULL,   -- 1 when the receiver accepted it
+    result         TEXT NOT NULL,      -- short plain text; never a response body
+    http_status    INTEGER NULL,       -- the receiver's HTTP status code, when it answered
+    duration_ms    INTEGER NOT NULL,
+    is_test        INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE application_webhook_deliveries (
@@ -586,7 +601,7 @@ CREATE TABLE collections (
     wikidata_qid      TEXT,
     universe_status   TEXT NOT NULL DEFAULT 'Unknown',
     created_at        TEXT NOT NULL DEFAULT (datetime('now'))
-, resolution TEXT NOT NULL DEFAULT 'query', rule_hash TEXT, group_by_field TEXT, match_mode TEXT NOT NULL DEFAULT 'all', sort_field TEXT, sort_direction TEXT NOT NULL DEFAULT 'desc', secondary_sort_field TEXT, secondary_sort_direction TEXT, cover_artwork_path TEXT, cover_artwork_mime_type TEXT, background_artwork_path TEXT, background_artwork_mime_type TEXT, banner_artwork_path TEXT, banner_artwork_mime_type TEXT, logo_artwork_path TEXT, logo_artwork_mime_type TEXT, media_type TEXT);
+, resolution TEXT NOT NULL DEFAULT 'query', rule_hash TEXT, group_by_field TEXT, match_mode TEXT NOT NULL DEFAULT 'all', sort_field TEXT, sort_direction TEXT NOT NULL DEFAULT 'desc', secondary_sort_field TEXT, secondary_sort_direction TEXT, cover_artwork_path TEXT, cover_artwork_mime_type TEXT, background_artwork_path TEXT, background_artwork_mime_type TEXT, banner_artwork_path TEXT, banner_artwork_mime_type TEXT, logo_artwork_path TEXT, logo_artwork_mime_type TEXT, media_type TEXT, universe_qid TEXT REFERENCES narrative_roots(qid) ON DELETE SET NULL);
 
 CREATE TABLE companion_sessions (
     profile_id              BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -785,7 +800,7 @@ CREATE TABLE editions (
     id           BLOB NOT NULL PRIMARY KEY,  -- UUID
     work_id      BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
     format_label TEXT                        -- e.g. '4K Bluray', 'First Edition'
-, wikidata_qid TEXT);
+, wikidata_qid TEXT, placement_unmatched INTEGER NOT NULL DEFAULT 0 CHECK (placement_unmatched IN (0, 1)));
 
 CREATE TABLE encode_jobs (
     id             BLOB NOT NULL PRIMARY KEY,
@@ -1268,6 +1283,15 @@ CREATE TABLE media_artwork_writeback (
     file_modified_utc TEXT,
     file_size_bytes INTEGER,
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE TABLE media_asset_chapters (
+    asset_id       BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    chapter_index  INTEGER NOT NULL CHECK (chapter_index >= 0),
+    start_ms       INTEGER NOT NULL CHECK (start_ms >= 0),
+    end_ms         INTEGER CHECK (end_ms IS NULL OR end_ms >= start_ms),
+    title          TEXT,
+    PRIMARY KEY (asset_id, chapter_index)
 );
 
 CREATE TABLE media_asset_coverage (
@@ -1859,6 +1883,12 @@ CREATE TABLE player_sessions (
     last_heartbeat_at     TEXT
 );
 
+CREATE TABLE plugin_event_cursors (
+    plugin_id      TEXT    NOT NULL PRIMARY KEY,   -- the plugin's manifest id
+    last_sequence  INTEGER NOT NULL,               -- the newest application_events.sequence already delivered
+    updated_at     TEXT    NOT NULL                -- ISO 8601 UTC
+);
+
 CREATE TABLE plugin_lore_entities (
     id              BLOB PRIMARY KEY,
     source_id       BLOB NOT NULL REFERENCES plugin_lore_sources(id) ON DELETE CASCADE,
@@ -1918,6 +1948,16 @@ CREATE TABLE plugin_lore_sources (
     created_at          TEXT NOT NULL,
     updated_at          TEXT NOT NULL,
     UNIQUE (universe_qid, plugin_id, source_key)
+);
+
+CREATE TABLE plugin_records (
+    plugin_id    TEXT    NOT NULL,   -- the plugin's manifest id
+    collection   TEXT    NOT NULL,   -- the plugin's own grouping name, 1 to 128 printable characters
+    record_key   TEXT    NOT NULL,   -- the key inside the collection, 1 to 128 printable characters
+    value_json   TEXT    NOT NULL,   -- the record, a JSON document, at most 64 KB
+    size_bytes   INTEGER NOT NULL,   -- UTF-8 size of value_json, so a plugin's total is a cheap sum
+    updated_at   TEXT    NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (plugin_id, collection, record_key)
 );
 
 CREATE TABLE profile_credentials (
@@ -2279,6 +2319,57 @@ CREATE TABLE storage_metadata (
     value TEXT NOT NULL
 );
 
+CREATE TABLE subtitle_index_assets (
+    asset_id             BLOB NOT NULL PRIMARY KEY REFERENCES media_assets(id) ON DELETE CASCADE,
+    state                TEXT NOT NULL CHECK (state IN ('Done', 'Failed')),
+    chapter_count        INTEGER NOT NULL DEFAULT 0,
+    embedded_stream_count INTEGER NOT NULL DEFAULT 0,
+    attempt_count        INTEGER NOT NULL DEFAULT 0,
+    last_error           TEXT,
+    next_retry_at        TEXT,
+    probed_at            TEXT NOT NULL
+);
+
+CREATE TABLE subtitle_index_tracks (
+    id                BLOB NOT NULL PRIMARY KEY,
+    asset_id          BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    source_kind       TEXT NOT NULL CHECK (source_kind IN ('TextTrack', 'Embedded')),
+    text_track_id     BLOB REFERENCES text_tracks(id) ON DELETE CASCADE,
+    stream_index      INTEGER,
+    language          TEXT NOT NULL DEFAULT 'und',
+    state             TEXT NOT NULL CHECK (state IN ('Indexed', 'Failed')),
+    source_stamp      TEXT NOT NULL,
+    line_count        INTEGER NOT NULL DEFAULT 0,
+    tag_count         INTEGER NOT NULL DEFAULT 0,
+    entity_signature  TEXT,
+    attempt_count     INTEGER NOT NULL DEFAULT 0,
+    last_error        TEXT,
+    next_retry_at     TEXT,
+    indexed_at        TEXT NOT NULL,
+    tagged_at         TEXT
+);
+
+CREATE TABLE subtitle_lines (
+    track_id    BLOB NOT NULL REFERENCES subtitle_index_tracks(id) ON DELETE CASCADE,
+    line_index  INTEGER NOT NULL CHECK (line_index >= 0),
+    start_ms    INTEGER NOT NULL CHECK (start_ms >= 0),
+    end_ms      INTEGER NOT NULL CHECK (end_ms >= start_ms),
+    text        TEXT NOT NULL,
+    PRIMARY KEY (track_id, line_index)
+);
+
+CREATE TABLE subtitle_name_tags (
+    track_id         BLOB NOT NULL REFERENCES subtitle_index_tracks(id) ON DELETE CASCADE,
+    entity_id        BLOB NOT NULL REFERENCES fictional_entities(id) ON DELETE CASCADE,
+    window_start_ms  INTEGER NOT NULL CHECK (window_start_ms >= 0),
+    window_end_ms    INTEGER NOT NULL CHECK (window_end_ms >= window_start_ms),
+    first_line_index INTEGER NOT NULL,
+    last_line_index  INTEGER NOT NULL,
+    mention_count    INTEGER NOT NULL CHECK (mention_count > 0),
+    matched_text     TEXT NOT NULL,
+    PRIMARY KEY (track_id, entity_id, window_start_ms)
+);
+
 CREATE TABLE system_activity (
     id           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     occurred_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -2610,7 +2701,7 @@ CREATE TABLE works (
     -- 'Unowned' = catalog-only row discovered from Wikidata or a retail
     -- provider but not yet ingested. Kept in sync with is_catalog_only.
     ownership            TEXT NOT NULL DEFAULT 'Owned'
-, universe_mismatch INTEGER NOT NULL DEFAULT 0 CHECK (universe_mismatch IN (0, 1)), universe_mismatch_at TEXT, wikidata_status TEXT DEFAULT 'pending', wikidata_checked_at TEXT, wikidata_qid TEXT, curator_state TEXT, rejected_at TEXT, provisional_metadata_json TEXT, match_level TEXT DEFAULT 'work', wikidata_match_source TEXT, wikidata_match_locked INTEGER NOT NULL DEFAULT 0, wikidata_rejected_qids_json TEXT, ready_at TEXT, first_ready_at TEXT);
+, universe_mismatch INTEGER NOT NULL DEFAULT 0 CHECK (universe_mismatch IN (0, 1)), universe_mismatch_at TEXT, wikidata_status TEXT DEFAULT 'pending', wikidata_checked_at TEXT, wikidata_qid TEXT, curator_state TEXT, rejected_at TEXT, provisional_metadata_json TEXT, match_level TEXT DEFAULT 'work', wikidata_match_source TEXT, wikidata_match_locked INTEGER NOT NULL DEFAULT 0, wikidata_rejected_qids_json TEXT, ready_at TEXT, first_ready_at TEXT, placement_unmatched INTEGER NOT NULL DEFAULT 0 CHECK (placement_unmatched IN (0, 1)), series_placement_locked INTEGER NOT NULL DEFAULT 0);
 
 CREATE VIRTUAL TABLE artwork_asset_search USING fts5(
     artwork_asset_id UNINDEXED,
@@ -2727,11 +2818,17 @@ CREATE INDEX idx_collection_rel_type_qid
 
 CREATE INDEX idx_collections_collection_type ON collections(collection_type);
 
+CREATE UNIQUE INDEX idx_collections_one_universe_shelf
+    ON collections(universe_qid)
+    WHERE collection_type = 'Universe' AND universe_qid IS NOT NULL;
+
 CREATE INDEX idx_collections_resolution ON collections(resolution);
 
 CREATE INDEX idx_collections_rule_hash ON collections(rule_hash);
 
 CREATE INDEX idx_collections_series_identity ON collections(wikidata_qid, media_type);
+
+CREATE INDEX idx_collections_universe_qid ON collections(universe_qid);
 
 CREATE INDEX idx_cva_key_qid
     ON canonical_value_arrays(key, value_qid);
@@ -3071,6 +3168,16 @@ CREATE INDEX idx_series_members_series
 CREATE INDEX idx_setup_codes_active
     ON setup_codes(consumed_at, invalidated_at, expires_at);
 
+CREATE INDEX idx_subtitle_index_tracks_asset ON subtitle_index_tracks(asset_id);
+
+CREATE INDEX idx_subtitle_index_tracks_text_track ON subtitle_index_tracks(text_track_id);
+
+CREATE INDEX idx_subtitle_lines_time ON subtitle_lines(track_id, start_ms);
+
+CREATE INDEX idx_subtitle_name_tags_entity ON subtitle_name_tags(entity_id);
+
+CREATE INDEX idx_subtitle_name_tags_time ON subtitle_name_tags(track_id, window_start_ms);
+
 CREATE INDEX idx_system_activity_action_type
     ON system_activity (action_type);
 
@@ -3142,6 +3249,9 @@ CREATE INDEX ix_application_events_occurred ON application_events(occurred_at);
 CREATE INDEX ix_application_events_profile_sequence ON application_events(profile_id, sequence);
 
 CREATE INDEX ix_application_events_type_sequence ON application_events(event_type, sequence);
+
+CREATE INDEX ix_application_webhook_attempts_webhook_time
+    ON application_webhook_attempts(webhook_id, attempted_at DESC);
 
 CREATE INDEX ix_application_webhook_delivery_due ON application_webhook_deliveries(status,next_attempt_at);
 
@@ -3428,6 +3538,10 @@ END;
 CREATE TRIGGER trg_view_sources_scope_update BEFORE UPDATE OF scope_kind,personal_space_id,library_id ON view_sources BEGIN
     SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
 END;
+
+CREATE TRIGGER trg_works_series_lock_released_with_shelf
+BEFORE DELETE ON collections
+BEGIN UPDATE works SET series_placement_locked = 0 WHERE collection_id = OLD.id AND series_placement_locked = 1; END;
 
 CREATE VIEW primary_person_media_credits AS
 WITH asset_scope AS (

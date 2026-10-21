@@ -22,7 +22,7 @@ public sealed record ImportFolderStatus(string? Path, IReadOnlyList<string> Miss
 
 /// <summary>
 /// The import folder is optional (other apps such as Sonarr and Radarr can drop finished downloads in it).
-/// It is the storage location with id <see cref="LocationId"/>. When it is set, each of the six media types needs a
+/// It is the storage location with id <see cref="LocationId"/>. When it is set, each of the seven media types needs a
 /// destination: the folder Tuvima manages and files that type into. An as-is folder is never a destination.
 /// </summary>
 public static class ImportFolderRules
@@ -37,10 +37,11 @@ public static class ImportFolderRules
         ("TV Shows", ["TV", "TVShows"]),
         ("Music", ["Music"]),
         ("Comics", ["Comics"]),
+        ("Videos", ["Videos"]),
     ];
 
     /// <summary>The folders created inside the import folder when it is set, one per media type. Programs such as Sonarr and Radarr are pointed at them.</summary>
-    public static readonly IReadOnlyList<string> Subfolders = ["Movies", "TV", "Music", "Books", "Audiobooks", "Comics"];
+    public static readonly IReadOnlyList<string> Subfolders = ["Movies", "TV", "Music", "Books", "Audiobooks", "Comics", "Videos"];
 
     /// <summary>Name of the folder, inside the import folder, that Tuvima uses for its own working files. It is never scanned for media.</summary>
     public const string WorkingFolderName = ".data";
@@ -64,7 +65,7 @@ public static class ImportFolderRules
     public static string SubfolderFor(string label) =>
         string.Equals(label, "TV Shows", StringComparison.OrdinalIgnoreCase) ? "TV" : label;
 
-    /// <summary>The media type label for a per-type folder name, or <see langword="null"/> when it is not one of the six.</summary>
+    /// <summary>The media type label for a per-type folder name, or <see langword="null"/> when it is not one of the seven.</summary>
     public static string? LabelForSubfolder(string? folderName)
     {
         if (string.IsNullOrWhiteSpace(folderName))

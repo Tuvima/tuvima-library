@@ -78,6 +78,40 @@ public sealed class PersonCreditSqlTests : IDisposable
     }
 
     [Fact]
+    public async Task CandidateAssets_ContainEveryFileTheSharedCreditViewCreditsToThePerson()
+    {
+        await SeedAsync();
+
+        using var conn = _db.CreateConnection();
+        var personIds = (await conn.QueryAsync<Guid>("SELECT id FROM persons;")).ToList();
+        Assert.NotEmpty(personIds);
+
+        var checkedPersons = 0;
+        foreach (var personId in personIds)
+        {
+            var credited = (await conn.QueryAsync<string>(
+                "SELECT DISTINCT hex(media_asset_id) FROM primary_person_media_credits WHERE person_id = @personId;",
+                new { personId })).ToHashSet();
+            var candidates = (await conn.QueryAsync<string>(
+                $"""
+                WITH {PersonCreditSql.CandidateAssetsCte(
+                    "candidate_assets",
+                    "SELECT id, name, wikidata_qid FROM persons WHERE id = @personId",
+                    "ca_")}
+                SELECT hex(asset_id) FROM candidate_assets;
+                """,
+                new { personId })).ToHashSet();
+
+            Assert.True(
+                credited.IsSubsetOf(candidates),
+                $"Person {personId} is credited on files the candidate step does not return.");
+            checkedPersons += credited.Count > 0 ? 1 : 0;
+        }
+
+        Assert.True(checkedPersons > 1, "The test library should credit more than one person.");
+    }
+
+    [Fact]
     public async Task ScopedCredits_UsedTwiceInOneStatement_DoNotCollide()
     {
         var fixture = await SeedAsync();

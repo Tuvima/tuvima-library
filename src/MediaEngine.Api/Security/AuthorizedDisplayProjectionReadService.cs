@@ -18,12 +18,13 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     IRequestAuthorityResolver authorities,
     IAccountRepository accounts,
     IAuthorizationEvaluator evaluator,
-    IDatabaseConnection database) : IDisplayProjectionReadService
+    IDatabaseConnection database,
+    IConfigurationLoader? configuration = null) : IDisplayProjectionReadService
 {
     // Built from the same data store connection, so every host that can authorize a catalogue request can also enforce the limit.
     private ContentLimitPolicy? _contentLimits;
 
-    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database));
+    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database), configuration);
 
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct) =>
         FilterWorks(await inner.LoadWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
@@ -248,7 +249,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             : [];
 
     private static bool Allows(string? libraryId, string mediaType, string? contentRating, CatalogueScope scope) =>
-        scope.Content.Allows(contentRating) && AllowsLibraryAndFeature(libraryId, mediaType, scope);
+        scope.Content.Allows(contentRating) && scope.Content.AllowsVideo(libraryId, mediaType) && AllowsLibraryAndFeature(libraryId, mediaType, scope);
 
     private static bool AllowsLibraryAndFeature(string? libraryId, string mediaType, CatalogueScope scope)
     {

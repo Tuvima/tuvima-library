@@ -14,6 +14,8 @@ public sealed partial class DisplayComposerService
     private readonly DisplayFormatReader? _formats;
     private readonly DisplayGridPersonalReader? _personal;
     private readonly ISeriesManifestRepository? _manifests;
+    private readonly ICanonicalValueArrayRepository? _arrays;
+    private readonly ICollectionRepository? _collections;
 
     public DisplayComposerService(
         IDisplayProjectionReadService readService,
@@ -22,7 +24,9 @@ public sealed partial class DisplayComposerService
         MusicPlayStatsRepository? musicStats = null,
         DisplayFormatReader? formats = null,
         DisplayGridPersonalReader? personal = null,
-        ISeriesManifestRepository? manifests = null)
+        ISeriesManifestRepository? manifests = null,
+        ICanonicalValueArrayRepository? arrays = null,
+        ICollectionRepository? collections = null)
     {
         _readService = readService;
         _cards = cards;
@@ -31,6 +35,8 @@ public sealed partial class DisplayComposerService
         _formats = formats;
         _personal = personal;
         _manifests = manifests;
+        _arrays = arrays;
+        _collections = collections;
     }
 
     // Projection rows remain per asset for resume/state calculations. Only presentation
@@ -58,6 +64,7 @@ public sealed partial class DisplayComposerService
         var homeCollections = await homeCollectionsTask;
         var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
         var tvShowCards = _cards.BuildTvShowCards(works, progressByWork);
+        var videoCards = _cards.BuildVideoCards(works, progressByWork);
 
         var musicAlbumCards = BuildMusicAlbumCards(works
             .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Music")
@@ -76,9 +83,10 @@ public sealed partial class DisplayComposerService
             .Select(group => group.Key.ToString("D")).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var freshCandidates = works
             .Where(work => !work.IsUpdatingDetails)
-            .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is not ("TV" or "Music"))
+            .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is not ("TV" or "Music" or "Video"))
             .Select(work => _cards.FromWork(work, "home", progressByWork.GetValueOrDefault(work.WorkId)))
             .Concat(tvShowCards.Where(card => readyRoots.Contains((card.WorkId ?? card.Id).ToString("D"))).Select(card => card with { TileTextMode = "coverOnly" }))
+            .Concat(videoCards.Where(card => readyRoots.Contains((card.WorkId ?? card.Id).ToString("D"))))
             .Concat(musicAlbumCards.Where(card => readyRoots.Contains((card.WorkId ?? card.Id).ToString("D"))))
             .OrderByDescending(card => card.SortTimestamp)
             .ToList();
@@ -94,6 +102,7 @@ public sealed partial class DisplayComposerService
             .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Movie")
             .Select(work => _cards.FromWork(work, "home", progressByWork.GetValueOrDefault(work.WorkId)))
             .Concat(tvShowCards.Select(card => card with { TileTextMode = "coverOnly" }))
+            .Concat(videoCards)
             .OrderByDescending(card => card.SortTimestamp)
             .Take(Math.Max(1, shelfLimit))
             .ToList();
@@ -128,9 +137,10 @@ public sealed partial class DisplayComposerService
             Hero: spotlights.FirstOrDefault(),
             Shelves: shelves,
             Catalog: includeCatalog
-                ? works.Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is not ("TV" or "Music"))
+                ? works.Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is not ("TV" or "Music" or "Video"))
                     .Select(work => _cards.FromWork(work, "home", progressByWork.GetValueOrDefault(work.WorkId)))
                     .Concat(tvShowCards.Select(card => card with { TileTextMode = "coverOnly" }))
+                    .Concat(videoCards)
                     .Concat(musicAlbumCards)
                     .ToList()
                 : [])
@@ -292,6 +302,27 @@ public sealed partial class DisplayComposerService
                 Facets = facets,
                 Timeline = ordered.Select((card, index) => new { Year = Math.Max(0, card.SortYear), Index = index })
                     .GroupBy(item => item.Year).Select(group => new DisplayTimelinePeriodDto(group.Key, group.Count(), group.Min(item => item.Index))).ToList()
+            };
+        }
+
+        if (string.Equals(grouping, "videos", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(DisplayMediaRules.NormalizeMediaType(mediaType ?? string.Empty), "Videos", StringComparison.OrdinalIgnoreCase))
+        {
+            var videoCards = _cards.BuildVideoCards(filteredWorks, progressByWork);
+            var pagedVideoCards = videoCards
+                .Skip(Math.Max(0, offset))
+                .Take(Math.Clamp(limit <= 0 ? 48 : limit, 1, 200))
+                .ToList();
+            return new DisplayPageDto(
+                Key: "browse-watch-videos",
+                Title: "Videos",
+                Subtitle: "Series and videos from your library",
+                Hero: pagedVideoCards.FirstOrDefault() is { } videoHero ? DisplayCardBuilder.ToHero(videoHero, "Videos") : null,
+                Shelves: includeCatalog ? [] : [new DisplayShelfDto("results", "Videos", null, pagedVideoCards, null)],
+                Catalog: includeCatalog ? pagedVideoCards : [])
+            {
+                TotalCount = videoCards.Count,
+                Facets = facets,
             };
         }
 
@@ -473,9 +504,15 @@ public sealed partial class DisplayComposerService
         }
 
         var placements = await SeriesShelfSplit.LoadPlacementsAsync(_manifests, [groupId], ct).ConfigureAwait(false);
+        var shelfQid = _collections is null
+            ? null
+            : (await _collections.GetByIdAsync(groupId, ct).ConfigureAwait(false))?.WikidataQid;
+        var seriesPairs = await SeriesShelfSplit.LoadSeriesPairsAsync(_arrays, works, ct).ConfigureAwait(false);
         var split = SeriesShelfSplit.Split(
             works,
-            placements.TryGetValue(groupId, out var byWork) ? byWork : new Dictionary<Guid, MediaEngine.Domain.Entities.SeriesManifestItemRecord>());
+            placements.TryGetValue(groupId, out var byWork) ? byWork : new Dictionary<Guid, MediaEngine.Domain.Entities.SeriesManifestItemRecord>(),
+            shelfQid,
+            seriesPairs);
         var episodes = split.TvRows
             .OrderBy(work => DisplayMediaRules.ParseDouble(work.SeriesPosition) ?? double.MaxValue)
             .ThenBy(work => work.SortTitle ?? work.Title, StringComparer.OrdinalIgnoreCase);

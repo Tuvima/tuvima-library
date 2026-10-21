@@ -537,7 +537,7 @@ public static class CollectionEndpoints
             // Collection-level header canonical values come from the topmost Work row.
             // Phase 4 — parent-scoped fields (author, director, artist, genre, cover,
             // network) live on the root parent Work, not on individual child works.
-            string? collectionCreator = await ResolveGroupCreatorAsync(canonicalArrayRepo, rootParentWorkId, parentCvs, isMusic, ct);
+            string? collectionCreator = await ResolveGroupCreatorAsync(canonicalArrayRepo, rootParentWorkId, isMusic, ct);
             string? collectionDirector = isTv ? null : ParentCv("director");
             string? collectionWriter = ParentCv("writer");
             string? collectionGenre = ParentCv("genre");
@@ -675,202 +675,6 @@ public static class CollectionEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireClientScope(ClientApiScopes.LibraryRead)
             .RequireCatalogueEntityAccess(ApplicationPermissionIds.LibraryRead, "Collection", "collectionId");
-
-        // GET /collections/artist-group-detail?collection_ids=id1,id2,... — combined multi-collection detail for artist-level drill-down.
-        group.MapGet("/artist-group-detail", async (
-            [Microsoft.AspNetCore.Mvc.FromQuery(Name = "collection_ids")] string collectionIdsParam,
-            ICollectionRepository collectionRepo,
-            IPersonRepository personRepo,
-            ICollectionBrowseReadService browseReadService,
-            IDisplayProjectionReadService display,
-            AlbumTrackManifestService manifestService,
-            ILoggerFactory loggerFactory,
-            CancellationToken ct) =>
-        {
-            if (string.IsNullOrWhiteSpace(collectionIdsParam))
-            {
-                return ApiErrors.BadRequest("collection_ids parameter is required");
-            }
-
-            var collectionIds = collectionIdsParam.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(s => Guid.TryParse(s, out var id) ? id : (Guid?)null)
-                .Where(id => id.HasValue)
-                .Select(id => id!.Value)
-                .ToList();
-
-            if (collectionIds.Count == 0)
-            {
-                return ApiErrors.BadRequest("No valid collection IDs provided");
-            }
-
-            // Load all collections and build album-based seasons
-            var allSeasons = new List<CollectionGroupSeasonDto>();
-            string? combinedCreator = null;
-            string? combinedGenre = null;
-            int totalItems = 0;
-            var allYears = new List<string>();
-
-            int albumIndex = 0;
-            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
-            var collectionsById = (await collectionRepo.GetCollectionsWithWorksAsync(collectionIds, ct))
-                .ToDictionary(collection => collection.Id);
-            foreach (var collectionId in collectionIds)
-            {
-                if (!collectionsById.TryGetValue(collectionId, out var collection))
-                {
-                    continue;
-                }
-                var visibleWorks = collection.Works
-                    .Where(work => visibleWorkIds.Contains(work.Id))
-                    .ToList();
-                if (visibleWorks.Count == 0)
-                {
-                    continue;
-                }
-
-                // Build owned track DTOs from collection.Works.
-                var primaryAssetIds = await browseReadService.GetPrimaryAssetIdsAsync(visibleWorks.Select(w => w.Id), ct);
-                var ownedTracks = visibleWorks
-                    .OrderBy(w => w.Ordinal ?? int.MaxValue)
-                    .ThenBy(w => w.Id)
-                    .Select(w =>
-                    {
-                        var wDto = w.ToContract();
-                        var duration = GetCanonical(wDto, "duration_seconds")
-                            ?? GetCanonical(wDto, "duration_sec")
-                            ?? GetCanonical(wDto, "duration")
-                            ?? GetCanonical(wDto, "runtime");
-                        var durationSeconds = NormalizeAudioDurationSeconds(duration);
-                        return new CollectionGroupWorkDto
-                        {
-                            WorkId = w.Id,
-                            AssetId = primaryAssetIds.GetValueOrDefault(w.Id),
-                            Title = GetCanonical(wDto, "title") ?? $"Track {w.Id.ToString("N")[..8]}",
-                            Ordinal = w.Ordinal,
-                            Year = GetCanonical(wDto, "release_year") ?? GetCanonical(wDto, "year"),
-                            Duration = FormatAudioDuration(durationSeconds, duration),
-                            DurationSeconds = durationSeconds,
-                            CoverUrl = BuildCoverStreamUrl(w, primaryAssetIds.GetValueOrDefault(w.Id)),
-                            WikidataQid = w.WikidataQid,
-                            TrackNumber = GetCanonical(wDto, "track_number"),
-                            DiscNumber = ParseNullableInt(GetCanonical(wDto, "disc_number")),
-                            AppleMusicId = GetCanonical(wDto, BridgeIdKeys.AppleMusicId),
-                            Status = w.WikidataStatus switch
-                            {
-                                WikidataLinkStatus.Confirmed => "Verified",
-                                WikidataLinkStatus.Skipped => "Unlinked",
-                                _ => "Provisional",
-                            },
-                            IsOwned = true,
-                        };
-                    })
-                    .ToList();
-
-                // Per-album cover, year, and child_entities_json from this collection's first work.
-                string? albumCover = null;
-                string? albumYear = null;
-                string? childJson = null;
-                if (visibleWorks.Count > 0)
-                {
-                    var firstWorkDto = visibleWorks[0].ToContract();
-                    combinedCreator ??= GetCanonical(firstWorkDto, "artist")
-                                       ?? GetCanonical(firstWorkDto, "author");
-                    combinedGenre ??= GetCanonical(firstWorkDto, "genre");
-                    albumCover = BuildCoverStreamUrl(
-                        visibleWorks[0],
-                        primaryAssetIds.GetValueOrDefault(visibleWorks[0].Id));
-                    albumYear = GetCanonical(firstWorkDto, "release_year") ?? GetCanonical(firstWorkDto, "year");
-
-                    // child_entities_json may be on any track in the album (album-level claim attached
-                    // to whichever track was being processed when Stage 2 ran). Try each in order.
-                    foreach (var w in visibleWorks)
-                    {
-                        var dto = w.ToContract();
-                        childJson = GetCanonical(dto, MetadataFieldConstants.ChildEntitiesJson);
-                        if (!string.IsNullOrWhiteSpace(childJson))
-                        {
-                            break;
-                        }
-                    }
-                }
-
-                // Merge unowned tracks from child_entities_json.
-                var mergedTracks = AlbumTrackManifestService.MergeUnownedMusicTracks(ownedTracks, childJson, albumCover);
-
-                if (mergedTracks.Any(t => t.IsOwned && !string.IsNullOrWhiteSpace(t.Year)))
-                {
-                    allYears.AddRange(mergedTracks.Where(t => t.IsOwned && !string.IsNullOrWhiteSpace(t.Year)).Select(t => t.Year!));
-                }
-
-                allSeasons.Add(new CollectionGroupSeasonDto
-                {
-                    SeasonNumber = albumIndex,
-                    SeasonLabel = collection.DisplayName ?? $"Album {albumIndex + 1}",
-                    CoverUrl = albumCover,
-                    AlbumCollectionId = collection.Id,
-                    Year = albumYear,
-                    Episodes = mergedTracks,
-                });
-
-                totalItems += mergedTracks.Count(t => t.IsOwned);
-                albumIndex++;
-            }
-
-            var years = allYears.Distinct().OrderBy(y => y).ToList();
-            string? yearRange = years.Count switch
-            {
-                0 => null,
-                1 => years[0],
-                _ => $"{years[0]}–{years[^1]}",
-            };
-
-            // Resolve artist photo via the persons table.
-            string? artistPhotoUrl = null;
-            Guid? artistPersonId = null;
-            if (!string.IsNullOrWhiteSpace(combinedCreator))
-            {
-                try
-                {
-                    var person = await personRepo.FindByNameAsync(combinedCreator, ct);
-                    if (person is not null)
-                    {
-                        artistPersonId = person.Id;
-                        if (!string.IsNullOrEmpty(person.LocalHeadshotPath) || !string.IsNullOrEmpty(person.HeadshotUrl))
-                        {
-                            artistPhotoUrl = $"/persons/{person.Id}/headshot";
-                        }
-                    }
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    loggerFactory.CreateLogger("CollectionArtistGroupDetail")
-                        .LogWarning(ex, "Could not look up the person for artist {ArtistName}", combinedCreator);
-                }
-            }
-
-            var response = new CollectionGroupDetailDto
-            {
-                CollectionId = collectionIds[0],
-                DisplayName = combinedCreator ?? "Unknown Artist",
-                PrimaryMediaType = "Music",
-                CoverUrl = null, // artist view header uses ArtistPhotoUrl, not an album cover
-                Creator = combinedCreator,
-                YearRange = yearRange,
-                Genre = combinedGenre,
-                TotalItems = totalItems,
-                Seasons = allSeasons,
-                Works = [],
-                ArtistPhotoUrl = artistPhotoUrl,
-                ArtistPersonId = artistPersonId,
-            };
-
-            return Results.Ok(response);
-        })
-        .WithName("GetArtistGroupDetail")
-        .WithSummary("Returns combined multi-collection detail for artist-level drill-down in the Music tab. Each collection becomes an album 'season'.")
-        .Produces<CollectionGroupDetailDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status400BadRequest)
-        .RequireClientScope(ClientApiScopes.LibraryRead);
 
         // GET /collections/artist-detail-by-name?artistName=X — Artist drill-down for system-view mode.
         // Queries works directly from canonical_values, grouped by album, returning the same CollectionGroupDetailDto shape.
@@ -2936,12 +2740,11 @@ public static class CollectionEndpoints
     /// The credit a group's header names: an album's artist (album_artist, then artist) or, for any other
     /// group, its first author. Those credits are multi-valued, so they live only in canonical_value_arrays on
     /// the root Work, and within a key the first by ordinal wins. A group with no author falls back to its
-    /// creator, which the data store keeps as a single value in canonical_values.
+    /// creators, which are multi-valued too (Wikidata can name several): all of them, in order, joined by ", ".
     /// </summary>
     internal static async Task<string?> ResolveGroupCreatorAsync(
         ICanonicalValueArrayRepository canonicalArrayRepo,
         Guid? rootWorkId,
-        IReadOnlyList<CanonicalValue> rootValues,
         bool isMusic,
         CancellationToken ct)
     {
@@ -2963,12 +2766,18 @@ public static class CollectionEndpoints
             }
         }
 
-        return isMusic
-            ? null
-            : StringHelpers.FirstNonBlank(rootValues
-                .Where(value => string.Equals(value.Key, "creator", StringComparison.OrdinalIgnoreCase))
-                .Select(value => value.Value)
-                .ToArray())?.Trim();
+        if (isMusic)
+        {
+            return null;
+        }
+
+        var creators = (await canonicalArrayRepo.GetValuesAsync(workId, "creator", ct))
+            .OrderBy(entry => entry.Ordinal)
+            .Select(entry => entry.Value?.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return creators.Count == 0 ? null : string.Join(", ", creators);
     }
 
     private static async Task<Profile?> ResolveActiveProfileAsync(

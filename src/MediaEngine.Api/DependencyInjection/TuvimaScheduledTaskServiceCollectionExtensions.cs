@@ -1,4 +1,3 @@
-using MediaEngine.AI.Configuration;
 using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
@@ -18,8 +17,12 @@ public static class TuvimaScheduledTaskServiceCollectionExtensions
             ScheduledTaskCatalog.RegisterAll(
                 registry,
                 sp.GetRequiredService<IConfigurationLoader>(),
-                sp.GetRequiredService<AiSettings>(),
                 sp.GetRequiredService<ApplicationWebhookRepository>());
+            foreach (var source in sp.GetServices<IScheduledTaskDescriptorSource>())
+            {
+                registry.AddSource(source);
+            }
+
             return registry;
         });
         return services;

@@ -58,7 +58,7 @@ Core Engine settings. Most changes are read at startup. Ingestion sources and de
 | `data_root` | string | `""` | Root directory for generated Engine data (artwork, derived files, staging). Empty means `.data/` inside `library_root`. |
 | `library_root` | string | `""` | Tuvima's own library folder, where the Engine places organized media and keeps `.data/`. The shipped file uses `{TuvimaData}/library`, so a fresh install follows the server's data location (see below). |
 | `organization_template` | string | - | Default file organization template. Tokens: `{Category}`, `{Title}`, `{Qid}`, `{Ext}`. |
-| `organization_templates` | object | - | Per-media-type templates. Keys: `default`, `Books`, `Audiobooks`, `Movies`, `TV`, `Comics`, `Music`. TV supports `{Series}`, `{Season}`, `{Episode}` tokens; `{Episode}` reads `01-e02` for a file that covers episodes 1 and 2. Music supports `{Artist}`, `{Album}`, `{TrackNumber}` tokens. |
+| `organization_templates` | object | - | Per-media-type templates. Keys: `default`, `Books`, `Audiobooks`, `Movies`, `TV`, `Comics`, `Music`. TV supports `{Series}`, `{Season}`, `{Episode}` and `{EpisodeCode}` (`s01e05`, empty unless both numbers are known) tokens; `{Episode}` reads `01-e02` for a file that covers episodes 1 and 2. Music supports `{Artist}`, `{Album}`, `{TrackNumber}` tokens. A `?` after a token (`{TrackNumber?}`) leaves it out when empty instead of writing "Unknown", and a dash separator right after an optional token (`{TrackNumber?} - {Title}`) goes with it, so an unnumbered file reads `Hidden Jam.flac`. |
 | `server_name` | string | `"Tuvima Library"` | Display name shown in the Dashboard title bar and system status. |
 | `language` | object | - | Language preferences. See sub-fields below. |
 | `language.display` | string | `"en"` | UI display language (BCP-47 code). Controls Dashboard localization. |
@@ -68,8 +68,8 @@ Core Engine settings. Most changes are read at startup. Ingestion sources and de
 | `country` | string | `"US"` | Country code. Used by providers that return region-specific data (e.g., Apple API storefronts). |
 | `date_format` | string | `"system"` | Date display format. `"system"` uses the OS locale. Accepts standard format strings. |
 | `time_format` | string | `"system"` | Time display format. `"system"` uses the OS locale. |
-| `plugin_catalog.enabled` | bool | `true` | Enables the read-only approved plugin catalog lookup used by Settings > Plugins. |
-| `plugin_catalog.approved_plugins_url` | string | GitHub raw URL | HTTPS GitHub URL for the approved plugin catalog JSON. The Engine accepts `raw.githubusercontent.com` or `github.com` sources only. |
+| `plugin_catalog.enabled` | bool | `true` | The plugin directory switch (Settings > Plugins > Available plugins). When `false` the Engine makes no request to GitHub and shows the saved copy, if there is one. |
+| `plugin_catalog.approved_plugins_url` | string | GitHub raw URL | HTTPS GitHub URL for the plugin directory list ([format](plugin-catalog.md)). The Engine accepts `raw.githubusercontent.com` or `github.com` sources only. |
 
 **Server data location and the `{TuvimaData}` placeholder.** The shipped `config/core.json` and `config/libraries.json` contain no absolute paths. A path that starts with `{TuvimaData}` is replaced when the file is loaded by the server's data location: the `TUVIMA_DATA_DIR` environment variable if set, otherwise `%LOCALAPPDATA%\Tuvima\data` on Windows and `~/.local/share/tuvima` on Linux and macOS. Tuvima's own library folder (storage location id `media`, which also holds the View personal space) is created there automatically the first time the server runs. It is never shown in a folder picker or asked about in setup; if it cannot be created or written, the silent server check in setup fails with one message naming the folder and the fix. The Docker image ships its own `docker/config` files that use `/library`, so containers are unchanged. No import folder is shipped: the `incoming` storage location does not exist until someone sets one in Libraries. The developer real-media harness writes its own paths into `real-media-harness.json` and the configuration it prepares; it does not rely on shipped paths.
 
@@ -79,7 +79,7 @@ Core Engine settings. Most changes are read at startup. Ingestion sources and de
 
 ## config/ai.json
 
-AI/ML subsystem configuration. Controls model selection, feature toggles, vibe vocabulary, and enrichment scheduling.
+AI/ML subsystem configuration. Controls model selection, the resource profile and the audio pack.
 
 ### models
 
@@ -104,44 +104,17 @@ The catalog lists current, baseline, candidate, experimental, and escalation mod
 
 Role requirements define the promotion gates for each role. Tuvima selects the smallest candidate that passes the role's latency, JSON validity, task accuracy, hallucination, WER, and timestamp drift requirements.
 
-### features
+### AI features are plugins
 
-Boolean toggles. All default to `true` unless noted.
+Which Local AI features run is no longer set in `config/ai.json`. Smart labelling, Type helper, Series order, Vibe tags and Description insights are Official plugins, each off until an administrator turns it on (and approves what it uses) on **Settings > Plugins**. Their schedules and the words Vibe tags may use are plugin settings, saved under `.data/plugin-config/{plugin id}.json` in the library root:
 
-| Field | Default | Description |
+| Plugin | Id | Default schedule |
 |---|---|---|
-| `smart_labeler` | `true` | AI-assisted file labeling during ingestion. Improves title/author extraction from filenames. |
-| `media_type_advisor` | `true` | AI classification for ambiguous formats (MP3, MP4). |
-| `qid_disambiguator` | `true` | AI-assisted candidate ranking during Wikidata reconciliation. |
-| `vibe_tagger` | `true` | Generates vibe tags per work during batch enrichment. |
-| `tldr_generator` | `true` | Generates TL;DR summaries from descriptions. |
-| `description_intelligence` | `true` | Two-pass LLM analysis of descriptions: vocabulary extraction + person name extraction. Runs as background batch service (15-min cron). |
-| `intent_search` | `true` | Natural-language search query parsing. Translates user queries to structured field filters. |
-| `batch_manifest` | `true` | AI-assisted batch ingestion manifest building for folder drops. |
-| `cover_art_hash` | `true` | Perceptual hashing (pHash) of cover art for visual matching during retail identification. |
-| `audio_similarity` | `false` | Audio fingerprint similarity for music matching. Disabled by default (high CPU). |
-| `subtitle_sync` | `false` | Subtitle alignment via Whisper transcription. Disabled by default. |
+| Series order | `tuvima.ai-series-order` | `0 3 * * *` |
+| Vibe tags | `tuvima.ai-vibe-tags` | `0 4 * * *` |
+| Description insights | `tuvima.ai-description-insights` | every 15 minutes |
 
-### vibe_vocabulary
-
-Per-media-type lists of vibe descriptors across four dimensions. Each media type has 25-30 entries total.
-
-| Key | Description |
-|---|---|
-| `{media_type}.theme` | Core conceptual themes (e.g., "redemption", "survival", "identity") |
-| `{media_type}.mood` | Emotional atmosphere (e.g., "tense", "melancholic", "uplifting") |
-| `{media_type}.setting` | Environment and world feel (e.g., "sprawling cities", "isolated wilderness") |
-| `{media_type}.pace` | Narrative rhythm (e.g., "slow-burn", "relentless", "contemplative") |
-
-### schedule
-
-Cron expressions for background AI enrichment batches.
-
-| Field | Default | Description |
-|---|---|---|
-| `enrichment_cron` | `"*/15 * * * *"` | How often the description intelligence batch service runs. |
-| `vibe_cron` | `"0 * * * *"` | How often the vibe tagging batch runs. |
-| `quality_enrichment_cron` | `"0 2 * * *"` | When heavy quality-model enrichment runs (Medium tier: overnight). |
+The Vibe tags plugin keeps its vocabulary in the settings lists `books`, `movies_tv`, `music` and `comics`; an empty list falls back to the built-in words. The old `features`, `vibe_vocabulary` and `scheduling` sections of `config/ai.json` were removed.
 
 ---
 
@@ -204,7 +177,7 @@ Default strategies:
 - **Cascade:** Books
 - **Sequential:** Audiobooks, Music
 
-All six media types (Books, Audiobooks, Movies, TV, Music, Comics) must have at least one provider entry.
+The catalogued media types (Books, Audiobooks, Movies, TV, Music, Comics) must have at least one provider entry. Videos needs none: it is identified from local files, and its optional YouTube lookup is the `youtube` provider.
 
 Music is configured as a sequential Stage 1 chain: MusicBrainz has `purpose: "identity"` and Apple API has `purpose: "enrichment"`. That means MusicBrainz owns track, album, artist, release, and recording identity fields when available, while Apple can still win configured enrichment fields such as cover art, genre, storefront IDs, year, and retail metadata. This is a configuration rule, not a music-specific provider-order branch in orchestration code.
 
@@ -363,7 +336,7 @@ Scheduled maintenance task configuration.
 | `schedules.plugin_segment_detection` | cron | `0 2 * * *` | Scheduled playback segment detection run by enabled segment plugins. |
 | `schedules.log_file_retention` | cron | `30 3 * * *` | When Engine log files older than the limit are removed. |
 
-Every recurring task with its schedule, next run and last run is listed by `GET /system/scheduled-tasks`. The Local AI schedules (`vibe_batch_cron`, `series_check_cron`, `description_intelligence_cron`) stay in `config/ai.json` under `scheduling`. The keys `vibe_batch`, `series_check`, `description_intelligence`, `whisper_bake` and `taste_profile_update` were removed from the `schedules` defaults because no code read them.
+Every recurring task with its schedule, next run and last run is listed by `GET /system/scheduled-tasks`. The Local AI schedules are plugin schedules (see `config/ai.json` above) and are listed here with the key `plugin:{plugin id}:{job}`. The keys `vibe_batch`, `series_check`, `description_intelligence`, `whisper_bake` and `taste_profile_update` were removed from the `schedules` defaults because no code read them.
 
 Administrators can run the same maintenance manually with `POST /maintenance/storage/run?dryRun=true`.
 
@@ -412,7 +385,7 @@ This file is the authoritative configuration for all Wikidata-related behaviour.
 | `edition_pivot` | Per-media-type rules for walking from Wikidata edition items to work items. Previously stored in `edition-pivot.json` (now removed). Keys: `audiobooks`, `books`, `music`. Each has `work_classes`, `edition_classes`, and `prefer_edition`. |
 | `exclude_classes` | P31 classes to exclude from reconciliation results. |
 | `bridge_resolution.scopes` | Entity-scoped bridge-ID policy. Each scope declares `target_ids`, `context_ids`, and whether constrained text fallback is allowed. Music uses `MusicTrack` to prefer recording/work/ISRC IDs before Apple track IDs, while release/release-group/artist IDs stay contextual unless resolving `MusicAlbum`. |
-| `data_extension` | Properties fetched during the Data Extension API call after QID resolution. |
+| `data_extension` | Properties fetched during the Data Extension API call after QID resolution. A property is read only when it is in the group for its entity type (`work_properties`, `character_properties`, and so on) and has a `property_labels` entry. Character relationships include significant person (P3342) and enemy (P7047); Works carry based on (P144) and derivative work (P4969), which become adaptation links between Works. |
 
 **Removed config files (consolidated here):**
 - `config/cirrus-type-filters.json` - merged into `instance_of_classes`

@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MediaEngine.Api.Services.Plugins.Pages;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Plugins;
 
@@ -13,15 +14,13 @@ namespace MediaEngine.Api.Services.Approvals;
 /// machine. The Engine writes every word here so the Dashboard, applications and the approval record all agree.
 /// </summary>
 /// <param name="Notes">Every note shown to the person.</param>
-/// <param name="UnhashedNotes">Notes that are shown (and are part of <paramref name="Notes"/>) but describe a passing condition, so they are left out of the fingerprint and a change in them does not ask again.</param>
 internal sealed record ApprovalStatement(
     string Title,
     string KindLabel,
     IReadOnlyList<string> CanDo,
     bool SendsDataOut,
     string? SendsDataTo,
-    IReadOnlyList<string> Notes,
-    IReadOnlyList<string>? UnhashedNotes = null);
+    IReadOnlyList<string> Notes);
 
 /// <summary>
 /// Builds <see cref="ApprovalStatement"/>s and their fingerprint. Pure: no storage, no clock, no secrets. A statement
@@ -38,8 +37,10 @@ internal static class ApprovalStatementBuilder
     /// <summary>Where an integration's existing keys are described, since the Engine cannot know the software.</summary>
     public const string TheSoftwareHoldingItsKeys = "the software that holds its keys";
 
+    /// <summary>The warning shown wherever a plugin Tuvima has not checked is offered (the plugin directory and its install approval).</summary>
+    public const string NotVerifiedWarning = "Tuvima hasn't checked this plugin. Only install plugins from people you trust.";
+
     public const string PluginKindLabel = "Plugin";
-    public const string AiFeatureKindLabel = "Local AI feature";
     public const string CredentialKindLabel = "Application key";
     public const string ApplicationKindLabel = "Integration";
     public const string WebhookKindLabel = "Webhook";
@@ -47,9 +48,11 @@ internal static class ApprovalStatementBuilder
     private const string UsesLocalAi = "Uses Local AI";
     private const string RunsAs = "Runs as";
     private const string KeepsOwnKeysAndLogins = "Keeps its own keys and logins";
-    private const string RunsWithLocalAi = "Runs on this machine with Local AI";
-    private const string ModelMayDownload = "May download an AI model to this machine first";
     private const string UnsandboxedNote = "Plugins run inside the server without a sandbox. Only turn on plugins you trust.";
+    private const string DeclarativeNote = "This plugin is a description file; it runs no code of its own.";
+    private const string ServiceNote = "This plugin runs as a separate program on this machine. The Library limits what it can ask the Library to do, but not what the program does on its own, so only turn on plugins you trust.";
+    private const string SandboxedNote = "This plugin runs in a sandbox with limited access.";
+    private const string OfficialNote = "This plugin ships with the Library.";
 
     private static readonly JsonSerializerOptions CanonicalJson = new()
     {
@@ -66,6 +69,12 @@ internal static class ApprovalStatementBuilder
         ["ai.infer"] = UsesLocalAi,
         ["storage.plugin"] = "Keeps its own data",
         ["secrets.plugin"] = KeepsOwnKeysAndLogins,
+        ["plugin-records"] = "Keeps its own records in the Library's data store",
+        ["scheduled-work"] = "Runs its own recurring jobs, listed in Scheduled tasks",
+        ["library-events"] = "Is told when things happen in the Library (items added, ingestion finished, metadata changes)",
+        ["watch-activity"] = "Is told what people watch, read and listen to",
+        ["background-work"] = "Runs continuously in the background while switched on",
+        ["plugin-pages"] = "Adds pages and menu entries to the Library",
     };
 
     private static readonly IReadOnlyDictionary<string, string> AiRoleNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -76,31 +85,23 @@ internal static class ApprovalStatementBuilder
         ["text_cjk"] = "write text (careful, Chinese, Japanese, Korean)",
     };
 
-    private static readonly IReadOnlyDictionary<string, string[]> FeatureWords = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["smart_labeling"] = ["Reads file and folder names", "Suggests titles, authors, years and episode numbers when files are added"],
-        ["type_logic"] = ["Reads file names and basic file facts", "Decides the media type when it is unclear"],
-        ["series_alignment"] = ["Reads series and title details", "Suggests the order within a series"],
-        ["vibe_tags"] = ["Reads descriptions and genres", "Adds mood tags"],
-        ["tldr"] = ["Shows the short summary made by Description insights"],
-        ["description_intelligence"] = ["Reads descriptions", "Adds themes, mood, setting, period, audience, pace, content warnings and people"],
-    };
-
-    private static readonly IReadOnlyDictionary<string, string> FeatureTitles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["smart_labeling"] = "Smart labeling",
-        ["type_logic"] = "Media-type assistance",
-        ["series_alignment"] = "Series alignment",
-        ["vibe_tags"] = "Vibe tags",
-        ["tldr"] = "Description TL;DR",
-        ["description_intelligence"] = "Description intelligence",
-    };
-
     // ── State card words ─────────────────────────────────────────────────────
 
     /// <summary>The plain words for one plugin permission id; an id the Library does not know is shown as it is.</summary>
     public static string PermissionText(string permissionId) =>
         PermissionWords.TryGetValue(permissionId, out var words) ? words : permissionId;
+
+    /// <summary>
+    /// The lines for one permission. Internet access with declared destinations is one "Contacts host: what it sends" line
+    /// per destination instead of the general line; every other permission is its plain words.
+    /// </summary>
+    public static IEnumerable<string> PermissionLines(string permissionId, IReadOnlyList<PluginNetworkDestination> network)
+    {
+        ArgumentNullException.ThrowIfNull(network);
+        return network.Count > 0 && IsNetworkHttp(permissionId)
+            ? network.Select(DestinationLine)
+            : [PermissionText(permissionId)];
+    }
 
     /// <summary>
     /// What a plugin may do: one line per declared permission, per tool it needs ("Needs FFmpeg"), per Local AI ability it
@@ -121,10 +122,13 @@ internal static class ApprovalStatementBuilder
                 continue;
             }
 
-            lines.Add(PermissionText(permission));
+            lines.AddRange(PermissionLines(permission, manifest.Network));
         }
 
         lines.AddRange(manifest.ToolRequirements.Select(tool => $"Needs {ToolName(tool)}"));
+        // Who sees each page is part of what the administrator approves, so widening an audience asks again.
+        lines.AddRange(PluginPageDeclarations.Read(manifest).Pages.Select(page =>
+            $"Shows the page '{page.Title}' to {PluginPageDeclarations.AudienceWords(page.Audience)}"));
         lines.AddRange(manifest.AiPermissions
             .Select(permission => $"{UsesLocalAi}: {AiRoleName(permission.Role)}")
             .Distinct(StringComparer.Ordinal)
@@ -138,8 +142,46 @@ internal static class ApprovalStatementBuilder
             lines.Add($"{KeepsOwnKeysAndLogins}: {string.Join(", ", labels)}");
         }
 
+        lines.AddRange(ProgramLines(manifest));
+
         lines.Add($"{RunsAs}: {PluginKindName(manifest.Kind)}");
         return lines.Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    /// <summary>
+    /// What a separate-program plugin runs or connects to, in full and never shortened: the program, each argument on its own
+    /// line (so ["-c", "a b"] and ["-c", "a", "b"] read differently), and the two paths the Library calls on it. All of it is
+    /// part of the fingerprint, so changing any of it asks again.
+    /// </summary>
+    private static IEnumerable<string> ProgramLines(PluginManifest manifest)
+    {
+        if (manifest.Kind != PluginKind.Service || manifest.Service is not { ValueKind: System.Text.Json.JsonValueKind.Object } service)
+        {
+            yield break;
+        }
+
+        static string? Text(System.Text.Json.JsonElement element, string name) =>
+            element.TryGetProperty(name, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.String ? value.GetString() : null;
+
+        if (Text(service, "command") is { } command)
+        {
+            yield return $"Starts a program on this machine: {command}";
+            if (service.TryGetProperty("arguments", out var arguments) && arguments.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                var number = 0;
+                foreach (var argument in arguments.EnumerateArray().Where(item => item.ValueKind == System.Text.Json.JsonValueKind.String))
+                {
+                    number++;
+                    yield return $"Program argument {number}: {System.Text.Json.JsonSerializer.Serialize(argument.GetString())}";
+                }
+            }
+        }
+        else if (Text(service, "address") is { } address)
+        {
+            yield return $"Connects to a program at {address}";
+        }
+
+        yield return $"Asks the program at: {Text(service, "health_path") ?? "/health"} and {Text(service, "lookup_path") ?? "/lookup"}";
     }
 
     // A role the Library has no words for is shown by its id, so it still reads as a distinct line.
@@ -154,21 +196,29 @@ internal static class ApprovalStatementBuilder
         _ => kind.ToString(),
     };
 
-    /// <summary>"the internet" when the plugin can reach the internet; otherwise null (nothing leaves this machine).</summary>
+    /// <summary>
+    /// The hosts the plugin declares it contacts, separated by commas, when it can reach the internet; "the internet" for a
+    /// plugin that can but does not say where (a plugin directory entry that predates the network list); otherwise null
+    /// (nothing leaves this machine).
+    /// </summary>
     public static string? PluginSendsDataTo(PluginManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        return manifest.Permissions.Any(permission => string.Equals(permission, PluginPermissionIds.NetworkHttp, StringComparison.OrdinalIgnoreCase))
-            ? TheInternet
-            : null;
+        if (!manifest.Permissions.Any(IsNetworkHttp))
+        {
+            return null;
+        }
+
+        return manifest.Network.Count > 0
+            ? string.Join(", ", manifest.Network.Select(destination => destination.Host).Distinct(StringComparer.OrdinalIgnoreCase))
+            : TheInternet;
     }
 
-    /// <summary>What a Local AI feature is allowed to do, in plain words; empty for a feature the Library has no words for.</summary>
-    public static IReadOnlyList<string> AiFeatureAllowedTo(string featureKey) =>
-        FeatureWords.TryGetValue(featureKey, out var words) ? words : [];
+    private static bool IsNetworkHttp(string permission) =>
+        string.Equals(permission, PluginPermissionIds.NetworkHttp, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Local AI never sends data out, so this is always null.</summary>
-    public static string? AiFeatureSendsDataTo(string featureKey) => null;
+    private static string DestinationLine(PluginNetworkDestination destination) =>
+        $"Contacts {destination.Host}: {destination.Sends.Trim()}";
 
     // ── Statements ───────────────────────────────────────────────────────────
 
@@ -182,25 +232,41 @@ internal static class ApprovalStatementBuilder
             PluginAllowedTo(manifest),
             sendsTo is not null,
             sendsTo,
-            [TrustNote(trust), UnsandboxedNote]);
+            [TrustNote(trust), manifest.Kind == PluginKind.Service ? ServiceNote : UnsandboxedNote]);
     }
 
-    /// <param name="modelReady">True when the model the feature reads is already on this machine.</param>
-    public static ApprovalStatement ForAiFeature(string featureKey, bool modelReady)
+    /// <summary>
+    /// What a person is shown before installing a plugin from the plugin directory, built only from what the list declares.
+    /// A plugin Tuvima has not checked gets the plain warning on top of the usual notes.
+    /// </summary>
+    public static ApprovalStatement ForDirectoryEntry(PluginManifest manifest, PluginTrustLevel trust)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(featureKey);
-        var canDo = AiFeatureAllowedTo(featureKey).Append(RunsWithLocalAi).ToList();
-        // The download note is shown but not fingerprinted: downloading the model later must not ask again.
-        IReadOnlyList<string> notes = modelReady ? [] : [ModelMayDownload];
+        ArgumentNullException.ThrowIfNull(manifest);
+        var sendsTo = PluginSendsDataTo(manifest);
+        var notes = new List<string> { TrustNote(trust) };
+        if (trust is not (PluginTrustLevel.Official or PluginTrustLevel.Verified))
+        {
+            notes.Add(NotVerifiedWarning);
+        }
+
+        notes.Add(RunLocationNote(manifest.Kind));
         return new ApprovalStatement(
-            FeatureTitles.TryGetValue(featureKey, out var title) ? title : featureKey,
-            AiFeatureKindLabel,
-            canDo,
-            SendsDataOut: false,
-            SendsDataTo: null,
-            notes,
-            UnhashedNotes: notes);
+            string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Id : manifest.Name,
+            PluginKindLabel,
+            PluginAllowedTo(manifest),
+            sendsTo is not null,
+            sendsTo,
+            notes);
     }
+
+    // A listed plugin is described by how it runs, so a description file is not told it runs inside the server.
+    private static string RunLocationNote(PluginKind kind) => kind switch
+    {
+        PluginKind.Declarative => DeclarativeNote,
+        PluginKind.Service => ServiceNote,
+        PluginKind.Sandboxed => SandboxedNote,
+        _ => OfficialNote,
+    };
 
     /// <param name="permissionNames">The human-readable name of each permission the application holds.</param>
     public static ApprovalStatement ForCredential(string applicationName, IEnumerable<string> permissionNames, DateTimeOffset? expiresAt)
@@ -266,7 +332,7 @@ internal static class ApprovalStatementBuilder
             statement.CanDo.ToArray(),
             statement.SendsDataOut,
             statement.SendsDataTo,
-            statement.Notes.Where(note => statement.UnhashedNotes?.Contains(note, StringComparer.Ordinal) != true).ToArray());
+            statement.Notes.ToArray());
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(canonical, CanonicalJson)));
         return Convert.ToHexStringLower(bytes);
     }

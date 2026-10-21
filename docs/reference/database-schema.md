@@ -66,13 +66,14 @@ Represents a Series (user-facing) or Universe (ParentCollection). Both are store
 | `wikidata_qid` | TEXT | Wikidata entity identifier. Indexed. |
 | `parent_collection_id` | BLOB | FK -> `collections.id`. NULL for top-level Universes and standalone Series. |
 | `media_type` | TEXT | The media type a Series shelf holds (a `MediaType` name such as `Books`, `Audiobooks` or `TV`); null on collections that are not Series shelves. Added by upgrade step `0012_series_identity_by_media_type`. A Series is its Wikidata Series QID plus this media type, so a book Series and an audiobook Series with the same `wikidata_qid` are two rows, and a lookup by QID and media type never returns the other one (`CollectionRepository.FindSeriesShelfAsync`). Indexed with `wikidata_qid`. |
+| `universe_qid` | TEXT | FK -> `narrative_roots.qid` (`ON DELETE SET NULL`). The Universe record this shelf belongs to or presents. On a Series shelf it names the Universe the Series sits in, stored even when it is the only Series of that Universe. On a Universe shelf it is the record the shelf presents and always equals `wikidata_qid`. Set by `ParentCollectionResolver` using `UniverseIdentityRule`; added by upgrade step `0021_universe_record`. |
 | `description` | TEXT | Wikipedia or provider description |
 | `sort_title` | TEXT | Normalized title for alphabetical sorting |
 | `created_at` | TEXT | Timestamp |
 | `updated_at` | TEXT | Timestamp |
 | `last_enriched_at` | TEXT | Timestamp of last Wikidata enrichment |
 
-**Indices:** `wikidata_qid`, `parent_collection_id`, `collection_type`, `wikidata_qid + media_type` (Series identity)
+**Indices:** `wikidata_qid`, `parent_collection_id`, `collection_type`, `wikidata_qid + media_type` (Series identity), `universe_qid`, and a unique index `idx_collections_one_universe_shelf` on `universe_qid` for Universe shelves (`collection_type = 'Universe'`), so one Universe record is presented by at most one Universe shelf.
 
 ### works
 
@@ -94,6 +95,8 @@ A single title, independent of version or format.
 | `last_enriched_at` | TEXT | Timestamp |
 | `ready_at` | TEXT | UTC ISO-8601 time the Work first became Ready. Set by the Engine's readiness service the first time a leaf Work (`standalone` or `child`) is matched to a real title, not in Needs Review, placed in its show or album, and has its artwork present or settled; cleared when it hits a negative outcome (Needs Review, no match, failure, rejection, lost file or placement). NULL means not Ready. It is the only gate for Home, the hero, lanes, Watch, Read, Listen, collections and the Library list. |
 | `first_ready_at` | TEXT | UTC ISO-8601 time the Work was Ready for the first time. Set together with the first `ready_at` and never cleared; the Engine announces a Work as added only when this was empty. |
+| `placement_unmatched` | INTEGER | 1 when the title was moved into a place with a known list (an album's tracks, a season's episodes, an audiobook's parts) or into a Series with **Add anyway** (a Series takes a title by hand only that way, spec D20) and so has no track, episode or position number and no details borrowed from any entry; 0 otherwise (the default, and every existing row). The detail page shows it as "Not matched". A later Match to a real entry, or a re-match that places the title (D20), clears it: while the mark is set, no scan, re-read of the file, provider or re-identify gives the title or its files a track, disc, episode, season, series-position or part number (`CanonicalValueRepository` skips those values for it, the hierarchy resolver never finds it by title or slot or renumbers it), and the detail page shows it with no number in an "Unnumbered" group at the end. Upgrade step `0024_placement_unmatched`. |
+| `series_placement_locked` | INTEGER | `NOT NULL DEFAULT 0`. 1 means `collection_id` is a person's choice made in the editor's Matching section (NULL `collection_id` = they chose "Not in a Series"); nothing automatic (collection assignment, manifest linking, backfill) may change it. Cleared by "Let the Library decide", and by the `trg_works_series_lock_released_with_shelf` trigger (a `BEFORE DELETE` on `collections`) when the chosen Series shelf is deleted, so the Library decides again on the next placement. Added by upgrade step `0025_series_placement_lock`. This is a placement lock, not a claim lock. |
 
 **Indices:** `wikidata_qid`, `collection_id`, `media_type`, `status`, `ready_at`
 
@@ -111,6 +114,7 @@ A specific version of a Work (e.g., "4K HDR Blu-ray Remux", "First Edition Hardc
 | `work_id` | BLOB | FK -> `works.id` |
 | `title` | TEXT | Edition label |
 | `created_at` | TEXT | Timestamp |
+| `placement_unmatched` | INTEGER | The same "Not matched" mark as `works.placement_unmatched`, for an audiobook part: a part is one file (one Edition) of its audiobook's recording Work, so it is the Edition that is added anyway. 0 by default. Added by upgrade step `0024_placement_unmatched`. |
 
 ### media_assets
 
@@ -557,6 +561,8 @@ The winning multi-valued claims (genres, authors, vibe tags, cast members, and a
 
 **Unique index:** `entity_id + field_key`
 
+`series_placement` holds every (Series, position) pair a Work has: `value` is the position text exactly as Wikidata gives it (for example `1.5`), `value_qid` is the Series QID, and `ordinal` follows the statement order. A Work in two Series keeps each Series' own number here, and readers ask for the pair of the Series they show before falling back to the single `series_position`. A series statement with no position adds no row (membership stays in `series` and `series_qid`).
+
 ### search_index
 
 FTS5 full-text search index with trigram tokenizer. Handles CJK and languages without word boundaries. Short queries under 3 characters fall back to a `LIKE` scan.
@@ -719,15 +725,15 @@ Wikidata qualifier.
 
 ### narrative_roots
 
-Universe-level root records with Wikidata provenance.
+The Universe record. One row per Wikidata QID that anchors a group of works (a fictional universe, franchise or Series); the graph, the Library and the Universe page all read the same row. A Universe shelf in `collections` is how the Library presents the record (`collections.universe_qid`), and a Series shelf names the record it belongs to with the same column. The record is created before any shelf names it, is never overwritten by a later shelf (`EnsureAsync`), and keeps a parent recorded earlier when a later write names none.
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | TEXT | UUID, primary key |
-| `collection_id` | TEXT | FK -> `collections.id` (the ParentCollection) |
-| `wikidata_qid` | TEXT | |
-| `franchise_qid` | TEXT | Wikidata P8345 franchise identifier |
-| `series_qid` | TEXT | Wikidata P179 series identifier |
+| `qid` | TEXT | Wikidata QID, primary key |
+| `label` | TEXT | Display label (a user override lives in `narrative_root_user_overrides`) |
+| `level` | TEXT | `Universe`, `Franchise`, `Series` or `Standalone` |
+| `parent_qid` | TEXT | The broader record this one sits under (a franchise within a universe, a Series within a franchise); NULL for a top-level record |
+| `created_at` | TEXT | Timestamp |
 
 ### qid_labels
 
@@ -738,6 +744,40 @@ Cached Wikidata display labels for QIDs, avoiding repeated API lookups.
 | `qid` | TEXT | Primary key |
 | `label` | TEXT | Display label in the configured metadata language |
 | `fetched_at` | TEXT | Timestamp |
+
+### subtitle_index_tracks, subtitle_lines, subtitle_name_tags
+
+The subtitle text index (Universes U-WP14). One `subtitle_index_tracks` row per subtitle track that was read: either a
+stored, normalised `text_tracks` row (whichever source supplied it) or a text subtitle stream embedded in the video file.
+Its lines and name tags go with it (`ON DELETE CASCADE`), and with the file (`asset_id`).
+
+| Table | Column | Type | Notes |
+|---|---|---|---|
+| `subtitle_index_tracks` | `id` | BLOB | Stable id derived from the source, so a re-read keeps it |
+| | `asset_id` | BLOB | FK -> `media_assets.id` |
+| | `source_kind` | TEXT | `TextTrack` or `Embedded` |
+| | `text_track_id` | BLOB | FK -> `text_tracks.id` for `TextTrack`; null for `Embedded` |
+| | `stream_index` | INTEGER | ffmpeg stream index for `Embedded` |
+| | `state` | TEXT | `Indexed` or `Failed` (with `attempt_count`, `last_error`, `next_retry_at`) |
+| | `source_stamp` | TEXT | Changes when the stored track changes; the track is then read again |
+| | `entity_signature` | TEXT | Hash of the Universe entities the tags were matched against |
+| | `tagged_at` | TEXT | When the tags were last made or checked |
+| `subtitle_lines` | `track_id`, `line_index` | BLOB, INTEGER | Primary key |
+| | `start_ms`, `end_ms` | INTEGER | Milliseconds from the start of the file |
+| | `text` | TEXT | Plain text with markup removed |
+| `subtitle_name_tags` | `track_id`, `entity_id`, `window_start_ms` | | Primary key; `entity_id` -> `fictional_entities.id` |
+| | `window_end_ms` | INTEGER | A window ends at the last mention before a gap of more than 30 seconds |
+| | `first_line_index`, `last_line_index`, `mention_count` | INTEGER | Lines in the window that name the entity |
+| | `matched_text` | TEXT | The name as written in the first mention |
+
+Tags are data only: plain name matching (labels, given names and surnames of characters, supplied aliases), never AI.
+Nothing displays them yet.
+
+### subtitle_index_assets and media_asset_chapters
+
+`subtitle_index_assets` is the durable to-do row of the background indexer for a video file (movies and TV): a row in
+state `Done` means the file was probed once; `Failed` rows are retried up to five times. `media_asset_chapters` holds that
+probe's chapter times (`start_ms`, `end_ms`, `title`) for the file.
 
 ---
 
@@ -1055,6 +1095,54 @@ One row for every request that reached the Local AI engine room: text written or
 | `message` | TEXT | Plain-English result or reason |
 
 **Indices:** `ix_ai_usage_records_caller (caller_kind, caller_id, started_at)` and `ix_ai_usage_records_started (started_at)`. Added by upgrade step `0019_ai_usage_records`.
+
+### application_webhook_attempts
+
+One row per attempt to send an event to a webhook receiver, including the Send test button's test sends. `application_webhook_deliveries` keeps one row per event and only its latest state, so this table is the history the Integrations page shows: each webhook's last six attempts, with the time, the attempt number and what the receiver returned. A row never holds the event body, the signing secret or anything the receiver sent back; `result` is the short status text only. Rows older than seven days are removed with the delivery rows, but each webhook keeps its newest twenty attempts regardless of age. Deleting a webhook deletes its attempts.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | 16-byte GUID, primary key |
+| `webhook_id` | BLOB | The webhook; rows are deleted with it |
+| `delivery_id` | BLOB | The delivery row the attempt belongs to (no foreign key: the delivery may be pruned first) |
+| `event_id` | BLOB | The event sent; for a test, a fresh id |
+| `event_type` | TEXT | For example `ingestion.completed`; `webhook.test` for a test send |
+| `attempt_number` | INTEGER | 1 for the first try of a delivery; always 1 for a test |
+| `attempted_at` | TEXT | ISO 8601 UTC |
+| `delivered` | INTEGER | 1 when the receiver accepted it |
+| `result` | TEXT | Short plain text, such as `HTTP 503`, `Receiver unavailable` or `Delivery timed out` |
+| `http_status` | INTEGER | The receiver's HTTP status code, when it answered |
+| `duration_ms` | INTEGER | How long the send took |
+| `is_test` | INTEGER | 1 for a Send test |
+
+**Indices:** `ix_application_webhook_attempts_webhook_time (webhook_id, attempted_at DESC)`. Added by upgrade step `0022_webhook_delivery_attempts`.
+
+### plugin_records
+
+The records a plugin keeps for itself, written through the plugin's own record store (the `plugin-records` permission). One row per plugin, collection and key; the value is a JSON document the plugin wrote. The Library scopes every read and write to the calling plugin's id, so a plugin never sees another plugin's rows, and it limits each plugin to 64 KB per value, 10,000 records and 16 MB in total (a write over a limit is refused and the plugin's card shows Needs attention). Records survive an Engine restart and are not touched when a plugin is switched off. Removing a plugin's records when the plugin is uninstalled belongs to the plugin install and removal work, not to this table.
+
+| Column | Type | Notes |
+|---|---|---|
+| `plugin_id` | TEXT | The plugin's manifest id; first part of the primary key |
+| `collection` | TEXT | The plugin's own grouping name, 1 to 128 printable characters |
+| `record_key` | TEXT | The key inside the collection, 1 to 128 printable characters |
+| `value_json` | TEXT | The record, a JSON document, at most 64 KB |
+| `size_bytes` | INTEGER | UTF-8 size of `value_json`, so a plugin's total is a cheap sum |
+| `updated_at` | TEXT | ISO 8601 UTC |
+
+**Key:** `PRIMARY KEY (plugin_id, collection, record_key)`. Added by upgrade step `0023_plugin_host_services`.
+
+### plugin_event_cursors
+
+Where each plugin has got to in the Library's event list (`application_events`): the sequence of the newest event already handed to it. The plugin event dispatcher reads events after this sequence, so a restart carries on where it stopped. A plugin that subscribes for the first time, or that is switched off and on again, starts at the newest event with no backlog.
+
+| Column | Type | Notes |
+|---|---|---|
+| `plugin_id` | TEXT | The plugin's manifest id, primary key |
+| `last_sequence` | INTEGER | The newest `application_events.sequence` already delivered |
+| `updated_at` | TEXT | ISO 8601 UTC |
+
+Added by upgrade step `0023_plugin_host_services`.
 
 ### media_operations (file intake rows)
 

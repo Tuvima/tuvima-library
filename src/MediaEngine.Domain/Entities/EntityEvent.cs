@@ -18,7 +18,7 @@ public sealed class EntityEvent
 
     /// <summary>
     /// What happened. Pipeline events: file_scanned, retail_matched, retail_no_match,
-    /// retail_manual_approved, retail_manual_dismissed, retail_ai_classified, retail_rematched,
+    /// retail_manual_approved, retail_manual_dismissed, retail_ai_classified, retail_rematched, owned_book_matched,
     /// wikidata_bridge_resolved, wikidata_title_resolved, wikidata_ai_disambiguated,
     /// wikidata_pre_resolved, wikidata_manual_resolved, wikidata_no_match,
     /// universe_grouped, universe_pending.

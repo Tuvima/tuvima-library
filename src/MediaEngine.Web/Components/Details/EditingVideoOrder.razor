@@ -1,0 +1,193 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Items
+@implements IDisposable
+@inject IEngineApiClient Api
+
+@* Editing Mode on a series of videos: put its videos in the order you want. The order is saved in Library and never
+   renames a file. A series with sections shows one list per section. Nothing is drawn for anything else. *@
+@if (Mode is { IsOn: true } mode && mode.Fields.Loaded && _groups.Count > 0)
+{
+    <section class="tl-editing-order" aria-label="Order of the videos">
+        <header class="tl-editing-order__heading"><span>Order</span></header>
+        @foreach (var group in _groups)
+        {
+            <div class="tl-editing-order__group">
+                @if (_groups.Count > 1)
+                {
+                    <h3 class="tl-editing-order__title">@group.Title</h3>
+                }
+                <ol class="tl-editing-order__list">
+                    @for (var i = 0; i < group.Entries.Count; i++)
+                    {
+                        var index = i;
+                        var entry = group.Entries[i];
+                        <li class="tl-editing-order__row">
+                            <span class="tl-editing-order__position">@(i + 1)</span>
+                            <span class="tl-editing-order__name">@entry.Title</span>
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward" Size="AppControlSize.Compact"
+                                           Tone="AppUiTone.Neutral" Tooltip="Move up" AriaLabel="@($"Move {entry.Title} up")"
+                                           Disabled="@(_saving || index == 0)" OnClick="@(() => MoveAsync(group, index, -1))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowDownward" Size="AppControlSize.Compact"
+                                           Tone="AppUiTone.Neutral" Tooltip="Move down" AriaLabel="@($"Move {entry.Title} down")"
+                                           Disabled="@(_saving || index == group.Entries.Count - 1)" OnClick="@(() => MoveAsync(group, index, 1))" />
+                        </li>
+                    }
+                </ol>
+                @if (group.CanRenameFiles)
+                {
+                    <div class="tl-editing-order__rename">
+                        @if (_confirmRename == group.ParentId)
+                        {
+                            <p class="tl-editing-order__note">This renames the video files in your Managed folder to start with their position, like "01 - Title". It cannot be undone from here.</p>
+                            <div class="tl-editing-order__rename-actions">
+                                <AppButton Label="Rename files" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="@(() => RenameAsync(group))" />
+                                <AppButton Label="Cancel" Size="AppControlSize.Compact" Disabled="@_saving" OnClick="@(() => _confirmRename = null)" />
+                            </div>
+                        }
+                        else
+                        {
+                            <AppButton Label="Rename files to match this order" Size="AppControlSize.Compact" Disabled="@_saving" OnClick="@(() => _confirmRename = group.ParentId)" />
+                        }
+                    </div>
+                }
+            </div>
+        }
+        <p class="tl-editing-order__note">The order is saved in Library. Your files are only renamed if you ask below.</p>
+        @if (_message is not null)
+        {
+            <p class="tl-editing-order__note" role="status">@_message</p>
+        }
+        @if (_error is not null)
+        {
+            <p class="tl-editing-order__error" role="alert">@_error</p>
+        }
+    </section>
+}
+
+@code {
+    private EditingModeContext? _subscribed;
+    private Guid _loadedFor;
+    private List<VideoOrderGroupDto> _groups = [];
+    private bool _saving;
+    private string? _error;
+    private string? _message;
+    private Guid? _confirmRename;
+
+    [CascadingParameter] public EditingModeContext? Mode { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!ReferenceEquals(_subscribed, Mode))
+        {
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed -= OnModeChanged;
+            }
+
+            _subscribed = Mode;
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed += OnModeChanged;
+            }
+        }
+
+        await EnsureLoadedAsync();
+    }
+
+    private async Task EnsureLoadedAsync()
+    {
+        if (Mode is not { IsOn: true } mode || !mode.Fields.Loaded || mode.Fields.EntityId == Guid.Empty)
+        {
+            return;
+        }
+
+        var id = mode.Fields.EntityId;
+        if (id == _loadedFor)
+        {
+            return;
+        }
+
+        _loadedFor = id;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        var response = await Api.GetVideoOrderAsync(Mode!.Fields.EntityId);
+        // One video on its own has nothing to put in order.
+        _groups = (response?.Groups ?? []).Where(group => group.Entries.Count > 1).Select(Copy).ToList();
+    }
+
+    private static VideoOrderGroupDto Copy(VideoOrderGroupDto group) => new()
+    {
+        ParentId = group.ParentId,
+        Title = group.Title,
+        Entries = group.Entries.ToList(),
+        CanRenameFiles = group.CanRenameFiles,
+    };
+
+    private async Task MoveAsync(VideoOrderGroupDto group, int index, int by)
+    {
+        var entries = group.Entries.ToList();
+        var target = index + by;
+        if (_saving || Mode is null || target < 0 || target >= entries.Count)
+        {
+            return;
+        }
+
+        (entries[index], entries[target]) = (entries[target], entries[index]);
+        _saving = true;
+        _error = null;
+        if (await Api.SaveVideoOrderAsync(Mode.Fields.EntityId, group.ParentId, entries.Select(entry => entry.Id).ToList()))
+        {
+            var position = _groups.IndexOf(group);
+            _groups[position] = new VideoOrderGroupDto { ParentId = group.ParentId, Title = group.Title, Entries = entries, CanRenameFiles = group.CanRenameFiles };
+        }
+        else
+        {
+            _error = "That could not be saved. The list may have changed; reload the page and try again.";
+        }
+
+        _saving = false;
+    }
+
+    private async Task RenameAsync(VideoOrderGroupDto group)
+    {
+        if (_saving || Mode is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        _message = null;
+        var result = await Api.RenameVideoFilesToOrderAsync(Mode.Fields.EntityId, group.ParentId);
+        if (result is null)
+        {
+            _error = "The files could not be renamed. Only files in a Managed folder can be; nothing was changed.";
+        }
+        else
+        {
+            _confirmRename = null;
+            _message = result.Skipped > 0
+                ? $"Renamed {result.Renamed} files. {result.Skipped} were left as they were."
+                : $"Renamed {result.Renamed} files.";
+        }
+
+        _saving = false;
+    }
+
+    private void OnModeChanged() => _ = InvokeAsync(async () =>
+    {
+        await EnsureLoadedAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnModeChanged;
+        }
+    }
+}

@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using MediaEngine.AI.Configuration;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Approvals;
@@ -28,7 +27,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// The approval rule (Developer tools spec D-C) on every action it guards: plugins, Local AI features, application
+/// The approval rule (Developer tools spec D-C) on every action it guards: plugins (the Local AI features are plugins too), application
 /// credentials (in <see cref="ApplicationAdministrationServiceTests"/>'s fixture) and webhooks.
 /// </summary>
 public sealed class ApprovalEnforcementTests : IDisposable
@@ -77,7 +76,8 @@ public sealed class ApprovalEnforcementTests : IDisposable
         Assert.Equal(PluginId, preview.ItemId);
         Assert.Contains("Reads your media files", preview.CanDo);
         Assert.True(preview.SendsDataOut);
-        Assert.Equal("the internet", preview.SendsDataTo);
+        Assert.Equal("api.example.com", preview.SendsDataTo);
+        Assert.Contains("Contacts api.example.com: Looks up titles by name", preview.CanDo);
         Assert.False(catalog.Get(PluginId)!.Enabled);
         Assert.Empty(await _kit.Service.ListAsync("plugin", PluginId, default));
     }
@@ -130,8 +130,34 @@ public sealed class ApprovalEnforcementTests : IDisposable
         var (status, body) = await Execute(await Enable(after, null));
 
         Assert.Equal(409, status);
-        Assert.Contains("Connects to the internet", body, StringComparison.Ordinal);
+        Assert.Contains("Contacts api.example.com", body, StringComparison.Ordinal);
         Assert.False(after.Get(PluginId)!.Enabled);
+    }
+
+    [Fact]
+    public async Task APluginThatIsOn_WhoseDestinationChanges_IsNotRunningUntilItIsApprovedAgain()
+    {
+        PluginCatalog WithDestination(string host) => Catalog(new PluginManifest
+        {
+            Id = PluginId,
+            Name = "Approval test plugin",
+            Permissions = ["network.http"],
+            Network = [new PluginNetworkDestination { Host = host, Sends = "Looks up titles by name" }],
+        });
+
+        var before = WithDestination("api.example.com");
+        await Enable(before, _kit.Service.PreviewPlugin(before.Get(PluginId)!).StatementHash);
+        Assert.True(before.Get(PluginId)!.Enabled);
+
+        // The same plugin, still switched on in its saved settings, now says it contacts a different host.
+        var moved = WithDestination("api.elsewhere.example");
+
+        var registration = moved.Get(PluginId)!;
+        Assert.False(registration.Enabled);
+        Assert.True(registration.NeedsApproval);
+        var (status, body) = await Execute(await Enable(moved, null));
+        Assert.Equal(409, status);
+        Assert.Contains("Contacts api.elsewhere.example", body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -202,7 +228,7 @@ public sealed class ApprovalEnforcementTests : IDisposable
 
         var (status, body) = await Execute(await Enable(widened, null));
         Assert.Equal(409, status);
-        Assert.Contains("Connects to the internet", body, StringComparison.Ordinal);
+        Assert.Contains("Contacts api.example.com", body, StringComparison.Ordinal);
 
         var newHash = _kit.Service.PreviewPlugin(widened.Get(PluginId)!).StatementHash;
         Assert.Equal(200, (await Execute(await Enable(widened, newHash))).Status);
@@ -275,7 +301,7 @@ public sealed class ApprovalEnforcementTests : IDisposable
         Assert.True(catalog.Get(FilePluginId)!.Enabled);
 
         var manifest = JsonSerializer.Deserialize<PluginManifest>(catalog.GetManifestJson(FilePluginId))!;
-        catalog.SaveManifestJson(FilePluginId, JsonSerializer.Serialize(manifest with { Permissions = ["media.read", "network.http"] }));
+        catalog.SaveManifestJson(FilePluginId, JsonSerializer.Serialize(manifest with { Permissions = ["media.read", "network.http"], Network = [TestDestination] }));
 
         var registration = catalog.Get(FilePluginId)!;
         Assert.False(registration.Enabled);
@@ -300,159 +326,6 @@ public sealed class ApprovalEnforcementTests : IDisposable
 
         Assert.False(catalog.Get(FilePluginId)!.Enabled);
         Assert.True(catalog.Get(FilePluginId)!.NeedsApproval);
-    }
-
-    // ── Local AI features ────────────────────────────────────────────────────
-
-    [Fact]
-    public async Task SavingAiConfig_TurningTwoFeaturesOn_IsRefusedListingBoth_AndSavesNothing()
-    {
-        var (store, _) = AiStore();
-        var request = ConfigWith(store, ("vibe_tags", true), ("smart_labeling", true));
-
-        var (status, body) = await Execute(await SaveAi(store, request, true));
-
-        Assert.Equal(409, status);
-        var required = JsonSerializer.Deserialize<ApprovalRequiredResponse>(body)!;
-        Assert.Equal(["smart_labeling", "vibe_tags"], required.Approvals.Select(a => a.ItemId).ToArray());
-        Assert.All(required.Approvals, a => Assert.Equal("ai_feature", a.Kind));
-        Assert.False(store.Current.Features.VibeTags);
-        Assert.False(store.Current.Features.SmartLabeling);
-        Assert.Empty(await _kit.Records.ListAsync("ai_feature", "vibe_tags"));
-    }
-
-    [Fact]
-    public async Task SavingAiConfig_WithTheHashes_SavesAndRecordsEachFeature()
-    {
-        var (store, _) = AiStore();
-        var request = ConfigWith(store, ("vibe_tags", true), ("smart_labeling", true));
-        request.Approvals["vibe_tags"] = _kit.Service.PreviewAiFeature("vibe_tags", true).StatementHash;
-        request.Approvals["smart_labeling"] = _kit.Service.PreviewAiFeature("smart_labeling", true).StatementHash;
-
-        var (status, _) = await Execute(await SaveAi(store, request, true));
-
-        Assert.Equal(200, status);
-        Assert.True(store.Current.Features.VibeTags);
-        Assert.True(store.Current.Features.SmartLabeling);
-        var vibe = Assert.Single(await _kit.Service.ListAsync("ai_feature", "vibe_tags", default));
-        Assert.Equal(ApprovalTestKit.ApproverName, vibe.ApprovedByName);
-        Assert.Contains("Runs on this machine with Local AI", vibe.Statement.CanDo);
-        Assert.Single(await _kit.Records.ListAsync("ai_feature", "smart_labeling"));
-    }
-
-    [Fact]
-    public async Task SavingAiConfig_WhenTheModelIsNotDownloaded_ShowsTheDownloadNote_ButTheNoteIsNotWhatIsConfirmed()
-    {
-        var (store, _) = AiStore();
-        var withoutHash = ConfigWith(store, ("vibe_tags", true));
-
-        var (status, body) = await Execute(await SaveAi(store, withoutHash, false));
-
-        Assert.Equal(409, status);
-        Assert.Contains("May download an AI model to this machine first", body, StringComparison.Ordinal);
-        Assert.False(store.Current.Features.VibeTags);
-
-        // Confirming while the model was ready covers it while the model is not, and the other way round: the download
-        // happening later never asks again.
-        var ready = _kit.Service.PreviewAiFeature("vibe_tags", modelReady: true);
-        var notReady = _kit.Service.PreviewAiFeature("vibe_tags", modelReady: false);
-        Assert.Equal(ready.StatementHash, notReady.StatementHash);
-        Assert.DoesNotContain(ready.Notes, note => note.Contains("download", StringComparison.Ordinal));
-        Assert.Contains(notReady.Notes, note => note.Contains("download", StringComparison.Ordinal));
-        var withHash = ConfigWith(store, ("vibe_tags", true));
-        withHash.Approvals["vibe_tags"] = ready.StatementHash;
-        Assert.Equal(200, (await Execute(await SaveAi(store, withHash, false))).Status);
-        Assert.True(store.Current.Features.VibeTags);
-        var record = Assert.Single(await _kit.Service.ListAsync("ai_feature", "vibe_tags", default));
-        Assert.Equal(ready.StatementHash, record.StatementHash);
-    }
-
-    [Fact]
-    public async Task SavingAiConfig_AFeatureSwitchedOnByChangingTheLetterCaseOfItsKey_StillNeedsApproval()
-    {
-        var (store, _) = AiStore();
-        var request = FromWire("""{"features":{"SMART_LABELING":true,"Vibe_Tags":true}}""");
-
-        var (status, body) = await Execute(await SaveAi(store, request, true));
-
-        Assert.Equal(409, status);
-        var required = JsonSerializer.Deserialize<ApprovalRequiredResponse>(body)!;
-        Assert.Equal(["smart_labeling", "vibe_tags"], required.Approvals.Select(a => a.ItemId).ToArray());
-        Assert.False(store.Current.Features.SmartLabeling);
-        Assert.False(store.Current.Features.VibeTags);
-        Assert.Empty(await _kit.Records.ListAsync("ai_feature", "smart_labeling"));
-    }
-
-    [Fact]
-    public async Task SavingAiConfig_TheSameFeatureTwiceInDifferentLetterCase_IsABadRequest_AndSavesNothing()
-    {
-        var (store, _) = AiStore();
-        var request = FromWire("""{"features":{"smart_labeling":false,"SMART_LABELING":true}}""");
-
-        var (status, _) = await Execute(await SaveAi(store, request, true));
-
-        Assert.Equal(400, status);
-        Assert.False(store.Current.Features.SmartLabeling);
-        Assert.Empty(await _kit.Records.ListAsync("ai_feature", "smart_labeling"));
-    }
-
-    [Fact]
-    public async Task SavingAiConfig_AMixedCaseFeatureKeyWithAMixedCaseApproval_IsSavedAndRecordedUnderTheCanonicalKey()
-    {
-        var (store, _) = AiStore();
-        var hash = _kit.Service.PreviewAiFeature("smart_labeling", true).StatementHash;
-        var request = FromWire($$$"""{"features":{"Smart_Labeling":true},"approvals":{"SMART_LABELING":"{{{hash}}}"}}""");
-
-        var (status, _) = await Execute(await SaveAi(store, request, true));
-
-        Assert.Equal(200, status);
-        Assert.True(store.Current.Features.SmartLabeling);
-        Assert.Single(await _kit.Records.ListAsync("ai_feature", "smart_labeling"));
-    }
-
-    [Fact]
-    public async Task SavingAiConfig_TurningAFeatureOffOrLeavingItOn_NeedsNothing()
-    {
-        var (store, _) = AiStore();
-        var on = ConfigWith(store, ("vibe_tags", true));
-        on.Approvals["vibe_tags"] = _kit.Service.PreviewAiFeature("vibe_tags", true).StatementHash;
-        await SaveAi(store, on, true);
-
-        var unchanged = ConfigWith(store, ("vibe_tags", true));
-        var off = ConfigWith(store, ("vibe_tags", false));
-
-        Assert.Equal(200, (await Execute(await SaveAi(store, unchanged, true))).Status);
-        Assert.Equal(200, (await Execute(await SaveAi(store, off, true))).Status);
-        Assert.False(store.Current.Features.VibeTags);
-        Assert.Single(await _kit.Records.ListAsync("ai_feature", "vibe_tags"));
-    }
-
-    [Fact]
-    public async Task SwitchingAFeatureBackOn_AfterItWasApproved_DoesNotAskAgain()
-    {
-        var (store, _) = AiStore();
-        var on = ConfigWith(store, ("vibe_tags", true));
-        on.Approvals["vibe_tags"] = _kit.Service.PreviewAiFeature("vibe_tags", true).StatementHash;
-        await SaveAi(store, on, true);
-        await SaveAi(store, ConfigWith(store, ("vibe_tags", false)), true);
-
-        var (status, _) = await Execute(await SaveAi(store, ConfigWith(store, ("vibe_tags", true)), true));
-
-        Assert.Equal(200, status);
-        Assert.True(store.Current.Features.VibeTags);
-    }
-
-    [Fact]
-    public void LoadingAiConfig_CarriesTheEnginesWordsForEachFeature()
-    {
-        var (store, _) = AiStore();
-
-        var ok = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.Ok<MediaEngine.Contracts.Ai.AiConfigDto>>(AiEndpoints.GetAiConfig(store));
-
-        var info = ok.Value!.FeatureInfo;
-        Assert.Equal(["Reads descriptions and genres", "Adds mood tags"], info["vibe_tags"].AllowedTo);
-        Assert.Null(info["vibe_tags"].SendsDataTo);
-        Assert.Equal(6, info.Count);
     }
 
     // ── Webhooks ─────────────────────────────────────────────────────────────
@@ -571,7 +444,7 @@ public sealed class ApprovalEnforcementTests : IDisposable
         ApplicationAdministrationService applications = null!;
 
         async Task<(int Status, string Body)> Preview(ApprovalPreviewRequest request) => await Execute(
-            await ApprovalEndpoints.PreviewAsync(request, _kit.Http(), _kit.Service, _kit.Resolver, applications, catalog, new StubDownloads(true), default));
+            await ApprovalEndpoints.PreviewAsync(request, _kit.Http(), _kit.Service, _kit.Resolver, applications, catalog, default));
 
         var ok = await Preview(new ApprovalPreviewRequest { Kind = "plugin", ItemId = PluginId });
         Assert.Equal(200, ok.Status);
@@ -628,7 +501,13 @@ public sealed class ApprovalEnforcementTests : IDisposable
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private PluginCatalog Catalog(IReadOnlyList<string> permissions) =>
-        Catalog(new PluginManifest { Id = PluginId, Name = "Approval test plugin", Permissions = permissions });
+        Catalog(new PluginManifest { Id = PluginId, Name = "Approval test plugin", Permissions = permissions, Network = NetworkFor(permissions) });
+
+    // A plugin that holds the internet permission must say where it connects.
+    private static readonly PluginNetworkDestination TestDestination = new() { Host = "api.example.com", Sends = "Looks up titles by name" };
+
+    private static IReadOnlyList<PluginNetworkDestination> NetworkFor(IReadOnlyList<string> permissions) =>
+        permissions.Contains("network.http") ? [TestDestination] : [];
 
     private PluginCatalog Catalog(PluginManifest manifest)
     {
@@ -666,36 +545,12 @@ public sealed class ApprovalEnforcementTests : IDisposable
           "description": "Loaded from plugin.json.",
           "entry_assembly": "MediaEngine.Api.Tests.dll",
           "entry_type": "MediaEngine.Api.Tests.PluginCatalogTests+DynamicTestPlugin",
-          "permissions": [{{string.Join(", ", permissions.Select(permission => $"\"{permission}\""))}}]
+          "permissions": [{{string.Join(", ", permissions.Select(permission => $"\"{permission}\""))}}]{{(permissions.Contains("network.http") ? ", \"network\": [{ \"host\": \"api.example.com\", \"sends\": \"Looks up titles by name\" }]" : "")}}
         }
         """;
 
     private async Task<IResult> Enable(PluginCatalog catalog, string? hash) => await PluginEndpoints.EnablePlugin(
         PluginId, hash is null ? null : new PluginEnableRequest { ApprovalHash = hash }, _kit.Http(), catalog, _kit.Service, _kit.Resolver, default);
-
-    // The request as the Engine receives it: parsed from JSON, so key letter case is exactly what the caller wrote.
-    private static MediaEngine.Contracts.Ai.AiConfigDto FromWire(string json) =>
-        JsonSerializer.Deserialize<MediaEngine.Contracts.Ai.AiConfigDto>(json)!;
-
-    private (AiConfigurationService Store, AiSettings Settings) AiStore()
-    {
-        var settings = new AiSettings();
-        return (new AiConfigurationService(settings, _loader), settings);
-    }
-
-    private static MediaEngine.Contracts.Ai.AiConfigDto ConfigWith(AiConfigurationService store, params (string Key, bool On)[] features)
-    {
-        var config = AiContractMapper.ToContract(store.Current);
-        foreach (var (key, on) in features)
-        {
-            config.Features[key] = on;
-        }
-
-        return config;
-    }
-
-    private async Task<IResult> SaveAi(AiConfigurationService store, MediaEngine.Contracts.Ai.AiConfigDto request, bool modelReady) =>
-        await AiEndpoints.SaveAiConfigAsync(request, _kit.Http(), store, new StubDownloads(modelReady), _kit.Service, _kit.Resolver, default);
 
     private (ApplicationWebhookService Service, ApplicationWebhookRepository Repository, Guid ApplicationId) WebhookFixture()
     {
@@ -763,30 +618,5 @@ public sealed class ApprovalEnforcementTests : IDisposable
     private sealed class PublicDns : IWebhookDnsResolver
     {
         public Task<IPAddress[]> ResolveAsync(string host, CancellationToken ct) => Task.FromResult(new[] { IPAddress.Parse("8.8.8.8") });
-    }
-
-    /// <summary>Hand-written spy for the model manager: only the status of the text model matters here.</summary>
-    private sealed class StubDownloads(bool ready) : IModelDownloadManager
-    {
-        public Task StartDownloadAsync(AiModelRole role, CancellationToken ct = default) => Task.CompletedTask;
-
-        public Task<ModelDownloadResult> WaitForCompletionAsync(AiModelRole role, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
-        public Task CancelDownloadAsync(AiModelRole role, CancellationToken ct = default) => Task.CompletedTask;
-
-        public AiModelStatus GetStatus(AiModelRole role) => new()
-        {
-            Role = role,
-            ModelType = AiModelType.Text,
-            State = ready ? AiModelState.Ready : AiModelState.NotDownloaded,
-            ModelFile = "test.gguf",
-        };
-
-        public IReadOnlyList<AiModelStatus> GetAllStatuses() => [GetStatus(AiModelRole.TextQuality)];
-
-        public bool AreAllModelsReady() => ready;
-
-        public Task DeleteModelAsync(AiModelRole role, CancellationToken ct = default) => Task.CompletedTask;
     }
 }

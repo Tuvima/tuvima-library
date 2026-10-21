@@ -3,6 +3,7 @@ using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Contracts.Profiles;
 using MediaEngine.Contracts.Progress;
 using MediaEngine.Contracts.Reading;
 using MediaEngine.Contracts.Settings;
@@ -76,6 +77,9 @@ public partial interface IEngineApiClient
     Task<UserPlaybackSettingsDto?> GetPlaybackSettingsAsync(Guid profileId, CancellationToken ct = default);
 
     Task<UserPlaybackSettingsDto?> UpdatePlaybackSettingsAsync(Guid profileId, UserPlaybackSettingsDto settings, CancellationToken ct = default);
+
+    /// <summary>Chooses the signed-in profile's spoiler level (<c>up_to_progress</c> or <c>everything</c>); null when the Engine did not accept it.</summary>
+    Task<ProfileSpoilerPreferenceDto?> SaveSpoilerLevelAsync(Guid profileId, string spoilerLevel, CancellationToken ct = default);
 
     // ── Progress & Journey (/progress) ─────────────────────────────────
 

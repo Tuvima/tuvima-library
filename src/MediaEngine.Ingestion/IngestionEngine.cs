@@ -17,6 +17,7 @@ using MediaEngine.Ingestion.Pipeline;
 using MediaEngine.Ingestion.Services;
 using MediaEngine.Intelligence.Contracts;
 using MediaEngine.Intelligence.Models;
+using MediaEngine.Processors;
 using MediaEngine.Processors.Contracts;
 using MediaEngine.Providers.Contracts;
 using MediaEngine.Providers.Helpers;
@@ -95,6 +96,9 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
 
     // Collection ? Work ? Edition scaffold creation.
     private readonly IMediaEntityChainFactory _chainFactory;
+    private readonly IVideoLibraryReader? _videoReader;
+    private readonly VideoStillFrameService? _videoFrames;
+    private readonly IVideoOnlineLookup? _videoLookup;
 
     // Review queue — created when confidence is too low or category is "Other".
     private readonly IReviewQueueRepository _reviewRepo;
@@ -209,8 +213,14 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         IImportFolderFiler? importFiler = null,
         IOptionsMonitor<IngestionOptions>? optionsMonitor = null,
         MediaInspectionReviewRecorder? inspectionReviews = null,
-        IExcludedSourceFileFilter? excludedFileFilter = null)
+        IExcludedSourceFileFilter? excludedFileFilter = null,
+        IVideoLibraryReader? videoReader = null,
+        VideoStillFrameService? videoFrames = null,
+        IVideoOnlineLookup? videoLookup = null)
     {
+        _videoLookup = videoLookup;
+        _videoFrames = videoFrames;
+        _videoReader = videoReader;
         _excludedFileFilter = excludedFileFilter;
         _optionsMonitor = optionsMonitor;
         _importFolders = importFolders;

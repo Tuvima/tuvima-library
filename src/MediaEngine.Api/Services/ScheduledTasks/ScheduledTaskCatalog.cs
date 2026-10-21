@@ -1,4 +1,3 @@
-using MediaEngine.AI.Configuration;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
@@ -17,19 +16,16 @@ public static class ScheduledTaskCatalog
     public const string WebhookDeliverySchedule = "every 5 seconds";
 
     private const string MaintenancePlace = "Library maintenance schedule";
-    private const string LocalAiPlace = "Local AI > Automation";
 
     private static readonly IReadOnlyDictionary<string, string> DefaultSchedules = new MaintenanceSettings().Schedules;
 
     public static void RegisterAll(
         IScheduledTaskRegistry registry,
         IConfigurationLoader configLoader,
-        AiSettings aiSettings,
         ApplicationWebhookRepository webhooks)
     {
         ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(configLoader);
-        ArgumentNullException.ThrowIfNull(aiSettings);
         ArgumentNullException.ThrowIfNull(webhooks);
 
         Maintenance(ScheduledTaskKeys.ActivityPruning, "Activity log cleanup");
@@ -49,28 +45,6 @@ public static class ScheduledTaskCatalog
             PluginId: null,
             () => MaintenanceSchedule(ScheduledTaskKeys.PluginSegmentDetection),
             MaintenancePlace));
-
-        registry.Register(new ScheduledTaskDescriptor(
-            ScheduledTaskKeys.VibeTags,
-            "Vibe tags",
-            ScheduledTaskOwners.LocalAi,
-            PluginId: null,
-            () => aiSettings.Scheduling.VibeBatchCron,
-            LocalAiPlace));
-        registry.Register(new ScheduledTaskDescriptor(
-            ScheduledTaskKeys.SeriesOrder,
-            "Series order",
-            ScheduledTaskOwners.LocalAi,
-            PluginId: null,
-            () => aiSettings.Scheduling.SeriesCheckCron,
-            LocalAiPlace));
-        registry.Register(new ScheduledTaskDescriptor(
-            ScheduledTaskKeys.DescriptionInsights,
-            "Description insights",
-            ScheduledTaskOwners.LocalAi,
-            PluginId: null,
-            () => aiSettings.Scheduling.DescriptionIntelligenceCron,
-            LocalAiPlace));
 
         registry.Register(new ScheduledTaskDescriptor(
             ScheduledTaskKeys.WebhookDelivery,

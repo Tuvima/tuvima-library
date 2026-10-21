@@ -30,6 +30,10 @@ public static class DetailActionKeys
     public const string ReactionLike = "reaction-like";
     public const string ReactionLove = "reaction-love";
     public const string Details = "details";
+    /// <summary>A video's "..." shortcut into Editing Mode with Match and Identity open (shown only for a video not yet matched).</summary>
+    public const string Identify = "identify";
+    /// <summary>A video's "..." shortcut into Editing Mode with Manage Artwork open.</summary>
+    public const string ChangeThumbnail = "change-thumbnail";
     /// <summary>Added by the Dashboard itself to Editing Mode's More list, never sent by the Engine; <c>DetailPage</c> opens the delete confirmation.</summary>
     public const string DeleteFromLibrary = "delete-from-library";
 
@@ -57,6 +61,8 @@ public static class DetailActionKeys
         ReactionLike,
         ReactionLove,
         Details,
+        Identify,
+        ChangeThumbnail,
         DeleteFromLibrary,
     ];
 

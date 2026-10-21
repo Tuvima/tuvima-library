@@ -81,8 +81,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddHostedService<ViewSharedContributionHostedService>();
         services.AddSingleton<LibraryReorganizationService>();
         services.AddSingleton<LibraryItemDeletionService>();
-        services.AddSingleton<ItemMoveRepository>();
-        services.AddSingleton<ItemMoveService>();
+        services.AddSingleton(sp => new MediaEngine.Api.Services.Libraries.RecycleBinService(
+            sp.GetRequiredService<AssetPathService>().DataRoot,
+            sp.GetRequiredService<ILoggerFactory>().CreateLogger("MediaEngine.Api.Services.Libraries.RecycleBinService")));
         services.AddSingleton<ExcludedFileService>();
         services.AddSingleton<FolderJobService>();
         services.AddSingleton<ServerFolderBrowserService>();
@@ -138,6 +139,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IProfileWorkPreferencesRepository, ProfileWorkPreferencesRepository>();
         services.AddSingleton<IProfileSequencePreferencesRepository, ProfileSequencePreferencesRepository>();
         services.AddSingleton<IUniverseEnrichmentStatusRepository, UniverseEnrichmentStatusRepository>();
+        services.AddSingleton<IViewerProgressRepository, ViewerProgressRepository>();
         services.AddSingleton<ITasteProfileRepository, TasteProfileRepository>();
         services.AddSingleton<IProfileService, ProfileService>();
         services.AddSingleton<IAccountExternalLoginRepository, AccountExternalLoginRepository>();
@@ -149,7 +151,10 @@ public static class TuvimaStorageServiceCollectionExtensions
             (IAiFeaturePersistenceRepository)sp.GetRequiredService<ICanonicalValueRepository>());
         services.AddSingleton<IPersonRepository, PersonRepository>();
         services.AddSingleton<IWorkRepository, WorkRepository>();
+        services.AddSingleton<IVideoOrderRepository, VideoOrderRepository>();
+        services.AddSingleton<IVideoSeriesRepository, VideoSeriesRepository>();
         services.AddSingleton<ISeriesManifestRepository, SeriesManifestRepository>();
+        services.AddSingleton<ISeriesPlacementRepository, SeriesPlacementRepository>();
         services.AddSingleton<IBookFormatSiblingFinder, BookFormatSiblingFinder>();
         services.AddSingleton<HierarchyResolver>();
         services.AddSingleton<WorkHierarchyMaintenanceService>();
@@ -169,6 +174,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ICharacterPortraitRepository, CharacterPortraitRepository>();
         services.AddSingleton<IEntityAssetRepository, EntityAssetRepository>();
         services.AddSingleton<ITextTrackRepository, TextTrackRepository>();
+        services.AddSingleton<ISubtitleIndexRepository, SubtitleIndexRepository>();
         services.AddSingleton<IDeferredEnrichmentRepository, DeferredEnrichmentRepository>();
         services.AddSingleton<IBridgeIdRepository, BridgeIdRepository>();
         services.AddSingleton<IEntityTimelineRepository, EntityTimelineRepository>();
@@ -178,6 +184,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IScheduledTaskRunRepository, ScheduledTaskRunRepository>();
         services.AddSingleton<IApprovalRecordRepository, ApprovalRecordRepository>();
         services.AddSingleton<IAiUsageRecordRepository, AiUsageRecordRepository>();
+        services.AddSingleton<IPluginRecordRepository, PluginRecordRepository>();
+        services.AddSingleton<IPluginEventCursorRepository, PluginEventCursorRepository>();
         services.AddSingleton<IAccountNoticeDismissalRepository, AccountNoticeDismissalRepository>();
         services.AddSingleton<IProfileNoticeDismissalRepository, ProfileNoticeDismissalRepository>();
         services.AddSingleton<IPersonalActivityRepository, PersonalActivityRepository>();

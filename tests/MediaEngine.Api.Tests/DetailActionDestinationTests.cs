@@ -27,7 +27,7 @@ public sealed class DetailActionDestinationTests : IDisposable
         "play-next", "add-queue", "add-playlist",
         "status-complete", "status-reset", "status-hide", "status-show", "status-history",
         "edit", "edit-media", "my-list",
-        "reaction-dislike", "reaction-like", "reaction-love", "details", "delete-from-library",
+        "reaction-dislike", "reaction-like", "reaction-love", "details", "identify", "change-thumbnail", "delete-from-library",
     ];
 
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_detail_actions_{Guid.NewGuid():N}.db");
@@ -128,6 +128,26 @@ public sealed class DetailActionDestinationTests : IDisposable
     }
 
     [Fact]
+    public async Task TitlesWithAPositionToFollow_HaveACompanionLink_InTheMenu_AndOthersDoNot()
+    {
+        var pages = await ComposeEveryKindAsync();
+
+        foreach (var name in new[] { "movie", "book", "audiobook", "tv episode" })
+        {
+            var companion = Assert.Single(pages[name].OverflowActions, action => action.Key == "companion");
+            Assert.Equal("Companion", companion.Label);
+            Assert.Equal($"/companion/{pages[name].Id}", companion.Route);
+            // It is a link, so the Dashboard needs no handler for it; Edit stays in the menu beside it.
+            Assert.Contains(pages[name].OverflowActions, action => action.Key == "edit");
+        }
+
+        foreach (var name in new[] { "tv show", "music album", "universe", "person" })
+        {
+            Assert.DoesNotContain(pages[name].OverflowActions, action => action.Key == "companion");
+        }
+    }
+
+    [Fact]
     public async Task AUniverseDetailPage_OpensTheUniversePage_NotTheTimeline()
     {
         var page = await _composer.BuildAuthorizedAsync(
@@ -150,8 +170,9 @@ public sealed class DetailActionDestinationTests : IDisposable
         var work = SeedOwnedWork("Arrival", "Movie");
         using (var connection = _database.CreateConnection())
         {
+            // The item page links to the work's stored Universe record (Universes U-WP4), not to a raw P1434 value.
             connection.Execute(
-                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@work, 'fictional_universe_qid', 'Q4242', CURRENT_TIMESTAMP);",
+                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@work, 'narrative_root_qid', 'Q4242', CURRENT_TIMESTAMP);",
                 new { work });
         }
 

@@ -22,11 +22,6 @@ public interface IPlaybackSegmentDetector : IPluginCapability
         CancellationToken cancellationToken = default);
 }
 
-public interface IPluginJob : IPluginCapability
-{
-    Task RunAsync(IPluginExecutionContext context, CancellationToken cancellationToken = default);
-}
-
 public interface IPluginSettingsSchemaProvider : IPluginCapability
 {
     JsonElement GetSettingsSchema();
@@ -54,6 +49,12 @@ public interface IPluginExecutionContext : IAsyncDisposable
     /// entered). Needs the <c>secrets.plugin</c> permission.
     /// </summary>
     IPluginSecrets Secrets { get; }
+
+    /// <summary>
+    /// The plugin's own records in the Library's data store. Needs the <c>plugin-records</c> permission. Records are
+    /// private to this plugin and bounded by <see cref="PluginLimitExceededException"/>.
+    /// </summary>
+    IPluginRecordStore Records { get; }
 }
 
 public interface IPluginSecrets
@@ -127,6 +128,24 @@ public static class PluginPermissionIds
     public const string PluginStorage = "storage.plugin";
     public const string PluginSecrets = "secrets.plugin";
 
+    /// <summary>Keeps its own records in the Library's data store (<see cref="IPluginRecordStore"/>).</summary>
+    public const string PluginRecords = "plugin-records";
+
+    /// <summary>Runs its own recurring jobs (<see cref="IPluginScheduledJob"/>), listed in Scheduled tasks.</summary>
+    public const string ScheduledWork = "scheduled-work";
+
+    /// <summary>Is told when things happen in the Library: items added, ingestion finished, metadata changes (<see cref="IPluginEventSubscriber"/>).</summary>
+    public const string LibraryEvents = "library-events";
+
+    /// <summary>Is told what people watch, read and listen to (the <c>playback.*</c> events). <see cref="LibraryEvents"/> does not cover these.</summary>
+    public const string WatchActivity = "watch-activity";
+
+    /// <summary>Runs continuously in the background while switched on (<see cref="IPluginBackgroundService"/>).</summary>
+    public const string BackgroundWork = "background-work";
+
+    /// <summary>Adds pages and menu entries to the Library, shown in the Library's own page types and drawn from the plugin's records.</summary>
+    public const string PluginPages = "plugin-pages";
+
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         MediaRead,
@@ -136,5 +155,11 @@ public static class PluginPermissionIds
         AiInfer,
         PluginStorage,
         PluginSecrets,
+        PluginRecords,
+        ScheduledWork,
+        LibraryEvents,
+        WatchActivity,
+        BackgroundWork,
+        PluginPages,
     };
 }

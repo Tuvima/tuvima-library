@@ -99,6 +99,7 @@ public sealed class WorkRepository : IWorkRepository
             FROM   works
             WHERE  parent_work_id = @parentId
               AND  ordinal        = @ordinal
+              AND  placement_unmatched = 0
               AND (media_type <> 'TV' OR work_kind = CASE
                 WHEN EXISTS (SELECT 1 FROM works parent WHERE parent.id=@parentId
                     AND parent.media_type='TV' AND parent.work_kind='parent' AND parent.parent_work_id IS NULL)
@@ -131,6 +132,7 @@ public sealed class WorkRepository : IWorkRepository
             FROM   works
             WHERE  parent_work_id = @parentId
               AND  ordinal_sort   = @ordinalSort
+              AND  placement_unmatched = 0
             LIMIT  1;
             """;
 
@@ -172,6 +174,7 @@ public sealed class WorkRepository : IWorkRepository
             LEFT   JOIN canonical_values cv_work
                     ON cv_work.entity_id  = w.id  AND cv_work.key  = 'title'
             WHERE  w.parent_work_id = @parentId
+              AND  w.placement_unmatched = 0
               AND  (cv_asset.value = @title COLLATE NOCASE
                  OR cv_work.value  = @title COLLATE NOCASE)
             LIMIT  1;
@@ -252,6 +255,7 @@ public sealed class WorkRepository : IWorkRepository
         string title,
         string? creator,
         Guid? excludeWorkId = null,
+        bool requireSettledIdentity = false,
         CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -325,8 +329,8 @@ public sealed class WorkRepository : IWorkRepository
             """ + string.Join(", ", mediaPlaceholders) + """
             )
               AND  w.is_catalog_only = 0
-              AND  w.ownership = 'Owned';
-            """, parameters).AsList();
+              AND  w.ownership = 'Owned'
+            """ + (requireSettledIdentity ? SettledIdentitySql : string.Empty) + ";", parameters).AsList();
 
         if (excludeWorkId.HasValue)
         {
@@ -651,7 +655,7 @@ public sealed class WorkRepository : IWorkRepository
                 SET    work_kind       = CASE WHEN work_kind = 'catalog' THEN 'child' ELSE work_kind END,
                        is_catalog_only = CASE WHEN work_kind = 'catalog' THEN 0 ELSE is_catalog_only END,
                        ownership       = CASE WHEN work_kind = 'catalog' THEN 'Owned' ELSE ownership END,
-                       ordinal_sort    = COALESCE(ordinal_sort, @ordinalSort)
+                       ordinal_sort    = CASE WHEN placement_unmatched = 1 THEN ordinal_sort ELSE COALESCE(ordinal_sort, @ordinalSort) END
                 WHERE  id = @id;
                 """,
                 new { id = found, ordinalSort },
@@ -727,7 +731,7 @@ public sealed class WorkRepository : IWorkRepository
     internal static void UpdateOrdinalSort(
         SqliteConnection conn, SqliteTransaction? tx, Guid workId, double ordinalSort) =>
         conn.Execute(
-            "UPDATE works SET ordinal_sort = @ordinalSort WHERE id = @workId;",
+            "UPDATE works SET ordinal_sort = @ordinalSort WHERE id = @workId AND placement_unmatched = 0;",
             new { workId, ordinalSort },
             tx);
 
@@ -974,6 +978,35 @@ public sealed class WorkRepository : IWorkRepository
         public string WorkKind { get; set; } = string.Empty;
         public bool IsCatalogOnly { get; set; }
     }
+
+    /// <summary>
+    /// Extra <c>WHERE</c> terms for <see cref="FindConfirmedSiblingQidAsync"/> when a settled identity is required.
+    /// <list type="bullet">
+    /// <item>The latest identity job of the Work or one of its files must be past identification (its Wikidata ID
+    /// is resolved or hydrated), or there is no identity job at all. A job still in progress, waiting in Needs
+    /// Review, failed or without a Wikidata match may still be carrying an old ID.</item>
+    /// <item>The Work or its files must have no Pending review item at all, except the two below that say nothing
+    /// about who the item is: <c>WritebackFailed</c> (a tag could not be written back to the file) and
+    /// <c>MediaInspectionFailed</c> (a tool could not read the file's streams). Every other trigger, including
+    /// naming, language, metadata-conflict and name-collision items, may change which item this is.</item>
+    /// </list>
+    /// </summary>
+    private static readonly string SettledIdentitySql = $"""
+
+              AND  NOT EXISTS (
+                       SELECT 1 FROM identity_jobs ij
+                       WHERE  ij.entity_id IN (w.id, ma.id)
+                         AND  ij.state NOT IN ('{nameof(IdentityJobState.QidResolved)}', '{nameof(IdentityJobState.Hydrating)}',
+                                               '{nameof(IdentityJobState.UniverseEnriching)}', '{nameof(IdentityJobState.Ready)}',
+                                               '{nameof(IdentityJobState.ReadyWithoutUniverse)}')
+                         AND  ij.updated_at = (SELECT MAX(latest.updated_at) FROM identity_jobs latest
+                                               WHERE  latest.entity_id IN (w.id, ma.id)))
+              AND  NOT EXISTS (
+                       SELECT 1 FROM review_queue rq
+                       WHERE  rq.entity_id IN (w.id, ma.id)
+                         AND  rq.status = 'Pending'
+                         AND  rq.trigger NOT IN ('{ReviewTrigger.WritebackFailed}', '{ReviewTrigger.MediaInspectionFailed}'))
+            """;
 
     private sealed class SiblingQidRow
     {

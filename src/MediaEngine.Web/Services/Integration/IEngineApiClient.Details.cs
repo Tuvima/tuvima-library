@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Contracts.Items;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
@@ -94,14 +95,6 @@ public partial interface IEngineApiClient
     Task<MediaEditorPairingSaveResultDto?> SaveMediaEditorPairingAsync(
         Guid entityId, MediaEditorPairingSaveRequestDto request, CancellationToken ct = default);
 
-    /// <summary>Review one owned music file against an exact MusicBrainz release.</summary>
-    Task<MusicTrackMovePreview?> PreviewMusicTrackMoveAsync(
-        Guid entityId, MusicTrackMovePreviewRequest request, CancellationToken ct = default);
-
-    /// <summary>Apply one exact release-track choice from a current review.</summary>
-    Task<MediaEditorPairingSaveResultDto?> SaveMusicTrackMoveAsync(
-        Guid entityId, MusicTrackMoveSaveRequest request, CancellationToken ct = default);
-
     /// <summary>Episodes a TV file covers, plus the other episodes of its season it could cover.</summary>
     Task<MediaEditorFileCoverageDto?> GetMediaEditorFileCoverageAsync(
         Guid entityId, Guid assetId, CancellationToken ct = default);
@@ -126,15 +119,11 @@ public partial interface IEngineApiClient
     Task<MediaEditorEditionCoverSaveResultDto?> SaveMediaEditorEditionCoverAsync(
         Guid entityId, MediaEditorEditionCoverSaveRequestDto request, CancellationToken ct = default);
 
-    /// <summary>GET /metadata/{entityId}/membership-suggestions — autocomplete targets for membership correction.</summary>
-    Task<List<MediaEditorMembershipSuggestionDto>> GetMediaEditorMembershipSuggestionsAsync(
-        Guid entityId,
-        string field,
-        string? query = null,
-        string? source = null,
-        Guid? parentEntityId = null,
-        string? parentValue = null,
-        CancellationToken ct = default);
+    /// <summary>GET /metadata/{entityId}/series-placement — the Series a Work is on, the Series that list it, and a search over other Series of its media type.</summary>
+    Task<SeriesPlacementDto?> GetSeriesPlacementAsync(Guid entityId, string? query = null, CancellationToken ct = default);
+
+    /// <summary>PUT /metadata/{entityId}/series-placement — save a person's Series choice as a lock (null collection = "Not in a Series"), or release it so the Library decides again.</summary>
+    Task<SeriesPlacementDto?> SaveSeriesPlacementAsync(Guid entityId, Guid? collectionId, bool locked, CancellationToken ct = default);
 
     /// <summary>POST /metadata/{entityId}/membership-preview — preview hierarchy changes before applying them.</summary>
     Task<MediaEditorMembershipPreviewDto?> PreviewMediaEditorMembershipAsync(
@@ -142,14 +131,34 @@ public partial interface IEngineApiClient
         MediaEditorMembershipPreviewRequestDto request,
         CancellationToken ct = default);
 
-    /// <summary>POST /metadata/{entityId}/membership-apply — apply a confirmed hierarchy change.</summary>
-    Task<MediaEditorMembershipPreviewDto?> ApplyMediaEditorMembershipAsync(
-        Guid entityId,
-        MediaEditorMembershipPreviewRequestDto request,
-        CancellationToken ct = default);
-
     /// <summary>PUT /library/items/{entityId}/display-overrides — save presentation-only display overrides.</summary>
     Task<bool> SaveItemDisplayOverridesAsync(Guid entityId, Dictionary<string, string> fields, CancellationToken ct = default);
+    /// <summary>GET /library/items/{entityId}/explicit — whether the item is marked Explicit, and whether it can be at all.</summary>
+    Task<MediaEngine.Contracts.Items.ItemExplicitResponse?> GetItemExplicitAsync(Guid entityId, CancellationToken ct = default);
+    /// <summary>PUT /library/items/{entityId}/explicit — mark an item or series Explicit, or remove the mark.</summary>
+    Task<bool> SaveItemExplicitAsync(Guid entityId, bool isExplicit, CancellationToken ct = default);
+    /// <summary>GET /library/items/{entityId}/video-order — the videos of a series (or each section) in their shown order.</summary>
+    Task<MediaEngine.Contracts.Items.VideoOrderResponse?> GetVideoOrderAsync(Guid entityId, CancellationToken ct = default);
+    /// <summary>PUT /library/items/{entityId}/video-order — put the videos of a series in a new order; files are never renamed.</summary>
+    Task<bool> SaveVideoOrderAsync(Guid entityId, Guid parentId, IReadOnlyList<Guid> orderedIds, CancellationToken ct = default);
+    /// <summary>POST /library/items/{entityId}/video-rename — rename the files of a series to match its order. Managed folders only; null when refused.</summary>
+    Task<MediaEngine.Contracts.Items.VideoRenameResponse?> RenameVideoFilesToOrderAsync(Guid entityId, Guid parentId, CancellationToken ct = default);
+    /// <summary>GET /library/items/{entityId}/video-series — whether a video stands alone or is in a series, and the series it could join.</summary>
+    Task<MediaEngine.Contracts.Items.VideoSeriesStateResponse?> GetVideoSeriesAsync(Guid entityId, CancellationToken ct = default);
+    /// <summary>PUT /library/items/{entityId}/video-series — put a standalone video in a series (existing, or new with a name); files never move.</summary>
+    Task<bool> PromoteVideoToSeriesAsync(Guid entityId, Guid? seriesId, string? newSeriesName, CancellationToken ct = default);
+    /// <summary>GET /library/items/{entityId}/video-identify — whether a video has been matched online, and whether its library allows the lookup.</summary>
+    Task<MediaEngine.Contracts.Items.VideoIdentifyStateResponse?> GetVideoIdentifyStateAsync(Guid entityId, CancellationToken ct = default);
+    /// <summary>POST /library/items/{entityId}/video-identify — look a video up on YouTube from a pasted link or ID; null when nothing matched or it is switched off.</summary>
+    Task<MediaEngine.Contracts.Items.VideoIdentifyResponse?> IdentifyVideoFromLinkAsync(Guid entityId, string link, CancellationToken ct = default);
+    /// <summary>POST /library/items/{entityId}/video-series/remove — take a video out of its series; files never move.</summary>
+    Task<bool> RemoveVideoFromSeriesAsync(Guid entityId, CancellationToken ct = default);
+    /// <summary>GET /library/items/recycle-bin — the files waiting in the recycle bin.</summary>
+    Task<IReadOnlyList<RecycleBinItemDto>?> GetRecycleBinAsync(CancellationToken ct = default);
+    /// <summary>POST /library/items/recycle-bin/{id}/restore — put a file back where it was.</summary>
+    Task<bool> RestoreFromRecycleBinAsync(Guid id, CancellationToken ct = default);
+    /// <summary>POST /library/items/recycle-bin/empty — remove every file in the bin from the disk for good.</summary>
+    Task<bool> EmptyRecycleBinAsync(CancellationToken ct = default);
     Task<bool> SaveCollectionDisplayOverridesAsync(Guid collectionId, Dictionary<string, string> fields, CancellationToken ct = default);
     Task<MediaEngine.Contracts.Items.ItemEditorPreferencesResponse?> GetItemEditorPreferencesAsync(Guid entityId, Guid profileId, CancellationToken ct = default);
     Task<ItemEditorPreferencesSaveResultDto> SaveItemEditorPreferencesAsync(Guid entityId, Guid profileId, MediaEngine.Contracts.Items.ItemEditorPreferencesRequest request, CancellationToken ct = default);
@@ -187,9 +196,5 @@ public partial interface IEngineApiClient
 
     /// <summary>GET /library/overview - aggregated operational health summary.</summary>
     Task<LibraryOverviewDto?> GetLibraryOverviewAsync(CancellationToken ct = default);
-
-    /// <summary>POST /library/batch-edit - apply batch field edits to multiple items.</summary>
-    Task<LibraryBatchEditResult?> BatchEditAsync(
-        List<Guid> entityIds, Dictionary<string, string> fieldChanges, CancellationToken ct = default);
 
 }

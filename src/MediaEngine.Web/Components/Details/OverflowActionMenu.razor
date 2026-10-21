@@ -69,7 +69,9 @@
     /// the edit actions simply disappear, and a menu that held only edit actions disappears with them.
     /// </summary>
     private IReadOnlyList<DetailAction> MenuActions =>
-        DeviceContext.CanEdit ? Actions : Actions.Where(action => !DetailMenuGrouping.IsEditAction(action)).ToList();
+        DeviceContext.CanEdit
+            ? Actions
+            : Actions.Where(action => !DetailMenuGrouping.IsEditAction(action) && !DetailMenuGrouping.IsEditShortcut(action)).ToList();
 
     /// <summary>
     /// Tablets and phones show one quiet, non-interactive "Edit on a computer" line where Edit would be, but only when

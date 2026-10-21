@@ -39,6 +39,10 @@
                                     SavingChanged="OnSavingChanged"
                                     Committed="OnCommittedAsync"
                                     Closed="OnShellClosedAsync" />
+            @if (mode.OpenSectionKind == EditingSection.Match)
+            {
+                <EditingVideoIdentify Mode="mode" OnMatched="OnCommitted" />
+            }
         </div>
     </section>
 }
@@ -125,7 +129,8 @@
 
     private void SyncOpenState()
     {
-        var kind = Mode is { SectionOpen: true } ? Mode.OpenSectionKind : null;
+        // The batch sections ("Edit together" and the bar's Move) live above the rows, not here: this slot only hosts the editor's own sections.
+        var kind = Mode is { SectionOpen: true } && !Mode.OpenSectionKind.IsBatch() ? Mode.OpenSectionKind : null;
         if (kind is { } section && Mode is not null)
         {
             // A fresh opening, or a swap to another section, builds a fresh editor session; asking again for the section

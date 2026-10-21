@@ -12,7 +12,7 @@ namespace MediaEngine.Api.DevSupport;
 /// <summary>
 /// Writes the deterministic sample library of the ingestion baseline: the same bytes and file times on every
 /// run, no network downloads. Folder names match the real-media harness (books, audiobooks, movies, tv, music,
-/// personal_photos, personal_videos) plus comics.
+/// personal_photos, personal_videos) plus comics and videos.
 /// </summary>
 public static class BaselineSampleGenerator
 {
@@ -24,7 +24,7 @@ public static class BaselineSampleGenerator
     public static readonly DateTime FileTimeUtc = new(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
 
     public static readonly string[] Folders =
-        ["books", "audiobooks", "movies", "tv", "music", "comics", "personal_photos", "personal_videos"];
+        ["books", "audiobooks", "movies", "tv", "music", "comics", "videos", "personal_photos", "personal_videos"];
 
     private const int PhotosPerCity = 3;
 
@@ -76,6 +76,20 @@ public static class BaselineSampleGenerator
         {
             await WriteAsync(Path.Combine(sampleRoot, "personal_videos", name), Mp4Builder.Create(title, year: year),
                 FileTimeUtc, written, sampleRoot, ct).ConfigureAwait(false);
+        }
+
+        // Videos: a saved-channel download named by its YouTube ID, and a small numbered course with one section.
+        foreach (var (relative, title, year) in new[]
+        {
+            ("Sample Talk [dQw4w9WgXcQ].mp4", "Sample Talk", 2023),
+            (Path.Combine("Sample Course", "01 - Welcome.mp4"), "Welcome", 2023),
+            (Path.Combine("Sample Course", "02 - Basics", "01 - First steps.mp4"), "First steps", 2023),
+            (Path.Combine("Sample Course", "02 - Basics", "02 - Next steps.mp4"), "Next steps", 2023),
+        })
+        {
+            var path = Path.Combine(sampleRoot, "videos", relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await WriteAsync(path, Mp4Builder.Create(title, year: year), FileTimeUtc, written, sampleRoot, ct).ConfigureAwait(false);
         }
 
         // Directory times also carry the fixed time so a rerun looks identical to the file system.

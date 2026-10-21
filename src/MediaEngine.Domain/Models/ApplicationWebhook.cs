@@ -33,6 +33,27 @@ public sealed class ApplicationWebhookDelivery
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
+/// <summary>
+/// One attempt to send an event to a webhook receiver, kept for the delivery history on the Integrations page.
+/// <see cref="Result"/> is short plain text ("HTTP 503", "Receiver unavailable"); it never holds a response body,
+/// the event body or the signing secret.
+/// </summary>
+public sealed class ApplicationWebhookAttempt
+{
+    public Guid Id { get; set; }
+    public Guid WebhookId { get; set; }
+    public Guid DeliveryId { get; set; }
+    public Guid EventId { get; set; }
+    public string EventType { get; set; } = "";
+    public int AttemptNumber { get; set; }
+    public DateTimeOffset AttemptedAt { get; set; }
+    public bool Delivered { get; set; }
+    public string Result { get; set; } = "";
+    public int? HttpStatus { get; set; }
+    public long DurationMs { get; set; }
+    public bool IsTest { get; set; }
+}
+
 /// <summary>The newest webhook delivery attempt: when it happened and the delivery status after it.</summary>
 public sealed class ApplicationWebhookLastAttempt
 {

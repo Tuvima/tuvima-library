@@ -59,20 +59,6 @@ public sealed class Phase7LocalAiTests
     }
 
     [Fact]
-    public void AiFeatures_LoadFromConfigAndExplainDependencies()
-    {
-        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/AiFeaturesTab.razor");
-
-        Assert.Contains("GetAiConfigAsync", source, StringComparison.Ordinal);
-        Assert.Contains("SaveAiConfigAsync", source, StringComparison.Ordinal);
-        Assert.Contains("Missing model", source, StringComparison.Ordinal);
-        Assert.Contains("Local AI is partial", source, StringComparison.Ordinal);
-        Assert.Contains("Media-type assistance", source, StringComparison.Ordinal);
-        Assert.Contains("Series alignment", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Audiobook chapter naming", source, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void AudiobookChapterNamingAutomation_IsRemoved()
     {
         var shell = ReadRepoFile(@"src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
@@ -84,37 +70,23 @@ public sealed class Phase7LocalAiTests
     }
 
     [Fact]
-    public void ScheduleAndVocabulary_LoadAndSaveAiConfig()
-    {
-        var schedule = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/AiScheduleTab.razor");
-        var vocabulary = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/VibeVocabularyTab.razor");
-
-        Assert.Contains("GetAiConfigAsync", schedule, StringComparison.Ordinal);
-        Assert.Contains("SaveAiConfigAsync", schedule, StringComparison.Ordinal);
-        Assert.Contains("Saving wakes waiting workers", schedule, StringComparison.Ordinal);
-        Assert.Contains("description_intelligence_cron", schedule, StringComparison.Ordinal);
-        Assert.Contains("GetAiConfigAsync", vocabulary, StringComparison.Ordinal);
-        Assert.Contains("SaveAiConfigAsync", vocabulary, StringComparison.Ordinal);
-        Assert.Contains("Duplicate tag", vocabulary, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void AdvancedSettings_UseTheSharedUrlBackedSubsectionNavigationOnly()
     {
         var localAi = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");
         var plugins = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
 
         Assert.Contains("NormalizedSubsection", localAi, StringComparison.Ordinal);
-        // Plugins is one page: installed plugins, then the approved catalog, then the advanced sections.
+        // Plugins is one page: installed plugins, then Available plugins, then the advanced sections.
         Assert.DoesNotContain("NormalizedSubsection", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", localAi, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", plugins, StringComparison.Ordinal);
-        Assert.Contains("@ApprovedCatalogPanel()", plugins, StringComparison.Ordinal);
+        Assert.Contains("<AvailablePluginsPanel />", plugins, StringComparison.Ordinal);
         Assert.Contains("@AdvancedPluginPanel()", plugins, StringComparison.Ordinal);
         Assert.Contains("PluginHealthJobsPanel(plugin)", plugins, StringComparison.Ordinal);
         Assert.Contains("PluginCapabilitiesPanel(plugin)", plugins, StringComparison.Ordinal);
         Assert.Contains("DangerPanel(plugin)", plugins, StringComparison.Ordinal);
-        Assert.Contains("Install and update marketplace flows are planned", plugins, StringComparison.Ordinal);
+        Assert.DoesNotContain("marketplace flows are planned", plugins, StringComparison.Ordinal);
+        Assert.DoesNotContain("Approved Catalog", plugins, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -124,8 +96,10 @@ public sealed class Phase7LocalAiTests
 
         Assert.Contains("DeviceContext.IsMobile", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI is partially available", source, StringComparison.Ordinal);
-        Assert.Contains("Enabled features", source, StringComparison.Ordinal);
-        Assert.Contains("Media-type assistance", source, StringComparison.Ordinal);
+        // Every AI feature is a plugin: the overview lists them and links to the Plugins page instead of holding switches.
+        Assert.Contains("AI features", source, StringComparison.Ordinal);
+        Assert.Contains("tuvima.ai-vibe-tags", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Save features", source, StringComparison.Ordinal);
         Assert.Contains("Tools and requirements", source, StringComparison.Ordinal);
         // Vocabulary and Automation are rows of the Settings menu tree, not link cards on this page; only Runtime is linked.
         Assert.DoesNotContain("/settings/ai/vocabulary", source, StringComparison.Ordinal);

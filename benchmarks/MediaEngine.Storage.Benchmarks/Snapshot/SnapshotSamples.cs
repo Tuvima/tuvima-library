@@ -255,11 +255,28 @@ internal sealed class SnapshotSamples
         var audiobookAuthor = middle(authorsOfSeveral);
         var borrowingAuthor = middle(AuthorsOfAudiobooksWithoutYear("credited.borrowers >= 1"));
         var groupMember = ids("SELECT member_id FROM person_group_members ORDER BY group_id, member_id LIMIT 1;");
+        // The pen name (a flagged person) and the first-billed author sharing a comic with them, whose credit it hides.
+        var penName = ids("SELECT id FROM persons WHERE is_pseudonym = 1 ORDER BY id LIMIT 1;");
+        var penNameCoAuthor = ids(
+            """
+            SELECT p.id
+            FROM persons pen
+            INNER JOIN canonical_value_arrays second_author
+                ON second_author.key = 'author' AND second_author.ordinal = 1 AND second_author.value = pen.name
+            INNER JOIN canonical_value_arrays first_author
+                ON first_author.entity_id = second_author.entity_id AND first_author.key = 'author' AND first_author.ordinal = 0
+            INNER JOIN persons p ON p.name = first_author.value
+            WHERE pen.is_pseudonym = 1
+            ORDER BY second_author.entity_id, p.id
+            LIMIT 1;
+            """);
         samples.CreditPersons =
         [
             ("audiobooks", audiobookAuthor),
             ("audiobook-borrowing", borrowingAuthor),
             ("group", groupMember.Count == 0 ? null : groupMember[0]),
+            ("pen-name", penName.Count == 0 ? null : penName[0]),
+            ("pen-name-coauthor", penNameCoAuthor.Count == 0 ? null : penNameCoAuthor[0]),
         ];
 
         // series-search: an audiobook title, a credited person's name and a word most titles share.

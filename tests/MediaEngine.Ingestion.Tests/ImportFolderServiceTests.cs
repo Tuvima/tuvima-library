@@ -57,14 +57,14 @@ public sealed class ImportFolderServiceTests : IDisposable
     }
 
     [Fact]
-    public void Setting_the_folder_creates_the_six_per_type_folders_and_leaves_existing_files_alone()
+    public void Setting_the_folder_creates_the_seven_per_type_folders_and_leaves_existing_files_alone()
     {
         var existing = _h.WriteImportFile(Path.Combine("Movies", "already here.mkv"), "keep me");
 
         var created = _h.Importer.EnsureSubfolders();
 
-        Assert.Equal(5, created.Count);
-        foreach (var name in new[] { "Movies", "TV", "Music", "Books", "Audiobooks", "Comics" })
+        Assert.Equal(6, created.Count);
+        foreach (var name in new[] { "Movies", "TV", "Music", "Books", "Audiobooks", "Comics", "Videos" })
         {
             Assert.True(Directory.Exists(Path.Combine(_h.ImportDir, name)), name);
         }
@@ -81,7 +81,7 @@ public sealed class ImportFolderServiceTests : IDisposable
         Assert.Empty(_h.Importer.EnsureSubfolders());
         Assert.False(Directory.Exists(_h.ImportDir));
 
-        Assert.Equal(6, _h.Importer.EnsureSubfolders(createImportFolder: true).Count);
+        Assert.Equal(7, _h.Importer.EnsureSubfolders(createImportFolder: true).Count);
         Assert.True(Directory.Exists(Path.Combine(_h.ImportDir, "Comics")));
     }
 

@@ -481,7 +481,11 @@ public sealed class DisplayWorkProjectionReader
                 r.Year,
                 MediaDateSql.RelatedBookYearLookup("related_book_year", "WorkId", "AssetId"))),
             From("SeriesEndYear", rootWorkAsset, "series_end_year"),
-            From("ContentRating", workRootAsset, "content_rating", "certification"),
+            // An item or series marked Explicit counts as adults-only for the content limits.
+            Column("ContentRating", r => $"""
+                CASE WHEN {string.Join(" OR ", workRootAsset.Select(slot => $"{r.Value(slot, "explicit")} = 'true'"))} THEN 'NC-17'
+                     ELSE {FirstOf(workRootAsset.Select(slot => r.Value(slot, "content_rating", "certification")))} END
+                """),
             From("Runtime", workRootAsset, "runtime"),
             From("Duration", workRootAsset, "duration", "duration_sec", "duration_seconds"),
             From("PageCount", workRootAsset, "page_count"),
@@ -688,7 +692,10 @@ public sealed class DisplayWorkProjectionReader
 
     private static string PersonAssetsCtes()
     {
-        var keys = PersonCreditSql.CreditKeys;
+        var candidates = PersonCreditSql.CandidateAssetsCte(
+            "detail_candidate_assets",
+            "SELECT id, name, wikidata_qid FROM detail_person",
+            "dc_");
         var scopedCredits = PersonCreditSql.ScopedCreditsCte(
             "detail_person_credits",
             "SELECT asset_id FROM detail_candidate_assets",
@@ -697,61 +704,7 @@ public sealed class DisplayWorkProjectionReader
             detail_person AS MATERIALIZED (
                 SELECT person.id, person.name, person.wikidata_qid FROM persons person WHERE person.id = @detailId
             ),
-            -- Every person a credit could resolve to that the page's person matches (same name, or same Wikidata id).
-            detail_match_persons AS MATERIALIZED (
-                SELECT other.id, other.name, other.wikidata_qid
-                FROM detail_person person
-                INNER JOIN persons other ON other.name = person.name COLLATE NOCASE
-                UNION
-                SELECT other.id, other.name, other.wikidata_qid
-                FROM detail_person person
-                INNER JOIN persons other ON other.wikidata_qid = person.wikidata_qid
-                WHERE NULLIF(person.wikidata_qid, '') IS NOT NULL
-            ),
-            detail_credit_entities AS MATERIALIZED (
-                SELECT cva.entity_id
-                FROM detail_match_persons match_person
-                CROSS JOIN canonical_value_arrays cva
-                WHERE cva.key IN ({keys})
-                  AND (TRIM(cva.value) = match_person.name COLLATE NOCASE
-                       OR NULLIF(TRIM(cva.value_qid), '') = match_person.wikidata_qid COLLATE NOCASE)
-                UNION
-                SELECT mc.entity_id
-                FROM detail_match_persons match_person
-                CROSS JOIN metadata_claims mc
-                WHERE mc.claim_key IN ({keys})
-                  AND TRIM(mc.claim_value) = match_person.name COLLATE NOCASE
-                UNION
-                SELECT cv.entity_id
-                FROM detail_match_persons match_person
-                CROSS JOIN canonical_values cv
-                WHERE cv.key IN ({keys})
-                  AND TRIM(cv.value) = match_person.name COLLATE NOCASE
-            ),
-            detail_candidate_assets AS MATERIALIZED (
-                -- readiness: ids of files only; the main read applies the Ready rule to every row it returns
-                SELECT ma.id AS asset_id
-                FROM detail_credit_entities entity
-                INNER JOIN media_assets ma ON ma.id = entity.entity_id
-                UNION
-                SELECT ma.id
-                FROM detail_credit_entities entity
-                INNER JOIN editions e ON e.work_id = entity.entity_id
-                INNER JOIN media_assets ma ON ma.edition_id = e.id
-                UNION
-                SELECT ma.id
-                FROM detail_credit_entities entity
-                INNER JOIN works w ON w.parent_work_id = entity.entity_id
-                INNER JOIN editions e ON e.work_id = w.id
-                INNER JOIN media_assets ma ON ma.edition_id = e.id
-                UNION
-                SELECT ma.id
-                FROM detail_credit_entities entity
-                INNER JOIN works p ON p.parent_work_id = entity.entity_id
-                INNER JOIN works w ON w.parent_work_id = p.id
-                INNER JOIN editions e ON e.work_id = w.id
-                INNER JOIN media_assets ma ON ma.edition_id = e.id
-            ),
+            {candidates},
             {scopedCredits},
             detail_person_assets AS MATERIALIZED (
                 SELECT DISTINCT credit.media_asset_id AS asset_id

@@ -96,7 +96,9 @@ public sealed class CollectionAssignmentServiceTests
         var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Services/CollectionAssignmentService.cs"));
 
         Assert.Contains("MergeArrayBackedRelationshipHintsAsync", source, StringComparison.Ordinal);
-        Assert.Contains("GetAllByEntityAsync(entityId", source, StringComparison.Ordinal);
+        Assert.Contains("GetAllByEntityAsync(canonicalEntityId", source, StringComparison.Ordinal);
+        // P1434 is multi-valued, so the shelf reads it from the arrays too (Universes U-WP4).
+        Assert.Contains("arrays.TryGetValue(\"fictional_universe\"", source, StringComparison.Ordinal);
         Assert.Contains("arrays.TryGetValue(\"based_on\"", source, StringComparison.Ordinal);
         Assert.Contains("MetadataFieldConstants.Characters", source, StringComparison.Ordinal);
         Assert.Contains("AddArrayHint(lookup, \"based_on\"", source, StringComparison.Ordinal);

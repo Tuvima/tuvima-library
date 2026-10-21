@@ -46,6 +46,14 @@ public static class MetadataFieldConstants
     public const string Rating = "rating";
     public const string Series = "series";
     public const string SeriesPosition = "series_position";
+
+    /// <summary>
+    /// Every (Series, position) pair a Work has, as multi-valued rows in <c>canonical_value_arrays</c>: the value is the
+    /// position text as the source gives it ("1.5"), the value QID is the Series. A Work with several series statements
+    /// keeps each Series' own number here; <see cref="SeriesPosition"/> stays the single retail/older-reader number.
+    /// </summary>
+    public const string SeriesPlacement = "series_placement";
+
     public const string SeriesMembershipSource = "series_membership_source";
     public const string SeriesStartYear = "series_start_year";
     public const string SeriesEndYear = "series_end_year";
@@ -77,6 +85,27 @@ public static class MetadataFieldConstants
     public const string ArtworkSecondaryHex = "artwork_secondary_hex";
     public const string ArtworkAccentHex = "artwork_accent_hex";
     public const string ShowName = "show_name";
+
+    // Videos (local identity only): placement read from the folder layout, and how the item was identified.
+    /// <summary>Title of the series a video belongs to (its folder name).</summary>
+    public const string VideoSeries = "video_series";
+    /// <summary>Folder of the series relative to the library folder; the stable key for the series.</summary>
+    public const string VideoSeriesKey = "video_series_key";
+    /// <summary>Title of the section (sub-folder) a video belongs to inside its series.</summary>
+    public const string VideoSection = "video_section";
+    /// <summary>Position of the section inside its series.</summary>
+    public const string VideoSectionIndex = "video_section_index";
+    public const string VideoSectionKey = "video_section_key";
+    /// <summary>Position of the video inside its section or series.</summary>
+    public const string VideoEpisodeIndex = "video_episode_index";
+    /// <summary>How the video was identified: youtube_id, info_json, nfo or file_name.</summary>
+    public const string VideoIdentifiedBy = "video_identified_by";
+    /// <summary>The YouTube video ID found in the file name or its .info.json.</summary>
+    public const string YoutubeVideoId = "youtube_video_id";
+    /// <summary>"youtube" once an online lookup matched the video (by its ID in the file name, or a link a person pasted). Absent means not matched.</summary>
+    public const string VideoLookupSource = "video_lookup_source";
+    /// <summary>"true" when a person marked the item (or a whole series) Explicit; a content-limited profile never sees it.</summary>
+    public const string Explicit = "explicit";
     public const string EpisodeTitle = "episode_title";
     public const string EpisodeDescription = "episode_description";
     public const string Network = "network";
@@ -91,6 +120,7 @@ public static class MetadataFieldConstants
     public const string FilmingLocation = "filming_location";
     public const string MainSubject = "main_subject";
     public const string BasedOn = "based_on";
+    public const string DerivativeWork = "derivative_work";
     public const string Biography = "biography";
     public const string QidResolutionMethod = "qid_resolution_method";
     public const string WikidataQidScope = "wikidata_qid_scope";
@@ -169,6 +199,7 @@ public static class MetadataFieldConstants
         "producer",
         "guest_star",
         "author",
+        "creator",
         "narrator",
         "director",
         "illustrator",
@@ -184,6 +215,7 @@ public static class MetadataFieldConstants
         "attributed_to",
         "notable_work",
         "based_on",
+        "derivative_work",
         "fictional_universe",
         "first_appearance",
         "enrichment_providers",
@@ -200,6 +232,9 @@ public static class MetadataFieldConstants
         "network",
         "set_in_period",
         "filming_location",
+
+        // Every (Series, position) pair a Work has (value = position text, value_qid = Series QID)
+        "series_placement",
 
         // Technical track fields
         "subtitle_languages",
@@ -230,6 +265,7 @@ public static class MetadataFieldConstants
         "director_qid",
         "illustrator_qid",
         "based_on_qid",
+        "derivative_work_qid",
         "fictional_universe_qid",
         "award_received_qid",
         "award_nominated_qid",
@@ -244,6 +280,7 @@ public static class MetadataFieldConstants
         "network_qid",
         "set_in_period_qid",
         "filming_location_qid",
+        "series_placement_qid",
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>

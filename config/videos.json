@@ -1,0 +1,15 @@
+{
+  "identification_order": ["youtube_id", "info_json", "nfo", "file_name"],
+  "title_cleaning": {
+    "strip_leading_number": true,
+    "word_separators": ["_", "."],
+    "remove_tags": ["2160p", "1440p", "1080p", "720p", "480p", "360p", "4k", "uhd", "hdr", "web-dl", "webdl", "webrip", "bluray", "bdrip", "dvdrip", "hdtv", "x264", "x265", "h264", "h265", "hevc", "avc", "aac", "ac3", "dts", "mp4", "mkv", "av1", "vp9", "opus"],
+    "strip_youtube_id_suffix": true
+  },
+  "phone_footage": {
+    "name_patterns": ["^(IMG|MOV|VID|PXL|DSC|DSCN|MVI|GOPR|GX\\d*|PANO|WP|SAM)[_\\-]?\\d{3,}", "^\\d{8}[_\\-]\\d{6}", "^(VID|MOV|IMG)[_\\-]\\d{8}", "^PXL_\\d{8}_\\d{9}", "^Screen Recording \\d{4}"],
+    "folder_names": ["DCIM", "Camera", "100APPLE", "100ANDRO", "100MEDIA", "Camera Roll"],
+    "min_share": 0.6,
+    "short_clip_minutes": 5
+  }
+}

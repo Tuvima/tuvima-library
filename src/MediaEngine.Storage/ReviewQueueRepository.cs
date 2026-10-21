@@ -435,6 +435,44 @@ public sealed class ReviewQueueRepository : IReviewQueueRepository
     }
 
     /// <inheritdoc/>
+    public Task<int> ResolvePendingByEntitiesAndTriggersAsync(
+        IReadOnlyCollection<Guid> entityIds,
+        IReadOnlyCollection<string> triggers,
+        string resolvedBy,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (triggers.Count == 0 || entityIds.Count == 0)
+        {
+            return Task.FromResult(0);
+        }
+
+        var resolved = 0;
+        using var conn = _db.CreateConnection();
+        foreach (var chunk in entityIds.Distinct().Chunk(500))
+        {
+            resolved += conn.Execute("""
+                UPDATE review_queue
+                SET    status      = @resolved,
+                       resolved_at = @now,
+                       resolved_by = @resolvedBy
+                WHERE  entity_id IN @entityIds
+                  AND  status = @pending
+                  AND  trigger IN @triggers
+                """, new
+            {
+                resolved = ReviewStatus.Resolved,
+                now = DateTimeOffset.UtcNow.ToString("O"),
+                resolvedBy,
+                entityIds = chunk.Select(GuidSql.ToBlob).ToArray(),
+                pending = ReviewStatus.Pending,
+                triggers = triggers.ToArray(),
+            });
+        }
+
+        return Task.FromResult(resolved);
+    }
+
     public Task<int> ResolvePendingByEntityAndTriggersAsync(
         Guid entityId,
         IReadOnlyCollection<string> triggers,

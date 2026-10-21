@@ -19,6 +19,14 @@ public enum AiFeatureStatus
 /// Complete replacement requested by an AI feature. Multi-valued and scalar
 /// fields are committed in one transaction.
 /// </summary>
+/// <summary>The keys AI features record their output under; one per Local AI feature that stores results.</summary>
+public static class AiFeatureKeys
+{
+    public const string Vibe = "vibe";
+    public const string SeriesAlignment = "series_alignment";
+    public const string DescriptionIntelligence = "description_intelligence";
+}
+
 public sealed record AiFeatureWriteRequest(
     Guid EntityId,
     string FeatureKey,

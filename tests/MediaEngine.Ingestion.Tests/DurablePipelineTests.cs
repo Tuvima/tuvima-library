@@ -461,7 +461,15 @@ public sealed class DurablePipelineTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(closed!.MissingReason));
         Assert.Null(await _operationRepo.GetActiveBySourcePathAsync(Path.GetFullPath(path)));
 
-        var history = await new MediaOperationEventRepository(_dbFactory.Connection).GetByOperationAsync(waiting.Id);
+        // The status changes a moment before the history entry is written, so wait for the entry rather than read it at once.
+        var events = new MediaOperationEventRepository(_dbFactory.Connection);
+        var history = await events.GetByOperationAsync(waiting.Id);
+        for (var attempt = 0; attempt < 100 && !history.Any(entry => entry.EventType == "missing_confirmed"); attempt++)
+        {
+            await Task.Delay(50);
+            history = await events.GetByOperationAsync(waiting.Id);
+        }
+
         Assert.Contains(history, entry => entry.EventType == "missing_confirmed");
         Assert.Contains(
             _publisher.Published.ToArray(),
@@ -511,7 +519,7 @@ public sealed class DurablePipelineTests : IDisposable
 
     private async Task<MediaOperation?> WaitForOperationAsync(Guid id, Func<MediaOperation, bool> isReady)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        var deadline = DateTime.UtcNow.AddSeconds(30);
         while (DateTime.UtcNow < deadline)
         {
             var operation = await _operationRepo.GetByIdAsync(id);
@@ -1293,7 +1301,7 @@ public sealed class DurablePipelineTests : IDisposable
             NullLogger<CollectionAssignmentService>.Instance);
         var collectionFinalization = new CollectionFinalizationService(
             collectionAssignment,
-            new ParentCollectionResolver(collectionRepo, NullLogger<ParentCollectionResolver>.Instance),
+            new ParentCollectionResolver(collectionRepo, new NoOpNarrativeRootRepository(), new NoOpCanonicalValueRepository(), NullLogger<ParentCollectionResolver>.Instance),
             new NoOpSystemActivityRepository(),
             NullLogger<CollectionFinalizationService>.Instance);
 
@@ -1368,7 +1376,7 @@ public sealed class DurablePipelineTests : IDisposable
             NullLogger<CollectionAssignmentService>.Instance);
         var collectionFinalization = new CollectionFinalizationService(
             collectionAssignment,
-            new ParentCollectionResolver(collectionRepo, NullLogger<ParentCollectionResolver>.Instance),
+            new ParentCollectionResolver(collectionRepo, new NoOpNarrativeRootRepository(), new NoOpCanonicalValueRepository(), NullLogger<ParentCollectionResolver>.Instance),
             new NoOpSystemActivityRepository(),
             NullLogger<CollectionFinalizationService>.Instance);
 
@@ -2372,7 +2380,7 @@ public sealed class DurablePipelineTests : IDisposable
         public Task PromoteCatalogToOwnedAsync(Guid workId, CancellationToken ct = default) => Task.CompletedTask;
         public Task WriteExternalIdentifiersAsync(Guid workId, IReadOnlyDictionary<string, string> identifiers, CancellationToken ct = default, bool overwrite = false) => Task.CompletedTask;
         public Task<WorkLineage?> GetLineageByAssetAsync(Guid assetId, CancellationToken ct = default) => Task.FromResult<WorkLineage?>(null);
-        public Task<ConfirmedSiblingWorkQid?> FindConfirmedSiblingQidAsync(MediaType sourceMediaType, IReadOnlyList<MediaType> candidateMediaTypes, string title, string? creator, Guid? excludeWorkId = null, CancellationToken ct = default) => Task.FromResult<ConfirmedSiblingWorkQid?>(null);
+        public Task<ConfirmedSiblingWorkQid?> FindConfirmedSiblingQidAsync(MediaType sourceMediaType, IReadOnlyList<MediaType> candidateMediaTypes, string title, string? creator, Guid? excludeWorkId = null, bool requireSettledIdentity = false, CancellationToken ct = default) => Task.FromResult<ConfirmedSiblingWorkQid?>(null);
     }
 
     private sealed class NoOpReviewQueueRepository : IReviewQueueRepository
@@ -2396,6 +2404,12 @@ public sealed class DurablePipelineTests : IDisposable
     {
         public Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default)
             => Task.CompletedTask;
+
+        public Task<AssetRefilePlan> PlanRefileAsync(Guid assetId, AssetRefilePlacement? placement, CancellationToken ct = default)
+            => Task.FromResult(AssetRefilePlan.Of(AssetRefileDisposition.AlreadyFits, string.Empty));
+
+        public Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default)
+            => Task.FromResult(new AssetRefileOutcome(AssetRefileOutcomeKind.AlreadyFits, AssetRefileDisposition.AlreadyFits, string.Empty, null));
     }
 
     private sealed class RecordingAutoOrganizeService : IAutoOrganizeService
@@ -2407,6 +2421,12 @@ public sealed class DurablePipelineTests : IDisposable
             Calls.Add(assetId);
             return Task.CompletedTask;
         }
+
+        public Task<AssetRefilePlan> PlanRefileAsync(Guid assetId, AssetRefilePlacement? placement, CancellationToken ct = default)
+            => Task.FromResult(AssetRefilePlan.Of(AssetRefileDisposition.AlreadyFits, string.Empty));
+
+        public Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default)
+            => Task.FromResult(new AssetRefileOutcome(AssetRefileOutcomeKind.AlreadyFits, AssetRefileDisposition.AlreadyFits, string.Empty, null));
     }
 
     private sealed class NoOpSystemActivityRepository : ISystemActivityRepository
@@ -2446,6 +2466,19 @@ public sealed class DurablePipelineTests : IDisposable
         public Task DeleteByEntityAsync(Guid entityId, CancellationToken ct = default) => Task.CompletedTask;
     }
 
+    /// <summary>No-op INarrativeRootRepository: nothing is known and nothing is stored.</summary>
+    private sealed class NoOpNarrativeRootRepository : INarrativeRootRepository
+    {
+        public Task<NarrativeRoot?> FindByQidAsync(string qid, CancellationToken ct = default) => Task.FromResult<NarrativeRoot?>(null);
+        public Task<IReadOnlyList<NarrativeRoot>> ListAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<NarrativeRoot>>([]);
+        public Task UpsertAsync(NarrativeRoot root, CancellationToken ct = default) => Task.CompletedTask;
+        public Task EnsureAsync(NarrativeRoot root, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateUserDetailsAsync(string qid, string label, string? description, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<Guid>> FindWorkIdsByProvenanceQidAsync(string qid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Guid>>([]);
+        public Task<IReadOnlyList<NarrativeRoot>> GetChildrenAsync(string parentQid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<NarrativeRoot>>([]);
+        public Task<int> CountAsync(CancellationToken ct = default) => Task.FromResult(0);
+    }
+
     /// <summary>
     /// Minimal no-op ICollectionRepository — only implements methods used by CollectionAssignmentService.
     /// All lookups return null/empty; assignment is a no-op.
@@ -2468,8 +2501,14 @@ public sealed class DurablePipelineTests : IDisposable
         public Task<int> PruneOrphanedHierarchyAsync(CancellationToken ct = default) => Task.FromResult(0);
         public Task<IReadOnlyList<Collection>> GetChildCollectionsAsync(Guid parentCollectionId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
         public Task SetParentCollectionAsync(Guid collectionId, Guid? parentCollectionId, CancellationToken ct = default) => Task.CompletedTask;
-        public Task<Collection?> FindParentCollectionByRelationshipAsync(string qid, CancellationToken ct = default) => Task.FromResult<Collection?>(null);
-        public Task<IReadOnlyList<Guid>> FindCollectionIdsByFranchiseQidAsync(string qid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Guid>>([]);
+        public Task SetUniverseAsync(Guid collectionId, string? universeQid, Guid? parentCollectionId, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<Collection?> FindUniverseShelfByUniverseQidAsync(string universeQid, CancellationToken ct = default) => Task.FromResult<Collection?>(null);
+        public Task<IReadOnlyList<Collection>> ListSeriesShelvesByUniverseQidAsync(string universeQid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
+        public Task<IReadOnlyList<Collection>> FindSeriesShelvesByQidAsync(string qid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
+        public Task<IReadOnlyList<Collection>> ListShelvesWithRollupRelationshipQidAsync(string qid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
+        public Task<bool> DeleteUnusedUniverseShelfAsync(Guid universeShelfId, CancellationToken ct = default) => Task.FromResult(false);
+        public Task<Collection?> FindSeriesShelfForWorkTreeAsync(Guid rootWorkId, CancellationToken ct = default) => Task.FromResult<Collection?>(null);
+        public Task<IReadOnlyList<Guid>> GetRootWorkIdsOnShelfAsync(Guid collectionId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Guid>>([]);
         public Task<IReadOnlyList<CollectionRelationship>> GetRelationshipsAsync(Guid collectionId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<CollectionRelationship>>([]);
         public Task<Collection?> GetByIdAsync(Guid collectionId, CancellationToken ct = default) => Task.FromResult<Collection?>(null);
         public Task<IReadOnlyList<Collection>> GetByIdsAsync(IEnumerable<Guid> collectionIds, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);

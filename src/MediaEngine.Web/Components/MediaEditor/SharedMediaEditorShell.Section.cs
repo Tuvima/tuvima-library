@@ -70,7 +70,7 @@ public partial class SharedMediaEditorShell
         }
         else if (HasStagedEditorChanges)
         {
-            await SaveAsyncCore(applyMembershipMove: false);
+            await SaveAsyncCore();
         }
 
         return !HasPendingNavigationChanges && string.IsNullOrWhiteSpace(_saveError);
@@ -108,6 +108,16 @@ public partial class SharedMediaEditorShell
     private bool HasArtworkSlot(string? assetType) =>
         !string.IsNullOrWhiteSpace(assetType)
         && ArtworkSlots.Any(slot => string.Equals(slot.AssetType, assetType, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// A person's Series choice was saved or released in the Match section's Series block. Like any other saved change it is
+    /// counted, so the modal refreshes the page when it closes and an Editing Mode host refreshes the page behind the section.
+    /// </summary>
+    protected void OnSeriesPlacementApplied()
+    {
+        _hasCommittedChanges = true;
+        StateHasChanged();
+    }
 
     private async Task ReportHostStateAsync()
     {

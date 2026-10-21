@@ -41,7 +41,32 @@ public static class FolderCoverImageReader
     /// valid JPEG/PNG between 1 KB and 25 MB; otherwise <see langword="null"/>.
     /// Only the first existing candidate is considered, so the result is deterministic.
     /// </summary>
-    public static FolderCoverImage? TryRead(string mediaFilePath)
+    public static FolderCoverImage? TryRead(string mediaFilePath) => TryRead(mediaFilePath, CandidateFileNames, includeNamedAfterFile: false);
+
+    /// <summary>
+    /// Videos take a picture named after the video (yt-dlp's <c>My Talk.jpg</c>, <c>My Talk-poster.jpg</c>) first, then
+    /// <c>cover</c>, <c>folder</c> or <c>poster</c> in the video's own folder. A picture sitting loose in the Videos folder
+    /// itself is never used, because it would end up on every standalone video.
+    /// </summary>
+    public static FolderCoverImage? TryReadForVideo(string mediaFilePath, string libraryFolder)
+    {
+        var directory = Path.GetDirectoryName(mediaFilePath);
+        var inLibraryRoot = string.IsNullOrEmpty(directory)
+            || string.Equals(
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory)),
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(libraryFolder)),
+                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        return TryRead(mediaFilePath, inLibraryRoot ? [] : VideoFolderCandidateFileNames, includeNamedAfterFile: true);
+    }
+
+    private static readonly string[] VideoFolderCandidateFileNames =
+    [
+        "cover.jpg", "cover.jpeg", "cover.png",
+        "folder.jpg", "folder.jpeg", "folder.png",
+        "poster.jpg", "poster.jpeg", "poster.png",
+    ];
+
+    private static FolderCoverImage? TryRead(string mediaFilePath, IReadOnlyList<string> folderNames, bool includeNamedAfterFile)
     {
         if (string.IsNullOrWhiteSpace(mediaFilePath))
         {
@@ -62,7 +87,15 @@ public static class FolderCoverImageReader
                 present.TryAdd(Path.GetFileName(file), file);
             }
 
-            foreach (var name in CandidateFileNames)
+            var names = folderNames;
+            if (includeNamedAfterFile)
+            {
+                var stem = Path.GetFileNameWithoutExtension(mediaFilePath);
+                names = [.. new[] { "", "-poster", "-thumb", "-thumbnail" }
+                    .SelectMany(suffix => new[] { ".jpg", ".jpeg", ".png" }.Select(ext => $"{stem}{suffix}{ext}")), .. folderNames];
+            }
+
+            foreach (var name in names)
             {
                 if (present.TryGetValue(name, out var candidatePath))
                 {

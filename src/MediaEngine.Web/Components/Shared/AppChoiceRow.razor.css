@@ -1,0 +1,53 @@
+/* The row is a single button the component renders itself, so its look belongs here. */
+.app-choice-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--tl-space-3);
+    width: 100%;
+    min-height: var(--tl-tap-target-min, 2.75rem);
+    padding: var(--tl-space-2) var(--tl-space-3);
+    text-align: left;
+    color: var(--tl-text-primary);
+    font: inherit;
+    cursor: pointer;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-base);
+}
+
+.app-choice-row:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--tl-accent-primary) 72%, var(--tl-border-subtle));
+}
+
+.app-choice-row:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+.app-choice-row.is-selected {
+    border-color: var(--tl-accent-primary);
+    background: color-mix(in srgb, var(--tl-accent-primary) 11%, var(--tl-bg-base));
+}
+
+.app-choice-row:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.app-choice-row__copy {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.app-choice-row__copy strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-choice-row__copy span {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}

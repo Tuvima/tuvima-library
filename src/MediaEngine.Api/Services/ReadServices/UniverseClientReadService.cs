@@ -28,7 +28,8 @@ public sealed partial class UniverseClientReadService(
     DisplayCardBuilder cards,
     UniverseConnectionsReadService connections,
     ISeriesManifestRepository? manifests = null,
-    UniverseLinkCache? linkCache = null)
+    UniverseLinkCache? linkCache = null,
+    ICanonicalValueArrayRepository? arrays = null)
 {
     /// <summary>Cards listed on each member shelf; <c>item_count</c> still reports the whole shelf.</summary>
     public const int MaxShelfItems = 24;
@@ -51,6 +52,10 @@ public sealed partial class UniverseClientReadService(
     /// </summary>
     public async Task<UniverseClientDetailDto?> LoadAsync(string qid, Profile? profile, CancellationToken ct = default) =>
         (await BuildAsync(qid, profile, includeStandalone: false, includeCharacters: false, ct).ConfigureAwait(false))?.Detail;
+
+    /// <summary>The Wikidata work items the requesting profile may see (the one visibility set every Universe read uses).</summary>
+    internal Task<IReadOnlySet<string>> LoadVisibleWorkQidsAsync(CancellationToken ct) =>
+        connections.LoadVisibleWorkQidsAsync(ct);
 
     /// <summary>A Universe's detail, plus the visible works that belong directly to the Universe and to no Series.</summary>
     internal sealed record UniverseBuild(
@@ -93,6 +98,7 @@ public sealed partial class UniverseClientReadService(
 
         // One read for every member shelf's manifest rows, not one per shelf.
         var placementsByShelf = await SeriesShelfSplit.LoadPlacementsAsync(manifests, members.Select(member => member.Id).ToList(), ct).ConfigureAwait(false);
+        var seriesPairs = await SeriesShelfSplit.LoadSeriesPairsAsync(arrays, rowsByCollection.Values.SelectMany(rows => rows).ToList(), ct).ConfigureAwait(false);
 
         var shelves = new List<UniverseMemberShelfDto>();
         var mediaTypes = new List<string>();
@@ -107,7 +113,9 @@ public sealed partial class UniverseClientReadService(
                 rows,
                 placementsByShelf.TryGetValue(member.Id, out var placements)
                     ? placements
-                    : new Dictionary<Guid, ManifestItem>());
+                    : new Dictionary<Guid, ManifestItem>(),
+                member.WikidataQid,
+                seriesPairs);
             if (memberCards.Run.Count == 0 && memberCards.Also.Count == 0)
             {
                 continue;
@@ -151,13 +159,13 @@ public sealed partial class UniverseClientReadService(
             return null;
         }
 
-        var visibleWorkQids = allRows
-            .Select(row => row.IdentityQid)
-            .Where(workQid => !string.IsNullOrWhiteSpace(workQid))
-            .Select(workQid => workQid!)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var visibleWorkQids = await connections.LoadVisibleWorkQidsAsync(ct).ConfigureAwait(false);
+        // The Universe's own Works (its Series members and its standalone works) anchor the adaptation edges between Works.
+        var story = await connections.LoadStoryAsync(ct).ConfigureAwait(false);
+        var universeWorkQids = story.QidsOf(rowsByCollection.Values.SelectMany(memberRows => memberRows)
+            .Concat(StandaloneRowsOf(universe, allRows)));
         var universeConnections = await connections.GetConnectionsAsync(
-            normalized, visibleWorkQids, includeCharacters, ct).ConfigureAwait(false);
+            normalized, visibleWorkQids, includeCharacters, profile, universeWorkQids, ct).ConfigureAwait(false);
 
         return new UniverseBuild(
             new UniverseClientDetailDto
@@ -356,9 +364,11 @@ public sealed partial class UniverseClientReadService(
 
     private ShelfCards BuildCards(
         IReadOnlyList<DisplayWorkRow> rows,
-        IReadOnlyDictionary<Guid, ManifestItem> manifestByWork)
+        IReadOnlyDictionary<Guid, ManifestItem> manifestByWork,
+        string? seriesQid,
+        IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalArrayEntry>> seriesPairs)
     {
-        var split = SeriesShelfSplit.Split(rows, manifestByWork);
+        var split = SeriesShelfSplit.Split(rows, manifestByWork, seriesQid, seriesPairs);
         var run = new List<DisplayCardDto>(cards.BuildTvShowCards(split.TvRows));
         run.AddRange(split.Run.Select(row => cards.FromWork(row, "collection", null)));
         var also = split.Also.Select(row => cards.FromWork(row, "collection", null)).ToList();

@@ -33,12 +33,13 @@
                     <UniverseAdaptationsList Adaptations="@Connections.Adaptations" />
                 </div>
             }
-            @if (Connections.Characters.Count > 0)
+            @if (Connections.Characters.Count > 0 || Connections.HiddenCharacterCount > 0)
             {
                 <div class="universe-connections__column">
                     <h3 class="universe-connections__subtitle">Characters</h3>
                     <UniverseCharacterList Characters="@Connections.Characters"
                                            CharacterCount="@Connections.CharacterCount"
+                                           HiddenCount="@Connections.HiddenCharacterCount"
                                            OnCharacterSelected="@OnCharacterSelected" />
                 </div>
             }
@@ -62,7 +63,7 @@
     @if (FandomLine)
     {
         <p class="universe-connections__fandom">
-            <a href="/settings/plugins">Add Fandom details</a>
+            <a href="/settings/plugins?plugin=tuvima.fandom-lore">Add Fandom details</a>
         </p>
     }
 </section>
@@ -76,14 +77,15 @@
     /// <summary>Raised when a cast row is chosen. When nothing listens, a row links to the person's page.</summary>
     [Parameter] public EventCallback<UniverseClientCastMemberDto> OnCastMemberSelected { get; set; }
 
-    /// <summary>Raised when a character with plot details is chosen. When nothing listens, character rows are plain text.</summary>
+    /// <summary>Raised when a character is chosen (one with no plot details too: the panel lists Works, not plot). When nothing listens, character rows are plain text.</summary>
     [Parameter] public EventCallback<UniverseCharacterDto> OnCharacterSelected { get; set; }
 
     private UniverseClientDetailDto Detail => Page.Detail;
 
     private UniverseConnectionsDto Connections => Page.Connections;
 
-    private bool HasConnections => Connections.Characters.Count > 0 || Connections.Cast.Count > 0 || Connections.Adaptations.Count > 0;
+    private bool HasConnections =>
+        Connections.Characters.Count > 0 || Connections.HiddenCharacterCount > 0 || Connections.Cast.Count > 0 || Connections.Adaptations.Count > 0;
 
     private bool IsReady => string.Equals(Page.Enrichment.State, UniverseEnrichmentStateDto.Ready, StringComparison.Ordinal);
 

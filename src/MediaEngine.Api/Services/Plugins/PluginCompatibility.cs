@@ -80,7 +80,7 @@ public static class PluginCompatibility
             }
         }
 
-        return null;
+        return PluginNetworkRules.Validate(manifest.Permissions, manifest.Network);
     }
 
     /// <summary>
@@ -107,7 +107,7 @@ public static class PluginCompatibility
             return PluginCompatibilityResult.Incompatible(invalid);
         }
 
-        if (manifest.Kind != PluginKind.Official)
+        if (manifest.Kind is not (PluginKind.Official or PluginKind.Declarative or PluginKind.Service))
         {
             return PluginCompatibilityResult.Incompatible(
                 $"This kind of plugin ({KindName(manifest.Kind)}) is not supported by this version of the Library yet.");

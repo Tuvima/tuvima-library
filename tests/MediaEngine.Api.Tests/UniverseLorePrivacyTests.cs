@@ -171,6 +171,7 @@ public sealed class UniverseLorePrivacyTests : IDisposable
     [InlineData("https://fandom.com.evil.example.com/wiki/Luke")]
     [InlineData("http://fandom.com@evil.example.com/")]
     [InlineData("https://evil.example.com/fandom.com")]
+    [InlineData("https://fandom.com/wiki/Luke")]
     [InlineData("evil.example.com/x:Page")]
     [InlineData("evil.example.com@fandom.com:Page")]
     public async Task ADiscoveredNonFandomAddress_IsIgnored_ByTheProvider(string p6262Value)
@@ -211,6 +212,7 @@ public sealed class UniverseLorePrivacyTests : IDisposable
     [InlineData("https://evil.example.com", null)]
     [InlineData("https://fandom.com.evil.example.com", null)]
     [InlineData("evil.example.com/fandom.com", null)]
+    [InlineData("https://fandom.com", null)]
     [InlineData("https://starwars.fandom.com", "https://evil.example.com/api.php")]
     [InlineData("https://starwars.fandom.com", "http://starwars.fandom.com/api.php")]
     public async Task AManuallyAddedNonFandomAddress_IsRefused(string baseUrl, string? apiUrl)
@@ -418,6 +420,7 @@ public sealed class UniverseLorePrivacyTests : IDisposable
         public IPluginToolRuntime Tools => throw new NotSupportedException();
         public IPluginAiClient Ai => throw new NotSupportedException();
         public IPluginSecrets Secrets => throw new NotSupportedException();
+        public IPluginRecordStore Records => throw new NotSupportedException();
 
         public ValueTask DisposeAsync()
         {

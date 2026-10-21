@@ -162,8 +162,6 @@ public sealed class PluginCompatibilityTests
     }
 
     [Theory]
-    [InlineData("declarative")]
-    [InlineData("service")]
     [InlineData("sandboxed")]
     public void NonOfficialKind_LoadsWithoutAnError_ButCannotBeEnabled(string kind)
     {
@@ -385,7 +383,6 @@ public sealed class PluginCompatibilityTests
         new IntroSkipPlugin(),
         new CreditsDetectionPlugin(),
         new RecapDetectionPlugin(),
-        new AiVisualVerifierPlugin(),
     ];
 
     private static PluginManifest Manifest(
@@ -401,6 +398,9 @@ public sealed class PluginCompatibilityTests
             MaximumLibraryVersion = maximum,
             SupportedPlatforms = platforms ?? [],
             Permissions = permissions ?? [],
+            Network = permissions is not null && permissions.Contains(PluginPermissionIds.NetworkHttp)
+                ? [new PluginNetworkDestination { Host = "api.example.com", Sends = "Looks up titles by name" }]
+                : [],
             DefaultSettings = settings ?? new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase),
         };
 

@@ -34,20 +34,27 @@ Current serving rule: graph APIs and UI must remain truthful. `GET /universes` r
 
 Supplemental serving rule: approved plugin lore appears only when a caller asks for the overlay with `include_supplemental_lore=true`. Plugin nodes and edges include `supplemental=true`, `provenance=plugin`, `source_plugin`, and `source_url` so UI and API clients can distinguish them from Wikidata facts.
 
-Universe page Connections (`/universe/{qid}/overview`, built by `UniverseConnectionsReadService`) are evidence only and name a source on every row. A Character, Cast credit or adaptation's source is the provenance stored on the appearance link or relationship (`Wikidata` today); an approved plugin lore source that holds the same Wikidata item is added beside it. Characters come only from Character-type entities linked to a work the profile may see. The "spoiler for" (P7528) marker on appearances is honoured: until per-viewer progress exists (spec U-WP11), a character whose every visible appearance carries it is listed by name and source only ("No plot details"), with no work count and no "Also appears in". Character performer credits (`character_performer_links`) store no provenance of their own; they are written only from Wikidata cast statements, so a Cast row takes its source from the matching appearance link.
+Universe page Connections (`/universe/{qid}/overview`, built by `UniverseConnectionsReadService`) are evidence only and name a source on every row. A Character, Cast credit or adaptation's source is the provenance stored on the appearance link or relationship (`Wikidata` today); an approved plugin lore source that holds the same Wikidata item is added beside it. Characters come only from Character-type entities linked to a work the profile may see. Visibility of a link is one set for every Universe read, `OwnedStory.VisibleQids`: the identity of each work the profile may see plus the identity of the show (root work) each belongs to, so a link to a show counts whenever any of its episodes is visible, even when every episode carries an identity of its own. Characters are judged by one rule, `SpoilerRule` in the Domain (spec U-WP11), called through `CharacterSpoilerService` by every read that names a character: the Universe page Characters and Cast, the compact `/api/v1/universe/{qid}` read, `/universe/{qid}/cast`, "Also appears in" and the graph, paths and family-tree actions (a hidden character is omitted from the graph with every edge to it).
+
+**First seen at (computed, nothing stored).** `CharacterFirstSeenReader` / `OwnedStory` turn a character's appearance links into one position per title it appears in, from the authorised display projection of the requesting profile. A link's work QID that is an owned episode's own identity (a child Work carrying its own `wikidata_qid`) is that episode: show Work, season number (a missing season reads as 1) and episode number. Among a title's episode links the earliest wins, and a `first_appearance` link wins over a plain presence link. A link that names the show, a film or a book as a whole is that title with the position within it unknown; books and audiobooks never get a chapter because no source provides one. Matching is by Wikidata item only: TMDB per-episode character names have no QIDs and are never used to place anyone.
+
+**The rule.** Inputs: the profile's spoiler level (`up_to_progress` default, or `everything`, stored in the profile's playback settings and changed only through `PUT /profiles/{id}/settings/spoilers`), the character's first-seen positions, the "spoiler for" (P7528) works and the profile's progress (`user_states`, read through `IViewerProgressRepository`: a title is started once any file has progress above 0 and finished once every owned file is at or above 99.5; a show's furthest started and furthest finished episodes are kept). Output per character: `Shown`, `NoPlotDetails` (named with its source, no description, no work count; "Also appears in" still opens, because it lists Works, not plot) or `Hidden` (omitted, counted in `hidden_character_count`). At `everything` every character is `Shown`. Otherwise a spoiler marker for a Work the profile has not finished or does not own makes it `Hidden` (the marker counts only when every visible appearance carries one; a character with a plain appearance is known from that); then the most permissive title wins (a character met in any one title is `Shown`, even if another title first sees them later; a title the profile has finished shows everyone in it, whether or not an episode is known for them): an episode at or before the furthest started episode is `Shown`, a finished title is `Shown`, a title not started or a position unknown within a started title is `NoPlotDetails`, and an episode later than the furthest started one is `Hidden`. No profile is judged as a viewer who has started nothing. Character performer credits (`character_performer_links`) store no provenance of their own; they are written only from Wikidata cast statements, so a Cast row takes its source from the matching appearance link.
 
 ---
 
 ## Narrative Root Resolution
 
-Before the graph can be built, the Engine determines which fictional universe a work belongs to. The Narrative Root Resolver walks a property chain in priority order:
+Before the graph can be built, the Engine determines which Universe a work belongs to. There is one Universe record per Wikidata ID: the `narrative_roots` row. The Universe shelf the Library shows (`collections.universe_qid` on a Universe collection) and the graph root are the same record, chosen by one rule, `UniverseIdentityRule` (Domain), which both `ParentCollectionResolver` (Series shelves) and `NarrativeRootResolver` (works) use:
 
 1. P1434 (takes place in fictional universe)
 2. P8345 (media franchise)
-3. P179 (part of series)
-4. Collection DisplayName (fallback)
+3. P179 (part of series) naming a broader Series than the work's or shelf's own
+4. P144 (based on), so an adaptation joins the Universe of what it adapts
+5. the work's or shelf's own Series (P179)
 
-The resolved universe QID and label are stored in the `narrative_roots` table. All fictional entities discovered within a work are linked to their narrative root, enabling cross-media queries - for example, finding all characters from the Dune universe across novels, films, and audiobooks.
+Within one step the lowest QID wins, so repeated runs pick the same record. A fictional universe or franchise value that is one of the work's own characters, places, events or objects is ignored. The chosen QID is then looked up in the Library: a Series shelf with that QID that already names a Universe gives that Universe, otherwise the record's `parent_qid` chain is followed to its top. A work that sits on a Series shelf takes that shelf's Universe; when a shelf's Universe changes, the narrative root stored on its works follows, and shelves that point at it (a TV show based on that book Series) are decided again, so the result does not depend on which shelf was ingested first.
+
+The resolved QID and label are stored on the work (`narrative_root_qid`, `narrative_root_label`). All fictional entities discovered within a work are linked to its narrative root, enabling cross-media queries - for example, finding all characters from the Dune universe across novels, films, and audiobooks. Entities discovered under an earlier root keep it until the next universe enrichment pass.
 
 ---
 
@@ -76,7 +83,7 @@ Entity types are stored in a single `fictional_entities` table with a sub-type d
 
 `RelationshipPopulationService` creates graph edges by reading entity-valued claims after enrichment. The traversal depth is configurable (default: 2 hops) via `lineage_depth` in `config/hydration.json`.
 
-26 relationship types are supported:
+27 character, place, organisation and event relationship types are supported. A property is read only when it is listed for its entity type in `data_extension` (`character_properties.core` for characters) and has a `property_labels` entry in `config/providers/wikidata_reconciliation.json`; an edge is written only for the claim keys `RelationshipPopulationService` maps to a type:
 
 | Relationship | Wikidata property |
 |---|---|
@@ -85,7 +92,8 @@ Entity types are stored in a single `fictional_entities` table with a sub-type d
 | spouse | P26 |
 | sibling | P3373 |
 | child | P40 |
-| opponent | P1344 |
+| participant_in (a character took part in an event) | P1344 |
+| enemy | P7047 |
 | student_of | P1066 |
 | partner | P451 |
 | member_of | P463 |
@@ -106,6 +114,17 @@ Entity types are stored in a single `fictional_entities` table with a sub-type d
 | participant | P710 |
 | caused_by | P828 |
 | causes | P1542 |
+
+### Adaptation edges between Works
+
+Adaptations on a Universe page fill from evidence. During Stage 3 (right after the Work's narrative root is resolved) `WorkAdaptationEdgeService` reads the Work's own Wikidata claims and writes `entity_relationships` rows between Works, so no adaptation is guessed:
+
+| Claim on the Work | Wikidata property | Edge written |
+|---|---|---|
+| `based_on` | P144 | this Work `based_on` the named Work |
+| `derivative_work` | P4969 | the named Work `derivative_work` of this Work (the claim is stored reversed, so every edge reads "subject is an adaptation of object") |
+
+An edge is keyed by subject, type, object and source, so a re-run updates the row it wrote before and never duplicates it. Works are not `fictional_entities` rows; their QIDs sit as plain text in the edge. Ownership is not checked when an edge is written. The Universe reads (`UniverseConnectionsReadService`) offer the profile's visible Work identities (`OwnedStory.VisibleQids`) alongside the entities' when they look for adaptation edges, and show an edge only when both of its Works are visible and one of them is the Universe's own (a Series member, a standalone work, or an entity); each Work is named, typed and given its cover from the profile's own display rows. The adaptation tree action anchors on the Works its characters appear in. A statement this service wrote carries a `work-adaptation|...` statement key, and is removed when its claim is gone, so an edge cannot outlive the claim behind it; edges another writer stored are never touched. The claims are Parent-scope: for an episode, the fallback identity is the show's, never the episode's. A failure writing edges is logged and does not stop the rest of stage 3. `inspired_by` (P941) is not read yet, so no `inspired_by` edge is written.
 
 Actor-to-character links are stored separately in `character_performer_links` (person_id, fictional_entity_id, work_qid) and merged into the graph at query time.
 
@@ -274,6 +293,15 @@ sources remain supplemental and appear in Sources with their plugin and URL.
 | `lineage_depth` | 2 | Maximum relationship traversal depth |
 
 ---
+
+## Subtitle Text Index
+
+The Engine reads the Library's subtitle text so that a time in a film or episode can later be tied to the characters and places named at that time. It is plain matching: no AI and no network.
+
+1. **Sources.** The index reads every stored, normalised subtitle track in `text_tracks` (whichever provider or sidecar supplied it; no source is named in the code), and the text subtitle streams embedded in the video file (extracted with FFmpeg, one per language, skipping forced and picture-based streams and any language a stored track already covers). The probe also stores the file's chapter times in `media_asset_chapters`.
+2. **Lines.** `SubtitleLineParser` (hand-written, WebVTT, SRT and ASS) turns a track into time-stamped plain lines in `subtitle_lines`.
+3. **Names.** `SubtitleNameMatcher` matches the labels of the Universe entities that belong to the file (entities linked to the file's Work or to the Works above it, and every entity of the Universe those Works sit in) against the lines, whole words only and ignoring case. A character's given name and surname count as aliases (four letters or more, capitalised in the label), and a name two entities share is not matched. Mentions of one entity less than 30 seconds apart form one window, stored in `subtitle_name_tags` (start, end, first and last line, mention count).
+4. **When.** `SubtitleIndexHostedService` runs the work in the background only: after a start-up delay, never while ingestion is working, ten items at a time. Its to-do list is durable (`subtitle_index_tracks`, `subtitle_index_assets`); a changed stored track, or a Universe graph that grew (the `entity_signature` differs), is picked up on the next pass. Tags are data only: no screen shows them yet.
 
 ## Query Efficiency
 

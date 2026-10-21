@@ -39,6 +39,7 @@ public sealed class CollectionAssignmentService
     private readonly ILogger<CollectionAssignmentService> _logger;
     private readonly ISeriesManifestRepository? _manifestRepo;
     private readonly SeriesAmbiguityReviewer? _ambiguityReviewer;
+    private readonly ISeriesPlacementRepository? _placementRepo;
 
     // Per-shelf semaphores serialise concurrent find-or-create calls so two
     // workers cannot race past lookup and both UpsertAsync the same ContentGroup
@@ -52,7 +53,8 @@ public sealed class CollectionAssignmentService
         ILogger<CollectionAssignmentService> logger,
         ICanonicalValueArrayRepository? arrayRepo = null,
         ISeriesManifestRepository? manifestRepo = null,
-        SeriesAmbiguityReviewer? ambiguityReviewer = null)
+        SeriesAmbiguityReviewer? ambiguityReviewer = null,
+        ISeriesPlacementRepository? placementRepo = null)
     {
         _collectionRepo = collectionRepo;
         _canonicalRepo = canonicalRepo;
@@ -61,6 +63,7 @@ public sealed class CollectionAssignmentService
         _logger = logger;
         _manifestRepo = manifestRepo;
         _ambiguityReviewer = ambiguityReviewer;
+        _placementRepo = placementRepo;
     }
 
     /// <summary>
@@ -102,6 +105,11 @@ public sealed class CollectionAssignmentService
             }
         }
 
+        // The Series the work's claims name: the lineage root first, then every file of the work in file-id order. This is the
+        // same set, in the same order, that manifest linking reads, so both paths give the same shelf. (The retail identity
+        // above still comes from the one file being assigned.)
+        var claimValues = await LoadClaimValuesAsync(canonicalEntityId, entityId, workId.Value, ct).ConfigureAwait(false);
+
         var mediaType = lineage?.MediaType ?? ResolveMediaType(lookup);
         await MergeArrayBackedRelationshipHintsAsync(lookup, canonicalEntityId, entityId, ct).ConfigureAwait(false);
 
@@ -113,11 +121,42 @@ public sealed class CollectionAssignmentService
         var memberships = _manifestRepo is null
             ? []
             : await _manifestRepo.GetMembershipsForWorkAsync(workId.Value, ct).ConfigureAwait(false);
+        // A person's locked choice comes first, and the tie-break Series comes from the one shared reader, so the manifest
+        // linking pass reads the same value for the same work.
+        var held = _placementRepo is null
+            ? null
+            : await _placementRepo.GetLockAsync(workId.Value, ct).ConfigureAwait(false);
         var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput(
             mediaType.ToString(),
             memberships,
             retail?.ToIdentity(),
-            ClaimedSeriesQid: retail?.Qid));
+            ClaimedSeriesQid: ClaimedSeriesQidReader.Resolve(mediaType.ToString(), claimValues),
+            Lock: held));
+
+        if (decision.Basis == SeriesPlacementBasis.PersonChoice)
+        {
+            // The person already put this work where they want it; nothing automatic moves, clears or re-places it.
+            await ResolveAmbiguityAsync(workId.Value, ct).ConfigureAwait(false);
+            _logger.LogDebug("CollectionAssignment: work {WorkId} keeps the Series a person chose", workId);
+            return decision.ShelfCollectionId is { } chosen
+                ? new CollectionAssignmentResult(
+                    CollectionAssignmentOutcome.AlreadyAssigned,
+                    entityId,
+                    workId.Value,
+                    chosen,
+                    Message: "A person chose this Series.")
+                : new CollectionAssignmentResult(
+                    CollectionAssignmentOutcome.SkippedNoShelfIdentity,
+                    entityId,
+                    workId.Value,
+                    Message: "A person chose that this work is not in a Series.");
+        }
+
+        if (decision.Kind != SeriesPlacementKind.Ambiguous)
+        {
+            // Placed or unplaced without a tie: any earlier "which Series?" question about this work is answered.
+            await ResolveAmbiguityAsync(workId.Value, ct).ConfigureAwait(false);
+        }
 
         if (decision.Kind == SeriesPlacementKind.Ambiguous)
         {
@@ -332,6 +371,32 @@ public sealed class CollectionAssignmentService
             workId,
             Message: detail);
     }
+
+    private async Task<Dictionary<string, string>> LoadClaimValuesAsync(
+        Guid rootEntityId,
+        Guid assignedFileId,
+        Guid workId,
+        CancellationToken ct)
+    {
+        // One query for the work's file list and one batched read of every canonical value: the lineage root first, then the
+        // files in file-id order, the same order manifest linking reads. A blank value is no claim (as in linking).
+        var fileIds = _placementRepo is null
+            ? [assignedFileId]
+            : await _placementRepo.GetFileIdsAsync(workId, ct).ConfigureAwait(false);
+        var ordered = new[] { rootEntityId }.Concat(fileIds).Distinct().ToList();
+        var byEntity = await _canonicalRepo.GetByEntitiesAsync(ordered, ct).ConfigureAwait(false);
+        var entities = ordered.Select(id => byEntity.TryGetValue(id, out var values)
+            ? values
+                .Where(v => !string.IsNullOrWhiteSpace(v.Value)
+                    && ClaimedSeriesQidReader.Keys.Contains(v.Key, StringComparer.OrdinalIgnoreCase))
+                .Select(v => new KeyValuePair<string, string>(v.Key, v.Value))
+            : []);
+
+        return ClaimedSeriesQidReader.Merge(entities);
+    }
+
+    private Task ResolveAmbiguityAsync(Guid workId, CancellationToken ct)
+        => _ambiguityReviewer is null ? Task.CompletedTask : _ambiguityReviewer.ResolveAsync(workId, ct);
 
     private async Task<Collection?> FindShelfCollectionAsync(ShelfIdentity shelf, CancellationToken ct)
     {
@@ -570,13 +635,16 @@ public sealed class CollectionAssignmentService
         };
 
         await _manifestRepo.UpsertManifestAsync(hydration, rows, ct).ConfigureAwait(false);
-        var ambiguous = await _manifestRepo.LinkOwnedWorksAsync(collectionId, rows, ct).ConfigureAwait(false);
+        var linked = await _manifestRepo.LinkOwnedWorksWithOutcomeAsync(collectionId, rows, ct).ConfigureAwait(false);
         if (_ambiguityReviewer is not null)
         {
-            foreach (var work in ambiguous)
+            foreach (var work in linked.Ambiguous)
             {
                 await _ambiguityReviewer.RaiseAsync(work.WorkId, work.Candidates, work.WorkId, ct).ConfigureAwait(false);
             }
+
+            // Every other work the linking decided (including works reached through a parent collection) is answered.
+            await _ambiguityReviewer.ResolveManyAsync(linked.DecidedWorkIds.ToList(), ct).ConfigureAwait(false);
         }
     }
 
@@ -945,22 +1013,85 @@ public sealed class CollectionAssignmentService
             return;
         }
 
-        await MergeArrayBackedRelationshipHintsForEntityAsync(lookup, canonicalEntityId, ct).ConfigureAwait(false);
+        var arraysByEntity = new List<IReadOnlyDictionary<string, IReadOnlyList<CanonicalArrayEntry>>>
+        {
+            await _arrayRepo.GetAllByEntityAsync(canonicalEntityId, ct).ConfigureAwait(false),
+        };
         if (sourceEntityId != canonicalEntityId)
         {
-            await MergeArrayBackedRelationshipHintsForEntityAsync(lookup, sourceEntityId, ct).ConfigureAwait(false);
+            arraysByEntity.Add(await _arrayRepo.GetAllByEntityAsync(sourceEntityId, ct).ConfigureAwait(false));
+        }
+
+        // A "fictional universe" or "franchise" value that is one of the work's own characters, places, events or objects
+        // is not a Universe. The Work-level narrative root applies the same guard (UniverseIdentityRule), so the shelf and
+        // the graph never pick different Universes for the same works.
+        var fictionalMembers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var arrays in arraysByEntity)
+        {
+            foreach (var key in FictionalMemberKeys)
+            {
+                if (!arrays.TryGetValue(key, out var entries))
+                {
+                    continue;
+                }
+
+                foreach (var qid in entries.Select(entry => UniverseIdentityRule.NormaliseQid(entry.ValueQid)).OfType<string>())
+                {
+                    fictionalMembers.Add(qid);
+                }
+            }
+        }
+
+        foreach (var arrays in arraysByEntity)
+        {
+            MergeArrayBackedRelationshipHintsForEntity(lookup, arrays, fictionalMembers);
+        }
+
+        if (TryGetQid(lookup, "franchise", out var franchiseQid, out _) && fictionalMembers.Contains(franchiseQid))
+        {
+            lookup.Remove("franchise");
+            lookup.Remove("franchise_qid");
         }
     }
 
-    private async Task MergeArrayBackedRelationshipHintsForEntityAsync(
+    private static readonly string[] FictionalMemberKeys =
+    [
+        MetadataFieldConstants.Characters,
+        MetadataFieldConstants.NarrativeLocation,
+        MetadataFieldConstants.NarrativeEvent,
+        MetadataFieldConstants.NarrativeObject,
+    ];
+
+    private static void MergeArrayBackedRelationshipHintsForEntity(
         Dictionary<string, string> lookup,
-        Guid entityId,
-        CancellationToken ct)
+        IReadOnlyDictionary<string, IReadOnlyList<CanonicalArrayEntry>> arrays,
+        HashSet<string> fictionalMembers)
     {
-        var arrays = await _arrayRepo!.GetAllByEntityAsync(entityId, ct).ConfigureAwait(false);
+        // Fictional universe (P1434) is multi-valued, so it lives only in the arrays. The shelf records the same value the
+        // Universe rule would choose: the lowest QID that is not one of the work's own fictional members.
+        if (arrays.TryGetValue("fictional_universe", out var universeEntries))
+        {
+            var universe = universeEntries
+                .Where(entry => UniverseIdentityRule.NormaliseQid(entry.ValueQid) is { } qid && !fictionalMembers.Contains(qid))
+                .OrderBy(entry => UniverseIdentityRule.NormaliseQid(entry.ValueQid)!, Comparer<string>.Create(UniverseIdentityRule.CompareQids))
+                .FirstOrDefault();
+            if (universe is not null)
+            {
+                AddArrayHint(lookup, "fictional_universe", universe);
+            }
+        }
+
         if (arrays.TryGetValue("based_on", out var basedOnEntries))
         {
-            AddFirstQidArrayHint(lookup, "based_on", basedOnEntries);
+            // The lowest QID, as the Universe rule picks among several "based on" values.
+            var basedOn = basedOnEntries
+                .Where(entry => UniverseIdentityRule.NormaliseQid(entry.ValueQid) is not null)
+                .OrderBy(entry => UniverseIdentityRule.NormaliseQid(entry.ValueQid)!, Comparer<string>.Create(UniverseIdentityRule.CompareQids))
+                .FirstOrDefault();
+            if (basedOn is not null)
+            {
+                AddArrayHint(lookup, "based_on", basedOn);
+            }
         }
 
         if (arrays.TryGetValue(MetadataFieldConstants.Characters, out var characterEntries))
@@ -984,29 +1115,18 @@ public sealed class CollectionAssignmentService
         }
     }
 
-    private static void AddFirstQidArrayHint(
-        Dictionary<string, string> lookup,
-        string claimKey,
-        IReadOnlyList<CanonicalArrayEntry> entries)
-    {
-        var entry = entries.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value.ValueQid));
-        if (entry is not null)
-        {
-            AddArrayHint(lookup, claimKey, entry);
-        }
-    }
-
     private static void AddArrayHint(
         Dictionary<string, string> lookup,
         string claimKey,
         CanonicalArrayEntry entry)
     {
-        if (string.IsNullOrWhiteSpace(entry.ValueQid))
+        // The label and the QID always come from the same value: an earlier source wins only when it supplied both.
+        if (string.IsNullOrWhiteSpace(entry.ValueQid) || lookup.ContainsKey($"{claimKey}_qid"))
         {
             return;
         }
 
-        lookup.TryAdd(claimKey, entry.Value);
+        lookup[claimKey] = entry.Value;
         lookup.TryAdd($"{claimKey}_qid", entry.ValueQid);
     }
 }

@@ -98,6 +98,84 @@ public sealed class StateCardPagesTests : AsyncBunitContext
     }
 
     [Fact]
+    public void PluginsPage_ACardForAPluginWithDestinations_ListsEveryHostAndWhatItSendsThere()
+    {
+        _plugins =
+        [
+            Plugin("a.lore", "Lore", enabled: true, trust: "official", permissions: ["network.http"],
+                allowedTo:
+                [
+                    "Contacts www.wikidata.org: Item IDs of Universes already in your Library",
+                    "Contacts *.fandom.com: Requests for the page list of a wiki you approved",
+                ],
+                sendsDataTo: "www.wikidata.org, *.fandom.com"),
+        ];
+
+        var cut = Render<PluginSettingsTab>();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
+        var card = cut.Find("[data-state-card=plugin]");
+        Assert.Equal("Yes, to www.wikidata.org, *.fandom.com", card.QuerySelector("[data-testid=sends-data]")!.TextContent.Trim());
+        Assert.Contains("Contacts www.wikidata.org: Item IDs of Universes already in your Library", card.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Contacts *.fandom.com: Requests for the page list of a wiki you approved", card.TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PluginsPage_ACardForAPluginThatSendsNothingOut_SaysNo()
+    {
+        _plugins = [Plugin("a.local", "Local", enabled: true, permissions: ["media.read"], allowedTo: ["Reads your media files"])];
+
+        var cut = Render<PluginSettingsTab>();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
+        Assert.Equal("No", cut.Find("[data-state-card=plugin] [data-testid=sends-data]").TextContent.Trim());
+    }
+
+    [Fact]
+    public void PluginsPage_AnInstalledPluginLink_ScrollsToThatCard_RingsIt_AndOpensItsSettings()
+    {
+        _plugins =
+        [
+            Plugin("a.official", "Alpha", enabled: true, trust: "official"),
+            Plugin("tuvima.fandom-lore", "Fandom Lore", enabled: false, trust: "official"),
+        ];
+
+        var cut = Render<PluginSettingsTab>(parameters => parameters.Add(page => page.FocusPluginId, "TUVIMA.fandom-lore"));
+
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-state-card=plugin]").Count));
+        var focused = cut.FindAll("[data-focused=true]");
+        var wrapper = Assert.Single(focused);
+        Assert.Equal("plugin-card-tuvima-fandom-lore", wrapper.Id);
+        Assert.Contains("settings-plugin-card-focus", wrapper.ClassName, StringComparison.Ordinal);
+        Assert.Contains("Fandom Lore", wrapper.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Alpha", wrapper.TextContent, StringComparison.Ordinal);
+        cut.WaitForAssertion(() => Assert.Contains("Configure Fandom Lore", cut.Markup, StringComparison.Ordinal));
+        cut.WaitForAssertion(() =>
+        {
+            var scroll = Assert.Single(JSInterop.Invocations["tuvimaEditorScrollTo"]);
+            Assert.Equal("#plugin-card-tuvima-fandom-lore", scroll.Arguments[0]);
+        });
+    }
+
+    [Theory]
+    [InlineData("no.such.plugin")]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void PluginsPage_AnUnknownOrEmptyPluginLink_OpensThePageNormally_WithNoRingNoScrollAndNoError(string? pluginId)
+    {
+        _plugins = [Plugin("a.official", "Alpha", enabled: true, trust: "official")];
+
+        var cut = Render<PluginSettingsTab>(parameters => parameters.Add(page => page.FocusPluginId, pluginId));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
+        Assert.Empty(cut.FindAll("[data-focused]"));
+        Assert.DoesNotContain("Configure Alpha", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Plugin settings could not be loaded", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "tuvimaEditorScrollTo");
+    }
+
+    [Fact]
     public void PluginsPage_AnEnabledPluginWithALoadError_ShowsBroken_WithRetry_AndTheMenuRowTurnsRed()
     {
         _plugins = [Plugin("a.bad", "Bad plugin", enabled: true, loadError: "The manifest is missing.")];
@@ -244,24 +322,22 @@ public sealed class StateCardPagesTests : AsyncBunitContext
     // ── Local AI ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task LocalAiOverview_DrawsOneEngineCardAndOneStateCardPerFeature()
+    public async Task LocalAiOverview_DrawsOneEngineCardAndOneCardPerAiFeaturePlugin_WithNoSwitchesOfItsOwn()
     {
+        _plugins = AiFeaturePlugins();
         await State.StartAsync();
 
         var cut = Render<LocalAiSettingsTab>();
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=localaiengine]")));
-        Assert.Equal(6, cut.FindAll("[data-state-card=plugin]").Count);
-        Assert.Empty(cut.FindAll("[data-state-card=localaiengine] input[role=switch]"));
-        Assert.Equal(6, cut.FindAll("[data-state-card=plugin] input[role=switch]").Count);
-        Assert.All(cut.FindAll("[data-state-card=plugin]"), card => Assert.Contains("Uses Local AI", card.TextContent, StringComparison.Ordinal));
-        Assert.Contains(cut.FindAll("[data-state-card=plugin]"), card => card.TextContent.Contains("Reads file and folder names", StringComparison.Ordinal));
-        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Save features");
+        cut.WaitForAssertion(() => Assert.Equal(5, cut.FindAll(".local-ai-settings__feature-card").Count));
+        Assert.Empty(cut.FindAll("input[role=switch]"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Save features");
         State.Stop();
     }
 
     [Fact]
-    public async Task LocalAiOverview_WhileLocalAiIsBlocked_ShowsTheEngineAndTheSwitchedOnFeaturesAsBroken()
+    public async Task LocalAiOverview_WhileLocalAiIsBlocked_ShowsTheEngineAsBroken_AndEachFeatureKeepsItsOwnPluginState()
     {
         _onTools = () => new ToolRequirementsDto(
             ToolInstallKinds.Source,
@@ -269,38 +345,29 @@ public sealed class StateCardPagesTests : AsyncBunitContext
             true,
             [new ToolRequirementDto(ToolRequirementIds.AiRuntime, "Local AI engine", "tool", ToolRequirementLevels.Required, ToolRequirementStates.Missing,
                 "Local AI waits.", null, "Download it.", null, 0, false, false, false, null)]);
+        _plugins = AiFeaturePlugins();
+        _plugins[0] = _plugins[0] with { Enabled = true };
         await State.StartAsync();
 
         var cut = Render<LocalAiSettingsTab>();
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=localaiengine]")));
         Assert.Equal("broken", cut.Find("[data-state-card=localaiengine]").GetAttribute("data-health"));
-        Assert.All(cut.FindAll("[data-state-card=plugin]"), card =>
-        {
-            Assert.Equal("broken", card.GetAttribute("data-health"));
-            Assert.Contains("Local AI engine is missing", card.TextContent, StringComparison.Ordinal);
-        });
+        cut.WaitForAssertion(() => Assert.Equal(5, cut.FindAll(".local-ai-settings__feature-card").Count));
+        var states = cut.FindAll(".local-ai-settings__feature-state").Select(state => state.TextContent).ToList();
+        Assert.Single(states, text => text.Contains("On", StringComparison.Ordinal) && !text.Contains("Off", StringComparison.Ordinal));
+        Assert.Equal(4, states.Count(text => text.Contains("Off", StringComparison.Ordinal)));
         State.Stop();
     }
 
-    [Fact]
-    public async Task LocalAiOverview_AFeatureThatIsSwitchedOff_ShowsOffEvenWhileLocalAiIsBlocked()
-    {
-        _onTools = () => new ToolRequirementsDto(
-            ToolInstallKinds.Source,
-            DateTimeOffset.UnixEpoch,
-            true,
-            [new ToolRequirementDto(ToolRequirementIds.AiRuntime, "Local AI engine", "tool", ToolRequirementLevels.Required, ToolRequirementStates.Missing,
-                "Local AI waits.", null, "Download it.", null, 0, false, false, false, null)]);
-        await State.StartAsync();
-
-        var cut = Render<LocalAiSettingsTab>();
-        cut.WaitForAssertion(() => Assert.Equal(6, cut.FindAll("[data-state-card=plugin]").Count));
-        cut.FindAll("[data-state-card=plugin] input[role=switch]")[0].Change(false);
-
-        cut.WaitForAssertion(() => Assert.Equal("off", cut.FindAll("[data-state-card=plugin]")[0].GetAttribute("data-health")));
-        State.Stop();
-    }
+    private static List<PluginSummaryResponse> AiFeaturePlugins() =>
+    [
+        Plugin("tuvima.ai-description-insights", "Description insights", enabled: false),
+        Plugin("tuvima.ai-series-order", "Series order", enabled: false),
+        Plugin("tuvima.ai-smart-labelling", "Smart labelling", enabled: false),
+        Plugin("tuvima.ai-type-helper", "Type helper", enabled: false),
+        Plugin("tuvima.ai-vibe-tags", "Vibe tags", enabled: false),
+    ];
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 

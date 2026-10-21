@@ -19,7 +19,7 @@ public sealed class PluginEndpointAuthorizationTests
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddAuthorization();
         builder.Services.AddSingleton<PluginCatalog>(_ => null!);
-        builder.Services.AddSingleton<ApprovedPluginCatalogService>(_ => null!);
+        builder.Services.AddSingleton<PluginDirectoryService>(_ => null!);
         builder.Services.AddSingleton<IPluginExecutionContextFactory>(_ => null!);
         builder.Services.AddSingleton<IMediaOperationRepository>(_ => null!);
         builder.Services.AddSingleton<PluginScheduledSegmentService>(_ => null!);
@@ -36,10 +36,12 @@ public sealed class PluginEndpointAuthorizationTests
         var expected = new (string Route, string Method, ApplicationPermissionId Permission)[]
         {
             ("/plugins/", "GET", ApplicationPermissionIds.PluginsRead),
-            ("/plugins/approved", "GET", ApplicationPermissionIds.PluginsRead),
+            ("/plugins/directory", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}/enable", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/disable", "POST", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/ai-steps/{stepKey}/run", "POST", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/service/lookup", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/settings", "PUT", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/manifest", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}/manifest", "PUT", ApplicationPermissionIds.PluginsManage),
@@ -54,8 +56,8 @@ public sealed class PluginEndpointAuthorizationTests
             ("/universe/{qid}/lore/enrich", "POST", ApplicationPermissionIds.PluginsJobsRun),
         };
 
-        // +1 for the legacy lore discovery route and +3 for the plugin secrets routes (administrator-only; see PluginSecretsTests).
-        Assert.Equal(expected.Length + 1 + 3, endpoints.Length);
+        // +1 for the legacy lore discovery route, +3 for the plugin secrets routes (administrator-only; see PluginSecretsTests) and +4 for the plugin directory actions (administrator-only; see PluginDirectoryEndpointTests).
+        Assert.Equal(expected.Length + 1 + 3 + 4, endpoints.Length);
         foreach (var route in expected)
         {
             AssertPolicy(endpoints, route.Route, route.Method, route.Permission);

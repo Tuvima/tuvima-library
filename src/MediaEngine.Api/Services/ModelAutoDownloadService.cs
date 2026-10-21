@@ -1,4 +1,5 @@
 using MediaEngine.AI.Configuration;
+using MediaEngine.AI.Infrastructure;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
@@ -12,17 +13,20 @@ public sealed class ModelAutoDownloadService : BackgroundService
     private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(10);
     private readonly IModelDownloadManager _downloadManager;
     private readonly AiSettings _settings;
+    private readonly IAiFeatureSwitches _switches;
     private readonly ILogger<ModelAutoDownloadService> _logger;
     private readonly OnboardingActivationGate? _onboardingGate;
 
     public ModelAutoDownloadService(
         IModelDownloadManager downloadManager,
         AiSettings settings,
+        IAiFeatureSwitches switches,
         ILogger<ModelAutoDownloadService> logger,
         OnboardingActivationGate? onboardingGate = null)
     {
         _downloadManager = downloadManager;
         _settings = settings;
+        _switches = switches;
         _logger = logger;
         _onboardingGate = onboardingGate;
     }
@@ -44,13 +48,13 @@ public sealed class ModelAutoDownloadService : BackgroundService
                 return;
             }
 
-            if (!AnyTextFeatureEnabled(_settings.Features) && !_settings.AudioPackEnabled)
+            if (!_switches.AnyOn && !_settings.AudioPackEnabled)
             {
                 _logger.LogInformation("Automatic AI downloads are disabled because every local AI feature is off");
                 return;
             }
 
-            if (AnyTextFeatureEnabled(_settings.Features))
+            if (_switches.AnyOn)
             {
                 await DownloadIfNeededAsync(AiModelRole.TextQuality, stoppingToken).ConfigureAwait(false);
             }
@@ -69,10 +73,6 @@ public sealed class ModelAutoDownloadService : BackgroundService
             _logger.LogError(ex, "Automatic AI model download failed");
         }
     }
-
-    private static bool AnyTextFeatureEnabled(AiFeatureFlags features) =>
-        features.SmartLabeling || features.TypeLogic || features.SeriesAlignment
-        || features.VibeTags || features.Tldr || features.DescriptionIntelligence;
 
     private async Task DownloadIfNeededAsync(AiModelRole role, CancellationToken ct)
     {

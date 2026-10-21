@@ -13,12 +13,13 @@ internal sealed class CatalogueResourceAuthorizationService(
     IDatabaseConnection database,
     IRequestAuthorityResolver authorities,
     IAccountAccessDecisionService accounts,
-    IAuthorizationEvaluator evaluator)
+    IAuthorizationEvaluator evaluator,
+    IConfigurationLoader? configuration = null)
 {
     // Built from the same data store connection, so every host that can authorize a catalogue request can also enforce the limit.
     private ContentLimitPolicy? _contentLimits;
 
-    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database));
+    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database), configuration);
 
 
     public async ValueTask<CatalogueResourceAccess> EvaluateArtworkLinkAsync(
@@ -322,6 +323,11 @@ internal sealed class CatalogueResourceAuthorizationService(
         var content = await ContentLimits.ForAsync(authority).ConfigureAwait(false);
         if (!content.IsUnrestricted)
         {
+            if (!content.AllowsVideo(libraryId.ToString("D"), resource.MediaType))
+            {
+                return CatalogueResourceAccess.Denied;
+            }
+
             // A combined file is playable from every episode it covers, so each covered episode's rating must pass too.
             foreach (var rating in await ReadContentRatingsAsync(connection, assetId, ct).ConfigureAwait(false))
             {

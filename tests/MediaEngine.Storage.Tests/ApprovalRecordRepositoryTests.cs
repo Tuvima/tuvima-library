@@ -63,7 +63,7 @@ public sealed class ApprovalRecordRepositoryTests : IDisposable
         await _records.AddAsync(Record(ApprovalItemKinds.Plugin, "p", "new", start.AddDays(1)));
         await _records.AddAsync(Record(ApprovalItemKinds.Plugin, "p", "middle", start.AddHours(5)));
         await _records.AddAsync(Record(ApprovalItemKinds.Plugin, "other", "elsewhere", start));
-        await _records.AddAsync(Record(ApprovalItemKinds.AiFeature, "p", "otherkind", start));
+        await _records.AddAsync(Record(ApprovalItemKinds.Application, "p", "otherkind", start));
 
         var list = await _records.ListAsync(ApprovalItemKinds.Plugin, "p");
 
@@ -87,11 +87,11 @@ public sealed class ApprovalRecordRepositoryTests : IDisposable
     [Fact]
     public async Task ExistsAsync_IsTrueOnlyForTheSameKindItemAndHash()
     {
-        await _records.AddAsync(Record(ApprovalItemKinds.AiFeature, "vibe_tags", "h1", DateTimeOffset.UtcNow));
+        await _records.AddAsync(Record(ApprovalItemKinds.Application, "vibe_tags", "h1", DateTimeOffset.UtcNow));
 
-        Assert.True(await _records.ExistsAsync(ApprovalItemKinds.AiFeature, "vibe_tags", "h1"));
-        Assert.False(await _records.ExistsAsync(ApprovalItemKinds.AiFeature, "vibe_tags", "h2"));
-        Assert.False(await _records.ExistsAsync(ApprovalItemKinds.AiFeature, "tldr", "h1"));
+        Assert.True(await _records.ExistsAsync(ApprovalItemKinds.Application, "vibe_tags", "h1"));
+        Assert.False(await _records.ExistsAsync(ApprovalItemKinds.Application, "vibe_tags", "h2"));
+        Assert.False(await _records.ExistsAsync(ApprovalItemKinds.Application, "tldr", "h1"));
         Assert.False(await _records.ExistsAsync(ApprovalItemKinds.Plugin, "vibe_tags", "h1"));
     }
 

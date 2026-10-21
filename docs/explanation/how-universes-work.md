@@ -27,6 +27,8 @@ Each Series shows its own numbering, and decimal positions are kept as the sourc
 
 The shelf, the item page and the apps all use the same order: Wikidata's position first, then the position the work carries itself, then its date, then its title. A work is placed in one Series by one rule, so reprocessing the library never moves a sibling to a different shelf. If Wikidata puts a work in the main sequence of two different Series and nothing tells them apart, the work waits in **Needs Review** instead of being guessed into one.
 
+You can also choose the Series yourself. On a computer, open the item's editor and go to **Match & Identity**: the **Series** block shows the Series the item is on, the Series that list it ("In the main run (#3)" or "Also in this world"), a search over your other Series of the same kind, and **Not in a Series**. A Series you pick is saved as your choice, marked **Chosen by you**, and the Library keeps it every time it scans, refreshes or reorganises. **Let the Library decide** gives the choice back.
+
 ## Understand broader Collections
 
 Automatic Collections need trusted shared series, franchise, or universe evidence. They connect at least two distinct lower-level groups, or a trusted series containing distinct owned titles across multiple lanes.
@@ -39,7 +41,7 @@ Several formats of the same work remain variants. An ebook and audiobook alone d
 
 A Universe is the larger world several of your Series belong to. Open **Collections** and choose the **Universes** group, search for it by name, or follow the quiet "Part of the … Universe" line on a title that belongs to one (it appears when you own two or more Series, or two or more formats, in that Universe).
 
-The Universe page shows its name and how much of it you own, then each Series in order with "Also in this world" underneath, any standalone works, and a Connections section listing the people who appear across formats, what was adapted from what, and the Universe's characters. Every row there says where it came from (Wikidata, or an approved lore source such as a Fandom wiki), and choosing a person or a character shows every Work you own that shares them. A character whose appearances are all marked as spoilers is listed by name only, with "No plot details", until the Library can tell how far you have got. Entries you do not own can be shown as dashed "Not in library" placeholders in their place if you chose to see missing entries for that Series; otherwise only a quiet count is shown. While the Library is still learning about a Universe the page says so and shows how far it has got, rather than inventing connections. On a computer, Connections links to the explorer for paths between characters and the family tree.
+The Universe page shows its name and how much of it you own, then each Series in order with "Also in this world" underneath, any standalone works, and a Connections section listing the people who appear across formats, what was adapted from what, and the Universe's characters. Every row there says where it came from (Wikidata, or an approved lore source such as a Fandom wiki), and choosing a person or a character shows every Work you own that shares them. Characters follow your **spoiler level** (Settings, Preferences, Playback, Spoilers; **Up to where I am** unless you choose **Everything**). With the default, a character first seen in a later episode than you have reached, or marked as a spoiler for something you have not finished, is held back, and the page says how many were hidden; one the Library cannot place (they appear only in something you have not started, or somewhere in a book or show with no episode to point to) is listed by name only, with "No plot details". The Library works out where a character first appears from the episodes you own, matched by Wikidata item and never by a name; books and audiobooks carry no chapter information from any source, so they are never narrowed to a chapter. A character you have met in any one title is shown, even when another title first sees them later. Entries you do not own can be shown as dashed "Not in library" placeholders in their place if you chose to see missing entries for that Series; otherwise only a quiet count is shown. While the Library is still learning about a Universe the page says so and shows how far it has got, rather than inventing connections. On a computer, Connections links to the explorer for paths between characters and the family tree.
 
 ## Build your own collections separately
 
@@ -68,7 +70,9 @@ Owned counts describe your media. Missing entries may come from a provider manif
 
 The catalog model is `Library → optional Series → Work → Edition → MediaAsset`. The knowledge graph is `Universe → fictional entities ↔ qualified links to Works`. Authored containers keep user-owned canonical titles and explicit order; these are separate models.
 
-Trusted Wikidata evidence can include P8345 (franchise), P179 (series), and P361 (part of). A shared label, author name, folder, or file format is not enough to merge identities or create a universe rollup. Broader collections require trusted shared relationship rows; local/provider shelf identities can support lane grouping without a QID.
+Each Universe is one record tied to its Wikidata ID, and the same record backs both the Universe you browse and its Connections. A book, its audiobook and its TV adaptation land in one Universe as three Series when Wikidata links them: the works name the same fictional universe or franchise, or the show is based on the book Series. Where sources disagree, retail providers win for titles, descriptions and cover art, Wikidata wins for identity, Series membership and order, and a work in two Series keeps its own number in each. The optional Fandom lore plugin only adds facts and never moves a work.
+
+Trusted Wikidata evidence can include P1434 (fictional universe), P8345 (franchise), P179 (series), P144 (based on), and P361 (part of). A shared label, author name, folder, or file format is not enough to merge identities or create a universe rollup. Broader collections require trusted shared relationship rows; local/provider shelf identities can support lane grouping without a QID.
 
 Sequence placement uses `ordinal_sort`, immediate shelf identity, `sequence_total`, `sequence_total_scope`, and child identity keys. MainSequence members have positioned P179/direct P527 evidence. Supplementary covers P361 links; expanded P527 children are CollectedContent; explicit franchise expansion is BroaderContext. Unpositioned members lack ordinal or chain evidence beside a positioned run. Source ordinals, including decimals, retain their meaning rather than being densely renumbered.
 
@@ -83,6 +87,10 @@ Default series-card thresholds are configured through `lane_group_display.*.mini
 See [Universe Graph architecture](../architecture/universe-graph.md) and [the processing pipeline](../architecture/ingestion-identity-enrichment-pipeline.md) for the stored relationship model.
 
 </details>
+
+## Follow along on your phone
+
+While something plays on a TV or another device on your profile, Home on your phone shows a **Now playing** card with a **Companion** button. The companion shows who is on screen up to where you are, where else you have met those characters in your own library, and what happened in the episode before. Reading a book or listening somewhere the Library cannot see? Open any title's ... menu, choose **Companion**, and pick the episode or chapter you are at. The small **Up to here / Everything** switch is the same spoiler setting as in Settings. When the Library has no character details for something, the companion says so rather than guessing.
 
 ## Next steps
 

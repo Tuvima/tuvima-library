@@ -100,4 +100,27 @@ public sealed class DetailMenuGroupingTests
     {
         Assert.Equal(expected, DetailMenuGrouping.IsEditAction(Action(key)));
     }
+
+    [Fact]
+    public void Arrange_PutsIdentifyAndChangeThumbnailAfterEditAndBeforeDelete()
+    {
+        var entries = DetailMenuGrouping.Arrange(
+        [
+            Action(DetailActionKeys.DeleteFromLibrary), Action("change-thumbnail"), Action("identify"), Action("edit"), Action("add-queue"),
+        ]);
+
+        Assert.Equal(["add-queue", "edit", "change-thumbnail", "identify", DetailActionKeys.DeleteFromLibrary], Keys(entries));
+        Assert.True(entries[2].DividerBefore);
+        Assert.False(entries[3].DividerBefore);
+    }
+
+    [Theory]
+    [InlineData("identify", true)]
+    [InlineData("change-thumbnail", true)]
+    [InlineData("edit", false)]
+    [InlineData("add-queue", false)]
+    public void IsEditShortcut_MatchesTheTwoVideoShortcutsOnly(string key, bool expected)
+    {
+        Assert.Equal(expected, DetailMenuGrouping.IsEditShortcut(Action(key)));
+    }
 }

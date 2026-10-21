@@ -46,12 +46,15 @@
         ? string.IsNullOrWhiteSpace(Preview.SendsDataTo) ? "Yes" : $"Yes, to {Preview.SendsDataTo}"
         : "No";
 
-    private string ConfirmLabel => Preview.Kind switch
+    /// <summary>Words for the confirming button when the usual ones for the item do not fit (for example "Install").</summary>
+    [Parameter] public string? ConfirmText { get; set; }
+
+    private string ConfirmLabel => !string.IsNullOrWhiteSpace(ConfirmText) ? ConfirmText : Preview.Kind switch
     {
         ApprovalKinds.ApplicationCredential => "Issue key",
         ApprovalKinds.Webhook => "Save",
         ApprovalKinds.Application => "Allow",
-        ApprovalKinds.Plugin or ApprovalKinds.AiFeature => "Turn on",
+        ApprovalKinds.Plugin => "Turn on",
         _ => "Confirm",
     };
 

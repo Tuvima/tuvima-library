@@ -71,6 +71,8 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<ArtworkWritebackService>();
         services.AddHostedService<ArtworkWritebackWorker>();
         services.AddHostedService<MissingUniverseSweepService>();
+        services.AddSingleton<SubtitleIndexer>();
+        services.AddHostedService<SubtitleIndexHostedService>();
 
         // Recovery must finish before any identity worker can lease jobs.
         services.AddHostedService<HydrationStartupSweepService>();
@@ -79,9 +81,6 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<StorageMaintenanceHostedService>();
 
         services.AddHostedService<ModelAutoDownloadService>();
-        services.AddHostedService<VibeBatchService>();
-        services.AddHostedService<SeriesAlignmentBackgroundService>();
-        services.AddHostedService<DescriptionIntelligenceBatchService>();
         services.AddHostedService(sp => sp.GetRequiredService<UniverseEnrichmentService>());
         services.AddHostedService<EnrichmentRefreshScheduleWorker>();
         services.AddHostedService<PeopleEnrichmentHostedService>();
@@ -94,6 +93,10 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<MusicAlbumManifestHostedService>();
         services.AddHostedService<HardwareBenchmarkBackgroundService>();
         services.AddHostedService(sp => sp.GetRequiredService<PluginScheduledSegmentService>());
+        services.AddHostedService(sp => sp.GetRequiredService<PluginJobScheduler>());
+        services.AddHostedService(sp => sp.GetRequiredService<PluginEventDispatcher>());
+        services.AddHostedService(sp => sp.GetRequiredService<PluginBackgroundHost>());
+        services.AddHostedService(sp => sp.GetRequiredService<MediaEngine.Api.Services.Plugins.Service.PluginServiceHost>());
         return services;
     }
 }

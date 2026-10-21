@@ -82,7 +82,7 @@ internal sealed partial class DetailCompositionOrchestrator
             WHERE LOWER(COALESCE(w.media_type, '')) LIKE '%audio%'
               AND candidate_asset.status = 'Normal'
               AND candidate_asset.is_orphaned = 0
-              AND (@restrictAssets = 0 OR candidate_asset.id IN @authorizedAssetIds)
+              AND (@restrictAssets = 0 OR candidate_asset.id IN (SELECT unhex(value) FROM json_each(@authorizedAssetIds)))
               AND {rowFilterSql}
             """,
             "rby_");
@@ -105,6 +105,9 @@ internal sealed partial class DetailCompositionOrchestrator
                    CAST(COALESCE(
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'series_position' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'series_position' LIMIT 1)) AS TEXT) AS SeriesPosition,
+                   CAST(COALESCE(
+                       (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = ma.id AND cva.key = 'series_placement' AND cva.value_qid = (SELECT c.wikidata_qid FROM collections c WHERE c.id = @collectionId) COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1),
+                       (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = w.id AND cva.key = 'series_placement' AND cva.value_qid = (SELECT c.wikidata_qid FROM collections c WHERE c.id = @collectionId) COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1)) AS TEXT) AS SeriesPlacementPosition,
                    CAST(w.display_overrides_json AS TEXT) AS WorkDisplayOverridesJson,
                    CAST(COALESCE(
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'issue_title' LIMIT 1),
@@ -212,7 +215,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 WHERE woa.work_id=w.id
                   AND candidate.status='Normal'
                   AND candidate.is_orphaned=0
-                  AND (@restrictAssets = 0 OR candidate.id IN @authorizedAssetIds)
+                  AND (@restrictAssets = 0 OR candidate.id IN (SELECT unhex(value) FROM json_each(@authorizedAssetIds)))
                 ORDER BY progress.last_accessed DESC, candidate.id LIMIT 1
             )
             LEFT JOIN user_states us ON us.asset_id = ma.id
@@ -230,9 +233,7 @@ internal sealed partial class DetailCompositionOrchestrator
                     ? resolvedWorkIds.Select(GuidSql.ToBlob).ToArray()
                     : [GuidSql.ToBlob(Guid.Empty)],
                 restrictAssets = authorizedAssetIds is null ? 0 : 1,
-                authorizedAssetIds = authorizedAssetIds is { Count: > 0 }
-                    ? authorizedAssetIds.Select(GuidSql.ToBlob).ToArray()
-                    : [GuidSql.ToBlob(Guid.Empty)],
+                authorizedAssetIds = GuidSql.ToJsonHexArray(authorizedAssetIds ?? []),
             },
             cancellationToken: ct));
         var works = rawRows.Select(row => new CollectionWorkSummary(
@@ -269,8 +270,9 @@ internal sealed partial class DetailCompositionOrchestrator
             LastAccessed = StringValue(row.LastAccessed),
             PositionSeconds = SavedPlaybackTiming.Read((string?)StringValue(row.SavedPlaybackTiming)).PositionSeconds,
             DurationSeconds = SavedPlaybackTiming.Read((string?)StringValue(row.SavedPlaybackTiming)).DurationSeconds,
-            OrdinalSort = DoubleValue(row.OrdinalSort),
-            RetailSeriesPosition = StringValue(row.SeriesPosition),
+            // The Work's own number in this Series (its stored pair) first, then today's chain.
+            OrdinalSort = SeriesPositionPairs.SortValueOf(StringValue(row.SeriesPlacementPosition)) ?? DoubleValue(row.OrdinalSort),
+            RetailSeriesPosition = StringValue(row.SeriesPlacementPosition) ?? StringValue(row.SeriesPosition),
         }).ToList();
 
         // Dynamic collections can include an owned work before its edition and
@@ -440,16 +442,14 @@ internal sealed partial class DetailCompositionOrchestrator
             INNER JOIN editions e ON e.id = ma.edition_id
             WHERE e.work_id = @workId
               AND ma.status = 'Normal'
-              AND (@filterAssets=0 OR ma.id IN @authorizedAssetIds)
+              AND (@filterAssets=0 OR ma.id IN (SELECT unhex(value) FROM json_each(@authorizedAssetIds)))
             ORDER BY ma.id;
             """,
             new
             {
                 workId = GuidSql.ToBlob(workId),
                 filterAssets = authorizedAssetIds is null ? 0 : 1,
-                authorizedAssetIds = authorizedAssetIds is { Count: > 0 }
-                    ? authorizedAssetIds.Select(GuidSql.ToBlob).ToArray()
-                    : [GuidSql.ToBlob(Guid.Empty)],
+                authorizedAssetIds = GuidSql.ToJsonHexArray(authorizedAssetIds ?? []),
             },
             cancellationToken: ct));
         foreach (var assetId in assetIds.Distinct())

@@ -1,0 +1,126 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Contracts.Items
+@implements IDisposable
+@inject IEngineApiClient Api
+
+@* Match and Identity for a video: paste a YouTube link (or the 11-character ID) and Library looks the video up. Only the ID is
+   sent to YouTube, never the file, its name or its path. It is drawn below the match editor, only for a video that has not
+   been matched yet, and only where the video's library has the online lookup switched on. *@
+@if (Mode is { IsOn: true } mode && mode.Fields.Loaded && _state is { Supported: true })
+{
+    <section class="tl-editing-identify" aria-label="Identify this video">
+        @if (_state.Matched)
+        {
+            <p class="tl-editing-identify__text">@(_matchedTitle is null ? "This video is matched." : $"Matched: {_matchedTitle}.")</p>
+        }
+        else if (!_state.LookupEnabled)
+        {
+            <p class="tl-editing-identify__text">Online lookup is switched off for this library. Turn it on in Settings to identify videos from a YouTube link.</p>
+        }
+        else
+        {
+            <AppTextField Label="YouTube link or video ID" Value="@_link" ValueChanged="@(value => _link = value ?? string.Empty)"
+                          Placeholder="https://www.youtube.com/watch?v=..." MaxLength="300" Disabled="@_busy" />
+            <p class="tl-editing-identify__note">Only the video's ID is sent to YouTube, never your file.</p>
+            <div class="tl-editing-identify__actions">
+                <AppButton Label="Identify" Size="AppControlSize.Compact" Tone="AppUiTone.Primary"
+                           Disabled="@(_busy || string.IsNullOrWhiteSpace(_link))" Loading="@_busy" OnClick="IdentifyAsync" />
+            </div>
+        }
+        @if (_message is not null)
+        {
+            <p class="tl-editing-identify__error" role="alert">@_message</p>
+        }
+    </section>
+}
+
+@code {
+    private EditingModeContext? _subscribed;
+    private Guid _loadedFor;
+    private VideoIdentifyStateResponse? _state;
+    private string _link = string.Empty;
+    private string? _matchedTitle;
+    private string? _message;
+    private bool _busy;
+
+    [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
+
+    /// <summary>Raised after a match was saved so the page behind the section can refresh.</summary>
+    [Parameter] public EventCallback OnMatched { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!ReferenceEquals(_subscribed, Mode))
+        {
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed -= OnModeChanged;
+            }
+
+            _subscribed = Mode;
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed += OnModeChanged;
+            }
+        }
+
+        await EnsureLoadedAsync();
+    }
+
+    private async Task EnsureLoadedAsync()
+    {
+        if (Mode is not { IsOn: true } mode || !mode.Fields.Loaded || mode.Fields.EntityId == Guid.Empty)
+        {
+            return;
+        }
+
+        var id = mode.Fields.EntityId;
+        if (id == _loadedFor)
+        {
+            return;
+        }
+
+        _loadedFor = id;
+        _state = await Api.GetVideoIdentifyStateAsync(id);
+    }
+
+    private async Task IdentifyAsync()
+    {
+        if (Mode is null || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _message = null;
+        var result = await Api.IdentifyVideoFromLinkAsync(Mode.Fields.EntityId, _link.Trim());
+        if (result is null)
+        {
+            _message = "No match was found. Check the link, and that online lookup is on for this library.";
+        }
+        else
+        {
+            _matchedTitle = result.Title;
+            _state = new VideoIdentifyStateResponse { Supported = true, Matched = true, LookupEnabled = true };
+            _link = string.Empty;
+            await OnMatched.InvokeAsync();
+        }
+
+        _busy = false;
+    }
+
+    private void OnModeChanged() => _ = InvokeAsync(async () =>
+    {
+        await EnsureLoadedAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnModeChanged;
+        }
+    }
+}

@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Contracts.Items;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
@@ -265,6 +266,87 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<MediaEngine.Contracts.Items.ItemExplicitResponse?> GetItemExplicitAsync(Guid entityId, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<MediaEngine.Contracts.Items.ItemExplicitResponse>($"/library/items/{entityId}/explicit", ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "GET /library/items/{EntityId}/explicit failed", entityId);
+            return null;
+        }
+    }
+
+    public Task<bool> SaveItemExplicitAsync(Guid entityId, bool isExplicit, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /library/items/{id}/explicit",
+            $"/library/items/{entityId}/explicit",
+            new MediaEngine.Contracts.Items.ItemExplicitRequest { IsExplicit = isExplicit },
+            ct: ct);
+
+    public async Task<MediaEngine.Contracts.Items.VideoOrderResponse?> GetVideoOrderAsync(Guid entityId, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<MediaEngine.Contracts.Items.VideoOrderResponse>($"/library/items/{entityId}/video-order", ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "GET /library/items/{EntityId}/video-order failed", entityId);
+            return null;
+        }
+    }
+
+    public Task<bool> SaveVideoOrderAsync(Guid entityId, Guid parentId, IReadOnlyList<Guid> orderedIds, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /library/items/{id}/video-order",
+            $"/library/items/{entityId}/video-order",
+            new MediaEngine.Contracts.Items.VideoOrderRequest { ParentId = parentId, OrderedIds = orderedIds.ToList() },
+            ct: ct);
+
+    public Task<MediaEngine.Contracts.Items.VideoRenameResponse?> RenameVideoFilesToOrderAsync(Guid entityId, Guid parentId, CancellationToken ct = default) =>
+        PostAsync<MediaEngine.Contracts.Items.VideoRenameRequest, MediaEngine.Contracts.Items.VideoRenameResponse>(
+            "POST /library/items/{id}/video-rename",
+            $"/library/items/{entityId}/video-rename",
+            new MediaEngine.Contracts.Items.VideoRenameRequest { ParentId = parentId },
+            ct: ct);
+
+    public Task<MediaEngine.Contracts.Items.VideoSeriesStateResponse?> GetVideoSeriesAsync(Guid entityId, CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Items.VideoSeriesStateResponse>(
+            "GET /library/items/{id}/video-series", $"/library/items/{entityId}/video-series", ct: ct);
+
+    public Task<bool> PromoteVideoToSeriesAsync(Guid entityId, Guid? seriesId, string? newSeriesName, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /library/items/{id}/video-series",
+            $"/library/items/{entityId}/video-series",
+            new MediaEngine.Contracts.Items.VideoSeriesPromoteRequest { ParentId = seriesId, NewSeriesName = newSeriesName },
+            ct: ct);
+
+    public Task<MediaEngine.Contracts.Items.VideoIdentifyStateResponse?> GetVideoIdentifyStateAsync(Guid entityId, CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Items.VideoIdentifyStateResponse>(
+            "GET /library/items/{id}/video-identify", $"/library/items/{entityId}/video-identify", ct: ct);
+
+    public Task<MediaEngine.Contracts.Items.VideoIdentifyResponse?> IdentifyVideoFromLinkAsync(Guid entityId, string link, CancellationToken ct = default) =>
+        PostAsync<MediaEngine.Contracts.Items.VideoIdentifyRequest, MediaEngine.Contracts.Items.VideoIdentifyResponse>(
+            "POST /library/items/{id}/video-identify",
+            $"/library/items/{entityId}/video-identify",
+            new MediaEngine.Contracts.Items.VideoIdentifyRequest { Link = link },
+            ct: ct);
+
+    public Task<bool> RemoveVideoFromSeriesAsync(Guid entityId, CancellationToken ct = default) =>
+        PostAsync("POST /library/items/{id}/video-series/remove", $"/library/items/{entityId}/video-series/remove", new { }, ct: ct);
+
+    public async Task<IReadOnlyList<RecycleBinItemDto>?> GetRecycleBinAsync(CancellationToken ct = default) =>
+        await GetAsync<List<RecycleBinItemDto>>("GET /library/items/recycle-bin", "/library/items/recycle-bin", ct: ct);
+
+    public Task<bool> RestoreFromRecycleBinAsync(Guid id, CancellationToken ct = default) =>
+        PostAsync("POST /library/items/recycle-bin/{id}/restore", $"/library/items/recycle-bin/{id}/restore", new { }, ct: ct);
+
+    public Task<bool> EmptyRecycleBinAsync(CancellationToken ct = default) =>
+        PostAsync("POST /library/items/recycle-bin/empty", "/library/items/recycle-bin/empty", new { }, ct: ct);
+
     public Task<bool> SaveCollectionDisplayOverridesAsync(Guid collectionId, Dictionary<string, string> fields, CancellationToken ct = default)
         => SaveDisplayOverridesAsync($"/collections/{collectionId}/display-overrides", collectionId, fields, ct);
 
@@ -352,6 +434,20 @@ public sealed partial class EngineApiClient
             return null;
         }
     }
+
+    public Task<SeriesPlacementDto?> GetSeriesPlacementAsync(
+        Guid entityId, string? query = null, CancellationToken ct = default) =>
+        GetAsync<SeriesPlacementDto>("GET /metadata/{entityId}/series-placement",
+            $"/metadata/{entityId}/series-placement",
+            string.IsNullOrWhiteSpace(query) ? null : new Dictionary<string, string?> { ["q"] = query.Trim() },
+            ct: ct);
+
+    public Task<SeriesPlacementDto?> SaveSeriesPlacementAsync(
+        Guid entityId, Guid? collectionId, bool locked, CancellationToken ct = default) =>
+        PutAsync<SeriesPlacementChoiceRequestDto, SeriesPlacementDto>("PUT /metadata/{entityId}/series-placement",
+            $"/metadata/{entityId}/series-placement",
+            new SeriesPlacementChoiceRequestDto { CollectionId = collectionId, Locked = locked },
+            ct: ct);
 
     public Task<MediaEditorWorkVersionSelectorDto?> GetMediaEditorWorkVersionsAsync(
         Guid entityId, CancellationToken ct = default) =>
@@ -539,52 +635,6 @@ public sealed partial class EngineApiClient
         }
         catch (JsonException) { }
         return string.IsNullOrWhiteSpace(body) ? response.ReasonPhrase ?? "The episode search failed." : body;
-    }
-
-    public async Task<MusicTrackMovePreview?> PreviewMusicTrackMoveAsync(
-        Guid entityId, MusicTrackMovePreviewRequest request, CancellationToken ct = default)
-    {
-        try
-        {
-            LastError = null;
-            using var response = await PostMediaEditorRequestAsync($"/metadata/{entityId}/music-track-move-preview", request, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
-                return null;
-            }
-            return await response.Content.ReadFromJsonAsync<MusicTrackMovePreview>(ct);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
-        catch (Exception ex)
-        {
-            LastError = ex.Message;
-            _logger.LogWarning(ex, "POST /metadata/{EntityId}/music-track-move-preview failed", entityId);
-            return null;
-        }
-    }
-
-    public async Task<MediaEditorPairingSaveResultDto?> SaveMusicTrackMoveAsync(
-        Guid entityId, MusicTrackMoveSaveRequest request, CancellationToken ct = default)
-    {
-        try
-        {
-            LastError = null;
-            using var response = await PostMediaEditorRequestAsync($"/metadata/{entityId}/music-track-move", request, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
-                return null;
-            }
-            return await response.Content.ReadFromJsonAsync<MediaEditorPairingSaveResultDto>(ct);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
-        catch (Exception ex)
-        {
-            LastError = ex.Message;
-            _logger.LogWarning(ex, "POST /metadata/{EntityId}/music-track-move failed", entityId);
-            return null;
-        }
     }
 
     public async Task<MediaEditorFileCoverageDto?> GetMediaEditorFileCoverageAsync(
@@ -781,49 +831,6 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<List<MediaEditorMembershipSuggestionDto>> GetMediaEditorMembershipSuggestionsAsync(
-        Guid entityId,
-        string field,
-        string? query = null,
-        string? source = null,
-        Guid? parentEntityId = null,
-        string? parentValue = null,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var queryParts = new List<string> { $"field={Uri.EscapeDataString(field)}" };
-            if (!string.IsNullOrWhiteSpace(query))
-            {
-                queryParts.Add($"query={Uri.EscapeDataString(query)}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(source))
-            {
-                queryParts.Add($"source={Uri.EscapeDataString(source)}");
-            }
-
-            if (parentEntityId.HasValue)
-            {
-                queryParts.Add($"parentEntityId={Uri.EscapeDataString(parentEntityId.Value.ToString())}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(parentValue))
-            {
-                queryParts.Add($"parentValue={Uri.EscapeDataString(parentValue)}");
-            }
-
-            var url = $"/metadata/{entityId}/membership-suggestions?{string.Join("&", queryParts)}";
-            return await _http.GetFromJsonAsync<List<MediaEditorMembershipSuggestionDto>>(url, ct) ?? [];
-        }
-        catch (OperationCanceledException) { return []; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /metadata/{EntityId}/membership-suggestions failed", entityId);
-            return [];
-        }
-    }
-
     public async Task<MediaEditorMembershipPreviewDto?> PreviewMediaEditorMembershipAsync(
         Guid entityId,
         MediaEditorMembershipPreviewRequestDto request,
@@ -839,25 +846,6 @@ public sealed partial class EngineApiClient
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "POST /metadata/{EntityId}/membership-preview failed", entityId);
-            return null;
-        }
-    }
-
-    public async Task<MediaEditorMembershipPreviewDto?> ApplyMediaEditorMembershipAsync(
-        Guid entityId,
-        MediaEditorMembershipPreviewRequestDto request,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync($"/metadata/{entityId}/membership-apply", request, ct);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<MediaEditorMembershipPreviewDto>(ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POST /metadata/{EntityId}/membership-apply failed", entityId);
             return null;
         }
     }

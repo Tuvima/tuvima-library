@@ -4,6 +4,9 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Api.Services.LocalAi;
 using MediaEngine.Api.Services.Plugins;
+using MediaEngine.Api.Services.Plugins.AiFeatures;
+using MediaEngine.Api.Services.Plugins.Declarative;
+using MediaEngine.Api.Services.Plugins.Service;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.Plugins;
@@ -25,13 +28,17 @@ internal static class PluginEndpoints
         group.MapGet("", async (
             PluginCatalog catalog,
             [FromServices] IConfigSecretsStore secrets,
+            [FromServices] PluginHostServicesReader hostServices,
             ILoggerFactory loggers,
             CancellationToken ct) =>
         {
             var summaries = new List<PluginSummaryResponse>();
             foreach (var registration in catalog.List())
             {
-                summaries.Add(ToDto(registration, await CountConfiguredSecretsAsync(registration, secrets, loggers, ct).ConfigureAwait(false)));
+                summaries.Add(ToDto(
+                    registration,
+                    await CountConfiguredSecretsAsync(registration, secrets, loggers, ct).ConfigureAwait(false),
+                    await hostServices.DescribeAsync(registration, ct).ConfigureAwait(false)));
             }
 
             return Results.Ok(summaries);
@@ -40,23 +47,81 @@ internal static class PluginEndpoints
             .Produces<IEnumerable<PluginSummaryResponse>>(StatusCodes.Status200OK)
             .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
 
-        group.MapGet("/approved", async (ApprovedPluginCatalogService catalog, CancellationToken ct) =>
-            Results.Ok(await catalog.GetAsync(ct).ConfigureAwait(false)))
-            .WithName("ListApprovedPlugins")
-            .Produces<ApprovedPluginCatalogDto>(StatusCodes.Status200OK)
+        // The plugin directory (Available plugins): the saved copy of Tuvima's list on GitHub. Reading may check GitHub when the
+        // last check is over a day old; the actions below change what is remembered or switched, so they are for server
+        // administrators only.
+        group.MapGet("/directory", async (
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            PluginDirectoryService directory,
+            PluginCatalog catalog,
+            CancellationToken ct) =>
+            Results.Ok(await ReadDirectoryAsync(http, authorityResolver, directory, InstalledPluginIds(catalog), ct).ConfigureAwait(false)))
+            .WithName("GetPluginDirectory")
+            .WithSummary("The saved copy of the plugin directory. For a signed-in administrator it checks GitHub first when the switch is on and the last check is over a day old; any other caller (an outside application) gets the saved copy only.")
+            .Produces<PluginDirectoryResponse>(StatusCodes.Status200OK)
             .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        group.MapPost("/directory/check", async (PluginDirectoryService directory, PluginCatalog catalog, CancellationToken ct) =>
+            Results.Ok(await directory.CheckNowAsync(InstalledPluginIds(catalog), ct).ConfigureAwait(false)))
+            .WithName("CheckPluginDirectory")
+            .WithSummary("Check now: ask GitHub for the plugin directory. Makes no request when the switch is off.")
+            .Produces<PluginDirectoryResponse>(StatusCodes.Status200OK)
+            .RequireEffectiveAdministrator();
+
+        group.MapPost("/directory/seen", async (PluginDirectoryService directory, PluginCatalog catalog, CancellationToken ct) =>
+            Results.Ok(await directory.MarkSeenAsync(InstalledPluginIds(catalog), ct).ConfigureAwait(false)))
+            .WithName("MarkPluginDirectorySeen")
+            .WithSummary("Remember that the listed plugins have been seen, so none of them counts as new next time.")
+            .Produces<PluginDirectoryResponse>(StatusCodes.Status200OK)
+            .RequireEffectiveAdministrator();
+
+        group.MapPut("/directory/settings", async (
+            PluginDirectorySettingsRequest request,
+            PluginDirectoryService directory,
+            PluginCatalog catalog,
+            CancellationToken ct) =>
+        {
+            directory.SetEnabled(request.Enabled);
+            return Results.Ok(await directory.GetSavedAsync(InstalledPluginIds(catalog), ct).ConfigureAwait(false));
+        })
+            .WithName("SavePluginDirectorySettings")
+            .WithSummary("Switch the plugin directory on or off. Changes only that one setting.")
+            .Produces<PluginDirectoryResponse>(StatusCodes.Status200OK)
+            .RequireEffectiveAdministrator();
+
+        group.MapPost("/directory/{pluginId}/approval-preview", async (string pluginId, PluginDirectoryService directory, CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await directory.PreviewInstallAsync(pluginId, ct).ConfigureAwait(false));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return ApiErrors.NotFound(ex.Message);
+            }
+        })
+            .WithName("PreviewPluginDirectoryInstall")
+            .WithSummary("What a person is shown before installing a listed plugin, built from what the list declares for it.")
+            .Produces<ApprovalPreviewResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireEffectiveAdministrator();
 
         group.MapGet("/{pluginId}", async (
             string pluginId,
             PluginCatalog catalog,
             [FromServices] IConfigSecretsStore secrets,
+            [FromServices] PluginHostServicesReader hostServices,
             ILoggerFactory loggers,
             CancellationToken ct) =>
         {
             var plugin = catalog.Get(pluginId);
             return plugin is null
                 ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.")
-                : Results.Ok(ToDto(plugin, await CountConfiguredSecretsAsync(plugin, secrets, loggers, ct).ConfigureAwait(false)));
+                : Results.Ok(ToDto(
+                    plugin,
+                    await CountConfiguredSecretsAsync(plugin, secrets, loggers, ct).ConfigureAwait(false),
+                    await hostServices.DescribeAsync(plugin, ct).ConfigureAwait(false)));
         })
         .WithName("GetPlugin")
         .Produces<PluginSummaryResponse>(StatusCodes.Status200OK)
@@ -69,13 +134,86 @@ internal static class PluginEndpoints
         .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
-        group.MapPost("/{pluginId}/disable", (string pluginId, PluginCatalog catalog) =>
+        group.MapPost("/{pluginId}/disable", async (string pluginId, PluginCatalog catalog, [FromServices] AiFeatureRetractionService retraction, CancellationToken ct) =>
         {
             catalog.SetEnabled(pluginId, false);
+
+            // An AI feature's suggestions go away with its plugin (D-T); provider and person values stay.
+            await retraction.RetractForPluginAsync(pluginId, ct);
             return Results.Ok(new PluginEnabledResponse { plugin_id = pluginId, enabled = false });
         })
         .WithName("DisablePlugin")
         .Produces<PluginEnabledResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPost("/{pluginId}/ai-steps/{stepKey}/run", async (
+            string pluginId,
+            string stepKey,
+            PluginAiStepRunRequest request,
+            [FromServices] DeclarativeAiStepRunner runner,
+            CancellationToken ct) =>
+        {
+            var result = await runner.RunAsync(pluginId, stepKey, request.inputs, ct);
+            return result is null
+                ? ApiErrors.NotFound($"Plugin '{pluginId}' has no AI step '{stepKey}'.")
+                : Results.Ok(new PluginAiStepRunResponse
+                {
+                    plugin_id = pluginId,
+                    step = stepKey,
+                    status = AiStatusWord(result.Status),
+                    message = result.Message,
+                    text = result.Text,
+                });
+        })
+        .WithName("RunPluginAiStep")
+        .WithSummary("Run an AI step a JSON-only plugin declared. The plugin must be switched on and approved; Local AI answers as that plugin.")
+        .Produces<PluginAiStepRunResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPost("/{pluginId}/service/lookup", async (
+            string pluginId,
+            HttpContext http,
+            PluginCatalog catalog,
+            [FromServices] PluginServiceClient service,
+            CancellationToken ct) =>
+        {
+            var registration = catalog.Get(pluginId);
+            if (registration is null)
+            {
+                return ApiErrors.NotFound($"There is no plugin '{pluginId}'.");
+            }
+
+            if (registration.Capabilities.OfType<ServiceLookupCapability>().FirstOrDefault() is null)
+            {
+                return ApiErrors.Conflict("This plugin is not a separate program.");
+            }
+
+            if (!registration.Enabled)
+            {
+                return ApiErrors.Conflict("Switch the plugin on first.");
+            }
+
+            var query = http.Request.Query
+                .Where(pair => pair.Key.Length <= 64)
+                .Take(10)
+                .ToDictionary(pair => pair.Key, pair => pair.Value.ToString(), StringComparer.Ordinal);
+            var result = await service.LookupAsync(pluginId, query, ct).ConfigureAwait(false);
+            return Results.Ok(new PluginServiceLookupResponse
+            {
+                plugin_id = pluginId,
+                status = result.Status switch
+                {
+                    ServiceCallStatus.Succeeded => "succeeded",
+                    ServiceCallStatus.NotRunning => "not_running",
+                    _ => "failed",
+                },
+                message = result.Message,
+                result = result.Json is null ? null : JsonDocument.Parse(result.Json).RootElement.Clone(),
+            });
+        })
+        .WithName("RunPluginServiceLookup")
+        .WithSummary("Ask a plugin that is a separate program to look something up (query values are passed on), to check that it works.")
+        .Produces<PluginServiceLookupResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
         group.MapPut("/{pluginId}/settings", (
@@ -157,6 +295,7 @@ internal static class PluginEndpoints
             PluginCatalog catalog,
             IPluginExecutionContextFactory contexts,
             PluginAiBudget aiBudget,
+            [FromServices] PluginHostServicesReader hostServices,
             CancellationToken ct) =>
         {
             var plugin = catalog.Get(pluginId);
@@ -177,7 +316,9 @@ internal static class PluginEndpoints
                 checks.Add(await check.GetHealthAsync(context, ct).ConfigureAwait(false));
             }
 
-            return Results.Ok(await PluginHealthComposer.ComposeAsync(plugin.Manifest.Id, checks, aiBudget, ct).ConfigureAwait(false));
+            return Results.Ok(await PluginHealthComposer
+                .ComposeAsync(plugin.Manifest.Id, checks, aiBudget, ct, await hostServices.DescribeAsync(plugin, ct).ConfigureAwait(false))
+                .ConfigureAwait(false));
         })
         .WithName("CheckPluginHealth")
         .Produces<PluginHealthResponse>(StatusCodes.Status200OK)
@@ -439,6 +580,18 @@ internal static class PluginEndpoints
     /// statement's hash (the person confirmed it), which is recorded first. Anything else is an approval-required 409.
     /// A plugin that cannot work here keeps its own plain-English 409 and is never asked about.
     /// </summary>
+    internal static string AiStatusWord(PluginAiStatus status) => status switch
+    {
+        PluginAiStatus.Succeeded => "succeeded",
+        PluginAiStatus.Refused => "refused",
+        PluginAiStatus.AiUnavailable => "ai_unavailable",
+        PluginAiStatus.Busy => "busy",
+        PluginAiStatus.OverAllowance => "over_allowance",
+        PluginAiStatus.TimedOut => "timed_out",
+        PluginAiStatus.InvalidAnswer => "invalid_answer",
+        _ => "failed",
+    };
+
     internal static async Task<IResult> EnablePlugin(
         string pluginId,
         [FromBody] PluginEnableRequest? request,
@@ -500,7 +653,28 @@ internal static class PluginEndpoints
         _ => throw new ArgumentOutOfRangeException(nameof(trust), trust, "Unknown plugin trust level."),
     };
 
-    internal static PluginSummaryResponse ToDto(PluginRegistration registration, int configuredSecrets = 0) => new()
+    // The ids of the plugins on this server, so the directory can mark the ones already installed.
+    /// <summary>
+    /// Only a signed-in server administrator's read may start the once-a-day check of GitHub; an outside application that
+    /// holds <c>plugins.read</c> gets the saved copy and never causes a request to leave the machine.
+    /// </summary>
+    internal static async Task<PluginDirectoryResponse> ReadDirectoryAsync(
+        HttpContext http,
+        IRequestAuthorityResolver authorityResolver,
+        PluginDirectoryService directory,
+        IReadOnlyCollection<string> installedIds,
+        CancellationToken ct)
+    {
+        var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+        return authority.IsEffectiveAdministrator
+            ? await directory.GetAsync(installedIds, ct).ConfigureAwait(false)
+            : await directory.GetSavedAsync(installedIds, ct).ConfigureAwait(false);
+    }
+
+    private static string[] InstalledPluginIds(PluginCatalog catalog) =>
+        catalog.List().Select(registration => registration.Manifest.Id).ToArray();
+
+    internal static PluginSummaryResponse ToDto(PluginRegistration registration, int configuredSecrets = 0, PluginHostServicesDto? hostServices = null) => new()
     {
         Id = registration.Manifest.Id,
         Name = registration.Manifest.Name,
@@ -548,6 +722,11 @@ internal static class PluginEndpoints
         }).ToList(),
         AllowedTo = ApprovalStatementBuilder.PluginAllowedTo(registration.Manifest).ToList(),
         SendsDataTo = ApprovalStatementBuilder.PluginSendsDataTo(registration.Manifest),
+        NetworkDestinations = registration.Manifest.Network.Select(destination => new PluginNetworkDestinationDto
+        {
+            Host = destination.Host,
+            Sends = destination.Sends,
+        }).ToList(),
         DeclaredSecrets = registration.Manifest.Secrets.Count,
         ConfiguredSecrets = configuredSecrets,
         Settings = registration.Settings.ToDictionary(
@@ -556,5 +735,6 @@ internal static class PluginEndpoints
             StringComparer.OrdinalIgnoreCase),
         SettingsSchema = registration.SettingsSchema,
         ManifestPath = registration.ManifestPath,
+        HostServices = hostServices ?? new PluginHostServicesDto(),
     };
 }

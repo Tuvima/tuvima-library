@@ -37,6 +37,7 @@ public sealed class MediaTypeConfiguration
         new() { Key = "movies",     DisplayName = "Movies",     Icon = "Movie",       Extensions = [".mp4", ".mkv", ".webm", ".avi", ".m4v", ".mov", ".wmv", ".ts", ".mpeg", ".mpg", ".m2ts", ".iso"], CategoryFolder = "Videos", BuiltIn = true },
         new() { Key = "tv_shows",   DisplayName = "TV Shows",   Icon = "Tv",          Extensions = [".mp4", ".mkv", ".webm", ".avi", ".m4v", ".mov", ".wmv", ".ts", ".mpeg", ".mpg", ".m2ts"], CategoryFolder = "TV Shows", BuiltIn = true },
         new() { Key = "music",      DisplayName = "Music",      Icon = "MusicNote",   Extensions = [".mp3", ".flac", ".ogg", ".m4a", ".aac", ".wav", ".opus", ".wma"], CategoryFolder = "Music", BuiltIn = true },
+        new() { Key = "videos",     DisplayName = "Videos",     Icon = "VideoLibrary", Extensions = [".mp4", ".mkv", ".webm", ".avi", ".m4v", ".mov", ".wmv", ".ts", ".mpeg", ".mpg", ".m2ts"], CategoryFolder = "Videos", BuiltIn = true },
     ];
 }
 

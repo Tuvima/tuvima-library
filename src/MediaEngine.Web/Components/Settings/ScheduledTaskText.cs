@@ -13,11 +13,14 @@ public static class ScheduledTaskText
 
     private static readonly string[] DayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-    /// <summary>"Every day at 3:00", "Every 6 hours", or the task's own words for continuous work ("Every 5 seconds").</summary>
+    /// <summary>"Every day at 3:00", "Every 6 hours", or the task's own words for continuous work and interval jobs ("Every 5 seconds").</summary>
     public static string Schedule(ScheduledTaskDto task)
     {
         ArgumentNullException.ThrowIfNull(task);
-        return task.IsContinuous ? Capitalise(task.Schedule) : FromCron(task.Schedule);
+        // Continuous work and plugin jobs on an interval carry their own words ("every 5 seconds", "every 30 minutes").
+        return task.IsContinuous || task.Schedule.StartsWith("every ", StringComparison.OrdinalIgnoreCase)
+            ? Capitalise(task.Schedule)
+            : FromCron(task.Schedule);
     }
 
     /// <summary>

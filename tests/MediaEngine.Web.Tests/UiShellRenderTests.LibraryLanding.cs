@@ -58,7 +58,7 @@ public sealed partial class UiShellRenderTests
         cut.WaitForAssertion(() =>
         {
             Assert.Single(cut.FindAll("[data-testid='library-summary']"));
-            Assert.Equal(6, cut.FindAll(".library-summary__media").Count);
+            Assert.Equal(7, cut.FindAll(".library-summary__media").Count);
             Assert.Contains("2 items need review", cut.Find("[data-testid='library-summary-review']").TextContent, StringComparison.Ordinal);
             Assert.NotEmpty(cut.FindAll(".ingestion-status"));
             var viewAll = cut.Find(".ingestion-added a[href='/settings/system/logs?tab=events&filter=added']");

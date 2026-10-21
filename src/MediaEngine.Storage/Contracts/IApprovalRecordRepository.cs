@@ -4,7 +4,6 @@ namespace MediaEngine.Storage.Contracts;
 public static class ApprovalItemKinds
 {
     public const string Plugin = "plugin";
-    public const string AiFeature = "ai_feature";
     public const string ApplicationCredential = "application_credential";
     public const string Application = "application";
     public const string Webhook = "webhook";

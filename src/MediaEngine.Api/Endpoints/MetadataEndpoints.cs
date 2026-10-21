@@ -810,6 +810,7 @@ public static partial class MetadataEndpoints
         .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
 
         MapMediaEditorNavigatorEndpoints(group);
+        MapSeriesPlacementEndpoints(group);
         MapMediaEditorSelectionHistoryEndpoints(group);
         MapParentFirstPairingPreviewEndpoints(group);
         MapParentFirstArtworkEndpoints(group);

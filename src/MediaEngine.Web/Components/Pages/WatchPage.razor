@@ -11,8 +11,8 @@
 
 <MediaLanePage Title="Watch"
                RouteBase="/watch"
-               Subtitle="Movies and shows from your local library"
-               SearchPlaceholder="Search movies and TV..."
+               Subtitle="Movies, shows and videos from your local library"
+               SearchPlaceholder="Search movies, TV and videos..."
                SectionType="MediaHubSectionType.Watch"
                Preset="@Preset"
                Modes="@WatchModes"
@@ -41,6 +41,7 @@
     {
         "movies" => "movies",
         "tv" => "tv",
+        "videos" => "videos",
         _ => "all",
     };
 
@@ -145,6 +146,20 @@
                 YearSemantic = "Show premiere year",
                 TimelineAggregation = TimelineAggregation.TvShows,
                 TimelineItemNoun = "show",
+            },
+            new BrowseTabPreset
+            {
+                Id = "videos",
+                Label = "Videos",
+                MediaType = "Videos",
+                GroupingOptions =
+                [
+                    new("videos", "Series and videos", AppMaterialIcons.Outlined.VideoLibrary),
+                    new("all", "All videos", AppMaterialIcons.Outlined.PlayCircle),
+                ],
+                DefaultGrouping = "videos",
+                DefaultLayout = LibraryLayoutMode.Card,
+                YearSemantic = "Upload or release year",
             },
         ],
     };

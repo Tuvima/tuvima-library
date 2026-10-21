@@ -194,6 +194,98 @@ public static partial class PersonCreditSql
             """;
     }
 
+    /// <summary>
+    /// Returns a chain of CTE definitions (without the leading <c>WITH</c>) whose last CTE is named
+    /// <paramref name="resultName"/> and has one column, <c>asset_id</c>: the files that may credit one of the persons
+    /// returned by <paramref name="personsSelect"/>. It is a superset of the files the shared credit list credits to them
+    /// (never fewer): every file whose show or album, work or own id carries a stored credit, provider claim or single
+    /// stored value that names one of the persons (same name ignoring case and surrounding spaces, or the same Wikidata
+    /// id), together with that work's other files and its children's and grandchildren's files. Credits are then worked
+    /// out exactly for those files by <see cref="ScopedCreditsCte"/>, so a read that keeps a handful of rows never
+    /// builds the whole library's credit list. A rule change for how a credit names a person is made here and in
+    /// <see cref="ScopedCreditsCte"/> together.
+    /// </summary>
+    /// <param name="resultName">Name of the final CTE the caller selects from.</param>
+    /// <param name="personsSelect">
+    /// A <c>SELECT</c> returning the columns <c>id, name, wikidata_qid</c> for the persons to look for. It is saved once
+    /// inside the block, so it may be a query; it carries no trailing semicolon.
+    /// </param>
+    /// <param name="prefix">Prepended to every internal CTE name (letters, digits and underscores only).</param>
+    /// <remarks>
+    /// Every step is <c>MATERIALIZED</c> because SQLite copies a CTE's definition at every place it is named.
+    /// The stored credit rows are read once each, by the persons' names and ids.
+    /// </remarks>
+    public static string CandidateAssetsCte(string resultName, string personsSelect, string prefix)
+    {
+        ValidateIdentifier(resultName, nameof(resultName));
+        ValidateIdentifier(prefix, nameof(prefix));
+        ArgumentException.ThrowIfNullOrWhiteSpace(personsSelect);
+
+        var persons = prefix + "match_persons";
+        var entities = prefix + "credit_entities";
+
+        return $"""
+            {persons} AS MATERIALIZED (
+                {personsSelect}
+            ),
+            -- Every person a credit could resolve to that the persons asked for match (same name, or same Wikidata id).
+            {prefix}match_resolved AS MATERIALIZED (
+                SELECT other.id, other.name, other.wikidata_qid
+                FROM {persons} person
+                INNER JOIN persons other ON other.name = person.name COLLATE NOCASE
+                UNION
+                SELECT other.id, other.name, other.wikidata_qid
+                FROM {persons} person
+                INNER JOIN persons other ON other.wikidata_qid = person.wikidata_qid
+                WHERE NULLIF(person.wikidata_qid, '') IS NOT NULL
+            ),
+            {entities} AS MATERIALIZED (
+                SELECT cva.entity_id
+                FROM {prefix}match_resolved match_person
+                CROSS JOIN canonical_value_arrays cva
+                WHERE cva.key IN ({CreditKeys})
+                  AND (TRIM(cva.value) = match_person.name COLLATE NOCASE
+                       OR NULLIF(TRIM(cva.value_qid), '') = match_person.wikidata_qid COLLATE NOCASE)
+                UNION
+                SELECT mc.entity_id
+                FROM {prefix}match_resolved match_person
+                CROSS JOIN metadata_claims mc
+                WHERE mc.claim_key IN ({CreditKeys})
+                  AND TRIM(mc.claim_value) = match_person.name COLLATE NOCASE
+                UNION
+                SELECT cv.entity_id
+                FROM {prefix}match_resolved match_person
+                CROSS JOIN canonical_values cv
+                WHERE cv.key IN ({CreditKeys})
+                  AND TRIM(cv.value) = match_person.name COLLATE NOCASE
+            ),
+            {resultName} AS MATERIALIZED (
+                -- readiness: ids of files only; the caller's read applies the Ready rule to every row it returns
+                SELECT ma.id AS asset_id
+                FROM {entities} entity
+                INNER JOIN media_assets ma ON ma.id = entity.entity_id
+                UNION
+                SELECT ma.id
+                FROM {entities} entity
+                INNER JOIN editions e ON e.work_id = entity.entity_id
+                INNER JOIN media_assets ma ON ma.edition_id = e.id
+                UNION
+                SELECT ma.id
+                FROM {entities} entity
+                INNER JOIN works w ON w.parent_work_id = entity.entity_id
+                INNER JOIN editions e ON e.work_id = w.id
+                INNER JOIN media_assets ma ON ma.edition_id = e.id
+                UNION
+                SELECT ma.id
+                FROM {entities} entity
+                INNER JOIN works p ON p.parent_work_id = entity.entity_id
+                INNER JOIN works w ON w.parent_work_id = p.id
+                INNER JOIN editions e ON e.work_id = w.id
+                INNER JOIN media_assets ma ON ma.edition_id = e.id
+            )
+            """;
+    }
+
     private static void ValidateIdentifier(string value, string parameterName)
     {
         if (string.IsNullOrEmpty(value) || !IdentifierPattern().IsMatch(value))

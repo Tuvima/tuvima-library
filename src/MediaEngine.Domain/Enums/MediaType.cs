@@ -31,4 +31,7 @@ public enum MediaType
 
     /// <summary>Music album or single track.</summary>
     Music,
+
+    /// <summary>Saved downloads, courses and channels with no movie or TV database entry (Watch). Local identity only.</summary>
+    Videos,
 }

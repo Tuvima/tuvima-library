@@ -1,0 +1,48 @@
+.tl-move-picker {
+    display: grid;
+    gap: var(--tl-space-3);
+    color: var(--tl-text-primary);
+}
+
+.tl-move-picker__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-3);
+}
+
+.tl-move-picker__title {
+    margin: 0;
+    font-size: var(--tl-font-size-lg);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-move-picker__empty {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-move-picker__list {
+    max-height: 20rem;
+    overflow-y: auto;
+}
+
+/* Each place is the content of a shared list-item button (hover and focus come from it). */
+.tl-move-picker__option {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--tl-space-1) var(--tl-space-3);
+    min-height: var(--tl-tap-target-min, 44px);
+    padding: var(--tl-space-2) 0;
+}
+
+.tl-move-picker__label {
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-move-picker__parent {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}

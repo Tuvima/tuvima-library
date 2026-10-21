@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
+using MediaEngine.Api.Services.Plugins.Declarative;
+using MediaEngine.Api.Services.Plugins.Service;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
 using MediaEngine.Storage.Contracts;
@@ -33,17 +35,25 @@ public sealed class PluginCatalog
     private readonly string _pluginRoot;
     private readonly string _libraryVersion;
     private readonly string _platform;
+    private readonly PluginBlocklist? _blocklist;
     private readonly object _lock = new();
     private List<PluginRegistration> _registrations = [];
     private bool _loaded;
+
+    /// <summary>
+    /// Raised with the plugin id after a plugin is switched on or off. The plugin host services clear what they remember
+    /// about the plugin (limit stops, pauses), which is how a plugin stopped for going over a limit starts again.
+    /// </summary>
+    public event Action<string>? EnabledChanged;
 
     public PluginCatalog(
         IEnumerable<ITuvimaPlugin> builtInPlugins,
         PluginSettingsService settingsService,
         IConfigurationLoader configurationLoader,
         IPluginApprovalCheck approvals,
-        ILogger<PluginCatalog> logger)
-        : this(builtInPlugins, settingsService, configurationLoader, approvals, logger, LibraryVersion.Current, PluginCompatibility.CurrentRid)
+        ILogger<PluginCatalog> logger,
+        PluginBlocklist? blocklist = null)
+        : this(builtInPlugins, settingsService, configurationLoader, approvals, logger, LibraryVersion.Current, PluginCompatibility.CurrentRid, blocklist)
     {
     }
 
@@ -56,8 +66,15 @@ public sealed class PluginCatalog
         IPluginApprovalCheck approvals,
         ILogger<PluginCatalog> logger,
         string libraryVersion,
-        string platform)
+        string platform,
+        PluginBlocklist? blocklist = null)
     {
+        _blocklist = blocklist;
+        if (blocklist is not null)
+        {
+            blocklist.Changed += Reload;
+        }
+
         _builtInPlugins = builtInPlugins.ToList();
         _settingsService = settingsService;
         _approvals = approvals;
@@ -105,6 +122,7 @@ public sealed class PluginCatalog
 
         _settingsService.SetEnabled(registration.Manifest, enabled);
         Reload();
+        EnabledChanged?.Invoke(registration.Manifest.Id);
     }
 
     public void SaveSettings(string pluginId, Dictionary<string, JsonElement> settings)
@@ -263,6 +281,8 @@ public sealed class PluginCatalog
                 _logger.LogWarning(ex, "Plugin {PluginId} failed to create capabilities", manifest.Id);
                 loadError = ex.Message;
             }
+
+            loadError ??= PluginHostCapabilityRules.Validate(capabilities);
         }
 
         var settingsSchema = ResolveSettingsSchema(manifest, capabilities);
@@ -287,6 +307,15 @@ public sealed class PluginCatalog
     {
         var compatibility = PluginCompatibility.Evaluate(manifest, _libraryVersion, _platform, loadError);
 
+        // A plugin Tuvima has pulled is switched off with the reason showing, and cannot be switched back on.
+        if (!isBuiltIn && _blocklist?.Find(manifest.Id, manifest.Version) is { } block)
+        {
+            compatibility = PluginCompatibilityResult.Incompatible(
+                string.IsNullOrWhiteSpace(block.Reason)
+                    ? "Blocked: this plugin has been removed from the plugin directory."
+                    : $"Blocked: {block.Reason}");
+        }
+
         // Trust is decided here, never read from the manifest. Anything in the plugins folder is a sideloaded
         // (private) plugin, even if it says it is official. Signature checks for verified plugins come in WP19.
         var trust = isBuiltIn ? PluginTrustLevel.Official : PluginTrustLevel.Private;
@@ -309,7 +338,8 @@ public sealed class PluginCatalog
             manifestPath,
             trust,
             compatibility,
-            NeedsApproval: switchedOn && !approved);
+            NeedsApproval: switchedOn && !approved,
+            Schedules: config.Schedules);
     }
 
     private PluginRegistration LoadFailure(PluginManifest? manifest, string message, string manifestPath) =>
@@ -507,6 +537,26 @@ public sealed class PluginCatalog
                     continue;
                 }
 
+                if (manifest is not null && manifest.Kind == PluginKind.Declarative)
+                {
+                    // A plugin that is only JSON: no code is loaded; the Library reads the description and checks it.
+                    var (declarative, problem) = DeclarativePlugin.TryCreate(manifest);
+                    results.Add(declarative is null
+                        ? LoadFailure(manifest, problem ?? "The plugin description could not be read.", manifestPath)
+                        : BuildRegistration(declarative, manifest, isBuiltIn: false, loadError: null, manifestPath: manifestPath));
+                    continue;
+                }
+
+                if (manifest is not null && manifest.Kind == PluginKind.Service)
+                {
+                    // A separate program: nothing of it is loaded here. The host starts it when the plugin is switched on.
+                    var (program, problem) = ServicePlugin.TryCreate(manifest, Path.GetDirectoryName(Path.GetFullPath(manifestPath)));
+                    results.Add(program is null
+                        ? LoadFailure(manifest, problem ?? "The plugin description could not be read.", manifestPath)
+                        : BuildRegistration(program, manifest, isBuiltIn: false, loadError: null, manifestPath: manifestPath));
+                    continue;
+                }
+
                 if (manifest is not null && manifest.Kind != PluginKind.Official)
                 {
                     // Not an error: the manifest is fine, this version of the Library just cannot run this kind yet.
@@ -577,7 +627,8 @@ public sealed record PluginRegistration(
     string? ManifestPath,
     PluginTrustLevel Trust,
     PluginCompatibilityResult Compatibility,
-    bool NeedsApproval = false);
+    bool NeedsApproval = false,
+    IReadOnlyDictionary<string, string>? Schedules = null);
 
 /// <summary>Switching a plugin on was refused; <see cref="Exception.Message"/> is the plain-English reason.</summary>
 public sealed class PluginCannotBeEnabledException(string pluginId, string problem) : InvalidOperationException(problem)

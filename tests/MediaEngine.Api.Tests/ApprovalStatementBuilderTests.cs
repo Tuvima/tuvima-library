@@ -19,25 +19,6 @@ public sealed class ApprovalStatementBuilderTests
         Assert.Equal(words, ApprovalStatementBuilder.PermissionText(id));
     }
 
-    [Theory]
-    [InlineData("smart_labeling", "Reads file and folder names", "Suggests titles, authors, years and episode numbers when files are added")]
-    [InlineData("type_logic", "Reads file names and basic file facts", "Decides the media type when it is unclear")]
-    [InlineData("series_alignment", "Reads series and title details", "Suggests the order within a series")]
-    [InlineData("vibe_tags", "Reads descriptions and genres", "Adds mood tags")]
-    [InlineData("description_intelligence", "Reads descriptions", "Adds themes, mood, setting, period, audience, pace, content warnings and people")]
-    public void EachAiFeature_HasItsPlainWords(string key, string first, string second)
-    {
-        Assert.Equal([first, second], ApprovalStatementBuilder.AiFeatureAllowedTo(key));
-    }
-
-    [Fact]
-    public void TheShortSummaryFeature_HasItsWords_AndAnUnknownFeatureHasNone()
-    {
-        Assert.Equal(["Shows the short summary made by Description insights"], ApprovalStatementBuilder.AiFeatureAllowedTo("tldr"));
-        Assert.Empty(ApprovalStatementBuilder.AiFeatureAllowedTo("not_a_feature"));
-        Assert.Null(ApprovalStatementBuilder.AiFeatureSendsDataTo("tldr"));
-    }
-
     [Fact]
     public void PluginStatement_ListsEachPermissionToolAiAbilityAndHowItRunsInPlainWords()
     {
@@ -194,35 +175,88 @@ public sealed class ApprovalStatementBuilderTests
     }
 
     [Fact]
-    public void AiFeatureStatement_UsesTheFeatureWordsAndSaysItRunsOnThisMachine()
+    public void PluginStatement_WithDestinations_HasOneContactsLinePerDestination_AndNamesTheHosts()
     {
-        var statement = ApprovalStatementBuilder.ForAiFeature("vibe_tags", modelReady: true);
+        var manifest = new PluginManifest
+        {
+            Id = "p",
+            Name = "P",
+            Permissions = ["media.read", "network.http"],
+            Network =
+            [
+                new PluginNetworkDestination { Host = "www.wikidata.org", Sends = "Item IDs of Universes in your Library" },
+                new PluginNetworkDestination { Host = "*.fandom.com", Sends = " Requests for a wiki's page list " },
+            ],
+        };
 
-        Assert.Equal("Vibe tags", statement.Title);
-        Assert.Equal("Local AI feature", statement.KindLabel);
-        Assert.Equal(["Reads descriptions and genres", "Adds mood tags", "Runs on this machine with Local AI"], statement.CanDo);
-        Assert.False(statement.SendsDataOut);
-        Assert.Null(statement.SendsDataTo);
-        Assert.Empty(statement.Notes);
+        var statement = ApprovalStatementBuilder.ForPlugin(manifest, PluginTrustLevel.Official);
+
+        Assert.Equal(
+            [
+                "Reads your media files",
+                "Contacts www.wikidata.org: Item IDs of Universes in your Library",
+                "Contacts *.fandom.com: Requests for a wiki's page list",
+                "Runs as: Official built-in",
+            ],
+            statement.CanDo);
+        Assert.DoesNotContain("Connects to the internet", statement.CanDo);
+        Assert.True(statement.SendsDataOut);
+        Assert.Equal("www.wikidata.org, *.fandom.com", statement.SendsDataTo);
     }
 
     [Fact]
-    public void AiFeatureStatement_WarnsOfAModelDownload_WhenTheModelIsNotOnThisMachine()
+    public void PluginStatement_WithoutDestinations_StillSaysItConnectsToTheInternet()
     {
-        var statement = ApprovalStatementBuilder.ForAiFeature("smart_labeling", modelReady: false);
+        var statement = ApprovalStatementBuilder.ForDirectoryEntry(
+            new PluginManifest { Id = "p", Name = "P", Permissions = ["network.http"] }, PluginTrustLevel.Community);
 
-        Assert.Equal(["May download an AI model to this machine first"], statement.Notes);
+        Assert.Contains("Connects to the internet", statement.CanDo);
+        Assert.True(statement.SendsDataOut);
+        Assert.Equal("the internet", statement.SendsDataTo);
+    }
+
+    [Theory]
+    [InlineData(PluginKind.Declarative, "This plugin is a description file; it runs no code of its own.")]
+    [InlineData(PluginKind.Service, "This plugin runs as a separate program on this machine. The Library limits what it can ask the Library to do, but not what the program does on its own, so only turn on plugins you trust.")]
+    [InlineData(PluginKind.Sandboxed, "This plugin runs in a sandbox with limited access.")]
+    [InlineData(PluginKind.Official, "This plugin ships with the Library.")]
+    public void DirectoryInstallPreview_SaysWhereThePluginRuns_ByItsKind_NeverThatItRunsInsideTheServer(PluginKind kind, string expected)
+    {
+        var statement = ApprovalStatementBuilder.ForDirectoryEntry(
+            new PluginManifest { Id = "p", Name = "P", Kind = kind }, PluginTrustLevel.Community);
+
+        Assert.Contains(expected, statement.Notes);
+        Assert.DoesNotContain(statement.Notes, note => note.Contains("without a sandbox", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void AiFeatureHash_IgnoresTheModelDownloadNote_SoDownloadingTheModelLaterDoesNotAskAgain()
+    public void StatementHash_ChangesWhenADestinationIsAddedOrChanged_AndNotWhenItIsRestated()
     {
-        var ready = ApprovalStatementBuilder.ForAiFeature("smart_labeling", modelReady: true);
-        var notReady = ApprovalStatementBuilder.ForAiFeature("smart_labeling", modelReady: false);
+        PluginManifest With(params PluginNetworkDestination[] destinations) => new()
+        {
+            Id = "p",
+            Name = "P",
+            Permissions = ["network.http"],
+            Network = destinations,
+        };
 
-        Assert.Equal(["May download an AI model to this machine first"], notReady.Notes);
-        Assert.Equal(ApprovalStatementBuilder.Hash(ready), ApprovalStatementBuilder.Hash(notReady));
-        Assert.Equal(["May download an AI model to this machine first"], ApprovalStatementBuilder.ToPreview("ai_feature", "smart_labeling", notReady).Notes);
+        var original = With(new PluginNetworkDestination { Host = "api.example.com", Sends = "Searches for titles" });
+        var originalHash = ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForPlugin(original, PluginTrustLevel.Official));
+        var sameAgain = ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForPlugin(
+            With(new PluginNetworkDestination { Host = "api.example.com", Sends = "Searches for titles", MaxRequestsPerMinute = 30 }), PluginTrustLevel.Official));
+        var otherHost = ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForPlugin(
+            With(new PluginNetworkDestination { Host = "api.other.example", Sends = "Searches for titles" }), PluginTrustLevel.Official));
+        var otherWords = ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForPlugin(
+            With(new PluginNetworkDestination { Host = "api.example.com", Sends = "Sends your whole library" }), PluginTrustLevel.Official));
+        var extra = ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForPlugin(
+            With(
+                new PluginNetworkDestination { Host = "api.example.com", Sends = "Searches for titles" },
+                new PluginNetworkDestination { Host = "cdn.example.com", Sends = "Downloads pictures" }), PluginTrustLevel.Official));
+
+        Assert.Equal(originalHash, sameAgain);
+        Assert.NotEqual(originalHash, otherHost);
+        Assert.NotEqual(originalHash, otherWords);
+        Assert.NotEqual(originalHash, extra);
     }
 
     [Fact]

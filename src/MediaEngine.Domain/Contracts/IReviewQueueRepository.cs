@@ -115,6 +115,25 @@ public interface IReviewQueueRepository
         string resolvedBy,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// <see cref="ResolvePendingByEntityAndTriggersAsync"/> for many entities at once. The default asks one entity at a time;
+    /// the data store implementation does it in a few statements.
+    /// </summary>
+    async Task<int> ResolvePendingByEntitiesAndTriggersAsync(
+        IReadOnlyCollection<Guid> entityIds,
+        IReadOnlyCollection<string> triggers,
+        string resolvedBy,
+        CancellationToken ct = default)
+    {
+        var resolved = 0;
+        foreach (var entityId in entityIds)
+        {
+            resolved += await ResolvePendingByEntityAndTriggersAsync(entityId, triggers, resolvedBy, ct).ConfigureAwait(false);
+        }
+
+        return resolved;
+    }
+
     /// <summary>Deletes review queue entries whose entity_id no longer exists in media_assets.</summary>
     Task<int> PurgeOrphanedAsync(CancellationToken ct = default);
 }

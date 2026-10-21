@@ -2,6 +2,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Dapper;
 using MediaEngine.Api.Services.LocalAssets;
+using MediaEngine.Api.Services.Plugins;
+using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Domain.Services;
@@ -26,6 +28,7 @@ public static class BaselinePrepare
         ("tv", "TV"),
         ("music", "Music"),
         ("comics", "Comics"),
+        ("videos", "Videos"),
     ];
 
     public static readonly string[] ViewFolders = ["personal_photos", "personal_videos"];
@@ -147,7 +150,7 @@ public static class BaselinePrepare
 
         RealMediaHarness.Save(librariesPath, libraries);
         File.WriteAllText(corePath, core.ToJsonString(RealMediaHarness.Json));
-        HoldClockSchedules(configDirectory);
+        HoldClockSchedules(configDirectory, libraryRoot);
 
         // -- Empty data store, first-run setup already accepted, View folders linked to the owner profile.
         var databasePath = Path.GetFullPath(TuvimaDataPathResolver.ResolveDatabasePath(configDirectory, null, null));
@@ -219,46 +222,46 @@ public static class BaselinePrepare
         return $"{at.Minute} {at.Hour} {at.Day} {at.Month} *";
     }
 
-    /// <summary>The daily Local AI schedules in <c>ai.json</c> (<c>scheduling</c>) that fire at night. The every-15-minutes
-    /// description schedule does not depend on the time of day, so it stays as it is.</summary>
-    private static readonly string[] HeldAiSchedules = ["series_check_cron", "vibe_batch_cron"];
+    /// <summary>
+    /// The Local AI plugins whose jobs fire at night, with the job key to hold. The every-15-minutes description insights
+    /// job does not depend on the time of day, so it stays as it is.
+    /// </summary>
+    private static readonly (string PluginId, string JobKey)[] HeldAiPluginJobs =
+    [
+        (AiFeaturePluginIds.SeriesOrder, SeriesOrderPlugin.JobKey),
+        (AiFeaturePluginIds.VibeTags, VibeTagsPlugin.JobKey),
+    ];
+
+    private static readonly JsonSerializerOptions PluginConfigJson = new() { WriteIndented = true };
 
     /// <summary>
-    /// Holds the clock-scheduled tasks for the run (in the copied <c>maintenance.json</c> and <c>ai.json</c> only): every
-    /// schedule moves to one time 30 days after the run starts (<see cref="HeldScheduleFrom"/>) and the off-hours retag and storage sweeps are switched off, so a
-    /// run that crosses the night (02:00 to 06:00) gives the same result as one that does not. The series-order and
-    /// vibe-tag services still make one pass a few minutes after the Engine starts; that pass does not depend on the time of day.
+    /// Holds the clock-scheduled tasks for the run: in the copied <c>maintenance.json</c> every schedule moves to one time
+    /// 30 days after the run starts (<see cref="HeldScheduleFrom"/>) and the off-hours retag and storage sweeps are switched
+    /// off; in the run's own plugin settings the nightly Local AI jobs (series order, vibe tags) are held the same way, still
+    /// switched off like every plugin. A run that crosses the night (02:00 to 06:00) then gives the same result as one that
+    /// does not, with the Local AI plugins off or switched on.
     /// </summary>
-    public static void HoldClockSchedules(string configDirectory, DateTimeOffset? now = null)
+    public static void HoldClockSchedules(string configDirectory, string libraryRoot, DateTimeOffset? now = null)
     {
         var held = HeldScheduleFrom(now ?? DateTimeOffset.Now);
         HoldMaintenanceSchedules(configDirectory, held);
-        HoldAiSchedules(configDirectory, held);
+        HoldAiPluginSchedules(libraryRoot, held);
     }
 
-    private static void HoldAiSchedules(string configDirectory, string held)
+    private static void HoldAiPluginSchedules(string libraryRoot, string held)
     {
-        var path = Path.Combine(configDirectory, "ai.json");
-        if (!File.Exists(path))
+        var directory = Path.Combine(libraryRoot, ".data", "plugin-config");
+        Directory.CreateDirectory(directory);
+        foreach (var (pluginId, jobKey) in HeldAiPluginJobs)
         {
-            return;
+            var config = new PluginUserConfiguration
+            {
+                PluginId = pluginId,
+                Enabled = false,
+                Schedules = new Dictionary<string, string>(StringComparer.Ordinal) { [jobKey] = held },
+            };
+            File.WriteAllText(Path.Combine(directory, $"{pluginId}.json"), JsonSerializer.Serialize(config, PluginConfigJson));
         }
-
-        // A missing section or key means the Engine falls back to its built-in 03:00 and 04:00 defaults, so the
-        // held times are always written, and a new section carries the description schedule's default so it still validates.
-        var ai = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
-        if (ai["scheduling"] is not JsonObject scheduling)
-        {
-            scheduling = new JsonObject { ["description_intelligence_cron"] = "*/15 * * * *" };
-            ai["scheduling"] = scheduling;
-        }
-
-        foreach (var key in HeldAiSchedules)
-        {
-            scheduling[key] = held;
-        }
-
-        File.WriteAllText(path, ai.ToJsonString(RealMediaHarness.Json));
     }
 
     private static void HoldMaintenanceSchedules(string configDirectory, string held)

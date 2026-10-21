@@ -23,9 +23,58 @@ See which media types, file formats, processors, and enrichment paths Tuvima Lib
 - `src/MediaEngine.Processors/Processors`
 - `src/MediaEngine.Ingestion/DependencyInjection/MediaEngineIngestionServiceCollectionExtensions.cs`
 
-Six media types are supported today. Each type has a processor path, supported file extensions, and configured providers. Ambiguous formats such as PDF, MP3, M4A, MP4, MKV, AVI, and WEBM are resolved through configured library folder context, metadata, filename patterns, heuristics, and Local AI where available.
+Seven media types are supported today. Each type has a processor path, supported file extensions, and configured providers. Ambiguous formats such as PDF, MP3, M4A, MP4, MKV, AVI, and WEBM are resolved through configured library folder context, metadata, filename patterns, heuristics, and Local AI where available.
 
 Provider stages are strict: Stage 1 provider metadata uses active configured providers (MusicBrainz then Apple for music, Apple for books/audiobooks, TMDB for movies/TV, Comic Vine for comics); Stage 2 Wikidata only runs from safe Stage 1 bridge IDs; Stage 3 enrichment adds universe data, TMDB movie/TV artwork, lyrics, subtitles, people, and relationships.
+
+---
+
+## Videos (home videos, clips and courses)
+
+**Library type:** Videos, in Watch. It is for files that are not films or TV shows: phone and camera footage, downloaded
+YouTube videos, lectures and courses. When you add a folder, Tuvima asks whether it is **Videos (Watch)** or **Photos and
+videos (View)**; a folder of untouched phone footage is suggested for View.
+
+### Supported formats
+
+The same video extensions as Movies and TV (for example `.mp4`, `.mkv`, `.mov`, `.avi`, `.webm`).
+
+### How a Videos folder is read
+
+| Folder shape | Result |
+|---|---|
+| A loose file | A standalone video |
+| A folder of files | A series; the files are its videos |
+| Sub-folders inside a series folder | Sections of that series (a course module, a season) |
+
+Order inside a series follows a number in the file name, otherwise natural sort (2 before 10). Reordering by hand is
+saved in Tuvima and does not rename files.
+
+### How a video is identified
+
+No outside lookup is needed. In order (set in `config/videos.json`): a YouTube ID in the file name (`[dQw4w9WgXcQ]`) or
+the video's `.info.json`, a Kodi `.nfo`, then the cleaned-up file name. The item records which method named it.
+Other files beside the video are read too, all optional: `.info.json` (yt-dlp), `.nfo`, a `cover.jpg`/`folder.jpg`/`poster.jpg`
+in the folder, and `.srt`/`.vtt` subtitles. Your own edits always win over these.
+
+### Covers
+
+Your own image, then a folder image, then the YouTube thumbnail (if the lookup is on), then a good still frame taken from
+the video (never a black one).
+
+### YouTube lookup and privacy
+
+Optional and on by default for a Videos library, and only for files where a YouTube ID is found. It contacts YouTube and
+sends **only that 11-character ID**, never your file or its path. Without a key it fills the title, channel and thumbnail;
+with your own free YouTube Data API key (kept in the secrets store, never shown again) it also fills the description
+and upload date. It fills what is missing and never replaces something you edited. Turn it off per library in
+**Settings > Libraries**.
+
+### Ratings and the Explicit mark
+
+Saved videos have no age ratings. Profiles with a content limit (G to R) do not see Videos until an administrator turns on
+**OK for limited profiles** for the library; profiles set to Everything always see them. In Editing Mode, a video or a series
+can be marked **Explicit**: it is then hidden from every profile with a content limit, whatever the library setting says.
 
 ---
 
@@ -214,6 +263,8 @@ TV/Breaking Bad (Q1079331)/Season 01/S01E01 - Pilot.mkv
 
 A file that covers several episodes (`S01E01E02`, `S01E01-E02`, `1x01-02`) uses the `{Episode}` token as `01-e02`. With the template above it is named `S01E01-e02 - Pilot.mkv`; the S and E letters follow whatever template you use. Single-episode files are named exactly as before. The file is never split or re-encoded, and the episodes it covers are recorded separately (see `media_asset_coverage`).
 
+The shipped template writes the season-and-episode part as `{EpisodeCode?}` (`s01e01`), which is empty unless both numbers are known, and drops the dash after it when empty. An episode with no number (one added to a season anyway, without being matched) is therefore named by its title alone, `Show - Pilot.mkv`, inside its season folder, never `sUnknowneUnknown`.
+
 ### Providers
 
 1. TMDB - series and episode metadata; poster and backdrop images
@@ -281,6 +332,8 @@ Example:
 ```
 Music/Pink Floyd/The Dark Side of the Moon (Q183221)/01 - Speak to Me.flac
 ```
+
+The shipped template writes the number as `{TrackNumber?}` and the dash after an optional token goes with it when it is empty, so a song with no track number (added to an album anyway) is named by its title alone, `Hidden Jam.flac`, inside the album folder, not `Unknown - Hidden Jam.flac`. Audiobook parts already do the same with `{TrackNumber?}`.
 
 ---
 

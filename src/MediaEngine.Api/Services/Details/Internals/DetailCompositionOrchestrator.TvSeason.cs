@@ -65,7 +65,7 @@ internal sealed partial class DetailCompositionOrchestrator
             SELECT season.parent_work_id
             FROM works season
             WHERE season.id = @seasonId
-              AND season.media_type = 'TV'
+              AND season.media_type IN ('TV', 'Videos')
               AND season.work_kind = 'parent'
               AND season.parent_work_id IS NOT NULL
               AND COALESCE(season.is_catalog_only, 0) = 0

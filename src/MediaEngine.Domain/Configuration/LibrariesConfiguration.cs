@@ -151,6 +151,18 @@ public sealed class LibraryFolderConfig
     [JsonPropertyName("media_types")]
     public List<string> MediaTypes { get; set; } = [];
 
+    /// <summary>Videos libraries only: ask YouTube about videos named by a YouTube ID (sends only the ID). On by default.</summary>
+    [JsonPropertyName("youtube_lookup")]
+    public bool YoutubeLookup { get; set; } = true;
+
+    /// <summary>Videos libraries only: saved videos have no ratings, so content-limited profiles see them only when this is on.</summary>
+    [JsonPropertyName("ok_for_limited_profiles")]
+    public bool OkForLimitedProfiles { get; set; }
+
+    /// <summary>When on, deleting a title from disk moves its files to the recycle bin; they leave the disk only when the bin is emptied. On for Videos by default, off for the other types.</summary>
+    [JsonPropertyName("recycle_bin")]
+    public bool RecycleBin { get; set; }
+
     [JsonPropertyName("sources")]
     public List<LibrarySourceConfig> Sources { get; set; } = [];
 

@@ -55,7 +55,7 @@ internal sealed partial class DetailCompositionOrchestrator
                                     AND us.user_id = @defaultOwnerUserId
             WHERE e.work_id = @workId
               AND ma.status = 'Normal'
-              AND (@filterAssets=0 OR ma.id IN @authorizedAssetIds)
+              AND (@filterAssets=0 OR ma.id IN (SELECT unhex(value) FROM json_each(@authorizedAssetIds)))
             ORDER BY COALESCE(e.format_label, ''), ma.file_path_root;
             """,
             new
@@ -63,9 +63,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 workId,
                 defaultOwnerUserId = profileId ?? DefaultOwnerUserId,
                 filterAssets = authorizedAssetIds is null ? 0 : 1,
-                authorizedAssetIds = authorizedAssetIds is { Count: > 0 }
-                    ? authorizedAssetIds.Select(GuidSql.ToBlob).ToArray()
-                    : [GuidSql.ToBlob(Guid.Empty)],
+                authorizedAssetIds = GuidSql.ToJsonHexArray(authorizedAssetIds ?? []),
             },
             cancellationToken: ct))).ToList();
 

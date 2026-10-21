@@ -84,6 +84,28 @@ public sealed class CanonicalValueRepository : ICanonicalValueRepository, IAiFea
         Microsoft.Data.Sqlite.SqliteTransaction tx,
         List<CanonicalValue> scalarValues)
     {
+        // An item added anyway stays unnumbered (Details overlay D13): no scan, re-read of its file or provider writes it a track,
+        // disc, episode, season or series position (a title's mark) or a part number (an audiobook part's mark). Only a later Match,
+        // which clears the mark, numbers it. Each mark covers only its own list's numbers.
+        var workNumbered = scalarValues.Where(cv => PlacementNumbers.IsWorkKey(cv.Key)).Select(cv => cv.EntityId).Distinct().ToList();
+        var partNumbered = scalarValues.Where(cv => PlacementNumbers.IsPartKey(cv.Key)).Select(cv => cv.EntityId).Distinct().ToList();
+        if (workNumbered.Count > 0 || partNumbered.Count > 0)
+        {
+            var workUnnumbered = PlacementNumbers.WorkUnnumberedAmong(conn, tx, workNumbered);
+            var partUnnumbered = PlacementNumbers.PartUnnumberedAmong(conn, tx, partNumbered);
+            if (workUnnumbered.Count > 0 || partUnnumbered.Count > 0)
+            {
+                scalarValues = scalarValues
+                    .Where(cv => !(PlacementNumbers.IsWorkKey(cv.Key) && workUnnumbered.Contains(cv.EntityId))
+                        && !(PlacementNumbers.IsPartKey(cv.Key) && partUnnumbered.Contains(cv.EntityId)))
+                    .ToList();
+                if (scalarValues.Count == 0)
+                {
+                    return;
+                }
+            }
+        }
+
         // Update in place so the winner changes atomically without the
         // delete/reinsert side effects of INSERT OR REPLACE.
         conn.Execute("""
@@ -544,6 +566,95 @@ public sealed class CanonicalValueRepository : ICanonicalValueRepository, IAiFea
 
             return new AiFeatureWriteResult(status, published, protectedFields, IsUnchanged: false);
         }, ct).ConfigureAwait(false);
+    }
+
+    public async Task<int> RetractAiFeatureAsync(
+        string featureKey,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(featureKey);
+        ct.ThrowIfCancellationRequested();
+
+        return await _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            var entityIds = conn.Query<Guid>(
+                "SELECT entity_id FROM ai_feature_artifacts WHERE feature_key = @featureKey;",
+                new { featureKey },
+                transaction: tx).ToList();
+
+            foreach (var entityId in entityIds)
+            {
+                innerCt.ThrowIfCancellationRequested();
+                var state = LoadAiFeatureState(conn, tx, entityId, featureKey);
+                if (state is not null)
+                {
+                    foreach (var (key, expected) in state.PublishedValues)
+                    {
+                        RemoveValueIfStillAiOwned(conn, tx, entityId, key, expected, state.ProviderId);
+                    }
+                }
+
+                conn.Execute(
+                    "DELETE FROM ai_feature_artifacts WHERE entity_id = @entityId AND feature_key = @featureKey;",
+                    new { entityId, featureKey },
+                    transaction: tx);
+            }
+
+            return entityIds.Count;
+        }, ct).ConfigureAwait(false);
+    }
+
+    private static void RemoveValueIfStillAiOwned(
+        Microsoft.Data.Sqlite.SqliteConnection conn,
+        Microsoft.Data.Sqlite.SqliteTransaction tx,
+        Guid entityId,
+        string key,
+        IReadOnlyList<string> expected,
+        Guid aiProviderId)
+    {
+        if (MetadataFieldConstants.IsMultiValued(key))
+        {
+            var current = conn.Query<ExistingArrayValueRow>(
+                """
+                SELECT value AS Value, value_qid AS ValueQid
+                FROM canonical_value_arrays
+                WHERE entity_id = @entityId AND key = @key
+                ORDER BY ordinal;
+                """,
+                new { entityId, key },
+                transaction: tx).ToList();
+            if (current.Count > 0
+                && current.All(row => row.ValueQid is null)
+                && current.Select(row => row.Value).SequenceEqual(expected, StringComparer.Ordinal))
+            {
+                conn.Execute(
+                    "DELETE FROM canonical_value_arrays WHERE entity_id = @entityId AND key = @key;",
+                    new { entityId, key },
+                    transaction: tx);
+            }
+
+            return;
+        }
+
+        var scalar = conn.QueryFirstOrDefault<ExistingCanonicalOwnerRow>(
+            """
+            SELECT value AS Value, winning_provider_id AS WinningProviderId
+            FROM canonical_values
+            WHERE entity_id = @entityId AND key = @key
+            LIMIT 1;
+            """,
+            new { entityId, key },
+            transaction: tx);
+        if (scalar is not null
+            && scalar.WinningProviderId == aiProviderId
+            && expected.Count == 1
+            && string.Equals(scalar.Value, expected[0], StringComparison.Ordinal))
+        {
+            conn.Execute(
+                "DELETE FROM canonical_values WHERE entity_id = @entityId AND key = @key;",
+                new { entityId, key },
+                transaction: tx);
+        }
     }
 
     public Task<AiFeatureState?> GetAiFeatureStateAsync(

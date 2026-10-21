@@ -34,6 +34,8 @@ A collection is defined by membership or **rules**, its **type**, ownership/audi
 
 Product role note: lane-level shelves and top-level Collections are intentionally different surfaces. A generated book series, movie series, TV show, music album, or audiobook series is a **shelf** and belongs in its lane: books/comics in Read, movies/TV in Watch, and music/audiobooks in Listen. The Collections page shows broader rollups only when a shared series/franchise/universe relationship connects at least two shelves. A single shelf, even with multiple items, stays out of the Collections surface; ebook/audiobook variants of the same work also do not trigger a rollup.
 
+One Universe record: every Series shelf names the Universe it belongs to (`collections.universe_qid`, the `narrative_roots` row), even when it is the only Series there. `ParentCollectionResolver` decides it with the one `UniverseIdentityRule` (a fictional universe, then a franchise, then a broader Series, then a work it is based on, then the shelf's own Series; the lowest QID wins within a type), and the Work-level narrative root uses the same rule, so the Library and the graph agree. A Universe shelf is created once at least two Series shelves name the same record (the book and audiobook Series of one book Series, both carrying the Universe's own QID, do not count as two on their own), and it presents that record (`universe_qid` equals its `wikidata_qid`). The decision is recomputed on every call, so a shelf that moves to another Universe leaves the old one cleanly: a Universe shelf left without children is removed only if nobody edited it.
+
 ## Shelf Identity, Ordering, And Counts
 
 Lane shelves are immediate containers. A comic shelf is a Comic Vine volume/run,
@@ -102,6 +104,36 @@ on the same shelf. Precedence:
    `series_qid` claim names wins, else the lowest QID.
 4. With no Wikidata manifest, a retail provider's own manifest, then the retail
    identity (provider key, then label plus media type), as `MainSequence`.
+
+**A person's choice is a lock.** When a person picks a Series in the editor's
+Matching section (or "Not in a Series"), the Engine saves it as
+`works.series_placement_locked = 1` with `works.collection_id` as their choice.
+`SeriesPlacementInput.Lock` comes before every rule above: the rule returns the
+locked shelf (scope from that shelf's manifest when it lists the work, else main
+sequence) or "no Series", and is never ambiguous. `CollectionAssignmentService`
+(and so backfill), `LinkOwnedWorksAsync` (which only refreshes the work's position
+on its chosen Series) and the repository's assign and clear calls all leave a
+locked work where the person put it. "Let the Library decide" clears the lock,
+takes the work off its shelf and runs placement for it again. The lock is a
+placement lock, not a claim lock (`PriorityCascadeEngine`'s lockable fields are
+unchanged).
+
+**One claimed-Series reader.** `ClaimedSeriesQidReader` (Domain) names the Series a
+work's own claims point to, for the tie-break above: `series_qid` from the lineage
+root's canonicals, then from the work's files (read in file-id order); then a
+QID-shaped `series` value; then, for comics, `wikidata_qid`. Assignment and manifest
+linking both feed it the same values (the root, then every file of the work), so the
+same work gets the same shelf from either path. If the chosen Series shelf is deleted,
+a database trigger clears the lock with it.
+
+**One "which Series?" question.** `SeriesAmbiguityReviewer` raises the
+`AmbiguousSeriesMembership` item on the work's earliest-stored Normal original
+file, skips it when a pending one already exists on the work or any of its files,
+and resolves it whenever the work is later placed without a tie (any path,
+including a person's choice). Manifest linking reports every work it decided
+(including works reached through a parent collection) and the items are closed in one
+batch. Saving or releasing a choice also runs the Universe (parent-collection) step for
+the Series the work joined and the one it left.
 
 A work moves only when the rule's shelf differs from its current one, and the
 log gives the real reason. A work with no manifest row (retail only) is

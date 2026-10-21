@@ -54,11 +54,15 @@ public sealed class DisplayShelfBuilder
         var shelves = new List<DisplayShelfDto>();
         var groupShelf = _groupPolicy.GetShelf("watch");
         var tvShowCards = _cards.BuildTvShowCards(works, progressByWork);
+        var videoCards = _cards.BuildVideoCards(works, progressByWork);
         AddShelf(shelves, "continue-watching", "Continue watching", "Movies and shows already in progress",
             journey.Take(take).Select(item => _cards.FromJourney(item, "watch")).ToList(), DisplayGridCatalog.RouteFor("watch", "continue-watching"));
 
         AddShelf(shelves, "tv-shows", "TV Shows", "Shows built from the episodes you own",
             tvShowCards.Take(take).ToList(), DisplayGridCatalog.RouteFor("watch", "tv-shows"));
+
+        AddShelf(shelves, "videos", "Videos", "Downloads, courses and clips from your library",
+            videoCards.Take(take).ToList(), DisplayGridCatalog.RouteFor("watch", "videos"));
 
         if (groupShelf.Enabled)
         {
@@ -81,7 +85,9 @@ public sealed class DisplayShelfBuilder
                 Subtitle: $"{group.Count()} titles",
                 Items: group.Select(item => DisplayMediaRules.NormalizeDisplayKind(item.Work.MediaType) == "TV"
                         ? tvShowCards.FirstOrDefault(card => string.Equals(card.Title, item.Work.ShowName, StringComparison.OrdinalIgnoreCase))
-                        : _cards.FromWork(item.Work, "watch", progressByWork.GetValueOrDefault(item.Work.WorkId)))
+                        : DisplayMediaRules.NormalizeDisplayKind(item.Work.MediaType) == "Video"
+                            ? videoCards.FirstOrDefault(card => card.Id == (item.Work.RootWorkId != Guid.Empty ? item.Work.RootWorkId : item.Work.CollectionId ?? item.Work.WorkId))
+                            : _cards.FromWork(item.Work, "watch", progressByWork.GetValueOrDefault(item.Work.WorkId)))
                     .Where(card => card is not null)
                     .Cast<DisplayCardDto>()
                     .DistinctBy(card => card.Id)

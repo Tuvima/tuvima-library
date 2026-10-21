@@ -78,7 +78,31 @@ public sealed class NarrativeRootRepository : INarrativeRootRepository
             ON CONFLICT(qid) DO UPDATE SET
                 label = excluded.label,
                 level = excluded.level,
-                parent_qid = excluded.parent_qid;
+                parent_qid = COALESCE(excluded.parent_qid, narrative_roots.parent_qid);
+            """,
+            new
+            {
+                qid = root.Qid,
+                label = root.Label,
+                level = root.Level,
+                parentQid = root.ParentQid,
+                createdAt = root.CreatedAt.ToString("o"),
+            });
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    public Task EnsureAsync(NarrativeRoot root, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(root);
+
+        using var conn = _db.CreateConnection();
+        conn.Execute("""
+            INSERT INTO narrative_roots (qid, label, level, parent_qid, created_at)
+            VALUES (@qid, @label, @level, @parentQid, @createdAt)
+            ON CONFLICT(qid) DO NOTHING;
             """,
             new
             {

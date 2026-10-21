@@ -1,0 +1,22 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* A box placed along a horizontal time axis by percentage (the plugin guide timeline). Positions come from data, so they are
+   set here, in the shared layer, rather than as inline styles in a feature page. *@
+<span class="@Class" role="@Role" title="@Title" style="@PositionStyle">@ChildContent</span>
+
+@code {
+    /// <summary>Distance from the left edge of the axis, in percent (0 to 100).</summary>
+    [Parameter] public double LeftPercent { get; set; }
+
+    /// <summary>Width along the axis in percent. Null leaves the width to the content (a tick label).</summary>
+    [Parameter] public double? WidthPercent { get; set; }
+
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Role { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string PositionStyle => WidthPercent is { } width
+        ? FormattableString.Invariant($"left:{LeftPercent:0.####}%;width:{width:0.####}%")
+        : FormattableString.Invariant($"left:{LeftPercent:0.####}%");
+}
