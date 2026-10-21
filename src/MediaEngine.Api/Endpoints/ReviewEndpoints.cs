@@ -83,6 +83,7 @@ public static class ReviewEndpoints
             Guid id,
             ReviewResolveRequestDto request,
             IReviewQueueRepository reviewRepo,
+            IVaultLibraryRepository vaults,
             IMetadataClaimRepository claimRepo,
             IHydrationPipelineService pipeline,
             ICanonicalValueRepository canonicalRepo,
@@ -91,7 +92,8 @@ public static class ReviewEndpoints
             CancellationToken ct) =>
         {
             var item = await reviewRepo.GetByIdAsync(id, ct);
-            if (item is null)
+            // A Vault item answers exactly like a missing one: Vault files never reach Needs Review (the review list hides them too).
+            if (item is null || await vaults.IsInVaultAsync(item.EntityId, ct))
             {
                 return ApiErrors.NotFound($"Review item '{id}' not found.");
             }
@@ -233,13 +235,15 @@ public static class ReviewEndpoints
         group.MapPost("/{id:guid}/dismiss", async (
             Guid id,
             IReviewQueueRepository reviewRepo,
+            IVaultLibraryRepository vaults,
             ICanonicalValueRepository canonicalRepo,
             IEventPublisher publisher,
             ISystemActivityRepository activityRepo,
             CancellationToken ct) =>
         {
             var item = await reviewRepo.GetByIdAsync(id, ct);
-            if (item is null)
+            // A Vault item answers exactly like a missing one: Vault files never reach Needs Review (the review list hides them too).
+            if (item is null || await vaults.IsInVaultAsync(item.EntityId, ct))
             {
                 return ApiErrors.NotFound($"Review item '{id}' not found.");
             }
@@ -310,8 +314,16 @@ public static class ReviewEndpoints
         group.MapPost("/{id:guid}/move-to-tv", async (
             Guid id,
             IReviewMoveToTvService moveToTv,
+            IReviewQueueRepository reviewRepo,
+            IVaultLibraryRepository vaults,
             CancellationToken ct) =>
         {
+            // A Vault item answers exactly like a missing one, before the service looks at it.
+            if (await reviewRepo.GetByIdAsync(id, ct) is { } queued && await vaults.IsInVaultAsync(queued.EntityId, ct))
+            {
+                return ApiErrors.NotFound("Review item not found.");
+            }
+
             var result = await moveToTv.MoveAsync(id, "user", ct);
             return result.Outcome switch
             {
@@ -334,6 +346,7 @@ public static class ReviewEndpoints
         group.MapPost("/{id:guid}/skip-universe", async (
             Guid id,
             IReviewQueueRepository reviewRepo,
+            IVaultLibraryRepository vaults,
             ICollectionRepository collectionRepo,
             ICanonicalValueRepository canonicalRepo,
             IEventPublisher publisher,
@@ -341,7 +354,8 @@ public static class ReviewEndpoints
             CancellationToken ct) =>
         {
             var item = await reviewRepo.GetByIdAsync(id, ct);
-            if (item is null)
+            // A Vault item answers exactly like a missing one: Vault files never reach Needs Review (the review list hides them too).
+            if (item is null || await vaults.IsInVaultAsync(item.EntityId, ct))
             {
                 return ApiErrors.NotFound($"Review item '{id}' not found.");
             }

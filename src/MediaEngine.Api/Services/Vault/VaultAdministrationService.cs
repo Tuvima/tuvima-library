@@ -131,9 +131,13 @@ public sealed class VaultAdministrationService(
         return await nsfw.GetAsync(targetProfileId, ct).ConfigureAwait(false);
     }
 
-    /// <summary>An administrator removes a profile's NSFW PIN without reading it, and every device that profile had unlocked locks.</summary>
-    public async Task<bool> ResetPinAsync(Guid targetProfileId, CancellationToken ct)
+    /// <summary>
+    /// An administrator removes a profile's NSFW PIN without reading it, and every device that profile had unlocked locks. Like every
+    /// other Vault action it asks for the administrator's own profile PIN at this moment (Videos spec D25).
+    /// </summary>
+    public async Task<bool> ResetPinAsync(Guid adminProfileId, Guid targetProfileId, string? adminPin, CancellationToken ct)
     {
+        await RequireAdminPinAsync(adminProfileId, adminPin, ct).ConfigureAwait(false);
         var removed = await nsfwPins.ResetPinAsync(targetProfileId, ct).ConfigureAwait(false);
         await nsfw.LockProfileAsync(targetProfileId, ct).ConfigureAwait(false);
         return removed;
@@ -198,13 +202,36 @@ public sealed class VaultAdministrationService(
         return await nsfw.TouchAsync(sessionId, profileId, idle, clock.GetUtcNow(), ct).ConfigureAwait(false);
     }
 
-    /// <summary>Saves or changes the caller's own NSFW PIN.</summary>
-    public async Task SetOwnPinAsync(Guid profileId, string newPin, string? currentPin, CancellationToken ct)
+    /// <summary>
+    /// True when saving the caller's NSFW PIN must be backed by a recent sign-in: the profile can use NSFW mode, has no NSFW PIN yet
+    /// (a first PIN, or one just reset by an administrator) and has no profile PIN to prove who is typing. The endpoint asks the
+    /// recent sign-in guard for those; a profile with a profile PIN is asked for that PIN instead.
+    /// </summary>
+    public async Task<bool> RequiresRecentSignInForFirstPinAsync(Guid profileId, CancellationToken ct)
+    {
+        var access = await nsfw.GetAsync(profileId, ct).ConfigureAwait(false);
+        return access.CanUnlock
+            && !await nsfwPins.HasPinAsync(profileId, ct).ConfigureAwait(false)
+            && await identities.GetCredentialAsync(profileId, MediaEngine.Domain.Entities.ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is null;
+    }
+
+    /// <summary>
+    /// Saves or changes the caller's own NSFW PIN. Changing needs the current NSFW PIN. A first PIN (or one after an administrator
+    /// reset) needs the profile's own PIN when it has one, so a signed-in but unattended device cannot claim the PIN; the endpoint
+    /// asks for a recent sign-in when the profile has no PIN (<see cref="RequiresRecentSignInForFirstPinAsync"/>).
+    /// </summary>
+    public async Task SetOwnPinAsync(Guid profileId, string newPin, string? currentPin, string? profilePin, CancellationToken ct)
     {
         var access = await nsfw.GetAsync(profileId, ct).ConfigureAwait(false);
         if (!access.CanUnlock)
         {
             throw new NsfwNotAvailableException();
+        }
+
+        if (!await nsfwPins.HasPinAsync(profileId, ct).ConfigureAwait(false)
+            && await identities.GetCredentialAsync(profileId, MediaEngine.Domain.Entities.ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is not null)
+        {
+            await profilePins.VerifyProfilePinAsync(profileId, profilePin, countsTowardLockout: true, ct).ConfigureAwait(false);
         }
 
         await nsfwPins.SetPinAsync(profileId, newPin, currentPin, ct).ConfigureAwait(false);

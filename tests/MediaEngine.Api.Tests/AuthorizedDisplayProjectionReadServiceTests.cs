@@ -1835,6 +1835,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
 
     public void Dispose()
     {
+        foreach (var app in _routeApps)
+        {
+            app.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+
         _database.Dispose();
         TestTemp.ReleaseSqlitePool(_databasePath);
         try { File.Delete(_databasePath); } catch { }

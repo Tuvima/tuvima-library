@@ -297,7 +297,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
         {
             typeof(IReviewQueueReadService), typeof(IReviewQueueRepository), typeof(IMetadataClaimRepository),
             typeof(IHydrationPipelineService), typeof(ICanonicalValueRepository), typeof(IEventPublisher),
-            typeof(ISystemActivityRepository), typeof(IReviewMoveToTvService), typeof(ICollectionRepository),
+            typeof(ISystemActivityRepository), typeof(IReviewMoveToTvService), typeof(ICollectionRepository), typeof(IVaultLibraryRepository),
         })
         {
             builder.Services.AddSingleton(service, _ => throw new InvalidOperationException(

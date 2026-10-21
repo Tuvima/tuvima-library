@@ -13,7 +13,8 @@ public interface INsfwPinService
     /// <summary>
     /// Saves or changes the NSFW PIN of a profile that can use NSFW mode. Changing needs the current NSFW PIN
     /// (<paramref name="currentPin"/>), counted like any unlock try. Throws <see cref="ArgumentException"/> for a PIN that is not 4 to 12
-    /// digits or that has the same digits as the profile PIN, <see cref="InvalidOperationException"/> when the profile cannot use
+    /// digits or that has the same digits as the profile PIN (every save compares against the profile PIN and spends one of its
+    /// tries, whether or not the digits match), <see cref="InvalidOperationException"/> when the profile cannot use
     /// NSFW mode, <see cref="ProfilePinRequiredException"/> for a missing or wrong current PIN and <see cref="ProfilePinLockedException"/>
     /// while unlocking is paused.
     /// </summary>

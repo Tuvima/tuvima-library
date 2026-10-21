@@ -40,6 +40,21 @@ public sealed class NsfwSetPinRequest
     /// <summary>The current NSFW PIN, needed only when one is already saved.</summary>
     [JsonPropertyName("current_pin")]
     public string? CurrentPin { get; init; }
+
+    /// <summary>
+    /// The profile's own sign-in PIN, needed when saving a first NSFW PIN (or one after an administrator reset) and the profile
+    /// has a profile PIN. A profile with none confirms with a recent sign-in instead.
+    /// </summary>
+    [JsonPropertyName("profile_pin")]
+    public string? ProfilePin { get; init; }
+}
+
+/// <summary>An administrator removes one profile's NSFW PIN.</summary>
+public sealed class ResetNsfwPinRequest
+{
+    /// <summary>The administrator's own profile PIN, asked for again at this moment.</summary>
+    [JsonPropertyName("admin_pin")]
+    public string? AdminPin { get; init; }
 }
 
 /// <summary>An administrator opens, changes or closes one profile's NSFW access.</summary>

@@ -1285,8 +1285,10 @@ public sealed class FirstPartyIdentityService(
     }
 
     /// <summary>
-    /// The profile PIN and the NSFW PIN are never the same digits (Videos spec D25). The comparison counts as a wrong try against the
-    /// NSFW PIN, and is refused outright while that PIN is paused, so saving PINs can never be used to guess the other one.
+    /// The profile PIN and the NSFW PIN are never the same digits (Videos spec D25). EVERY comparison (a match or not) spends one try
+    /// of the NSFW PIN's budget, reserved before the digits are compared, and the comparison is refused outright while that PIN is
+    /// paused, so saving PINs can never be used to walk the PIN space of the other one. A match is a generic "choose a different
+    /// PIN"; the fifth comparison is the pause.
     /// </summary>
     private async Task RejectSameDigitsAsNsfwPinAsync(Guid profileId, string pin, CancellationToken ct)
     {
@@ -1301,18 +1303,17 @@ public sealed class FirstPartyIdentityService(
             throw new ProfilePinLockedException();
         }
 
-        if (!Verify(nsfwPin, pin, out _))
-        {
-            return;
-        }
-
         var attempt = await nsfwAccess.ReservePinAttemptAsync(nsfwPin.Id, MaxFailedAttempts, now, CancellationToken.None).ConfigureAwait(false);
         if (attempt is null || attempt >= MaxFailedAttempts)
         {
-            await nsfwAccess.LockExhaustedPinAsync(nsfwPin.Id, MaxFailedAttempts, now.Add(LockoutDuration), CancellationToken.None).ConfigureAwait(false);
+            await nsfwAccess.LockExhaustedPinAsync(nsfwPin.Id, MaxFailedAttempts, now.Add(LockoutDuration), now, CancellationToken.None).ConfigureAwait(false);
+            throw new ProfilePinLockedException();
         }
 
-        throw new ArgumentException("Choose a PIN that is different from your other PIN.");
+        if (Verify(nsfwPin, pin, out _))
+        {
+            throw new ArgumentException("Choose a different PIN.");
+        }
     }
 
     private async Task ReplacePasswordAsync(Guid accountId, AccountCredential credential, string password, string reason, CancellationToken ct)

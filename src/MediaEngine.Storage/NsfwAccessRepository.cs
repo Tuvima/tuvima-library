@@ -257,7 +257,7 @@ public sealed class NsfwAccessRepository(IDatabaseConnection database) : INsfwAc
                 new { credentialId, lockoutThreshold, now = Iso(now) }, transaction);
         }, ct);
 
-    public Task LockExhaustedPinAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset lockedUntil, CancellationToken ct = default) =>
+    public Task LockExhaustedPinAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset lockedUntil, DateTimeOffset now, CancellationToken ct = default) =>
         database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -267,7 +267,7 @@ public sealed class NsfwAccessRepository(IDatabaseConnection database) : INsfwAc
                 SET locked_until = @lockedUntil, updated_at = @updated
                 WHERE id = @credentialId AND locked_until IS NULL AND failed_attempt_count >= @lockoutThreshold;
                 """,
-                new { credentialId, lockoutThreshold, lockedUntil = Iso(lockedUntil), updated = Iso(DateTimeOffset.UtcNow) }, transaction);
+                new { credentialId, lockoutThreshold, lockedUntil = Iso(lockedUntil), updated = Iso(now) }, transaction);
         }, ct);
 
     public Task<bool> ResetPinAttemptsIfUnlockedAsync(Guid credentialId, DateTimeOffset now, CancellationToken ct = default) =>

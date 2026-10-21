@@ -78,7 +78,7 @@ public sealed class NsfwPinService(
         var attempt = await nsfw.ReservePinAttemptAsync(credential.Id, ProfileSecretFormat.MaxFailedAttempts, now, ct).ConfigureAwait(false);
         if (attempt is null)
         {
-            await nsfw.LockExhaustedPinAsync(credential.Id, ProfileSecretFormat.MaxFailedAttempts, now.Add(ProfileSecretFormat.LockoutDuration), CancellationToken.None).ConfigureAwait(false);
+            await nsfw.LockExhaustedPinAsync(credential.Id, ProfileSecretFormat.MaxFailedAttempts, now.Add(ProfileSecretFormat.LockoutDuration), now, CancellationToken.None).ConfigureAwait(false);
             throw new ProfilePinLockedException();
         }
 
@@ -86,7 +86,7 @@ public sealed class NsfwPinService(
         {
             if (attempt >= ProfileSecretFormat.MaxFailedAttempts)
             {
-                await nsfw.LockExhaustedPinAsync(credential.Id, ProfileSecretFormat.MaxFailedAttempts, now.Add(ProfileSecretFormat.LockoutDuration), CancellationToken.None).ConfigureAwait(false);
+                await nsfw.LockExhaustedPinAsync(credential.Id, ProfileSecretFormat.MaxFailedAttempts, now.Add(ProfileSecretFormat.LockoutDuration), now, CancellationToken.None).ConfigureAwait(false);
                 throw new ProfilePinLockedException();
             }
 
@@ -107,8 +107,10 @@ public sealed class NsfwPinService(
     }
 
     /// <summary>
-    /// The NSFW PIN and the profile PIN are never the same digits. The comparison counts as a wrong try against the profile PIN and
-    /// is refused outright while that PIN is paused, so saving an NSFW PIN can never be used to guess the profile PIN.
+    /// The NSFW PIN and the profile PIN are never the same digits. EVERY comparison (a match or not) spends one try of the profile
+    /// PIN's budget, reserved before the digits are compared, and the comparison is refused outright while that PIN is paused. So
+    /// five comparisons pause the profile PIN and saving an NSFW PIN can never be used to walk the PIN space. A match and a miss
+    /// look the same until the budget runs out: a match is a generic "choose a different PIN", the fifth comparison is the pause.
     /// </summary>
     private async Task RejectSameDigitsAsProfilePinAsync(Guid profileId, string pin, CancellationToken ct)
     {
@@ -123,17 +125,16 @@ public sealed class NsfwPinService(
             throw new ProfilePinLockedException();
         }
 
-        if (!Matches(profilePin, pin))
-        {
-            return;
-        }
-
         var attempt = await identities.ReserveCredentialAttemptAsync(profilePin.Id, ProfileSecretFormat.MaxFailedAttempts, now, CancellationToken.None).ConfigureAwait(false);
         if (attempt is null || attempt >= ProfileSecretFormat.MaxFailedAttempts)
         {
             await identities.LockExhaustedCredentialAsync(profilePin.Id, ProfileSecretFormat.MaxFailedAttempts, now.Add(ProfileSecretFormat.LockoutDuration), CancellationToken.None).ConfigureAwait(false);
+            throw new ProfilePinLockedException();
         }
 
-        throw new ArgumentException("Choose a PIN that is different from your other PIN.");
+        if (Matches(profilePin, pin))
+        {
+            throw new ArgumentException("Choose a different PIN.");
+        }
     }
 }

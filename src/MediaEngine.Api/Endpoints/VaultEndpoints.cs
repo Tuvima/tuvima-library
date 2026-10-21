@@ -1,5 +1,6 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Security;
 using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Vault;
 using MediaEngine.Domain.Authorization;
@@ -72,16 +73,25 @@ public static class VaultEndpoints
             return await vault.KeepAliveAsync(own.SessionId, own.ProfileId, ct) ? Results.NoContent() : ApiErrors.NotFound("Not found.");
         }).WithName("KeepNsfwAlive").Produces(StatusCodes.Status204NoContent).RequireHumanSelfService();
 
-        nsfw.MapPut("/pin", async (NsfwSetPinRequest request, HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault, CancellationToken ct) =>
+        nsfw.MapPut("/pin", async (
+            NsfwSetPinRequest request, HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
         {
             if (await OwnSessionAsync(http, resolver, ct) is not { } own)
             {
                 return ApiErrors.NotFound("Not found.");
             }
 
+            // A first PIN (or one after an administrator reset) on a profile with no profile PIN needs a recent sign-in; a profile
+            // that has a PIN proves itself with that PIN inside the service. Either way a bare signed-in session cannot claim it.
+            if (await RefuseFirstPinWithoutProofAsync(vault, recentSignIn, http.User, own.ProfileId, ct) is { } stale)
+            {
+                return stale;
+            }
+
             try
             {
-                await vault.SetOwnPinAsync(own.ProfileId, request.NewPin, request.CurrentPin, ct);
+                await vault.SetOwnPinAsync(own.ProfileId, request.NewPin, request.CurrentPin, request.ProfilePin, ct);
                 return Results.NoContent();
             }
             catch (ArgumentException ex)
@@ -140,16 +150,25 @@ public static class VaultEndpoints
           .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireEffectiveAdministratorInPerson();
 
         admin.MapDelete("/profiles/{profileId:guid}/nsfw-pin", async (
-            Guid profileId, HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault, CancellationToken ct) =>
+            Guid profileId, [FromBody] ResetNsfwPinRequest request, HttpContext http, IRequestAuthorityResolver resolver,
+            VaultAdministrationService vault, CancellationToken ct) =>
         {
-            if (await AdministratorProfileAsync(http, resolver, ct) is null)
+            if (await AdministratorProfileAsync(http, resolver, ct) is not { } adminProfileId)
             {
                 return ApiErrors.NotFound("Not found.");
             }
 
-            await vault.ResetPinAsync(profileId, ct);
-            return Results.NoContent();
-        }).WithName("ResetProfileNsfwPin").Produces(StatusCodes.Status204NoContent).RequireEffectiveAdministratorInPerson();
+            try
+            {
+                await vault.ResetPinAsync(adminProfileId, profileId, request.AdminPin, ct);
+                return Results.NoContent();
+            }
+            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            {
+                return PinFailure(ex);
+            }
+        }).WithName("ResetProfileNsfwPin").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status428PreconditionRequired)
+          .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireEffectiveAdministratorInPerson();
 
         var libraries = app.MapGroup("/api/v1/vault/libraries").WithTags("Vault");
 
@@ -242,6 +261,8 @@ public static class VaultEndpoints
             Guid artworkId, HttpContext http, IRequestAuthorityResolver resolver, VaultAccessResolver access,
             IVaultArtworkRepository artwork, CancellationToken ct) =>
         {
+            // Private and uncacheable whether or not the image is found, so a cached answer never outlives the NSFW session.
+            CatalogueResourceAuthorizationService.ApplyVaultCacheControl(http.Response);
             var authority = await resolver.ResolveAsync(http, ct);
             if (!await access.IsUnlockedAsync(authority, ct)
                 || await artwork.GetAsync(artworkId, ct) is not { } record
@@ -260,6 +281,17 @@ public static class VaultEndpoints
 
         return app;
     }
+
+    /// <summary>
+    /// Null when the first-PIN rule is met or does not apply here; otherwise the "confirm it's you" refusal. Only a profile that can use
+    /// NSFW mode, has no NSFW PIN and has no profile PIN is asked for a recent sign-in: any other profile proves itself with the
+    /// PIN it already has (inside the service), so a bare signed-in session can never claim a first or a post-reset PIN.
+    /// </summary>
+    internal static async Task<IResult?> RefuseFirstPinWithoutProofAsync(
+        VaultAdministrationService vault, RecentSignInGuard recentSignIn, System.Security.Claims.ClaimsPrincipal user, Guid profileId, CancellationToken ct) =>
+        await vault.RequiresRecentSignInForFirstPinAsync(profileId, ct).ConfigureAwait(false)
+            ? await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false)
+            : null;
 
     private sealed record OwnSession(Guid SessionId, Guid ProfileId);
 

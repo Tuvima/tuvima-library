@@ -72,7 +72,7 @@ public interface INsfwAccessRepository
     Task<int?> ReservePinAttemptAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset now, CancellationToken ct = default);
 
     /// <summary>Same contract as <see cref="IIdentityRepository.LockExhaustedCredentialAsync"/>, for the NSFW PIN.</summary>
-    Task LockExhaustedPinAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset lockedUntil, CancellationToken ct = default);
+    Task LockExhaustedPinAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset lockedUntil, DateTimeOffset now, CancellationToken ct = default);
 
     /// <summary>Same contract as <see cref="IIdentityRepository.ResetCredentialAttemptsIfUnlockedAsync"/>, for the NSFW PIN.</summary>
     Task<bool> ResetPinAttemptsIfUnlockedAsync(Guid credentialId, DateTimeOffset now, CancellationToken ct = default);

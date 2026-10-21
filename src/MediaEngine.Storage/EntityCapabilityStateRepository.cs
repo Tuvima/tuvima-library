@@ -129,9 +129,11 @@ public sealed class EntityCapabilityStateRepository : IEntityCapabilityStateRepo
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        var rows = conn.Query("""
+        // Vault items are never counted: this summary does not know who is asking, so the Vault is absent from it for everyone.
+        var rows = conn.Query($"""
             SELECT capability_id || ':' || status AS Key, COUNT(*) AS Count
             FROM entity_capability_states
+            WHERE {VaultSql.NotVaultEntity("entity_id")}
             GROUP BY capability_id, status;
             """);
         IReadOnlyDictionary<string, int> summary = rows.ToDictionary(

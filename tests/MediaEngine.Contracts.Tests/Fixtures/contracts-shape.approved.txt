@@ -9246,6 +9246,7 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.CreateVaultLibraryReques
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwSetPinRequest
   NewPin: System.String | nullability=not-null | accessors=get,init
   CurrentPin: System.String | nullability=nullable | accessors=get,init
+  ProfilePin: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwStatusDto
   Mode: System.String | nullability=not-null | accessors=get,init
@@ -9257,6 +9258,9 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwUnlockRequest
   Pin: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.RemoveVaultLibraryRequest
+  AdminPin: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.ResetNsfwPinRequest
   AdminPin: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.SetNsfwAccessRequest

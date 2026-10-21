@@ -256,15 +256,92 @@ public sealed class NsfwPinTests : IDisposable
         await _identity.SetProfilePinAsync(_adult, ProfilePin);
 
         // Every "is this your profile PIN" answer costs a try, so five of them pause the profile PIN like five wrong sign-ins do.
-        for (var attempt = 0; attempt < 5; attempt++)
+        for (var attempt = 0; attempt < 4; attempt++)
         {
             await Assert.ThrowsAsync<ArgumentException>(() => _pins.SetPinAsync(_adult, ProfilePin, null));
         }
 
+        // The fifth comparison is the one that pauses it, whichever way it would have answered.
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _pins.SetPinAsync(_adult, ProfilePin, null));
         await Assert.ThrowsAsync<ProfilePinLockedException>(() => _identity.VerifyProfilePinAsync(_adult, ProfilePin, countsTowardLockout: true));
         // And while it is paused the comparison itself is refused, so it answers nothing.
         await Assert.ThrowsAsync<ProfilePinLockedException>(() => _pins.SetPinAsync(_adult, ProfilePin, null));
         await Assert.ThrowsAsync<ProfilePinLockedException>(() => _pins.SetPinAsync(_adult, "99999", null));
+    }
+
+    [Fact]
+    public async Task SavingNsfwPinsThatDoNotMatch_StillSpendsTheProfilePinsTries_SoThePinSpaceCannotBeWalked()
+    {
+        await OpenAsync(_adult, NsfwAccessMode.Pin);
+        await _identity.SetProfilePinAsync(_adult, ProfilePin);
+
+        // A guess that is NOT the profile PIN used to be free. Now each save (first save, then each change) is one comparison.
+        var current = "10001";
+        await _pins.SetPinAsync(_adult, current, null);
+        for (var guess = 2; guess <= 4; guess++)
+        {
+            var next = $"1000{guess}";
+            await _pins.SetPinAsync(_adult, next, current);
+            current = next;
+        }
+
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _pins.SetPinAsync(_adult, "10005", current));
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _identity.VerifyProfilePinAsync(_adult, ProfilePin, countsTowardLockout: true));
+
+        // Once the profile PIN is paused, the comparison is refused outright, so nothing more can be learned until it ends.
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _pins.SetPinAsync(_adult, ProfilePin, current));
+        _clock.Advance(Lockout + TimeSpan.FromSeconds(1));
+        await _identity.VerifyProfilePinAsync(_adult, ProfilePin, countsTowardLockout: true);
+    }
+
+    [Fact]
+    public async Task SavingProfilePinsThatDoNotMatch_StillSpendsTheNsfwPinsTries_SoThePinSpaceCannotBeWalked()
+    {
+        await OpenAsync(_adult, NsfwAccessMode.Pin);
+        await _pins.SetPinAsync(_adult, NsfwPin, null);
+
+        for (var guess = 1; guess <= 4; guess++)
+        {
+            await _identity.SetProfilePinAsync(_adult, $"2000{guess}");
+        }
+
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _identity.SetProfilePinAsync(_adult, "20005"));
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _pins.VerifyPinAsync(_adult, NsfwPin));
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _identity.SetProfilePinAsync(_adult, NsfwPin));
+
+        _clock.Advance(Lockout + TimeSpan.FromSeconds(1));
+        await _pins.VerifyPinAsync(_adult, NsfwPin);
+    }
+
+    [Fact]
+    public async Task TheSameDigitsRefusal_IsAGenericMessage_ThatNamesNeitherPin()
+    {
+        await OpenAsync(_adult, NsfwAccessMode.Pin);
+        await _identity.SetProfilePinAsync(_adult, ProfilePin);
+
+        var viaNsfw = await Assert.ThrowsAsync<ArgumentException>(() => _pins.SetPinAsync(_adult, ProfilePin, null));
+        await _pins.SetPinAsync(_adult, NsfwPin, null);
+        var viaProfile = await Assert.ThrowsAsync<ArgumentException>(() => _identity.SetProfilePinAsync(_adult, NsfwPin));
+
+        Assert.Equal("Choose a different PIN.", viaNsfw.Message);
+        Assert.Equal("Choose a different PIN.", viaProfile.Message);
+    }
+
+    [Fact]
+    public async Task PausingThePin_RecordsTheTimeOfTheInjectedClock_NotTheMachineClock()
+    {
+        await OpenAsync(_adult, NsfwAccessMode.Pin);
+        await _pins.SetPinAsync(_adult, NsfwPin, null);
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            await Assert.ThrowsAnyAsync<Exception>(() => _pins.VerifyPinAsync(_adult, "00000"));
+        }
+
+        using var connection = _database.CreateConnection();
+        var row = connection.QuerySingle("SELECT updated_at, locked_until FROM profile_nsfw_pins;");
+        Assert.Equal(_clock.GetUtcNow(), DateTimeOffset.Parse((string)row.updated_at, System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(_clock.GetUtcNow() + Lockout, DateTimeOffset.Parse((string)row.locked_until, System.Globalization.CultureInfo.InvariantCulture));
     }
 
     [Fact]

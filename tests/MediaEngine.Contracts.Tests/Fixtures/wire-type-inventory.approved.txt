@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1112; api=0; web-client=54
+# scopes: contracts=1113; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10887,7 +10887,8 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   NewPin: System.String | json=new_pin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CurrentPin: System.String | json=current_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"new_pin":"sample","current_pin":"sample"}
+  ProfilePin: System.String | json=profile_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"new_pin":"sample","current_pin":"sample","profile_pin":"sample"}
 
 [contracts] MediaEngine.Contracts.Vault.NsfwStatusDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10903,6 +10904,11 @@
   sample={"pin":"sample"}
 
 [contracts] MediaEngine.Contracts.Vault.RemoveVaultLibraryRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"admin_pin":"sample"}
+
+[contracts] MediaEngine.Contracts.Vault.ResetNsfwPinRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"admin_pin":"sample"}

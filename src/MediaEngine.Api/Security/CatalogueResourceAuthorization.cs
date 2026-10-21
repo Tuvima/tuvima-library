@@ -99,6 +99,7 @@ internal sealed class CatalogueResourceAuthorizationService(
             var access = await EvaluateAssetAsync(authority, assetId, applicationPermission, ct).ConfigureAwait(false);
             if (access == CatalogueResourceAccess.Allowed)
             {
+                await MarkVaultResponsePrivateAsync(context, authority, assetId, ct).ConfigureAwait(false);
                 return CatalogueResourceAccess.Allowed;
             }
 
@@ -166,7 +167,51 @@ internal sealed class CatalogueResourceAuthorizationService(
         CancellationToken ct = default)
     {
         var authority = await authorities.ResolveAsync(context, ct).ConfigureAwait(false);
-        return await EvaluateAssetAsync(authority, assetId, applicationPermission, ct).ConfigureAwait(false);
+        var access = await EvaluateAssetAsync(authority, assetId, applicationPermission, ct).ConfigureAwait(false);
+        if (access == CatalogueResourceAccess.Allowed)
+        {
+            await MarkVaultResponsePrivateAsync(context, authority, assetId, ct).ConfigureAwait(false);
+        }
+
+        return access;
+    }
+
+    /// <summary>The Cache-Control a response about a Vault item carries: never kept by a browser, proxy or device cache.</summary>
+    internal const string VaultCacheControl = "private, no-store";
+
+    /// <summary>
+    /// The central place the Vault's responses become uncacheable: every route that clears a request to reach a file asks here
+    /// first, so a stream, cover, page or detail served for a Vault file leaves nothing in a shared or disk cache that would
+    /// outlive the NSFW session. The header is set now and again just before the response starts, so a route that sets its own
+    /// caching later cannot undo it.
+    /// </summary>
+    private async ValueTask MarkVaultResponsePrivateAsync(HttpContext context, RequestAuthority authority, Guid assetId, CancellationToken ct)
+    {
+        var vault = await VaultAccess.ResolveAsync(authority, ct).ConfigureAwait(false);
+        if (vault.VaultLibraryIds.Count == 0
+            || !await new VaultLibraryRepository(database).IsInVaultAsync(assetId, ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        ApplyVaultCacheControl(context.Response);
+        context.Response.OnStarting(static state =>
+        {
+            ApplyVaultCacheControl((HttpResponse)state);
+            return Task.CompletedTask;
+        }, context.Response);
+    }
+
+    /// <summary>Marks one response as private and uncacheable. Used by every Vault-only route.</summary>
+    internal static void ApplyVaultCacheControl(HttpResponse response)
+    {
+        if (response.HasStarted)
+        {
+            return;
+        }
+
+        response.Headers.CacheControl = VaultCacheControl;
+        response.Headers.Pragma = "no-cache";
     }
 
     public async ValueTask<CatalogueResourceAccess> EvaluateAnyEntityAsync(
