@@ -1,0 +1,77 @@
+/* The Home "Now playing" card: one row on every width; the button drops under the text on a phone. */
+.companion-now {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--tl-space-3);
+    margin: 0 var(--tl-space-4) var(--tl-space-4);
+    padding: var(--tl-space-3);
+    border-radius: var(--tl-radius-lg, var(--tl-radius-md));
+    background: var(--tl-bg-surface-raised);
+}
+
+.companion-now__cover {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 80px;
+    overflow: hidden;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-muted);
+}
+
+.companion-now__cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.companion-now__copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.companion-now__eyebrow,
+.companion-now__where,
+.companion-now__title {
+    margin: 0;
+}
+
+.companion-now__eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--tl-text-muted);
+}
+
+.companion-now__title {
+    font-weight: 600;
+    color: var(--tl-text-primary);
+    overflow-wrap: anywhere;
+}
+
+.companion-now__where {
+    font-size: 0.875rem;
+    color: var(--tl-text-secondary);
+}
+
+.companion-now__action {
+    grid-column: 1 / -1;
+    width: 100%;
+}
+
+@media (min-width: 600px) {
+    .companion-now {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        max-width: 44rem;
+    }
+
+    .companion-now__action {
+        grid-column: auto;
+        width: auto;
+    }
+}

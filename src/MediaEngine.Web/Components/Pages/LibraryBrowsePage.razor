@@ -99,6 +99,7 @@
 
         <div class="home-discovery-content-shell">
             <div class="home-discovery-shelves">
+                <CompanionNowPlayingCard />
                 @foreach (var shelf in VisibleShelves.Where(s => s.Kind == MediaTileShelfKind.Continue))
                 {
                     <ContinueAcrossMediaSection Shelf="@shelf" @key="shelf.Key" />

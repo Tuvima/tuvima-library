@@ -206,6 +206,29 @@ public sealed class EntityAppearanceTests : IDisposable
     }
 
     [Fact]
+    public async Task AskingFromTheCompanionsPlace_CountsThatEpisodeAsReached_LikeTheCompanionScreenDoes()
+    {
+        var show = Guid.NewGuid();
+        var episodeOne = TvEpisode(show, Guid.NewGuid(), "Q-ep-1", "Pilot", 2024, season: 1, number: 1);
+        var episodeTwo = TvEpisode(show, Guid.NewGuid(), "Q-ep-2", "Second", 2024, season: 1, number: 2);
+        SeedOwnedEpisode(show, episodeOne, "Q-ep-1", ordinal: 1);
+        SeedOwnedEpisode(show, episodeTwo, "Q-ep-2", ordinal: 2);
+        await CreateEntityAsync(HalQid, "Hal Jordan", "Character");
+        await LinkTypedAsync(HalQid, "Q-ep-2", "first_appearance");
+        var service = CreateService(episodeOne, episodeTwo);
+        var profile = await ProfileWithLevelAsync(SpoilerLevels.UpToProgress);
+        SetProgress(profile.Id, episodeOne, 100);
+
+        var plain = await service.GetForEntityAsync(UniverseQid, HalQid, profile);
+        var standingAtTwo = await service.GetForEntityAsync(UniverseQid, HalQid, profile, reachedWorkId: episodeTwo.WorkId);
+        var standingAtOne = await service.GetForEntityAsync(UniverseQid, HalQid, profile, reachedWorkId: episodeOne.WorkId);
+
+        Assert.True(plain!.HiddenForSpoilers);
+        Assert.False(standingAtTwo!.HiddenForSpoilers);
+        Assert.True(standingAtOne!.HiddenForSpoilers);
+    }
+
+    [Fact]
     public async Task EntityWithOnlyHiddenWorks_IsNotConfirmedToExist()
     {
         await CreateEntityAsync(HalQid, "Hal Jordan", "Character");

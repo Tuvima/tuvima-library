@@ -10,6 +10,7 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Endpoints;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Branding;
+using MediaEngine.Web.Services.Companion;
 using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
@@ -341,6 +342,8 @@ builder.Services.AddHealthChecks()
 
 // ── State + Orchestration (scoped = one per SignalR circuit) ──────────────────
 builder.Services.AddScoped<UniverseStateContainer>();
+builder.Services.AddScoped<ICompanionDeviceIdStore, BrowserCompanionDeviceIdStore>();
+builder.Services.AddScoped<CompanionState>();
 builder.Services.AddScoped<ActiveProfileSessionService>();
 builder.Services.AddScoped<ViewWorkspaceService>();
 builder.Services.AddScoped<ViewAssetDragService>();

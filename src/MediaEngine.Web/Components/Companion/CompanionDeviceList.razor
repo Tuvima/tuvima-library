@@ -1,0 +1,37 @@
+@namespace MediaEngine.Web.Components.Companion
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Services.Companion
+
+@* The profile's own devices that are playing or paused right now. Tapping one follows it. Only this profile's devices are ever
+   listed (the Engine decides that from the sign-in), so nothing here shows what someone else in the house is watching. *@
+<section class="companion-devices" aria-labelledby="@_headingId" data-section="devices">
+    <h2 id="@_headingId" class="companion-devices__title">Playing now</h2>
+    <ul class="companion-devices__list" role="list">
+        @foreach (var device in Devices)
+        {
+            <li>
+                <AppNativeButton Type="button"
+                                 Class="companion-devices__device"
+                                 AriaLabel="@($"Follow {Describe(device)}")"
+                                 OnClick="@(() => OnFollow.InvokeAsync(device))">
+                    <span class="companion-devices__copy">
+                        <span class="companion-devices__name">@(device.Item?.Title ?? "Something is playing")</span>
+                        <span class="companion-devices__where">on @CompanionPlace.DeviceLabelOf(device)@(device.PlaybackState == PlayerPlaybackStates.Paused ? " · paused" : string.Empty)</span>
+                    </span>
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
+                </AppNativeButton>
+            </li>
+        }
+    </ul>
+</section>
+
+@code {
+    private readonly string _headingId = $"companion-devices-{Guid.NewGuid():N}";
+
+    [Parameter] public IReadOnlyList<CompanionLiveDeviceDto> Devices { get; set; } = [];
+
+    [Parameter] public EventCallback<CompanionLiveDeviceDto> OnFollow { get; set; }
+
+    private static string Describe(CompanionLiveDeviceDto device) =>
+        $"{device.Item?.Title ?? "what is playing"} on {CompanionPlace.DeviceLabelOf(device)}";
+}
