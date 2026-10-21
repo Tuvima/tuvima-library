@@ -26,10 +26,12 @@ public sealed class HardwareBenchmarkBackgroundService : BackgroundService
     private readonly ILogger<HardwareBenchmarkBackgroundService> _logger;
     private readonly OnboardingActivationGate? _onboardingGate;
     private readonly AiSettings _settings;
+    private readonly IAiFeatureSwitches _switches;
 
     public HardwareBenchmarkBackgroundService(
         HardwareBenchmarkService benchmark,
         AiSettings settings,
+        IAiFeatureSwitches switches,
         ILogger<HardwareBenchmarkBackgroundService> logger,
         OnboardingActivationGate? onboardingGate = null,
         HardwareBenchmarkTiming? timing = null)
@@ -37,13 +39,14 @@ public sealed class HardwareBenchmarkBackgroundService : BackgroundService
         _timing = timing ?? HardwareBenchmarkTiming.Default;
         _benchmark = benchmark;
         _settings = settings;
+        _switches = switches;
         _logger = logger;
         _onboardingGate = onboardingGate;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!AnyAiFeatureEnabled(_settings))
+        if (!_switches.IsLocalAiOn(_settings))
         {
             _logger.LogInformation("Automatic hardware benchmarking is disabled because local AI is off");
             return;
@@ -105,6 +108,4 @@ public sealed class HardwareBenchmarkBackgroundService : BackgroundService
 
         // Service is done — runs once on startup only.
     }
-
-    private static bool AnyAiFeatureEnabled(AiSettings settings) => settings.IsLocalAiEnabled;
 }

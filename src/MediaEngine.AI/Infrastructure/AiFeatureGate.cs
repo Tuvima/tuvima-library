@@ -9,34 +9,24 @@ public enum AiFeature
     TypeLogic,
     SeriesAlignment,
     VibeTags,
-    Tldr,
     DescriptionIntelligence,
 }
 
 /// <summary>Central preflight gate used before scans, leases, or model loads.</summary>
 public sealed class AiFeatureGate
 {
-    private readonly AiSettings _settings;
+    private readonly IAiFeatureSwitches _switches;
     private readonly ModelInventory _inventory;
     private readonly AiModelSelectionAdvisor _advisor;
 
-    public AiFeatureGate(AiSettings settings, ModelInventory inventory, AiModelSelectionAdvisor advisor)
+    public AiFeatureGate(IAiFeatureSwitches switches, ModelInventory inventory, AiModelSelectionAdvisor advisor)
     {
-        _settings = settings;
+        _switches = switches;
         _inventory = inventory;
         _advisor = advisor;
     }
 
-    public bool IsEnabled(AiFeature feature) => feature switch
-    {
-        AiFeature.SmartLabeling => _settings.Features.SmartLabeling,
-        AiFeature.TypeLogic => _settings.Features.TypeLogic,
-        AiFeature.SeriesAlignment => _settings.Features.SeriesAlignment,
-        AiFeature.VibeTags => _settings.Features.VibeTags,
-        AiFeature.Tldr => _settings.Features.Tldr,
-        AiFeature.DescriptionIntelligence => _settings.Features.DescriptionIntelligence,
-        _ => false,
-    };
+    public bool IsEnabled(AiFeature feature) => _switches.IsOn(feature);
 
     public bool CanExecute(AiFeature feature, AiModelRole role)
     {

@@ -218,12 +218,12 @@ public sealed class LocalAiEngineRoomRaceTests
     {
         using var directory = new TemporaryModelsDirectory();
         var settings = directory.Settings();
-        settings.Features.SmartLabeling = true;
         var room = new ScriptedBenchmarkRoom(Preempted(), Busy(), Done());
         var benchmark = Benchmark(settings, room);
         var service = new HardwareBenchmarkBackgroundService(
             benchmark,
             settings,
+            new FakeAiFeatureSwitches(AiFeature.SmartLabeling),
             NullLogger<HardwareBenchmarkBackgroundService>.Instance,
             timing: new HardwareBenchmarkTiming(TimeSpan.FromMilliseconds(1), TimeSpan.FromMilliseconds(1)));
 

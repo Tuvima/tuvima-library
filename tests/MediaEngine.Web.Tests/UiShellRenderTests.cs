@@ -976,19 +976,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AiFeatures_UsesEngineBackedConfigSavePath()
-    {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "AiFeaturesTab.razor"));
-
-        Assert.Contains("Save feature flags", source);
-        Assert.Contains("SaveAiConfigAsync", source);
-        Assert.Contains("GetAiConfigAsync", source);
-        Assert.Contains("GetAiModelStatusesAsync", source);
-        Assert.Contains("Planned", source);
-        Assert.DoesNotContain("Toggle persistence is not wired to the Engine yet", source);
-    }
-
-    [Fact]
     public void ModelsTab_UsesEngineBackedProfileAndBenchmarkActions()
     {
         var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ModelsTab.razor"));
@@ -1007,8 +994,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     {
         var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "LocalAiSettingsTab.razor"));
 
-        Assert.Contains("GetAiConfigAsync", source);
-        Assert.Contains("SaveAiConfigAsync", source);
         Assert.DoesNotContain("_status?.IsReady", source);
         Assert.DoesNotContain("Local AI is partially available", source);
         // The runtime (resource profile, benchmark, limits) lives once, on Tools and requirements; Local AI keeps AI settings only.

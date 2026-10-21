@@ -337,8 +337,6 @@ public static class SettingsNav
             Node("Local AI", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, children:
             [
                 Node("Runtime", AppMaterialIcons.Outlined.Storage, SettingsSection.LocalAi, "models"),
-                Node("Vocabulary", AppMaterialIcons.Outlined.Spellcheck, SettingsSection.LocalAi, "vocabulary"),
-                Node("Automation", AppMaterialIcons.Outlined.Schedule, SettingsSection.LocalAi, "automation"),
             ]),
             Node("Integrations", AppMaterialIcons.Outlined.Link, SettingsSection.Access, "applications"),
             Node("Plugins", AppMaterialIcons.Outlined.Extension, SettingsSection.Plugins),
@@ -395,8 +393,6 @@ public static class SettingsNav
             [SettingsSection.LocalAi] =
             [
                 new("models", "Runtime", AppMaterialIcons.Outlined.Storage),
-                new("vocabulary", "Vocabulary", AppMaterialIcons.Outlined.Spellcheck),
-                new("automation", "Automation", AppMaterialIcons.Outlined.Schedule),
             ],
             [SettingsSection.Plugins] = [],
             [SettingsSection.Delivery] =
@@ -723,7 +719,6 @@ public static class SettingsNav
         var normalized = NormalizeKey(slug);
         normalized = (section, normalized) switch
         {
-            (SettingsSection.LocalAi, "schedule") => "automation",
             // The old My household tab is gone: people, PINs and sign-ins live on each person's profile page.
             (SettingsSection.Access, "household") => "users",
             _ => normalized,
