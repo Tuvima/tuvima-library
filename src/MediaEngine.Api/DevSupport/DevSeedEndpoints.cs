@@ -1152,6 +1152,10 @@ public static partial class DevSeedEndpoints
         {
             return Results.BadRequest(new { error = ex.Message });
         }
+        catch (DevHarnessResetBlockedException ex)
+        {
+            return Results.Conflict(new { error = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             return Results.BadRequest(new { error = ex.Message });
@@ -1171,6 +1175,10 @@ public static partial class DevSeedEndpoints
                 reset = MapResetResult(reset),
             });
         }
+        catch (DevHarnessResetBlockedException ex)
+        {
+            return Results.Conflict(new { error = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             return Results.BadRequest(new { error = ex.Message });
@@ -1189,6 +1197,10 @@ public static partial class DevSeedEndpoints
                 message = "Development instance reset. Database and generated state were cleared; configured source media was preserved.",
                 reset = MapResetResult(reset),
             });
+        }
+        catch (DevHarnessResetBlockedException ex)
+        {
+            return Results.Conflict(new { error = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
@@ -1443,6 +1455,10 @@ public static partial class DevSeedEndpoints
         {
             result = await resetService.WipeAsync(scope, startEngineAfterWipe, ct);
         }
+        catch (DevHarnessResetBlockedException ex)
+        {
+            return Results.Conflict(new { error = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             return Results.BadRequest(new { error = ex.Message });
@@ -1468,7 +1484,16 @@ public static partial class DevSeedEndpoints
     {
         logger.LogInformation("[ReingestLibrary] Preparing clean storage reset and source scan");
 
-        var resetResult = await resetService.PrepareForReingestAsync(context.RequestAborted);
+        DevHarnessResetResult resetResult;
+        try
+        {
+            resetResult = await resetService.PrepareForReingestAsync(context.RequestAborted);
+        }
+        catch (DevHarnessResetBlockedException ex)
+        {
+            return Results.Conflict(new { error = ex.Message });
+        }
+
         var libConfig = configLoader.LoadLibraries();
         var scanTargets = libConfig.Libraries
             .SelectMany(lib =>
@@ -1536,7 +1561,14 @@ public static partial class DevSeedEndpoints
                 return Results.BadRequest(new { error = ex.Message });
             }
 
-            wipeResult = await resetService.WipeAsync(scope, resumeWatcher: false, context.RequestAborted);
+            try
+            {
+                wipeResult = await resetService.WipeAsync(scope, resumeWatcher: false, context.RequestAborted);
+            }
+            catch (DevHarnessResetBlockedException ex)
+            {
+                return Results.Conflict(new { error = ex.Message });
+            }
         }
         else
         {

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Plugin.FandomLore;
 using MediaEngine.Plugins;
 
 namespace MediaEngine.Api.Services.Plugins;
@@ -8,10 +9,12 @@ namespace MediaEngine.Api.Services.Plugins;
 public sealed class PluginUniverseLoreService
 {
     public const string FandomPluginId = "tuvima.fandom-lore";
+    public const string NotAFandomAddressMessage = "Only Fandom wiki addresses can be added.";
 
     private readonly PluginCatalog _catalog;
     private readonly IPluginLoreRepository _loreRepository;
     private readonly INarrativeRootRepository _roots;
+    private readonly ILibraryUniverseQidGate _libraryQids;
     private readonly IPluginExecutionContextFactory _contexts;
     private readonly ILogger<PluginUniverseLoreService> _logger;
 
@@ -19,12 +22,14 @@ public sealed class PluginUniverseLoreService
         PluginCatalog catalog,
         IPluginLoreRepository loreRepository,
         INarrativeRootRepository roots,
+        ILibraryUniverseQidGate libraryQids,
         IPluginExecutionContextFactory contexts,
         ILogger<PluginUniverseLoreService> logger)
     {
         _catalog = catalog;
         _loreRepository = loreRepository;
         _roots = roots;
+        _libraryQids = libraryQids;
         _contexts = contexts;
         _logger = logger;
     }
@@ -34,10 +39,19 @@ public sealed class PluginUniverseLoreService
         CancellationToken ct = default)
         => _loreRepository.GetSourcesAsync(universeQid, ct);
 
-    public async Task<IReadOnlyList<PluginLoreSourceRecord>> DiscoverSourcesAsync(
+    /// <summary>
+    /// Asks the lore plugins for sources for a Universe. Returns null, and sends nothing out, when the QID is not a
+    /// Universe this Library holds.
+    /// </summary>
+    public async Task<IReadOnlyList<PluginLoreSourceRecord>?> DiscoverSourcesAsync(
         string universeQid,
         CancellationToken ct = default)
     {
+        if (!await _libraryQids.HoldsAsync(universeQid, ct).ConfigureAwait(false))
+        {
+            return null;
+        }
+
         var context = await BuildContextAsync(universeQid, ct).ConfigureAwait(false);
         foreach (var registration in GetEnabledLoreRegistrations())
         {
@@ -49,6 +63,15 @@ public sealed class PluginUniverseLoreService
                     var candidates = await provider.DiscoverSourcesAsync(context, executionContext, ct).ConfigureAwait(false);
                     foreach (var candidate in candidates)
                     {
+                        if (registration.Manifest.Id == FandomPluginId
+                            && !(FandomHostRule.IsFandomAddress(candidate.BaseUrl) && FandomHostRule.IsFandomAddress(candidate.ApiUrl)))
+                        {
+                            _logger.LogInformation(
+                                "Ignored lore source {SourceKey} for {UniverseQid}: it is not on a Fandom address",
+                                LogSafe(candidate.SourceKey), LogSafe(universeQid));
+                            continue;
+                        }
+
                         await _loreRepository.UpsertSourceCandidateAsync(
                             universeQid,
                             registration.Manifest.Id,
@@ -66,25 +89,38 @@ public sealed class PluginUniverseLoreService
         return await _loreRepository.GetSourcesAsync(universeQid, ct).ConfigureAwait(false);
     }
 
-    public Task<PluginLoreSourceRecord> AddManualSourceAsync(
+    /// <summary>
+    /// Adds a wiki an administrator typed in. Returns null when the QID is not a Universe this Library holds; throws
+    /// <see cref="UriFormatException"/> when the address is not a Fandom wiki.
+    /// </summary>
+    public async Task<PluginLoreSourceRecord?> AddManualSourceAsync(
         string universeQid,
         string sourceName,
         string baseUrl,
         string? apiUrl = null,
         CancellationToken ct = default)
     {
+        if (!await _libraryQids.HoldsAsync(universeQid, ct).ConfigureAwait(false))
+        {
+            return null;
+        }
+
         var normalizedBaseUrl = NormalizeBaseUrl(baseUrl);
         var normalizedApiUrl = string.IsNullOrWhiteSpace(apiUrl)
             ? $"{normalizedBaseUrl.TrimEnd('/')}/api.php"
             : apiUrl.Trim();
+        if (!FandomHostRule.IsFandomAddress(normalizedBaseUrl) || !FandomHostRule.IsFandomAddress(normalizedApiUrl))
+        {
+            throw new UriFormatException(NotAFandomAddressMessage);
+        }
 
-        return _loreRepository.AddManualSourceAsync(
+        return await _loreRepository.AddManualSourceAsync(
             universeQid,
             FandomPluginId,
             string.IsNullOrWhiteSpace(sourceName) ? new Uri(normalizedBaseUrl).Host : sourceName.Trim(),
             normalizedBaseUrl,
             normalizedApiUrl,
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<PluginLoreSourceRecord>> SetSourceStatusAsync(
@@ -105,10 +141,19 @@ public sealed class PluginUniverseLoreService
         return await _loreRepository.GetSourcesAsync(universeQid, ct).ConfigureAwait(false);
     }
 
-    public async Task<PluginLoreEnrichmentSummary> EnrichUniverseAsync(
+    /// <summary>
+    /// Pulls structured lore from the approved sources of a Universe. Returns null, and sends nothing out, when the QID
+    /// is not a Universe this Library holds.
+    /// </summary>
+    public async Task<PluginLoreEnrichmentSummary?> EnrichUniverseAsync(
         string universeQid,
         CancellationToken ct = default)
     {
+        if (!await _libraryQids.HoldsAsync(universeQid, ct).ConfigureAwait(false))
+        {
+            return null;
+        }
+
         var context = await BuildContextAsync(universeQid, ct).ConfigureAwait(false);
         var approvedSources = await _loreRepository.GetApprovedSourcesAsync(universeQid, ct).ConfigureAwait(false);
         var totalEntities = 0;
@@ -126,6 +171,14 @@ public sealed class PluginUniverseLoreService
             var provider = registration.Capabilities.OfType<IUniverseLoreProvider>().FirstOrDefault();
             if (provider is null)
             {
+                continue;
+            }
+
+            if (source.PluginId == FandomPluginId && !FandomHostRule.IsFandomAddress(source.ApiUrl))
+            {
+                _logger.LogInformation(
+                    "Skipped lore source {SourceKey} for {UniverseQid}: it is not on a Fandom address",
+                    LogSafe(source.SourceKey), LogSafe(universeQid));
                 continue;
             }
 
@@ -242,9 +295,15 @@ public sealed class PluginUniverseLoreService
             raw = $"https://{raw}";
         }
 
+        // Wikis are only ever reached over https; a Fandom wiki typed with http is kept on its https address.
         var uri = new Uri(raw);
-        return $"{uri.Scheme}://{uri.Host}";
+        return $"https://{uri.Host}";
     }
+
+    // Source keys come from wiki addresses an administrator or Wikidata supplied; line breaks are removed so a value can
+    // never start a forged log line.
+    private static string LogSafe(string? value) =>
+        (value ?? string.Empty).Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal);
 }
 
 public sealed record PluginLoreEnrichmentSummary(

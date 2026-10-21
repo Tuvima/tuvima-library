@@ -1,0 +1,15 @@
+.tl-row-select {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: var(--app-radius-sm, 8px);
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.tl-row-select--overlay {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    z-index: 3;
+}

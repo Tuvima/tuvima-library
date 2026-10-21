@@ -82,6 +82,23 @@ public static class ScheduledTaskCatalog
             IsContinuous: true,
             LastRunProvider: async ct => ToRun(await webhooks.LastAttemptAsync(ct).ConfigureAwait(false))));
 
+        Continuous(ScheduledTaskKeys.ProviderHealthChecks, "Provider health checks", "every minute");
+        Continuous(ScheduledTaskKeys.PlaybackSessionCleanup, "Playback session cleanup", "every minute");
+        Continuous(ScheduledTaskKeys.FolderHealthCheck, "Library folder health check", "every 30 seconds");
+        ContinuousAt(
+            ScheduledTaskKeys.AdaptiveStreamingCleanup,
+            "Streaming file cleanup",
+            () => $"every {Math.Clamp(configLoader.LoadTranscoding().AdaptiveHls.CleanupIntervalMinutes, 1, 1440)} minutes",
+            "Transcoding settings");
+        Continuous(ScheduledTaskKeys.EnrichmentRefreshSchedule, "Scheduled metadata refresh", "every hour");
+
+        void Continuous(string key, string name, string schedule) =>
+            ContinuousAt(key, name, () => schedule, "Not adjustable");
+
+        void ContinuousAt(string key, string name, Func<string> schedule, string place) =>
+            registry.Register(new ScheduledTaskDescriptor(
+                key, name, ScheduledTaskOwners.Library, PluginId: null, schedule, place, IsContinuous: true));
+
         void Maintenance(string key, string name) =>
             registry.Register(new ScheduledTaskDescriptor(
                 key, name, ScheduledTaskOwners.Library, PluginId: null, () => MaintenanceSchedule(key), MaintenancePlace));

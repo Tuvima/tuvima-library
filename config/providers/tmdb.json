@@ -303,6 +303,7 @@
           "kind": "items",
           "path": "credits.crew",
           "where_not_blank": "name",
+          "distinct_by": "id",
           "add": "always",
           "role": {
             "paths": [
@@ -537,6 +538,7 @@
           "kind": "items",
           "path": "aggregate_credits.crew",
           "where_not_blank": "name",
+          "distinct_by": "id",
           "add": "always",
           "role": {
             "paths": [

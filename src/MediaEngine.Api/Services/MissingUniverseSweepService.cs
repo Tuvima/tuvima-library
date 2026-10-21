@@ -124,8 +124,8 @@ public sealed class MissingUniverseSweepService : BackgroundService
             {
                 cronSchedule = DefaultSchedule;
             }
-            var delay = CronScheduler.UntilNext(cronSchedule, TimeSpan.FromDays(7));
-            await Task.Delay(delay, stoppingToken);
+            var nextRun = CronScheduler.NextRunAt(cronSchedule, TimeSpan.FromDays(7));
+            await CronScheduler.WaitUntilAsync(nextRun, stoppingToken);
         }
     }
 

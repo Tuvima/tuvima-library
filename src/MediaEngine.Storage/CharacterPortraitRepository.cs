@@ -195,7 +195,7 @@ public sealed class CharacterPortraitRepository : ICharacterPortraitRepository
             {SelectColumns}
             WHERE  fictional_entity_id IN @ids
             ORDER BY fictional_entity_id, is_default DESC, created_at;
-            """, new { ids }).AsList();
+            """, new { ids = ids.Select(GuidSql.ToBlob).ToArray() }).AsList();
 
         return Task.FromResult<IReadOnlyList<CharacterPortrait>>(results);
     }

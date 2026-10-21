@@ -67,11 +67,21 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
               """;
         var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
+        // The borrowed audiobook year is worked out once, for the (at most 20) rows of the result page only.
+        var searchRelatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "search_related_book_year",
+            """
+            SELECT page_candidate.WorkId AS work_id, page_candidate.AssetId AS asset_id
+            FROM search_page page_candidate
+            WHERE LOWER(COALESCE(page_candidate.MediaType, '')) LIKE '%audio%'
+            """,
+            "sby_");
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
-            "w.id",
-            "COALESCE(grandparent.id, parent.id, w.id)",
-            "ma.id",
-            "w.media_type");
+            "page.WorkId",
+            "page.RootWorkId",
+            "page.AssetId",
+            "page.MediaType",
+            MediaDateSql.RelatedBookYearLookup("search_related_book_year", "page.WorkId", "page.AssetId"));
 
         using var conn = _db.CreateConnection();
         var rows = (await conn.QueryAsync<CollectionSearchRow>(new CommandDefinition($"""
@@ -149,7 +159,8 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
                         cover_work.value,
                         cover_url_work.value
                     ) AS CoverUrl,
-                    {displayYearSql} AS Year,
+                    ma.id AS AssetId,
+                    COALESCE(grandparent.id, parent.id, w.id) AS RootWorkId,
                     COALESCE(
                         (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'description' LIMIT 1),
                         (SELECT value FROM canonical_values WHERE entity_id = COALESCE(grandparent.id, parent.id, w.id) AND key = 'description' LIMIT 1)
@@ -206,27 +217,48 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
                   AND {visibleWorkPredicate}
                   AND {visibleAssetPredicate}
                   AND {searchPredicate}
-            )
-            SELECT WorkId,
-                   CollectionId,
-                   MediaType,
-                   Title,
-                   Author,
-                   CollectionDisplayName,
-                   Series,
-                   SeriesPosition,
-                   ShowName,
-                   SeasonNumber,
-                   EpisodeNumber,
-                   CoverUrl,
-                   Year,
-                   Description,
-                   Rating
-            FROM matched
-            WHERE RowNumber = 1
-            ORDER BY Title COLLATE NOCASE
-            LIMIT 20;
-            """, new { like, workIds = matchedWorkIds }, cancellationToken: ct))).ToList();
+            ),
+            search_page AS MATERIALIZED (
+                SELECT WorkId,
+                       CollectionId,
+                       MediaType,
+                       Title,
+                       Author,
+                       CollectionDisplayName,
+                       Series,
+                       SeriesPosition,
+                       ShowName,
+                       SeasonNumber,
+                       EpisodeNumber,
+                       CoverUrl,
+                       AssetId,
+                       RootWorkId,
+                       Description,
+                       Rating
+                FROM matched
+                WHERE RowNumber = 1
+                ORDER BY Title COLLATE NOCASE, WorkId
+                LIMIT 20
+            ),
+            {searchRelatedBookYearCte}
+            SELECT page.WorkId,
+                   page.CollectionId,
+                   page.MediaType,
+                   page.Title,
+                   page.Author,
+                   page.CollectionDisplayName,
+                   page.Series,
+                   page.SeriesPosition,
+                   page.ShowName,
+                   page.SeasonNumber,
+                   page.EpisodeNumber,
+                   page.CoverUrl,
+                   {displayYearSql} AS Year,
+                   page.Description,
+                   page.Rating
+            FROM search_page page
+            ORDER BY page.Title COLLATE NOCASE, page.WorkId;
+            """, new { like, workIds = matchedWorkIds?.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct))).ToList();
 
         return rows.Select(row => new SearchResultDto
         {

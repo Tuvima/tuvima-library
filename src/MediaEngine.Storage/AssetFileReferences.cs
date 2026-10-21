@@ -38,6 +38,23 @@ public static class AssetFileReferences
         """,
     ];
 
+    /// <summary>
+    /// Whether <paramref name="path"/> is in a set from <see cref="LoadReferencedPaths"/>. A path that cannot be
+    /// normalised is compared as written, the way the set keeps one.
+    /// </summary>
+    internal static bool IsReferenced(HashSet<string> referenced, string path)
+    {
+        try
+        {
+            return referenced.Contains(Path.GetFullPath(path));
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            // When in doubt a file counts as still in use.
+            return true;
+        }
+    }
+
     /// <summary>The full path of every file any row still references, on the caller's connection (and transaction, when given).</summary>
     internal static HashSet<string> LoadReferencedPaths(IDbConnection connection, IDbTransaction? transaction = null)
     {

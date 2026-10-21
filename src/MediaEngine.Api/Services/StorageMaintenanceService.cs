@@ -210,12 +210,33 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
     private StorageMaintenanceStepResult CompactDuplicateClaims(int batchSize, bool dryRun)
     {
         using var conn = _db.CreateConnection();
-        var parameters = new { limit = batchSize };
-        var count = conn.ExecuteScalar<int>("""
+        var count = CompactDuplicateClaims(conn, batchSize, dryRun);
+
+        return new StorageMaintenanceStepResult(
+            "Metadata claim compaction",
+            count,
+            dryRun ? "exact duplicate non-user-locked claims counted" : "exact duplicate non-user-locked claims compacted");
+    }
+
+    /// <summary>
+    /// Removes exact duplicate claims left by repeated observations. Only copies from an older observation, or
+    /// superseded copies, are removed: every claim of the newest observation stays, even one that repeats a value
+    /// inside that observation. Scoring reads one observation's claims in their stored order (the first credit wins a
+    /// tie, a name's companion ids follow it), so removing a copy from inside it would let the time this pass happens
+    /// to run decide what the Library shows.
+    /// </summary>
+    internal static int CompactDuplicateClaims(System.Data.IDbConnection conn, int batchSize, bool dryRun)
+    {
+        const string duplicateClaims = """
             WITH duplicate_claims AS (
                 SELECT rowid
                 FROM (
                     SELECT rowid,
+                           claimed_at,
+                           is_current,
+                           MAX(claimed_at) OVER (
+                               PARTITION BY entity_id, provider_id, claim_key, claim_value, confidence
+                           ) AS newest_claimed_at,
                            ROW_NUMBER() OVER (
                                PARTITION BY entity_id, provider_id, claim_key, claim_value, confidence
                                ORDER BY claimed_at DESC, rowid DESC
@@ -224,37 +245,20 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
                     WHERE COALESCE(is_user_locked, 0) = 0
                 )
                 WHERE duplicate_rank > 1
+                  AND (claimed_at < newest_claimed_at OR COALESCE(is_current, 1) = 0)
                 LIMIT @limit
             )
-            SELECT COUNT(*) FROM duplicate_claims;
-            """, parameters);
-
+            """;
+        var parameters = new { limit = Math.Max(1, batchSize) };
+        var count = conn.ExecuteScalar<int>(duplicateClaims + "SELECT COUNT(*) FROM duplicate_claims;", parameters);
         if (!dryRun && count > 0)
         {
-            conn.Execute("""
-                WITH duplicate_claims AS (
-                    SELECT rowid
-                    FROM (
-                        SELECT rowid,
-                               ROW_NUMBER() OVER (
-                                   PARTITION BY entity_id, provider_id, claim_key, claim_value, confidence
-                                   ORDER BY claimed_at DESC, rowid DESC
-                               ) AS duplicate_rank
-                        FROM metadata_claims
-                        WHERE COALESCE(is_user_locked, 0) = 0
-                    )
-                    WHERE duplicate_rank > 1
-                    LIMIT @limit
-                )
-                DELETE FROM metadata_claims
-                WHERE rowid IN (SELECT rowid FROM duplicate_claims);
-                """, parameters);
+            conn.Execute(
+                duplicateClaims + "DELETE FROM metadata_claims WHERE rowid IN (SELECT rowid FROM duplicate_claims);",
+                parameters);
         }
 
-        return new StorageMaintenanceStepResult(
-            "Metadata claim compaction",
-            count,
-            dryRun ? "exact duplicate non-user-locked claims counted" : "exact duplicate non-user-locked claims compacted");
+        return count;
     }
 
     private async Task<StorageMaintenanceStepResult> RebuildUiSettingsCacheAsync(bool dryRun, CancellationToken ct)

@@ -219,14 +219,50 @@ public static class BaselinePrepare
         return $"{at.Minute} {at.Hour} {at.Day} {at.Month} *";
     }
 
+    /// <summary>The daily Local AI schedules in <c>ai.json</c> (<c>scheduling</c>) that fire at night. The every-15-minutes
+    /// description schedule does not depend on the time of day, so it stays as it is.</summary>
+    private static readonly string[] HeldAiSchedules = ["series_check_cron", "vibe_batch_cron"];
+
     /// <summary>
-    /// Holds the clock-scheduled maintenance tasks for the run (in the copied <c>maintenance.json</c> only): every
+    /// Holds the clock-scheduled tasks for the run (in the copied <c>maintenance.json</c> and <c>ai.json</c> only): every
     /// schedule moves to one time 30 days after the run starts (<see cref="HeldScheduleFrom"/>) and the off-hours retag and storage sweeps are switched off, so a
-    /// run that crosses the night (02:00 to 06:00) gives the same result as one that does not.
+    /// run that crosses the night (02:00 to 06:00) gives the same result as one that does not. The series-order and
+    /// vibe-tag services still make one pass a few minutes after the Engine starts; that pass does not depend on the time of day.
     /// </summary>
     public static void HoldClockSchedules(string configDirectory, DateTimeOffset? now = null)
     {
         var held = HeldScheduleFrom(now ?? DateTimeOffset.Now);
+        HoldMaintenanceSchedules(configDirectory, held);
+        HoldAiSchedules(configDirectory, held);
+    }
+
+    private static void HoldAiSchedules(string configDirectory, string held)
+    {
+        var path = Path.Combine(configDirectory, "ai.json");
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        // A missing section or key means the Engine falls back to its built-in 03:00 and 04:00 defaults, so the
+        // held times are always written, and a new section carries the description schedule's default so it still validates.
+        var ai = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        if (ai["scheduling"] is not JsonObject scheduling)
+        {
+            scheduling = new JsonObject { ["description_intelligence_cron"] = "*/15 * * * *" };
+            ai["scheduling"] = scheduling;
+        }
+
+        foreach (var key in HeldAiSchedules)
+        {
+            scheduling[key] = held;
+        }
+
+        File.WriteAllText(path, ai.ToJsonString(RealMediaHarness.Json));
+    }
+
+    private static void HoldMaintenanceSchedules(string configDirectory, string held)
+    {
         var path = Path.Combine(configDirectory, "maintenance.json");
         if (!File.Exists(path))
         {

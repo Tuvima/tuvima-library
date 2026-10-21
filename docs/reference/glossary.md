@@ -85,6 +85,10 @@ What kind of document it is, such as an invoice, letter or contract. Document ty
 
 A specific release or format of a work, such as one ebook edition, one audiobook release, or one film cut.
 
+### Empty Trash
+
+The one action that permanently deletes personal files in View. It empties the whole Trash of a person's own Personal Space: the files of every item in it leave the disk, their thumbnails go, and the items leave every Manual Gallery. It runs only on a computer, after the person confirms a summary of exactly what will go, and it cannot be undone. Items in a read-only folder, items waiting to be added to the Shared Library, and items whose files cannot be removed safely stay in Trash. See [Use your Personal Space in View](../guides/view-personal-space.md#move-items-to-trash-and-empty-it).
+
 ### Engine
 
 The backend application (`MediaEngine.Api`) that runs ingestion, enrichment, storage, background jobs, Local AI, and the API used by the Dashboard.

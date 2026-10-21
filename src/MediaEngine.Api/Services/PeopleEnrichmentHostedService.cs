@@ -16,7 +16,7 @@ public sealed class PeopleEnrichmentHostedService(
         {
             try
             {
-                using var execution = await executionGate.EnterAsync(stoppingToken);
+                using var execution = await executionGate.EnterAsync(nameof(PeopleEnrichmentHostedService), stoppingToken);
                 using var poll = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, execution.PauseCancellationToken);
                 var ct = poll.Token;
                 using var scope = scopes.CreateScope();

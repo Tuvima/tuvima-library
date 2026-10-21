@@ -56,6 +56,7 @@ public sealed record ViewTrashPreviewSkippedDto(
 public sealed record ViewTrashEmptyPreviewDto(
     [property: JsonPropertyName("items")] IReadOnlyList<ViewTrashPreviewItemDto> Items,
     [property: JsonPropertyName("galleries")] IReadOnlyList<ViewTrashPreviewGalleryDto> Galleries,
+    [property: JsonPropertyName("gallery_item_count")] int GalleryItemCount,
     [property: JsonPropertyName("delete_count")] int DeleteCount,
     [property: JsonPropertyName("photo_count")] int PhotoCount,
     [property: JsonPropertyName("video_count")] int VideoCount,

@@ -145,7 +145,7 @@ A group is its structural identity alone: a show, album or series is one group h
 
 A move preview has a short-lived plan fingerprint. The Engine checks the plan, access, rules, and each item before moving it. Some values may be unknown: the last move time, provider limits, or direct phase filters.
 
-The development tools include Reset & Seed Test Library, Rescan All Libraries, View Ingestion, and Advanced resets. Fixture cleanup uses a list of generated files. Routine resets do not delete source media.
+The development tools include Reset & Seed Test Library, Rescan All Libraries, View Ingestion, and Advanced resets. Fixture cleanup uses a list of generated files and follows each one to wherever the Library filed it. Routine resets delete only what the Library created; your own files, as-is folders, the Import folder and photos stay, and the result lists the files it kept.
 
 </details>
 

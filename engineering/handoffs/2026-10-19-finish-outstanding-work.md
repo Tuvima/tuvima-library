@@ -93,10 +93,10 @@ Continue engineering/specs/universe.md (v4). Read CLAUDE.md and the spec first a
 Do, two at a time: U-WP5 (Universe page, entry points, empty and partly-ready states, "Part of" line), U-WP7 (Engine actions for helper apps), U-WP12 (companion session service), then U-WP10 (Also appears in). Leave U-WP4 until Developer tools WP9 is merged, and U-WP6, U-WP8, U-WP9, U-WP11, U-WP13 to U-WP15 for later threads. Stop and ask Shy if any packet goes beyond the spec. Visual checks at phone, tablet, desktop and TV widths. Finish with a Plain English summary and the Shy-owned device checks (companion on iPhone and Android, Universe page on TV).
 ```
 
-### Thread 3e: Videos, Wave 1 (spec Locked v25, 2026-10-20)
-Depends on: the ingestion finish and Developer tools foundation threads being merged. Waves 2 and 3 (Vault) follow in their own sessions. Vault packets WP9, WP12, WP13 and WP17 need an independent security review plus a StashDB terms check before merge.
+### Thread 3e: Videos, all waves (spec Locked v25, 2026-10-20)
+Depends on: the ingestion finish and Developer tools foundation threads being merged. One session runs all three waves. Wave 2 needs the Details overlay and Editing Mode "..." menu and banner, and the Developer tools secrets store. Wave 3 checks the StashDB terms with Shy before the Stash-box plugin. The Vault access, PIN, history-isolation and leak-audit packets (WP9, WP12, WP13, WP17) need an independent security review.
 ```
-Implement engineering/specs/videos.md, Wave 1 only. Read CLAUDE.md first.
+Run engineering/specs/videos.md end to end, all waves, per .claude/rules/end-to-end-runs.md. Read CLAUDE.md first.
 ```
 
 ### Thread 3d: Lane "View all" grid (H4e)

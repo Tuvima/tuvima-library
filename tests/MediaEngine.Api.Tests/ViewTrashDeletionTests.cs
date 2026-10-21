@@ -655,6 +655,26 @@ public sealed partial class ViewTrashDeletionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AnItemInTwoGalleries_CountsOnceInHowManyDeletedItemsWereInAGallery()
+    {
+        var alice = await CreatePerson();
+        var both = await AddPhoto(alice, "both");
+        var onlyOne = await AddPhoto(alice, "only-one");
+        await AddPhoto(alice, "no-gallery");
+        var galleries = new ViewGalleryRepository(_database);
+        var first = await galleries.CreateAsync(new CreateViewGalleryCommand(alice.ProfileId, alice.Space.Id, "First", ViewGalleryKind.Manual));
+        var second = await galleries.CreateAsync(new CreateViewGalleryCommand(alice.ProfileId, alice.Space.Id, "Second", ViewGalleryKind.Manual));
+        await galleries.AddItemsAsync(first.Id, [both.ItemId, onlyOne.ItemId]);
+        await galleries.AddItemsAsync(second.Id, [both.ItemId]);
+
+        var plan = await PlanAsync(alice);
+
+        Assert.Equal(2, plan.Preview.GalleryItemCount);
+        Assert.Equal(3, plan.Preview.Galleries.Sum(gallery => gallery.ItemCount));
+        Assert.Equal(2, plan.Preview.Galleries.Count);
+    }
+
+    [Fact]
     public async Task TheFingerprint_IsStable_AndChangesWhenAnItemIsRestoredOrNewlyTrashed()
     {
         var alice = await CreatePerson();
