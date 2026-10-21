@@ -40,6 +40,12 @@ public sealed partial class IngestionEngine
         {
             ct.ThrowIfCancellationRequested();
 
+            // A Vault file is never listed, hashed or read by a dry run (Videos spec D17): it is absent from the answer.
+            if (await IsVaultFilePathAsync(filePath, ct).ConfigureAwait(false))
+            {
+                continue;
+            }
+
             try
             {
                 var ops = await SimulateFileAsync(filePath, ct).ConfigureAwait(false);

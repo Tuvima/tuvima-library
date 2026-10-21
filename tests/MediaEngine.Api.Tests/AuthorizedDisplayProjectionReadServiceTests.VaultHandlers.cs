@@ -217,6 +217,38 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         }
     }
 
+    private sealed class LockedCaller : IRequestAuthorityResolver
+    {
+        public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default) =>
+            ValueTask.FromResult(new RequestAuthority(PrincipalKind.Human, IsAuthenticated: true));
+    }
+
+    [Fact]
+    public async Task VaultHandlers_TheScan_AnswersAFolderThatHoldsTheVaultLikeAFolderThatDoesNotExist_WhileLocked()
+    {
+        var parent = Directory.CreateTempSubdirectory("tuvima_scan_parent_").FullName;
+        var vaultFolder = Directory.CreateDirectory(Path.Combine(parent, "private")).FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(vaultFolder, "secret-one.mkv"), "x");
+            var route = IngestionRoute("TriggerScan");
+            var options = new IngestionOptions { WatchDirectories = [parent] };
+            var gone = Path.Combine(Path.GetTempPath(), "tuvima_scan_gone_" + Guid.NewGuid().ToString("N"));
+
+            var missing = await RunIngestionRouteAsync(route, options, vaultFolder, new { root_path = gone });
+            var holdsVault = await RunIngestionRouteAsync(route, options, vaultFolder, new { root_path = parent });
+
+            Assert.Equal(StatusCodes.Status400BadRequest, holdsVault.Status);
+            Assert.Equal(missing.Status, holdsVault.Status);
+            Assert.Equal(missing.Body.Replace(gone, "PATH"), holdsVault.Body.Replace(parent, "PATH"));
+            Assert.Equal(0, holdsVault.EngineScans);
+        }
+        finally
+        {
+            Directory.Delete(parent, true);
+        }
+    }
+
     private static RouteEndpoint IngestionRoute(string name)
     {
         var build = typeof(MappedEndpointInventoryTests).GetMethod("BuildEndpointOnlyApplication", BindingFlags.NonPublic | BindingFlags.Static)!;
@@ -238,6 +270,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             .AddSingleton<Microsoft.Extensions.Logging.ILoggerFactory>(Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance)
             .AddSingleton(Options.Create(options))
             .AddSingleton<IVaultPathClassifier>(new PrefixVaultPaths(vaultFolder))
+            .AddSingleton<IRequestAuthorityResolver>(new LockedCaller())
+            // A caller with no session is never unlocked, so the Vault repositories are not reached.
+            .AddSingleton(new VaultAccessResolver(null!, null!, TimeProvider.System))
             .AddSingleton(typeof(IIngestionEngine), engine.Proxy)
             .BuildServiceProvider();
         var context = new DefaultHttpContext { RequestServices = services };
@@ -262,6 +297,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         public ValueTask<bool> IsVaultPathAsync(string? path, CancellationToken ct = default) =>
             ValueTask.FromResult(!string.IsNullOrWhiteSpace(path)
                 && path.Replace('\\', '/').StartsWith(vaultFolder.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
+
+        public ValueTask<bool> IsOrContainsVaultPathAsync(string? path, CancellationToken ct = default) =>
+            ValueTask.FromResult(!string.IsNullOrWhiteSpace(path)
+                && (vaultFolder.Replace('\\', '/').StartsWith(path.Replace('\\', '/').TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase)
+                    || path.Replace('\\', '/').StartsWith(vaultFolder.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase)));
     }
 
     /// <summary>Remembers which folders the dry run was asked about; any other call to the engine fails the test.</summary>

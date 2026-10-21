@@ -929,7 +929,7 @@ public static partial class ViewEndpoints
         group.MapPost("/admin/profiles/{profileId:guid}/sources", async (
             Guid profileId, CreateViewSourceRequest request, IProfileService profiles,
             ViewStorageService storage, ViewSourceIndexingHostedService indexing,
-            ViewLibraryService viewLibrary, IViewProfileRepository policies, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, CancellationToken ct) =>
+            ViewLibraryService viewLibrary, IViewProfileRepository policies, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, HttpContext http, CancellationToken ct) =>
         {
             if (await profiles.GetProfileAsync(profileId, ct) is null)
             {
@@ -959,7 +959,7 @@ public static partial class ViewEndpoints
                     {
                         ManualPath = request.Path,
                         SelectionMode = MediaEngine.Contracts.Settings.ServerFolderSelectionModes.PersonalSpaceExisting,
-                    });
+                    }, await http.HiddenVaultFolderRootsAsync(ct));
                     if (!validation.CanSelect)
                     {
                         return ApiErrors.BadRequest(validation.Issues.First(x => x.Severity == "error").Message);
@@ -1068,6 +1068,7 @@ public static partial class ViewEndpoints
             CreateViewSourceRequest request, ViewSharedSourceService sources,
             ViewStorageService storage, ViewSourceIndexingHostedService indexing,
             MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders,
+            HttpContext http,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.Name))
@@ -1088,7 +1089,7 @@ public static partial class ViewEndpoints
                     {
                         ManualPath = request.Path,
                         SelectionMode = MediaEngine.Contracts.Settings.ServerFolderSelectionModes.PersonalSpaceExisting,
-                    });
+                    }, await http.HiddenVaultFolderRootsAsync(ct));
                     if (!validation.CanSelect)
                     {
                         return ApiErrors.BadRequest(validation.Issues.First(issue => issue.Severity == "error").Message);

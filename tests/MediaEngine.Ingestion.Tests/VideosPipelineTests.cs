@@ -185,6 +185,21 @@ public sealed class VideosPipelineTests : IDisposable
         Assert.NotNull(await _h.Assets.FindByPathRootAsync(path));
     }
 
+    [Fact]
+    public async Task ADryRun_NeverListsOrReadsAVaultFile_ButListsTheSameFileInAnOrdinaryLibrary()
+    {
+        var path = Write("Quiet clip.mp4");
+        IReadOnlyList<PendingOperation>? ordinary = null;
+        IReadOnlyList<PendingOperation>? vault = null;
+
+        await RunAsync(1, probe: async engine => ordinary = await engine.DryRunAsync(_videos));
+        await RunAsync(1, vaultHook: new RecordingVaultHook(VaultLibraryId), probe: async engine => vault = await engine.DryRunAsync(_videos));
+
+        Assert.Contains(ordinary!, operation => operation.SourcePath == path);
+        Assert.NotNull(vault);
+        Assert.Empty(vault!);
+    }
+
     private sealed class RecordingVaultHook(string vaultLibraryId) : IVaultIngestionHook
     {
         public List<VaultRegisteredFile> Registered { get; } = [];
@@ -223,7 +238,8 @@ public sealed class VideosPipelineTests : IDisposable
     }
 
     private async Task RunAsync(
-        int expectedAssets, IVideoOnlineLookup? lookup = null, IProviderAudienceGate? gate = null, IVaultIngestionHook? vaultHook = null)
+        int expectedAssets, IVideoOnlineLookup? lookup = null, IProviderAudienceGate? gate = null, IVaultIngestionHook? vaultHook = null,
+        Func<IIngestionEngine, Task>? probe = null)
     {
         var db = _h.Db.Connection;
         var publisher = _publisher;
@@ -288,6 +304,10 @@ public sealed class VideosPipelineTests : IDisposable
 
             // Placement is recorded just after registration; give it a moment to finish.
             await Task.Delay(500, cts.Token);
+            if (probe is not null)
+            {
+                await probe(engine);
+            }
         }
         catch (OperationCanceledException)
         {

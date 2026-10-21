@@ -165,6 +165,7 @@ public static class IngestionEndpoints
             IIngestionEngine engine,
             IOptions<IngestionOptions> opts,
             IVaultPathClassifier vaultPaths,
+            HttpContext http,
             CancellationToken ct) =>
         {
             var rootPath = request?.RootPath
@@ -176,8 +177,9 @@ public static class IngestionEndpoints
                     "No root_path provided and no library source path is configured.");
             }
 
-            // A Vault folder answers exactly as a folder that does not exist (Videos spec D17).
-            if (!Directory.Exists(rootPath) || await vaultPaths.IsVaultPathAsync(rootPath, ct))
+            // A Vault folder, or a folder that holds one, answers exactly as a folder that does not exist unless NSFW mode is on (Videos spec D17).
+            if (!Directory.Exists(rootPath) || await vaultPaths.IsVaultPathAsync(rootPath, ct)
+                || (await vaultPaths.IsOrContainsVaultPathAsync(rootPath, ct) && !await http.IsVaultUnlockedAsync(ct)))
             {
                 return ApiErrors.BadRequest($"Directory does not exist: {rootPath}");
             }

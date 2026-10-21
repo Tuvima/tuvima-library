@@ -312,7 +312,7 @@ public static class SetupEndpoints
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(service.Browse(request)); }
+            try { return Results.Ok(service.Browse(request, await context.HiddenVaultFolderRootsAsync(ct).ConfigureAwait(false))); }
             catch (ServerFolderAccessException exception) { return ApiErrors.BadRequest(exception.Message); }
         }).Produces<BrowseServerFoldersResultDto>();
 
@@ -325,7 +325,7 @@ public static class SetupEndpoints
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(service.Validate(request)); }
+            try { return Results.Ok(service.Validate(request, await context.HiddenVaultFolderRootsAsync(ct).ConfigureAwait(false))); }
             catch (ServerFolderAccessException exception) { return ApiErrors.BadRequest(exception.Message); }
         }).Produces<ServerFolderValidationResultDto>();
 

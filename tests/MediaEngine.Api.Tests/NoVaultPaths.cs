@@ -6,4 +6,6 @@ namespace MediaEngine.Api.Tests;
 internal sealed class NoVaultPaths : IVaultPathClassifier
 {
     public ValueTask<bool> IsVaultPathAsync(string? path, CancellationToken ct = default) => ValueTask.FromResult(false);
+
+    public ValueTask<bool> IsOrContainsVaultPathAsync(string? path, CancellationToken ct = default) => ValueTask.FromResult(false);
 }

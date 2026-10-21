@@ -10,6 +10,9 @@ public interface IVaultPathClassifier
 {
     /// <summary>True when <paramref name="path"/> is a Vault library's folder or inside one. An empty path is not.</summary>
     ValueTask<bool> IsVaultPathAsync(string? path, CancellationToken ct = default);
+
+    /// <summary>True when <paramref name="path"/> is a Vault folder, is inside one, or is a folder that holds a Vault folder below it.</summary>
+    ValueTask<bool> IsOrContainsVaultPathAsync(string? path, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -18,7 +21,11 @@ public interface IVaultPathClassifier
 /// </summary>
 public sealed class VaultPathClassifier(IVaultLibraryRepository vaultLibraries, IConfigurationLoader configuration) : IVaultPathClassifier
 {
-    public async ValueTask<bool> IsVaultPathAsync(string? path, CancellationToken ct = default)
+    public ValueTask<bool> IsVaultPathAsync(string? path, CancellationToken ct = default) => MatchAsync(path, includeParents: false, ct);
+
+    public ValueTask<bool> IsOrContainsVaultPathAsync(string? path, CancellationToken ct = default) => MatchAsync(path, includeParents: true, ct);
+
+    private async ValueTask<bool> MatchAsync(string? path, bool includeParents, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -43,7 +50,8 @@ public sealed class VaultPathClassifier(IVaultLibraryRepository vaultLibraries, 
             {
                 var root = Normalize(source.Path);
                 if (root.Length > 0 && (candidate.Equals(root, StringComparison.OrdinalIgnoreCase)
-                    || candidate.StartsWith(root + "/", StringComparison.OrdinalIgnoreCase)))
+                    || candidate.StartsWith(root + "/", StringComparison.OrdinalIgnoreCase)
+                    || (includeParents && root.StartsWith(candidate + "/", StringComparison.OrdinalIgnoreCase))))
                 {
                     return true;
                 }

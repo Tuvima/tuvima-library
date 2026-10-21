@@ -25,7 +25,7 @@ internal static class LibraryMutationEndpoints
         }).WithName("GetViewStorageSummary").Produces<ViewStorageSummaryDto>().RequireAdmin();
 
         group.MapPost("/libraries/mutations", async (LibraryMutationRequest request,
-            IConfigurationLoader configuration, ServerFolderBrowserService folders,
+            IConfigurationLoader configuration, ServerFolderBrowserService folders, HttpContext http,
             IFileOrganizer organizer, ViewStorageService storage, IProfileRepository profiles,
             IViewProfileRepository policies, ImportFolderApplier importFolder, FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
@@ -33,6 +33,7 @@ internal static class LibraryMutationEndpoints
             try
             {
                 var vaultIds = await vaultLibraries.GetIdsAsync(ct);
+                var hiddenVaultRoots = await http.HiddenVaultFolderRootsAsync(ct);
                 // A Vault library is not edited from the library settings (Videos spec D45); it answers as a library that does not exist.
                 if (request.Library is { } requested && vaultIds.Contains(requested.Id))
                 {
@@ -93,7 +94,7 @@ internal static class LibraryMutationEndpoints
                             CurrentSourceId = source.Id,
                             SelectionMode = source.ManagementMode == "managed_by_tuvima"
                                 ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary,
-                        }, proposed);
+                        }, proposed, hiddenVaultRoots);
                         if (!result.CanSelect)
                         {
                             return ApiErrors.BadRequest(result.Issues.First(x => x.Severity == "error").Message);
@@ -107,7 +108,7 @@ internal static class LibraryMutationEndpoints
                         StorageLocationId = proposed.ViewStorage.StorageLocationId,
                         RelativePath = proposed.ViewStorage.RelativeRoot,
                         SelectionMode = ServerFolderSelectionModes.PersonalSpaceManaged,
-                    }, proposed);
+                    }, proposed, hiddenVaultRoots);
                     if (!result.CanSelect)
                     {
                         return ApiErrors.BadRequest(result.Issues.First(x => x.Severity == "error").Message);

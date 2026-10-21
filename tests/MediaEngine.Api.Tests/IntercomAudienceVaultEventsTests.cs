@@ -156,6 +156,21 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
         Assert.False(await classifier.IsVaultPathAsync(null));
     }
 
+    [Fact]
+    public async Task AFolderThatHoldsTheVaultFolder_IsFlaggedByTheContainsCheck_ButNotByThePlainVaultCheck()
+    {
+        await SeedAsync(administrator: true);
+        var classifier = new VaultPathClassifier(new VaultLibraryRepository(_database), _configuration);
+
+        Assert.False(await classifier.IsVaultPathAsync(Root + "/Media"));
+        Assert.True(await classifier.IsOrContainsVaultPathAsync(Root + "/Media"));
+        Assert.True(await classifier.IsOrContainsVaultPathAsync((Root + "/Media/").Replace('/', '\\').ToUpperInvariant()));
+        Assert.True(await classifier.IsOrContainsVaultPathAsync(VaultFolder + "/Clips"));
+        Assert.False(await classifier.IsOrContainsVaultPathAsync(Root + "/Media/Movies"));
+        Assert.False(await classifier.IsOrContainsVaultPathAsync(Root + "/Media/Priv"));
+        Assert.False(await classifier.IsOrContainsVaultPathAsync(null));
+    }
+
     private IntercomAudienceAuthorizer Authorizer() => new(
         _identities, _accounts, new Resources(_vaultAsset, _vaultLibrary, _ordinaryAsset, _ordinaryLibrary),
         new ProfileRepository(_database), TimeProvider.System,

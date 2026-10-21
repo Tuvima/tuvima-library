@@ -256,5 +256,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         public ValueTask<bool> IsVaultPathAsync(string? path, CancellationToken ct = default) =>
             ValueTask.FromResult(string.Equals(path, vaultFolder, StringComparison.OrdinalIgnoreCase));
+
+        public ValueTask<bool> IsOrContainsVaultPathAsync(string? path, CancellationToken ct = default) => IsVaultPathAsync(path, ct);
     }
 }
