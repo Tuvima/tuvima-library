@@ -57,11 +57,7 @@ public sealed class UniversePageReadService(
             .Select(row => row.WorkId)
             .Distinct()
             .ToList();
-        var visibleWorkQids = allRows
-            .Select(row => row.IdentityQid)
-            .Where(workQid => !string.IsNullOrWhiteSpace(workQid))
-            .Select(workQid => workQid!)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var visibleWorkQids = await universes.LoadVisibleWorkQidsAsync(ct).ConfigureAwait(false);
 
         var missing = await BuildMissingAsync(detail, profile, ct).ConfigureAwait(false);
         var scope = await LoadVisibleUniverseScopeAsync(detail.Qid, entities, visibleWorkQids, ct).ConfigureAwait(false);

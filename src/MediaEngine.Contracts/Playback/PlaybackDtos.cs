@@ -541,7 +541,12 @@ public sealed class PlaybackGeneralSettingsDto
     public int MarkCompleteThresholdPercent { get; set; } = 90;
     public bool TrackPartiallyPlayedItems { get; set; } = true;
     public bool SyncProgressBetweenBookAndAudiobook { get; set; } = true;
-    public bool SpoilerSafeProgress { get; set; }
+
+    /// <summary>
+    /// How much of a story characters may reveal for this profile: <c>up_to_progress</c> ("Up to where I am", the default) or
+    /// <c>everything</c>. Read-only here: it changes only through the profile's own spoiler action, never a bulk save.
+    /// </summary>
+    public string SpoilerLevel { get; set; } = "up_to_progress";
     public bool SyncAcrossDevices { get; set; } = true;
     public int SyncFrequencyMinutes { get; set; } = 15;
     public bool UseBannerArtWhenAvailable { get; set; } = true;

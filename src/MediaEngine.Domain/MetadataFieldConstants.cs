@@ -99,6 +99,7 @@ public static class MetadataFieldConstants
     public const string FilmingLocation = "filming_location";
     public const string MainSubject = "main_subject";
     public const string BasedOn = "based_on";
+    public const string DerivativeWork = "derivative_work";
     public const string Biography = "biography";
     public const string QidResolutionMethod = "qid_resolution_method";
     public const string WikidataQidScope = "wikidata_qid_scope";
@@ -193,6 +194,7 @@ public static class MetadataFieldConstants
         "attributed_to",
         "notable_work",
         "based_on",
+        "derivative_work",
         "fictional_universe",
         "first_appearance",
         "enrichment_providers",
@@ -242,6 +244,7 @@ public static class MetadataFieldConstants
         "director_qid",
         "illustrator_qid",
         "based_on_qid",
+        "derivative_work_qid",
         "fictional_universe_qid",
         "award_received_qid",
         "award_nominated_qid",

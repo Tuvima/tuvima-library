@@ -173,6 +173,13 @@ public sealed class Stage2ConfigTests
         Assert.Equal("narrative_universe", extension.PropertyLabels["P1080"]);
         Assert.Equal("narrative_event", extension.PropertyLabels["P793"]);
         Assert.Equal("spoiler_for_work", extension.PropertyLabels["P7528"]);
+
+        Assert.Contains("P3342", extension.CharacterProperties.Core);
+        Assert.Contains("P7047", extension.CharacterProperties.Core);
+        Assert.Contains("P4969", extension.WorkProperties.Core);
+        Assert.Equal("significant_person", extension.PropertyLabels["P3342"]);
+        Assert.Equal("enemy", extension.PropertyLabels["P7047"]);
+        Assert.Equal("derivative_work", extension.PropertyLabels["P4969"]);
         Assert.Equal("time_index", extension.PropertyLabels["P4895"]);
     }
 

@@ -7,6 +7,7 @@ using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Contracts.Profiles;
 using MediaEngine.Contracts.Progress;
 using MediaEngine.Contracts.Reading;
 using MediaEngine.Contracts.Settings;
@@ -520,6 +521,16 @@ public sealed partial class EngineApiClient
             return null;
         }
     }
+
+    public Task<ProfileSpoilerPreferenceDto?> SaveSpoilerLevelAsync(
+        Guid profileId,
+        string spoilerLevel,
+        CancellationToken ct = default) =>
+        PutAsync<SaveProfileSpoilerPreferenceRequest, ProfileSpoilerPreferenceDto>(
+            "Spoiler setting",
+            $"/profiles/{profileId:D}/settings/spoilers",
+            new SaveProfileSpoilerPreferenceRequest { SpoilerLevel = spoilerLevel },
+            ct: ct);
 
     // -- Progress & Journey (/progress) ----------------------------------
 

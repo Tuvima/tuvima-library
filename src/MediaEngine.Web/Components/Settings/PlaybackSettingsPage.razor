@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using System.Text.Json
 @using MediaEngine.Contracts.Playback
+@using MediaEngine.Contracts.Profiles
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
@@ -89,6 +90,26 @@ else if (_settings is not null)
                     WatchingSkipForwardOptions,
                     value => UpdateAndSaveAsync(s => s.Watching.SkipForwardSeconds = value))
             </SettingsSectionPanel>
+
+            @if (!IsOtherProfile)
+            {
+                @* Only the person themselves chooses this; an administrator editing another profile does not see it. *@
+                <SettingsSectionPanel Title="Spoilers"
+                                      Description="How much of a story the Universe page tells you."
+                                      Class="tl-card settings-section-card playback-settings-card">
+                    <div class="playback-preference-row" data-spoiler-level>
+                        <div class="playback-preference-row__copy">
+                            <AppText Typo="AppTypo.body1">Characters</AppText>
+                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Up to where I am keeps characters you haven't met yet out of Universe pages. Everything shows them all.</AppText>
+                        </div>
+                        <AppSegmentedControl Options="SpoilerLevelOptions"
+                                             Value="@SpoilerLevelValue"
+                                             ValueChanged="SaveSpoilerLevelAsync"
+                                             AriaLabel="Spoilers"
+                                             Class="playback-preference-row__control" />
+                    </div>
+                </SettingsSectionPanel>
+            }
 
             <div id="subtitles" class="playback-subtitles-group" data-playback-section="subtitles">
                 <SettingsSectionPanel Title="Subtitles & audio"
@@ -195,6 +216,18 @@ else if (_settings is not null)
             || string.Equals(size, PlaybackPreferenceValues.ExtraLarge, StringComparison.OrdinalIgnoreCase) => PlaybackPreferenceValues.Large,
         _ => PlaybackPreferenceValues.Medium,
     };
+
+    private static readonly IReadOnlyList<AppSelectOption> SpoilerLevelOptions =
+    [
+        new(ProfileSpoilerPreferenceDto.UpToProgress, "Up to where I am"),
+        new(ProfileSpoilerPreferenceDto.Everything, "Everything"),
+    ];
+
+    // The first option is the default, so anything unrecognised reads as "Up to where I am".
+    private string SpoilerLevelValue =>
+        string.Equals(_settings?.General.SpoilerLevel, ProfileSpoilerPreferenceDto.Everything, StringComparison.OrdinalIgnoreCase)
+            ? ProfileSpoilerPreferenceDto.Everything
+            : ProfileSpoilerPreferenceDto.UpToProgress;
 
     private string ShowSubtitlesValue =>
         ShowSubtitlesOptions.FirstOrDefault(option => string.Equals(option.Value, Subtitles.ForcedSubtitlesMode, StringComparison.OrdinalIgnoreCase))?.Value
@@ -404,6 +437,41 @@ else if (_settings is not null)
         {
             Logger.LogWarning(ex, "Playback settings could not be saved.");
             _saveError = "Playback settings could not be saved.";
+            Snackbar.Add(_saveError, AppSeverity.Error);
+        }
+        finally
+        {
+            _saveGate.Release();
+            StateHasChanged();
+        }
+    }
+
+    // The spoiler level has its own Engine action (own profile only); a playback save never changes it.
+    private async Task SaveSpoilerLevelAsync(string level)
+    {
+        if (_settings is null || IsOtherProfile)
+            return;
+
+        _saveError = null;
+        await _saveGate.WaitAsync();
+        try
+        {
+            var saved = await ApiClient.SaveSpoilerLevelAsync(_settings.ProfileId, level);
+            if (saved is null || saved.ProfileId != _settings.ProfileId)
+            {
+                Logger.LogWarning("The spoiler setting could not be saved: the Engine did not accept the update.");
+                _saveError = "The spoiler setting could not be saved.";
+                Snackbar.Add(_saveError, AppSeverity.Error);
+                return;
+            }
+
+            _settings.General.SpoilerLevel = saved.SpoilerLevel;
+            PreferencesAccessor.UpdateCache(Clone(_settings));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The spoiler setting could not be saved.");
+            _saveError = "The spoiler setting could not be saved.";
             Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally

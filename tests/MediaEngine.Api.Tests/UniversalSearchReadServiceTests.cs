@@ -748,7 +748,9 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         new HttpContextAccessor { HttpContext = new DefaultHttpContext() },
         new TestViewAuthorityResolver(new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true, ActiveProfileIsRestricted: true)));
+            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true, ActiveProfileIsRestricted: true)),
+        SpoilerTestKit.Create(display, _db),
+        new ProfileRepository(_db));
 
     private UniversalSearchReadService CreateService(IDisplayProjectionReadService display)
     {
@@ -757,7 +759,9 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
             _db,
             display,
             new HttpContextAccessor { HttpContext = context },
-            TestViewAuthorityResolver.Human(Profile.SeedProfileId));
+            TestViewAuthorityResolver.Human(Profile.SeedProfileId),
+            SpoilerTestKit.Create(display, _db),
+            new ProfileRepository(_db));
     }
 
     private sealed class StubDisplayProjection : IDisplayProjectionReadService
