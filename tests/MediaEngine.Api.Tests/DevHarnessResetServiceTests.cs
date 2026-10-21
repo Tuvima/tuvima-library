@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 
 namespace MediaEngine.Api.Tests;
 
-public sealed class DevHarnessResetServiceTests : IDisposable
+public sealed partial class DevHarnessResetServiceTests : IDisposable
 {
     private readonly string _path = Path.Combine(Path.GetTempPath(), $"tuvima_harness_reset_{Guid.NewGuid():N}.db");
     private readonly string _configRoot = Path.Combine(Path.GetTempPath(), $"tuvima_harness_reset_config_{Guid.NewGuid():N}");
