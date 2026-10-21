@@ -28,6 +28,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | In progress (v2): Waves 1–5 merged; WP8 left, see the 2026-10-21 handoff |
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | In progress (v29, 2026-10-20; Waves 1 and 2 built, the Vault is next) |
 | [Spec: Safer deleting in View](specs/safer-deleting-in-view.md) | Locked (v2, 2026-10-21) |
+| [Spec: Encrypted plugin and integration keys](specs/encrypted-plugin-keys.md) | Locked (v1, 2026-10-21; EK1 and EK3 before plugin install WP19, EK2 with backup passphrase WP25) |
 | [Spec: Person credits and series search without the whole-library credit list](specs/archive/person-credits-and-series-search-speed.md) | Built (v2, archived 2026-10-21; follow-ups R1 and R2 in its section 8) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: The live ingestion page and when items appear](specs/archive/ingestion-and-readiness.md) | Built (v4, archived 2026-10-20; bug 13 still needs the log line from that moment) |
