@@ -1640,6 +1640,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         public Task UpdateSocialFieldsAsync(Guid personId, string? occupation, string? instagram, string? twitter, string? tiktok, string? mastodon, string? website, CancellationToken ct = default) => Task.CompletedTask;
         public Task LinkToMediaAssetAsync(Guid mediaAssetId, Guid personId, string role, CancellationToken ct = default) => Task.CompletedTask;
         public Task UpdateLocalHeadshotPathAsync(Guid id, string path, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<Person>> GetWithLocalHeadshotWithoutManagedAssetAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Person>>([]);
         public Task<Person?> FindByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Person?>(null);
         public Task<IReadOnlyList<Person>> GetByMediaAssetAsync(Guid mediaAssetId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Person>>([]);
         public Task<IReadOnlyList<Person>> GetByMediaAssetsAsync(IEnumerable<Guid> mediaAssetIds, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Person>>([]);

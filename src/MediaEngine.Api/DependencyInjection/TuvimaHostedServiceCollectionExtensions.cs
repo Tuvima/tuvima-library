@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Artwork;
 using MediaEngine.Api.Services.EngineLogs;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
@@ -61,6 +62,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<DocumentOcrService>();
         services.AddHostedService<DocumentOcrOperationWorker>();
         services.AddHostedService<ArtworkRenditionRepairStartupService>();
+        services.AddHostedService<ArtworkRenditionBackgroundService>();
         services.AddHostedService<RejectedFileCleanupService>();
         services.AddSingleton<ViewSourceIndexingOptions>();
         services.AddSingleton<IViewSourceWatcherFactory, FileSystemViewSourceWatcherFactory>();

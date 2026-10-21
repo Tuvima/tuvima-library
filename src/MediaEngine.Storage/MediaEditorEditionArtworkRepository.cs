@@ -242,6 +242,7 @@ public sealed class MediaEditorEditionArtworkRepository(IDatabaseConnection data
             FROM artwork_assets art WHERE art.id=@ArtworkAssetId
             ON CONFLICT(id) DO UPDATE SET
                 local_image_path=excluded.local_image_path,
+                local_image_path_t=NULL,
                 local_image_path_s=excluded.local_image_path_s,
                 local_image_path_m=excluded.local_image_path_m,
                 local_image_path_l=excluded.local_image_path_l,
