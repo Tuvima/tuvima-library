@@ -345,7 +345,11 @@
         && !UsesGlowOnlyHover
         && EffectiveHoverMode != MediaTileHoverMode.Overlay
         && !Item.RenderAsLandscapeGroupTile
-        && MediaKindLabel is "Movie" or "TV";
+        && MediaKindLabel is "Movie" or "TV"
+        && HasLandscapeHoverArtwork;
+
+    // Without a landscape background the portrait-to-landscape expansion would only crop the cover, so the tile keeps its cover.
+    private bool HasLandscapeHoverArtwork => Item.HoverLayout == MediaTileHoverLayout.BannerPopover;
 
     private bool UsesStaticCoverHover => IsHoverEnabled && !UsesCinematicHover;
 
