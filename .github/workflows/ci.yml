@@ -10,25 +10,56 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  build-and-test:
-    name: Build & Test
+  # Decides whether the heavy jobs have anything to check. The required "Build & Test" gate below always reports,
+  # so a handoff or spec-only change still merges without waiting for the full test run.
+  changes:
+    name: Detect changes
     runs-on: ubuntu-latest
-
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
     steps:
       - uses: actions/checkout@v4
         with:
-          # Full history so origin/main exists for ReleasedStepsOnMain_AreUnchangedInThisChange.
+          fetch-depth: 0
+      - id: diff
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # Tests read docs/, config/ and root files, so only engineering/ (specs, handoffs, plans) counts as docs-only.
+          other=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -v '^engineering/' || true)
+          if [ -z "$other" ]; then echo "code=false" >> "$GITHUB_OUTPUT"; else echo "code=true" >> "$GITHUB_OUTPUT"; fi
+
+  build:
+    name: Build, format and publish checks
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
           fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.2xx"
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
 
       - name: Restore dependencies
         run: dotnet restore MediaEngine.slnx
@@ -44,23 +75,6 @@ jobs:
 
       - name: Verify formatting
         run: dotnet format MediaEngine.slnx --verify-no-changes --no-restore
-
-      - name: Run tests
-        run: dotnet test MediaEngine.slnx --no-build --verbosity minimal --filter "Category!=LiveProvider" --collect:"XPlat Code Coverage" --results-directory ./TestResults
-
-      - name: Explain snapshot and native-library failures
-        if: failure()
-        run: |
-          # Short diagnostics so a red run shows what differs without downloading artifacts.
-          for received in tests/MediaEngine.Contracts.Tests/Fixtures/*.received.txt; do
-            [ -e "$received" ] || continue
-            echo "=== ${received##*/} differs from approved (first 120 diff lines) ==="
-            diff -u "${received/.received./.approved.}" "$received" | head -120 || true
-          done
-
-      - name: Enforce coverage threshold
-        shell: pwsh
-        run: ./scripts/coverage/Enforce-Coverage.ps1 -ResultsDirectory ./TestResults
 
       - name: Setup Node for release asset verification
         uses: actions/setup-node@v4
@@ -82,10 +96,100 @@ jobs:
       - name: Check vulnerable packages
         run: dotnet list MediaEngine.slnx package --vulnerable --include-transitive
 
+  # The slow test projects each get their own runner so they run side by side instead of one after another.
+  test:
+    name: Tests (${{ matrix.name }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Api
+            projects: tests/MediaEngine.Api.Tests
+          - name: Storage
+            projects: tests/MediaEngine.Storage.Tests
+          - name: Web
+            projects: tests/MediaEngine.Web.Tests
+          - name: Everything else
+            projects: >-
+              tests/MediaEngine.AI.Tests tests/MediaEngine.Admin.Tests tests/MediaEngine.Contracts.Tests
+              tests/MediaEngine.Domain.Tests tests/MediaEngine.Identity.Tests tests/MediaEngine.Ingestion.Tests
+              tests/MediaEngine.Intelligence.Tests tests/MediaEngine.Performance.Tests
+              tests/MediaEngine.Processors.Tests tests/MediaEngine.Providers.Tests
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so origin/main exists for ReleasedStepsOnMain_AreUnchangedInThisChange.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.2xx"
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -e
+          for project in ${{ matrix.projects }}; do
+            dotnet test "$project" --verbosity minimal --filter "Category!=LiveProvider" --collect:"XPlat Code Coverage" --results-directory "./TestResults/$(basename "$project")"
+          done
+
+      - name: Explain snapshot and native-library failures
+        if: failure()
+        run: |
+          # Short diagnostics so a red run shows what differs without downloading artifacts.
+          for received in tests/MediaEngine.Contracts.Tests/Fixtures/*.received.txt; do
+            [ -e "$received" ] || continue
+            echo "=== ${received##*/} differs from approved (first 120 diff lines) ==="
+            diff -u "${received/.received./.approved.}" "$received" | head -120 || true
+          done
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-${{ strategy.job-index }}
           path: ./TestResults
           retention-days: 30
+
+  coverage:
+    name: Coverage threshold
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: ./TestResults
+          merge-multiple: true
+
+      - name: Enforce coverage threshold
+        shell: pwsh
+        run: ./scripts/coverage/Enforce-Coverage.ps1 -ResultsDirectory ./TestResults
+
+  # The single required check on main. It always runs and reports, whether the heavy jobs ran, were skipped
+  # (docs-only change) or failed, so the ready-to-merge auto-merge keeps working.
+  gate:
+    name: Build & Test
+    needs: [changes, build, test, coverage]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every job to pass or be skipped
+        run: |
+          echo "changes=${{ needs.changes.result }} build=${{ needs.build.result }} test=${{ needs.test.result }} coverage=${{ needs.coverage.result }}"
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then exit 1; fi
+          if [ "${{ needs.changes.result }}" != "success" ]; then exit 1; fi
