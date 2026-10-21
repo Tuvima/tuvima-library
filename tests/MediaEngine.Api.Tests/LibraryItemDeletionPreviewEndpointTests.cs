@@ -86,7 +86,7 @@ public sealed class LibraryItemDeletionPreviewEndpointTests : IAsyncLifetime
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var root = json.RootElement;
         Assert.Equal(
-            ["items", "files", "curated_collections", "profiles_with_progress", "processing_running", "bytes_freed", "fingerprint"],
+            ["items", "files", "curated_collections", "profiles_with_progress", "processing_running", "bytes_freed", "goes_to_recycle_bin", "fingerprint"],
             root.EnumerateObject().Select(property => property.Name));
         Assert.Equal(321, root.GetProperty("bytes_freed").GetInt64());
         var row = root.GetProperty("files")[0];

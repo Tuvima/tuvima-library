@@ -164,6 +164,16 @@ public sealed class ItemCanonicalRepository(
         return affected > 0;
     }
 
+    public Task<string?> GetWorkMediaTypeAsync(Guid workId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        return Task.FromResult(conn.QuerySingleOrDefault<string>(new CommandDefinition(
+            "SELECT media_type FROM works WHERE id = @workId LIMIT 1;",
+            new { workId = GuidSql.ToBlob(workId) },
+            cancellationToken: ct)));
+    }
+
     public Task<Guid?> ResolveWorkIdForAssetAsync(Guid assetId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

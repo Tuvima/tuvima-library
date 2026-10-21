@@ -16,7 +16,7 @@ public sealed partial class DisplayComposerService
 
     private static readonly string[] TypeOrder =
     [
-        DisplayGridValues.TypeMovie, DisplayGridValues.TypeTv, DisplayGridValues.TypeBook, DisplayGridValues.TypeComic,
+        DisplayGridValues.TypeMovie, DisplayGridValues.TypeTv, DisplayGridValues.TypeVideo, DisplayGridValues.TypeBook, DisplayGridValues.TypeComic,
         DisplayGridValues.TypeAudiobook, DisplayGridValues.TypeMusic, DisplayGridValues.TypeCollection,
     ];
 
@@ -217,6 +217,9 @@ public sealed partial class DisplayComposerService
                 cards = [.. _cards.BuildTvShowCards(works.Where(work => DisplayMediaRules.IsWatchKind(work.MediaType)).ToList(), progressByWork)
                     .Select(card => new GridCard(card, false))];
                 break;
+            case DisplayGridSource.WatchVideos:
+                cards = [.. _cards.BuildVideoCards(works, progressByWork).Select(card => new GridCard(card, false))];
+                break;
             case DisplayGridSource.WatchMovies:
                 cards = [.. works
                     .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Movie")
@@ -237,10 +240,13 @@ public sealed partial class DisplayComposerService
                         .SelectMany(work => DisplayMediaRules.SplitValues(work.Genre))
                         .First(genre => DisplayMediaRules.StableKey(genre) == definition.Preset);
                     var shows = _cards.BuildTvShowCards(watchWorks, progressByWork).ToDictionary(card => card.Id);
+                    var videos = _cards.BuildVideoCards(watchWorks, progressByWork).ToDictionary(card => card.Id);
                     cards = [.. matching
                     .Select(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "TV"
                         ? shows.GetValueOrDefault(TvGroupId(work))
-                        : _cards.FromWork(work, "watch", progressByWork.GetValueOrDefault(work.WorkId)))
+                        : DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Video"
+                            ? videos.GetValueOrDefault(TvGroupId(work))
+                            : _cards.FromWork(work, "watch", progressByWork.GetValueOrDefault(work.WorkId)))
                     .Where(card => card is not null)
                     .Cast<DisplayCardDto>()
                     .DistinctBy(card => card.Id)
@@ -556,6 +562,7 @@ public sealed partial class DisplayComposerService
     {
         "Movie" => DisplayGridValues.TypeMovie,
         "TV" => DisplayGridValues.TypeTv,
+        "Video" => DisplayGridValues.TypeVideo,
         "Book" => DisplayGridValues.TypeBook,
         "Comic" => DisplayGridValues.TypeComic,
         "Audiobook" => DisplayGridValues.TypeAudiobook,
@@ -567,6 +574,7 @@ public sealed partial class DisplayComposerService
     {
         DisplayGridValues.TypeMovie => "Movies",
         DisplayGridValues.TypeTv => "TV shows",
+        DisplayGridValues.TypeVideo => "Videos",
         DisplayGridValues.TypeBook => "Books",
         DisplayGridValues.TypeComic => "Comics",
         DisplayGridValues.TypeAudiobook => "Audiobooks",

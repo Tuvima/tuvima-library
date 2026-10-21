@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1081; api=0; web-client=54
+# scopes: contracts=1097; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3758,6 +3758,18 @@
   DisplayOverrides: System.Collections.Generic.IReadOnlyDictionary<System.String, System.String> | json=display_overrides | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"profile_id":"11111111-2222-3333-4444-555555555555","work_id":"11111111-2222-3333-4444-555555555555","local_tags":[],"revision":7,"updated_at":"2025-01-02T03:04:05+00:00","display_overrides":{}}
 
+[contracts] MediaEngine.Contracts.Items.ItemExplicitRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  IsExplicit: System.Boolean | json=explicit | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"explicit":true}
+
+[contracts] MediaEngine.Contracts.Items.ItemExplicitResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsExplicit: System.Boolean | json=explicit | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Supported: System.Boolean | json=supported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entity_id":"11111111-2222-3333-4444-555555555555","explicit":true,"supported":true}
+
 [contracts] MediaEngine.Contracts.Items.ItemPreferencesRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   Fields: System.Collections.Generic.Dictionary<System.String, System.String> | json=fields | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -3842,8 +3854,9 @@
   ProfilesWithProgress: System.Int32 | json=profiles_with_progress | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProcessingRunning: System.Boolean | json=processing_running | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   BytesFreed: System.Int64 | json=bytes_freed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GoesToRecycleBin: System.Boolean | json=goes_to_recycle_bin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Fingerprint: System.String | json=fingerprint | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"items":[],"files":[],"curated_collections":[],"profiles_with_progress":7,"processing_running":true,"bytes_freed":7,"fingerprint":"sample"}
+  sample={"items":[],"files":[],"curated_collections":[],"profiles_with_progress":7,"processing_running":true,"bytes_freed":7,"goes_to_recycle_bin":true,"fingerprint":"sample"}
 
 [contracts] MediaEngine.Contracts.Items.LibraryItemDeletionPreviewRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3972,6 +3985,94 @@
   AudioLanguages: System.Collections.Generic.IReadOnlyList<System.String> | json=audio_languages | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubtitleLanguages: System.Collections.Generic.IReadOnlyList<System.String> | json=subtitle_languages | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"video_resolution_label":"sample","video_codec":"sample","audio_language":"sample","audio_codec":"sample","audio_channels":"sample","subtitle_summary":"sample","audio_languages":[],"subtitle_languages":[]}
+
+[contracts] MediaEngine.Contracts.Items.RecycleBinEmptiedDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Removed: System.Int32 | json=removed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"removed":7}
+
+[contracts] MediaEngine.Contracts.Items.RecycleBinItemDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SizeBytes: System.Int64 | json=size_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DeletedAt: System.DateTimeOffset | json=deleted_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","file_name":"sample","title":"sample","size_bytes":7,"deleted_at":"2025-01-02T03:04:05+00:00"}
+
+[contracts] MediaEngine.Contracts.Items.VideoIdentifyRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Link: System.String | json=link | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"link":"sample"}
+
+[contracts] MediaEngine.Contracts.Items.VideoIdentifyResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"title":"sample"}
+
+[contracts] MediaEngine.Contracts.Items.VideoIdentifyStateResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Supported: System.Boolean | json=supported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Matched: System.Boolean | json=matched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LookupEnabled: System.Boolean | json=lookup_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"supported":true,"matched":true,"lookup_enabled":true}
+
+[contracts] MediaEngine.Contracts.Items.VideoOrderEntryDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","title":"sample"}
+
+[contracts] MediaEngine.Contracts.Items.VideoOrderGroupDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ParentId: System.Guid | json=parent_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Entries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.VideoOrderEntryDto> | json=entries | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CanRenameFiles: System.Boolean | json=can_rename_files | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"parent_id":"11111111-2222-3333-4444-555555555555","title":"sample","entries":[],"can_rename_files":true}
+
+[contracts] MediaEngine.Contracts.Items.VideoOrderRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ParentId: System.Guid | json=parent_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OrderedIds: System.Collections.Generic.List<System.Guid> | json=ordered_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"parent_id":"11111111-2222-3333-4444-555555555555","ordered_ids":[]}
+
+[contracts] MediaEngine.Contracts.Items.VideoOrderResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.VideoOrderGroupDto> | json=groups | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"groups":[]}
+
+[contracts] MediaEngine.Contracts.Items.VideoRenameRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ParentId: System.Guid | json=parent_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"parent_id":"11111111-2222-3333-4444-555555555555"}
+
+[contracts] MediaEngine.Contracts.Items.VideoRenameResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Renamed: System.Int32 | json=renamed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Skipped: System.Int32 | json=skipped | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"renamed":7,"skipped":7}
+
+[contracts] MediaEngine.Contracts.Items.VideoSeriesPromoteRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ParentId: System.Guid? | json=parent_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NewSeriesName: System.String | json=new_series_name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"parent_id":"11111111-2222-3333-4444-555555555555","new_series_name":"sample"}
+
+[contracts] MediaEngine.Contracts.Items.VideoSeriesStateResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Supported: System.Boolean | json=supported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  InSeries: System.Boolean | json=in_series | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SeriesTitle: System.String | json=series_title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Targets: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.VideoSeriesTargetDto> | json=targets | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"supported":true,"in_series":true,"series_title":"sample","targets":[]}
+
+[contracts] MediaEngine.Contracts.Items.VideoSeriesTargetDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  VideoCount: System.Int32 | json=video_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","title":"sample","video_count":7}
 
 [contracts] MediaEngine.Contracts.Library.LibraryBatchDistinctValue
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8922,6 +9023,9 @@
   Presentation: System.String | json=presentation | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MetadataPolicy: System.String | json=metadata_policy | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MediaTypes: System.Collections.Generic.List<System.String> | json=media_types | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  YoutubeLookup: System.Boolean | json=youtube_lookup | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OkForLimitedProfiles: System.Boolean | json=ok_for_limited_profiles | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RecycleBin: System.Boolean | json=recycle_bin | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Sources: System.Collections.Generic.List<MediaEngine.Contracts.Settings.LibrarySourceDto> | json=sources | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PrimaryDestinationSourceId: System.String | json=primary_destination_source_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   OwnerProfileId: System.String | json=owner_profile_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -8930,7 +9034,7 @@
   AcceptedIntakeModes: System.Collections.Generic.List<System.String> | json=accepted_intake_modes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   OrganizationPolicy: MediaEngine.Contracts.Settings.LibraryOrganizationPolicyDto | json=organization_policy | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Notes: System.String | json=notes | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","name":"sample","category":"sample","kind":"sample","area":"sample","presentation":"sample","metadata_policy":"sample","media_types":[],"sources":[],"primary_destination_source_id":"sample","owner_profile_id":"sample","visibility":"sample","authorized_profile_ids":[],"accepted_intake_modes":[],"organization_policy":null,"notes":"sample"}
+  sample={"id":"sample","name":"sample","category":"sample","kind":"sample","area":"sample","presentation":"sample","metadata_policy":"sample","media_types":[],"youtube_lookup":true,"ok_for_limited_profiles":true,"recycle_bin":true,"sources":[],"primary_destination_source_id":"sample","owner_profile_id":"sample","visibility":"sample","authorized_profile_ids":[],"accepted_intake_modes":[],"organization_policy":null,"notes":"sample"}
 
 [contracts] MediaEngine.Contracts.Settings.LibraryLaneGroupDisplaySettings
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9542,11 +9646,12 @@
   HasRead: System.Boolean | json=has_read | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HasWrite: System.Boolean | json=has_write | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ContainsFiles: System.Boolean | json=contains_files | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LooksLikePhoneFootage: System.Boolean | json=looks_like_phone_footage | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AvailableBytes: System.Int64? | json=available_bytes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FileSystem: System.String | json=file_system | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanSelect: System.Boolean | json=can_select | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Issues: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ServerFolderValidationIssueDto> | json=issues | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"storage_location_id":"sample","relative_path":"sample","path":"sample","exists":true,"has_read":true,"has_write":true,"contains_files":true,"available_bytes":7,"file_system":"sample","can_select":true,"issues":[]}
+  sample={"storage_location_id":"sample","relative_path":"sample","path":"sample","exists":true,"has_read":true,"has_write":true,"contains_files":true,"looks_like_phone_footage":true,"available_bytes":7,"file_system":"sample","can_select":true,"issues":[]}
 
 [contracts] MediaEngine.Contracts.Settings.ServerGeneralSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default

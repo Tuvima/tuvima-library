@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Contracts.Items;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
@@ -264,6 +265,87 @@ public sealed partial class EngineApiClient
             return false;
         }
     }
+
+    public async Task<MediaEngine.Contracts.Items.ItemExplicitResponse?> GetItemExplicitAsync(Guid entityId, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<MediaEngine.Contracts.Items.ItemExplicitResponse>($"/library/items/{entityId}/explicit", ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "GET /library/items/{EntityId}/explicit failed", entityId);
+            return null;
+        }
+    }
+
+    public Task<bool> SaveItemExplicitAsync(Guid entityId, bool isExplicit, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /library/items/{id}/explicit",
+            $"/library/items/{entityId}/explicit",
+            new MediaEngine.Contracts.Items.ItemExplicitRequest { IsExplicit = isExplicit },
+            ct: ct);
+
+    public async Task<MediaEngine.Contracts.Items.VideoOrderResponse?> GetVideoOrderAsync(Guid entityId, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<MediaEngine.Contracts.Items.VideoOrderResponse>($"/library/items/{entityId}/video-order", ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "GET /library/items/{EntityId}/video-order failed", entityId);
+            return null;
+        }
+    }
+
+    public Task<bool> SaveVideoOrderAsync(Guid entityId, Guid parentId, IReadOnlyList<Guid> orderedIds, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /library/items/{id}/video-order",
+            $"/library/items/{entityId}/video-order",
+            new MediaEngine.Contracts.Items.VideoOrderRequest { ParentId = parentId, OrderedIds = orderedIds.ToList() },
+            ct: ct);
+
+    public Task<MediaEngine.Contracts.Items.VideoRenameResponse?> RenameVideoFilesToOrderAsync(Guid entityId, Guid parentId, CancellationToken ct = default) =>
+        PostAsync<MediaEngine.Contracts.Items.VideoRenameRequest, MediaEngine.Contracts.Items.VideoRenameResponse>(
+            "POST /library/items/{id}/video-rename",
+            $"/library/items/{entityId}/video-rename",
+            new MediaEngine.Contracts.Items.VideoRenameRequest { ParentId = parentId },
+            ct: ct);
+
+    public Task<MediaEngine.Contracts.Items.VideoSeriesStateResponse?> GetVideoSeriesAsync(Guid entityId, CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Items.VideoSeriesStateResponse>(
+            "GET /library/items/{id}/video-series", $"/library/items/{entityId}/video-series", ct: ct);
+
+    public Task<bool> PromoteVideoToSeriesAsync(Guid entityId, Guid? seriesId, string? newSeriesName, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /library/items/{id}/video-series",
+            $"/library/items/{entityId}/video-series",
+            new MediaEngine.Contracts.Items.VideoSeriesPromoteRequest { ParentId = seriesId, NewSeriesName = newSeriesName },
+            ct: ct);
+
+    public Task<MediaEngine.Contracts.Items.VideoIdentifyStateResponse?> GetVideoIdentifyStateAsync(Guid entityId, CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Items.VideoIdentifyStateResponse>(
+            "GET /library/items/{id}/video-identify", $"/library/items/{entityId}/video-identify", ct: ct);
+
+    public Task<MediaEngine.Contracts.Items.VideoIdentifyResponse?> IdentifyVideoFromLinkAsync(Guid entityId, string link, CancellationToken ct = default) =>
+        PostAsync<MediaEngine.Contracts.Items.VideoIdentifyRequest, MediaEngine.Contracts.Items.VideoIdentifyResponse>(
+            "POST /library/items/{id}/video-identify",
+            $"/library/items/{entityId}/video-identify",
+            new MediaEngine.Contracts.Items.VideoIdentifyRequest { Link = link },
+            ct: ct);
+
+    public Task<bool> RemoveVideoFromSeriesAsync(Guid entityId, CancellationToken ct = default) =>
+        PostAsync("POST /library/items/{id}/video-series/remove", $"/library/items/{entityId}/video-series/remove", new { }, ct: ct);
+
+    public async Task<IReadOnlyList<RecycleBinItemDto>?> GetRecycleBinAsync(CancellationToken ct = default) =>
+        await GetAsync<List<RecycleBinItemDto>>("GET /library/items/recycle-bin", "/library/items/recycle-bin", ct: ct);
+
+    public Task<bool> RestoreFromRecycleBinAsync(Guid id, CancellationToken ct = default) =>
+        PostAsync("POST /library/items/recycle-bin/{id}/restore", $"/library/items/recycle-bin/{id}/restore", new { }, ct: ct);
+
+    public Task<bool> EmptyRecycleBinAsync(CancellationToken ct = default) =>
+        PostAsync("POST /library/items/recycle-bin/empty", "/library/items/recycle-bin/empty", new { }, ct: ct);
 
     public Task<bool> SaveCollectionDisplayOverridesAsync(Guid collectionId, Dictionary<string, string> fields, CancellationToken ct = default)
         => SaveDisplayOverridesAsync($"/collections/{collectionId}/display-overrides", collectionId, fields, ct);

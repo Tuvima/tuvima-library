@@ -86,7 +86,7 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private static DetailEntityType MapMediaTypeToEntityType(string? mediaType)
     {
-        if (mediaType?.Contains("movie", StringComparison.OrdinalIgnoreCase) == true)
+        if (mediaType?.Contains("movie", StringComparison.OrdinalIgnoreCase) == true || mediaType?.StartsWith("video", StringComparison.OrdinalIgnoreCase) == true)
         {
             return DetailEntityType.Movie;
         }

@@ -56,7 +56,7 @@ public sealed class ImportFolderTests
 
         Assert.True(status.Configured);
         Assert.False(status.Ready);
-        Assert.Equal(["Books", "Audiobooks", "Movies", "TV Shows", "Music", "Comics"], status.MissingTypes);
+        Assert.Equal(["Books", "Audiobooks", "Movies", "TV Shows", "Music", "Comics", "Videos"], status.MissingTypes);
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class ImportFolderTests
         var status = ImportFolderRules.Evaluate(config);
 
         Assert.False(status.Ready);
-        Assert.Equal(["Audiobooks", "TV Shows", "Music", "Comics"], status.MissingTypes);
+        Assert.Equal(["Audiobooks", "TV Shows", "Music", "Comics", "Videos"], status.MissingTypes);
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class ImportFolderTests
         var status = ImportFolderRules.Evaluate(config);
 
         Assert.True(status.Ready);
-        Assert.Equal(6, status.Destinations.Count);
+        Assert.Equal(7, status.Destinations.Count);
         Assert.All(status.Destinations, destination =>
         {
             Assert.True(destination.HasDestination);
@@ -107,7 +107,7 @@ public sealed class ImportFolderTests
 
         var dto = MediaEngine.Api.Endpoints.SettingsContractMapper.ToContract(config);
 
-        Assert.Equal(6, dto.ImportFolderStatus.Destinations.Count);
+        Assert.Equal(7, dto.ImportFolderStatus.Destinations.Count);
         Assert.Null(dto.ImportFolderStatus.Destinations.Single(destination => destination.MediaType == "Movies").DestinationSourceId);
         Assert.NotNull(dto.ImportFolderStatus.Destinations.Single(destination => destination.MediaType == "Books").DestinationSourceId);
         Assert.Equal(["Movies"], dto.ImportFolderStatus.MissingTypes);

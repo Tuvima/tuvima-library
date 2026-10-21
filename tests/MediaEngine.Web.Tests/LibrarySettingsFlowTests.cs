@@ -213,7 +213,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     {
         var cut = Render<LibrariesTab>();
         cut.WaitForElement(".library-folders__type");
-        Assert.Equal(7, cut.FindAll(".library-folders__type").Count);
+        Assert.Equal(8, cut.FindAll(".library-folders__type").Count);
         Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Audiobooks") && x.TextContent.Contains("1 folder"));
         Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Movies") && x.TextContent.Contains("3 folders"));
         Assert.Contains("Add Folder", cut.Markup);
@@ -232,16 +232,16 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         ],
     };
 
-    // I1 to I3: the Import folder is the seventh entry, reads Not set, and shows only the Set button with no type lines.
+    // I1 to I3: the Import folder is the eighth entry (after the seven media types), reads Not set, and shows only the Set button with no type lines.
     [Fact]
-    public void ImportFolderIsTheSeventhEntryAndShowsOnlySetWhenNotSet()
+    public void ImportFolderIsTheEighthEntryAndShowsOnlySetWhenNotSet()
     {
         var cut = Render<LibrariesTab>();
         cut.WaitForElement(".library-folders__type");
         var entries = cut.FindAll(".library-folders__type");
-        Assert.Equal("Import folder", Text(entries[6].QuerySelector("strong")!));
-        Assert.Equal("Not set", Text(entries[6].QuerySelector("small")!));
-        entries[6].Click();
+        Assert.Equal("Import folder", Text(entries[7].QuerySelector("strong")!));
+        Assert.Equal("Not set", Text(entries[7].QuerySelector("small")!));
+        entries[7].Click();
         cut.WaitForAssertion(() => Assert.Contains("Set import folder", cut.Markup));
         Assert.Empty(cut.FindAll(".library-folders__destination"));
         Assert.DoesNotContain("Where imported files go", cut.Markup);
@@ -259,8 +259,8 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var cut = Render<LibrariesTab>();
         cut.WaitForElement(".library-folders__type");
         var entries = cut.FindAll(".library-folders__type");
-        Assert.Equal("Set", Text(entries[6].QuerySelector("small")!));
-        entries[6].Click();
+        Assert.Equal("Set", Text(entries[7].QuerySelector("small")!));
+        entries[7].Click();
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".library-folders__destination").Count));
         Assert.Contains("C:\\media\\Import", cut.Find(".library-folders__table-row").TextContent);
         Assert.Contains("Where imported files go", cut.Markup);
@@ -279,7 +279,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         _configuration.ImportFolderStatus = ConfiguredImport();
         var cut = Render<LibrariesTab>();
         cut.WaitForElement(".library-folders__type");
-        cut.FindAll(".library-folders__type")[6].Click();
+        cut.FindAll(".library-folders__type")[7].Click();
         cut.WaitForElement(".library-folders__destination");
         cut.FindAll(".library-folders__destination").Single(x => x.TextContent.Contains("Audiobooks")).QuerySelector("button")!.Click();
         cut.WaitForAssertion(() =>
@@ -304,7 +304,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         };
         var cut = Render<LibrariesTab>();
         cut.WaitForElement(".library-folders__type");
-        cut.FindAll(".library-folders__type")[6].Click();
+        cut.FindAll(".library-folders__type")[7].Click();
         cut.WaitForAssertion(() =>
         {
             var tv = cut.FindAll(".library-folders__destination").Single(x => x.TextContent.StartsWith("TV Shows"));
@@ -770,6 +770,39 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
         var managed = await AskAsync(canMerge: true, pick: "Let Library manage it");
         Assert.Equal(AddFolderChoiceDialog.Managed, managed.Data);
+    }
+
+    [Fact]
+    public async Task AddingAVideosFolderAlwaysAsksWatchOrViewAndOnlySuggestsViewForPhoneFootage()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var service = Services.GetRequiredService<IAppDialogService>();
+
+        async Task<(bool Hint, AddFolderPlaceDialog.AddFolderPlaceAnswer? Answer)> AskAsync(bool phone, string pick, bool lookup = true)
+        {
+            var parameters = new AppDialogParameters<AddFolderPlaceDialog>
+            {
+                { component => component.LooksLikePhoneFootage, phone },
+                { component => component.YoutubeLookup, lookup },
+            };
+            var reference = await service.ShowAsync<AddFolderPlaceDialog>(string.Empty, parameters, new AppDialogOptions());
+            dialogs.WaitForAssertion(() => Assert.Contains("Where does this folder belong?", dialogs.Markup));
+            var hint = dialogs.FindAll(".add-folder-place__hint").Count > 0;
+            Assert.Contains("contacts YouTube", dialogs.Markup);
+            dialogs.FindAll(".add-folder-place button").Single(x => Text(x.QuerySelector("strong")!) == pick).Click();
+            var result = await reference.Result;
+            return (hint, result?.Data as AddFolderPlaceDialog.AddFolderPlaceAnswer);
+        }
+
+        var ordinary = await AskAsync(phone: false, pick: "Videos (Watch)");
+        Assert.False(ordinary.Hint);
+        Assert.True(ordinary.Answer!.Watch);
+        Assert.True(ordinary.Answer.YoutubeLookup);
+
+        var phoneFolder = await AskAsync(phone: true, pick: "Photos and personal videos (View)", lookup: false);
+        Assert.True(phoneFolder.Hint);
+        Assert.False(phoneFolder.Answer!.Watch);
+        Assert.False(phoneFolder.Answer.YoutubeLookup);
     }
 
     // Changing a naming preset asks before touching existing files; Only new files keeps today's behaviour.

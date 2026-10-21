@@ -501,6 +501,21 @@ public sealed partial class IngestionEngine
         {
             result = context.ProcessorResult = Services.AudiobookFolderHints.Apply(result, audiobookSource);
         }
+        if (ResolveVideosRoot(context.Library, candidate.Path) is { } videosRoot)
+        {
+            result = context.ProcessorResult = _videoReader!.Apply(result, videosRoot);
+            // Stage 1 lookup (D7): only the YouTube ID leaves the machine, only when this library's switch is on.
+            if (_videoLookup is not null
+                && context.Library?.YoutubeLookup == true
+                && result.Claims.FirstOrDefault(claim => claim.Key == MetadataFieldConstants.YoutubeVideoId)?.Value is { } youtubeId
+                && await _videoLookup.LookupAsync(youtubeId, ct).ConfigureAwait(false) is { } online)
+            {
+                result = context.ProcessorResult = _videoReader.Merge(result, online);
+                context.LookupThumbnail = online.Thumbnail is { Length: > 0 } && online.ThumbnailMimeType is { } thumbnailMime
+                    ? new FolderCoverImage(online.Thumbnail, thumbnailMime, "youtube")
+                    : null;
+            }
+        }
         // Step 8: convert claims.
         var assetId = context.AssetId = Guid.NewGuid();
         var claims = context.Claims = BuildClaims(assetId, result);
@@ -662,9 +677,25 @@ public sealed partial class IngestionEngine
         // Embedded art always wins; the sibling folder image (cover.jpg, folder.jpg, ...) is only a
         // fallback for Books, Audiobooks and Music files that carry no embedded picture.
         var hasEmbeddedCover = result.CoverImage is { Length: > 0 };
-        context.FolderCover = !hasEmbeddedCover && FolderCoverImageReader.AppliesTo(resolvedMediaType)
-            ? FolderCoverImageReader.TryRead(candidate.Path)
-            : null;
+        context.FolderCover = hasEmbeddedCover
+            ? null
+            : FolderCoverImageReader.AppliesTo(resolvedMediaType)
+                ? FolderCoverImageReader.TryRead(candidate.Path)
+                : resolvedMediaType == MediaType.Videos && ResolveVideosRoot(context.Library, candidate.Path) is { } coverRoot
+                    ? FolderCoverImageReader.TryReadForVideo(candidate.Path, coverRoot)
+                    : null;
+
+        // Order of covers for a video (D11): the person's own picture, a picture in its folder, the lookup thumbnail, then a
+        // good still frame (never a black tile; the pick is cached).
+        if (context.FolderCover is null && !hasEmbeddedCover && resolvedMediaType == MediaType.Videos)
+        {
+            context.FolderCover = context.LookupThumbnail;
+        }
+
+        if (context.FolderCover is null && !hasEmbeddedCover && resolvedMediaType == MediaType.Videos && _videoFrames is not null)
+        {
+            context.FolderCover = await _videoFrames.GetOrCreateAsync(candidate.Path, ct).ConfigureAwait(false);
+        }
 
         if (hasEmbeddedCover || context.FolderCover is not null)
         {
@@ -811,6 +842,11 @@ public sealed partial class IngestionEngine
         }
 
         await InspectPlaybackAsync(asset, ct).ConfigureAwait(false);
+
+        if (resolvedMediaType == MediaType.Videos && _videoReader is not null)
+        {
+            await _videoReader.RecordPlacementAsync(assetId, candidate.Metadata, ct).ConfigureAwait(false);
+        }
 
         var resolvedTitle = context.ResolvedTitle = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Title, "Unknown") ?? "Unknown";
         var resolvedAuthor = context.ResolvedAuthor = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Author, string.Empty) ?? string.Empty;

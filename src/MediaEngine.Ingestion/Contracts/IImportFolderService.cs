@@ -48,7 +48,7 @@ public interface IImportFolderService
     FileSourceMutationPolicy? CreateImportPolicy(bool allowDelete = false);
 
     /// <summary>
-    /// Creates the six per-type folders inside the import folder if they are missing. Existing folders and files are left
+    /// Creates the seven per-type folders inside the import folder if they are missing. Existing folders and files are left
     /// alone. The import folder itself is created only when <paramref name="createImportFolder"/> is true, so a drive
     /// that is offline is never replaced by an empty local folder at startup.
     /// </summary>

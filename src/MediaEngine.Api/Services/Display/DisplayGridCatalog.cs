@@ -14,6 +14,7 @@ internal enum DisplayGridSource
     ReadAuthor,
     WatchContinue,
     WatchTvShows,
+    WatchVideos,
     WatchMovies,
     WatchGenre,
     ListenContinue,
@@ -77,6 +78,7 @@ internal static class DisplayGridCatalog
         new("read", "recently-added", DisplayGridSource.ReadRecentlyAdded, "Recently added to read", "Fresh pages and issues ready to pick up", DisplayGridValues.SortAdded, DisplayGridValues.RememberRead),
         new("watch", "continue-watching", DisplayGridSource.WatchContinue, "Continue watching", "Movies and shows already in progress", DisplayGridValues.SortPlayed, null),
         new("watch", "tv-shows", DisplayGridSource.WatchTvShows, "TV Shows", "Shows built from the episodes you own", DisplayGridValues.SortAdded, DisplayGridValues.RememberWatch),
+        new("watch", "videos", DisplayGridSource.WatchVideos, "Videos", "Downloads, courses and clips ready to play", DisplayGridValues.SortAdded, DisplayGridValues.RememberWatch),
         new("watch", "movies", DisplayGridSource.WatchMovies, "Movies in your library", "Feature films ready to play", DisplayGridValues.SortAdded, DisplayGridValues.RememberWatch),
         new("listen", "continue-listening", DisplayGridSource.ListenContinue, "Continue Listening", "Resume audiobooks already in progress", DisplayGridValues.SortPlayed, null),
         new("listen", "recently-played", DisplayGridSource.ListenRecentlyPlayed, "Recently Played", "Albums from your latest music sessions", DisplayGridValues.SortPlayed, null),
@@ -136,7 +138,7 @@ internal static class DisplayGridCatalog
     }
 
     public static string? NormalizeType(string? type) => NormalizeOneOf(type, "type",
-        DisplayGridValues.TypeMovie, DisplayGridValues.TypeTv, DisplayGridValues.TypeBook, DisplayGridValues.TypeComic,
+        DisplayGridValues.TypeMovie, DisplayGridValues.TypeTv, DisplayGridValues.TypeVideo, DisplayGridValues.TypeBook, DisplayGridValues.TypeComic,
         DisplayGridValues.TypeAudiobook, DisplayGridValues.TypeMusic, DisplayGridValues.TypeCollection);
 
     public static string? NormalizeFormat(string? format) => NormalizeOneOf(format, "format",

@@ -4,6 +4,22 @@ namespace MediaEngine.Web.Tests;
 public sealed class Phase5InlineEditingTests
 {
     [Fact]
+    public void DetailPage_VideoShortcutsTurnEditingOnThenOpenMatchOrArtwork_WithTheDeviceRuleCheckedAgain()
+    {
+        var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        var handler = source[source.IndexOf("private async Task OpenEditShortcutAsync", StringComparison.Ordinal)..];
+        handler = handler[..handler.IndexOf("private async Task DeleteFromLibraryAsync", StringComparison.Ordinal)];
+
+        Assert.Contains("action.Key is DetailActionKeys.Identify or DetailActionKeys.ChangeThumbnail", source, StringComparison.Ordinal);
+        Assert.Contains("EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)", handler, StringComparison.Ordinal);
+        Assert.Contains("!CanEditMedia", handler, StringComparison.Ordinal);
+        Assert.Contains("editing.EnterAsync()", handler, StringComparison.Ordinal);
+        Assert.Contains("ShowSectionAsync(EditingSection.Match)", handler, StringComparison.Ordinal);
+        Assert.Contains("ShowSectionAsync(EditingSection.Artwork, \"CoverArt\")", handler, StringComparison.Ordinal);
+        Assert.DoesNotContain("MediaEditorLauncher", handler, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DetailPage_EditActionTurnsEditingModeOnAndKeepsTheModalForPeopleAndShelves()
     {
         var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");

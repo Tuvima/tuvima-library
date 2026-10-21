@@ -1,0 +1,15 @@
+.tl-editing-explicit {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: var(--tl-space-2);
+    padding: var(--tl-space-4) var(--tl-space-5);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-lg);
+    background: var(--tl-bg-surface);
+}
+
+.tl-editing-explicit__error {
+    margin: 0;
+    color: var(--tl-status-danger);
+    font-size: var(--tl-font-size-sm);
+}

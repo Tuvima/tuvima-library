@@ -154,6 +154,7 @@ public sealed partial class LibraryItemDeletionService
     private FileRun DeleteFiles(LibraryItemDeletionPlan plan)
     {
         var run = new FileRun();
+        var titles = plan.Preview.Items.ToDictionary(item => item.WorkId, item => item.Title);
 
         // plan.Files lists each media file followed by its own sidecars.
         var currentMediaGone = false;
@@ -186,7 +187,7 @@ public sealed partial class LibraryItemDeletionService
                 continue;
             }
 
-            var attempt = TryDelete(file);
+            var attempt = TryDelete(file, titles.GetValueOrDefault(file.WorkId));
             switch (attempt.Kind)
             {
                 case DeleteAttemptKind.Deleted:
@@ -218,7 +219,7 @@ public sealed partial class LibraryItemDeletionService
     /// Deletes one file. The source is resolved again and the policy rebuilt now, and the gate is asked at this moment: the plan's own
     /// policy is never trusted, because a folder can be switched to as-is, or a merge can list the file, between the plan and here.
     /// </summary>
-    private DeleteAttempt TryDelete(LibraryItemDeletionPlannedFile file)
+    private DeleteAttempt TryDelete(LibraryItemDeletionPlannedFile file, string? title)
     {
         var path = file.FullPath;
         var resolved = string.IsNullOrWhiteSpace(path) ? null : folders.ResolveSourceForPath(path);
@@ -239,6 +240,13 @@ public sealed partial class LibraryItemDeletionService
             if (!File.Exists(path))
             {
                 return DeleteAttempt.Gone;
+            }
+
+            // A library type with its recycle bin on moves the file there instead; nothing is freed until the bin is emptied.
+            if (resolved?.Library.RecycleBin == true)
+            {
+                Bin.MoveIn(path, title, resolved.Library.Id);
+                return DeleteAttempt.WasDeleted(0);
             }
 
             var size = LengthOf(path) ?? 0;
@@ -536,7 +544,9 @@ public sealed partial class LibraryItemDeletionService
         {
             result.FilesDeleted == 0
                 ? "no files were deleted from disk"
-                : $"{Count(result.FilesDeleted, "file")} deleted from disk ({FormatBytes(result.BytesFreed)} freed)",
+                : result.BytesFreed == 0
+                    ? $"{Count(result.FilesDeleted, "file")} moved out of the library"
+                    : $"{Count(result.FilesDeleted, "file")} deleted from disk ({FormatBytes(result.BytesFreed)} freed)",
         };
         if (result.FilesLeftOnDisk > 0)
         {

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using MediaEngine.Api.Services.Display;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
@@ -10,13 +11,22 @@ namespace MediaEngine.Api.Security;
 /// (and a service application, which acts for no person) gets <see cref="Unrestricted"/>, which never reads a rating.
 /// A person's request that has no usable profile gets the strictest limit instead (fail closed).
 /// </summary>
-internal sealed class ContentLimitFilter(ProfileContentLimit limit)
+internal sealed class ContentLimitFilter(ProfileContentLimit limit, IReadOnlySet<string>? videoLibrariesOk = null)
 {
     public static readonly ContentLimitFilter Unrestricted = new(ProfileContentLimit.Unrestricted);
 
     public bool IsUnrestricted => limit.IsUnrestricted;
 
     public bool Allows(string? rating) => ProfileContentLimits.Allows(limit.Limit, limit.AllowUnrated, rating);
+
+    /// <summary>
+    /// Saved videos have no ratings, so a limited profile sees Videos only from a library an administrator marked "OK for
+    /// limited profiles". Anything that is not a video is not affected.
+    /// </summary>
+    public bool AllowsVideo(string? libraryId, string mediaType) =>
+        limit.IsUnrestricted
+        || DisplayMediaRules.NormalizeDisplayKind(mediaType) != "Video"
+        || (libraryId is not null && videoLibrariesOk?.Contains(libraryId) == true);
 }
 
 /// <summary>
@@ -24,7 +34,7 @@ internal sealed class ContentLimitFilter(ProfileContentLimit limit)
 /// profile per request), so a parent's change applies on the child's very next call. It sits beside library and
 /// feature access: every list, search, detail page and player resolves its catalogue through the same checks.
 /// </summary>
-internal sealed class ContentLimitPolicy(IProfileContentLimitRepository limits)
+internal sealed class ContentLimitPolicy(IProfileContentLimitRepository limits, IConfigurationLoader? configuration = null)
 {
     private readonly ConcurrentDictionary<Guid, Task<ContentLimitFilter>> _byProfile = new();
 
@@ -46,7 +56,16 @@ internal sealed class ContentLimitPolicy(IProfileContentLimitRepository limits)
     private async Task<ContentLimitFilter> LoadAsync(Guid profileId)
     {
         var limit = await limits.GetAsync(profileId, CancellationToken.None).ConfigureAwait(false);
-        return limit.IsUnrestricted ? ContentLimitFilter.Unrestricted : new ContentLimitFilter(limit);
+        if (limit.IsUnrestricted)
+        {
+            return ContentLimitFilter.Unrestricted;
+        }
+
+        var videoLibrariesOk = configuration?.LoadLibraries().Libraries
+            .Where(library => library.OkForLimitedProfiles)
+            .Select(library => library.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return new ContentLimitFilter(limit, videoLibrariesOk);
     }
 }
 
@@ -63,6 +82,17 @@ internal static class ContentRatingSql
     {
         static string One(string id) =>
             $"(SELECT GROUP_CONCAT(NULLIF(TRIM(value), ''), '|') FROM canonical_values WHERE entity_id = {id} AND key IN ('content_rating', 'certification'))";
-        return $"COALESCE({One(work)}, {One(root)}, {One(asset)})";
+        return WithExplicit(work, root, asset, $"COALESCE({One(work)}, {One(root)}, {One(asset)})");
+    }
+
+    /// <summary>
+    /// An item or series a person marked Explicit counts as adults-only, so no limit below "Everything" lets it through.
+    /// Wraps a rating expression so every reader that feeds a content-limit check agrees on that.
+    /// </summary>
+    public static string WithExplicit(string work, string root, string asset, string rating)
+    {
+        static string Marked(string id) =>
+            $"EXISTS (SELECT 1 FROM canonical_values WHERE entity_id = {id} AND key = 'explicit' AND value = 'true')";
+        return $"CASE WHEN {Marked(work)} OR {Marked(root)} OR {Marked(asset)} THEN 'NC-17' ELSE {rating} END";
     }
 }

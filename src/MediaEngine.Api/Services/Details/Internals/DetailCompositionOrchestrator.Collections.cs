@@ -1093,12 +1093,12 @@ internal sealed partial class DetailCompositionOrchestrator
             FROM works w
             WHERE w.id = @rootWorkId
               AND (
-                  LOWER(w.media_type) IN ('tv', 'television', 'tv show', 'tv shows')
+                  LOWER(w.media_type) IN ('tv', 'television', 'tv show', 'tv shows', 'videos')
                   OR EXISTS (
                       SELECT 1
                       FROM works child
                       WHERE child.parent_work_id = w.id
-                        AND LOWER(child.media_type) IN ('tv', 'television', 'tv show', 'tv shows')
+                        AND LOWER(child.media_type) IN ('tv', 'television', 'tv show', 'tv shows', 'videos')
                       LIMIT 1
                   )
                   OR EXISTS (
@@ -1106,7 +1106,7 @@ internal sealed partial class DetailCompositionOrchestrator
                       FROM works season
                       INNER JOIN works episode ON episode.parent_work_id = season.id
                       WHERE season.parent_work_id = w.id
-                        AND LOWER(episode.media_type) IN ('tv', 'television', 'tv show', 'tv shows')
+                        AND LOWER(episode.media_type) IN ('tv', 'television', 'tv show', 'tv shows', 'videos')
                       LIMIT 1
                   )
               )

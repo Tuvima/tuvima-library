@@ -12,6 +12,9 @@ public interface IItemCanonicalRepository
         IReadOnlyDictionary<string, string> overrides,
         CancellationToken ct = default);
 
+    /// <summary>The media type name stored on a work ("Videos", "Movies" and so on), or null when there is no such work.</summary>
+    Task<string?> GetWorkMediaTypeAsync(Guid workId, CancellationToken ct = default);
+
     Task<Guid?> ResolveWorkIdForAssetAsync(Guid assetId, CancellationToken ct = default);
     Task<ItemCanonicalWorkWikidataState?> LoadWorkWikidataStateAsync(Guid workId, CancellationToken ct = default);
     Task UpdateWorkIdentityAsync(Guid workId, string wikidataQid, CancellationToken ct = default);

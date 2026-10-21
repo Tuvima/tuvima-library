@@ -66,4 +66,45 @@ public sealed class DetailEditActionTests
         Assert.Equal(DetailEditAction.UpdatingReason, action.Tooltip);
         Assert.False(string.IsNullOrWhiteSpace(action.Tooltip));
     }
+
+    [Fact]
+    public void VideoShortcuts_OfferIdentifyAndChangeThumbnail_ForAVideoThatIsNotMatched()
+    {
+        var actions = DetailEditAction.BuildVideoShortcuts(matched: false, updatingDetails: false).ToList();
+
+        Assert.Equal(["identify", "change-thumbnail"], actions.Select(action => action.Key));
+        Assert.Equal(["Identify", "Change thumbnail"], actions.Select(action => action.Label));
+        Assert.All(actions, action => Assert.False(action.IsDisabled));
+    }
+
+    [Fact]
+    public void VideoShortcuts_LeaveOutIdentify_OnceTheVideoIsMatched()
+    {
+        var action = Assert.Single(DetailEditAction.BuildVideoShortcuts(matched: true, updatingDetails: false));
+
+        Assert.Equal("change-thumbnail", action.Key);
+    }
+
+    [Fact]
+    public void VideoShortcuts_StayInTheMenuDisabledWithTheReasonWhileTheItemIsProcessing()
+    {
+        var actions = DetailEditAction.BuildVideoShortcuts(matched: false, updatingDetails: true).ToList();
+
+        Assert.All(actions, action =>
+        {
+            Assert.True(action.IsDisabled);
+            Assert.Equal(DetailEditAction.UpdatingReason, action.Tooltip);
+        });
+    }
+
+    [Theory]
+    [InlineData("edit", true, true)]
+    [InlineData("identify", true, true)]
+    [InlineData("change-thumbnail", true, true)]
+    [InlineData("identify", false, false)]
+    [InlineData("change-thumbnail", false, false)]
+    public void TheShortcuts_FollowTheSamePermissionAsEdit(string key, bool canManageMetadata, bool expected)
+    {
+        Assert.Equal(expected, new DetailActionAuthorizationContext(canManageMetadata).Allows(key));
+    }
 }

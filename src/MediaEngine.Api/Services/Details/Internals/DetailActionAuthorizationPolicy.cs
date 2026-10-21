@@ -11,7 +11,7 @@ internal readonly record struct DetailActionAuthorizationContext(bool CanManageM
 {
     public bool Allows(string actionKey) => actionKey switch
     {
-        "edit" => CanManageMetadata,
+        "edit" or "identify" or "change-thumbnail" => CanManageMetadata,
         _ => false,
     };
 }

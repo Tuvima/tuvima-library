@@ -81,6 +81,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddHostedService<ViewSharedContributionHostedService>();
         services.AddSingleton<LibraryReorganizationService>();
         services.AddSingleton<LibraryItemDeletionService>();
+        services.AddSingleton(sp => new MediaEngine.Api.Services.Libraries.RecycleBinService(
+            sp.GetRequiredService<AssetPathService>().DataRoot,
+            sp.GetRequiredService<ILoggerFactory>().CreateLogger("MediaEngine.Api.Services.Libraries.RecycleBinService")));
         services.AddSingleton<ExcludedFileService>();
         services.AddSingleton<FolderJobService>();
         services.AddSingleton<ServerFolderBrowserService>();
@@ -148,6 +151,8 @@ public static class TuvimaStorageServiceCollectionExtensions
             (IAiFeaturePersistenceRepository)sp.GetRequiredService<ICanonicalValueRepository>());
         services.AddSingleton<IPersonRepository, PersonRepository>();
         services.AddSingleton<IWorkRepository, WorkRepository>();
+        services.AddSingleton<IVideoOrderRepository, VideoOrderRepository>();
+        services.AddSingleton<IVideoSeriesRepository, VideoSeriesRepository>();
         services.AddSingleton<ISeriesManifestRepository, SeriesManifestRepository>();
         services.AddSingleton<ISeriesPlacementRepository, SeriesPlacementRepository>();
         services.AddSingleton<IBookFormatSiblingFinder, BookFormatSiblingFinder>();
