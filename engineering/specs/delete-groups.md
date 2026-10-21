@@ -154,7 +154,7 @@ Everywhere else, open screens drop the group live, without a reload.
 
 - **L1.** On a small test library with a show of two seasons: delete Season 2 from the show page. The dialog lists its episodes and files; Season 1 stays; the toast reports space freed.
 - **L2.** Delete the last remaining season: the dialog warns the show goes too.
-- **L3.** Delete an album and a Series on real files in `Z:\Development\testing\media\real_media` copies (never originals): files leave the disk, as-is folders keep theirs.
+- **L3.** Delete an album and a Series on real files in `C:\Temp\real_import` copies (never originals): files leave the disk, as-is folders keep theirs.
 - **L4.** Turn **Recycle bin** on for TV and repeat L1: files go to the bin, and the dialog says so.
 - **L5.** Delete a whole show: the dialog asks you to type its name, and the red button stays off until it matches; delete one small season: no typing.
 - **L6.** Move a few items to the Recycle bin, then open it as a Kids profile: only allowed items are named, the rest read "Other media" with a total; Ask to keep reaches your admin profile.
