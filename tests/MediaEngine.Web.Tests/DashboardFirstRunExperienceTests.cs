@@ -120,7 +120,8 @@ public sealed class DashboardFirstRunExperienceTests
         Assert.Contains("SetupStageFooter", readiness, StringComparison.Ordinal);
         Assert.Contains("ProviderOnboardingDialog", providers, StringComparison.Ordinal);
         Assert.Contains("ProviderOnboardingDialog", metadataSettings, StringComparison.Ordinal);
-        Assert.Contains("provider.MediaTypes.Any(ConfiguredMediaTypes.Contains)", providers, StringComparison.Ordinal);
+        Assert.DoesNotContain("setup-needs", providers, StringComparison.Ordinal);
+        Assert.DoesNotContain("What your library needs", providers, StringComparison.Ordinal);
         Assert.Contains("Skip for now", providers, StringComparison.Ordinal);
         Assert.DoesNotContain("Set up later", providers, StringComparison.Ordinal);
         Assert.DoesNotContain("TMDB", providers, StringComparison.OrdinalIgnoreCase);

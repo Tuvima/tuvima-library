@@ -52,6 +52,9 @@ public sealed partial class EngineApiClient
     public Task<SetupPreflightDto?> RunSetupPreflightAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<SetupPreflightDto>(HttpMethod.Post, "/setup/v1/preflight", JsonContent.Create(new { }), setupSession, ct);
 
+    public Task<ToolRequirementsDto?> GetSetupToolRequirementsAsync(string? setupSession, CancellationToken ct = default) =>
+        SetupSendAsync<ToolRequirementsDto>(HttpMethod.Get, "/setup/v1/tools", null, setupSession, ct);
+
     public async Task<SetupAdministratorOutcome> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default)
     {
         try

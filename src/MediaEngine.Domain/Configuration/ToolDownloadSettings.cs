@@ -5,11 +5,19 @@ namespace MediaEngine.Domain.Configuration;
 /// <summary>
 /// The exact builds of FFmpeg and Tesseract the Library may fetch when the person asks, loaded from
 /// <c>config/tool_downloads.json</c>. Every entry is a fixed address and the SHA-256 value the download (and, for
-/// FFmpeg, each program inside it) must match. A missing file means the pinned values below. Nothing here is ever
-/// fetched by itself.
+/// FFmpeg, each program inside it) must match. A missing file means the pinned values below. FFmpeg is fetched by the
+/// Library on its own only while it is missing and <see cref="AutoInstallRequired"/> is on; everything else is fetched
+/// only when the person asks.
 /// </summary>
 public sealed class ToolDownloadSettings
 {
+    /// <summary>
+    /// When true (the default), a Required tool the Library can fetch here (today FFmpeg) is downloaded by itself at
+    /// first-run setup and at Engine start-up whenever it is missing. Turn it off to keep the older "offer only" behaviour.
+    /// </summary>
+    [JsonPropertyName("auto_install_required")]
+    public bool AutoInstallRequired { get; set; } = true;
+
     /// <summary>The only host a download may come from.</summary>
     public const string AllowedHost = "github.com";
 
@@ -119,27 +127,27 @@ public sealed class FfmpegDownload
 
     /// <summary>The version label shown to the person and written to the activity log.</summary>
     [JsonPropertyName("version")]
-    public string Version { get; set; } = "9.0.1";
+    public string Version { get; set; } = "9.0.2";
 
     [JsonPropertyName("url")]
     public string Url { get; set; } =
-        "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-28-17-08/ffmpeg-n9.0.1-11-ge47273f4d9-win64-gpl-9.0.zip";
+        "https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip";
 
     /// <summary>SHA-256 of the whole archive.</summary>
     [JsonPropertyName("sha256")]
-    public string Sha256 { get; set; } = "DEE63142094F79F6A50CDECE65384B7793181EAB3B6DB2EC907834981BB8AB10";
+    public string Sha256 { get; set; } = "60F467265B1E312373DBCD92200C2618A74850F98D3D078E94296BB3FA2047BA";
 
     /// <summary>The programs taken out of the archive by file name, each with the SHA-256 it must have once extracted.</summary>
     [JsonPropertyName("files")]
     public List<ExtractedFile> Files { get; set; } =
     [
-        new() { Name = "ffmpeg.exe", Sha256 = "989A60089B9B1A98896A5BD99EE793AB6841724E1B2441D5EF3E5D17DB0B0938" },
-        new() { Name = "ffprobe.exe", Sha256 = "001D80FDDF67BC303E91C6B8ECCDF53AF29A5F87ECF3837056B391CC3DD3F7B4" },
+        new() { Name = "ffmpeg.exe", Sha256 = "3256173F3F8BFFD7DF12227C68ADF68025EDB1832273A9530688A7BB1ED8EDEC" },
+        new() { Name = "ffprobe.exe", Sha256 = "F0D36ECBBDD3BCFAC3EFA078C96C7271C2E68B3810595552AC3B7F17E9A65C52" },
     ];
 
     /// <summary>File names, in order of preference, of the licence inside the archive. The first found is saved as <c>LICENSE.txt</c>.</summary>
     [JsonPropertyName("license_names")]
-    public List<string> LicenseNames { get; set; } = ["LICENSE.txt", "COPYING.GPLv3"];
+    public List<string> LicenseNames { get; set; } = ["LICENSE.txt", "COPYING.GPLv3", "LICENSE"];
 
     internal bool IsValid() =>
         Platform == ToolDownloadSettings.WindowsX64

@@ -53,7 +53,7 @@ public sealed class SourceMutationPolicyGate : ISourceMutationPolicyGate
 
         if (request.Source.ManagementMode == FileSourceManagementMode.ExistingLibrary)
         {
-            return SourceMutationDecision.Deny("As-is folders are read-only: they cannot be changed, tagged, cleaned up or used as a destination.");
+            return SourceMutationDecision.Deny("Read-only folders cannot be changed: they cannot be changed, tagged, cleaned up or used as a destination.");
         }
 
         if (request.Source.ManagementMode != FileSourceManagementMode.ManagedByTuvima)

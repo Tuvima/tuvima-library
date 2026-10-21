@@ -406,11 +406,15 @@
     transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
 }
 
+/* The slot is as tall as the row and centres the toggle on the row's middle, the same line as the icon and label beside it,
+   whatever height the shared icon button takes (36px on desktop, 44px on touch). */
 .media-section-shell__tree-chevron-slot {
-    display: grid;
+    display: flex;
     width: 32px;
-    height: 32px;
-    place-items: center;
+    align-self: stretch;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
     color: rgba(203, 213, 225, 0.64);
 }
 
