@@ -191,12 +191,39 @@ Use reverse-DNS style ids when possible, such as `com.example.sample-plugin`.
 
 The Library checks these fields before a plugin can be switched on:
 
-- `kind` is one of `official` (an in-process .NET plugin, today's contract), `declarative` (JSON only), `service` (a separate program) or `sandboxed` (WebAssembly). It defaults to `official`. Only `official` plugins run in this version of the Library; a manifest of any other kind loads without an error but cannot be switched on ("This kind of plugin (...) is not supported by this version of the Library yet.").
+- `kind` is one of `official` (an in-process .NET plugin, today's contract), `declarative` (JSON only), `service` (a separate program) or `sandboxed` (WebAssembly). It defaults to `official`. `official` and `declarative` plugins run in this version of the Library; a manifest of kind `service` or `sandboxed` loads without an error but cannot be switched on ("This kind of plugin (...) is not supported by this version of the Library yet.").
 - `minimum_library_version` (default `1.0.0`) and the optional `maximum_library_version` (inclusive; `null` or absent for no upper limit) are `major.minor.patch` versions. Any `-prerelease` or `+build` suffix on the Library version is ignored when comparing. A malformed version is a load error.
 - `supported_platforms` lists runtime identifiers for an exact match (`win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `linux-musl-x64`, `osx-x64`, `osx-arm64`, and the other `x86`/`x64`/`arm`/`arm64` combinations) or an operating-system family (`windows`, `linux`, `macos`) that matches any architecture. An empty list means every platform. An unknown value is a load error that names the value.
 - Each capability may list the `fields` it supplies (for example `series_position`); the list defaults to empty.
 
 The trust level shown in Settings > Plugins is decided by the Library, never by the manifest: built-in plugins are `official`, and anything loaded from the plugins folder is `private` (sideloaded), even if its manifest says `"kind": "official"`. Verified and community levels arrive with the plugin directory and signed releases.
+
+## JSON-only plugins
+
+A plugin of kind `declarative` has no code at all: a `plugin.json` in its own folder under the plugins folder, with a `declarative` section. The Library does the work, so what the plugin can do is exactly what its manifest says and the administrator approved. The section may hold any of three lists, and a file that breaks a rule is refused with a sentence saying what to change (it shows on the plugin's card as the problem).
+
+```json
+{
+  "id": "com.example.channels",
+  "name": "Example channels",
+  "kind": "declarative",
+  "permissions": ["network.http", "scheduled-work", "plugin-records", "ai.infer"],
+  "network": [{ "host": "lists.example.com", "sends": "Nothing; it only downloads the list" }],
+  "ai_permissions": [{ "role": "text_fast", "max_tokens": 200, "schedule": "on-demand", "resource_class": "ai" }],
+  "declarative": {
+    "channel_sources": [
+      { "key": "main", "name": "Main channels", "format": "m3u", "url": "https://lists.example.com/a.m3u", "refresh": "6h" }
+    ],
+    "ai_steps": [
+      { "key": "summarise", "name": "Summarise", "role": "text_fast", "prompt": "Summarise this in one sentence: {text}", "max_tokens": 120 }
+    ]
+  }
+}
+```
+
+- **`channel_sources`** fetch a channel list (`m3u`) or programme guide (`xmltv`) from an `https://` address on a schedule (`refresh` is a cron text or an interval of at least five minutes; the default is every six hours) and keep the latest result as the plugin's own record in the `channels` collection. The address must be listed under `network`, and the plugin must ask for `network.http`, `scheduled-work` and `plugin-records`. Each source shows in the plugin's jobs as `channels-{key}`.
+- **`ai_steps`** send a prompt to Local AI as the plugin. `{name}` placeholders are filled from the inputs given when the step is run (`POST /plugins/{pluginId}/ai-steps/{stepKey}/run` with `{ "inputs": { "text": "..." } }`). The plugin must ask for `ai.infer` and list the step's `role` under `ai_permissions`; the answer comes back as `status` (`succeeded`, `refused`, `ai_unavailable`, `busy`, `over_allowance`, `timed_out`, `invalid_answer` or `failed`) so a caller can carry on without AI. Add `json_grammar` to require a JSON answer.
+- **`metadata_sources`** hold a provider in the same format as the files in `config/providers/` (it needs a `name`, a JSON `adapter_type` such as `config_driven` or `text_track`, and `https://` endpoints). They are checked and listed now; the Library starts using them when providers move under Plugins.
 
 ## Expose settings clearly
 

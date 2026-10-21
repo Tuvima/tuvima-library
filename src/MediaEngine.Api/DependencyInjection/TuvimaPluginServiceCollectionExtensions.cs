@@ -1,5 +1,6 @@
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
+using MediaEngine.Api.Services.Plugins.Declarative;
 using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Plugin.CommercialSkip;
 using MediaEngine.Plugin.FandomLore;
@@ -25,6 +26,7 @@ public static class TuvimaPluginServiceCollectionExtensions
             typeof(FandomLorePlugin).Assembly,
             typeof(IntroSkipPlugin).Assembly);
         services.AddSingleton<AiFeatureRetractionService>();
+        services.AddSingleton<DeclarativeAiStepRunner>();
         services.AddSingleton<PluginSettingsService>();
         services.AddSingleton<IPluginApprovalCheck, PluginApprovalCheck>();
         services.AddSingleton<PluginCatalog>();

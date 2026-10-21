@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Api.Services.LocalAi;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
+using MediaEngine.Api.Services.Plugins.Declarative;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.Plugins;
@@ -132,7 +133,7 @@ internal static class PluginEndpoints
         .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
-        group.MapPost("/{pluginId}/disable", async (string pluginId, PluginCatalog catalog, AiFeatureRetractionService retraction, CancellationToken ct) =>
+        group.MapPost("/{pluginId}/disable", async (string pluginId, PluginCatalog catalog, [FromServices] AiFeatureRetractionService retraction, CancellationToken ct) =>
         {
             catalog.SetEnabled(pluginId, false);
 
@@ -142,6 +143,30 @@ internal static class PluginEndpoints
         })
         .WithName("DisablePlugin")
         .Produces<PluginEnabledResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPost("/{pluginId}/ai-steps/{stepKey}/run", async (
+            string pluginId,
+            string stepKey,
+            PluginAiStepRunRequest request,
+            [FromServices] DeclarativeAiStepRunner runner,
+            CancellationToken ct) =>
+        {
+            var result = await runner.RunAsync(pluginId, stepKey, request.inputs, ct);
+            return result is null
+                ? ApiErrors.NotFound($"Plugin '{pluginId}' has no AI step '{stepKey}'.")
+                : Results.Ok(new PluginAiStepRunResponse
+                {
+                    plugin_id = pluginId,
+                    step = stepKey,
+                    status = AiStepStatusWord(result.Status),
+                    message = result.Message,
+                    text = result.Text,
+                });
+        })
+        .WithName("RunPluginAiStep")
+        .WithSummary("Run an AI step a JSON-only plugin declared. The plugin must be switched on and approved; Local AI answers as that plugin.")
+        .Produces<PluginAiStepRunResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
         group.MapPut("/{pluginId}/settings", (
@@ -508,6 +533,18 @@ internal static class PluginEndpoints
     /// statement's hash (the person confirmed it), which is recorded first. Anything else is an approval-required 409.
     /// A plugin that cannot work here keeps its own plain-English 409 and is never asked about.
     /// </summary>
+    private static string AiStepStatusWord(PluginAiStatus status) => status switch
+    {
+        PluginAiStatus.Succeeded => "succeeded",
+        PluginAiStatus.Refused => "refused",
+        PluginAiStatus.AiUnavailable => "ai_unavailable",
+        PluginAiStatus.Busy => "busy",
+        PluginAiStatus.OverAllowance => "over_allowance",
+        PluginAiStatus.TimedOut => "timed_out",
+        PluginAiStatus.InvalidAnswer => "invalid_answer",
+        _ => "failed",
+    };
+
     internal static async Task<IResult> EnablePlugin(
         string pluginId,
         [FromBody] PluginEnableRequest? request,

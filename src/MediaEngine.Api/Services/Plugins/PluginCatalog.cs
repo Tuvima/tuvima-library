@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
+using MediaEngine.Api.Services.Plugins.Declarative;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
 using MediaEngine.Storage.Contracts;
@@ -514,6 +515,16 @@ public sealed class PluginCatalog
                 if (manifest is not null && PluginCompatibility.ValidateManifest(manifest) is { } invalidManifest)
                 {
                     results.Add(LoadFailure(manifest, invalidManifest, manifestPath));
+                    continue;
+                }
+
+                if (manifest is not null && manifest.Kind == PluginKind.Declarative)
+                {
+                    // A plugin that is only JSON: no code is loaded; the Library reads the description and checks it.
+                    var (declarative, problem) = DeclarativePlugin.TryCreate(manifest);
+                    results.Add(declarative is null
+                        ? LoadFailure(manifest, problem ?? "The plugin description could not be read.", manifestPath)
+                        : BuildRegistration(declarative, manifest, isBuiltIn: false, loadError: null, manifestPath: manifestPath));
                     continue;
                 }
 

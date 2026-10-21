@@ -72,11 +72,18 @@ public sealed record PluginManifest
     [JsonPropertyName("default_settings")]
     public Dictionary<string, JsonElement> DefaultSettings { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// What a plugin of kind <see cref="PluginKind.Declarative"/> does, described in JSON: <c>ai_steps</c>,
+    /// <c>channel_sources</c> and <c>metadata_sources</c>. Ignored by other kinds.
+    /// </summary>
+    [JsonPropertyName("declarative")]
+    public JsonElement? Declarative { get; init; }
+
     [JsonPropertyName("settings_schema")]
     public JsonElement? SettingsSchema { get; init; }
 }
 
-/// <summary>How a plugin runs. Only <see cref="Official"/> can run in this version of the Library.</summary>
+/// <summary>How a plugin runs. <see cref="Official"/> and <see cref="Declarative"/> run in this version of the Library.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<PluginKind>))]
 public enum PluginKind
 {

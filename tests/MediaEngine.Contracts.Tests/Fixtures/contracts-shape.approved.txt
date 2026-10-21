@@ -6479,6 +6479,16 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginAiPermissionDt
   Schedule: System.String | nullability=not-null | accessors=get,set
   ResourceClass: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginAiStepRunRequest
+  inputs: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginAiStepRunResponse
+  plugin_id: System.String | nullability=not-null | accessors=get,init
+  step: System.String | nullability=not-null | accessors=get,init
+  status: System.String | nullability=not-null | accessors=get,init
+  message: System.String | nullability=not-null | accessors=get,init
+  text: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginApplicationOperationDto
   OperationId: System.String | nullability=not-null | accessors=get,init
   PluginId: System.String | nullability=not-null | accessors=get,init

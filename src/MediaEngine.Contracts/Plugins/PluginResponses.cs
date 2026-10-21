@@ -23,6 +23,25 @@ public sealed record PluginSavedResponse
     public bool saved { get; init; }
 }
 
+/// <summary>Body of <c>POST /plugins/{pluginId}/ai-steps/{stepKey}/run</c>: the values for the step's <c>{name}</c> placeholders.</summary>
+public sealed record PluginAiStepRunRequest
+{
+    public Dictionary<string, string> inputs { get; init; } = new(StringComparer.Ordinal);
+}
+
+/// <summary>
+/// Response for <c>POST /plugins/{pluginId}/ai-steps/{stepKey}/run</c>. <c>status</c> is one of succeeded, refused,
+/// ai_unavailable, busy, over_allowance, timed_out, invalid_answer or failed; <c>text</c> is set only when it succeeded.
+/// </summary>
+public sealed record PluginAiStepRunResponse
+{
+    public string plugin_id { get; init; } = string.Empty;
+    public string step { get; init; } = string.Empty;
+    public string status { get; init; } = string.Empty;
+    public string message { get; init; } = string.Empty;
+    public string? text { get; init; }
+}
+
 /// <summary>
 /// Response for <c>GET /plugins/{pluginId}/manifest</c>.
 /// </summary>
