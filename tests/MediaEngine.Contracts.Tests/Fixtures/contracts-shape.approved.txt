@@ -725,6 +725,16 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Applic
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ApplicationTypeDto
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ApplicationWebhookAttemptResponse
+  AttemptId: System.Guid | nullability=not-null | accessors=get,init
+  EventType: System.String | nullability=not-null | accessors=get,init
+  AttemptNumber: System.Int32 | nullability=not-null | accessors=get,init
+  AttemptedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  Delivered: System.Boolean | nullability=not-null | accessors=get,init
+  Result: System.String | nullability=not-null | accessors=get,init
+  DurationMs: System.Int64 | nullability=not-null | accessors=get,init
+  IsTest: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ApplicationWebhookResponse
   Id: System.Guid | nullability=not-null | accessors=get,init
   ApplicationId: System.Guid | nullability=not-null | accessors=get,init
@@ -5912,7 +5922,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackGeneralSet
   MarkCompleteThresholdPercent: System.Int32 | nullability=not-null | accessors=get,set
   TrackPartiallyPlayedItems: System.Boolean | nullability=not-null | accessors=get,set
   SyncProgressBetweenBookAndAudiobook: System.Boolean | nullability=not-null | accessors=get,set
-  SpoilerSafeProgress: System.Boolean | nullability=not-null | accessors=get,set
+  SpoilerLevel: System.String | nullability=not-null | accessors=get,set
   SyncAcrossDevices: System.Boolean | nullability=not-null | accessors=get,set
   SyncFrequencyMinutes: System.Int32 | nullability=not-null | accessors=get,set
   UseBannerArtWhenAvailable: System.Boolean | nullability=not-null | accessors=get,set
@@ -6339,29 +6349,6 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.WatchingSettingsDt
   RememberPerTitlePlaybackSpeed: System.Boolean | nullability=not-null | accessors=get,set
   PreferredVideoQuality: System.String | nullability=not-null | accessors=get,set
 
-MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.ApprovedPluginCatalogDto
-  SchemaVersion: System.String | nullability=not-null | accessors=get,set
-  SourceUrl: System.String | nullability=not-null | accessors=get,set
-  LastUpdated: System.DateTimeOffset? | nullability=nullable | accessors=get,set
-  Status: System.String | nullability=not-null | accessors=get,set
-  Message: System.String | nullability=nullable | accessors=get,set
-  Plugins: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.ApprovedPluginDto> | nullability=not-null | accessors=get,set
-
-MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.ApprovedPluginDto
-  Id: System.String | nullability=not-null | accessors=get,set
-  Name: System.String | nullability=not-null | accessors=get,set
-  Version: System.String | nullability=not-null | accessors=get,set
-  Description: System.String | nullability=not-null | accessors=get,set
-  Author: System.String | nullability=not-null | accessors=get,set
-  Status: System.String | nullability=not-null | accessors=get,set
-  RepositoryUrl: System.String | nullability=nullable | accessors=get,set
-  ReleaseUrl: System.String | nullability=nullable | accessors=get,set
-  PackageUrl: System.String | nullability=nullable | accessors=get,set
-  Sha256: System.String | nullability=nullable | accessors=get,set
-  MinimumLibraryVersion: System.String | nullability=not-null | accessors=get,set
-  Capabilities: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
-  InstallNotes: System.String | nullability=nullable | accessors=get,set
-
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.DiscoverUniverseLoreSourcesRequest
   UniverseQid: System.String | nullability=not-null | accessors=get,init
 
@@ -6395,6 +6382,47 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeletedRespons
   plugin_id: System.String | nullability=not-null | accessors=get,init
   deleted: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectoryEntryDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Author: System.String | nullability=not-null | accessors=get,set
+  Description: System.String | nullability=not-null | accessors=get,set
+  Version: System.String | nullability=not-null | accessors=get,set
+  Kind: System.String | nullability=not-null | accessors=get,set
+  TrustLevel: System.String | nullability=not-null | accessors=get,set
+  TrustWarning: System.String | nullability=nullable | accessors=get,set
+  Permissions: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  AllowedTo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Network: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNetworkDestinationDto> | nullability=not-null | accessors=get,set
+  Capabilities: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  MinimumLibraryVersion: System.String | nullability=not-null | accessors=get,set
+  MaximumLibraryVersion: System.String | nullability=nullable | accessors=get,set
+  SupportedPlatforms: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  RepositoryUrl: System.String | nullability=nullable | accessors=get,set
+  ReleaseUrl: System.String | nullability=nullable | accessors=get,set
+  PackageUrl: System.String | nullability=nullable | accessors=get,set
+  Sha256: System.String | nullability=nullable | accessors=get,set
+  AddedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  IsNew: System.Boolean | nullability=not-null | accessors=get,set
+  IsInstalled: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectoryResponse
+  SchemaVersion: System.String | nullability=not-null | accessors=get,set
+  SourceUrl: System.String | nullability=not-null | accessors=get,set
+  UpdatedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  Status: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=nullable | accessors=get,set
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+  LastCheckedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  LastSuccessAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  NewCount: System.Int32 | nullability=not-null | accessors=get,set
+  SkippedCount: System.Int32 | nullability=not-null | accessors=get,set
+  InstallSupported: System.Boolean | nullability=not-null | accessors=get,set
+  Plugins: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginDirectoryEntryDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectorySettingsRequest
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginEnabledResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   enabled: System.Boolean | nullability=not-null | accessors=get,init
@@ -6408,6 +6436,21 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHealthResponse
   PluginId: System.String | nullability=not-null | accessors=get,set
   Status: System.String | nullability=not-null | accessors=get,set
   Checks: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginHealthCheckDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHostJobDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  State: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHostServicesDto
+  State: System.String | nullability=not-null | accessors=get,set
+  Problem: System.String | nullability=nullable | accessors=get,set
+  LastProblem: System.String | nullability=nullable | accessors=get,set
+  RecordsUsed: System.Int32 | nullability=not-null | accessors=get,set
+  RecordBytesUsed: System.Int64 | nullability=not-null | accessors=get,set
+  Jobs: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginHostJobDto> | nullability=not-null | accessors=get,set
+  EventSubscription: System.String | nullability=nullable | accessors=get,set
+  BackgroundService: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginJobSnapshot
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -6434,6 +6477,10 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginLoreSourceCand
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginManifestJsonResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   json: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginNetworkDestinationDto
+  Host: System.String | nullability=not-null | accessors=get,set
+  Sends: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSavedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
@@ -6472,9 +6519,11 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   ConfiguredSecrets: System.Int32 | nullability=not-null | accessors=get,set
   AllowedTo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   SendsDataTo: System.String | nullability=nullable | accessors=get,set
+  NetworkDestinations: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNetworkDestinationDto> | nullability=not-null | accessors=get,set
   Settings: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | nullability=not-null | accessors=get,set
   SettingsSchema: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,set
   ManifestPath: System.String | nullability=nullable | accessors=get,set
+  HostServices: MediaEngine.Contracts.Plugins.PluginHostServicesDto | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginToolPlatformDto
   Rid: System.String | nullability=not-null | accessors=get,set
@@ -6566,6 +6615,13 @@ MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ProfileResponseDto
   ContentLimit: System.String | nullability=nullable | accessors=get,init
   ContentLimitAllowUnrated: System.Boolean | nullability=not-null | accessors=get,init
   HasPin: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ProfileSpoilerPreferenceDto
+  ProfileId: System.Guid | nullability=not-null | accessors=get,init
+  SpoilerLevel: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.SaveProfileSpoilerPreferenceRequest
+  SpoilerLevel: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.TasteProfileDto
   UserId: System.Guid | nullability=not-null | accessors=get,init
@@ -8610,6 +8666,7 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.EntityAppearancesD
   TotalWorks: System.Int32 | nullability=not-null | accessors=get,init
   WorksWithoutCharacterData: System.Int32 | nullability=not-null | accessors=get,init
   WorksNotYetChecked: System.Int32 | nullability=not-null | accessors=get,init
+  HiddenForSpoilers: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.SharedEntityAppearanceDto
   work_qid: System.String | nullability=not-null | accessors=get,init
@@ -8809,6 +8866,7 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseClientDeta
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseConnectionsDto
   Characters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseCharacterDto> | nullability=not-null | accessors=get,init
   CharacterCount: System.Int32 | nullability=not-null | accessors=get,init
+  HiddenCharacterCount: System.Int32 | nullability=not-null | accessors=get,init
   Cast: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourcedCastMemberDto> | nullability=not-null | accessors=get,init
   Adaptations: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourcedAdaptationDto> | nullability=not-null | accessors=get,init
 

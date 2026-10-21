@@ -68,8 +68,8 @@ Core Engine settings. Most changes are read at startup. Ingestion sources and de
 | `country` | string | `"US"` | Country code. Used by providers that return region-specific data (e.g., Apple API storefronts). |
 | `date_format` | string | `"system"` | Date display format. `"system"` uses the OS locale. Accepts standard format strings. |
 | `time_format` | string | `"system"` | Time display format. `"system"` uses the OS locale. |
-| `plugin_catalog.enabled` | bool | `true` | Enables the read-only approved plugin catalog lookup used by Settings > Plugins. |
-| `plugin_catalog.approved_plugins_url` | string | GitHub raw URL | HTTPS GitHub URL for the approved plugin catalog JSON. The Engine accepts `raw.githubusercontent.com` or `github.com` sources only. |
+| `plugin_catalog.enabled` | bool | `true` | The plugin directory switch (Settings > Plugins > Available plugins). When `false` the Engine makes no request to GitHub and shows the saved copy, if there is one. |
+| `plugin_catalog.approved_plugins_url` | string | GitHub raw URL | HTTPS GitHub URL for the plugin directory list ([format](plugin-catalog.md)). The Engine accepts `raw.githubusercontent.com` or `github.com` sources only. |
 
 **Server data location and the `{TuvimaData}` placeholder.** The shipped `config/core.json` and `config/libraries.json` contain no absolute paths. A path that starts with `{TuvimaData}` is replaced when the file is loaded by the server's data location: the `TUVIMA_DATA_DIR` environment variable if set, otherwise `%LOCALAPPDATA%\Tuvima\data` on Windows and `~/.local/share/tuvima` on Linux and macOS. Tuvima's own library folder (storage location id `media`, which also holds the View personal space) is created there automatically the first time the server runs. It is never shown in a folder picker or asked about in setup; if it cannot be created or written, the silent server check in setup fails with one message naming the folder and the fix. The Docker image ships its own `docker/config` files that use `/library`, so containers are unchanged. No import folder is shipped: the `incoming` storage location does not exist until someone sets one in Libraries. The developer real-media harness writes its own paths into `real-media-harness.json` and the configuration it prepares; it does not rely on shipped paths.
 
@@ -412,7 +412,7 @@ This file is the authoritative configuration for all Wikidata-related behaviour.
 | `edition_pivot` | Per-media-type rules for walking from Wikidata edition items to work items. Previously stored in `edition-pivot.json` (now removed). Keys: `audiobooks`, `books`, `music`. Each has `work_classes`, `edition_classes`, and `prefer_edition`. |
 | `exclude_classes` | P31 classes to exclude from reconciliation results. |
 | `bridge_resolution.scopes` | Entity-scoped bridge-ID policy. Each scope declares `target_ids`, `context_ids`, and whether constrained text fallback is allowed. Music uses `MusicTrack` to prefer recording/work/ISRC IDs before Apple track IDs, while release/release-group/artist IDs stay contextual unless resolving `MusicAlbum`. |
-| `data_extension` | Properties fetched during the Data Extension API call after QID resolution. |
+| `data_extension` | Properties fetched during the Data Extension API call after QID resolution. A property is read only when it is in the group for its entity type (`work_properties`, `character_properties`, and so on) and has a `property_labels` entry. Character relationships include significant person (P3342) and enemy (P7047); Works carry based on (P144) and derivative work (P4969), which become adaptation links between Works. |
 
 **Removed config files (consolidated here):**
 - `config/cirrus-type-filters.json` - merged into `instance_of_classes`

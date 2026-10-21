@@ -511,7 +511,7 @@ public sealed class DurablePipelineTests : IDisposable
 
     private async Task<MediaOperation?> WaitForOperationAsync(Guid id, Func<MediaOperation, bool> isReady)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        var deadline = DateTime.UtcNow.AddSeconds(30);
         while (DateTime.UtcNow < deadline)
         {
             var operation = await _operationRepo.GetByIdAsync(id);

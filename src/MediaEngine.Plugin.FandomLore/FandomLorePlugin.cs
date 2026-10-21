@@ -31,6 +31,21 @@ public sealed class FandomLorePlugin : ITuvimaPlugin
             },
         ],
         Permissions = [PluginPermissionIds.NetworkHttp],
+        Network =
+        [
+            new PluginNetworkDestination
+            {
+                Host = "www.wikidata.org",
+                Sends = "Wikidata item IDs (QIDs) of Universes already in your Library, to find their Fandom wiki",
+                MaxRequestsPerMinute = 60,
+            },
+            new PluginNetworkDestination
+            {
+                Host = "*.fandom.com",
+                Sends = "Requests for the page list of a wiki you approved; nothing about your Library",
+                MaxRequestsPerMinute = 60,
+            },
+        ],
         SupportedPlatforms = [], // managed code and FFmpeg only: runs on every platform
         DefaultSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
         {

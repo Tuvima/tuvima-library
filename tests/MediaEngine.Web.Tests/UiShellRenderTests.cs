@@ -867,7 +867,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         {
             Assert.Empty(cut.FindAll(".tl-tabs"));
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
-            Assert.Equal(5, cut.FindAll(".playback-settings-card").Count);
+            // Five playback cards plus the Spoilers card (U-WP11), which sits with the profile's own preferences.
+            Assert.Equal(6, cut.FindAll(".playback-settings-card").Count);
+            Assert.Contains("Spoilers", cut.Markup);
             Assert.NotEmpty(cut.FindAll(".settings-section-header"));
             Assert.NotEmpty(cut.FindAll(".playback-preference-row"));
             Assert.Contains("Autoplay", cut.Markup);

@@ -138,6 +138,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IProfileWorkPreferencesRepository, ProfileWorkPreferencesRepository>();
         services.AddSingleton<IProfileSequencePreferencesRepository, ProfileSequencePreferencesRepository>();
         services.AddSingleton<IUniverseEnrichmentStatusRepository, UniverseEnrichmentStatusRepository>();
+        services.AddSingleton<IViewerProgressRepository, ViewerProgressRepository>();
         services.AddSingleton<ITasteProfileRepository, TasteProfileRepository>();
         services.AddSingleton<IProfileService, ProfileService>();
         services.AddSingleton<IAccountExternalLoginRepository, AccountExternalLoginRepository>();
@@ -178,6 +179,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IScheduledTaskRunRepository, ScheduledTaskRunRepository>();
         services.AddSingleton<IApprovalRecordRepository, ApprovalRecordRepository>();
         services.AddSingleton<IAiUsageRecordRepository, AiUsageRecordRepository>();
+        services.AddSingleton<IPluginRecordRepository, PluginRecordRepository>();
+        services.AddSingleton<IPluginEventCursorRepository, PluginEventCursorRepository>();
         services.AddSingleton<IAccountNoticeDismissalRepository, AccountNoticeDismissalRepository>();
         services.AddSingleton<IProfileNoticeDismissalRepository, ProfileNoticeDismissalRepository>();
         services.AddSingleton<IPersonalActivityRepository, PersonalActivityRepository>();
