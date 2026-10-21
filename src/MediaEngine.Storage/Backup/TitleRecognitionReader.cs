@@ -142,15 +142,25 @@ internal sealed class TitleRecognitionReader
         var edition = ReadEditionFields(editionId);
         var originals = Query(
             """
-            SELECT ma.id, ma.content_hash FROM media_assets ma
+            SELECT ma.content_hash FROM media_assets ma
             WHERE ma.edition_id = $id AND ma.rendition_purpose = 'Original'
             ORDER BY ma.content_hash LIMIT $cap
             """,
             ("$id", editionId),
             ("$cap", (long)FileHashCap));
 
+        // The running time comes from the edition's earliest-presented original (then the lowest id), so the same
+        // library always gives the same answer rather than whichever file sorts first by hash.
+        var primary = Query(
+            """
+            SELECT ma.id FROM media_assets ma
+            WHERE ma.edition_id = $id AND ma.rendition_purpose = 'Original'
+            ORDER BY ma.presented_at IS NULL, ma.presented_at, ma.id LIMIT 1
+            """,
+            ("$id", editionId));
+
         double? runningTime = null;
-        if (originals.Count > 0 && originals[0][0] is byte[] firstAsset)
+        if (primary.Count > 0 && primary[0][0] is byte[] firstAsset)
         {
             var duration = Query(
                 """
@@ -165,7 +175,7 @@ internal sealed class TitleRecognitionReader
         return edition with
         {
             Target = nameof(CatalogueTarget.Edition),
-            FileHashes = HashesOf(originals, 1),
+            FileHashes = HashesOf(originals, 0),
             RunningTimeSeconds = runningTime,
         };
     }

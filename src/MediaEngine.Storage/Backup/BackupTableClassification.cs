@@ -66,7 +66,7 @@ public static class BackupTableClassification
         Config("doc_field_values", "Values a person entered in custom document fields.", refs: [LocalItem("item_id")]),
         Config("local_item_tag_links", "Which tags a person put on which View item.", refs: [LocalItem("item_id")]),
         Config("doc_item_details", "Filing details a person entered for a document (machine suggestions are rebuilt).", refs: [LocalItem("item_id")], excluded: ["suggestions_json"]),
-        Config("excluded_source_files", "Files a person removed from the library and chose to keep out, so a rescan does not add them back."),
+        Config("excluded_source_files", "Files a person removed from the library and chose to keep out, so a rescan does not add them back.", excluded: ["title", "excluded_by_name"]),
         Config("collections", "Collections and playlists a person built; collections built from providers (universes and series) are rebuilt.", refs: [Other("universe_id"), Coll("parent_collection_id")], excluded: ["cover_artwork_path", "background_artwork_path", "banner_artwork_path", "logo_artwork_path"], keepWhere: PersonBuiltCollections),
         Config("collection_items", "The titles in a person-built collection.", refs: [Work("work_id")], keepWhere: InPersonBuiltCollection),
         Config("collection_placements", "Where a person-built collection appears.", keepWhere: InPersonBuiltCollection),

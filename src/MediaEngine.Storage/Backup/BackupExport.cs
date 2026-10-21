@@ -26,8 +26,8 @@ public abstract record BackupValue
     /// <summary>A BLOB.</summary>
     public static BackupValue FromBlob(byte[] value) => new Blob(value);
 
-    /// <summary>A reference to an exported title.</summary>
-    public static BackupValue FromTitleRef(string key) => new TitleRef(key);
+    /// <summary>A reference to an exported title. <paramref name="wasText"/> is true when the original value was a TEXT id.</summary>
+    public static BackupValue FromTitleRef(string key, bool wasText = false) => new TitleRef(key, wasText);
 
     /// <summary>SQL NULL.</summary>
     public sealed record NullValue : BackupValue;
@@ -41,8 +41,11 @@ public abstract record BackupValue
     /// <summary>A TEXT.</summary>
     public sealed record Text(string Value) : BackupValue;
 
-    /// <summary>A reference to a <see cref="BackupTitle"/> by its key (for example <c>t1</c>).</summary>
-    public sealed record TitleRef(string Key) : BackupValue;
+    /// <summary>
+    /// A reference to a <see cref="BackupTitle"/> by its key (for example <c>t1</c>). <paramref name="WasText"/> records
+    /// that the original value was a TEXT id rather than a 16-byte BLOB, so a restore writes back the same storage class.
+    /// </summary>
+    public sealed record TitleRef(string Key, bool WasText) : BackupValue;
 
     /// <summary>A BLOB. Equality compares the bytes.</summary>
     public sealed record Blob(byte[] Value) : BackupValue

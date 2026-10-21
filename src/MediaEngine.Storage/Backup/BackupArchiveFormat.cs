@@ -10,7 +10,8 @@ namespace MediaEngine.Storage.Backup;
 /// <c>data/configuration/&lt;table&gt;.json</c>, <c>data/personal/&lt;table&gt;.json</c>,
 /// <c>data/choices/&lt;table&gt;.json</c>, <c>data/titles.json</c> and <c>data/contents.json</c>. Values keep their
 /// SQLite storage class: JSON null, number (an integer has no fraction or exponent, a real always does),
-/// string, <c>{"b64": "..."}</c> for a BLOB and <c>{"title": "t1"}</c> for a reference to a title.
+/// string, <c>{"b64": "..."}</c> for a BLOB and <c>{"title": "t1"}</c> for a reference to a title (with
+/// <c>"text": true</c> when the original id was TEXT rather than a BLOB).
 /// </summary>
 public static class BackupArchiveFormat
 {
@@ -32,8 +33,14 @@ public static class BackupArchiveFormat
     /// <summary>What kind of backup this is, as written to <c>contents.json</c>.</summary>
     public const string ContentsKind = "settings-and-personal-state";
 
-    /// <summary>The largest entry accepted when reading, in bytes.</summary>
-    public const long MaxEntryBytes = 512L * 1024 * 1024;
+    /// <summary>The largest single entry accepted when reading, in bytes.</summary>
+    public const long MaxEntryBytes = 256L * 1024 * 1024;
+
+    /// <summary>The most uncompressed bytes accepted across all <c>data/</c> entries when reading.</summary>
+    public const long MaxTotalBytes = 2L * 1024 * 1024 * 1024;
+
+    /// <summary>The most entries accepted in an archive when reading.</summary>
+    public const int MaxEntries = 1000;
 
     private const string ConfigurationKind = "configuration";
     private const string PersonalKind = "personal_state";
@@ -67,10 +74,15 @@ public static class BackupArchiveFormat
     }
 
     /// <summary>
-    /// Reads what <see cref="Write"/> wrote. Entries outside <c>data/</c>, oversized entries, unknown value shapes and
-    /// references to a title that is not listed are refused with <see cref="InvalidDataException"/>.
+    /// Reads what <see cref="Write"/> wrote. Entries outside <c>data/</c>, duplicate entries, too many or oversized
+    /// entries, files for a table the backup never holds (or in the wrong folder), unknown columns or value shapes,
+    /// out-of-range numbers and references to a title that is not listed are refused with
+    /// <see cref="InvalidDataException"/>.
     /// </summary>
-    public static BackupExport Read(ZipArchive archive)
+    public static BackupExport Read(ZipArchive archive) => Read(archive, MaxEntries, MaxEntryBytes, MaxTotalBytes);
+
+    /// <summary><see cref="Read(ZipArchive)"/> with explicit limits, so a test can use small ones.</summary>
+    internal static BackupExport Read(ZipArchive archive, int maxEntries, long maxEntryBytes, long maxTotalBytes)
     {
         ArgumentNullException.ThrowIfNull(archive);
 
@@ -80,6 +92,28 @@ public static class BackupArchiveFormat
         JsonDocument? contentsDocument = null;
         try
         {
+            if (archive.Entries.Count > maxEntries)
+            {
+                throw new InvalidDataException("The backup holds too many entries.");
+            }
+
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            var declaredBytes = 0L;
+            foreach (var entry in archive.Entries)
+            {
+                if (!names.Add(entry.FullName))
+                {
+                    throw new InvalidDataException($"The backup holds the entry {entry.FullName} more than once.");
+                }
+
+                declaredBytes += entry.Length;
+                if (declaredBytes > maxTotalBytes)
+                {
+                    throw new InvalidDataException("The backup is too large.");
+                }
+            }
+
+            var budget = new ReadBudget(maxEntryBytes, maxTotalBytes);
             foreach (var entry in archive.Entries)
             {
                 var name = entry.FullName;
@@ -98,16 +132,17 @@ public static class BackupArchiveFormat
 
                 if (name == ContentsEntry)
                 {
-                    contentsDocument = ParseEntry(entry);
+                    contentsDocument = ParseEntry(entry, budget);
                 }
                 else if (name == TitlesEntry)
                 {
-                    titlesDocument = ParseEntry(entry);
+                    titlesDocument = ParseEntry(entry, budget);
                 }
                 else if (TryTableEntry(name, out var folder, out var table))
                 {
-                    using var document = ParseEntry(entry);
-                    var (parsed, kind) = ReadTable(document.RootElement, table);
+                    var rule = RuleFor(folder, table);
+                    using var document = ParseEntry(entry, budget);
+                    var (parsed, kind) = ReadTable(document.RootElement, table, rule, folder == ChoicesFolder);
                     var expected = folder switch
                     {
                         ConfigurationFolder => ConfigurationKind,
@@ -146,6 +181,11 @@ public static class BackupArchiveFormat
             }
 
             return new BackupExport(tables, choices, titles, ReadContents(contentsDocument.RootElement));
+        }
+        catch (Exception ex) when (ex is FormatException or OverflowException or InvalidOperationException)
+        {
+            // A JSON value the reader cannot convert (a number or string of the wrong shape) is a bad backup, not a bug.
+            throw new InvalidDataException("The backup holds a value that is not valid.", ex);
         }
         finally
         {
@@ -320,6 +360,11 @@ public static class BackupArchiveFormat
             case BackupValue.TitleRef reference:
                 writer.WriteStartObject();
                 writer.WriteString("title", reference.Key);
+                if (reference.WasText)
+                {
+                    writer.WriteBoolean("text", true);
+                }
+
                 writer.WriteEndObject();
                 break;
             default:
@@ -360,9 +405,17 @@ public static class BackupArchiveFormat
     // Reading
     // ---------------------------------------------------------------------------------------------------------
 
-    private static JsonDocument ParseEntry(ZipArchiveEntry entry)
+    /// <summary>What is left of the read budget: the per-entry cap, and the bytes still allowed across all entries.</summary>
+    private sealed class ReadBudget(long maxEntryBytes, long totalBytes)
     {
-        if (entry.Length > MaxEntryBytes)
+        public long MaxEntryBytes { get; } = maxEntryBytes;
+
+        public long Remaining { get; set; } = totalBytes;
+    }
+
+    private static JsonDocument ParseEntry(ZipArchiveEntry entry, ReadBudget budget)
+    {
+        if (entry.Length > budget.MaxEntryBytes)
         {
             throw new InvalidDataException($"The backup entry {entry.FullName} is too large.");
         }
@@ -373,7 +426,9 @@ public static class BackupArchiveFormat
         int read;
         while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
         {
-            if (buffer.Length + read > MaxEntryBytes)
+            // The declared length can lie, so the bytes actually read are counted too.
+            budget.Remaining -= read;
+            if (buffer.Length + read > budget.MaxEntryBytes || budget.Remaining < 0)
             {
                 throw new InvalidDataException($"The backup entry {entry.FullName} is too large.");
             }
@@ -390,6 +445,28 @@ public static class BackupArchiveFormat
         {
             throw new InvalidDataException($"The backup entry {entry.FullName} is not valid.", ex);
         }
+    }
+
+    /// <summary>
+    /// The rule for a table file, or a refusal. The table must be classified under exactly that name; a file in the
+    /// configuration folder must be for a Configuration table, in the personal folder a PersonalState table, and in the
+    /// choices folder a Catalogue table that has choice columns. A file for any other table is never read.
+    /// </summary>
+    private static BackupTableRule RuleFor(string folder, string table)
+    {
+        var rule = BackupTableClassification.Find(table);
+        if (rule is null || !string.Equals(rule.Table, table, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException($"The backup holds a table this version does not know: {table}.");
+        }
+
+        var allowed = folder switch
+        {
+            ConfigurationFolder => rule.Kind == BackupDataKind.Configuration,
+            PersonalFolder => rule.Kind == BackupDataKind.PersonalState,
+            _ => rule.Kind == BackupDataKind.Catalogue && rule.ChoiceColumns.Count > 0,
+        };
+        return allowed ? rule : throw new InvalidDataException($"Table '{table}' is not one a backup holds in that folder.");
     }
 
     private static bool TryTableEntry(string name, out string folder, out string table)
@@ -415,7 +492,7 @@ public static class BackupArchiveFormat
         return false;
     }
 
-    private static (BackupExportTable Table, string Kind) ReadTable(JsonElement root, string expectedTable)
+    private static (BackupExportTable Table, string Kind) ReadTable(JsonElement root, string expectedTable, BackupTableRule rule, bool isChoices)
     {
         if (root.ValueKind != JsonValueKind.Object)
         {
@@ -445,6 +522,8 @@ public static class BackupArchiveFormat
                 : throw new InvalidDataException($"Table '{table}' has a column name that is not text."));
         }
 
+        CheckColumns(table, columns, rule, isChoices);
+
         var rows = new List<IReadOnlyList<BackupValue>>();
         foreach (var rowElement in RequiredArray(root, "rows").EnumerateArray())
         {
@@ -459,6 +538,55 @@ public static class BackupArchiveFormat
         return (new BackupExportTable(table, dataKind, columns, rows), kind);
     }
 
+    /// <summary>
+    /// A choices file is <c>ref</c> followed by the rule's choice columns. Any other file's columns must be ones the rule
+    /// names (references, excluded, which are written as NULL) or plain lower-case identifiers: a live column name is not
+    /// known at read time, but nothing that could change the meaning of a restore statement gets through.
+    /// </summary>
+    private static void CheckColumns(string table, List<string> columns, BackupTableRule rule, bool isChoices)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var column in columns)
+        {
+            if (!seen.Add(column))
+            {
+                throw new InvalidDataException($"Table '{table}' lists the column '{column}' twice.");
+            }
+        }
+
+        if (isChoices)
+        {
+            if (columns.Count == 0 || columns[0] != "ref"
+                || columns.Skip(1).Any(column => !rule.ChoiceColumns.Contains(column, StringComparer.OrdinalIgnoreCase)))
+            {
+                throw new InvalidDataException($"Table '{table}' has columns this version does not recognise.");
+            }
+
+            return;
+        }
+
+        foreach (var column in columns)
+        {
+            var named = rule.CatalogueReferences.Any(reference => string.Equals(reference.Column, column, StringComparison.OrdinalIgnoreCase))
+                || rule.ExcludedColumns.Contains(column, StringComparer.OrdinalIgnoreCase);
+            if (!named && !IsPlainIdentifier(column))
+            {
+                throw new InvalidDataException($"Table '{table}' has a column name this version does not accept.");
+            }
+        }
+    }
+
+    /// <summary>Lower-case letters, digits and underscores, not starting with a digit (<c>^[a-z_][a-z0-9_]*$</c>).</summary>
+    private static bool IsPlainIdentifier(string name)
+    {
+        if (name.Length == 0 || name[0] is >= '0' and <= '9')
+        {
+            return false;
+        }
+
+        return name.All(character => character is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_');
+    }
+
     private static BackupValue ReadValue(JsonElement element)
     {
         switch (element.ValueKind)
@@ -471,7 +599,7 @@ public static class BackupArchiveFormat
                 var raw = element.GetRawText();
                 if (raw.IndexOfAny(['.', 'E', 'e']) >= 0)
                 {
-                    return BackupValue.FromReal(element.GetDouble());
+                    return BackupValue.FromReal(FiniteDouble(element));
                 }
 
                 return element.TryGetInt64(out var integer)
@@ -479,6 +607,13 @@ public static class BackupArchiveFormat
                     : throw new InvalidDataException("A backup value is an integer outside the supported range.");
             case JsonValueKind.Object:
                 var properties = element.EnumerateObject().ToList();
+                if (properties.Count == 2
+                    && element.TryGetProperty("title", out var titleKey) && titleKey.ValueKind == JsonValueKind.String
+                    && element.TryGetProperty("text", out var textFlag) && textFlag.ValueKind == JsonValueKind.True)
+                {
+                    return BackupValue.FromTitleRef(titleKey.GetString()!, wasText: true);
+                }
+
                 if (properties.Count == 1 && properties[0].Value.ValueKind == JsonValueKind.String)
                 {
                     var text = properties[0].Value.GetString()!;
@@ -500,6 +635,12 @@ public static class BackupArchiveFormat
                 throw new InvalidDataException("A backup value has a shape this version does not recognise.");
         }
     }
+
+    /// <summary>The number as a double; one JSON cannot hold as a finite double (for example <c>1e400</c>) is refused.</summary>
+    private static double FiniteDouble(JsonElement element) =>
+        element.TryGetDouble(out var value) && double.IsFinite(value)
+            ? value
+            : throw new InvalidDataException("A backup value is a number outside the supported range.");
 
     private static byte[] DecodeBase64(string text)
     {
@@ -611,7 +752,7 @@ public static class BackupArchiveFormat
 
         if (value.ValueKind == JsonValueKind.Number)
         {
-            return value.GetDouble();
+            return FiniteDouble(value);
         }
 
         return ReadValue(value) is BackupValue.Real real ? real.Value : throw new InvalidDataException($"'{name}' is not a number.");

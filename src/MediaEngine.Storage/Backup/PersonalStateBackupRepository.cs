@@ -26,29 +26,73 @@ public sealed class PersonalStateBackupRepository
 
     /// <summary>
     /// Reads the configuration and personal state in <paramref name="scope"/> in one read transaction, so the export
-    /// is a consistent snapshot. A profile scope holds that profile's personal state only.
+    /// is a consistent snapshot. A profile scope holds that profile's personal state only. The transaction is deferred
+    /// (it takes no write lock; WAL gives the snapshot), so the Engine keeps writing while a backup runs.
     /// </summary>
-    public BackupExport Export(BackupScope scope, CancellationToken ct = default)
+    public BackupExport Export(BackupScope scope, CancellationToken ct = default) => Export(scope, null, ct);
+
+    /// <summary>
+    /// As <see cref="Export(BackupScope, CancellationToken)"/>, calling <paramref name="afterSnapshotStarted"/> once the
+    /// read snapshot is open and before any row is exported, so a test can write from another connection at that point.
+    /// </summary>
+    internal BackupExport Export(BackupScope scope, Action? afterSnapshotStarted, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(scope);
         using var connection = _db.CreateConnection();
-        using var transaction = connection.BeginTransaction();
-        var export = Build(connection, transaction, scope, includeConfiguration: !scope.IsProfile, ct);
+        using var transaction = connection.BeginTransaction(deferred: true);
+        var export = Build(connection, transaction, scope, includeConfiguration: !scope.IsProfile, afterSnapshotStarted, ct);
         transaction.Commit();
         return export;
     }
 
     /// <summary>
     /// How many titles that have personal state (for any profile) have no external id of their own or their parent's,
-    /// so a restore can match them by exact file only. The Backup screen shows this as a warning.
+    /// so a restore can match them by exact file only. The Backup screen shows this as a warning. It reads only the
+    /// distinct catalogue references of the personal state tables, never the rows themselves.
     /// </summary>
     public int CountTitlesRecognisedByFileOnly(CancellationToken ct = default)
     {
         using var connection = _db.CreateConnection();
-        using var transaction = connection.BeginTransaction();
-        var export = Build(connection, transaction, BackupScope.WholeLibrary, includeConfiguration: false, ct);
+        using var transaction = connection.BeginTransaction(deferred: true);
+        var live = ReadLiveStructure(connection, transaction);
+        var book = new TitleBook(new TitleRecognitionReader(connection, transaction));
+        foreach (var rule in BackupTableClassification.OfKind(BackupDataKind.PersonalState))
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!live.TryGetValue(rule.Table, out var liveColumns))
+            {
+                continue;
+            }
+
+            var hasKind = liveColumns.Any(column => string.Equals(column.Name, EntityKindColumn, StringComparison.OrdinalIgnoreCase));
+            foreach (var reference in rule.CatalogueReferences)
+            {
+                var column = liveColumns.FirstOrDefault(candidate => string.Equals(candidate.Name, reference.Column, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new InvalidOperationException(
+                        $"Backup rule for '{rule.Table}' names reference column '{reference.Column}', which is not a column of that table.");
+                var withKind = reference.Target == CatalogueTarget.Other && hasKind;
+                using var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText =
+                    $"SELECT DISTINCT {Quote(column.Name)}{(withKind ? ", " + Quote(EntityKindColumn) : string.Empty)} " +
+                    $"FROM {Quote(rule.Table)} WHERE {Quote(column.Name)} IS NOT NULL";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (ClassifyReference(reader.GetValue(0), out var id) is not (ReferenceKind.Id or ReferenceKind.TextId))
+                    {
+                        continue;
+                    }
+
+                    var kind = withKind && !reader.IsDBNull(1) ? reader.GetValue(1) as string : null;
+                    book.Resolve(reference.Target, kind, id);
+                }
+            }
+        }
+
         transaction.Commit();
-        return export.Contents.TitlesRecognisedByFileOnly;
+        return book.Titles.Count(title => title.IsRecognisedByFileOnly);
     }
 
     private static BackupExport Build(
@@ -56,9 +100,11 @@ public sealed class PersonalStateBackupRepository
         SqliteTransaction transaction,
         BackupScope scope,
         bool includeConfiguration,
+        Action? afterSnapshotStarted,
         CancellationToken ct)
     {
         var live = ReadLiveStructure(connection, transaction);
+        afterSnapshotStarted?.Invoke();
         var book = new TitleBook(new TitleRecognitionReader(connection, transaction));
         var tables = new List<BackupExportTable>();
         var dropped = 0;
@@ -229,22 +275,26 @@ public sealed class PersonalStateBackupRepository
                 continue;
             }
 
-            // A reference is normally a 16-byte BLOB id. A TEXT reference that parses as a GUID is the same id; any other
-            // text (a Wikidata id, a provider key) is an external key, kept as written.
-            byte[] id;
-            switch (raw[i])
+            // A reference is normally a 16-byte BLOB id. A TEXT reference that parses as a GUID is the same id (and is
+            // marked as TEXT so a restore writes it back as TEXT); any other text (a Wikidata id, a provider key) is an
+            // external key, kept as written. Any other value cannot be resolved: it becomes NULL where the column may be
+            // NULL, and the row is dropped where it may not.
+            var referenceKind = ClassifyReference(raw[i]!, out var id);
+            if (referenceKind == ReferenceKind.External)
             {
-                case byte[] { Length: 16 } blob:
-                    id = blob;
-                    break;
-                case string text when Guid.TryParse(text, out var guid):
-                    id = GuidSql.ToBlob(guid);
-                    break;
-                case string:
-                    row.Add(ToValue(raw[i]));
-                    continue;
-                default:
+                row.Add(ToValue(raw[i]));
+                continue;
+            }
+
+            if (referenceKind == ReferenceKind.Unusable)
+            {
+                if (!nullableReferences.Contains(i))
+                {
                     return null;
+                }
+
+                row.Add(ToValue(null));
+                continue;
             }
 
             var kind = target == CatalogueTarget.Other && kindIndex >= 0 ? raw[kindIndex] as string : null;
@@ -260,10 +310,45 @@ public sealed class PersonalStateBackupRepository
                 continue;
             }
 
-            row.Add(BackupValue.FromTitleRef(key));
+            row.Add(BackupValue.FromTitleRef(key, referenceKind == ReferenceKind.TextId));
         }
 
         return row;
+    }
+
+    /// <summary>What a value in a catalogue reference column is.</summary>
+    private enum ReferenceKind
+    {
+        /// <summary>A 16-byte BLOB id.</summary>
+        Id,
+
+        /// <summary>A TEXT id in GUID form.</summary>
+        TextId,
+
+        /// <summary>Any other text: an external key kept as written.</summary>
+        External,
+
+        /// <summary>Neither an id nor text.</summary>
+        Unusable,
+    }
+
+    private static ReferenceKind ClassifyReference(object value, out byte[] id)
+    {
+        switch (value)
+        {
+            case byte[] { Length: 16 } blob:
+                id = blob;
+                return ReferenceKind.Id;
+            case string text when Guid.TryParse(text, out var guid):
+                id = GuidSql.ToBlob(guid);
+                return ReferenceKind.TextId;
+            case string:
+                id = [];
+                return ReferenceKind.External;
+            default:
+                id = [];
+                return ReferenceKind.Unusable;
+        }
     }
 
     /// <summary>Removes the named JSON properties, at any depth, from a JSON text value. Fails rather than keep unreadable JSON.</summary>
@@ -285,7 +370,7 @@ public sealed class PersonalStateBackupRepository
         {
             node = JsonNode.Parse(json);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or ArgumentException)
         {
             throw new InvalidOperationException($"A JSON value in '{table}' could not be read, so it cannot be checked for secrets.", ex);
         }
@@ -299,9 +384,10 @@ public sealed class PersonalStateBackupRepository
         switch (node)
         {
             case JsonObject obj:
-                foreach (var name in names)
+                // Names match ignoring case: settings are stored camelCase, but a rule names the property as the type does.
+                foreach (var key in obj.Select(pair => pair.Key).Where(key => names.Contains(key, StringComparer.OrdinalIgnoreCase)).ToList())
                 {
-                    obj.Remove(name);
+                    obj.Remove(key);
                 }
 
                 foreach (var child in obj.Select(pair => pair.Value).ToList())

@@ -1,6 +1,8 @@
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 using Dapper;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Backup;
 using Microsoft.Data.Sqlite;
 
@@ -127,27 +129,71 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
     [Fact]
     public void Export_RemovesEncryptedDestinationSecrets_ButKeepsTheRestOfTheBackupSettings()
     {
+        // Stored the way the Engine stores it: the settings type serialised with the web (camelCase) options.
+        var settings = new StoredSettings(
+        [
+            new StoredDestination("NAS", "WebDav", SecretMarker, new StoredNested(SecretMarker, 1)),
+        ]);
         using (var connection = _database.CreateConnection())
         {
             connection.Execute(
                 "INSERT OR REPLACE INTO backup_settings (setting_key, value_json, updated_at) VALUES ('destinations', @json, @now)",
-                new
-                {
-                    json = $$$"""{"Destinations":[{"Name":"NAS","Kind":"WebDav","EncryptedSecret":"{{{SecretMarker}}}","Nested":{"EncryptedSecret":"{{{SecretMarker}}}","Keep":1}}]}""",
-                    now = Now,
-                });
+                new { json = JsonSerializer.Serialize(settings, MediaEngineJson.Web), now = Now });
         }
 
         var export = _repository.Export(BackupScope.WholeLibrary);
 
-        var text = EntryText(Archive(export));
+        var bytes = Archive(export);
+        Assert.DoesNotContain(SecretMarker, Encoding.Latin1.GetString(bytes));
+        var text = EntryText(bytes);
         Assert.DoesNotContain(SecretMarker, text);
-        Assert.DoesNotContain("EncryptedSecret", text);
-        var settings = Assert.Single(export.Tables, table => table.Table == "backup_settings");
-        var kept = settings.Rows
-            .Select(row => Assert.IsType<BackupValue.Text>(row[settings.Columns.ToList().IndexOf("value_json")]).Value)
+        Assert.DoesNotContain("EncryptedSecret", text, StringComparison.OrdinalIgnoreCase);
+        var settingsTable = Assert.Single(export.Tables, table => table.Table == "backup_settings");
+        var kept = settingsTable.Rows
+            .Select(row => Assert.IsType<BackupValue.Text>(row[settingsTable.Columns.ToList().IndexOf("value_json")]).Value)
             .Single(value => value.Contains("WebDav", StringComparison.Ordinal));
-        Assert.Equal(1, System.Text.Json.JsonDocument.Parse(kept).RootElement.GetProperty("Destinations")[0].GetProperty("Nested").GetProperty("Keep").GetInt32());
+        using var parsed = JsonDocument.Parse(kept);
+        Assert.Equal(1, parsed.RootElement.GetProperty("destinations")[0].GetProperty("nested").GetProperty("keep").GetInt32());
+    }
+
+    private sealed record StoredSettings(List<StoredDestination> Destinations);
+
+    private sealed record StoredDestination(string Name, string Kind, string EncryptedSecret, StoredNested Nested);
+
+    private sealed record StoredNested(string EncryptedSecret, int Keep);
+
+    [Fact]
+    public void Export_DoesNotBlockAWriterWhileItRuns()
+    {
+        var profile = AddProfile("Maya");
+        var movie = AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: null);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO user_states (user_id, asset_id, progress_pct, last_accessed) VALUES (@p, @a, 10, @now)",
+                new { p = GuidSql.ToBlob(profile), a = movie.Asset, now = Now });
+        }
+
+        int profilesBefore;
+        using (var connection = _database.CreateConnection())
+        {
+            profilesBefore = connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles");
+        }
+
+        var wroteWhileReading = false;
+        var export = _repository.Export(BackupScope.WholeLibrary, () =>
+        {
+            // A second connection with a one second wait: if the export held a write lock, this would time out.
+            using var writer = new SqliteConnection($"Data Source={_databasePath};Default Timeout=1;Pooling=False");
+            writer.Open();
+            writer.Execute(
+                "INSERT INTO profiles (id, display_name, created_at) VALUES (@id, 'Written during export', @now)",
+                new { id = GuidSql.ToBlob(Guid.NewGuid()), now = Now });
+            wroteWhileReading = true;
+        });
+
+        Assert.True(wroteWhileReading);
+        Assert.Equal(profilesBefore, export.Contents.Profiles);
     }
 
     [Fact]
@@ -235,11 +281,13 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
         var export = _repository.Export(BackupScope.WholeLibrary);
 
         var saved = Assert.Single(export.Tables, table => table.Table == "profile_saved_items");
-        Assert.IsType<BackupValue.TitleRef>(Assert.Single(saved.Rows)[saved.Columns.ToList().IndexOf("entity_id")]);
         var sequences = Assert.Single(export.Tables, table => table.Table == "profile_sequence_preferences");
         var keys = sequences.Rows.Select(row => row[sequences.Columns.ToList().IndexOf("container_key")]).ToList();
         Assert.Contains(BackupValue.FromText("Q190192"), keys);
-        Assert.Single(keys, key => key is BackupValue.TitleRef);
+        var reference = Assert.IsType<BackupValue.TitleRef>(Assert.Single(keys, key => key is BackupValue.TitleRef));
+        Assert.True(reference.WasText, "The key was stored as TEXT, so a restore must write it back as TEXT.");
+        var savedReference = Assert.IsType<BackupValue.TitleRef>(Assert.Single(saved.Rows)[saved.Columns.ToList().IndexOf("entity_id")]);
+        Assert.False(savedReference.WasText);
         Assert.Equal(1, export.Contents.DroppedRows);
     }
 
@@ -327,7 +375,7 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
         var table = new BackupExportTable(
             "user_states",
             BackupDataKind.PersonalState,
-            ["a", "b", "c", "d", "e", "f", "g", "h", "i"],
+            ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
             [[
                 BackupValue.Null,
                 BackupValue.FromInteger(long.MinValue),
@@ -338,6 +386,7 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
                 BackupValue.FromBlob(guid),
                 BackupValue.FromTitleRef("t1"),
                 BackupValue.FromReal(double.PositiveInfinity),
+                BackupValue.FromTitleRef("t1", wasText: true),
             ]]);
         var choices = new BackupExportTable("local_items", BackupDataKind.Catalogue, ["ref", "favorite"], [[BackupValue.FromTitleRef("t1"), BackupValue.FromInteger(1)]]);
         var contents = new BackupExportContents(BackupScope.ForProfile(Guid.Parse("11111111-2222-3333-4444-555555555555")), 0, 0, 1, 1, 1, 0, 1, 2);
@@ -358,6 +407,8 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
         Assert.IsType<BackupValue.Real>(row[2]);
         Assert.Equal(0.1 + 0.2, ((BackupValue.Real)row[3]).Value);
         Assert.Equal(guid, ((BackupValue.Blob)row[6]).Value);
+        Assert.False(Assert.IsType<BackupValue.TitleRef>(row[7]).WasText);
+        Assert.True(Assert.IsType<BackupValue.TitleRef>(row[9]).WasText);
         Assert.Equal(choices.Rows[0], Assert.Single(Assert.Single(read.Choices).Rows));
         var readTitle = Assert.Single(read.Titles);
         Assert.Equal(title.Key, readTitle.Key);
@@ -397,6 +448,141 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
         Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(archive));
+    }
+
+    [Fact]
+    public void ArchiveFormat_RefusesATableFileForACatalogueTable()
+    {
+        foreach (var (name, kind) in new[]
+        {
+            ("data/personal/works.json", "personal_state"),
+            ("data/configuration/works.json", "configuration"),
+            ("data/choices/works.json", "choices"),
+            ("data/personal/playback_inspection_cache.json", "personal_state"),
+            ("data/configuration/user_states.json", "configuration"),
+            ("data/personal/not_a_table.json", "personal_state"),
+        })
+        {
+            var table = Path.GetFileNameWithoutExtension(name);
+            using var stream = ArchiveWith(
+                ("data/contents.json", ContentsJson),
+                ("data/titles.json", """{"titles":[]}"""),
+                (name, $$"""{"table":"{{table}}","kind":"{{kind}}","columns":["id"],"rows":[]}"""));
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+            Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(archive));
+        }
+    }
+
+    [Fact]
+    public void ArchiveFormat_RefusesAColumnThatIsNotAPlainName()
+    {
+        using var stream = ArchiveWith(
+            ("data/contents.json", ContentsJson),
+            ("data/titles.json", """{"titles":[]}"""),
+            ("data/personal/user_states.json", """{"table":"user_states","kind":"personal_state","columns":["progress_pct\" = 1; --"],"rows":[]}"""));
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+        Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(archive));
+    }
+
+    [Fact]
+    public void ArchiveFormat_RefusesANumberOutOfRange()
+    {
+        foreach (var number in new[] { "1e400", "-1e400", "99999999999999999999", "1.5e999" })
+        {
+            using var inRow = ArchiveWith(
+                ("data/contents.json", ContentsJson),
+                ("data/titles.json", """{"titles":[]}"""),
+                ("data/personal/user_states.json", $$"""{"table":"user_states","kind":"personal_state","columns":["progress_pct"],"rows":[[{{number}}]]}"""));
+            using var inRowArchive = new ZipArchive(inRow, ZipArchiveMode.Read);
+            Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(inRowArchive));
+
+            if (number.Contains('e', StringComparison.Ordinal))
+            {
+                // A huge whole number is a valid real for a running time; only an exponent past a double is out of range.
+                using var inTitle = ArchiveWith(
+                    ("data/contents.json", ContentsJson),
+                    ("data/titles.json", $$"""{"titles":[{"key":"t1","target":"Work","running_time_seconds":{{number}}}]}"""));
+                using var inTitleArchive = new ZipArchive(inTitle, ZipArchiveMode.Read);
+                Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(inTitleArchive));
+            }
+        }
+    }
+
+    [Fact]
+    public void ArchiveFormat_RefusesDuplicateEntries()
+    {
+        var table = """{"table":"user_states","kind":"personal_state","columns":["progress_pct"],"rows":[]}""";
+        foreach (var duplicated in new[] { "data/titles.json", "data/contents.json", "data/personal/user_states.json" })
+        {
+            var entries = new List<(string Name, string Json)>
+            {
+                ("data/contents.json", ContentsJson),
+                ("data/titles.json", """{"titles":[]}"""),
+                ("data/personal/user_states.json", table),
+            };
+            entries.Add(entries.Single(entry => entry.Name == duplicated));
+            using var stream = ArchiveWith([.. entries]);
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+            Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(archive));
+        }
+    }
+
+    [Fact]
+    public void ArchiveFormat_RefusesAnArchiveOverItsSizeBudget()
+    {
+        var entries = new[]
+        {
+            ("data/contents.json", ContentsJson),
+            ("data/titles.json", """{"titles":[]}"""),
+        };
+
+        using (var stream = ArchiveWith(entries))
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Read))
+        {
+            Assert.NotNull(BackupArchiveFormat.Read(archive, maxEntries: 2, maxEntryBytes: 4096, maxTotalBytes: 8192));
+        }
+
+        using (var stream = ArchiveWith(entries))
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Read))
+        {
+            Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(archive, maxEntries: 1, maxEntryBytes: 4096, maxTotalBytes: 8192));
+        }
+
+        using (var stream = ArchiveWith(entries))
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Read))
+        {
+            Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(archive, maxEntries: 2, maxEntryBytes: 64, maxTotalBytes: 8192));
+        }
+
+        using (var stream = ArchiveWith(entries))
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Read))
+        {
+            Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(archive, maxEntries: 2, maxEntryBytes: 4096, maxTotalBytes: ContentsJson.Length + 5));
+        }
+    }
+
+    [Fact]
+    public void Export_PicksTheEditionsRunningTimeFromItsEarliestPresentedOriginal_NotByFileHash()
+    {
+        var movie = AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "ffff0000", seconds: 100.0);
+        var earlier = GuidSql.ToBlob(Guid.NewGuid());
+        using var connection = _database.CreateConnection();
+        connection.Execute("UPDATE media_assets SET presented_at = '2026-02-01T00:00:00Z' WHERE id = @asset", new { asset = movie.Asset });
+        connection.Execute(
+            "INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at) VALUES (@earlier, @edition, 'aaaa0000', '/media/other.mkv', '2026-01-01T00:00:00Z')",
+            new { earlier, edition = movie.Edition });
+        connection.Execute(
+            "INSERT INTO playback_inspection_cache (asset_id, source_hash, inspected_at, duration_secs) VALUES (@earlier, 'aaaa0000', @now, 200.0)",
+            new { earlier, now = Now });
+
+        var title = new TitleRecognitionReader(connection, null).Read(CatalogueTarget.Edition, movie.Edition);
+
+        Assert.NotNull(title);
+        Assert.Equal(200.0, title.RunningTimeSeconds);
+        Assert.Equal(["aaaa0000", "ffff0000"], title.FileHashes);
     }
 
     private const string ContentsJson =

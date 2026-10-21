@@ -104,7 +104,7 @@ A backup's manifest will name its kind (`settings-and-personal-state`) and list 
 | `doc_field_values` | Values a person entered in custom document fields. | `item_id` (local item) | none | all rows |
 | `local_item_tag_links` | Which tags a person put on which View item. | `item_id` (local item) | none | all rows |
 | `doc_item_details` | Filing details a person entered for a document (machine suggestions are rebuilt). | `item_id` (local item) | `suggestions_json` | all rows |
-| `excluded_source_files` | Files a person removed from the library and chose to keep out, so a rescan does not add them back. | none | none | all rows |
+| `excluded_source_files` | Files a person removed from the library and chose to keep out, so a rescan does not add them back. | none | `title`, `excluded_by_name` | all rows |
 | `collections` | Collections and playlists a person built; collections built from providers (universes and series) are rebuilt. | `universe_id` (other), `parent_collection_id` (collection) | `cover_artwork_path`, `background_artwork_path`, `banner_artwork_path`, `logo_artwork_path` | `collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart')` |
 | `collection_items` | The titles in a person-built collection. | `work_id` (work) | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart'))` |
 | `collection_placements` | Where a person-built collection appears. | none | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart'))` |
