@@ -82,7 +82,7 @@
                                         ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "providers":
-                    <SetupProvidersStage Catalogue="@_providerCatalogue" Libraries="@_setupLibraries" SetupSession="@_setupSession" Busy="@_busy"
+                    <SetupProvidersStage Catalogue="@_providerCatalogue" SetupSession="@_setupSession" Busy="@_busy"
                                          RefreshRequested="RefreshProvidersAsync" Continue="SaveProviderResultAsync" Defer="DeferProviderResultAsync"
                                          Back="@(() => { _languageConfirmed = false; return Task.CompletedTask; })" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;

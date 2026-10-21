@@ -173,12 +173,8 @@
         else
         {
             <AppCard Class="library-folders__detail">
+                @* The type's name is already the selected entry in the list on the left, so the pane starts with the folders. *@
                 <header class="library-folders__detail-header">
-                    <span class="@($"library-folders__icon library-folders__icon--{Selected.Key}")"><AppMaterialIcon Icon="@Selected.Icon" /></span>
-                    <div>
-                        <h3 id="library-folders-title">@Selected.Label</h3>
-                        <p>Folders that make up @(Selected.LibraryId is null ? $"your {Selected.PluralLabel} library" : Selected.Label).</p>
-                    </div>
                     <div class="library-folders__detail-actions">
                         <AppButton Label="Add Folder"
                                    Class="@(_highlightAdd ? "library-folders__add is-highlighted" : "library-folders__add")"
@@ -239,23 +235,27 @@
                                   ValueChanged="@((bool value) => SetOkForLimitedProfilesAsync(value))" />
                 }
 
-                @if (SelectedLibrary is not null)
-                {
-                    <AppSwitchRow Label="Recycle bin"
-                                  Description="Deleted files wait in a recycle bin inside Library's data folder instead of being removed straight away. You can put them back, or empty the bin."
-                                  Value="@SelectedLibrary.RecycleBin"
-                                  Disabled="@(_saving || ReadOnly)"
-                                  ValueChanged="@((bool value) => SetRecycleBinAsync(value))" />
-                    @if (SelectedLibrary.RecycleBin && !Embedded)
-                    {
-                        <RecycleBinSection />
-                    }
-                }
-
                 @* Shown even when the last folder has been removed: files that stayed on disk can still be listed and added back. *@
                 @if (!Embedded && SelectedLibrary is not null)
                 {
                     <ExcludedFilesSection LibraryId="@SelectedLibrary.Id" ReadOnly="@ReadOnly" />
+                }
+
+                @* Pinned to the bottom of the pane, so the switch sits in the same place for every library. What is in the bin lists above it. *@
+                @if (SelectedLibrary is not null)
+                {
+                    <div class="library-folders__recycle">
+                        @if (SelectedLibrary.RecycleBin && !Embedded)
+                        {
+                            <RecycleBinSection />
+                        }
+                        <AppSwitchRow Label="Recycle bin"
+                                      Icon="@AppMaterialIcons.Outlined.DeleteOutline"
+                                      Description="Deleted files wait in a recycle bin inside Library's data folder instead of being removed straight away. You can put them back, or empty the bin."
+                                      Value="@SelectedLibrary.RecycleBin"
+                                      Disabled="@(_saving || ReadOnly)"
+                                      ValueChanged="@((bool value) => SetRecycleBinAsync(value))" />
+                    </div>
                 }
             </AppCard>
         }
@@ -528,8 +528,8 @@
             _pendingYoutubeLookup = place.YoutubeLookup;
         }
 
-        // An empty folder is ours to manage. A folder that already holds files is used as-is unless the person says otherwise,
-        // because managing it could rename or move files other apps depend on. Merging adds it as-is first, then brings its
+        // An empty folder is ours to manage. A folder that already holds files is used read-only unless the person says otherwise,
+        // because managing it could rename or move files other apps depend on. Merging adds it as read-only first, then brings its
         // files into a managed folder once.
         var managed = true;
         var mergeAfter = false;
@@ -550,8 +550,8 @@
             {
                 managed = false;
                 _notice = writable is null
-                    ? "Library couldn't check whether it can write to this folder, so it will be used as-is (read only)."
-                    : "Library can't write to this folder, so it will be used as-is (read only).";
+                    ? "Library couldn't check whether it can write to this folder, so it will be used as read-only."
+                    : "Library can't write to this folder, so it will be used as read-only.";
             }
         }
 
@@ -571,7 +571,7 @@
         };
         if (string.IsNullOrWhiteSpace(source.Notes)) source.Notes = selected.Path;
         library.Sources.Add(source);
-        var saved = await SaveAsync(library, mergeAfter ? "Folder added as-is. Choose where its files should go." : "Folder added.");
+        var saved = await SaveAsync(library, mergeAfter ? "Folder added as read-only. Choose where its files should go." : "Folder added.");
         if (saved && managed && selected.ContainsFiles)
         {
             // The files already in it are not touched until the person says so.
@@ -580,7 +580,7 @@
         }
         else if (saved && mergeAfter)
         {
-            // The folder is now part of the library as-is; the sheet asks where its files should go.
+            // The folder is now part of the library as read-only; the sheet asks where its files should go.
             var added = SelectedLibrary?.Sources.FirstOrDefault(item => item.Id == source.Id);
             if (added is not null) await MergeIntoAsync(added);
         }
@@ -682,8 +682,8 @@
         await Changed.InvokeAsync();
     }
 
-    // Tapping Handling. As-is to Managed asks honestly first and then queues the organising job (the setup wizard has no files to
-    // organise yet, so it keeps the plain switch); Managed to As-is also asks, and stops any job that is running.
+    // Tapping Handling. Read-only to Managed asks honestly first and then queues the organising job (the setup wizard has no files to
+    // organise yet, so it keeps the plain switch); Managed to Read-only also asks, and stops any job that is running.
     private async Task ChangeModeAsync(LibrarySourceDto source)
     {
         var library = Clone(SelectedLibrary);
@@ -700,11 +700,11 @@
             ? await DialogService.ShowMessageBoxAsync(
                 $"Let Library manage {target.Path}?",
                 "Library may rename and reorganise files in this folder, which could affect other applications that use it.",
-                yesText: "Let Library manage it", cancelText: "Keep as-is")
+                yesText: "Let Library manage it", cancelText: "Keep read-only")
             : await DialogService.ShowMessageBoxAsync(
-                $"Use {target.Path} as-is?",
+                $"Use {target.Path} as read-only?",
                 "Library will stop organising this folder, and any organising that is running stops. Files already renamed keep their new names; nothing is undone and nothing else on disk changes.",
-                yesText: "Use as-is", cancelText: "Keep managed");
+                yesText: "Use read-only", cancelText: "Keep managed");
         if (confirmed != true) return;
         await ApplyModeAsync(library, target, managed);
     }
@@ -727,10 +727,10 @@
             target.ConversionState = "none";
             target.ConversionOperationId = null;
         }
-        await SaveAsync(library, managed ? "Library will now manage this folder." : "This folder will be used as-is.");
+        await SaveAsync(library, managed ? "Library will now manage this folder." : "This folder will be used as read-only.");
     }
 
-    // As-is to Managed for a folder in the signed-in Settings: count what is there, ask, then let the Engine convert it.
+    // Read-only to Managed for a folder in the signed-in Settings: count what is there, ask, then let the Engine convert it.
     private async Task ConvertToManagedAsync(LibraryFolderDto library, LibrarySourceDto target)
     {
         var validation = await ValidateAsync(target.Path, ServerFolderSelectionModes.ManagedLibrary, target.Id);
@@ -752,7 +752,7 @@
             var plain = await DialogService.ShowMessageBoxAsync(
                 $"Let Library manage {target.Path}?",
                 "There are no media files in this folder yet. Library will name and organise the files it adds here from now on.",
-                yesText: "Let Library manage it", cancelText: "Keep as-is");
+                yesText: "Let Library manage it", cancelText: "Keep read-only");
             if (plain == true) await ApplyModeAsync(library, target, managed: true);
             return;
         }

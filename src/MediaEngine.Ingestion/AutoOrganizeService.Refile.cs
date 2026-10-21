@@ -40,7 +40,7 @@ public sealed partial class AutoOrganizeService
         // The folder decides before anything else: an As-is folder is only ever read, a read-only one is never written.
         if (!resolved.Source.IsManaged)
         {
-            return AssetRefilePlan.Of(AssetRefileDisposition.AsIs, current, "The file is in an As-is folder, so it is only ever read.");
+            return AssetRefilePlan.Of(AssetRefileDisposition.AsIs, current, "The file is in a Read-only folder, so it is only ever read.");
         }
 
         if (!resolved.Source.IsWritable)

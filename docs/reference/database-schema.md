@@ -201,7 +201,7 @@ Many-to-many cross-links between works and collections for works that span multi
 
 ### folder_organise_log
 
-The ledger of the organising job: one row for each file, and each sidecar, the job looked at while a folder was switched from as-is to managed (or organised again). A move is written as an intent (`moving`) before the file is renamed and as its final outcome after the library points at the new path, so an interrupted job resumes without losing, doubling or half-moving a file. It is also the audit trail and the source of the exportable log (`GET /settings/libraries/folders/jobs/{id}/log/export`); there is no automatic undo. The owning operation is a `media_operations` row (`operation_type = organise_folder`, `queue_name = folder_jobs`); the log keeps no foreign key so its history outlives that row.
+The ledger of the organising job: one row for each file, and each sidecar, the job looked at while a folder was switched from read-only to managed (or organised again). A move is written as an intent (`moving`) before the file is renamed and as its final outcome after the library points at the new path, so an interrupted job resumes without losing, doubling or half-moving a file. It is also the audit trail and the source of the exportable log (`GET /settings/libraries/folders/jobs/{id}/log/export`); there is no automatic undo. The owning operation is a `media_operations` row (`operation_type = organise_folder`, `queue_name = folder_jobs`); the log keeps no foreign key so its history outlives that row.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -217,7 +217,7 @@ Indexes: `idx_folder_organise_log_source (source_id, at)` and `idx_folder_organi
 
 ### excluded_source_files
 
-The media files that stayed on disk when their title was deleted from the library: a file in an as-is folder, a file a folder merge left in place, or a file Tuvima tried to delete and could not. Scans skip an excluded file so the deleted title does not come back; Settings lists them and **Add back** removes the row. The row outlives the title, so it has no foreign keys: the library and source folder are configured folders, identified by their ids.
+The media files that stayed on disk when their title was deleted from the library: a file in a read-only folder, a file a folder merge left in place, or a file Tuvima tried to delete and could not. Scans skip an excluded file so the deleted title does not come back; Settings lists them and **Add back** removes the row. The row outlives the title, so it has no foreign keys: the library and source folder are configured folders, identified by their ids.
 
 | Column | Type | Notes |
 |---|---|---|
