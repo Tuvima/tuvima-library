@@ -162,6 +162,17 @@ public sealed class CharacterCreditSpoilerTests : IDisposable
     }
 
     [Fact]
+    public async Task ThePeopleSearch_WithMoreThanThirtyTwoThousandVisibleFiles_StillFindsTheActor()
+    {
+        await SetLevelAsync(SpoilerLevels.UpToProgress);
+
+        var response = await CreateSearch(unrelatedWorks: 33_000).SearchAsync("Test Actor", 20, CancellationToken.None);
+
+        var person = Assert.Single(response.Sections.Single(section => section.Key == "people").Results);
+        Assert.Equal(_person, person.Id);
+    }
+
+    [Fact]
     public async Task ThePeopleSearch_MatchesAHiddenCharacter_AtTheLevelEverything()
     {
         await SetLevelAsync(SpoilerLevels.Everything);
@@ -221,7 +232,7 @@ public sealed class CharacterCreditSpoilerTests : IDisposable
         new UserPlaybackSettingsService(_database, new ProfileRepository(_database))
             .SetSpoilerLevelAsync(Profile.SeedProfileId, level);
 
-    private DisplayWorkRow[] Rows() =>
+    private DisplayWorkRow[] Rows(int unrelatedWorks = 0) =>
     [
         new DisplayWorkRow
         {
@@ -233,6 +244,15 @@ public sealed class CharacterCreditSpoilerTests : IDisposable
             IdentityQid = FilmQid,
             Title = "Credit Film",
         },
+        .. Enumerable.Range(0, unrelatedWorks).Select(i => new DisplayWorkRow
+        {
+            WorkId = Guid.NewGuid(),
+            RootWorkId = Guid.NewGuid(),
+            AssetId = Guid.NewGuid(),
+            EditionId = Guid.NewGuid(),
+            MediaType = "Movies",
+            Title = $"Unrelated Film {i}",
+        }),
     ];
 
     private CharacterCreditSpoilerFilter CreateFilter() =>
@@ -258,9 +278,9 @@ public sealed class CharacterCreditSpoilerTests : IDisposable
             _database,
             withRequest ? new HttpContextAccessor { HttpContext = RequestContext() } : null);
 
-    private UniversalSearchReadService CreateSearch()
+    private UniversalSearchReadService CreateSearch(int unrelatedWorks = 0)
     {
-        var display = new Display(Rows());
+        var display = new Display(Rows(unrelatedWorks));
         return new UniversalSearchReadService(
             _database,
             display,

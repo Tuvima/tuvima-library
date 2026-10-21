@@ -184,6 +184,24 @@ public sealed class CreditReadSpeedTests : IDisposable
         Assert.Equal("Wombat Book", item.Title);
     }
 
+    [Fact]
+    public async Task NewItemsFeed_WithMoreThanThirtyTwoThousandAllowedWorks_ReturnsTheAllowedWork()
+    {
+        var (workId, _) = await AddWorkAsync("Books", "Numbat Book");
+        var (hiddenWorkId, _) = await AddWorkAsync("Books", "Hidden Numbat Book");
+        var allowed = Enumerable.Range(0, 33_000).Select(_ => Guid.NewGuid()).ToHashSet();
+        allowed.Add(workId);
+
+        var page = await new LibraryWorkFeedReadService(_db).GetWorksAsync(
+            new MediaEngine.Contracts.Paging.PagedRequest(0, 24),
+            CancellationToken.None,
+            allowed);
+
+        var item = Assert.Single(page.Items);
+        Assert.Equal(workId, item.Id);
+        Assert.NotEqual(hiddenWorkId, item.Id);
+    }
+
     private async Task<List<MediaEngine.Contracts.Search.SearchResultDto>> SearchThroughTheIndexAsync(string query)
     {
         var index = new SearchIndexRepository(_db);
