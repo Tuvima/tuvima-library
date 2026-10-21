@@ -452,6 +452,37 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         Assert.False(State.Unlocked);
     }
 
+    [Fact]
+    public async Task WhenTheEngineLocksOnIdle_TheDashboardClearsTheVaultWithinOnePoll_AndLeavesTheArea()
+    {
+        UseEngine();
+        _mode = "allowed";
+        await LoadAsync();
+        await State.UnlockAsync(null);
+        Navigation.NavigateTo("/vault/scenes");
+        var watcher = Render<NsfwLockWatcher>(parameters => parameters.Add(p => p.ActiveProfileId, Me).Add(p => p.IsKids, false));
+        var asked = _stub.Calls.Count(call => call == nameof(IEngineApiClient.GetNsfwStatusAsync));
+
+        // Still unlocked on the Engine: a poll changes nothing.
+        _time.Advance(TimeSpan.FromSeconds(15));
+        watcher.WaitForAssertion(() => Assert.Equal(asked + 1, _stub.Calls.Count(call => call == nameof(IEngineApiClient.GetNsfwStatusAsync))));
+        Assert.True(State.Unlocked);
+        Assert.Equal("/vault/scenes", new Uri(Navigation.Uri).AbsolutePath);
+
+        // The Engine's idle limit runs out with nobody touching the page: the next poll clears the screen and leaves the Vault.
+        _unlocked = false;
+        _time.Advance(TimeSpan.FromSeconds(15));
+        watcher.WaitForAssertion(() => Assert.False(State.Unlocked));
+        watcher.WaitForAssertion(() => Assert.Equal("/", new Uri(Navigation.Uri).AbsolutePath));
+        Assert.Equal(0, _lockCalls);
+
+        // Nothing keeps asking once it is locked.
+        var afterLock = _stub.Calls.Count(call => call == nameof(IEngineApiClient.GetNsfwStatusAsync));
+        _time.Advance(TimeSpan.FromMinutes(5));
+        Assert.Equal(afterLock, _stub.Calls.Count(call => call == nameof(IEngineApiClient.GetNsfwStatusAsync)));
+        Assert.Equal(0, _time.LiveTimers);
+    }
+
     // -- The area ---------------------------------------------------------------------------------------------------------
 
     [Fact]
@@ -969,10 +1000,52 @@ public sealed class VaultExperienceTests : AsyncBunitContext
 
     private sealed class ManualTime : TimeProvider
     {
+        private readonly List<ManualTimer> _timers = [];
         private DateTimeOffset _now = new(2026, 10, 21, 12, 0, 0, TimeSpan.Zero);
 
-        public void Advance(TimeSpan by) => _now += by;
+        /// <summary>Moves the clock on and fires every timer that came due on the way, as a real clock would.</summary>
+        public void Advance(TimeSpan by)
+        {
+            _now += by;
+            foreach (var timer in _timers.ToArray())
+            {
+                timer.FireIfDue(_now);
+            }
+        }
+
+        public int LiveTimers => _timers.Count(timer => !timer.Disposed);
 
         public override DateTimeOffset GetUtcNow() => _now;
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = new ManualTimer(callback, state, _now + dueTime, period);
+            _timers.Add(timer);
+            return timer;
+        }
+    }
+
+    private sealed class ManualTimer(TimerCallback callback, object? state, DateTimeOffset next, TimeSpan period) : ITimer
+    {
+        public bool Disposed { get; private set; }
+
+        public void FireIfDue(DateTimeOffset now)
+        {
+            while (!Disposed && now >= next)
+            {
+                next = period > TimeSpan.Zero ? next + period : DateTimeOffset.MaxValue;
+                callback(state);
+            }
+        }
+
+        public bool Change(TimeSpan dueTime, TimeSpan newPeriod) => true;
+
+        public void Dispose() => Disposed = true;
+
+        public ValueTask DisposeAsync()
+        {
+            Disposed = true;
+            return ValueTask.CompletedTask;
+        }
     }
 }

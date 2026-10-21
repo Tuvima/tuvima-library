@@ -15,10 +15,15 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
     private readonly TimeProvider _time = time ?? TimeProvider.System;
     private static readonly TimeSpan KeepAliveEvery = TimeSpan.FromSeconds(25);
 
+    /// <summary>How often an unlocked Dashboard asks the Engine whether it is still unlocked, so an idle lock clears the screen.</summary>
+    internal static readonly TimeSpan LockPollEvery = TimeSpan.FromSeconds(15);
+
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private DateTimeOffset _lastKeepAlive = DateTimeOffset.MinValue;
     private bool _coversBlurred = true;
     private bool _disposed;
+    private ITimer? _lockPoll;
+    private int _polling;
 
     /// <summary>Raised after the status, the viewing options or the cover toggle change.</summary>
     public event Action? Changed;
@@ -83,7 +88,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
             {
                 Clear();
                 Resolved = profileId is not null;
-                Changed?.Invoke();
+                RaiseChanged();
                 return;
             }
 
@@ -92,7 +97,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
             {
                 Clear();
                 Resolved = true;
-                Changed?.Invoke();
+                RaiseChanged();
                 return;
             }
 
@@ -110,7 +115,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
                 _coversBlurred = true;
             }
 
-            Changed?.Invoke();
+            RaiseChanged();
         }
         finally
         {
@@ -143,7 +148,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
             Status = status;
             _coversBlurred = true;
             _lastKeepAlive = _time.GetUtcNow();
-            Changed?.Invoke();
+            RaiseChanged();
         }
         else if (call.Outcome == VaultOutcome.NotAvailable)
         {
@@ -161,7 +166,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
         {
             Status = new NsfwStatusDto { Mode = status.Mode, Unlocked = false, HasPin = status.HasPin, IdleLockMinutes = status.IdleLockMinutes };
             _coversBlurred = true;
-            Changed?.Invoke();
+            RaiseChanged();
         }
 
         if (wasUnlocked && !(await api.LockNsfwAsync(ct)).Succeeded)
@@ -194,7 +199,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
         }
 
         _coversBlurred = blurred;
-        Changed?.Invoke();
+        RaiseChanged();
     }
 
     /// <summary>Changes and remembers the viewing options for this profile on this device.</summary>
@@ -206,8 +211,50 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
         }
 
         Preferences = change(Preferences);
-        Changed?.Invoke();
+        RaiseChanged();
         await store.SaveAsync(id, Preferences);
+    }
+
+    private void RaiseChanged()
+    {
+        SyncLockPoll();
+        Changed?.Invoke();
+    }
+
+    // The Engine locks a session on its own (idle limit, another profile, an administrator). While this device is unlocked it asks
+    // now and then, so the Dashboard clears the Vault from the screen soon after, without waiting for the next click.
+    private void SyncLockPoll()
+    {
+        if (Unlocked && !_disposed)
+        {
+            _lockPoll ??= _time.CreateTimer(_ => _ = PollLockAsync(), null, LockPollEvery, LockPollEvery);
+        }
+        else if (_lockPoll is not null)
+        {
+            _lockPoll.Dispose();
+            _lockPoll = null;
+        }
+    }
+
+    private async Task PollLockAsync()
+    {
+        if (!Unlocked || _disposed || Interlocked.Exchange(ref _polling, 1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            await RefreshAsync(ProfileId, isKids: false);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException or ObjectDisposedException)
+        {
+            logger.LogDebug(exception, "Could not check whether NSFW mode is still on.");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _polling, 0);
+        }
     }
 
     private void Clear()
@@ -217,7 +264,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
         _coversBlurred = true;
         if (changed)
         {
-            Changed?.Invoke();
+            RaiseChanged();
         }
     }
 
@@ -229,6 +276,8 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
         }
 
         _disposed = true;
+        _lockPoll?.Dispose();
+        _lockPoll = null;
         // When the app closes NSFW mode switches itself off (D23c). Best effort: the Engine's idle limit is the backstop.
         if (Unlocked)
         {
