@@ -16,13 +16,15 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<ITuvimaPlugin, DescriptionInsightsPlugin>();
         services.AddSingleton<ITuvimaPlugin, SeriesOrderPlugin>();
         services.AddSingleton<ITuvimaPlugin, SmartLabellingPlugin>();
+        services.AddSingleton<ITuvimaPlugin, TasteSummaryPlugin>();
         services.AddSingleton<ITuvimaPlugin, TypeHelperPlugin>();
         services.AddSingleton<ITuvimaPlugin, VibeTagsPlugin>();
         services.AddSingletonImplementations<ITuvimaPlugin>(
-            expectedCount: 6,
+            expectedCount: 5,
             typeof(CommercialSkipPlugin).Assembly,
             typeof(FandomLorePlugin).Assembly,
             typeof(IntroSkipPlugin).Assembly);
+        services.AddSingleton<AiFeatureRetractionService>();
         services.AddSingleton<PluginSettingsService>();
         services.AddSingleton<IPluginApprovalCheck, PluginApprovalCheck>();
         services.AddSingleton<PluginCatalog>();

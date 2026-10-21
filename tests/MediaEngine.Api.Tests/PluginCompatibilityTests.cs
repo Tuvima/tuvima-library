@@ -385,7 +385,6 @@ public sealed class PluginCompatibilityTests
         new IntroSkipPlugin(),
         new CreditsDetectionPlugin(),
         new RecapDetectionPlugin(),
-        new AiVisualVerifierPlugin(),
     ];
 
     private static PluginManifest Manifest(

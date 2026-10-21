@@ -4,6 +4,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Api.Services.LocalAi;
 using MediaEngine.Api.Services.Plugins;
+using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.Plugins;
@@ -131,9 +132,12 @@ internal static class PluginEndpoints
         .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
-        group.MapPost("/{pluginId}/disable", (string pluginId, PluginCatalog catalog) =>
+        group.MapPost("/{pluginId}/disable", async (string pluginId, PluginCatalog catalog, AiFeatureRetractionService retraction, CancellationToken ct) =>
         {
             catalog.SetEnabled(pluginId, false);
+
+            // An AI feature's suggestions go away with its plugin (D-T); provider and person values stay.
+            await retraction.RetractForPluginAsync(pluginId, ct);
             return Results.Ok(new PluginEnabledResponse { plugin_id = pluginId, enabled = false });
         })
         .WithName("DisablePlugin")

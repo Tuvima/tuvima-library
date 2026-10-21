@@ -432,18 +432,15 @@ public sealed class PluginCapabilityAuthorizationTests
             "www.wikidata.org, *.fandom.com",
             MediaEngine.Api.Services.Approvals.ApprovalStatementBuilder.PluginSendsDataTo(new FandomLorePlugin().Manifest));
         Assert.All(
-            new ITuvimaPlugin[] { new CommercialSkipPlugin(), new FandomLorePlugin(), new IntroSkipPlugin(), new RecapDetectionPlugin(), new AiVisualVerifierPlugin() },
+            new ITuvimaPlugin[] { new CommercialSkipPlugin(), new FandomLorePlugin(), new IntroSkipPlugin(), new RecapDetectionPlugin() },
             plugin => Assert.Null(PluginCompatibility.ValidateManifest(plugin.Manifest)));
         Assert.All(
-            new ITuvimaPlugin[] { new CommercialSkipPlugin(), new IntroSkipPlugin(), new RecapDetectionPlugin(), new AiVisualVerifierPlugin() },
+            new ITuvimaPlugin[] { new CommercialSkipPlugin(), new IntroSkipPlugin(), new RecapDetectionPlugin() },
             plugin => Assert.Empty(plugin.Manifest.Network));
         Assert.Equal(
             [PluginPermissionIds.MediaRead, PluginPermissionIds.ProcessExecute, PluginPermissionIds.PluginStorage],
             new IntroSkipPlugin().Manifest.Permissions);
         Assert.Equal([PluginPermissionIds.MediaRead], new RecapDetectionPlugin().Manifest.Permissions);
-        Assert.Equal(
-            [PluginPermissionIds.MediaRead, PluginPermissionIds.AiInfer],
-            new AiVisualVerifierPlugin().Manifest.Permissions);
     }
 
     [Fact]

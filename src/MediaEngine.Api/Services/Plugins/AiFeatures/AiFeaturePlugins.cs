@@ -20,6 +20,7 @@ internal static class AiFeaturePluginManifests
         string aiRole,
         int maxTokens,
         bool scheduled,
+        string[]? extraPermissions = null,
         Dictionary<string, JsonElement>? defaultSettings = null,
         JsonElement? settingsSchema = null) => new()
         {
@@ -30,9 +31,11 @@ internal static class AiFeaturePluginManifests
             MinimumLibraryVersion = "1.0.0",
             Description = description,
             Capabilities = [capability],
-            Permissions = scheduled
-            ? [PluginPermissionIds.AiInfer, PluginPermissionIds.ScheduledWork]
-            : [PluginPermissionIds.AiInfer],
+            Permissions = [
+                PluginPermissionIds.AiInfer,
+                .. (scheduled ? new[] { PluginPermissionIds.ScheduledWork } : []),
+                .. (extraPermissions ?? []),
+            ],
             AiPermissions =
         [
             new PluginAiPermission
@@ -255,4 +258,25 @@ internal sealed class DescriptionInsightsPlugin(IServiceProvider services) : ITu
             PluginSchedule.Every(TimeSpan.FromMinutes(15)),
             ct => services.GetRequiredService<DescriptionIntelligenceRunner>().ProcessBatchAsync(ct)),
     ];
+}
+
+/// <summary>Writes the short taste summary on a profile page from what that profile watched, read and listened to.</summary>
+internal sealed class TasteSummaryPlugin : ITuvimaPlugin
+{
+    public PluginManifest Manifest { get; } = AiFeaturePluginManifests.Create(
+        AiFeaturePluginIds.TasteSummary,
+        "Taste summary",
+        "Writes a sentence or two about a person's taste from what they watched, read and listened to. Runs on this machine with Local AI and never leaves it; without it, the profile page shows the numbers and a plain sentence.",
+        new PluginCapabilityDescriptor
+        {
+            Kind = "taste-summary",
+            Name = "Taste summary writer",
+            Description = "Summarises a profile's taste in a sentence or two.",
+        },
+        aiRole: "text_fast",
+        maxTokens: 160,
+        scheduled: false,
+        extraPermissions: [PluginPermissionIds.WatchActivity]);
+
+    public IReadOnlyList<IPluginCapability> CreateCapabilities() => [];
 }

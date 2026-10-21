@@ -10,6 +10,7 @@ public enum AiFeature
     SeriesAlignment,
     VibeTags,
     DescriptionIntelligence,
+    TasteSummary,
 }
 
 /// <summary>Central preflight gate used before scans, leases, or model loads.</summary>
