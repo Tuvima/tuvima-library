@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manual run on any branch behaves like a push to main: full format check, coverage collected and enforced.
+  workflow_dispatch:
 
 permissions:
   contents: read
