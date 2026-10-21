@@ -216,6 +216,26 @@ internal static class SnapshotCommand
             await Section(sectionName, IdSuffix(personCreditId), async () => InOrder(await credits.GetLibraryCreditsAsync(personCreditId, ct)));
         }
 
+        // person-presence: how much of the library each sampled person is credited in, worked out for all of them in one call.
+        var presencePeople = samples.CreditPersons.Where(sample => sample.Id.HasValue).Select(sample => sample.Id!.Value).ToList();
+        if (presencePeople.Count > 0)
+        {
+            await Section(
+                "person-presence",
+                " people=" + presencePeople.Count.ToString(CultureInfo.InvariantCulture),
+                async () =>
+                {
+                    var presence = await new PersonRepository(context.Database).GetPresenceBatchAsync(presencePeople, ct);
+                    return SnapshotRows.Sorted(presence
+                        .SelectMany(person => person.Value.Select(media => (object)new { Person = person.Key, MediaType = media.Key, media.Value })));
+                });
+        }
+        else
+        {
+            failed |= Missing("person-presence");
+            await Section("person-presence", " (no sample found)", Empty);
+        }
+
         if (samples.PlayProfile is { } tasteProfileId)
         {
             var taste = new TasteProfileRepository(context.Database);

@@ -1,5 +1,4 @@
 using Bunit;
-using MediaEngine.Contracts.Ai;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Plugins;
@@ -30,13 +29,9 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
     private readonly DashboardSessionAccessor _session = new();
     private readonly IEngineApiClient _api;
     private readonly List<(string PluginId, bool Enabled, string? Hash)> _pluginCalls = [];
-    private readonly List<AiConfigDto> _aiSaves = [];
     private List<PluginSummaryResponse> _plugins = [];
     private List<ApprovalRecordResponse> _approvals = [];
     private bool _pluginNeedsApproval = true;
-    private AiConfigDto _aiConfig = new();
-    private Dictionary<string, bool> _savedFeatures = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _needsNoApproval = new(StringComparer.OrdinalIgnoreCase);
 
     public ApprovalFlowTests()
     {
@@ -57,28 +52,6 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
             });
             stub.SetHandler(nameof(IEngineApiClient.GetApprovalsAsync), _ =>
                 Task.FromResult<IReadOnlyList<ApprovalRecordResponse>>(_approvals.ToList()));
-            stub.SetHandler(nameof(IEngineApiClient.GetAiConfigAsync), _ => Task.FromResult<AiConfigDto?>(Clone(_aiConfig)));
-            stub.SetHandler(nameof(IEngineApiClient.SaveAiConfigWithApprovalAsync), args =>
-            {
-                var config = (AiConfigDto)args![0]!;
-                _aiSaves.Add(Snapshot(config));
-                var needed = config.Features
-                    .Where(pair => pair.Value && !_savedFeatures.GetValueOrDefault(pair.Key))
-                    .Select(pair => pair.Key)
-                    .Order(StringComparer.Ordinal)
-                    .Where(key => !_needsNoApproval.Contains(key) && !config.Approvals.ContainsKey(key))
-                    .ToList();
-                if (needed.Count > 0)
-                {
-                    return Task.FromResult(new AiConfigSaveResult(false, new ApprovalRequiredResponse
-                    {
-                        Approvals = needed.Select(key => Preview("ai_feature", key, key == "vibe_tags" ? "Vibe tags" : "Smart labeling", $"hash-{key}")).ToList(),
-                    }));
-                }
-
-                _savedFeatures = new Dictionary<string, bool>(config.Features, StringComparer.OrdinalIgnoreCase);
-                return Task.FromResult(new AiConfigSaveResult(true));
-            });
         });
         Services.AddSingleton(_api);
         Services.AddSingleton(_session);
@@ -212,66 +185,25 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
     // ── Local AI ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task AiSave_WithTwoNewlyEnabledFeatures_ShowsTwoDialogs_ThenSavesWithBothHashes()
+    public async Task LocalAiOverview_ListsTheAiFeaturePlugins_WithTheirStateAndALinkToThePluginsPage_AndHasNoSwitchesOfItsOwn()
     {
-        _aiConfig = AllFeaturesOff();
-        var dialogs = Render<AppDialogHost>();
+        _plugins =
+        [
+            AiPlugin("tuvima.ai-vibe-tags", "Vibe tags", enabled: true),
+            AiPlugin("tuvima.ai-smart-labelling", "Smart labelling", enabled: false),
+            Plugin(enabled: true),
+        ];
+
         var cut = await RenderLocalAiAsync();
-        TurnOn(cut, 0);
-        TurnOn(cut, 3);
 
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save features").Click();
-
-        dialogs.WaitForAssertion(() => Assert.Contains("Turn on Smart labeling?", dialogs.Markup));
-        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Turn on").Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Turn on Vibe tags?", dialogs.Markup));
-        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Turn on").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("Local AI features saved.", cut.Markup));
-        Assert.Equal(2, _aiSaves.Count);
-        Assert.Empty(_aiSaves[0].Approvals);
-        Assert.Equal("hash-smart_labeling", _aiSaves[1].Approvals["smart_labeling"]);
-        Assert.Equal("hash-vibe_tags", _aiSaves[1].Approvals["vibe_tags"]);
-    }
-
-    [Fact]
-    public async Task AiSave_CancellingTheSecondDialog_SavesNothing_AndTheSwitchesGoBackToTheirSavedValue()
-    {
-        _aiConfig = AllFeaturesOff();
-        var dialogs = Render<AppDialogHost>();
-        var cut = await RenderLocalAiAsync();
-        TurnOn(cut, 0);
-        TurnOn(cut, 3);
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save features").Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Turn on Smart labeling?", dialogs.Markup));
-        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Turn on").Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Turn on Vibe tags?", dialogs.Markup));
-
-        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Cancel").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("Nothing was turned on", cut.Markup));
-        Assert.Single(_aiSaves);
-        Assert.All(cut.FindAll("[data-state-card=plugin]"), card => Assert.Equal("off", card.GetAttribute("data-health")));
-    }
-
-    [Fact]
-    public async Task AiSave_Cancel_ReloadsTheSavedConfig_SoEveryUnsavedSwitchGoesBack_EvenOneThatNeededNoApproval()
-    {
-        _aiConfig = AllFeaturesOff();
-        _needsNoApproval.Add("type_logic");
-        var dialogs = Render<AppDialogHost>();
-        var cut = await RenderLocalAiAsync();
-        TurnOn(cut, 0);
-        TurnOn(cut, 1);
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save features").Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Turn on Smart labeling?", dialogs.Markup));
-
-        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Cancel").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("Nothing was turned on", cut.Markup));
-        Assert.Single(_aiSaves);
-        Assert.All(cut.FindAll("[data-state-card=plugin]"), card => Assert.Equal("off", card.GetAttribute("data-health")));
-        Assert.All(cut.FindAll("[data-state-card=plugin] input[role=switch]"), toggle => Assert.False(toggle.HasAttribute("checked")));
+        var text = cut.Markup;
+        Assert.Contains("Vibe tags", text, StringComparison.Ordinal);
+        Assert.Contains("Smart labelling", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Alpha", text, StringComparison.Ordinal);
+        Assert.Contains("/settings/plugins?plugin=tuvima.ai-vibe-tags", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Save features", text, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-state-card=plugin] input[role=switch]"));
+        Assert.Contains("1", cut.Find(".local-ai-settings__summary-card strong").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -292,22 +224,10 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
         dialogs.WaitForAssertion(() => Assert.Contains("Turn on Alpha?", dialogs.Markup));
     }
 
-    [Fact]
-    public async Task AiFeatureCards_ShowTheEnginesWords()
-    {
-        _aiConfig = AllFeaturesOff();
-        _aiConfig.FeatureInfo["smart_labeling"] = new AiFeatureInfoDto { AllowedTo = ["Engine words for labelling"] };
-
-        var cut = await RenderLocalAiAsync();
-
-        Assert.Contains("Engine words for labelling", cut.FindAll("[data-state-card=plugin]")[0].TextContent, StringComparison.Ordinal);
-    }
-
     // ── The dialog itself ────────────────────────────────────────────────────
 
     [Theory]
     [InlineData("plugin", "Turn on")]
-    [InlineData("ai_feature", "Turn on")]
     [InlineData("application_credential", "Issue key")]
     [InlineData("webhook", "Save")]
     [InlineData("application", "Allow")]
@@ -363,38 +283,13 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
     {
         await Services.GetRequiredService<SettingsAttentionState>().StartAsync();
         var cut = Render<LocalAiSettingsTab>();
-        cut.WaitForAssertion(() => Assert.Equal(6, cut.FindAll("[data-state-card=plugin]").Count));
+        cut.WaitForAssertion(() => Assert.Contains("AI features", cut.Markup));
+        cut.WaitForAssertion(() => Assert.DoesNotContain("AI features unavailable", cut.Markup));
         return cut;
     }
 
-    private static void TurnOn(IRenderedComponent<LocalAiSettingsTab> cut, int cardIndex) =>
-        cut.FindAll("[data-state-card=plugin] input[role=switch]")[cardIndex].Change(true);
-
-    private static AiConfigDto AllFeaturesOff() => new()
-    {
-        Features = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["smart_labeling"] = false,
-            ["type_logic"] = false,
-            ["series_alignment"] = false,
-            ["vibe_tags"] = false,
-            ["tldr"] = false,
-            ["description_intelligence"] = false,
-        },
-    };
-
-    private static AiConfigDto Clone(AiConfigDto config) => new()
-    {
-        Features = new Dictionary<string, bool>(config.Features, StringComparer.OrdinalIgnoreCase),
-        FeatureInfo = new Dictionary<string, AiFeatureInfoDto>(config.FeatureInfo, StringComparer.OrdinalIgnoreCase),
-    };
-
-    // The stub keeps what each save asked for, so later assertions are not changed by the component editing its own copy.
-    private static AiConfigDto Snapshot(AiConfigDto config) => new()
-    {
-        Features = new Dictionary<string, bool>(config.Features, StringComparer.OrdinalIgnoreCase),
-        Approvals = new Dictionary<string, string>(config.Approvals, StringComparer.OrdinalIgnoreCase),
-    };
+    private static PluginSummaryResponse AiPlugin(string id, string name, bool enabled) =>
+        Plugin(enabled) with { Id = id, Name = name, Description = $"{name} runs on this machine." };
 
     private static ApprovalPreviewResponse Preview(string kind, string itemId, string title, string hash) => new()
     {

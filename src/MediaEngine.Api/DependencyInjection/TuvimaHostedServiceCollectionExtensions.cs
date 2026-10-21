@@ -81,9 +81,6 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<StorageMaintenanceHostedService>();
 
         services.AddHostedService<ModelAutoDownloadService>();
-        services.AddHostedService<VibeBatchService>();
-        services.AddHostedService<SeriesAlignmentBackgroundService>();
-        services.AddHostedService<DescriptionIntelligenceBatchService>();
         services.AddHostedService(sp => sp.GetRequiredService<UniverseEnrichmentService>());
         services.AddHostedService<EnrichmentRefreshScheduleWorker>();
         services.AddHostedService<PeopleEnrichmentHostedService>();

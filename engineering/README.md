@@ -24,7 +24,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | Spec | Status |
 |---|---|
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3; waves 1–3 built 2026-10-20; waves 4–8 in [the handoff](handoffs/2026-10-20-developer-tools-waves-4-to-8.md)) |
-| [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP4 to U-WP8, U-WP9 part 1, U-WP10 to U-WP12 built 2026-10-20 and U-WP9 part 2 and U-WP14 built 2026-10-21, awaiting Local checks; rest in the [2026-10-20 Universes handoff](handoffs/2026-10-20-universe-remaining.md)) |
+| [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP3b, U-WP4 to U-WP8, U-WP9 part 1, U-WP10 to U-WP12 built 2026-10-20, and U-WP14 built 2026-10-21, awaiting Local checks; rest in the [2026-10-20 Universes handoff](handoffs/2026-10-20-universe-remaining.md)) |
 | [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | In progress (v2): Waves 1–5 merged; WP8 left, see the 2026-10-21 handoff |
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v29, 2026-10-20) |
 | [Spec: Person credits and series search without the whole-library credit list](specs/archive/person-credits-and-series-search-speed.md) | Built (v2, archived 2026-10-21; follow-ups R1 and R2 in its section 8) |
@@ -91,6 +91,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Universe U-WP0: what really mixes up The Expanse](reports/universe-expanse-check-2026-10-19.md) | Current — feeds U-WP3 |
 | [Slow library and Home reads at 4,000 works](reports/slow-reads-2026-10.md) | Current — causes 1–2 fixed by the library list speed spec; causes 3–4 fixed by the Home and detail speed spec; follow-ups in the 2026-10-21 read speed handoff |
 | [Which stored name wins when a field accepts several](reports/stored-name-order-2026-10.md) | Current — recommendations 1–3 approved and built (stored-name-order-fix); addendum recommendations 6–9 approved and built; open remediation: the combined artist view's artist reader (see the report's last section) |
+| [Which library reads are slow or break on very large libraries](reports/library-read-speed-measurements-2026-10.md) | Current — measured 2026-10-21; people search, presence counts and library-sized id lists fixed |
 
 ## History (pre-2026-10-17 engineering records)
 

@@ -382,16 +382,20 @@ public sealed class WikidataSeriesManifestHydrationService
         IReadOnlyList<SeriesManifestItemRecord> items,
         CancellationToken ct)
     {
-        var ambiguous = await _manifestRepo.LinkOwnedWorksAsync(collectionId, items, ct).ConfigureAwait(false);
+        var linked = await _manifestRepo.LinkOwnedWorksWithOutcomeAsync(collectionId, items, ct).ConfigureAwait(false);
         if (_ambiguityReviewer is null)
         {
             return;
         }
 
-        foreach (var work in ambiguous)
+        foreach (var work in linked.Ambiguous)
         {
             await _ambiguityReviewer.RaiseAsync(work.WorkId, work.Candidates, work.WorkId, ct).ConfigureAwait(false);
         }
+
+        // Every other work the linking decided (including works reached through a parent collection) was placed without a
+        // tie, so any earlier "which Series?" item about it is answered, in one batch.
+        await _ambiguityReviewer.ResolveManyAsync(linked.DecidedWorkIds.ToList(), ct).ConfigureAwait(false);
     }
 
     private static SeriesManifestRequest CreateManifestRequest(string seriesQid, string language) => new()

@@ -42,6 +42,7 @@ public sealed class LocalAiEngineRoom : IAiEngineRoom, IDisposable
     private const string AvailabilityCheckFailedMessage = "Text reading could not be checked";
 
     private readonly AiSettings _settings;
+    private readonly IAiFeatureSwitches _switches;
     private readonly ModelInventory _inventory;
     private readonly IAiRuntimeStatus _runtime;
     private readonly IAiAdmissionRules _admission;
@@ -61,6 +62,7 @@ public sealed class LocalAiEngineRoom : IAiEngineRoom, IDisposable
 
     public LocalAiEngineRoom(
         AiSettings settings,
+        IAiFeatureSwitches switches,
         ModelInventory inventory,
         IAiRuntimeStatus runtime,
         IAiAdmissionRules admission,
@@ -74,6 +76,7 @@ public sealed class LocalAiEngineRoom : IAiEngineRoom, IDisposable
         TimeProvider? time = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(switches);
         ArgumentNullException.ThrowIfNull(inventory);
         ArgumentNullException.ThrowIfNull(runtime);
         ArgumentNullException.ThrowIfNull(admission);
@@ -85,6 +88,7 @@ public sealed class LocalAiEngineRoom : IAiEngineRoom, IDisposable
         ArgumentNullException.ThrowIfNull(logger);
 
         _settings = settings;
+        _switches = switches;
         _inventory = inventory;
         _runtime = runtime;
         _admission = admission;
@@ -539,7 +543,7 @@ public sealed class LocalAiEngineRoom : IAiEngineRoom, IDisposable
 
     private string? CheckTextAvailability(AiModelRole role, bool applyLocalAiSwitch)
     {
-        if (applyLocalAiSwitch && !_settings.IsLocalAiEnabled)
+        if (applyLocalAiSwitch && !_switches.IsLocalAiOn(_settings))
         {
             return LocalAiOff;
         }

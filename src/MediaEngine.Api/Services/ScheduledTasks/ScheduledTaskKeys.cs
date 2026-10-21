@@ -16,9 +16,6 @@ public static class ScheduledTaskKeys
     public const string LogFileRetention = "log_file_retention";
     public const string NightlyEnrichmentSweep = "pass2_nightly_sweep";
     public const string PluginSegmentDetection = "plugin_segment_detection";
-    public const string VibeTags = "vibe_tags";
-    public const string SeriesOrder = "series_order";
-    public const string DescriptionInsights = "description_insights";
     public const string WebhookDelivery = "webhook_delivery";
     public const string ProviderHealthChecks = "provider_health_checks";
     public const string PlaybackSessionCleanup = "playback_session_cleanup";

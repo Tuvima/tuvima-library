@@ -19,25 +19,6 @@ public sealed class ApprovalStatementBuilderTests
         Assert.Equal(words, ApprovalStatementBuilder.PermissionText(id));
     }
 
-    [Theory]
-    [InlineData("smart_labeling", "Reads file and folder names", "Suggests titles, authors, years and episode numbers when files are added")]
-    [InlineData("type_logic", "Reads file names and basic file facts", "Decides the media type when it is unclear")]
-    [InlineData("series_alignment", "Reads series and title details", "Suggests the order within a series")]
-    [InlineData("vibe_tags", "Reads descriptions and genres", "Adds mood tags")]
-    [InlineData("description_intelligence", "Reads descriptions", "Adds themes, mood, setting, period, audience, pace, content warnings and people")]
-    public void EachAiFeature_HasItsPlainWords(string key, string first, string second)
-    {
-        Assert.Equal([first, second], ApprovalStatementBuilder.AiFeatureAllowedTo(key));
-    }
-
-    [Fact]
-    public void TheShortSummaryFeature_HasItsWords_AndAnUnknownFeatureHasNone()
-    {
-        Assert.Equal(["Shows the short summary made by Description insights"], ApprovalStatementBuilder.AiFeatureAllowedTo("tldr"));
-        Assert.Empty(ApprovalStatementBuilder.AiFeatureAllowedTo("not_a_feature"));
-        Assert.Null(ApprovalStatementBuilder.AiFeatureSendsDataTo("tldr"));
-    }
-
     [Fact]
     public void PluginStatement_ListsEachPermissionToolAiAbilityAndHowItRunsInPlainWords()
     {
@@ -276,38 +257,6 @@ public sealed class ApprovalStatementBuilderTests
         Assert.NotEqual(originalHash, otherHost);
         Assert.NotEqual(originalHash, otherWords);
         Assert.NotEqual(originalHash, extra);
-    }
-
-    [Fact]
-    public void AiFeatureStatement_UsesTheFeatureWordsAndSaysItRunsOnThisMachine()
-    {
-        var statement = ApprovalStatementBuilder.ForAiFeature("vibe_tags", modelReady: true);
-
-        Assert.Equal("Vibe tags", statement.Title);
-        Assert.Equal("Local AI feature", statement.KindLabel);
-        Assert.Equal(["Reads descriptions and genres", "Adds mood tags", "Runs on this machine with Local AI"], statement.CanDo);
-        Assert.False(statement.SendsDataOut);
-        Assert.Null(statement.SendsDataTo);
-        Assert.Empty(statement.Notes);
-    }
-
-    [Fact]
-    public void AiFeatureStatement_WarnsOfAModelDownload_WhenTheModelIsNotOnThisMachine()
-    {
-        var statement = ApprovalStatementBuilder.ForAiFeature("smart_labeling", modelReady: false);
-
-        Assert.Equal(["May download an AI model to this machine first"], statement.Notes);
-    }
-
-    [Fact]
-    public void AiFeatureHash_IgnoresTheModelDownloadNote_SoDownloadingTheModelLaterDoesNotAskAgain()
-    {
-        var ready = ApprovalStatementBuilder.ForAiFeature("smart_labeling", modelReady: true);
-        var notReady = ApprovalStatementBuilder.ForAiFeature("smart_labeling", modelReady: false);
-
-        Assert.Equal(["May download an AI model to this machine first"], notReady.Notes);
-        Assert.Equal(ApprovalStatementBuilder.Hash(ready), ApprovalStatementBuilder.Hash(notReady));
-        Assert.Equal(["May download an AI model to this machine first"], ApprovalStatementBuilder.ToPreview("ai_feature", "smart_labeling", notReady).Notes);
     }
 
     [Fact]

@@ -32,6 +32,14 @@
     gap: 16px;
 }
 
+.local-ai-settings__feature-state {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
 @media (max-width: 600px) {
     .local-ai-settings__summary-grid {
         grid-template-columns: 1fr;

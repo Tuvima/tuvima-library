@@ -26,7 +26,7 @@ public sealed class PersonalTasteServiceTests : IAsyncLifetime
         _profiler = new SpyTasteProfiler();
         _overrides = new TasteOverrideRepository(_world.Database);
         _service = new PersonalTasteService(
-            _world.Scope, _profiler, _overrides, new ProfileRepository(_world.Database), new AiSettings(), _world.Clock);
+            _world.Scope, _profiler, _overrides, new ProfileRepository(_world.Database), new FixedVibeVocabulary(), _world.Clock);
         foreach (var person in new[] { _world.ServerPerson, _world.AdminA, _world.MemberA, _world.KidA, _world.AdminB, _world.MemberB })
         {
             _profiler.Learn(person.ProfileId, genres: new() { ["sci-fi"] = 0.6, ["drama"] = 0.4 }, moods: new() { ["cozy"] = 0.7 }, eras: new() { ["1990s"] = 1 });

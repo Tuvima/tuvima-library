@@ -13,15 +13,13 @@ namespace MediaEngine.Api.Services.Approvals;
 /// machine. The Engine writes every word here so the Dashboard, applications and the approval record all agree.
 /// </summary>
 /// <param name="Notes">Every note shown to the person.</param>
-/// <param name="UnhashedNotes">Notes that are shown (and are part of <paramref name="Notes"/>) but describe a passing condition, so they are left out of the fingerprint and a change in them does not ask again.</param>
 internal sealed record ApprovalStatement(
     string Title,
     string KindLabel,
     IReadOnlyList<string> CanDo,
     bool SendsDataOut,
     string? SendsDataTo,
-    IReadOnlyList<string> Notes,
-    IReadOnlyList<string>? UnhashedNotes = null);
+    IReadOnlyList<string> Notes);
 
 /// <summary>
 /// Builds <see cref="ApprovalStatement"/>s and their fingerprint. Pure: no storage, no clock, no secrets. A statement
@@ -42,7 +40,6 @@ internal static class ApprovalStatementBuilder
     public const string NotVerifiedWarning = "Tuvima hasn't checked this plugin. Only install plugins from people you trust.";
 
     public const string PluginKindLabel = "Plugin";
-    public const string AiFeatureKindLabel = "Local AI feature";
     public const string CredentialKindLabel = "Application key";
     public const string ApplicationKindLabel = "Integration";
     public const string WebhookKindLabel = "Webhook";
@@ -50,8 +47,6 @@ internal static class ApprovalStatementBuilder
     private const string UsesLocalAi = "Uses Local AI";
     private const string RunsAs = "Runs as";
     private const string KeepsOwnKeysAndLogins = "Keeps its own keys and logins";
-    private const string RunsWithLocalAi = "Runs on this machine with Local AI";
-    private const string ModelMayDownload = "May download an AI model to this machine first";
     private const string UnsandboxedNote = "Plugins run inside the server without a sandbox. Only turn on plugins you trust.";
     private const string DeclarativeNote = "This plugin is a description file; it runs no code of its own.";
     private const string ServiceNote = "This plugin runs as a separate program and talks to the Library through its published contract. Only turn on plugins you trust.";
@@ -86,26 +81,6 @@ internal static class ApprovalStatementBuilder
         ["text_quality"] = "write text (careful)",
         ["text_scholar"] = "write text (long)",
         ["text_cjk"] = "write text (careful, Chinese, Japanese, Korean)",
-    };
-
-    private static readonly IReadOnlyDictionary<string, string[]> FeatureWords = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["smart_labeling"] = ["Reads file and folder names", "Suggests titles, authors, years and episode numbers when files are added"],
-        ["type_logic"] = ["Reads file names and basic file facts", "Decides the media type when it is unclear"],
-        ["series_alignment"] = ["Reads series and title details", "Suggests the order within a series"],
-        ["vibe_tags"] = ["Reads descriptions and genres", "Adds mood tags"],
-        ["tldr"] = ["Shows the short summary made by Description insights"],
-        ["description_intelligence"] = ["Reads descriptions", "Adds themes, mood, setting, period, audience, pace, content warnings and people"],
-    };
-
-    private static readonly IReadOnlyDictionary<string, string> FeatureTitles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["smart_labeling"] = "Smart labeling",
-        ["type_logic"] = "Media-type assistance",
-        ["series_alignment"] = "Series alignment",
-        ["vibe_tags"] = "Vibe tags",
-        ["tldr"] = "Description TL;DR",
-        ["description_intelligence"] = "Description intelligence",
     };
 
     // ── State card words ─────────────────────────────────────────────────────
@@ -202,13 +177,6 @@ internal static class ApprovalStatementBuilder
     private static string DestinationLine(PluginNetworkDestination destination) =>
         $"Contacts {destination.Host}: {destination.Sends.Trim()}";
 
-    /// <summary>What a Local AI feature is allowed to do, in plain words; empty for a feature the Library has no words for.</summary>
-    public static IReadOnlyList<string> AiFeatureAllowedTo(string featureKey) =>
-        FeatureWords.TryGetValue(featureKey, out var words) ? words : [];
-
-    /// <summary>Local AI never sends data out, so this is always null.</summary>
-    public static string? AiFeatureSendsDataTo(string featureKey) => null;
-
     // ── Statements ───────────────────────────────────────────────────────────
 
     public static ApprovalStatement ForPlugin(PluginManifest manifest, PluginTrustLevel trust)
@@ -256,23 +224,6 @@ internal static class ApprovalStatementBuilder
         PluginKind.Sandboxed => SandboxedNote,
         _ => OfficialNote,
     };
-
-    /// <param name="modelReady">True when the model the feature reads is already on this machine.</param>
-    public static ApprovalStatement ForAiFeature(string featureKey, bool modelReady)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(featureKey);
-        var canDo = AiFeatureAllowedTo(featureKey).Append(RunsWithLocalAi).ToList();
-        // The download note is shown but not fingerprinted: downloading the model later must not ask again.
-        IReadOnlyList<string> notes = modelReady ? [] : [ModelMayDownload];
-        return new ApprovalStatement(
-            FeatureTitles.TryGetValue(featureKey, out var title) ? title : featureKey,
-            AiFeatureKindLabel,
-            canDo,
-            SendsDataOut: false,
-            SendsDataTo: null,
-            notes,
-            UnhashedNotes: notes);
-    }
 
     /// <param name="permissionNames">The human-readable name of each permission the application holds.</param>
     public static ApprovalStatement ForCredential(string applicationName, IEnumerable<string> permissionNames, DateTimeOffset? expiresAt)
@@ -338,7 +289,7 @@ internal static class ApprovalStatementBuilder
             statement.CanDo.ToArray(),
             statement.SendsDataOut,
             statement.SendsDataTo,
-            statement.Notes.Where(note => statement.UnhashedNotes?.Contains(note, StringComparer.Ordinal) != true).ToArray());
+            statement.Notes.ToArray());
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(canonical, CanonicalJson)));
         return Convert.ToHexStringLower(bytes);
     }

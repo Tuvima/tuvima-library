@@ -62,7 +62,7 @@ public sealed class LibraryWorkFeedReadService(IDatabaseConnection db) : ILibrar
                 WHERE w.work_kind != 'parent'
                   AND {visibleWorkPredicate}
                   AND {visibleAssetPredicate}
-                  AND (@RestrictWorks = 0 OR w.id IN @AllowedWorkIds)
+                  AND (@RestrictWorks = 0 OR w.id IN (SELECT unhex(value) FROM json_each(@AllowedWorkIds)))
             )
             SELECT
                 work_id AS WorkId,
@@ -86,9 +86,7 @@ public sealed class LibraryWorkFeedReadService(IDatabaseConnection db) : ILibrar
                 LimitPlusOne = page.Limit + 1,
                 page.Offset,
                 RestrictWorks = allowedWorkIds is null ? 0 : 1,
-                AllowedWorkIds = (allowedWorkIds ?? new HashSet<Guid>())
-                    .Select(GuidSql.ToBlob)
-                    .ToArray(),
+                AllowedWorkIds = GuidSql.ToJsonHexArray(allowedWorkIds ?? new HashSet<Guid>()),
             },
             cancellationToken: ct)).ConfigureAwait(false)).ToList();
 

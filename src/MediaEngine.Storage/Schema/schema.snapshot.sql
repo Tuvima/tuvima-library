@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0025 subtitle_text_index).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0026 subtitle_text_index).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2701,7 +2701,7 @@ CREATE TABLE works (
     -- 'Unowned' = catalog-only row discovered from Wikidata or a retail
     -- provider but not yet ingested. Kept in sync with is_catalog_only.
     ownership            TEXT NOT NULL DEFAULT 'Owned'
-, universe_mismatch INTEGER NOT NULL DEFAULT 0 CHECK (universe_mismatch IN (0, 1)), universe_mismatch_at TEXT, wikidata_status TEXT DEFAULT 'pending', wikidata_checked_at TEXT, wikidata_qid TEXT, curator_state TEXT, rejected_at TEXT, provisional_metadata_json TEXT, match_level TEXT DEFAULT 'work', wikidata_match_source TEXT, wikidata_match_locked INTEGER NOT NULL DEFAULT 0, wikidata_rejected_qids_json TEXT, ready_at TEXT, first_ready_at TEXT, placement_unmatched INTEGER NOT NULL DEFAULT 0 CHECK (placement_unmatched IN (0, 1)));
+, universe_mismatch INTEGER NOT NULL DEFAULT 0 CHECK (universe_mismatch IN (0, 1)), universe_mismatch_at TEXT, wikidata_status TEXT DEFAULT 'pending', wikidata_checked_at TEXT, wikidata_qid TEXT, curator_state TEXT, rejected_at TEXT, provisional_metadata_json TEXT, match_level TEXT DEFAULT 'work', wikidata_match_source TEXT, wikidata_match_locked INTEGER NOT NULL DEFAULT 0, wikidata_rejected_qids_json TEXT, ready_at TEXT, first_ready_at TEXT, placement_unmatched INTEGER NOT NULL DEFAULT 0 CHECK (placement_unmatched IN (0, 1)), series_placement_locked INTEGER NOT NULL DEFAULT 0);
 
 CREATE VIRTUAL TABLE artwork_asset_search USING fts5(
     artwork_asset_id UNINDEXED,
@@ -3538,6 +3538,10 @@ END;
 CREATE TRIGGER trg_view_sources_scope_update BEFORE UPDATE OF scope_kind,personal_space_id,library_id ON view_sources BEGIN
     SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
 END;
+
+CREATE TRIGGER trg_works_series_lock_released_with_shelf
+BEFORE DELETE ON collections
+BEGIN UPDATE works SET series_placement_locked = 0 WHERE collection_id = OLD.id AND series_placement_locked = 1; END;
 
 CREATE VIEW primary_person_media_credits AS
 WITH asset_scope AS (

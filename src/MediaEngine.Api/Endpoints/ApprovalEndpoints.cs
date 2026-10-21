@@ -47,7 +47,6 @@ internal static class ApprovalEndpoints
         [FromServices] IRequestAuthorityResolver authorityResolver,
         [FromServices] ApplicationAdministrationService applications,
         [FromServices] PluginCatalog plugins,
-        [FromServices] IModelDownloadManager downloads,
         CancellationToken ct)
     {
         try
@@ -56,7 +55,6 @@ internal static class ApprovalEndpoints
             var preview = request.Kind switch
             {
                 ApprovalKinds.Plugin => approvals.PreviewPlugin(FindPlugin(plugins, request)),
-                ApprovalKinds.AiFeature => approvals.PreviewAiFeature(RequireItemId(request), ApprovalService.IsFeatureModelReady(downloads)),
                 ApprovalKinds.ApplicationCredential => await PreviewCredentialAsync(request, authority, approvals, applications, ct).ConfigureAwait(false),
                 ApprovalKinds.Webhook => PreviewWebhook(request, approvals),
                 _ => throw new ArgumentException($"Unknown kind '{request.Kind}'."),
@@ -121,7 +119,7 @@ internal static class ApprovalEndpoints
             return ApiErrors.BadRequest("Give both kind and item_id.");
         }
 
-        if (kind is not (ApprovalKinds.Plugin or ApprovalKinds.AiFeature or ApprovalKinds.ApplicationCredential or ApprovalKinds.Application or ApprovalKinds.Webhook))
+        if (kind is not (ApprovalKinds.Plugin or ApprovalKinds.ApplicationCredential or ApprovalKinds.Application or ApprovalKinds.Webhook))
         {
             return ApiErrors.BadRequest($"Unknown kind '{kind}'.");
         }

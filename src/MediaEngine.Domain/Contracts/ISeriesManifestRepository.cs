@@ -59,6 +59,21 @@ public interface ISeriesManifestRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Like <see cref="LinkOwnedWorksAsync"/>, and also reports every work it decided without a tie (including works reached
+    /// through a parent collection), so the caller can close their "which Series?" questions in one batch.
+    /// </summary>
+    Task<SeriesLinkOutcome> LinkOwnedWorksWithOutcomeAsync(
+        Guid collectionId,
+        IReadOnlyList<SeriesManifestItemRecord> items,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Applies <see cref="SeriesPlacementRule"/> to one work from the manifests that name it (no retail identity), for a work
+    /// that has no file to run collection assignment through. Returns the placement when two Series claim the work equally.
+    /// </summary>
+    Task<AmbiguousSeriesPlacement?> PlaceWorkFromManifestsAsync(Guid workId, CancellationToken ct = default);
+
+    /// <summary>
     /// The owned-work rows of several shelves' manifests in one read (no collection items, no missing rows), for readers
     /// that order the members of many Series at once.
     /// </summary>

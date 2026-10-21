@@ -3,9 +3,9 @@ namespace MediaEngine.Api.Tests;
 public sealed class AiBackgroundServiceGuardrailTests
 {
     [Theory]
-    [InlineData("VibeBatchService.cs")]
-    [InlineData("SeriesAlignmentBackgroundService.cs")]
-    [InlineData("DescriptionIntelligenceBatchService.cs")]
+    [InlineData("VibeBatchRunner.cs")]
+    [InlineData("SeriesAlignmentRunner.cs")]
+    [InlineData("DescriptionIntelligenceRunner.cs")]
     public void AiWorkers_UseExplicitDependenciesAndDurableFeatureOutcomes(string fileName)
     {
         var source = File.ReadAllText(GetRepoFilePath($@"src/MediaEngine.Api/Services/{fileName}"));
@@ -18,9 +18,9 @@ public sealed class AiBackgroundServiceGuardrailTests
     }
 
     [Theory]
-    [InlineData("VibeBatchService.cs")]
-    [InlineData("SeriesAlignmentBackgroundService.cs")]
-    [InlineData("DescriptionIntelligenceBatchService.cs")]
+    [InlineData("VibeBatchRunner.cs")]
+    [InlineData("SeriesAlignmentRunner.cs")]
+    [InlineData("DescriptionIntelligenceRunner.cs")]
     public void LaunchAiWorkers_GateBeforeScanning(string fileName)
     {
         var source = File.ReadAllText(GetRepoFilePath($@"src/MediaEngine.Api/Services/{fileName}"));
@@ -40,9 +40,9 @@ public sealed class AiBackgroundServiceGuardrailTests
     {
         foreach (var fileName in new[]
                  {
-                     "VibeBatchService.cs",
-                     "SeriesAlignmentBackgroundService.cs",
-                     "DescriptionIntelligenceBatchService.cs",
+                     "VibeBatchRunner.cs",
+                     "SeriesAlignmentRunner.cs",
+                     "DescriptionIntelligenceRunner.cs",
                  })
         {
             var source = File.ReadAllText(GetRepoFilePath($@"src/MediaEngine.Api/Services/{fileName}"));

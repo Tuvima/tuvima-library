@@ -136,20 +136,11 @@ MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiConfigDto
   ResourceProfile: System.String | nullability=not-null | accessors=get,set
   EffectiveResourceProfile: System.String | nullability=not-null | accessors=get,set
   AudioPackEnabled: System.Boolean | nullability=not-null | accessors=get,set
-  Features: System.Collections.Generic.Dictionary<System.String, System.Boolean> | nullability=not-null | accessors=get,set
-  FeatureInfo: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Ai.AiFeatureInfoDto> | nullability=not-null | accessors=get,set
-  Approvals: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
-  VibeVocabulary: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<System.String>> | nullability=not-null | accessors=get,set
-  Scheduling: System.Collections.Generic.Dictionary<System.String, System.Object> | nullability=not-null | accessors=get,set
   EnrichmentBatchSize: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiDownloadCancelledResponse
   cancelled: System.Boolean | nullability=not-null | accessors=get,init
   role: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiFeatureInfoDto
-  AllowedTo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
-  SendsDataTo: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiHealthStatusDto
   Models: System.Collections.Generic.List<MediaEngine.Contracts.Ai.AiModelStatusDto> | nullability=not-null | accessors=get,set
@@ -3481,9 +3472,6 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryOverviewDto
   QidNoMatch: System.Int32 | nullability=not-null | accessors=get,init
   CompletedWithArt: System.Int32 | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.UniverseManualAssignResponse
-  assigned: System.Boolean | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.AddViewGalleryItemsResponseDto
   Added: System.Int32 | nullability=not-null | accessors=get,init
   AlreadyPresent: System.Int32 | nullability=not-null | accessors=get,init
@@ -5209,6 +5197,27 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.SearchCacheUpsertR
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.SearchResultsCacheResponse
   results_json: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.SeriesPlacementChoiceRequestDto
+  CollectionId: System.Guid? | nullability=nullable | accessors=get,set
+  Locked: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.SeriesPlacementDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,set
+  MediaType: System.String | nullability=not-null | accessors=get,set
+  SupportsSeries: System.Boolean | nullability=not-null | accessors=get,set
+  Current: MediaEngine.Contracts.Metadata.SeriesPlacementShelfDto | nullability=nullable | accessors=get,set
+  IsPersonChoice: System.Boolean | nullability=not-null | accessors=get,set
+  Listed: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.SeriesPlacementShelfDto> | nullability=not-null | accessors=get,set
+  Candidates: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.SeriesPlacementShelfDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.SeriesPlacementShelfDto
+  CollectionId: System.Guid | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  SeriesQid: System.String | nullability=nullable | accessors=get,set
+  MediaType: System.String | nullability=not-null | accessors=get,set
+  Scope: System.String | nullability=not-null | accessors=get,set
+  PositionLabel: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.TvdbMatchCandidateDto
   Id: System.String | nullability=not-null | accessors=get,init
