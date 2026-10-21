@@ -881,8 +881,19 @@ public sealed class PersonRepository : IPersonRepository
             ct.ThrowIfCancellationRequested();
             var p = new DynamicParameters();
             var personIdClause = AddGuidBlobList(p, "personId", batch);
+            // Credits are worked out only for the files that could credit these people, never for the whole library.
+            var candidateAssetsCte = PersonCreditSql.CandidateAssetsCte(
+                "presence_candidate_assets",
+                $"SELECT id, name, wikidata_qid FROM persons WHERE id IN ({personIdClause})",
+                "pc_");
+            var scopedCreditsCte = PersonCreditSql.ScopedCreditsCte(
+                "presence_credit_rows",
+                "SELECT asset_id FROM presence_candidate_assets",
+                "pr_");
             rows.AddRange(conn.Query<PresenceRow>($"""
-                WITH credited_works AS (
+                WITH {candidateAssetsCte},
+                {scopedCreditsCte},
+                credited_works AS (
                     SELECT p.id AS PersonId,
                            COALESCE(gp.media_type, parent.media_type, w.media_type) AS MediaType,
                            CASE
@@ -891,7 +902,7 @@ public sealed class PersonRepository : IPersonRepository
                                ELSE w.id
                            END AS DisplayWorkId
                     FROM persons p
-                    JOIN primary_person_media_credits primary_credit ON primary_credit.person_id = p.id
+                    JOIN presence_credit_rows primary_credit ON primary_credit.person_id = p.id
                     JOIN media_assets ma ON ma.id = primary_credit.media_asset_id
                     JOIN editions e ON e.id = ma.edition_id
                     JOIN works w ON w.id = e.work_id
