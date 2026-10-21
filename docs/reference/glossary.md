@@ -99,7 +99,7 @@ Follow-up metadata work after basic identity is known, such as artwork, people, 
 
 ### Excluded file
 
-A media file that stayed on disk when its title was deleted from the library: a file in an As-is folder, the original of a merged file, or a file that could not be removed. Scans skip it so the title does not come back. **Settings > Libraries > Excluded files** lists it, and **Add back** scans it again. See [Manage library settings and operations](../guides/library-settings.md#excluded-files).
+A media file that stayed on disk when its title was deleted from the library: a file in a Read-only folder, the original of a merged file, or a file that could not be removed. Scans skip it so the title does not come back. **Settings > Libraries > Excluded files** lists it, and **Add back** scans it again. See [Manage library settings and operations](../guides/library-settings.md#excluded-files).
 
 ### Extra protection
 
@@ -147,13 +147,13 @@ AI features that run on local model files through local runtimes. Local AI helps
 
 A single file on disk, such as one `.epub`, `.mkv`, `.m4b`, `.flac`, or `.cbz`.
 
-### As-is
+### Read-only
 
-A folder handling mode. Tuvima only reads an As-is folder: it never moves, renames, tags or deletes its files, so other apps that use the folder are not affected. It is the recommended choice for folders that already have files. Stored as `management_mode: existing_library`.
+A folder handling mode. Tuvima only reads a Read-only folder: it never moves, renames, tags or deletes its files, so other apps that use the folder are not affected. It is the recommended choice for folders that already have files. Stored as `management_mode: existing_library`.
 
 ### Convert to Managed
 
-Switching an As-is folder to Managed. Tuvima shows a preview, then runs a background organising job (progress, pause, resume, cancel) that moves and renames the files to the type's standard layout. Sidecar files move with their media, every move is written to a downloadable log, and there is no automatic undo.
+Switching a Read-only folder to Managed. Tuvima shows a preview, then runs a background organising job (progress, pause, resume, cancel) that moves and renames the files to the type's standard layout. Sidecar files move with their media, every move is written to a downloadable log, and there is no automatic undo.
 
 ### Import folder
 

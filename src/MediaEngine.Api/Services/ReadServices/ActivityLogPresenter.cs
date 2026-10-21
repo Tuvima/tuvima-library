@@ -46,6 +46,7 @@ public static partial class ActivityLogPresenter
                 dto.Detail = mediaType is null ? "Added" : $"Added to {mediaType}";
                 dto.MediaType = mediaType;
                 dto.Route = WorkRoute(entry.EntityId, changes.Text("media_type"));
+                dto.CoverUrl = WorkCoverUrl(entry.EntityId);
                 break;
 
             case SystemActionType.MediaRemoved:
@@ -208,6 +209,10 @@ public static partial class ActivityLogPresenter
             ? IngestionPresentationReadService.DetailRoute(MediaTypeLabel(mediaType)!, id)
             : null;
     }
+
+    // The same small cover address the other Engine lists use; a work without art answers with the Engine's placeholder.
+    private static string? WorkCoverUrl(Guid? workId) =>
+        workId is { } id && id != Guid.Empty ? $"/stream/entity/work/{id:D}/cover?size=s" : null;
 
     private static string SplitIntoWords(string kind)
     {

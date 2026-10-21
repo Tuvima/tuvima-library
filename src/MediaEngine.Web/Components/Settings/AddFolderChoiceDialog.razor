@@ -1,11 +1,11 @@
 @namespace MediaEngine.Web.Components.Settings
 
-@* A folder that already has files can be used three ways. Using it as-is is recommended because it changes nothing; merging
+@* A folder that already has files can be used three ways. Using it read-only is recommended because it changes nothing; merging
    brings its files into a managed folder once; managing it lets Tuvima rename and reorganise the files where they are. *@
 <AppDialogShell Title="This folder already has files in it" Size="Medium" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         <div class="add-folder-choice">
-            <AppChoiceCard Class="add-folder-choice__card" Title="Use as-is (recommended)"
+            <AppChoiceCard Class="add-folder-choice__card" Title="Use read-only (recommended)"
                            Description="Library only reads the folder and never renames, moves or changes your files, so other apps are not affected."
                            OnClick="@(() => Dialog.Close(AppDialogResult.Ok(AsIs)))" />
             @if (CanMerge)

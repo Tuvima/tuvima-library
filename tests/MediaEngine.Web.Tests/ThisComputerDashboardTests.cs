@@ -110,15 +110,55 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     }
 
     [Fact]
+    public void LoginPage_WhenPasswordSignInIsOffAndTheOwnerCanGoBackIn_ShowsNoEmailOrPasswordForm()
+    {
+        var page = LoginPage("Sam", password: false);
+
+        Assert.Contains("Go back in as Sam", page);
+        Assert.DoesNotContain("name=\"password\"", page);
+        Assert.DoesNotContain("name=\"email\"", page);
+        Assert.DoesNotContain("Forgot your password?", page);
+        Assert.DoesNotContain("Password sign-in isn't available", page);
+    }
+
+    [Fact]
+    public void LoginPage_WhenPasswordSignInIsOffAndNoOneCanGoBackIn_SaysSo()
+    {
+        var page = LoginPage(null, password: false);
+
+        Assert.DoesNotContain("name=\"password\"", page);
+        Assert.Contains("Password sign-in isn't available from here.", page);
+    }
+
+    [Fact]
+    public void LoginPage_GoesBackInByItself_OnlyWhenAskedTo()
+    {
+        var automatic = LoginPage("Sam", continueAutomatically: true);
+        var chosen = LoginPage("Sam", continueAutomatically: false);
+
+        Assert.Contains("document.getElementById('continue-form')", automatic);
+        Assert.Contains("document.prerendering", automatic);
+        Assert.DoesNotContain("document.getElementById('continue-form')", chosen);
+        Assert.Contains("id=\"continue-form\"", chosen);
+    }
+
+    [Fact]
+    public void LoginPage_NeverGoesBackInByItself_WithoutAnAccountToGoBackInAs()
+    {
+        Assert.DoesNotContain("continue-form", LoginPage(null, continueAutomatically: true));
+    }
+
+    [Fact]
     public void LoginPage_EncodesTheAccountName()
     {
         Assert.Contains("Go back in as &lt;b&gt;Sam&lt;/b&gt;", LoginPage("<b>Sam</b>"));
     }
 
-    private static string LoginPage(string? name) =>
+    private static string LoginPage(string? name, bool password = true, bool continueAutomatically = false) =>
         DashboardAuthenticationEndpoints.LoginPage(
-            "token", new SignInMethodsResponse(true, false, [], true), NoProviders,
-            "11111111-2222-3333-4444-555555555555", "/", atPublicOrigin: false, thisComputerName: name);
+            "token", new SignInMethodsResponse(password, false, [], true), NoProviders,
+            "11111111-2222-3333-4444-555555555555", "/", atPublicOrigin: false, thisComputerName: name,
+            continueAutomatically: continueAutomatically);
 
     [Fact]
     public void SecureAccountPrompt_IsOnlyForAThisComputerOnlyAccount()

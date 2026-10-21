@@ -92,11 +92,25 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
         var cut = Render<SetupReadinessStage>(parameters => parameters.Add(component => component.Readiness, readiness));
 
         var names = cut.FindAll(".setup-checks strong").Select(item => item.TextContent.Trim()).ToList();
-        Assert.Equal(["Your account", "Libraries", "Enhance your library"], names);
+        Assert.Equal(["Your Account", "Libraries", "Enhance your library"], names);
         Assert.DoesNotContain("Core server capabilities", cut.Markup, StringComparison.Ordinal);
         var links = cut.FindAll(".setup-checks a").Select(link => link.TextContent.Trim()).ToList();
         Assert.Equal(["Set up", "Set up"], links);
         Assert.DoesNotContain("Set up later", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReadinessNamesTheServerRowWithACapitalAndSaysWhatWasSaved()
+    {
+        var readiness = new SetupReadinessDto(true,
+        [
+            new SetupCapabilityDto("server", "server", "passed", false,
+                "This server is called \"Home\" and shows up on your home network as home.local.", null),
+        ]);
+        var cut = Render<SetupReadinessStage>(parameters => parameters.Add(component => component.Readiness, readiness));
+
+        Assert.Equal(["Server"], cut.FindAll(".setup-checks strong").Select(item => item.TextContent.Trim()));
+        Assert.Contains("shows up on your home network as home.local.", cut.Find(".setup-checks small").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
