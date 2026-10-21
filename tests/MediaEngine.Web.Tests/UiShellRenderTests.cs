@@ -1251,6 +1251,46 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Collections_ASectionChosenDuringTheFirstLoad_SaysLoadingUntilItsOwnDataArrives()
+    {
+        // A replaced load's cancelled catalog read comes back empty, later than the newer load; it must not mark the
+        // collections as loaded.
+        var catalogs = new List<TaskCompletionSource<List<CollectionManagementCatalogViewModel>>>();
+        Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetCollectionCatalogAsync), _ =>
+            {
+                var catalog = new TaskCompletionSource<List<CollectionManagementCatalogViewModel>>();
+                catalogs.Add(catalog);
+                return catalog.Task;
+            })));
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<AppPopoverHost>(0);
+            builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1);
+            builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2);
+            builder.CloseComponent();
+            builder.OpenComponent<CollectionsPage>(3);
+            builder.AddAttribute(4, nameof(CollectionsPage.Section), "automatic");
+            builder.CloseComponent();
+        });
+        var page = cut.FindComponent<CollectionsPage>();
+        cut.WaitForAssertion(() => Assert.Single(catalogs));
+
+        // People is chosen before the first catalog arrives: a second load starts, people first, and replaces the first.
+        page.Render(parameters => parameters.Add(component => component.Section, "people"));
+        cut.WaitForAssertion(() => Assert.Contains("Octavia Butler", cut.Markup));
+        Assert.Equal(2, catalogs.Count);
+        cut.InvokeAsync(() => catalogs[0].SetResult([]));
+
+        // Back to a collection section while the second catalog is still out: it says Loading, not an empty grid.
+        page.Render(parameters => parameters.Add(component => component.Section, "automatic"));
+        cut.WaitForAssertion(() => Assert.Contains("Loading collections", cut.Markup));
+    }
+
+    [Fact]
     public void LibraryConfigurableTable_RendersNativeTableShellAndSharedActions()
     {
         var cut = Render<LibraryConfigurableTable>(parameters => parameters

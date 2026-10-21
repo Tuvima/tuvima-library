@@ -736,7 +736,7 @@
             if (peopleFirst)
                 await ApplyPeopleAsync(peopleRolesTask, peopleTask, peopleRequest, ct);
             else
-                await ApplyCollectionsAsync(catalogTask, shelvesTask);
+                await ApplyCollectionsAsync(catalogTask, shelvesTask, ct);
 
             // Cancelled calls come back empty; a newer load (or leaving the page) owns the state.
             if (ct.IsCancellationRequested)
@@ -765,25 +765,33 @@
         try
         {
             if (peopleFirst)
-                await ApplyCollectionsAsync(catalogTask, shelvesTask);
+                await ApplyCollectionsAsync(catalogTask, shelvesTask, ct);
             else
                 await ApplyPeopleAsync(peopleRolesTask, peopleTask, peopleRequest, ct);
         }
         catch (Exception ex)
         {
-            // The open section is already showing. The other half shows as empty rather than loading for ever; People
-            // asks again when it is opened, because its list was never marked as loaded.
             Logger.LogWarning(ex, "The other Collections sections could not be loaded.");
-            _collectionsReady = true;
-            _peopleReady = true;
+            // The open section is already showing. Unless a newer load owns the page, the other half shows as empty rather
+            // than loading for ever; People asks again when it is opened, because its list was never marked as loaded.
+            if (!ct.IsCancellationRequested)
+            {
+                _collectionsReady = true;
+                _peopleReady = true;
+            }
         }
     }
 
     private async Task ApplyCollectionsAsync(
         Task<List<CollectionManagementCatalogViewModel>> catalogTask,
-        Task<List<ContentGroupViewModel>> shelvesTask)
+        Task<List<ContentGroupViewModel>> shelvesTask,
+        CancellationToken ct)
     {
         await Task.WhenAll(catalogTask, shelvesTask);
+        // A cancelled read comes back empty; the newer load owns the page and its ready flags.
+        if (ct.IsCancellationRequested)
+            return;
+
         _collections.Clear();
         _collections.AddRange(catalogTask.Result);
         BuildShelves(shelvesTask.Result);
@@ -797,8 +805,11 @@
         CancellationToken ct)
     {
         await Task.WhenAll(peopleRolesTask, peopleTask);
+        if (ct.IsCancellationRequested)
+            return;
+
         _peopleRoleCounts = peopleRolesTask.Result;
-        if (ct.IsCancellationRequested || !ReferenceEquals(_peopleCts, peopleRequest))
+        if (!ReferenceEquals(_peopleCts, peopleRequest))
             return;
 
         _people.Clear();

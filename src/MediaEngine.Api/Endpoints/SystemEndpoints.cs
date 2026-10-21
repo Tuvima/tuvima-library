@@ -58,7 +58,9 @@ public static class SystemEndpoints
         app.MapGet("/system/readiness", async (
             string? category,
             StartupReadinessService readiness,
-            CancellationToken ct) => Results.Ok(await readiness.GetAsync(category, ct).ConfigureAwait(false)))
+            CancellationToken ct) => !string.IsNullOrWhiteSpace(category) && !StartupReadinessService.Categories.Contains(category.Trim())
+                ? (IResult)ApiErrors.BadRequest($"Unknown readiness category '{category}'. Known: {string.Join(", ", StartupReadinessService.Categories.Order())}.")
+                : Results.Ok(await readiness.GetAsync(category, ct).ConfigureAwait(false)))
         .WithTags("System")
         .WithName("GetStartupReadiness")
         .WithSummary("Reports database, configuration, storage, model, provider, and worker readiness; ?category=storage runs only the folder checks.")

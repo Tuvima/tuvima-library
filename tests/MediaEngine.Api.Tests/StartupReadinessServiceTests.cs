@@ -31,6 +31,17 @@ public sealed class StartupReadinessServiceTests
         Assert.Equal(1, dataStoreChecks);
     }
 
+    [Theory]
+    [InlineData("storge")]
+    [InlineData("readiness")]
+    [InlineData("required")]
+    public async Task UnknownCategory_IsRefused_RatherThanReadingAsReady(string category)
+    {
+        var readiness = Create(() => { });
+
+        await Assert.ThrowsAsync<ArgumentException>(() => readiness.GetAsync(category));
+    }
+
     private static StartupReadinessService Create(Action onDataStoreCheck)
     {
         var storage = new Dictionary<string, object> { ["category"] = "storage" };
