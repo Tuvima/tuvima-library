@@ -2,7 +2,7 @@
 
 Run this handoff end to end per `.claude/rules/end-to-end-runs.md`.
 
-> Written 2026-10-20 by the wave 3 coordinator session, at Shy's request to close out wave 3 and list what is left. The Locked spec [`engineering/specs/developer-tools.md`](../specs/developer-tools.md) (v3) wins wherever this note disagrees. Re-check `main` (`git fetch`, `git log`) and running sessions before starting.
+> Written 2026-10-20 by the wave 3 coordinator session, at Shy's request to close out wave 3 and list what is left. The Locked spec [`engineering/specs/developer-tools.md`](../specs/developer-tools.md) (v3) wins wherever this note disagrees. Re-check `main` (`git fetch`, `git log`) and running sessions before starting. The broader handoff [2026-10-21-developer-tools-and-follow-ups.md](2026-10-21-developer-tools-and-follow-ups.md) (thread D) points here for waves 4 to 8 and adds notes for later packets from waves 1, 2 and WP27 in its section 4; read both.
 
 ## 1. Where things stand
 
@@ -25,7 +25,7 @@ What wave 3 added, in brief: webhook delivery history and Send test (data store 
 2. **Live on-screen check of the webhook delivery list and Send test** was not captured (scripting the setup of a test server integration in a headless browser kept timing out; the card is covered by 12 component tests). Do it in the wave 4 or 5 visual check: Integrations > New application > Server Integration with Events Subscribe, add a webhook to `http://127.0.0.1:9/hook`, approve, switch on, Send test, and confirm a "Failed" row with "Attempt 1" and a "Test" marker; check desktop and tablet widths.
 3. **Two flaky tests seen on CI for #336** (both pass alone, three times out of three; wave 3 touches neither area): `MediaEngine.Ingestion.Tests.DurablePipelineTests.IngestionEngine_FileDeletedWhileSettling_ClosesItsIntakeOperationAsMissingInsteadOfLeavingItPending` (waits about 4 seconds for a "missing" event) and `MediaEngine.Web.Tests.UiShellRenderTests.NeedsReviewRoute_ForAServerAdministrator_ListsTheItem_AndDismissingItResolvesIt` ("Sequence contains no matching element", the review item not yet rendered). Make both waits deterministic. Small, independent: a good separate session.
 4. **Local AI menu entry shows a red "Off"** when Local AI is off. Spec D-D says nothing switched off is ever red. Older than wave 3; fix in WP30 (wave 5), which rebuilds the Local AI page and its menu state.
-5. **The Plugins page shows (read-only) on phones.** Spec section 4 says none of the Developer area appears on phones; the Settings revamp gave phones a read-only view with "Plugin configuration is available on desktop and tablet." The two specs disagree: **ask Shy** which wins before wave 5 touches these pages.
+5. **Phones and the Developer area: decided.** Shy's decision D-Y (2026-10-21, recorded in the spec): phones, tablets and native apps never show the Developer area in their navigation, Plugins included; the Plugins page stays reachable by address from a mobile browser and lays out cleanly. Apply it in wave 5 (WP16 and WP30 touch these pages); the menu change itself can be done there or as a small separate fix.
 6. **Universes hand-over (owned by the Universes coordinator, local session "Universe.md v4 engineering specs"):** with wave 3 on main, U-WP9 can (a) tighten `FandomHostRule` to `*.fandom.com` subdomains only (bare `fandom.com` is the company site; the manifest keeps two destinations), and (b) point the Universe page's "Add Fandom details" link at `/settings/plugins?plugin=tuvima.fandom-lore`. Universes U-WP4 changes ingestion output, so it must not land alongside WP28.
 
 ## 3. Waves 4 to 8: order, dependencies and what to watch
@@ -39,7 +39,7 @@ Run waves one after another, at most two packets at once, each with the checkpoi
 | 4 | WP17 JSON-only plugin runtime | WP9, WP10, WP13 | Reuse the WP9 declarative provider format; WP15a `network` destinations apply to JSON plugins too. |
 | 4 | WP18 Separate-program plugin host | WP13, WP14, WP15 | Python or Go sample plugin; enforce permissions at the Library's side; plugin-scoped key. |
 | 5 | WP7 Verification and blocklist | WP6 | Extend the directory format v2 (`docs/reference/plugin-catalog.md`); blocklisted plugins switch off with a reason. |
-| 5 | WP16 Plugin pages and menu items | WP15 | Library page types only; desktop and TV sizes; follow-up 5 (phones) needs Shy's answer first. |
+| 5 | WP16 Plugin pages and menu items | WP15 | Library page types only; desktop and TV sizes; apply D-Y (no Developer area in phone, tablet or app navigation). |
 | 5 | WP29 Show AI results | WP28 | Presentation rules and visual checks at phone, tablet and desktop. |
 | 5 | WP30 Local AI Settings page | WP1, WP27, revamp frame | Includes follow-up 4 (no red when off). |
 | 6 | WP19 Install, update, remove | WP2, WP6, WP7, WP13 | Flip `PluginDirectoryService.InstallSupported`; the approval preview already words each plugin kind. Signature checks. |
@@ -64,10 +64,9 @@ Practical notes from wave 3:
 
 ## 4. Owed by Shy
 
-- The phone question in follow-up 5.
 - WP21: a decision if the WebAssembly runtime's licence does not pass.
 - Approval of any intended ingestion difference in WP28 and WP11.
 
 ## 5. Plain English summary
 
-Three of the eight developer-tools waves are done: plugins can now keep their own data, run scheduled jobs, hear about Library events, run in the background, and reach only the web addresses they declare, which the approval step names. Webhooks show their recent deliveries with a Send test button, and the Plugins page lists plugins from the public directory. What is left: five more waves (AI as plugins, plugin pages, install and update, notifications and backups, then the final check and docs), plus a few wave 3 loose ends, chiefly the before/after ingestion comparison, one screen check and one unreliable test.
+Three of the eight developer-tools waves are done: plugins can now keep their own data, run scheduled jobs, hear about Library events, run in the background, and reach only the web addresses they declare, which the approval step names. Webhooks show their recent deliveries with a Send test button, and the Plugins page lists plugins from the public directory. What is left: five more waves (AI as plugins, plugin pages, install and update, notifications and backups, then the final check and docs), plus a few wave 3 loose ends, chiefly the before/after ingestion comparison, one screen check and two unreliable tests.

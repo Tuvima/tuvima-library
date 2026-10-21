@@ -9,11 +9,6 @@ public interface IMetadataEditorRepository
     Task<MetadataEditorLaunchContext?> ResolveEditorLaunchAsync(Guid entityId, CancellationToken ct = default);
     Task<IReadOnlyDictionary<string, string>> GetDisplayOverridesAsync(Guid workId, CancellationToken ct = default);
 
-    Task<Guid?> ResolveArtistArtworkOwnerAsync(
-        Guid? representativeAssetId,
-        string? artistName,
-        CancellationToken ct = default);
-
     Task<Guid?> ResolveRepresentativeAssetAsync(
         IReadOnlyCollection<Guid> candidateWorkIds,
         CancellationToken ct = default);
