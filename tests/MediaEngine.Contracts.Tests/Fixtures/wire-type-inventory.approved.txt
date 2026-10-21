@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1095; api=0; web-client=54
+# scopes: contracts=1097; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4272,10 +4272,6 @@
   CompletedWithArt: System.Int32 | json=completedWithArt | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"totalItems":7,"added24h":7,"added7d":7,"added30d":7,"pipelineStates":{},"pipelineSuccessRate":7,"reviewCategories":{},"reviewTotal":7,"withQid":7,"withoutQid":7,"enrichedStage3":7,"notEnrichedStage3":7,"universeAssigned":7,"universeUnassigned":7,"staleItems":7,"mediaTypeCounts":{},"hiddenByQualityGate":7,"artPending":7,"retailNeedsReview":7,"qidNoMatch":7,"completedWithArt":7}
 
-[contracts] MediaEngine.Contracts.Library.UniverseManualAssignResponse
-  kind=class | converter=default | number-handling=default | unmapped=default
-  assigned: System.Boolean | json=assigned | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-
 [contracts] MediaEngine.Contracts.LocalAssets.AddViewGalleryItemsResponseDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Added: System.Int32 | json=added | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -6251,6 +6247,33 @@
 [contracts] MediaEngine.Contracts.Metadata.SearchResultsCacheResponse
   kind=class | converter=default | number-handling=default | unmapped=default
   results_json: System.String | json=results_json | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Metadata.SeriesPlacementChoiceRequestDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  CollectionId: System.Guid? | json=collection_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Locked: System.Boolean | json=locked | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"collection_id":"11111111-2222-3333-4444-555555555555","locked":true}
+
+[contracts] MediaEngine.Contracts.Metadata.SeriesPlacementDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  WorkId: System.Guid | json=work_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MediaType: System.String | json=media_type | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SupportsSeries: System.Boolean | json=supports_series | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Current: MediaEngine.Contracts.Metadata.SeriesPlacementShelfDto | json=current | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsPersonChoice: System.Boolean | json=is_person_choice | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Listed: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.SeriesPlacementShelfDto> | json=listed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Candidates: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.SeriesPlacementShelfDto> | json=candidates | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"work_id":"11111111-2222-3333-4444-555555555555","media_type":"sample","supports_series":true,"current":null,"is_person_choice":true,"listed":[],"candidates":[]}
+
+[contracts] MediaEngine.Contracts.Metadata.SeriesPlacementShelfDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  CollectionId: System.Guid | json=collection_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SeriesQid: System.String | json=series_qid | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MediaType: System.String | json=media_type | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Scope: System.String | json=scope | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PositionLabel: System.String | json=position_label | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"collection_id":"11111111-2222-3333-4444-555555555555","label":"sample","series_qid":"sample","media_type":"sample","scope":"sample","position_label":"sample"}
 
 [contracts] MediaEngine.Contracts.Metadata.TvdbMatchCandidateDto
   kind=class | converter=default | number-handling=default | unmapped=default

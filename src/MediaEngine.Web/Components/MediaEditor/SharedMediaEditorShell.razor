@@ -513,6 +513,10 @@
                         CancelParentMove="@(() => { _retailMovePreview = null; _pendingRetailMoveCandidate = null; })"
                         CancelTvdbSelection="@(() => _selectedTvdbCandidate = null)"
                         GetRetailCandidateId="@((MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => GetCandidateId(candidate))" />
+                    @if (IsSingleItem && !IsSharedEntityMode)
+                    {
+                        <EditorSeriesBlock EntityId="@(CurrentEntityId)" Applied="@(OnSeriesPlacementApplied)" />
+                    }
                     @if (CoverageAssetId is { } coverageAssetId)
                     {
                         <MediaEditorFileCoveragePicker EntityId="@(CurrentEntityId)" AssetId="@(coverageAssetId)" />

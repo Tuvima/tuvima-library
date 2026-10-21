@@ -314,9 +314,16 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
         Guid collectionId,
         IReadOnlyList<SeriesManifestItemRecord> items,
         CancellationToken ct = default)
+        => (await LinkOwnedWorksWithOutcomeAsync(collectionId, items, ct).ConfigureAwait(false)).Ambiguous;
+
+    public async Task<SeriesLinkOutcome> LinkOwnedWorksWithOutcomeAsync(
+        Guid collectionId,
+        IReadOnlyList<SeriesManifestItemRecord> items,
+        CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var ambiguous = new List<AmbiguousSeriesPlacement>();
+        var touched = new List<Guid>();
         await _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
             // The one Series placement rule decides where every work these rows touch sits, so the order in which
@@ -360,105 +367,167 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
             foreach (var (workId, sortOrder) in sortOrders)
             {
                 innerCt.ThrowIfCancellationRequested();
-                var workMediaType = conn.ExecuteScalar<string?>(
-                    "-- readiness: media type of one work, looked up by id\nSELECT media_type FROM works WHERE id = @workId;",
-                    new { workId },
-                    tx) ?? string.Empty;
-                var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput(
-                    workMediaType,
-                    LoadMemberships(conn, tx, workId),
-                    Retail: null,
-                    ClaimedSeriesQid: LoadClaimedSeriesQid(conn, tx, workId)));
-
-                if (decision.Kind == SeriesPlacementKind.Ambiguous)
-                {
-                    // Two Series claim the work equally: it sits on neither until a person decides.
-                    var candidateIds = decision.Candidates.Select(c => c.CollectionId).Distinct().Select(GuidSql.ToBlob).ToArray();
-                    var cleared = conn.Execute(
-                        "UPDATE works SET collection_id = NULL WHERE id = @workId AND collection_id IN @candidateIds;",
-                        new { workId, candidateIds },
-                        tx);
-                    conn.Execute(
-                        "DELETE FROM collection_items WHERE work_id = @workId AND collection_id IN @candidateIds;",
-                        new { workId, candidateIds },
-                        tx);
-                    if (cleared > 0)
-                    {
-                        _logger?.LogInformation(
-                            "Series linking: took work {WorkId} off its shelf: {Reason}",
-                            workId,
-                            decision.Reason);
-                    }
-
-                    ambiguous.Add(new AmbiguousSeriesPlacement(workId, decision.Candidates));
-                    continue;
-                }
-
-                if (decision.Kind != SeriesPlacementKind.Placed || decision.ShelfCollectionId is not { } target)
-                {
-                    // No rule-chosen shelf: this manifest does not hold the work on a shelf.
-                    conn.Execute(
-                        "DELETE FROM collection_items WHERE collection_id = @collectionId AND work_id = @workId;",
-                        new { collectionId, workId },
-                        tx);
-                    continue;
-                }
-
-                var current = conn.ExecuteScalar<Guid?>(
-                    "-- readiness: current shelf of one work, looked up by id\nSELECT collection_id FROM works WHERE id = @workId;",
-                    new { workId },
-                    tx);
-
-                // Decimal positions stay decimals: collection_items.sort_order has integer affinity, which keeps a
-                // fractional value as a real number.
-                conn.Execute(
-                    """
-                    INSERT INTO collection_items
-                        (id, collection_id, work_id, sort_order, progress_state, added_at)
-                    SELECT @id, @target, @workId, @sortOrder, 'not_started', @addedAt
-                    WHERE NOT EXISTS (
-                        SELECT 1 FROM collection_items
-                        WHERE collection_id = @target AND work_id = @workId
-                    );
-
-                    UPDATE collection_items
-                    SET sort_order = @sortOrder
-                    WHERE collection_id = @target AND work_id = @workId
-                      AND @target = @collectionId;
-
-                    DELETE FROM collection_items
-                    WHERE work_id = @workId
-                      AND collection_id <> @target
-                      AND collection_id IN (SELECT id FROM collections WHERE collection_type = 'ContentGroup');
-                    """,
-                    new
-                    {
-                        id = Guid.NewGuid(),
-                        target,
-                        collectionId,
-                        workId,
-                        sortOrder,
-                        addedAt = DateTimeOffset.UtcNow.ToString("O"),
-                    },
-                    tx);
-
-                if (current != target)
-                {
-                    conn.Execute(
-                        "UPDATE works SET collection_id = @target WHERE id = @workId;",
-                        new { target, workId },
-                        tx);
-                    _logger?.LogInformation(
-                        "Series linking: moved work {WorkId} from shelf {From} to shelf {To}: {Reason}",
-                        workId,
-                        current,
-                        target,
-                        decision.Reason);
-                }
+                PlaceWork(conn, tx, workId, sortOrder, collectionId, ambiguous);
+                touched.Add(workId);
             }
         }, ct).ConfigureAwait(false);
 
-        return ambiguous;
+        var ambiguousIds = ambiguous.Select(a => a.WorkId).ToHashSet();
+        return new SeriesLinkOutcome(ambiguous, touched.Where(id => !ambiguousIds.Contains(id)).ToList());
+    }
+
+    public async Task<AmbiguousSeriesPlacement?> PlaceWorkFromManifestsAsync(Guid workId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var ambiguous = new List<AmbiguousSeriesPlacement>();
+        await _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+            // The work's position comes from the manifest row that names it (the row that is not an expansion of a collection).
+            var sortOrder = conn.ExecuteScalar<double?>(
+                """
+                SELECT COALESCE(parsed_ordinal, sort_order)
+                FROM series_manifest_items
+                WHERE linked_work_id = @workId AND is_collection = 0
+                ORDER BY is_expanded_from_collection
+                LIMIT 1;
+                """,
+                new { workId },
+                tx) ?? 0d;
+            PlaceWork(conn, tx, workId, sortOrder, Guid.Empty, ambiguous);
+        }, ct).ConfigureAwait(false);
+
+        return ambiguous.Count > 0 ? ambiguous[0] : null;
+    }
+
+    /// <summary>
+    /// Applies the one placement rule to one work. <paramref name="collectionId"/> is the shelf whose manifest is being
+    /// linked (it keeps that shelf's position fresh); <see cref="Guid.Empty"/> when the work is placed on its own.
+    /// </summary>
+    private void PlaceWork(
+        IDbConnection conn,
+        IDbTransaction tx,
+        Guid workId,
+        double sortOrder,
+        Guid collectionId,
+        List<AmbiguousSeriesPlacement> ambiguous)
+    {
+        var workMediaType = conn.ExecuteScalar<string?>(
+            "-- readiness: media type of one work, looked up by id\nSELECT media_type FROM works WHERE id = @workId;",
+            new { workId },
+            tx) ?? string.Empty;
+        var held = SeriesPlacementRepository.LoadLock(conn, tx, workId);
+        var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput(
+            workMediaType,
+            LoadMemberships(conn, tx, workId),
+            Retail: null,
+            ClaimedSeriesQid: LoadClaimedSeriesQid(conn, tx, workId, workMediaType),
+            Lock: held));
+
+        if (decision.Basis == SeriesPlacementBasis.PersonChoice)
+        {
+            // A person chose this work's Series (or no Series): linking never moves or clears it. The only thing
+            // it may do is refresh the work's position on the Series the person chose.
+            if (decision.ShelfCollectionId == collectionId)
+            {
+                conn.Execute(
+                    """
+                    UPDATE collection_items
+                    SET sort_order = @sortOrder
+                    WHERE collection_id = @collectionId AND work_id = @workId;
+                    """,
+                    new { collectionId, workId, sortOrder },
+                    tx);
+            }
+
+            return;
+        }
+
+        if (decision.Kind == SeriesPlacementKind.Ambiguous)
+        {
+            // Two Series claim the work equally: it sits on neither until a person decides.
+            var candidateIds = decision.Candidates.Select(c => c.CollectionId).Distinct().Select(GuidSql.ToBlob).ToArray();
+            var cleared = conn.Execute(
+                "UPDATE works SET collection_id = NULL WHERE id = @workId AND collection_id IN @candidateIds;",
+                new { workId, candidateIds },
+                tx);
+            conn.Execute(
+                "DELETE FROM collection_items WHERE work_id = @workId AND collection_id IN @candidateIds;",
+                new { workId, candidateIds },
+                tx);
+            if (cleared > 0)
+            {
+                _logger?.LogInformation(
+                    "Series linking: took work {WorkId} off its shelf: {Reason}",
+                    workId,
+                    decision.Reason);
+            }
+
+            ambiguous.Add(new AmbiguousSeriesPlacement(workId, decision.Candidates));
+            return;
+        }
+
+        if (decision.Kind != SeriesPlacementKind.Placed || decision.ShelfCollectionId is not { } target)
+        {
+            // No rule-chosen shelf: this manifest does not hold the work on a shelf.
+            conn.Execute(
+                "DELETE FROM collection_items WHERE collection_id = @collectionId AND work_id = @workId;",
+                new { collectionId, workId },
+                tx);
+            return;
+        }
+
+        var current = conn.ExecuteScalar<Guid?>(
+            "-- readiness: current shelf of one work, looked up by id\nSELECT collection_id FROM works WHERE id = @workId;",
+            new { workId },
+            tx);
+
+        // Decimal positions stay decimals: collection_items.sort_order has integer affinity, which keeps a
+        // fractional value as a real number.
+        conn.Execute(
+            """
+            INSERT INTO collection_items
+                (id, collection_id, work_id, sort_order, progress_state, added_at)
+            SELECT @id, @target, @workId, @sortOrder, 'not_started', @addedAt
+            WHERE NOT EXISTS (
+                SELECT 1 FROM collection_items
+                WHERE collection_id = @target AND work_id = @workId
+            );
+
+            UPDATE collection_items
+            SET sort_order = @sortOrder
+            WHERE collection_id = @target AND work_id = @workId
+              AND @target = @collectionId;
+
+            DELETE FROM collection_items
+            WHERE work_id = @workId
+              AND collection_id <> @target
+              AND collection_id IN (SELECT id FROM collections WHERE collection_type = 'ContentGroup');
+            """,
+            new
+            {
+                id = Guid.NewGuid(),
+                target,
+                collectionId,
+                workId,
+                sortOrder,
+                addedAt = DateTimeOffset.UtcNow.ToString("O"),
+            },
+            tx);
+
+        if (current != target)
+        {
+            conn.Execute(
+                "UPDATE works SET collection_id = @target WHERE id = @workId;",
+                new { target, workId },
+                tx);
+            _logger?.LogInformation(
+                "Series linking: moved work {WorkId} from shelf {From} to shelf {To}: {Reason}",
+                workId,
+                current,
+                target,
+                decision.Reason);
+        }
     }
 
     private const string LinkedItemColumns = """
@@ -518,20 +587,69 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
         return Task.FromResult(LoadMemberships(conn, transaction: null, workId));
     }
 
-    /// <summary>The Series QID the work's own <c>series_qid</c> claim names, used only to break a tie that is not at main sequence.</summary>
-    private static string? LoadClaimedSeriesQid(IDbConnection conn, IDbTransaction? transaction, Guid workId)
+    /// <summary>
+    /// The Series QID the work's own claims name, read by the same <see cref="ClaimedSeriesQidReader"/> collection assignment
+    /// uses, over the same values: the lineage root's canonicals first, then the work's files'. Used only to break a tie that
+    /// is not at main sequence.
+    /// </summary>
+    private static string? LoadClaimedSeriesQid(IDbConnection conn, IDbTransaction? transaction, Guid workId, string workMediaType)
     {
-        var raw = conn.ExecuteScalar<string?>(
-            "SELECT CAST(value AS TEXT) FROM canonical_values WHERE entity_id = @workId AND key = 'series_qid' LIMIT 1;",
+        // The lineage root first, then every file of the work in a fixed order (by file id): the same values, in the same
+        // order, that collection assignment feeds the reader.
+        var root = conn.ExecuteScalar<Guid?>(
+            """
+            -- readiness: lineage root of one work, looked up by id
+            SELECT CASE WHEN w.media_type = 'Audiobooks' AND w.parent_key LIKE 'source-folder:%'
+                        THEN w.id ELSE COALESCE(gp.id, p.id, w.id) END
+            FROM works w
+            LEFT JOIN works p ON p.id = w.parent_work_id
+            LEFT JOIN works gp ON gp.id = p.parent_work_id
+            WHERE w.id = @workId;
+            """,
             new { workId },
             transaction);
-        if (string.IsNullOrWhiteSpace(raw))
+        if (root is null)
         {
             return null;
         }
 
-        var qid = raw.Contains('/') ? raw.Split('/')[^1] : raw;
-        return qid.Contains("::") ? qid.Split("::", 2)[0].Trim() : qid.Trim();
+        var entities = new List<Guid> { root.Value };
+        entities.AddRange(conn.Query<Guid>(
+            """
+            SELECT ma.id
+            FROM media_assets ma
+            JOIN editions e ON e.id = ma.edition_id
+            WHERE e.work_id = @workId
+            ORDER BY ma.id;
+            """,
+            new { workId },
+            transaction));
+
+        var values = conn.Query<ClaimValueRow>(
+            """
+            SELECT entity_id AS EntityId, key AS Key, CAST(value AS TEXT) AS Value
+            FROM canonical_values
+            WHERE entity_id IN @entityIds
+              AND key IN @keys;
+            """,
+            new
+            {
+                entityIds = entities.Select(GuidSql.ToBlob).ToArray(),
+                keys = ClaimedSeriesQidReader.Keys.ToArray(),
+            },
+            transaction).AsList();
+
+        var merged = ClaimedSeriesQidReader.Merge(entities.Select(entity => values
+            .Where(v => v.EntityId == entity && !string.IsNullOrWhiteSpace(v.Value))
+            .Select(v => new KeyValuePair<string, string>(v.Key, v.Value!))));
+        return ClaimedSeriesQidReader.Resolve(workMediaType, merged);
+    }
+
+    private sealed class ClaimValueRow
+    {
+        public Guid EntityId { get; set; }
+        public string Key { get; set; } = string.Empty;
+        public string? Value { get; set; }
     }
 
     /// <summary>

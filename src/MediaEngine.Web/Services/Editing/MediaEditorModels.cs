@@ -119,6 +119,21 @@ public static class ReviewTargetResolver
 {
     public static ReviewEditorTarget Resolve(string? mediaType, string? reviewTrigger)
     {
+        var target = ResolveForMediaType(mediaType, reviewTrigger);
+        return string.Equals((reviewTrigger ?? string.Empty).Trim(), "AmbiguousSeriesMembership", StringComparison.Ordinal)
+            ? target with
+            {
+                // Two Series claim this item equally: the answer is the Series block in Matching, on the same tab as the match.
+                InitialTab = "links",
+                FocusField = "series",
+                Summary = "Choose the Series this item belongs to.",
+                PrimaryActionLabel = "Choose Series",
+            }
+            : target;
+    }
+
+    private static ReviewEditorTarget ResolveForMediaType(string? mediaType, string? reviewTrigger)
+    {
         var normalizedType = NormalizeMediaType(mediaType);
         var normalizedTrigger = (reviewTrigger ?? string.Empty).Trim();
         var intent = ResolveIntent(normalizedTrigger);
