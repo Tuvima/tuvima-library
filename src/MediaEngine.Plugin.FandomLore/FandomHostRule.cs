@@ -10,7 +10,7 @@ public static class FandomHostRule
 
     private const string FandomDomain = "fandom.com";
 
-    /// <summary>True for <c>fandom.com</c> and any subdomain of it, such as <c>starwars.fandom.com</c>.</summary>
+    /// <summary>True for a subdomain of <c>fandom.com</c>, such as <c>starwars.fandom.com</c>. Bare <c>fandom.com</c> is the company site, not a wiki.</summary>
     public static bool IsFandomHost(string? host)
     {
         if (string.IsNullOrWhiteSpace(host))
@@ -19,7 +19,7 @@ public static class FandomHostRule
         }
 
         var value = host.Trim().TrimEnd('.').ToLowerInvariant();
-        return value == FandomDomain || value.EndsWith("." + FandomDomain, StringComparison.Ordinal);
+        return value.Length > FandomDomain.Length + 1 && value.EndsWith("." + FandomDomain, StringComparison.Ordinal);
     }
 
     /// <summary>True when <paramref name="url"/> is an absolute <c>https</c> address on a Fandom host (default port, no credentials).</summary>
