@@ -3,7 +3,9 @@ using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;
@@ -355,23 +357,54 @@ public sealed class LibraryMoveSafetyTests : IDisposable
     }
 
     [Fact]
-    public async Task ACorrectionToTheOldMembershipRoute_NeverNumbersATitleAddedAnyway()
+    public async Task AReMatchPreview_ForATitleAddedAnyway_IsAllowedAndChangesNothing()
     {
-        var show = _world.AddParent("TV", "Northwatch");
-        var season = _world.AddParent("TV", string.Empty, show, ordinal: 1);
-        var (episode, _, _) = _world.AddChild(season, "TV", "Pilot", null, ordinalSort: null);
-        _world.Execute("UPDATE works SET placement_unmatched = 1 WHERE id = @episode;", new { episode });
-        var request = new MembershipPreviewRequest(
-            null,
-            new Dictionary<string, string?> { ["show_name"] = "Northwatch", ["season_number"] = "1", ["episode_number"] = "5" },
-            null,
-            null);
+        var (episode, request) = EpisodeAddedAnywayWithReMatchRequest();
 
         var preview = await HierarchyAlignmentService.BuildMembershipPreviewAsync(episode, request, _world.Database, CancellationToken.None);
 
-        Assert.Equal("conflict", preview!.Action);
-        Assert.False(preview.CanApply);
+        // Spec D20: a re-match against known data is how a title added anyway gets placed properly, so it is not refused.
+        Assert.NotEqual("conflict", preview!.Action);
+        Assert.True(preview.CanApply, $"{preview.Action}: {preview.Message} | {preview.ConflictMessage}");
         Assert.Null(_world.Work(episode).Ordinal);
+        Assert.Equal(1L, _world.Scalar<long>("SELECT placement_unmatched FROM works WHERE id = @episode;", new { episode }));
+    }
+
+    [Fact]
+    public async Task AppliedReMatch_ForATitleAddedAnyway_ClearsTheNotMatchedMark()
+    {
+        var (episode, request) = EpisodeAddedAnywayWithReMatchRequest();
+
+        var applied = await HierarchyAlignmentService.ApplyMembershipChangeAsync(
+            episode, request, _world.Database, new NoOpPipeline(), CancellationToken.None);
+
+        Assert.True(applied!.Applied, $"{applied.Action}: {applied.Message} | {applied.ConflictMessage}");
+        Assert.Equal(0L, _world.Scalar<long>("SELECT placement_unmatched FROM works WHERE id = @episode;", new { episode }));
+    }
+
+    private (Guid Episode, MembershipPreviewRequest Request) EpisodeAddedAnywayWithReMatchRequest()
+    {
+        // The episode was added anyway to the wrong show; the re-match identifies it as Southwatch season 1 episode 5.
+        var show = _world.AddParent("TV", "Northwatch");
+        var season = _world.AddParent("TV", string.Empty, show, ordinal: 1);
+        var rightShow = _world.AddParent("TV", "Southwatch");
+        var rightSeason = _world.AddParent("TV", string.Empty, rightShow, ordinal: 1);
+        var (episode, _, _) = _world.AddChild(season, "TV", "Pilot", null, ordinalSort: null);
+        _world.Execute("UPDATE works SET placement_unmatched = 1 WHERE id = @episode;", new { episode });
+        var request = new MembershipPreviewRequest(
+            "show_episode",
+            new Dictionary<string, string?> { ["show_name"] = "Southwatch", ["season_number"] = "1", ["episode_number"] = "5" },
+            new Dictionary<string, Guid?> { ["show"] = rightShow, ["season"] = rightSeason },
+            null);
+        return (episode, request);
+    }
+
+    private sealed class NoOpPipeline : IHydrationPipelineService
+    {
+        public ValueTask<Guid> EnqueueAsync(HarvestRequest request, CancellationToken ct = default) => ValueTask.FromResult(Guid.NewGuid());
+
+        public Task<HydrationResult> RunSynchronousAsync(HarvestRequest request, CancellationToken ct = default)
+            => throw new NotSupportedException();
     }
 
     // ----- helpers ---------------------------------------------------------------------------------------------------------------

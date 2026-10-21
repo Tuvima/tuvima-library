@@ -25,6 +25,15 @@ public sealed class LibraryMoveRetiredGuardrailTests
         "ApplyMediaEditorMembership",
         "GetMediaEditorMembershipSuggestions",
         "ConfirmMembershipMove",
+        // A parallel implementation (#340, #345 and its follow-up) was retired in favour of the one move service and batch
+        // section (Shy, 2026-10-20); a later merge must not bring it back.
+        "ItemMoveService",
+        "ItemMoveRepository",
+        "ItemMovePanel",
+        "ItemBatchMovePanel",
+        "EditingBatchSection",
+        "EngineApiClient.ItemMove",
+        "PreviewItemMove",
     ];
 
     [Fact]

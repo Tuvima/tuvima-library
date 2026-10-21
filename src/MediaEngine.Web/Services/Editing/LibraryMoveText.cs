@@ -32,7 +32,7 @@ public static class LibraryMoveText
 
     /// <summary>What a book, comic or movie shows under its Series entry: Match and Identity is where it is placed properly.</summary>
     public const string SeriesEntrySummary =
-        "A Series is built from the title's match. Use Match and Identity to re-match it, or add it to a Series here without a number.";
+        "A Series is built from the title's match. Use Match and Identity to re-match it, or add it to a Series here without a number. Hand-picked collections take it as usual.";
 
     /// <summary>The label for a Not matched item: it is placed through the same Match step.</summary>
     public const string MatchLabel = "Match";

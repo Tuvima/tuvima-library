@@ -289,7 +289,11 @@ the person started, may receive files.
 
 When a title is deleted from the library, its managed files and their sidecars (subtitles, `.nfo` files, posters, and other files that share its name or that Tuvima wrote) are deleted from disk straight away after the confirmation. Library media has no recycle bin, because films, TV, books, audiobooks, comics and music can be downloaded again. Folders the delete leaves empty are removed. A file that cannot be removed, for example because it is in use or Tuvima has no permission to remove it, stays on disk and becomes an excluded file, and the title still leaves the library. The original of a file that a merge left in place is never deleted: it stays and becomes an excluded file.
 
-### Moving an item to another album, season, series or audiobook
+Every mutating operation passes through the shared source-mutation policy gate.
+Code paths must not infer permission from a path, a global option, or a UI
+selection alone.
+
+### Moving an item to another album, season or audiobook
 
 In a Managed folder a move always renames and moves the file to fit its new place; there is no option. The preview says exactly what will happen to each file (`file_change` with the full path before and after, or `file_note` with one plain line), and the Library changes first, in one transaction:
 
