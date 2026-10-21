@@ -1288,7 +1288,7 @@ Saved reading positions.
 
 ### audiobook_bookmarks
 
-Saved audiobook playback positions. These are separate from EPUB reader bookmarks because they use audio seconds, optional chapter metadata, and the owning audiobook work.
+Saved playback positions in a video or an audiobook (the table keeps its audiobook name; a row works for any playable file). These are separate from EPUB reader bookmarks because they use seconds, optional chapter metadata, and the owning work. A bookmark is personal to `profile_id`, or global (`is_global = 1`): global bookmarks are seen by every profile that can see the title and are made and deleted only by a server administrator, with `profile_id` recording who made it. A bookmark on a Vault file is never listed, counted or found while NSFW mode is off.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1301,6 +1301,9 @@ Saved audiobook playback positions. These are separate from EPUB reader bookmark
 | `position_seconds` | REAL | Exact audio position |
 | `duration_seconds` | REAL | Optional asset duration |
 | `label` | TEXT | Optional user-facing bookmark label |
+| `note` | TEXT | The short note (up to 200 characters); on a bookmark saved before the longer description existed, its text |
+| `description` | TEXT | Optional longer description (up to 4,000 characters) |
+| `is_global` | INTEGER | 1 when shared with everyone (upgrade step 0029); 0 for a personal bookmark |
 | `created_at` | TEXT | Timestamp |
 
 ### audiobook_chapter_title_overrides

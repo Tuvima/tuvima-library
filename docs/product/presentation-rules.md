@@ -424,6 +424,17 @@ The phone full player and the popout share `PlaybackFullPlayer` as one screen wi
 - **Docs toolchain.** The documentation toolchain requires Astro Starlight, pinned in `website/package.json`.
 
 
+### Bookmarks in videos and audiobooks (October 21 2026)
+
+One word everywhere: **Bookmarks** (Videos spec D43, D43a). Books, audiobooks and videos all call a saved spot a Bookmark; the audiobook player keeps its Bookmarks panel as it was, and nothing about stored data, internal names or wire names changes.
+
+- **The panel.** In the video player, Bookmarks (a bookmark glyph in the right-hand controls) opens one panel with **Add** and **Saved**, the same panel the audiobook player uses. On phones it opens as the usual full overlay sheet. Add opens first and captures the playing position at the moment the panel opens, so the moment is not lost while typing; it shows the chapter name (or "Position in video"), a preview button, a short note (200 characters) and an optional longer description (4,000), each with a counter.
+- **Saved.** Newest first, with Replay (jump and play), delete with an inline confirmation, and a note button that expands the short note and the longer description. Reloading Saved is explicit, and an unknown save outcome asks for a reload before another try.
+- **Progress rail.** Every bookmark is a small tick beside the chapter ticks. Pointing at one (a tap on touch) opens a quick-look card with the time, the short note and, when there is one, **More** for the longer description, plus **Jump here**. A tap keeps the card open until Close.
+- **Personal and shared.** A bookmark belongs to the profile and the title it was made on. Only a server administrator sees the **Share with everyone** switch (off for every new bookmark) and can delete a shared bookmark; the Engine refuses anyone else (403 on save, not found on delete). A shared bookmark has another tick shade and a small "Everyone" label, and everyone who can see the title sees it.
+- **Vault.** A bookmark on a Vault video, personal or shared, is not listed, counted or found unless NSFW mode is on; locked sessions get not found.
+- **Not in this release.** Scene ranges ("Play this part"), bookmark packs and audiobook descriptions or sharing are not built yet.
+
 ### Who's using Tuvima? (October 9 2026)
 
 `/who` is a full-screen page with no main navigation. It shows the signed-in account's profiles (its grants inside its own household, never another household's) as a Netflix-style grid: avatar or initial, name, a lock tag when the profile has a PIN and a *Child* tag for restricted profiles. Picking a profile switches to it; a profile with a PIN always asks for that PIN first (this is what stops a child profile switching into an adult one), and a wrong PIN counts toward the lockout only for people connecting from outside. Below the grid, *Always open as this person on this device* remembers the choice for this browser or device only; *Stop always opening as Mary* clears it.

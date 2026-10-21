@@ -212,7 +212,12 @@ public sealed record AudiobookBookmarkDto
     public double PositionSeconds { get; init; }
     public double? DurationSeconds { get; init; }
     public string? Label { get; init; }
+    /// <summary>The short note, up to 200 characters.</summary>
     public string? Note { get; init; }
+    /// <summary>The optional longer description, up to 4,000 characters.</summary>
+    public string? Description { get; init; }
+    /// <summary>True for a bookmark shared with everybody who can see the title; only a server administrator can make or change one.</summary>
+    public bool IsGlobal { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
 }
 
@@ -236,6 +241,10 @@ public sealed record CreateAudiobookBookmarkRequestDto
     public double? DurationSeconds { get; init; }
     public string? Label { get; init; }
     public string? Note { get; init; }
+    /// <summary>The optional longer description, up to 4,000 characters.</summary>
+    public string? Description { get; init; }
+    /// <summary>Share the bookmark with everybody who can see the title. Refused unless the caller is a server administrator.</summary>
+    public bool IsGlobal { get; init; }
 }
 
 public sealed record AudiobookChapterTitleOverrideDto

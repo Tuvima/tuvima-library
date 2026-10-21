@@ -730,9 +730,9 @@ The action itself enforces the rule, so an application (a non-Dashboard caller h
 | POST | `/player/command` | Apply transport commands such as play, pause, seek, volume, or speed | Required |
 | POST | `/player/heartbeat` | Persist current playback timing and resume progress. Optional `offline` and `client_timestamp` mark a replayed offline heartbeat; one older than the server's record for the asset is ignored | Required |
 | GET | `/player/audiobooks/{workId}/history` | Recent audiobook listening checkpoints | Required |
-| GET | `/player/audiobooks/{workId}/bookmarks` | Saved audiobook playback bookmarks | Required |
-| POST | `/player/audiobooks/{workId}/bookmarks` | Save an audiobook playback bookmark at a position in seconds | Required |
-| DELETE | `/player/audiobooks/bookmarks/{bookmarkId}` | Delete an audiobook playback bookmark | Required |
+| GET | `/player/audiobooks/{workId}/bookmarks` | Saved bookmarks of a video or audiobook: the profile's own plus those shared with everyone, newest first. A Vault title is not found unless NSFW mode is on | Required |
+| POST | `/player/audiobooks/{workId}/bookmarks` | Save a bookmark at a position in seconds, with a short `note` (200 characters) and an optional `description` (4,000). `isGlobal: true` shares it with everyone and is refused with 403 unless the caller is a server administrator | Required |
+| DELETE | `/player/audiobooks/bookmarks/{bookmarkId}` | Delete the profile's own bookmark, or a shared one when the caller is a server administrator; anyone else gets 404 | Required |
 | POST | `/player/audiobooks/{workId}/chapters/suggest-names` | Suggest display-only audiobook chapter names using local AI | Required |
 | GET | `/player/audiobooks/{workId}/chapter-overrides` | List saved display-only audiobook chapter title overrides | Required |
 | POST | `/player/audiobooks/{workId}/chapter-overrides` | Save one display-only audiobook chapter title override | Required |

@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0028 vault_lookup).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0029 bookmark_description_and_sharing).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -340,7 +340,7 @@ CREATE TABLE audiobook_bookmarks (
     label                  TEXT,
     note                   TEXT,
     created_at             TEXT NOT NULL
-);
+, description TEXT, is_global INTEGER NOT NULL DEFAULT 0 CHECK (is_global IN (0, 1)));
 
 CREATE TABLE audiobook_chapter_title_overrides (
     work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
@@ -2884,6 +2884,10 @@ CREATE INDEX idx_artwork_asset_context_facets
 
 CREATE INDEX idx_artwork_asset_context_search
     ON artwork_asset_context(search_text COLLATE NOCASE);
+
+CREATE INDEX idx_audiobook_bookmarks_global_work
+    ON audiobook_bookmarks(work_id, created_at DESC)
+    WHERE is_global = 1;
 
 CREATE INDEX idx_audiobook_bookmarks_profile_work
     ON audiobook_bookmarks(profile_id, work_id, created_at DESC);

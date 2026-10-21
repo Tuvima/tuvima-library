@@ -4,6 +4,11 @@ using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Storage.Playback;
 
+/// <summary>
+/// Saved spots in a video or an audiobook (Videos spec D43). The table and class keep their audiobook names because the
+/// stored data is unchanged; a row works for any playable file. A personal bookmark belongs to the profile that made it;
+/// a global one (<c>is_global</c>) is seen by everybody who can see the title and changed only by a server administrator.
+/// </summary>
 public sealed class AudiobookBookmarkRepository
 {
     private readonly IDatabaseConnection _db;
@@ -13,6 +18,10 @@ public sealed class AudiobookBookmarkRepository
         _db = db;
     }
 
+    /// <summary>
+    /// The profile's own bookmarks for the title plus every global one, newest first, limited to the files the caller may see
+    /// (null means no limit). A file the caller cannot see (a Vault file without an unlocked session) contributes nothing.
+    /// </summary>
     public Task<IReadOnlyList<AudiobookBookmarkDto>> GetByWorkAsync(
         Guid profileId,
         Guid workId,
@@ -33,9 +42,11 @@ public sealed class AudiobookBookmarkRepository
                    duration_seconds AS DurationSeconds,
                    label AS Label,
                    note AS Note,
+                   description AS Description,
+                   is_global AS IsGlobal,
                    created_at AS CreatedAt
             FROM audiobook_bookmarks
-            WHERE profile_id = @profileId
+            WHERE (profile_id = @profileId OR is_global = 1)
               AND (@unrestricted = 1 OR asset_id IN @allowedAssets)
               AND work_id = @workId
             ORDER BY created_at DESC;
@@ -51,6 +62,7 @@ public sealed class AudiobookBookmarkRepository
         return Task.FromResult<IReadOnlyList<AudiobookBookmarkDto>>(rows.Select(ToDto).ToList());
     }
 
+    /// <summary>Saves a bookmark. The caller has already checked that a global one may be made (a server administrator).</summary>
     public Task<AudiobookBookmarkDto> CreateAsync(
         Guid profileId,
         Guid workId,
@@ -73,6 +85,8 @@ public sealed class AudiobookBookmarkRepository
                 DurationSeconds = request.DurationSeconds,
                 Label = BlankToNull(request.Label),
                 Note = BlankToNull(request.Note),
+                Description = BlankToNull(request.Description),
+                IsGlobal = request.IsGlobal,
                 CreatedAt = DateTimeOffset.UtcNow,
             };
 
@@ -80,20 +94,39 @@ public sealed class AudiobookBookmarkRepository
                 """
                 INSERT INTO audiobook_bookmarks
                     (id, profile_id, work_id, asset_id, chapter_index, chapter_title,
-                     position_seconds, duration_seconds, label, note, created_at)
+                     position_seconds, duration_seconds, label, note, description, is_global, created_at)
                 VALUES
                     (@Id, @ProfileId, @WorkId, @AssetId, @ChapterIndex, @ChapterTitle,
-                     @PositionSeconds, @DurationSeconds, @Label, @Note, @CreatedAt);
+                     @PositionSeconds, @DurationSeconds, @Label, @Note, @Description, @IsGlobal, @CreatedAt);
                 """,
-                bookmark,
+                new
+                {
+                    bookmark.Id,
+                    bookmark.ProfileId,
+                    bookmark.WorkId,
+                    bookmark.AssetId,
+                    bookmark.ChapterIndex,
+                    bookmark.ChapterTitle,
+                    bookmark.PositionSeconds,
+                    bookmark.DurationSeconds,
+                    bookmark.Label,
+                    bookmark.Note,
+                    bookmark.Description,
+                    IsGlobal = bookmark.IsGlobal ? 1 : 0,
+                    bookmark.CreatedAt,
+                },
                 tx);
 
             return ToDto(bookmark);
         }, ct);
     }
 
+    /// <summary>
+    /// Deletes the profile's own bookmark, or a global one when <paramref name="canChangeGlobal"/> is true. Anyone else's
+    /// personal bookmark, and a global one without that permission, is left alone and reported as not found.
+    /// </summary>
     public Task<bool> DeleteAsync(Guid profileId, Guid bookmarkId, CancellationToken ct = default,
-        IReadOnlySet<Guid>? authorizedAssetIds = null)
+        IReadOnlySet<Guid>? authorizedAssetIds = null, bool canChangeGlobal = false)
     {
         ct.ThrowIfCancellationRequested();
         return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
@@ -102,7 +135,7 @@ public sealed class AudiobookBookmarkRepository
             var affected = conn.Execute(
                 """
                 DELETE FROM audiobook_bookmarks
-                WHERE profile_id = @profileId
+                WHERE ((is_global = 0 AND profile_id = @profileId) OR (is_global = 1 AND @canChangeGlobal = 1))
                   AND (@unrestricted = 1 OR asset_id IN @allowedAssets)
                   AND id = @bookmarkId;
                 """,
@@ -110,6 +143,7 @@ public sealed class AudiobookBookmarkRepository
                 {
                     profileId,
                     bookmarkId,
+                    canChangeGlobal = canChangeGlobal ? 1 : 0,
                     unrestricted = authorizedAssetIds is null ? 1 : 0,
                     allowedAssets = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
                 },
@@ -130,6 +164,8 @@ public sealed class AudiobookBookmarkRepository
         DurationSeconds = row.DurationSeconds,
         Label = row.Label,
         Note = row.Note,
+        Description = row.Description,
+        IsGlobal = row.IsGlobal,
         CreatedAt = row.CreatedAt,
     };
 
@@ -148,6 +184,8 @@ public sealed class AudiobookBookmarkRepository
         public double? DurationSeconds { get; init; }
         public string? Label { get; init; }
         public string? Note { get; init; }
+        public string? Description { get; init; }
+        public bool IsGlobal { get; init; }
         public DateTimeOffset CreatedAt { get; init; }
     }
 }

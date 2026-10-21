@@ -8,6 +8,9 @@ namespace MediaEngine.Api.Security;
 
 public sealed class PlayerResourceDeniedException : Exception;
 
+/// <summary>A person who is not a server administrator tried to make a bookmark shared with everybody.</summary>
+public sealed class PlayerBookmarkSharingDeniedException : Exception;
+
 /// <summary>Request-bound catalogue access used by the singleton player before selection or persistence.</summary>
 public sealed class PlayerCatalogueScope(IHttpContextAccessor http)
 {
@@ -27,6 +30,17 @@ public sealed class PlayerCatalogueScope(IHttpContextAccessor http)
         }
 
         return active;
+    }
+
+    /// <summary>
+    /// True when the request is a person acting as a server administrator. Only that person may make, or change, a bookmark
+    /// shared with everybody (Videos spec D43); the Dashboard hides the switch, and this is the check that counts.
+    /// </summary>
+    public async Task<bool> IsServerAdministratorAsync(CancellationToken ct)
+    {
+        var context = Context;
+        var authority = await context.RequestServices.GetRequiredService<IRequestAuthorityResolver>().ResolveAsync(context, ct);
+        return authority.PrincipalKind == PrincipalKind.Human && authority.IsEffectiveAdministrator;
     }
 
     internal Task<IReadOnlyList<DisplayWorkRow>> AssetsAsync(CancellationToken ct)
@@ -91,5 +105,9 @@ internal sealed class PlayerResourceFailureFilter : IEndpointFilter
     {
         try { return await next(context); }
         catch (PlayerResourceDeniedException) { return ApiErrors.NotFound("Playback item not found."); }
+        catch (PlayerBookmarkSharingDeniedException)
+        {
+            return ApiErrors.Forbidden("Only a server administrator can share a bookmark with everyone.");
+        }
     }
 }

@@ -298,7 +298,7 @@ public static class PlayerEndpoints
         })
         .WithName("GetAudiobookBookmarks")
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.ProgressRead, "work", "workId")
-        .WithSummary("Return saved audiobook playback bookmarks for a work.")
+        .WithSummary("Return the profile's saved bookmarks for a work, plus the bookmarks shared with everyone. Works for videos and audiobooks.")
         .Produces<IReadOnlyList<AudiobookBookmarkDto>>(StatusCodes.Status200OK)
         .RequireClientScope(ClientApiScopes.ProgressRead);
 
@@ -320,9 +320,10 @@ public static class PlayerEndpoints
             return Results.Created($"/player/audiobooks/{workId:D}/bookmarks/{bookmark.Id:D}", bookmark);
         })
         .WithName("CreateAudiobookBookmark")
-        .WithSummary("Save the current audiobook playback position as a bookmark.")
+        .WithSummary("Save the current playback position of a video or audiobook as a bookmark. Sharing it with everyone needs a server administrator.")
         .Produces<AudiobookBookmarkDto>(StatusCodes.Status201Created)
         .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
         .RequireClientScope(ClientApiScopes.ProgressWrite);
 
         group.MapDelete("/audiobooks/bookmarks/{bookmarkId:guid}", async (
@@ -334,10 +335,10 @@ public static class PlayerEndpoints
         {
             var identity = Bind(user, profileId, null, null);
             var deleted = await player.DeleteAudiobookBookmarkAsync(identity.ProfileId, bookmarkId, ct);
-            return deleted ? Results.NoContent() : ApiErrors.NotFound($"Audiobook bookmark '{bookmarkId}' not found.");
+            return deleted ? Results.NoContent() : ApiErrors.NotFound($"Bookmark '{bookmarkId}' not found.");
         })
         .WithName("DeleteAudiobookBookmark")
-        .WithSummary("Delete one saved audiobook bookmark.")
+        .WithSummary("Delete one saved bookmark. A bookmark shared with everyone can be deleted only by a server administrator.")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireClientScope(ClientApiScopes.ProgressWrite);

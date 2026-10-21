@@ -5678,6 +5678,8 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkD
   DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
   Label: System.String | nullability=nullable | accessors=get,init
   Note: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkNativeCaptureDto
@@ -5896,6 +5898,8 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CreateAudiobookBoo
   DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
   Label: System.String | nullability=nullable | accessors=get,init
   Note: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.DeviceDownloadDto
   AssetId: System.Guid | nullability=not-null | accessors=get,init

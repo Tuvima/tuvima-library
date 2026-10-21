@@ -14,6 +14,7 @@
 @inject ShellActivityState Activity
 @inject NsfwModeState Nsfw
 @inject IJSRuntime JS
+@inject IServiceProvider Services
 @inject NavigationManager Nav
 @inject ILogger<VideoPlaybackHost> Logger
 @implements IAsyncDisposable
@@ -73,7 +74,8 @@
                         AriaLabel="@SkipLabel(segment.Kind)" OnClick="@(() => SeekOnHostAsync(segment.EndSeconds!.Value))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip>
                 </div>
             }
-            <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video" />
+            <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
+                               Bookmarks="@_railBookmarks" BookmarkJump="JumpToRailBookmarkAsync" />
             <div class="playback-video-controls">
                 <div class="playback-video-controls__left">            <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="compact" OnClick="SkipBackAsync" />
             <PlaybackPrimaryButton Appearance="video" IsPlaying="@VideoIsPlaying" NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
@@ -99,6 +101,18 @@
                                 Chapters="@VideoChapters" Upcoming="@UpcomingVideo" NextEpisode="@EligibleNextEpisode" CurrentWorkId="@Playback.CurrentItem.WorkId"
                                 Position="@Playback.CurrentTimeSeconds" IsPlaying="@VideoIsPlaying"
                                 EpisodeSelected="PlayOwnedEpisodeAsync" ChapterSelected="PlayVideoChapterAsync" QueueSelected="PlayVideoQueueEntryAsync" /></ChildContent>
+                        </PlaybackPopover>
+                    }
+                    @if (VideoControlState.CanBookmark && Playback.CurrentItem is { WorkId: var bookmarkWorkId, AssetId: Guid bookmarkAssetId })
+                    {
+                        <PlaybackPopover Title="Bookmarks" ToolId="video-bookmarks" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
+                            <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Bookmark" /></TriggerContent>
+                            <ChildContent>
+                                <VideoBookmarkPanel ProfileId="@(Playback.ActiveProfileId ?? Guid.Empty)" WorkId="@bookmarkWorkId" AssetId="@bookmarkAssetId"
+                                                    Title="@Playback.CurrentItem.Title" Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds"
+                                                    Chapters="@VideoChapters" CanShare="@CanShareBookmarks" JumpTo="JumpToBookmarkAsync"
+                                                    SavedChanged="HandleBookmarksSaved" OnClose="CloseBookmarksAsync" />
+                            </ChildContent>
                         </PlaybackPopover>
                     }
                     <PlaybackPopover Title="Captions" ToolId="video-captions" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
@@ -224,6 +238,10 @@
     private string? _continuationStatus;
 
     private bool _rateMenuOpen;
+    // The title's saved bookmarks, drawn as ticks beside the chapters (Videos spec D43). Loaded again whenever the video changes.
+    private IReadOnlyList<PlaybackRailBookmark> _railBookmarks = [];
+    private Task? _railBookmarksLoad;
+    private bool CanShareBookmarks => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
     private Guid? _loadedSubtitleAssetId;
     private IReadOnlyList<TextTrackDto> _managedSubtitleTracks = [];
     private IReadOnlyList<CaptionTrackMetric> _captionTracks = [];
@@ -327,6 +345,7 @@
                 IsTvEpisode: VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem),
                 HasCaptions: SubtitleTracks.Count > 0 || ManagedSubtitleTracks.Count > 0 || _captionTracks.Count > 0 || _availableSubtitleCount > 0,
                 HasAudioTracks: AudioTracks.Count > 1 && _availableAudioTrackCount == AudioTracks.Count,
+                CanBookmark: Playback.CurrentItem is { AssetId: not null } && Playback.ActiveProfileId is { } bookmarkProfile && bookmarkProfile != Guid.Empty,
                 HasQualityOptions: false,
                 CanFindCaptions: Playback.CurrentItem?.AssetId is not null,
                 CanPictureInPicture: _canPictureInPicture,
@@ -393,13 +412,60 @@
         _managedSubtitleTracks = []; _captionTracks = []; _selectedCaptionKey = null;
         _selectedAudioTrackIndex = null; _textTrackStatus = null; _textTrackLoading = false;
         _profileAudioAppliedFor = null;
+        _railBookmarks = [];
         if (identity?.ProfileId != _profileSubtitlesProfile) { _profileSubtitles = null; _profileSubtitlesProfile = identity?.ProfileId; }
         Tools.Close(); _rateMenuOpen = false;
         if (identity is null) return;
         var request = _metadataCancellation = new();
         _presentationResolution = ResolvePresentationAsync(identity, request.Token);
         _profileSubtitlesLoad = LoadProfileSubtitlesAsync(identity, request.Token);
+        _railBookmarksLoad = LoadRailBookmarksAsync(identity, request.Token);
     }
+
+    private async Task LoadRailBookmarksAsync(VideoPlaybackIdentity identity, CancellationToken ct)
+    {
+        try
+        {
+            var result = await ApiClient.GetAudiobookBookmarksWithOutcomeAsync(identity.WorkId, identity.ProfileId, ct);
+            if (_disposed || ct.IsCancellationRequested || !identity.IsCurrent(Playback)) return;
+            if (result is { Outcome: AudiobookBookmarkOperationOutcome.Success, Value: { } saved })
+            {
+                ShowRailBookmarks(saved.Where(bookmark => bookmark.AssetId == identity.AssetId));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The video changed or the player closed while the list was loading; the next video loads its own.
+            Logger.LogDebug("Loading the bookmark ticks was cancelled.");
+        }
+    }
+
+    private void ShowRailBookmarks(IEnumerable<AudiobookBookmarkDto> saved)
+    {
+        _railBookmarks = PlaybackRailBookmark.From(saved, Playback.DurationSeconds);
+        if (!_disposed) _ = InvokeAsync(StateHasChanged);
+    }
+
+    private Task HandleBookmarksSaved(IReadOnlyList<AudiobookBookmarkDto> saved)
+    {
+        if (Playback.CurrentItem?.AssetId is Guid assetId) ShowRailBookmarks(saved.Where(bookmark => bookmark.AssetId == assetId));
+        return Task.CompletedTask;
+    }
+
+    private async Task CloseBookmarksAsync()
+    {
+        Tools.Close();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Goes to a bookmark's time (preview, Replay or Jump) and plays from there.</summary>
+    private async Task JumpToBookmarkAsync(double seconds, bool play)
+    {
+        await SeekOnHostAsync(seconds);
+        if (play && !Playback.IsPlaying) await TogglePlayPauseAsync();
+    }
+
+    private Task JumpToRailBookmarkAsync(PlaybackRailBookmark bookmark) => JumpToBookmarkAsync(bookmark.Seconds, play: false);
     private Task? _presentationResolution;
     private Task? _profileSubtitlesLoad;
     private async Task LoadProfileSubtitlesAsync(VideoPlaybackIdentity identity, CancellationToken ct)

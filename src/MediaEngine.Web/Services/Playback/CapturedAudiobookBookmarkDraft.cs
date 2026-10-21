@@ -20,7 +20,9 @@ public sealed record CapturedAudiobookBookmarkDraft(
 public sealed record AudiobookBookmarkSaveAttempt(
     long Generation,
     CapturedAudiobookBookmarkDraft Draft,
-    string? Note);
+    string? Note,
+    string? Description = null,
+    bool IsGlobal = false);
 
 /// <summary>
 /// Owns one transient draft lease. Same-book asset progression is intentionally not
@@ -98,20 +100,23 @@ public sealed class CapturedAudiobookBookmarkDraftLease
         Guid sessionLeaseId,
         IReadOnlySet<Guid> authorizedAssetIds,
         string? note,
-        out AudiobookBookmarkSaveAttempt? attempt)
+        out AudiobookBookmarkSaveAttempt? attempt,
+        string? description = null,
+        bool isGlobal = false)
     {
         attempt = null;
         var draft = Current;
         if (_savePending || draft is null || generation != _generation || draft.Generation != generation
             || draft.ProfileId != profileId || draft.WorkId != workId || draft.SessionLeaseId != sessionLeaseId
             || !authorizedAssetIds.Contains(draft.AssetId)
-            || !AudiobookBookmarkNotePolicy.TryNormalize(note, out var normalizedNote))
+            || !AudiobookBookmarkNotePolicy.TryNormalize(note, out var normalizedNote)
+            || !AudiobookBookmarkNotePolicy.TryNormalizeDescription(description, out var normalizedDescription))
         {
             return false;
         }
 
         _savePending = true;
-        attempt = new AudiobookBookmarkSaveAttempt(generation, draft, normalizedNote);
+        attempt = new AudiobookBookmarkSaveAttempt(generation, draft, normalizedNote, normalizedDescription, isGlobal);
         return true;
     }
 

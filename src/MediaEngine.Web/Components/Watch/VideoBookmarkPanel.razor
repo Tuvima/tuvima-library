@@ -1,0 +1,111 @@
+@namespace MediaEngine.Web.Components.Watch
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
+@inject IEngineApiClient ApiClient
+@inject ILogger<VideoBookmarkPanel> Logger
+@implements IAsyncDisposable
+
+@* The video player's Bookmarks panel (Videos spec D43). It is the audiobook Add and Saved dialog, driven by the same bookmark owner
+   service, with the video player supplying the captured position, the preview and the jump. The position is captured when the
+   panel opens, so the moment is not lost while the person types. *@
+@if (_context is not null && _service is not null)
+{
+    <div class="video-bookmark-panel">
+        <AudiobookBookmarkDialog Context="_context" Actions="_service" AuthorizedAssetIds="_assets" WorkTitle="@Title"
+                                 Surface="video" Embedded="true" StartOnAdd="true" CanShare="CanShare" AllowDescription="true"
+                                 PositionLabel="Position in video" OnClose="CloseAsync" />
+    </div>
+}
+else
+{
+    <p role="status">Bookmarks are unavailable until the video is ready.</p>
+}
+
+@code {
+    [Parameter, EditorRequired] public Guid ProfileId { get; set; }
+    [Parameter, EditorRequired] public Guid WorkId { get; set; }
+    [Parameter, EditorRequired] public Guid AssetId { get; set; }
+    [Parameter] public string? Title { get; set; }
+    /// <summary>Where the video is right now. Read once, when the panel opens.</summary>
+    [Parameter] public double Position { get; set; }
+    [Parameter] public double Duration { get; set; }
+    [Parameter] public IReadOnlyList<PlaybackChapterDto> Chapters { get; set; } = [];
+    /// <summary>True for a server administrator. Shows the Share switch; the Engine checks the permission again.</summary>
+    [Parameter] public bool CanShare { get; set; }
+    /// <summary>Asks the player to go to a time, and to play from there when the second value is true (preview and jump).</summary>
+    [Parameter] public Func<double, bool, Task>? JumpTo { get; set; }
+    /// <summary>Raised whenever the title's saved bookmarks change, so the progress rail can redraw its ticks.</summary>
+    [Parameter] public EventCallback<IReadOnlyList<AudiobookBookmarkDto>> SavedChanged { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private AudiobookBookmarkActionService? _service;
+    private AudiobookBookmarkActionContext? _context;
+    private IReadOnlySet<Guid> _assets = new HashSet<Guid>();
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (ProfileId == Guid.Empty || WorkId == Guid.Empty || AssetId == Guid.Empty) return;
+        _assets = new HashSet<Guid> { AssetId };
+        var service = new AudiobookBookmarkActionService(ApiClient, PreviewAsync, ReplayAsync);
+        var context = new AudiobookBookmarkActionContext(Guid.NewGuid(), ProfileId, WorkId, Guid.NewGuid(), 0, AssetId);
+        service.Changed += HandleChanged;
+        await service.OpenAsync(context);
+        var duration = Duration > 0 && Position <= Duration ? (double?)Duration : null;
+        if (!service.TryCapture(context, AssetId, _assets, Math.Max(0, Position), duration, ChapterAt(Position), out _))
+        {
+            Logger.LogDebug("The video position could not be captured for a bookmark.");
+        }
+
+        _service = service;
+        _context = context;
+    }
+
+    /// <summary>The chapter the position is in, shaped the way the capture rules want it (this file, with an end).</summary>
+    private PlaybackChapterDto? ChapterAt(double position)
+    {
+        var ordered = Chapters.Where(chapter => double.IsFinite(chapter.StartSeconds) && chapter.StartSeconds >= 0)
+            .OrderBy(chapter => chapter.StartSeconds).ToList();
+        for (var index = 0; index < ordered.Count; index++)
+        {
+            var chapter = ordered[index];
+            var end = index + 1 < ordered.Count ? ordered[index + 1].StartSeconds : Duration > 0 ? Duration : chapter.EndSeconds;
+            if (end is not double chapterEnd || chapter.StartSeconds > position || position >= chapterEnd) continue;
+            return chapter with { AssetId = AssetId, EndSeconds = chapterEnd };
+        }
+
+        return null;
+    }
+
+    private async Task<AudiobookBookmarkOperationResult<bool>> PreviewAsync(
+        AudiobookBookmarkActionContext context, CapturedAudiobookBookmarkDraft draft, CancellationToken ct)
+    {
+        if (JumpTo is null) return AudiobookBookmarkOperationResult<bool>.Failed("Preview is unavailable right now.");
+        await JumpTo(draft.PositionSeconds, true);
+        return AudiobookBookmarkOperationResult<bool>.Succeeded(true);
+    }
+
+    private async Task ReplayAsync(AudiobookBookmarkDto bookmark, CancellationToken ct)
+    {
+        if (JumpTo is not null) await JumpTo(bookmark.PositionSeconds, true);
+    }
+
+    private void HandleChanged(Guid dialogId)
+    {
+        if (_disposed || _context?.DialogId != dialogId || _service is null) return;
+        var saved = _service.GetSnapshot(dialogId).Saved;
+        _ = InvokeAsync(() => SavedChanged.InvokeAsync(saved));
+    }
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_service is null) return;
+        _service.Changed -= HandleChanged;
+        if (_context is not null) await _service.CloseAsync(_context);
+    }
+}
