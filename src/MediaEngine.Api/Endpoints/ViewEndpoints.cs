@@ -22,7 +22,8 @@ public static partial class ViewEndpoints
             .RequireAuthorization(AuthPolicies.Authenticated);
 
         group.MapGet("/library-capacity", async (string? area, IConfigurationLoader configuration,
-            IViewRequestProfileContext identity, IAccountAccessDecisionService accounts, CancellationToken ct) =>
+            IViewRequestProfileContext identity, IAccountAccessDecisionService accounts,
+            IVaultLibraryRepository vaultLibraries, HttpContext http, CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
             if (!authority.IsAuthenticated)
@@ -50,8 +51,17 @@ public static partial class ViewEndpoints
                 var libraries = normalizedArea == "collections"
                     ? config.Libraries
                     : config.Libraries.Where(library => string.Equals(library.Area, normalizedArea, StringComparison.OrdinalIgnoreCase));
+                // The Vault's folders and the disk they sit on are not part of the shared capacity picture; they show only inside
+                // NSFW mode (Videos spec D17, D45).
+                var vaultIds = await vaultLibraries.GetIdsAsync(ct);
+                var hideVault = vaultIds.Count > 0 && !await http.IsVaultUnlockedAsync(ct);
                 foreach (var library in libraries)
                 {
+                    if (hideVault && vaultIds.Contains(library.Id))
+                    {
+                        continue;
+                    }
+
                     var feature = library.Area.ToLowerInvariant() switch { "read" => AccountFeatureId.Read, "watch" => AccountFeatureId.Watch, "listen" => AccountFeatureId.Listen, _ => AccountFeatureId.View };
                     if (!Guid.TryParse(library.Id, out var libraryId)
                         || !(await accounts.EvaluateFeatureAsync(authority, feature, ct)).IsAllowed

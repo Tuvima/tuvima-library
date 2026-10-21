@@ -173,6 +173,10 @@ public static class VaultEndpoints
 
         var libraries = app.MapGroup("/api/v1/vault/libraries").WithTags("Vault");
 
+        // The library settings live inside the Vault area (Videos spec D45): a caller whose NSFW mode is off gets "not found" before a
+        // body or an id is read, so a malformed body cannot tell a locked caller that these routes exist.
+        libraries.WithMetadata(VaultGatedRoute.Instance);
+
         libraries.MapGet("/", async (HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault, VaultAccessResolver access, CancellationToken ct) =>
         {
             var authority = await resolver.ResolveAsync(http, ct);
@@ -322,7 +326,7 @@ public static class VaultEndpoints
                 : extension.Equals(".webp", StringComparison.OrdinalIgnoreCase) ? "image/webp"
                 : "image/jpeg";
             return Results.File(path, contentType, enableRangeProcessing: true);
-        }).WithName("GetVaultArtwork").WithTags("Vault").Produces<byte[]>(StatusCodes.Status200OK, "image/jpeg")
+        }).WithName("GetVaultArtwork").WithTags("Vault").WithMetadata(VaultGatedRoute.Instance).Produces<byte[]>(StatusCodes.Status200OK, "image/jpeg")
           .ProducesProblem(StatusCodes.Status404NotFound).RequireAuthorization(AuthPolicies.Authenticated);
 
         // Browsing: recently added, scenes, folders, performers, studios, tags and search (WP14), behind one central gate.

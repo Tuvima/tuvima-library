@@ -1,3 +1,4 @@
+using System.Reflection;
 using Dapper;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Realtime;
@@ -9,6 +10,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Ingestion.Models;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -126,6 +128,55 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.False(nextCalled);
         Assert.Equal(StatusCodes.Status404NotFound, context.Response.StatusCode);
         Assert.Equal("private, no-store", context.Response.Headers.CacheControl.ToString());
+    }
+
+    [Theory]
+    [InlineData("CreateVaultLibrary")]
+    [InlineData("UpdateVaultLibrary")]
+    [InlineData("AttachVaultFolder")]
+    [InlineData("RemoveVaultLibrary")]
+    [InlineData("ListVaultLibraries")]
+    [InlineData("SearchVaultIdentifyCandidates")]
+    [InlineData("PreviewVaultIdentifyCandidate")]
+    [InlineData("ApplyVaultIdentifyCandidate")]
+    [InlineData("GetVaultArtwork")]
+    public async Task VaultAudit_ALockedAdministratorWithAMalformedBodyOrQuery_GetsNotFoundBeforeAnythingIsBound(string routeName)
+    {
+        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
+        var nextCalled = false;
+        var middleware = new VaultGateMiddleware(_ => { nextCalled = true; return Task.CompletedTask; });
+
+        await using var scope = _routeApps[^1].Services.CreateAsyncScope();
+        var context = VaultContext(shape.Account, NewVaultSession(shape.Account));
+        context.RequestServices = scope.ServiceProvider;
+        context.SetEndpoint(routes[routeName]);
+        context.Request.Method = routeName is "ListVaultLibraries" or "GetVaultArtwork" ? "GET" : "POST";
+        context.Request.ContentType = "application/json";
+        context.Request.Body = new MemoryStream("{ this is not json"u8.ToArray());
+        context.Request.QueryString = new QueryString("?w=wide");
+        context.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(context);
+
+        Assert.False(nextCalled, routeName + " must be answered by the gate before it binds anything.");
+        Assert.Equal(StatusCodes.Status404NotFound, context.Response.StatusCode);
+        Assert.Equal("private, no-store", context.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
+    public async Task VaultAudit_EveryRouteUnderTheVaultPrefix_IsBehindThePreBindingGate()
+    {
+        var build = typeof(MappedEndpointInventoryTests).GetMethod("BuildEndpointOnlyApplication", BindingFlags.NonPublic | BindingFlags.Static)!;
+        await using var app = (WebApplication)build.Invoke(null, null)!;
+        var ungated = ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>()
+            .Where(route => (route.RoutePattern.RawText ?? string.Empty).StartsWith("/api/v1/vault/", StringComparison.OrdinalIgnoreCase)
+                || (route.RoutePattern.RawText ?? string.Empty).StartsWith("/settings/stashbox", StringComparison.OrdinalIgnoreCase))
+            .Where(route => route.Metadata.GetMetadata<VaultGatedRoute>() is null)
+            .Select(route => route.RoutePattern.RawText)
+            .ToList();
+
+        Assert.True(ungated.Count == 0, "These Vault routes bind a body or query before their own gate: " + string.Join(", ", ungated));
     }
 
     [Fact]

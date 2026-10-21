@@ -24,6 +24,9 @@ public static class VaultIdentifyEndpoints
 
         // Every answer from these routes is private and uncacheable, including the "not found" a locked session gets and the one an id
         // that does not exist gets, so the header never tells the two apart. This filter runs before the access filter on each route.
+        // The pre-binding gate answers a caller whose NSFW mode is off "not found" before any body or id is read (a malformed body
+        // would otherwise answer 400 and show that the route exists).
+        items.WithMetadata(VaultGatedRoute.Instance);
         items.AddEndpointFilter(static async (context, next) =>
         {
             CatalogueResourceAuthorizationService.ApplyVaultCacheControl(context.HttpContext.Response);
@@ -145,6 +148,7 @@ public static class VaultIdentifyEndpoints
                 At = r.At,
             }).ToList());
         })
+        .WithMetadata(VaultGatedRoute.Instance)
         .WithName("ListVaultActivity")
         .WithSummary("The quiet Vault activity list: what ingestion did with each Vault file. Only inside NSFW mode, only for an administrator.")
         .Produces<IReadOnlyList<VaultActivityItemDto>>()
