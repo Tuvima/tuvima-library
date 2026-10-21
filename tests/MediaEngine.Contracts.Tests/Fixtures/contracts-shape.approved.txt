@@ -774,6 +774,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Applic
   LastStatus: System.String | nullability=not-null | accessors=get,init
   LastAttemptAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   LastSuccessAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  ConsecutiveFailures: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ApplicationWebhookSecretResponse
   Webhook: MediaEngine.Contracts.Authentication.ApplicationWebhookResponse | nullability=not-null | accessors=get,init
@@ -1079,6 +1080,13 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Househ
   ProfileCount: System.Int32 | nullability=not-null | accessors=get,init
   AccountCount: System.Int32 | nullability=not-null | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.IntegrationHealthResponse
+  BrokenWebhooks: System.Int32 | nullability=not-null | accessors=get,init
+  WebhooksNeedingAttention: System.Int32 | nullability=not-null | accessors=get,init
+  KeysNeedingAttention: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.IntegrationHealthRules
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.IntercomTokenResponse
   Token: System.String | nullability=not-null | accessors=get,init

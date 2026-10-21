@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.Events;
 using MediaEngine.Contracts.Notifications;
 using MediaEngine.Domain.Contracts;
 
@@ -22,20 +23,13 @@ internal sealed record NotificationEventDefinition(
 /// </summary>
 internal static class NotificationEventCatalogue
 {
-    private static readonly string[] InboxOnly = [NotificationChannelIds.Dashboard];
-    private static readonly string[] InboxAndEmail = [NotificationChannelIds.Dashboard, NotificationChannelIds.Email];
-
+    /// <summary>The events that have a notification setting, taken from the one event list webhooks and plugin subscriptions share.</summary>
     public static readonly IReadOnlyList<NotificationEventDefinition> All =
     [
-        new(NotificationEventIds.BackupFailed, "A backup did not finish", "A backup could not be written.", true, InboxAndEmail),
-        new(NotificationEventIds.BackupCompleted, "A backup finished", "A backup was written successfully.", true, []),
-        new(NotificationEventIds.ToolMissing, "A tool the Library needs is missing", "FFmpeg or another required tool is not ready, so some files are waiting.", true, InboxAndEmail),
-        new(NotificationEventIds.PluginBroken, "A plugin stopped working", "A plugin has a problem that stops it doing its job.", true, InboxAndEmail),
-        new(NotificationEventIds.PluginUpdateAvailable, "A plugin update is available", "A newer version of an installed plugin is in the plugin directory.", true, InboxOnly),
-        new(NotificationEventIds.DiskLow, "Storage is running low", "A drive the Library uses is nearly full.", true, InboxAndEmail),
-        new(NotificationEventIds.IngestionCompleted, "New media finished being added", "A batch of new files has been identified and added.", true, []),
-        new(NotificationEventIds.ReviewWaiting, "Items are waiting in Needs Review", "The Library was not sure about some items and wants a person to look.", true, InboxOnly),
-        new(NotificationEventIds.AccountInvited, "Someone was invited", "An invitation to join this Library was created.", true, []),
+        .. LibraryEvents.All
+            .Where(entry => entry.Notification is not null)
+            .Select(entry => new NotificationEventDefinition(
+                entry.EventType, entry.Notification!.Title, entry.Notification.Description, entry.Notification.AdminOnly, entry.Notification.DefaultChannels)),
     ];
 
     public static NotificationEventDefinition? Find(string id) =>

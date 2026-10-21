@@ -116,6 +116,51 @@ public sealed class ApplicationWebhookRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task ConsecutiveFailures_CountBackToTheLastDelivery_AndIgnoreTestSends()
+    {
+        var repository = new ApplicationWebhookRepository(_database);
+        var broken = NewEndpoint();
+        var recovered = NewEndpoint();
+        await repository.SaveAsync(broken, true);
+        await repository.SaveAsync(recovered, true);
+        var start = new DateTimeOffset(2026, 10, 19, 8, 0, 0, TimeSpan.Zero);
+
+        // "broken": one delivery, then four failures, with a successful test send in the middle that must not reset the run.
+        var delivery = NewDelivery(broken);
+        await repository.QueueAsync(broken, 1, [delivery]);
+        for (var number = 1; number <= 5; number++)
+        {
+            delivery.AttemptCount = number;
+            delivery.UpdatedAt = start.AddMinutes(number);
+            var attempt = NewAttempt(broken, delivery, number, delivery.UpdatedAt, number == 1 ? "HTTP 204" : "HTTP 503");
+            attempt.Delivered = number == 1;
+            await repository.FinishAttemptAsync(delivery, attempt.Result, attempt.Delivered, delivery.UpdatedAt, attempt);
+        }
+
+        var test = NewAttempt(broken, NewFinishedDelivery(broken), 1, start.AddMinutes(3).AddSeconds(30), "HTTP 204");
+        test.Delivered = true;
+        test.IsTest = true;
+        await repository.RecordTestAsync(NewFinishedDelivery(broken), test, "HTTP 204");
+
+        // "recovered": failures, then a delivery.
+        var second = NewDelivery(recovered);
+        await repository.QueueAsync(recovered, 1, [second]);
+        foreach (var (number, ok) in new[] { (1, false), (2, false), (3, true) })
+        {
+            second.AttemptCount = number;
+            second.UpdatedAt = start.AddMinutes(number);
+            var attempt = NewAttempt(recovered, second, number, second.UpdatedAt, ok ? "HTTP 204" : "HTTP 503");
+            attempt.Delivered = ok;
+            await repository.FinishAttemptAsync(second, attempt.Result, ok, second.UpdatedAt, attempt);
+        }
+
+        var counts = await repository.ConsecutiveFailuresAsync();
+
+        Assert.Equal(4, counts[broken.Id]);
+        Assert.False(counts.ContainsKey(recovered.Id));
+    }
+
+    [Fact]
     public async Task RecordTest_StoresAFinishedDeliveryAndATestAttempt_WithoutQueueingAnythingToRetry()
     {
         var repository = new ApplicationWebhookRepository(_database);

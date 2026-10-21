@@ -1,6 +1,9 @@
 using System.Globalization;
+using System.Text.Json;
+using MediaEngine.Api.Services.Events;
 using MediaEngine.Contracts.Notifications;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Events;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.Notifications;
@@ -18,6 +21,7 @@ internal sealed class NotificationService(
     IEnumerable<INotificationChannel> builtInChannels,
     IEnumerable<INotificationChannelSource> channelSources,
     IAccountRepository accounts,
+    IApplicationEventProducer events,
     TimeProvider clock,
     ILogger<NotificationService> logger)
 {
@@ -43,14 +47,16 @@ internal sealed class NotificationService(
         }
 
         var settings = await settingsStore.LoadAsync(ct).ConfigureAwait(false);
+        var now = clock.GetUtcNow();
+        var body = string.IsNullOrWhiteSpace(request.Detail) ? definition.Description : Truncate(request.Detail.Trim(), MaxDetailLength);
+        await PublishApplicationEventAsync(definition, request, body, settings.IncludeDetails, now, ct).ConfigureAwait(false);
+
         var routes = settings.RouteFor(definition);
         if (routes.Count == 0)
         {
             return;
         }
 
-        var now = clock.GetUtcNow();
-        var body = string.IsNullOrWhiteSpace(request.Detail) ? definition.Description : Truncate(request.Detail.Trim(), MaxDetailLength);
         if (routes.Contains(NotificationChannelIds.Dashboard, StringComparer.Ordinal))
         {
             await repository.AddOrGroupAsync(definition.Id, definition.Title, body, $"{definition.Id}|{request.Subject}", now, GroupWindow, ct).ConfigureAwait(false);
@@ -228,6 +234,32 @@ internal sealed class NotificationService(
 
         await settingsStore.SaveAsync(settings, ct).ConfigureAwait(false);
         return null;
+    }
+
+    /// <summary>
+    /// Tells webhooks and plugin subscribers about the event too, because notifications share the one event list with them
+    /// (spec D-W). Software outside the Library only gets the generic title unless "include details" is on, the same privacy
+    /// rule as any message that leaves the computer. A problem here never stops the inbox or the channels.
+    /// </summary>
+    private async Task PublishApplicationEventAsync(NotificationEventDefinition definition, NotificationRequest request, string body, bool includeDetails, DateTimeOffset now, CancellationToken ct)
+    {
+        if (LibraryEvents.Find(definition.Id) is not { PublishedByNotifications: true })
+        {
+            return;
+        }
+
+        try
+        {
+            var payload = includeDetails
+                ? JsonSerializer.SerializeToElement(new { title = definition.Title, detail = body })
+                : JsonSerializer.SerializeToElement(new { title = definition.Title });
+            await events.PublishAsync(new ApplicationEventDraft(
+                definition.Id, 1, now, new ApplicationEventSubject("system-component", string.IsNullOrWhiteSpace(request.Subject) ? "library" : request.Subject), payload), ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Notification event {EventId} could not be offered to webhooks and plugins.", definition.Id);
+        }
     }
 
     private async Task<ChannelSendResult> SendAndRecordAsync(INotificationChannel channel, OutgoingNotification message, IReadOnlyList<NotificationRecipient> recipients, CancellationToken ct)

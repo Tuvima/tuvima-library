@@ -133,6 +133,7 @@ public sealed class EngineCompositionValidationTests
         services.AddScoped<DashboardAuthorityProjector>();
         services.AddScoped<IAccountAccessMutationService, AccountAccessMutationService>();
         services.AddScoped<ApplicationAdministrationService>();
+        services.AddScoped<IntegrationHealthService>();
         services.AddScoped<IGrantAdminUnlockService, GrantAdminUnlockService>();
         services.AddScoped<IAccountAccessDecisionService, AccountAccessDecisionService>();
         services.AddScoped<ISelfServiceAuthorizationService>(provider =>

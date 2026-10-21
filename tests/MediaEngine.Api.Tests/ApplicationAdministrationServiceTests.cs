@@ -272,7 +272,7 @@ public sealed class ApplicationAdministrationServiceTests
             .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/access/applications", StringComparison.Ordinal) == true)
             .ToArray();
 
-        Assert.Equal(12, endpoints.Length);
+        Assert.Equal(13, endpoints.Length);
         Assert.Contains(endpoints, endpoint => endpoint.RoutePattern.RawText == "/access/applications/permissions");
         Assert.Contains(endpoints, endpoint => endpoint.RoutePattern.RawText == "/access/applications/{applicationId:guid}/client-bindings");
         Assert.Contains(endpoints, endpoint => endpoint.RoutePattern.RawText == "/access/applications/{applicationId:guid}/credentials/{credentialId:guid}/rotate");
