@@ -529,6 +529,7 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | POST | `/ai/models/{role}/unload` | Unload a model from memory | Administrator |
 | GET | `/ai/config` | Full AI configuration, plus read-only `feature_info` (the Engine's plain words for each feature: `allowed_to`, `sends_data_to`) | Administrator |
 | PUT | `/ai/config` | Update AI configuration. A feature switched from off to on needs its statement hash in the optional `approvals` map (feature key to hash) unless a record for its current statement exists; otherwise `409 Conflict` `approval_required` listing every such feature, and nothing is saved. Confirmed approvals are recorded before the save. Turning a feature off needs nothing. | Administrator |
+| GET | `/ai/usage` | Who used which Local AI ability over the last `days` (1 to 90, default 7), one row per caller and ability, plus each AI plugin's requests and busy time this hour against its allowance | Administrator |
 | GET | `/ai/profile` | Hardware profile - benchmark results, tier classification, GPU backend | Required |
 | POST | `/ai/benchmark` | Re-run hardware benchmark and reclassify tier | Administrator |
 | GET | `/ai/resources` | Live system resource usage - CPU load, RAM pressure, active transcoding tasks | Required |

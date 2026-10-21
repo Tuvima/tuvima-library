@@ -56,7 +56,7 @@ public sealed class ServerPageRegroupTests
         new("Runtime diagnostics", "/settings/tools", "/settings/ai/models", SettingsSection.LocalAi, "models",
             "LocalAiRuntimePanel.razor", "Title=\"Runtime diagnostics\"", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
         new("AI features", "/settings/ai/models", "/settings/ai", SettingsSection.LocalAi, null,
-            "LocalAiSettingsTab.razor", "aria-label=\"AI features\"", null, null),
+            "LocalAiSettingsTab.razor", "Title=\"AI features are plugins\"", null, null),
         new("Plugin health and jobs", "/settings/plugins/jobs-health", "/settings/plugins", SettingsSection.Plugins, null,
             "PluginSettingsTab.razor", "PluginHealthJobsPanel(plugin)", null, null),
         new("Available plugins", "/settings/plugins/catalog", "/settings/plugins", SettingsSection.Plugins, null,
@@ -110,7 +110,7 @@ public sealed class ServerPageRegroupTests
             rows.Single(node => node is { Section: SettingsSection.Network, Subsection: null }).Children.Select(node => node.Label));
         Assert.Equal(["Hardware Acceleration", "Optimized Copies", "Diagnostics"],
             rows.Single(node => node is { Section: SettingsSection.Delivery, Subsection: null }).Children.Select(node => node.Label));
-        Assert.Equal(["Runtime"],
+        Assert.Equal(["Status", "Model and hardware", "Budget", "Usage"],
             rows.Single(node => node is { Section: SettingsSection.LocalAi, Subsection: null }).Children.Select(node => node.Label));
         Assert.Empty(rows.Single(node => node is { Section: SettingsSection.Plugins, Subsection: null }).Children);
     }

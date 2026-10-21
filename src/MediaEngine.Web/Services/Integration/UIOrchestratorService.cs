@@ -1722,6 +1722,9 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public Task<AiConfigDto?> GetAiConfigAsync(CancellationToken ct = default)
         => _api.GetAiConfigAsync(ct);
 
+    public Task<AiUsageResponse?> GetAiUsageAsync(int days = 7, CancellationToken ct = default)
+        => _api.GetAiUsageAsync(days, ct);
+
     public Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default)
         => _api.SaveAiConfigAsync(config, ct);
 

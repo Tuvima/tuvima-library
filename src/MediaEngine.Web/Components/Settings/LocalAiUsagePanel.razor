@@ -1,0 +1,93 @@
+@namespace MediaEngine.Web.Components.Settings
+@inject UIOrchestratorService Orchestrator
+
+@* The Usage page of Local AI: which callers used which ability over the last week, and each AI plugin's standing against its
+   hourly allowance. AI features are plugins, so every plugin row links to its card on the Plugins page. *@
+<div class="local-ai-usage" data-testid="local-ai-usage">
+    @if (_loading)
+    {
+        <AppProgressBar Indeterminate="true" />
+    }
+    else if (_usage is null)
+    {
+        <AppEmptyState Title="Usage unavailable" Message="The Engine could not be asked for Local AI usage." />
+    }
+    else
+    {
+        <AppCard Title="Plugins" Description="Each AI feature is a plugin. Open one to switch it on or off or change when it runs." Density="AppSurfaceDensity.Compact">
+            @if (_usage.Plugins.Count == 0)
+            {
+                <AppEmptyState Title="No plugin uses Local AI" Message="Plugins that ask for Local AI appear here." />
+            }
+            else
+            {
+                <ul class="local-ai-usage__plugins">
+                    @foreach (var plugin in _usage.Plugins)
+                    {
+                        <li class="local-ai-usage__plugin" @key="plugin.PluginId">
+                            <span class="local-ai-usage__plugin-name">@plugin.PluginName</span>
+                            <span class="local-ai-usage__plugin-hour">@plugin.RequestsThisHour of @plugin.RequestsPerHour requests this hour</span>
+                            @if (plugin.OverBudget)
+                            {
+                                <AppStatusBadge Text="Needs attention" Tone="AppUiTone.Warning" />
+                            }
+                            <AppButton Label="Open" Href="@($"/settings/plugins?plugin={Uri.EscapeDataString(plugin.PluginId)}")" Size="AppControlSize.Compact" />
+                        </li>
+                    }
+                </ul>
+            }
+        </AppCard>
+
+        <AppCard Title="@($"Use in the last {_usage.Days} days")" Density="AppSurfaceDensity.Compact">
+            @if (_usage.Rows.Count == 0)
+            {
+                <AppEmptyState Title="Nothing yet" Message="Nothing has asked Local AI for anything in this period." />
+            }
+            else
+            {
+                <AppTable Dense="true" Striped="true" Hover="true">
+                    <thead>
+                        <tr>
+                            <th>Used by</th>
+                            <th>Ability</th>
+                            <th>Requests</th>
+                            <th>Busy time</th>
+                            <th>Last used</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in _usage.Rows)
+                        {
+                            <tr @key="@($"{row.CallerKind}/{row.CallerId}/{row.Ability}")">
+                                <td>@CallerLabel(row)</td>
+                                <td>@row.Ability</td>
+                                <td>@row.Requests@(row.Succeeded < row.Requests ? $" ({row.Succeeded} worked)" : "")</td>
+                                <td>@row.BusySeconds.ToString("0.#") s</td>
+                                <td>@row.LastUsedAt.ToLocalTime().ToString("g")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </AppTable>
+            }
+        </AppCard>
+    }
+</div>
+
+@code {
+    private AiUsageResponse? _usage;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _usage = await Orchestrator.GetAiUsageAsync(7);
+        _loading = false;
+    }
+
+    private static string CallerLabel(AiUsageRowDto row) => row.CallerKind switch
+    {
+        "person" => "People using the Library",
+        "ingestion" => "Ingestion",
+        "library_background" => $"Library background work ({row.CallerName})",
+        _ => row.CallerName,
+    };
+}

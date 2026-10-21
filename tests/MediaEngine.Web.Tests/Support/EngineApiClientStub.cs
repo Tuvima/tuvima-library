@@ -402,6 +402,13 @@ internal class EngineApiClientStub : DispatchProxy
                 AudioPackEnabled = false,
             });
 
+        _handlers[nameof(IEngineApiClient.GetAiUsageAsync)] =
+            _ => Task.FromResult<AiUsageResponse?>(new AiUsageResponse
+            {
+                Days = 7,
+                Since = DateTimeOffset.UtcNow.AddDays(-7),
+            });
+
         _handlers[nameof(IEngineApiClient.SaveAiConfigAsync)] =
             _ => Task.FromResult(true);
 

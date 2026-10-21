@@ -351,12 +351,11 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     // ── Local AI keeps only AI settings ──────────────────────────────────────
 
     [Fact]
-    public void LocalAiOverview_KeepsOnlyAiSettings_AndPointsToItsRuntimePage()
+    public void LocalAiStatus_KeepsOnlyTheEngineCard_AndPointsToItsOtherPages()
     {
         var cut = Render<LocalAiSettingsTab>();
 
-        cut.WaitForAssertion(() => Assert.Contains("AI features", cut.Markup, StringComparison.Ordinal));
-        Assert.Contains("Model files and downloads are on Tools and requirements.", cut.Markup, StringComparison.Ordinal);
+        cut.WaitForAssertion(() => Assert.Contains("AI features are plugins", cut.Markup, StringComparison.Ordinal));
         Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/settings/ai/models");
         // The runtime is its own Local AI page and the per-model cards (and their Download, Cancel, Load and Unload buttons) are on the tools page.
         Assert.DoesNotContain("Runtime settings", cut.Markup, StringComparison.Ordinal);
@@ -387,7 +386,7 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
         var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "models"));
 
         cut.WaitForAssertion(() => Assert.Contains("Runtime settings", cut.Find("[data-testid=local-ai-runtime]").TextContent, StringComparison.Ordinal));
-        Assert.DoesNotContain("AI features", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("AI features are plugins", cut.Markup, StringComparison.Ordinal);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

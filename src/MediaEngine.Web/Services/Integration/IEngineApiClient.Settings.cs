@@ -356,6 +356,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /ai/config — returns persisted AI configuration.</summary>
     Task<AiConfigDto?> GetAiConfigAsync(CancellationToken ct = default);
 
+    /// <summary>GET /ai/usage — who used which Local AI ability over the last days. Null when the Engine could not be asked.</summary>
+    Task<AiUsageResponse?> GetAiUsageAsync(int days = 7, CancellationToken ct = default);
+
     /// <summary>PUT /ai/config — saves persisted AI configuration.</summary>
     Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default);
 

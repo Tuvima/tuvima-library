@@ -1,0 +1,4 @@
+.local-ai-budget {
+    display: grid;
+    gap: var(--tl-space-4);
+}

@@ -1308,6 +1308,21 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<AiUsageResponse?> GetAiUsageAsync(int days = 7, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<AiUsageResponse>($"/ai/usage?days={days}", ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /ai/usage failed");
+            LastError = ex.Message;
+            return null;
+        }
+    }
+
     public async Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default)
     {
         try
