@@ -66,13 +66,14 @@ Represents a Series (user-facing) or Universe (ParentCollection). Both are store
 | `wikidata_qid` | TEXT | Wikidata entity identifier. Indexed. |
 | `parent_collection_id` | BLOB | FK -> `collections.id`. NULL for top-level Universes and standalone Series. |
 | `media_type` | TEXT | The media type a Series shelf holds (a `MediaType` name such as `Books`, `Audiobooks` or `TV`); null on collections that are not Series shelves. Added by upgrade step `0012_series_identity_by_media_type`. A Series is its Wikidata Series QID plus this media type, so a book Series and an audiobook Series with the same `wikidata_qid` are two rows, and a lookup by QID and media type never returns the other one (`CollectionRepository.FindSeriesShelfAsync`). Indexed with `wikidata_qid`. |
+| `universe_qid` | TEXT | FK -> `narrative_roots.qid` (`ON DELETE SET NULL`). The Universe record this shelf belongs to or presents. On a Series shelf it names the Universe the Series sits in, stored even when it is the only Series of that Universe. On a Universe shelf it is the record the shelf presents and always equals `wikidata_qid`. Set by `ParentCollectionResolver` using `UniverseIdentityRule`; added by upgrade step `0021_universe_record`. |
 | `description` | TEXT | Wikipedia or provider description |
 | `sort_title` | TEXT | Normalized title for alphabetical sorting |
 | `created_at` | TEXT | Timestamp |
 | `updated_at` | TEXT | Timestamp |
 | `last_enriched_at` | TEXT | Timestamp of last Wikidata enrichment |
 
-**Indices:** `wikidata_qid`, `parent_collection_id`, `collection_type`, `wikidata_qid + media_type` (Series identity)
+**Indices:** `wikidata_qid`, `parent_collection_id`, `collection_type`, `wikidata_qid + media_type` (Series identity), `universe_qid`, and a unique index `idx_collections_one_universe_shelf` on `universe_qid` for Universe shelves (`collection_type = 'Universe'`), so one Universe record is presented by at most one Universe shelf.
 
 ### works
 
@@ -94,7 +95,7 @@ A single title, independent of version or format.
 | `last_enriched_at` | TEXT | Timestamp |
 | `ready_at` | TEXT | UTC ISO-8601 time the Work first became Ready. Set by the Engine's readiness service the first time a leaf Work (`standalone` or `child`) is matched to a real title, not in Needs Review, placed in its show or album, and has its artwork present or settled; cleared when it hits a negative outcome (Needs Review, no match, failure, rejection, lost file or placement). NULL means not Ready. It is the only gate for Home, the hero, lanes, Watch, Read, Listen, collections and the Library list. |
 | `first_ready_at` | TEXT | UTC ISO-8601 time the Work was Ready for the first time. Set together with the first `ready_at` and never cleared; the Engine announces a Work as added only when this was empty. |
-| `placement_unmatched` | INTEGER | 1 when the title was moved into a place with a known list (an album's tracks, a season's episodes, an audiobook's parts) or into a Series with **Add anyway** (a Series takes a title by hand only that way, spec D20) and so has no track, episode or position number and no details borrowed from any entry; 0 otherwise (the default, and every existing row). The detail page shows it as "Not matched". A later Match to a real entry, or a re-match that places the title (D20), clears it: while the mark is set, no scan, re-read of the file, provider or re-identify gives the title or its files a track, disc, episode, season, series-position or part number (`CanonicalValueRepository` skips those values for it, the hierarchy resolver never finds it by title or slot or renumbers it), and the detail page shows it with no number in an "Unnumbered" group at the end. Upgrade step `0021_placement_unmatched`. |
+| `placement_unmatched` | INTEGER | 1 when the title was moved into a place with a known list (an album's tracks, a season's episodes, an audiobook's parts) or into a Series with **Add anyway** (a Series takes a title by hand only that way, spec D20) and so has no track, episode or position number and no details borrowed from any entry; 0 otherwise (the default, and every existing row). The detail page shows it as "Not matched". A later Match to a real entry, or a re-match that places the title (D20), clears it: while the mark is set, no scan, re-read of the file, provider or re-identify gives the title or its files a track, disc, episode, season, series-position or part number (`CanonicalValueRepository` skips those values for it, the hierarchy resolver never finds it by title or slot or renumbers it), and the detail page shows it with no number in an "Unnumbered" group at the end. Upgrade step `0022_placement_unmatched`. |
 
 **Indices:** `wikidata_qid`, `collection_id`, `media_type`, `status`, `ready_at`
 
@@ -112,7 +113,7 @@ A specific version of a Work (e.g., "4K HDR Blu-ray Remux", "First Edition Hardc
 | `work_id` | BLOB | FK -> `works.id` |
 | `title` | TEXT | Edition label |
 | `created_at` | TEXT | Timestamp |
-| `placement_unmatched` | INTEGER | The same "Not matched" mark as `works.placement_unmatched`, for an audiobook part: a part is one file (one Edition) of its audiobook's recording Work, so it is the Edition that is added anyway. 0 by default. Added by upgrade step `0021_placement_unmatched`. |
+| `placement_unmatched` | INTEGER | The same "Not matched" mark as `works.placement_unmatched`, for an audiobook part: a part is one file (one Edition) of its audiobook's recording Work, so it is the Edition that is added anyway. 0 by default. Added by upgrade step `0022_placement_unmatched`. |
 
 ### media_assets
 
@@ -559,6 +560,8 @@ The winning multi-valued claims (genres, authors, vibe tags, cast members, and a
 
 **Unique index:** `entity_id + field_key`
 
+`series_placement` holds every (Series, position) pair a Work has: `value` is the position text exactly as Wikidata gives it (for example `1.5`), `value_qid` is the Series QID, and `ordinal` follows the statement order. A Work in two Series keeps each Series' own number here, and readers ask for the pair of the Series they show before falling back to the single `series_position`. A series statement with no position adds no row (membership stays in `series` and `series_qid`).
+
 ### search_index
 
 FTS5 full-text search index with trigram tokenizer. Handles CJK and languages without word boundaries. Short queries under 3 characters fall back to a `LIKE` scan.
@@ -721,15 +724,15 @@ Wikidata qualifier.
 
 ### narrative_roots
 
-Universe-level root records with Wikidata provenance.
+The Universe record. One row per Wikidata QID that anchors a group of works (a fictional universe, franchise or Series); the graph, the Library and the Universe page all read the same row. A Universe shelf in `collections` is how the Library presents the record (`collections.universe_qid`), and a Series shelf names the record it belongs to with the same column. The record is created before any shelf names it, is never overwritten by a later shelf (`EnsureAsync`), and keeps a parent recorded earlier when a later write names none.
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | TEXT | UUID, primary key |
-| `collection_id` | TEXT | FK -> `collections.id` (the ParentCollection) |
-| `wikidata_qid` | TEXT | |
-| `franchise_qid` | TEXT | Wikidata P8345 franchise identifier |
-| `series_qid` | TEXT | Wikidata P179 series identifier |
+| `qid` | TEXT | Wikidata QID, primary key |
+| `label` | TEXT | Display label (a user override lives in `narrative_root_user_overrides`) |
+| `level` | TEXT | `Universe`, `Franchise`, `Series` or `Standalone` |
+| `parent_qid` | TEXT | The broader record this one sits under (a franchise within a universe, a Series within a franchise); NULL for a top-level record |
+| `created_at` | TEXT | Timestamp |
 
 ### qid_labels
 

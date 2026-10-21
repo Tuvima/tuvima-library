@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0021 placement_unmatched).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0022 placement_unmatched).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -586,7 +586,7 @@ CREATE TABLE collections (
     wikidata_qid      TEXT,
     universe_status   TEXT NOT NULL DEFAULT 'Unknown',
     created_at        TEXT NOT NULL DEFAULT (datetime('now'))
-, resolution TEXT NOT NULL DEFAULT 'query', rule_hash TEXT, group_by_field TEXT, match_mode TEXT NOT NULL DEFAULT 'all', sort_field TEXT, sort_direction TEXT NOT NULL DEFAULT 'desc', secondary_sort_field TEXT, secondary_sort_direction TEXT, cover_artwork_path TEXT, cover_artwork_mime_type TEXT, background_artwork_path TEXT, background_artwork_mime_type TEXT, banner_artwork_path TEXT, banner_artwork_mime_type TEXT, logo_artwork_path TEXT, logo_artwork_mime_type TEXT, media_type TEXT);
+, resolution TEXT NOT NULL DEFAULT 'query', rule_hash TEXT, group_by_field TEXT, match_mode TEXT NOT NULL DEFAULT 'all', sort_field TEXT, sort_direction TEXT NOT NULL DEFAULT 'desc', secondary_sort_field TEXT, secondary_sort_direction TEXT, cover_artwork_path TEXT, cover_artwork_mime_type TEXT, background_artwork_path TEXT, background_artwork_mime_type TEXT, banner_artwork_path TEXT, banner_artwork_mime_type TEXT, logo_artwork_path TEXT, logo_artwork_mime_type TEXT, media_type TEXT, universe_qid TEXT REFERENCES narrative_roots(qid) ON DELETE SET NULL);
 
 CREATE TABLE companion_sessions (
     profile_id              BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -2727,11 +2727,17 @@ CREATE INDEX idx_collection_rel_type_qid
 
 CREATE INDEX idx_collections_collection_type ON collections(collection_type);
 
+CREATE UNIQUE INDEX idx_collections_one_universe_shelf
+    ON collections(universe_qid)
+    WHERE collection_type = 'Universe' AND universe_qid IS NOT NULL;
+
 CREATE INDEX idx_collections_resolution ON collections(resolution);
 
 CREATE INDEX idx_collections_rule_hash ON collections(rule_hash);
 
 CREATE INDEX idx_collections_series_identity ON collections(wikidata_qid, media_type);
+
+CREATE INDEX idx_collections_universe_qid ON collections(universe_qid);
 
 CREATE INDEX idx_cva_key_qid
     ON canonical_value_arrays(key, value_qid);

@@ -28,7 +28,8 @@ public sealed partial class UniverseClientReadService(
     DisplayCardBuilder cards,
     UniverseConnectionsReadService connections,
     ISeriesManifestRepository? manifests = null,
-    UniverseLinkCache? linkCache = null)
+    UniverseLinkCache? linkCache = null,
+    ICanonicalValueArrayRepository? arrays = null)
 {
     /// <summary>Cards listed on each member shelf; <c>item_count</c> still reports the whole shelf.</summary>
     public const int MaxShelfItems = 24;
@@ -93,6 +94,7 @@ public sealed partial class UniverseClientReadService(
 
         // One read for every member shelf's manifest rows, not one per shelf.
         var placementsByShelf = await SeriesShelfSplit.LoadPlacementsAsync(manifests, members.Select(member => member.Id).ToList(), ct).ConfigureAwait(false);
+        var seriesPairs = await SeriesShelfSplit.LoadSeriesPairsAsync(arrays, rowsByCollection.Values.SelectMany(rows => rows).ToList(), ct).ConfigureAwait(false);
 
         var shelves = new List<UniverseMemberShelfDto>();
         var mediaTypes = new List<string>();
@@ -107,7 +109,9 @@ public sealed partial class UniverseClientReadService(
                 rows,
                 placementsByShelf.TryGetValue(member.Id, out var placements)
                     ? placements
-                    : new Dictionary<Guid, ManifestItem>());
+                    : new Dictionary<Guid, ManifestItem>(),
+                member.WikidataQid,
+                seriesPairs);
             if (memberCards.Run.Count == 0 && memberCards.Also.Count == 0)
             {
                 continue;
@@ -356,9 +360,11 @@ public sealed partial class UniverseClientReadService(
 
     private ShelfCards BuildCards(
         IReadOnlyList<DisplayWorkRow> rows,
-        IReadOnlyDictionary<Guid, ManifestItem> manifestByWork)
+        IReadOnlyDictionary<Guid, ManifestItem> manifestByWork,
+        string? seriesQid,
+        IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalArrayEntry>> seriesPairs)
     {
-        var split = SeriesShelfSplit.Split(rows, manifestByWork);
+        var split = SeriesShelfSplit.Split(rows, manifestByWork, seriesQid, seriesPairs);
         var run = new List<DisplayCardDto>(cards.BuildTvShowCards(split.TvRows));
         run.AddRange(split.Run.Select(row => cards.FromWork(row, "collection", null)));
         var also = split.Also.Select(row => cards.FromWork(row, "collection", null)).ToList();

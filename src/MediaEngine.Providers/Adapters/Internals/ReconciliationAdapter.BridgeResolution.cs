@@ -581,6 +581,14 @@ public sealed partial class ReconciliationAdapter
             if (!string.IsNullOrWhiteSpace(series.Position))
             {
                 AddDistinctClaim(merged, MetadataFieldConstants.SeriesPosition, series.Position!, series.Confidence);
+
+                var pairedPosition = series.Position!.Trim();
+                AddDistinctClaim(merged, MetadataFieldConstants.SeriesPlacement, pairedPosition, series.Confidence);
+                AddDistinctClaim(
+                    merged,
+                    MetadataFieldConstants.SeriesPlacement + MetadataFieldConstants.CompanionQidSuffix,
+                    $"{qid}::{pairedPosition}",
+                    series.Confidence);
             }
 
             if (!string.IsNullOrWhiteSpace(series.SourcePropertyId))

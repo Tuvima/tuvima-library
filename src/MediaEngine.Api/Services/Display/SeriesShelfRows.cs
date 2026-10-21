@@ -1,3 +1,4 @@
+using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 using ManifestItem = MediaEngine.Domain.Entities.SeriesManifestItemRecord;
@@ -48,13 +49,47 @@ public static class SeriesShelfSplit
     }
 
     /// <summary>
+    /// The (Series, position) pairs the listed works and their files store, keyed by entity, so a work in two Series is
+    /// ordered by this shelf's own number on every surface that lists the shelf.
+    /// </summary>
+    public static async Task<IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalArrayEntry>>> LoadSeriesPairsAsync(
+        ICanonicalValueArrayRepository? arrays,
+        IReadOnlyList<DisplayWorkRow> rows,
+        CancellationToken ct)
+    {
+        if (arrays is null || rows.Count == 0)
+        {
+            return new Dictionary<Guid, IReadOnlyList<CanonicalArrayEntry>>();
+        }
+
+        var entityIds = rows.SelectMany(row => new[] { row.WorkId, row.AssetId }).Distinct().ToList();
+        var byEntity = await arrays.GetAllByEntitiesAsync(entityIds, ct).ConfigureAwait(false);
+        var pairs = new Dictionary<Guid, IReadOnlyList<CanonicalArrayEntry>>();
+        foreach (var (entityId, keys) in byEntity)
+        {
+            if (keys.TryGetValue(MetadataFieldConstants.SeriesPlacement, out var entries) && entries.Count > 0)
+            {
+                pairs[entityId] = entries;
+            }
+        }
+
+        return pairs;
+    }
+
+    /// <summary>
     /// Splits one shelf's rows. Non-TV rows are taken once per work and sorted with <see cref="SeriesOrdering"/>; a
     /// supplementary, collected or broader-context member of a Book, Comic or Movie Series goes to <see cref="SeriesShelfRows.Also"/>.
     /// TV rows are returned as given.
     /// </summary>
+    /// <param name="rows">The shelf's visible rows.</param>
+    /// <param name="manifestByWork">The manifest row placing each owned work on this shelf.</param>
+    /// <param name="seriesQid">The shelf's Series QID, so a work's own position is the one it holds in this Series.</param>
+    /// <param name="seriesPairs">The stored (Series, position) pairs from <see cref="LoadSeriesPairsAsync"/>.</param>
     public static SeriesShelfRows Split(
         IReadOnlyList<DisplayWorkRow> rows,
-        IReadOnlyDictionary<Guid, ManifestItem> manifestByWork)
+        IReadOnlyDictionary<Guid, ManifestItem> manifestByWork,
+        string? seriesQid = null,
+        IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalArrayEntry>>? seriesPairs = null)
     {
         var kinds = new List<string>();
         var tvRows = rows.Where(row => DisplayMediaRules.NormalizeDisplayKind(row.MediaType) == "TV").ToList();
@@ -78,7 +113,7 @@ public static class SeriesShelfSplit
                 placement?.ParsedOrdinal,
                 placement?.OrdinalScopeQid,
                 placement?.SeriesQid,
-                DisplayMediaRules.ParseDouble(row.SeriesPosition),
+                SeriesPositionPairs.SortValueOf(OwnPosition(row, seriesQid, seriesPairs)),
                 row.Year,
                 row.SortTitle ?? row.Title);
         });
@@ -106,5 +141,17 @@ public static class SeriesShelfSplit
         }
 
         return new SeriesShelfRows(tvRows, run, also, kinds);
+    }
+
+    // The work's own position in this Series: the pair its file or its work stores for the Series, else today's single number.
+    private static string? OwnPosition(
+        DisplayWorkRow row,
+        string? seriesQid,
+        IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalArrayEntry>>? seriesPairs)
+    {
+        var fromAsset = SeriesPositionPairs.PositionFor(
+            seriesQid, seriesPairs?.GetValueOrDefault(row.AssetId), fallbackPosition: null);
+        return fromAsset ?? SeriesPositionPairs.PositionFor(
+            seriesQid, seriesPairs?.GetValueOrDefault(row.WorkId), row.SeriesPosition);
     }
 }
