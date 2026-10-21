@@ -71,12 +71,19 @@ public sealed class SystemClient
         }
     }
 
-    public async Task<StartupReadinessResponse?> GetStartupReadinessAsync(CancellationToken ct = default)
+    public Task<StartupReadinessResponse?> GetStartupReadinessAsync(CancellationToken ct = default)
+        => ReadReadinessAsync("/system/readiness", ct);
+
+    // The storage checks only look at folders, so a screen that shows folder problems never waits for the data store scan.
+    public Task<StartupReadinessResponse?> GetStorageReadinessAsync(CancellationToken ct = default)
+        => ReadReadinessAsync("/system/readiness?category=storage", ct);
+
+    private async Task<StartupReadinessResponse?> ReadReadinessAsync(string path, CancellationToken ct)
     {
-        const string endpoint = "GET /system/readiness";
+        var endpoint = $"GET {path}";
         try
         {
-            var response = await _http.GetAsync("/system/readiness", ct);
+            var response = await _http.GetAsync(path, ct);
             if (!response.IsSuccessStatusCode)
             {
                 await _failureState.RecordHttpFailureAsync(endpoint, response, _logger, ct, logAsWarning: false);

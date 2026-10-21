@@ -1339,6 +1339,9 @@
 [method] GetStartupReadinessAsync
   response | shape=93e57e1a3ac5555d551aca995a2f028bea947faaf429f57bb2c6dd0fc7726c68
 
+[method] GetStorageReadinessAsync
+  response | shape=93e57e1a3ac5555d551aca995a2f028bea947faaf429f57bb2c6dd0fc7726c68
+
 [method] GetSystemActivityOperationsAsync
   response | shape=5ef00d00332c376c896c738dc907b101773e006ce2948d13e6332e41f992d8a5
 

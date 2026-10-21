@@ -862,6 +862,53 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
+    public void LibrarySummary_ShowsItsTilesWithoutWaitingForTheStorageChecks_AndAsksOnlyForTheStorageChecks()
+    {
+        // Bug B17: the tiles waited for the full readiness report, which scans the whole data store.
+        var storageChecks = new TaskCompletionSource<MediaEngine.Contracts.System.StartupReadinessResponse?>();
+        EngineApiClientStub? stub = null;
+        var apiClient = EngineApiClientStub.Create(configured =>
+        {
+            stub = configured;
+            configured.SetHandler(nameof(IEngineApiClient.GetLibraryOverviewAsync), _ =>
+                Task.FromResult<LibraryOverviewDto?>(new LibraryOverviewDto
+                {
+                    TotalItems = 3,
+                    MediaTypeCounts = new Dictionary<string, int> { ["Books"] = 2, ["Movies"] = 1 },
+                }));
+            configured.SetHandler(nameof(IEngineApiClient.GetStorageReadinessAsync), _ => storageChecks.Task);
+        });
+        Services.AddSingleton<IEngineApiClient>(apiClient);
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<LibrarySummary>(0);
+            builder.CloseComponent();
+        });
+
+        cut.WaitForAssertion(() => Assert.Equal(7, cut.FindAll(".library-summary__media").Count));
+        Assert.Empty(cut.FindAll("[data-testid='library-summary-storage']"));
+
+        storageChecks.SetResult(new MediaEngine.Contracts.System.StartupReadinessResponse
+        {
+            Status = "degraded",
+            Checks =
+            [
+                new MediaEngine.Contracts.System.StartupReadinessCheckResponse
+                {
+                    Name = "watch_folders",
+                    Category = "storage",
+                    Status = "degraded",
+                    Description = "A watch folder is missing.",
+                },
+            ],
+        });
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='library-summary-storage'] .library-summary__issue")));
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetStartupReadinessAsync), stub!.Calls);
+    }
+
+    [Fact]
     public void PlaybackSettingsPage_RendersOnlyTheSelectedUserPlaybackPreferences()
     {
         var cut = Render(builder =>
@@ -1173,6 +1220,74 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Empty(cut.FindAll(".media-tile"));
             Assert.Empty(cut.FindAll(".media-group-tile"));
         });
+    }
+
+    [Fact]
+    public void CollectionsPeople_ShowsThePeopleWithoutWaitingForTheCollectionCatalog()
+    {
+        // Bug B31: People waited for the collection catalog, which takes seconds on a large library and is not shown there.
+        var catalog = new TaskCompletionSource<List<CollectionManagementCatalogViewModel>>();
+        Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetCollectionCatalogAsync), _ => catalog.Task)));
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<AppPopoverHost>(0);
+            builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1);
+            builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2);
+            builder.CloseComponent();
+            builder.OpenComponent<CollectionsPage>(3);
+            builder.AddAttribute(4, nameof(CollectionsPage.Section), "people");
+            builder.CloseComponent();
+        });
+
+        cut.WaitForAssertion(() => Assert.Contains("Octavia Butler", cut.Markup));
+        Assert.False(catalog.Task.IsCompleted);
+
+        catalog.SetResult([]);
+        cut.WaitForAssertion(() => Assert.Contains("Octavia Butler", cut.Markup));
+    }
+
+    [Fact]
+    public void Collections_ASectionChosenDuringTheFirstLoad_SaysLoadingUntilItsOwnDataArrives()
+    {
+        // A replaced load's cancelled catalog read comes back empty, later than the newer load; it must not mark the
+        // collections as loaded.
+        var catalogs = new List<TaskCompletionSource<List<CollectionManagementCatalogViewModel>>>();
+        Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetCollectionCatalogAsync), _ =>
+            {
+                var catalog = new TaskCompletionSource<List<CollectionManagementCatalogViewModel>>();
+                catalogs.Add(catalog);
+                return catalog.Task;
+            })));
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<AppPopoverHost>(0);
+            builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1);
+            builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2);
+            builder.CloseComponent();
+            builder.OpenComponent<CollectionsPage>(3);
+            builder.AddAttribute(4, nameof(CollectionsPage.Section), "automatic");
+            builder.CloseComponent();
+        });
+        var page = cut.FindComponent<CollectionsPage>();
+        cut.WaitForAssertion(() => Assert.Single(catalogs));
+
+        // People is chosen before the first catalog arrives: a second load starts, people first, and replaces the first.
+        page.Render(parameters => parameters.Add(component => component.Section, "people"));
+        cut.WaitForAssertion(() => Assert.Contains("Octavia Butler", cut.Markup));
+        Assert.Equal(2, catalogs.Count);
+        cut.InvokeAsync(() => catalogs[0].SetResult([]));
+
+        // Back to a collection section while the second catalog is still out: it says Loading, not an empty grid.
+        page.Render(parameters => parameters.Add(component => component.Section, "automatic"));
+        cut.WaitForAssertion(() => Assert.Contains("Loading collections", cut.Markup));
     }
 
     [Fact]

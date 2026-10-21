@@ -99,6 +99,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Slow library and Home reads at 4,000 works](reports/slow-reads-2026-10.md) | Current — causes 1–2 fixed by the library list speed spec; causes 3–4 fixed by the Home and detail speed spec; follow-ups in the 2026-10-21 read speed handoff |
 | [Which stored name wins when a field accepts several](reports/stored-name-order-2026-10.md) | Current — recommendations 1–3 approved and built (stored-name-order-fix); addendum recommendations 6–9 approved and built; open remediation: the combined artist view's artist reader (see the report's last section) |
 | [Which library reads are slow or break on very large libraries](reports/library-read-speed-measurements-2026-10.md) | Current — measured 2026-10-21; people search, presence counts and library-sized id lists fixed |
+| [Slow pages from the 2026-10-21 local check (B17, B29, B31)](reports/slow-pages-b17-b29-b31-2026-10-21.md) | Current — measured before and after; summary tiles, detail pages and People section fixed; People credit reads and the collection catalog left for T3 |
 | [Large upload spike: dropping 1, 10 and 50 GB files on a library page](reports/large-upload-spike-2026-10.md) | Current — WP11 of the library setup spec, measured 2026-10-21; feeds WP12 (resumable 64 MB pieces, 50 GB warning threshold pending the real-network check) |
 
 ## History (pre-2026-10-17 engineering records)
