@@ -1,5 +1,6 @@
 using MediaEngine.Api.Services.Tools;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -105,7 +106,7 @@ public sealed class ToolAutoInstallerTests : IDisposable
     {
         var missing = Tools(Tool(ToolRequirementIds.Ffmpeg, ToolRequirementStates.Missing, canInstall: true));
         var auto = new SpyAutoInstaller();
-        using var startup = new ToolRequirementsStartupService(new FixedTools(missing), auto, NullLogger<ToolRequirementsStartupService>.Instance);
+        using var startup = new ToolRequirementsStartupService(new FixedTools(missing), auto, new NullNotificationPublisher(), NullLogger<ToolRequirementsStartupService>.Instance);
 
         await startup.StartAsync(CancellationToken.None);
         await startup.ExecuteTask!;
@@ -118,7 +119,7 @@ public sealed class ToolAutoInstallerTests : IDisposable
     {
         var ready = Tools(Tool(ToolRequirementIds.Ffmpeg, ToolRequirementStates.Ready, canInstall: false));
         var auto = new SpyAutoInstaller();
-        using var startup = new ToolRequirementsStartupService(new FixedTools(ready), auto, NullLogger<ToolRequirementsStartupService>.Instance);
+        using var startup = new ToolRequirementsStartupService(new FixedTools(ready), auto, new NullNotificationPublisher(), NullLogger<ToolRequirementsStartupService>.Instance);
 
         await startup.StartAsync(CancellationToken.None);
         await startup.ExecuteTask!;
