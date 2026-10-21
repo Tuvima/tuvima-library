@@ -848,6 +848,53 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
+    public void LibrarySummary_ShowsItsTilesWithoutWaitingForTheStorageChecks_AndAsksOnlyForTheStorageChecks()
+    {
+        // Bug B17: the tiles waited for the full readiness report, which scans the whole data store.
+        var storageChecks = new TaskCompletionSource<MediaEngine.Contracts.System.StartupReadinessResponse?>();
+        EngineApiClientStub? stub = null;
+        var apiClient = EngineApiClientStub.Create(configured =>
+        {
+            stub = configured;
+            configured.SetHandler(nameof(IEngineApiClient.GetLibraryOverviewAsync), _ =>
+                Task.FromResult<LibraryOverviewDto?>(new LibraryOverviewDto
+                {
+                    TotalItems = 3,
+                    MediaTypeCounts = new Dictionary<string, int> { ["Books"] = 2, ["Movies"] = 1 },
+                }));
+            configured.SetHandler(nameof(IEngineApiClient.GetStorageReadinessAsync), _ => storageChecks.Task);
+        });
+        Services.AddSingleton<IEngineApiClient>(apiClient);
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<LibrarySummary>(0);
+            builder.CloseComponent();
+        });
+
+        cut.WaitForAssertion(() => Assert.Equal(7, cut.FindAll(".library-summary__media").Count));
+        Assert.Empty(cut.FindAll("[data-testid='library-summary-storage']"));
+
+        storageChecks.SetResult(new MediaEngine.Contracts.System.StartupReadinessResponse
+        {
+            Status = "degraded",
+            Checks =
+            [
+                new MediaEngine.Contracts.System.StartupReadinessCheckResponse
+                {
+                    Name = "watch_folders",
+                    Category = "storage",
+                    Status = "degraded",
+                    Description = "A watch folder is missing.",
+                },
+            ],
+        });
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='library-summary-storage'] .library-summary__issue")));
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetStartupReadinessAsync), stub!.Calls);
+    }
+
+    [Fact]
     public void PlaybackSettingsPage_RendersOnlyTheSelectedUserPlaybackPreferences()
     {
         var cut = Render(builder =>

@@ -199,6 +199,7 @@ compatibility versions.
 |---|---|---|---|
 | GET | `/system/status` | Service health, version, uptime | None |
 | GET | `/system/activity-status` | Sanitized leased/running durable operations used to seed the Dashboard navbar activity indicator; excludes media titles and filesystem paths | Required |
+| GET | `/system/readiness` | Launch readiness report: `status` (`ready`, `degraded` or `not_ready`), `checked_at` and `checks[]` (name, category, status, required, description, data) for the data store, configuration, storage, AI models, providers, media runtimes and background workers. `?category=storage` runs only the library and watch folder checks, without the data store integrity scan and write probe; the Library summary in Settings uses it. | Administrator, or application with `system.status.read` |
 | GET | `/system/watcher-status` | File watcher diagnostic - shows monitored folders and last event | Required |
 | GET | `/system/resources` | Local reading for the Settings System summary: Engine version, start time and uptime (`engine_version`, `started_at`, `uptime_seconds`), Engine processor use as a percent of the machine and memory in use and available in MB (`processor_percent`, `memory_used_mb`, `memory_total_mb`), and `drives` (root, label, total and free bytes, and whether each holds the library and/or the data store; a drive holding both appears once) plus `data_store_size_bytes`. Nothing leaves the machine. | Administrator |
 | GET | `/system/development-tools` | Which development-only Settings pages this Engine offers: `{ "enrichment_tester": bool, "development_data": bool }`. Both are `false` in a release build, where the actions behind those pages are not mapped. The Dashboard reads it to decide whether to show the Enrichment Tester and Development data pages. | Administrator |
@@ -399,7 +400,7 @@ unauthorized identifiers return the same not-found shape as missing resources.
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/library/overview` | Aggregated library health and readiness view, including `hidden_by_quality_gate`, `art_pending`, `retail_needs_review`, `qid_no_match`, and `completed_with_art` | Required |
+| GET | `/library/overview` | Aggregated library health and readiness view, including `hidden_by_quality_gate`, `art_pending`, `retail_needs_review`, `qid_no_match`, and `completed_with_art`. Every count comes from one counts-only pass over the item projection. | Required |
 
 ---
 
