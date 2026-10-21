@@ -3,6 +3,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
@@ -199,7 +200,7 @@ public sealed class UniversalSearchReadService(
                 subtitle,
                 null,
                 null,
-                $"/persons/{row.Id:D}/headshot",
+                ArtworkVersionMarker.WithMarker($"/persons/{row.Id:D}/headshot", ArtworkVersionMarker.ForFile(row.LocalHeadshotPath)),
                 row.Biography,
                 $"/details/person/{row.Id:D}",
                 "View Person",

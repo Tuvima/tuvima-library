@@ -1184,11 +1184,10 @@ public sealed class CollectionBrowseReadService(
                         personRoles = BuildPersonRoles(
                             ResolvePersonDisplayRole(primaryMediaType, groupByField),
                             person.StoredRoles);
-                        if (!string.IsNullOrWhiteSpace(person.LocalHeadshotPath)
-                            || !string.IsNullOrWhiteSpace(person.HeadshotUrl))
-                        {
-                            personPhotoUrl = $"/persons/{person.Id}/headshot";
-                        }
+                        personPhotoUrl = ApiImageUrls.BuildPersonHeadshotUrl(
+                            person.Id,
+                            person.LocalHeadshotPath,
+                            person.HeadshotUrl);
                     }
                 }
                 catch (Exception ex)
