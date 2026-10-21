@@ -346,7 +346,7 @@
         : "main-content-with-topbar";
     private string MainContainerClass => IsCinematicShell || IsLaneScrollRoute ? "tl-sp-px-0 tl-sp-py-0" : "tl-sp-py-6 tl-sp-px-0";
     private bool CanManageProfiles => _session.HasAction("access.manage");
-    // The Vault area is in the menu only while the Engine says NSFW mode is on for this device session; never for a Kids shell.
+    // The Vault area is in the menu only while the Engine says Vault mode is on for this device session; never for a Kids shell.
     private bool ShowVaultArea => !_isKids && Nsfw.Unlocked;
     private bool CanViewReview => _session.HasNavigation("settings.administration");
     private bool CanViewSystemActivity => _session.HasNavigation("settings.administration");

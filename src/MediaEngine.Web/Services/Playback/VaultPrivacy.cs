@@ -20,6 +20,6 @@ public static class VaultPrivacy
         return current.IsVault || string.IsNullOrWhiteSpace(detailTitle) ? GenericTitle : detailTitle;
     }
 
-    /// <summary>True while a Vault video is actually playing: only then does the player nudge NSFW mode awake.</summary>
+    /// <summary>True while a Vault video is actually playing: only then does the player nudge Vault mode awake.</summary>
     public static bool ShouldKeepAwake(ListenQueueItem? item, bool isPlaying) => isPlaying && item is { IsVault: true };
 }

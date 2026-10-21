@@ -1975,11 +1975,6 @@
 [method] ResetNetworkSettingsAsync
   response | shape=35ba45b8ffab78998b4c12a28ece049fd937fd05ed165a3d9003b756bfb8fba4
 
-[method] ResetProfileNsfwPinAsync
-  input profileId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
-  input request | default=required | shape=616dbc741227a408f7ba81bc586204e1bda0aec8ef8a87936b347d7cc67439e8
-  response | shape=2a7e1982974fb29bf9d4088640b0de9d866a7b47f63b260c91f8b79df01bed5e
-
 [method] ResetSeriesMissingItemPreferenceAsync
   input profileId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
   input mediaType | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
@@ -2308,9 +2303,9 @@
   input sort | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
 
-[method] SetNsfwPinAsync
-  input request | default=required | shape=e640cfe285fcc98caa79003123d2c5efe8a7c1982d782dc931bbf83ccd0313a8
-  response | shape=2a7e1982974fb29bf9d4088640b0de9d866a7b47f63b260c91f8b79df01bed5e
+[method] SetNsfwIdleAsync
+  input minutes | default=required | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+  response | shape=76b013964e235618aebb48eee5e78c4212afb4b0ace7c34003cbe70ed735105f
 
 [method] SetPluginEnabledAsync
   input pluginId | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
@@ -11865,13 +11860,6 @@ property=season_count | nullability=nullable | accessors=get,init | required=no 
 property=album_count | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b28ab3a0a6b029545a251283d742d4d55a1da8f0fab2bf889100c89ca82e6f33
 property=earliest_year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b28ab3a0a6b029545a251283d742d4d55a1da8f0fab2bf889100c89ca82e6f33
 property=latest_year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b28ab3a0a6b029545a251283d742d4d55a1da8f0fab2bf889100c89ca82e6f33
-
-[shape] e640cfe285fcc98caa79003123d2c5efe8a7c1982d782dc931bbf83ccd0313a8
-direction=write | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
-property=new_pin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-property=current_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-property=profile_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-sample={"new_pin":"sample","current_pin":"sample","profile_pin":"sample"}
 
 [shape] e654552be099eca5535eefbf367546c28390ffd104f410e25e23a0fe829d0c39
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none

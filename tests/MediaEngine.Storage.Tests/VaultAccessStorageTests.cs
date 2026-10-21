@@ -308,6 +308,7 @@ public sealed class VaultAccessStorageTests : IDisposable
     [InlineData(NsfwAccessMode.Allowed)]
     public async Task AnAdultProfileCanBeOpenedUp(NsfwAccessMode mode)
     {
+        InsertProfilePin(_adult);
         await _nsfw.SetAsync(_adult, mode, 30, _admin, _now);
 
         var access = await _nsfw.GetAsync(_adult);
@@ -389,6 +390,7 @@ public sealed class VaultAccessStorageTests : IDisposable
     [Fact]
     public async Task AProfileTurnedIntoAKidsProfileLosesAccess()
     {
+        InsertProfilePin(_adult);
         await _nsfw.SetAsync(_adult, NsfwAccessMode.Pin, null, _admin, _now);
         var session = InsertSession(_adult);
         await _nsfw.UnlockAsync(session, _adult, NsfwUnlockMethod.Pin, 15, _now);
@@ -532,6 +534,7 @@ public sealed class VaultAccessStorageTests : IDisposable
         var session = InsertSession(_adult);
         await _nsfw.UnlockAsync(session, _adult, NsfwUnlockMethod.Allowed, 15, _now);
 
+        InsertProfilePin(_adult);
         await _nsfw.SetAsync(_adult, NsfwAccessMode.Pin, null, _admin, _now);
         Assert.False(await _nsfw.IsUnlockedAsync(session, _adult, _now));
 
@@ -545,10 +548,12 @@ public sealed class VaultAccessStorageTests : IDisposable
     [Fact]
     public async Task APinUnlock_DoesNotSurviveTheModeBecomingAllowed_NorAnAllowedUnlockSurviveItBecomingPin()
     {
+        InsertProfilePin(_adult);
         await _nsfw.SetAsync(_adult, NsfwAccessMode.Pin, null, _admin, _now);
         var session = InsertSession(_adult);
         await _nsfw.UnlockAsync(session, _adult, NsfwUnlockMethod.Pin, 15, _now);
         // Writing the stored mode back to the same value does not matter; a real change does.
+        InsertProfilePin(_adult);
         await _nsfw.SetAsync(_adult, NsfwAccessMode.Pin, 20, _admin, _now);
         Assert.True(await _nsfw.IsUnlockedAsync(session, _adult, _now));
 
@@ -571,57 +576,66 @@ public sealed class VaultAccessStorageTests : IDisposable
         Assert.False(await _nsfw.IsUnlockedAsync(session, _adult, _now));
     }
 
-    // ── The PIN record ──────────────────────────────────────────────────────────────────────────
+    // ── One PIN per profile (owner decision 2026-10-21) ─────────────────────────────────────────
 
     [Fact]
-    public async Task ThePinIsAHashInItsOwnTable_AndTheProfilePinTableNeverHoldsIt()
+    public async Task AskingForThePinToOpenVaultMode_NeedsAProfilePin_ButNoPinNeededWithoutThatSwitch()
     {
-        await _nsfw.SetAsync(_adult, NsfwAccessMode.Pin, null, _admin, _now);
-        var credential = new MediaEngine.Domain.Entities.ProfileCredential
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _nsfw.SetAsync(_adult, NsfwAccessMode.Pin, null, _admin, _now));
+        Assert.False((await _nsfw.GetAsync(_adult)).CanUnlock);
+
+        // The data structure refuses it too, whichever writer tries.
+        await _nsfw.SetAsync(_adult, NsfwAccessMode.Allowed, null, _admin, _now);
+        using (var connection = _database.CreateConnection())
         {
-            Id = Guid.NewGuid(),
-            ProfileId = _adult,
-            Kind = MediaEngine.Domain.Entities.ProfileCredentialKind.NsfwPin,
-            SecretHash = "hashed-value",
-            SecurityStamp = "stamp",
-            CreatedAt = _now,
-            UpdatedAt = _now,
-        };
+            Assert.Throws<SqliteException>(() =>
+                connection.Execute("UPDATE profile_nsfw_settings SET access_mode='pin' WHERE profile_id=@id;", new { id = _adult }));
+        }
 
-        await _nsfw.UpsertPinAsync(credential);
-
-        Assert.NotNull(await _nsfw.GetPinAsync(_adult));
+        InsertProfilePin(_adult);
+        await _nsfw.SetAsync(_adult, NsfwAccessMode.Pin, null, _admin, _now);
         Assert.True((await _nsfw.GetAsync(_adult)).HasPin);
-        using var connection = _database.CreateConnection();
-        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_credentials;"));
     }
 
     [Fact]
-    public async Task ChangingOrRemovingThePin_LocksEveryDevice()
+    public async Task AVaultModeThatAsksForThePin_CannotBeUnlocked_OnceTheProfilePinIsGone()
     {
+        InsertProfilePin(_adult);
         await _nsfw.SetAsync(_adult, NsfwAccessMode.Pin, null, _admin, _now);
-        var credential = new MediaEngine.Domain.Entities.ProfileCredential
+        var session = InsertSession(_adult);
+        await _nsfw.UnlockAsync(session, _adult, NsfwUnlockMethod.Pin, 15, _now);
+        Assert.True(await _nsfw.IsUnlockedAsync(session, _adult, _now));
+
+        using (var connection = _database.CreateConnection())
         {
-            Id = Guid.NewGuid(),
-            ProfileId = _adult,
-            Kind = MediaEngine.Domain.Entities.ProfileCredentialKind.NsfwPin,
-            SecretHash = "one",
-            SecurityStamp = "stamp",
-            CreatedAt = _now,
-            UpdatedAt = _now,
-        };
-        await _nsfw.UpsertPinAsync(credential);
+            connection.Execute("DELETE FROM profile_credentials WHERE profile_id=@id;", new { id = _adult });
+        }
+
+        Assert.False(await _nsfw.IsUnlockedAsync(session, _adult, _now));
+        await Assert.ThrowsAnyAsync<Exception>(() => _nsfw.UnlockAsync(session, _adult, NsfwUnlockMethod.Pin, 15, _now));
+    }
+
+    [Fact]
+    public async Task ChangingOrRemovingTheProfilePin_LocksDevicesUnlockedWithIt_ButNotOnesOpenedWithNoPin()
+    {
+        InsertProfilePin(_adult);
+        await _nsfw.SetAsync(_adult, NsfwAccessMode.Pin, null, _admin, _now);
         var session = InsertSession(_adult);
         await _nsfw.UnlockAsync(session, _adult, NsfwUnlockMethod.Pin, 15, _now);
 
-        credential.SecretHash = "two";
-        await _nsfw.UpsertPinAsync(credential);
-        Assert.False(await _nsfw.IsUnlockedAsync(session, _adult, _now));
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE profile_credentials SET secret_hash='changed' WHERE profile_id=@id;", new { id = _adult });
+        }
 
-        await _nsfw.UnlockAsync(session, _adult, NsfwUnlockMethod.Pin, 15, _now);
-        Assert.True(await _nsfw.DeletePinAsync(_adult));
         Assert.False(await _nsfw.IsUnlockedAsync(session, _adult, _now));
-        Assert.False(await _nsfw.DeletePinAsync(_adult));
+    }
+
+    [Fact]
+    public void TheSeparateVaultPinTable_IsGone()
+    {
+        using var connection = _database.CreateConnection();
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM sqlite_master WHERE name='profile_nsfw_pins';"));
     }
 
     // ── The Vault's own names and artwork ───────────────────────────────────────────────────────
@@ -777,6 +791,17 @@ public sealed class VaultAccessStorageTests : IDisposable
             """,
             new { workId, editionId, assetId, parentWorkId, hash = Guid.NewGuid().ToString("N"), path = $"C:/vault/{assetId:N}.mkv", libraryId });
         return (workId, assetId);
+    }
+
+    private void InsertProfilePin(Guid profileId)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT OR IGNORE INTO profile_credentials(id,profile_id,credential_kind,secret_hash,hash_scheme,hash_version,security_stamp,created_at,updated_at)
+            VALUES(@id,@profileId,'ProfilePin','hashed-value','test',1,'stamp',@now,@now);
+            """,
+            new { id = Guid.NewGuid(), profileId, now = _now.ToString("O") });
     }
 
     private void InsertProfile(Guid id, string role, string? contentLimit)

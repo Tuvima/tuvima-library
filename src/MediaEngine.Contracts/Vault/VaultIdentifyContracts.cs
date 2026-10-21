@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace MediaEngine.Contracts.Vault;
 
 // Identify for a Vault video (Videos spec D38), how a video was matched (D30) and the quiet Vault activity list (D32).
-// Every one of these answers "not found" to anyone without an unlocked NSFW session. Search text is sent in a request body, never in
+// Every one of these answers "not found" to anyone without an unlocked Vault mode session. Search text is sent in a request body, never in
 // an address, so a title typed here cannot end up in an access log.
 
 /// <summary>What Identify searches for. Empty text means "use the name patterns' title and the product code in the file name".</summary>

@@ -9,7 +9,7 @@ using MediaEngine.TestSupport;
 namespace MediaEngine.Storage.Tests;
 
 /// <summary>
-/// Watching a Vault video leaves no trace outside NSFW mode (Videos spec D33). The places that remember what was watched, feed the
+/// Watching a Vault video leaves no trace outside Vault mode (Videos spec D33). The places that remember what was watched, feed the
 /// taste summary, or tell apps, webhooks and plugins about playback must hold nothing for a Vault file, while an ordinary file in the
 /// same situation is remembered as before. Real temp SQLite.
 /// </summary>

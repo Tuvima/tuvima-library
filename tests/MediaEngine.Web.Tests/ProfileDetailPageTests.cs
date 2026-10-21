@@ -30,6 +30,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private readonly List<ManagedProfileResponse> _managed = [];
     private string? _lastError;
     private bool _settingsAvailable = true;
+    private bool _samHasPin;
     private readonly List<AccountAccessResponse> _accounts = [];
     private readonly List<AccessLibraryOptionDto> _libraries = [];
     private HttpStatusCode _accessSaveStatus = HttpStatusCode.OK;
@@ -731,26 +732,68 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PinProtection_ForAnAdministrator_StagesPinAndChosenDurationBeforeEnabling()
+    public void AdminPagesPin_IsOffByDefault_AndTurningItOnUsesTheProfilePinWithTheChosenDuration()
     {
         Setup(actions: ["household.manage"], navigation: []);
+        _samHasPin = true;
         _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
         _accounts.Add(AccountWithAdminGrantFor(SamId, "Sam", protectionEnabled: false));
 
         var cut = RenderFor(SamId);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='pin-protection']")));
 
-        cut.Find("[data-profile-section='pin-protection'] input[type='password']").Input("2468");
-        cut.Find("select[aria-label='PIN unlock duration for Sam']").Change("FixedDuration:60");
-        cut.FindAll("[data-profile-section='pin-protection'] button").Single(button => button.TextContent.Trim() == "Enable protection").Click();
+        // No PIN text field any more: the profile's own PIN is the one that is asked for.
+        Assert.Empty(cut.FindAll("[data-profile-section='pin-protection'] input[type='password']"));
+        Assert.False(AdminSwitch(cut, "Ask for their PIN on admin pages").HasAttribute("checked"));
+        Assert.DoesNotContain(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
 
-        cut.WaitForAssertion(() => Assert.Contains("PIN protection for Sam was updated.", cut.Markup));
+        cut.InvokeAsync(() => AdminSwitch(cut, "Ask for their PIN on admin pages").Change(true));
+
+        cut.WaitForAssertion(() => Assert.Contains("Admin pages now ask for Sam", cut.Markup));
         var request = Assert.Single(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
         Assert.Equal(HttpMethod.Put, request.Method);
         Assert.Equal($"/access/accounts/{SamAccountId:D}/grants/{SamId:D}/admin-protection", request.Path);
+        Assert.DoesNotContain("pin\"", request.Body, StringComparison.OrdinalIgnoreCase);
         var payload = System.Text.Json.JsonSerializer.Deserialize<SetGrantAdminProtectionRequest>(request.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
         Assert.True(payload.Enabled);
-        Assert.Equal("2468", payload.Pin);
+        Assert.Equal("FixedDuration", payload.UnlockMode);
+        Assert.Equal(30, payload.UnlockMinutes);
+    }
+
+    [Fact]
+    public void AdminPagesPin_CannotBeTurnedOn_ForAProfileWithoutAPin_AndSaysWhatToDoFirst()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _samHasPin = false;
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+        _accounts.Add(AccountWithAdminGrantFor(SamId, "Sam", protectionEnabled: false));
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='pin-protection']")));
+        Assert.Contains("Needs a PIN on this profile", cut.Markup, StringComparison.Ordinal);
+
+        cut.InvokeAsync(() => AdminSwitch(cut, "Ask for their PIN on admin pages").Change(true));
+
+        cut.WaitForAssertion(() => Assert.Contains("Set a PIN for this profile first", cut.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AdminPagesPin_ChoosingAnotherDuration_SavesItStraightAway()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _samHasPin = true;
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+        _accounts.Add(AccountWithAdminGrantFor(SamId, "Sam", protectionEnabled: true));
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("select[aria-label='How long the PIN unlocks admin pages for Sam']")));
+        cut.Find("select[aria-label='How long the PIN unlocks admin pages for Sam']").Change("FixedDuration:60");
+
+        cut.WaitForAssertion(() => Assert.Single(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal)));
+        var request = Assert.Single(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
+        var payload = System.Text.Json.JsonSerializer.Deserialize<SetGrantAdminProtectionRequest>(request.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        Assert.True(payload.Enabled);
         Assert.Equal("FixedDuration", payload.UnlockMode);
         Assert.Equal(60, payload.UnlockMinutes);
     }
@@ -763,9 +806,9 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         _accounts.Add(AccountWithAdminGrantFor(SamId, "Sam", protectionEnabled: true));
 
         var protectedPage = RenderFor(SamId);
-        protectedPage.WaitForAssertion(() => Assert.Contains("Admin settings are protected", protectedPage.Markup));
-        protectedPage.FindAll("[data-profile-section='pin-protection'] button").Single(button => button.TextContent.Trim() == "Remove protection").Click();
-        protectedPage.WaitForAssertion(() => Assert.Contains("PIN protection for Sam was removed.", protectedPage.Markup));
+        protectedPage.WaitForAssertion(() => Assert.True(AdminSwitch(protectedPage, "Ask for their PIN on admin pages").HasAttribute("checked")));
+        protectedPage.InvokeAsync(() => AdminSwitch(protectedPage, "Ask for their PIN on admin pages").Change(false));
+        protectedPage.WaitForAssertion(() => Assert.Contains("Admin pages no longer ask for Sam", protectedPage.Markup));
         var removal = Assert.Single(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
         Assert.False(System.Text.Json.JsonSerializer.Deserialize<SetGrantAdminProtectionRequest>(removal.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!.Enabled);
 
@@ -827,11 +870,14 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private static AccountAccessResponse AccountWithAdminGrantFor(Guid profileId, string name, bool protectionEnabled, bool adminEnabled = true) =>
         new(SamAccountId, "admin@home.test", true, true, 1, [], [],
             [new AccountProfileGrantDto(SamAccountId, profileId, name, null, true, true, adminEnabled,
-                new GrantAdminProtectionDto(protectionEnabled, "FixedDuration", 30, 1, false, null), 1, DateTimeOffset.UtcNow)],
+                new GrantAdminProtectionDto(protectionEnabled, "FixedDuration", 30, 1), 1, DateTimeOffset.UtcNow)],
             DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, HouseholdId);
 
     private IRenderedComponent<ProfileDetailPage> RenderFor(Guid profileId) =>
         Render<ProfileDetailPage>(parameters => parameters.Add(page => page.ProfileId, profileId));
+
+    private static AngleSharp.Dom.IElement AdminSwitch(IRenderedComponent<ProfileDetailPage> cut, string label) =>
+        cut.FindAll("[data-profile-section='pin-protection'] input[role='switch']").Single(input => input.GetAttribute("aria-label") == label);
 
     private static AngleSharp.Dom.IElement Row(IRenderedComponent<ProfileDetailPage> cut, string key) =>
         cut.Find($"[data-nav-row='{key}']");
@@ -848,7 +894,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
                 {
                     new(OwnId, "Test User", "#C9922E", "Profile", DateTimeOffset.UtcNow),
                     new(KidId, "Robin", "#2E8BC9", "RestrictedProfile", DateTimeOffset.UtcNow, ContentLimit: "PG"),
-                    new(SamId, "Sam", "#2EC98B", "Profile", DateTimeOffset.UtcNow),
+                    new(SamId, "Sam", "#2EC98B", "Profile", DateTimeOffset.UtcNow, HasPin: _samHasPin),
                 }));
             stub.SetHandler(nameof(IEngineApiClient.GetPlaybackSettingsAsync), args =>
                 Task.FromResult<UserPlaybackSettingsDto?>(_settingsAvailable
@@ -859,7 +905,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Services.AddSingleton(api);
 
         var grants = new[] { OwnId, KidId, SamId }.Select(id => new AccountProfileGrantDto(id, id, "Test User", null,
-            true, true, true, new GrantAdminProtectionDto(false, "None", null, 1, false, null), 1, DateTimeOffset.UtcNow)).ToList();
+            true, true, true, new GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow)).ToList();
         var authority = new DashboardAuthorityResponse(OwnId, OwnId, true, true, 1, 1, actions.Length > 0, actions.Length > 0, null, 1,
             grants, navigation, actions);
         var session = new DashboardSessionAccessor();

@@ -134,7 +134,7 @@
                     </div>
                 }
 
-                @* The separate Vault group: drawn only while NSFW mode is on, never mixed into the results above. *@
+                @* The separate Vault group: drawn only while Vault mode is on, never mixed into the results above. *@
                 <MediaEngine.Web.Components.Vault.VaultSearchGroup Query="@_query" />
             </div>
         </div>
@@ -176,7 +176,7 @@
         Nsfw.Changed += NsfwChanged;
     }
 
-    // When NSFW mode locks, whatever was typed (it may have been a Vault search) and the list of recent searches are wiped, so the
+    // When Vault mode locks, whatever was typed (it may have been a Vault search) and the list of recent searches are wiped, so the
     // next person at the screen cannot read them (Videos spec D27, D33).
     private void NsfwChanged()
     {
@@ -324,7 +324,7 @@
     private void RememberQuery()
     {
         var query = _query.Trim();
-        // The search box also asks the Vault, so while NSFW mode is on nothing typed is kept (Videos spec D27, D33).
+        // The search box also asks the Vault, so while Vault mode is on nothing typed is kept (Videos spec D27, D33).
         if (query.Length < MinimumQueryLength || Nsfw.Unlocked)
             return;
 

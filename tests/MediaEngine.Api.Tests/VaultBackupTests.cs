@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
 
-// A backup never holds the Vault catalogue (Videos spec WP17, backups): the Vault libraries, their settings, NSFW settings and PIN hashes,
+// A backup never holds the Vault catalogue (Videos spec WP17, backups): the Vault libraries, their settings, Vault mode settings and PIN hashes,
 // access grants and each person's bookmarks come back, but nothing that names or describes a Vault video, image, performer, studio or tag.
 public sealed class VaultBackupTests : IDisposable
 {

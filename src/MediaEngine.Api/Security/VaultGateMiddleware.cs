@@ -3,7 +3,7 @@ using MediaEngine.Api.Http;
 
 namespace MediaEngine.Api.Security;
 
-/// <summary>Marks a route as one that only a device session with NSFW mode on may reach (Videos spec D17, D39).</summary>
+/// <summary>Marks a route as one that only a device session with Vault mode on may reach (Videos spec D17, D39).</summary>
 public sealed class VaultGatedRoute
 {
     public static readonly VaultGatedRoute Instance = new();
@@ -14,7 +14,7 @@ public sealed class VaultGatedRoute
 }
 
 /// <summary>
-/// Answers a Vault route "not found" for anyone without an unlocked NSFW session before the framework reads a query value or a body.
+/// Answers a Vault route "not found" for anyone without an unlocked Vault mode session before the framework reads a query value or a body.
 /// Without it a malformed value (a performer that is not an id, a body that is not JSON) is refused with a 400 while binding, which
 /// tells a locked caller something different from the 404 every other Vault request gets. The route filter stays as a second check.
 /// </summary>

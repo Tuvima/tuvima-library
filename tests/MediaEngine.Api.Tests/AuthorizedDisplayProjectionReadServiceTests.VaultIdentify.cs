@@ -15,7 +15,7 @@ using Microsoft.Extensions.Hosting;
 namespace MediaEngine.Api.Tests;
 
 // Identify, the match record and the quiet activity list for the Vault (Videos spec WP12, D32, D38): every one of them answers
-// "not found" to anyone without an unlocked NSFW session, exactly as a missing file does, and none of them can be cached. The routes
+// "not found" to anyone without an unlocked Vault mode session, exactly as a missing file does, and none of them can be cached. The routes
 // run for real over the real data store; the Identify service itself is a stand-in that fails the test if a locked request reaches it.
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 {

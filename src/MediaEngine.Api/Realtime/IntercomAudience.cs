@@ -109,7 +109,7 @@ public sealed class IntercomAudienceAuthorizer(
 
         var assetId = AssetId(eventName, payload);
 
-        // The Vault reaches nobody who has not switched NSFW mode on in this very session, administrators included (Videos spec D17).
+        // The Vault reaches nobody who has not switched Vault mode on in this very session, administrators included (Videos spec D17).
         // Whether an event is about a Vault item is read from the item's library, never from what the event says about it, and an
         // event that names only a path is read from where the path sits.
         if (await IsAboutVaultAsync(payload, assetId, ct).ConfigureAwait(false))

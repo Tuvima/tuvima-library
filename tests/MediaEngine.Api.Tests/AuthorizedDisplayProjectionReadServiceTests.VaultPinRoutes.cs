@@ -70,8 +70,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
                 (IFirstPartyIdentityService)sp.GetRequiredService<IProfilePinVerifier>()));
             builder.Services.AddSingleton<VaultAdministrationService>(sp => new VaultAdministrationService(
                 sp.GetRequiredService<IVaultLibraryRepository>(), new NsfwAccessRepository(_database),
-                new NsfwPinService(new NsfwAccessRepository(_database), sp.GetRequiredService<IIdentityRepository>(),
-                    new PasswordHasher<ProfileCredential>(), TimeProvider.System),
                 new ProfileRepository(_database), sp.GetRequiredService<IIdentityRepository>(),
                 sp.GetRequiredService<IProfilePinVerifier>(), TimeProvider.System,
                 sp.GetRequiredService<ILoggerFactory>().CreateLogger<VaultAdministrationService>()));
@@ -84,9 +82,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             ("GetNsfwStatus", [], null),
             ("UnlockNsfw", [], PinBody(pin)),
             ("KeepNsfwAlive", [], null),
-            ("SetNsfwPin", [], PinBody(pin)),
+            ("SetNsfwIdle", [], PinBody(pin)),
             ("SetProfileNsfwAccess", [("profileId", VaultProfile.ToString("D"))], PinBody(pin)),
-            ("ResetProfileNsfwPin", [("profileId", VaultProfile.ToString("D"))], PinBody(pin)),
             ("ListVaultLibraries", [], null),
             ("CreateVaultLibrary", [], PinBody(pin)),
             ("UpdateVaultLibrary", [("libraryId", libraryId)], PinBody(pin)),

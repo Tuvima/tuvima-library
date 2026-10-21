@@ -5,7 +5,7 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// What the Dashboard shows outside the player for a Vault video (Videos spec D33): the browser tab, the phone and computer media
-/// controls, the lock screen and the device list all say "Video" and nothing else, and playing it keeps NSFW mode awake.
+/// controls, the lock screen and the device list all say "Video" and nothing else, and playing it keeps Vault mode awake.
 /// </summary>
 public sealed class VaultPlaybackPrivacyTests
 {

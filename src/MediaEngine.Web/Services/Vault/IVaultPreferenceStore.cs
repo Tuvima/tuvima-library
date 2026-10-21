@@ -14,7 +14,7 @@ public interface IVaultPreferenceStore
 
 /// <summary>
 /// Keeps the options in this browser's local storage through <c>wwwroot/js/vault-preferences.js</c>. They are only read after
-/// the Engine has said this profile can use NSFW mode, so no other profile ever touches the key. When storage is blocked the
+/// the Engine has said this profile can use Vault mode, so no other profile ever touches the key. When storage is blocked the
 /// defaults are used.
 /// </summary>
 public sealed class BrowserVaultPreferenceStore(IJSRuntime js, ILogger<BrowserVaultPreferenceStore> logger) : IVaultPreferenceStore

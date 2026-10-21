@@ -703,8 +703,6 @@ public sealed class DatabaseStartupSafetyTests
             ("vault_libraries", "created_by_profile_id"),
             ("profile_nsfw_settings", "profile_id"),
             ("profile_nsfw_settings", "changed_by_profile_id"),
-            ("profile_nsfw_pins", "id"),
-            ("profile_nsfw_pins", "profile_id"),
             ("nsfw_session_unlocks", "session_id"),
             ("nsfw_session_unlocks", "profile_id"),
             ("vault_performers", "id"),

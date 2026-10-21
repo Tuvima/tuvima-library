@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0032 vault_pending_bookmarks).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0033 one_profile_pin).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1083,23 +1083,17 @@ CREATE TABLE folder_organise_log (
   PRIMARY KEY (operation_id, old_path)
 );
 
-CREATE TABLE grant_admin_protections (
-    account_id BLOB NOT NULL,
-    profile_id BLOB NOT NULL,
-    is_enabled INTEGER NOT NULL DEFAULT 0 CHECK (is_enabled IN (0, 1)),
-    unlock_mode TEXT NOT NULL DEFAULT 'FixedDuration'
+CREATE TABLE "grant_admin_protections" (
+    account_id         BLOB NOT NULL,
+    profile_id         BLOB NOT NULL,
+    is_enabled         INTEGER NOT NULL DEFAULT 0 CHECK (is_enabled IN (0, 1)),
+    unlock_mode        TEXT NOT NULL DEFAULT 'FixedDuration'
         CHECK (unlock_mode IN ('FixedDuration','UntilProfileSwitch','LockOnLeave')),
-    unlock_minutes INTEGER,
-    pin_hash TEXT,
-    hash_scheme TEXT,
-    failed_attempt_count INTEGER NOT NULL DEFAULT 0,
-    locked_until TEXT,
+    unlock_minutes     INTEGER,
     protection_version INTEGER NOT NULL DEFAULT 1 CHECK (protection_version > 0),
-    updated_at TEXT NOT NULL,
+    updated_at         TEXT NOT NULL,
     PRIMARY KEY (account_id, profile_id),
-    FOREIGN KEY (account_id, profile_id) REFERENCES account_profile_grants(account_id, profile_id) ON DELETE CASCADE,
-    CHECK ((is_enabled = 0 AND pin_hash IS NULL AND hash_scheme IS NULL)
-        OR (is_enabled = 1 AND pin_hash IS NOT NULL AND hash_scheme IS NOT NULL))
+    FOREIGN KEY (account_id, profile_id) REFERENCES account_profile_grants(account_id, profile_id) ON DELETE CASCADE
 );
 
 CREATE TABLE grant_admin_unlocks (
@@ -2025,20 +2019,6 @@ CREATE TABLE profile_notice_dismissals (
     fingerprint  TEXT NOT NULL,   -- what was true when it was dismissed (the review count, or the sorted missing tool ids)
     dismissed_at TEXT NOT NULL,   -- ISO 8601 UTC
     PRIMARY KEY (profile_id, notice_key)
-);
-
-CREATE TABLE profile_nsfw_pins (
-    id                   BLOB NOT NULL PRIMARY KEY,
-    profile_id           BLOB NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
-    secret_hash          TEXT NOT NULL,
-    hash_scheme          TEXT NOT NULL,
-    hash_version         INTEGER NOT NULL,
-    security_stamp       TEXT NOT NULL,
-    failed_attempt_count INTEGER NOT NULL DEFAULT 0,
-    locked_until         TEXT,
-    created_at           TEXT NOT NULL,
-    updated_at           TEXT NOT NULL,
-    last_used_at         TEXT
 );
 
 CREATE TABLE profile_nsfw_settings (
@@ -3828,31 +3808,43 @@ WHEN NEW.asset_id IS NOT NULL
       WHERE ma.id = NEW.asset_id)
 BEGIN SELECT RAISE(IGNORE); END;
 
-CREATE TRIGGER trg_profile_nsfw_pins_changed
-AFTER UPDATE OF secret_hash ON profile_nsfw_pins
+CREATE TRIGGER trg_profile_credentials_vault_locked_on_change
+AFTER UPDATE OF secret_hash ON profile_credentials
 WHEN OLD.secret_hash <> NEW.secret_hash
-BEGIN DELETE FROM nsfw_session_unlocks WHERE profile_id = NEW.profile_id; END;
+BEGIN DELETE FROM nsfw_session_unlocks WHERE profile_id = NEW.profile_id AND method = 'pin'; END;
 
-CREATE TRIGGER trg_profile_nsfw_pins_removed
-AFTER DELETE ON profile_nsfw_pins
-BEGIN DELETE FROM nsfw_session_unlocks WHERE profile_id = OLD.profile_id; END;
+CREATE TRIGGER trg_profile_credentials_vault_locked_on_removal
+AFTER DELETE ON profile_credentials
+BEGIN DELETE FROM nsfw_session_unlocks WHERE profile_id = OLD.profile_id AND method = 'pin'; END;
 
 CREATE TRIGGER trg_profile_nsfw_settings_eligible_insert
 BEFORE INSERT ON profile_nsfw_settings
 WHEN NEW.access_mode <> 'off'
  AND EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND (role = 'RestrictedProfile' OR content_limit IS NOT NULL))
-BEGIN SELECT RAISE(ABORT, 'A Kids or content-limited profile cannot have NSFW access.'); END;
+BEGIN SELECT RAISE(ABORT, 'A Kids or content-limited profile cannot have Vault access.'); END;
 
 CREATE TRIGGER trg_profile_nsfw_settings_eligible_update
 BEFORE UPDATE OF access_mode ON profile_nsfw_settings
 WHEN NEW.access_mode <> 'off'
  AND EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND (role = 'RestrictedProfile' OR content_limit IS NOT NULL))
-BEGIN SELECT RAISE(ABORT, 'A Kids or content-limited profile cannot have NSFW access.'); END;
+BEGIN SELECT RAISE(ABORT, 'A Kids or content-limited profile cannot have Vault access.'); END;
 
 CREATE TRIGGER trg_profile_nsfw_settings_mode_changed
 AFTER UPDATE OF access_mode ON profile_nsfw_settings
 WHEN OLD.access_mode <> NEW.access_mode
 BEGIN DELETE FROM nsfw_session_unlocks WHERE profile_id = NEW.profile_id; END;
+
+CREATE TRIGGER trg_profile_nsfw_settings_pin_needs_profile_pin_insert
+BEFORE INSERT ON profile_nsfw_settings
+WHEN NEW.access_mode = 'pin'
+ AND NOT EXISTS (SELECT 1 FROM profile_credentials WHERE profile_id = NEW.profile_id AND credential_kind = 'ProfilePin')
+BEGIN SELECT RAISE(ABORT, 'Set a PIN on this profile first.'); END;
+
+CREATE TRIGGER trg_profile_nsfw_settings_pin_needs_profile_pin_update
+BEFORE UPDATE OF access_mode ON profile_nsfw_settings
+WHEN NEW.access_mode = 'pin'
+ AND NOT EXISTS (SELECT 1 FROM profile_credentials WHERE profile_id = NEW.profile_id AND credential_kind = 'ProfilePin')
+BEGIN SELECT RAISE(ABORT, 'Set a PIN on this profile first.'); END;
 
 CREATE TRIGGER trg_profile_nsfw_settings_removed
 AFTER DELETE ON profile_nsfw_settings

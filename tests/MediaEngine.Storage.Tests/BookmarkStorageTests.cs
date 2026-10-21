@@ -7,7 +7,7 @@ namespace MediaEngine.Storage.Tests;
 
 // Bookmarks in videos and audiobooks (Videos spec WP15, D43): a personal bookmark belongs to the profile that made it, a bookmark
 // shared with everyone is seen by every profile that can see the title, and only an administrator may delete one. A file the
-// caller cannot see (a Vault file with NSFW mode off) contributes nothing, whoever made the bookmark.
+// caller cannot see (a Vault file with Vault mode off) contributes nothing, whoever made the bookmark.
 public sealed class BookmarkStorageTests : IDisposable
 {
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_bookmarks_{Guid.NewGuid():N}.db");

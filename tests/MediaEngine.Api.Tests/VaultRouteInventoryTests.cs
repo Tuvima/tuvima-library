@@ -9,7 +9,7 @@ namespace MediaEngine.Api.Tests;
 
 /// <summary>
 /// Every Engine route that takes the id of a file, a title or another catalogue entity is either cleared through the catalogue
-/// authorization (which answers "not found" for a Vault item to anyone whose NSFW mode is off) or is on a short, reasoned list of
+/// authorization (which answers "not found" for a Vault item to anyone whose Vault mode is off) or is on a short, reasoned list of
 /// routes that check the Vault themselves or can only reach a Vault item through a gate named here (Videos spec D17, WP17). A new
 /// route that takes such an id cannot be added without saying which of the two it is, so a Vault leak cannot arrive unnoticed.
 /// </summary>
@@ -28,7 +28,7 @@ public sealed class VaultRouteInventoryTests
         ("/api/v1/display/artwork/assets/", "Shared artwork only; Vault artwork is kept apart in vault_artwork"),
         ("/api/v1/display/artwork/media-assets/", "The handler authorizes the file through the catalogue"),
         ("/api/v1/display/artwork/universes/", "Universe artwork listing; entities are limited by the authorized projection"),
-        ("/api/v1/vault/", "The whole group is behind the Vault gate and answers not found when NSFW mode is off"),
+        ("/api/v1/vault/", "The whole group is behind the Vault gate and answers not found when Vault mode is off"),
         ("/assets/", "Capabilities answer empty exactly as for an unknown id"),
         ("/entity-editor/universes/", "Universe entity editor; entity ids come from the authorized projection"),
         ("/ingestion/refresh-schedule/", "Refresh schedules for universes and series, never single files"),

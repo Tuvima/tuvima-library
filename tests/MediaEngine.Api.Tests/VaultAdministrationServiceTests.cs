@@ -19,13 +19,13 @@ using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Tests;
 
-// Creating a Vault library or opening NSFW access to a profile needs the administrator's own profile PIN, set and typed again at
-// that moment (Videos spec D25); NSFW mode itself follows the profile's mode, its own PIN and the five-wrong-tries pause (D18, D19).
-// No PIN is ever returned or logged.
+// Creating a Vault library or opening Vault access to a profile needs the administrator's own profile PIN, set and typed again at
+// that moment (Videos spec D25); Vault mode itself follows the profile's mode, the profile's one PIN and the five-wrong-tries pause
+// (D18, D52). There is no separate Vault PIN any more (owner decision 2026-10-21). No PIN is ever returned or logged.
 public sealed class VaultAdministrationServiceTests : IDisposable
 {
     private const string AdminPin = "2468";
-    private const string AdultNsfwPin = "13579";
+    private const string AdultPin = "13579";
     private const string WrongPin = "00000";
 
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_vault_admin_{Guid.NewGuid():N}.db");
@@ -33,7 +33,6 @@ public sealed class VaultAdministrationServiceTests : IDisposable
     private readonly VaultLibraryRepository _libraries;
     private readonly NsfwAccessRepository _nsfw;
     private readonly FirstPartyIdentityService _identity;
-    private readonly NsfwPinService _pins;
     private readonly VaultAdministrationService _service;
     private readonly CapturingLogger _log = new();
     private readonly ManualTime _clock = new(new DateTimeOffset(2026, 10, 21, 12, 0, 0, TimeSpan.Zero));
@@ -56,8 +55,7 @@ public sealed class VaultAdministrationServiceTests : IDisposable
             identities, new AccountRepository(_database), profiles,
             new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(), _clock, new FixedPolicy(),
             nsfwAccess: _nsfw);
-        _pins = new NsfwPinService(_nsfw, identities, new PasswordHasher<ProfileCredential>(), _clock);
-        _service = new VaultAdministrationService(_libraries, _nsfw, _pins, profiles, identities, _identity, _clock, _log);
+        _service = new VaultAdministrationService(_libraries, _nsfw, profiles, identities, _identity, _clock, _log);
         InsertProfile(_admin, "Administrator", null);
         InsertProfile(_adult, "StandardUser", null);
         InsertProfile(_kid, "RestrictedProfile", null);
@@ -147,6 +145,7 @@ public sealed class VaultAdministrationServiceTests : IDisposable
     [InlineData(NsfwAccessMode.Allowed)]
     public async Task OpeningNsfwAccess_NeedsTheAdministratorPin_SetAndTypedAgain(NsfwAccessMode mode)
     {
+        await _identity.SetProfilePinAsync(_adult, AdultPin);
         await Assert.ThrowsAsync<VaultAdminPinNotSetException>(() => _service.SetAccessAsync(_admin, _adult, mode, null, AdminPin, default));
         await _identity.SetProfilePinAsync(_admin, AdminPin);
         await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.SetAccessAsync(_admin, _adult, mode, null, null, default));
@@ -156,6 +155,94 @@ public sealed class VaultAdministrationServiceTests : IDisposable
         var access = await _service.SetAccessAsync(_admin, _adult, mode, null, AdminPin, default);
 
         Assert.Equal(mode, access.EffectiveMode);
+    }
+
+    [Fact]
+    public async Task AskingForThePinToOpenVaultMode_IsRefused_ForAProfileWithNoPin_WithAPlainMessage()
+    {
+        await _identity.SetProfilePinAsync(_admin, AdminPin);
+
+        var refusal = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.SetAccessAsync(_admin, _adult, NsfwAccessMode.Pin, null, AdminPin, default));
+
+        Assert.Contains("Set a PIN", refusal.Message);
+        Assert.DoesNotContain("NSFW", refusal.Message);
+        Assert.False((await _nsfw.GetAsync(_adult)).CanUnlock);
+    }
+
+    // The Vault switch crossed with whether the profile has a PIN: asking for the PIN needs one, open mode never does.
+    [Theory]
+    [InlineData(NsfwAccessMode.Off, false, true)]
+    [InlineData(NsfwAccessMode.Off, true, true)]
+    [InlineData(NsfwAccessMode.Allowed, false, true)]
+    [InlineData(NsfwAccessMode.Allowed, true, true)]
+    [InlineData(NsfwAccessMode.Pin, false, false)]
+    [InlineData(NsfwAccessMode.Pin, true, true)]
+    public async Task VaultPinSwitch_CrossedWithHavingAPin_OnlyAsksForAPinThatExists(NsfwAccessMode mode, bool profileHasPin, bool allowed)
+    {
+        await _identity.SetProfilePinAsync(_admin, AdminPin);
+        if (profileHasPin)
+        {
+            await _identity.SetProfilePinAsync(_adult, AdultPin);
+        }
+
+        if (!allowed)
+        {
+            var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SetAccessAsync(_admin, _adult, mode, null, AdminPin, default));
+            Assert.Contains("Set a PIN on this profile first", refused.Message, StringComparison.Ordinal);
+            Assert.Equal(NsfwAccessMode.Off, (await _nsfw.GetAsync(_adult)).ConfiguredMode);
+            return;
+        }
+
+        var access = await _service.SetAccessAsync(_admin, _adult, mode, null, AdminPin, default);
+        Assert.Equal(mode, access.ConfiguredMode);
+        var session = InsertSession(_adult);
+        switch (mode)
+        {
+            case NsfwAccessMode.Off:
+                await Assert.ThrowsAnyAsync<Exception>(() => _service.UnlockAsync(session, _adult, AdultPin, default));
+                break;
+            case NsfwAccessMode.Allowed:
+                Assert.True((await _service.UnlockAsync(session, _adult, null, default)).Unlocked);
+                break;
+            default:
+                Assert.True((await _service.UnlockAsync(session, _adult, AdultPin, default)).Unlocked);
+                break;
+        }
+    }
+
+    [Fact]
+    public async Task VaultMode_CanBeGivenWithNoPinAtAll_WhenThePinQuestionIsOff_AndOpensWithoutOne()
+    {
+        await _identity.SetProfilePinAsync(_admin, AdminPin);
+
+        var access = await _service.SetAccessAsync(_admin, _adult, NsfwAccessMode.Allowed, null, AdminPin, default);
+        var session = InsertSession(_adult);
+        var state = await _service.UnlockAsync(session, _adult, null, default);
+
+        Assert.Equal(NsfwAccessMode.Allowed, access.EffectiveMode);
+        Assert.False(access.HasPin);
+        Assert.True(state.Unlocked);
+        // It stays on: nothing locks it until the person, the session or the idle time does.
+        Assert.True(await _nsfw.IsUnlockedAsync(session, _adult, _clock.GetUtcNow().AddMinutes(30)));
+    }
+
+    [Fact]
+    public async Task ChangingAnAccessSetting_KeepsThePersonsOwnIdleChoice_UnlessNeverCannotApply()
+    {
+        await _identity.SetProfilePinAsync(_admin, AdminPin);
+        await _identity.SetProfilePinAsync(_adult, AdultPin);
+        await _service.SetAccessAsync(_admin, _adult, NsfwAccessMode.Allowed, null, AdminPin, default);
+        var session = InsertSession(_adult);
+        await _service.SetOwnIdleAsync(session, _adult, 30, default);
+
+        var access = await _service.SetAccessAsync(_admin, _adult, NsfwAccessMode.Pin, null, AdminPin, default);
+        Assert.Equal(30, access.IdleLockMinutes);
+
+        await _service.SetAccessAsync(_admin, _adult, NsfwAccessMode.Allowed, null, AdminPin, default);
+        await _service.SetOwnIdleAsync(session, _adult, 0, default);
+        access = await _service.SetAccessAsync(_admin, _adult, NsfwAccessMode.Pin, null, AdminPin, default);
+        Assert.Null(access.IdleLockMinutes);
     }
 
     [Fact]
@@ -195,27 +282,26 @@ public sealed class VaultAdministrationServiceTests : IDisposable
         var limitedSession = InsertSession(_limited);
 
         await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.UnlockAsync(kidSession, _kid, null, default));
-        await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.UnlockAsync(kidSession, _kid, AdultNsfwPin, default));
+        await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.UnlockAsync(kidSession, _kid, AdultPin, default));
         await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.UnlockAsync(limitedSession, _limited, null, default));
         Assert.Null(await _service.GetStateAsync(kidSession, _kid, default));
         Assert.Null(await _service.GetStateAsync(limitedSession, _limited, default));
-        await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.SetOwnPinAsync(_kid, AdultNsfwPin, null, null, default));
+        await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.SetOwnIdleAsync(kidSession, _kid, 30, default));
     }
 
     [Fact]
     public async Task ABecomeKidsProfile_CanNoLongerUnlock_EvenWithAPinItSetBefore()
     {
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, null, default);
+        await OpenWithPinAsync(_adult);
         var session = InsertSession(_adult);
-        await _service.UnlockAsync(session, _adult, AdultNsfwPin, default);
+        await _service.UnlockAsync(session, _adult, AdultPin, default);
         using (var connection = _database.CreateConnection())
         {
             connection.Execute("UPDATE profiles SET role='RestrictedProfile' WHERE id=@id;", new { id = _adult });
         }
 
         Assert.False(await _nsfw.IsUnlockedAsync(session, _adult, _clock.GetUtcNow()));
-        await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.UnlockAsync(session, _adult, AdultNsfwPin, default));
+        await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.UnlockAsync(session, _adult, AdultPin, default));
     }
 
     [Theory]
@@ -249,16 +335,15 @@ public sealed class VaultAdministrationServiceTests : IDisposable
     {
         var session = InsertSession(_adult);
 
-        await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.UnlockAsync(session, _adult, AdultNsfwPin, default));
+        await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.UnlockAsync(session, _adult, AdultPin, default));
         Assert.Null(await _service.GetStateAsync(session, _adult, default));
         Assert.False(await _service.KeepAliveAsync(session, _adult, default));
     }
 
     [Fact]
-    public async Task APinProfile_UnlocksWithItsNsfwPin_OnlyForThatDeviceSession()
+    public async Task APinProfile_UnlocksWithTheProfilePin_OnlyForThatDeviceSession()
     {
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, null, default);
+        await OpenWithPinAsync(_adult);
         var phone = InsertSession(_adult);
         var browser = InsertSession(_adult);
 
@@ -266,30 +351,33 @@ public sealed class VaultAdministrationServiceTests : IDisposable
         await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.UnlockAsync(phone, _adult, WrongPin, default));
         Assert.False((await _service.GetStateAsync(phone, _adult, default))!.Unlocked);
 
-        var state = await _service.UnlockAsync(phone, _adult, AdultNsfwPin, default);
+        var state = await _service.UnlockAsync(phone, _adult, AdultPin, default);
 
         Assert.True(state.Unlocked);
+        Assert.True(state.HasPin);
         Assert.True((await _service.GetStateAsync(phone, _adult, default))!.Unlocked);
         Assert.False((await _service.GetStateAsync(browser, _adult, default))!.Unlocked);
     }
 
     [Fact]
-    public async Task APinProfileWithNoPinSaved_CannotUnlock_AndTheProfilePinDoesNotWork()
+    public async Task APinProfileWhoseProfilePinWasRemoved_CannotUnlock_WhateverItTypes()
     {
-        await _identity.SetProfilePinAsync(_adult, AdminPin);
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
+        await OpenWithPinAsync(_adult);
         var session = InsertSession(_adult);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("DELETE FROM profile_credentials WHERE profile_id=@id;", new { id = _adult });
+        }
 
-        await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.UnlockAsync(session, _adult, AdminPin, default));
+        await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.UnlockAsync(session, _adult, AdultPin, default));
         await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.UnlockAsync(session, _adult, null, default));
         Assert.False((await _service.GetStateAsync(session, _adult, default))!.Unlocked);
     }
 
     [Fact]
-    public async Task FiveWrongNsfwPins_PauseUnlocking_EvenForTheRightPin_UntilThePauseEnds()
+    public async Task FiveWrongPins_PauseUnlocking_EvenForTheRightPin_UntilThePauseEnds()
     {
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, null, default);
+        await OpenWithPinAsync(_adult);
         var session = InsertSession(_adult);
 
         for (var attempt = 0; attempt < 4; attempt++)
@@ -298,15 +386,31 @@ public sealed class VaultAdministrationServiceTests : IDisposable
         }
 
         await Assert.ThrowsAsync<ProfilePinLockedException>(() => _service.UnlockAsync(session, _adult, WrongPin, default));
-        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _service.UnlockAsync(session, _adult, AdultNsfwPin, default));
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _service.UnlockAsync(session, _adult, AdultPin, default));
         Assert.False(await _nsfw.IsUnlockedAsync(session, _adult, _clock.GetUtcNow()));
 
         // Another device session of the same profile is paused too: the count belongs to the PIN, not to the device.
         var other = InsertSession(_adult);
-        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _service.UnlockAsync(other, _adult, AdultNsfwPin, default));
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _service.UnlockAsync(other, _adult, AdultPin, default));
+        // It is the profile's one PIN: switching to the profile asks the same PIN and is paused with it.
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _identity.VerifyProfilePinAsync(_adult, AdultPin, true));
 
         _clock.Advance(TimeSpan.FromMinutes(16));
-        Assert.True((await _service.UnlockAsync(session, _adult, AdultNsfwPin, default)).Unlocked);
+        Assert.True((await _service.UnlockAsync(session, _adult, AdultPin, default)).Unlocked);
+    }
+
+    [Fact]
+    public async Task WrongTriesAtTheVaultAndAtProfileSwitching_ShareOneCount()
+    {
+        await OpenWithPinAsync(_adult);
+        var session = InsertSession(_adult);
+
+        await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _identity.VerifyProfilePinAsync(_adult, WrongPin, true));
+        await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _identity.VerifyProfilePinAsync(_adult, WrongPin, true));
+        await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.UnlockAsync(session, _adult, WrongPin, default));
+        await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.UnlockAsync(session, _adult, WrongPin, default));
+
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _service.UnlockAsync(session, _adult, WrongPin, default));
     }
 
     [Fact]
@@ -342,207 +446,101 @@ public sealed class VaultAdministrationServiceTests : IDisposable
         var session = InsertSession(_adult);
         await _service.UnlockAsync(session, _adult, null, default);
 
-        _clock.Advance(TimeSpan.FromMinutes(14));
+        // The default idle time is 60 minutes (owner decision 2026-10-21).
+        _clock.Advance(TimeSpan.FromMinutes(59));
         Assert.True(await _service.KeepAliveAsync(session, _adult, default));
-        _clock.Advance(TimeSpan.FromMinutes(14));
+        _clock.Advance(TimeSpan.FromMinutes(59));
         Assert.True((await _service.GetStateAsync(session, _adult, default))!.Unlocked);
 
-        _clock.Advance(TimeSpan.FromMinutes(16));
+        _clock.Advance(TimeSpan.FromMinutes(61));
         Assert.False((await _service.GetStateAsync(session, _adult, default))!.Unlocked);
         Assert.False(await _service.KeepAliveAsync(session, _adult, default));
     }
 
-    // ── The NSFW PIN ────────────────────────────────────────────────────────────────────────────
+    // ── "Turn Vault mode off after being idle for" ──────────────────────────────────────────────
 
-    [Fact]
-    public async Task APinCanBeSavedOnlyByAProfileThatCanUseNsfwMode()
+    [Theory]
+    [InlineData(5)]
+    [InlineData(15)]
+    [InlineData(30)]
+    [InlineData(60)]
+    public async Task EachIdleChoice_IsEnforcedByTheEngine_ForAPinProfile(int minutes)
     {
-        await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, null, default));
-
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, null, default);
-
-        Assert.True((await _service.GetStateAsync(InsertSession(_adult), _adult, default))!.HasPin);
-    }
-
-    [Fact]
-    public async Task TheSameDigitsCannotBeBothPins_InEitherOrder()
-    {
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-        await _identity.SetProfilePinAsync(_adult, AdminPin);
-
-        await Assert.ThrowsAsync<ArgumentException>(() => _service.SetOwnPinAsync(_adult, AdminPin, null, AdminPin, default));
-
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, AdminPin, default);
-        await Assert.ThrowsAsync<ArgumentException>(() => _identity.SetProfilePinAsync(_adult, AdultNsfwPin));
-    }
-
-    [Fact]
-    public async Task AnAdministratorResetsAPinWithoutReadingIt_AndTheProfileMustSetANewOneBeforeUnlockingAgain()
-    {
-        await _identity.SetProfilePinAsync(_admin, AdminPin);
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, null, default);
+        await OpenWithPinAsync(_adult);
         var session = InsertSession(_adult);
-        await _service.UnlockAsync(session, _adult, AdultNsfwPin, default);
+        await _service.UnlockAsync(session, _adult, AdultPin, default);
 
-        Assert.True(await _service.ResetPinAsync(_admin, _adult, AdminPin, default));
+        var state = await _service.SetOwnIdleAsync(session, _adult, minutes, default);
 
+        Assert.Equal(minutes, state.IdleLockMinutes);
+        Assert.True(state.Unlocked);
+        _clock.Advance(TimeSpan.FromMinutes(minutes - 1));
+        Assert.True((await _service.GetStateAsync(session, _adult, default))!.Unlocked);
+        _clock.Advance(TimeSpan.FromMinutes(2));
         Assert.False((await _service.GetStateAsync(session, _adult, default))!.Unlocked);
-        Assert.False((await _service.GetStateAsync(session, _adult, default))!.HasPin);
-        await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.UnlockAsync(session, _adult, AdultNsfwPin, default));
-        await _service.SetOwnPinAsync(_adult, "97531", null, null, default);
-        Assert.True((await _service.UnlockAsync(session, _adult, "97531", default)).Unlocked);
     }
 
-    // ── Claiming a first (or post-reset) NSFW PIN needs proof of who is typing ───────────────────
-
-    [Fact]
-    public async Task AFirstNsfwPin_OnAProfileWithAProfilePin_NeedsThatPin_AndAWrongOneSavesNothing()
+    [Theory]
+    [InlineData(5)]
+    [InlineData(15)]
+    [InlineData(30)]
+    [InlineData(60)]
+    public async Task EachIdleChoice_IsEnforcedByTheEngine_ForAProfileThatAsksForNoPin(int minutes)
     {
-        await _identity.SetProfilePinAsync(_adult, AdminPin);
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-
-        await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, null, default));
-        await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, WrongPin, default));
-        Assert.False(await _pins.HasPinAsync(_adult));
-
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, AdminPin, default);
-        Assert.True(await _pins.HasPinAsync(_adult));
-    }
-
-    [Fact]
-    public async Task AFirstNsfwPin_GuessesAtTheProfilePin_AreCountedAndPauseIt()
-    {
-        await _identity.SetProfilePinAsync(_adult, AdminPin);
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-
-        for (var attempt = 0; attempt < 4; attempt++)
-        {
-            await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, WrongPin, default));
-        }
-
-        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, WrongPin, default));
-        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, AdminPin, default));
-    }
-
-    [Fact]
-    public async Task APinAfterAnAdministratorReset_NeedsTheProfilePinAgain()
-    {
-        await _identity.SetProfilePinAsync(_admin, AdminPin);
-        await _identity.SetProfilePinAsync(_adult, "97531");
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, "97531", default);
-
-        await _service.ResetPinAsync(_admin, _adult, AdminPin, default);
-
-        await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.SetOwnPinAsync(_adult, "86420", null, null, default));
-        Assert.False(await _pins.HasPinAsync(_adult));
-    }
-
-    [Fact]
-    public async Task ChangingAnExistingNsfwPin_StillNeedsOnlyTheCurrentNsfwPin()
-    {
-        await _identity.SetProfilePinAsync(_adult, AdminPin);
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, AdminPin, default);
-
-        await _service.SetOwnPinAsync(_adult, "97531", AdultNsfwPin, null, default);
-
-        Assert.True(await _pins.HasPinAsync(_adult));
-    }
-
-    [Fact]
-    public async Task RecentSignIn_IsAskedForOnlyWhenNothingElseProvesWhoIsTyping()
-    {
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-
-        // No profile PIN and no NSFW PIN: a recent sign-in stands in for the missing PIN.
-        Assert.True(await _service.RequiresRecentSignInForFirstPinAsync(_adult, default));
-        // A profile that cannot use NSFW mode is told nothing: the save answers not found instead.
-        Assert.False(await _service.RequiresRecentSignInForFirstPinAsync(_kid, default));
-
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, null, default);
-        Assert.False(await _service.RequiresRecentSignInForFirstPinAsync(_adult, default));
-
-        await _identity.SetProfilePinAsync(_admin, AdminPin);
-        await _service.ResetPinAsync(_admin, _adult, AdminPin, default);
-        Assert.True(await _service.RequiresRecentSignInForFirstPinAsync(_adult, default));
-
-        await _identity.SetProfilePinAsync(_adult, "97531");
-        Assert.False(await _service.RequiresRecentSignInForFirstPinAsync(_adult, default));
-    }
-
-    [Fact]
-    public async Task AFirstPinOnAProfileWithNoPins_IsRefusedForAStaleSignIn_AndAllowedForARecentOne()
-    {
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
+        await OpenAsync(_adult, NsfwAccessMode.Allowed);
         var session = InsertSession(_adult);
-        var guard = new RecentSignInGuard(_identity);
-        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(TuvimaClaimTypes.SessionId, session.ToString("D"))], "test"));
+        await _service.UnlockAsync(session, _adult, null, default);
 
-        Assert.Null(await VaultEndpoints.RefuseFirstPinWithoutProofAsync(_service, guard, user, _adult, default));
+        await _service.SetOwnIdleAsync(session, _adult, minutes, default);
 
-        _clock.Advance(TimeSpan.FromMinutes(11));
-        Assert.NotNull(await VaultEndpoints.RefuseFirstPinWithoutProofAsync(_service, guard, user, _adult, default));
-        // Another profile of the same kind of session (no session claim at all) is refused too.
-        Assert.NotNull(await VaultEndpoints.RefuseFirstPinWithoutProofAsync(_service, guard, new ClaimsPrincipal(new ClaimsIdentity()), _adult, default));
+        _clock.Advance(TimeSpan.FromMinutes(minutes - 1));
+        Assert.True((await _service.GetStateAsync(session, _adult, default))!.Unlocked);
+        _clock.Advance(TimeSpan.FromMinutes(2));
+        Assert.False((await _service.GetStateAsync(session, _adult, default))!.Unlocked);
     }
 
     [Fact]
-    public async Task AFirstPin_NeedsNoRecentSignIn_WhenTheProfileHasAProfilePin_SinceThatPinIsTheProof()
+    public async Task Never_KeepsVaultModeOn_ForAProfileThatAsksForNoPin()
     {
-        await _identity.SetProfilePinAsync(_adult, AdminPin);
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
+        await OpenAsync(_adult, NsfwAccessMode.Allowed);
         var session = InsertSession(_adult);
-        _clock.Advance(TimeSpan.FromHours(2));
-        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(TuvimaClaimTypes.SessionId, session.ToString("D"))], "test"));
+        await _service.UnlockAsync(session, _adult, null, default);
 
-        Assert.Null(await VaultEndpoints.RefuseFirstPinWithoutProofAsync(_service, new RecentSignInGuard(_identity), user, _adult, default));
-    }
+        var state = await _service.SetOwnIdleAsync(session, _adult, 0, default);
 
-    // ── Resetting someone's NSFW PIN needs the administrator's own PIN ───────────────────────────
-
-    [Fact]
-    public async Task AResetNeedsTheAdministratorsOwnPin_AndLeavesThePinInPlaceWithoutIt()
-    {
-        await _identity.SetProfilePinAsync(_admin, AdminPin);
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, null, default);
-
-        await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.ResetPinAsync(_admin, _adult, null, default));
-        await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.ResetPinAsync(_admin, _adult, WrongPin, default));
-        Assert.True(await _pins.HasPinAsync(_adult));
-
-        Assert.True(await _service.ResetPinAsync(_admin, _adult, AdminPin, default));
-        Assert.False(await _pins.HasPinAsync(_adult));
+        Assert.Equal(0, state.IdleLockMinutes);
+        _clock.Advance(TimeSpan.FromDays(30));
+        Assert.True((await _service.GetStateAsync(session, _adult, default))!.Unlocked);
     }
 
     [Fact]
-    public async Task AResetByAnAdministratorWithNoProfilePin_IsRefusedAsPinNotSet()
+    public async Task Never_IsRefused_WhileVaultModeAsksForThePin()
     {
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, null, default);
+        await OpenWithPinAsync(_adult);
+        var session = InsertSession(_adult);
 
-        await Assert.ThrowsAsync<VaultAdminPinNotSetException>(() => _service.ResetPinAsync(_admin, _adult, AdminPin, default));
-        Assert.True(await _pins.HasPinAsync(_adult));
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.SetOwnIdleAsync(session, _adult, 0, default));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(45)]
+    [InlineData(1441)]
+    [InlineData(-5)]
+    public async Task AnIdleTimeThatIsNotOneOfThePlainChoices_IsRefused(int minutes)
+    {
+        await OpenAsync(_adult, NsfwAccessMode.Allowed);
+        var session = InsertSession(_adult);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.SetOwnIdleAsync(session, _adult, minutes, default));
     }
 
     [Fact]
-    public async Task WrongAdministratorPinsOnAReset_CountTowardThePause()
+    public async Task TheIdleChoice_IsNotOfferedToAProfileThatCannotUseVaultMode()
     {
-        await _identity.SetProfilePinAsync(_admin, AdminPin);
-        await OpenAsync(_adult, NsfwAccessMode.Pin);
-        await _service.SetOwnPinAsync(_adult, AdultNsfwPin, null, null, default);
+        var session = InsertSession(_adult);
 
-        for (var attempt = 0; attempt < 4; attempt++)
-        {
-            await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _service.ResetPinAsync(_admin, _adult, WrongPin, default));
-        }
-
-        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _service.ResetPinAsync(_admin, _adult, WrongPin, default));
-        await Assert.ThrowsAsync<ProfilePinLockedException>(() => _service.ResetPinAsync(_admin, _adult, AdminPin, default));
-        Assert.True(await _pins.HasPinAsync(_adult));
+        await Assert.ThrowsAsync<NsfwNotAvailableException>(() => _service.SetOwnIdleAsync(session, _adult, 30, default));
     }
 
     // ── What is returned and what is logged ─────────────────────────────────────────────────────
@@ -551,11 +549,11 @@ public sealed class VaultAdministrationServiceTests : IDisposable
     public async Task NoResponseShape_CarriesAPin_AndNoLogLineEverContainsOne()
     {
         const string loggedAdminPin = "1357924";
-        const string loggedNsfwPin = "8642097";
+        const string loggedAdultPin = "8642097";
         const string loggedWrong = "5550123";
         await _identity.SetProfilePinAsync(_admin, loggedAdminPin);
+        await _identity.SetProfilePinAsync(_adult, loggedAdultPin);
         await _service.SetAccessAsync(_admin, _adult, NsfwAccessMode.Pin, null, loggedAdminPin, default);
-        await _service.SetOwnPinAsync(_adult, loggedNsfwPin, null, null, default);
         var session = InsertSession(_adult);
         var library = await _service.CreateLibraryAsync(_admin, VaultLookupSources.None, null, true, loggedAdminPin, default);
         var outputs = new List<string>();
@@ -564,7 +562,6 @@ public sealed class VaultAdministrationServiceTests : IDisposable
             () => _service.CreateLibraryAsync(_admin, VaultLookupSources.None, null, true, loggedWrong, default),
             () => _service.SetAccessAsync(_admin, _adult, NsfwAccessMode.Allowed, null, loggedWrong, default),
             () => _service.UnlockAsync(session, _adult, loggedWrong, default),
-            () => _service.SetOwnPinAsync(_adult, "9988776", loggedWrong, null, default),
         })
         {
             try
@@ -577,7 +574,7 @@ public sealed class VaultAdministrationServiceTests : IDisposable
             }
         }
 
-        var state = await _service.UnlockAsync(session, _adult, loggedNsfwPin, default);
+        var state = await _service.UnlockAsync(session, _adult, loggedAdultPin, default);
         outputs.Add(JsonSerializer.Serialize(new NsfwStatusDto
         {
             Mode = NsfwAccessRules.ToStored(state.Mode),
@@ -591,7 +588,7 @@ public sealed class VaultAdministrationServiceTests : IDisposable
         Assert.NotEmpty(_log.Lines);
         foreach (var output in outputs)
         {
-            foreach (var pin in new[] { loggedAdminPin, loggedNsfwPin, loggedWrong })
+            foreach (var pin in new[] { loggedAdminPin, loggedAdultPin, loggedWrong })
             {
                 Assert.DoesNotContain(pin, output);
             }
@@ -616,6 +613,13 @@ public sealed class VaultAdministrationServiceTests : IDisposable
 
     private async Task OpenAsync(Guid profile, NsfwAccessMode mode) =>
         await _nsfw.SetAsync(profile, mode, null, _admin, _clock.GetUtcNow());
+
+    // The profile has its one PIN (AdultPin) and Vault mode asks for it.
+    private async Task OpenWithPinAsync(Guid profile)
+    {
+        await _identity.SetProfilePinAsync(profile, AdultPin);
+        await OpenAsync(profile, NsfwAccessMode.Pin);
+    }
 
     private void InsertProfile(Guid id, string role, string? contentLimit)
     {

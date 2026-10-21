@@ -92,7 +92,7 @@ public static class VaultActivityKinds
 public sealed record VaultActivityItem(Guid Id, Guid AssetId, string Kind, string FileName, string Detail, DateTimeOffset At);
 
 /// <summary>
-/// The quiet "Vault activity" list that shows Vault ingestion inside NSFW mode (Videos spec D32). It is the only place Vault ingestion
+/// The quiet "Vault activity" list that shows Vault ingestion inside Vault mode (Videos spec D32). It is the only place Vault ingestion
 /// progress is shown: nothing about it reaches Needs Review, its banner or count, notifications or the live ingestion page.
 /// </summary>
 public interface IVaultActivityRepository

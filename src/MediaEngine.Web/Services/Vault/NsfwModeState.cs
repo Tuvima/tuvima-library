@@ -4,7 +4,7 @@ using MediaEngine.Web.Services.Integration;
 namespace MediaEngine.Web.Services.Vault;
 
 /// <summary>
-/// The signed-in person's NSFW mode for this device session (Videos spec D23, D36), read from the Engine's status route. This is
+/// The signed-in person's Vault mode for this device session (Videos spec D23, D36), read from the Engine's status route. This is
 /// the one place the Dashboard decides whether anything about the Vault is drawn: until the Engine has answered with a status,
 /// and for any profile it answers "not found" to (Off, Kids, content-limited, an app), <see cref="IsAvailable"/> is false and every
 /// Vault surface renders nothing. A Kids profile never even asks. Locking fails closed: if the Engine cannot be reached the
@@ -34,25 +34,25 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
     /// <summary>True once the Engine has answered for the current profile (with a status or with "not found"). A page waits for this before deciding it is not allowed.</summary>
     public bool Resolved { get; private set; }
 
-    /// <summary>What the Engine said, or null when this profile cannot use NSFW mode (or the Engine has not answered yet).</summary>
+    /// <summary>What the Engine said, or null when this profile cannot use Vault mode (or the Engine has not answered yet).</summary>
     public NsfwStatusDto? Status { get; private set; }
 
-    /// <summary>True only when the Engine said this profile can use NSFW mode. Nothing about the Vault is drawn otherwise.</summary>
+    /// <summary>True only when the Engine said this profile can use Vault mode. Nothing about the Vault is drawn otherwise.</summary>
     public bool IsAvailable => Status is not null;
 
-    /// <summary>True when this device session has NSFW mode on right now.</summary>
+    /// <summary>True when this device session has Vault mode on right now.</summary>
     public bool Unlocked => Status is { Unlocked: true };
 
-    /// <summary>True when switching NSFW mode on asks for the person's NSFW PIN.</summary>
+    /// <summary>True when switching Vault mode on asks for the person's profile PIN ("Ask for my PIN to open Vault mode" is on).</summary>
     public bool NeedsPin => Status is { Mode: "pin" };
 
-    /// <summary>True when the person has saved an NSFW PIN.</summary>
+    /// <summary>True when the profile has a PIN (one PIN per profile; Vault mode uses the same one).</summary>
     public bool HasPin => Status is { HasPin: true };
 
-    /// <summary>The person's viewing options; the defaults until the Engine has said they can use NSFW mode.</summary>
+    /// <summary>The person's viewing options; the defaults until the Engine has said they can use Vault mode.</summary>
     public VaultViewPreferences Preferences { get; private set; } = VaultViewPreferences.Default;
 
-    /// <summary>True when the optional SFW/NSFW check shows in the top menu (only ever for a profile that can use NSFW mode).</summary>
+    /// <summary>True when the optional Vault mode check shows in the top menu (only ever for a profile that can use Vault mode).</summary>
     public bool ShowQuickCheck => IsAvailable && Preferences.ShowQuickCheck;
 
     /// <summary>The Blur toggle at the top of the Vault and of its search results. Every view starts blurred after the area locks and unlocks again.</summary>
@@ -63,7 +63,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
         ? VaultCoverMode.Hide
         : _coversBlurred ? VaultCoverMode.Blur : VaultCoverMode.Show;
 
-    /// <summary>Asks the Engine for this profile's status. A Kids profile is never asked: it can never use NSFW mode.</summary>
+    /// <summary>Asks the Engine for this profile's status. A Kids profile is never asked: it can never use Vault mode.</summary>
     public async Task RefreshAsync(Guid? profileId, bool isKids, CancellationToken ct = default)
     {
         await _refreshGate.WaitAsync(ct);
@@ -76,7 +76,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
 
             if (profileId != ProfileId)
             {
-                // A different person: nothing of the last profile's NSFW mode carries over.
+                // A different person: nothing of the last profile's Vault mode carries over.
                 Status = null;
                 Resolved = false;
                 Preferences = VaultViewPreferences.Default;
@@ -134,7 +134,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
         await RefreshAsync(profileId, isKids, ct);
     }
 
-    /// <summary>Switches NSFW mode on for this device session. A wrong PIN comes back as an outcome and changes nothing.</summary>
+    /// <summary>Switches Vault mode on for this device session. A wrong PIN comes back as an outcome and changes nothing.</summary>
     public async Task<VaultCall<NsfwStatusDto>> UnlockAsync(string? pin, CancellationToken ct = default)
     {
         if (!IsAvailable)
@@ -158,7 +158,28 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
         return call;
     }
 
-    /// <summary>Switches NSFW mode off at once. The Dashboard hides the Vault even if the Engine cannot be reached.</summary>
+    /// <summary>
+    /// Saves the person's own "Turn Vault mode off after being idle for" choice (5, 15, 30, 60 minutes, or 0 for Never) and takes the
+    /// Engine's answer as the new status, so the screen and the Engine's idle lock agree.
+    /// </summary>
+    public async Task<VaultCall<NsfwStatusDto>> SetIdleAsync(int minutes, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+        {
+            return VaultCall<NsfwStatusDto>.Of(VaultOutcome.NotAvailable);
+        }
+
+        var call = await api.SetNsfwIdleAsync(minutes, ct);
+        if (call.Succeeded && call.Value is { } status)
+        {
+            Status = status;
+            RaiseChanged();
+        }
+
+        return call;
+    }
+
+    /// <summary>Switches Vault mode off at once. The Dashboard hides the Vault even if the Engine cannot be reached.</summary>
     public async Task LockAsync(CancellationToken ct = default)
     {
         var wasUnlocked = Unlocked;
@@ -171,7 +192,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
 
         if (wasUnlocked && !(await api.LockNsfwAsync(ct)).Succeeded)
         {
-            logger.LogDebug("The Engine could not be told to lock NSFW mode; the Dashboard has hidden it anyway.");
+            logger.LogDebug("The Engine could not be told to lock Vault mode; the Dashboard has hidden it anyway.");
         }
     }
 
@@ -249,7 +270,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
         }
         catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException or ObjectDisposedException)
         {
-            logger.LogDebug(exception, "Could not check whether NSFW mode is still on.");
+            logger.LogDebug(exception, "Could not check whether Vault mode is still on.");
         }
         finally
         {
@@ -278,7 +299,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
         _disposed = true;
         _lockPoll?.Dispose();
         _lockPoll = null;
-        // When the app closes NSFW mode switches itself off (D23c). Best effort: the Engine's idle limit is the backstop.
+        // When the app closes Vault mode switches itself off (D23c). Best effort: the Engine's idle limit is the backstop.
         if (Unlocked)
         {
             try
@@ -287,7 +308,7 @@ public sealed class NsfwModeState(IEngineApiClient api, IVaultPreferenceStore st
             }
             catch (Exception exception) when (exception is HttpRequestException or ObjectDisposedException or OperationCanceledException)
             {
-                logger.LogDebug(exception, "Could not lock NSFW mode while the session was closing.");
+                logger.LogDebug(exception, "Could not lock Vault mode while the session was closing.");
             }
         }
 

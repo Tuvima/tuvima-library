@@ -111,7 +111,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IHouseholdRepository, HouseholdRepository>();
         services.AddSingleton<IApplicationRepository, ApplicationRepository>();
         services.AddSingleton<IIdentityRepository, IdentityRepository>();
-        // The Vault (Videos spec WP9): the list of Vault libraries, per-profile NSFW access and device-session unlocks, the NSFW PIN,
+        // The Vault (Videos spec WP9): the list of Vault libraries, per-profile Vault access and device-session unlocks (Vault mode uses the profile PIN),
         // and the Vault's own name and artwork records. VaultAccessResolver is what every catalogue check asks first.
         services.AddSingleton<IVaultLibraryRepository, VaultLibraryRepository>();
         services.AddSingleton<INsfwAccessRepository, NsfwAccessRepository>();
@@ -135,7 +135,6 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<OnboardingActivationGate>();
         services.AddSingleton<IPasswordHasher<ProfileCredential>, PasswordHasher<ProfileCredential>>();
         services.AddSingleton<IPasswordHasher<AccountCredential>, PasswordHasher<AccountCredential>>();
-        services.AddSingleton<IPasswordHasher<GrantAdminProtection>, PasswordHasher<GrantAdminProtection>>();
         services.AddIdentityCore<Account>().AddUserStore<AccountPasskeyStore>();
         // Passkey relying-party settings come from the public address, re-read for every scope so a
         // changed address applies without a restart. PasskeyHandler takes IOptions, which is cached for
@@ -150,7 +149,6 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ExternalIdentityTransactionService>();
         services.AddSingleton<IFirstPartyIdentityService, FirstPartyIdentityService>();
         services.AddSingleton<IProfilePinVerifier>(sp => (FirstPartyIdentityService)sp.GetRequiredService<IFirstPartyIdentityService>());
-        services.AddSingleton<INsfwPinService, NsfwPinService>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultAdministrationService>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultOperationGate>();
         services.AddSingleton<MediaEngine.Api.Services.Vault.VaultFolderAttachmentService>();

@@ -5,7 +5,7 @@ using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;
 
-// Watching the Vault keeps NSFW mode awake from the Engine's side and belongs to one device session (Videos spec D33, D36).
+// Watching the Vault keeps Vault mode awake from the Engine's side and belongs to one device session (Videos spec D33, D36).
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 {
     private static readonly TimeSpan SoonToLock = TimeSpan.FromMinutes(14);

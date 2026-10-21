@@ -553,7 +553,7 @@ app.UseExceptionHandler(errorApp =>
     {
         var feature = context.Features.Get<IExceptionHandlerFeature>();
         var traceId = context.TraceIdentifier;
-        // Even in development an error never echoes its text for the NSFW and Vault routes or when it spells a Vault location
+        // Even in development an error never echoes its text for the Vault mode and Vault routes or when it spells a Vault location
         // (Videos spec D17, D33); the trace id leads to the technical log, which leaves such lines out too.
         var isDevelopment = app.Environment.IsDevelopment()
             && !context.Request.Path.StartsWithSegments("/api/v1/nsfw", StringComparison.OrdinalIgnoreCase)

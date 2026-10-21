@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace MediaEngine.Contracts.Vault;
 
 /// <summary>
-/// The caller's own NSFW state. Only a profile that can use NSFW mode ever receives one; any other profile gets "not found"
+/// The caller's own Vault mode state. Only a profile that can use Vault mode ever receives one; any other profile gets "not found"
 /// from the action, so nothing about it is drawn.
 /// </summary>
 public sealed class NsfwStatusDto
@@ -12,52 +12,35 @@ public sealed class NsfwStatusDto
     [JsonPropertyName("mode")]
     public string Mode { get; init; } = string.Empty;
 
-    /// <summary>True when this device session has NSFW mode on right now.</summary>
+    /// <summary>True when this device session has Vault mode on right now.</summary>
     [JsonPropertyName("unlocked")]
     public bool Unlocked { get; init; }
 
-    /// <summary>True when the profile has saved an NSFW PIN. The PIN itself is never returned.</summary>
+    /// <summary>True when the profile has a PIN (one PIN per profile; Vault mode uses it when "Ask for my PIN to open Vault mode" is on). The PIN itself is never returned.</summary>
     [JsonPropertyName("has_pin")]
     public bool HasPin { get; init; }
 
-    /// <summary>Minutes of inactivity before NSFW mode switches itself off; 0 means never.</summary>
+    /// <summary>Minutes of inactivity before Vault mode switches itself off; 0 means never.</summary>
     [JsonPropertyName("idle_lock_minutes")]
     public int IdleLockMinutes { get; init; }
 }
 
 public sealed class NsfwUnlockRequest
 {
-    /// <summary>The profile's NSFW PIN. Not needed for an Allowed profile.</summary>
+    /// <summary>The profile's own PIN. Not needed when Vault mode does not ask for it ("allowed").</summary>
     [JsonPropertyName("pin")]
     public string? Pin { get; init; }
 }
 
-public sealed class NsfwSetPinRequest
+/// <summary>The person's own idle choice for Vault mode.</summary>
+public sealed class NsfwIdleRequest
 {
-    [JsonPropertyName("new_pin")]
-    public string NewPin { get; init; } = string.Empty;
-
-    /// <summary>The current NSFW PIN, needed only when one is already saved.</summary>
-    [JsonPropertyName("current_pin")]
-    public string? CurrentPin { get; init; }
-
-    /// <summary>
-    /// The profile's own sign-in PIN, needed when saving a first NSFW PIN (or one after an administrator reset) and the profile
-    /// has a profile PIN. A profile with none confirms with a recent sign-in instead.
-    /// </summary>
-    [JsonPropertyName("profile_pin")]
-    public string? ProfilePin { get; init; }
+    /// <summary>5, 15, 30 or 60 minutes, or 0 for Never (only when Vault mode does not ask for the PIN).</summary>
+    [JsonPropertyName("idle_lock_minutes")]
+    public int IdleLockMinutes { get; init; }
 }
 
-/// <summary>An administrator removes one profile's NSFW PIN.</summary>
-public sealed class ResetNsfwPinRequest
-{
-    /// <summary>The administrator's own profile PIN, asked for again at this moment.</summary>
-    [JsonPropertyName("admin_pin")]
-    public string? AdminPin { get; init; }
-}
-
-/// <summary>An administrator opens, changes or closes one profile's NSFW access.</summary>
+/// <summary>An administrator opens, changes or closes one profile's Vault access.</summary>
 public sealed class SetNsfwAccessRequest
 {
     /// <summary>"off", "pin" or "allowed". A Kids or content-limited profile can only be "off".</summary>

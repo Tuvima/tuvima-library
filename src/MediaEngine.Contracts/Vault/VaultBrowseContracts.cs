@@ -4,7 +4,7 @@ namespace MediaEngine.Contracts.Vault;
 
 /// <summary>
 /// One Vault scene as a card or a row draws it (Videos spec D39, D40, D41). Pictures are artwork ids, never addresses: the Dashboard
-/// asks for them by id (<c>GET /api/v1/vault/artwork/{id}?w=</c>), and only a session with NSFW mode on is ever answered.
+/// asks for them by id (<c>GET /api/v1/vault/artwork/{id}?w=</c>), and only a session with Vault mode on is ever answered.
 /// </summary>
 public sealed class VaultSceneDto
 {

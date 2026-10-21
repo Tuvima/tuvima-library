@@ -19,7 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// NSFW mode and the Vault in the Dashboard (Videos spec WP10). The rule under test: nothing about them is drawn, or even present in
+/// Vault mode and the Vault in the Dashboard (Videos spec WP10). The rule under test: nothing about them is drawn, or even present in
 /// the page source, for a profile the Engine's status route answers "not found" to (Off, Kids, limited) and a Kids profile is never even
 /// asked; for a profile that can use it, everything follows what the Engine says about this device session.
 /// </summary>
@@ -41,12 +41,11 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     private readonly List<string?> _unlockPins = [];
     private readonly List<CreateVaultLibraryRequest> _created = [];
     private readonly List<(string Library, AttachVaultFolderRequest Request)> _attached = [];
-    private readonly List<NsfwSetPinRequest> _pinSaves = [];
+    private readonly List<int> _idleSaves = [];
+    private int _idle = 60;
     private readonly List<(Guid Profile, SetNsfwAccessRequest Request)> _accessSaves = [];
-    private readonly List<(Guid Profile, ResetNsfwPinRequest Request)> _resets = [];
     private IReadOnlyList<VaultLibraryDto> _libraries = [];
     private VaultOutcome _createOutcome = VaultOutcome.Ok;
-    private VaultOutcome _firstPinSaveOutcome = VaultOutcome.Ok;
     private VaultOutcome _lockOutcome = VaultOutcome.Ok;
     private EngineApiClientStub _stub = default!;
     private readonly ManualTime _time = new();
@@ -59,7 +58,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         Services.AddScoped(_ => new DashboardSessionAccessor());
     }
 
-    private NsfwStatusDto Status() => new() { Mode = _mode ?? string.Empty, Unlocked = _unlocked, HasPin = _hasPin, IdleLockMinutes = 15 };
+    private NsfwStatusDto Status() => new() { Mode = _mode ?? string.Empty, Unlocked = _unlocked, HasPin = _hasPin, IdleLockMinutes = _idle };
 
     private void UseEngine()
     {
@@ -117,17 +116,12 @@ public sealed class VaultExperienceTests : AsyncBunitContext
                     _ => VaultCall<VaultLibraryDto>.Ok(new VaultLibraryDto { Id = (string)args[0]!, LookupSource = "none" }),
                 });
             });
-            stub.SetHandler(nameof(IEngineApiClient.SetNsfwPinAsync), args =>
+            stub.SetHandler(nameof(IEngineApiClient.SetNsfwIdleAsync), args =>
             {
-                var request = (NsfwSetPinRequest)args![0]!;
-                _pinSaves.Add(request);
-                if (_pinSaves.Count == 1 && _firstPinSaveOutcome != VaultOutcome.Ok)
-                {
-                    return Task.FromResult(VaultCall<bool>.Of(_firstPinSaveOutcome));
-                }
-
-                var wrongCurrent = _hasPin && request.CurrentPin != RightPin;
-                return Task.FromResult(wrongCurrent ? VaultCall<bool>.Of(VaultOutcome.PinRequired) : VaultCall<bool>.Ok(true));
+                var minutes = (int)args![0]!;
+                _idleSaves.Add(minutes);
+                _idle = minutes;
+                return Task.FromResult(VaultCall<NsfwStatusDto>.Ok(Status()));
             });
             stub.SetHandler(nameof(IEngineApiClient.SetProfileNsfwAccessAsync), args =>
             {
@@ -136,11 +130,6 @@ public sealed class VaultExperienceTests : AsyncBunitContext
                 return Task.FromResult(request.Mode != "off" && request.AdminPin != AdminPin
                     ? VaultCall<NsfwStatusDto>.Of(VaultOutcome.PinRequired)
                     : VaultCall<NsfwStatusDto>.Ok(new NsfwStatusDto { Mode = request.Mode }));
-            });
-            stub.SetHandler(nameof(IEngineApiClient.ResetProfileNsfwPinAsync), args =>
-            {
-                _resets.Add(((Guid)args![0]!, (ResetNsfwPinRequest)args[1]!));
-                return Task.FromResult(VaultCall<bool>.Ok(true));
             });
         });
         Services.AddSingleton(api);
@@ -231,23 +220,24 @@ public sealed class VaultExperienceTests : AsyncBunitContext
 
         Assert.True(State.IsAvailable);
         Assert.False(State.Unlocked);
-        Assert.Contains("SFW", check.Markup);
+        Assert.Contains("Vault mode", check.Markup);
         Assert.DoesNotContain(ShellNavigation.WithVault(ShellNavigation.TopBarLinks(isKids: false), State.Unlocked), link => link.Key == "Vault");
 
         // Flip the check: the PIN pad opens, and a wrong PIN changes nothing.
         await check.InvokeAsync(() => check.Find("input[type='checkbox'], input[role='switch']").Change(true));
-        dialogs.WaitForAssertion(() => Assert.Contains("Enter your NSFW PIN", dialogs.Markup));
+        dialogs.WaitForAssertion(() => Assert.Contains("Enter your PIN", dialogs.Markup));
+        Assert.DoesNotContain("NSFW", dialogs.Markup);
         await TypePinAsync(dialogs, "1111");
-        await PressAsync(dialogs, "Switch on");
+        await PressAsync(dialogs, "Turn on Vault mode");
         dialogs.WaitForAssertion(() => Assert.Contains(VaultMessages.WrongPin, dialogs.Markup));
         Assert.False(State.Unlocked);
 
         await TypePinAsync(dialogs, RightPin);
-        await PressAsync(dialogs, "Switch on");
+        await PressAsync(dialogs, "Turn on Vault mode");
         dialogs.WaitForAssertion(() => Assert.True(State.Unlocked));
         Assert.Equal(["1111", RightPin], _unlockPins);
         Assert.Contains(ShellNavigation.WithVault(ShellNavigation.TopBarLinks(isKids: false), State.Unlocked), link => link.Key == "Vault" && link.Path == "/vault");
-        check.WaitForAssertion(() => Assert.Contains(">NSFW<", check.Markup));
+        check.WaitForAssertion(() => Assert.Contains("Vault mode", check.Markup));
     }
 
     [Fact]
@@ -722,8 +712,8 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         without.Close();
 
         var with = await AskAsync(showVault: true);
-        dialogs.WaitForAssertion(() => Assert.Contains("Vault (adults only)", dialogs.Markup));
-        dialogs.FindAll(".app-choice-card").Single(card => card.TextContent.Contains("Vault (adults only)")).Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Vault", dialogs.Markup));
+        dialogs.FindAll(".app-choice-card").Single(card => card.TextContent.Contains("Vault")).Click();
         var answer = Assert.IsType<AddFolderPlaceDialog.AddFolderPlaceAnswer>((await with.Result)!.Data);
         Assert.True(answer.Vault);
         Assert.False(answer.Watch);
@@ -878,109 +868,97 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     // -- The profile page: own switch and PIN, administrator access ------------------------------------------------------
 
     [Fact]
-    public async Task OnTheirOwnPage_APinProfile_HasTheSwitch_TheQuickCheckOption_AndAnNsfwPinRow()
+    public async Task OnTheirOwnPage_APinProfile_HasTheVaultModeButton_TheQuickCheckOption_AndNoSeparatePinRow()
     {
         UseEngine();
         _mode = "pin";
         var cut = Render<VaultProfileSettings>(parameters => parameters
-            .Add(p => p.Person, Person(Me)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
+            .Add(p => p.Person, Person(Me, hasPin: true)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
 
         cut.WaitForAssertion(() => Assert.Contains("data-profile-section=\"nsfw-mode\"", cut.Markup));
-        Assert.Contains("Show an SFW/NSFW check in the top menu", cut.Markup);
-        Assert.Contains("Different from your profile PIN", cut.Markup);
+        Assert.Contains("Show a Vault mode check in the top menu", cut.Markup);
+        Assert.Contains("Vault mode asks for your profile PIN", cut.Markup);
+        Assert.DoesNotContain("NSFW", cut.Markup);
+        Assert.DoesNotContain("data-nav-row=\"nsfw-pin\"", cut.Markup);
         Assert.DoesNotContain("data-profile-section=\"nsfw-access\"", cut.Markup);
 
-        await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Show an SFW/NSFW check in the top menu").Change(true));
+        await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Show a Vault mode check in the top menu").Change(true));
         Assert.True(State.ShowQuickCheck);
     }
 
     [Fact]
-    public async Task APinProfile_SavesItsFirstPin_TypedTwice_ConfirmingItsYouWhenTheEngineAsks()
+    public async Task TheVaultModeButton_IsTheOneEntryPoint_AsksForThePin_WhenItIsAsked_AndOtherwiseJustTurnsOn()
+    {
+        UseEngine();
+        _mode = "allowed";
+        _hasPin = false;
+        var cut = Render<VaultProfileSettings>(parameters => parameters
+            .Add(p => p.Person, Person(Me)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
+        cut.WaitForAssertion(() => Assert.Contains("data-profile-section=\"nsfw-mode\"", cut.Markup));
+        Assert.Contains("Opens straight away", cut.Markup);
+        Assert.DoesNotContain("Unlock", cut.Markup, StringComparison.OrdinalIgnoreCase);
+
+        await cut.InvokeAsync(() => cut.FindAll("input[role='switch']").First(input => input.GetAttribute("aria-label") == "Vault mode").Change(true));
+
+        Assert.True(State.Unlocked);
+        Assert.Equal([null], _unlockPins);
+    }
+
+    // -- "Turn Vault mode off after being idle for" -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task TheIdleChoice_OffersFiveFifteenThirtyAndSixtyMinutes_AndNeverOnlyWhenNoPinIsAsked()
     {
         UseEngine();
         _mode = "pin";
-        _hasPin = false;
-        _firstPinSaveOutcome = VaultOutcome.ConfirmItsYou;
-        Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: true));
-        var dialogs = Render<AppDialogHost>();
+        var pinned = Render<VaultProfileSettings>(parameters => parameters
+            .Add(p => p.Person, Person(Me, hasPin: true)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
+        pinned.WaitForAssertion(() => Assert.Contains("Turn Vault mode off after being idle for", pinned.Markup));
+        var select = pinned.Find("select[aria-label='Turn Vault mode off after being idle for']");
+        Assert.Equal(["5", "15", "30", "60"], select.QuerySelectorAll("option").Select(option => option.GetAttribute("value")));
+        Assert.Equal("60", select.GetAttribute("value") ?? select.QuerySelectorAll("option").First(option => option.HasAttribute("selected")).GetAttribute("value"));
+    }
+
+    [Theory]
+    [InlineData("pin", 5)]
+    [InlineData("pin", 15)]
+    [InlineData("pin", 30)]
+    [InlineData("pin", 60)]
+    [InlineData("allowed", 5)]
+    [InlineData("allowed", 15)]
+    [InlineData("allowed", 30)]
+    [InlineData("allowed", 60)]
+    [InlineData("allowed", 0)]
+    public async Task ChoosingAnIdleTime_SendsItToTheEngine_AndTheDashboardFollowsTheEnginesAnswer(string mode, int minutes)
+    {
+        UseEngine();
+        _mode = mode;
         var cut = Render<VaultProfileSettings>(parameters => parameters
-            .Add(p => p.Person, Person(Me)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
-        cut.WaitForAssertion(() => Assert.Contains("No PIN yet", cut.Markup));
+            .Add(p => p.Person, Person(Me, hasPin: mode == "pin")).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
+        cut.WaitForAssertion(() => Assert.Contains("Turn Vault mode off after being idle for", cut.Markup));
+        var select = cut.Find("select[aria-label='Turn Vault mode off after being idle for']");
+        Assert.Equal(mode == "allowed", select.QuerySelectorAll("option").Any(option => option.GetAttribute("value") == "0"));
 
-        await cut.InvokeAsync(() => cut.Find("[data-nav-row='nsfw-pin']").Click());
-        dialogs.WaitForAssertion(() => Assert.Contains("Choose an NSFW PIN", dialogs.Markup));
-        await TypePinAsync(dialogs, RightPin);
-        await PressAsync(dialogs, "Next");
-        dialogs.WaitForAssertion(() => Assert.Contains("Enter it again", dialogs.Markup));
-        await TypePinAsync(dialogs, "9999");
-        await PressAsync(dialogs, "Save PIN");
-        dialogs.WaitForAssertion(() => Assert.Contains("Those PINs didn't match.", dialogs.Markup));
-        Assert.Empty(_pinSaves);
-        await TypePinAsync(dialogs, RightPin);
-        await PressAsync(dialogs, "Save PIN");
+        await cut.InvokeAsync(() => select.Change(minutes.ToString()));
 
-        dialogs.WaitForAssertion(() => Assert.DoesNotContain("Enter it again", dialogs.Markup));
-        Assert.Equal(2, _pinSaves.Count);
-        Assert.All(_pinSaves, save =>
-        {
-            Assert.Equal(RightPin, save.NewPin);
-            Assert.Null(save.CurrentPin);
-            Assert.Null(save.ProfilePin);
-        });
+        Assert.Equal([minutes], _idleSaves);
+        Assert.Equal(minutes, State.Status!.IdleLockMinutes);
     }
 
     [Fact]
-    public async Task ChangingAPin_AsksForTheCurrentOneLast_SoAWrongOneCanBeRetriedWithoutRetypingTheNewPin()
+    public async Task Never_IsNotSent_WhileVaultModeAsksForThePin()
     {
         UseEngine();
         _mode = "pin";
-        _hasPin = true;
-        var dialogs = Render<AppDialogHost>();
-        var cut = Render<VaultProfileSettings>(parameters => parameters
-            .Add(p => p.Person, Person(Me)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
-        cut.WaitForAssertion(() => Assert.Contains("PIN set", cut.Markup));
-
-        await cut.InvokeAsync(() => cut.Find("[data-nav-row='nsfw-pin']").Click());
-        await TypePinAsync(dialogs, "8642");
-        await PressAsync(dialogs, "Next");
-        await TypePinAsync(dialogs, "8642");
-        await PressAsync(dialogs, "Next");
-        dialogs.WaitForAssertion(() => Assert.Contains("Enter your current NSFW PIN", dialogs.Markup));
-        await TypePinAsync(dialogs, "0000");
-        await PressAsync(dialogs, "Save PIN");
-        dialogs.WaitForAssertion(() => Assert.Contains(VaultMessages.WrongPin, dialogs.Markup));
-        await TypePinAsync(dialogs, RightPin);
-        await PressAsync(dialogs, "Save PIN");
-
-        dialogs.WaitForAssertion(() => Assert.DoesNotContain("Enter your current NSFW PIN", dialogs.Markup));
-        Assert.Equal(["0000", RightPin], _pinSaves.Select(save => save.CurrentPin));
-        Assert.All(_pinSaves, save => Assert.Equal("8642", save.NewPin));
-    }
-
-    [Fact]
-    public async Task APinProfileWithAProfilePin_ProvesItWhenSavingItsFirstNsfwPin()
-    {
-        UseEngine();
-        _mode = "pin";
-        _hasPin = false;
-        var dialogs = Render<AppDialogHost>();
         var cut = Render<VaultProfileSettings>(parameters => parameters
             .Add(p => p.Person, Person(Me, hasPin: true)).Add(p => p.IsSelf, true).Add(p => p.IsAdministrator, false));
-        cut.WaitForAssertion(() => Assert.Contains("No PIN yet", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Contains("Turn Vault mode off after being idle for", cut.Markup));
 
-        await cut.InvokeAsync(() => cut.Find("[data-nav-row='nsfw-pin']").Click());
-        await TypePinAsync(dialogs, "8642");
-        await PressAsync(dialogs, "Next");
-        await TypePinAsync(dialogs, "8642");
-        await PressAsync(dialogs, "Next");
-        dialogs.WaitForAssertion(() => Assert.Contains("Enter your profile PIN", dialogs.Markup));
-        await TypePinAsync(dialogs, "5555");
-        await PressAsync(dialogs, "Save PIN");
+        await cut.InvokeAsync(() => cut.Find("select[aria-label='Turn Vault mode off after being idle for']").Change("0"));
 
-        dialogs.WaitForAssertion(() => Assert.Single(_pinSaves));
-        Assert.Equal("5555", _pinSaves[0].ProfilePin);
-        Assert.Null(_pinSaves[0].CurrentPin);
+        Assert.Empty(_idleSaves);
     }
+
 
     [Fact]
     public async Task AnAdministrator_SetsAnotherAdultsAccess_WithTheirOwnPin_AndClosingItNeedsNone()
@@ -989,15 +967,16 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         _mode = null;
         var dialogs = Render<AppDialogHost>();
         var cut = Render<VaultProfileSettings>(parameters => parameters
-            .Add(p => p.Person, Person(Other)).Add(p => p.IsSelf, false).Add(p => p.IsAdministrator, true).Add(p => p.AdministratorHasPin, true));
+            .Add(p => p.Person, Person(Other, hasPin: true)).Add(p => p.IsSelf, false).Add(p => p.IsAdministrator, true).Add(p => p.AdministratorHasPin, true));
 
         cut.WaitForAssertion(() => Assert.Contains("data-profile-section=\"nsfw-access\"", cut.Markup));
         Assert.DoesNotContain("data-profile-section=\"nsfw-mode\"", cut.Markup);
         Assert.Contains("The current setting isn't shown for other people", cut.Markup);
         Assert.True(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save access").HasAttribute("disabled"));
 
-        await cut.InvokeAsync(() => cut.Find("select[aria-label='NSFW access for Sam']").Change("pin"));
-        await cut.InvokeAsync(() => cut.Find("select[aria-label='Switch NSFW mode off after']").Change("30"));
+        // Turning Vault mode on: the PIN question starts on, because this profile has a PIN to ask for.
+        await cut.InvokeAsync(() => Switch(cut, "Vault mode for Sam").Change(true));
+        Assert.True(Switch(cut, "Ask for their PIN to open Vault mode").HasAttribute("checked"));
         await cut.InvokeAsync(() => cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save access").Click());
         dialogs.WaitForAssertion(() => Assert.Contains("Enter your PIN to continue", dialogs.Markup));
         await TypePinAsync(dialogs, "0000");
@@ -1010,22 +989,45 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         var saved = _accessSaves[^1];
         Assert.Equal(Other, saved.Profile);
         Assert.Equal("pin", saved.Request.Mode);
-        Assert.Equal(30, saved.Request.IdleLockMinutes);
         Assert.Equal(AdminPin, saved.Request.AdminPin);
 
-        // Reset their PIN: asks for the administrator's own PIN again.
-        await cut.InvokeAsync(() => cut.FindAll("button").Single(button => button.TextContent.Trim() == "Reset their NSFW PIN").Click());
+        // Turning the PIN question off says plainly what that means before it can be saved.
+        await cut.InvokeAsync(() => Switch(cut, "Ask for their PIN to open Vault mode").Change(false));
+        dialogs.WaitForAssertion(() => Assert.Contains("Anyone using this profile will be able to open the Vault.", dialogs.Markup));
+        await PressAsync(dialogs, "Turn off");
+        await cut.InvokeAsync(() => cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save access").Click());
         await TypePinAsync(dialogs, AdminPin);
-        await PressAsync(dialogs, "Reset PIN");
-        dialogs.WaitForAssertion(() => Assert.Single(_resets));
-        Assert.Equal((Other, AdminPin), (_resets[0].Profile, _resets[0].Request.AdminPin));
+        await PressAsync(dialogs, "Save access");
+        dialogs.WaitForAssertion(() => Assert.Equal("allowed", _accessSaves[^1].Request.Mode));
 
         // Closing access is not a grant, so it asks for no PIN.
-        await cut.InvokeAsync(() => cut.Find("select[aria-label='NSFW access for Sam']").Change("off"));
+        await cut.InvokeAsync(() => Switch(cut, "Vault mode for Sam").Change(false));
         var before = _accessSaves.Count;
         await cut.InvokeAsync(() => cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save access").Click());
         cut.WaitForAssertion(() => Assert.Equal(before + 1, _accessSaves.Count));
+        Assert.Equal("off", _accessSaves[^1].Request.Mode);
         Assert.Null(_accessSaves[^1].Request.AdminPin);
+    }
+
+    [Fact]
+    public async Task ForAProfileWithNoPin_VaultModeStartsWithoutThePinQuestion_AndAskingForItIsRefusedInPlainWords()
+    {
+        UseEngine();
+        _mode = null;
+        var cut = Render<VaultProfileSettings>(parameters => parameters
+            .Add(p => p.Person, Person(Other, hasPin: false)).Add(p => p.IsSelf, false).Add(p => p.IsAdministrator, true).Add(p => p.AdministratorHasPin, true));
+        cut.WaitForAssertion(() => Assert.Contains("data-profile-section=\"nsfw-access\"", cut.Markup));
+
+        await cut.InvokeAsync(() => Switch(cut, "Vault mode for Sam").Change(true));
+
+        Assert.False(Switch(cut, "Ask for their PIN to open Vault mode").HasAttribute("checked"));
+        Assert.Contains("no PIN", cut.Find("[data-vault-access-notice]").TextContent);
+
+        await cut.InvokeAsync(() => Switch(cut, "Ask for their PIN to open Vault mode").Change(true));
+
+        Assert.Contains("Set a PIN for this profile first", cut.Find("[data-vault-access-notice]").TextContent);
+        Assert.False(Switch(cut, "Ask for their PIN to open Vault mode").HasAttribute("checked"));
+        Assert.Empty(_accessSaves);
     }
 
     [Fact]
@@ -1041,6 +1043,9 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     }
 
     // -- Helpers ----------------------------------------------------------------------------------------------------------
+
+    private static AngleSharp.Dom.IElement Switch(IRenderedComponent<VaultProfileSettings> cut, string label) =>
+        cut.FindAll("input[role='switch']").Single(input => input.GetAttribute("aria-label") == label);
 
     private static async Task TypePinAsync(IRenderedComponent<AppDialogHost> dialogs, string pin)
     {

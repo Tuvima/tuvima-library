@@ -41,7 +41,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
         Services.AddSingleton(CreateApi());
 
         var grant = new AccountProfileGrantDto(OwnId, OwnId, "Test User", null, true, true, true,
-            new GrantAdminProtectionDto(false, "None", null, 1, false, null), 1, DateTimeOffset.UtcNow);
+            new GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow);
         var authority = new DashboardAuthorityResponse(OwnId, OwnId, true, true, 1, 1, false, false, null, 1, [grant], [], []);
         var session = new DashboardSessionAccessor();
         session.Set("test-session-token", OwnId, OwnId, Guid.NewGuid(), authority);
@@ -518,7 +518,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
                 stub.SetHandler(nameof(IEngineApiClient.GetPersonalActivityRecentAsync), _ => Task.FromResult<PersonalActivityRecentDto?>(new PersonalActivityRecentDto(tiles)));
             }));
             var grant = new AccountProfileGrantDto(OwnId, OwnId, "Test User", null, true, true, true,
-                new GrantAdminProtectionDto(false, "None", null, 1, false, null), 1, DateTimeOffset.UtcNow);
+                new GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow);
             var session = new DashboardSessionAccessor();
             session.Set("test-session-token", OwnId, OwnId, Guid.NewGuid(),
                 new DashboardAuthorityResponse(OwnId, OwnId, true, true, 1, 1, false, false, null, 1, [grant], [], []));

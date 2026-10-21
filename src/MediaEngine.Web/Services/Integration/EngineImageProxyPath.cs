@@ -99,7 +99,7 @@ public static class EngineImageProxyPath
             return true;
         }
 
-        // The Vault's own artwork (Videos spec D41). The Engine answers only a session with NSFW mode on, and marks it uncacheable.
+        // The Vault's own artwork (Videos spec D41). The Engine answers only a session with Vault mode on, and marks it uncacheable.
         if (segments.Length == 5
             && segments[0].Equals("api", StringComparison.OrdinalIgnoreCase)
             && segments[1].Equals("v1", StringComparison.OrdinalIgnoreCase)
@@ -110,7 +110,7 @@ public static class EngineImageProxyPath
             return true;
         }
 
-        // A Vault image's thumbnail and preview (Videos spec D44). Same rule as the artwork above: only a session with NSFW mode on is answered.
+        // A Vault image's thumbnail and preview (Videos spec D44). Same rule as the artwork above: only a session with Vault mode on is answered.
         if (segments.Length == 6
             && segments[0].Equals("api", StringComparison.OrdinalIgnoreCase)
             && segments[1].Equals("v1", StringComparison.OrdinalIgnoreCase)

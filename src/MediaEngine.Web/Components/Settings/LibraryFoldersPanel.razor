@@ -618,7 +618,7 @@
         {
             { component => component.LooksLikePhoneFootage, looksLikePhoneFootage },
             { component => component.YoutubeLookup, SelectedLibrary?.YoutubeLookup ?? true },
-            // The third choice exists only for an administrator while NSFW mode is on (Videos spec D45).
+            // The third choice exists only for an administrator while Vault mode is on (Videos spec D45).
             { component => component.ShowVault, !Embedded && Nsfw.Unlocked },
         };
         var dialog = await DialogService.ShowAsync<AddFolderPlaceDialog>(string.Empty, parameters, new AppDialogOptions

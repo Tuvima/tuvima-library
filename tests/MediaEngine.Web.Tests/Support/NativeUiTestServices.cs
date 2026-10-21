@@ -18,7 +18,7 @@ internal static class NativeUiTestServices
         services.TryAddScoped(_ => new DeviceContextService(EngineApiClientStub.CreateDefault()));
         services.TryAddScoped<IAppToastService>(provider => provider.GetRequiredService<AppToastService>());
         services.TryAddScoped<MediaEngine.Web.Services.Settings.ApprovalFlow>();
-        // NSFW mode and the Vault. The state asks the page's own IEngineApiClient; a stub that does not know the route leaves it
+        // Vault mode and the Vault. The state asks the page's own IEngineApiClient; a stub that does not know the route leaves it
         // off, which is what every other profile gets.
         services.AddLogging();
         services.TryAddScoped<MediaEngine.Web.Services.Vault.IVaultPreferenceStore, InMemoryVaultPreferenceStore>();

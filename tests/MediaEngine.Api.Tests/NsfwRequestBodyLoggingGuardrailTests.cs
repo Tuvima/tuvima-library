@@ -3,9 +3,9 @@ using System.Text.RegularExpressions;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// A NSFW PIN travels in the body of /api/v1/nsfw/unlock and /api/v1/nsfw/pin, and the profile PIN that opens NSFW access in the body
+/// A NSFW PIN travels in the body of /api/v1/nsfw/unlock and /api/v1/nsfw/pin, and the profile PIN that opens Vault access in the body
 /// of the access routes. Nothing in the Engine may write a request body to a log (Videos spec D18 and D25): no request-body
-/// logging middleware, no code that reads a body outside the one gateway that needs it, the NSFW routes themselves log nothing, and the
+/// logging middleware, no code that reads a body outside the one gateway that needs it, the Vault mode routes themselves log nothing, and the
 /// framework's own request logging stays below the level that would show anything.
 /// </summary>
 public sealed class NsfwRequestBodyLoggingGuardrailTests
@@ -15,7 +15,7 @@ public sealed class NsfwRequestBodyLoggingGuardrailTests
         "AddHttpLogging", "UseHttpLogging", "UseSerilogRequestLogging", "HttpLoggingFields", "EnableBuffering",
     ];
 
-    // The one place that reads a raw request body is the plugin application gateway, which is not a NSFW route and logs no body.
+    // The one place that reads a raw request body is the plugin application gateway, which is not a Vault mode route and logs no body.
     private static readonly string[] RawBodyReadersAllowed = ["Endpoints/PluginApplicationServiceEndpoints.cs"];
 
     [Fact]

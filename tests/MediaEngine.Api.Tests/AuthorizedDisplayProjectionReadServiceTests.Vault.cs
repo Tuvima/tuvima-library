@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Api.Tests;
 
-// The Vault (Videos spec WP9, D17, D36): an item in a Vault library does not exist for a request that has not switched NSFW mode
+// The Vault (Videos spec WP9, D17, D36): an item in a Vault library does not exist for a request that has not switched Vault mode
 // on in its own device session. "Does not exist" means absent from every list, count and projection, and "not found" (never
 // "forbidden") from every check on one item. Library grants never open it; an unlocked session does.
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
@@ -213,7 +213,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         Assert.False(await SeesTheVaultAsync(session));
 
-        // The administrator closes the profile's NSFW access.
+        // The administrator closes the profile's Vault access.
         session = await UnlockedSessionAsync();
         await nsfw.SetAsync(VaultProfile, NsfwAccessMode.Off, null, null, DateTimeOffset.UtcNow);
         Assert.False(await SeesTheVaultAsync(session));
@@ -423,7 +423,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await CreateHumanAsync(account, features ?? EveryFeature, libraries, administrator);
         using var connection = _database.CreateConnection();
         var now = DateTimeOffset.UtcNow.ToString("O");
-        // The profile used by these tests is an adult with no content limit, so it can hold NSFW access.
+        // The profile used by these tests is an adult with no content limit, so it can hold Vault access.
         connection.Execute("UPDATE profiles SET role='StandardUser', content_limit=NULL WHERE id=@profile;", new { profile = VaultProfile });
         connection.Execute(
             "INSERT INTO vault_libraries(library_id, lookup_source, adults_confirmed_at, created_at, updated_at) VALUES(@library,'none',@now,@now,@now);",
@@ -454,7 +454,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         return sessionId;
     }
 
-    /// <summary>Opens the seed profile up (Allowed) and switches NSFW mode on for one device session.</summary>
+    /// <summary>Opens the seed profile up (Allowed) and switches Vault mode on for one device session.</summary>
     private async Task UnlockVaultAsync(Guid session)
     {
         var nsfw = new NsfwAccessRepository(_database);

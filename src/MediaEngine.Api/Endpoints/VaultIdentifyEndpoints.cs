@@ -11,7 +11,7 @@ namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
 /// Identify for a Vault video (Videos spec D38), how a Vault video was matched (D30) and the quiet Vault activity list (D32).
-/// A Vault video is absent for anyone without an unlocked NSFW session: the item routes go through the same catalogue access
+/// A Vault video is absent for anyone without an unlocked Vault mode session: the item routes go through the same catalogue access
 /// filter every other action on a file uses (not found, never forbidden), and the responses are private and uncacheable. Search
 /// text travels in a request body, and neither a title nor a body is ever logged. What is applied is read again from the server by
 /// record id, never taken from the request.
@@ -24,7 +24,7 @@ public static class VaultIdentifyEndpoints
 
         // Every answer from these routes is private and uncacheable, including the "not found" a locked session gets and the one an id
         // that does not exist gets, so the header never tells the two apart. This filter runs before the access filter on each route.
-        // The pre-binding gate answers a caller whose NSFW mode is off "not found" before any body or id is read (a malformed body
+        // The pre-binding gate answers a caller whose Vault mode is off "not found" before any body or id is read (a malformed body
         // would otherwise answer 400 and show that the route exists).
         items.WithMetadata(VaultGatedRoute.Instance);
         items.AddEndpointFilter(static async (context, next) =>
@@ -125,7 +125,7 @@ public static class VaultIdentifyEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.MetadataRead);
 
-        // The quiet Vault activity list: the only place Vault ingestion shows. An administrator with NSFW mode on sees it; everyone
+        // The quiet Vault activity list: the only place Vault ingestion shows. An administrator with Vault mode on sees it; everyone
         // else gets exactly what a missing page gets.
         app.MapGet("/api/v1/vault/activity", async (
             HttpContext http, IRequestAuthorityResolver resolver, VaultAccessResolver access, IVaultActivityRepository activity, CancellationToken ct) =>
@@ -150,7 +150,7 @@ public static class VaultIdentifyEndpoints
         })
         .WithMetadata(VaultGatedRoute.Instance)
         .WithName("ListVaultActivity")
-        .WithSummary("The quiet Vault activity list: what ingestion did with each Vault file. Only inside NSFW mode, only for an administrator.")
+        .WithSummary("The quiet Vault activity list: what ingestion did with each Vault file. Only inside Vault mode, only for an administrator.")
         .Produces<IReadOnlyList<VaultActivityItemDto>>()
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireEffectiveAdministratorInPerson();
@@ -176,7 +176,7 @@ public static class VaultIdentifyEndpoints
             });
         })
         .WithName("GetVaultRestoredBookmarks")
-        .WithSummary("How many saved Vault bookmarks from a restored backup still wait for their video. Only inside NSFW mode, only for an administrator.")
+        .WithSummary("How many saved Vault bookmarks from a restored backup still wait for their video. Only inside Vault mode, only for an administrator.")
         .Produces<VaultRestoredBookmarksDto>()
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireEffectiveAdministratorInPerson();

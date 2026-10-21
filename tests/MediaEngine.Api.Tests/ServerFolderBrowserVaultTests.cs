@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// The folder picker never shows the Vault's folders to a caller whose NSFW mode is off: they and everything under them are left out
+/// The folder picker never shows the Vault's folders to a caller whose Vault mode is off: they and everything under them are left out
 /// of listings and answer exactly as a folder that does not exist (Videos spec D17, D45). Real temporary folders.
 /// </summary>
 public sealed class ServerFolderBrowserVaultTests : IDisposable

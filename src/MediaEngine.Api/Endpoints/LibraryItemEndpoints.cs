@@ -169,7 +169,7 @@ public static class LibraryItemEndpoints
         return app;
     }
 
-    // The Vault's entries in the recycle bin are visible only inside NSFW mode (Videos spec D34). Anyone else, administrators included,
+    // The Vault's entries in the recycle bin are visible only inside Vault mode (Videos spec D34). Anyone else, administrators included,
     // sees the bin as if those files were not there, and cannot restore or empty them.
     private static async Task<IReadOnlySet<string>> HiddenLibrariesAsync(
         HttpContext http, IRequestAuthorityResolver authorities, VaultAccessResolver vaultAccess, CancellationToken ct)

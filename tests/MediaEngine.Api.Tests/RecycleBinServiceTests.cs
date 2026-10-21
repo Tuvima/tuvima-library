@@ -80,7 +80,7 @@ public sealed class RecycleBinServiceTests : IDisposable
         Assert.Empty(_store.List());
     }
 
-    // The Vault's deleted files are visible only inside NSFW mode (Videos spec D34).
+    // The Vault's deleted files are visible only inside Vault mode (Videos spec D34).
 
     private static readonly IReadOnlySet<string> LockedView = new HashSet<string> { "vault-library" };
 

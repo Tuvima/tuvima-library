@@ -3,15 +3,15 @@
 @inject NsfwModeState Nsfw
 @inject NsfwModeSwitching Switching
 
-@* The optional SFW/NSFW check in the top menu (Videos spec D23b). Drawn only when the Engine said this profile can use NSFW
+@* The optional Vault mode check in the top menu (Videos spec D23b). Drawn only when the Engine said this profile can use Vault
    mode AND the person switched the check on in their profile page; for every other profile it renders nothing at all. *@
 @if (Nsfw.ShowQuickCheck)
 {
     <div class="top-nav-account-menu__item" role="none" data-nsfw-quick-check>
-        <AppSwitchRow Label="@(Nsfw.Unlocked ? "NSFW" : "SFW")"
+        <AppSwitchRow Label="Vault mode"
                       Value="@Nsfw.Unlocked"
                       ValueChanged="ChangedAsync"
-                      AriaLabel="NSFW mode"
+                      AriaLabel="Vault mode"
                       StopClickPropagation="true" />
     </div>
 }

@@ -24,7 +24,7 @@ public static class StashBoxEndpoints
     {
         var group = app.MapGroup("/settings/stashbox").WithTags("Stash-box");
 
-        // The plugin belongs to the Vault, so it is not there for anyone whose NSFW mode is off, administrators and apps included:
+        // The plugin belongs to the Vault, so it is not there for anyone whose Vault mode is off, administrators and apps included:
         // the pre-binding gate answers "not found" before a body or an id is read (Videos spec D17, D45).
         group.WithMetadata(VaultGatedRoute.Instance);
 

@@ -29,7 +29,7 @@ public sealed class JourneyReadService : IJourneyReadService
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
         using var cmd = conn.CreateCommand();
-        // Without the caller's authorized asset list nothing says whether NSFW mode is on, so the Vault is absent (Videos spec D33).
+        // Without the caller's authorized asset list nothing says whether Vault mode is on, so the Vault is absent (Videos spec D33).
         var assetPredicate = authorizedAssetIds is null ? $" AND {VaultSql.NotVaultAsset("us.asset_id")}" : "";
         if (authorizedAssetIds is not null)
         {

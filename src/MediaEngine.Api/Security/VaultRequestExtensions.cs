@@ -2,10 +2,10 @@ using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Security;
 
-/// <summary>Small helpers for routes outside the Vault area that must still answer differently once NSFW mode is on.</summary>
+/// <summary>Small helpers for routes outside the Vault area that must still answer differently once Vault mode is on.</summary>
 public static class VaultRequestExtensions
 {
-    /// <summary>True only when this request is a person's own Dashboard session with NSFW mode switched on (Videos spec D17, D36).</summary>
+    /// <summary>True only when this request is a person's own Dashboard session with Vault mode switched on (Videos spec D17, D36).</summary>
     public static async ValueTask<bool> IsVaultUnlockedAsync(this HttpContext http, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(http);
@@ -15,7 +15,7 @@ public static class VaultRequestExtensions
     }
 
     /// <summary>
-    /// The Vault's source folders this request must not see: all of them while NSFW mode is off, none while it is on. A folder picker or
+    /// The Vault's source folders this request must not see: all of them while Vault mode is off, none while it is on. A folder picker or
     /// folder check treats these folders, and everything under them, as folders that do not exist.
     /// </summary>
     public static async ValueTask<IReadOnlyCollection<string>> HiddenVaultFolderRootsAsync(this HttpContext http, CancellationToken ct = default)

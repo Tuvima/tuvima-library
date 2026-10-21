@@ -326,7 +326,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     public Task<GrantAdminProtection?> GetAdminProtectionAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
-        var row = conn.QueryFirstOrDefault<ProtectionRow>("SELECT account_id AS AccountId, profile_id AS ProfileId, is_enabled AS IsEnabled, unlock_mode AS UnlockMode, unlock_minutes AS UnlockMinutes, pin_hash AS PinHash, hash_scheme AS HashScheme, failed_attempt_count AS FailedAttemptCount, locked_until AS LockedUntil, protection_version AS ProtectionVersion, updated_at AS UpdatedAt FROM grant_admin_protections WHERE account_id=@accountId AND profile_id=@profileId;", new { accountId, profileId });
+        var row = conn.QueryFirstOrDefault<ProtectionRow>("SELECT account_id AS AccountId, profile_id AS ProfileId, is_enabled AS IsEnabled, unlock_mode AS UnlockMode, unlock_minutes AS UnlockMinutes, protection_version AS ProtectionVersion, updated_at AS UpdatedAt FROM grant_admin_protections WHERE account_id=@accountId AND profile_id=@profileId;", new { accountId, profileId });
         return Task.FromResult(row is null ? null : MapProtection(row));
     }
 
@@ -783,14 +783,11 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             token.ThrowIfCancellationRequested();
             connection.Execute("""
                 INSERT INTO grant_admin_protections
-                    (account_id,profile_id,is_enabled,unlock_mode,unlock_minutes,pin_hash,hash_scheme,
-                     failed_attempt_count,locked_until,protection_version,updated_at)
-                VALUES(@AccountId,@ProfileId,@IsEnabled,@UnlockMode,@UnlockMinutes,@PinHash,@HashScheme,
-                       0,NULL,@ProtectionVersion,@UpdatedAt)
+                    (account_id,profile_id,is_enabled,unlock_mode,unlock_minutes,protection_version,updated_at)
+                VALUES(@AccountId,@ProfileId,@IsEnabled,@UnlockMode,@UnlockMinutes,@ProtectionVersion,@UpdatedAt)
                 ON CONFLICT(account_id,profile_id) DO UPDATE SET
                     is_enabled=excluded.is_enabled,unlock_mode=excluded.unlock_mode,
-                    unlock_minutes=excluded.unlock_minutes,pin_hash=excluded.pin_hash,
-                    hash_scheme=excluded.hash_scheme,failed_attempt_count=0,locked_until=NULL,
+                    unlock_minutes=excluded.unlock_minutes,
                     protection_version=grant_admin_protections.protection_version+1,
                     updated_at=excluded.updated_at;
                 """, new
@@ -800,8 +797,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 IsEnabled = protection.IsEnabled ? 1 : 0,
                 protection.UnlockMode,
                 protection.UnlockMinutes,
-                protection.PinHash,
-                protection.HashScheme,
                 protection.ProtectionVersion,
                 UpdatedAt = Iso(protection.UpdatedAt),
             }, transaction);
@@ -812,30 +807,12 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 """, protection, transaction);
         }, ct);
 
-    public Task<GrantAdminProtection> RecordAdminProtectionFailureAsync(Guid accountId, Guid profileId,
-        DateTimeOffset lockedUntilAfterLimit, CancellationToken ct = default) =>
-        db.ExecuteWriteAsync((connection, transaction, token) =>
-        {
-            token.ThrowIfCancellationRequested();
-            var row = connection.QuerySingle<ProtectionRow>("""
-                UPDATE grant_admin_protections
-                SET failed_attempt_count=failed_attempt_count+1,
-                    locked_until=CASE WHEN failed_attempt_count+1>=5 THEN @lockedUntil ELSE locked_until END
-                WHERE account_id=@accountId AND profile_id=@profileId
-                RETURNING account_id AS AccountId,profile_id AS ProfileId,is_enabled AS IsEnabled,
-                    unlock_mode AS UnlockMode,unlock_minutes AS UnlockMinutes,pin_hash AS PinHash,
-                    hash_scheme AS HashScheme,failed_attempt_count AS FailedAttemptCount,
-                    locked_until AS LockedUntil,protection_version AS ProtectionVersion,updated_at AS UpdatedAt;
-                """, new { accountId, profileId, lockedUntil = Iso(lockedUntilAfterLimit) }, transaction);
-            return MapProtection(row);
-        }, ct);
-
-    public Task ResetAdminProtectionAttemptsAsync(Guid accountId, Guid profileId,
-        CancellationToken ct = default) => db.ExecuteWriteAsync((connection, transaction, _) =>
-            connection.Execute("""
-                UPDATE grant_admin_protections SET failed_attempt_count=0,locked_until=NULL
-                WHERE account_id=@accountId AND profile_id=@profileId;
-                """, new { accountId, profileId }, transaction), ct);
+    public Task<bool> HasEnabledAdminProtectionAsync(Guid profileId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
+        return Task.FromResult(conn.ExecuteScalar<int>(
+            "SELECT EXISTS(SELECT 1 FROM grant_admin_protections WHERE profile_id=@profileId AND is_enabled=1);", new { profileId }) == 1);
+    }
 
     public Task SetAdminUnlockAsync(GrantAdminUnlock unlock, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, _) => connection.Execute("""
@@ -1079,10 +1056,10 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     }
     private const string GrantSelect = "SELECT account_id AS AccountId,profile_id AS ProfileId,is_default AS IsDefault,is_enabled AS IsEnabled,admin_enabled AS AdminEnabled,authorization_version AS AuthorizationVersion,granted_at AS GrantedAt FROM account_profile_grants";
     private static AccountProfileGrant MapGrant(GrantRow r) => new() { AccountId = r.AccountId, ProfileId = r.ProfileId, IsDefault = r.IsDefault, IsEnabled = r.IsEnabled, AdminEnabled = r.AdminEnabled, AuthorizationVersion = r.AuthorizationVersion, GrantedAt = ParseRequired(r.GrantedAt) };
-    private static GrantAdminProtection MapProtection(ProtectionRow r) => new() { AccountId = r.AccountId, ProfileId = r.ProfileId, IsEnabled = r.IsEnabled, UnlockMode = r.UnlockMode, UnlockMinutes = r.UnlockMinutes, PinHash = r.PinHash, HashScheme = r.HashScheme, FailedAttemptCount = r.FailedAttemptCount, LockedUntil = Parse(r.LockedUntil), ProtectionVersion = r.ProtectionVersion, UpdatedAt = ParseRequired(r.UpdatedAt) };
+    private static GrantAdminProtection MapProtection(ProtectionRow r) => new() { AccountId = r.AccountId, ProfileId = r.ProfileId, IsEnabled = r.IsEnabled, UnlockMode = r.UnlockMode, UnlockMinutes = r.UnlockMinutes, ProtectionVersion = r.ProtectionVersion, UpdatedAt = ParseRequired(r.UpdatedAt) };
     private static GrantAdminUnlock MapUnlock(UnlockRow r) => new() { SessionId = r.SessionId, AccountId = r.AccountId, ProfileId = r.ProfileId, ProtectionVersion = r.ProtectionVersion, Method = r.Method, GrantedAt = ParseRequired(r.GrantedAt), ExpiresAt = Parse(r.ExpiresAt) };
     private static string Iso(DateTimeOffset v) => v.ToString("O", System.Globalization.CultureInfo.InvariantCulture); private static DateTimeOffset ParseRequired(string v) => DateTimeOffset.Parse(v, System.Globalization.CultureInfo.InvariantCulture); private static DateTimeOffset? Parse(string? v) => string.IsNullOrWhiteSpace(v) ? null : ParseRequired(v);
     private sealed class GrantRow { public Guid AccountId { get; set; } public Guid ProfileId { get; set; } public bool IsDefault { get; set; } public bool IsEnabled { get; set; } public bool AdminEnabled { get; set; } public long AuthorizationVersion { get; set; } public string GrantedAt { get; set; } = ""; }
-    private sealed class ProtectionRow { public Guid AccountId { get; set; } public Guid ProfileId { get; set; } public bool IsEnabled { get; set; } public string UnlockMode { get; set; } = ""; public int? UnlockMinutes { get; set; } public string? PinHash { get; set; } public string? HashScheme { get; set; } public int FailedAttemptCount { get; set; } public string? LockedUntil { get; set; } public long ProtectionVersion { get; set; } public string UpdatedAt { get; set; } = ""; }
+    private sealed class ProtectionRow { public Guid AccountId { get; set; } public Guid ProfileId { get; set; } public bool IsEnabled { get; set; } public string UnlockMode { get; set; } = ""; public int? UnlockMinutes { get; set; } public long ProtectionVersion { get; set; } public string UpdatedAt { get; set; } = ""; }
     private sealed class UnlockRow { public Guid SessionId { get; set; } public Guid AccountId { get; set; } public Guid ProfileId { get; set; } public long ProtectionVersion { get; set; } public string Method { get; set; } = ""; public string GrantedAt { get; set; } = ""; public string? ExpiresAt { get; set; } }
 }

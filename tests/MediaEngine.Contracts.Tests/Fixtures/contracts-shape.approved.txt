@@ -1025,8 +1025,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.GrantA
   UnlockMode: System.String | nullability=not-null | accessors=get,init
   UnlockMinutes: System.Int32? | nullability=nullable | accessors=get,init
   ProtectionVersion: System.Int64 | nullability=not-null | accessors=get,init
-  IsLockedOut: System.Boolean | nullability=not-null | accessors=get,init
-  LockedUntil: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.GrantAdminUnlockRequest
   Pin: System.String | nullability=not-null | accessors=get,init
@@ -1239,7 +1237,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetDev
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetGrantAdminProtectionRequest
   Enabled: System.Boolean | nullability=not-null | accessors=get,init
-  Pin: System.String | nullability=nullable | accessors=get,init
   UnlockMode: System.String | nullability=not-null | accessors=get,init
   UnlockMinutes: System.Int32? | nullability=nullable | accessors=get,init
 
@@ -9358,10 +9355,8 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.CreateVaultLibraryReques
   AdultsConfirmed: System.Boolean | nullability=not-null | accessors=get,init
   AdminPin: System.String | nullability=nullable | accessors=get,init
 
-MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwSetPinRequest
-  NewPin: System.String | nullability=not-null | accessors=get,init
-  CurrentPin: System.String | nullability=nullable | accessors=get,init
-  ProfilePin: System.String | nullability=nullable | accessors=get,init
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwIdleRequest
+  IdleLockMinutes: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwStatusDto
   Mode: System.String | nullability=not-null | accessors=get,init
@@ -9373,9 +9368,6 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwUnlockRequest
   Pin: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.RemoveVaultLibraryRequest
-  AdminPin: System.String | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.ResetNsfwPinRequest
   AdminPin: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.SetNsfwAccessRequest

@@ -11,7 +11,7 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// Identify and the Vault activity list in the Dashboard (Videos spec WP12, D32 and D38). The rules under test: nothing is drawn
-/// unless NSFW mode is on (and, for Identify, on a desktop); the person ticks fields one by one; a value they edited themselves
+/// unless Vault mode is on (and, for Identify, on a desktop); the person ticks fields one by one; a value they edited themselves
 /// cannot be ticked; only the ticked fields are sent; "None of these" sends nothing; and a missing key reads "not connected".
 /// </summary>
 public sealed class VaultIdentifyPanelTests : AsyncBunitContext

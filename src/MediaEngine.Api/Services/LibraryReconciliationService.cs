@@ -436,7 +436,7 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
 
     /// <summary>
     /// A Vault file whose source has gone is forgotten without a word: no log line, no activity entry, no count and no event,
-    /// so nothing about it reaches an administrator without an unlocked NSFW session.
+    /// so nothing about it reaches an administrator without an unlocked Vault mode session.
     /// </summary>
     private async Task RemoveMissingVaultFilesQuietlyAsync(IEnumerable<MediaAsset> vaultAssets, CancellationToken ct)
     {

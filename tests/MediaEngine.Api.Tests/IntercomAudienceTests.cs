@@ -80,8 +80,6 @@ public sealed class IntercomAudienceTests : IDisposable
             IsEnabled = true,
             UnlockMode = AdminUnlockMode.FixedDuration.ToString(),
             UnlockMinutes = 30,
-            PinHash = "test",
-            HashScheme = "test",
             ProtectionVersion = 2,
             UpdatedAt = DateTimeOffset.UtcNow,
         });
@@ -148,7 +146,7 @@ public sealed class IntercomAudienceTests : IDisposable
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.LibraryItemsRemoved, removed));
     }
 
-    // The Vault reaches nobody who has not switched NSFW mode on in this very session, administrators included (Videos spec D17).
+    // The Vault reaches nobody who has not switched Vault mode on in this very session, administrators included (Videos spec D17).
     [Fact]
     public async Task LiveAudience_VaultEvents_ReachOnlyAnUnlockedSession_AdministratorsIncluded()
     {

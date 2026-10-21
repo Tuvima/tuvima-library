@@ -1,5 +1,6 @@
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Identity;
 using MediaEngine.Identity.Contracts;
 
 namespace MediaEngine.Api.Services.Vault;
@@ -13,7 +14,7 @@ public sealed class VaultAdminPinNotSetException : InvalidOperationException
     }
 }
 
-/// <summary>The profile that asked cannot use NSFW mode (a Kids or content-limited profile), or does not exist.</summary>
+/// <summary>The profile that asked cannot use Vault mode (a Kids or content-limited profile), or does not exist.</summary>
 public sealed class NsfwNotAvailableException : InvalidOperationException
 {
     public NsfwNotAvailableException()
@@ -23,14 +24,13 @@ public sealed class NsfwNotAvailableException : InvalidOperationException
 }
 
 /// <summary>
-/// Everything that creates a Vault library or opens NSFW access to a profile (Videos spec D18, D19, D25). The actions that open
+/// Everything that creates a Vault library or opens Vault access to a profile (Videos spec D18, D19, D25). The actions that open
 /// the Vault up ask for the administrator's own profile PIN again at that moment, with the same wrong-try count and pause as
 /// switching profile, and refuse when the administrator has no profile PIN. Nothing here logs, returns or throws a PIN.
 /// </summary>
 public sealed class VaultAdministrationService(
     IVaultLibraryRepository libraries,
     INsfwAccessRepository nsfw,
-    INsfwPinService nsfwPins,
     IProfileRepository profiles,
     IIdentityRepository identities,
     IProfilePinVerifier profilePins,
@@ -102,7 +102,7 @@ public sealed class VaultAdministrationService(
     }
 
     /// <summary>
-    /// Sets one profile's NSFW mode. Opening access (PIN or Allowed) needs the administrator's own PIN; closing it never does, and
+    /// Sets one profile's Vault mode. Opening access (PIN or Allowed) needs the administrator's own PIN; closing it never does, and
     /// closing it locks every device that profile had unlocked.
     /// </summary>
     public async Task<ProfileNsfwAccess> SetAccessAsync(
@@ -116,35 +116,40 @@ public sealed class VaultAdministrationService(
         {
             if (!NsfwAccessRules.IsEligible(target.Role, target.ContentLimit))
             {
-                throw new InvalidOperationException("A Kids or content-limited profile can never use NSFW mode.");
+                throw new InvalidOperationException("A Kids or content-limited profile can never use Vault mode.");
             }
 
             await RequireAdminPinAsync(adminProfileId, adminPin, ct).ConfigureAwait(false);
+
+            // One PIN (owner decision 2026-10-21): asking for it to open Vault mode needs the profile to have one. Without that
+            // switch (Allowed) no PIN is involved at all.
+            if (mode == NsfwAccessMode.Pin
+                && await identities.GetCredentialAsync(targetProfileId, MediaEngine.Domain.Entities.ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is null)
+            {
+                throw new InvalidOperationException("Set a PIN on this profile first. Vault mode asks for the same PIN as the profile.");
+            }
         }
 
-        await nsfw.SetAsync(targetProfileId, mode, idleLockMinutes, adminProfileId, clock.GetUtcNow(), ct).ConfigureAwait(false);
+        // The person's own idle choice survives an access change unless the request names one; "Never" cannot carry over to a mode
+        // that asks for the PIN.
+        var idle = idleLockMinutes;
+        if (idle is null && mode != NsfwAccessMode.Off)
+        {
+            var current = await nsfw.GetAsync(targetProfileId, ct).ConfigureAwait(false);
+            idle = current.IdleLockMinutes is 0 && mode != NsfwAccessMode.Allowed ? null : current.IdleLockMinutes;
+        }
+
+        await nsfw.SetAsync(targetProfileId, mode, idle, adminProfileId, clock.GetUtcNow(), ct).ConfigureAwait(false);
         if (mode == NsfwAccessMode.Off)
         {
             await nsfw.LockProfileAsync(targetProfileId, ct).ConfigureAwait(false);
         }
 
-        logger.LogInformation("NSFW access of profile {ProfileId} set to {Mode} by profile {AdminProfileId}.", targetProfileId, mode, adminProfileId);
+        logger.LogInformation("Vault access of profile {ProfileId} set to {Mode} by profile {AdminProfileId}.", targetProfileId, mode, adminProfileId);
         return await nsfw.GetAsync(targetProfileId, ct).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// An administrator removes a profile's NSFW PIN without reading it, and every device that profile had unlocked locks. Like every
-    /// other Vault action it asks for the administrator's own profile PIN at this moment (Videos spec D25).
-    /// </summary>
-    public async Task<bool> ResetPinAsync(Guid adminProfileId, Guid targetProfileId, string? adminPin, CancellationToken ct)
-    {
-        await RequireAdminPinAsync(adminProfileId, adminPin, ct).ConfigureAwait(false);
-        var removed = await nsfwPins.ResetPinAsync(targetProfileId, ct).ConfigureAwait(false);
-        await nsfw.LockProfileAsync(targetProfileId, ct).ConfigureAwait(false);
-        return removed;
-    }
-
-    /// <summary>The caller's own NSFW state, or <see langword="null"/> when the profile cannot use NSFW mode (then the action answers not found).</summary>
+    /// <summary>The caller's own Vault mode state, or <see langword="null"/> when the profile cannot use Vault mode (then the action answers not found).</summary>
     public async Task<NsfwState?> GetStateAsync(Guid sessionId, Guid profileId, CancellationToken ct)
     {
         var access = await nsfw.GetAsync(profileId, ct).ConfigureAwait(false);
@@ -158,7 +163,11 @@ public sealed class VaultAdministrationService(
         return new NsfwState(access.EffectiveMode, unlocked, access.HasPin, idle);
     }
 
-    /// <summary>Turns NSFW mode on for this device session. A PIN profile must enter its NSFW PIN; five wrong tries pause unlocking.</summary>
+    /// <summary>
+    /// Turns Vault mode on for this device session. A profile that asks for its PIN to open Vault mode must enter its profile PIN,
+    /// checked with the profile PIN's own wrong-try count (five wrong tries pause it for 15 minutes). A profile in the no-PIN
+    /// mode is switched on straight away. A profile with no PIN can never pass the PIN check.
+    /// </summary>
     public async Task<NsfwState> UnlockAsync(Guid sessionId, Guid profileId, string? pin, CancellationToken ct)
     {
         var access = await nsfw.GetAsync(profileId, ct).ConfigureAwait(false);
@@ -170,7 +179,13 @@ public sealed class VaultAdministrationService(
         var idle = NsfwAccessRules.ResolveIdleLockMinutes(access.EffectiveMode, access.IdleLockMinutes);
         if (access.EffectiveMode == NsfwAccessMode.Pin)
         {
-            await nsfwPins.VerifyPinAsync(profileId, pin, ct).ConfigureAwait(false);
+            if (!access.HasPin)
+            {
+                // Looks exactly like a wrong PIN: without a profile PIN there is no way in.
+                throw new ProfilePinRequiredException();
+            }
+
+            await profilePins.VerifyProfilePinAsync(profileId, pin, countsTowardLockout: true, ct).ConfigureAwait(false);
         }
 
         try
@@ -204,24 +219,10 @@ public sealed class VaultAdministrationService(
     }
 
     /// <summary>
-    /// True when saving the caller's NSFW PIN must be backed by a recent sign-in: the profile can use NSFW mode, has no NSFW PIN yet
-    /// (a first PIN, or one just reset by an administrator) and has no profile PIN to prove who is typing. The endpoint asks the
-    /// recent sign-in guard for those; a profile with a profile PIN is asked for that PIN instead.
+    /// The person's own "Turn Vault mode off after being idle for" choice: 5, 15, 30 or 60 minutes, or Never (0). Never is only
+    /// for a profile that does not ask for its PIN to open Vault mode. Changing it never turns Vault mode on or off by itself.
     /// </summary>
-    public async Task<bool> RequiresRecentSignInForFirstPinAsync(Guid profileId, CancellationToken ct)
-    {
-        var access = await nsfw.GetAsync(profileId, ct).ConfigureAwait(false);
-        return access.CanUnlock
-            && !await nsfwPins.HasPinAsync(profileId, ct).ConfigureAwait(false)
-            && await identities.GetCredentialAsync(profileId, MediaEngine.Domain.Entities.ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is null;
-    }
-
-    /// <summary>
-    /// Saves or changes the caller's own NSFW PIN. Changing needs the current NSFW PIN. A first PIN (or one after an administrator
-    /// reset) needs the profile's own PIN when it has one, so a signed-in but unattended device cannot claim the PIN; the endpoint
-    /// asks for a recent sign-in when the profile has no PIN (<see cref="RequiresRecentSignInForFirstPinAsync"/>).
-    /// </summary>
-    public async Task SetOwnPinAsync(Guid profileId, string newPin, string? currentPin, string? profilePin, CancellationToken ct)
+    public async Task<NsfwState> SetOwnIdleAsync(Guid sessionId, Guid profileId, int minutes, CancellationToken ct)
     {
         var access = await nsfw.GetAsync(profileId, ct).ConfigureAwait(false);
         if (!access.CanUnlock)
@@ -229,13 +230,17 @@ public sealed class VaultAdministrationService(
             throw new NsfwNotAvailableException();
         }
 
-        if (!await nsfwPins.HasPinAsync(profileId, ct).ConfigureAwait(false)
-            && await identities.GetCredentialAsync(profileId, MediaEngine.Domain.Entities.ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is not null)
+        if (!NsfwAccessRules.IsIdleLockChoice(minutes))
         {
-            await profilePins.VerifyProfilePinAsync(profileId, profilePin, countsTowardLockout: true, ct).ConfigureAwait(false);
+            throw new ArgumentException("Choose 5, 15, 30 or 60 minutes, or Never.");
         }
 
-        await nsfwPins.SetPinAsync(profileId, newPin, currentPin, ct).ConfigureAwait(false);
+        NsfwAccessRules.ValidateIdleLockMinutes(access.EffectiveMode, minutes);
+        await nsfw.SetAsync(profileId, access.ConfiguredMode, minutes, profileId, clock.GetUtcNow(), ct).ConfigureAwait(false);
+
+        // The change applies to the unlock that is running now, not only the next one.
+        await nsfw.TouchAsync(sessionId, profileId, NsfwAccessRules.ResolveIdleLockMinutes(access.EffectiveMode, minutes), clock.GetUtcNow(), ct).ConfigureAwait(false);
+        return (await GetStateAsync(sessionId, profileId, ct).ConfigureAwait(false)) ?? throw new NsfwNotAvailableException();
     }
 
     private static void ValidateLookup(string lookupSource, string? lookupServerId)
@@ -254,5 +259,5 @@ public sealed class VaultAdministrationService(
     private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
 
-/// <summary>A profile's own NSFW state as the service reads it. Never carries a PIN.</summary>
+/// <summary>A profile's own Vault mode state as the service reads it. Never carries a PIN.</summary>
 public sealed record NsfwState(NsfwAccessMode Mode, bool Unlocked, bool HasPin, int IdleLockMinutes);

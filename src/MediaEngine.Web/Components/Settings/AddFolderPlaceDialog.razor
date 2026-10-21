@@ -17,9 +17,9 @@
                            OnClick="@(() => Dialog.Close(AppDialogResult.Ok(new AddFolderPlaceAnswer(false, _youtubeLookup))))" />
             @if (ShowVault)
             {
-                @* Only drawn for an administrator while NSFW mode is on; nothing in this dialog mentions it otherwise. *@
-                <AppChoiceCard Title="Vault (adults only)"
-                               Description="Adult videos and images in their own area, visible only while NSFW mode is on. You'll confirm that everyone who can unlock it is an adult."
+                @* Only drawn for an administrator while Vault mode is on; nothing in this dialog mentions it otherwise. *@
+                <AppChoiceCard Title="Vault"
+                               Description="Videos and images kept private in their own area, visible only while Vault mode is on. You'll confirm that everyone who can open it is an adult."
                                OnClick="@(() => Dialog.Close(AppDialogResult.Ok(new AddFolderPlaceAnswer(false, false, true))))" />
             }
             <AppSwitchRow Label="Look up YouTube videos online"
@@ -40,7 +40,7 @@
     /// <summary>The library's current YouTube lookup setting.</summary>
     [Parameter] public bool YoutubeLookup { get; set; } = true;
 
-    /// <summary>True for an administrator while NSFW mode is on: adds the third choice, the Vault (Videos spec D3, D45).</summary>
+    /// <summary>True for an administrator while Vault mode is on: adds the third choice, the Vault (Videos spec D3, D45).</summary>
     [Parameter] public bool ShowVault { get; set; }
 
     private bool _youtubeLookup;

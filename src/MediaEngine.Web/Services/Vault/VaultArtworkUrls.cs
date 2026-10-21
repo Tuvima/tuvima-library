@@ -5,7 +5,7 @@ namespace MediaEngine.Web.Services.Vault;
 /// <summary>
 /// The addresses of Vault pictures (Videos spec D41). A card asks for the web-sized copy the Engine keeps (scene 640 and 1280 wide,
 /// performer 400 and 800, studio 300) and the larger one is offered as the high-density source. The pictures come through the
-/// Dashboard's image route so the person's own session reaches the Engine; outside NSFW mode the Engine answers "not found".
+/// Dashboard's image route so the person's own session reaches the Engine; outside Vault mode the Engine answers "not found".
 /// </summary>
 public static class VaultArtworkUrls
 {

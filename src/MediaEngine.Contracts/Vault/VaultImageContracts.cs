@@ -22,7 +22,7 @@ public static class VaultImageGalleryKinds
 
 /// <summary>
 /// One Vault image as a thumbnail, a row or the viewer draws it (Videos spec D44). Pictures are asked for by id
-/// (<c>GET /api/v1/vault/images/{id}/thumbnail</c>), never by address or path, and only a session with NSFW mode on is answered.
+/// (<c>GET /api/v1/vault/images/{id}/thumbnail</c>), never by address or path, and only a session with Vault mode on is answered.
 /// </summary>
 public sealed class VaultImageDto
 {

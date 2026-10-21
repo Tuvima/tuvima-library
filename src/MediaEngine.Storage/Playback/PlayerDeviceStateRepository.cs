@@ -67,7 +67,7 @@ public sealed class PlayerDeviceStateRepository
         var cutoff = updatedAt - RetentionWindow;
         return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
-            // Watching a Vault item leaves no trace outside NSFW mode (Videos spec D33): a Vault file's playback is never kept
+            // Watching a Vault item leaves no trace outside Vault mode (Videos spec D33): a Vault file's playback is never kept
             // here, where another device on the same profile or a companion could read it.
             if (conn.ExecuteScalar<long>($"SELECT CASE WHEN {VaultSql.NotVaultAsset("@AssetId")} THEN 0 ELSE 1 END;", new { state.AssetId }, tx) == 1)
             {

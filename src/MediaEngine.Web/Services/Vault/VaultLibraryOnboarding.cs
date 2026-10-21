@@ -11,7 +11,7 @@ public enum VaultOnboardingOutcome
     /// <summary>The person stopped (cancelled a dialog or opened their profile to set a PIN).</summary>
     Cancelled,
 
-    /// <summary>NSFW mode is off or the person cannot use the Vault, so nothing was offered.</summary>
+    /// <summary>Vault mode is off or the person cannot use the Vault, so nothing was offered.</summary>
     NotAvailable,
 
     /// <summary>The PIN was right but the Engine did not add the folder (missing, not allowed, not available or unreachable); <see cref="VaultOnboardingResult.Message"/> says why.</summary>
@@ -28,7 +28,7 @@ public sealed record VaultOnboardingResult(VaultOnboardingOutcome Outcome, strin
 }
 
 /// <summary>
-/// The third Add folder choice (Videos spec D3, D45), for administrators in NSFW mode only. In order: the administrator needs a
+/// The third Add folder choice (Videos spec D3, D45), for administrators in Vault mode only. In order: the administrator needs a
 /// profile PIN of their own (D25), confirms that everyone who can unlock the Vault is an adult and the content is lawful and that
 /// the files stay visible on disk (D34), and enters that PIN once; the Vault library is created if it does not exist yet (once; later
 /// folders reuse it) and the folder is added through <see cref="IVaultFolderAttachment"/>.

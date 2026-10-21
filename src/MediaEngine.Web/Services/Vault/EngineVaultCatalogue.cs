@@ -7,7 +7,7 @@ namespace MediaEngine.Web.Services.Vault;
 
 /// <summary>
 /// The Vault's lists and search, read from the Engine's Vault routes (Videos spec D39 to D41). The Engine answers only a device
-/// session with NSFW mode on; for a locked session every call comes back "not available" and nothing is drawn. Performers, studios
+/// session with Vault mode on; for a locked session every call comes back "not available" and nothing is drawn. Performers, studios
 /// and tags are their own lists and never appear in the main page's lists; an unmatched video appears only in Recently added,
 /// Scenes, Folders and Unmatched.
 /// </summary>

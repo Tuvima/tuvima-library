@@ -801,7 +801,7 @@
         if (Playback.CurrentItem?.AssetId is Guid assetId)
         {
             _activeAssetId = assetId;
-            // The shell's notice never names a Vault video, and a Vault video that is playing keeps NSFW mode awake: the idle lock
+            // The shell's notice never names a Vault video, and a Vault video that is playing keeps Vault mode awake: the idle lock
             // must not cut in on it (Videos spec D33). The keepalive is throttled inside NsfwModeState.
             if (VaultPrivacy.ShouldKeepAwake(Playback.CurrentItem, isPlaying: !state.Paused))
             {

@@ -135,7 +135,7 @@ public sealed class UserStateRepository : IUserStateStore
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
-        // Without an authorized asset list nothing says whether NSFW mode is on, so the Vault is absent (Videos spec D33).
+        // Without an authorized asset list nothing says whether Vault mode is on, so the Vault is absent (Videos spec D33).
         var rows = conn.Query<UserStateRow>($"""
             SELECT user_id AS UserId, asset_id AS AssetId, content_hash AS ContentHash,
                    progress_pct AS ProgressPct, last_accessed AS LastAccessed,

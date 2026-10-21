@@ -6,7 +6,7 @@ namespace MediaEngine.Web.Services.Integration;
 
 public sealed partial class EngineApiClient
 {
-    // -- NSFW mode and Vault libraries (/api/v1/nsfw, /api/v1/vault/libraries) --------------------------------
+    // -- Vault mode and Vault libraries (/api/v1/nsfw, /api/v1/vault/libraries) --------------------------------
     // Every call goes through the shared envelope helpers and then reads the failure they recorded, so a refusal is told
     // apart without a raw HTTP call: 404 (this profile cannot use it), 428 (a PIN is needed or was wrong), 429 (too many
     // tries) and a plain-language 400/409. PINs travel only in request bodies; nothing here logs a body, and calls that carry
@@ -20,7 +20,7 @@ public sealed partial class EngineApiClient
     {
         var status = await GetAsync<NsfwStatusDto>("GET /api/v1/nsfw/status", NsfwStatusPath, logAsWarning: false, ct: ct);
         // A refusal, an unreachable Engine and an answer that is not one of the two modes a profile can use look the same here on
-        // purpose: in each case nothing about NSFW mode is drawn.
+        // purpose: in each case nothing about Vault mode is drawn.
         return status is { Mode: "pin" or "allowed" } ? VaultCall<NsfwStatusDto>.Ok(status) : VaultCall<NsfwStatusDto>.Of(VaultOutcome.NotAvailable);
     }
 
@@ -41,44 +41,18 @@ public sealed partial class EngineApiClient
             ? VaultCall<bool>.Ok(true)
             : FailedVaultCall<bool>();
 
-    public async Task<VaultCall<bool>> SetNsfwPinAsync(NsfwSetPinRequest request, CancellationToken ct = default) =>
-        await PutAsync("PUT /api/v1/nsfw/pin", "/api/v1/nsfw/pin", request, logAsWarning: false, ct: ct)
-            ? VaultCall<bool>.Ok(true)
-            : FailedVaultCall<bool>();
+    public async Task<VaultCall<NsfwStatusDto>> SetNsfwIdleAsync(int minutes, CancellationToken ct = default)
+    {
+        var status = await PutAsync<NsfwIdleRequest, NsfwStatusDto>(
+            "PUT /api/v1/nsfw/idle", "/api/v1/nsfw/idle", new NsfwIdleRequest { IdleLockMinutes = minutes }, logAsWarning: false, ct: ct);
+        return status is null ? FailedVaultCall<NsfwStatusDto>() : VaultCall<NsfwStatusDto>.Ok(status);
+    }
 
     public async Task<VaultCall<NsfwStatusDto>> SetProfileNsfwAccessAsync(Guid profileId, SetNsfwAccessRequest request, CancellationToken ct = default)
     {
         var status = await PutAsync<SetNsfwAccessRequest, NsfwStatusDto>(
             "PUT /api/v1/profiles/{id}/nsfw-access", $"/api/v1/profiles/{profileId:D}/nsfw-access", request, logAsWarning: false, ct: ct);
         return status is null ? FailedVaultCall<NsfwStatusDto>() : VaultCall<NsfwStatusDto>.Ok(status);
-    }
-
-    public async Task<VaultCall<bool>> ResetProfileNsfwPinAsync(Guid profileId, ResetNsfwPinRequest request, CancellationToken ct = default)
-    {
-        const string endpoint = "DELETE /api/v1/profiles/{id}/nsfw-pin";
-        try
-        {
-            // The Engine reads the administrator's PIN from the request body, which the shared DELETE envelope cannot carry.
-            using var message = new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/profiles/{profileId:D}/nsfw-pin")
-            {
-                Content = JsonContent.Create(request),
-            };
-            using var response = await _http.SendAsync(message, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                await RecordHttpFailureAsync(endpoint, response, ct, logAsWarning: false);
-                return FailedVaultCall<bool>();
-            }
-
-            ClearFailure(endpoint);
-            return VaultCall<bool>.Ok(true);
-        }
-        catch (OperationCanceledException) { return FailedVaultCall<bool>(); }
-        catch (Exception ex)
-        {
-            RecordExceptionFailure(endpoint, ex, logAsWarning: false);
-            return FailedVaultCall<bool>();
-        }
     }
 
     public async Task<VaultCall<IReadOnlyList<VaultLibraryDto>>> GetVaultLibrariesAsync(CancellationToken ct = default)

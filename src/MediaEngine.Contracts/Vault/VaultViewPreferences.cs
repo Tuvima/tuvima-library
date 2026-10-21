@@ -35,7 +35,7 @@ public enum VaultCoverMode
 
 /// <summary>
 /// One profile's Vault viewing options (D24), remembered on this device only. <see cref="ShowQuickCheck"/> is the optional
-/// SFW/NSFW check in the top menu (D23b), off until the person turns it on. <see cref="HoverStills"/> is the optional extra of D41
+/// Vault mode check in the top menu (D23b), off until the person turns it on. <see cref="HoverStills"/> is the optional extra of D41
 /// (pointing at a matched scene card cycles through up to four local stills), Vault only and off by default.
 /// </summary>
 public sealed record VaultViewPreferences(

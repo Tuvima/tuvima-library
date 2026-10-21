@@ -15,7 +15,7 @@ using MediaEngine.TestSupport;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// Live pushes to open screens never name a Vault file to anyone who has not switched NSFW mode on in that very session, administrators
+/// Live pushes to open screens never name a Vault file to anyone who has not switched Vault mode on in that very session, administrators
 /// included (Videos spec D17, D33). Ingestion and operations events carry paths, not items, so they are judged by where the path sits.
 /// A new live event cannot be added without saying which of the two kinds it is.
 /// </summary>

@@ -7,8 +7,7 @@ namespace MediaEngine.Api.Security;
 public sealed class DashboardAuthorityProjector(
     IAccountRepository accounts,
     IProfileRepository profiles,
-    IGrantAdminUnlockService unlocks,
-    TimeProvider clock)
+    IGrantAdminUnlockService unlocks)
 {
     public async Task<DashboardAuthorityResponse> ProjectAsync(
         Guid accountId,
@@ -76,9 +75,7 @@ public sealed class DashboardAuthorityProjector(
                     protection?.IsEnabled == true,
                     protection?.UnlockMode ?? AdminUnlockMode.FixedDuration.ToString(),
                     protection?.UnlockMinutes,
-                    protection?.ProtectionVersion ?? 0,
-                    protection?.LockedUntil > clock.GetUtcNow(),
-                    protection?.LockedUntil),
+                    protection?.ProtectionVersion ?? 0),
                 grant.AuthorizationVersion,
                 grant.GrantedAt));
         }

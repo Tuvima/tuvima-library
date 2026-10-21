@@ -6,9 +6,9 @@
 @inject IJSRuntime JS
 @inject ILogger<NsfwLockWatcher> Logger
 
-@* Draws nothing. It keeps the Dashboard's NSFW mode in step with the Engine for the shell: it asks the Engine's status route for
-   the active profile (a Kids profile is never asked), and only while NSFW mode is on does it load the script that locks on a
-   double Escape and restarts the idle timer. When NSFW mode is off for any reason it sends the person Home if they were in the
+@* Draws nothing. It keeps the Dashboard's Vault mode in step with the Engine for the shell: it asks the Engine's status route for
+   the active profile (a Kids profile is never asked), and only while Vault mode is on does it load the script that locks on a
+   double Escape and restarts the idle timer. When Vault mode is off for any reason it sends the person Home if they were in the
    Vault, so switching profile or locking never leaves the area on screen. *@
 
 @code {
@@ -51,7 +51,7 @@
         await SyncWatchingAsync();
         if (!Nsfw.Unlocked)
         {
-            // A Vault video never keeps playing once NSFW mode is off, wherever the person has navigated to (Videos spec D33, D36).
+            // A Vault video never keeps playing once Vault mode is off, wherever the person has navigated to (Videos spec D33, D36).
             if (Playback.CurrentItem is { IsVault: true })
             {
                 Playback.ClosePlayer();
@@ -68,7 +68,7 @@
         relativePath.Equals("vault", StringComparison.OrdinalIgnoreCase)
         || relativePath.StartsWith("vault/", StringComparison.OrdinalIgnoreCase);
 
-    // The script is loaded only while NSFW mode is on, and let go of as soon as it is off.
+    // The script is loaded only while Vault mode is on, and let go of as soon as it is off.
     private async Task SyncWatchingAsync()
     {
         try
@@ -88,7 +88,7 @@
         }
         catch (Exception exception) when (exception is JSException or JSDisconnectedException or InvalidOperationException)
         {
-            Logger.LogDebug(exception, "Could not change the NSFW lock shortcut.");
+            Logger.LogDebug(exception, "Could not change the Vault mode lock shortcut.");
         }
     }
 
@@ -129,7 +129,7 @@
         }
         catch (Exception exception) when (exception is JSException or JSDisconnectedException or InvalidOperationException)
         {
-            Logger.LogDebug(exception, "Could not release the NSFW lock shortcut.");
+            Logger.LogDebug(exception, "Could not release the Vault mode lock shortcut.");
         }
 
         _self?.Dispose();

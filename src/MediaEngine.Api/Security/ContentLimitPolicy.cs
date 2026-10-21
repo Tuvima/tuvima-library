@@ -10,7 +10,7 @@ namespace MediaEngine.Api.Security;
 /// What one request's profile may see: its content limit turned into a yes/no for a rating, and whether the Vault is open.
 /// A profile with no limit (and a service application, which acts for no person) gets <see cref="Unrestricted"/>, which never
 /// reads a rating. A person's request that has no usable profile gets the strictest limit instead (fail closed).
-/// The Vault is separate from the limit: a filter without an unlocked NSFW session hides every Vault library, whoever asks.
+/// The Vault is separate from the limit: a filter without an unlocked Vault mode session hides every Vault library, whoever asks.
 /// </summary>
 internal sealed class ContentLimitFilter(
     ProfileContentLimit limit,
@@ -41,7 +41,7 @@ internal sealed class ContentLimitFilter(
         || DisplayMediaRules.NormalizeDisplayKind(mediaType) != "Video"
         || (libraryId is not null && _videoLibrariesOk?.Contains(libraryId) == true);
 
-    /// <summary>True when an item in this library must be treated as absent for this request (a Vault library without an unlocked NSFW session).</summary>
+    /// <summary>True when an item in this library must be treated as absent for this request (a Vault library without an unlocked Vault mode session).</summary>
     public bool HidesLibrary(string? libraryId) => Vault.HidesLibrary(libraryId);
 
     /// <summary>True when the library is a Vault library, whether or not it is open to this request.</summary>

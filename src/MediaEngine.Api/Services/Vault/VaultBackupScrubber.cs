@@ -11,7 +11,7 @@ internal sealed record VaultBackupScrubResult(int VaultLibraries, int BookmarksK
 
 /// <summary>
 /// Removes the Vault catalogue from a backup COPY (never from the live data store). A backup keeps the configuration and the personal state
-/// of the Vault: which Vault libraries exist and their settings, NSFW settings and PIN hashes, access grants, view preferences and each
+/// of the Vault: which Vault libraries exist and their settings, Vault mode settings and PIN hashes, access grants, view preferences and each
 /// person's bookmarks, the last kept only as "how to recognise the title" so they can be re-linked after a rescan.
 /// Everything that names or describes a Vault video, image, gallery, performer, studio or tag is dropped: the files and editions and works of
 /// the Vault libraries, their metadata, artwork, search entries, fingerprints, matches, activity, playback records and any row that

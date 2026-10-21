@@ -125,9 +125,7 @@ public sealed record GrantAdminProtectionDto(
     [property: JsonPropertyName("enabled")] bool Enabled,
     [property: JsonPropertyName("unlock_mode")] string UnlockMode,
     [property: JsonPropertyName("unlock_minutes")] int? UnlockMinutes,
-    [property: JsonPropertyName("protection_version")] long ProtectionVersion,
-    [property: JsonPropertyName("is_locked_out")] bool IsLockedOut,
-    [property: JsonPropertyName("locked_until")] DateTimeOffset? LockedUntil);
+    [property: JsonPropertyName("protection_version")] long ProtectionVersion);
 
 public sealed record CreateManagedAccountRequest(
     [property: JsonPropertyName("email")] string? Email,
@@ -169,7 +167,6 @@ public sealed record SetAccountProfileGrantAccessRequest(
 
 public sealed record SetGrantAdminProtectionRequest(
     [property: JsonPropertyName("enabled")] bool Enabled,
-    [property: JsonPropertyName("pin")] string? Pin,
     [property: JsonPropertyName("unlock_mode")] string UnlockMode,
     [property: JsonPropertyName("unlock_minutes")] int? UnlockMinutes);
 

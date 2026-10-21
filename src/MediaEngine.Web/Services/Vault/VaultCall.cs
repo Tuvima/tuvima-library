@@ -1,6 +1,6 @@
 namespace MediaEngine.Web.Services.Vault;
 
-/// <summary>How an NSFW mode or Vault library call ended, in the terms the screens need.</summary>
+/// <summary>How a Vault mode or Vault library call ended, in the terms the screens need.</summary>
 public enum VaultOutcome
 {
     /// <summary>The Engine could not be reached or answered something unexpected. The default, so an empty result never reads as success.</summary>
@@ -9,7 +9,7 @@ public enum VaultOutcome
     /// <summary>It worked.</summary>
     Ok,
 
-    /// <summary>The Engine answered "not found": this profile cannot use NSFW mode, so nothing about it is drawn.</summary>
+    /// <summary>The Engine answered "not found": this profile cannot use Vault mode, so nothing about it is drawn.</summary>
     NotAvailable,
 
     /// <summary>A PIN is needed, or the one given was not right.</summary>
@@ -21,14 +21,14 @@ public enum VaultOutcome
     /// <summary>Too many wrong tries; the Engine asks to wait.</summary>
     TooManyAttempts,
 
-    /// <summary>The Engine wants the person to confirm it is them (a recent sign-in) before it saves a first NSFW PIN.</summary>
+    /// <summary>The Engine wants the person to confirm it is them (a recent sign-in) before it saves a sensitive change.</summary>
     ConfirmItsYou,
 
     /// <summary>The Engine refused with a plain-language reason (<see cref="VaultCall{T}.Message"/>).</summary>
     Rejected,
 }
 
-/// <summary>The answer to one NSFW mode or Vault call. A default value is a failure.</summary>
+/// <summary>The answer to one Vault mode or Vault call. A default value is a failure.</summary>
 public readonly record struct VaultCall<T>(T? Value, VaultOutcome Outcome, string? Message = null)
 {
     public bool Succeeded => Outcome == VaultOutcome.Ok;

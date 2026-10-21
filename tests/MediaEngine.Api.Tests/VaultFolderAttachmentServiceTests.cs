@@ -63,8 +63,7 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
             identities, new AccountRepository(_database), profiles,
             new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(), clock, new FixedPolicy(),
             nsfwAccess: nsfw);
-        var pins = new NsfwPinService(nsfw, identities, new PasswordHasher<ProfileCredential>(), clock);
-        _administration = new VaultAdministrationService(_libraries, nsfw, pins, profiles, identities, _identity, clock, NullLogger<VaultAdministrationService>.Instance);
+        _administration = new VaultAdministrationService(_libraries, nsfw, profiles, identities, _identity, clock, NullLogger<VaultAdministrationService>.Instance);
         _service = new VaultFolderAttachmentService(
             _administration, _libraries, _configuration, new ServerFolderBrowserService(_configuration, NullLogger<ServerFolderBrowserService>.Instance), _log);
         _classifier = new VaultPathClassifier(_libraries, _configuration);

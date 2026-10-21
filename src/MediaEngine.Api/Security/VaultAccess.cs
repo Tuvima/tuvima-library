@@ -23,7 +23,7 @@ public sealed class VaultVisibility
     /// <summary>Every Vault library (hyphenated GUID text, compared case-insensitively).</summary>
     public IReadOnlySet<string> VaultLibraryIds { get; }
 
-    /// <summary>True only for a device session that has switched NSFW mode on, for an eligible profile.</summary>
+    /// <summary>True only for a device session that has switched Vault mode on, for an eligible profile.</summary>
     public bool Unlocked { get; }
 
     /// <summary>The Vault libraries this request must treat as absent: all of them when locked, none when unlocked.</summary>
@@ -56,7 +56,7 @@ public sealed class VaultAccessResolver(IVaultLibraryRepository libraries, INsfw
         return new VaultVisibility(ids, await IsUnlockedAsync(authority, ct).ConfigureAwait(false));
     }
 
-    /// <summary>True when this request is a person's own live Dashboard session that has switched NSFW mode on.</summary>
+    /// <summary>True when this request is a person's own live Dashboard session that has switched Vault mode on.</summary>
     public async ValueTask<bool> IsUnlockedAsync(RequestAuthority authority, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(authority);

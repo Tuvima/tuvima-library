@@ -20,7 +20,7 @@ using Microsoft.Extensions.Options;
 namespace MediaEngine.Api.Tests;
 
 // WP17 part A: the data readers under the shared screens treat anything in a Vault library as not existing for anyone without an
-// unlocked NSFW session (Videos spec D17). Each test names one reader; the inventory is engineering/validation/vault-surface-inventory.md.
+// unlocked Vault mode session (Videos spec D17). Each test names one reader; the inventory is engineering/validation/vault-surface-inventory.md.
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 {
     [Fact]

@@ -3,8 +3,8 @@ using MediaEngine.Domain.Entities;
 namespace MediaEngine.Identity;
 
 /// <summary>
-/// The one definition of how a profile's PIN is shaped, hashed and rate-limited. The profile PIN and the NSFW PIN both use
-/// it, so they share the hashing, the five-wrong-tries pause and the length of that pause.
+/// The one definition of how a profile's PIN is shaped, hashed and rate-limited. A profile has one PIN; switching to the profile,
+/// its admin pages and Vault mode all use it, so they share the hashing, the five-wrong-tries pause and the length of that pause.
 /// </summary>
 internal static class ProfileSecretFormat
 {
@@ -15,8 +15,7 @@ internal static class ProfileSecretFormat
     public static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
     /// <summary>
-    /// The text that is hashed. The credential kind is part of it, so the same digits hash differently as a profile PIN
-    /// and as an NSFW PIN.
+    /// The text that is hashed. The credential kind is part of it, so a hash of one kind of secret is never valid for another.
     /// </summary>
     public static string Format(ProfileCredentialKind kind, string secret) => $"tuvima:{kind}:v1\n{secret}";
 

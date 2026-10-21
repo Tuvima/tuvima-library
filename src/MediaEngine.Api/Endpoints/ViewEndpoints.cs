@@ -52,7 +52,7 @@ public static partial class ViewEndpoints
                     ? config.Libraries
                     : config.Libraries.Where(library => string.Equals(library.Area, normalizedArea, StringComparison.OrdinalIgnoreCase));
                 // The Vault's folders and the disk they sit on are not part of the shared capacity picture; they show only inside
-                // NSFW mode (Videos spec D17, D45).
+                // Vault mode (Videos spec D17, D45).
                 var vaultIds = await vaultLibraries.GetIdsAsync(ct);
                 var hideVault = vaultIds.Count > 0 && !await http.IsVaultUnlockedAsync(ct);
                 foreach (var library in libraries)

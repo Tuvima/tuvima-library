@@ -346,12 +346,12 @@ builder.Services.AddScoped<UniverseStateContainer>();
 builder.Services.AddScoped<ICompanionDeviceIdStore, BrowserCompanionDeviceIdStore>();
 builder.Services.AddScoped<CompanionState>();
 
-// NSFW mode and the Vault (Videos spec D17 to D45). NsfwModeState is the one place that decides whether anything about it is drawn.
+// Vault mode and the Vault (Videos spec D17 to D45). NsfwModeState is the one place that decides whether anything about it is drawn.
 builder.Services.AddScoped<IVaultPreferenceStore, BrowserVaultPreferenceStore>();
 builder.Services.AddScoped<NsfwModeState>();
 builder.Services.AddScoped<NsfwModeSwitching>();
 builder.Services.AddScoped<VaultLibraryOnboarding>();
-// The Vault's lists and search come from the Engine's Vault routes (Videos spec WP14); only a session with NSFW mode on is answered.
+// The Vault's lists and search come from the Engine's Vault routes (Videos spec WP14); only a session with Vault mode on is answered.
 builder.Services.AddScoped<IVaultCatalogue, EngineVaultCatalogue>();
 // Seam until the Engine can put a folder into the Vault library (Videos spec WP11/WP12); makes no request.
 builder.Services.AddScoped<IVaultFolderAttachment, EngineVaultFolderAttachment>();

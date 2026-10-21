@@ -50,7 +50,7 @@ public sealed class ServerFolderBrowserService(
 
     /// <summary>
     /// Browses one approved root. <paramref name="hiddenRoots"/> are folders the caller may not know about (the Vault's folders while
-    /// NSFW mode is off): they and everything under them are left out of listings and answer exactly as a folder that does not exist
+    /// Vault mode is off): they and everything under them are left out of listings and answer exactly as a folder that does not exist
     /// (Videos spec D17).
     /// </summary>
     public BrowseServerFoldersResultDto Browse(BrowseServerFoldersRequest request, IReadOnlyCollection<string> hiddenRoots)

@@ -5,7 +5,7 @@ namespace MediaEngine.Domain.Services;
 /// <summary>
 /// Says whether a piece of text (a log line, an activity note, an error message) names a place inside a Vault library's folders
 /// (Videos spec D17, D33). The Engine logs and keeps activity notes for ordinary files all the time, and nothing outside an unlocked
-/// NSFW session may spell the name or location of a Vault file, so the places that write text for administrators ask here first
+/// Vault mode session may spell the name or location of a Vault file, so the places that write text for administrators ask here first
 /// and leave the text out when it does. It works from the folder list alone, so it needs no data store access and can sit in the
 /// logging pipeline. The list is kept up to date by the Engine (at start-up, every half minute, and the moment a folder is added).
 /// </summary>

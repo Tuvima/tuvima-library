@@ -10,7 +10,7 @@
 @* The Vault image viewer (Videos spec D44): one picture at a time with next and previous (the arrow keys too), the favourite mark, tags,
    "add to gallery" and, for an administrator, Delete (to the recycle bin). The picture follows the cover mode like every thumbnail:
    Show draws it, Blur draws it blurred until it is pointed at or focused, Hide draws no picture at all (its address is not put on the
-   page). Nothing here is read from or written to the browser's storage, and the viewer closes at once when NSFW mode locks. *@
+   page). Nothing here is read from or written to the browser's storage, and the viewer closes at once when Vault mode locks. *@
 @if (Current is { ImageId: { } imageId } current)
 {
     <div class="vault-viewer" role="dialog" aria-modal="true" aria-label="Image viewer" tabindex="0" @ref="_root" @onkeydown="OnKeyDownAsync">

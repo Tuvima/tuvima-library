@@ -5,7 +5,7 @@ using MediaEngine.Domain.Contracts;
 namespace MediaEngine.Api.Security;
 
 /// <summary>
-/// Real use of the Vault keeps NSFW mode awake from the Engine's side (Videos spec D33: the idle timer never interrupts a video that
+/// Real use of the Vault keeps Vault mode awake from the Engine's side (Videos spec D33: the idle timer never interrupts a video that
 /// is playing). Every request that is cleared to reach a Vault file, such as a stream range, a heartbeat, a cover or a detail
 /// read, restarts the unlocked session's idle timer, so the Dashboard does not have to remember to ask. The restart is spread out
 /// (at most one write per session every <see cref="MinimumGap"/>), because a video player asks for many ranges a minute.

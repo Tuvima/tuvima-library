@@ -1,4 +1,4 @@
-// While NSFW mode is on: pressing Escape twice locks it at once, and real use of the page restarts the idle timer.
+// While Vault mode is on: pressing Escape twice locks it at once, and real use of the page restarts the idle timer.
 // Loaded only after the Engine has said this device session is unlocked; nothing here runs for any other profile.
 const doubleEscapeMs = 700;
 const activityEveryMs = 30000;

@@ -5,7 +5,7 @@ namespace MediaEngine.Web.Services.Vault;
 
 /// <summary>
 /// Where the Vault area and the Vault group in Search get their items (Videos spec D39). <see cref="EngineVaultCatalogue"/> asks the
-/// Engine's Vault routes, which answer only a session with NSFW mode on; <see cref="PendingVaultCatalogue"/> is the stand-in that
+/// Engine's Vault routes, which answer only a session with Vault mode on; <see cref="PendingVaultCatalogue"/> is the stand-in that
 /// makes no request.
 /// </summary>
 public interface IVaultCatalogue

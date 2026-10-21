@@ -450,7 +450,7 @@ public sealed class PlaybackCapabilitiesService
 
     /// <summary>
     /// True when the file sits in a Vault library. The manifest tells the player so it can show a generic title in the browser
-    /// tab and in the phone or computer's media controls, and keep the NSFW idle timer alive while the video plays (Videos spec D33).
+    /// tab and in the phone or computer's media controls, and keep the Vault mode idle timer alive while the video plays (Videos spec D33).
     /// </summary>
     private bool IsVaultAsset(Guid assetId)
     {

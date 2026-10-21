@@ -2,10 +2,8 @@ namespace MediaEngine.Domain.Entities;
 
 public enum ProfileCredentialKind
 {
+    /// <summary>The one PIN of a profile: switching to it, its admin pages (when asked) and Vault mode (when asked).</summary>
     ProfilePin = 0,
-
-    /// <summary>The separate PIN that unlocks NSFW mode. Stored in its own table and never the same digits as the profile PIN.</summary>
-    NsfwPin = 1,
 }
 
 /// <summary>A versioned first-party credential belonging to one local profile.</summary>

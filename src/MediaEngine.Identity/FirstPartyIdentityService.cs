@@ -936,6 +936,10 @@ public sealed class FirstPartyIdentityService(
     }
 
     /// <inheritdoc />
+    public async Task<bool> HasProfilePinAsync(Guid profileId, CancellationToken ct = default) =>
+        await identities.GetCredentialAsync(profileId, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is not null;
+
+    /// <inheritdoc />
     public async Task VerifyProfilePinAsync(Guid profileId, string? pin, bool countsTowardLockout, CancellationToken ct = default)
     {
         var credential = await identities.GetCredentialAsync(profileId, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false);
@@ -1276,43 +1280,39 @@ public sealed class FirstPartyIdentityService(
     private async Task SetProfileSecretAsync(Guid profileId, ProfileCredentialKind kind, string? secret, CancellationToken ct)
     {
         _ = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Profile '{profileId}' was not found.");
-        if (string.IsNullOrWhiteSpace(secret)) { await identities.DeleteCredentialAsync(profileId, kind, ct).ConfigureAwait(false); return; }
+        if (string.IsNullOrWhiteSpace(secret))
+        {
+            await RefuseRemovingPinThatProtectsAsync(profileId, ct).ConfigureAwait(false);
+            await identities.DeleteCredentialAsync(profileId, kind, ct).ConfigureAwait(false);
+            return;
+        }
+
         ValidatePin(secret);
-        await RejectSameDigitsAsNsfwPinAsync(profileId, secret, ct).ConfigureAwait(false);
         var credential = await identities.GetCredentialAsync(profileId, kind, ct).ConfigureAwait(false) ?? NewProfileCredential(profileId, kind, secret);
         credential.SecretHash = Hash(credential, secret); credential.SecurityStamp = NewSecurityStamp(); credential.UpdatedAt = UtcNow; credential.FailedAttemptCount = 0; credential.LockedUntil = null;
         await identities.UpsertCredentialAsync(credential, ct).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// The profile PIN and the NSFW PIN are never the same digits (Videos spec D25). EVERY comparison (a match or not) spends one try
-    /// of the NSFW PIN's budget, reserved before the digits are compared, and the comparison is refused outright while that PIN is
-    /// paused, so saving PINs can never be used to walk the PIN space of the other one. A match is a generic "choose a different
-    /// PIN"; the fifth comparison is the pause.
+    /// One PIN protects the profile: switching to it, its administrator pages (when "Ask for my PIN on admin pages" is on) and
+    /// Vault mode (when "Ask for my PIN to open Vault mode" is on). Removing it while either switch is on would leave a door
+    /// that cannot be opened, so the person turns the switch off first.
     /// </summary>
-    private async Task RejectSameDigitsAsNsfwPinAsync(Guid profileId, string pin, CancellationToken ct)
+    private async Task RefuseRemovingPinThatProtectsAsync(Guid profileId, CancellationToken ct)
     {
-        if (nsfwAccess is null || await nsfwAccess.GetPinAsync(profileId, ct).ConfigureAwait(false) is not { } nsfwPin)
+        if (await identities.GetCredentialAsync(profileId, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is null)
         {
             return;
         }
 
-        var now = UtcNow;
-        if (nsfwPin.LockedUntil is { } until && until > now)
+        if (nsfwAccess is not null && (await nsfwAccess.GetAsync(profileId, ct).ConfigureAwait(false)).ConfiguredMode == NsfwAccessMode.Pin)
         {
-            throw new ProfilePinLockedException();
+            throw new InvalidOperationException("Turn off \"Ask for my PIN to open Vault mode\" before removing the PIN.");
         }
 
-        var attempt = await nsfwAccess.ReservePinAttemptAsync(nsfwPin.Id, MaxFailedAttempts, now, CancellationToken.None).ConfigureAwait(false);
-        if (attempt is null || attempt >= MaxFailedAttempts)
+        if (await accounts.HasEnabledAdminProtectionAsync(profileId, ct).ConfigureAwait(false))
         {
-            await nsfwAccess.LockExhaustedPinAsync(nsfwPin.Id, MaxFailedAttempts, now.Add(LockoutDuration), now, CancellationToken.None).ConfigureAwait(false);
-            throw new ProfilePinLockedException();
-        }
-
-        if (Verify(nsfwPin, pin, out _))
-        {
-            throw new ArgumentException("Choose a different PIN.");
+            throw new InvalidOperationException("Turn off \"Ask for my PIN on admin pages\" before removing the PIN.");
         }
     }
 

@@ -302,7 +302,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     {
         if (scope.Content.IsVaultLibrary(libraryId))
         {
-            // Vault access is the device session's NSFW mode, not an account's library grants; the Watch feature still applies.
+            // Vault access is the device session's Vault mode, not an account's library grants; the Watch feature still applies.
             return scope.Content.Vault.Unlocked && scope.Features.Contains(AccountFeatureId.Watch);
         }
 

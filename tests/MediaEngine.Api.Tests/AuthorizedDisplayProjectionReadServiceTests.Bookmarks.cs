@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Api.Tests;
 
 // Bookmarks in videos and audiobooks (Videos spec WP15, D43). The Engine, not the Dashboard, decides who may share a bookmark with
-// everyone, and a bookmark on a Vault file follows the Vault rules: while NSFW mode is off it cannot be made, listed or deleted
+// everyone, and a bookmark on a Vault file follows the Vault rules: while Vault mode is off it cannot be made, listed or deleted
 // (not found), and unlocking brings it back.
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 {

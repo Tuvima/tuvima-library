@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1168; api=0; web-client=54
+# scopes: contracts=1167; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1202,8 +1202,6 @@
   UnlockMode: System.String | json=unlock_mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UnlockMinutes: System.Int32? | json=unlock_minutes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProtectionVersion: System.Int64 | json=protection_version | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsLockedOut: System.Boolean | json=is_locked_out | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  LockedUntil: System.DateTimeOffset? | json=locked_until | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.GrantAdminUnlockRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1464,7 +1462,6 @@
 [contracts] MediaEngine.Contracts.Authentication.SetGrantAdminProtectionRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   Enabled: System.Boolean | json=enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Pin: System.String | json=pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UnlockMode: System.String | json=unlock_mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UnlockMinutes: System.Int32? | json=unlock_minutes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
@@ -11028,12 +11025,10 @@
   AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"lookup_source":"sample","lookup_server_id":"sample","adults_confirmed":true,"admin_pin":"sample"}
 
-[contracts] MediaEngine.Contracts.Vault.NsfwSetPinRequest
+[contracts] MediaEngine.Contracts.Vault.NsfwIdleRequest
   kind=class | converter=default | number-handling=default | unmapped=default
-  NewPin: System.String | json=new_pin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  CurrentPin: System.String | json=current_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ProfilePin: System.String | json=profile_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"new_pin":"sample","current_pin":"sample","profile_pin":"sample"}
+  IdleLockMinutes: System.Int32 | json=idle_lock_minutes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"idle_lock_minutes":7}
 
 [contracts] MediaEngine.Contracts.Vault.NsfwStatusDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -11049,11 +11044,6 @@
   sample={"pin":"sample"}
 
 [contracts] MediaEngine.Contracts.Vault.RemoveVaultLibraryRequest
-  kind=class | converter=default | number-handling=default | unmapped=default
-  AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"admin_pin":"sample"}
-
-[contracts] MediaEngine.Contracts.Vault.ResetNsfwPinRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"admin_pin":"sample"}

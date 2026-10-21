@@ -49,7 +49,7 @@ public static class HlsStreamEndpoints
             ct).ConfigureAwait(false);
         if (access != CatalogueResourceAccess.Allowed)
         {
-            // A file the caller cannot know about (for example a Vault file once NSFW mode is off) is not found, never forbidden.
+            // A file the caller cannot know about (for example a Vault file once Vault mode is off) is not found, never forbidden.
             context.Response.StatusCode = access == CatalogueResourceAccess.NotFound
                 ? StatusCodes.Status404NotFound
                 : StatusCodes.Status403Forbidden;

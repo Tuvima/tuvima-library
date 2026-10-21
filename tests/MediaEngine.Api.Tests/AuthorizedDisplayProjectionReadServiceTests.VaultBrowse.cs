@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Api.Tests;
 
 // Browsing the Vault (Videos spec WP14, D39 to D41): one central gate. A locked session, an account without the Watch feature and a
-// session that has not switched NSFW mode on all get the same "not found" a missing page gets, privately and uncacheably; an
+// session that has not switched Vault mode on all get the same "not found" a missing page gets, privately and uncacheably; an
 // unlocked one is let in and only sees Vault files.
 public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 {

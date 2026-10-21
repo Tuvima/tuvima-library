@@ -592,7 +592,7 @@ public static class AccountEndpoints
 
             await mutations.SetAdminProtectionAsync(await resolver.ResolveAsync(http, ct), accountId,
                 profileId, new GrantAdminProtectionCommand(
-                    request.Enabled, request.Pin, mode, request.UnlockMinutes), ct);
+                    request.Enabled, mode, request.UnlockMinutes), ct);
             return Results.NoContent();
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("SetAccountProfileAdminProtection").Produces(StatusCodes.Status204NoContent);
@@ -934,8 +934,7 @@ public static class AccountEndpoints
                 profile.AvatarImagePath, grant.IsDefault, grant.IsEnabled, grant.AdminEnabled,
                 new GrantAdminProtectionDto(protection?.IsEnabled == true,
                     protection?.UnlockMode ?? AdminUnlockMode.FixedDuration.ToString(),
-                    protection?.UnlockMinutes, protection?.ProtectionVersion ?? 0,
-                    protection?.LockedUntil > DateTimeOffset.UtcNow, protection?.LockedUntil),
+                    protection?.UnlockMinutes, protection?.ProtectionVersion ?? 0),
                 grant.AuthorizationVersion, grant.GrantedAt,
                 profile.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile));
         }

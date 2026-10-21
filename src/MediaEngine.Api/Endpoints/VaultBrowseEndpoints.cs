@@ -9,8 +9,8 @@ namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
 /// Browsing the Vault (Videos spec D39, D40, D41): recently added, scenes, folders, the unmatched list, and the separate performer,
-/// studio and tag lists, with a search that runs only inside NSFW mode. Every route here goes through one central gate: anyone whose
-/// device session does not have NSFW mode on gets exactly what a missing page gets (not found, never forbidden), and every answer,
+/// studio and tag lists, with a search that runs only inside Vault mode. Every route here goes through one central gate: anyone whose
+/// device session does not have Vault mode on gets exactly what a missing page gets (not found, never forbidden), and every answer,
 /// found or not, is private and uncacheable. Real use restarts the idle timer. Search text travels in a request body and neither a
 /// title nor a body is ever logged. Nothing here reads or writes the shared People, Tag, Series or artwork records.
 /// </summary>
@@ -147,7 +147,7 @@ public static class VaultBrowseEndpoints
     }
 
     /// <summary>
-    /// The one Vault gate: private and uncacheable headers, then NSFW mode on for this device session plus the Watch grant. A request
+    /// The one Vault gate: private and uncacheable headers, then Vault mode on for this device session plus the Watch grant. A request
     /// that does not pass is answered "not found" by the caller. Passing restarts the idle timer.
     /// </summary>
     internal static async Task<bool> PassesGateAsync(HttpContext http)

@@ -206,11 +206,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         GiveIds(shape.Secret.WorkId, "tt7777777");
         var secret = await OwnBookmarkAsync(bookmarks, shape.Secret.WorkId, shape.Secret.AssetId, 120);
 
-        // Even with NSFW mode on, the Engine answers not found.
+        // Even with Vault mode on, the Engine answers not found.
         await Assert.ThrowsAsync<PlayerResourceDeniedException>(() =>
             unlocked.ExportAsync(null, shape.Secret.WorkId, ExportOf(shape.Secret.AssetId, secret.Id)));
 
-        // A session that has not switched NSFW mode on never even sees the title.
+        // A session that has not switched Vault mode on never even sees the title.
         var (locked, _) = PackService(shape.Account, NewVaultSession(shape.Account));
         await Assert.ThrowsAsync<PlayerResourceDeniedException>(() =>
             locked.ExportAsync(null, shape.Secret.WorkId, ExportOf(shape.Secret.AssetId, secret.Id)));

@@ -38,7 +38,7 @@ public sealed class PlaybackTelemetryRepository(
             token.ThrowIfCancellationRequested();
             var transitions = new List<PlaybackTelemetryTransition>(2);
 
-            // Watching a Vault item leaves no trace outside NSFW mode (Videos spec D33): no session row, no event for apps,
+            // Watching a Vault item leaves no trace outside Vault mode (Videos spec D33): no session row, no event for apps,
             // webhooks or plugins, nothing for an administrator's "who is watching" or analytics views. Prevented here, at the
             // one place playback is recorded, so no caller can forget the rule.
             if (connection.ExecuteScalar<long>(

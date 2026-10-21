@@ -561,7 +561,7 @@ public sealed class VaultImageService(
     // ------------------------------------------------------------------ recycle bin (D14, D34)
 
     /// <summary>
-    /// Deletes an image: every file of it goes into the recycle bin (where it is listed, restored and emptied only inside NSFW mode) and
+    /// Deletes an image: every file of it goes into the recycle bin (where it is listed, restored and emptied only inside Vault mode) and
     /// leaves the disk only when the bin is emptied. The image stops appearing everywhere at once.
     /// </summary>
     public async Task<VaultImageResult<bool>> DeleteAsync(Guid imageId, CancellationToken ct = default)

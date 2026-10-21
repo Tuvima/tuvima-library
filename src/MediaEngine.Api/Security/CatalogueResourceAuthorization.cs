@@ -95,7 +95,7 @@ internal sealed class CatalogueResourceAuthorizationService(
             return CatalogueResourceAccess.NotFound;
         }
 
-        // Files the request cannot know about (a Vault file without an unlocked NSFW session) answer "not found". An entity whose
+        // Files the request cannot know about (a Vault file without an unlocked Vault mode session) answer "not found". An entity whose
         // files are all like that is itself not found, never forbidden.
         var sawDenied = false;
         foreach (var assetId in candidates)
@@ -186,7 +186,7 @@ internal sealed class CatalogueResourceAuthorizationService(
     /// <summary>
     /// The central place the Vault's responses become uncacheable: every route that clears a request to reach a file asks here
     /// first, so a stream, cover, page or detail served for a Vault file leaves nothing in a shared or disk cache that would
-    /// outlive the NSFW session. The header is set now and again just before the response starts, so a route that sets its own
+    /// outlive the Vault mode session. The header is set now and again just before the response starts, so a route that sets its own
     /// caching later cannot undo it.
     /// </summary>
     private async ValueTask MarkVaultResponsePrivateAsync(HttpContext context, RequestAuthority authority, Guid assetId, CancellationToken ct)
@@ -360,7 +360,7 @@ internal sealed class CatalogueResourceAuthorizationService(
             return CatalogueResourceAccess.NotFound;
         }
 
-        // A Vault file is absent, not forbidden, for anyone without an unlocked NSFW session (Videos spec D17): the answer is the
+        // A Vault file is absent, not forbidden, for anyone without an unlocked Vault mode session (Videos spec D17): the answer is the
         // same one a file that does not exist gets, before any grant, feature or application permission is looked at.
         var vault = await VaultAccess.ResolveAsync(authority, ct).ConfigureAwait(false);
         if (vault.HidesLibrary(resource.LibraryId))
@@ -411,7 +411,7 @@ internal sealed class CatalogueResourceAuthorizationService(
             return vault.IsVaultLibrary(resource.LibraryId) ? CatalogueResourceAccess.NotFound : CatalogueResourceAccess.Denied;
         }
 
-        // Vault access is the device session's NSFW mode (already checked above), not an account's library grants.
+        // Vault access is the device session's Vault mode (already checked above), not an account's library grants.
         if (!vault.IsVaultLibrary(resource.LibraryId)
             && !(await accounts.EvaluateLibraryAsync(authority, libraryId, ct).ConfigureAwait(false)).IsAllowed)
         {

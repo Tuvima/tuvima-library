@@ -51,7 +51,7 @@ public sealed class RecycleBinService(string dataRoot, ILogger logger)
 
     /// <summary>
     /// What is waiting in the bin. <paramref name="hiddenLibraryIds"/> are the libraries the caller must not know about: the Vault's
-    /// entries are visible only inside NSFW mode (Videos spec D34), so a locked caller passes the Vault libraries here.
+    /// entries are visible only inside Vault mode (Videos spec D34), so a locked caller passes the Vault libraries here.
     /// </summary>
     public IReadOnlyList<RecycleBinEntry> List(IReadOnlySet<string>? hiddenLibraryIds = null)
     {

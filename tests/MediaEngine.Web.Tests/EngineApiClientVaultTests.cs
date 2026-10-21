@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The NSFW mode and Vault library calls tell a refusal apart (not found, PIN needed or wrong, too many tries, a plain reason) through the
+/// The Vault mode and Vault library calls tell a refusal apart (not found, PIN needed or wrong, too many tries, a plain reason) through the
 /// shared envelope helpers, send PINs only in request bodies and never write one to a log.
 /// </summary>
 public sealed class EngineApiClientVaultTests
@@ -92,31 +92,26 @@ public sealed class EngineApiClientVaultTests
     }
 
     [Fact]
-    public async Task SetPin_AsksToConfirmItsYou_AndPassesOnTheEnginesPlainReasonWithoutItsTitleOrTrace()
+    public async Task SetIdle_SendsTheChosenMinutesInTheBody_AndPassesOnThePlainReason()
     {
-        var (stale, _, _) = Client(_ => Problem(HttpStatusCode.Forbidden, "Forbidden.", "Confirm it's you to continue."));
-        Assert.Equal(VaultOutcome.ConfirmItsYou, (await stale.SetNsfwPinAsync(new NsfwSetPinRequest { NewPin = Pin })).Outcome);
+        var (client, requests, _) = Client(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"mode\":\"allowed\",\"unlocked\":true,\"has_pin\":false,\"idle_lock_minutes\":30}", System.Text.Encoding.UTF8, "application/json"),
+        });
 
-        var (same, _, _) = Client(_ => Problem(HttpStatusCode.BadRequest, "Invalid request.", "Choose a different PIN."));
-        var rejected = await same.SetNsfwPinAsync(new NsfwSetPinRequest { NewPin = Pin });
-        Assert.Equal(VaultOutcome.Rejected, rejected.Outcome);
-        Assert.Equal("Choose a different PIN.", VaultMessages.For(rejected));
-    }
-
-    [Fact]
-    public async Task ResetPin_CarriesTheAdministratorsPinInTheBodyOfADelete()
-    {
-        var profile = Guid.NewGuid();
-        var (client, requests, logs) = Client(_ => new HttpResponseMessage(HttpStatusCode.NoContent));
-
-        var result = await client.ResetProfileNsfwPinAsync(profile, new ResetNsfwPinRequest { AdminPin = Pin });
+        var result = await client.SetNsfwIdleAsync(30);
 
         Assert.True(result.Succeeded);
+        Assert.Equal(30, result.Value!.IdleLockMinutes);
         var sent = Assert.Single(requests);
-        Assert.Equal(HttpMethod.Delete, sent.Method);
-        Assert.Equal($"/api/v1/profiles/{profile:D}/nsfw-pin", sent.Path);
-        Assert.Contains($"\"admin_pin\":\"{Pin}\"", sent.Body);
-        Assert.DoesNotContain(logs.Entries, entry => entry.Message.Contains(Pin, StringComparison.Ordinal));
+        Assert.Equal(HttpMethod.Put, sent.Method);
+        Assert.Equal("/api/v1/nsfw/idle", sent.Path);
+        Assert.Contains("\"idle_lock_minutes\":30", sent.Body);
+
+        var (refused, _, _) = Client(_ => Problem(HttpStatusCode.BadRequest, "Invalid request.", "Choose 5, 15, 30 or 60 minutes, or Never."));
+        var rejected = await refused.SetNsfwIdleAsync(45);
+        Assert.Equal(VaultOutcome.Rejected, rejected.Outcome);
+        Assert.Equal("Choose 5, 15, 30 or 60 minutes, or Never.", VaultMessages.For(rejected));
     }
 
     [Theory]

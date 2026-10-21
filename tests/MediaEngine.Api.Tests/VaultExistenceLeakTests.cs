@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// Routes outside the Vault area that could still show, to someone whose NSFW mode is off, that a Vault exists (Videos spec D17, D45).
+/// Routes outside the Vault area that could still show, to someone whose Vault mode is off, that a Vault exists (Videos spec D17, D45).
 /// Hand-written stand-ins for the data store; each route is called through its real handler.
 /// </summary>
 public sealed class VaultExistenceLeakTests : IAsyncLifetime
