@@ -79,7 +79,7 @@ internal static class BackupDestinationRules
             return null;
         }
 
-        if (IPAddress.TryParse(uri.Host, out var address) && IsLinkLocal(address))
+        if (IPAddress.TryParse(uri.Host.Trim('[', ']'), out var address) && IsLinkLocal(address))
         {
             problem = "That address is not a storage service.";
             return null;
@@ -90,34 +90,65 @@ internal static class BackupDestinationRules
 
     private static bool IsLocalNetworkHost(string host)
     {
-        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || !host.Contains('.', StringComparison.Ordinal))
+        // An address is judged as an address first: a bracketed IPv6 literal has no dot but is not "a plain name on my network".
+        if (IPAddress.TryParse(host.Trim('[', ']'), out var address))
         {
-            return true;
+            if (address.IsIPv4MappedToIPv6)
+            {
+                address = address.MapToIPv4();
+            }
+
+            if (IPAddress.IsLoopback(address))
+            {
+                return true;
+            }
+
+            var bytes = address.GetAddressBytes();
+            return address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                ? bytes[0] == 10 || (bytes[0] == 172 && bytes[1] is >= 16 and <= 31) || (bytes[0] == 192 && bytes[1] == 168)
+                : (bytes[0] & 0xFE) == 0xFC || address.IsIPv6LinkLocal;
         }
 
-        if (host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) || host.EndsWith(".lan", StringComparison.OrdinalIgnoreCase) || host.EndsWith(".home", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (!IPAddress.TryParse(host, out var address))
-        {
-            return false;
-        }
-
-        if (IPAddress.IsLoopback(address))
-        {
-            return true;
-        }
-
-        var bytes = address.GetAddressBytes();
-        return address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
-            && (bytes[0] == 10 || (bytes[0] == 172 && bytes[1] is >= 16 and <= 31) || (bytes[0] == 192 && bytes[1] == 168));
+        return host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            || !host.Contains('.', StringComparison.Ordinal)
+            || host.EndsWith(".local", StringComparison.OrdinalIgnoreCase)
+            || host.EndsWith(".lan", StringComparison.OrdinalIgnoreCase)
+            || host.EndsWith(".home", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Cloud metadata and other link-local addresses are never a place to send a backup.</summary>
-    private static bool IsLinkLocal(IPAddress address) =>
-        address.IsIPv6LinkLocal || (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && address.GetAddressBytes() is [169, 254, ..]);
+    private static bool IsLinkLocal(IPAddress address)
+    {
+        if (address.IsIPv4MappedToIPv6)
+        {
+            address = address.MapToIPv4();
+        }
+
+        return address.IsIPv6LinkLocal
+            || address.Equals(IPAddress.Any)
+            || (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && address.GetAddressBytes() is [169, 254, ..])
+            || address.Equals(IPAddress.Parse("fd00:ec2::254"));
+    }
+
+    /// <summary>Reads a server's XML answer without letting it define entities (a hostile or spoofed server could otherwise expand a tiny document into gigabytes), and refuses an oversized answer.</summary>
+    public static async Task<System.Xml.Linq.XDocument> ReadXmlAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        if (response.Content.Headers.ContentLength > MaxXmlBytes)
+        {
+            throw new BackupDestinationException("The destination's answer was too large to read.");
+        }
+
+        var text = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (text.Length > MaxXmlBytes)
+        {
+            throw new BackupDestinationException("The destination's answer was too large to read.");
+        }
+
+        using var reader = System.Xml.XmlReader.Create(new StringReader(text), new System.Xml.XmlReaderSettings { DtdProcessing = System.Xml.DtdProcessing.Prohibit, XmlResolver = null });
+        return System.Xml.Linq.XDocument.Load(reader);
+    }
+
+    private const int MaxXmlBytes = 8_000_000;
 
     /// <summary>A folder path must be complete (it starts at a drive, a share or the root) and hold no <c>..</c> steps.</summary>
     public static string? FolderProblem(string? path)

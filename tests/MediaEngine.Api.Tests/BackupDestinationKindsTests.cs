@@ -142,6 +142,8 @@ public sealed class BackupDestinationKindsTests : IDisposable
     [InlineData("http://storage.example.com")]
     [InlineData("https://me:pw@storage.example.com")]
     [InlineData("https://169.254.169.254")]
+    [InlineData("https://[::ffff:169.254.169.254]")]
+    [InlineData("http://[2001:db8::1]")]
     [InlineData("ftp://storage.example.com")]
     [InlineData("not an address")]
     public async Task AnUnsafeWebAddress_IsRefused(string address)
@@ -196,6 +198,61 @@ public sealed class BackupDestinationKindsTests : IDisposable
         Assert.True(await _manager.RemoveDestinationAsync(stored.Id, CancellationToken.None));
         Assert.Empty((await _settings.LoadAsync(CancellationToken.None)).Destinations);
         Assert.DoesNotContain(stored.Id, (await _settings.LoadAsync(CancellationToken.None)).EnabledDestinations);
+    }
+
+    [Fact]
+    public async Task EditingAWebDestinationsAddress_NeedsTheLoginAgain_SoASavedLoginNeverFollowsToAnotherServer()
+    {
+        Assert.Null(await _manager.SaveDestinationAsync(new SaveBackupDestinationRequest
+        {
+            Kind = BackupDestinationKinds.WebDav,
+            Name = "Cloud",
+            Location = "https://dav.example.com/a",
+            Username = "me",
+            Secret = "pw",
+            ConfirmedHost = "dav.example.com",
+        }, CancellationToken.None));
+        var id = Assert.Single((await _settings.LoadAsync(CancellationToken.None)).Destinations).Id;
+
+        var moved = await _manager.SaveDestinationAsync(new SaveBackupDestinationRequest
+        {
+            Id = id,
+            Kind = BackupDestinationKinds.WebDav,
+            Name = "Cloud",
+            Location = "https://evil.example.net/a",
+            Username = "me",
+            ConfirmedHost = "evil.example.net",
+        }, CancellationToken.None);
+        var renamedOnly = await _manager.SaveDestinationAsync(new SaveBackupDestinationRequest
+        {
+            Id = id,
+            Kind = BackupDestinationKinds.WebDav,
+            Name = "Cloud renamed",
+            Location = "https://dav.example.com/other-folder",
+            Username = "me",
+            ConfirmedHost = "dav.example.com",
+        }, CancellationToken.None);
+
+        Assert.Contains("password again", moved);
+        Assert.Null(renamedOnly);
+    }
+
+    [Fact]
+    public async Task AnS3Listing_ThatNeverEnds_StopsInsteadOfLoopingForever()
+    {
+        var destination = new S3BackupDestination(
+            new ConfiguredDestination { Id = "s3-1", Name = "Bucket", Location = "https://s3.example.com", Bucket = "bucket", Username = "AKID" }, "secret", new EndlessListing());
+
+        await Assert.ThrowsAsync<BackupDestinationException>(() => destination.ListAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task AnXmlAnswerThatDefinesEntities_IsRefused()
+    {
+        var destination = new WebDavBackupDestination(
+            new ConfiguredDestination { Id = "webdav-1", Name = "Nextcloud", Location = "https://dav.example.com/dav", Username = "me" }, "pw", new HostileXml());
+
+        await Assert.ThrowsAnyAsync<Exception>(() => destination.ListAsync(CancellationToken.None));
     }
 
     [Theory]
@@ -394,6 +451,24 @@ public sealed class BackupDestinationKindsTests : IDisposable
 
         await destination.DeleteAsync("tuvima-backup-live.tvbk", CancellationToken.None);
         Assert.DoesNotContain(await destination.ListAsync(CancellationToken.None), item => item.Name == "tuvima-backup-live.tvbk");
+    }
+
+    private sealed class EndlessListing : IBackupHttp
+    {
+        public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><IsTruncated>true</IsTruncated><NextContinuationToken>same</NextContinuationToken></ListBucketResult>", Encoding.UTF8, "application/xml"),
+            });
+    }
+
+    private sealed class HostileXml : IBackupHttp
+    {
+        public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            Task.FromResult(new HttpResponseMessage((HttpStatusCode)207)
+            {
+                Content = new StringContent("<?xml version=\"1.0\"?><!DOCTYPE d [<!ENTITY a \"aaaa\">]><d:multistatus xmlns:d=\"DAV:\">&a;</d:multistatus>", Encoding.UTF8, "application/xml"),
+            });
     }
 
     private sealed class NullPublisher : INotificationPublisher

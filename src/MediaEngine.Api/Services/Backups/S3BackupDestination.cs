@@ -14,6 +14,7 @@ namespace MediaEngine.Api.Services.Backups;
 /// </summary>
 internal sealed class S3BackupDestination(ConfiguredDestination settings, string secretKey, IBackupHttp http) : IBackupDestination
 {
+    private const int MaxListPages = 1000;
     private const string Algorithm = "AWS4-HMAC-SHA256";
     private static readonly XNamespace Ns = "http://s3.amazonaws.com/doc/2006-03-01/";
 
@@ -62,8 +63,15 @@ internal sealed class S3BackupDestination(ConfiguredDestination settings, string
     {
         var items = new List<DestinationBackup>();
         string? token = null;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         do
         {
+            // A server that keeps saying "more" with a token it already gave, or never stops, must not loop us forever.
+            if (token is not null && (!seen.Add(token) || seen.Count > MaxListPages))
+            {
+                throw new BackupDestinationException("The destination's listing never finished.");
+            }
+
             var query = new List<KeyValuePair<string, string>> { new("list-type", "2"), new("prefix", Prefix) };
             if (token is not null)
             {
@@ -78,7 +86,7 @@ internal sealed class S3BackupDestination(ConfiguredDestination settings, string
 
             try
             {
-                var document = XDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
+                var document = await BackupDestinationRules.ReadXmlAsync(response, ct).ConfigureAwait(false);
                 var root = document.Root ?? throw new BackupDestinationException("The destination answered with something that is not a bucket listing.");
                 foreach (var entry in root.Elements().Where(element => element.Name.LocalName == "Contents"))
                 {

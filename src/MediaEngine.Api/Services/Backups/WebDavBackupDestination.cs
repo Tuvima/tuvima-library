@@ -30,26 +30,27 @@ internal sealed class WebDavBackupDestination(ConfiguredDestination settings, st
     {
         try
         {
-            var response = await SendAsync(PropFind, UrlFor(null), ct, depth: "0").ConfigureAwait(false);
-            if ((int)response.StatusCode == 404)
+            using (var first = await SendAsync(PropFind, UrlFor(null), ct, depth: "0").ConfigureAwait(false))
             {
-                // The folder is made on first use, so a test of a new destination makes it too.
-                response.Dispose();
-                using var made = await SendAsync(MkCol, UrlFor(null), ct).ConfigureAwait(false);
-                if (!made.IsSuccessStatusCode)
+                if ((int)first.StatusCode == 404)
                 {
-                    return new DestinationTestResult(false, BackupHttpMessages.For(made).Message);
+                    // The folder is made on first use, so a test of a new destination makes it too.
+                    using var made = await SendAsync(MkCol, UrlFor(null), ct).ConfigureAwait(false);
+                    if (!made.IsSuccessStatusCode)
+                    {
+                        return new DestinationTestResult(false, BackupHttpMessages.For(made).Message);
+                    }
                 }
-
-                response = await SendAsync(PropFind, UrlFor(null), ct, depth: "0").ConfigureAwait(false);
+                else if (!first.IsSuccessStatusCode && (int)first.StatusCode != 207)
+                {
+                    return new DestinationTestResult(false, BackupHttpMessages.For(first).Message);
+                }
             }
 
-            using (response)
+            using var again = await SendAsync(PropFind, UrlFor(null), ct, depth: "0").ConfigureAwait(false);
+            if (!again.IsSuccessStatusCode && (int)again.StatusCode != 207)
             {
-                if (!response.IsSuccessStatusCode && (int)response.StatusCode != 207)
-                {
-                    return new DestinationTestResult(false, BackupHttpMessages.For(response).Message);
-                }
+                return new DestinationTestResult(false, BackupHttpMessages.For(again).Message);
             }
 
             return new DestinationTestResult(true, "The WebDAV folder answered and the login was accepted.");
@@ -99,7 +100,7 @@ internal sealed class WebDavBackupDestination(ConfiguredDestination settings, st
 
         try
         {
-            var document = XDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
+            var document = await BackupDestinationRules.ReadXmlAsync(response, ct).ConfigureAwait(false);
             var items = new List<DestinationBackup>();
             foreach (var entry in document.Descendants(Dav + "response"))
             {
@@ -159,11 +160,11 @@ internal sealed class WebDavBackupDestination(ConfiguredDestination settings, st
                 return null;
             }
 
-            var value = XDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false))
+            var value = (await BackupDestinationRules.ReadXmlAsync(response, ct).ConfigureAwait(false))
                 .Descendants(Dav + "quota-available-bytes").FirstOrDefault()?.Value;
             return long.TryParse(value, CultureInfo.InvariantCulture, out var bytes) && bytes >= 0 ? bytes : null;
         }
-        catch (Exception ex) when (ex is HttpRequestException or System.Xml.XmlException or TaskCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or System.Xml.XmlException or BackupDestinationException or TaskCanceledException)
         {
             // Not every server reports free space; the answer is simply unknown.
             return null;

@@ -173,6 +173,11 @@ internal sealed class BackupSettingsManager(
                 return "Enter the bucket name.";
             }
 
+            if (request.Prefix?.Split('/').Any(part => part is ".." or ".") == true || request.Prefix?.Contains("//", StringComparison.Ordinal) == true)
+            {
+                return "The folder inside the bucket cannot contain \"..\", \".\" or empty parts.";
+            }
+
             if (string.IsNullOrWhiteSpace(request.Username))
             {
                 return request.Kind == BackupDestinationKinds.S3 ? "Enter the access key." : "Enter the user name.";
@@ -208,6 +213,14 @@ internal sealed class BackupSettingsManager(
             {
                 return "A destination's kind cannot be changed. Add a new one instead.";
             }
+            else if (BackupDestinationKinds.IsWeb(request.Kind) && string.IsNullOrEmpty(request.Secret)
+                && (!SameServer(existing.Location, location) || !string.Equals(existing.Username, request.Username?.Trim(), StringComparison.Ordinal)))
+            {
+                // A saved login only ever goes to the server and user it was entered for.
+                return request.Kind == BackupDestinationKinds.S3
+                    ? "Enter the secret key again to change the address or access key."
+                    : "Enter the password again to change the address or user name.";
+            }
 
             existing.Name = name;
             existing.Location = location;
@@ -228,6 +241,11 @@ internal sealed class BackupSettingsManager(
             accessor.Gate.Release();
         }
     }
+
+    private static bool SameServer(string saved, string wanted) =>
+        Uri.TryCreate(saved, UriKind.Absolute, out var a) && Uri.TryCreate(wanted, UriKind.Absolute, out var b)
+        && string.Equals(a.Scheme, b.Scheme, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(a.Host, b.Host, StringComparison.OrdinalIgnoreCase) && a.Port == b.Port;
 
     /// <summary>Removes a destination the administrator added. Copies already there are left alone. Returns false when it does not exist.</summary>
     public async Task<bool> RemoveDestinationAsync(string id, CancellationToken ct)
