@@ -32,7 +32,9 @@ public static class ScheduledTaskListBuilder
                 Schedule = schedule,
                 IsContinuous = descriptor.IsContinuous,
                 SettingsPlace = descriptor.SettingsPlace,
-                NextRunAt = descriptor.IsContinuous ? null : CronScheduler.NextOccurrence(schedule, now)?.ToUniversalTime(),
+                NextRunAt = descriptor.NextRunProvider is { } nextRun
+                    ? nextRun(now)?.ToUniversalTime()
+                    : descriptor.IsContinuous ? null : CronScheduler.NextOccurrence(schedule, now)?.ToUniversalTime(),
                 LastRun = last is null
                     ? null
                     : new ScheduledTaskLastRunDto

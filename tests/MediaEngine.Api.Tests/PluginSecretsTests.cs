@@ -124,7 +124,7 @@ public sealed class PluginSecretsTests : IDisposable
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddAuthorization();
         builder.Services.AddSingleton<PluginCatalog>(_ => null!);
-        builder.Services.AddSingleton<ApprovedPluginCatalogService>(_ => null!);
+        builder.Services.AddSingleton<PluginDirectoryService>(_ => null!);
         builder.Services.AddSingleton<IPluginExecutionContextFactory>(_ => null!);
         builder.Services.AddSingleton<IMediaOperationRepository>(_ => null!);
         builder.Services.AddSingleton<PluginScheduledSegmentService>(_ => null!);

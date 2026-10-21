@@ -55,6 +55,14 @@ public sealed record PluginManifest
     public IReadOnlyList<PluginSecretDeclaration> Secrets { get; init; } = [];
 
     /// <summary>
+    /// Where the plugin may send data on the internet, and what it sends there. A plugin that declares the
+    /// <c>network.http</c> permission must list at least one destination, and only such a plugin may list any.
+    /// The destinations are shown when the plugin is approved, so changing one asks for approval again.
+    /// </summary>
+    [JsonPropertyName("network")]
+    public IReadOnlyList<PluginNetworkDestination> Network { get; init; } = [];
+
+    /// <summary>
     /// Runtime identifiers (<c>win-x64</c>, <c>linux-arm64</c>, ...) for an exact match, or an OS family
     /// (<c>windows</c>, <c>linux</c>, <c>macos</c>) matching any architecture. Empty means every platform.
     /// </summary>
@@ -175,6 +183,182 @@ public sealed record PluginSecretDeclaration
 
     [JsonPropertyName("description")]
     public string Description { get; init; } = "";
+}
+
+/// <summary>One place a plugin says it will contact, and a plain sentence on what it sends there.</summary>
+public sealed record PluginNetworkDestination
+{
+    /// <summary>
+    /// An exact host such as <c>api.example.com</c>, or one leading wildcard label such as <c>*.fandom.com</c>.
+    /// No scheme, path, port or bare <c>*</c>.
+    /// </summary>
+    [JsonPropertyName("host")]
+    public string Host { get; init; } = "";
+
+    /// <summary>What is sent there, in one plain sentence (1 to 200 characters), for example "Searches for character and place names".</summary>
+    [JsonPropertyName("sends")]
+    public string Sends { get; init; } = "";
+
+    /// <summary>The most requests per minute the plugin asks to make to this destination (1 to 600), or null to use the Library's default.</summary>
+    [JsonPropertyName("max_requests_per_minute")]
+    public int? MaxRequestsPerMinute { get; init; }
+}
+
+/// <summary>The one set of rules for the <c>network</c> list of a plugin manifest.</summary>
+public static class PluginNetworkRules
+{
+    public const int MaxSendsLength = 200;
+    public const int MinRequestsPerMinute = 1;
+    public const int MaxRequestsPerMinute = 600;
+
+    /// <summary>
+    /// Checks a host: lower- or upper-case letters, digits and hyphens in dot-separated labels, optionally with one
+    /// leading <c>*.</c> wildcard label in front of at least two more labels. Returns null when the host is fine,
+    /// otherwise a short plain reason.
+    /// </summary>
+    public static string? ValidateHost(string? host)
+    {
+        if (string.IsNullOrEmpty(host))
+        {
+            return "is empty";
+        }
+
+        if (host == "*")
+        {
+            return "cannot be a bare '*'";
+        }
+
+        if (host.Contains("://", StringComparison.Ordinal))
+        {
+            return "must not include a scheme such as https://";
+        }
+
+        if (host.AsSpan().IndexOfAny('/', '?', '#') >= 0)
+        {
+            return "must not include a path";
+        }
+
+        if (host.Contains(':', StringComparison.Ordinal))
+        {
+            return "must not include a port";
+        }
+
+        var name = host;
+        var wildcard = host.StartsWith("*.", StringComparison.Ordinal);
+        if (wildcard)
+        {
+            name = host[2..];
+        }
+
+        if (name.Length > 253)
+        {
+            return "is too long";
+        }
+
+        var labels = name.Split('.');
+        if (wildcard && labels.Length < 2)
+        {
+            return "wildcard must sit in front of a full domain such as *.example.com";
+        }
+
+        foreach (var label in labels)
+        {
+            if (label.Length is 0 or > 63
+                || label[0] == '-'
+                || label[^1] == '-'
+                || !label.All(static c => char.IsAsciiLetterOrDigit(c) || c == '-'))
+            {
+                return "must be a host name such as api.example.com or *.example.com";
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// True when <paramref name="host"/> is the declared <paramref name="pattern"/>: an exact host (letters compared without
+    /// regard to case), or for <c>*.example.com</c> any host with at least one more label in front of <c>example.com</c>.
+    /// The wildcard never matches <c>example.com</c> itself or an unrelated host that merely ends the same way.
+    /// </summary>
+    public static bool HostMatches(string pattern, string host)
+    {
+        if (string.IsNullOrEmpty(pattern) || string.IsNullOrEmpty(host))
+        {
+            return false;
+        }
+
+        host = host.TrimEnd('.');
+        if (!pattern.StartsWith("*.", StringComparison.Ordinal))
+        {
+            return string.Equals(pattern, host, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var suffix = pattern[1..]; // ".example.com"
+        return host.Length > suffix.Length
+            && host.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
+            && !host.StartsWith('.');
+    }
+
+    /// <summary>The declared destination that covers <paramref name="host"/> (an exact entry wins over a wildcard), or null when none does.</summary>
+    public static PluginNetworkDestination? FindDestination(IReadOnlyList<PluginNetworkDestination> network, string host)
+    {
+        ArgumentNullException.ThrowIfNull(network);
+        return network.FirstOrDefault(destination => !destination.Host.StartsWith("*.", StringComparison.Ordinal) && HostMatches(destination.Host, host))
+            ?? network.FirstOrDefault(destination => HostMatches(destination.Host, host));
+    }
+
+    /// <summary>
+    /// Checks a whole <c>network</c> list against the permissions the manifest declares. Returns a plain load-error
+    /// message, or null when the list is fine.
+    /// </summary>
+    public static string? Validate(IReadOnlyList<string> permissions, IReadOnlyList<PluginNetworkDestination> network)
+    {
+        ArgumentNullException.ThrowIfNull(permissions);
+        ArgumentNullException.ThrowIfNull(network);
+        var declaresHttp = permissions.Any(permission =>
+            string.Equals(permission, PluginPermissionIds.NetworkHttp, StringComparison.OrdinalIgnoreCase));
+        if (declaresHttp && network.Count == 0)
+        {
+            return "Plugin manifest declares network.http but lists no network destinations. Add a 'network' entry with a host and what is sent there.";
+        }
+
+        if (!declaresHttp && network.Count > 0)
+        {
+            return "Plugin manifest lists network destinations but does not declare the network.http permission.";
+        }
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var destination in network)
+        {
+            if (destination is null)
+            {
+                return "Plugin manifest has an empty network destination.";
+            }
+
+            if (ValidateHost(destination.Host) is { } hostProblem)
+            {
+                return $"Plugin manifest network host '{destination.Host}' {hostProblem}.";
+            }
+
+            if (!seen.Add(destination.Host))
+            {
+                return $"Plugin manifest lists the network host '{destination.Host}' more than once.";
+            }
+
+            var sends = destination.Sends?.Trim();
+            if (string.IsNullOrEmpty(sends) || sends.Length > MaxSendsLength || sends.Any(char.IsControl))
+            {
+                return $"Plugin manifest network host '{destination.Host}' must say what it sends in 1 to {MaxSendsLength} characters.";
+            }
+
+            if (destination.MaxRequestsPerMinute is { } rate && (rate < MinRequestsPerMinute || rate > MaxRequestsPerMinute))
+            {
+                return $"Plugin manifest network host '{destination.Host}' must set max_requests_per_minute between {MinRequestsPerMinute} and {MaxRequestsPerMinute}.";
+            }
+        }
+
+        return null;
+    }
 }
 
 public sealed record PluginAiPermission

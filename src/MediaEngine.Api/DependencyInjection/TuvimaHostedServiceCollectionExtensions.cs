@@ -96,6 +96,9 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<MusicAlbumManifestHostedService>();
         services.AddHostedService<HardwareBenchmarkBackgroundService>();
         services.AddHostedService(sp => sp.GetRequiredService<PluginScheduledSegmentService>());
+        services.AddHostedService(sp => sp.GetRequiredService<PluginJobScheduler>());
+        services.AddHostedService(sp => sp.GetRequiredService<PluginEventDispatcher>());
+        services.AddHostedService(sp => sp.GetRequiredService<PluginBackgroundHost>());
         return services;
     }
 }

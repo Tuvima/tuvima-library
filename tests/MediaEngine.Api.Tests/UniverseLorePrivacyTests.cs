@@ -418,6 +418,7 @@ public sealed class UniverseLorePrivacyTests : IDisposable
         public IPluginToolRuntime Tools => throw new NotSupportedException();
         public IPluginAiClient Ai => throw new NotSupportedException();
         public IPluginSecrets Secrets => throw new NotSupportedException();
+        public IPluginRecordStore Records => throw new NotSupportedException();
 
         public ValueTask DisposeAsync()
         {

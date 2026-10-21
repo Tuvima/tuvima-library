@@ -28,6 +28,10 @@ public static class ScheduledTaskOwners
 /// Supplies the last run for continuous work that does not write run records (webhook delivery). Leave null for tasks
 /// recorded through <see cref="ScheduledTaskRunner"/>.
 /// </param>
+/// <param name="NextRunProvider">
+/// Works out the next start for tasks whose schedule is not a cron expression (a plugin job that runs every 30 minutes) or
+/// that are paused. Given the current time; null means "read the cron expression". Leave null for cron tasks.
+/// </param>
 public sealed record ScheduledTaskDescriptor(
     string Key,
     string Name,
@@ -36,7 +40,17 @@ public sealed record ScheduledTaskDescriptor(
     Func<string> ScheduleProvider,
     string SettingsPlace,
     bool IsContinuous = false,
-    Func<CancellationToken, Task<ScheduledTaskRun?>>? LastRunProvider = null);
+    Func<CancellationToken, Task<ScheduledTaskRun?>>? LastRunProvider = null,
+    Func<DateTimeOffset, DateTimeOffset?>? NextRunProvider = null);
+
+/// <summary>
+/// Supplies recurring tasks that change while the Engine runs (plugin jobs appear when a plugin is switched on). The
+/// registry asks every source each time the list is read.
+/// </summary>
+public interface IScheduledTaskDescriptorSource
+{
+    IReadOnlyList<ScheduledTaskDescriptor> ListScheduledTasks();
+}
 
 /// <summary>Every recurring task the Engine runs.</summary>
 public interface IScheduledTaskRegistry
@@ -44,13 +58,21 @@ public interface IScheduledTaskRegistry
     /// <summary>Adds a task, replacing any earlier one with the same key.</summary>
     void Register(ScheduledTaskDescriptor descriptor);
 
-    /// <summary>All registered tasks, ordered by name.</summary>
+    /// <summary>All registered tasks and everything the sources supply, ordered by name.</summary>
     IReadOnlyList<ScheduledTaskDescriptor> List();
 }
 
 public sealed class ScheduledTaskRegistry : IScheduledTaskRegistry
 {
     private readonly ConcurrentDictionary<string, ScheduledTaskDescriptor> _tasks = new(StringComparer.Ordinal);
+    private readonly ConcurrentBag<IScheduledTaskDescriptorSource> _sources = [];
+
+    /// <summary>Adds a source of tasks that change while the Engine runs. A source cannot replace a task registered directly.</summary>
+    public void AddSource(IScheduledTaskDescriptorSource source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        _sources.Add(source);
+    }
 
     public void Register(ScheduledTaskDescriptor descriptor)
     {
@@ -60,6 +82,17 @@ public sealed class ScheduledTaskRegistry : IScheduledTaskRegistry
         _tasks[descriptor.Key] = descriptor;
     }
 
-    public IReadOnlyList<ScheduledTaskDescriptor> List() =>
-        _tasks.Values.OrderBy(task => task.Name, StringComparer.OrdinalIgnoreCase).ToList();
+    public IReadOnlyList<ScheduledTaskDescriptor> List()
+    {
+        var all = new Dictionary<string, ScheduledTaskDescriptor>(_tasks, StringComparer.Ordinal);
+        foreach (var source in _sources)
+        {
+            foreach (var descriptor in source.ListScheduledTasks())
+            {
+                all.TryAdd(descriptor.Key, descriptor);
+            }
+        }
+
+        return all.Values.OrderBy(task => task.Name, StringComparer.OrdinalIgnoreCase).ToList();
+    }
 }

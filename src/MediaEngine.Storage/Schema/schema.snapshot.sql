@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0022 subtitle_text_index).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0024 subtitle_text_index).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -208,6 +208,21 @@ CREATE TABLE application_permission_grants (
     permission_id TEXT NOT NULL,
     granted_at TEXT NOT NULL,
     PRIMARY KEY (application_id, permission_id)
+);
+
+CREATE TABLE application_webhook_attempts (
+    id             BLOB NOT NULL PRIMARY KEY,
+    webhook_id     BLOB NOT NULL REFERENCES application_webhooks(id) ON DELETE CASCADE,
+    delivery_id    BLOB NOT NULL,      -- the delivery row this attempt belongs to (may be pruned before the attempt is)
+    event_id       BLOB NOT NULL,
+    event_type     TEXT NOT NULL,      -- for example ingestion.completed, or webhook.test for a test send
+    attempt_number INTEGER NOT NULL,   -- 1 for the first try of a delivery
+    attempted_at   TEXT NOT NULL,      -- ISO 8601 UTC
+    delivered      INTEGER NOT NULL,   -- 1 when the receiver accepted it
+    result         TEXT NOT NULL,      -- short plain text; never a response body
+    http_status    INTEGER NULL,       -- the receiver's HTTP status code, when it answered
+    duration_ms    INTEGER NOT NULL,
+    is_test        INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE application_webhook_deliveries (
@@ -1868,6 +1883,12 @@ CREATE TABLE player_sessions (
     last_heartbeat_at     TEXT
 );
 
+CREATE TABLE plugin_event_cursors (
+    plugin_id      TEXT    NOT NULL PRIMARY KEY,   -- the plugin's manifest id
+    last_sequence  INTEGER NOT NULL,               -- the newest application_events.sequence already delivered
+    updated_at     TEXT    NOT NULL                -- ISO 8601 UTC
+);
+
 CREATE TABLE plugin_lore_entities (
     id              BLOB PRIMARY KEY,
     source_id       BLOB NOT NULL REFERENCES plugin_lore_sources(id) ON DELETE CASCADE,
@@ -1927,6 +1948,16 @@ CREATE TABLE plugin_lore_sources (
     created_at          TEXT NOT NULL,
     updated_at          TEXT NOT NULL,
     UNIQUE (universe_qid, plugin_id, source_key)
+);
+
+CREATE TABLE plugin_records (
+    plugin_id    TEXT    NOT NULL,   -- the plugin's manifest id
+    collection   TEXT    NOT NULL,   -- the plugin's own grouping name, 1 to 128 printable characters
+    record_key   TEXT    NOT NULL,   -- the key inside the collection, 1 to 128 printable characters
+    value_json   TEXT    NOT NULL,   -- the record, a JSON document, at most 64 KB
+    size_bytes   INTEGER NOT NULL,   -- UTF-8 size of value_json, so a plugin's total is a cheap sum
+    updated_at   TEXT    NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (plugin_id, collection, record_key)
 );
 
 CREATE TABLE profile_credentials (
@@ -3218,6 +3249,9 @@ CREATE INDEX ix_application_events_occurred ON application_events(occurred_at);
 CREATE INDEX ix_application_events_profile_sequence ON application_events(profile_id, sequence);
 
 CREATE INDEX ix_application_events_type_sequence ON application_events(event_type, sequence);
+
+CREATE INDEX ix_application_webhook_attempts_webhook_time
+    ON application_webhook_attempts(webhook_id, attempted_at DESC);
 
 CREATE INDEX ix_application_webhook_delivery_due ON application_webhook_deliveries(status,next_attempt_at);
 
