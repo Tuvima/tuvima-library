@@ -4120,7 +4120,8 @@
   ItemIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=item_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DestinationId: System.Guid | json=destination_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SourceCollectionId: System.Guid? | json=source_collection_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"item_ids":[],"destination_id":"11111111-2222-3333-4444-555555555555","source_collection_id":"11111111-2222-3333-4444-555555555555"}
+  Choices: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.LibraryMoveCommitRow> | json=choices | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"item_ids":[],"destination_id":"11111111-2222-3333-4444-555555555555","source_collection_id":"11111111-2222-3333-4444-555555555555","choices":[]}
 
 [contracts] MediaEngine.Contracts.Library.LibraryMovePreviewRow
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -104,6 +104,91 @@ public sealed class LibraryMoveFileTests : IDisposable
         Assert.Equal("OK Computer (1997)", Path.GetFileName(Path.GetDirectoryName(stored)));
     }
 
+    // ----- the file line follows the person's choice, not the Engine's guess ---------------------------------------------------
+
+    [Fact]
+    public async Task APickedEntryThatIsNotTheSuggestedOne_ShowsThatEntrysFileName_AndTheCommitFilesItThere()
+    {
+        var (okComputer, _) = OkComputerAlbum();
+        var song = BestOfSong("Paranoid Android", 4, Files.Managed, out _, out var asset);
+
+        var suggested = await PreviewAsync([song], okComputer);
+        var guess = Assert.Single(suggested.Rows);
+        Assert.EndsWith("02 - Paranoid Android.flac", guess.FileChange!.To, StringComparison.Ordinal);
+
+        // The person picks track 3 instead: the preview made for that choice names the file for track 3.
+        var track3 = suggested.Entries.Single(entry => entry.Title == "Subterranean Homesick Alien").EntryKey;
+        Assert.NotEqual(guess.SuggestedEntryKey, track3);
+        var chosen = await PreviewAsync([song], okComputer, Match(song, track3));
+        var row = Assert.Single(chosen.Rows);
+        Assert.Equal(guess.SuggestedEntryKey, row.SuggestedEntryKey);
+        Assert.StartsWith("03 - ", Path.GetFileName(row.FileChange!.To), StringComparison.Ordinal);
+        Assert.NotEqual(guess.FileChange.To, row.FileChange.To);
+
+        var moved = await CommitAsync(chosen, Match(song, track3));
+        Assert.True(moved.IsSuccess, moved.Refusal?.Message);
+        await Files.DrainQueueAsync();
+
+        Assert.Equal(row.FileChange.To, Files.StoredPath(asset));
+        Assert.True(File.Exists(row.FileChange.To));
+    }
+
+    [Fact]
+    public async Task ACommitThatChoosesDifferentlyFromTheChoicesPreviewed_IsAChange_WithAFreshPreviewForWhatIsCommitted()
+    {
+        var (okComputer, _) = OkComputerAlbum();
+        var song = BestOfSong("Paranoid Android", 4, Files.Managed, out var oldPath, out _);
+        var preview = await PreviewAsync([song], okComputer);
+        var track3 = preview.Entries.Single(entry => entry.Title == "Subterranean Homesick Alien").EntryKey;
+        var chosen = await PreviewAsync([song], okComputer, Match(song, track3));
+
+        // The dialog named the file for track 3, so committing the Engine's guess (track 2) would file a name nobody saw.
+        var refused = await CommitAsync(chosen, Match(song, preview.Rows[0].SuggestedEntryKey!));
+
+        Assert.False(refused.IsSuccess);
+        Assert.Equal(LibraryMoveRefusalKind.Changed, refused.Refusal!.Kind);
+        var fresh = Assert.Single(refused.Refusal.FreshPreview!.Rows);
+        Assert.EndsWith("02 - Paranoid Android.flac", fresh.FileChange!.To, StringComparison.Ordinal);
+        Assert.True(File.Exists(oldPath));
+        Assert.NotEqual(okComputer, _world.Work(song).Parent);
+    }
+
+    [Fact]
+    public async Task APreviewWithAddAnywayChosen_ShowsTheFileNameWithNoNumber()
+    {
+        var (okComputer, _) = OkComputerAlbum();
+        var song = BestOfSong("Hidden Bonus Jam", 9, Files.Managed, out _, out var asset);
+
+        var preview = await PreviewAsync([song], okComputer, AddAnyway(song));
+        var row = Assert.Single(preview.Rows);
+        Assert.Equal(
+            Path.GetFullPath(Path.Combine(Files.Managed, "Music", "Radiohead", "OK Computer (1997)", "Hidden Bonus Jam.flac")),
+            row.FileChange!.To);
+
+        var moved = await CommitAsync(preview, AddAnyway(song));
+        Assert.True(moved.IsSuccess, moved.Refusal?.Message);
+        await Files.DrainQueueAsync();
+
+        Assert.Equal(row.FileChange.To, Files.StoredPath(asset));
+        Assert.True(File.Exists(row.FileChange.To));
+    }
+
+    [Fact]
+    public async Task AnItemWithNoChoice_KeepsItsSuggestedEntryForTheFileLine_WhileAnotherItemsChoiceIsUsed()
+    {
+        var (okComputer, _) = OkComputerAlbum();
+        var first = BestOfSong("Paranoid Android", 4, Files.Managed, out _, out _);
+        var second = BestOfSong("Subterranean Homesick Alien", 5, Files.Managed, out _, out _);
+        var preview = await PreviewAsync([first, second], okComputer);
+        Assert.NotNull(preview.Rows.Single(row => row.ItemId == second).SuggestedEntryKey);
+
+        // Only the first item has a choice; the second keeps its suggestion.
+        var chosen = await PreviewAsync([first, second], okComputer, AddAnyway(first));
+
+        Assert.Equal("Paranoid Android.flac", Path.GetFileName(chosen.Rows.Single(row => row.ItemId == first).FileChange!.To));
+        Assert.EndsWith("03 - Subterranean Homesick Alien.flac", chosen.Rows.Single(row => row.ItemId == second).FileChange!.To, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task ASongWithTwoFiles_IsSummarisedInOneLine_AndBothFilesAreFiled()
     {
@@ -502,10 +587,10 @@ public sealed class LibraryMoveFileTests : IDisposable
         return (work, made);
     }
 
-    private async Task<LibraryMovePreview> PreviewAsync(IReadOnlyList<Guid> items, Guid destination)
+    private async Task<LibraryMovePreview> PreviewAsync(IReadOnlyList<Guid> items, Guid destination, params LibraryMoveCommitRow[] choices)
     {
         var result = await _world.Service.PreviewAsync(
-            new LibraryMovePreviewRequest { ItemIds = items, DestinationId = destination },
+            new LibraryMovePreviewRequest { ItemIds = items, DestinationId = destination, Choices = choices.Length == 0 ? null : choices },
             LibraryMoveTestWorld.Actor,
             LibraryMoveTestWorld.Everything);
         Assert.True(result.IsSuccess, result.Refusal?.Message);

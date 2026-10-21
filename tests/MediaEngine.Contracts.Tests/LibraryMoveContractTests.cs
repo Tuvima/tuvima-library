@@ -8,7 +8,7 @@ namespace MediaEngine.Contracts.Tests;
 public sealed class LibraryMoveContractTests
 {
     [Fact]
-    public void PreviewRequest_UsesSnakeCaseNames_AndTheSourceCollectionIsOptional()
+    public void PreviewRequest_UsesSnakeCaseNames_AndTheSourceCollectionAndChoicesAreOptional()
     {
         var item = Guid.NewGuid();
         var destination = Guid.NewGuid();
@@ -16,11 +16,34 @@ public sealed class LibraryMoveContractTests
         var json = JsonSerializer.Serialize(new LibraryMovePreviewRequest { ItemIds = [item], DestinationId = destination });
         var roundTrip = JsonSerializer.Deserialize<LibraryMovePreviewRequest>(json)!;
 
-        Assert.Equal(["item_ids", "destination_id", "source_collection_id"], PropertyNames(json));
+        Assert.Equal(["item_ids", "destination_id", "source_collection_id", "choices"], PropertyNames(json));
         Assert.Equal([item], roundTrip.ItemIds);
         Assert.Equal(destination, roundTrip.DestinationId);
         Assert.Null(roundTrip.SourceCollectionId);
+        Assert.Null(roundTrip.Choices);
         Assert.Contains("\"source_collection_id\":null", json, StringComparison.Ordinal);
+        Assert.Contains("\"choices\":null", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PreviewRequest_CarriesTheChosenRowsInTheShapeTheCommitTakes()
+    {
+        var item = Guid.NewGuid();
+        var request = new LibraryMovePreviewRequest
+        {
+            ItemIds = [item],
+            DestinationId = Guid.NewGuid(),
+            Choices = [new LibraryMoveCommitRow { ItemId = item, Mode = LibraryMoveModes.Match, EntryKey = "track:1:3" }],
+        };
+
+        var json = JsonSerializer.Serialize(request);
+        var roundTrip = JsonSerializer.Deserialize<LibraryMovePreviewRequest>(json)!;
+
+        Assert.Contains("\"choices\":[{\"item_id\":\"" + item.ToString("D") + "\",\"mode\":\"match\",\"entry_key\":\"track:1:3\"}]", json, StringComparison.Ordinal);
+        var choice = Assert.Single(roundTrip.Choices!);
+        Assert.Equal(item, choice.ItemId);
+        Assert.Equal(LibraryMoveModes.Match, choice.Mode);
+        Assert.Equal("track:1:3", choice.EntryKey);
     }
 
     [Fact]

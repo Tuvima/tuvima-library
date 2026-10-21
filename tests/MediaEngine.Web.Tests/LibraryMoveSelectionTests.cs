@@ -91,6 +91,41 @@ public sealed class LibraryMoveSelectionTests
     }
 
     [Fact]
+    public void ThePreviewRequestForTheConfirmationCarriesTheChoicesMade_AndLeavesOutRowsStillUndecided()
+    {
+        var selection = LibraryMoveSelection.From(TwoSongs());
+        selection.Pick(LibraryMoveTestData.SongId, "t3");
+
+        var request = selection.ToPreviewRequest(LibraryMoveTestData.AlbumId);
+
+        Assert.Equal(LibraryMoveTestData.AlbumId, request.DestinationId);
+        Assert.Equal([LibraryMoveTestData.SongId, LibraryMoveTestData.OtherSongId], request.ItemIds);
+        var choice = Assert.Single(request.Choices!);
+        Assert.Equal(LibraryMoveTestData.SongId, choice.ItemId);
+        Assert.Equal(LibraryMoveModes.Match, choice.Mode);
+        Assert.Equal("t3", choice.EntryKey);
+    }
+
+    [Fact]
+    public void AnItemAddedAnywayIsSentAsAChoiceWithNoEntry_SoItsFileIsNamedWithoutANumber()
+    {
+        var selection = LibraryMoveSelection.From(TwoSongs());
+        selection.AddAnyway(LibraryMoveTestData.SongId);
+
+        var choice = Assert.Single(selection.ToPreviewRequest(LibraryMoveTestData.AlbumId).Choices!);
+
+        Assert.Equal(LibraryMoveModes.AddAnyway, choice.Mode);
+        Assert.Null(choice.EntryKey);
+    }
+
+    [Fact]
+    public void WithNothingChosenYetOrNoListToChooseFrom_NoChoicesAreSent()
+    {
+        Assert.Null(LibraryMoveSelection.From(TwoSongs()).ToPreviewRequest(LibraryMoveTestData.AlbumId).Choices);
+        Assert.Null(LibraryMoveSelection.From(LibraryMoveTestData.NoListPreview()).ToPreviewRequest(LibraryMoveTestData.AlbumId).Choices);
+    }
+
+    [Fact]
     public void ADestinationWithNoListNeedsNoChoices_AndSendsNoEntry()
     {
         var selection = LibraryMoveSelection.From(LibraryMoveTestData.NoListPreview());

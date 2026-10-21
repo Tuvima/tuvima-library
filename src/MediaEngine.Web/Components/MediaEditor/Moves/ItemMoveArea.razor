@@ -289,6 +289,15 @@
 
         _error = null;
         _notice = null;
+
+        // Just before the dialog: ask again with the choices made, so its file line names the entry picked, not the Engine's guess (D19).
+        var described = await PreviewChoicesAsync(selection);
+        if (described is null)
+        {
+            return;
+        }
+
+        selection = described;
         string? changedLine = null;
         while (true)
         {
@@ -372,11 +381,42 @@
         }
     }
 
+    // The preview for the choices made so far. Null when the Engine refused it, or when the choices no longer all hold (the new
+    // preview is then shown for the person to look at again).
+    private async Task<LibraryMoveSelection?> PreviewChoicesAsync(LibraryMoveSelection selection)
+    {
+        _busy = true;
+        StateHasChanged();
+        try
+        {
+            var outcome = await Api.PreviewLibraryMoveAsync(selection.ToPreviewRequest(_destinationId));
+            if (!outcome.IsOk)
+            {
+                _error = Describe(outcome.Status, outcome.Message);
+                return null;
+            }
+
+            var described = LibraryMoveSelection.From(outcome.Value!, selection);
+            _selection = described;
+            if (!described.CanApply)
+            {
+                _notice = LibraryMoveText.ChangedLine;
+                return null;
+            }
+
+            return described;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
     // The review expired: ask again for the same place so Apply has a fresh token, keeping the person's choices.
     private async Task RefreshPreviewAsync()
     {
         var previous = _selection;
-        var outcome = await Api.PreviewLibraryMoveAsync(new LibraryMovePreviewRequest
+        var outcome = await Api.PreviewLibraryMoveAsync(previous?.ToPreviewRequest(_destinationId) ?? new LibraryMovePreviewRequest
         {
             ItemIds = [ItemId],
             DestinationId = _destinationId,

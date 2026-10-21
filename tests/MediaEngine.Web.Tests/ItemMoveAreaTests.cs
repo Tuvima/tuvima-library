@@ -181,6 +181,62 @@ public sealed class ItemMoveAreaTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task BeforeTheDialogTheEngineIsAskedAgainWithTheChoiceMade_AndTheDialogAndCommitUseThatPreview()
+    {
+        await UseDevice("desktop");
+        var (host, area) = RenderArea();
+        ToMatchStep(area);
+
+        // The person picks track 3 instead of the Engine's guess (track 2). Only the preview for that choice knows the file's new name.
+        area.Find("[data-entry-key='t3']").Click();
+        _preview = LibraryMoveTestData.AlbumPreview(
+            rows:
+            [
+                LibraryMoveTestData.Row(fileChange: new LibraryMoveFileChange
+                {
+                    From = "Music/The Best Of/03 - Paranoid Android.flac",
+                    To = "Music/OK Computer/03 - Paranoid Android.flac",
+                }),
+            ],
+            token: "token-2");
+        Button(area, "Apply").Click();
+        host.WaitForElement(".app-confirm");
+
+        Assert.Equal(2, _previews.Count);
+        var asked = _previews[1];
+        Assert.Equal(LibraryMoveTestData.AlbumId, asked.DestinationId);
+        var choice = Assert.Single(asked.Choices!);
+        Assert.Equal(LibraryMoveTestData.SongId, choice.ItemId);
+        Assert.Equal(LibraryMoveModes.Match, choice.Mode);
+        Assert.Equal("t3", choice.EntryKey);
+        Assert.Contains("The file will be renamed to 03 - Paranoid Android.flac and moved to OK Computer.", DialogText(host), StringComparison.Ordinal);
+
+        DialogButton(host, "Move").Click();
+        area.WaitForAssertion(() => Assert.NotNull(_movedLine));
+
+        var commit = Assert.Single(_commits);
+        Assert.Equal("token-2", commit.PreviewToken);
+        Assert.Equal("t3", Assert.Single(commit.Rows).EntryKey);
+    }
+
+    [Fact]
+    public async Task IfTheChoiceNoLongerHoldsWhenTheEngineIsAskedAgain_NoDialogOpensAndTheFreshStepIsShown()
+    {
+        await UseDevice("desktop");
+        var (host, area) = RenderArea();
+        ToMatchStep(area);
+
+        // Track 2 got a file while the person was deciding: the new preview offers it as taken, so the choice cannot stay.
+        _preview = LibraryMoveTestData.AlbumPreview(rows: [LibraryMoveTestData.Row(suggested: null)]);
+        _preview.Entries[1] = LibraryMoveTestData.Entry("t2", "2", "Paranoid Android", LibraryMoveTestData.OtherSongId, "Paranoid Android (live)", canAddVersion: false);
+        Button(area, "Apply").Click();
+
+        area.WaitForAssertion(() => Assert.Contains("Something changed while this was open. Check again.", area.Markup, StringComparison.Ordinal));
+        Assert.Empty(host.FindAll(".app-confirm"));
+        Assert.Empty(_commits);
+    }
+
+    [Fact]
     public async Task TheConfirmationSaysWhatHappensToTheFile_WhenTheEngineGivesAFileChange()
     {
         await UseDevice("desktop");

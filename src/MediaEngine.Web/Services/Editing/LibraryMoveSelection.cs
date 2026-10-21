@@ -288,20 +288,34 @@ public sealed class LibraryMoveSelection
     public LibraryMoveCommitRequest ToCommitRequest() => new()
     {
         PreviewToken = Preview.PreviewToken,
-        Rows =
-        [
-            .. _rows.Select(row => new LibraryMoveCommitRow
-            {
-                ItemId = row.ItemId,
-                Mode = row.Choice switch
-                {
-                    LibraryMoveRowChoice.AddAnyway => LibraryMoveModes.AddAnyway,
-                    LibraryMoveRowChoice.AddAsVersion => LibraryMoveModes.AddAsVersion,
-                    _ => LibraryMoveModes.Match,
-                },
-                EntryKey = row.Choice is LibraryMoveRowChoice.Match or LibraryMoveRowChoice.AddAsVersion && HasList ? row.EntryKey : null,
-            }),
-        ],
+        Rows = [.. _rows.Select(ToCommitRow)],
+    };
+
+    /// <summary>
+    /// The preview request that carries the person's choices so far, so the Engine names each file for the entry they picked and not
+    /// for its own guess (D19). Asked again just before the confirmation, and the commit then sends the same choices.
+    /// </summary>
+    public LibraryMovePreviewRequest ToPreviewRequest(Guid destinationId) => new()
+    {
+        ItemIds = [.. _rows.Select(row => row.ItemId)],
+        DestinationId = destinationId,
+
+        // A place with no list names its files the same whatever is chosen, and an undecided row has nothing to describe yet.
+        Choices = HasList && _rows.Any(row => row.Choice != LibraryMoveRowChoice.Undecided)
+            ? [.. _rows.Where(row => row.Choice != LibraryMoveRowChoice.Undecided).Select(ToCommitRow)]
+            : null,
+    };
+
+    private LibraryMoveCommitRow ToCommitRow(LibraryMoveRowState row) => new()
+    {
+        ItemId = row.ItemId,
+        Mode = row.Choice switch
+        {
+            LibraryMoveRowChoice.AddAnyway => LibraryMoveModes.AddAnyway,
+            LibraryMoveRowChoice.AddAsVersion => LibraryMoveModes.AddAsVersion,
+            _ => LibraryMoveModes.Match,
+        },
+        EntryKey = row.Choice is LibraryMoveRowChoice.Match or LibraryMoveRowChoice.AddAsVersion && HasList ? row.EntryKey : null,
     };
 
     // An entry nobody holds. The item's own entry is held by the item itself, so it is never free for it either: the Engine refuses it.

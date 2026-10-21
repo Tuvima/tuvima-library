@@ -18,7 +18,7 @@ public sealed record MoveFilePreview(LibraryMoveFileChange? Change, string? Note
 /// always renamed and moved to fit its new place; As-is folders, read-only folders and protected files are never touched, and nothing
 /// is ever overwritten. It asks the organiser's own re-file what it would do for the item's new place, so the preview and the
 /// durable job that carries the move out give the same answer. A file name depends on the number the person gives the item, so the
-/// preview names the file for the entry the Match step pre-selects.
+/// preview names the file for the entry the person chose, or for the entry the Match step pre-selects when they have not chosen yet.
 /// </summary>
 public sealed class MoveFilePlanner(IAutoOrganizeService organizer)
 {
@@ -36,15 +36,17 @@ public sealed class MoveFilePlanner(IAutoOrganizeService organizer)
     public const string RenameToFitNoteMany = "The files will be renamed and moved to fit their new place.";
 
     /// <summary>
-    /// Plans every item that can move. <paramref name="suggestions"/> holds the entry the Match step pre-selects for each item; an item
-    /// without one is named from where it would sit unnumbered, and the answer is only about whether its file may be touched at all.
-    /// A hand-picked collection never touches a file, so it gives nothing.
+    /// Plans every item that can move. <paramref name="entries"/> holds the entry each item would take (the person's choice, else the
+    /// one the Match step pre-selects); an item with none is not named yet, and the answer is only about whether its file may be touched
+    /// at all. An item in <paramref name="addedAnyway"/> has no entry on purpose: it is named from where it sits unnumbered. A
+    /// hand-picked collection never touches a file, so it gives nothing.
     /// </summary>
     public async Task<IReadOnlyDictionary<Guid, MoveFilePreview>> PlanAsync(
         IReadOnlyList<LibraryMoveItem> items,
         LibraryMoveDestinationInfo destination,
         bool hasList,
-        IReadOnlyDictionary<Guid, MoveListEntry> suggestions,
+        IReadOnlyDictionary<Guid, MoveListEntry> entries,
+        IReadOnlySet<Guid> addedAnyway,
         IReadOnlySet<Guid> skip,
         CancellationToken ct = default)
     {
@@ -58,7 +60,7 @@ public sealed class MoveFilePlanner(IAutoOrganizeService organizer)
         var claimed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in items.Where(item => !skip.Contains(item.ItemId) && item.AssetIds.Count > 0))
         {
-            suggestions.TryGetValue(item.ItemId, out var entry);
+            entries.TryGetValue(item.ItemId, out var entry);
             var placement = PlacementFor(item, destination, hasList ? entry : null);
             var plans = new List<AssetRefilePlan>(item.AssetIds.Count);
             foreach (var assetId in item.AssetIds)
@@ -73,7 +75,7 @@ public sealed class MoveFilePlanner(IAutoOrganizeService organizer)
                 plans.Add(plan);
             }
 
-            result[item.ItemId] = Describe(item, plans, named: !hasList || entry is not null);
+            result[item.ItemId] = Describe(item, plans, named: !hasList || entry is not null || addedAnyway.Contains(item.ItemId));
         }
 
         return result;

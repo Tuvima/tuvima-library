@@ -3427,6 +3427,7 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMovePreviewRe
   ItemIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
   DestinationId: System.Guid | nullability=not-null | accessors=get,init
   SourceCollectionId: System.Guid? | nullability=nullable | accessors=get,init
+  Choices: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.LibraryMoveCommitRow> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMovePreviewRow
   ItemId: System.Guid | nullability=not-null | accessors=get,init

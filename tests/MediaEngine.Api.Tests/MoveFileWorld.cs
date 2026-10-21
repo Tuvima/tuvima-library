@@ -36,8 +36,8 @@ internal sealed class MoveFileWorld
             {
                 ["default"] = "{Category}/{Title} ({Year})/{Title}{Ext}",
                 ["Audiobooks"] = "Audiobooks/{Author}/{BookTitle} ({Year})/{TrackNumber?} {TrackTitle}{Ext}",
-                ["TV"] = "TV/{Series} ({Year})/Season {Season}/{Series} - s{Season}e{Episode} - {EpisodeTitle}{Ext}",
-                ["Music"] = "Music/{AlbumArtist}/{Album} ({Year})/{TrackNumber} - {Title}{Ext}",
+                ["TV"] = "TV/{Series} ({Year})/Season {Season}/{Series} - {EpisodeCode?} - {EpisodeTitle}{Ext}",
+                ["Music"] = "Music/{AlbumArtist}/{Album} ({Year})/{TrackNumber?} - {Title}{Ext}",
             },
         };
         MergeLedger = new FolderOrganiseLogRepository(database);

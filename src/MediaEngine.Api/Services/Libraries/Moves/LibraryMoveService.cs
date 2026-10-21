@@ -36,6 +36,7 @@ public sealed class LibraryMoveService(
         Guid DestinationId,
         Guid? SourceCollectionId,
         IReadOnlyList<Guid> ItemIds,
+        IReadOnlyList<LibraryMoveCommitRow>? Choices,
         string Fingerprint,
         DateTimeOffset ExpiresAt);
 
@@ -46,6 +47,7 @@ public sealed class LibraryMoveService(
         IReadOnlyList<LibraryMoveItem> Items,
         IReadOnlyDictionary<Guid, string> Blocked,
         Guid? SourceCollectionId,
+        IReadOnlyList<LibraryMoveCommitRow>? Choices,
         LibraryMovePreview Preview,
         string Fingerprint);
 
@@ -144,7 +146,7 @@ public sealed class LibraryMoveService(
             }
         }
 
-        var built = await BuildAsync(ids, request.DestinationId, request.SourceCollectionId, canEdit, lenient: false, ct).ConfigureAwait(false);
+        var built = await BuildAsync(ids, request.DestinationId, request.SourceCollectionId, request.Choices, canEdit, lenient: false, ct).ConfigureAwait(false);
         if (built.Refusal is not null)
         {
             return LibraryMoveResult<LibraryMovePreview>.Refused(built.Refusal);
@@ -190,7 +192,8 @@ public sealed class LibraryMoveService(
         await _commitLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var built = await BuildAsync(review.ItemIds, review.DestinationId, review.SourceCollectionId, canEdit, lenient: true, ct).ConfigureAwait(false);
+            // Worked out again for the choices the person confirmed in the preview, so the file lines are compared like for like.
+            var built = await BuildAsync(review.ItemIds, review.DestinationId, review.SourceCollectionId, review.Choices, canEdit, lenient: true, ct).ConfigureAwait(false);
             if (built.Refusal is not null)
             {
                 return LibraryMoveResult<LibraryMoveCommitResult>.Refused(built.Refusal);
@@ -200,6 +203,16 @@ public sealed class LibraryMoveService(
             if (!string.Equals(state.Fingerprint, review.Fingerprint, StringComparison.Ordinal))
             {
                 return Changed(state, actor, ChangedMessage);
+            }
+
+            // A preview made for the person's choices described the files for exactly those. Committing something else would make a
+            // file the dialog never named, so it gets a fresh preview for what is being committed instead.
+            if (review.Choices is not null && ChoicesDiffer(review.Choices, request.Rows ?? []))
+            {
+                var changedChoices = await BuildAsync(review.ItemIds, review.DestinationId, review.SourceCollectionId, request.Rows, canEdit, lenient: true, ct).ConfigureAwait(false);
+                return changedChoices.Refusal is not null
+                    ? LibraryMoveResult<LibraryMoveCommitResult>.Refused(changedChoices.Refusal)
+                    : Changed(changedChoices.State!, actor, ChangedMessage);
             }
 
             var plan = BuildPlan(request, state, actor, out var invalid);
@@ -231,7 +244,7 @@ public sealed class LibraryMoveService(
             if (!outcome.Committed)
             {
                 // The transaction found something different from the preview; it changed nothing.
-                var fresh = await BuildAsync(review.ItemIds, review.DestinationId, review.SourceCollectionId, canEdit, lenient: true, ct).ConfigureAwait(false);
+                var fresh = await BuildAsync(review.ItemIds, review.DestinationId, review.SourceCollectionId, review.Choices, canEdit, lenient: true, ct).ConfigureAwait(false);
                 return fresh.Refusal is not null
                     ? LibraryMoveResult<LibraryMoveCommitResult>.Refused(fresh.Refusal)
                     : Changed(fresh.State!, actor, outcome.ConflictReason ?? ChangedMessage);
@@ -266,7 +279,13 @@ public sealed class LibraryMoveService(
     private sealed record Built(State? State, LibraryMoveRefusal? Refusal);
 
     private async Task<Built> BuildAsync(
-        IReadOnlyList<Guid> ids, Guid destinationId, Guid? sourceCollectionId, LibraryMoveAccess canEdit, bool lenient, CancellationToken ct)
+        IReadOnlyList<Guid> ids,
+        Guid destinationId,
+        Guid? sourceCollectionId,
+        IReadOnlyList<LibraryMoveCommitRow>? choices,
+        LibraryMoveAccess canEdit,
+        bool lenient,
+        CancellationToken ct)
     {
         var found = await moves.GetItemsAsync(ids, ct).ConfigureAwait(false);
         var byId = found.ToDictionary(item => item.ItemId);
@@ -339,11 +358,10 @@ public sealed class LibraryMoveService(
         // spec decision); the preview says so up front so the Match step offers only what will work. A place with no list needs no match.
         var hasList = provider.ListKind != LibraryMoveListKinds.None;
 
-        // What happens to each file (D19): renamed and moved in a Managed folder, never touched in an As-is or protected one.
-        var picked = suggestions
-            .Where(pair => pair.Value.Entry is not null)
-            .ToDictionary(pair => pair.Key, pair => pair.Value.Entry!);
-        var fileLines = await files.PlanAsync(items, destination, hasList, picked, blocked.Keys.ToHashSet(), ct).ConfigureAwait(false);
+        // What happens to each file (D19): renamed and moved in a Managed folder, never touched in an As-is or protected one. It is named
+        // for the entry the person chose; for an item they have not chosen for, the entry the Engine suggests.
+        var (picked, addedAnyway) = FileEntries(items, entries, suggestions, choices, hasList);
+        var fileLines = await files.PlanAsync(items, destination, hasList, picked, addedAnyway, blocked.Keys.ToHashSet(), ct).ConfigureAwait(false);
 
         var rows = new List<LibraryMovePreviewRow>(items.Count);
         foreach (var item in items)
@@ -401,7 +419,7 @@ public sealed class LibraryMoveService(
         };
 
         var fileFingerprint = string.Concat(items.Select(item => fileLines.GetValueOrDefault(item.ItemId)?.FingerprintText + "\n"));
-        var state = new State(destination, provider, entries, items, blocked, sourceCollectionId, preview, Fingerprint(destination, provider, entries, items, places, sourceCollection, missing.Count, fileFingerprint));
+        var state = new State(destination, provider, entries, items, blocked, sourceCollectionId, choices, preview, Fingerprint(destination, provider, entries, items, places, sourceCollection, missing.Count, fileFingerprint));
         return new Built(state, null);
     }
 
@@ -415,7 +433,7 @@ public sealed class LibraryMoveService(
         var expires = DateTimeOffset.UtcNow.Add(TokenLifetime);
         cache.Set(
             TokenPrefix + token,
-            new Review(actor, state.Destination.Id, state.SourceCollectionId, itemIds, state.Fingerprint, expires),
+            new Review(actor, state.Destination.Id, state.SourceCollectionId, itemIds, state.Choices, state.Fingerprint, expires),
             expires);
         return new LibraryMovePreview
         {
@@ -426,6 +444,70 @@ public sealed class LibraryMoveService(
             Warnings = state.Preview.Warnings,
             PreviewToken = token,
         };
+    }
+
+    /// <summary>
+    /// The entry each item's file is named for, and the items the person chose to add anyway (named without a number). A choice only
+    /// describes the move: one that names no entry in the list is not refused here (the commit refuses it) and leaves the item unnamed.
+    /// </summary>
+    private static (Dictionary<Guid, MoveListEntry> Picked, HashSet<Guid> AddedAnyway) FileEntries(
+        IReadOnlyList<LibraryMoveItem> items,
+        IReadOnlyList<MoveListEntry> entries,
+        Dictionary<Guid, (MoveListEntry? Entry, string? Reason)> suggestions,
+        IReadOnlyList<LibraryMoveCommitRow>? choices,
+        bool hasList)
+    {
+        var picked = new Dictionary<Guid, MoveListEntry>();
+        var addedAnyway = new HashSet<Guid>();
+        var chosen = new Dictionary<Guid, LibraryMoveCommitRow>();
+        foreach (var choice in choices ?? [])
+        {
+            chosen.TryAdd(choice.ItemId, choice);
+        }
+
+        var byKey = entries.ToDictionary(entry => entry.Key, StringComparer.Ordinal);
+        foreach (var item in items)
+        {
+            if (chosen.TryGetValue(item.ItemId, out var choice))
+            {
+                if (!hasList)
+                {
+                    continue;
+                }
+
+                if (choice.Mode == LibraryMoveModes.AddAnyway)
+                {
+                    addedAnyway.Add(item.ItemId);
+                }
+                else if (!string.IsNullOrEmpty(choice.EntryKey) && byKey.TryGetValue(choice.EntryKey, out var entry))
+                {
+                    picked[item.ItemId] = entry;
+                }
+
+                continue;
+            }
+
+            if (suggestions.TryGetValue(item.ItemId, out var suggestion) && suggestion.Entry is not null)
+            {
+                picked[item.ItemId] = suggestion.Entry;
+            }
+        }
+
+        return (picked, addedAnyway);
+    }
+
+    /// <summary>True when a row of the reviewed choices is not what the commit asks for (the same item, a different mode or entry).</summary>
+    private static bool ChoicesDiffer(IReadOnlyList<LibraryMoveCommitRow> reviewed, IReadOnlyList<LibraryMoveCommitRow> committed)
+    {
+        var now = new Dictionary<Guid, LibraryMoveCommitRow>();
+        foreach (var row in committed)
+        {
+            now.TryAdd(row.ItemId, row);
+        }
+
+        return reviewed.Any(choice => !now.TryGetValue(choice.ItemId, out var row)
+            || !string.Equals(row.Mode, choice.Mode, StringComparison.Ordinal)
+            || !string.Equals(row.EntryKey ?? string.Empty, choice.EntryKey ?? string.Empty, StringComparison.Ordinal));
     }
 
     /// <summary>D15: wrong kind is blocked. Returns why this item can't go into this place, or null when it can.</summary>

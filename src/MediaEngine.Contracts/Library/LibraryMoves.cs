@@ -112,6 +112,16 @@ public sealed class LibraryMovePreviewRequest
     /// leaves it empty it is removed (the preview says so). Without it, moving into a hand-picked collection only adds them to it.
     /// </summary>
     [JsonPropertyName("source_collection_id")] public Guid? SourceCollectionId { get; init; }
+
+    /// <summary>
+    /// Optional. The person's chosen row for each item (the same shape the commit takes). When an item has a choice, the file lines of its
+    /// row (<see cref="LibraryMovePreviewRow.FileChange"/>, <see cref="LibraryMovePreviewRow.FileNote"/>) are worked out for that choice
+    /// instead of the Engine's suggestion, so the confirm dialog names the file the move will really make. A choice is only used to
+    /// describe the move: a choice that cannot be done is not refused here (the commit refuses it) and just gets the general file line.
+    /// Items without a choice, and a preview with none, are previewed from the suggestion. When choices are sent, the commit must send
+    /// the same ones: a different choice answers 409 with a fresh preview for what is being committed.
+    /// </summary>
+    [JsonPropertyName("choices")] public IReadOnlyList<LibraryMoveCommitRow>? Choices { get; init; }
 }
 
 /// <summary>One entry in the destination's own list: a track, an episode, a position or a part.</summary>
@@ -169,7 +179,8 @@ public sealed class LibraryMovePreviewRow
     [JsonPropertyName("suggestion_reason")] public string SuggestionReason { get; init; } = string.Empty;
 
     /// <summary>
-    /// What happens to the file on disk when exactly one file is renamed and moved (named for the entry in <see cref="SuggestedEntryKey"/>).
+    /// What happens to the file on disk when exactly one file is renamed and moved. Named for the person's choice when the request sent
+    /// one for this item (<see cref="LibraryMovePreviewRequest.Choices"/>), otherwise for the entry in <see cref="SuggestedEntryKey"/>.
     /// Null when no file is renamed (see <see cref="FileNote"/>), or the file already fits.
     /// </summary>
     [JsonPropertyName("file_change")] public LibraryMoveFileChange? FileChange { get; init; }
