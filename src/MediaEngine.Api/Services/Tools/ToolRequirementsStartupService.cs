@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Services.Tools;
 
@@ -8,6 +9,7 @@ namespace MediaEngine.Api.Services.Tools;
 /// </summary>
 public sealed class ToolRequirementsStartupService(
     IToolRequirementsService tools,
+    INotificationPublisher notifications,
     ILogger<ToolRequirementsStartupService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -20,6 +22,10 @@ public sealed class ToolRequirementsStartupService(
             if (result.NeedsAttention)
             {
                 logger.LogWarning("Tools check: {Summary}", summary);
+                foreach (var tool in result.Tools.Where(tool => tool.Requirement == ToolRequirementLevels.Required && tool.State != ToolRequirementStates.Ready))
+                {
+                    notifications.Publish(new NotificationRequest(NotificationEventIds.ToolMissing, tool.Id, $"{tool.Name}: {tool.Effect} {tool.Fix}".Trim()));
+                }
             }
             else
             {

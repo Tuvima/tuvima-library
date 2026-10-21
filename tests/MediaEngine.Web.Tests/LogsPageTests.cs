@@ -90,7 +90,7 @@ public sealed class LogsPageTests : AsyncBunitContext
     {
         var system = SettingsNav.MenuGroups.SelectMany(group => group.Nodes).Single(node => node.Label == "System");
 
-        Assert.Equal(["Tools and requirements", "Logs", "Backup and recovery"], system.Children.Select(child => child.Label));
+        Assert.Equal(["Tools and requirements", "Logs", "Notifications", "Backup and recovery"], system.Children.Select(child => child.Label));
         var logs = system.Children.Single(child => child.Label == "Logs");
         Assert.Equal(SettingsSection.AdminOverview, logs.Section);
         Assert.Equal("logs", logs.Subsection);

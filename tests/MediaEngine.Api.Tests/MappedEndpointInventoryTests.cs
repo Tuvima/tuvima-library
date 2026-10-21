@@ -415,6 +415,7 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddTuvimaHostedServices();
         builder.Services.AddTuvimaScheduledTasks();
         builder.Services.AddTuvimaToolRequirements();
+        builder.Services.AddTuvimaNotifications();
         builder.Services.AddTuvimaPlugins();
         builder.Services.AddPluginApplicationServices();
         builder.Services.AddApplicationEvents();

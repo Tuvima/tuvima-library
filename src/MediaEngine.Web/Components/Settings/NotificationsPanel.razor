@@ -1,0 +1,220 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Notifications
+@using MediaEngine.Web.Services.Settings
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+
+<div class="tl-page notifications-page" data-testid="notifications-page">
+    @if (_loading)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading notifications" Message="Getting your messages and settings." />
+    }
+    else if (_settings is null)
+    {
+        <AppErrorState Title="Could not load notifications"
+                       Message="The Library could not get your notification settings from the server. Check that the server is online, then try again."
+                       Retry="LoadAsync" />
+    }
+    else
+    {
+        <AppCard Title="Inbox" Description="What the Library has told you recently. Repeats are folded into one message." Class="tl-sp-mb-3">
+            <div class="notifications-page__toolbar">
+                <span class="notifications-page__count" data-testid="notifications-unread">@UnreadLine</span>
+                <AppButton Label="Mark all read" Size="AppControlSize.Compact" Disabled="@(_unread == 0)" OnClick="MarkAllReadAsync" />
+            </div>
+            @if (_items.Count == 0)
+            {
+                <p class="notifications-page__empty">Nothing yet. When a backup fails, a tool goes missing or a plugin stops working, it shows up here.</p>
+            }
+            else
+            {
+                <ul class="notifications-page__list" data-testid="notifications-list">
+                    @foreach (var item in _items)
+                    {
+                        <li class="@ItemClass(item)">
+                            <div class="notifications-page__item-head">
+                                <strong>@item.Title</strong>
+                                @if (item.OccurrenceCount > 1)
+                                {
+                                    <span class="notifications-page__badge">@item.OccurrenceCount times</span>
+                                }
+                                <small>@StateCardHealth.RelativeTime(item.UpdatedAt, DateTimeOffset.UtcNow)</small>
+                            </div>
+                            <span class="notifications-page__item-body">@item.Body</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </AppCard>
+
+        <AppCard Title="Channels" Description="Ways a message can reach you. Only the inbox stays on this computer." Class="tl-sp-mb-3">
+            <div class="notifications-page__channels" data-testid="notifications-channels">
+                @foreach (var channel in _settings.Channels)
+                {
+                    <div class="notifications-page__channel notifications-page__channel--@channel.State" data-channel="@channel.Id">
+                        <div class="notifications-page__channel-copy">
+                            <strong>@channel.Name</strong>
+                            <span>@channel.StateLabel</span>
+                        </div>
+                        <div class="notifications-page__channel-actions">
+                            @if (channel.State == NotificationChannelStates.Off)
+                            {
+                                <AppButton Label="Turn back on" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => EnableAsync(channel))" />
+                            }
+                            <AppButton Label="Send test" Size="AppControlSize.Compact" Disabled="@(_busy || !channel.IsConfigured)" OnClick="@(() => TestAsync(channel))" />
+                        </div>
+                    </div>
+                }
+            </div>
+        </AppCard>
+
+        <AppCard Title="What goes where" Description="Choose which channels hear about each kind of event." Class="tl-sp-mb-3">
+            <div class="notifications-page__matrix" role="table" aria-label="Where each kind of event goes" data-testid="notifications-matrix">
+                <div class="notifications-page__matrix-head" role="row">
+                    <span role="columnheader">Event</span>
+                    @foreach (var channel in _settings.Channels)
+                    {
+                        <span role="columnheader">@channel.Name</span>
+                    }
+                </div>
+                @foreach (var item in _settings.Events)
+                {
+                    <div class="notifications-page__matrix-row" role="row" data-event="@item.Id">
+                        <span class="notifications-page__matrix-copy" role="rowheader">
+                            <strong>@item.Title</strong>
+                            <small>@item.Description</small>
+                        </span>
+                        @foreach (var channel in _settings.Channels)
+                        {
+                            var routed = item.Channels.Contains(channel.Id);
+                            <span role="cell" class="notifications-page__matrix-cell">
+                                <AppCheckbox Value="routed"
+                                             Disabled="@(_busy || (channel.IsExternal && !channel.IsConfigured))"
+                                             ValueChanged="@(on => SetRouteAsync(item, channel.Id, on))" />
+                            </span>
+                        }
+                    </div>
+                }
+            </div>
+        </AppCard>
+
+        <AppCard Title="Quiet hours" Description="Emails and other outside messages wait until quiet hours end. The inbox always fills." Class="tl-sp-mb-3">
+            <AppSwitchRow Label="Use quiet hours" Value="_settings.QuietHours.Enabled" Disabled="@_busy" ValueChanged="SetQuietEnabledAsync" />
+            @if (_settings.QuietHours.Enabled)
+            {
+                <div class="notifications-page__times">
+                    <AppTextField Label="From" InputType="AppInputType.Time" Value="@_settings.QuietHours.Start" Immediate="false" ValueChanged="@(value => SetQuietTimeAsync(value, null))" />
+                    <AppTextField Label="Until" InputType="AppInputType.Time" Value="@_settings.QuietHours.End" Immediate="false" ValueChanged="@(value => SetQuietTimeAsync(null, value))" />
+                </div>
+            }
+        </AppCard>
+
+        <AppCard Title="Privacy" Description="By default only a short title like “A backup did not finish” leaves this computer." Class="tl-sp-mb-3">
+            <AppSwitchRow Label="Include details in messages that leave this computer"
+                          Description="Adds what happened, such as the plugin or tool involved. Leave this off if your email is not private to you."
+                          Value="_settings.IncludeDetails" Disabled="@_busy" ValueChanged="SetIncludeDetailsAsync" />
+        </AppCard>
+    }
+</div>
+
+@code {
+    private bool _loading = true;
+    private bool _busy;
+    private int _unread;
+    private List<NotificationItemDto> _items = [];
+    private NotificationSettingsResponse? _settings;
+
+    private string UnreadLine => _unread == 0 ? "All caught up" : _unread == 1 ? "1 unread message" : $"{_unread} unread messages";
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        var list = await ApiClient.GetNotificationsAsync();
+        _settings = await ApiClient.GetNotificationSettingsAsync();
+        _items = list?.Items ?? [];
+        _unread = list?.UnreadCount ?? 0;
+        _loading = false;
+    }
+
+    private static string ItemClass(NotificationItemDto item) =>
+        item.IsRead ? "notifications-page__item" : "notifications-page__item notifications-page__item--unread";
+
+    private async Task MarkAllReadAsync()
+    {
+        if (await ApiClient.MarkNotificationsReadAsync([]))
+        {
+            _items = [.. _items.Select(item => { item.IsRead = true; return item; })];
+            _unread = 0;
+        }
+        else
+        {
+            Snackbar.Add("The messages could not be marked read.", AppSeverity.Error);
+        }
+    }
+
+    private async Task TestAsync(NotificationChannelDto channel)
+    {
+        _busy = true;
+        var result = await ApiClient.SendNotificationTestAsync(channel.Id);
+        Snackbar.Add(result?.Message ?? "The test could not be sent.", result?.Success == true ? AppSeverity.Success : AppSeverity.Error);
+        await LoadAsync();
+        _busy = false;
+    }
+
+    private async Task EnableAsync(NotificationChannelDto channel)
+    {
+        _busy = true;
+        if (!await ApiClient.EnableNotificationChannelAsync(channel.Id))
+        {
+            Snackbar.Add("The channel could not be turned back on.", AppSeverity.Error);
+        }
+
+        _settings = await ApiClient.GetNotificationSettingsAsync() ?? _settings;
+        _busy = false;
+    }
+
+    private Task SetRouteAsync(NotificationEventDto item, string channelId, bool on)
+    {
+        var channels = item.Channels.Where(id => id != channelId).ToList();
+        if (on)
+        {
+            channels.Add(channelId);
+        }
+
+        return SaveAsync(new UpdateNotificationSettingsRequest { Routes = { [item.Id] = channels } });
+    }
+
+    private Task SetQuietEnabledAsync(bool enabled) =>
+        SaveAsync(new UpdateNotificationSettingsRequest { QuietHours = Quiet(enabled, null, null) });
+
+    private Task SetQuietTimeAsync(string? start, string? end) =>
+        SaveAsync(new UpdateNotificationSettingsRequest { QuietHours = Quiet(true, start, end) });
+
+    private Task SetIncludeDetailsAsync(bool include) =>
+        SaveAsync(new UpdateNotificationSettingsRequest { IncludeDetails = include });
+
+    private NotificationQuietHoursDto Quiet(bool enabled, string? start, string? end) => new()
+    {
+        Enabled = enabled,
+        Start = start ?? _settings!.QuietHours.Start,
+        End = end ?? _settings!.QuietHours.End,
+    };
+
+    private async Task SaveAsync(UpdateNotificationSettingsRequest request)
+    {
+        _busy = true;
+        var saved = await ApiClient.UpdateNotificationSettingsAsync(request);
+        if (saved is null)
+        {
+            Snackbar.Add("That change could not be saved.", AppSeverity.Error);
+        }
+        else
+        {
+            _settings = saved;
+        }
+
+        _busy = false;
+    }
+}

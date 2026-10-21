@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0026 subtitle_text_index).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0027 notification_service).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1559,6 +1559,42 @@ CREATE TABLE narrative_roots (
                     CHECK (level IN ('Universe', 'Franchise', 'Series', 'Standalone')),
     parent_qid  TEXT,
     created_at  TEXT NOT NULL
+);
+
+CREATE TABLE notification_channel_state (
+    channel_id            TEXT    NOT NULL PRIMARY KEY,   -- dashboard, email or a channel plugin id
+    consecutive_failures  INTEGER NOT NULL DEFAULT 0,
+    state                 TEXT    NOT NULL,               -- healthy, needs_attention or off
+    last_error            TEXT,                           -- plain words, never a secret
+    last_success_at       TEXT,
+    last_attempt_at       TEXT,
+    switched_off_at       TEXT
+);
+
+CREATE TABLE notification_rate_marks (
+    channel_id        TEXT    NOT NULL,
+    event_id          TEXT    NOT NULL,
+    last_sent_at      TEXT    NOT NULL,
+    suppressed_count  INTEGER NOT NULL DEFAULT 0,         -- sends held back since last_sent_at
+    PRIMARY KEY (channel_id, event_id)
+);
+
+CREATE TABLE notification_settings (
+    setting_key  TEXT NOT NULL PRIMARY KEY,
+    value_json   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
+);
+
+CREATE TABLE notifications (
+    id                TEXT    NOT NULL PRIMARY KEY,   -- GUID
+    event_id          TEXT    NOT NULL,               -- the event from the notification catalogue, e.g. backup.failed
+    title             TEXT    NOT NULL,               -- one short line
+    body              TEXT    NOT NULL,               -- a few lines; may name an item, so it is shown in the Dashboard only unless the administrator chooses otherwise
+    group_key         TEXT    NOT NULL,               -- repeats of the same event and subject share a key
+    occurrence_count  INTEGER NOT NULL DEFAULT 1,     -- how many times it happened inside the grouping window
+    created_at        TEXT    NOT NULL,               -- ISO 8601 UTC
+    updated_at        TEXT    NOT NULL,               -- ISO 8601 UTC; moves forward when a repeat is folded in
+    read_at           TEXT                            -- ISO 8601 UTC; null while unread
 );
 
 CREATE TABLE offline_variants (
@@ -3351,6 +3387,10 @@ CREATE INDEX ix_media_file_write_intents_dispatch
     ON media_file_write_intents(status, lease_expires_at, updated_at);
 
 CREATE INDEX ix_media_inspection_holds_tool ON media_inspection_holds(tool_id, held_at);
+
+CREATE INDEX ix_notifications_group ON notifications (group_key, updated_at);
+
+CREATE INDEX ix_notifications_updated ON notifications (updated_at DESC);
 
 CREATE INDEX ix_personal_status_history ON personal_status_commands(profile_id, target_id, changed_at);
 

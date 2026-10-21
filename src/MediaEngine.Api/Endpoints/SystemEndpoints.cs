@@ -157,9 +157,24 @@ public static class SystemEndpoints
 
         app.MapPost("/system/backups", async (
             DatabaseBackupService backups,
+            INotificationPublisher notifications,
             CancellationToken ct) =>
         {
-            var path = await backups.CreateAsync(ct).ConfigureAwait(false);
+            string path;
+            try
+            {
+                path = await backups.CreateAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                notifications.Publish(new NotificationRequest(
+                    NotificationEventIds.BackupFailed,
+                    "manual",
+                    "A backup could not be written. Check that the backup folder exists and the drive has free space, then try again."));
+                throw;
+            }
+
+            notifications.Publish(new NotificationRequest(NotificationEventIds.BackupCompleted, "manual", "A backup was written."));
             return Results.Ok(new BackupArchiveDto(
                 Path.GetFileName(path),
                 File.GetCreationTimeUtc(path),

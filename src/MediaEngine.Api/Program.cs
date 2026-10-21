@@ -505,6 +505,7 @@ builder.Services.AddApplicationWebhooks();
 builder.Services.AddTuvimaApprovals();
 builder.Services.AddTuvimaHostedServices();
 builder.Services.AddTuvimaToolRequirements();
+builder.Services.AddTuvimaNotifications();
 
 builder.Services.AddSingleton<StartupReadinessService>();
 builder.Services.AddHealthChecks()

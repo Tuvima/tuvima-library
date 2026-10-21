@@ -26,6 +26,7 @@ public enum SettingsSection
     Plugins,
     Delivery,
     Tools,
+    Notifications,
     Network,
     Access,
     Server,
@@ -195,6 +196,7 @@ public static class SettingsNav
             [SettingsSection.LocalAi] = Complete(),
             [SettingsSection.Delivery] = Complete(),
             [SettingsSection.Tools] = Complete(),
+            [SettingsSection.Notifications] = Complete(),
             [SettingsSection.Access] = Complete(),
         };
 
@@ -254,6 +256,7 @@ public static class SettingsNav
         new(SettingsSection.Access, "manage", "access", AppMaterialIcons.Outlined.AdminPanelSettings, "Users and Sign-in", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
         new(SettingsSection.AdminOverview, "manage", "system", AppMaterialIcons.Outlined.DesktopWindows, "System", true, null, [], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.Tools, "manage", "tools", AppMaterialIcons.Outlined.Build, "Tools and requirements", true, null, [], "runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.Notifications, "manage", "notifications", AppMaterialIcons.Outlined.Mail, "Notifications", true, null, [], "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
         new(SettingsSection.Server, "manage", "backup-recovery", AppMaterialIcons.Outlined.Backup, "Backup and recovery", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
 
         new(SettingsSection.LocalAi, "developer", "ai", AppMaterialIcons.Outlined.Memory, "Local AI", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
@@ -329,6 +332,7 @@ public static class SettingsNav
             [
                 Node("Tools and requirements", AppMaterialIcons.Outlined.Build, SettingsSection.Tools),
                 Node("Logs", AppMaterialIcons.Outlined.List, SettingsSection.AdminOverview, LogsSubsection),
+                Node("Notifications", AppMaterialIcons.Outlined.Mail, SettingsSection.Notifications),
                 Node("Backup and recovery", AppMaterialIcons.Outlined.Backup, SettingsSection.Server),
             ]),
         ]),
@@ -421,6 +425,7 @@ public static class SettingsNav
                 new("authentication", "Sign-in Methods", AppMaterialIcons.Outlined.Security),
             ],
             [SettingsSection.Tools] = [],
+            [SettingsSection.Notifications] = [],
             [SettingsSection.Server] = [],
             [SettingsSection.Review] = [],
             [SettingsSection.ProviderTester] = [new("overview", "Overview", AppMaterialIcons.Outlined.Biotech)],
@@ -461,6 +466,7 @@ public static class SettingsNav
         SettingsSection.Review,
         SettingsSection.Delivery,
         SettingsSection.Tools,
+        SettingsSection.Notifications,
         SettingsSection.Access,
         SettingsSection.Server,
         SettingsSection.LocalAi,

@@ -1144,6 +1144,61 @@ Where each plugin has got to in the Library's event list (`application_events`):
 
 Added by upgrade step `0023_plugin_host_services`.
 
+### notifications
+
+The Dashboard inbox of the notification service: what the Library has told its administrators. A repeat of the same event about the same thing inside ten minutes is folded into one row instead of adding another.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT | GUID, primary key |
+| `event_id` | TEXT | The event from the notification catalogue, for example `backup.failed` |
+| `title` | TEXT | One short generic line |
+| `body` | TEXT | A few plain sentences; shown in the Dashboard, and sent outside only when the administrator turns on "include details" |
+| `group_key` | TEXT | `event_id` and what it was about; repeats share it |
+| `occurrence_count` | INTEGER | How many times it happened in the grouping window |
+| `created_at` / `updated_at` | TEXT | ISO 8601 UTC; `updated_at` moves forward when a repeat is folded in |
+| `read_at` | TEXT | ISO 8601 UTC, null while unread; a folded repeat makes the row unread again |
+
+**Indices:** `ix_notifications_updated` on `(updated_at DESC)` and `ix_notifications_group` on `(group_key, updated_at)`. The inbox keeps the newest 200 rows. Added by upgrade step `0027_notification_service`.
+
+### notification_channel_state
+
+How each outside channel (email, later channel plugins) is doing. A channel that fails five sends in a row switches itself off and shows Needs attention until an administrator turns it back on or a test send works.
+
+| Column | Type | Notes |
+|---|---|---|
+| `channel_id` | TEXT | `email` or a channel plugin id, primary key |
+| `consecutive_failures` | INTEGER | Failures since the last success |
+| `state` | TEXT | `healthy`, `needs_attention` or `off` |
+| `last_error` | TEXT | Plain words, never a secret or a server address; at most 300 characters |
+| `last_success_at` / `last_attempt_at` / `switched_off_at` | TEXT | ISO 8601 UTC |
+
+Added by upgrade step `0027_notification_service`.
+
+### notification_rate_marks
+
+Makes "at most one message per channel and event a minute" hold across restarts, and counts what was held back so the next message can say so.
+
+| Column | Type | Notes |
+|---|---|---|
+| `channel_id`, `event_id` | TEXT | Primary key together |
+| `last_sent_at` | TEXT | ISO 8601 UTC |
+| `suppressed_count` | INTEGER | Messages held back since `last_sent_at` |
+
+Added by upgrade step `0027_notification_service`.
+
+### notification_settings
+
+The administrator's choices as JSON rows (currently the single key `settings`): which channels each event goes to, quiet hours, and whether details may leave this computer (off by default).
+
+| Column | Type | Notes |
+|---|---|---|
+| `setting_key` | TEXT | Primary key |
+| `value_json` | TEXT | The settings document |
+| `updated_at` | TEXT | ISO 8601 UTC |
+
+Added by upgrade step `0027_notification_service`.
+
 ### media_operations (file intake rows)
 
 The Engine's durable work queue. Each file noticed by ingestion has one row with `operation_type = ingestion.file`; the live ingestion page's numbers are worked out from these rows (see `IngestionQueueProgressRepository`). Only the columns that matter to that count are listed here.

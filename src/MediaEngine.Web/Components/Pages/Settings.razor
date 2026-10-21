@@ -228,6 +228,9 @@ else
                             case SettingsSection.Tools:
                                 <ToolsRequirementsTab />
                                 break;
+                            case SettingsSection.Notifications:
+                                <NotificationsPanel />
+                                break;
                             case SettingsSection.Network:
                                 <NetworkRemoteAccessSettings Subsection="@_activeSubsection" RemoteAccessOffChanged="OnRemoteAccessOffChanged" />
                                 break;
@@ -906,6 +909,7 @@ else
             "diagnostics" => "Technical checks on playback delivery reported by the server.",
             _ => "Set the limits and quality for streaming away from home.",
         },
+        SettingsSection.Notifications => "Choose what the Library tells you about, and where those messages go.",
         SettingsSection.Tools => "See the tools and downloads the Library relies on, what each one affects, and fix anything that is missing.",
         SettingsSection.Access => _activeSubsection switch
         {
