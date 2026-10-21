@@ -27,10 +27,10 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP5 to U-WP8, U-WP10, U-WP12 built 2026-10-20) |
 | [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | Built, awaiting your Local checks (v2) |
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v29, 2026-10-20) |
-| [Spec: Audiobook year on the remaining screens](specs/audiobook-year-other-reads.md) | In progress (v2, locked by Shy 2026-10-20 with Q1–Q3 (a)) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: The live ingestion page and when items appear](specs/archive/ingestion-and-readiness.md) | Built (v4, archived 2026-10-20; bug 13 still needs the log line from that moment) |
-| [Spec: Home and item detail speed](specs/archive/home-and-detail-speed.md) | Built (v2, archived 2026-10-20; seven other reads still use the per-row audiobook year look-up) |
+| [Spec: Audiobook year on the remaining screens](specs/archive/audiobook-year-other-reads.md) | Built (v3, archived 2026-10-20; follow-ups: series search and person credits read the whole credit list) |
+| [Spec: Home and item detail speed](specs/archive/home-and-detail-speed.md) | Built (v2, archived 2026-10-20; the seven other reads were moved by the audiobook year spec) |
 | [Spec: Library list speed](specs/archive/library-list-speed.md) | Built (v2, archived 2026-10-19; Home, detail and the audiobook year look-up done in the Home and detail speed spec) |
 | [Spec: Settings revamp (one look, one menu, one attention banner)](specs/archive/settings-revamp.md) | Built (v1.1, archived 2026-10-19; Logs > Events is filled by the ingestion spec's WP12) |
 | [Spec: Editing Mode on the item page (as built)](specs/archive/editing-mode.md) | Built (v1, archived 2026-10-19) |

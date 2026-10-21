@@ -1,6 +1,6 @@
 # Spec: Audiobook year on the remaining screens
 
-> **Status:** In progress (locked by Shy 2026-10-20 with Q1, Q2 and Q3 answered (a); started 2026-10-20) · **Version:** 2 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Spec: Home and item detail speed](archive/home-and-detail-speed.md) (built; its section 8 lists these seven reads) · [Spec: Library list speed](archive/library-list-speed.md) · [Benchmarks README](../../benchmarks/README.md)
+> **Status:** Built (2026-10-20; locked by Shy 2026-10-20 with Q1, Q2 and Q3 answered (a)) · **Version:** 3 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../../product/overview.md) · [Spec: Home and item detail speed](home-and-detail-speed.md) (built; its section 8 lists these seven reads) · [Spec: Library list speed](library-list-speed.md) · [Benchmarks README](../../../benchmarks/README.md)
 
 ## 1. Goal
 
@@ -42,6 +42,7 @@ Also in scope:
 - **D9. Delete the old form (Q2, Shy 2026-10-20).** WP4 deletes it and makes every read that shows a year say how it gets the borrowed year.
 - **D10. Leave the person page's candidate-file search as it is (Q3, Shy 2026-10-20).** It is linear and a fraction of a second at realistic claim counts; an index can be added later without a reset if a large real library shows otherwise. WP5 is not built.
 - **D11. The series search bug is fixed first, as separate work (Shy 2026-10-20).** WP3's series search part waits for it.
+- **D12. Statement preparation over the 50 ms target is accepted for now (Shy 2026-10-20).** A person's credits read prepares in about 270 ms (was about 100 ms) because its credit list is named in both the read and the year's candidates; series search in about 64–80 ms (was about 40–54 ms). Both depend on the length of the statement, not on the library's size. The person's credits follow-up (section 8) removes the whole-library credit list from that read, which also removes the extra preparation time.
 
 ## 4. UI behaviour
 
@@ -154,4 +155,26 @@ What the numbers say:
 
 ## 8. Gaps and drift
 
-Not built yet.
+- **Built and matches the spec:** WP1 to WP4, and the series search bug fix first (D11, [PR 338](https://github.com/Tuvima/tuvima-library/pull/338)). All seven reads take the borrowed year from their own audiobooks; the old per-row form is deleted and every read that shows a year names its borrowed-year expression. A full `snapshot` of 36 sections on the 4,000-work benchmark library (the earlier spec's sections plus this spec's) was byte-identical before and after. Year cost, thousands of SQLite instructions at 4,000 works (the D7 difference), guarded by `AudiobookYearGuardrailTests`:
+
+| Read | Before | After | Budget |
+|---|---:|---:|---:|
+| Series page list | 46,781 | 460 | 700 |
+| Continue shelf | 46,781 | 229 | 350 |
+| Taste profile | 42,759 | 231 | 350 |
+| Collection editor details | 42,825 | 255 | 400 |
+| Collection editor "add media" | 42,359 | 163 | 250 |
+| A person's credits | 46,780 | 298 | 450 |
+| Series search | 46,780 | 155 | 250 |
+
+  With the old form put back, every guardrail fails.
+- **Built differently (what changed):**
+  - *Series search was worse than measured in section 6.* Once the bug fix let it return rows, the old year look-up ran once per matching row there, not once per visit: a common word took about a minute at 4,000 works. It now works out the year for its 20 rows only.
+  - *Series search sorts ties by work.* Rows with the same title (a book and its audiobook) are now ordered by work after title, in both the page step and the final sort, so their order no longer depends on SQLite's plan. The comparison showed no change.
+  - *"Add media" guardrail* compares two sets of 40 audiobooks (one needing a borrowed year, one not) rather than audiobooks against books, because the books-only page did more work than the audiobook page and the difference came out negative.
+  - *Benchmark samples.* The seeded benchmark file has no audiobook series, so `series-page:audiobook-series` passes 40 audiobooks as the page's works; the TV sample passes a show's episodes; an extra `person-credits:audiobook-borrowing` section checks a borrowed year in a person's credits.
+  - *Statement preparation is over WP3's 50 ms target (D12, accepted by Shy).* A person's credits read prepares in about 270 ms (was about 100 ms); series search in about 64–80 ms (was 40–54 ms). Neither grows with the library. The person page still does 42 million fewer instructions per visit.
+- **Found while building, not in scope:**
+  - *Series search is slow for its own reasons.* With 40 index matches it does about 3.1 billion SQLite instructions at 4,000 works (a common word took 1–2 minutes on a busy machine), because its author column and name search look credits up in the whole library's credit list for every candidate file. Before PR 338 it returned no rows, so this was never visible.
+  - *A person's credits read builds the whole credit list twice per visit* (84 million instructions at 4,000 works, about 1–2 s), independent of the year.
+  - *"Add media" works out a representative file for every work in the library on every page.*
