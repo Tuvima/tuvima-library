@@ -90,4 +90,77 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal(CatalogueResourceAccess.NotFound, await CreateResourceService(phoneAgain).EvaluateAssetAsync(
             phoneAgain, shape.Secret.AssetId, ApplicationPermissionIds.PlaybackRead));
     }
+
+    // ── Adaptive-stream segments (the "keep awake on use" gap, Videos spec D33) ─────────────────
+
+    private static RequestAuthority HlsGrantAuthority(Guid account, Guid session) =>
+        new(PrincipalKind.Human, true, account, VaultProfile, SessionId: session, AccountEnabled: true, GrantEnabled: true);
+
+    [Fact]
+    public async Task Vault_FetchingASegmentOfAVaultVideo_KeepsTheUnlockedSessionAwake()
+    {
+        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var session = NewVaultSession(shape.Account);
+        await UnlockNearlyIdleAsync(session);
+        Assert.False(await StillUnlockedInAsync(session, TimeSpan.FromMinutes(10)));
+
+        // The segment route authorizes with the authority stored in its grant, not with a request of its own.
+        await CreateResourceService(VaultContext(shape.Account, session))
+            .KeepVaultSessionAwakeAsync(HlsGrantAuthority(shape.Account, session), shape.Secret.AssetId);
+
+        Assert.True(await StillUnlockedInAsync(session, TimeSpan.FromMinutes(10)));
+        Assert.False(await StillUnlockedInAsync(session, TimeSpan.FromMinutes(20)));
+    }
+
+    [Fact]
+    public async Task Vault_FetchingASegmentOfAnOrdinaryVideo_DoesNotKeepNsfwModeAwake()
+    {
+        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var session = NewVaultSession(shape.Account);
+        await UnlockNearlyIdleAsync(session);
+
+        await CreateResourceService(VaultContext(shape.Account, session))
+            .KeepVaultSessionAwakeAsync(HlsGrantAuthority(shape.Account, session), shape.Normal.AssetId);
+
+        Assert.False(await StillUnlockedInAsync(session, TimeSpan.FromMinutes(10)));
+    }
+
+    [Fact]
+    public async Task Vault_ASegmentGrantForAPairedAppOrAnAnonymousCaller_NeverWakesNsfwMode()
+    {
+        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var session = NewVaultSession(shape.Account);
+        await UnlockNearlyIdleAsync(session);
+        var resources = CreateResourceService(VaultContext(shape.Account, session));
+
+        // A paired app is never the person's own Dashboard session, even carrying the same session id.
+        await resources.KeepVaultSessionAwakeAsync(
+            new RequestAuthority(PrincipalKind.DelegatedUserClient, true, shape.Account, VaultProfile, Guid.NewGuid(), session, Guid.NewGuid(),
+                AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true),
+            shape.Secret.AssetId);
+        await resources.KeepVaultSessionAwakeAsync(new RequestAuthority(PrincipalKind.Anonymous, false), shape.Secret.AssetId);
+
+        Assert.False(await StillUnlockedInAsync(session, TimeSpan.FromMinutes(10)));
+    }
+
+    [Fact]
+    public void TheSegmentRoute_AsksTheCatalogueToKeepAVaultSessionAwake_BeforeItServesTheResource()
+    {
+        var source = File.ReadAllText(Path.Combine(RepositoryRoot(), "src/MediaEngine.Api/Endpoints/HlsStreamEndpoints.cs"));
+
+        var keepAwake = source.IndexOf("KeepVaultSessionAwakeAsync", StringComparison.Ordinal);
+        Assert.True(keepAwake > 0, "The segment route must restart the idle timer of a Vault video's session.");
+        Assert.True(keepAwake < source.IndexOf("OpenResourceAsync", StringComparison.Ordinal));
+    }
+
+    private static string RepositoryRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "MediaEngine.slnx")))
+        {
+            dir = dir.Parent;
+        }
+
+        return dir?.FullName ?? throw new InvalidOperationException("Could not locate repository root.");
+    }
 }

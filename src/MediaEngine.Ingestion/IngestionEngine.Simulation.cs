@@ -763,6 +763,22 @@ public sealed partial class IngestionEngine
         return await _vaultHook.IsVaultLibraryAsync(library?.Id, ct).ConfigureAwait(false);
     }
 
+    /// <summary>True when a file path (found by the folder watcher, before any intake exists for it) sits in a Vault library's folders.</summary>
+    private async Task<bool> IsVaultFilePathAsync(string path, CancellationToken ct)
+    {
+        if (_vaultHook is null)
+        {
+            return false;
+        }
+
+        if (_vaultCandidatePaths.ContainsKey(path))
+        {
+            return true;
+        }
+
+        return await _vaultHook.IsVaultLibraryAsync(_libraryFolderResolver?.ResolveForPath(path)?.Id, ct).ConfigureAwait(false);
+    }
+
     /// <summary>True for an ingestion event that names a file currently being processed from a Vault library.</summary>
     private bool IsAboutVaultFile<TPayload>(TPayload payload) where TPayload : notnull =>
         !_vaultCandidatePaths.IsEmpty

@@ -3,6 +3,7 @@ using MediaEngine.Api.Services.Settings;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Configuration;
 
 namespace MediaEngine.Api.Services.Vault;
@@ -96,6 +97,9 @@ public sealed class VaultFolderAttachmentService(
             {
                 return new VaultFolderAttachmentOutcome(VaultFolderAttachmentStatus.NotAllowed, FolderNotAllowedMessage);
             }
+
+            // The logging and activity writers must know the folder before the first scan names a file in it.
+            VaultLocationGuard.Add(check.Path!);
 
             // Saving starts the watcher and the first scan; the library is already in the Vault list.
             configuration.SaveLibraries(settings);

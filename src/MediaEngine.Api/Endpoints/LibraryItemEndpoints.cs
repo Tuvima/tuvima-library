@@ -200,7 +200,8 @@ public static class LibraryItemEndpoints
         .Produces<LibraryMoveDestinationsResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite);
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite, "id");
 
         group.MapPost("/move-preview", async (
             LibraryMovePreviewRequest request,

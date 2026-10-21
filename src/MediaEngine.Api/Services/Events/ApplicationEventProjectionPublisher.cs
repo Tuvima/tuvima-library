@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Api.Realtime;
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
@@ -10,7 +11,8 @@ namespace MediaEngine.Api.Services.Events;
 public sealed class ApplicationEventProjectionPublisher(
     IApplicationEventProducer producer,
     IApplicationEventResourceResolver resources,
-    ILogger<ApplicationEventProjectionPublisher> logger)
+    ILogger<ApplicationEventProjectionPublisher> logger,
+    IVaultPathClassifier? vaultPaths = null)
 {
     private const string WorkingState = "working";
     private const string IdleState = "idle";
@@ -46,6 +48,14 @@ public sealed class ApplicationEventProjectionPublisher(
     private async Task<ApplicationEventDraft?> MapAsync<T>(string name, T value, CancellationToken ct) where T : notnull
     {
         var now = DateTimeOffset.UtcNow;
+
+        // A file or folder in a Vault library is never reported to an app or a webhook, not even as "ingestion started" or a folder
+        // health change (Videos spec D17, D33). Events about an item are stopped by id further down and by the data structure.
+        if (vaultPaths is not null && EventPath(value) is { } path && await vaultPaths.IsVaultPathAsync(path, ct).ConfigureAwait(false))
+        {
+            return null;
+        }
+
         return (name, value) switch
         {
             (SignalREvents.IngestionStarted, IngestionStartedEvent e) => Draft("ingestion.started", "ingestion", "current", e.StartedAt, new { status = "started" }),
@@ -64,6 +74,17 @@ public sealed class ApplicationEventProjectionPublisher(
             _ => null,
         };
     }
+
+    private static string? EventPath<T>(T value) where T : notnull => value switch
+    {
+        IngestionStartedEvent e => e.FilePath,
+        IngestionHashedEvent e => e.FilePath,
+        IngestionCompletedEvent e => e.FilePath,
+        AutoOrganizedIngestionCompletedEvent e => e.Path,
+        IngestionFailedEvent e => e.FilePath,
+        FolderHealthChangedEvent e => e.Path,
+        _ => null,
+    };
 
     // The live ingestion numbers are the external progress: "ingestion.progress" while files are being worked on, and
     // "ingestion.completed" once when a run returns to idle. Waiting for a missing tool neither completes a run nor starts

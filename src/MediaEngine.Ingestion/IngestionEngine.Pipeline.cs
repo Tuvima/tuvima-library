@@ -136,6 +136,12 @@ public sealed partial class IngestionEngine
             _vaultCandidatePaths[candidate.Path] = 0;
         }
 
+        // Everything logged while a Vault file is processed carries a marker the log writers drop (Videos spec D17, D33), so a log
+        // call that names the file (even by its bare name) in any stage never reaches the console or the technical log.
+        using var vaultLogScope = context.IsVault
+            ? _logger.BeginScope(new Dictionary<string, object> { [VaultLocationGuard.LogScopeProperty] = true })
+            : null;
+
         try
         {
             foreach (var stage in _ingestionStages)

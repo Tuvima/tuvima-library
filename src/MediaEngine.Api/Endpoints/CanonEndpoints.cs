@@ -28,7 +28,8 @@ public static class CanonEndpoints
         })
         .WithName("GetCanonDiscrepancies")
         .Produces<IReadOnlyList<CanonDiscrepancyDto>>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead);
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
 
         return app;
     }

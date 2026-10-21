@@ -41,6 +41,7 @@ public sealed class FolderJobService
     private readonly FolderMergePreviewer _mergePreviewer;
     private readonly ServerFolderBrowserService _folders;
     private readonly ILogger<FolderJobService> _logger;
+    private readonly IVaultLibraryRepository? _vaultLibraries;
 
     public FolderJobService(
         IConfigurationLoader configuration,
@@ -50,7 +51,8 @@ public sealed class FolderJobService
         FolderConversionPreviewer previewer,
         FolderMergePreviewer mergePreviewer,
         ServerFolderBrowserService folders,
-        ILogger<FolderJobService> logger)
+        ILogger<FolderJobService> logger,
+        IVaultLibraryRepository? vaultLibraries = null)
     {
         _configuration = configuration;
         _operations = operations;
@@ -60,6 +62,7 @@ public sealed class FolderJobService
         _mergePreviewer = mergePreviewer;
         _folders = folders;
         _logger = logger;
+        _vaultLibraries = vaultLibraries;
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -74,6 +77,7 @@ public sealed class FolderJobService
     {
         ArgumentNullException.ThrowIfNull(request);
         var sourceId = ParseSourceId(request.SourceId);
+        await RefuseVaultFolderAsync(ct, request.SourceId).ConfigureAwait(false);
         var libraries = _configuration.LoadLibraries();
         var library = FindLibrary(libraries, sourceId)
             ?? throw new FolderJobException("This folder is not part of your libraries.", notFound: true);
@@ -127,6 +131,7 @@ public sealed class FolderJobService
     {
         ArgumentNullException.ThrowIfNull(request);
         var sourceId = ParseSourceId(request.SourceId);
+        await RefuseVaultFolderAsync(ct, request.SourceId, request.TargetSourceId).ConfigureAwait(false);
 
         FolderMergePreview? preview;
         FolderMergeCheck check;
@@ -185,6 +190,7 @@ public sealed class FolderJobService
     {
         ArgumentNullException.ThrowIfNull(request);
         var sourceId = ParseSourceId(request.SourceId);
+        await RefuseVaultFolderAsync(ct, request.SourceId, request.TargetSourceId).ConfigureAwait(false);
         await LibraryMutationEndpoints.WriteGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -282,6 +288,7 @@ public sealed class FolderJobService
     public async Task<FolderJobStatusDto> StartConversionAsync(string sourceIdText, CancellationToken ct)
     {
         var sourceId = ParseSourceId(sourceIdText);
+        await RefuseVaultFolderAsync(ct, sourceIdText).ConfigureAwait(false);
         await LibraryMutationEndpoints.WriteGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -1120,6 +1127,29 @@ public sealed class FolderJobService
         Guid.TryParse(value, out var id) && id != Guid.Empty
             ? id
             : throw new FolderJobException("Choose a folder from your libraries.");
+
+    /// <summary>
+    /// A folder of a Vault library answers exactly like a folder that is not in the libraries (Videos spec D17): the previews list file
+    /// paths and the jobs rename files, and the Vault's folders are neither shown nor reorganised from the library screens.
+    /// </summary>
+    private async Task RefuseVaultFolderAsync(CancellationToken ct, params string?[] sourceIds)
+    {
+        if (_vaultLibraries is null)
+        {
+            return;
+        }
+
+        var libraries = _configuration.LoadLibraries();
+        foreach (var text in sourceIds)
+        {
+            if (Guid.TryParse(text, out var sourceId)
+                && FindLibrary(libraries, sourceId) is { } library
+                && await _vaultLibraries.GetAsync(library.Id, ct).ConfigureAwait(false) is not null)
+            {
+                throw new FolderJobException("This folder is not part of your libraries.", notFound: true);
+            }
+        }
+    }
 
     private static LibraryFolderConfig? FindLibrary(LibrariesConfiguration libraries, Guid sourceId) =>
         libraries.Libraries.FirstOrDefault(library => library.Sources.Any(source =>

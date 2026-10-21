@@ -106,6 +106,13 @@ public sealed partial class IngestionEngine
 
         try
         {
+            // No work row is made for a file in a Vault library: such rows feed the live ingestion numbers and the activity strip,
+            // which would otherwise show that a private file was found (Videos spec D17, D32).
+            if (await IsVaultFilePathAsync(evt.Path, ct).ConfigureAwait(false))
+            {
+                return null;
+            }
+
             return await _operationTracker.EnsureQueuedAsync(new MediaOperation
             {
                 OperationType = MediaOperationType.IngestionFile,
@@ -136,6 +143,11 @@ public sealed partial class IngestionEngine
 
         try
         {
+            if (await IsVaultPathAsync(candidate, ct).ConfigureAwait(false))
+            {
+                return null;
+            }
+
             return await _operationTracker.EnsureQueuedAsync(new MediaOperation
             {
                 OperationType = MediaOperationType.IngestionFile,

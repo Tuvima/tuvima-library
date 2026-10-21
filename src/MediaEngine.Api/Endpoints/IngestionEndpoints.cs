@@ -157,7 +157,8 @@ public static class IngestionEndpoints
         .WithSummary("Re-read local tags and technical metadata without identity matching or file moves.")
         .Produces<FileMetadataRereadResponse>()
         .Produces(StatusCodes.Status404NotFound)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionRetry);
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionRetry)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.IngestionRetry);
 
         group.MapPost("/scan", async (
             ScanRequest? request,
@@ -428,6 +429,21 @@ public static class IngestionEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionRun);
 
         return app;
+    }
+
+    /// <summary>The first folder that is not inside a Vault library, or null.</summary>
+    private static async Task<string?> FirstNonVaultDirectoryAsync(
+        IEnumerable<string> directories, IVaultPathClassifier vaultPaths, CancellationToken ct)
+    {
+        foreach (var directory in directories)
+        {
+            if (!await vaultPaths.IsVaultPathAsync(directory, ct).ConfigureAwait(false))
+            {
+                return directory;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

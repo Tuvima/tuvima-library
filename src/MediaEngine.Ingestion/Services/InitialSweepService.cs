@@ -60,6 +60,7 @@ public sealed class InitialSweepService : IInitialSweepService
     private readonly IngestionOptions _options;
     private readonly IMediaTypeExtensionCatalog _extensionCatalog;
     private readonly ILogger<InitialSweepService> _logger;
+    private readonly IVaultIngestionHook? _vaultHook;
 
     public InitialSweepService(
         IAssetHasher hasher,
@@ -67,7 +68,8 @@ public sealed class InitialSweepService : IInitialSweepService
         IEventPublisher publisher,
         IOptions<IngestionOptions> options,
         IMediaTypeExtensionCatalog extensionCatalog,
-        ILogger<InitialSweepService> logger)
+        ILogger<InitialSweepService> logger,
+        IVaultIngestionHook? vaultHook = null)
     {
         _hasher = hasher;
         _cache = cache;
@@ -75,6 +77,7 @@ public sealed class InitialSweepService : IInitialSweepService
         _options = options.Value;
         _extensionCatalog = extensionCatalog;
         _logger = logger;
+        _vaultHook = vaultHook;
     }
 
     /// <inheritdoc />
@@ -84,8 +87,18 @@ public sealed class InitialSweepService : IInitialSweepService
         int discovered = 0, hashed = 0, cached = 0, failed = 0;
         long bytes = 0;
 
-        // Resolve every library source.
-        var roots = _options.LibraryFolders
+        // Resolve every library source. The Vault's folders are left out: their files are never announced, counted or named in
+        // the sweep's started, progress and completed events or in its log (Videos spec D17, D33); ingestion hashes them itself.
+        var sweptLibraries = new List<LibraryFolderEntry>();
+        foreach (var library in _options.LibraryFolders)
+        {
+            if (_vaultHook is null || !await _vaultHook.IsVaultLibraryAsync(library.Id, ct).ConfigureAwait(false))
+            {
+                sweptLibraries.Add(library);
+            }
+        }
+
+        var roots = sweptLibraries
             .SelectMany(lf => lf.EffectiveSourcePaths)
             .Where(p => !string.IsNullOrWhiteSpace(p) && Directory.Exists(p))
             .Distinct(StringComparer.OrdinalIgnoreCase)

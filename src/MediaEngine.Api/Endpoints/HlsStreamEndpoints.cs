@@ -56,6 +56,10 @@ public static class HlsStreamEndpoints
             return;
         }
 
+        // A segment fetched for a Vault video keeps the unlocked session awake like any other request for the file (Videos spec D33),
+        // so the idle lock cannot interrupt a video that is playing between two ordinary stream requests.
+        await authorization.KeepVaultSessionAwakeAsync(validation.Authority, validation.AssetId, ct).ConfigureAwait(false);
+
         await using var resource = await hls.OpenResourceAsync(
             packageId,
             validation.AssetId,

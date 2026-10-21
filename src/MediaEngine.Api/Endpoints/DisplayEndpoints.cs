@@ -250,7 +250,8 @@ public static class DisplayEndpoints
             .WithName("GetEntityArtworkWorkspace")
             .WithSummary("Returns lazy-loaded artwork variants for one entity workspace.")
             .Produces<ArtworkEntityWorkspaceDto>(StatusCodes.Status200OK)
-            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead);
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead)
+            .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.ArtworkRead);
 
         group.MapGet("/artwork/works/{workId:guid}/effective", async (
             Guid workId,
@@ -266,7 +267,8 @@ public static class DisplayEndpoints
             .WithSummary("Returns preferred artwork and its verified owner through a work's canonical parent chain.")
             .Produces<EffectiveArtworkSelection>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead);
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead)
+            .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.ArtworkRead, "workId");
 
         group.MapGet("/artwork/media-assets/{assetId:guid}/effective-cover", async (
             Guid assetId,

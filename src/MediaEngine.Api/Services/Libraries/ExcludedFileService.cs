@@ -17,7 +17,8 @@ public sealed class ExcludedFileService(
     ILibraryFolderResolver folders,
     IExcludedSourceFileFilter excludedFileFilter,
     IFileIntake intake,
-    ILogger<ExcludedFileService> logger)
+    ILogger<ExcludedFileService> logger,
+    IVaultLibraryRepository? vaultLibraries = null)
 {
     public const string QueuedMessage = "Added back. Library will scan it again.";
     public const string MissingMessage = "The file is no longer on disk.";
@@ -33,14 +34,22 @@ public sealed class ExcludedFileService(
             ? await excludedFiles.ListAllAsync(ct).ConfigureAwait(false)
             : await excludedFiles.ListByLibraryAsync(libraryId.Trim(), ct).ConfigureAwait(false);
 
-        return rows.Select(ToDto).ToList();
+        // A file excluded from a Vault library is never listed, whoever asks: the list names files and folders (Videos spec D17, D33).
+        var vault = await VaultLibraryIdsAsync(ct).ConfigureAwait(false);
+        return rows.Where(row => !IsVault(vault, row.LibraryId)).Select(ToDto).ToList();
     }
+
+    private async Task<IReadOnlySet<string>> VaultLibraryIdsAsync(CancellationToken ct) =>
+        vaultLibraries is null ? new HashSet<string>() : await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false);
+
+    private static bool IsVault(IReadOnlySet<string> vaultIds, string? libraryId) =>
+        libraryId is not null && vaultIds.Any(id => string.Equals(id, libraryId, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Puts one file back. Null when no excluded file has this id.</summary>
     public async Task<ExcludedFileAddBackResultDto?> AddBackAsync(Guid id, CancellationToken ct = default)
     {
         var row = await excludedFiles.GetByIdAsync(id, ct).ConfigureAwait(false);
-        if (row is null)
+        if (row is null || IsVault(await VaultLibraryIdsAsync(ct).ConfigureAwait(false), row.LibraryId))
         {
             return null;
         }

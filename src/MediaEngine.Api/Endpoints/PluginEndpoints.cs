@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Api.Services.LocalAi;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
+using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.Plugins;
@@ -255,9 +256,10 @@ internal static class PluginEndpoints
         group.MapGet("/{pluginId}/jobs", async (
             string pluginId,
             IMediaOperationRepository operations,
+            VaultOperationGate vault,
             CancellationToken ct) =>
         {
-            var jobs = await operations.GetByPluginAsync(pluginId, 200, ct).ConfigureAwait(false);
+            var jobs = await vault.VisibleAsync(await operations.GetByPluginAsync(pluginId, 200, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
             return Results.Ok(jobs.Select((op, index) => OperationsEndpoints.MapOperation(op, index + 1)).ToList());
         })
             .WithName("GetPluginJobs")

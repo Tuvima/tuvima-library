@@ -200,10 +200,7 @@ internal sealed class CatalogueResourceAuthorizationService(
 
         // Real use of a Vault file (a stream range, a playback heartbeat, a cover, a detail read) keeps the unlocked session awake, so
         // the idle lock never interrupts a video that is playing (Videos spec D33). Only a cleared, unlocked session gets here.
-        if (vault.Unlocked && authority.SessionId is { } sessionId && authority.ActiveProfileId is { } profileId)
-        {
-            await IdleKeeper.KeepAwakeAsync(sessionId, profileId, ct).ConfigureAwait(false);
-        }
+        await KeepAwakeAsync(vault, authority, ct).ConfigureAwait(false);
 
         ApplyVaultCacheControl(context.Response);
         context.Response.OnStarting(static state =>
@@ -211,6 +208,31 @@ internal sealed class CatalogueResourceAuthorizationService(
             ApplyVaultCacheControl((HttpResponse)state);
             return Task.CompletedTask;
         }, context.Response);
+    }
+
+    /// <summary>
+    /// Real use of a Vault file that is not cleared through a request's own session, such as an adaptive-stream segment fetched with a
+    /// path-scoped grant, restarts the unlocked session's idle timer the same way (Videos spec D33). It does nothing for an ordinary
+    /// file, a locked session or any caller that is not a person on their own Dashboard session.
+    /// </summary>
+    public async ValueTask KeepVaultSessionAwakeAsync(RequestAuthority authority, Guid assetId, CancellationToken ct = default)
+    {
+        var vault = await VaultAccess.ResolveAsync(authority, ct).ConfigureAwait(false);
+        if (vault.VaultLibraryIds.Count == 0
+            || !await new VaultLibraryRepository(database).IsInVaultAsync(assetId, ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        await KeepAwakeAsync(vault, authority, ct).ConfigureAwait(false);
+    }
+
+    private async ValueTask KeepAwakeAsync(VaultVisibility vault, RequestAuthority authority, CancellationToken ct)
+    {
+        if (vault.Unlocked && authority.SessionId is { } sessionId && authority.ActiveProfileId is { } profileId)
+        {
+            await IdleKeeper.KeepAwakeAsync(sessionId, profileId, ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Marks one response as private and uncacheable. Used by every Vault-only route.</summary>
