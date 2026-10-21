@@ -440,7 +440,7 @@ public static class ItemCanonicalEndpoints
                 EntityType = "Work",
                 Detail = $"Renamed {result.Renamed} video files to match their order.",
             }, ct);
-            return Results.Ok(new VideoRenameResponse { Renamed = result.Renamed, Skipped = result.Skipped });
+            return Results.Ok(new VideoRenameResponse { Renamed = result.Renamed, Skipped = result.Skipped + result.Failed });
         })
         .WithName("RenameVideoFilesToOrder")
         .WithSummary("Rename the files of a series to match its order. Managed folders only; refused for as-is or read-only folders.")
@@ -452,6 +452,8 @@ public static class ItemCanonicalEndpoints
 
         group.MapGet("/{entityId:guid}/video-series", async (
             Guid entityId,
+            HttpContext httpContext,
+            CatalogueResourceAuthorizationService resources,
             IVideoSeriesRepository series,
             IItemCanonicalRepository itemCanonicalData,
             CancellationToken ct) =>
@@ -463,7 +465,20 @@ public static class ItemCanonicalEndpoints
                 return Results.Ok(new VideoSeriesStateResponse { Supported = false });
             }
 
-            var targets = membership.ParentWorkId is null ? await series.ListTargetsAsync(ct) : [];
+            // Only series of the video's own library, and only ones this caller may change.
+            var targets = new List<VideoSeriesTarget>();
+            if (membership.ParentWorkId is null)
+            {
+                foreach (var candidate in await series.ListTargetsAsync(workId, ct))
+                {
+                    if (await resources.EvaluateAnyEntityAsync(
+                            httpContext, candidate.ParentWorkId, ApplicationPermissionIds.MetadataWrite, ct) == CatalogueResourceAccess.Allowed)
+                    {
+                        targets.Add(candidate);
+                    }
+                }
+            }
+
             return Results.Ok(new VideoSeriesStateResponse
             {
                 Supported = true,
@@ -479,18 +494,27 @@ public static class ItemCanonicalEndpoints
         .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
 
         // Joining or leaving a series changes how Library shows the video. Nothing on disk moves, and the choice is saved as
-        // a locked claim so a re-scan does not undo it.
+        // locked claims (in the same transaction as the move) so a re-scan does not undo it.
         group.MapPut("/{entityId:guid}/video-series", async (
             Guid entityId,
             VideoSeriesPromoteRequest request,
+            HttpContext httpContext,
+            CatalogueResourceAuthorizationService resources,
             IVideoSeriesRepository series,
-            IMetadataClaimRepository claimRepo,
-            ICanonicalValueRepository canonicalRepo,
             ISystemActivityRepository activityRepo,
             IItemCanonicalRepository itemCanonicalData,
             CancellationToken ct) =>
         {
             var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            // A chosen series is checked like any other item the caller edits; a hidden one looks exactly like one that is gone.
+            if (request.ParentId is { } chosenId
+                && await resources.EvaluateAnyEntityAsync(
+                    httpContext, chosenId, ApplicationPermissionIds.MetadataWrite, ct) != CatalogueResourceAccess.Allowed)
+            {
+                return ApiErrors.Conflict("That series is no longer available. Reload the page and try again.");
+            }
+
+            // The repository saves the move and the locked series fields together, so a failure leaves the video as it was.
             var change = request.ParentId is { } parentId
                 ? await series.PromoteAsync(workId, parentId, ct)
                 : await series.PromoteToNewSeriesAsync(workId, request.NewSeriesName ?? string.Empty, ct);
@@ -501,63 +525,14 @@ public static class ItemCanonicalEndpoints
                     VideoSeriesOutcome.NotAVideo => ApiErrors.NotFound("That is not a video."),
                     VideoSeriesOutcome.NameRequired => ApiErrors.BadRequest("Give the new series a name."),
                     VideoSeriesOutcome.AlreadyInSeries => ApiErrors.Conflict("This video is already in a series."),
+                    VideoSeriesOutcome.Conflict => ApiErrors.Conflict("The series changed at the same moment. Reload the page and try again."),
                     _ => ApiErrors.Conflict("That series is no longer available. Reload the page and try again."),
                 };
             }
 
-            var now = DateTimeOffset.UtcNow;
-            var claims = new List<MetadataClaim>();
-            var canonicals = new List<CanonicalValue>();
-            void Lock(Guid entity, string key, string value)
-            {
-                claims.Add(new MetadataClaim
-                {
-                    Id = Guid.NewGuid(),
-                    EntityId = entity,
-                    ProviderId = WellKnownProviders.UserManual,
-                    ClaimKey = key,
-                    ClaimValue = value,
-                    ClaimedAt = now,
-                    Confidence = 1.0,
-                    IsUserLocked = true,
-                });
-                canonicals.Add(new CanonicalValue
-                {
-                    EntityId = entity,
-                    Key = key,
-                    Value = value,
-                    LastScoredAt = now,
-                    WinningProviderId = WellKnownProviders.UserManual,
-                });
-            }
-
-            var position = change.Position.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            if (change.AssetId != Guid.Empty)
-            {
-                foreach (var key in new[] { MetadataFieldConstants.EpisodeNumber, MetadataFieldConstants.VideoEpisodeIndex })
-                {
-                    Lock(change.AssetId, key, position);
-                }
-
-                if (!string.IsNullOrWhiteSpace(change.SeriesTitle))
-                {
-                    // The same names ingestion records, so Watch pages, Resume and Up Next treat the video as part of the series.
-                    Lock(change.AssetId, MetadataFieldConstants.VideoSeries, change.SeriesTitle);
-                    Lock(change.AssetId, MetadataFieldConstants.ShowName, change.SeriesTitle);
-                    Lock(change.AssetId, MetadataFieldConstants.SeasonNumber, "1");
-                }
-            }
-
-            if (change.CreatedSeries && change.ParentWorkId is { } createdId && !string.IsNullOrWhiteSpace(change.SeriesTitle))
-            {
-                Lock(createdId, MetadataFieldConstants.Title, change.SeriesTitle);
-            }
-
-            await claimRepo.InsertBatchAsync(claims, ct);
-            await canonicalRepo.UpsertBatchAsync(canonicals, ct);
             await activityRepo.LogAsync(new SystemActivityEntry
             {
-                OccurredAt = now,
+                OccurredAt = DateTimeOffset.UtcNow,
                 ActionType = SystemActionType.MetadataManualOverride,
                 EntityId = workId,
                 EntityType = "Work",
@@ -585,9 +560,12 @@ public static class ItemCanonicalEndpoints
             var change = await series.RemoveAsync(workId, ct);
             if (change.Outcome != VideoSeriesOutcome.Done)
             {
-                return change.Outcome == VideoSeriesOutcome.NotAVideo
-                    ? ApiErrors.NotFound("That is not a video.")
-                    : ApiErrors.Conflict("This video is not in a series.");
+                return change.Outcome switch
+                {
+                    VideoSeriesOutcome.NotAVideo => ApiErrors.NotFound("That is not a video."),
+                    VideoSeriesOutcome.Conflict => ApiErrors.Conflict("The series changed at the same moment. Reload the page and try again."),
+                    _ => ApiErrors.Conflict("This video is not in a series."),
+                };
             }
 
             await activityRepo.LogAsync(new SystemActivityEntry

@@ -10,8 +10,11 @@ namespace MediaEngine.Ingestion.Organise;
 /// <summary>One video of a series, in the order it is shown, with the title its file name should carry.</summary>
 public sealed record VideoRenameItem(Guid AssetId, string Title);
 
-/// <summary>How many files were renamed and how many were left exactly as they were.</summary>
-public sealed record VideoRenameResult(int Renamed, int Skipped);
+/// <summary>
+/// How many files were renamed, how many were left exactly as they were, and how many could not be renamed because the data
+/// store could not be updated (those files are put back under their old name).
+/// </summary>
+public sealed record VideoRenameResult(int Renamed, int Skipped, int Failed = 0);
 
 /// <summary>
 /// "Rename files to match this order" for the videos of a series. It uses the same pieces as the organise job: the shared file
@@ -102,6 +105,7 @@ public sealed class VideoOrderRenamer
     {
         var renamed = 0;
         var skipped = 0;
+        var failed = 0;
         for (var i = 0; i < inOrder.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
@@ -136,7 +140,37 @@ public sealed class VideoOrderRenamer
             }
 
             var from = asset.FilePathRoot;
-            await _assets.UpdateFilePathAsync(asset.Id, moved, ct).ConfigureAwait(false);
+            try
+            {
+                await _assets.UpdateFilePathAsync(asset.Id, moved, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // The file already moved but the data store still points at the old name: put the file back so they agree.
+                var restored = await RestoreAsync(moved, from).ConfigureAwait(false);
+                if (ex is OperationCanceledException)
+                {
+                    throw;
+                }
+
+                _logger.LogWarning(
+                    ex,
+                    "Could not save the new file name for {Video}; {Outcome}",
+                    Path.GetFileName(from),
+                    restored ? "the file was put back under its old name" : "the file could not be put back and is now at " + moved);
+                failed++;
+                continue;
+            }
+
+            try
+            {
+                await _assets.MarkPresentedAsync(asset.Id, DateTimeOffset.UtcNow, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Could not mark {Video} as presented after renaming it", Path.GetFileName(moved));
+            }
+
             if (_sidecars is not null)
             {
                 try
@@ -145,13 +179,26 @@ public sealed class VideoOrderRenamer
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    _logger.LogInformation(ex, "Left the files that travel with {Video} where they were", Path.GetFileName(from));
+                    _logger.LogWarning(ex, "Left the files that travel with {Video} where they were", Path.GetFileName(from));
                 }
             }
 
             renamed++;
         }
 
-        return new VideoRenameResult(renamed, skipped);
+        return new VideoRenameResult(renamed, skipped, failed);
+    }
+
+    private async Task<bool> RestoreAsync(string moved, string original)
+    {
+        try
+        {
+            return await _organizer.ExecuteMoveAsync(moved, original, CancellationToken.None).ConfigureAwait(false) is not null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogError(ex, "Could not put {Video} back under its old name", Path.GetFileName(original));
+            return false;
+        }
     }
 }

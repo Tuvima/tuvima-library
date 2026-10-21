@@ -60,8 +60,28 @@ public sealed class VideoEditingEndpointRouteTests
 
         Assert.DoesNotContain("File.", series, StringComparison.Ordinal);
         Assert.DoesNotContain("renamer", series, StringComparison.Ordinal);
-        Assert.Contains("IsUserLocked = true", series, StringComparison.Ordinal);
-        Assert.Contains("MetadataFieldConstants.VideoEpisodeIndex", series, StringComparison.Ordinal);
+
+        // The locked series fields are written by the repository, in the same transaction as the move.
+        var repository = ReadSource("src/MediaEngine.Storage/VideoSeriesRepository.cs");
+        Assert.Contains("IsUserLocked = true", repository, StringComparison.Ordinal);
+        Assert.Contains("MetadataFieldConstants.VideoEpisodeIndex", repository, StringComparison.Ordinal);
+        Assert.Contains("_db.ExecuteWriteAsync", repository, StringComparison.Ordinal);
+        Assert.DoesNotContain("claimRepo", series, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheSeriesVideoCanJoin_AreCheckedAgainstTheCallersAccess()
+    {
+        var source = ReadCanonicalEndpoints();
+        var list = Between(source, "group.MapGet(\"/{entityId:guid}/video-series\"", "group.MapPut(\"/{entityId:guid}/video-series\"");
+        var put = Between(source, "group.MapPut(\"/{entityId:guid}/video-series\"", ".WithName(\"PromoteVideoToSeries\")");
+
+        Assert.Contains("ListTargetsAsync(workId", list, StringComparison.Ordinal);
+        Assert.Contains("EvaluateAnyEntityAsync(", list, StringComparison.Ordinal);
+        Assert.Contains("EvaluateAnyEntityAsync(", put, StringComparison.Ordinal);
+        Assert.True(
+            put.IndexOf("EvaluateAnyEntityAsync", StringComparison.Ordinal) < put.IndexOf("series.PromoteAsync(", StringComparison.Ordinal),
+            "the chosen series must be checked before the video moves");
     }
 
     [Fact]

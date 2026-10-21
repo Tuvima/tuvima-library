@@ -32,6 +32,9 @@ public sealed class YoutubeLinkTests
     [InlineData("https://www.youtube.com/watch?v=short")]
     [InlineData("https://www.youtube.com/playlist?list=PLabcdefghijk")]
     [InlineData("ftp://www.youtube.com/watch?v=dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/watch?v=dQw4w9WgXcQ%0A")]
+    [InlineData("https://youtu.be/dQw4w9WgXcQ%0A")]
+    [InlineData("https://www.youtube.com/embed/dQw4w9WgXcQ%0A")]
     public void TryGetVideoId_RefusesAnythingElse(string? pasted)
     {
         Assert.False(YoutubeLink.TryGetVideoId(pasted, out var id));

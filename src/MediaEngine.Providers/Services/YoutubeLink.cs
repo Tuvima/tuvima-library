@@ -10,7 +10,7 @@ public static partial class YoutubeLink
 {
     private static readonly string[] Hosts = ["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be", "www.youtu.be"];
 
-    [GeneratedRegex("^[A-Za-z0-9_-]{11}$")]
+    [GeneratedRegex(@"^[A-Za-z0-9_-]{11}\z")]
     private static partial Regex IdPattern();
 
     public static bool TryGetVideoId(string? pasted, out string videoId)

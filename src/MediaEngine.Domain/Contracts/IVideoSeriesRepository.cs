@@ -24,6 +24,9 @@ public enum VideoSeriesOutcome
 
     /// <summary>A new series needs a name.</summary>
     NameRequired,
+
+    /// <summary>The change clashed with another writer (a position or series name taken first). Nothing was saved; asking again works.</summary>
+    Conflict,
 }
 
 /// <summary>
@@ -40,14 +43,14 @@ public sealed record VideoSeriesChange(
 
 /// <summary>
 /// Moves a video into a series, or out of one, in Library's own data. Nothing on disk moves: the series is how Library shows
-/// the videos together, never a folder.
+/// the videos together, never a folder. The move and the locked series fields that go with it are saved together or not at all.
 /// </summary>
 public interface IVideoSeriesRepository
 {
     Task<VideoSeriesMembership?> GetMembershipAsync(Guid workId, CancellationToken ct = default);
 
-    /// <summary>Every place a video can join, series name first, then by name.</summary>
-    Task<IReadOnlyList<VideoSeriesTarget>> ListTargetsAsync(CancellationToken ct = default);
+    /// <summary>Every place the video can join in its own library, series name first, then by name.</summary>
+    Task<IReadOnlyList<VideoSeriesTarget>> ListTargetsAsync(Guid workId, CancellationToken ct = default);
 
     /// <summary>Puts a standalone video last in the chosen series (or section).</summary>
     Task<VideoSeriesChange> PromoteAsync(Guid workId, Guid parentWorkId, CancellationToken ct = default);

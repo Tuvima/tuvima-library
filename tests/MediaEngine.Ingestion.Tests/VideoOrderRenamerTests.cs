@@ -129,6 +129,28 @@ public sealed class VideoOrderRenamerTests : IDisposable
     }
 
     [Fact]
+    public async Task Rename_WhenTheNewPathCannotBeSaved_PutsTheFileBackAndCarriesOnWithTheNextOne()
+    {
+        var a = AddAsset("course/intro.mp4");
+        var b = AddAsset("course/basics.mp4");
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute(
+                $"CREATE TRIGGER refuse_path BEFORE UPDATE OF file_path_root ON media_assets WHEN old.id = x'{Guid.Parse(a.ToString()).ToString("N")}' BEGIN SELECT RAISE(ABORT, 'locked'); END;");
+        }
+
+        var renamer = Renamer(LibrarySourceManagementModes.ManagedByTuvima, LibrarySourceAccessModes.Writable);
+
+        var result = await renamer.RenameAsync([new VideoRenameItem(a, "Intro"), new VideoRenameItem(b, "Basics")]);
+
+        Assert.Equal(new VideoRenameResult(1, 0, 1), result);
+        Assert.True(File.Exists(Path.Combine(_root, "course", "intro.mp4")));
+        Assert.False(File.Exists(Path.Combine(_root, "course", "01 - Intro.mp4")));
+        Assert.Equal(Path.Combine(_root, "course", "intro.mp4"), (await _assets.FindByIdAsync(a))!.FilePathRoot);
+        Assert.Equal(Path.Combine(_root, "course", "02 - Basics.mp4"), (await _assets.FindByIdAsync(b))!.FilePathRoot);
+    }
+
+    [Fact]
     public async Task CanRenameAll_IsFalseForAMissingFileAndForAnEmptyList()
     {
         var a = AddAsset("course/intro.mp4");

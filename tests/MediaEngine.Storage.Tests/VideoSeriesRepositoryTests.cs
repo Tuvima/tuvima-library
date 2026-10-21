@@ -32,7 +32,7 @@ public sealed class VideoSeriesRepositoryTests : IDisposable
         File.Delete(_dbPath);
     }
 
-    private async Task<(Guid Work, Guid Asset, Guid? Parent)> AddVideoAsync(string title, string? seriesKey = null, int episode = 1, string? section = null, int sectionIndex = 1)
+    private async Task<(Guid Work, Guid Asset, Guid? Parent)> AddVideoAsync(string title, string? seriesKey = null, int episode = 1, string? section = null, int sectionIndex = 1, string? library = null)
     {
         var meta = new Dictionary<string, string>();
         if (seriesKey is not null)
@@ -53,8 +53,8 @@ public sealed class VideoSeriesRepositoryTests : IDisposable
         using var conn = _db.CreateConnection();
         conn.Execute("INSERT INTO editions (id, work_id) VALUES (@edition, @work);", new { edition, work = placed.WorkId });
         conn.Execute(
-            "INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status) VALUES (@asset, @edition, @hash, @path, 'Normal');",
-            new { asset, edition, hash = asset.ToString("N"), path = $"clips/{title}.mp4" });
+            "INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status, library_id) VALUES (@asset, @edition, @hash, @path, 'Normal', @library);",
+            new { asset, edition, hash = asset.ToString("N"), path = $"clips/{title}.mp4", library });
         conn.Execute(
             "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@asset, 'title', @title, '2026-01-01');",
             new { asset, title });
@@ -181,8 +181,9 @@ public sealed class VideoSeriesRepositoryTests : IDisposable
         var seriesOfSections = await SeriesOfAsync(sectioned.Parent!.Value);
         Title(seriesOfSections, "Guide");
         Title(sectioned.Parent!.Value, "Getting started");
+        var loose = await AddVideoAsync("Bonus");
 
-        var targets = await _series.ListTargetsAsync();
+        var targets = await _series.ListTargetsAsync(loose.Work);
 
         Assert.Equal(["Course", "Guide: Getting started"], targets.Select(target => target.Title));
         Assert.DoesNotContain(targets, target => target.ParentWorkId == seriesOfSections);
@@ -193,6 +194,163 @@ public sealed class VideoSeriesRepositoryTests : IDisposable
     public async Task GetMembership_OfAnythingThatIsNotAVideo_IsNull()
     {
         Assert.Null(await _series.GetMembershipAsync(Guid.NewGuid()));
+    }
+
+    private int CurrentClaims(Guid asset, bool lockedOnly = false)
+    {
+        using var conn = _db.CreateConnection();
+        return conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM metadata_claims WHERE entity_id = @asset AND is_current = 1 AND claim_key IN @keys"
+            + (lockedOnly ? " AND is_user_locked = 1;" : ";"),
+            new { asset, keys = SeriesKeys });
+    }
+
+    private int CanonicalRows(Guid asset)
+    {
+        using var conn = _db.CreateConnection();
+        return conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM canonical_values WHERE entity_id = @asset AND key IN @keys;", new { asset, keys = SeriesKeys });
+    }
+
+    private static readonly string[] SeriesKeys =
+    [
+        MetadataFieldConstants.VideoSeries, MetadataFieldConstants.ShowName, MetadataFieldConstants.SeasonNumber,
+        MetadataFieldConstants.EpisodeNumber, MetadataFieldConstants.VideoEpisodeIndex,
+    ];
+
+    private void Execute(string sql)
+    {
+        using var conn = _db.CreateConnection();
+        conn.Execute(sql);
+    }
+
+    [Fact]
+    public async Task Promote_SavesTheLockedSeriesFieldsWithTheMove()
+    {
+        var first = await AddVideoAsync("Intro", "course", 1);
+        Title(first.Parent!.Value, "Course");
+        var loose = await AddVideoAsync("Bonus");
+
+        await _series.PromoteAsync(loose.Work, first.Parent.Value);
+
+        Assert.Equal(5, CurrentClaims(loose.Asset, lockedOnly: true));
+        Assert.Equal(5, CanonicalRows(loose.Asset));
+    }
+
+    [Fact]
+    public async Task Remove_ClearsTheLockedFieldsAndTheScanClaims_SoNoSeriesIsLeftToResolve()
+    {
+        var first = await AddVideoAsync("Intro", "course", 1);
+        Title(first.Parent!.Value, "Course");
+        var loose = await AddVideoAsync("Bonus");
+        await _series.PromoteAsync(loose.Work, first.Parent.Value);
+        // What a scan wrote for the same fields before the person moved the video.
+        Execute($"""
+            INSERT INTO metadata_providers (id, name, version, is_enabled) VALUES (x'{"11".PadRight(32, '1')}', 'scan_test', '1', 1);
+            INSERT INTO metadata_claims (id, entity_id, provider_id, claim_key, claim_value, confidence, claimed_at, is_user_locked, is_current)
+            VALUES (x'{"22".PadRight(32, '2')}', x'{loose.Asset.ToString("N")}', x'{"11".PadRight(32, '1')}', 'video_series', 'Old Series', 0.98, '2026-01-01', 0, 1);
+            """);
+
+        Assert.Equal(6, CurrentClaims(loose.Asset));
+        var change = await _series.RemoveAsync(loose.Work);
+
+        Assert.Equal(VideoSeriesOutcome.Done, change.Outcome);
+        Assert.Equal(0, CurrentClaims(loose.Asset));
+        Assert.Equal(0, CanonicalRows(loose.Asset));
+        Assert.Null((await _series.GetMembershipAsync(loose.Work))!.ParentWorkId);
+    }
+
+    [Fact]
+    public async Task Promote_WhenTheClaimsCannotBeSaved_LeavesTheVideoStandaloneAndAnotherTryWorks()
+    {
+        var first = await AddVideoAsync("Intro", "course", 1);
+        var loose = await AddVideoAsync("Bonus");
+        Execute("CREATE TRIGGER fail_claims BEFORE INSERT ON metadata_claims BEGIN SELECT RAISE(ABORT, 'no claims'); END;");
+
+        var failed = await _series.PromoteAsync(loose.Work, first.Parent!.Value);
+
+        Assert.Equal(VideoSeriesOutcome.Conflict, failed.Outcome);
+        Assert.Null((await _series.GetMembershipAsync(loose.Work))!.ParentWorkId);
+        Execute("DROP TRIGGER fail_claims;");
+        var retry = await _series.PromoteAsync(loose.Work, first.Parent.Value);
+        Assert.Equal(VideoSeriesOutcome.Done, retry.Outcome);
+        Assert.Equal(2, retry.Position);
+        Assert.Equal(5, CurrentClaims(loose.Asset, lockedOnly: true));
+    }
+
+    [Fact]
+    public async Task PromoteToNewSeries_WhenTheClaimsCannotBeSaved_StartsNoSeries()
+    {
+        var loose = await AddVideoAsync("Bonus");
+        Execute("CREATE TRIGGER fail_claims BEFORE INSERT ON metadata_claims BEGIN SELECT RAISE(ABORT, 'no claims'); END;");
+
+        var failed = await _series.PromoteToNewSeriesAsync(loose.Work, "Road Trip");
+
+        Assert.Equal(VideoSeriesOutcome.Conflict, failed.Outcome);
+        using (var conn = _db.CreateConnection())
+        {
+            Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE work_kind = 'parent';"));
+        }
+
+        Execute("DROP TRIGGER fail_claims;");
+        Assert.Equal(VideoSeriesOutcome.Done, (await _series.PromoteToNewSeriesAsync(loose.Work, "Road Trip")).Outcome);
+    }
+
+    [Fact]
+    public async Task Remove_WhenTheClaimsCannotBeCleared_KeepsTheVideoInItsSeriesAndAnotherTryWorks()
+    {
+        var first = await AddVideoAsync("Intro", "course", 1);
+        var loose = await AddVideoAsync("Bonus");
+        await _series.PromoteAsync(loose.Work, first.Parent!.Value);
+        Execute("CREATE TRIGGER fail_delete BEFORE DELETE ON metadata_claims BEGIN SELECT RAISE(ABORT, 'no delete'); END;");
+
+        var failed = await _series.RemoveAsync(loose.Work);
+
+        Assert.Equal(VideoSeriesOutcome.Conflict, failed.Outcome);
+        Assert.Equal(first.Parent, (await _series.GetMembershipAsync(loose.Work))!.ParentWorkId);
+        Assert.Equal(5, CurrentClaims(loose.Asset, lockedOnly: true));
+        Execute("DROP TRIGGER fail_delete;");
+        Assert.Equal(VideoSeriesOutcome.Done, (await _series.RemoveAsync(loose.Work)).Outcome);
+        Assert.Equal(0, CurrentClaims(loose.Asset));
+    }
+
+    [Fact]
+    public async Task ListTargets_OnlyOffersSeriesOfTheVideosOwnLibrary()
+    {
+        var mine = await AddVideoAsync("Intro", "course", 1, library: "lib-a");
+        Title(mine.Parent!.Value, "Course");
+        var other = await AddVideoAsync("Lecture", "talks", 1, library: "lib-b");
+        Title(other.Parent!.Value, "Talks");
+        var loose = await AddVideoAsync("Bonus", library: "lib-a");
+
+        var targets = await _series.ListTargetsAsync(loose.Work);
+
+        Assert.Equal([mine.Parent.Value], targets.Select(target => target.ParentWorkId));
+    }
+
+    [Fact]
+    public async Task Promote_RefusesASeriesOfAnotherLibrary()
+    {
+        var other = await AddVideoAsync("Lecture", "talks", 1, library: "lib-b");
+        var loose = await AddVideoAsync("Bonus", library: "lib-a");
+
+        var change = await _series.PromoteAsync(loose.Work, other.Parent!.Value);
+
+        Assert.Equal(VideoSeriesOutcome.TargetUnavailable, change.Outcome);
+        Assert.Null((await _series.GetMembershipAsync(loose.Work))!.ParentWorkId);
+    }
+
+    [Fact]
+    public async Task PromoteToNewSeries_OnlyJoinsAnExistingSeriesOfTheSameLibrary()
+    {
+        var other = await AddVideoAsync("Lecture", "talks", 1, library: "lib-b");
+        var sameLibrary = await AddVideoAsync("Extra", library: "lib-b");
+        var elsewhere = await AddVideoAsync("Bonus", library: "lib-a");
+
+        Assert.Equal(VideoSeriesOutcome.TargetUnavailable, (await _series.PromoteToNewSeriesAsync(elsewhere.Work, "Talks")).Outcome);
+        var joined = await _series.PromoteToNewSeriesAsync(sameLibrary.Work, "Talks");
+        Assert.Equal(VideoSeriesOutcome.Done, joined.Outcome);
+        Assert.Equal(other.Parent, joined.ParentWorkId);
     }
 
     private Task<Guid> SeriesOfAsync(Guid sectionId)

@@ -22,7 +22,7 @@ public sealed partial class YoutubeVideoLookup : IVideoOnlineLookup
     private const long MaxThumbnailBytes = 5L * 1024 * 1024;
     private static readonly string[] ThumbnailHosts = ["i.ytimg.com", "img.youtube.com", "i9.ytimg.com"];
 
-    [GeneratedRegex("^[A-Za-z0-9_-]{11}$")]
+    [GeneratedRegex(@"^[A-Za-z0-9_-]{11}\z")]
     private static partial Regex IdPattern();
 
     private readonly IConfigurationLoader _configuration;
