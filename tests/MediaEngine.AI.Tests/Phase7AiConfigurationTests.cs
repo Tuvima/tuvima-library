@@ -21,9 +21,9 @@ public sealed class Phase7AiConfigurationTests
 
         Assert.NotNull(roundTrip);
         Assert.Equal(AiResourceProfileNames.Standard, roundTrip.ResourceProfile);
-        Assert.False(roundTrip.Features.SmartLabeling);
-        Assert.False(roundTrip.Features.TypeLogic);
-        Assert.False(string.IsNullOrWhiteSpace(roundTrip.Scheduling.DescriptionIntelligenceCron));
+        Assert.DoesNotContain("\"features\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"scheduling\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("vibe_vocabulary", json, StringComparison.Ordinal);
         Assert.DoesNotContain("\"models\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("hardware_profile", json, StringComparison.Ordinal);
         Assert.DoesNotContain("model_catalog", json, StringComparison.Ordinal);
@@ -113,17 +113,17 @@ public sealed class Phase7AiConfigurationTests
         {
             ModelsDirectory = Path.Combine(Path.GetTempPath(), $"tuvima-gate-{Guid.NewGuid():N}"),
         };
-        settings.Features.VibeTags = false;
+        var switches = new FakeAiFeatureSwitches();
         var inventory = new ModelInventory(settings, NullLogger<ModelInventory>.Instance);
         inventory.SetState(AiModelRole.TextQuality, AiModelState.Ready);
         var gate = new AiFeatureGate(
-            settings,
+            switches,
             inventory,
             new AiModelSelectionAdvisor(settings, inventory, new FixedRuntimeStatus(textLoads: true)));
 
         Assert.False(gate.CanExecute(AiFeature.VibeTags, AiModelRole.TextQuality));
 
-        settings.Features.VibeTags = true;
+        switches.Set(AiFeature.VibeTags, true);
         inventory.SetState(AiModelRole.TextQuality, AiModelState.NotDownloaded);
         Assert.False(gate.CanExecute(AiFeature.VibeTags, AiModelRole.TextQuality));
     }

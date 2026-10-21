@@ -136,20 +136,11 @@ MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiConfigDto
   ResourceProfile: System.String | nullability=not-null | accessors=get,set
   EffectiveResourceProfile: System.String | nullability=not-null | accessors=get,set
   AudioPackEnabled: System.Boolean | nullability=not-null | accessors=get,set
-  Features: System.Collections.Generic.Dictionary<System.String, System.Boolean> | nullability=not-null | accessors=get,set
-  FeatureInfo: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Ai.AiFeatureInfoDto> | nullability=not-null | accessors=get,set
-  Approvals: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
-  VibeVocabulary: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<System.String>> | nullability=not-null | accessors=get,set
-  Scheduling: System.Collections.Generic.Dictionary<System.String, System.Object> | nullability=not-null | accessors=get,set
   EnrichmentBatchSize: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiDownloadCancelledResponse
   cancelled: System.Boolean | nullability=not-null | accessors=get,init
   role: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiFeatureInfoDto
-  AllowedTo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
-  SendsDataTo: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiHealthStatusDto
   Models: System.Collections.Generic.List<MediaEngine.Contracts.Ai.AiModelStatusDto> | nullability=not-null | accessors=get,set

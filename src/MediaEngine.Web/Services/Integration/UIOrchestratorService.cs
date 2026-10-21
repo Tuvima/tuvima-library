@@ -1725,9 +1725,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default)
         => _api.SaveAiConfigAsync(config, ct);
 
-    public Task<AiConfigSaveResult> SaveAiConfigWithApprovalAsync(AiConfigDto config, CancellationToken ct = default)
-        => _api.SaveAiConfigWithApprovalAsync(config, ct);
-
     public Task<HardwareProfileDto?> GetAiProfileAsync(CancellationToken ct = default)
         => _api.GetAiProfileAsync(ct);
 

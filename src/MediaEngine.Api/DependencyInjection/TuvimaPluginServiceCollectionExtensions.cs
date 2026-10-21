@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services.Plugins;
+using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Plugin.CommercialSkip;
 using MediaEngine.Plugin.FandomLore;
@@ -11,6 +12,12 @@ public static class TuvimaPluginServiceCollectionExtensions
 {
     public static IServiceCollection AddTuvimaPlugins(this IServiceCollection services)
     {
+        // Registered in name order, ahead of the assembly scan, so the plugin list is deterministic.
+        services.AddSingleton<ITuvimaPlugin, DescriptionInsightsPlugin>();
+        services.AddSingleton<ITuvimaPlugin, SeriesOrderPlugin>();
+        services.AddSingleton<ITuvimaPlugin, SmartLabellingPlugin>();
+        services.AddSingleton<ITuvimaPlugin, TypeHelperPlugin>();
+        services.AddSingleton<ITuvimaPlugin, VibeTagsPlugin>();
         services.AddSingletonImplementations<ITuvimaPlugin>(
             expectedCount: 6,
             typeof(CommercialSkipPlugin).Assembly,

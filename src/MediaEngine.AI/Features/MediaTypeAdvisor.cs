@@ -1,5 +1,5 @@
-using MediaEngine.AI.Configuration;
 using MediaEngine.AI.EngineRoom;
+using MediaEngine.AI.Infrastructure;
 using MediaEngine.AI.Llama;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
@@ -18,16 +18,16 @@ public sealed class MediaTypeAdvisor : IMediaTypeAdvisor
     private static readonly AiCaller Caller = AiCaller.Ingestion(AiCallerIds.TypeLogic);
 
     private readonly IAiEngineRoom _engineRoom;
-    private readonly AiSettings _settings;
+    private readonly IAiFeatureSwitches _switches;
     private readonly ILogger<MediaTypeAdvisor> _logger;
 
     public MediaTypeAdvisor(
         IAiEngineRoom engineRoom,
-        AiSettings settings,
+        IAiFeatureSwitches switches,
         ILogger<MediaTypeAdvisor> logger)
     {
         _engineRoom = engineRoom;
-        _settings = settings;
+        _switches = switches;
         _logger = logger;
     }
 
@@ -42,7 +42,7 @@ public sealed class MediaTypeAdvisor : IMediaTypeAdvisor
         CancellationToken ct = default)
     {
         // Short-circuit when the feature is disabled.
-        if (!_settings.Features.TypeLogic)
+        if (!_switches.IsOn(AiFeature.TypeLogic))
         {
             return new MediaTypeCandidate
             {
