@@ -82,6 +82,10 @@ public sealed class OwnedStory
     /// </summary>
     public IReadOnlySet<string> VisibleQids { get; }
 
+    /// <summary>The Wikidata item of a title (a show, or any other root work) when it has one; empty otherwise.</summary>
+    public IReadOnlyList<string> RootQidsOf(Guid titleId) =>
+        _rootQids.TryGetValue(titleId, out var qid) ? [qid] : [];
+
     /// <summary>The identities of the given rows' works and of the shows they belong to: how a Universe's own works are named.</summary>
     public IReadOnlySet<string> QidsOf(IEnumerable<DisplayWorkRow> rows)
     {
@@ -239,8 +243,15 @@ public sealed class OwnedStory
         return best;
     }
 
+    /// <summary>Where one visible row sits in the owned story: its title and, for a TV episode, the episode.</summary>
+    public static WorkPosition PositionOf(DisplayWorkRow row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        return new WorkPosition(row.RootWorkId, EpisodeOf(row));
+    }
+
     /// <summary>The episode a TV row is, from its season and episode numbers; a missing season reads as season 1.</summary>
-    private static EpisodePosition? EpisodeOf(DisplayWorkRow row)
+    internal static EpisodePosition? EpisodeOf(DisplayWorkRow row)
     {
         if (DisplayMediaRules.NormalizeDisplayKind(row.MediaType) != "TV" || LeadingNumber(row.EpisodeNumber) is not { } episode)
         {

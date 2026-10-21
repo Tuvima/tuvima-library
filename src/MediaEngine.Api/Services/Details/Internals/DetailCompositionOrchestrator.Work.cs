@@ -266,10 +266,13 @@ internal sealed partial class DetailCompositionOrchestrator
                 heroProgress,
                 FormatSeasonEpisode(detail.SeasonNumber, detail.EpisodeNumber)),
             SecondaryActions = BuildSecondaryActions(workId, entityType, favoriteWorkIds.Contains(workId)),
-            OverflowActions = BuildOverflowActions(workId, entityType, actionAuthorization,
-                await IngestionAvailability.IsUpdatingAsync(_db, workId, ct),
-                isVideo: string.Equals(detail.MediaType, "Videos", StringComparison.OrdinalIgnoreCase),
-                videoMatched: !string.IsNullOrWhiteSpace(GetValue(values, MetadataFieldConstants.VideoLookupSource))),
+            OverflowActions = WithCompanionAction(
+                workId,
+                entityType,
+                BuildOverflowActions(workId, entityType, actionAuthorization,
+                    await IngestionAvailability.IsUpdatingAsync(_db, workId, ct),
+                    isVideo: string.Equals(detail.MediaType, "Videos", StringComparison.OrdinalIgnoreCase),
+                    videoMatched: !string.IsNullOrWhiteSpace(GetValue(values, MetadataFieldConstants.VideoLookupSource)))),
             ContributorGroups = contributorGroups,
             FullContributorGroups = fullContributorGroups,
             PreviewContributors = BuildPreviewContributors(entityType, contributorGroups),
@@ -279,6 +282,15 @@ internal sealed partial class DetailCompositionOrchestrator
             LibraryStatus = LibraryStatus.Owned,
         };
     }
+
+    // "Companion" opens the phone companion for this title; it comes before Edit and is the same for everyone who can see the page.
+    private static IReadOnlyList<DetailAction> WithCompanionAction(
+        Guid workId,
+        DetailEntityType entityType,
+        IReadOnlyList<DetailAction> actions) =>
+        DetailCompanionAction.AppliesTo(entityType)
+            ? [DetailCompanionAction.Build(workId), .. actions]
+            : actions;
 
     private async Task<DetailPageViewModel?> BuildBookSeriesAsync(
         Guid seriesId,

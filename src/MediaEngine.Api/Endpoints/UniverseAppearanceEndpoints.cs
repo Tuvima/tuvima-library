@@ -40,7 +40,8 @@ public static class UniverseAppearanceEndpoints
         HttpContext http,
         IProfileRepository profiles,
         EntityAppearanceReadService appearances,
-        CancellationToken ct)
+        CancellationToken ct,
+        Guid? reachedWorkId = null)
     {
         var entityQid = string.IsNullOrWhiteSpace(entity) ? null : entity.Trim();
         if ((entityQid is null) == (person is null))
@@ -51,7 +52,7 @@ public static class UniverseAppearanceEndpoints
         if (entityQid is not null)
         {
             var profile = await CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct);
-            var byEntity = await appearances.GetForEntityAsync(qid, entityQid, profile, ct);
+            var byEntity = await appearances.GetForEntityAsync(qid, entityQid, profile, ct, reachedWorkId);
             return byEntity is null
                 ? ApiErrors.NotFound($"Entity '{entityQid}' not found.")
                 : Results.Ok(byEntity);
