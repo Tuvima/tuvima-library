@@ -801,6 +801,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         Assert.Equal($"http://localhost{address}", navigation.Uri);
         Assert.NotEmpty(cut.FindAll(".libraries"));
+        // The Libraries menu row stays lit on every level below it.
+        Assert.Contains(cut.FindAll("a[href='/settings/libraries']"), link => link.ClassList.Contains("is-active") || link.GetAttribute("aria-current") == "page");
     }
 
     [Theory]

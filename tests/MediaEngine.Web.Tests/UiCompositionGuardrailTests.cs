@@ -24,26 +24,10 @@ public sealed class UiCompositionGuardrailTests
         "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor",
     ];
 
-    private static readonly string RemovedRouteSegment = "/" + "va" + "ult";
-    private static readonly string RemovedProductLabel = "Va" + "ult";
-    private static readonly string RemovedWorkspaceLabel = "Library " + RemovedProductLabel;
-    private static readonly string RemovedCssPrefix = "va" + "ult-";
+    // Only the old workspace name (the word Library before the area name) stays retired; the plain area name is the adult-video area (Videos spec D15).
+    private static readonly string RemovedWorkspaceLabel = "Library " + "Va" + "ult";
     private static readonly string RemovedPageComponent = "Library" + "Page";
     private static readonly string RemovedSurfaceType = "LibrarySurface" + "Preset";
-
-    // The retired all-in-one workspace used the bare product label. The private group of Settings > Libraries (spec
-    // library-setup-groups D1, D4, D13: an area beside Watch, Listen, Read and View, drawn only when its mode is on) is a
-    // different, approved thing, so only the files that implement that group may use the label. Every other retired
-    // term stays refused in them, and no other file may use the label.
-    private static readonly string[] PrivateGroupFiles =
-    [
-        "src/MediaEngine.Web/Components/Settings/LibrariesTab.razor",
-        "src/MediaEngine.Web/Components/Settings/Libraries/LibraryCatalog.cs",
-        "src/MediaEngine.Web/Components/Settings/Libraries/LibraryFrontDoor.razor",
-        "src/MediaEngine.Web/Components/Settings/Libraries/LibraryFrontDoor.razor.css",
-        "src/MediaEngine.Web/Models/ViewDTOs/SettingsNav.cs",
-        "tests/MediaEngine.Web.Tests/LibraryFrontDoorTests.cs",
-    ];
 
     // The old all-in-one screen's name is retired entirely (Registry retirement D2). Only the bare word is refused:
     // technical identifiers such as PermissionRegistry or CapabilityRegistry, and lowercase "registry" (a Docker
@@ -139,7 +123,7 @@ public sealed class UiCompositionGuardrailTests
                 || path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
                 || path.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
             .Where(path => !RemovedAllInOneWorkspaceFiles.Contains(ToRelativePath(path), StringComparer.OrdinalIgnoreCase))
-            .Where(path => ContainsRemovedWorkspaceLanguage(Sanitize(File.ReadAllText(path)), ToRelativePath(path)))
+            .Where(path => ContainsRemovedWorkspaceLanguage(Sanitize(File.ReadAllText(path))))
             .Select(ToRelativePath)
             .ToList();
 
@@ -164,7 +148,7 @@ public sealed class UiCompositionGuardrailTests
             .Where(root => File.Exists(root) || Directory.Exists(root))
             .SelectMany(EnumerateTextFiles)
             .Where(path => !IsGeneratedOrBuildOutput(path))
-            .Where(path => ContainsRemovedWorkspaceLanguage(File.ReadAllText(path), ToRelativePath(path)))
+            .Where(path => ContainsRemovedWorkspaceLanguage(File.ReadAllText(path)))
             .Select(ToRelativePath)
             .ToList();
 
@@ -353,13 +337,9 @@ public sealed class UiCompositionGuardrailTests
             });
     }
 
-    private static bool ContainsRemovedWorkspaceLanguage(string contents, string? relativePath = null)
+    private static bool ContainsRemovedWorkspaceLanguage(string contents)
     {
-        var mayUseTheProductLabel = relativePath is not null && PrivateGroupFiles.Contains(relativePath, StringComparer.OrdinalIgnoreCase);
-        return contents.Contains(RemovedRouteSegment, StringComparison.OrdinalIgnoreCase)
-            || (!mayUseTheProductLabel && contents.Contains(RemovedProductLabel, StringComparison.OrdinalIgnoreCase))
-            || contents.Contains(RemovedWorkspaceLabel, StringComparison.OrdinalIgnoreCase)
-            || contents.Contains(RemovedCssPrefix, StringComparison.OrdinalIgnoreCase)
+        return contents.Contains(RemovedWorkspaceLabel, StringComparison.OrdinalIgnoreCase)
             || contents.Contains(RemovedPageComponent, StringComparison.OrdinalIgnoreCase)
             || contents.Contains(RemovedSurfaceType, StringComparison.OrdinalIgnoreCase);
     }

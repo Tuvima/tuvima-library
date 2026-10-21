@@ -106,7 +106,8 @@ public static class SettingsMenuBuilder
             node.Route,
             node.Icon,
             Meta: count,
-            Exact: true,
+            // Libraries has its own pages below it (a group such as /settings/libraries/watch, then a type), so its row stays lit there.
+            Exact: node is not { Section: SettingsSection.Libraries, Subsection: null },
             Children: node.Children.Count == 0
                 ? null
                 : node.Children.Select(child => BuildItem(child, context)).ToList(),
