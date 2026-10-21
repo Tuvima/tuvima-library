@@ -71,6 +71,8 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<ArtworkWritebackService>();
         services.AddHostedService<ArtworkWritebackWorker>();
         services.AddHostedService<MissingUniverseSweepService>();
+        services.AddSingleton<SubtitleIndexer>();
+        services.AddHostedService<SubtitleIndexHostedService>();
 
         // Recovery must finish before any identity worker can lease jobs.
         services.AddHostedService<HydrationStartupSweepService>();
