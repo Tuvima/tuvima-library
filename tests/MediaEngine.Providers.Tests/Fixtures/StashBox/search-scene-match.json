@@ -1,0 +1,37 @@
+{
+  "data": {
+    "searchScene": [
+      {
+        "id": "7d1c2c0e-4f0b-4a3e-9a63-0f2b1f9a1111",
+        "title": "Example Scene One",
+        "details": "A short description of the example scene.\nSecond line.",
+        "date": "2021-03-04",
+        "code": "ABC-123",
+        "studio": { "id": "5a0c4b1e-0000-4000-8000-000000000001", "name": "Example Studio" },
+        "tags": [
+          { "id": "11111111-0000-4000-8000-000000000001", "name": "Tag One" },
+          { "id": "11111111-0000-4000-8000-000000000002", "name": "Tag Two" }
+        ],
+        "performers": [
+          { "performer": { "id": "22222222-0000-4000-8000-000000000001", "name": "Performer One" } },
+          { "performer": { "id": "22222222-0000-4000-8000-000000000002", "name": "Performer Two" } }
+        ],
+        "images": [
+          { "url": "https://cdn.stashdb.org/images/ab/cd/portrait.jpg", "width": 600, "height": 900 },
+          { "url": "https://cdn.stashdb.org/images/ab/cd/cover.jpg", "width": 1280, "height": 720 }
+        ]
+      },
+      {
+        "id": "7d1c2c0e-4f0b-4a3e-9a63-0f2b1f9a2222",
+        "title": "Example Scene One Reloaded",
+        "details": null,
+        "date": null,
+        "code": null,
+        "studio": null,
+        "tags": [],
+        "performers": [],
+        "images": []
+      }
+    ]
+  }
+}

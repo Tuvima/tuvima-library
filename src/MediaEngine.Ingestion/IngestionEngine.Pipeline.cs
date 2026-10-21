@@ -507,6 +507,8 @@ public sealed partial class IngestionEngine
             // Stage 1 lookup (D7): only the YouTube ID leaves the machine, only when this library's switch is on.
             if (_videoLookup is not null
                 && context.Library?.YoutubeLookup == true
+                // YouTube is never asked about a Vault file, whatever the library's own switch says (Videos spec D21, D26).
+                && (_audienceGate is null || await _audienceGate.MayAskAboutLibraryAsync("youtube", context.Library.Id, ct).ConfigureAwait(false))
                 && result.Claims.FirstOrDefault(claim => claim.Key == MetadataFieldConstants.YoutubeVideoId)?.Value is { } youtubeId
                 && await _videoLookup.LookupAsync(youtubeId, ct).ConfigureAwait(false) is { } online)
             {

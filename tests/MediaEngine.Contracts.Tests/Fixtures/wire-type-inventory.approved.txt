@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1113; api=0; web-client=54
+# scopes: contracts=1122; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9756,6 +9756,65 @@
 [contracts] MediaEngine.Contracts.Settings.SettingsSavedResponse
   kind=class | converter=default | number-handling=default | unmapped=default
   saved: System.Boolean | json=saved | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Settings.StashBoxAddServerRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Address: System.String | json=address | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ApiKey: System.String | json=apiKey | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample","address":"sample","apiKey":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.StashBoxAddServerResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Server: MediaEngine.Contracts.Settings.StashBoxServerDto | json=server | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Test: MediaEngine.Contracts.Settings.StashBoxTestResultDto | json=test | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"server":null,"test":null}
+
+[contracts] MediaEngine.Contracts.Settings.StashBoxFingerprintPermissionRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Allowed: System.Boolean | json=allowed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"allowed":true}
+
+[contracts] MediaEngine.Contracts.Settings.StashBoxKeyRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ApiKey: System.String | json=apiKey | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"apiKey":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.StashBoxOrderRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ServerIds: System.Collections.Generic.List<System.String> | json=serverIds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"serverIds":[]}
+
+[contracts] MediaEngine.Contracts.Settings.StashBoxServerDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.String | json=id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Address: System.String | json=address | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsDefault: System.Boolean | json=isDefault | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Connection: System.String | json=connection | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","name":"sample","address":"sample","isDefault":true,"connection":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.StashBoxSettingsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Servers: System.Collections.Generic.List<MediaEngine.Contracts.Settings.StashBoxServerDto> | json=servers | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FingerprintPermission: System.Boolean | json=fingerprintPermission | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FingerprintPermissionText: System.String | json=fingerprintPermissionText | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Disclosure: System.String | json=disclosure | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"servers":[],"fingerprintPermission":true,"fingerprintPermissionText":"sample","disclosure":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.StashBoxTestRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ServerId: System.String | json=serverId | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Address: System.String | json=address | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ApiKey: System.String | json=apiKey | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"serverId":"sample","address":"sample","apiKey":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.StashBoxTestResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Connected: System.Boolean | json=connected | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Status: System.String | json=status | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"connected":true,"status":"sample","message":"sample"}
 
 [contracts] MediaEngine.Contracts.Settings.SystemDriveDto
   kind=class | converter=default | number-handling=default | unmapped=default

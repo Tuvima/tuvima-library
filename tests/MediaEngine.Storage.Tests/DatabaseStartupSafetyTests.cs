@@ -1369,7 +1369,7 @@ public sealed class DatabaseStartupSafetyTests
         Assert.Empty(fixture.Database.StartupNotes);
         using var after = fixture.Database.CreateConnection();
         Assert.Equal("1", Scalar(after, "SELECT COUNT(*) FROM metadata_providers WHERE name = 'tvdb';"));
-        Assert.Equal("16", Scalar(after, "SELECT COUNT(*) FROM metadata_providers;"));
+        Assert.Equal("17", Scalar(after, "SELECT COUNT(*) FROM metadata_providers;"));
         Assert.Equal("user-edited", Scalar(after, "SELECT version FROM metadata_providers WHERE name = 'tmdb';"));
         Assert.Equal("0", Scalar(after, "SELECT is_enabled FROM metadata_providers WHERE name = 'tmdb';"));
         Assert.Equal("Renamed", Scalar(after, "SELECT display_name FROM profiles;"));

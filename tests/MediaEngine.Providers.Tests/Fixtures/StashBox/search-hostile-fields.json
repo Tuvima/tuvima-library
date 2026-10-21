@@ -1,0 +1,22 @@
+{
+  "data": {
+    "searchScene": [
+      {
+        "id": "not an id with spaces",
+        "title": "Rejected: the id is not a plain identifier",
+        "images": []
+      },
+      {
+        "id": "7d1c2c0e-4f0b-4a3e-9a63-0f2b1f9a3333",
+        "title": "Hostile\u0000Title\u0007 With Controls",
+        "details": "Line one\u0000\u0001\nLine two",
+        "date": "1066-10-14",
+        "code": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "studio": { "name": "Studio" },
+        "tags": [ { "name": "tag" }, { "name": "TAG" }, { "name": "" }, 7 ],
+        "performers": [ { "performer": { "name": "Someone" } }, { "performer": 5 }, "x" ],
+        "images": [ { "url": "https://evil.example.net/cover.jpg", "width": 1280, "height": 720 } ]
+      }
+    ]
+  }
+}

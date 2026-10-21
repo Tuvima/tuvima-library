@@ -54,7 +54,7 @@ public sealed partial class DevHarnessResetServiceTests : IDisposable
             Assert.Equal(1L, Scalar(conn, "SELECT COUNT(*) FROM data_store_upgrades WHERE number = 1 AND name = 'baseline';"));
             Assert.Equal(1L, Scalar(conn, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'view' AND name = 'work_owned_assets';"));
             Assert.Equal(1L, Scalar(conn, "SELECT COUNT(*) FROM applications WHERE id = X'00000000000000000000000000000004';"));
-            Assert.Equal(16L, Scalar(conn, "SELECT COUNT(*) FROM metadata_providers;"));
+            Assert.Equal(17L, Scalar(conn, "SELECT COUNT(*) FROM metadata_providers;"));
         }
 
         // The next normal start finds a current data store and applies nothing.

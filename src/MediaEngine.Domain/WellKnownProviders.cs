@@ -55,6 +55,9 @@ public static class WellKnownProviders
     /// <summary>SubDL — downloaded subtitle tracks.</summary>
     public static readonly Guid Subdl = Guid.Parse("c0000010-0000-4000-8000-000000000018");
 
+    /// <summary>Stash-box (the Official adult-only plugin, Vault items only).</summary>
+    public static readonly Guid StashBox = Guid.Parse("c0000012-0000-4000-8000-000000000020");
+
     /// <summary>Returns true if the provider is a file/local source (LocalProcessor or LibraryScanner).</summary>
     public static bool IsFileSource(Guid providerId) =>
         providerId == LocalProcessor || providerId == LibraryScanner;

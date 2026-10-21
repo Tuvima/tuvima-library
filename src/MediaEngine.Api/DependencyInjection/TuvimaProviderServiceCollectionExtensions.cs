@@ -9,6 +9,7 @@ using MediaEngine.Providers.Contracts;
 using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Providers;
 using MediaEngine.Providers.Services;
+using MediaEngine.Providers.Services.StashBox;
 using MediaEngine.Providers.Workers;
 
 namespace MediaEngine.Api.DependencyInjection;
@@ -115,6 +116,15 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddTuvimaHttpClient(YoutubeVideoLookup.HttpClientName, TimeSpan.FromSeconds(10), addStandardResilience: false)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
         services.AddSingleton<IVideoOnlineLookup, YoutubeVideoLookup>();
+        // Stash-box (the Official adult-only plugin): no redirects, so the account key and a cover address can never lead to another host.
+        // IProviderAudienceGate is the one place that keeps Vault items to adult-only providers and every other provider away from them.
+        services.AddTuvimaHttpClient(StashBoxClient.HttpClientName, TimeSpan.FromSeconds(15), addStandardResilience: false)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
+        services.AddSingleton<StashBoxClient>();
+        services.AddSingleton<IStashBoxSettings, StashBoxSettings>();
+        services.AddSingleton<IAdultVideoLookup, StashBoxVideoLookup>();
+        services.AddSingleton<IProviderAudienceGate, ProviderAudienceGate>();
+        services.AddSingleton<VaultVideoDetailsService>();
         services.AddTuvimaHttpClient("headshot_download", TimeSpan.FromSeconds(20));
         // Plugin tools can legitimately run for several minutes. The standard
         // resilience pipeline's much shorter attempt timeout would silently

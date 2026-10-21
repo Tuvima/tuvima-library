@@ -97,6 +97,16 @@ public sealed class VideoEditingEndpointRouteTests
         Assert.Contains("lookup.LookupAsync(videoId", identify, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void IdentifyingFromALink_NeverAsksYoutubeAboutAVaultVideo()
+    {
+        var identify = Between(ReadCanonicalEndpoints(), "group.MapPost(\"/{entityId:guid}/video-identify\"", "group.MapPut(\"/{entityId:guid}/display-overrides\"");
+
+        var gate = identify.IndexOf("audienceGate.MayAskAboutItemAsync(\"youtube\"", StringComparison.Ordinal);
+        var lookup = identify.IndexOf("lookup.LookupAsync(videoId", StringComparison.Ordinal);
+        Assert.True(gate >= 0 && lookup > gate, "the audience gate must be asked before anything is sent to YouTube");
+    }
+
     private static string ReadCanonicalEndpoints() => ReadSource("src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs");
 
     private static string Between(string source, string start, string end)

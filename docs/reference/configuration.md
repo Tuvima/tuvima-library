@@ -588,3 +588,14 @@ Browser playback mechanics for the Dashboard Listen host. These are not user lis
 ### Retail matrix follow-up
 
 Retail identity confidence uses typed per-media `scoring.scopes` in `config/pipelines.json` and synchronized settings defaults. Eight scopes replace the global retail weights: books, audiobooks, movies, TV series, TV episodes, music tracks, music albums and comic issues. Missing optional values redistribute their weight and show Not provided; required creator evidence fails closed. Genre contributes nothing. Wrong-kind and structural gates apply after bonuses. Additive nullable `field_scores` exposes the complete durable breakdown. Accept/review thresholds remain 0.90/0.65. See `docs/architecture/scoring-and-cascade.md` for the normative matrices and the distinction from canonical trust scoring. No legacy fallback or data conversion is supported.
+
+### Adult-only providers and the Stash-box plugin
+
+Two optional flags on a provider file (`config/providers/*.json`) decide who may be asked about what.
+
+| Field | What it does |
+|---|---|
+| `adult_only` | The provider is asked only about Vault items (files in a Vault library). Every other provider, YouTube included, is never asked about a Vault item. The Library enforces this in one place (`IProviderAudienceGate`), so a provider cannot opt out. |
+| `file_fingerprint` | The provider can also match a file by a fingerprint of it. That sends a fingerprint of the file, so it is a separate permission an administrator turns on ("Sends a fingerprint of your file"); it is off by default and nothing about the file leaves the machine without it. |
+
+The Official Stash-box plugin (`config/providers/stashbox.json`) speaks the open stash-box GraphQL standard and contacts a stash-box server. It ships enabled and does nothing without an account key. The default server is StashDB (`endpoints.api`). An administrator can add other servers by address (https only, except a server on the same computer) and set the order they are tried in; this list and the fingerprint permission are saved in `config/stashbox_servers.json`, which holds no keys. Each account key is kept in the secrets store (`config/secrets/stashbox.json` for the default server, `config/secrets/plugins/stashbox-servers.json` for added ones), is sent only in an `ApiKey` header to that server's own address, is never logged, and is never shown again after saving; the Dashboard shows only "connected" or "not connected". Redirects are not followed and replies and cover images are size-limited. The plugin fills only blank fields (title, description, date, cover) and the Vault's own performer, studio and tag names; a value a person edited is never replaced.

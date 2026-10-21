@@ -64,6 +64,7 @@ internal sealed class ReferenceDataTopUp
             (WellKnownProviders.Lrclib, "lrclib", "1.0"),
             (WellKnownProviders.OpenSubtitles, "opensubtitles", "1.0"),
             (WellKnownProviders.Subdl, "subdl", "2.0"),
+            (WellKnownProviders.StashBox, "stashbox", "1.0"),
             (WellKnownProviders.UserManual, "user_manual", "1.0"),
             (WellKnownProviders.AiProvider, "ai_provider", "1.0"),
             (WellKnownProviders.Pseudonym, "pseudonym", "1.0"),

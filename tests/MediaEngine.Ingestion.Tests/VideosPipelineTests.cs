@@ -104,7 +104,47 @@ public sealed class VideosPipelineTests : IDisposable
         Assert.NotNull(await _h.Assets.FindByPathRootAsync(c));
     }
 
-    private async Task RunAsync(int expectedAssets)
+    [Fact]
+    public async Task AVideoInAVaultLibrary_IsNeverLookedUpOnYoutube_EvenWithTheLibrarySwitchOn()
+    {
+        Write("Holiday clip [dQw4w9WgXcQ].mp4");
+        var lookup = new CountingLookup();
+
+        await RunAsync(1, lookup, new FixedGate(allowed: false));
+
+        Assert.Equal(0, lookup.Calls);
+    }
+
+    [Fact]
+    public async Task AVideoInANormalLibrary_IsStillLookedUpOnYoutube_WhenTheGateAllows()
+    {
+        Write("Holiday clip [dQw4w9WgXcQ].mp4");
+        var lookup = new CountingLookup();
+
+        await RunAsync(1, lookup, new FixedGate(allowed: true));
+
+        Assert.Equal(1, lookup.Calls);
+    }
+
+    private sealed class CountingLookup : IVideoOnlineLookup
+    {
+        public int Calls { get; private set; }
+
+        public Task<VideoOnlineInfo?> LookupAsync(string youtubeVideoId, CancellationToken ct = default)
+        {
+            Calls++;
+            return Task.FromResult<VideoOnlineInfo?>(null);
+        }
+    }
+
+    private sealed class FixedGate(bool allowed) : IProviderAudienceGate
+    {
+        public Task<bool> MayAskAboutItemAsync(string providerName, Guid assetOrWorkId, CancellationToken ct = default) => Task.FromResult(allowed);
+
+        public Task<bool> MayAskAboutLibraryAsync(string providerName, string? libraryId, CancellationToken ct = default) => Task.FromResult(allowed);
+    }
+
+    private async Task RunAsync(int expectedAssets, IVideoOnlineLookup? lookup = null, IProviderAudienceGate? gate = null)
     {
         var db = _h.Db.Connection;
         var publisher = new StubEventPublisher();
@@ -153,7 +193,9 @@ public sealed class VideosPipelineTests : IDisposable
             operationTracker: tracker, operationRepository: operationRepo,
             libraryFolderResolver: new LibraryFolderResolver(monitor),
             sourceMutationPolicyGate: new SourceMutationPolicyGate(),
-            videoReader: reader);
+            videoReader: reader,
+            videoLookup: lookup,
+            audienceGate: gate);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         try

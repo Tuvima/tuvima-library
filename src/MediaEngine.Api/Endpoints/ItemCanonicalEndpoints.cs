@@ -627,6 +627,7 @@ public static class ItemCanonicalEndpoints
             IMediaAssetRepository assets,
             ILibraryFolderResolver libraries,
             IVideoOnlineLookup lookup,
+            IProviderAudienceGate audienceGate,
             IMetadataClaimRepository claimRepo,
             ICanonicalValueRepository canonicalRepo,
             ISystemActivityRepository activityRepo,
@@ -648,6 +649,12 @@ public static class ItemCanonicalEndpoints
             if (asset is null || libraries.ResolveForPath(asset.FilePathRoot)?.YoutubeLookup != true)
             {
                 return ApiErrors.Conflict("Online lookup is switched off for this library. Turn it on in Settings first.");
+            }
+
+            // YouTube is never asked about a Vault video, even if its library's switch says yes (Videos spec D21, D26).
+            if (!await audienceGate.MayAskAboutItemAsync("youtube", membership.AssetId, ct))
+            {
+                return ApiErrors.Conflict("Online lookup from YouTube is not available for this library.");
             }
 
             var info = await lookup.LookupAsync(videoId, ct);

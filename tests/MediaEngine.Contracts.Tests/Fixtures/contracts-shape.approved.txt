@@ -8278,6 +8278,47 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SettingsCatalogEnt
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SettingsSavedResponse
   saved: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.StashBoxAddServerRequest
+  Name: System.String | nullability=not-null | accessors=get,set
+  Address: System.String | nullability=not-null | accessors=get,set
+  ApiKey: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.StashBoxAddServerResultDto
+  Server: MediaEngine.Contracts.Settings.StashBoxServerDto | nullability=not-null | accessors=get,set
+  Test: MediaEngine.Contracts.Settings.StashBoxTestResultDto | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.StashBoxFingerprintPermissionRequest
+  Allowed: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.StashBoxKeyRequest
+  ApiKey: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.StashBoxOrderRequest
+  ServerIds: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.StashBoxServerDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Address: System.String | nullability=not-null | accessors=get,set
+  IsDefault: System.Boolean | nullability=not-null | accessors=get,set
+  Connection: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.StashBoxSettingsDto
+  Servers: System.Collections.Generic.List<MediaEngine.Contracts.Settings.StashBoxServerDto> | nullability=not-null | accessors=get,set
+  FingerprintPermission: System.Boolean | nullability=not-null | accessors=get,set
+  FingerprintPermissionText: System.String | nullability=not-null | accessors=get,set
+  Disclosure: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.StashBoxTestRequest
+  ServerId: System.String | nullability=nullable | accessors=get,set
+  Address: System.String | nullability=nullable | accessors=get,set
+  ApiKey: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.StashBoxTestResultDto
+  Connected: System.Boolean | nullability=not-null | accessors=get,set
+  Status: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SystemDriveDto
   Root: System.String | nullability=not-null | accessors=get,set
   Label: System.String | nullability=not-null | accessors=get,set

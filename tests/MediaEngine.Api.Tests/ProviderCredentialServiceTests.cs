@@ -9,8 +9,10 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Providers.Contracts;
 using MediaEngine.Providers.Models;
+using MediaEngine.Providers.Services.StashBox;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Secrets;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
 
@@ -432,6 +434,69 @@ public sealed class ProviderCredentialServiceTests : IDisposable
 
     private ConfigurationDirectoryLoader CreateSubdlLoader()
         => CreateManifestLoader("subdl");
+
+
+    private (ProviderCredentialService Service, IStashBoxSettings Settings) CreateStashBoxService(ConfigurationDirectoryLoader loader, HttpMessageHandler handler)
+    {
+        var secrets = new ConfigFolderSecretsStore(loader.ConfigDirectoryPath);
+        var settings = new StashBoxSettings(loader, secrets, NullLogger<StashBoxSettings>.Instance);
+        var http = new StubHttpClientFactory(handler);
+        var service = new ProviderCredentialService(
+            loader, secrets, http, [], [], null, new StashBoxClient(http, NullLogger<StashBoxClient>.Instance), settings);
+        return (service, settings);
+    }
+
+    [Fact]
+    public async Task StashBox_TestConnection_AcceptsARightKeyAndSendsItOnlyInTheApiKeyHeader()
+    {
+        using var loader = CreateManifestLoader("stashbox");
+        var handler = new StubHandler(HttpStatusCode.OK) { ResponseBody = """{"data":{"me":{"name":"someone"}}}""" };
+        var (service, _) = CreateStashBoxService(loader, handler);
+        var key = new string('k', 32);
+
+        var result = await service.TestAsync("stashbox", new Dictionary<string, string> { ["api_key"] = key });
+
+        Assert.True(result.Success);
+        Assert.Equal("valid", result.Status);
+        Assert.Equal(HttpMethod.Post, handler.LastMethod);
+        Assert.Equal("https://stashdb.org/graphql", handler.LastRequestUri?.AbsoluteUri);
+        Assert.DoesNotContain(key, JsonSerializer.Serialize(result), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StashBox_SavingAWrongKey_KeepsNothingAndShowsNotConnected()
+    {
+        using var loader = CreateManifestLoader("stashbox");
+        var handler = new StubHandler(HttpStatusCode.Unauthorized);
+        var (service, settings) = CreateStashBoxService(loader, handler);
+
+        var result = await service.SaveAsync("stashbox", new Dictionary<string, string> { ["api_key"] = new string('w', 32) });
+
+        Assert.False(result.Success);
+        Assert.Equal("invalid_credential", result.Status);
+        Assert.False(File.Exists(Path.Combine(_root, "secrets", "stashbox.json")));
+        var server = Assert.Single((await settings.GetAsync()).Servers);
+        Assert.False(server.HasKey);
+        Assert.Equal(StashBoxConnectionStates.NotConnected, server.Connection);
+    }
+
+    [Fact]
+    public async Task StashBox_SavingARightKey_StoresItInTheSecretsStoreAndShowsConnected()
+    {
+        using var loader = CreateManifestLoader("stashbox");
+        var handler = new StubHandler(HttpStatusCode.OK) { ResponseBody = """{"data":{"me":{"name":"someone"}}}""" };
+        var (service, settings) = CreateStashBoxService(loader, handler);
+        var key = new string('r', 32);
+
+        var result = await service.SaveAsync("stashbox", new Dictionary<string, string> { ["api_key"] = key });
+
+        Assert.True(result.Success);
+        Assert.Contains(key, File.ReadAllText(Path.Combine(_root, "secrets", "stashbox.json")), StringComparison.Ordinal);
+        var server = Assert.Single((await settings.GetAsync()).Servers);
+        Assert.True(server.HasKey);
+        Assert.Equal(StashBoxConnectionStates.Connected, server.Connection);
+        Assert.DoesNotContain(key, JsonSerializer.Serialize(await settings.GetAsync()), StringComparison.Ordinal);
+    }
 
     private ConfigurationDirectoryLoader CreateManifestLoader(string providerName)
     {
