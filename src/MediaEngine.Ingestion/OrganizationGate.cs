@@ -1,5 +1,6 @@
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Ingestion.Services;
 using MediaEngine.Intelligence.Models;
 
 namespace MediaEngine.Ingestion;
@@ -24,7 +25,7 @@ public sealed class OrganizationGate : IOrganizationGate
         IReadOnlyDictionary<string, string> canonicalValues,
         bool hasUserLock,
         bool mediaTypeNeedsReview,
-        string? resolvedRelativePath)
+        string? filingCategory)
     {
         // Gate 1: Media type still under review.
         if (mediaTypeNeedsReview)
@@ -53,8 +54,7 @@ public sealed class OrganizationGate : IOrganizationGate
 
         // Gate 3: "Other" category block.
         if (passesConfidence
-            && resolvedRelativePath is not null
-            && resolvedRelativePath.StartsWith("Other", StringComparison.OrdinalIgnoreCase))
+            && string.Equals(filingCategory, LibraryOrganizationPath.UnknownCategory, StringComparison.OrdinalIgnoreCase))
         {
             return new GateResult(false,
                 "Resolved category is 'Other'",

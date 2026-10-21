@@ -162,14 +162,15 @@ public sealed class IngestionOptions
     /// the entire group (parentheses + leading space) is collapsed.
     /// </summary>
     public string OrganizationTemplate { get; set; } =
-        "{Category}/{Title} ({Year})/{Title}{Ext}";
+        "{Title} ({Year})/{Title}{Ext}";
 
     /// <summary>
     /// Per-media-type organisation templates.  Keys are media type names
-    /// (e.g. "Books", "Audiobooks", "Movies", "TV", "Comic", "Music")
-    /// or "default".  Values are tokenised path templates.
+    /// (e.g. "Books", "Audiobooks", "Movies", "TV", "Comics", "Music")
+    /// or "default".  Values are tokenised path templates naming the path inside the type's own folder
+    /// (e.g. <c>library/Books</c>), so they never start with the category.
     /// Fallback chain: media-type-specific → "default" → <see cref="OrganizationTemplate"/>
-    /// → hardcoded <c>{Category}/{Title}/{Title}{Ext}</c>.
+    /// → hardcoded <c>{Title}/{Title}{Ext}</c>.
     /// </summary>
     // ──────────────────────────────────────────────────────────────────
     // Default templates: Plex / Jellyfin / Audiobookshelf compatible.
@@ -181,22 +182,22 @@ public sealed class IngestionOptions
     // ──────────────────────────────────────────────────────────────────
     public Dictionary<string, string> OrganizationTemplates { get; set; } = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["default"] = "{Category}/{Title} ({Year})/{Title}{Ext}",
+        ["default"] = "{Title} ({Year})/{Title}{Ext}",
         // Movies: Plex convention — `Title (Year)/Title (Year)`
-        ["Movies"] = "Movies/{Title} ({Year})/{Title} ({Year}){Ext}",
+        ["Movies"] = "{Title} ({Year})/{Title} ({Year}){Ext}",
         // TV: Plex convention — `Show (Year)/Season XX/Show - sXXeYY - Title`
-        ["TV"] = "TV/{Series} ({Year})/Season {Season}/{Series} - s{Season}e{Episode} - {EpisodeTitle}{Ext}",
+        ["TV"] = "{Series} ({Year})/Season {Season}/{Series} - s{Season}e{Episode} - {EpisodeTitle}{Ext}",
         // Music: Picard / Plex convention — `Artist/Album (Year)/[Disc]## - Title`
         // {Disc?} optional segment expands to e.g. "Disc 02/" for multi-disc
         // releases and collapses entirely for single-disc albums.
-        ["Music"] = "Music/{Artist}/{Album} ({Year})/{TrackNumber} - {Title}{Ext}",
+        ["Music"] = "{Artist}/{Album} ({Year})/{TrackNumber} - {Title}{Ext}",
         // Audiobooks: Author/Title (Year)/Title — matches Music pattern
-        ["Audiobooks"] = "Audiobooks/{Author}/{Title} ({Year})/{Title}{Ext}",
+        ["Audiobooks"] = "{Author}/{Title} ({Year})/{Title}{Ext}",
         // Books: Author/Title (Year)/Title (Year) — matches Music pattern
-        ["Books"] = "Books/{Author}/{Title} ({Year})/{Title} ({Year}){Ext}",
+        ["Books"] = "{Author}/{Title} ({Year})/{Title} ({Year}){Ext}",
 
         // Comics: Komga / Mylar / Kavita convention — `Series/Series - NNN (Year)`
-        ["Comic"] = "Comics/{Series}/{Series} - {IssueNumber} ({Year}){Ext}",
+        ["Comics"] = "{Series}/{Series} - {IssueNumber} ({Year}){Ext}",
     };
 
     /// <summary>
@@ -321,12 +322,12 @@ public sealed class IngestionOptions
 
     // ── Template Resolution ────────────────────────────────────────────
 
-    private const string HardcodedFallback = "{Category}/{Title}/{Title}{Ext}";
+    private const string HardcodedFallback = "{Title}/{Title}{Ext}";
 
     /// <summary>
     /// Resolves the organisation template for a given media type.
     /// Fallback chain: media-type-specific → "default" key → <see cref="OrganizationTemplate"/>
-    /// → hardcoded <c>{Category}/{Title}/{Title}{Ext}</c>.
+    /// → hardcoded <c>{Title}/{Title}{Ext}</c>.
     /// </summary>
     public string ResolveTemplate(string? mediaTypeName)
     {

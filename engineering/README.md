@@ -51,6 +51,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
 | [Handoff: finish the outstanding work, end to end (2026-10-19)](handoffs/2026-10-19-finish-outstanding-work.md) | Current |
+| [Handoff: stop filing media into a doubled category folder (2026-10-20)](handoffs/2026-10-20-doubled-category-folder.md) | Current |
 | [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — Shy chose to stay on Dapper (2026-10-17) |
 
 ## Architecture decisions

@@ -231,7 +231,7 @@ public sealed class FolderConversionOrganiser
             canonicalValues: metadata,
             hasUserLock: false,
             mediaTypeNeedsReview: false,
-            resolvedRelativePath: relative);
+            filingCategory: LibraryOrganizationPath.FilingCategory(library, mediaType));
         return gate.CanOrganize
             ? new StandardName(relative, null)
             : new StandardName(null, new OrganiseDecision(OrganiseDecisionKind.NeedsReview, Reason: gate.BlockReason));

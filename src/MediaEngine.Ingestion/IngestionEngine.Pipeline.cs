@@ -893,9 +893,10 @@ public sealed partial class IngestionEngine
         // AutoOrganizeService moves them directly to the library after Stage 1 retail match.
         bool hasUserLock = claims.Any(c => c.IsUserLocked);
 
-        // Calculate the relative path once for the gate (needed for the "Other" check).
-        string? gateRelativePath = _options.AutoOrganize
-            && !string.IsNullOrWhiteSpace(_options.LibraryRoot)
+        // Calculate the standard relative path once: the gate checks the category it files under ("Other" is held back),
+        // and a file already at that path is left where it is.
+        bool willOrganize = _options.AutoOrganize && !string.IsNullOrWhiteSpace(_options.LibraryRoot);
+        string? gateRelativePath = willOrganize
             ? LibraryOrganizationPath.Calculate(_organizer, candidate, context.Library, _options.ResolveTemplate(candidate.DetectedMediaType?.ToString()))
             : null;
 
@@ -907,7 +908,7 @@ public sealed partial class IngestionEngine
             candidateCanonicals,
             hasUserLock,
             mediaTypeNeedsReview,
-            gateRelativePath);
+            willOrganize ? LibraryOrganizationPath.FilingCategory(context.Library, candidate.DetectedMediaType) : null);
 
         // Side-by-side-with-Plex plan §C — skip the staging move when the file
         // is already at the path Tuvima would have organised it to. This is how

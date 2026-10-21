@@ -3,15 +3,15 @@
   "database_path": "/db/library.db",
   "data_root": "/artwork-cache",
   "library_root": "/library",
-  "organization_template": "{Category}/{Title} ({Year})/{Title}{Ext}",
+  "organization_template": "{Title} ({Year})/{Title}{Ext}",
   "organization_templates": {
-    "default": "{Category}/{Title} ({Year})/{Title}{Ext}",
-    "Books": "Books/{Author}/{Title} ({Year})/{Title} ({Year}){Ext}",
-    "Audiobooks": "Audiobooks/{Author}/{Title} ({Year})/{Title}{Ext}",
-    "Movies": "Movies/{Title} ({Year})/{Title} ({Year}){Ext}",
-    "TV": "TV/{Series} ({Year})/Season {Season}/{Series} - s{Season}e{Episode} - {EpisodeTitle}{Ext}",
-    "Comic": "Comics/{Series}/{Series} - {IssueNumber} ({Year}){Ext}",
-    "Music": "Music/{Artist}/{Album} ({Year})/{TrackNumber} - {Title}{Ext}"
+    "default": "{Title} ({Year})/{Title}{Ext}",
+    "Books": "{Author}/{Title} ({Year})/{Title} ({Year}){Ext}",
+    "Audiobooks": "{Author}/{BookTitle} ({Year})/{TrackNumber?} {TrackTitle}{Ext}",
+    "Movies": "{Title} ({Year})/{Title} ({Year}){Ext}",
+    "TV": "{Series} ({Year})/Season {Season}/{Series} - s{Season}e{Episode} - {EpisodeTitle}{Ext}",
+    "Comics": "{Series}/{Series} - {IssueNumber} ({Year}){Ext}",
+    "Music": "{AlbumArtist}/{Album} ({Year})/{TrackNumber} - {Title}{Ext}"
   },
   "server_name": "Tuvima Library",
   "language": {

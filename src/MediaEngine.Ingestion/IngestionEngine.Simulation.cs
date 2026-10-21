@@ -114,10 +114,11 @@ public sealed partial class IngestionEngine
         if (_options.AutoOrganize && !string.IsNullOrWhiteSpace(_options.LibraryRoot))
         {
             var dryRunTemplate = _options.ResolveTemplate(candidate.DetectedMediaType?.ToString());
-            var relative = LibraryOrganizationPath.Calculate(_organizer, candidate,
-                _libraryFolderResolver?.ResolveForPath(filePath), dryRunTemplate);
-            // template already resolves the full relative path including filename
-            var destPath = Path.Combine(_options.LibraryRoot, relative);
+            var dryRunLibrary = _libraryFolderResolver?.ResolveForPath(filePath);
+            var relative = LibraryOrganizationPath.Calculate(_organizer, candidate, dryRunLibrary, dryRunTemplate);
+            // The template names the path inside the type's own folder, including the filename.
+            var destPath = Path.Combine(
+                LibraryOrganizationPath.TypeFolder(dryRunLibrary, _options.LibraryRoot, candidate.DetectedMediaType), relative);
 
             ops.Add(new PendingOperation
             {
@@ -257,25 +258,16 @@ public sealed partial class IngestionEngine
             return;
         }
 
-        // Build a synthetic candidate so the FileOrganizer can calculate the path.
-        var synth = new IngestionCandidate
-        {
-            Path = currentPath,
-            EventType = FileEventType.Created,
-            DetectedAt = DateTimeOffset.UtcNow,
-            ReadyAt = DateTimeOffset.UtcNow,
-            Metadata = metadata,
-            DetectedMediaType = mediaType,
-        };
-
-        var reorgTemplate = _options.ResolveTemplate(mediaType?.ToString());
-        var relative = LibraryOrganizationPath.Calculate(_organizer, synth,
-            _libraryFolderResolver?.ResolveForPath(currentPath), reorgTemplate);
+        var reorgLibrary = _libraryFolderResolver?.ResolveForPath(currentPath);
+        bool filesAsOther = string.Equals(
+            LibraryOrganizationPath.FilingCategory(reorgLibrary, mediaType),
+            LibraryOrganizationPath.UnknownCategory,
+            StringComparison.OrdinalIgnoreCase);
 
         // Guard: never re-organize into the "Other" category. If the media type
         // couldn't be determined from canonical values, move to staging and create
         // a review item so the user can manually classify the file.
-        if (relative.StartsWith("Other", StringComparison.OrdinalIgnoreCase))
+        if (filesAsOther)
         {
             _logger.LogWarning(
                 "Re-organization blocked for {Hash} — resolved category is 'Other'. " +
@@ -306,7 +298,7 @@ public sealed partial class IngestionEngine
         // Staging-first: move to staging rather than directly to library.
         // AutoOrganizeService will promote to library after hydration.
         string subcategory = isPlaceholder ? "low-confidence"
-            : relative.StartsWith("Other", StringComparison.OrdinalIgnoreCase) ? "other"
+            : filesAsOther ? "other"
             : "pending";
 
         var staged = await MoveToStagingAsync(currentPath, subcategory, ct, existing.Id)

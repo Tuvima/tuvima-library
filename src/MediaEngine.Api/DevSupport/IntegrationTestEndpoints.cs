@@ -18,6 +18,7 @@ using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
+using MediaEngine.Ingestion.Services;
 using MediaEngine.Providers.Contracts;
 using MediaEngine.Providers.Models;
 using MediaEngine.Storage;
@@ -5963,7 +5964,12 @@ public static class IntegrationTestEndpoints
 
         string template = options.ResolveTemplate(mediaType?.ToString() ?? item.MediaType);
         string relative = organizer.CalculatePath(candidate, template).Replace('/', Path.DirectorySeparatorChar);
-        return Path.Combine(options.LibraryRoot, relative);
+        // The template names the path inside the type's own folder: its library's New media folder.
+        var library = mediaType is null
+            ? null
+            : options.LibraryFolders.FirstOrDefault(entry =>
+                entry.MediaTypes.Contains(mediaType.Value) && !string.IsNullOrWhiteSpace(entry.LibraryRoot));
+        return Path.Combine(LibraryOrganizationPath.TypeFolder(library, options.LibraryRoot, mediaType), relative);
     }
 
     private static void ValidateStage3ArtworkAsync(TestReport report, ILogger logger)
