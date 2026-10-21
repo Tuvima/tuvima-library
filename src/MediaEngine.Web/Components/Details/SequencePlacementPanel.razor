@@ -107,8 +107,8 @@
                            ValueChanged="SelectJump"
                            Options="@JumpSelectOptions"
                            Size="AppControlSize.Large"
-                           Class="tl-series-detail__select" Sizing="options" FullWidth="false"
-                           PopoverClass="app-select__popover tl-series-select-popover tl-series-jump-popover"
+                           Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
+                           PopoverClass="app-select__popover tl-series-select-popover"
                            aria-label="@($"Jump to {ItemNoun.ToLowerInvariant()} by name")" />
             </div>
         }
@@ -885,9 +885,8 @@ else
     private bool ShowJumpSelector => ActiveItems.Count > 10;
     private string? JumpSelectionValue => _jumpSelectionValue;
     private IReadOnlyList<AppSelectOption> JumpSelectOptions => ActiveItems
-        .Select((item, index) => new AppSelectOption(
-            index.ToString(CultureInfo.InvariantCulture),
-            $"#{SequenceNumber(item)} — {SequenceItemTitle(item)}"))
+        .Select((item, index) => $"#{SequenceNumber(item)} — {SequenceItemTitle(item)}")
+        .Select((label, index) => new AppSelectOption(index.ToString(CultureInfo.InvariantCulture), label, Title: label))
         .ToList();
     private int OwnedCount => IsWindowedGroup && ActiveGroup is { } windowedGroup
         ? windowedGroup.OwnedCount

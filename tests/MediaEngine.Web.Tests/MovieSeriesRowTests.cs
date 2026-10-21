@@ -1,8 +1,15 @@
 using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Navigation;
+using MediaEngine.Web.Services.Playback;
+using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -36,7 +43,7 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
             Item(DetailEntityType.Movie, 2, "28 Weeks Later", owned: false),
             Item(DetailEntityType.Movie, 3, "28 Years Later", current: true));
 
-        Assert.False(DetailSequenceRowRule.ShowsRow(placement));
+        Assert.False(DetailSequenceRowRule.ShowsRow(DetailEntityType.Movie, placement));
     }
 
     [Fact]
@@ -46,7 +53,7 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
             Item(DetailEntityType.Movie, 1, "28 Days Later"),
             Item(DetailEntityType.Movie, 3, "28 Years Later", current: true));
 
-        Assert.True(DetailSequenceRowRule.ShowsRow(placement));
+        Assert.True(DetailSequenceRowRule.ShowsRow(DetailEntityType.Movie, placement));
     }
 
     [Fact]
@@ -67,7 +74,18 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
             ],
         };
 
-        Assert.True(DetailSequenceRowRule.ShowsRow(placement));
+        Assert.True(DetailSequenceRowRule.ShowsRow(DetailEntityType.Movie, placement));
+    }
+
+    [Fact]
+    public void AMovieSeriesPageHoldingOneMovie_StillListsIt()
+    {
+        // On a Series' own page the placement's current item is its first owned movie, not the page itself.
+        var placement = Placement(DetailEntityType.Movie,
+            Item(DetailEntityType.Movie, 1, "28 Days Later", owned: false),
+            Item(DetailEntityType.Movie, 3, "28 Years Later", current: true));
+
+        Assert.True(DetailSequenceRowRule.ShowsRow(DetailEntityType.MovieSeries, placement));
     }
 
     [Fact]
@@ -77,7 +95,7 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
             Item(DetailEntityType.Book, 1, "Leviathan Wakes", current: true),
             Item(DetailEntityType.Book, 2, "Caliban's War", owned: false));
 
-        Assert.True(DetailSequenceRowRule.ShowsRow(placement));
+        Assert.True(DetailSequenceRowRule.ShowsRow(DetailEntityType.Book, placement));
     }
 
     [Fact]
@@ -109,6 +127,51 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
 
         Assert.DoesNotContain("is-scrolling-rail", cut.Find("section.tl-series-detail").ClassList);
         Assert.Equal(6, cut.Find(".tl-series-detail__strip").Children.Length);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AMoviePage_DropsTheSeriesRowAndKeepsTheWholeStage_WhenNoOtherMovieIsOwned(bool otherMovieOwned)
+    {
+        var api = EngineApiClientStub.CreateDefault();
+        Services.AddSingleton<IDetailsOverlayHistory>(new NoHistory());
+        Services.AddSingleton(TimeProvider.System);
+        Services.AddScoped<DetailsOverlayState>();
+        Services.AddSingleton(new DeviceContextService(api));
+        Services.AddNativeUiServices();
+        Services.AddScoped<MediaEditorLauncherService>();
+        Services.AddScoped<CollectionEditorLauncherService>();
+        Services.AddSingleton(new SavedItemService(api));
+        Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton<ListenAudioDragService>();
+        Services.AddSingleton(_ => new PlaybackSessionController(null!, null!));
+        Services.AddSingleton(_ => new ProviderCatalogueService(api, new MemoryCache(new MemoryCacheOptions())));
+        Render<AppPopoverHost>();
+        var current = Item(DetailEntityType.Movie, 3, "28 Years Later", current: true);
+        var model = new DetailPageViewModel
+        {
+            Id = current.Id,
+            EntityType = DetailEntityType.Movie,
+            Title = current.Title,
+            Tabs = [new DetailTab { Key = "overview", Label = "Overview" }],
+            PrimaryModule = new DetailPrimaryModuleViewModel { Kind = DetailPrimaryModuleKind.Sequence, Title = "28 Days Later" },
+            SequencePlacement = Placement(DetailEntityType.Movie,
+                Item(DetailEntityType.Movie, 1, "28 Days Later", owned: otherMovieOwned),
+                current),
+        };
+
+        var cut = Render<DetailPage>(p => p.Add(page => page.Model, model));
+
+        var stage = cut.Find("section.tl-detail-stage").ClassList;
+        Assert.Equal(otherMovieOwned, stage.Contains("tl-detail-stage--with-primary"));
+        Assert.Equal(!otherMovieOwned, stage.Contains("tl-detail-stage--identity-only"));
+        Assert.Equal(otherMovieOwned ? 1 : 0, cut.FindAll("#detail-primary-module").Count);
+    }
+
+    private sealed class NoHistory : IDetailsOverlayHistory
+    {
+        public ValueTask<bool> GoBackAsync(int steps) => ValueTask.FromResult(true);
     }
 
     private static SequencePlacementViewModel Placement(DetailEntityType kind, params SequenceItemViewModel[] items) => new()
