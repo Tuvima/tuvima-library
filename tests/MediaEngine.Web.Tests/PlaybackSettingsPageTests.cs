@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Contracts.Profiles;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
@@ -26,6 +27,8 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
     private readonly CountingAccessor _accessor = new(UserPlaybackSettingsDto.CreateDefaults(ActiveId));
     private readonly List<(Guid Profile, string Call)> _apiCalls = [];
     private readonly List<UserPlaybackSettingsDto> _saved = [];
+    private readonly List<(Guid Profile, string Level)> _spoilerSaves = [];
+    private bool _spoilerSaveFails;
     private UserPlaybackSettingsDto? _otherSettings = UserPlaybackSettingsDto.CreateDefaults(OtherId);
     private readonly CapturingLoggerProvider _logs = new();
     private bool _putThrows;
@@ -50,6 +53,14 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
                 var id = (Guid)args![0]!;
                 _apiCalls.Add((id, "get"));
                 return Task.FromResult(Copy(id == OtherId ? _otherSettings : id == ActiveId ? _remote : UserPlaybackSettingsDto.CreateDefaults(id)));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.SaveSpoilerLevelAsync), args =>
+            {
+                var id = (Guid)args![0]!;
+                var level = (string)args[1]!;
+                _spoilerSaves.Add((id, level));
+                return Task.FromResult<ProfileSpoilerPreferenceDto?>(
+                    _spoilerSaveFails ? null : new ProfileSpoilerPreferenceDto { ProfileId = id, SpoilerLevel = level });
             });
             stub.SetHandler(nameof(IEngineApiClient.UpdatePlaybackSettingsAsync), args =>
             {
@@ -82,12 +93,68 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
             Assert.Contains("Resume where you left off", cut.Markup);
             Assert.Contains("Skip back", cut.Markup);
             Assert.Contains("Skip forward", cut.Markup);
-            Assert.Equal(5, cut.FindAll(".playback-settings-card").Count);
+            Assert.Equal(6, cut.FindAll(".playback-settings-card").Count);
             Assert.DoesNotContain("Default playback speed", cut.Markup);
             Assert.DoesNotContain("Audiobook default speed", cut.Markup);
             Assert.DoesNotContain("Adjust text while reading", cut.Markup);
             Assert.DoesNotContain("Choose tracks in the player", cut.Markup);
         });
+    }
+
+    [Fact]
+    public void Spoilers_OwnProfile_OffersUpToWhereIAmFirstAndSelectedByDefault()
+    {
+        var cut = Render<PlaybackSettingsPage>();
+
+        cut.WaitForAssertion(() =>
+        {
+            var row = cut.Find("[data-spoiler-level]");
+            Assert.Contains("Spoilers", cut.Markup);
+            var buttons = row.QuerySelectorAll(".app-segmented-control__item");
+            Assert.Equal(new[] { "Up to where I am", "Everything" }, buttons.Select(button => button.TextContent.Trim()).ToArray());
+            Assert.Equal("true", buttons[0].GetAttribute("aria-pressed"));
+            Assert.Equal("false", buttons[1].GetAttribute("aria-pressed"));
+        });
+    }
+
+    [Fact]
+    public void Spoilers_ChoosingEverything_SavesThroughTheOwnSpoilerActionAndLeavesThePlaybackSaveAlone()
+    {
+        var cut = Render<PlaybackSettingsPage>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-spoiler-level]")));
+
+        cut.FindAll("[data-spoiler-level] .app-segmented-control__item").Single(button => button.TextContent.Trim() == "Everything").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal([(ActiveId, "everything")], _spoilerSaves);
+            Assert.Equal("true", cut.FindAll("[data-spoiler-level] .app-segmented-control__item")[1].GetAttribute("aria-pressed"));
+            Assert.Equal("everything", _accessor.Last!.General.SpoilerLevel);
+        });
+        Assert.DoesNotContain(_apiCalls, call => call.Call == "put");
+    }
+
+    [Fact]
+    public void Spoilers_WhenTheEngineRefuses_ShowsTheErrorAndKeepsTheOldChoice()
+    {
+        _spoilerSaveFails = true;
+        var cut = Render<PlaybackSettingsPage>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-spoiler-level]")));
+
+        cut.FindAll("[data-spoiler-level] .app-segmented-control__item").Single(button => button.TextContent.Trim() == "Everything").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("The spoiler setting could not be saved.", cut.Markup));
+        Assert.Equal("true", cut.FindAll("[data-spoiler-level] .app-segmented-control__item")[0].GetAttribute("aria-pressed"));
+    }
+
+    [Fact]
+    public void Spoilers_AreNotOfferedWhenAnAdministratorEditsAnotherProfile()
+    {
+        var cut = Render<PlaybackSettingsPage>(parameters => parameters.Add(page => page.ProfileId, OtherId));
+
+        cut.WaitForAssertion(() => Assert.Contains("How Mira watches.", cut.Markup));
+        Assert.Empty(cut.FindAll("[data-spoiler-level]"));
+        Assert.Equal(5, cut.FindAll(".playback-settings-card").Count);
     }
 
     [Fact]

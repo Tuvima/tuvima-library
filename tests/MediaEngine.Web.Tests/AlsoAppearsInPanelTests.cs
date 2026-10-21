@@ -91,6 +91,24 @@ public sealed class AlsoAppearsInPanelTests : AsyncBunitContext
         new() { WorkId = Guid.NewGuid(), Title = title, Route = route, Year = year, Role = role, CoverUrl = cover };
 
     [Fact]
+    public void ACharacterHeldBackToAvoidSpoilers_SaysSoAndListsNothing()
+    {
+        var cut = RenderPanel(
+            (_, _) => Ok(new EntityAppearancesDto
+            {
+                UniverseQid = Universe,
+                SubjectKind = EntityAppearanceSubjectKinds.Character,
+                HiddenForSpoilers = true,
+            }),
+            [("Q1", "Hal Jordan")]);
+
+        var note = cut.Find("[data-note='hidden-for-spoilers']");
+        Assert.Equal("Hal Jordan is hidden to avoid spoilers.", note.TextContent.Trim());
+        Assert.Empty(cut.FindAll(".also-appears-in__list"));
+        Assert.Empty(cut.FindAll(".also-appears-in__note"));
+    }
+
+    [Fact]
     public void ASectionRendersForEachCharacterAndForThePerson()
     {
         var cut = RenderPanel(

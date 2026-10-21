@@ -64,6 +64,11 @@ public interface IEntityRelationshipRepository
         Guid relationshipId,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Delete the facts with the given statement keys, with their qualifiers. Returns how many facts were removed.
+    /// </summary>
+    Task<int> DeleteByStatementKeysAsync(IReadOnlyCollection<string> statementKeys, CancellationToken ct = default);
+
     /// <summary>Return total edge count (for stats).</summary>
     Task<int> CountAsync(CancellationToken ct = default);
 }

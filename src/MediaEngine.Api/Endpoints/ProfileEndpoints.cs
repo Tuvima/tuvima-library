@@ -226,6 +226,62 @@ public static class ProfileEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireProfileSettingsAccess();
 
+        group.MapGet("/{id:guid}/settings/spoilers", async (
+            Guid id,
+            IUserPlaybackSettingsService settingsService,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var level = await settingsService.GetSpoilerLevelAsync(id, ct);
+                return Results.Ok(new ProfileSpoilerPreferenceDto
+                {
+                    ProfileId = id,
+                    SpoilerLevel = SpoilerLevels.ToWire(level),
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return ApiErrors.NotFound(ex.Message);
+            }
+        })
+        .WithName("GetProfileSpoilerPreference")
+        .WithSummary("Get how much of a story characters may reveal for the signed-in profile (up_to_progress by default). Only the person themselves; another profile is not found.")
+        .Produces<ProfileSpoilerPreferenceDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireActiveProfile();
+
+        group.MapPut("/{id:guid}/settings/spoilers", async (
+            Guid id,
+            SaveProfileSpoilerPreferenceRequest request,
+            IUserPlaybackSettingsService settingsService,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var level = await settingsService.SetSpoilerLevelAsync(id, request.SpoilerLevel, ct);
+                return Results.Ok(new ProfileSpoilerPreferenceDto
+                {
+                    ProfileId = id,
+                    SpoilerLevel = SpoilerLevels.ToWire(level),
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return ApiErrors.NotFound(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+        })
+        .WithName("SetProfileSpoilerPreference")
+        .WithSummary("Choose how much of a story characters may reveal for the signed-in profile (up_to_progress or everything). Only the person themselves; another profile is not found.")
+        .Produces<ProfileSpoilerPreferenceDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireActiveProfile();
+
         group.MapGet("/{id:guid}/sequence-preferences/missing-items", async (
             Guid id,
             string mediaType,
