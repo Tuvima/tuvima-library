@@ -27,7 +27,7 @@ Each Series shows its own numbering, and decimal positions are kept as the sourc
 
 The shelf, the item page and the apps all use the same order: Wikidata's position first, then the position the work carries itself, then its date, then its title. A work is placed in one Series by one rule, so reprocessing the library never moves a sibling to a different shelf. If Wikidata puts a work in the main sequence of two different Series and nothing tells them apart, the work waits in **Needs Review** instead of being guessed into one.
 
-You can also choose the Series yourself. On a computer, open the item's editor and go to **Match & Identity**: the **Series** block shows the Series the item is on, the Series that list it ("In the main run (#3)" or "Also in this world"), a search over your other Series of the same kind, and **Not in a Series**. A Series you pick is saved as your choice, marked **Chosen by you**, and the Library keeps it every time it scans, refreshes or reorganises. **Let the Library decide** gives the choice back.
+You can also choose the Series yourself. On a computer, open the item's editor and go to **Match & Identity**: the **Series override** block sits below the re-match controls and says that re-matching the item is the normal fix. It shows the Series the item is on, the Series that list it ("In the main run (#3)" or "Also in this world"), **Pick a different Series** (a search over any other Series of the same kind) and **Remove from its Series**. A Series you pick is saved with **Save override**, marked **Overridden by you**, and the Library keeps it every time it scans, refreshes or reorganises. **Go back to the Library's choice** gives it back.
 
 ## Understand broader Collections
 

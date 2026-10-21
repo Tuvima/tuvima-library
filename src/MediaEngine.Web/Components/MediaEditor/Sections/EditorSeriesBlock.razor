@@ -10,9 +10,11 @@
 @inject DeviceContextService Device
 @inject IAppToastService Toasts
 
-@* The Series block of Matching: which Series this item is on, the Series that list it, a search over the other Series of its
-   media type, "Not in a Series" and, once a person has chosen, "Let the Library decide". A chosen Series is saved as a lock the
-   Engine always respects. Choosing follows the Match section's pattern: select a result, review it, then save. *@
+@* The Series override of Matching, shown below the re-match controls: re-matching is the normal fix, so the block says so first.
+   It shows which Series this item is on, the Series that list it, a search over any other Series of its media type (collapsed
+   behind "Pick a different Series"), "Remove from its Series" and, once a person has chosen, "Go back to the Library's choice".
+   An override is saved as a lock the Engine always respects (Universes U-WP3b; the rare override sits beside Details overlay D20).
+   Choosing follows the Match section's pattern: select a result, review it, then save. *@
 @if (_loadFailed && EditorDeviceRule.CanEdit(Device))
 {
     <AppErrorState Title="Series could not be loaded"
@@ -22,8 +24,9 @@
 }
 else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.CanEdit(Device))
 {
-    <section class="sme-series" aria-label="Series">
-        <h3>Series</h3>
+    <section class="sme-series" aria-label="Series override">
+        <h3>Series override</h3>
+        <p class="sme-series__note">The Library places this item in a Series from trusted catalogue data. If it's wrong, re-match the item in Match and Identity first. Only override the Series if re-matching can't fix it.</p>
 
         <div class="sme-series__current">
             <span class="sme-series__label">Current Series</span>
@@ -34,14 +37,15 @@ else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.Ca
             }
             @if (placement.IsPersonChoice)
             {
-                <span class="sme-series__chosen">Chosen by you</span>
+                <span class="sme-series__chosen">Overridden by you</span>
+                <span class="sme-series__note">The Library no longer changes this Series for this item.</span>
             }
         </div>
 
         @if (placement.Listed.Count > 0)
         {
             <div class="sme-series__group" role="group" aria-label="Series that list this item">
-                <span class="sme-series__label">Listed in</span>
+                <span class="sme-series__label">Series that list this item</span>
                 @foreach (var shelf in placement.Listed)
                 {
                     <AppChoiceRow Title="@shelf.Label"
@@ -53,37 +57,46 @@ else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.Ca
             </div>
         }
 
-        <div class="sme-series__group" role="group" aria-label="Find another Series">
-            <span class="sme-series__label">Another Series</span>
-            <div class="sme-series__search">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
-                <AppTextField T="string"
-                              Value="@_query"
-                              ValueChanged="@SearchChangedAsync"
-                              Placeholder="Search Series by name"
-                              Variant="AppVariant.Outlined"
-                              Margin="AppMargin.Dense"
-                              Immediate="true"
-                              Class="sme-text-input" />
+        @if (!_showOtherSeries)
+        {
+            <div class="sme-series__actions">
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_saving" OnClick="ShowOtherSeries">Pick a different Series</AppButton>
             </div>
-            @if (placement.Candidates.Count == 0)
-            {
-                <p class="sme-series__note">@(_query.Trim().Length < MinSearchLength ? "Type at least two letters to search other Series." : "No other Series match that name.")</p>
-            }
-            else
-            {
-                @foreach (var shelf in placement.Candidates)
+        }
+        else
+        {
+            <div class="sme-series__group" role="group" aria-label="Find another Series">
+                <span class="sme-series__label">Any other Series</span>
+                <div class="sme-series__search">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
+                    <AppTextField T="string"
+                                  Value="@_query"
+                                  ValueChanged="@SearchChangedAsync"
+                                  Placeholder="Search all Series"
+                                  Variant="AppVariant.Outlined"
+                                  Margin="AppMargin.Dense"
+                                  Immediate="true"
+                                  Class="sme-text-input" />
+                </div>
+                @if (placement.Candidates.Count == 0)
                 {
-                    <AppChoiceRow Title="@shelf.Label"
-                                  Selected="@IsSelected(shelf.CollectionId)"
-                                  Disabled="@_saving"
-                                  OnClick="@(() => Select(shelf))" />
+                    <p class="sme-series__note">@(_query.Trim().Length < MinSearchLength ? "Type at least two letters to search other Series." : "No other Series match that name.")</p>
                 }
-            }
-        </div>
+                else
+                {
+                    @foreach (var shelf in placement.Candidates)
+                    {
+                        <AppChoiceRow Title="@shelf.Label"
+                                      Selected="@IsSelected(shelf.CollectionId)"
+                                      Disabled="@_saving"
+                                      OnClick="@(() => Select(shelf))" />
+                    }
+                }
+            </div>
+        }
 
         <div class="sme-series__group">
-            <AppChoiceRow Title="Not in a Series"
+            <AppChoiceRow Title="Remove from its Series"
                           Description="Keep this item out of every Series."
                           Selected="@_chooseNone"
                           Disabled="@_saving"
@@ -97,11 +110,11 @@ else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.Ca
                     @(_chooseNone
                         ? "This item will be taken out of its Series."
                         : $"This item will go in {_selected!.Label}.")
-                    The Library will keep your choice, even when it is scanned or refreshed again.
+                    This overrides the Library's own choice and stays even when it's scanned or refreshed again.
                 </span>
                 <div class="sme-series__actions">
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_saving" OnClick="CancelSelection">Cancel</AppButton>
-                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="SaveChoiceAsync">@(_saving ? "Saving…" : "Save Series")</AppButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="SaveChoiceAsync">@(_saving ? "Saving…" : "Save override")</AppButton>
                 </div>
             </div>
         }
@@ -109,7 +122,7 @@ else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.Ca
         @if (placement.IsPersonChoice)
         {
             <div class="sme-series__actions">
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_saving" OnClick="LetLibraryDecideAsync">Let the Library decide</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_saving" OnClick="LetLibraryDecideAsync">Go back to the Library's choice</AppButton>
             </div>
         }
 
@@ -138,6 +151,7 @@ else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.Ca
     private SeriesPlacementShelfDto? _selected;
     private bool _chooseNone;
     private bool _saving;
+    private bool _showOtherSeries;
     private string? _error;
 
     private bool HasSelection => _chooseNone || _selected is not null;
@@ -151,6 +165,7 @@ else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.Ca
 
         _loadedFor = EntityId;
         _query = string.Empty;
+        _showOtherSeries = false;
         CancelSelection();
         _error = null;
         await LoadAsync();
@@ -187,6 +202,8 @@ else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.Ca
             _placement = result;
         }
     }
+
+    private void ShowOtherSeries() => _showOtherSeries = true;
 
     private void Select(SeriesPlacementShelfDto shelf)
     {
@@ -235,8 +252,9 @@ else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.Ca
 
             _placement = saved;
             _query = string.Empty;
+            _showOtherSeries = false;
             CancelSelection();
-            Toasts.Add(locked ? "Series saved. The Library will keep your choice." : "The Library will decide this item's Series.", AppSeverity.Success);
+            Toasts.Add(locked ? "Series override saved. The Library will keep it." : "The Library will decide this item's Series.", AppSeverity.Success);
             await Applied.InvokeAsync();
         }
         finally

@@ -46,20 +46,40 @@ public sealed class EditorSeriesBlockTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheBlock_ShowsTheCurrentSeries_WhatListsIt_AndOtherSeries_WithPlainScopeWords()
+    public void TheBlock_SaysRematchingComesFirst_AndShowsTheCurrentSeries_WhatListsIt_WithPlainScopeWords()
     {
         var cut = Render<EditorSeriesBlock>(p => p.Add(c => c.EntityId, Item));
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".sme-series")));
         var text = cut.Find(".sme-series").TextContent;
+        Assert.Contains("Series override", cut.Find(".sme-series h3").TextContent);
+        Assert.Contains("re-match the item in Match and Identity first", text);
         Assert.Contains("Dune Novels", text);
         Assert.Contains("In the main run (#3)", text);
+        Assert.Contains("Series that list this item", text);
         Assert.Contains("Dune Reading Order", text);
         Assert.Contains("Also in this world", text);
+        Assert.Contains("Remove from its Series", text);
+        Assert.DoesNotContain("Overridden by you", text);
+        Assert.DoesNotContain("Go back to the Library's choice", text);
+    }
+
+    [Fact]
+    public void TheSearchOverAnyOtherSeries_StartsCollapsed_UntilPickADifferentSeriesIsChosen()
+    {
+        var cut = Render<EditorSeriesBlock>(p => p.Add(c => c.EntityId, Item));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".sme-series")));
+
+        Assert.DoesNotContain("Spice Wars", cut.Find(".sme-series").TextContent);
+        Assert.Empty(cut.FindAll("input"));
+
+        OpenOtherSeries(cut);
+
+        var text = cut.Find(".sme-series").TextContent;
+        Assert.Contains("Any other Series", text);
         Assert.Contains("Spice Wars", text);
-        Assert.Contains("Not in a Series", text);
-        Assert.DoesNotContain("Chosen by you", text);
-        Assert.DoesNotContain("Let the Library decide", text);
+        Assert.Equal("Search all Series", cut.Find("input").GetAttribute("placeholder"));
+        Assert.DoesNotContain(cut.FindAll("button"), b => b.TextContent.Contains("Pick a different Series"));
     }
 
     [Fact]
@@ -71,19 +91,21 @@ public sealed class EditorSeriesBlockTests : AsyncBunitContext
             .Add(c => c.Applied, () => { applied++; }));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".sme-series")));
 
+        OpenOtherSeries(cut);
         cut.FindAll(".app-choice-row").Single(row => row.TextContent.Contains("Spice Wars")).Click();
         Assert.Contains("This item will go in Spice Wars", cut.Find(".sme-series__review").TextContent);
+        Assert.Contains("This overrides the Library's own choice", cut.Find(".sme-series__review").TextContent);
         Assert.Empty(_saved);
 
-        cut.FindAll(".sme-series__review button").Single(b => b.TextContent.Contains("Save Series")).Click();
+        cut.FindAll(".sme-series__review button").Single(b => b.TextContent.Contains("Save override")).Click();
 
         cut.WaitForAssertion(() => Assert.Single(_saved));
         Assert.Equal((Other, true), _saved[0]);
         Assert.Equal(1, applied);
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("Chosen by you", cut.Find(".sme-series").TextContent);
-            Assert.Contains("Let the Library decide", cut.Find(".sme-series").TextContent);
+            Assert.Contains("Overridden by you", cut.Find(".sme-series").TextContent);
+            Assert.Contains("Go back to the Library's choice", cut.Find(".sme-series").TextContent);
         });
     }
 
@@ -93,8 +115,8 @@ public sealed class EditorSeriesBlockTests : AsyncBunitContext
         var cut = Render<EditorSeriesBlock>(p => p.Add(c => c.EntityId, Item));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".sme-series")));
 
-        cut.FindAll(".app-choice-row").Single(row => row.TextContent.Contains("Not in a Series")).Click();
-        cut.FindAll(".sme-series__review button").Single(b => b.TextContent.Contains("Save Series")).Click();
+        cut.FindAll(".app-choice-row").Single(row => row.TextContent.Contains("Remove from its Series")).Click();
+        cut.FindAll(".sme-series__review button").Single(b => b.TextContent.Contains("Save override")).Click();
 
         cut.WaitForAssertion(() => Assert.Single(_saved));
         Assert.Equal((null, true), _saved[0]);
@@ -105,13 +127,13 @@ public sealed class EditorSeriesBlockTests : AsyncBunitContext
     {
         _placement = Placement(isPersonChoice: true);
         var cut = Render<EditorSeriesBlock>(p => p.Add(c => c.EntityId, Item));
-        cut.WaitForAssertion(() => Assert.Contains("Chosen by you", cut.Find(".sme-series").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("Overridden by you", cut.Find(".sme-series").TextContent));
 
-        cut.FindAll("button").Single(b => b.TextContent.Contains("Let the Library decide")).Click();
+        cut.FindAll("button").Single(b => b.TextContent.Contains("Go back to the Library's choice")).Click();
 
         cut.WaitForAssertion(() => Assert.Single(_saved));
         Assert.Equal((null, false), _saved[0]);
-        cut.WaitForAssertion(() => Assert.DoesNotContain("Let the Library decide", cut.Markup));
+        cut.WaitForAssertion(() => Assert.DoesNotContain("Go back to the Library's choice", cut.Markup));
     }
 
     [Theory]
@@ -155,6 +177,7 @@ public sealed class EditorSeriesBlockTests : AsyncBunitContext
         // Blazor scopes a component's CSS with a b-xxxx attribute on the elements that component renders itself. The rows are
         // AppChoiceRow buttons (the button is the primitive's own markup), so the primitive's styles reach them with no deep
         // rule from the page; a row drawn by a button inside another component would not carry the attribute.
+        OpenOtherSeries(cut);
         var rows = cut.FindAll(".app-choice-row");
 
         Assert.Equal(3, rows.Count);
@@ -170,6 +193,7 @@ public sealed class EditorSeriesBlockTests : AsyncBunitContext
     {
         var cut = Render<EditorSeriesBlock>(p => p.Add(c => c.EntityId, Item));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".sme-series")));
+        OpenOtherSeries(cut);
         Assert.All(cut.FindAll(".app-choice-row"), row => Assert.Equal("false", row.GetAttribute("aria-pressed")));
 
         cut.FindAll(".app-choice-row").Single(row => row.TextContent.Contains("Spice Wars")).Click();
@@ -205,6 +229,9 @@ public sealed class EditorSeriesBlockTests : AsyncBunitContext
         Assert.Equal(300, EditorSeriesBlock.SearchDebounceMilliseconds);
         Assert.Equal(2, EditorSeriesBlock.MinSearchLength);
     }
+
+    private static void OpenOtherSeries(IRenderedComponent<EditorSeriesBlock> cut) =>
+        cut.FindAll("button").Single(b => b.TextContent.Contains("Pick a different Series")).Click();
 
     private static SeriesPlacementShelfDto Shelf(Guid id, string label, string scope, string? position) => new()
     {
