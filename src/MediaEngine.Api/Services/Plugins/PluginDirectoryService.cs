@@ -53,6 +53,7 @@ public sealed class PluginDirectoryService
     private readonly TuvimaDataPaths _dataPaths;
     private readonly ILogger<PluginDirectoryService> _logger;
     private readonly TimeProvider _time;
+    private readonly PluginBlocklist? _blocklist;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public PluginDirectoryService(
@@ -60,13 +61,15 @@ public sealed class PluginDirectoryService
         IConfigurationLoader configurationLoader,
         TuvimaDataPaths dataPaths,
         ILogger<PluginDirectoryService> logger,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        PluginBlocklist? blocklist = null)
     {
         _httpClientFactory = httpClientFactory;
         _configurationLoader = configurationLoader;
         _dataPaths = dataPaths;
         _logger = logger;
         _time = timeProvider ?? TimeProvider.System;
+        _blocklist = blocklist;
     }
 
     /// <summary>Where the saved copy lives: <c>plugin-directory/directory.json</c> in the Tuvima data folder.</summary>
@@ -320,6 +323,7 @@ public sealed class PluginDirectoryService
             }
 
             File.Move(temp, path, overwrite: true);
+            _blocklist?.NotifyChanged();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

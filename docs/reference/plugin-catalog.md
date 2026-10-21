@@ -109,6 +109,18 @@ Each plugin:
 
 The Library reads the list defensively. An entry that cannot be understood (not an object, no `id` or `name`, an unknown or missing `kind`, or an `id` already used) is left out and counted; the page says how many entries could not be read. One bad entry never hides the rest of the list.
 
+## Blocklist
+
+A list may carry an optional top-level `blocklist` array for plugins Tuvima has pulled:
+
+```json
+"blocklist": [
+  { "id": "vendor.plugin", "reason": "Why it was pulled.", "versions": ["1.0.0"] }
+]
+```
+
+`versions` is optional; without it every version is blocked. A blocked plugin that is installed is switched off, the plugin card shows `Blocked: <reason>`, and it cannot be switched on. The blocklist comes from the saved copy of the list, so it keeps working offline and takes effect after the next directory check.
+
 ## Trust labels
 
 The label on each entry comes from `trust_level`:
