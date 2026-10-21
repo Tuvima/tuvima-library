@@ -1,9 +1,11 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Artwork;
 using MediaEngine.Api.Services.Details;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Capabilities;
 using MediaEngine.Domain.Contracts;
@@ -83,7 +85,9 @@ public static class StreamEndpoints
         group.MapGet("/artwork/{variantId:guid}", async (
             Guid variantId,
             string? size,
+            HttpContext httpContext,
             IEntityAssetRepository entityAssetRepo,
+            IArtworkRenditionService renditions,
             IHttpClientFactory httpFactory,
             CancellationToken ct) =>
         {
@@ -97,11 +101,18 @@ public static class StreamEndpoints
             var normalizedSize = NormalizeArtworkSize(size);
             if (hasRequestedSize && normalizedSize is null)
             {
-                return ApiErrors.BadRequest("Artwork size must be one of 's', 'm', or 'l'.");
+                return ApiErrors.BadRequest("Artwork size must be one of 't', 's', 'm', or 'l'.");
             }
 
-            var renditionPath = ResolveArtworkPath(variant, normalizedSize);
-            var localArtworkResult = CreateLocalArtworkResult(renditionPath);
+            var resolved = await renditions.ResolveAsync(variant, normalizedSize, ct);
+            var localArtworkResult = resolved is null
+                ? null
+                : ArtworkFileResults.Local(
+                    resolved.Path,
+                    ArtworkFileResults.ModeFor(
+                        httpContext.Request,
+                        ArtworkVersionMarker.ForFile(variant.LocalImagePath),
+                        resolved.IsRequestedSize));
             if (localArtworkResult is not null)
             {
                 return localArtworkResult;
@@ -149,6 +160,7 @@ public static class StreamEndpoints
             Guid entityId,
             string? size,
             IEntityAssetRepository entityAssetRepo,
+            IArtworkRenditionService renditions,
             DetailComposerService detailComposer,
             ICanonicalValueRepository canonicalRepo,
             IHttpClientFactory httpFactory,
@@ -160,9 +172,7 @@ public static class StreamEndpoints
             }
 
             var preferredVariant = await entityAssetRepo.GetPreferredAsync(entityId.ToString(), "CoverArt", ct);
-            var localArtworkResult = preferredVariant is null
-                ? null
-                : CreateLocalArtworkResult(ResolveArtworkPath(preferredVariant, NormalizeArtworkSize(size)));
+            var localArtworkResult = await ServeStableAsync(renditions, preferredVariant, size, ct);
             if (localArtworkResult is not null)
             {
                 return localArtworkResult;
@@ -224,9 +234,11 @@ public static class StreamEndpoints
 
         group.MapGet("/{assetId:guid}/cover", async (
             Guid assetId,
+            string? size,
             IMediaAssetRepository assetRepo,
             IWorkRepository workRepo,
             IEntityAssetRepository entityAssetRepo,
+            IArtworkRenditionService renditions,
             CancellationToken ct) =>
         {
             var asset = await assetRepo.FindByIdAsync(assetId, ct);
@@ -237,7 +249,7 @@ public static class StreamEndpoints
 
             var ownerEntityId = await ResolveArtworkOwnerEntityIdAsync(assetId, workRepo, ct);
             var preferredVariant = await entityAssetRepo.GetPreferredAsync(ownerEntityId.ToString(), "CoverArt", ct);
-            var localArtworkResult = CreateLocalArtworkResult(preferredVariant?.LocalImagePath);
+            var localArtworkResult = await ServeStableAsync(renditions, preferredVariant, size, ct);
             if (localArtworkResult is not null)
             {
                 return localArtworkResult;
@@ -541,6 +553,7 @@ public static class StreamEndpoints
             IMediaAssetRepository assetRepo,
             IWorkRepository workRepo,
             IEntityAssetRepository entityAssetRepo,
+            IArtworkRenditionService renditions,
             CancellationToken ct) =>
         {
             var asset = await assetRepo.FindByIdAsync(assetId, ct);
@@ -551,8 +564,7 @@ public static class StreamEndpoints
 
             var ownerEntityId = await ResolveArtworkOwnerEntityIdAsync(assetId, workRepo, ct);
             var preferredVariant = await entityAssetRepo.GetPreferredAsync(ownerEntityId.ToString(), "CoverArt", ct);
-            var thumbPath = preferredVariant is null ? null : ResolveArtworkPath(preferredVariant, "s");
-            var localArtworkResult = CreateLocalArtworkResult(thumbPath);
+            var localArtworkResult = await ServeStableAsync(renditions, preferredVariant, "s", ct);
             if (localArtworkResult is not null)
             {
                 return localArtworkResult;
@@ -571,9 +583,11 @@ public static class StreamEndpoints
 
         group.MapGet("/{assetId:guid}/background", async (
             Guid assetId,
+            string? size,
             IMediaAssetRepository assetRepo,
             IWorkRepository workRepo,
             IEntityAssetRepository entityAssetRepo,
+            IArtworkRenditionService renditions,
             CancellationToken ct) =>
         {
             var asset = await assetRepo.FindByIdAsync(assetId, ct);
@@ -584,8 +598,7 @@ public static class StreamEndpoints
 
             var ownerEntityId = await ResolveArtworkOwnerEntityIdAsync(assetId, workRepo, ct);
             var preferredVariant = await entityAssetRepo.GetPreferredAsync(ownerEntityId.ToString(), "Background", ct);
-            var backgroundPath = preferredVariant is null ? null : ResolveArtworkPath(preferredVariant, null);
-            var localArtworkResult = CreateLocalArtworkResult(backgroundPath);
+            var localArtworkResult = await ServeStableAsync(renditions, preferredVariant, size, ct);
             if (localArtworkResult is not null)
             {
                 return localArtworkResult;
@@ -615,8 +628,7 @@ public static class StreamEndpoints
 
             var ownerEntityId = await ResolveArtworkOwnerEntityIdAsync(assetId, workRepo, ct);
             var preferredVariant = await entityAssetRepo.GetPreferredAsync(ownerEntityId.ToString(), "Logo", ct);
-            var logoPath = preferredVariant is null ? null : ResolveArtworkPath(preferredVariant, null);
-            var localArtworkResult = CreateLocalArtworkResult(logoPath);
+            var localArtworkResult = CreateLocalArtworkResult(preferredVariant?.LocalImagePath);
             if (localArtworkResult is not null)
             {
                 return localArtworkResult;
@@ -655,25 +667,27 @@ public static class StreamEndpoints
         };
     }
 
-    private static string? NormalizeArtworkSize(string? size)
-    {
-        var normalized = (size ?? string.Empty).Trim().ToLowerInvariant();
-        return normalized is "s" or "m" or "l" ? normalized : null;
-    }
+    private static string? NormalizeArtworkSize(string? size) =>
+        ArtworkVariantHelper.TryParseRenditionSize(size, out var key) ? key : null;
 
-    private static string? ResolveArtworkPath(EntityAsset asset, string? size)
+    /// <summary>
+    /// Serves the picture at a size for an address that stays the same when the picture changes (an entity's or
+    /// a file's current cover, background). These are never kept for a year: the browser checks each use. An
+    /// unrecognised size means the original, as it always has on these addresses.
+    /// </summary>
+    private static async Task<IResult?> ServeStableAsync(
+        IArtworkRenditionService renditions,
+        EntityAsset? variant,
+        string? size,
+        CancellationToken ct)
     {
-        var requestedPath = (size ?? string.Empty).Trim().ToLowerInvariant() switch
+        if (variant is null)
         {
-            "s" => asset.LocalImagePathSmall,
-            "m" => asset.LocalImagePathMedium,
-            "l" => asset.LocalImagePathLarge,
-            _ => asset.LocalImagePath,
-        };
+            return null;
+        }
 
-        return !string.IsNullOrWhiteSpace(requestedPath) && File.Exists(requestedPath)
-            ? requestedPath
-            : asset.LocalImagePath;
+        var resolved = await renditions.ResolveAsync(variant, NormalizeArtworkSize(size), ct);
+        return resolved is null ? null : ArtworkFileResults.Local(resolved.Path, ArtworkCacheMode.Revalidate);
     }
 
     private static IResult? CreateLocalArtworkResult(string? path) => ArtworkFileResults.Local(path);

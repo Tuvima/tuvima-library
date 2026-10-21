@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Artwork;
 using MediaEngine.Api.Services.BatchEdit;
 using MediaEngine.Api.Services.Collections;
 using MediaEngine.Api.Services.Matching;
@@ -51,6 +52,8 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<PersonEditorReadService>();
         services.AddSingleton<ArtworkLibraryReadService>();
         services.AddSingleton<ArtworkAssetService>();
+        services.AddSingleton<ArtworkRenditionQueue>();
+        services.AddSingleton<IArtworkRenditionService, ArtworkRenditionService>();
         services.AddSingleton<MediaEditorNavigationReadService>();
         services.AddSingleton<IMediaEditorNavigationReadService>(sp => sp.GetRequiredService<MediaEditorNavigationReadService>());
         services.AddSingleton<IMediaEditorMembershipReadService>(sp => sp.GetRequiredService<MediaEditorNavigationReadService>());

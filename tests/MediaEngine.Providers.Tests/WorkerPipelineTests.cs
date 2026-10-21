@@ -4465,6 +4465,20 @@ public sealed class WorkerPipelineTests
                 .ToList();
             return Task.FromResult<IReadOnlyList<EntityAsset>>(assets);
         }
+
+        public Task UpdateRenditionPathsAsync(Guid assetId, string? tinyPath, string? smallPath, string? mediumPath, string? largePath, CancellationToken ct = default)
+        {
+            var asset = Assets.FirstOrDefault(candidate => candidate.Id == assetId);
+            if (asset is not null)
+            {
+                asset.LocalImagePathTiny = tinyPath;
+                asset.LocalImagePathSmall = smallPath;
+                asset.LocalImagePathMedium = mediumPath;
+                asset.LocalImagePathLarge = largePath;
+            }
+
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class StubImageCacheRepository : IImageCacheRepository

@@ -606,6 +606,7 @@ public sealed class ArtworkAssetService(
                     ON CONFLICT(id) DO UPDATE SET
                         asset_type=excluded.asset_type,
                         local_image_path=excluded.local_image_path,
+                        local_image_path_t=NULL,
                         local_image_path_s=excluded.local_image_path_s,
                         local_image_path_m=excluded.local_image_path_m,
                         local_image_path_l=excluded.local_image_path_l,
@@ -693,7 +694,8 @@ public sealed class ArtworkAssetService(
             """, new { assetId });
         var selected = size?.ToLowerInvariant() switch
         {
-            "s" => row?.SmallPath ?? row?.MediumPath ?? row?.OriginalPath,
+            // The editor's artwork library keeps no tiny copy: a tiny request gets the small one.
+            "s" or "t" => row?.SmallPath ?? row?.MediumPath ?? row?.OriginalPath,
             "m" => row?.MediumPath ?? row?.LargePath ?? row?.OriginalPath,
             "l" => row?.LargePath ?? row?.OriginalPath,
             _ => row?.OriginalPath ?? row?.LargePath ?? row?.MediumPath,
