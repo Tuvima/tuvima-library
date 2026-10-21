@@ -1,5 +1,5 @@
-using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.Details;
+using MediaEngine.Api.Services.Display;
 
 namespace MediaEngine.Api.Tests;
 

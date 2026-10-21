@@ -207,3 +207,7 @@ As built (2026-10-20):
 - **Personal activity history stays** (Settings revamp D25): it keeps its own copy of the title and is not removed.
 - **Where the dialog lives.** `DeleteFromLibraryDialog` sits in `Components/Shared/`, because a guardrail keeps `Components/LibraryItems/` free of the retired workspace.
 - **Visual check done 2026-10-20** (proposed change #331): the dialog at desktop width in light and dark, the Listen song table and Settings → Libraries → Excluded files; small spacing and focus fixes landed there.
+
+## Later decision (2026-10-21, Shy)
+
+D22 (no recycle bin for library media) now has an exception that anyone can switch on: each media type gets a simple **Recycle bin** checkbox in Settings > Libraries (decision D49 in the Videos spec). It is on by default for Videos and off for every other type, so the behaviour described above stays the default for them. When on for a type, deleting a title from disk moves its files to the recycle bin and they leave the disk only when the bin is emptied. This note records the change; the decisions above are not rewritten.

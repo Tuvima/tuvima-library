@@ -100,7 +100,14 @@
 
                 @if (AnyFileDeleted)
                 {
-                    <p class="delete-library__footer-line">@FreedLine Files deleted from disk can't be recovered.</p>
+                    @if (_preview.GoesToRecycleBin)
+                    {
+                        <p class="delete-library__footer-line">The files move to the recycle bin and leave your disk only when you empty it. You can put them back from Settings > Libraries until then.</p>
+                    }
+                    else
+                    {
+                        <p class="delete-library__footer-line">@FreedLine Files deleted from disk can't be recovered.</p>
+                    }
                 }
                 else if (AnyFileStays)
                 {

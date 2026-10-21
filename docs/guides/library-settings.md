@@ -25,6 +25,7 @@ Libraries is one screen: **Settings > Libraries**. The seven media types (Books,
    - Paths are shown as the server sees them. On Docker that means paths inside the container, such as `/library`, not paths on your computer.
    - If a path does not exist, the picker says so in plain words.
    - Every folder asks **Videos (Watch)** or **Photos and videos (View)**. A folder that looks like untouched phone footage (for example `DCIM` with `IMG_` files) is suggested for View. Choosing Videos turns on the optional YouTube lookup and the **OK for limited profiles** switch; removing a Videos folder never touches the files.
+   - Every library type has a **Recycle bin** switch (on for Videos). With it on, a deleted file is kept in Library's own data folder instead of being removed straight away. Settings lists what is waiting there; **Put back** returns a file to where it was (nothing is ever overwritten) and **Empty recycle bin** removes everything for good.
 3. If the folder already has files, choose **Use as-is** (recommended), **Merge into** a managed folder, or **Let Tuvima manage it**.
 
 Every folder is handled one of two ways:

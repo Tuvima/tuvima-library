@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Contracts.Items;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
@@ -158,6 +159,12 @@ public partial interface IEngineApiClient
     Task<MediaEngine.Contracts.Items.VideoOrderResponse?> GetVideoOrderAsync(Guid entityId, CancellationToken ct = default);
     /// <summary>PUT /library/items/{entityId}/video-order — put the videos of a series in a new order; files are never renamed.</summary>
     Task<bool> SaveVideoOrderAsync(Guid entityId, Guid parentId, IReadOnlyList<Guid> orderedIds, CancellationToken ct = default);
+    /// <summary>GET /library/items/recycle-bin — the files waiting in the recycle bin.</summary>
+    Task<IReadOnlyList<RecycleBinItemDto>?> GetRecycleBinAsync(CancellationToken ct = default);
+    /// <summary>POST /library/items/recycle-bin/{id}/restore — put a file back where it was.</summary>
+    Task<bool> RestoreFromRecycleBinAsync(Guid id, CancellationToken ct = default);
+    /// <summary>POST /library/items/recycle-bin/empty — remove every file in the bin from the disk for good.</summary>
+    Task<bool> EmptyRecycleBinAsync(CancellationToken ct = default);
     Task<bool> SaveCollectionDisplayOverridesAsync(Guid collectionId, Dictionary<string, string> fields, CancellationToken ct = default);
     Task<MediaEngine.Contracts.Items.ItemEditorPreferencesResponse?> GetItemEditorPreferencesAsync(Guid entityId, Guid profileId, CancellationToken ct = default);
     Task<ItemEditorPreferencesSaveResultDto> SaveItemEditorPreferencesAsync(Guid entityId, Guid profileId, MediaEngine.Contracts.Items.ItemEditorPreferencesRequest request, CancellationToken ct = default);

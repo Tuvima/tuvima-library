@@ -104,6 +104,11 @@ public sealed partial class LibraryItemDeletionService(
 {
     public const int MaxWorks = 200;
 
+    private RecycleBinStore? _bin;
+
+    /// <summary>The recycle bin for library types that have it switched on.</summary>
+    private RecycleBinStore Bin => _bin ??= new RecycleBinStore(assetPaths.DataRoot, logger);
+
     public const string OutsideLibraryReason = "This file is not inside any library folder Library manages.";
     public const string MissingReason = "This file is no longer on disk.";
     public const string UsedElsewhereReason = "Another item in your library uses this same file.";
@@ -308,6 +313,9 @@ public sealed partial class LibraryItemDeletionService(
             ProfilesWithProgress = related.ProfilesWithPersonalState,
             ProcessingRunning = related.ProcessingRunning,
             BytesFreed = planned.Where(file => file.Outcome == LibraryItemDeletionOutcomes.Delete).Sum(file => file.SizeBytes ?? 0),
+            GoesToRecycleBin = planned.Any(file => file.Outcome == LibraryItemDeletionOutcomes.Delete
+                && !string.IsNullOrWhiteSpace(file.FullPath)
+                && folders.ResolveSourceForPath(file.FullPath)?.Library.RecycleBin == true),
             Fingerprint = ComputeFingerprint(requested, planned, collections, related.ProfilesWithPersonalState),
         };
 

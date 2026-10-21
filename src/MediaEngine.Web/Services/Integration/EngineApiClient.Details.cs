@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Contracts.Items;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
@@ -278,27 +279,12 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<bool> SaveItemExplicitAsync(Guid entityId, bool isExplicit, CancellationToken ct = default)
-    {
-        try
-        {
-            var resp = await _http.PutAsJsonAsync($"/library/items/{entityId}/explicit", new MediaEngine.Contracts.Items.ItemExplicitRequest { IsExplicit = isExplicit }, ct);
-            if (!resp.IsSuccessStatusCode)
-            {
-                var detail = await resp.Content.ReadAsStringAsync(ct);
-                _logger.LogWarning("PUT /library/items/{EntityId}/explicit returned {Status}: {Detail}", entityId, (int)resp.StatusCode, detail);
-                LastError = $"HTTP {(int)resp.StatusCode}: {detail}";
-            }
-
-            return resp.IsSuccessStatusCode;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            _logger.LogWarning(ex, "PUT /library/items/{EntityId}/explicit failed", entityId);
-            LastError = ex.Message;
-            return false;
-        }
-    }
+    public Task<bool> SaveItemExplicitAsync(Guid entityId, bool isExplicit, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /library/items/{id}/explicit",
+            $"/library/items/{entityId}/explicit",
+            new MediaEngine.Contracts.Items.ItemExplicitRequest { IsExplicit = isExplicit },
+            ct: ct);
 
     public async Task<MediaEngine.Contracts.Items.VideoOrderResponse?> GetVideoOrderAsync(Guid entityId, CancellationToken ct = default)
     {
@@ -313,28 +299,21 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<bool> SaveVideoOrderAsync(Guid entityId, Guid parentId, IReadOnlyList<Guid> orderedIds, CancellationToken ct = default)
-    {
-        try
-        {
-            var body = new MediaEngine.Contracts.Items.VideoOrderRequest { ParentId = parentId, OrderedIds = orderedIds.ToList() };
-            var resp = await _http.PutAsJsonAsync($"/library/items/{entityId}/video-order", body, ct);
-            if (!resp.IsSuccessStatusCode)
-            {
-                var detail = await resp.Content.ReadAsStringAsync(ct);
-                _logger.LogWarning("PUT /library/items/{EntityId}/video-order returned {Status}: {Detail}", entityId, (int)resp.StatusCode, detail);
-                LastError = $"HTTP {(int)resp.StatusCode}: {detail}";
-            }
+    public Task<bool> SaveVideoOrderAsync(Guid entityId, Guid parentId, IReadOnlyList<Guid> orderedIds, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /library/items/{id}/video-order",
+            $"/library/items/{entityId}/video-order",
+            new MediaEngine.Contracts.Items.VideoOrderRequest { ParentId = parentId, OrderedIds = orderedIds.ToList() },
+            ct: ct);
 
-            return resp.IsSuccessStatusCode;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            _logger.LogWarning(ex, "PUT /library/items/{EntityId}/video-order failed", entityId);
-            LastError = ex.Message;
-            return false;
-        }
-    }
+    public async Task<IReadOnlyList<RecycleBinItemDto>?> GetRecycleBinAsync(CancellationToken ct = default) =>
+        await GetAsync<List<RecycleBinItemDto>>("GET /library/items/recycle-bin", "/library/items/recycle-bin", ct: ct);
+
+    public Task<bool> RestoreFromRecycleBinAsync(Guid id, CancellationToken ct = default) =>
+        PostAsync("POST /library/items/recycle-bin/{id}/restore", $"/library/items/recycle-bin/{id}/restore", new { }, ct: ct);
+
+    public Task<bool> EmptyRecycleBinAsync(CancellationToken ct = default) =>
+        PostAsync("POST /library/items/recycle-bin/empty", "/library/items/recycle-bin/empty", new { }, ct: ct);
 
     public Task<bool> SaveCollectionDisplayOverridesAsync(Guid collectionId, Dictionary<string, string> fields, CancellationToken ct = default)
         => SaveDisplayOverridesAsync($"/collections/{collectionId}/display-overrides", collectionId, fields, ct);

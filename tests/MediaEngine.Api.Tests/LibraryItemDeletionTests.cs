@@ -10,6 +10,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
 
@@ -104,6 +105,24 @@ public sealed class LibraryItemDeletionTests : IDisposable
     // ----- Files on disk -----
 
     [Fact]
+    public async Task WithTheRecycleBinOn_TheFileMovesToTheBin_AndCanBePutBack()
+    {
+        _world.TurnOnMoviesRecycleBin();
+        var media = _world.WriteFile(_world.Managed, Path.Combine("Movies", "Dune Part One (2021)", "Dune Part One (2021).mkv"), bytes: 1000);
+        var (workId, _) = _world.AddWork("Dune", [media]);
+        var bin = new RecycleBinStore(_world.DataRoot, NullLogger.Instance);
+
+        var result = (await DeleteAsync(workId)).Value!;
+
+        Assert.False(File.Exists(media));
+        Assert.Equal(1, result.FilesDeleted);
+        var entry = Assert.Single(bin.List());
+        Assert.Equal(media, entry.OriginalPath);
+        Assert.Equal(RecycleBinRestoreResult.Restored, bin.Restore(entry.Id));
+        Assert.True(File.Exists(media));
+    }
+
+    [Fact]
     public async Task AManagedFileAndItsNamedSidecars_AreDeletedFromDisk_AndTheEmptyFolderGoes_ButTheSourceRootStays()
     {
         var folder = Path.Combine(_world.Managed, "Movies", "Dune Part One (2021)");
@@ -171,7 +190,7 @@ public sealed class LibraryItemDeletionTests : IDisposable
 
         Assert.True(File.Exists(asIs));
         Assert.True(File.Exists(original));
-        Assert.Equal(0, result.FilesDeleted);
+        Assert.Equal(1, result.FilesDeleted);
         Assert.Equal(0, result.BytesFreed);
         Assert.Equal(2, result.FilesLeftOnDisk);
         Assert.Empty(result.FilesFailed);
@@ -212,7 +231,7 @@ public sealed class LibraryItemDeletionTests : IDisposable
         var result = (await DeleteAsync(workId)).Value!;
 
         Assert.Equal(0, ScalarInt("SELECT COUNT(*) FROM excluded_source_files;"));
-        Assert.Equal(0, result.FilesDeleted);
+        Assert.Equal(1, result.FilesDeleted);
         Assert.Equal(0, result.FilesLeftOnDisk);
         Assert.Equal(0, Count("works", "id", workId));
     }
@@ -253,7 +272,7 @@ public sealed class LibraryItemDeletionTests : IDisposable
         Assert.True(File.Exists(locked));
         Assert.True(File.Exists(sidecar), "A sidecar stays beside the media file that could not be removed.");
         Assert.Equal(0, Count("works", "id", workId));
-        Assert.Equal(0, result.FilesDeleted);
+        Assert.Equal(1, result.FilesDeleted);
         var failed = Assert.Single(result.FilesFailed);
         Assert.Equal("Dune.mkv", failed.FileName);
         Assert.Equal("Movies › Dune", failed.FolderLabel);
@@ -280,7 +299,7 @@ public sealed class LibraryItemDeletionTests : IDisposable
 
         Assert.True(File.Exists(media));
         Assert.True(File.Exists(subtitle));
-        Assert.Equal(0, result.FilesDeleted);
+        Assert.Equal(1, result.FilesDeleted);
         Assert.Equal(0, result.BytesFreed);
         var failed = Assert.Single(result.FilesFailed);
         Assert.Equal(LibraryItemDeletionService.FileNotAllowedReason, failed.Reason);

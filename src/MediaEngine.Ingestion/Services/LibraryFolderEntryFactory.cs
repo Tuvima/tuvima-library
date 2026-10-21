@@ -24,6 +24,7 @@ public static class LibraryFolderEntryFactory
             Presentation = library.Presentation,
             MetadataPolicy = library.MetadataPolicy,
             YoutubeLookup = library.YoutubeLookup,
+            RecycleBin = library.RecycleBin,
             Sources = library.Sources.Select(source => new LibrarySourceEntry
             {
                 Id = source.Id,

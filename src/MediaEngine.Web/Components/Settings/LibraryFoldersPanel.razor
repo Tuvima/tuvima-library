@@ -239,6 +239,19 @@
                                   ValueChanged="@((bool value) => SetOkForLimitedProfilesAsync(value))" />
                 }
 
+                @if (SelectedLibrary is not null)
+                {
+                    <AppSwitchRow Label="Recycle bin"
+                                  Description="Deleted files wait in a recycle bin inside Library's data folder instead of being removed straight away. You can put them back, or empty the bin."
+                                  Value="@SelectedLibrary.RecycleBin"
+                                  Disabled="@(_saving || ReadOnly)"
+                                  ValueChanged="@((bool value) => SetRecycleBinAsync(value))" />
+                    @if (SelectedLibrary.RecycleBin && !Embedded)
+                    {
+                        <RecycleBinSection />
+                    }
+                }
+
                 @* Shown even when the last folder has been removed: files that stayed on disk can still be listed and added back. *@
                 @if (!Embedded && SelectedLibrary is not null)
                 {
@@ -1006,6 +1019,14 @@
         await SaveAsync(library, value ? "Limited profiles can now see Videos." : "Videos are hidden from limited profiles.");
     }
 
+    private async Task SetRecycleBinAsync(bool value)
+    {
+        var library = Clone(SelectedLibrary);
+        if (library is null || _saving) return;
+        library.RecycleBin = value;
+        await SaveAsync(library, value ? "Deleted files now go to the recycle bin." : "Deleted files are removed straight away.");
+    }
+
     private async Task SetYoutubeLookupAsync(bool value)
     {
         var library = Clone(SelectedLibrary);
@@ -1206,6 +1227,7 @@
         Area = option.Area,
         Presentation = "catalogue",
         MetadataPolicy = option.MediaTypes[0] == "Videos" ? "local_only" : "enriched",
+        RecycleBin = option.MediaTypes[0] == "Videos",
         MediaTypes = [option.MediaTypes[0]],
         Visibility = "household",
         AcceptedIntakeModes = ["incoming_folder"],

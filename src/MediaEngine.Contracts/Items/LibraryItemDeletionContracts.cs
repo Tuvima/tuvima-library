@@ -41,6 +41,9 @@ public sealed class LibraryItemDeletionPreview
     /// <summary>Total size of the files whose outcome is <see cref="LibraryItemDeletionOutcomes.Delete"/>.</summary>
     [JsonPropertyName("bytes_freed")] public long BytesFreed { get; init; }
 
+    /// <summary>True when the files that will be removed go to the recycle bin (their library type has it on) and can be put back until the bin is emptied.</summary>
+    [JsonPropertyName("goes_to_recycle_bin")] public bool GoesToRecycleBin { get; init; }
+
     /// <summary>Identifies this exact plan. Confirming a deletion sends it back so the Engine can tell nothing changed since the preview.</summary>
     [JsonPropertyName("fingerprint")] public string Fingerprint { get; init; } = string.Empty;
 }
@@ -156,4 +159,20 @@ public sealed class LibraryItemDeletionConflictDto
 
     /// <summary>The preview worked out fresh, to show in place of the old one.</summary>
     [JsonPropertyName("preview")] public LibraryItemDeletionPreview Preview { get; init; } = new();
+}
+
+/// <summary>How many files an Empty recycle bin removed from the disk.</summary>
+public sealed class RecycleBinEmptiedDto
+{
+    [JsonPropertyName("removed")] public int Removed { get; init; }
+}
+
+/// <summary>One file waiting in the recycle bin. The folder it came from stays inside the Engine.</summary>
+public sealed class RecycleBinItemDto
+{
+    [JsonPropertyName("id")] public Guid Id { get; init; }
+    [JsonPropertyName("file_name")] public string FileName { get; init; } = string.Empty;
+    [JsonPropertyName("title")] public string? Title { get; init; }
+    [JsonPropertyName("size_bytes")] public long SizeBytes { get; init; }
+    [JsonPropertyName("deleted_at")] public DateTimeOffset DeletedAt { get; init; }
 }

@@ -1,8 +1,8 @@
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
-using MediaEngine.Ingestion.Videos;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
+using MediaEngine.Ingestion.Videos;
 
 namespace MediaEngine.Api.Services.Settings;
 

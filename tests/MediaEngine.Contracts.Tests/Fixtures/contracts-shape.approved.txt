@@ -3251,6 +3251,7 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPrevi
   ProfilesWithProgress: System.Int32 | nullability=not-null | accessors=get,init
   ProcessingRunning: System.Boolean | nullability=not-null | accessors=get,init
   BytesFreed: System.Int64 | nullability=not-null | accessors=get,init
+  GoesToRecycleBin: System.Boolean | nullability=not-null | accessors=get,init
   Fingerprint: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPreviewRequest
@@ -3365,6 +3366,16 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.PlaybackTechnicalSummary
   SubtitleSummary: System.String | nullability=nullable | accessors=get,init
   AudioLanguages: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   SubtitleLanguages: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.RecycleBinEmptiedDto
+  Removed: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.RecycleBinItemDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
+  DeletedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoOrderEntryDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -7527,6 +7538,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   YoutubeLookup: System.Boolean | nullability=not-null | accessors=get,set
   OkForLimitedProfiles: System.Boolean | nullability=not-null | accessors=get,set
+  RecycleBin: System.Boolean | nullability=not-null | accessors=get,set
   Sources: System.Collections.Generic.List<MediaEngine.Contracts.Settings.LibrarySourceDto> | nullability=not-null | accessors=get,set
   PrimaryDestinationSourceId: System.String | nullability=nullable | accessors=get,set
   OwnerProfileId: System.String | nullability=nullable | accessors=get,set

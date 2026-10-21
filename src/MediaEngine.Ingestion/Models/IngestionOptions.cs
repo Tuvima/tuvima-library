@@ -28,6 +28,9 @@ public sealed class LibraryFolderEntry
     /// <summary>Videos libraries: ask YouTube (by video ID only) about videos named with a YouTube ID.</summary>
     public bool YoutubeLookup { get; init; } = true;
 
+    /// <summary>Deleting a title moves its files to the recycle bin instead of removing them from disk.</summary>
+    public bool RecycleBin { get; init; }
+
     public string Area { get; init; } = LibraryAreas.Read;
 
     public string Presentation { get; init; } = LibraryPresentations.Catalogue;

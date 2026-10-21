@@ -3,7 +3,7 @@
 @implements IDisposable
 @inject IEngineApiClient Api
 
-@* Editing Mode on a series of videos: put its videos in the order you want. The order is saved in Tuvima and never
+@* Editing Mode on a series of videos: put its videos in the order you want. The order is saved in Library and never
    renames a file. A series with sections shows one list per section. Nothing is drawn for anything else. *@
 @if (Mode is { IsOn: true } mode && mode.Fields.Loaded && _groups.Count > 0)
 {
@@ -35,7 +35,7 @@
                 </ol>
             </div>
         }
-        <p class="tl-editing-order__note">The order is saved in Tuvima. Your files are not renamed.</p>
+        <p class="tl-editing-order__note">The order is saved in Library. Your files are not renamed.</p>
         @if (_error is not null)
         {
             <p class="tl-editing-order__error" role="alert">@_error</p>

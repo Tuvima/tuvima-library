@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
+using MediaEngine.Api.Services.Display;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
-using MediaEngine.Api.Services.Display;
 using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Security;

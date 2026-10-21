@@ -1,0 +1,82 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Items
+@using MediaEngine.Web.Components.Shared
+@inject IEngineApiClient Api
+@inject IAppDialogService Dialogs
+
+@* Settings > Libraries: the files waiting in the recycle bin for the types that have it on. Putting a file back never
+   overwrites anything; Empty is the only step that removes files from the disk. *@
+<section class="recycle-bin" aria-label="Recycle bin">
+    <header class="recycle-bin__head">
+        <strong>Recycle bin</strong>
+        @if (_items is { Count: > 0 })
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Compact"
+                       Disabled="@_busy" OnClick="EmptyAsync">Empty recycle bin</AppButton>
+        }
+    </header>
+    @if (_items is null)
+    {
+        <p class="recycle-bin__note" role="status">Loading…</p>
+    }
+    else if (_items.Count == 0)
+    {
+        <p class="recycle-bin__note">Nothing in the recycle bin.</p>
+    }
+    else
+    {
+        <ul class="recycle-bin__list">
+            @foreach (var item in _items)
+            {
+                var captured = item;
+                <li class="recycle-bin__row">
+                    <span class="recycle-bin__name">
+                        <strong>@(string.IsNullOrWhiteSpace(item.Title) ? item.FileName : item.Title)</strong>
+                        <span>@DisplayFormat.FormatFileSize(item.SizeBytes) · deleted @item.DeletedAt.ToLocalTime().ToString("d MMM yyyy")</span>
+                    </span>
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                               Disabled="@_busy" OnClick="@(() => RestoreAsync(captured))">Put back</AppButton>
+                </li>
+            }
+        </ul>
+    }
+    @if (_message is not null)
+    {
+        <p class="recycle-bin__note" role="status">@_message</p>
+    }
+</section>
+
+@code {
+    private List<RecycleBinItemDto>? _items;
+    private bool _busy;
+    private string? _message;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync() => _items = (await Api.GetRecycleBinAsync())?.ToList() ?? [];
+
+    private async Task RestoreAsync(RecycleBinItemDto item)
+    {
+        _busy = true;
+        _message = null;
+        var ok = await Api.RestoreFromRecycleBinAsync(item.Id);
+        _message = ok
+            ? "Put back. It comes back into the library on the next scan."
+            : "That could not be put back. Something may already be at its old place.";
+        await LoadAsync();
+        _busy = false;
+    }
+
+    private async Task EmptyAsync()
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            "Empty the recycle bin?",
+            "Every file in it is removed from your disk and can't be recovered.",
+            yesText: "Empty", cancelText: "Keep");
+        if (confirmed != true) return;
+        _busy = true;
+        _message = await Api.EmptyRecycleBinAsync() ? "The recycle bin is empty." : "The recycle bin could not be emptied.";
+        await LoadAsync();
+        _busy = false;
+    }
+}
