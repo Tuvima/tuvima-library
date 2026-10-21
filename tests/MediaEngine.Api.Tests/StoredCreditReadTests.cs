@@ -1,6 +1,7 @@
 using System.Reflection;
 using Dapper;
 using MediaEngine.Api.Endpoints;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
@@ -36,7 +37,7 @@ public sealed class StoredCreditReadTests : IDisposable
         await SetCreditsAsync(album.RootWorkId, "artist", "Guest Singer", "Main Band");
         await SetCreditsAsync(album.RootWorkId, "album_artist", "Main Band");
 
-        var creator = await CollectionEndpoints.ResolveGroupCreatorAsync(_arrays, album.RootWorkId, [], isMusic: true, CancellationToken.None);
+        var creator = await CollectionEndpoints.ResolveGroupCreatorAsync(_arrays, album.RootWorkId, isMusic: true, CancellationToken.None);
 
         Assert.Equal("Main Band", creator);
     }
@@ -47,7 +48,7 @@ public sealed class StoredCreditReadTests : IDisposable
         var album = await InsertAlbumAsync();
         await SetCreditsAsync(album.RootWorkId, "artist", "First Artist", "Second Artist");
 
-        var creator = await CollectionEndpoints.ResolveGroupCreatorAsync(_arrays, album.RootWorkId, [], isMusic: true, CancellationToken.None);
+        var creator = await CollectionEndpoints.ResolveGroupCreatorAsync(_arrays, album.RootWorkId, isMusic: true, CancellationToken.None);
 
         Assert.Equal("First Artist", creator);
     }
@@ -58,9 +59,10 @@ public sealed class StoredCreditReadTests : IDisposable
         var seriesRootId = Guid.NewGuid();
         await SetCreditsAsync(seriesRootId, "artist", "Cover Illustrator");
         await SetCreditsAsync(seriesRootId, "author", "Lead Author", "Co-Author");
+        await SetCreditsAsync(seriesRootId, "creator", "Original Creator");
 
         var creator = await CollectionEndpoints.ResolveGroupCreatorAsync(
-            _arrays, seriesRootId, [Scalar(seriesRootId, "creator", "Original Creator")], isMusic: false, CancellationToken.None);
+            _arrays, seriesRootId, isMusic: false, CancellationToken.None);
 
         Assert.Equal("Lead Author", creator);
     }
@@ -69,20 +71,40 @@ public sealed class StoredCreditReadTests : IDisposable
     public async Task SeriesHeader_WithoutAnAuthor_FallsBackToTheStoredCreator()
     {
         var seriesRootId = Guid.NewGuid();
+        await SetCreditsAsync(seriesRootId, "creator", "Original Creator");
 
         var creator = await CollectionEndpoints.ResolveGroupCreatorAsync(
-            _arrays, seriesRootId, [Scalar(seriesRootId, "creator", "Original Creator")], isMusic: false, CancellationToken.None);
+            _arrays, seriesRootId, isMusic: false, CancellationToken.None);
 
         Assert.Equal("Original Creator", creator);
+    }
+
+    [Fact]
+    public async Task SeriesHeader_WithSeveralCreatorsAndNoAuthor_NamesThemAllInOrder()
+    {
+        var seriesRootId = Guid.NewGuid();
+        await SetCreditsAsync(seriesRootId, "creator", "Jerry Siegel", "Joe Shuster", "jerry siegel");
+
+        var creator = await CollectionEndpoints.ResolveGroupCreatorAsync(
+            _arrays, seriesRootId, isMusic: false, CancellationToken.None);
+
+        Assert.Equal("Jerry Siegel, Joe Shuster", creator);
+    }
+
+    [Fact]
+    public void Creator_IsStoredAsAList()
+    {
+        Assert.True(MetadataFieldConstants.IsMultiValued("creator"));
     }
 
     [Fact]
     public async Task AlbumHeader_IgnoresAStoredCreator()
     {
         var album = await InsertAlbumAsync();
+        await SetCreditsAsync(album.RootWorkId, "creator", "Someone Else");
 
         var creator = await CollectionEndpoints.ResolveGroupCreatorAsync(
-            _arrays, album.RootWorkId, [Scalar(album.RootWorkId, "creator", "Someone Else")], isMusic: true, CancellationToken.None);
+            _arrays, album.RootWorkId, isMusic: true, CancellationToken.None);
 
         Assert.Null(creator);
     }
@@ -90,8 +112,8 @@ public sealed class StoredCreditReadTests : IDisposable
     [Fact]
     public async Task GroupHeader_WithNoCreditsOrNoRootWork_NamesNobody()
     {
-        Assert.Null(await CollectionEndpoints.ResolveGroupCreatorAsync(_arrays, Guid.NewGuid(), [], isMusic: false, CancellationToken.None));
-        Assert.Null(await CollectionEndpoints.ResolveGroupCreatorAsync(_arrays, null, [], isMusic: false, CancellationToken.None));
+        Assert.Null(await CollectionEndpoints.ResolveGroupCreatorAsync(_arrays, Guid.NewGuid(), isMusic: false, CancellationToken.None));
+        Assert.Null(await CollectionEndpoints.ResolveGroupCreatorAsync(_arrays, null, isMusic: false, CancellationToken.None));
     }
 
     [Fact]
@@ -127,9 +149,6 @@ public sealed class StoredCreditReadTests : IDisposable
             .GetProperty("Scopes")!.GetValue(context)!;
         return Assert.Single(scopes, scope => scope.ScopeId == "album");
     }
-
-    private static CanonicalValue Scalar(Guid entityId, string key, string value) =>
-        new() { EntityId = entityId, Key = key, Value = value, LastScoredAt = DateTimeOffset.UtcNow };
 
     private Task SetCreditsAsync(Guid entityId, string key, params string[] names) =>
         _arrays.SetValuesAsync(

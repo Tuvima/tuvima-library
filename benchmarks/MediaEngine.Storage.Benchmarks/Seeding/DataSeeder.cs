@@ -511,6 +511,15 @@ internal static class DataSeeder
         SELECT {Id(SeedIds.Person, "@persons / 2")}, {Id(SeedIds.Person, "@persons / 2 + 1")}, NULL, NULL;
 
         UPDATE persons SET is_group = 1 WHERE id = {Id(SeedIds.Person, "@persons / 2")};
+
+        -- One pen name (since 2026-10-21): the second-billed author of the first comic that has two authors. The first-billed
+        -- author of the same comic is the person a pen name hides, so their credit is dropped by the pen-name rule.
+        UPDATE persons SET is_pseudonym = 1
+        WHERE name = (SELECT second_author.value
+                      FROM canonical_value_arrays second_author
+                      WHERE second_author.key = 'author' AND second_author.ordinal = 1
+                      ORDER BY second_author.entity_id
+                      LIMIT 1);
         """;
 
     private static readonly string ArtworkSql = $"""

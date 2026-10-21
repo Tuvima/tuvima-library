@@ -302,8 +302,17 @@ public sealed class Phase5InlineEditingTests
         // An Editing Mode section slot shows the same questions in the shell footer instead of the inline strip.
         Assert.Contains("Inline && !IsSection && _confirmDiscard", shell, StringComparison.Ordinal);
         Assert.Contains("Discard unsaved changes?", shell, StringComparison.Ordinal);
-        Assert.Contains("Inline && !IsSection && _pendingMembershipPreview is not null", shell, StringComparison.Ordinal);
-        Assert.Contains("Save and Move", shell, StringComparison.Ordinal);
+        // Moving into another album, season or series is the Match step now, never a "Save and Move" step of the editor's footer.
+        Assert.DoesNotContain("_pendingMembershipPreview", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("Save and Move", shell, StringComparison.Ordinal);
+        Assert.Contains("<ItemMoveArea", shell, StringComparison.Ordinal);
+        // The Not matched mark follows the last move, not what the page showed when the editor opened; and a move that removes the
+        // edited title re-targets the editor and tells the page behind it.
+        Assert.Contains("IsUnmatched=\"@IsUnmatchedNow\"", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsUnmatched=\"@Request.IsUnmatched\"", shell, StringComparison.Ordinal);
+        var moves = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.Moves.cs");
+        Assert.Contains("moved.ResultEntityId", moves, StringComparison.Ordinal);
+        Assert.Contains("Request.OnEditedItemReplaced", moves, StringComparison.Ordinal);
         Assert.Contains("HasPendingDetailsInlineEdit", ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs"), StringComparison.Ordinal);
         Assert.Contains("BeginTvdbCrossShowSearch", shell, StringComparison.Ordinal);
         Assert.Contains("Search another show", shell, StringComparison.Ordinal);
@@ -787,7 +796,7 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("_navigator = null", reloadMethod, StringComparison.Ordinal);
         Assert.Contains("resetEditorState: true", reloadMethod, StringComparison.Ordinal);
         Assert.Contains("ResetMatchSearchState()", reloadMethod, StringComparison.Ordinal);
-        Assert.Contains("_pendingMembershipPreview = null", reloadMethod, StringComparison.Ordinal);
+        Assert.DoesNotContain("_pendingMembershipPreview", reloadMethod, StringComparison.Ordinal);
 
         var loadStart = code.IndexOf("private async Task LoadSingleItemAsync(", StringComparison.Ordinal);
         var loadEnd = code.IndexOf("private async Task LoadProfilePreferencesAsync(", loadStart, StringComparison.Ordinal);

@@ -6,7 +6,7 @@ using MediaEngine.Web.Models.ViewDTOs;
 namespace MediaEngine.Web.Services.Integration;
 
 /// <summary>
-/// Library preferences, batch editing, overview, and universe-alignment operations.
+/// Library preferences, overview, and universe-alignment operations.
 /// </summary>
 public sealed partial class EngineApiClient
 {
@@ -136,30 +136,6 @@ public sealed partial class EngineApiClient
         {
             _logger.LogWarning(ex, "GET /library/overview failed");
             LastError = ex.Message;
-            return null;
-        }
-    }
-
-    public async Task<LibraryBatchEditResult?> BatchEditAsync(
-        List<Guid> entityIds,
-        Dictionary<string, string> fieldChanges,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var body = new
-            {
-                entity_ids = entityIds,
-                field_changes = fieldChanges.Select(kv => new { key = kv.Key, value = kv.Value }).ToList(),
-            };
-            var response = await _http.PostAsJsonAsync("library/batch-edit", body, ct);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<LibraryBatchEditResult>(ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POST /library/batch-edit failed");
             return null;
         }
     }

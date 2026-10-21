@@ -1675,7 +1675,7 @@
     }
 }
 
-.sequence-episode-tile { position: relative; min-width: 0; scroll-snap-align: start; --media-tile-media-height: auto; }
+.sequence-episode-tile { min-width: 0; scroll-snap-align: start; --media-tile-media-height: auto; }
 .sequence-episode-tile ::deep .media-tile { width: 100%; }
 .sequence-episode-tile ::deep .media-tile-media { height: auto; aspect-ratio: 16 / 9; }
 .sequence-episode-tile.is-current ::deep .media-tile-media { outline: 2px solid var(--tl-accent-primary, #8852FC); box-shadow: 0 0 22px rgba(136, 82, 252,.5); }
@@ -1685,3 +1685,8 @@
 .tl-series-detail__ownership .tl-series-detail__missing { min-height:0; height:auto; }
 .tl-series-detail__footer-utilities .tl-series-detail__missing { font-size:inherit; line-height:inherit; }
 @media(width < 840px) { .tl-series-detail__controls { flex-wrap:wrap; } .tl-series-detail__controls .tl-series-detail__jump { width:100%; } .tl-series-detail__footer-utilities { margin-left:0; } }
+
+/* A card ticked for "Edit together" (details overlay spec D8): outlined and tinted, so it stays visible among the cards. */
+.tl-series-item.is-selected { outline: 2px solid var(--tl-accent-primary, #8852FC); outline-offset: 2px; border-radius: var(--tl-radius-md); background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 14%, transparent); }
+
+.tl-series-item[data-tickable="true"] { cursor: pointer; }

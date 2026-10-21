@@ -623,52 +623,6 @@ public sealed partial class EngineApiClient
         return string.IsNullOrWhiteSpace(body) ? response.ReasonPhrase ?? "The episode search failed." : body;
     }
 
-    public async Task<MusicTrackMovePreview?> PreviewMusicTrackMoveAsync(
-        Guid entityId, MusicTrackMovePreviewRequest request, CancellationToken ct = default)
-    {
-        try
-        {
-            LastError = null;
-            using var response = await PostMediaEditorRequestAsync($"/metadata/{entityId}/music-track-move-preview", request, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
-                return null;
-            }
-            return await response.Content.ReadFromJsonAsync<MusicTrackMovePreview>(ct);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
-        catch (Exception ex)
-        {
-            LastError = ex.Message;
-            _logger.LogWarning(ex, "POST /metadata/{EntityId}/music-track-move-preview failed", entityId);
-            return null;
-        }
-    }
-
-    public async Task<MediaEditorPairingSaveResultDto?> SaveMusicTrackMoveAsync(
-        Guid entityId, MusicTrackMoveSaveRequest request, CancellationToken ct = default)
-    {
-        try
-        {
-            LastError = null;
-            using var response = await PostMediaEditorRequestAsync($"/metadata/{entityId}/music-track-move", request, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
-                return null;
-            }
-            return await response.Content.ReadFromJsonAsync<MediaEditorPairingSaveResultDto>(ct);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
-        catch (Exception ex)
-        {
-            LastError = ex.Message;
-            _logger.LogWarning(ex, "POST /metadata/{EntityId}/music-track-move failed", entityId);
-            return null;
-        }
-    }
-
     public async Task<MediaEditorFileCoverageDto?> GetMediaEditorFileCoverageAsync(
         Guid entityId, Guid assetId, CancellationToken ct = default)
     {
@@ -863,49 +817,6 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<List<MediaEditorMembershipSuggestionDto>> GetMediaEditorMembershipSuggestionsAsync(
-        Guid entityId,
-        string field,
-        string? query = null,
-        string? source = null,
-        Guid? parentEntityId = null,
-        string? parentValue = null,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var queryParts = new List<string> { $"field={Uri.EscapeDataString(field)}" };
-            if (!string.IsNullOrWhiteSpace(query))
-            {
-                queryParts.Add($"query={Uri.EscapeDataString(query)}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(source))
-            {
-                queryParts.Add($"source={Uri.EscapeDataString(source)}");
-            }
-
-            if (parentEntityId.HasValue)
-            {
-                queryParts.Add($"parentEntityId={Uri.EscapeDataString(parentEntityId.Value.ToString())}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(parentValue))
-            {
-                queryParts.Add($"parentValue={Uri.EscapeDataString(parentValue)}");
-            }
-
-            var url = $"/metadata/{entityId}/membership-suggestions?{string.Join("&", queryParts)}";
-            return await _http.GetFromJsonAsync<List<MediaEditorMembershipSuggestionDto>>(url, ct) ?? [];
-        }
-        catch (OperationCanceledException) { return []; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /metadata/{EntityId}/membership-suggestions failed", entityId);
-            return [];
-        }
-    }
-
     public async Task<MediaEditorMembershipPreviewDto?> PreviewMediaEditorMembershipAsync(
         Guid entityId,
         MediaEditorMembershipPreviewRequestDto request,
@@ -921,25 +832,6 @@ public sealed partial class EngineApiClient
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "POST /metadata/{EntityId}/membership-preview failed", entityId);
-            return null;
-        }
-    }
-
-    public async Task<MediaEditorMembershipPreviewDto?> ApplyMediaEditorMembershipAsync(
-        Guid entityId,
-        MediaEditorMembershipPreviewRequestDto request,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync($"/metadata/{entityId}/membership-apply", request, ct);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<MediaEditorMembershipPreviewDto>(ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POST /metadata/{EntityId}/membership-apply failed", entityId);
             return null;
         }
     }

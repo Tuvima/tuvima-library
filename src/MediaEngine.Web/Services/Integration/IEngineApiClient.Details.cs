@@ -95,14 +95,6 @@ public partial interface IEngineApiClient
     Task<MediaEditorPairingSaveResultDto?> SaveMediaEditorPairingAsync(
         Guid entityId, MediaEditorPairingSaveRequestDto request, CancellationToken ct = default);
 
-    /// <summary>Review one owned music file against an exact MusicBrainz release.</summary>
-    Task<MusicTrackMovePreview?> PreviewMusicTrackMoveAsync(
-        Guid entityId, MusicTrackMovePreviewRequest request, CancellationToken ct = default);
-
-    /// <summary>Apply one exact release-track choice from a current review.</summary>
-    Task<MediaEditorPairingSaveResultDto?> SaveMusicTrackMoveAsync(
-        Guid entityId, MusicTrackMoveSaveRequest request, CancellationToken ct = default);
-
     /// <summary>Episodes a TV file covers, plus the other episodes of its season it could cover.</summary>
     Task<MediaEditorFileCoverageDto?> GetMediaEditorFileCoverageAsync(
         Guid entityId, Guid assetId, CancellationToken ct = default);
@@ -127,24 +119,8 @@ public partial interface IEngineApiClient
     Task<MediaEditorEditionCoverSaveResultDto?> SaveMediaEditorEditionCoverAsync(
         Guid entityId, MediaEditorEditionCoverSaveRequestDto request, CancellationToken ct = default);
 
-    /// <summary>GET /metadata/{entityId}/membership-suggestions — autocomplete targets for membership correction.</summary>
-    Task<List<MediaEditorMembershipSuggestionDto>> GetMediaEditorMembershipSuggestionsAsync(
-        Guid entityId,
-        string field,
-        string? query = null,
-        string? source = null,
-        Guid? parentEntityId = null,
-        string? parentValue = null,
-        CancellationToken ct = default);
-
     /// <summary>POST /metadata/{entityId}/membership-preview — preview hierarchy changes before applying them.</summary>
     Task<MediaEditorMembershipPreviewDto?> PreviewMediaEditorMembershipAsync(
-        Guid entityId,
-        MediaEditorMembershipPreviewRequestDto request,
-        CancellationToken ct = default);
-
-    /// <summary>POST /metadata/{entityId}/membership-apply — apply a confirmed hierarchy change.</summary>
-    Task<MediaEditorMembershipPreviewDto?> ApplyMediaEditorMembershipAsync(
         Guid entityId,
         MediaEditorMembershipPreviewRequestDto request,
         CancellationToken ct = default);
@@ -214,9 +190,5 @@ public partial interface IEngineApiClient
 
     /// <summary>GET /library/overview - aggregated operational health summary.</summary>
     Task<LibraryOverviewDto?> GetLibraryOverviewAsync(CancellationToken ct = default);
-
-    /// <summary>POST /library/batch-edit - apply batch field edits to multiple items.</summary>
-    Task<LibraryBatchEditResult?> BatchEditAsync(
-        List<Guid> entityIds, Dictionary<string, string> fieldChanges, CancellationToken ct = default);
 
 }

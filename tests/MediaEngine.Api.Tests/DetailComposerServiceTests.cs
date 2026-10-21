@@ -536,8 +536,8 @@ public sealed class DetailComposerServiceTests
         Assert.Contains("InitiallyCollapsed = total > 0 && owned == 0", source);
         Assert.Contains("Actions = work.IsOwned", source);
         Assert.Contains("DetailEntityType.TvEpisode ? \"play\" : \"open\"", source);
-        Assert.Contains("public int OwnedCount { get; init; }", contracts);
-        Assert.Contains("public double CompletionPercent { get; init; }", contracts);
+        Assert.Contains("public int OwnedCount { get; set; }", contracts);
+        Assert.Contains("public double CompletionPercent { get; set; }", contracts);
     }
 
     [Fact]

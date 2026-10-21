@@ -57,7 +57,7 @@ public static class ReviewCategory
         ReviewTrigger.WritebackFailed or ReviewTrigger.MediaInspectionFailed
             => ProviderFailures,
         ReviewTrigger.MetadataConflict or ReviewTrigger.UserFixMatch or ReviewTrigger.LanguageMismatch
-            or ReviewTrigger.AmbiguousSeriesMembership
+            or ReviewTrigger.AmbiguousSeriesMembership or ReviewTrigger.BatchEditFailed
             => MetadataConflicts,
         _ => null,
     };

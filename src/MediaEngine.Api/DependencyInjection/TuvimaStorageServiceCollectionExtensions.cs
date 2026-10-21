@@ -84,8 +84,6 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton(sp => new MediaEngine.Api.Services.Libraries.RecycleBinService(
             sp.GetRequiredService<AssetPathService>().DataRoot,
             sp.GetRequiredService<ILoggerFactory>().CreateLogger("MediaEngine.Api.Services.Libraries.RecycleBinService")));
-        services.AddSingleton<ItemMoveRepository>();
-        services.AddSingleton<ItemMoveService>();
         services.AddSingleton<ExcludedFileService>();
         services.AddSingleton<FolderJobService>();
         services.AddSingleton<ServerFolderBrowserService>();
