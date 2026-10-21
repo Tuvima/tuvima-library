@@ -86,11 +86,6 @@ public partial class SharedMediaEditorShell
             await JS.InvokeVoidAsync("tuvimaEditorFocus", ".sme-title");
         }
         await ReportHostStateAsync();
-        if (_scrollToEpisodePlacement)
-        {
-            _scrollToEpisodePlacement = false;
-            await JS.InvokeVoidAsync("tuvimaEditorScrollTo", ".sme-placement-anchor");
-        }
     }
     [Inject] protected IAppDialogService DialogService { get; set; } = null!;
     [Inject] protected IServiceProvider ServiceProvider { get; set; } = null!;
@@ -119,9 +114,6 @@ public partial class SharedMediaEditorShell
     private readonly HashSet<string> _inlineOverrideKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _clearedInlineOverrideKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _pendingInlineRevertKeys = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Guid?> _selectedMembershipTargetIds = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, MediaEditorMembershipSuggestionDto> _selectedMembershipSuggestions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, List<MediaEditorMembershipSuggestionDto>> _membershipSuggestions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IBrowserFile> _pendingArtworkFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _pendingArtworkPreviewUrls = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _artworkUploadErrors = new(StringComparer.OrdinalIgnoreCase);
@@ -143,10 +135,6 @@ public partial class SharedMediaEditorShell
     private bool _loadingRetailHierarchyPreview;
     private RetailMatchMovePreviewDto? _retailMovePreview;
     private ItemCanonicalRetailCandidateDto? _pendingRetailMoveCandidate;
-    private MusicTrackMovePreview? _musicTrackMovePreview;
-    private string? _musicTrackMoveChoiceId;
-    private string? _musicTrackMoveError;
-    private bool _musicTrackMoveBusy;
     private string? _movedItemNotice;
     private Guid? _movedItemDestinationId;
     private int _artworkChangeVersion;
@@ -228,7 +216,6 @@ public partial class SharedMediaEditorShell
     }
     private string? _matchActionStatus;
     private Guid? _matchIdentityJobId;
-    private MediaEditorMembershipPreviewDto? _pendingMembershipPreview;
     private string? _fieldToFocus;
     private string? _focusedAudiobookChapterKey;
     private EnrichmentRefreshScheduleDto? _refreshSchedule;
@@ -367,7 +354,6 @@ public partial class SharedMediaEditorShell
             .ToList();
     protected int ActiveTabIndex => GetSelectedIndex(Tabs.Select(tab => tab.Id), _activeTab);
     protected bool IsSingleItem => IsSharedEntityMode || Request.EntityIds.Count == 1;
-    protected bool IsBatchMode => !IsSharedEntityMode && (Request.Mode == SharedMediaEditorMode.Batch || Request.EntityIds.Count > 1);
     protected Guid LaunchEntityId => Request.LaunchEntityId ?? Request.EntityIds.FirstOrDefault();
     protected MediaEditorIdentityIntent EffectiveIdentityIntent =>
         _identityIntent == MediaEditorIdentityIntent.None ? Request.IdentityIntent : _identityIntent;
@@ -400,7 +386,6 @@ public partial class SharedMediaEditorShell
         + "This policy does not confirm a file write. See History for actual outcomes.";
     protected bool ShouldShowEditorFooter =>
         _confirmDiscard
-        || _pendingMembershipPreview is not null
         || (HasStagedEditorChanges && !HasPendingDetailsInlineEdit && !IsOnlyArtworkUploadInFlight)
         || Request.Mode == SharedMediaEditorMode.Review;
 
@@ -619,17 +604,13 @@ public partial class SharedMediaEditorShell
     protected string HeaderKicker =>
         IsSharedEntityMode
             ? "Universe"
-            : Request.Mode switch
-            {
-                SharedMediaEditorMode.Batch => $"{Request.EntityIds.Count} items",
-                _ => ActiveScope?.Label ?? NavigatorRootNode?.Label ?? _schema.MediaType,
-            };
+            : ActiveScope?.Label ?? NavigatorRootNode?.Label ?? _schema.MediaType;
 
     protected string HeaderTitle =>
         (IsSharedEntityMode ? _sharedEntityContext?.breadcrumb?.FirstOrDefault() ?? _sharedEntityContext?.label : ActiveScope?.DisplayTitle ?? SelectedNavigatorNode?.Title ?? NavigatorRootNode?.Title)
         ?? Request.HeaderTitle
         ?? _detail?.Title
-        ?? (IsBatchMode ? $"Edit {Request.EntityIds.Count} Items" : "Edit Item");
+        ?? "Edit Item";
 
     protected string? HeaderSubtitle =>
         (IsSharedEntityMode ? SharedEntityHeaderSubtitle : ActiveScope?.DisplaySubtitle ?? SelectedNavigatorNode?.Subtitle ?? NavigatorRootNode?.Subtitle)
@@ -788,7 +769,8 @@ public partial class SharedMediaEditorShell
         }
         else
         {
-            await LoadBatchAsync();
+            // Several items are never edited here: the launcher refuses them, and a batch is edited together on the details page.
+            _loading = false;
         }
     }
 
@@ -883,9 +865,6 @@ public partial class SharedMediaEditorShell
                 _inlineOverrideKeys.Clear();
                 _clearedInlineOverrideKeys.Clear();
                 _pendingInlineRevertKeys.Clear();
-                _selectedMembershipTargetIds.Clear();
-                _selectedMembershipSuggestions.Clear();
-                _membershipSuggestions.Clear();
                 _pendingArtworkFiles.Clear();
                 _pendingArtworkPreviewUrls.Clear();
                 _artworkUploadErrors.Clear();
@@ -942,7 +921,6 @@ public partial class SharedMediaEditorShell
             await LoadEditorSuggestionsAsync();
             await LoadAudiobookChapterOverrideStateAsync(CurrentEntityId);
             _dragTargetArtworkType = null;
-            _pendingMembershipPreview = null;
             NormalizeArtworkSelection();
 
             if (Request.Mode == SharedMediaEditorMode.Review)
@@ -1002,7 +980,7 @@ public partial class SharedMediaEditorShell
 
     private async Task LoadProfilePreferencesAsync(Guid workId)
     {
-        if (Request.ActiveProfileId is not { } profileId || workId == Guid.Empty || IsBatchMode)
+        if (Request.ActiveProfileId is not { } profileId || workId == Guid.Empty)
         {
             return;
         }
@@ -1228,7 +1206,6 @@ public partial class SharedMediaEditorShell
         _tvdbSearchCancellation?.Cancel();
         _tvdbCandidates = null;
         _selectedTvdbCandidate = null;
-        _pendingMembershipPreview = null;
         EnsureActiveTabVisible();
         NormalizeArtworkSelection();
     }
@@ -1376,7 +1353,7 @@ public partial class SharedMediaEditorShell
             }
             else if (HasStagedEditorChanges)
             {
-                await SaveAsyncCore(applyMembershipMove: false);
+                await SaveAsyncCore();
             }
             else if (_switchAfterSuccessfulSave && _pendingTargetSwitch is not null)
             {
@@ -1394,7 +1371,7 @@ public partial class SharedMediaEditorShell
         }
         else
         {
-            await SaveAsyncCore(applyMembershipMove: false);
+            await SaveAsyncCore();
         }
     }
 
@@ -1907,150 +1884,37 @@ public partial class SharedMediaEditorShell
         _artworkStates[stateKey] = artwork;
     }
 
-    private Task LoadBatchAsync()
-    {
-        var mediaTypes = Request.PreviewItems.Select(x => x.MediaType ?? Request.MediaType ?? "Books");
-        _schema = MediaEditorSchemaCatalog.Resolve(mediaTypes.FirstOrDefault());
-        _canonicalTargetGroup = string.IsNullOrWhiteSpace(Request.InitialCanonicalTargetGroup) ? _schema.DefaultTargetGroup : Request.InitialCanonicalTargetGroup!;
-        _loading = false;
-        return Task.CompletedTask;
-    }
-
     protected bool IsTabDisabled(string tabId) =>
         !IsTabVisible(tabId)
         || HasPendingDetailsInlineEdit && !string.Equals(tabId, _activeTab, StringComparison.OrdinalIgnoreCase);
 
     protected IEnumerable<MediaEditorFieldGroup> GetGroupsForTab(string tabId)
     {
-        if (!IsBatchMode)
+        var visibleKeys = GetVisibleFieldKeysForScope();
+        var sourceTabIds = tabId switch
         {
-            var visibleKeys = GetVisibleFieldKeysForScope();
-            var sourceTabIds = tabId switch
+            "details" => new[] { "details", "options", "sorting" },
+            "options" => new[] { "options", "sorting" },
+            _ => new[] { tabId },
+        };
+
+        return _schema.Groups
+            .Where(group => sourceTabIds.Contains(group.TabId, StringComparer.OrdinalIgnoreCase))
+            .Select(group => new MediaEditorFieldGroup
             {
-                "details" => new[] { "details", "options", "sorting" },
-                "options" => new[] { "options", "sorting" },
-                _ => new[] { tabId },
-            };
-
-            return _schema.Groups
-                .Where(group => sourceTabIds.Contains(group.TabId, StringComparer.OrdinalIgnoreCase))
-                .Select(group => new MediaEditorFieldGroup
-                {
-                    Id = group.Id,
-                    Label = string.Equals(tabId, "options", StringComparison.OrdinalIgnoreCase)
-                            && string.Equals(group.TabId, "sorting", StringComparison.OrdinalIgnoreCase)
-                        ? "Sort Order"
-                        : group.Label,
-                    TabId = tabId,
-                    Fields = group.Fields
-                        .Where(field => visibleKeys.Contains(field.Key, StringComparer.OrdinalIgnoreCase))
-                        .ToList(),
-                })
-                .Where(group => group.Fields.Count > 0)
-                .ToList();
-        }
-
-        var batchFields = MediaEditorSchemaCatalog.ResolveBatchFields(Request.PreviewItems.Select(x => x.MediaType ?? Request.MediaType ?? "Books"));
-
-        return tabId switch
-        {
-            "details" =>
-            [
-                new MediaEditorFieldGroup
-                {
-                    Id = "batch_details",
-                    Label = "Shared Fields",
-                    TabId = "details",
-                    Fields = batchFields
-                        .Where(field => !field.Key.StartsWith("sort_", StringComparison.OrdinalIgnoreCase)
-                                        && field.Key is not ("description" or "rating"))
-                        .ToList(),
-                },
-            ],
-            "options" =>
-                new[]
-                {
-                    new MediaEditorFieldGroup
-                    {
-                        Id = "batch_options",
-                        Label = "Batch Options",
-                        TabId = "options",
-                        Fields = batchFields.Where(field => field.Key is "description" or "rating").ToList(),
-                    },
-                    new MediaEditorFieldGroup
-                    {
-                        Id = "batch_sorting",
-                        Label = "Sort Order",
-                        TabId = "options",
-                        Fields = batchFields.Where(field => field.Key.StartsWith("sort_", StringComparison.OrdinalIgnoreCase)).ToList(),
-                    },
-                }.Where(group => group.Fields.Count > 0).ToList(),
-            _ => [],
-        };
+                Id = group.Id,
+                Label = string.Equals(tabId, "options", StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(group.TabId, "sorting", StringComparison.OrdinalIgnoreCase)
+                    ? "Sort Order"
+                    : group.Label,
+                TabId = tabId,
+                Fields = group.Fields
+                    .Where(field => visibleKeys.Contains(field.Key, StringComparer.OrdinalIgnoreCase))
+                    .ToList(),
+            })
+            .Where(group => group.Fields.Count > 0)
+            .ToList();
     }
-
-    protected IReadOnlyList<MediaEditorFieldDefinition> GetParentPositionFields() =>
-        (EditorMediaType, ActiveScope?.ScopeId) switch
-        {
-            ("TV", "episode") =>
-            [
-                new() { Key = "show_name", Label = "Parent show", Placeholder = "Search shows" },
-                new() { Key = "season_number", Label = "Season", Placeholder = "Season number" },
-                new() { Key = "episode_number", Label = "Episode", Placeholder = "Episode number" },
-            ],
-            ("Music", "track") =>
-            [
-                new() { Key = "album", Label = "Move this track to album", Placeholder = "Search albums" },
-                new() { Key = "disc_number", Label = "Disc", Placeholder = "Disc number" },
-                new() { Key = "track_number", Label = "Track", Placeholder = "Track number" },
-            ],
-            ("Comics", "issue") =>
-            [
-                new() { Key = "series", Label = "Move this issue to series / run", Placeholder = "Search series or runs" },
-                new() { Key = "series_position", Label = "Issue position", Placeholder = "Issue number" },
-            ],
-            _ => [],
-        };
-
-    protected static string GetParentPositionHelp(string key) => key switch
-    {
-        "show_name" => "Moves only this episode to a different show and requires confirmation.",
-        "album" => "Moves only this track to a different album and requires confirmation. To correct the album metadata for every track, edit the Album scope instead.",
-        "series" => "Moves only this issue to a different series or run and requires confirmation.",
-        _ => "Controls this item's position inside its parent.",
-    };
-
-    protected string GetLibraryPlacementDescription() =>
-        (EditorMediaType, ActiveScope?.ScopeId) switch
-        {
-            ("TV", "episode") => "Move this episode to the correct show, season, and episode position. The move is previewed before it is applied.",
-            ("Music", "track") => "Move only this track to a different album. To correct metadata shared by every track, choose the Album scope above. The move is previewed before it is applied.",
-            ("Comics", "issue") => "Move only this issue to a different series or run. The move is previewed before it is applied.",
-            _ => "Choose where this item belongs. Structural changes are previewed before they are applied.",
-        };
-
-    protected string MembershipPreviewHeading =>
-        (EditorMediaType, ActiveScope?.ScopeId) switch
-        {
-            ("TV", "episode") => "Confirm episode move",
-            ("Music", "track") => "Confirm track move",
-            ("Comics", "issue") => "Confirm issue move",
-            _ => "Confirm structural change",
-        };
-
-    protected string MembershipPreviewActionLabel =>
-        (EditorMediaType, ActiveScope?.ScopeId) switch
-        {
-            ("TV", "episode") => "Save and move episode",
-            ("Music", "track") => "Save and move track",
-            ("Comics", "issue") => "Save and move issue",
-            _ => "Save and move",
-        };
-
-    protected string? MembershipPreviewCleanupNote =>
-        _pendingMembershipPreview?.SourceParentWillBeEmpty == true
-            ? "The original parent will be empty after this move. Its artwork and record stay in place for later reviewed cleanup."
-            : null;
 
     protected IEnumerable<MediaEditorFieldGroup> GetAdditionalOptionsGroups() =>
         GetGroupsForTab("options")
@@ -2070,7 +1934,7 @@ public partial class SharedMediaEditorShell
         key is "genre" or "custom_tags" or "rating";
 
     protected string GetPlaceholder(MediaEditorFieldDefinition field) =>
-        IsBatchMode ? "Leave unchanged" : (field.Placeholder ?? field.Label);
+        field.Placeholder ?? field.Label;
 
     protected static int GetFieldLineCount(MediaEditorFieldDefinition field)
     {
@@ -2089,11 +1953,6 @@ public partial class SharedMediaEditorShell
         if (_editedValues.TryGetValue(scopedKey, out var edited) && !_clearedInlineOverrideKeys.Contains(scopedKey))
         {
             return edited;
-        }
-
-        if (IsBatchMode)
-        {
-            return string.Empty;
         }
 
         if (string.Equals(key, "custom_tags", StringComparison.OrdinalIgnoreCase))
@@ -2116,7 +1975,7 @@ public partial class SharedMediaEditorShell
         var normalized = IsMultilineField(key)
             ? NormalizeMultilineInput(key, value)
             : (value ?? string.Empty).Trim();
-        var baseline = IsBatchMode ? string.Empty : GetBaselineValue(key);
+        var baseline = GetBaselineValue(key);
         var scopedKey = BuildScopedFieldKey(key);
         _clearedInlineOverrideKeys.Remove(scopedKey);
 
@@ -2141,7 +2000,7 @@ public partial class SharedMediaEditorShell
         }
     }
 
-    protected Task SaveAsync() => HasMatchDraft ? SaveSelectedMatchAsync() : SaveAsyncCore(applyMembershipMove: false);
+    protected Task SaveAsync() => HasMatchDraft ? SaveSelectedMatchAsync() : SaveAsyncCore();
 
     protected async Task SaveSelectedMatchAsync()
     {
@@ -2165,9 +2024,7 @@ public partial class SharedMediaEditorShell
         }
     }
 
-    protected Task ConfirmMembershipMoveAsync() => SaveAsyncCore(applyMembershipMove: true);
-
-    private async Task SaveAsyncCore(bool applyMembershipMove)
+    private async Task SaveAsyncCore()
     {
         if (IsSharedEntityMode)
         {
@@ -2195,7 +2052,7 @@ public partial class SharedMediaEditorShell
             return;
         }
 
-        if (!HasStagedEditorChanges && (!applyMembershipMove || _pendingMembershipPreview is null))
+        if (!HasStagedEditorChanges)
         {
             if (Request.Mode == SharedMediaEditorMode.Review)
             {
@@ -2214,56 +2071,7 @@ public partial class SharedMediaEditorShell
 
         try
         {
-            if (IsBatchMode)
-            {
-                if (_editedValues.Count == 0)
-                {
-                    await CloseEditorAsync(applied: false);
-                    return;
-                }
-
-                var result = await ApiClient.BatchEditAsync(Request.EntityIds, new Dictionary<string, string>(_editedValues, StringComparer.OrdinalIgnoreCase));
-                if (result is null)
-                {
-                    Snackbar.Add("Batch edit failed.", AppSeverity.Error);
-                    return;
-                }
-
-                Snackbar.Add($"Updated {result.UpdatedCount} item(s).", AppSeverity.Success);
-                await CloseEditorAsync(applied: true);
-                return;
-            }
-
-            if (!applyMembershipMove)
-            {
-                var membershipPreview = await PreviewMembershipChangeAsync();
-                if (membershipPreview is not null
-                    && !string.Equals(membershipPreview.Action, "none", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!membershipPreview.CanApply)
-                    {
-                        Snackbar.Add(membershipPreview.ConflictMessage ?? membershipPreview.Message, AppSeverity.Error);
-                        return;
-                    }
-
-                    _pendingMembershipPreview = membershipPreview;
-                    return;
-                }
-            }
-
             var savedAnything = false;
-
-            if (applyMembershipMove && _pendingMembershipPreview is not null)
-            {
-                var membershipResult = await ApiClient.ApplyMediaEditorMembershipAsync(CurrentEntityId, BuildMembershipPreviewRequest());
-                if (membershipResult is null || !membershipResult.CanApply)
-                {
-                    Snackbar.Add(membershipResult?.ConflictMessage ?? membershipResult?.Message ?? "Membership update failed.", AppSeverity.Error);
-                    return;
-                }
-
-                savedAnything = true;
-            }
 
             var fieldChangesByScope = _editedValues
                 .Select(entry => (RawKey: entry.Key, Key: ParseScopedKey(entry.Key), Value: entry.Value))
@@ -2490,9 +2298,7 @@ public partial class SharedMediaEditorShell
                     return;
                 }
 
-                Snackbar.Add(applyMembershipMove && _pendingMembershipPreview is not null
-                    ? "Changes saved, membership updated, and review resolved."
-                    : "Changes saved and review resolved.", AppSeverity.Success);
+                Snackbar.Add("Changes saved and review resolved.", AppSeverity.Success);
                 if (await CompletePendingTargetSwitchAsync())
                 {
                     return;
@@ -2502,14 +2308,7 @@ public partial class SharedMediaEditorShell
                 return;
             }
 
-            Snackbar.Add(applyMembershipMove && _pendingMembershipPreview is not null
-                ? "Changes saved and membership updated."
-                : "Changes saved.", AppSeverity.Success);
-            if (await ResumeEpisodeMatchAfterPlacementAsync(
-                    applyMembershipMove && _pendingMembershipPreview is not null))
-            {
-                return;
-            }
+            Snackbar.Add("Changes saved.", AppSeverity.Success);
             if (await CompletePendingTargetSwitchAsync())
             {
                 return;
@@ -2823,7 +2622,6 @@ public partial class SharedMediaEditorShell
         _pendingArtworkPreviewUrls.Clear();
         _audiobookChapterEdits.Clear();
         _audiobookChapterResetKeys.Clear();
-        _pendingMembershipPreview = null;
         return true;
     }
 
@@ -2877,7 +2675,6 @@ public partial class SharedMediaEditorShell
         _pendingArtworkPreviewUrls.Clear();
         _audiobookChapterEdits.Clear();
         _audiobookChapterResetKeys.Clear();
-        _pendingMembershipPreview = null;
         _unifiedArtworkWorkspace?.DiscardPendingChanges();
         _unifiedArtworkPending = false;
         _confirmDiscard = false;
@@ -2893,7 +2690,6 @@ public partial class SharedMediaEditorShell
         _pendingArtworkPreviewUrls.Clear();
         _audiobookChapterEdits.Clear();
         _audiobookChapterResetKeys.Clear();
-        _pendingMembershipPreview = null;
         if (clearUnifiedArtwork)
         {
             _unifiedArtworkWorkspace?.DiscardPendingChanges();
@@ -3021,7 +2817,7 @@ public partial class SharedMediaEditorShell
             }
             else if (HasStagedEditorChanges)
             {
-                await SaveAsyncCore(applyMembershipMove: false);
+                await SaveAsyncCore();
             }
             else
             {
@@ -4728,7 +4524,6 @@ public partial class SharedMediaEditorShell
 
     protected async Task SelectCandidateAsync(ItemCanonicalRetailCandidateDto candidate)
     {
-        ClearMusicTrackMoveReview();
         _selectedWikidataCandidateId = null;
         var targetEntityId = CurrentEntityId;
         var candidateId = GetCandidateId(candidate);
@@ -4968,7 +4763,6 @@ public partial class SharedMediaEditorShell
 
     protected void CancelMatchDraft()
     {
-        ClearMusicTrackMoveReview();
         CancelRetailHierarchyPreview();
         _selectedWikidataCandidateId = null;
         _selectedTvdbCandidate = null;
@@ -4991,33 +4785,6 @@ public partial class SharedMediaEditorShell
         && !string.IsNullOrWhiteSpace(candidate.ProviderName)
         && !string.IsNullOrWhiteSpace(candidate.ProviderItemId);
 
-    // Songs, episodes and audiobook parts can move to another album, season or audiobook through the Match step (the Engine decides
-    // whether this exact title can; otherwise the panel draws nothing).
-    protected bool CanMoveCurrentTarget => EditorMediaType is "Music" or "TV" or "Audiobooks";
-
-    private async Task OnItemMovedAsync(MediaEngine.Contracts.Items.ItemMoveResultDto moved)
-    {
-        _hasCommittedChanges = true;
-        _movedItemNotice = moved.Mode == MediaEngine.Contracts.Items.ItemMoveModes.AddAnyway
-            ? $"Added to {moved.DestinationTitle} with no number. It is tagged Not matched until you match it."
-            : $"Moved to {moved.DestinationTitle}.";
-        _movedItemDestinationId = moved.LandedWorkId;
-        Snackbar.Add(_movedItemNotice, AppSeverity.Success);
-        try
-        {
-            await NotifyParentArtworkChangedAsync();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Refreshing after moving item {WorkId} failed", moved.WorkId);
-        }
-
-        StateHasChanged();
-    }
-
-    protected bool IsMusicTrackMoveTarget => EditorMediaType == "Music"
-        && string.Equals(_canonicalTargetGroup, "track", StringComparison.OrdinalIgnoreCase);
-
     /// <summary>The single owned file a TV episode editor can set "This file covers" for; null for other media.</summary>
     private Guid? CoverageAssetId => EditorMediaType == "TV" ? GetMusicMoveAssetId() : null;
 
@@ -5033,98 +4800,6 @@ public partial class SharedMediaEditorShell
         }
         var assets = _workVersions.Editions.SelectMany(edition => edition.Assets).ToArray();
         return assets.Length == 1 ? assets[0].AssetId : null;
-    }
-
-    private static string? GetExactMusicReleaseId(ItemCanonicalRetailCandidateDto candidate)
-    {
-        if (!string.Equals(candidate.ProviderName, "musicbrainz", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-        if (candidate.ExtraFields.TryGetValue("musicbrainz_release_id", out var release)
-            && Guid.TryParse(release, out var parsed) && parsed != Guid.Empty)
-        {
-            return release;
-        }
-        if (candidate.BridgeIds.TryGetValue("musicbrainz_release_id", out release)
-            && Guid.TryParse(release, out parsed) && parsed != Guid.Empty)
-        {
-            return release;
-        }
-        return null;
-    }
-
-    protected string? MusicTrackMovePrerequisite(ItemCanonicalRetailCandidateDto candidate)
-    {
-        if (IsDirty)
-        {
-            return "Save or discard the unsaved Details changes first.";
-        }
-        if (GetMusicMoveAssetId() is null)
-        {
-            return "Choose the exact file in the selector above before moving a track.";
-        }
-        if (GetExactMusicReleaseId(candidate) is null)
-        {
-            return "Choose a MusicBrainz result with an exact release ID.";
-        }
-        return null;
-    }
-
-    protected async Task PreviewMusicTrackMoveAsync(ItemCanonicalRetailCandidateDto candidate)
-    {
-        if (!IsMusicTrackMoveTarget || _musicTrackMoveBusy || MusicTrackMovePrerequisite(candidate) is not null)
-        {
-            return;
-        }
-        ClearMusicTrackMoveReview();
-        _musicTrackMoveBusy = true;
-        try
-        {
-            _musicTrackMovePreview = await ApiClient.PreviewMusicTrackMoveAsync(
-                CurrentEntityId,
-                new MusicTrackMovePreviewRequest(GetMusicMoveAssetId()!.Value, GetExactMusicReleaseId(candidate)!));
-            if (_musicTrackMovePreview is null)
-            {
-                _musicTrackMoveError = ApiClient.LastError ?? "The release could not be reviewed. Try again.";
-            }
-        }
-        finally { _musicTrackMoveBusy = false; }
-    }
-
-    protected async Task SaveMusicTrackMoveAsync()
-    {
-        if (_musicTrackMoveBusy || _musicTrackMovePreview is null || _musicTrackMoveChoiceId is null)
-        {
-            return;
-        }
-        _musicTrackMoveBusy = true;
-        _musicTrackMoveError = null;
-        try
-        {
-            var receipt = await ApiClient.SaveMusicTrackMoveAsync(CurrentEntityId,
-                new MusicTrackMoveSaveRequest(_musicTrackMovePreview.ReviewToken, _musicTrackMoveChoiceId, Guid.NewGuid()));
-            if (receipt is null)
-            {
-                _musicTrackMoveError = ApiClient.LastError ?? "The file could not be moved. Review this release again.";
-                return;
-            }
-            var movedAssetId = _musicTrackMovePreview.AssetId;
-            ClearMusicTrackMoveReview();
-            CancelMatchDraft();
-            _hasCommittedChanges = true;
-            Snackbar.Add("The selected file moved to the verified release track.", AppSeverity.Success);
-            await LoadSingleItemAsync(movedAssetId, resetEditorState: true);
-            _tabState.Activate("links");
-        }
-        finally { _musicTrackMoveBusy = false; }
-    }
-
-    private void ClearMusicTrackMoveReview()
-    {
-        _musicTrackMovePreview = null;
-        _musicTrackMoveChoiceId = null;
-        _musicTrackMoveError = null;
     }
 
     protected MediaEditorMembershipPreviewDto? GetRetailHierarchyImpactPreview(ItemCanonicalRetailCandidateDto candidate)
@@ -5750,7 +5425,6 @@ public partial class SharedMediaEditorShell
         _claims = [];
         _history = [];
         _artwork = null;
-        _pendingMembershipPreview = null;
         ResetMatchSearchState();
 
         await LoadSingleItemAsync(
@@ -5912,11 +5586,6 @@ public partial class SharedMediaEditorShell
 
     private string GetBaselineValue(string key)
     {
-        if (IsBatchMode)
-        {
-            return string.Empty;
-        }
-
         if (string.Equals(key, "custom_tags", StringComparison.OrdinalIgnoreCase))
         {
             return GetLibraryTagsBaselineValue();
@@ -6014,11 +5683,6 @@ public partial class SharedMediaEditorShell
 
     private IReadOnlyList<(string Id, string Label, string Icon)> ResolveVisibleTabs()
     {
-        if (IsBatchMode)
-        {
-            return [("details", "Details", GetTabIcon("details"))];
-        }
-
         return TabDisplayOrder
             .Where(tabId => !IsSection || string.Equals(tabId, NormalizeTabId(Section), StringComparison.Ordinal))
             .Where(IsTabVisible)
@@ -6028,11 +5692,6 @@ public partial class SharedMediaEditorShell
 
     private IReadOnlyList<(string Key, string Label)> ResolveQuickSearchTargets()
     {
-        if (IsBatchMode)
-        {
-            return _schema.QuickSearchTargets;
-        }
-
         return (EditorMediaType, ActiveScope?.ScopeId) switch
         {
             ("TV", "series") => [("show", "Show")],
@@ -6174,11 +5833,6 @@ public partial class SharedMediaEditorShell
 
     private bool IsTabVisible(string tabId)
     {
-        if (IsBatchMode)
-        {
-            return tabId == "details";
-        }
-
         // The shell always reserves the four public destinations. Individual panes
         // explain an unavailable capability instead of making navigation drift by scope.
         return tabId != "links" || CanMatchCurrentTarget;
@@ -6473,9 +6127,7 @@ public partial class SharedMediaEditorShell
     protected static string GetHistoryToneClass(string? category) => AppHistoryPresentation.For(null, category).ToneClass;
 
     protected string GetDirtySaveLabel() =>
-        IsBatchMode
-            ? $"Apply ({Request.EntityIds.Count})"
-            : ResolveFooterPrimaryActionLabel(EffectiveIdentityIntent);
+        ResolveFooterPrimaryActionLabel(EffectiveIdentityIntent);
 
     protected string GetResolveReviewLabel() =>
         string.IsNullOrWhiteSpace(_primaryActionLabel)
@@ -7136,240 +6788,6 @@ public partial class SharedMediaEditorShell
                 _ => null,
             }).OfType<ArtworkSlotDefinition>().ToList();
 
-    private IReadOnlyList<string> GetPlacementFieldKeysForActiveScope()
-    {
-        if (ActiveScope is null)
-        {
-            return [];
-        }
-
-        return (EditorMediaType, ActiveScope.ScopeId) switch
-        {
-            ("TV", "episode") => ["show_name", "season_number", "episode_number", "episode_title"],
-            ("Music", "track") => ["artist", "album", "track_number", "disc_number"],
-            ("Comics", "issue") => ["series", "series_position"],
-            _ => [],
-        };
-    }
-
-    private bool SupportsMembershipSuggestions(string fieldKey) =>
-        !string.IsNullOrWhiteSpace(GetMembershipSuggestionField(fieldKey));
-
-    private string? GetMembershipSuggestionField(string fieldKey) =>
-        (EditorMediaType, ActiveScope?.ScopeId, fieldKey) switch
-        {
-            ("TV", "episode", "show_name") => "show",
-            ("TV", "episode", "season_number") => "season",
-            ("Music", "track", "artist") => "artist",
-            ("Music", "track", "album") => "album",
-            ("Comics", "issue", "series") => "series",
-            _ => null,
-        };
-
-    private async Task OnMembershipFieldInputAsync(string key, string? value)
-    {
-        OnFieldInput(key, value);
-        if (key == "show_name")
-        {
-            _tvdbPlacementSeasons = null;
-        }
-
-        var scopedKey = BuildScopedFieldKey(key);
-        _pendingMembershipPreview = null;
-        _selectedMembershipTargetIds.Remove(scopedKey);
-        _selectedMembershipSuggestions.Remove(scopedKey);
-        ClearDependentMembershipSelections(key);
-
-        var suggestionField = GetMembershipSuggestionField(key);
-        var query = (value ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(suggestionField) || query.Length < 2)
-        {
-            _membershipSuggestions.Remove(scopedKey);
-            return;
-        }
-
-        var parentContext = ResolveMembershipSuggestionParentContext(key);
-        var suggestions = await ApiClient.GetMediaEditorMembershipSuggestionsAsync(
-            CurrentEntityId,
-            suggestionField,
-            query,
-            source: "local",
-            parentEntityId: parentContext.ParentEntityId,
-            parentValue: parentContext.ParentValue);
-
-        _membershipSuggestions[scopedKey] = suggestions;
-        StateHasChanged();
-    }
-
-    private async Task ApplyMembershipSuggestionAsync(string key, MediaEditorMembershipSuggestionDto suggestion)
-    {
-        OnFieldInput(key, suggestion.Label);
-        if (key == "show_name")
-        {
-            _tvdbPlacementSeasons = null;
-        }
-
-        var scopedKey = BuildScopedFieldKey(key);
-        _selectedMembershipTargetIds[scopedKey] = suggestion.EntityId;
-        _selectedMembershipSuggestions[scopedKey] = suggestion;
-        _membershipSuggestions.Remove(scopedKey);
-        _pendingMembershipPreview = null;
-
-        ClearDependentMembershipSelections(key);
-
-        if (string.Equals(key, "season_number", StringComparison.OrdinalIgnoreCase))
-        {
-            _editedValues[scopedKey] = ExtractLeadingNumber(suggestion.Label);
-        }
-
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private IReadOnlyList<MediaEditorMembershipSuggestionDto> GetMembershipSuggestions(string key) =>
-        _membershipSuggestions.TryGetValue(BuildScopedFieldKey(key), out var suggestions)
-            ? suggestions
-            : [];
-
-    private void ClearMembershipSuggestions(string key) =>
-        _membershipSuggestions.Remove(BuildScopedFieldKey(key));
-
-    private (Guid? ParentEntityId, string? ParentValue) ResolveMembershipSuggestionParentContext(string fieldKey)
-    {
-        if (string.Equals(fieldKey, "season_number", StringComparison.OrdinalIgnoreCase))
-        {
-            var showKey = BuildScopedFieldKey("show_name");
-            return (
-                _selectedMembershipTargetIds.TryGetValue(showKey, out var targetId) ? targetId : null,
-                GetEditableValue("show_name"));
-        }
-
-        if (string.Equals(fieldKey, "album", StringComparison.OrdinalIgnoreCase))
-        {
-            return (null, GetEditableValue("artist"));
-        }
-
-        return (null, null);
-    }
-
-    protected bool CanSearchRetailMembership(string fieldKey) =>
-        (EditorMediaType, ActiveScope?.ScopeId, fieldKey) switch
-        {
-            ("TV", "episode", "show_name") => true,
-            ("Music", "track", "artist") => true,
-            ("Music", "track", "album") => true,
-            ("Comics", "issue", "series") => true,
-            _ => false,
-        };
-
-    protected async Task SearchRetailMembershipAsync(string fieldKey)
-    {
-        if (!CanSearchRetailMembership(fieldKey))
-        {
-            return;
-        }
-
-        var query = GetEditableValue(fieldKey).Trim();
-        if (query.Length < 2)
-        {
-            Snackbar.Add("Enter at least two characters before searching retail results.", AppSeverity.Info);
-            return;
-        }
-
-        var suggestionField = GetMembershipSuggestionField(fieldKey);
-        if (string.IsNullOrWhiteSpace(suggestionField))
-        {
-            return;
-        }
-
-        var parentContext = ResolveMembershipSuggestionParentContext(fieldKey);
-        var scopedKey = BuildScopedFieldKey(fieldKey);
-        var suggestions = await ApiClient.GetMediaEditorMembershipSuggestionsAsync(
-            CurrentEntityId,
-            suggestionField,
-            query,
-            source: "retail",
-            parentEntityId: parentContext.ParentEntityId,
-            parentValue: parentContext.ParentValue);
-
-        _membershipSuggestions[scopedKey] = suggestions;
-        StateHasChanged();
-    }
-
-    private void ClearDependentMembershipSelections(string fieldKey)
-    {
-        if (string.Equals(fieldKey, "show_name", StringComparison.OrdinalIgnoreCase))
-        {
-            _selectedMembershipTargetIds.Remove(BuildScopedFieldKey("season_number"));
-            _selectedMembershipSuggestions.Remove(BuildScopedFieldKey("season_number"));
-            _membershipSuggestions.Remove(BuildScopedFieldKey("season_number"));
-        }
-        else if (string.Equals(fieldKey, "artist", StringComparison.OrdinalIgnoreCase))
-        {
-            _selectedMembershipTargetIds.Remove(BuildScopedFieldKey("album"));
-            _selectedMembershipSuggestions.Remove(BuildScopedFieldKey("album"));
-            _membershipSuggestions.Remove(BuildScopedFieldKey("album"));
-        }
-    }
-
-    private async Task<MediaEditorMembershipPreviewDto?> PreviewMembershipChangeAsync()
-    {
-        if (!IsSingleItem || ActiveScope is null)
-        {
-            return null;
-        }
-
-        var placementFields = GetPlacementFieldKeysForActiveScope();
-        if (placementFields.Count == 0)
-        {
-            return null;
-        }
-
-        var hasPlacementEdit = placementFields.Any(field =>
-        {
-            var scopedKey = BuildScopedFieldKey(field);
-            return _editedValues.ContainsKey(scopedKey) || _selectedMembershipTargetIds.ContainsKey(scopedKey);
-        });
-
-        if (!hasPlacementEdit)
-        {
-            return null;
-        }
-
-        var preview = await ApiClient.PreviewMediaEditorMembershipAsync(CurrentEntityId, BuildMembershipPreviewRequest());
-        return preview;
-    }
-
-    private MediaEditorMembershipPreviewRequestDto BuildMembershipPreviewRequest()
-    {
-        var fieldValues = BuildDraftFields()
-            .ToDictionary(pair => pair.Key, pair => (string?)pair.Value, StringComparer.OrdinalIgnoreCase);
-
-        var targetIds = _selectedMembershipTargetIds
-            .Where(entry =>
-            {
-                var parsed = ParseScopedKey(entry.Key);
-                return parsed.EntityId == CurrentEntityId
-                       && string.Equals(parsed.ScopeId, ActiveScope?.ScopeId, StringComparison.OrdinalIgnoreCase);
-            })
-            .ToDictionary(entry => ParseScopedKey(entry.Key).Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
-        var selectedSuggestions = _selectedMembershipSuggestions
-            .Where(entry =>
-            {
-                var parsed = ParseScopedKey(entry.Key);
-                return parsed.EntityId == CurrentEntityId
-                       && string.Equals(parsed.ScopeId, ActiveScope?.ScopeId, StringComparison.OrdinalIgnoreCase);
-            })
-            .ToDictionary(entry => ParseScopedKey(entry.Key).Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
-
-        return new MediaEditorMembershipPreviewRequestDto
-        {
-            ScopeId = ActiveScope?.ScopeId,
-            FieldValues = fieldValues,
-            SelectedTargetIds = targetIds,
-            SelectedSuggestions = selectedSuggestions,
-        };
-    }
-
     private IReadOnlyList<MediaEditorNavigatorNodeDto> GetNavigatorChildren(Guid? parentNodeId)
     {
         if (_navigator is null)
@@ -7588,12 +7006,12 @@ public partial class SharedMediaEditorShell
     private static string? FormatCountBadge(int count) => count > 0 ? count.ToString() : null;
 
     private string BuildScopedFieldKey(string key) =>
-        IsBatchMode || ActiveScope is null
+        ActiveScope is null
             ? key
             : $"{ActiveScope.FieldEntityId:D}|{ActiveScope.ScopeId}|{key}";
 
     private string BuildScopedArtworkKey(string? scopeId, string assetType) =>
-        IsBatchMode || string.IsNullOrWhiteSpace(scopeId)
+        string.IsNullOrWhiteSpace(scopeId)
             ? assetType
             : $"{(GetScopeById(scopeId)?.FieldEntityId ?? EditorContextEntityId):D}|{scopeId}|{assetType}";
 

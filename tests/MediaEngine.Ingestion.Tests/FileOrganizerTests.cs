@@ -222,6 +222,140 @@ public class FileOrganizerTests
     }
 
     // ──────────────────────────────────────────────────────────────────────────
+    // A file with no number (added to an album, season or audiobook anyway) is named by its title alone
+    // ──────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void CalculatePath_ASongWithNoTrackNumber_IsNamedByItsTitleAlone()
+    {
+        var candidate = BuildCandidate(@"C:\watch\hidden-jam.flac", MediaType.Music, SongMeta(trackNumber: null));
+
+        var relative = CreateOrganizer().CalculatePath(candidate, ShippedTemplate("Music"));
+
+        Assert.Equal("Music/Radiohead/OK Computer (1997)/Hidden Jam.flac", relative);
+    }
+
+    [Fact]
+    public void CalculatePath_ASongWithATrackNumber_KeepsItsNumberAndDash()
+    {
+        var candidate = BuildCandidate(@"C:\watch\hidden-jam.flac", MediaType.Music, SongMeta(trackNumber: "9"));
+
+        var relative = CreateOrganizer().CalculatePath(candidate, ShippedTemplate("Music"));
+
+        Assert.Equal("Music/Radiohead/OK Computer (1997)/09 - Hidden Jam.flac", relative);
+    }
+
+    [Theory]
+    [InlineData("1", "2", "TV/Show (2008)/Season 01/Show - s01e02 - Pilot.mkv")]
+    [InlineData("1", null, "TV/Show (2008)/Season 01/Show - Pilot.mkv")]
+    [InlineData(null, null, "TV/Show (2008)/Season Unknown/Show - Pilot.mkv")]
+    public void CalculatePath_AnEpisodeWithNoNumber_IsNamedByItsTitleWithoutSxxEyy(string? season, string? episode, string expected)
+    {
+        var meta = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["show_name"] = "Show",
+            ["year"] = "2008",
+            ["episode_title"] = "Pilot",
+            ["title"] = "Pilot",
+        };
+        if (season is not null)
+        {
+            meta["season"] = season;
+        }
+
+        if (episode is not null)
+        {
+            meta["episode"] = episode;
+        }
+
+        var candidate = BuildCandidate(@"C:\watch\pilot.mkv", MediaType.TV, meta);
+
+        var relative = CreateOrganizer().CalculatePath(candidate, ShippedTemplate("TV"));
+
+        Assert.Equal(expected, relative);
+    }
+
+    [Fact]
+    public void CalculatePath_ACombinedEpisodeFile_StillNamesTheEpisodeRun()
+    {
+        var meta = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["show_name"] = "Show",
+            ["year"] = "2008",
+            ["episode_title"] = "Pilot",
+            ["season"] = "1",
+            ["episode"] = "1",
+            ["episode_end"] = "2",
+        };
+        var candidate = BuildCandidate(@"C:\watch\pilot.mkv", MediaType.TV, meta);
+
+        var relative = CreateOrganizer().CalculatePath(candidate, ShippedTemplate("TV"));
+
+        Assert.Equal("TV/Show (2008)/Season 01/Show - s01e01-e02 - Pilot.mkv", relative);
+    }
+
+    [Fact]
+    public void CalculatePath_AnAudiobookPartWithNoPartNumber_IsNamedByItsTitleAlone()
+    {
+        var candidate = BuildCandidate(
+            @"C:\watch\part.mp3",
+            MediaType.Audiobooks,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["author"] = "Andy Weir",
+                ["book_title"] = "Project Hail Mary",
+                ["title"] = "Bonus Interview",
+                ["year"] = "2021",
+            });
+
+        var relative = CreateOrganizer().CalculatePath(candidate, ShippedTemplate("Audiobooks"));
+
+        Assert.Equal("Audiobooks/Andy Weir/Project Hail Mary (2021)/Bonus Interview.mp3", relative);
+    }
+
+    [Fact]
+    public void CalculatePath_ADashAfterAnOptionalToken_GoesWithItWhenTheTokenIsEmpty()
+    {
+        var candidate = BuildCandidate(@"C:\watch\a.flac", MediaType.Music, SongMeta(trackNumber: null));
+
+        var relative = CreateOrganizer().CalculatePath(candidate, "{Album}/{TrackNumber?} \u2013 {Title}{Ext}");
+
+        Assert.Equal("OK Computer/Hidden Jam.flac", relative);
+    }
+
+    private static Dictionary<string, string> SongMeta(string? trackNumber)
+    {
+        var meta = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["artist"] = "Radiohead",
+            ["album_artist"] = "Radiohead",
+            ["album"] = "OK Computer",
+            ["year"] = "1997",
+            ["title"] = "Hidden Jam",
+        };
+        if (trackNumber is not null)
+        {
+            meta["track_number"] = trackNumber;
+        }
+
+        return meta;
+    }
+
+    /// <summary>The naming template the Engine ships in config/core.json, so the test fails if the shipped config stops reading cleanly.</summary>
+    private static string ShippedTemplate(string mediaType)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        var root = directory?.FullName ?? throw new DirectoryNotFoundException("Could not find repository root.");
+        using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "config", "core.json")));
+        return document.RootElement.GetProperty("organization_templates").GetProperty(mediaType).GetString()!;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Default template: hyphen-dash separator + Q0 placeholder
     // ──────────────────────────────────────────────────────────────────────────
 

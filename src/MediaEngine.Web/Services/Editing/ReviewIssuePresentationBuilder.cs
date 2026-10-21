@@ -52,6 +52,7 @@ public static class ReviewIssuePresentationBuilder
         "WritebackFailed" => "Library identified this item, but could not save the updated metadata to its physical file.",
         "MediaInspectionFailed" => $"This {media} couldn't be read. It may be damaged or incomplete.",
         "AmbiguousSeriesMembership" => $"Wikidata lists this {media} in the main sequence of more than one Series and nothing separates them, so Library did not guess. It is not on any Series for now.",
+        "BatchEditFailed" => string.IsNullOrWhiteSpace(item.Detail) ? $"A batch edit didn't apply to this {media}. Nothing was changed on it." : item.Detail,
         _ => fallback,
     };
 
@@ -71,6 +72,7 @@ public static class ReviewIssuePresentationBuilder
         "WritebackFailed" => "Updated metadata could not be written to the file",
         "MediaInspectionFailed" => "The file couldn't be read",
         "AmbiguousSeriesMembership" => "More than one Series claims this",
+        "BatchEditFailed" => "A batch edit didn't apply",
         _ => ReviewIssueClassifier.Classify(item.Trigger).Explanation,
     };
 
@@ -93,6 +95,7 @@ public static class ReviewIssuePresentationBuilder
             "MediaInspectionFailed" => new[] { "The media tool is working, but it could not read this file's details." },
             "LanguageMismatch" => new[] { "The embedded language conflicts with the configured library language." },
             "AmbiguousSeriesMembership" => new[] { "Two Series of the same kind of media both list it in their main sequence, and neither is more specific." },
+            "BatchEditFailed" => new[] { "One of the changes could not be applied to this item, so none of the batch's changes were made to it. The rest of the batch was applied." },
             _ => new[] { $"The ingestion pipeline could not safely complete the decision for this {media}." },
         };
 
@@ -138,6 +141,7 @@ public static class ReviewIssuePresentationBuilder
         "WritebackFailed" => "Check that the file is available and writable, then retry saving its metadata.",
         "MediaInspectionFailed" => "Check that the file plays on your computer. If it is damaged, replace it with a good copy.",
         "AmbiguousSeriesMembership" => $"Open this {media} and use Matching to choose the Series it belongs to. Until then it is not on either Series.",
+        "BatchEditFailed" => $"Open this {media} and make the change on its own page, or leave it as it is.",
         _ => "Open the focused review to inspect the available evidence and make the missing decision.",
     };
 

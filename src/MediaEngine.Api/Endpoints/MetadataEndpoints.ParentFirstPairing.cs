@@ -17,7 +17,6 @@ public static partial class MetadataEndpoints
 {
     private static void MapParentFirstPairingPreviewEndpoints(RouteGroupBuilder group)
     {
-        MapMusicTrackMoveEndpoints(group);
         group.MapPost("/{entityId:guid}/pairing-preview", async (
             Guid entityId,
             MediaEditorPairingPreviewRequestDto request,

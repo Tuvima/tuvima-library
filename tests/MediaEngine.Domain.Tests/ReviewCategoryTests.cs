@@ -13,9 +13,10 @@ public sealed class ReviewCategoryTests
             .ToArray();
 
     [Fact]
-    public void ReviewTrigger_HasExactlyNineteenConstants()
+    public void ReviewTrigger_HasExactlyTwentyConstants()
     {
-        Assert.Equal(19, AllTriggers().Length);
+        // Twenty on purpose: BatchEditFailed joined the nineteen so batch failures never merge into a pipeline conflict row.
+        Assert.Equal(20, AllTriggers().Length);
     }
 
     [Fact]
@@ -54,6 +55,7 @@ public sealed class ReviewCategoryTests
     [InlineData(ReviewTrigger.WritebackFailed, ReviewCategory.ProviderFailures)]
     [InlineData(ReviewTrigger.MediaInspectionFailed, ReviewCategory.ProviderFailures)]
     [InlineData(ReviewTrigger.AmbiguousSeriesMembership, ReviewCategory.MetadataConflicts)]
+    [InlineData(ReviewTrigger.BatchEditFailed, ReviewCategory.MetadataConflicts)]
     public void For_PutsTheTriggerInItsCategory(string trigger, string expected)
     {
         Assert.Equal(expected, ReviewCategory.For(trigger));

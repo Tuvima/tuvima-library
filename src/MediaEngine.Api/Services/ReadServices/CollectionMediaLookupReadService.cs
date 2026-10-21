@@ -212,9 +212,13 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
             MediaDateSql.RelatedBookYearLookup("lookup_related_book_year", "page.SourceWorkId", "page.AssetId"));
         var rows = (await conn.QueryAsync<CollectionMediaLookupRow>(new CommandDefinition(
             $"""
-            WITH RECURSIVE work_descendants(root_id, work_id, depth) AS (
+            WITH RECURSIVE allowed_works AS MATERIALIZED (
+                SELECT unhex(value) AS work_id FROM json_each(@allowedWorkIds)
+            ),
+            work_descendants(root_id, work_id, depth) AS (
                 SELECT id, id, 0
                 FROM works
+                WHERE id IN (SELECT work_id FROM allowed_works)
                 UNION ALL
                 SELECT work_descendants.root_id, child.id, work_descendants.depth + 1
                 FROM works child
@@ -280,7 +284,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
             WHERE w.work_kind != 'catalog'
               AND ra.AssetId IS NOT NULL
               AND {visibleWorkPredicate}
-              AND w.id IN @allowedWorkIds
+              AND w.id IN (SELECT work_id FROM allowed_works)
               AND (@mediaTypeCount = 0 OR w.media_type IN @mediaTypes)
               AND (
                     @searchLike IS NULL
@@ -322,7 +326,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
                 searchLike,
                 mediaTypes = requestedMediaTypes,
                 mediaTypeCount = requestedMediaTypes.Length,
-                allowedWorkIds = allowedWorkIds.Select(GuidSql.ToBlob).ToArray(),
+                allowedWorkIds = GuidSql.ToJsonHexArray(allowedWorkIds),
                 limit = take,
                 offset = skip,
             },

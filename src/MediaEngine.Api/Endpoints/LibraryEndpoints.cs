@@ -1,6 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.BatchEdit;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Collections;
@@ -9,7 +10,6 @@ using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
-using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -134,83 +134,44 @@ public static class LibraryEndpoints
 
         // ── POST /library/batch-edit/preview ────────────────────────────────
         group.MapPost("/batch-edit/preview", async (
-            LibraryBatchEditRequest request,
-            ICanonicalValueRepository canonicalRepo,
-            IItemCanonicalRepository itemCanonicalRepo,
-            ILibraryCurationReadService curationReadService,
+            LibraryBatchEditPreviewRequest request,
+            ILibraryBatchEditService batchEdit,
+            LibraryBatchEditAccessService access,
+            HttpContext http,
             CancellationToken ct) =>
         {
-            if (request.EntityIds.Count == 0 || request.FieldChanges.Count == 0)
+            if (request.EntityIds.Count == 0)
             {
-                return ApiErrors.BadRequest("Must provide entity IDs and field changes.");
+                return ApiErrors.BadRequest("Must provide entity IDs.");
             }
 
-            var targetMap = await curationReadService.ResolveBatchEditTargetsAsync(
-                request.EntityIds,
-                request.FieldChanges.Select(change => change.Key).ToArray(),
-                ct);
-            var targetIds = targetMap.Values
-                .SelectMany(changeTargets => changeTargets.Values)
-                .Distinct()
-                .ToList();
-            var allCanonicals = await canonicalRepo.GetByEntitiesAsync(targetIds, ct);
-
-            var changes = new List<LibraryFieldChangePreview>();
-            foreach (var change in request.FieldChanges)
+            if (request.EntityIds.Count > LibraryBatchEditRequest.MaxEntityIds)
             {
-                var displayTagChange = string.Equals(change.Key.Trim(), "custom_tags", StringComparison.OrdinalIgnoreCase);
-                var oldValueCounts = new Dictionary<string, int>();
-                foreach (var entityId in request.EntityIds)
-                {
-                    if (displayTagChange)
-                    {
-                        var workId = await itemCanonicalRepo.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
-                        var overrides = await itemCanonicalRepo.LoadDisplayOverridesAsync(workId, ct);
-                        var oldOverride = overrides.Values.TryGetValue("custom_tags", out var tags) && !string.IsNullOrWhiteSpace(tags)
-                            ? tags
-                            : "(empty)";
-                        oldValueCounts[oldOverride] = oldValueCounts.GetValueOrDefault(oldOverride, 0) + 1;
-                        continue;
-                    }
-
-                    var targetId = targetMap.TryGetValue(entityId, out var targets)
-                        && targets.TryGetValue(change.Key, out var resolvedTargetId)
-                        ? resolvedTargetId
-                        : entityId;
-                    var entityCanonicals = allCanonicals.TryGetValue(targetId, out var vals)
-                        ? vals
-                        : [];
-                    var current = entityCanonicals.FirstOrDefault(c => c.Key == change.Key);
-                    var oldVal = current?.Value ?? "(empty)";
-                    oldValueCounts[oldVal] = oldValueCounts.GetValueOrDefault(oldVal, 0) + 1;
-                }
-                changes.Add(new LibraryFieldChangePreview
-                {
-                    Key = change.Key,
-                    NewValue = change.Value,
-                    OldValueCounts = oldValueCounts,
-                });
+                return ApiErrors.BadRequest($"A batch edit takes at most {LibraryBatchEditRequest.MaxEntityIds} items.");
             }
 
-            return Results.Ok(new LibraryBatchEditPreview
+            var fieldKeys = (request.FieldKeys ?? []).Where(key => !string.IsNullOrWhiteSpace(key)).ToList();
+            var unknown = fieldKeys.Where(key => !BatchEditFieldCatalog.TryGet(key, out _)).ToList();
+            if (unknown.Count > 0)
             {
-                AffectedCount = request.EntityIds.Count,
-                Changes = changes,
-            });
+                return ApiErrors.BadRequest($"Unknown batch field(s): {string.Join(", ", unknown)}.");
+            }
+
+            var refusals = await access.FindRefusalsAsync(http, request.EntityIds, ct);
+            return Results.Ok(await batchEdit.PreviewAsync(request.EntityIds, fieldKeys, refusals, ct));
         })
         .WithName("PreviewBatchEdit")
-        .WithSummary("Dry-run preview of a batch edit operation.")
+        .WithSummary("Shows how the selected items stand on each batch-editable field: the shared value or Mixed, list or single value, and which items are locked.")
         .Produces<LibraryBatchEditPreview>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireEffectiveAdministrator();
 
         // ── POST /library/batch-edit ────────────────────────────────────────
         group.MapPost("/batch-edit", async (
             LibraryBatchEditRequest request,
-            ICanonicalValueRepository canonicalRepo,
-            IMetadataClaimRepository claimRepo,
-            IItemCanonicalRepository itemCanonicalRepo,
-            ILibraryCurationReadService curationReadService,
-            IReviewQueueRepository reviewQueue,
+            ILibraryBatchEditService batchEdit,
+            LibraryBatchEditAccessService access,
+            HttpContext http,
             CancellationToken ct) =>
         {
             if (request.EntityIds.Count == 0 || request.FieldChanges.Count == 0)
@@ -218,182 +179,35 @@ public static class LibraryEndpoints
                 return ApiErrors.BadRequest("Must provide entity IDs and field changes.");
             }
 
-            // Add and Remove are for list fields only (the library tags); every other field is a single value that is replaced.
-            var badMode = request.FieldChanges.FirstOrDefault(change =>
-                !string.Equals(change.Mode, LibraryFieldChangeModes.Replace, StringComparison.OrdinalIgnoreCase)
-                && (!string.Equals(change.Key.Trim(), "custom_tags", StringComparison.OrdinalIgnoreCase)
-                    || !(string.Equals(change.Mode, LibraryFieldChangeModes.Add, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(change.Mode, LibraryFieldChangeModes.Remove, StringComparison.OrdinalIgnoreCase))));
-            if (badMode is not null)
+            if (request.EntityIds.Count > LibraryBatchEditRequest.MaxEntityIds)
             {
-                return ApiErrors.BadRequest($"'{badMode.Key}' cannot be changed with '{badMode.Mode}'.");
+                return ApiErrors.BadRequest($"A batch edit takes at most {LibraryBatchEditRequest.MaxEntityIds} items.");
             }
 
-            var customTagChanges = request.FieldChanges
-                .Where(change => string.Equals(change.Key.Trim(), "custom_tags", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            if (customTagChanges.Count > 1)
+            var changes = new List<BatchEditChange>(request.FieldChanges.Count);
+            foreach (var requested in request.FieldChanges)
             {
-                return ApiErrors.BadRequest("Only one custom_tags change may be provided.");
-            }
-
-            var customTags = (string?)null;
-            if (customTagChanges.Count == 1)
-            {
-                if (!DetailDisplayOverrideCatalog.TryValidateValue("custom_tags", customTagChanges[0].Value, out var normalizedTags, out var tagError))
+                if (!BatchEditFieldCatalog.TryValidateChange(
+                        requested.Key, requested.Op, requested.Value, requested.Values, out var change, out var error))
                 {
-                    return ApiErrors.BadRequest(tagError ?? "Invalid custom tags value.");
+                    return ApiErrors.BadRequest(error ?? "Invalid batch change.");
                 }
 
-                customTags = normalizedTags;
-            }
-
-            var canonicalChanges = request.FieldChanges
-                .Where(change => !string.Equals(change.Key.Trim(), "custom_tags", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            var updatedCount = 0;
-            var failedIds = new List<Guid>();
-            var errors = new List<string>();
-            var targetMap = await curationReadService.ResolveBatchEditTargetsAsync(
-                request.EntityIds,
-                request.FieldChanges.Select(change => change.Key).ToArray(),
-                ct);
-            var claimsByTargetAndKey = new Dictionary<(Guid TargetId, string Key), MetadataClaim>();
-            var canonicalsByTargetAndKey = new Dictionary<(Guid TargetId, string Key), CanonicalValue>();
-            var now = DateTimeOffset.UtcNow;
-
-            foreach (var entityId in request.EntityIds)
-            {
-                try
+                if (changes.Any(existing => string.Equals(existing.Field.Key, change.Field.Key, StringComparison.OrdinalIgnoreCase)))
                 {
-                    if (!targetMap.TryGetValue(entityId, out var targets))
-                    {
-                        failedIds.Add(entityId);
-                        errors.Add($"{entityId}: no owned media asset was found for batch edit.");
-                        continue;
-                    }
-
-                    if (customTagChanges.Count == 1)
-                    {
-                        var workId = await itemCanonicalRepo.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
-                        var overrideState = await itemCanonicalRepo.LoadDisplayOverridesAsync(workId, ct);
-                        if (!overrideState.WorkExists)
-                        {
-                            failedIds.Add(entityId);
-                            errors.Add($"{entityId}: no work was found for shared library tags.");
-                            continue;
-                        }
-
-                        overrideState.Values.TryGetValue("custom_tags", out var existingTags);
-                        if (!LibraryTagCatalog.TryApplyDisplayChange(existingTags, customTags, customTagChanges[0].Mode, out var mergedTags, out var mergeError))
-                        {
-                            failedIds.Add(entityId);
-                            errors.Add($"{entityId}: {mergeError}");
-                            continue;
-                        }
-
-                        DetailDisplayOverrideCatalog.ApplyChanges(
-                            overrideState.Values,
-                            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                            {
-                                ["custom_tags"] = mergedTags,
-                            });
-                        if (!await itemCanonicalRepo.SaveDisplayOverridesAsync(workId, overrideState.Values, ct))
-                        {
-                            failedIds.Add(entityId);
-                            errors.Add($"{entityId}: shared library tags could not be saved.");
-                            continue;
-                        }
-                    }
-
-                    foreach (var change in canonicalChanges)
-                    {
-                        if (!targets.TryGetValue(change.Key, out var targetId))
-                        {
-                            targetId = entityId;
-                        }
-
-                        var targetKey = (targetId, change.Key);
-
-                        // Create one user-locked claim per resolved target/key. If ten selected
-                        // tracks share the same album parent, album fields are written once.
-                        claimsByTargetAndKey[targetKey] = new MetadataClaim
-                        {
-                            Id = Guid.NewGuid(),
-                            EntityId = targetId,
-                            ClaimKey = change.Key,
-                            ClaimValue = change.Value,
-                            ProviderId = WellKnownProviders.UserManual,
-                            Confidence = 1.0,
-                            IsUserLocked = true,
-                            ClaimedAt = now,
-                        };
-
-                        canonicalsByTargetAndKey[targetKey] = new CanonicalValue
-                        {
-                            EntityId = targetId,
-                            Key = change.Key,
-                            Value = change.Value,
-                            LastScoredAt = now,
-                            IsConflicted = false,
-                            WinningProviderId = WellKnownProviders.UserManual,
-                            NeedsReview = false,
-                        };
-                    }
-
-                    updatedCount++;
+                    return ApiErrors.BadRequest($"Only one change per field is allowed ({change.Field.Label}).");
                 }
-                catch (Exception ex)
-                {
-                    failedIds.Add(entityId);
-                    errors.Add($"{entityId}: {ex.Message}");
-                }
+
+                changes.Add(change);
             }
 
-            if (claimsByTargetAndKey.Count > 0)
-            {
-                await claimRepo.InsertBatchAsync(claimsByTargetAndKey.Values.ToList(), ct);
-            }
-
-            if (canonicalsByTargetAndKey.Count > 0)
-            {
-                await canonicalRepo.UpsertBatchAsync(canonicalsByTargetAndKey.Values.ToList(), ct);
-            }
-
-            // A row that could not take the change goes to Needs Review so a person can look at it; the others still applied (spec D11).
-            var sentToReview = 0;
-            for (var index = 0; index < failedIds.Count; index++)
-            {
-                try
-                {
-                    await reviewQueue.InsertAsync(new ReviewQueueEntry
-                    {
-                        Id = Guid.NewGuid(),
-                        EntityId = failedIds[index],
-                        EntityType = "Work",
-                        Trigger = ReviewTrigger.MetadataConflict,
-                        Detail = $"A batch edit could not be applied to this item. {(index < errors.Count ? errors[index] : string.Empty)}".Trim(),
-                    }, ct);
-                    sentToReview++;
-                }
-                catch (Exception ex)
-                {
-                    errors.Add($"{failedIds[index]}: could not be sent to Needs Review ({ex.Message}).");
-                }
-            }
-
-            return Results.Ok(new LibraryBatchEditResult
-            {
-                UpdatedCount = updatedCount,
-                FailedIds = failedIds,
-                Errors = errors,
-                SentToReviewCount = sentToReview,
-            });
+            var refusals = await access.FindRefusalsAsync(http, request.EntityIds, ct);
+            return Results.Ok(await batchEdit.ApplyAsync(request.EntityIds, changes, refusals, ct));
         })
         .WithName("ApplyBatchEdit")
-        .WithSummary("Apply batch field edits to multiple items.")
+        .WithSummary("Apply metadata changes to several items at once; an item that cannot take them goes to Needs Review and the rest still apply.")
         .Produces<LibraryBatchEditResult>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireEffectiveAdministrator();
 
         // ── POST /library/universe-assign ──────────────────────────────────

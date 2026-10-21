@@ -185,11 +185,11 @@ public sealed class IngestionOptions
         // Movies: Plex convention — `Title (Year)/Title (Year)`
         ["Movies"] = "Movies/{Title} ({Year})/{Title} ({Year}){Ext}",
         // TV: Plex convention — `Show (Year)/Season XX/Show - sXXeYY - Title`
-        ["TV"] = "TV/{Series} ({Year})/Season {Season}/{Series} - s{Season}e{Episode} - {EpisodeTitle}{Ext}",
+        ["TV"] = "TV/{Series} ({Year})/Season {Season}/{Series} - {EpisodeCode?} - {EpisodeTitle}{Ext}",
         // Music: Picard / Plex convention — `Artist/Album (Year)/[Disc]## - Title`
         // {Disc?} optional segment expands to e.g. "Disc 02/" for multi-disc
         // releases and collapses entirely for single-disc albums.
-        ["Music"] = "Music/{Artist}/{Album} ({Year})/{TrackNumber} - {Title}{Ext}",
+        ["Music"] = "Music/{Artist}/{Album} ({Year})/{TrackNumber?} - {Title}{Ext}",
         // Audiobooks: Author/Title (Year)/Title — matches Music pattern
         ["Audiobooks"] = "Audiobooks/{Author}/{Title} ({Year})/{Title}{Ext}",
         // Books: Author/Title (Year)/Title (Year) — matches Music pattern
