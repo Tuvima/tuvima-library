@@ -108,21 +108,12 @@ public sealed class BaselineRunTests : IDisposable
         }
 
         var config = Path.Combine(_root, "config");
+        var libraryRoot = Path.Combine(_root, "library");
         Directory.CreateDirectory(config);
         File.Copy(Path.Combine(repo, "config", "maintenance.json"), Path.Combine(config, "maintenance.json"));
-        File.Copy(Path.Combine(repo, "config", "ai.json"), Path.Combine(config, "ai.json"));
 
         var start = new DateTimeOffset(2026, 10, 20, 9, 15, 0, TimeSpan.Zero);
-        BaselinePrepare.HoldClockSchedules(config, start);
-
-        using var heldAi = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(config, "ai.json")));
-        var aiScheduling = heldAi.RootElement.GetProperty("scheduling");
-        Assert.Equal(BaselinePrepare.HeldScheduleFrom(start), aiScheduling.GetProperty("series_check_cron").GetString());
-        Assert.Equal(BaselinePrepare.HeldScheduleFrom(start), aiScheduling.GetProperty("vibe_batch_cron").GetString());
-        Assert.Equal("*/15 * * * *", aiScheduling.GetProperty("description_intelligence_cron").GetString());
-        Assert.Equal("models", heldAi.RootElement.GetProperty("models_directory").GetString());
-        Assert.True(heldAi.RootElement.TryGetProperty("features", out _));
-        Assert.True(heldAi.RootElement.TryGetProperty("plugin_budget", out _));
+        BaselinePrepare.HoldClockSchedules(config, libraryRoot, start);
 
         using var held = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(config, "maintenance.json")));
         var schedules = held.RootElement.GetProperty("schedules").EnumerateObject().ToList();
@@ -139,20 +130,24 @@ public sealed class BaselineRunTests : IDisposable
     }
 
     [Fact]
-    public void Prepare_HoldsTheNightlyAiSchedules_EvenWhenTheCopiedFileLeavesThemToTheBuiltInDefaults()
+    public void Prepare_HoldsTheNightlyAiPluginJobs_AndLeavesThePluginsSwitchedOff()
     {
         var config = Path.Combine(_root, "config");
+        var libraryRoot = Path.Combine(_root, "library");
         Directory.CreateDirectory(config);
-        File.WriteAllText(Path.Combine(config, "ai.json"), """{ "models_directory": "models" }""");
 
         var start = new DateTimeOffset(2026, 10, 20, 9, 15, 0, TimeSpan.Zero);
-        BaselinePrepare.HoldClockSchedules(config, start);
+        BaselinePrepare.HoldClockSchedules(config, libraryRoot, start);
 
-        using var held = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(config, "ai.json")));
-        var scheduling = held.RootElement.GetProperty("scheduling");
-        Assert.Equal(BaselinePrepare.HeldScheduleFrom(start), scheduling.GetProperty("series_check_cron").GetString());
-        Assert.Equal(BaselinePrepare.HeldScheduleFrom(start), scheduling.GetProperty("vibe_batch_cron").GetString());
-        Assert.Equal("*/15 * * * *", scheduling.GetProperty("description_intelligence_cron").GetString());
-        Assert.Equal("models", held.RootElement.GetProperty("models_directory").GetString());
+        var pluginConfig = Path.Combine(libraryRoot, ".data", "plugin-config");
+        foreach (var (pluginId, jobKey) in new[] { ("tuvima.ai-series-order", "series-order"), ("tuvima.ai-vibe-tags", "vibe-tags") })
+        {
+            using var held = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(pluginConfig, $"{pluginId}.json")));
+            Assert.False(held.RootElement.GetProperty("Enabled").GetBoolean());
+            Assert.Equal(BaselinePrepare.HeldScheduleFrom(start), held.RootElement.GetProperty("schedules").GetProperty(jobKey).GetString());
+        }
+
+        // The every-15-minutes description insights job does not depend on the time of day, so it keeps its own schedule.
+        Assert.False(File.Exists(Path.Combine(pluginConfig, "tuvima.ai-description-insights.json")));
     }
 }

@@ -44,9 +44,6 @@ public readonly record struct StateCardHealthResult(HealthWord Word, string? Las
 /// </summary>
 public static class StateCardHealth
 {
-    /// <summary>The model role every Local AI feature reads from today.</summary>
-    public const string FeatureModelRole = "text_quality";
-
     /// <summary>Where Local AI work happens; Local AI never sends data out.</summary>
     public const string RunsOnThisMachine = "Runs on this machine";
 
@@ -124,25 +121,6 @@ public static class StateCardHealth
     public static bool IsPluginBroken(PluginSummaryResponse plugin) =>
         ForPlugin(plugin, health: null, latestRun: null).Word == HealthWord.Broken;
 
-    /// <summary>
-    /// A Local AI feature's health word. <paramref name="firstBlocker"/> is the plain words for the first thing stopping
-    /// Local AI (null when nothing is); <paramref name="modelReady"/> says whether the text model the feature reads is ready.
-    /// </summary>
-    public static StateCardHealthResult ForAiFeature(bool enabled, bool localAiBlocked, string? firstBlocker, bool modelReady)
-    {
-        if (!enabled)
-        {
-            return new(HealthWord.Off);
-        }
-
-        if (localAiBlocked)
-        {
-            return new(HealthWord.Broken, firstBlocker ?? "Local AI is not ready.");
-        }
-
-        return modelReady ? new(HealthWord.Working) : new(HealthWord.NeedsAttention, "Model not ready");
-    }
-
     /// <summary>The Local AI engine card's health word. The engine has no switch, so it is never <see cref="HealthWord.Off"/>.</summary>
     public static StateCardHealthResult ForLocalAiEngine(bool localAiBlocked, string? firstBlocker, AiModelStatusDto? activeModel)
     {
@@ -165,10 +143,6 @@ public static class StateCardHealth
             ? new(HealthWord.NeedsAttention, "The model is still downloading.")
             : new(HealthWord.Working);
     }
-
-    /// <summary>True when the model file is ready to use (downloaded, or already loaded).</summary>
-    public static bool IsModelReady(AiModelStatusDto? model) =>
-        model is not null && (model.Loaded || Is(model.State, "Ready") || Is(model.State, "Loaded"));
 
     /// <summary>The newest run record among the scheduled tasks that belong to a plugin, by finish time, else start time.</summary>
     public static ScheduledTaskLastRunDto? LatestRun(IEnumerable<ScheduledTaskDto>? tasks, string pluginId) =>

@@ -1308,34 +1308,25 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default) =>
-        (await SaveAiConfigWithApprovalAsync(config, ct)).Saved;
-
-    public async Task<AiConfigSaveResult> SaveAiConfigWithApprovalAsync(AiConfigDto config, CancellationToken ct = default)
+    public async Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default)
     {
         try
         {
             using var response = await _http.PutAsJsonAsync("/ai/config", config, ct);
             if (response.IsSuccessStatusCode)
             {
-                return new AiConfigSaveResult(true);
-            }
-
-            // 409 approval_required: a feature was switched on that the person has not seen yet; nothing was saved.
-            if (await ApprovalResponses.TryReadAsync(response, _logger, ct) is { } approval)
-            {
-                return new AiConfigSaveResult(false, approval);
+                return true;
             }
 
             LastError = await response.Content.ReadAsStringAsync(ct);
-            return new AiConfigSaveResult(false);
+            return false;
         }
-        catch (OperationCanceledException) { return new AiConfigSaveResult(false); }
+        catch (OperationCanceledException) { return false; }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "PUT /ai/config failed");
             LastError = ex.Message;
-            return new AiConfigSaveResult(false);
+            return false;
         }
     }
 

@@ -1,4 +1,3 @@
-using MediaEngine.AI.Configuration;
 using MediaEngine.AI.EngineRoom;
 using MediaEngine.AI.Infrastructure;
 using MediaEngine.AI.Llama;
@@ -20,18 +19,21 @@ public sealed class DescriptionIntelligenceService : IDescriptionIntelligenceSer
     private static readonly AiCaller Caller = AiCaller.LibraryBackground(AiCallerIds.DescriptionIntelligence);
 
     private readonly IAiEngineRoom _engineRoom;
-    private readonly AiSettings _settings;
+    private readonly IAiFeatureSwitches _switches;
+    private readonly IVibeVocabularySource _vocabulary;
     private readonly ICanonicalValueRepository _canonicalRepo;
     private readonly ILogger<DescriptionIntelligenceService> _logger;
 
     public DescriptionIntelligenceService(
         IAiEngineRoom engineRoom,
-        AiSettings settings,
+        IAiFeatureSwitches switches,
+        IVibeVocabularySource vocabulary,
         ICanonicalValueRepository canonicalRepo,
         ILogger<DescriptionIntelligenceService> logger)
     {
         _engineRoom = engineRoom;
-        _settings = settings;
+        _switches = switches;
+        _vocabulary = vocabulary;
         _canonicalRepo = canonicalRepo;
         _logger = logger;
     }
@@ -41,7 +43,7 @@ public sealed class DescriptionIntelligenceService : IDescriptionIntelligenceSer
         string mediaCategory,
         CancellationToken ct = default)
     {
-        if (!_settings.Features.DescriptionIntelligence)
+        if (!_switches.IsOn(AiFeature.DescriptionIntelligence))
         {
             _logger.LogDebug("[DESCRIPTION-INTEL] Feature disabled — skipping for {Id}", entityId);
             return null;
@@ -117,7 +119,7 @@ public sealed class DescriptionIntelligenceService : IDescriptionIntelligenceSer
                 string.Equals(c.Key, "title", StringComparison.OrdinalIgnoreCase))?.Value ?? "Unknown";
 
             // Get mood vocabulary for this media category.
-            var moodVocab = _settings.VibeVocabulary.GetForCategory(mediaCategory);
+            var moodVocab = _vocabulary.Current.GetForCategory(mediaCategory);
 
             // Logical workloads share the one text artifact selected by resource profile.
             const AiAbility ability = AiAbility.WriteTextLong;

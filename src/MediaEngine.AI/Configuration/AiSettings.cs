@@ -118,18 +118,6 @@ public sealed class AiSettings
     [JsonIgnore]
     public Dictionary<string, AiRoleRequirement> RoleRequirements { get; set; } = AiModelCatalogDefaults.CreateRoleRequirements();
 
-    /// <summary>Per-feature enable/disable flags.</summary>
-    [JsonPropertyName("features")]
-    public AiFeatureFlags Features { get; set; } = new();
-
-    /// <summary>Per-category controlled vocabulary for vibe tags.</summary>
-    [JsonPropertyName("vibe_vocabulary")]
-    public AiVibeVocabulary VibeVocabulary { get; set; } = new();
-
-    /// <summary>Cron schedules for background AI tasks.</summary>
-    [JsonPropertyName("scheduling")]
-    public AiScheduling Scheduling { get; set; } = new();
-
     /// <summary>Number of entities to process per batch run in background enrichment services.</summary>
     [JsonPropertyName("enrichment_batch_size")]
     public int EnrichmentBatchSize { get; set; } = 10;
@@ -157,15 +145,6 @@ public sealed class AiSettings
             MaxWaitSeconds = overrides.MaxWaitSeconds ?? PluginBudget.MaxWaitSeconds,
         };
     }
-
-    /// <summary>
-    /// True when any Local AI feature or the audio pack is switched on. This is the meaning of "Local AI is on" for
-    /// plugins asking for text abilities.
-    /// </summary>
-    [JsonIgnore]
-    public bool IsLocalAiEnabled =>
-        AudioPackEnabled || Features.SmartLabeling || Features.TypeLogic || Features.SeriesAlignment
-        || Features.VibeTags || Features.Tldr || Features.DescriptionIntelligence;
 
     /// <summary>Machine-local runtime state. Never serialized into deployable AI configuration.</summary>
     [JsonIgnore]
@@ -558,28 +537,6 @@ public sealed class AiRoleRequirement
     public bool ExperimentalAllowed { get; set; }
 }
 
-/// <summary>Per-feature enable/disable flags.</summary>
-public sealed class AiFeatureFlags
-{
-    [JsonPropertyName("smart_labeling")]
-    public bool SmartLabeling { get; set; }
-
-    [JsonPropertyName("type_logic")]
-    public bool TypeLogic { get; set; }
-
-    [JsonPropertyName("series_alignment")]
-    public bool SeriesAlignment { get; set; }
-
-    [JsonPropertyName("vibe_tags")]
-    public bool VibeTags { get; set; }
-
-    [JsonPropertyName("tldr")]
-    public bool Tldr { get; set; }
-
-    [JsonPropertyName("description_intelligence")]
-    public bool DescriptionIntelligence { get; set; }
-}
-
 /// <summary>A plugin's Local AI allowance. Counted over the last rolling hour from the durable usage records.</summary>
 public sealed class AiPluginBudget
 {
@@ -609,38 +566,35 @@ public sealed class AiPluginBudgetOverride
     public int? MaxWaitSeconds { get; set; }
 }
 
-/// <summary>Per-category controlled vocabulary for vibe tagging.</summary>
+/// <summary>Per-category controlled vocabulary for vibe tagging. The default words are the vibe tags plugin's starting settings.</summary>
 public sealed class AiVibeVocabulary
 {
     [JsonPropertyName("books")]
     public List<string> Books { get; set; } =
     [
-        "page-turner", "dense-prose", "lyrical", "philosophical", "cozy",
-        "atmospheric", "haunting", "cerebral", "whimsical", "epic",
-        "intimate", "slow-burn", "provocative", "heartwarming", "dark"
+        "page-turner", "slow-burn", "meditative", "dark", "uplifting", "haunting", "heartwarming", "atmospheric", "cozy",
+        "gritty", "lyrical", "philosophical", "whimsical", "witty", "epic", "intimate", "cerebral"
     ];
 
     [JsonPropertyName("movies_tv")]
     public List<string> MoviesTv { get; set; } =
     [
-        "visually-stunning", "slow-paced", "action-packed", "suspenseful", "atmospheric",
-        "gritty", "dreamlike", "tense", "humorous", "nostalgic",
-        "visceral", "epic", "intimate", "dark", "uplifting"
+        "slow-paced", "action-packed", "meditative", "dark", "uplifting", "haunting", "heartwarming", "tense", "nostalgic",
+        "atmospheric", "gritty", "dreamlike", "visually-stunning", "humorous", "quirky", "epic", "intimate"
     ];
 
     [JsonPropertyName("music")]
     public List<string> Music { get; set; } =
     [
-        "mellow", "heavy", "groovy", "upbeat", "melancholic",
-        "ambient", "energetic", "dreamy", "aggressive", "soulful",
-        "minimalist", "lush", "raw", "hypnotic", "anthemic"
+        "driving", "mellow", "energetic", "hypnotic", "dark", "uplifting", "melancholic", "nostalgic", "haunting",
+        "ambient", "lush", "ethereal", "warm", "playful", "soulful", "groovy", "dreamy", "intimate"
     ];
 
     [JsonPropertyName("comics")]
     public List<string> Comics { get; set; } =
     [
-        "gritty", "colorful", "noir", "whimsical", "epic",
-        "dark", "action-packed", "intimate", "surreal", "classic"
+        "action-packed", "meditative", "dark", "uplifting", "haunting", "nostalgic", "atmospheric", "gritty", "noir",
+        "surreal", "colorful", "whimsical", "humorous", "epic", "intimate"
     ];
 
     /// <summary>Get vocabulary for a media category string.</summary>
@@ -652,17 +606,4 @@ public sealed class AiVibeVocabulary
         "comics" => Comics,
         _ => Books, // default fallback
     };
-}
-
-/// <summary>Scheduling configuration for background AI tasks.</summary>
-public sealed class AiScheduling
-{
-    [JsonPropertyName("vibe_batch_cron")]
-    public string VibeBatchCron { get; set; } = "0 4 * * *";
-
-    [JsonPropertyName("series_check_cron")]
-    public string SeriesCheckCron { get; set; } = "0 3 * * *";
-
-    [JsonPropertyName("description_intelligence_cron")]
-    public string DescriptionIntelligenceCron { get; set; } = "*/15 * * * *";
 }
