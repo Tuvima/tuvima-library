@@ -7,6 +7,7 @@
         "details": "A short description of the example scene.\nSecond line.",
         "date": "2021-03-04",
         "code": "ABC-123",
+        "duration": 1800,
         "studio": { "id": "5a0c4b1e-0000-4000-8000-000000000001", "name": "Example Studio" },
         "tags": [
           { "id": "11111111-0000-4000-8000-000000000001", "name": "Tag One" },

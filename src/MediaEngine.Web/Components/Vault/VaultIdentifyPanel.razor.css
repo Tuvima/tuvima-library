@@ -1,0 +1,18 @@
+.vault-identify { display: grid; gap: 12px; }
+.vault-identify__title { margin: 0; font-size: 1.125rem; }
+.vault-identify__search { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.vault-identify__search > :first-child { flex: 1 1 16rem; }
+.vault-identify__candidates { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.vault-identify__candidate { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 8px 0; border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
+.vault-identify__candidate-text { display: grid; gap: 2px; min-width: 0; flex: 1 1 14rem; }
+.vault-identify__candidate-text span { overflow-wrap: anywhere; font-size: 0.875rem; opacity: 0.85; }
+.vault-identify__ok { color: var(--app-success, inherit); }
+.vault-identify__warn { color: var(--app-warning, inherit); }
+.vault-identify__empty { margin: 0; opacity: 0.75; }
+.vault-identify__preview { display: grid; gap: 12px; }
+.vault-identify__record { margin: 0; font-weight: 600; }
+.vault-identify__table { width: 100%; border-collapse: collapse; }
+.vault-identify__table th,
+.vault-identify__table td { padding: 8px; text-align: left; vertical-align: top; overflow-wrap: anywhere; border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
+.vault-identify__note { opacity: 0.75; }
+.vault-identify__actions { display: flex; flex-wrap: wrap; gap: 8px; }

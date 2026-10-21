@@ -810,6 +810,20 @@ Available in development environments only. These endpoints are removed in produ
 | POST | `/dev/reingest-library` | Pause file watching, reset generated database/cache/artwork state, scan every configured library source path, and leave watching paused until restart or explicit resume. |
 | POST | `/dev/integration-test` | Run the integration test suite and return an HTML report |
 
+## Vault
+
+Every Vault route answers exactly like a missing item (404) to anyone without an unlocked NSFW session, and every answer is `Cache-Control: private, no-store`. Search text and chosen records travel in request bodies, never in addresses, and are never logged.
+
+| Method | Path | Description | Auth |
+|---|---|---|---|
+| POST | `/api/v1/vault/items/{assetId}/identify/search` | Records that might be this Vault video, found by the typed text (body `text`), or, when empty, by the name patterns' title and the product code in the file name. Each candidate says whether its length agrees with the file. Status `not_connected` or `lookup_off` when nothing was asked. | Unlocked NSFW session plus effective administrator or `metadata.write` |
+| POST | `/api/v1/vault/items/{assetId}/identify/preview` | The video's current values beside what a chosen record (`server_id`, `record_id`) would put there, one row per field with a tick. Rows holding a person's own edit cannot be ticked. | Same |
+| POST | `/api/v1/vault/items/{assetId}/identify/apply` | Applies exactly the fields ticked (`fields`) from the chosen record, read again from the server by id; records where each field came from. Title, description, release date, cover, studio, performers and tags. | Same |
+| GET | `/api/v1/vault/items/{assetId}/match` | How a Vault video was matched, if it was: server, record, signal, how it was applied, and where each field came from. `matched: false` is Unmatched. | Unlocked NSFW session plus effective administrator or `metadata.read` |
+| GET | `/api/v1/vault/activity` | The quiet Vault activity list (added, matched, unmatched, identified, failed), newest first. The only place Vault ingestion shows. | Effective administrator with NSFW mode unlocked |
+
+---
+
 ## Related
 
 - [How to Build, Test, and Verify Changes](../guides/running-tests.md)

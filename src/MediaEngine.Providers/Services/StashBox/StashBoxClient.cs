@@ -18,7 +18,14 @@ public sealed record StashBoxScene(
     string? Studio,
     IReadOnlyList<string> Performers,
     IReadOnlyList<string> Tags,
-    string? ImageUrl);
+    string? ImageUrl)
+{
+    /// <summary>The record's length in seconds, when the server gave a sensible one.</summary>
+    public int? DurationSeconds { get; init; }
+
+    /// <summary>The fingerprints the record carries (hash and kind only). Empty when the server did not list them.</summary>
+    public IReadOnlyList<AdultFingerprint> Fingerprints { get; init; } = [];
+}
 
 /// <summary>What one question to a stash-box server came back with. Status is "ok", "not_connected" or "unavailable".</summary>
 public sealed record StashBoxReply(string Status, IReadOnlyList<StashBoxScene> Scenes)
@@ -40,8 +47,10 @@ public sealed class StashBoxClient
     public const long MaxCoverBytes = 8L * 1024 * 1024;
     public const int MaxSceneResults = 10;
 
-    private const string SceneFields = "id title details date code studio { id name } tags { id name } performers { performer { id name } } images { url width height }";
+    private const string SceneFields = "id title details date code duration studio { id name } tags { id name } performers { performer { id name } } images { url width height } fingerprints { hash algorithm }";
     private const int MaxNames = 50;
+    private const int MaxFingerprints = 30;
+    private const int MaxDurationSeconds = 48 * 3600;
 
     private readonly IHttpClientFactory _http;
     private readonly ILogger<StashBoxClient> _logger;
@@ -74,11 +83,28 @@ public sealed class StashBoxClient
     }
 
     /// <summary>Looks scenes up by title text. Only the title leaves the machine.</summary>
-    public async Task<StashBoxReply> SearchByTitleAsync(Uri address, string key, string title, CancellationToken ct = default)
+    public Task<StashBoxReply> SearchByTitleAsync(Uri address, string key, string title, CancellationToken ct = default) =>
+        SearchByTermAsync(address, key, title, ct);
+
+    /// <summary>Looks scenes up by a search term (a title, or a product code). Only the term leaves the machine.</summary>
+    public async Task<StashBoxReply> SearchByTermAsync(Uri address, string key, string title, CancellationToken ct = default)
     {
         var variables = new Dictionary<string, object?> { ["term"] = title, ["limit"] = MaxSceneResults };
         var query = $"query Search($term: String!, $limit: Int) {{ searchScene(term: $term, limit: $limit) {{ {SceneFields} }} }}";
         return await QueryScenesAsync(address, key, query, variables, "searchScene", ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Reads one scene by its id (used when a person picked a record in Identify). Only the id leaves the machine.</summary>
+    public async Task<StashBoxReply> FindSceneAsync(Uri address, string key, string recordId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(recordId) || recordId.Length > 64 || !recordId.All(c => char.IsAsciiLetterOrDigit(c) || c == '-'))
+        {
+            return new StashBoxReply("ok", []);
+        }
+
+        var variables = new Dictionary<string, object?> { ["id"] = recordId };
+        var query = $"query Scene($id: ID!) {{ findScene(id: $id) {{ {SceneFields} }} }}";
+        return await QueryScenesAsync(address, key, query, variables, "findScene", ct).ConfigureAwait(false);
     }
 
     /// <summary>Looks scenes up by file fingerprints. Callers must have checked the fingerprint permission first.</summary>
@@ -154,13 +180,20 @@ public sealed class StashBoxClient
         }
 
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Object
-            || !data.TryGetProperty(field, out var scenes) || scenes.ValueKind != JsonValueKind.Array)
+            || !data.TryGetProperty(field, out var scenes) || scenes.ValueKind is not (JsonValueKind.Array or JsonValueKind.Object or JsonValueKind.Null))
         {
             return StashBoxReply.Unavailable;
         }
 
         var result = new List<StashBoxScene>();
-        foreach (var scene in scenes.EnumerateArray().Take(MaxSceneResults * 2))
+        // A single-record answer (findScene) is an object, or null when there is no such record; a search answer is an array.
+        var items = scenes.ValueKind switch
+        {
+            JsonValueKind.Array => scenes.EnumerateArray().Take(MaxSceneResults * 2).ToList(),
+            JsonValueKind.Object => [scenes],
+            _ => new List<JsonElement>(),
+        };
+        foreach (var scene in items)
         {
             if (ParseScene(scene) is { } parsed)
             {
@@ -359,6 +392,26 @@ public sealed class StashBoxClient
             }
         }
 
+        int? duration = null;
+        if (scene.TryGetProperty("duration", out var durationElement) && durationElement.ValueKind == JsonValueKind.Number
+            && durationElement.TryGetInt32(out var seconds) && seconds is > 0 and <= MaxDurationSeconds)
+        {
+            duration = seconds;
+        }
+
+        var fingerprints = new List<AdultFingerprint>();
+        if (scene.TryGetProperty("fingerprints", out var fingerprintList) && fingerprintList.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var entry in fingerprintList.EnumerateArray().Take(MaxFingerprints))
+            {
+                if (entry.ValueKind == JsonValueKind.Object && Text(entry, "algorithm") is { } algorithm
+                    && AdultFingerprintAlgorithms.IsValid(algorithm) && Text(entry, "hash") is { } hash && IsHash(hash))
+                {
+                    fingerprints.Add(new AdultFingerprint(algorithm, hash.ToLowerInvariant()));
+                }
+            }
+        }
+
         return new StashBoxScene(
             id,
             Clean(Text(scene, "title"), 300),
@@ -368,7 +421,11 @@ public sealed class StashBoxClient
             studio,
             performers,
             tags,
-            imageUrl);
+            imageUrl)
+        {
+            DurationSeconds = duration,
+            Fingerprints = fingerprints,
+        };
     }
 
     private static void AddDistinct(List<string> list, string value)

@@ -108,6 +108,47 @@ public sealed partial class EngineApiClient
             ? VaultCall<bool>.Ok(true)
             : FailedVaultCall<bool>();
 
+    // -- Identify, the match record and the activity list (/api/v1/vault/items, /api/v1/vault/activity) -----------
+    // Typed search text travels only in the request body; no call here puts a title or a body in a log line.
+
+    public async Task<VaultCall<VaultCandidateListDto>> SearchVaultIdentifyAsync(Guid assetId, string? text, CancellationToken ct = default)
+    {
+        var list = await PostAsync<VaultIdentifySearchRequest, VaultCandidateListDto>(
+            "POST /api/v1/vault/items/{id}/identify/search", $"/api/v1/vault/items/{assetId:D}/identify/search",
+            new VaultIdentifySearchRequest { Text = text }, logAsWarning: false, ct: ct);
+        return list is null ? FailedVaultCall<VaultCandidateListDto>() : VaultCall<VaultCandidateListDto>.Ok(list);
+    }
+
+    public async Task<VaultCall<VaultIdentifyPreviewDto>> PreviewVaultIdentifyAsync(Guid assetId, VaultIdentifyPreviewRequest request, CancellationToken ct = default)
+    {
+        var preview = await PostAsync<VaultIdentifyPreviewRequest, VaultIdentifyPreviewDto>(
+            "POST /api/v1/vault/items/{id}/identify/preview", $"/api/v1/vault/items/{assetId:D}/identify/preview", request, logAsWarning: false, ct: ct);
+        return preview is null ? FailedVaultCall<VaultIdentifyPreviewDto>() : VaultCall<VaultIdentifyPreviewDto>.Ok(preview);
+    }
+
+    public async Task<VaultCall<VaultIdentifyApplyResultDto>> ApplyVaultIdentifyAsync(Guid assetId, VaultIdentifyApplyRequest request, CancellationToken ct = default)
+    {
+        var result = await PostAsync<VaultIdentifyApplyRequest, VaultIdentifyApplyResultDto>(
+            "POST /api/v1/vault/items/{id}/identify/apply", $"/api/v1/vault/items/{assetId:D}/identify/apply", request, logAsWarning: false, ct: ct);
+        return result is null ? FailedVaultCall<VaultIdentifyApplyResultDto>() : VaultCall<VaultIdentifyApplyResultDto>.Ok(result);
+    }
+
+    public async Task<VaultCall<VaultMatchDto>> GetVaultMatchAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var match = await GetAsync<VaultMatchDto>(
+            "GET /api/v1/vault/items/{id}/match", $"/api/v1/vault/items/{assetId:D}/match", logAsWarning: false, ct: ct);
+        // A read that comes back empty is "not found" here: the Engine answers it the same for a locked session and a missing video.
+        return match is null ? VaultCall<VaultMatchDto>.Of(VaultOutcome.NotAvailable) : VaultCall<VaultMatchDto>.Ok(match);
+    }
+
+    public async Task<VaultCall<IReadOnlyList<VaultActivityItemDto>>> GetVaultActivityAsync(CancellationToken ct = default)
+    {
+        var lines = await GetAsync<List<VaultActivityItemDto>>("GET /api/v1/vault/activity", "/api/v1/vault/activity", logAsWarning: false, ct: ct);
+        return lines is null
+            ? VaultCall<IReadOnlyList<VaultActivityItemDto>>.Of(VaultOutcome.NotAvailable)
+            : VaultCall<IReadOnlyList<VaultActivityItemDto>>.Ok(lines);
+    }
+
     /// <summary>Reads the failure the shared envelope just recorded and names it in the terms the Vault screens use.</summary>
     private VaultCall<T> FailedVaultCall<T>()
     {

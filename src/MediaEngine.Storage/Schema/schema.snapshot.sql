@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0027 vault_access).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0028 vault_lookup).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2504,6 +2504,15 @@ CREATE TABLE user_taste_profiles (
     updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE vault_activity (
+    id         BLOB NOT NULL PRIMARY KEY,
+    asset_id   BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    kind       TEXT NOT NULL CHECK (kind IN ('added', 'matched', 'unmatched', 'identified', 'failed')),
+    file_name  TEXT NOT NULL,
+    detail     TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE vault_artwork (
     id           BLOB NOT NULL PRIMARY KEY,
     owner_kind   TEXT NOT NULL CHECK (owner_kind IN ('asset', 'performer', 'studio')),
@@ -2535,6 +2544,27 @@ CREATE TABLE vault_asset_tags (
     PRIMARY KEY (asset_id, tag_id)
 );
 
+CREATE TABLE vault_field_sources (
+    asset_id    BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    field       TEXT NOT NULL CHECK (field IN ('title', 'description', 'release_date', 'cover', 'studio', 'performers', 'tags')),
+    server_id   TEXT NOT NULL,
+    record_id   TEXT NOT NULL,
+    matched_by  TEXT NOT NULL CHECK (matched_by IN ('fingerprint', 'product_code', 'title', 'identify')),
+    applied_via TEXT NOT NULL CHECK (applied_via IN ('automatic', 'identify')),
+    language    TEXT,
+    applied_at  TEXT NOT NULL,
+    PRIMARY KEY (asset_id, field)
+);
+
+CREATE TABLE vault_file_fingerprints (
+    asset_id    BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    algorithm   TEXT NOT NULL CHECK (algorithm IN ('OSHASH', 'MD5', 'PHASH')),
+    hash        TEXT NOT NULL,
+    file_size   INTEGER NOT NULL,
+    computed_at TEXT NOT NULL,
+    PRIMARY KEY (asset_id, algorithm)
+);
+
 CREATE TABLE vault_libraries (
     library_id            TEXT NOT NULL PRIMARY KEY COLLATE NOCASE,
     lookup_source         TEXT NOT NULL DEFAULT 'none' CHECK (lookup_source IN ('none', 'stash_box')),
@@ -2543,6 +2573,15 @@ CREATE TABLE vault_libraries (
     created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
     created_at            TEXT NOT NULL,
     updated_at            TEXT NOT NULL
+);
+
+CREATE TABLE vault_matches (
+    asset_id    BLOB NOT NULL PRIMARY KEY REFERENCES media_assets(id) ON DELETE CASCADE,
+    server_id   TEXT NOT NULL,
+    record_id   TEXT NOT NULL,
+    matched_by  TEXT NOT NULL CHECK (matched_by IN ('fingerprint', 'product_code', 'title', 'identify')),
+    applied_via TEXT NOT NULL CHECK (applied_via IN ('automatic', 'identify')),
+    matched_at  TEXT NOT NULL
 );
 
 CREATE TABLE vault_performers (
@@ -3294,6 +3333,8 @@ CREATE INDEX idx_text_tracks_asset_kind
 CREATE INDEX idx_text_tracks_preferred
     ON text_tracks(asset_id, kind, language, is_preferred);
 
+CREATE INDEX idx_vault_activity_created ON vault_activity(created_at DESC);
+
 CREATE INDEX idx_vault_artwork_owner ON vault_artwork(owner_kind, owner_id);
 
 CREATE INDEX idx_vault_asset_performers_performer ON vault_asset_performers(performer_id);
@@ -3686,6 +3727,12 @@ BEGIN
     DELETE FROM nsfw_session_unlocks WHERE profile_id = NEW.id;
 END;
 
+CREATE TRIGGER trg_vault_activity_vault_only
+BEFORE INSERT ON vault_activity
+WHEN NOT EXISTS (
+    SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
+BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have Vault activity.'); END;
+
 CREATE TRIGGER trg_vault_artwork_asset_removed
 AFTER DELETE ON media_assets
 BEGIN DELETE FROM vault_artwork WHERE owner_kind = 'asset' AND owner_id = OLD.id; END;
@@ -3710,10 +3757,28 @@ CREATE TRIGGER trg_vault_asset_tags_prune
 AFTER DELETE ON vault_asset_tags
 BEGIN DELETE FROM vault_tags WHERE id = OLD.tag_id AND NOT EXISTS (SELECT 1 FROM vault_asset_tags WHERE tag_id = OLD.tag_id); END;
 
+CREATE TRIGGER trg_vault_field_sources_vault_only
+BEFORE INSERT ON vault_field_sources
+WHEN NOT EXISTS (
+    SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
+BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have Vault field sources.'); END;
+
+CREATE TRIGGER trg_vault_file_fingerprints_vault_only
+BEFORE INSERT ON vault_file_fingerprints
+WHEN NOT EXISTS (
+    SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
+BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have Vault fingerprints.'); END;
+
 CREATE TRIGGER trg_vault_libraries_in_use
 BEFORE DELETE ON vault_libraries
 WHEN EXISTS (SELECT 1 FROM media_assets WHERE library_id = OLD.library_id COLLATE NOCASE)
 BEGIN SELECT RAISE(ABORT, 'A Vault library that still has items cannot be removed.'); END;
+
+CREATE TRIGGER trg_vault_matches_vault_only
+BEFORE INSERT ON vault_matches
+WHEN NOT EXISTS (
+    SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
+BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have a Vault match.'); END;
 
 CREATE TRIGGER trg_view_personal_space_identity_immutable
 BEFORE UPDATE OF owner_profile_id,library_id ON view_personal_spaces

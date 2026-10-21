@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Providers.Services.StashBox;
+using MediaEngine.Providers.Services.Vault;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Secrets;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -36,14 +37,8 @@ internal sealed class RecordedStashBox : HttpMessageHandler, IHttpClientFactory
     public static HttpResponseMessage Json(string json, HttpStatusCode status = HttpStatusCode.OK) =>
         new(status) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
 
-    public static byte[] FakeJpeg()
-    {
-        var bytes = new byte[4096];
-        bytes[0] = 0xFF;
-        bytes[1] = 0xD8;
-        bytes[2] = 0xFF;
-        return bytes;
-    }
+    /// <summary>A real, decodable landscape JPEG (the recorded cover).</summary>
+    public static byte[] FakeJpeg() => TestImages.Jpeg(640, 360);
 
     public HttpClient CreateClient(string name) => new(this, disposeHandler: false);
 
@@ -58,7 +53,7 @@ internal sealed class RecordedStashBox : HttpMessageHandler, IHttpClientFactory
 
     /// <summary>Answers the GraphQL address by operation and the cover address with an image.</summary>
     public static Func<SeenRequest, HttpResponseMessage> Script(
-        string? search = null, string? fingerprint = null, string? me = null, bool cover = true) =>
+        string? search = null, string? fingerprint = null, string? me = null, bool cover = true, string? scene = null) =>
         seen =>
         {
             if (seen.Uri.AbsolutePath.EndsWith("/cover.jpg", StringComparison.Ordinal))
@@ -71,6 +66,11 @@ internal sealed class RecordedStashBox : HttpMessageHandler, IHttpClientFactory
             if (seen.Body.Contains("findScenesByFullFingerprints", StringComparison.Ordinal))
             {
                 return Json(fingerprint ?? "{\"data\":{\"findScenesByFullFingerprints\":[]}}");
+            }
+
+            if (seen.Body.Contains("findScene(", StringComparison.Ordinal))
+            {
+                return Json(scene ?? "{\"data\":{\"findScene\":null}}");
             }
 
             if (seen.Body.Contains("searchScene", StringComparison.Ordinal))
@@ -122,7 +122,7 @@ internal sealed class StashBoxConfigFolder : IDisposable
     public StashBoxClient Client(IHttpClientFactory http) => new(http, NullLogger<StashBoxClient>.Instance);
 
     public StashBoxVideoLookup Lookup(IHttpClientFactory http) =>
-        new(Loader, Settings, Client(http), NullLogger<StashBoxVideoLookup>.Instance);
+        new(Loader, Settings, Client(http), new VaultNamingConfigurationProvider(() => Path), NullLogger<StashBoxVideoLookup>.Instance);
 
     public void Dispose()
     {

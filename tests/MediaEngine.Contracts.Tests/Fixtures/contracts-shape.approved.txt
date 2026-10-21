@@ -9315,9 +9315,78 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.UpdateVaultLibraryReques
   LookupServerId: System.String | nullability=nullable | accessors=get,init
   AdminPin: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultActivityItemDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  Detail: System.String | nullability=not-null | accessors=get,init
+  At: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultCandidateDto
+  ServerId: System.String | nullability=not-null | accessors=get,init
+  RecordId: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  Studio: System.String | nullability=nullable | accessors=get,init
+  ReleaseDate: System.String | nullability=nullable | accessors=get,init
+  ProductCode: System.String | nullability=nullable | accessors=get,init
+  DurationSeconds: System.Int32? | nullability=nullable | accessors=get,init
+  Performers: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  LengthAgrees: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultCandidateListDto
+  Status: System.String | nullability=not-null | accessors=get,init
+  SearchedFor: System.String | nullability=nullable | accessors=get,init
+  ProductCode: System.String | nullability=nullable | accessors=get,init
+  Candidates: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultCandidateDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultCoverMode
 
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultFieldChoiceDto
+  Field: System.String | nullability=not-null | accessors=get,init
+  Current: System.String | nullability=nullable | accessors=get,init
+  Proposed: System.String | nullability=nullable | accessors=get,init
+  Changes: System.Boolean | nullability=not-null | accessors=get,init
+  PersonsOwn: System.Boolean | nullability=not-null | accessors=get,init
+  Ticked: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultFieldSourceDto
+  Field: System.String | nullability=not-null | accessors=get,init
+  ServerId: System.String | nullability=not-null | accessors=get,init
+  RecordId: System.String | nullability=not-null | accessors=get,init
+  MatchedBy: System.String | nullability=not-null | accessors=get,init
+  AppliedVia: System.String | nullability=not-null | accessors=get,init
+  Language: System.String | nullability=nullable | accessors=get,init
+  AppliedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultGroupBy
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultIdentifyApplyRequest
+  ServerId: System.String | nullability=not-null | accessors=get,init
+  RecordId: System.String | nullability=not-null | accessors=get,init
+  Fields: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultIdentifyApplyResultDto
+  Status: System.String | nullability=not-null | accessors=get,init
+  Applied: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Refused: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultIdentifyPreviewDto
+  Status: System.String | nullability=not-null | accessors=get,init
+  ServerId: System.String | nullability=not-null | accessors=get,init
+  RecordId: System.String | nullability=not-null | accessors=get,init
+  RecordTitle: System.String | nullability=nullable | accessors=get,init
+  ProductCode: System.String | nullability=nullable | accessors=get,init
+  DurationSeconds: System.Int32? | nullability=nullable | accessors=get,init
+  LengthAgrees: System.Boolean | nullability=not-null | accessors=get,init
+  Fields: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultFieldChoiceDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultIdentifyPreviewRequest
+  ServerId: System.String | nullability=not-null | accessors=get,init
+  RecordId: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultIdentifySearchRequest
+  Text: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultLayout
 
@@ -9326,6 +9395,15 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultLibraryDto
   LookupSource: System.String | nullability=not-null | accessors=get,init
   LookupServerId: System.String | nullability=nullable | accessors=get,init
   AdultsConfirmedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultMatchDto
+  Matched: System.Boolean | nullability=not-null | accessors=get,init
+  ServerId: System.String | nullability=nullable | accessors=get,init
+  RecordId: System.String | nullability=nullable | accessors=get,init
+  MatchedBy: System.String | nullability=nullable | accessors=get,init
+  AppliedVia: System.String | nullability=nullable | accessors=get,init
+  MatchedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  Fields: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultFieldSourceDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultSort
 

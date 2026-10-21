@@ -100,6 +100,10 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     private readonly VideoStillFrameService? _videoFrames;
     private readonly IVideoOnlineLookup? _videoLookup;
     private readonly IProviderAudienceGate? _audienceGate;
+    private readonly IVaultIngestionHook? _vaultHook;
+
+    // Paths of files being processed from a Vault library right now; their ingestion events are never published.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _vaultCandidatePaths = new(StringComparer.OrdinalIgnoreCase);
 
     // Review queue — created when confidence is too low or category is "Other".
     private readonly IReviewQueueRepository _reviewRepo;
@@ -218,8 +222,10 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         IVideoLibraryReader? videoReader = null,
         VideoStillFrameService? videoFrames = null,
         IVideoOnlineLookup? videoLookup = null,
-        IProviderAudienceGate? audienceGate = null)
+        IProviderAudienceGate? audienceGate = null,
+        IVaultIngestionHook? vaultHook = null)
     {
+        _vaultHook = vaultHook;
         _audienceGate = audienceGate;
         _videoLookup = videoLookup;
         _videoFrames = videoFrames;

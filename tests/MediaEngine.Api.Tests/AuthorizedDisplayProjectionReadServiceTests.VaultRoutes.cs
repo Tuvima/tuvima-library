@@ -254,6 +254,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         // Only here so mapping can infer each route's parameters; the routes under test never ask for them.
         builder.Services.AddSingleton(typeof(MediaEngine.Api.Services.Vault.VaultAdministrationService), _ => throw new InvalidOperationException("Not used by these routes."));
         builder.Services.AddSingleton(typeof(MediaEngine.Api.Services.Security.RecentSignInGuard), _ => throw new InvalidOperationException("Not used by these routes."));
+        // The Identify routes (WP12) are mapped by MapVaultEndpoints too; they are only inferred here, never invoked.
+        builder.Services.AddSingleton<IVaultMatchRepository>(new VaultMatchRepository(_database));
+        builder.Services.AddSingleton<IVaultActivityRepository>(new VaultActivityRepository(_database));
+        builder.Services.AddSingleton(NewTouchFailsIdentifyService());
         var app = builder.Build();
         map(app);
         _routeApps.Add(app);

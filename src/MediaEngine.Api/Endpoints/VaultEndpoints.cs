@@ -279,6 +279,9 @@ public static class VaultEndpoints
         }).WithName("GetVaultArtwork").WithTags("Vault").Produces<byte[]>(StatusCodes.Status200OK, "image/jpeg")
           .ProducesProblem(StatusCodes.Status404NotFound).RequireAuthorization(AuthPolicies.Authenticated);
 
+        // Identify, how a video was matched, and the quiet Vault activity list (WP12).
+        app.MapVaultIdentifyEndpoints();
+
         return app;
     }
 

@@ -712,6 +712,11 @@ public sealed class DatabaseStartupSafetyTests
             ("vault_asset_tags", "tag_id"),
             ("vault_artwork", "id"),
             ("vault_artwork", "owner_id"),
+            ("vault_matches", "asset_id"),
+            ("vault_field_sources", "asset_id"),
+            ("vault_file_fingerprints", "asset_id"),
+            ("vault_activity", "id"),
+            ("vault_activity", "asset_id"),
         ];
 
         foreach (var (table, column) in internalGuidColumns)

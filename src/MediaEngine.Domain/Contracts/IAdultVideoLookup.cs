@@ -22,16 +22,28 @@ public sealed record AdultFingerprint(string Algorithm, string Hash);
 /// <param name="Title">The video's title as the Library has it (file-derived or edited).</param>
 /// <param name="Fingerprints">Fingerprints of the file. Ignored, and never sent, unless the administrator turned the permission on.</param>
 /// <param name="PreferredServerId">The server the Vault library chose; it is tried first, the others follow in their saved order.</param>
+/// <param name="ProductCode">A studio product code read from the file or folder name (for example ABC-123), if any.</param>
+/// <param name="DurationSeconds">The file's length in seconds, if known. A code or a title is only a strong match when the length agrees.</param>
+/// <param name="Date">A date read from the file name, if any. When both sides have one it must agree.</param>
 public sealed record AdultLookupQuery(
     string? Title,
     IReadOnlyList<AdultFingerprint> Fingerprints,
-    string? PreferredServerId = null);
+    string? PreferredServerId = null,
+    string? ProductCode = null,
+    double? DurationSeconds = null,
+    DateOnly? Date = null);
 
 /// <summary>How a match was decided (Videos spec D37). Stored with the match by the Vault lookup path.</summary>
 public static class AdultMatchSignals
 {
     public const string Fingerprint = "fingerprint";
+    public const string ProductCode = "product_code";
     public const string Title = "title";
+
+    /// <summary>A person picked the record in Identify (Videos spec D38).</summary>
+    public const string Identify = "identify";
+
+    public static bool IsValid(string? value) => value is Fingerprint or ProductCode or Title or Identify;
 }
 
 /// <summary>
@@ -50,7 +62,11 @@ public sealed record AdultVideoInfo(
     IReadOnlyList<string> Performers,
     IReadOnlyList<string> Tags,
     byte[]? Cover,
-    string? CoverMimeType);
+    string? CoverMimeType)
+{
+    /// <summary>The record's length in seconds, when the server knows it.</summary>
+    public int? DurationSeconds { get; init; }
+}
 
 /// <summary>
 /// A lookup that only ever answers about Vault items (the provider declares <c>adult_only</c>). It returns null when the
@@ -63,6 +79,25 @@ public interface IAdultVideoLookup
     string ProviderName { get; }
 
     Task<AdultVideoInfo?> LookupAsync(AdultLookupQuery query, CancellationToken ct = default);
+}
+
+/// <summary>What Identify searches for (Videos spec D38): the text the person typed, a product code, or both.</summary>
+public sealed record AdultCandidateQuery(string? Text, string? ProductCode, string? PreferredServerId = null);
+
+/// <summary>
+/// The manual side of an adult-only provider: candidates for Identify, and one chosen record read again by its id (so an applied
+/// value always comes from the server, never from what a browser sent). Like <see cref="IAdultVideoLookup"/>, callers must ask
+/// <see cref="IProviderAudienceGate"/> first.
+/// </summary>
+public interface IAdultVideoSearch
+{
+    string ProviderName { get; }
+
+    /// <summary>Records that might be this video. Never downloads artwork. Empty when the plugin is off, has no working key, or finds nothing.</summary>
+    Task<IReadOnlyList<AdultVideoInfo>> SearchAsync(AdultCandidateQuery query, CancellationToken ct = default);
+
+    /// <summary>One record by its server and id, with its cover downloaded and checked. Null when it is not found.</summary>
+    Task<AdultVideoInfo?> GetAsync(string serverId, string recordId, CancellationToken ct = default);
 }
 
 /// <summary>

@@ -1,0 +1,10 @@
+.vault-activity { display: grid; gap: 8px; }
+.vault-activity__header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.vault-activity__title { margin: 0; font-size: 1.125rem; }
+.vault-activity__empty { margin: 0; opacity: 0.75; }
+.vault-activity__list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.vault-activity__line { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 2px 12px; padding: 8px 0; border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
+.vault-activity__kind { font-weight: 600; }
+.vault-activity__file { overflow-wrap: anywhere; }
+.vault-activity__detail,
+.vault-activity__time { grid-column: 2; opacity: 0.75; font-size: 0.875rem; }

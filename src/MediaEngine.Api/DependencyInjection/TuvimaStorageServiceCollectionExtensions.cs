@@ -117,6 +117,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<INsfwAccessRepository, NsfwAccessRepository>();
         services.AddSingleton<IVaultNameRepository, VaultNameRepository>();
         services.AddSingleton<IVaultArtworkRepository, VaultArtworkRepository>();
+        // How each Vault video was matched, where its fields came from, its fingerprints and the quiet Vault activity list (WP12).
+        services.AddSingleton<IVaultMatchRepository, VaultMatchRepository>();
+        services.AddSingleton<IVaultActivityRepository, VaultActivityRepository>();
         services.AddSingleton<VaultAccessResolver>();
         services.AddSingleton<IAccountSignInMethodRepository, AccountSignInMethodRepository>();
         services.AddSingleton<IClientAuthorizationRepository, ClientAuthorizationRepository>();

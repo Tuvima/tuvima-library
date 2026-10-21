@@ -393,6 +393,8 @@ public sealed class MappedEndpointInventoryTests
             "Endpoint inventory must not read the Stash-box settings."));
         builder.Services.AddSingleton<MediaEngine.Providers.Services.StashBox.StashBoxClient>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not contact a stash-box server."));
+        builder.Services.AddSingleton<MediaEngine.Providers.Services.Vault.VaultIdentifyService>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not run a Vault Identify lookup."));
         builder.Services.AddSingleton<IProviderAudienceGate>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not ask the provider audience gate."));
         builder.Services.AddTuvimaDisplay();

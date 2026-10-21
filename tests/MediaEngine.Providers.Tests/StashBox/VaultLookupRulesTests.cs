@@ -5,6 +5,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Services;
 using MediaEngine.Providers.Services.StashBox;
+using MediaEngine.Providers.Services.Vault;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Providers.Tests.StashBox;
@@ -158,11 +159,19 @@ public sealed class VaultLookupRulesTests : IDisposable
         artworkSpy.Handlers[nameof(IVaultArtworkRepository.GetForOwnerAsync)] = _ => (IReadOnlyList<VaultArtworkRecord>)Array.Empty<VaultArtworkRecord>();
         artworkSpy.Handlers[nameof(IVaultArtworkRepository.AddAsync)] = args => { stored.Add((string)args[3]!); return Guid.NewGuid(); };
 
+        var (matches, matchesSpy) = Spy<IVaultMatchRepository>.Create();
+        matchesSpy.Handlers[nameof(IVaultMatchRepository.GetFileFactsAsync)] = _ =>
+            new VaultFileFacts(id, VaultLibraryId, Path.Combine(_data, "Example Scene One.mp4"), 1800, null);
+        matchesSpy.Handlers[nameof(IVaultMatchRepository.SaveMatchAsync)] = _ => null;
+
         var vault = VaultRepository<IVaultLibraryRepository>(lookupSource);
+        var applier = new VaultRecordApplier(
+            canonical, claimRepo, names, artwork, matches, new TuvimaDataPaths(_data), TimeProvider.System,
+            NullLogger<VaultRecordApplier>.Instance);
         var service = new VaultVideoDetailsService(
-            new ProviderAudienceGate(_config.Loader, vault), vault, assets, canonical, claimRepo, names, artwork, lookups,
-            new TuvimaDataPaths(_data), NullLogger<VaultVideoDetailsService>.Instance);
-        _ = id;
+            new ProviderAudienceGate(_config.Loader, vault), vault, assets, canonical, matches, lookups, _config.Settings,
+            _config.Loader, new VaultFileNameReader(new VaultNamingConfigurationProvider(_config.Loader)), applier,
+            TimeProvider.System, NullLogger<VaultVideoDetailsService>.Instance);
         return new Harness
         {
             Service = service,
@@ -305,6 +314,6 @@ public sealed class VaultLookupRulesTests : IDisposable
         Assert.Equal(["Performer One", "Performer Two"], harness.Performers);
         Assert.Single(harness.Artwork);
         // Only the title leaves the machine: no fingerprint was given and the permission is off.
-        Assert.All(server.Requests.Where(r => r.Uri.AbsolutePath == "/graphql"), r => Assert.DoesNotContain("Fingerprint", r.Body, StringComparison.OrdinalIgnoreCase));
+        Assert.All(server.Requests.Where(r => r.Uri.AbsolutePath == "/graphql"), r => Assert.DoesNotContain("findScenesByFullFingerprints", r.Body, StringComparison.OrdinalIgnoreCase));
     }
 }

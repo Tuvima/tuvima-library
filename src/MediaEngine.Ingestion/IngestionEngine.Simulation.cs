@@ -537,6 +537,10 @@ public sealed partial class IngestionEngine
         return refs;
     }
 
+    /// <summary>True when the entity is a file in a Vault library. Such a file never gets a review item (Videos spec D32).</summary>
+    private async Task<bool> IsVaultEntityAsync(Guid entityId, CancellationToken ct) =>
+        _vaultHook is not null && await _vaultHook.IsVaultAssetAsync(entityId, ct).ConfigureAwait(false);
+
     /// <summary>
     /// Creates a review queue entry from the ingestion pipeline. Used when the
     /// confidence gate blocks organization or when the file would be placed in
@@ -549,6 +553,12 @@ public sealed partial class IngestionEngine
         string detail,
         CancellationToken ct)
     {
+        // A Vault file never enters Needs Review (Videos spec D32): a doubtful one simply stays Unmatched.
+        if (await IsVaultEntityAsync(entityId, ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
         try
         {
             if (_organizeStageDependencies.StageOutcomeFactory is not null)
@@ -612,6 +622,11 @@ public sealed partial class IngestionEngine
         string detail,
         CancellationToken ct)
     {
+        if (await IsVaultEntityAsync(entityId, ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
         try
         {
             if (_organizeStageDependencies.StageOutcomeFactory is not null)
@@ -674,6 +689,11 @@ public sealed partial class IngestionEngine
         List<string> conflictedFields,
         CancellationToken ct)
     {
+        if (await IsVaultEntityAsync(entityId, ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
         try
         {
             var detail = $"Conflicting metadata: {string.Join(", ", conflictedFields)}";
@@ -724,6 +744,38 @@ public sealed partial class IngestionEngine
         }
     }
 
+    /// <summary>True when the file belongs to a Vault library: while it is processed, and also when a failure is recorded after processing ended.</summary>
+    private async Task<bool> IsVaultPathAsync(IngestionCandidate candidate, CancellationToken ct)
+    {
+        if (_vaultHook is null)
+        {
+            return false;
+        }
+
+        if (_vaultCandidatePaths.ContainsKey(candidate.Path))
+        {
+            return true;
+        }
+
+        var library = candidate.Intake?.HasDestinationHint == true
+            ? _libraryFolderResolver?.ResolveById(candidate.Intake.DestinationLibraryId!)
+            : _libraryFolderResolver?.ResolveForPath(candidate.Path);
+        return await _vaultHook.IsVaultLibraryAsync(library?.Id, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>True for an ingestion event that names a file currently being processed from a Vault library.</summary>
+    private bool IsAboutVaultFile<TPayload>(TPayload payload) where TPayload : notnull =>
+        !_vaultCandidatePaths.IsEmpty
+        && payload switch
+        {
+            IngestionStartedEvent e => _vaultCandidatePaths.ContainsKey(e.FilePath),
+            IngestionHashedEvent e => _vaultCandidatePaths.ContainsKey(e.FilePath),
+            IngestionCompletedEvent e => _vaultCandidatePaths.ContainsKey(e.FilePath),
+            IngestionFailedEvent e => _vaultCandidatePaths.ContainsKey(e.FilePath),
+            IngestionItemProgressEvent e => _vaultCandidatePaths.ContainsKey(e.FilePath),
+            _ => false,
+        };
+
     /// <summary>
     /// Publishes an event without propagating exceptions to the calling pipeline.
     /// A publish failure (e.g. transient SignalR error) must never abort file ingestion.
@@ -732,6 +784,13 @@ public sealed partial class IngestionEngine
         string eventName, TPayload payload, CancellationToken ct)
         where TPayload : notnull
     {
+        // Nothing about a file in a Vault library is announced to open screens (Videos spec D17, D32): its progress is shown only
+        // in the quiet Vault activity list.
+        if (IsAboutVaultFile(payload))
+        {
+            return;
+        }
+
         try
         {
             await _publisher.PublishAsync(eventName, payload, ct).ConfigureAwait(false);

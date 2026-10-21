@@ -29,7 +29,7 @@ public sealed class StashBoxLookupTests : IDisposable
         _server.Respond = RecordedStashBox.Script(search: RecordedStashBox.Fixture("search-scene-match.json"));
         var lookup = await ReadyAsync();
 
-        var info = await lookup.LookupAsync(new AdultLookupQuery("example scene one", []));
+        var info = await lookup.LookupAsync(new AdultLookupQuery("example scene one", [], null, null, 1800));
 
         Assert.NotNull(info);
         Assert.Equal(AdultMatchSignals.Title, info.MatchedBy);
@@ -50,7 +50,7 @@ public sealed class StashBoxLookupTests : IDisposable
         _server.Respond = RecordedStashBox.Script(search: RecordedStashBox.Fixture("search-scene-match.json"));
         var lookup = await ReadyAsync();
 
-        await lookup.LookupAsync(new AdultLookupQuery("Example Scene One", []));
+        await lookup.LookupAsync(new AdultLookupQuery("Example Scene One", [], null, null, 1800));
 
         var graphql = _server.Requests.Where(r => r.Uri.AbsolutePath == "/graphql").ToList();
         Assert.NotEmpty(graphql);
@@ -181,7 +181,7 @@ public sealed class StashBoxLookupTests : IDisposable
         _server.Respond = RecordedStashBox.Script(search: json);
         var lookup = await ReadyAsync();
 
-        var info = await lookup.LookupAsync(new AdultLookupQuery("Example Scene One", []));
+        var info = await lookup.LookupAsync(new AdultLookupQuery("Example Scene One", [], null, null, 1800));
 
         Assert.NotNull(info);
         Assert.Null(info.Cover);
@@ -196,7 +196,7 @@ public sealed class StashBoxLookupTests : IDisposable
             : RecordedStashBox.Script(search: RecordedStashBox.Fixture("search-scene-match.json"))(seen);
         var lookup = await ReadyAsync();
 
-        var info = await lookup.LookupAsync(new AdultLookupQuery("Example Scene One", []));
+        var info = await lookup.LookupAsync(new AdultLookupQuery("Example Scene One", [], null, null, 1800));
 
         Assert.NotNull(info);
         Assert.Null(info.Cover);

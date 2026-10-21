@@ -37,4 +37,19 @@ public partial interface IEngineApiClient
 
     /// <summary>POST /api/v1/vault/libraries/{id}/remove - remove a Vault library.</summary>
     Task<VaultCall<bool>> RemoveVaultLibraryAsync(string libraryId, RemoveVaultLibraryRequest request, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/vault/items/{assetId}/identify/search - records that might be this Vault video. The typed text travels in the body, never in the address.</summary>
+    Task<VaultCall<VaultCandidateListDto>> SearchVaultIdentifyAsync(Guid assetId, string? text, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/vault/items/{assetId}/identify/preview - the current values beside the values a chosen record would put there.</summary>
+    Task<VaultCall<VaultIdentifyPreviewDto>> PreviewVaultIdentifyAsync(Guid assetId, VaultIdentifyPreviewRequest request, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/vault/items/{assetId}/identify/apply - apply exactly the ticked fields of a chosen record.</summary>
+    Task<VaultCall<VaultIdentifyApplyResultDto>> ApplyVaultIdentifyAsync(Guid assetId, VaultIdentifyApplyRequest request, CancellationToken ct = default);
+
+    /// <summary>GET /api/v1/vault/items/{assetId}/match - how a Vault video was matched, if it was.</summary>
+    Task<VaultCall<VaultMatchDto>> GetVaultMatchAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>GET /api/v1/vault/activity - the quiet Vault activity list, for an unlocked administrator.</summary>
+    Task<VaultCall<IReadOnlyList<VaultActivityItemDto>>> GetVaultActivityAsync(CancellationToken ct = default);
 }

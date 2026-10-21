@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1127; api=0; web-client=54
+# scopes: contracts=1138; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10987,17 +10987,106 @@
   AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"lookup_source":"sample","lookup_server_id":"sample","admin_pin":"sample"}
 
+[contracts] MediaEngine.Contracts.Vault.VaultActivityItemDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AssetId: System.Guid | json=asset_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Detail: System.String | json=detail | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  At: System.DateTimeOffset | json=at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","asset_id":"11111111-2222-3333-4444-555555555555","kind":"sample","file_name":"sample","detail":"sample","at":"2025-01-02T03:04:05+00:00"}
+
+[contracts] MediaEngine.Contracts.Vault.VaultCandidateDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ServerId: System.String | json=server_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RecordId: System.String | json=record_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Studio: System.String | json=studio | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ReleaseDate: System.String | json=release_date | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProductCode: System.String | json=product_code | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DurationSeconds: System.Int32? | json=duration_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Performers: System.Collections.Generic.IReadOnlyList<System.String> | json=performers | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LengthAgrees: System.Boolean | json=length_agrees | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"server_id":"sample","record_id":"sample","title":"sample","studio":"sample","release_date":"sample","product_code":"sample","duration_seconds":7,"performers":[],"length_agrees":true}
+
+[contracts] MediaEngine.Contracts.Vault.VaultCandidateListDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SearchedFor: System.String | json=searched_for | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProductCode: System.String | json=product_code | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Candidates: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultCandidateDto> | json=candidates | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"status":"sample","searched_for":"sample","product_code":"sample","candidates":[]}
+
 [contracts] MediaEngine.Contracts.Vault.VaultCoverMode
   kind=enum | converter=default | number-handling=default | unmapped=default
   enum Show=0 | json=0
   enum Blur=1 | json=1
   enum Hide=2 | json=2
 
+[contracts] MediaEngine.Contracts.Vault.VaultFieldChoiceDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Field: System.String | json=field | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Current: System.String | json=current | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Proposed: System.String | json=proposed | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Changes: System.Boolean | json=changes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PersonsOwn: System.Boolean | json=persons_own | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Ticked: System.Boolean | json=ticked | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"field":"sample","current":"sample","proposed":"sample","changes":true,"persons_own":true,"ticked":true}
+
+[contracts] MediaEngine.Contracts.Vault.VaultFieldSourceDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Field: System.String | json=field | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ServerId: System.String | json=server_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RecordId: System.String | json=record_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MatchedBy: System.String | json=matched_by | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AppliedVia: System.String | json=applied_via | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Language: System.String | json=language | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AppliedAt: System.DateTimeOffset | json=applied_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"field":"sample","server_id":"sample","record_id":"sample","matched_by":"sample","applied_via":"sample","language":"sample","applied_at":"2025-01-02T03:04:05+00:00"}
+
 [contracts] MediaEngine.Contracts.Vault.VaultGroupBy
   kind=enum | converter=default | number-handling=default | unmapped=default
   enum Folder=0 | json=0
   enum Tag=1 | json=1
   enum DateAdded=2 | json=2
+
+[contracts] MediaEngine.Contracts.Vault.VaultIdentifyApplyRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ServerId: System.String | json=server_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RecordId: System.String | json=record_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Fields: System.Collections.Generic.IReadOnlyList<System.String> | json=fields | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"server_id":"sample","record_id":"sample","fields":[]}
+
+[contracts] MediaEngine.Contracts.Vault.VaultIdentifyApplyResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Applied: System.Collections.Generic.IReadOnlyList<System.String> | json=applied | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Refused: System.Collections.Generic.IReadOnlyList<System.String> | json=refused | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"status":"sample","applied":[],"refused":[]}
+
+[contracts] MediaEngine.Contracts.Vault.VaultIdentifyPreviewDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ServerId: System.String | json=server_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RecordId: System.String | json=record_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RecordTitle: System.String | json=record_title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProductCode: System.String | json=product_code | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DurationSeconds: System.Int32? | json=duration_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LengthAgrees: System.Boolean | json=length_agrees | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Fields: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultFieldChoiceDto> | json=fields | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"status":"sample","server_id":"sample","record_id":"sample","record_title":"sample","product_code":"sample","duration_seconds":7,"length_agrees":true,"fields":[]}
+
+[contracts] MediaEngine.Contracts.Vault.VaultIdentifyPreviewRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ServerId: System.String | json=server_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RecordId: System.String | json=record_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"server_id":"sample","record_id":"sample"}
+
+[contracts] MediaEngine.Contracts.Vault.VaultIdentifySearchRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Text: System.String | json=text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"text":"sample"}
 
 [contracts] MediaEngine.Contracts.Vault.VaultLayout
   kind=enum | converter=default | number-handling=default | unmapped=default
@@ -11013,6 +11102,17 @@
   LookupServerId: System.String | json=lookup_server_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AdultsConfirmedAt: System.DateTimeOffset | json=adults_confirmed_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"sample","lookup_source":"sample","lookup_server_id":"sample","adults_confirmed_at":"2025-01-02T03:04:05+00:00"}
+
+[contracts] MediaEngine.Contracts.Vault.VaultMatchDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Matched: System.Boolean | json=matched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ServerId: System.String | json=server_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RecordId: System.String | json=record_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MatchedBy: System.String | json=matched_by | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AppliedVia: System.String | json=applied_via | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MatchedAt: System.DateTimeOffset? | json=matched_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Fields: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultFieldSourceDto> | json=fields | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"matched":true,"server_id":"sample","record_id":"sample","matched_by":"sample","applied_via":"sample","matched_at":"2025-01-02T03:04:05+00:00","fields":[]}
 
 [contracts] MediaEngine.Contracts.Vault.VaultSort
   kind=enum | converter=default | number-handling=default | unmapped=default

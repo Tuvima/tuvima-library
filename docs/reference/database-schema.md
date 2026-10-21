@@ -1560,6 +1560,15 @@ Added by upgrade step `0027_vault_access` (Videos spec WP9). A **Vault library**
 | `vault_asset_performers`, `vault_asset_studios`, `vault_asset_tags` | Links from a Vault file to those names. A name with no remaining link is removed (trigger). |
 | `vault_artwork` | Artwork for a Vault file, performer or studio, stored only here (never in the shared artwork tables) and removed with its owner (trigger). |
 
+**Lookup and Identify (upgrade step `0028_vault_lookup`, Videos spec WP12).** Four more tables hold what the Library knows about how each Vault video was matched. Each refuses a row for a file that is not in a Vault library (before-insert trigger) and goes with its file (cascade).
+
+| Table | Meaning |
+|---|---|
+| `vault_matches` | One row per matched Vault video: `asset_id` (primary key), `server_id`, `record_id`, `matched_by` (`fingerprint`, `product_code`, `title` or `identify`), `applied_via` (`automatic` or `identify`), `matched_at`. A Vault video with no row is Unmatched; nothing is queued in Needs Review for it. |
+| `vault_field_sources` | Where each field came from: one row per `asset_id` and `field` (`title`, `description`, `release_date`, `cover`, `studio`, `performers`, `tags`) with the server, record, how it was matched, how it was applied, the language noted for the text, and when. An Identify replaces the rows of the fields that were ticked. |
+| `vault_file_fingerprints` | Fingerprints computed on this machine (`OSHASH`, `MD5`, `PHASH`) with the file size they were computed at, kept so a big file is not read twice. Computed and sent only while the administrator's separate fingerprint permission is on. |
+| `vault_activity` | The quiet Vault activity list: `kind` (`added`, `matched`, `unmatched`, `identified`, `failed`), the file's own name, a fixed plain-words detail (never a title or path) and the time. Shown only inside NSFW mode to an administrator. |
+
 **Skipped writes (triggers):** `trg_application_events_no_vault` stops an event about a Vault item from reaching `application_events` (and so apps and webhooks); `trg_personal_activity_no_vault` stops a Vault file from entering anyone's activity history. A skipped write is simply not stored. A file cannot move into or out of a Vault library once it exists (`trg_media_assets_vault_library_fixed`).
 
 ## Related

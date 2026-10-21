@@ -7,9 +7,11 @@
         "details": "Described by the fingerprint record.",
         "date": "2021-03-04",
         "code": "ABC-123",
+        "duration": 1800,
         "studio": { "id": "5a0c4b1e-0000-4000-8000-000000000001", "name": "Example Studio" },
         "tags": [ { "id": "11111111-0000-4000-8000-000000000001", "name": "Tag One" } ],
         "performers": [ { "performer": { "id": "22222222-0000-4000-8000-000000000001", "name": "Performer One" } } ],
+        "fingerprints": [ { "hash": "8e245d9679d31e12", "algorithm": "OSHASH" }, { "hash": "d41d8cd98f00b204e9800998ecf8427e", "algorithm": "MD5" }, { "hash": "ffffffffffffffff", "algorithm": "PHASH" } ],
         "images": [ { "url": "https://cdn.stashdb.org/images/ab/cd/cover.jpg", "width": 1280, "height": 720 } ]
       }
     ]

@@ -276,7 +276,8 @@ public sealed partial class IngestionEngine
             candidate,
             "missing",
             VanishedFileReason,
-            ct).ConfigureAwait(false);
+            ct,
+            quiet: await IsVaultPathAsync(candidate, ct).ConfigureAwait(false)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -554,6 +555,16 @@ public sealed partial class IngestionEngine
         Exception exception,
         CancellationToken ct)
     {
+        if (await IsVaultPathAsync(candidate, ct).ConfigureAwait(false))
+        {
+            // A Vault file's failure is kept quiet (Videos spec D32): no file name in the log text, the Activity log or an event.
+            const string vaultReason = "Ingestion failed for a file in the Vault.";
+            _logger.LogError("Ingestion failed for a file in the Vault ({Type})", exception.GetType().Name);
+            await _ingestionLogScribe.RecordTerminalAsync(candidate, "failed", vaultReason, ct, quiet: true).ConfigureAwait(false);
+            await CloseFailedOperationAsync(candidate, vaultReason, ct).ConfigureAwait(false);
+            return;
+        }
+
         var reason = $"Ingestion failed while processing {Path.GetFileName(candidate.Path)}: {exception.Message}";
         _logger.LogError(exception, "Ingestion failed for {Path}", candidate.Path);
 

@@ -10,6 +10,7 @@ using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Providers;
 using MediaEngine.Providers.Services;
 using MediaEngine.Providers.Services.StashBox;
+using MediaEngine.Providers.Services.Vault;
 using MediaEngine.Providers.Workers;
 
 namespace MediaEngine.Api.DependencyInjection;
@@ -122,9 +123,18 @@ public static class TuvimaProviderServiceCollectionExtensions
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
         services.AddSingleton<StashBoxClient>();
         services.AddSingleton<IStashBoxSettings, StashBoxSettings>();
-        services.AddSingleton<IAdultVideoLookup, StashBoxVideoLookup>();
+        services.AddSingleton<StashBoxVideoLookup>();
+        services.AddSingleton<IAdultVideoLookup>(sp => sp.GetRequiredService<StashBoxVideoLookup>());
+        services.AddSingleton<IAdultVideoSearch>(sp => sp.GetRequiredService<StashBoxVideoLookup>());
         services.AddSingleton<IProviderAudienceGate, ProviderAudienceGate>();
+        // The Vault ingestion path (WP12): name patterns from config/vault_naming.json, field and artwork checks, Identify, and the
+        // hook the ingestion engine calls for each file registered in a Vault library.
+        services.AddSingleton<VaultNamingConfigurationProvider>();
+        services.AddSingleton<VaultFileNameReader>();
+        services.AddSingleton<VaultRecordApplier>();
         services.AddSingleton<VaultVideoDetailsService>();
+        services.AddSingleton<VaultIdentifyService>();
+        services.AddSingleton<IVaultIngestionHook, VaultIngestionHook>();
         services.AddTuvimaHttpClient("headshot_download", TimeSpan.FromSeconds(20));
         // Plugin tools can legitimately run for several minutes. The standard
         // resilience pipeline's much shorter attempt timeout would silently

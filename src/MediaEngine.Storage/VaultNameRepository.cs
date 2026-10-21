@@ -105,6 +105,27 @@ public sealed class VaultNameRepository(IDatabaseConnection database) : IVaultNa
             connection.Execute("DELETE FROM vault_asset_tags WHERE asset_id = @assetId;", new { assetId }, transaction);
         }, ct);
 
+    public Task UnlinkPerformersAsync(Guid assetId, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            connection.Execute("DELETE FROM vault_asset_performers WHERE asset_id = @assetId;", new { assetId }, transaction);
+        }, ct);
+
+    public Task UnlinkStudiosAsync(Guid assetId, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            connection.Execute("DELETE FROM vault_asset_studios WHERE asset_id = @assetId;", new { assetId }, transaction);
+        }, ct);
+
+    public Task UnlinkTagsAsync(Guid assetId, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            connection.Execute("DELETE FROM vault_asset_tags WHERE asset_id = @assetId;", new { assetId }, transaction);
+        }, ct);
+
     public Task<IReadOnlyList<VaultPerformer>> GetPerformersAsync(string? libraryId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

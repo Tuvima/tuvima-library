@@ -1,0 +1,17 @@
+{
+  "data": {
+    "findScene": {
+      "id": "7d1c2c0e-4f0b-4a3e-9a63-0f2b1f9a1111",
+      "title": "<b>Example</b> Scene One",
+      "details": "A <script>alert(1)</script>short description. See https://spam.example.net/buy now.\nSecond line.",
+      "date": "2021-03-04",
+      "code": "ABC-123",
+      "duration": 1800,
+      "studio": { "id": "5a0c4b1e-0000-4000-8000-000000000001", "name": "Example Studio" },
+      "tags": [ { "id": "11111111-0000-4000-8000-000000000001", "name": "Tag One" } ],
+      "performers": [ { "performer": { "id": "22222222-0000-4000-8000-000000000001", "name": "Performer One" } } ],
+      "fingerprints": [ { "hash": "8e245d9679d31e12", "algorithm": "OSHASH" } ],
+      "images": [ { "url": "https://cdn.stashdb.org/images/ab/cd/cover.jpg", "width": 1280, "height": 720 } ]
+    }
+  }
+}

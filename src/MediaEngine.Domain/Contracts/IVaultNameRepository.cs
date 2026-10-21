@@ -33,6 +33,15 @@ public interface IVaultNameRepository
     /// <summary>Removes every performer, studio and tag link of a scene (a name left with no scene goes with it).</summary>
     Task UnlinkAllAsync(Guid assetId, CancellationToken ct = default);
 
+    /// <summary>Removes only the performer links of one file (Identify replaces the kinds a person ticks).</summary>
+    Task UnlinkPerformersAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>Removes only the studio links of one file.</summary>
+    Task UnlinkStudiosAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>Removes only the tag links of one file.</summary>
+    Task UnlinkTagsAsync(Guid assetId, CancellationToken ct = default);
+
     Task<IReadOnlyList<VaultPerformer>> GetPerformersAsync(string? libraryId, CancellationToken ct = default);
 
     Task<IReadOnlyList<VaultStudio>> GetStudiosAsync(string? libraryId, CancellationToken ct = default);
