@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -69,6 +70,7 @@ internal sealed class ApplicationWebhookDispatcher(
                 envelope.Version, envelope.OccurredAt, envelope.ServerId,
                 new(envelope.Subject.Type, envelope.Subject.Id, envelope.Subject.LibraryId, envelope.Subject.ProfileId), envelope.Payload.GetRawText());
             WebhookSendResult result;
+            var started = Stopwatch.GetTimestamp();
             if (endpoint is null || !endpoint.IsEnabled || endpoint.Version != delivery.WebhookVersion)
             {
                 result = new(false, "Skipped: webhook disabled or changed", false);
@@ -91,6 +93,7 @@ internal sealed class ApplicationWebhookDispatcher(
                 }
                 catch (CryptographicException) { result = new(false, "Signing secret unavailable; rotate it to resume delivery", false); }
             }
+            var elapsed = Stopwatch.GetElapsedTime(started);
             delivery.AttemptCount++;
             delivery.UpdatedAt = clock.GetUtcNow();
             delivery.Status = result.Delivered ? "delivered" : result.Status.StartsWith("Skipped:", StringComparison.Ordinal) ? "skipped"
@@ -102,7 +105,8 @@ internal sealed class ApplicationWebhookDispatcher(
                 "failed" => $"Failed: {result.Status}",
                 _ => result.Status,
             };
-            await repository.FinishAttemptAsync(delivery, description, result.Delivered, delivery.UpdatedAt, ct);
+            var attempt = WebhookAttempts.Describe(delivery, item.EventType, result, delivery.UpdatedAt, elapsed, isTest: false);
+            await repository.FinishAttemptAsync(delivery, description, result.Delivered, delivery.UpdatedAt, attempt, ct);
         }
         await repository.PruneAsync(now.AddDays(-7), ct);
     }

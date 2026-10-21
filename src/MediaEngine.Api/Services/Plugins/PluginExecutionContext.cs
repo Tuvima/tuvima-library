@@ -1,6 +1,8 @@
+using System.Net;
 using System.Text.Json;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
+using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.Plugins;
 
@@ -94,7 +96,12 @@ internal sealed class PluginExecutionContextFactory(
     PluginToolRuntime tools,
     PluginAiClient ai,
     IHttpClientFactory httpClients,
-    IConfigSecretsStore secrets) : IPluginExecutionContextFactory
+    IConfigSecretsStore secrets,
+    IPluginRecordRepository records,
+    PluginHostStatusRegistry hostStatus,
+    PluginHttpRateLimiter httpLimiter,
+    PluginHostLimits limits,
+    TimeProvider clock) : IPluginExecutionContextFactory
 {
     public IPluginExecutionContext Create(string pluginId, string purpose) => CreateCore(pluginId, purpose, null);
 
@@ -116,15 +123,17 @@ internal sealed class PluginExecutionContextFactory(
 
         var root = Path.Combine(Path.GetTempPath(), "tuvima-plugins", SafeSegment(registration.Manifest.Id, nameof(pluginId)), SafeSegment(purpose, nameof(purpose)), Guid.NewGuid().ToString("N"));
         var storage = new BoundPluginStorage(registration.Manifest.Id, root, permissions);
+        var status = hostStatus.Get(registration.Manifest.Id);
         return new PluginExecutionContext(
             registration.Manifest.Id,
             registration.Settings,
             new BoundPluginMediaAccess(registration.Manifest.Id, asset, permissions),
-            new BoundPluginHttpClient(registration.Manifest.Id, permissions, httpClients),
+            new BoundPluginHttpClient(registration.Manifest.Id, permissions, httpClients, httpLimiter, limits, status),
             storage,
             new BoundPluginToolRuntime(registration.Manifest.Id, registration.Settings, storage, permissions, tools),
             new BoundPluginAiClient(registration.Manifest.Id, permissions, ai),
-            new BoundPluginSecrets(registration.Manifest.Id, permissions, secrets));
+            new BoundPluginSecrets(registration.Manifest.Id, permissions, secrets),
+            new BoundPluginRecords(registration.Manifest.Id, permissions, records, limits, status, clock));
     }
 
     private static string SafeSegment(string value, string parameter)
@@ -147,7 +156,8 @@ internal sealed class PluginExecutionContext(
     IPluginStorage storage,
     IPluginToolRuntime tools,
     IPluginAiClient ai,
-    IPluginSecrets secrets) : IPluginExecutionContext
+    IPluginSecrets secrets,
+    IPluginRecordStore records) : IPluginExecutionContext
 {
     public string PluginId { get; } = pluginId;
     public IReadOnlyDictionary<string, JsonElement> Settings { get; } = settings;
@@ -157,6 +167,7 @@ internal sealed class PluginExecutionContext(
     public IPluginToolRuntime Tools { get; } = tools;
     public IPluginAiClient Ai { get; } = ai;
     public IPluginSecrets Secrets { get; } = secrets;
+    public IPluginRecordStore Records { get; } = records;
 
     public ValueTask DisposeAsync()
     {
@@ -184,17 +195,130 @@ internal sealed class BoundPluginMediaAccess(string pluginId, PluginMediaAssetCo
     }
 }
 
-internal sealed class BoundPluginHttpClient(string pluginId, IPluginPermissionGate permissions, IHttpClientFactory clients) : IPluginHttpClient
+/// <summary>
+/// A plugin's web connection. Beyond the <c>network.http</c> permission it holds the plugin to the places it declared in
+/// its manifest <c>network</c> list: a request (or a redirect) to any other host is refused, and each place has a
+/// requests-a-minute limit. Redirects are followed here, one hop at a time, so every hop is checked the same way; only
+/// GET and HEAD are followed, never from https to http, and at most <see cref="PluginHostLimits.HttpMaxRedirects"/> times.
+/// </summary>
+internal sealed class BoundPluginHttpClient(
+    string pluginId,
+    IPluginPermissionGate permissions,
+    IHttpClientFactory clients,
+    PluginHttpRateLimiter limiter,
+    PluginHostLimits limits,
+    PluginHostStatus status) : IPluginHttpClient
 {
-    public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, HttpCompletionOption completionOption = HttpCompletionOption.ResponseContentRead, CancellationToken cancellationToken = default)
+    public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, HttpCompletionOption completionOption = HttpCompletionOption.ResponseContentRead, CancellationToken cancellationToken = default)
     {
-        permissions.Demand(pluginId, PluginPermissionIds.NetworkHttp);
+        var registration = permissions.Demand(pluginId, PluginPermissionIds.NetworkHttp);
         if (request.RequestUri is not { IsAbsoluteUri: true } uri || uri.Scheme is not ("http" or "https"))
         {
             throw new UnauthorizedAccessException("Plugin HTTP requests require an absolute HTTP or HTTPS URL.");
         }
 
-        return clients.CreateClient("plugin_http").SendAsync(request, completionOption, cancellationToken);
+        var client = clients.CreateClient("plugin_http");
+        var current = request;
+        var ownsCurrent = false;
+        for (var hops = 0; ; hops++)
+        {
+            var target = current.RequestUri!;
+            var destination = PluginNetworkRules.FindDestination(registration.Manifest.Network, target.Host);
+            if (destination is null)
+            {
+                if (ownsCurrent)
+                {
+                    current.Dispose();
+                }
+
+                status.SetLastProblem(PluginHostMessages.HostNotDeclared(target.Host));
+                throw new UnauthorizedAccessException(
+                    $"Plugin '{registration.Manifest.Id}' did not say it would contact {target.Host}, so the request was refused.");
+            }
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await limiter.RunAsync(
+                    pluginId,
+                    destination,
+                    token => client.SendAsync(current, completionOption, token),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (PluginLimitExceededException ex)
+            {
+                status.SetProblem(
+                    PluginHostMessages.HttpRateProblemKey,
+                    PluginHostSeverity.NeedsAttention,
+                    ex.Message,
+                    limits.HttpProblemWindow);
+                throw;
+            }
+            finally
+            {
+                // The request was sent (or refused); a redirect copy made by an earlier hop is finished with either way.
+                // The redirect copy below is made from the original request's headers, which the original still holds.
+                if (ownsCurrent)
+                {
+                    current.Dispose();
+                }
+            }
+
+            if (!IsFollowableRedirect(request.Method, response, out var location))
+            {
+                return response;
+            }
+
+            var next = location.IsAbsoluteUri ? location : new Uri(target, location);
+            response.Dispose();
+            if (hops >= limits.HttpMaxRedirects)
+            {
+                status.SetLastProblem("A request was redirected too many times");
+                throw new UnauthorizedAccessException($"The request was redirected more than {limits.HttpMaxRedirects} times, so it was stopped.");
+            }
+
+            if (next.Scheme is not ("http" or "https") || (target.Scheme == "https" && next.Scheme != "https"))
+            {
+                status.SetLastProblem("A request was redirected away from a secure connection");
+                throw new UnauthorizedAccessException("The request was redirected to a connection that is not secure, so it was stopped.");
+            }
+
+            current = CloneForRedirect(request, next, sameHost: string.Equals(next.Host, request.RequestUri!.Host, StringComparison.OrdinalIgnoreCase));
+            ownsCurrent = true;
+        }
+    }
+
+    private static bool IsFollowableRedirect(HttpMethod method, HttpResponseMessage response, out Uri location)
+    {
+        location = null!;
+        if ((method != HttpMethod.Get && method != HttpMethod.Head)
+            || response.StatusCode is not (HttpStatusCode.MovedPermanently or HttpStatusCode.Found or HttpStatusCode.SeeOther
+                or HttpStatusCode.TemporaryRedirect or HttpStatusCode.PermanentRedirect)
+            || response.Headers.Location is not { } target)
+        {
+            return false;
+        }
+
+        location = target;
+        return true;
+    }
+
+    private static HttpRequestMessage CloneForRedirect(HttpRequestMessage original, Uri next, bool sameHost)
+    {
+        var clone = new HttpRequestMessage(original.Method, next) { Version = original.Version };
+        foreach (var header in original.Headers)
+        {
+            // Never carry a login or cookie to a different host than the one it was meant for.
+            if (!sameHost && (header.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase)
+                              || header.Key.Equals("Cookie", StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            clone.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        }
+
+        return clone;
     }
 }
 
@@ -253,8 +377,15 @@ internal sealed class BoundPluginStorage(string pluginId, string root, IPluginPe
                 Directory.Delete(root, recursive: true);
             }
         }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
+        catch (IOException)
+        {
+            // Best-effort clean-up of a temporary folder: a file still held open is left for the operating system's temp
+            // clean-up, and nothing the plugin needs depends on the folder once its context is disposed.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // As above: a temp file the process may not delete is harmless and is not worth failing the plugin's work.
+        }
     }
 }
 

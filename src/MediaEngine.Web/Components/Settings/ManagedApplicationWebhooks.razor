@@ -5,6 +5,7 @@
 @implements IAsyncDisposable
 @inject DashboardIdentityClient Identity
 @inject ApprovalFlow Approvals
+@inject ILogger<ManagedApplicationWebhooks> Logger
 
 <section class="access-form-section application-webhooks">
     <div class="application-webhooks__heading">
@@ -18,6 +19,10 @@
     @if (!string.IsNullOrWhiteSpace(_error))
     {
         <AppAlert Severity="AppSeverity.Error">@_error</AppAlert>
+    }
+    @if (!string.IsNullOrWhiteSpace(_notice))
+    {
+        <AppAlert Severity="AppSeverity.Success">@_notice</AppAlert>
     }
     @if (_loading)
     {
@@ -43,7 +48,41 @@
                 <span>@webhook.LastStatus</span>
                 <small>Last attempt @(webhook.LastAttemptAt?.ToLocalTime().ToString("g") ?? "never") · Last success @(webhook.LastSuccessAt?.ToLocalTime().ToString("g") ?? "never")</small>
             </div>
+            <div class="application-webhook__deliveries">
+                <strong>Recent deliveries</strong>
+                @if (_attemptsUnavailable.Contains(webhook.Id))
+                {
+                    <small>Delivery history could not be loaded.</small>
+                }
+                else if (!_attempts.TryGetValue(webhook.Id, out var attempts) || attempts.Count == 0)
+                {
+                    <small>No deliveries yet</small>
+                }
+                else
+                {
+                    <ul class="application-webhook__attempts">
+                        @foreach (var attempt in attempts)
+                        {
+                            <li @key="attempt.AttemptId">
+                                <span class="application-webhook__attempt-time">@attempt.AttemptedAt.ToLocalTime().ToString("g")</span>
+                                <AppChip Text="@AttemptOutcome(attempt)" Tone="@AttemptTone(attempt)" />
+                                <span>@attempt.Result</span>
+                                <small>Attempt @attempt.AttemptNumber</small>
+                                @if (attempt.IsTest)
+                                {
+                                    <AppChip Text="Test" Tone="AppUiTone.Neutral" />
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
             <div class="application-webhook__actions">
+                @if (!webhook.IsEnabled)
+                {
+                    <small class="application-webhook__hint">@TurnOnToTest</small>
+                }
+                <AppButton Label="Send test" Size="AppControlSize.Compact" Loading="@(_testingId == webhook.Id)" Disabled="@(_loading || _busy || _editing || !webhook.IsEnabled)" OnClick="@(() => SendTest(webhook))" />
                 <AppButton Label="Edit" Size="AppControlSize.Compact" Disabled="@(_loading || _busy || _editing)" OnClick="@(() => EditWebhook(webhook))" />
                 <AppButton Label="Rotate signing secret" Size="AppControlSize.Compact" Disabled="@(_loading || _busy || _editing)" OnClick="@(() => RotateSecret(webhook))" />
                 <AppButton Label="Delete" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@(_loading || _busy || _editing)" OnClick="@(() => DeleteWebhook(webhook))" />
@@ -85,9 +124,15 @@
     [Parameter, EditorRequired] public ApplicationResponse Application { get; set; } = default!;
 
     private const int MaxEventTypes = 32;
+    private const int AttemptsShown = 6;
+    private const string TurnOnToTest = "Turn this webhook on to send a test.";
     private readonly CancellationTokenSource _lifetime = new();
     private List<ApplicationWebhookResponse> _webhooks = [];
     private List<string> _eventTypes = [];
+    private readonly Dictionary<Guid, List<ApplicationWebhookAttemptResponse>> _attempts = [];
+    private readonly HashSet<Guid> _attemptsUnavailable = [];
+    private Guid? _testingId;
+    private string? _notice;
     private HashSet<string> _selectedEventTypes = new(StringComparer.Ordinal);
     private Guid _loadedApplicationId;
     private long _contextGeneration;
@@ -117,6 +162,10 @@
         CancelEdit();
         _webhooks = [];
         _eventTypes = [];
+        _attempts.Clear();
+        _attemptsUnavailable.Clear();
+        _testingId = null;
+        _notice = null;
         _loading = true;
         _error = string.Empty;
         try
@@ -128,6 +177,7 @@
                 return;
             _webhooks = webhooks.Result;
             _eventTypes = eventTypes.Result;
+            await Task.WhenAll(_webhooks.Select(webhook => LoadAttemptsAsync(applicationId, webhook.Id, generation)));
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
@@ -141,6 +191,85 @@
         {
             if (IsCurrent(generation, applicationId))
                 _loading = false;
+        }
+    }
+
+    /// <summary>
+    /// Reads one webhook's last few attempts. The history is secondary to the webhook itself, so a failed read marks only
+    /// that card ("could not be loaded") instead of failing the whole panel.
+    /// </summary>
+    private async Task LoadAttemptsAsync(Guid applicationId, Guid webhookId, long generation)
+    {
+        List<ApplicationWebhookAttemptResponse>? loaded;
+        try
+        {
+            loaded = await Identity.GetApplicationWebhookAttemptsAsync(applicationId, webhookId, AttemptsShown, _lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The delivery history for webhook {WebhookId} could not be loaded", webhookId);
+            loaded = null;
+        }
+
+        if (!IsCurrent(generation, applicationId))
+            return;
+        if (loaded is null)
+        {
+            _attemptsUnavailable.Add(webhookId);
+            return;
+        }
+
+        _attemptsUnavailable.Remove(webhookId);
+        _attempts[webhookId] = loaded;
+    }
+
+    private async Task SendTest(ApplicationWebhookResponse webhook)
+    {
+        if (!webhook.IsEnabled || !BeginOperation(out var generation, out var applicationId))
+            return;
+        _testingId = webhook.Id;
+        try
+        {
+            var result = await Identity.SendApplicationWebhookTestResultAsync(applicationId, webhook.Id, _lifetime.Token);
+            if (!IsCurrent(generation, applicationId))
+                return;
+            if (!result.Succeeded || result.Value is null)
+            {
+                _error = result.Message ?? FailureMessage(result.Failure);
+                return;
+            }
+
+            if (result.Value.Delivered)
+                _notice = $"Test sent. The receiver answered: {result.Value.Result}.";
+            else
+                _error = $"The test was not delivered: {result.Value.Result}.";
+            await LoadAttemptsAsync(applicationId, webhook.Id, generation);
+            // The card's delivery status and last attempt change with every send, so read the webhook again.
+            var refreshed = (await Identity.GetApplicationWebhooksAsync(applicationId, _lifetime.Token))
+                .FirstOrDefault(value => value.Id == webhook.Id);
+            if (refreshed is not null && IsCurrent(generation, applicationId))
+                ReplaceWebhook(refreshed);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The test delivery for webhook {WebhookId} could not be sent", webhook.Id);
+            if (IsCurrent(generation, applicationId))
+                _error = "The test could not be sent. Try again.";
+        }
+        finally
+        {
+            if (IsCurrent(generation, applicationId))
+            {
+                _busy = false;
+                _testingId = null;
+            }
         }
     }
 
@@ -273,6 +402,8 @@
                 return;
             }
             _webhooks.RemoveAll(value => value.Id == webhook.Id);
+            _attempts.Remove(webhook.Id);
+            _attemptsUnavailable.Remove(webhook.Id);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
@@ -297,6 +428,7 @@
             return false;
         ClearSecret();
         _error = string.Empty;
+        _notice = null;
         _busy = true;
         return true;
     }
@@ -357,8 +489,20 @@
         ClearSecret();
         _webhooks = [];
         _eventTypes = [];
+        _attempts.Clear();
+        _attemptsUnavailable.Clear();
         _lifetime.Cancel();
         _lifetime.Dispose();
         return ValueTask.CompletedTask;
     }
+
+    // A skipped delivery was never sent (webhook switched off or access removed), so it is not a failure of the receiver.
+    private static bool WasSkipped(ApplicationWebhookAttemptResponse attempt) =>
+        !attempt.Delivered && attempt.Result.StartsWith("Skipped:", StringComparison.Ordinal);
+
+    private static string AttemptOutcome(ApplicationWebhookAttemptResponse attempt) =>
+        attempt.Delivered ? "Delivered" : WasSkipped(attempt) ? "Not sent" : "Failed";
+
+    private static AppUiTone AttemptTone(ApplicationWebhookAttemptResponse attempt) =>
+        attempt.Delivered ? AppUiTone.Success : WasSkipped(attempt) ? AppUiTone.Neutral : AppUiTone.Error;
 }

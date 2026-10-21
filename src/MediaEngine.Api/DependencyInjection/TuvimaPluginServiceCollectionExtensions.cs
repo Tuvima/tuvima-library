@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services.Plugins;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Plugin.CommercialSkip;
 using MediaEngine.Plugin.FandomLore;
 using MediaEngine.Plugin.MediaSegments;
@@ -18,7 +19,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginSettingsService>();
         services.AddSingleton<IPluginApprovalCheck, PluginApprovalCheck>();
         services.AddSingleton<PluginCatalog>();
-        services.AddSingleton<ApprovedPluginCatalogService>();
+        services.AddSingleton<PluginDirectoryService>();
         services.AddSingleton<ILibraryUniverseQidGate, LibraryUniverseQidGate>();
         services.AddSingleton<PluginUniverseLoreService>();
         services.AddSingleton<PluginScheduledSegmentService>();
@@ -27,6 +28,16 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<IPluginPermissionGate, PluginPermissionGate>();
         services.AddSingleton<IPluginExecutionContextFactory, PluginExecutionContextFactory>();
         services.AddSingleton<PluginSegmentDetectionService>();
+
+        // Host services: own records, recurring jobs, Library events and always-on work (developer-tools WP15).
+        services.AddSingleton(PluginHostLimits.Default);
+        services.AddSingleton<PluginHostStatusRegistry>();
+        services.AddSingleton<PluginHttpRateLimiter>();
+        services.AddSingleton<PluginHostServicesReader>();
+        services.AddSingleton<PluginJobScheduler>();
+        services.AddSingleton<IScheduledTaskDescriptorSource>(sp => sp.GetRequiredService<PluginJobScheduler>());
+        services.AddSingleton<PluginEventDispatcher>();
+        services.AddSingleton<PluginBackgroundHost>();
         return services;
     }
 }

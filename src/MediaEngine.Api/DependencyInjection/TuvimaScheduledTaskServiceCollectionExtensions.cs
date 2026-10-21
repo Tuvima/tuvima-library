@@ -20,6 +20,11 @@ public static class TuvimaScheduledTaskServiceCollectionExtensions
                 sp.GetRequiredService<IConfigurationLoader>(),
                 sp.GetRequiredService<AiSettings>(),
                 sp.GetRequiredService<ApplicationWebhookRepository>());
+            foreach (var source in sp.GetServices<IScheduledTaskDescriptorSource>())
+            {
+                registry.AddSource(source);
+            }
+
             return registry;
         });
         return services;

@@ -88,6 +88,21 @@ public static class StateCardHealth
             return new(HealthWord.Broken, StringHelpers.FirstNonBlank(plugin.CompatibilityProblem)?.Trim() ?? "This plugin does not work with this version of the Library.");
         }
 
+        // The Library's host services (its own records, recurring jobs, events, always-on work and web connection) stop or
+        // refuse a plugin that goes over a limit. "broken" is work that stopped for good; "needs_attention" is a limit reached.
+        if (plugin.HostServices is { Problem: { } hostProblem } hostServices && !string.IsNullOrWhiteSpace(hostProblem))
+        {
+            if (string.Equals(hostServices.State, "broken", StringComparison.OrdinalIgnoreCase))
+            {
+                return new(HealthWord.Broken, hostProblem.Trim());
+            }
+
+            if (string.Equals(hostServices.State, "needs_attention", StringComparison.OrdinalIgnoreCase))
+            {
+                return new(HealthWord.NeedsAttention, hostProblem.Trim());
+            }
+        }
+
         if (string.Equals(health?.Status, "degraded", StringComparison.OrdinalIgnoreCase))
         {
             var message = health!.Checks.Select(check => check.Message).FirstOrDefault(text => !string.IsNullOrWhiteSpace(text));
@@ -99,7 +114,10 @@ public static class StateCardHealth
             return new(HealthWord.NeedsAttention, StringHelpers.FirstNonBlank(latestRun.Message)?.Trim() ?? "The last run failed.");
         }
 
-        return new(HealthWord.Working);
+        // Still working: a refused address, a single failed event or a crash below the limit does not change the word,
+        // but it is still the plugin's last problem and the card shows it.
+        var lastProblem = StringHelpers.FirstNonBlank(plugin.HostServices?.LastProblem)?.Trim();
+        return new(HealthWord.Working, lastProblem);
     }
 
     /// <summary>True when the plugin is switched on and cannot do its job; needs no health check or run record.</summary>

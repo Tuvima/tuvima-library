@@ -77,7 +77,8 @@ public sealed class ApprovalEnforcementTests : IDisposable
         Assert.Equal(PluginId, preview.ItemId);
         Assert.Contains("Reads your media files", preview.CanDo);
         Assert.True(preview.SendsDataOut);
-        Assert.Equal("the internet", preview.SendsDataTo);
+        Assert.Equal("api.example.com", preview.SendsDataTo);
+        Assert.Contains("Contacts api.example.com: Looks up titles by name", preview.CanDo);
         Assert.False(catalog.Get(PluginId)!.Enabled);
         Assert.Empty(await _kit.Service.ListAsync("plugin", PluginId, default));
     }
@@ -130,8 +131,34 @@ public sealed class ApprovalEnforcementTests : IDisposable
         var (status, body) = await Execute(await Enable(after, null));
 
         Assert.Equal(409, status);
-        Assert.Contains("Connects to the internet", body, StringComparison.Ordinal);
+        Assert.Contains("Contacts api.example.com", body, StringComparison.Ordinal);
         Assert.False(after.Get(PluginId)!.Enabled);
+    }
+
+    [Fact]
+    public async Task APluginThatIsOn_WhoseDestinationChanges_IsNotRunningUntilItIsApprovedAgain()
+    {
+        PluginCatalog WithDestination(string host) => Catalog(new PluginManifest
+        {
+            Id = PluginId,
+            Name = "Approval test plugin",
+            Permissions = ["network.http"],
+            Network = [new PluginNetworkDestination { Host = host, Sends = "Looks up titles by name" }],
+        });
+
+        var before = WithDestination("api.example.com");
+        await Enable(before, _kit.Service.PreviewPlugin(before.Get(PluginId)!).StatementHash);
+        Assert.True(before.Get(PluginId)!.Enabled);
+
+        // The same plugin, still switched on in its saved settings, now says it contacts a different host.
+        var moved = WithDestination("api.elsewhere.example");
+
+        var registration = moved.Get(PluginId)!;
+        Assert.False(registration.Enabled);
+        Assert.True(registration.NeedsApproval);
+        var (status, body) = await Execute(await Enable(moved, null));
+        Assert.Equal(409, status);
+        Assert.Contains("Contacts api.elsewhere.example", body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -202,7 +229,7 @@ public sealed class ApprovalEnforcementTests : IDisposable
 
         var (status, body) = await Execute(await Enable(widened, null));
         Assert.Equal(409, status);
-        Assert.Contains("Connects to the internet", body, StringComparison.Ordinal);
+        Assert.Contains("Contacts api.example.com", body, StringComparison.Ordinal);
 
         var newHash = _kit.Service.PreviewPlugin(widened.Get(PluginId)!).StatementHash;
         Assert.Equal(200, (await Execute(await Enable(widened, newHash))).Status);
@@ -275,7 +302,7 @@ public sealed class ApprovalEnforcementTests : IDisposable
         Assert.True(catalog.Get(FilePluginId)!.Enabled);
 
         var manifest = JsonSerializer.Deserialize<PluginManifest>(catalog.GetManifestJson(FilePluginId))!;
-        catalog.SaveManifestJson(FilePluginId, JsonSerializer.Serialize(manifest with { Permissions = ["media.read", "network.http"] }));
+        catalog.SaveManifestJson(FilePluginId, JsonSerializer.Serialize(manifest with { Permissions = ["media.read", "network.http"], Network = [TestDestination] }));
 
         var registration = catalog.Get(FilePluginId)!;
         Assert.False(registration.Enabled);
@@ -628,7 +655,13 @@ public sealed class ApprovalEnforcementTests : IDisposable
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private PluginCatalog Catalog(IReadOnlyList<string> permissions) =>
-        Catalog(new PluginManifest { Id = PluginId, Name = "Approval test plugin", Permissions = permissions });
+        Catalog(new PluginManifest { Id = PluginId, Name = "Approval test plugin", Permissions = permissions, Network = NetworkFor(permissions) });
+
+    // A plugin that holds the internet permission must say where it connects.
+    private static readonly PluginNetworkDestination TestDestination = new() { Host = "api.example.com", Sends = "Looks up titles by name" };
+
+    private static IReadOnlyList<PluginNetworkDestination> NetworkFor(IReadOnlyList<string> permissions) =>
+        permissions.Contains("network.http") ? [TestDestination] : [];
 
     private PluginCatalog Catalog(PluginManifest manifest)
     {
@@ -666,7 +699,7 @@ public sealed class ApprovalEnforcementTests : IDisposable
           "description": "Loaded from plugin.json.",
           "entry_assembly": "MediaEngine.Api.Tests.dll",
           "entry_type": "MediaEngine.Api.Tests.PluginCatalogTests+DynamicTestPlugin",
-          "permissions": [{{string.Join(", ", permissions.Select(permission => $"\"{permission}\""))}}]
+          "permissions": [{{string.Join(", ", permissions.Select(permission => $"\"{permission}\""))}}]{{(permissions.Contains("network.http") ? ", \"network\": [{ \"host\": \"api.example.com\", \"sends\": \"Looks up titles by name\" }]" : "")}}
         }
         """;
 
