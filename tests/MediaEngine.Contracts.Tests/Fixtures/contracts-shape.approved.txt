@@ -1376,8 +1376,13 @@ MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupDestinationDto
   LastCopyAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   LastCopyVerified: System.Boolean | nullability=not-null | accessors=get,set
   FreeSpaceBytes: System.Int64? | nullability=nullable | accessors=get,set
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Location: System.String | nullability=not-null | accessors=get,set
+  Removable: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupDestinationIds
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupDestinationKinds
 
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupDestinationOutcomeDto
   Id: System.String | nullability=not-null | accessors=get,set
@@ -1424,6 +1429,18 @@ MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.RestoreFromDestinati
   DestinationId: System.String | nullability=not-null | accessors=get,set
   Name: System.String | nullability=not-null | accessors=get,set
   Passphrase: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.SaveBackupDestinationRequest
+  Id: System.String | nullability=nullable | accessors=get,set
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Location: System.String | nullability=not-null | accessors=get,set
+  Bucket: System.String | nullability=nullable | accessors=get,set
+  Region: System.String | nullability=nullable | accessors=get,set
+  Prefix: System.String | nullability=nullable | accessors=get,set
+  Username: System.String | nullability=nullable | accessors=get,set
+  Secret: System.String | nullability=nullable | accessors=get,set
+  ConfirmedHost: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.SetBackupPassphraseRequest
   Passphrase: System.String | nullability=not-null | accessors=get,set

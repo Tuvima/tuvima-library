@@ -14,6 +14,7 @@ namespace MediaEngine.Api.Services.Backups;
 internal sealed class BackupOrchestrator(
     DatabaseBackupService backups,
     IEnumerable<IBackupDestination> destinations,
+    ConfiguredBackupDestinations configured,
     BackupSettingsAccessor settingsAccessor,
     IBackupDestinationRepository repository,
     INotificationPublisher notifications,
@@ -24,10 +25,11 @@ internal sealed class BackupOrchestrator(
     private readonly IReadOnlyList<IBackupDestination> _destinations = destinations.ToList();
     private readonly SemaphoreSlim _runGate = new(1, 1);
 
-    public IReadOnlyList<IBackupDestination> Destinations => _destinations;
+    /// <summary>The Library's own folder first, then every destination an administrator added. Read again each time so a change takes effect at once.</summary>
+    public IReadOnlyList<IBackupDestination> Destinations => [.. _destinations, .. configured.Current()];
 
     public IBackupDestination? Find(string id) =>
-        _destinations.FirstOrDefault(destination => string.Equals(destination.Id, id, StringComparison.Ordinal));
+        Destinations.FirstOrDefault(destination => string.Equals(destination.Id, id, StringComparison.Ordinal));
 
     /// <summary>Makes a backup now and copies it everywhere it should go. Only one runs at a time.</summary>
     public async Task<BackupRunResponse> RunAsync(CancellationToken ct)
@@ -46,7 +48,7 @@ internal sealed class BackupOrchestrator(
             string? encryptedPath = null;
             try
             {
-                foreach (var destination in _destinations)
+                foreach (var destination in Destinations)
                 {
                     ct.ThrowIfCancellationRequested();
                     var local = !destination.LeavesMachine;
