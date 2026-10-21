@@ -6680,9 +6680,59 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginManifestJsonRe
   plugin_id: System.String | nullability=not-null | accessors=get,init
   json: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginMenuEntryDto
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  PageKey: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  PageType: System.String | nullability=not-null | accessors=get,set
+  PhoneSupported: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginMenuResponse
+  Entries: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginMenuEntryDto> | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginNetworkDestinationDto
   Host: System.String | nullability=not-null | accessors=get,set
   Sends: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPageColumnDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPageFormFieldDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Required: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPageItemDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  Subtitle: System.String | nullability=nullable | accessors=get,set
+  ImageUrl: System.String | nullability=nullable | accessors=get,set
+  Group: System.String | nullability=not-null | accessors=get,set
+  StartsAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  EndsAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  Fields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPageResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  PluginName: System.String | nullability=not-null | accessors=get,set
+  PageKey: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  PageType: System.String | nullability=not-null | accessors=get,set
+  PhoneSupported: System.Boolean | nullability=not-null | accessors=get,set
+  Columns: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginPageColumnDto> | nullability=not-null | accessors=get,set
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginPageItemDto> | nullability=not-null | accessors=get,set
+  FormFields: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginPageFormFieldDto> | nullability=not-null | accessors=get,set
+  SubmitLabel: System.String | nullability=not-null | accessors=get,set
+  Truncated: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPageSubmitRequest
+  Values: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPageSubmitResponse
+  Saved: System.Boolean | nullability=not-null | accessors=get,set
+  RecordKey: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSavedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init

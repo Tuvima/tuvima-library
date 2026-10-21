@@ -277,6 +277,7 @@ Common permissions:
 - `library-events`: is told when things happen in the Library (`IPluginEventSubscriber`); covers every event except `playback.*`.
 - `watch-activity`: is told what people watch, read and listen to; needed for the `playback.*` events.
 - `background-work`: runs continuously in the background while switched on (`IPluginBackgroundService`).
+- `plugin-pages`: adds pages and menu entries to the Library, drawn in the Library's own page types from the plugin's records (see Pages and menu entries).
 
 The Engine checks the live enabled state and the exact manifest permission again immediately before each host operation. Disabling a plugin therefore revokes an already-created context. Tool resolution accepts a declared tool id, and execution accepts only a resolution returned to that same context. Working and storage paths must remain inside the plugin directory.
 
@@ -310,6 +311,40 @@ If a plugin needs a key or login, declare each one in `secrets` (`name`, `label`
 ```
 
 If a plugin uses local AI, declare `ai_permissions` with role, token limit, schedule, and resource class. The AI client checks these declarations before running inference.
+
+## Pages and menu entries
+
+A plugin adds pages by listing them under `pages` in `plugin.json`. It needs the `plugin-pages` and `plugin-records` permissions. The plugin never ships screens: it picks one of the Library's own page types and supplies data, and the Dashboard draws the page like any built-in page. The data is the plugin's own records (`context.Records`), so a plugin updates a page by writing records.
+
+```json
+"pages": [
+  {
+    "key": "channels",
+    "title": "Channels",
+    "type": "list",
+    "audience": "everyone",
+    "menu": { "label": "Channels" },
+    "collection": "channels",
+    "fields": { "title": "name", "subtitle": "network" },
+    "columns": [ { "key": "number", "label": "Number" } ]
+  }
+]
+```
+
+| Type | Shows | Notes |
+|---|---|---|
+| `list` | one row per record, with the declared `columns` | works on every device |
+| `grid` | one tile per record (title, subtitle, picture) | works on every device |
+| `guide` | a timeline: one row per `group` (a channel), programmes placed by `starts_at` and `ends_at` | not offered on phones; records without a valid time range are skipped |
+| `form` | the declared `form.fields` (`text`, `number`, `yes_no`) and a submit button | each submission is saved as a record named `submission-...` in the collection `form-<key>` (always; a form cannot write elsewhere), for the plugin to read. A form keeps at most 1,000 submissions |
+| `detail` | the labels and values of one record (`record`, default `main`) | works on every device |
+
+- `fields` maps the page's slots (`title`, `subtitle`, `image`, `group`, `starts_at`, `ends_at`) to names in the record JSON; the defaults are `title`, `subtitle`, `image_url`, `group`, `starts_at`, `ends_at`.
+- `menu.label` adds a menu entry (up to 40 characters). A page without `menu` is reachable only by its address, `/plugin/<plugin id>/<page key>`.
+- `audience` is `administrators` (the default), `adults` (every profile except child profiles) or `everyone`. A page a person may not see answers exactly like a page that does not exist.
+- Pictures show only from `https` addresses on a host the plugin listed in `network`.
+- Who sees each page is part of the approval: the approval lists every page with its audience, so widening an audience asks the administrator again.
+- A page shows up to 500 records. A plugin that is switched off, not approved, or without the permissions shows nothing.
 
 ## Host services
 

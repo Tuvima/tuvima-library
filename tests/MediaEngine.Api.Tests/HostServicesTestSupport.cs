@@ -145,7 +145,8 @@ internal sealed class HostServicesTestPlugin : ITuvimaPlugin
         string id = DefaultId,
         IReadOnlyList<string>? permissions = null,
         string name = "Test plugin",
-        IReadOnlyList<PluginNetworkDestination>? network = null)
+        IReadOnlyList<PluginNetworkDestination>? network = null,
+        string? pagesJson = null)
     {
         Manifest = new PluginManifest
         {
@@ -154,6 +155,7 @@ internal sealed class HostServicesTestPlugin : ITuvimaPlugin
             Version = "1.0.0",
             Permissions = permissions ?? AllHostPermissions,
             Network = network ?? [],
+            Pages = pagesJson is null ? null : JsonDocument.Parse(pagesJson).RootElement.Clone(),
         };
     }
 

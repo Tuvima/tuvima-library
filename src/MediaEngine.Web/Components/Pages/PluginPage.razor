@@ -1,0 +1,301 @@
+@page "/plugin/{PluginId}/{PageKey}"
+@namespace MediaEngine.Web.Components.Pages
+@implements IDisposable
+@inject IEngineApiClient Engine
+@inject DeviceContextService Device
+@inject IAppToastService Toasts
+@inject IStringLocalizer<SharedStrings> L
+
+@* A page a plugin adds (WP16). The plugin supplies data; the Library draws it in its own page types (list, grid, guide
+   timeline, form, detail), so it looks like any built-in page. Phones do not get the guide timeline. *@
+<PageTitle>@(_page?.Title ?? L["PluginPage_NotFoundTitle"].Value) · Library</PageTitle>
+
+<div class="plugin-page">
+    @if (_loading)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading" />
+    }
+    else if (_blockedOnPhone)
+    {
+        <AppPageState Kind="AppPageStateKind.Unavailable"
+                      Icon="@AppMaterialIcons.Outlined.Schedule"
+                      Title="@L["PluginPage_WideScreenTitle"]"
+                      Message="@L["PluginPage_WideScreenMessage"]" />
+    }
+    else if (_page is null)
+    {
+        <AppPageState Kind="AppPageStateKind.Unavailable"
+                      Icon="@AppMaterialIcons.Outlined.Extension"
+                      Title="@L["PluginPage_NotFoundTitle"]"
+                      Message="@L["PluginPage_NotFoundMessage"]" />
+    }
+    else
+    {
+        <header class="plugin-page__header">
+            <h1 class="plugin-page__title">@_page.Title</h1>
+            <p class="plugin-page__source">@string.Format(L["PluginPage_FromPlugin"].Value, _page.PluginName)</p>
+        </header>
+
+        @switch (_page.PageType)
+        {
+            case "form":
+                <form class="plugin-page__form" @onsubmit="SubmitAsync" @onsubmit:preventDefault="true">
+                    @foreach (var field in _page.FormFields)
+                    {
+                        var key = field.Key;
+                        if (field.Kind == "yes_no")
+                        {
+                            <AppSwitchRow Label="@field.Label"
+                                          Value="@(_values.GetValueOrDefault(key) == "true")"
+                                          ValueChanged="@(v => SetValue(key, v ? "true" : "false"))" />
+                        }
+                        else
+                        {
+                            <AppTextField Label="@(field.Required ? field.Label + " *" : field.Label)"
+                                          Value="@_values.GetValueOrDefault(key)"
+                                          ValueChanged="@(v => SetValue(key, v ?? string.Empty))"
+                                          InputType="@(field.Kind == "number" ? AppInputType.Number : AppInputType.Text)" />
+                        }
+                    }
+                    <div class="plugin-page__actions">
+                        <AppButton Label="@_page.SubmitLabel"
+                                   ButtonType="AppButtonType.Submit"
+                                   ButtonStyle="AppButtonStyle.Filled"
+                                   Tone="AppUiTone.Primary"
+                                   Loading="_saving" />
+                    </div>
+                </form>
+                break;
+
+            case "detail":
+                @if (_page.Items.Count == 0)
+                {
+                    <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Extension" Title="@L["PluginPage_EmptyTitle"]" Message="@L["PluginPage_EmptyMessage"]" />
+                }
+                else
+                {
+                    <dl class="plugin-page__details">
+                        @foreach (var column in _page.Columns)
+                        {
+                            <div class="plugin-page__detail-row">
+                                <dt>@column.Label</dt>
+                                <dd>@(_page.Items[0].Fields.GetValueOrDefault(column.Key))</dd>
+                            </div>
+                        }
+                    </dl>
+                }
+                break;
+
+            case "grid":
+                @if (_page.Items.Count == 0)
+                {
+                    <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Extension" Title="@L["PluginPage_EmptyTitle"]" Message="@L["PluginPage_EmptyMessage"]" />
+                }
+                else
+                {
+                    <ul class="plugin-page__grid">
+                        @foreach (var item in _page.Items)
+                        {
+                            <li class="plugin-page__tile" @key="item.Id">
+                                @if (item.ImageUrl is not null)
+                                {
+                                    <img class="plugin-page__tile-image" src="@item.ImageUrl" alt="" loading="lazy" referrerpolicy="no-referrer" />
+                                }
+                                else
+                                {
+                                    <span class="plugin-page__tile-image plugin-page__tile-image--blank" aria-hidden="true"></span>
+                                }
+                                <span class="plugin-page__tile-title">@item.Title</span>
+                                @if (!string.IsNullOrEmpty(item.Subtitle))
+                                {
+                                    <span class="plugin-page__tile-subtitle">@item.Subtitle</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+                break;
+
+            case "guide":
+                @if (_page.Items.Count == 0)
+                {
+                    <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Extension" Title="@L["PluginPage_EmptyTitle"]" Message="@L["PluginPage_EmptyMessage"]" />
+                }
+                else
+                {
+                    <div class="plugin-page__guide" role="table" aria-label="@_page.Title">
+                        <div class="plugin-page__guide-scroll">
+                            <div class="plugin-page__guide-axis" role="row">
+                                <span class="plugin-page__guide-channel" role="columnheader"></span>
+                                <span class="plugin-page__guide-track">
+                                    @foreach (var tick in _ticks)
+                                    {
+                                        <AppTimelineSlot Class="plugin-page__guide-tick" LeftPercent="@Percent(tick)">@tick.ToLocalTime().ToString("t")</AppTimelineSlot>
+                                    }
+                                </span>
+                            </div>
+                            @foreach (var row in _page.Items.GroupBy(i => i.Group))
+                            {
+                                <div class="plugin-page__guide-row" role="row" @key="row.Key">
+                                    <span class="plugin-page__guide-channel" role="rowheader">@row.Key</span>
+                                    <span class="plugin-page__guide-track">
+                                        @foreach (var item in row)
+                                        {
+                                            var start = Percent(item.StartsAt!.Value);
+                                            var end = Percent(item.EndsAt!.Value);
+                                            if (end <= 0 || start >= 100) { continue; }
+                                            <AppTimelineSlot Class="plugin-page__guide-slot"
+                                                             Role="cell"
+                                                             Title="@item.Title"
+                                                             LeftPercent="@Math.Max(0, start)"
+                                                             WidthPercent="@(Math.Min(100, end) - Math.Max(0, start))">
+                                                <span class="plugin-page__guide-slot-title">@item.Title</span>
+                                                <span class="plugin-page__guide-slot-time">@item.StartsAt!.Value.ToLocalTime().ToString("t")</span>
+                                            </AppTimelineSlot>
+                                        }
+                                    </span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                break;
+
+            default:
+                @if (_page.Items.Count == 0)
+                {
+                    <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Extension" Title="@L["PluginPage_EmptyTitle"]" Message="@L["PluginPage_EmptyMessage"]" />
+                }
+                else
+                {
+                    <ul class="plugin-page__list">
+                        @foreach (var item in _page.Items)
+                        {
+                            <li class="plugin-page__row" @key="item.Id">
+                                <span class="plugin-page__row-main">
+                                    <span class="plugin-page__row-title">@item.Title</span>
+                                    @if (!string.IsNullOrEmpty(item.Subtitle))
+                                    {
+                                        <span class="plugin-page__row-subtitle">@item.Subtitle</span>
+                                    }
+                                </span>
+                                @foreach (var column in _page.Columns)
+                                {
+                                    <span class="plugin-page__row-cell"><span class="plugin-page__row-cell-label">@column.Label</span>@(item.Fields.GetValueOrDefault(column.Key))</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+                break;
+        }
+
+        @if (_page.Truncated)
+        {
+            <p class="plugin-page__note">@string.Format(L["PluginPage_Truncated"].Value, _page.Items.Count)</p>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public string PluginId { get; set; } = string.Empty;
+    [Parameter] public string PageKey { get; set; } = string.Empty;
+
+    private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
+    private readonly CancellationTokenSource _cts = new();
+    private PluginPageResponse? _page;
+    private List<DateTimeOffset> _ticks = [];
+    private DateTimeOffset _windowStart;
+    private double _windowHours = 6;
+    private bool _loading = true;
+    private bool _blockedOnPhone;
+    private bool _saving;
+    private string? _loadedFor;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var identity = PluginId + "/" + PageKey;
+        if (_loadedFor == identity)
+        {
+            return;
+        }
+
+        _loadedFor = identity;
+        _loading = true;
+        _page = null;
+        _blockedOnPhone = false;
+        _values.Clear();
+        var page = await Engine.GetPluginPageAsync(PluginId, PageKey, _cts.Token);
+        if (_cts.IsCancellationRequested || _loadedFor != identity)
+        {
+            return;
+        }
+
+        // The Engine says which page types suit a phone; the guide timeline needs a wider screen.
+        if (page is not null && Device.IsPhone && !page.PhoneSupported)
+        {
+            _blockedOnPhone = true;
+            page = null;
+        }
+
+        _page = page;
+        if (page is { PageType: "guide", Items.Count: > 0 })
+        {
+            BuildTimeline(page);
+        }
+
+        _loading = false;
+    }
+
+    private void SetValue(string key, string value) => _values[key] = value;
+
+    // The guide shows a six-hour window from the start of the hour the earliest programme still on (or coming) begins in.
+    private void BuildTimeline(PluginPageResponse page)
+    {
+        var now = DateTimeOffset.UtcNow;
+        // Only times within a sane range are drawn, so odd data can never break the page.
+        var low = new DateTimeOffset(1900, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var high = new DateTimeOffset(2200, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        page.Items = [.. page.Items.Where(i => i.StartsAt >= low && i.EndsAt <= high)];
+        var relevant = page.Items.Where(i => i.EndsAt > now).Select(i => i.StartsAt!.Value).DefaultIfEmpty(now).Min();
+        var start = new DateTimeOffset(relevant.Year, relevant.Month, relevant.Day, relevant.Hour, 0, 0, relevant.Offset);
+        _windowStart = start;
+        _windowHours = 6;
+        _ticks = [.. Enumerable.Range(0, 7).Select(h => start.AddHours(h))];
+    }
+
+    private double Percent(DateTimeOffset time) => (time - _windowStart).TotalHours / _windowHours * 100;
+
+    private async Task SubmitAsync()
+    {
+        if (_page is null || _saving)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var result = await Engine.SubmitPluginPageFormAsync(PluginId, PageKey, _values, _cts.Token);
+            if (result is { Saved: true })
+            {
+                _values.Clear();
+                Toasts.Add(L["PluginPage_Saved"].Value, AppSeverity.Success);
+            }
+            else
+            {
+                Toasts.Add(L["PluginPage_SaveFailed"].Value, AppSeverity.Error);
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}
