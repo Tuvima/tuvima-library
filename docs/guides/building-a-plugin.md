@@ -323,6 +323,35 @@ A plugin that declares the permission can use these services. Each is bounded by
 
 **Always-on work** (`background-work`). Return an `IPluginBackgroundService`; `RunAsync` should run until its token is cancelled. The Library starts it when the plugin is switched on and approved and stops it (cancel, then ten seconds' grace) when the plugin is switched off, loses its approval, or the Engine stops. If it crashes or returns early it restarts after 5 seconds, then 30 seconds, 2 minutes and 10 minutes; the fifth crash inside an hour stops it for good and the card shows Broken ("Stopped after crashing 5 times in an hour") until the plugin is switched off and on. The context passed to `RunAsync` stays usable for the whole run and is cleaned up when the run ends.
 
+## Plugins that are separate programs
+
+A plugin can be its own program in any language (Python, Go, Node, a compiled binary). Set `"kind": "service"` and describe how to run it in a `service` section. The Library starts the program when the plugin is switched on, checks it is healthy every few seconds, restarts it if it stops, and stops it when the plugin is switched off. A working Python example is in [`samples/plugins/python-lookup`](https://github.com/Tuvima/tuvima-library/tree/main/samples/plugins/python-lookup).
+
+```json
+{
+  "id": "example.python-lookup",
+  "name": "Python lookup",
+  "version": "1.0.0",
+  "kind": "service",
+  "permissions": ["process.execute", "plugin-records"],
+  "service": {
+    "command": "python3",
+    "arguments": ["server.py"],
+    "health_path": "/health",
+    "lookup_path": "/lookup",
+    "max_memory_mb": 256,
+    "startup_seconds": 20
+  }
+}
+```
+
+- **`command`** is one program name found on the machine, or a path inside the plugin's own folder, with `arguments` listed separately. There is no shell. It needs the `process.execute` permission, and the approval shows the exact command. To connect to a program that is already running instead, give an `address` (a program on this machine needs no extra permission; one on another machine needs `network.http` and the host listed in `network`).
+- **What your program receives**: `TUVIMA_PLUGIN_PORT` (listen on `127.0.0.1` at this port), `TUVIMA_PLUGIN_KEY` (this plugin's own key), `TUVIMA_LIBRARY_URL` (where the Library is) and `TUVIMA_PLUGIN_ID`.
+- **What it must answer**: `GET {health_path}` with a 200 when healthy, and `GET {lookup_path}?title=...` with JSON. The Library sends the key it gave your program in the `X-Tuvima-Plugin-Key` header; check it so only the Library can ask.
+- **What it may ask the Library**: the plugin door, published as an OpenAPI description in [`plugin-host-v1.openapi.json`](../reference/plugin-host-v1.openapi.json). Send your key in `X-Tuvima-Plugin-Key`. The Library answers only for what the plugin was approved to do (a call outside the permissions gets a 403), and only programs on the same machine.
+- **Limits and restarts**: a program that exits, stops answering, or grows past `max_memory_mb` is restarted after a growing pause (5 seconds, 30 seconds, 2 minutes, 10 minutes). The fifth crash within an hour stops it and the plugin shows Broken until it is switched off and on. The key changes on every start and ends when the program stops.
+- **Where it runs**: the memory limit is checked by the Library; hard operating-system limits and per-system builds are the author's choice (ship a `supported_platforms` list and one folder per system, or run the program in a container and use `address`).
+
 ## Universe lore plugins
 
 Universe lore plugins supplement Wikidata; they do not replace it. The Engine gives an `IUniverseLoreProvider` a Wikidata-backed universe QID and settings, the plugin can propose external lore sources, and admins approve or reject those sources in Chronicle Explorer before any data is imported. Approved data is stored as supplemental plugin lore and can be requested by the graph API as an overlay.

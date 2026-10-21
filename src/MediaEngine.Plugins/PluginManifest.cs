@@ -79,6 +79,14 @@ public sealed record PluginManifest
     [JsonPropertyName("declarative")]
     public JsonElement? Declarative { get; init; }
 
+    /// <summary>
+    /// How a plugin of kind <see cref="PluginKind.Service"/> (a separate program) is started or reached: <c>command</c> and
+    /// <c>arguments</c>, or <c>address</c> for a program that is already running, plus <c>health_path</c>, <c>lookup_path</c>,
+    /// <c>max_memory_mb</c> and <c>startup_seconds</c>. Ignored by other kinds.
+    /// </summary>
+    [JsonPropertyName("service")]
+    public JsonElement? Service { get; init; }
+
     [JsonPropertyName("settings_schema")]
     public JsonElement? SettingsSchema { get; init; }
 }

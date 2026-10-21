@@ -137,8 +137,38 @@ internal static class ApprovalStatementBuilder
             lines.Add($"{KeepsOwnKeysAndLogins}: {string.Join(", ", labels)}");
         }
 
+        if (ProgramLine(manifest) is { } program)
+        {
+            lines.Add(program);
+        }
+
         lines.Add($"{RunsAs}: {PluginKindName(manifest.Kind)}");
         return lines.Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    /// <summary>What a separate-program plugin runs or connects to, so the approval names the exact program and changing it asks again.</summary>
+    private static string? ProgramLine(PluginManifest manifest)
+    {
+        if (manifest.Kind != PluginKind.Service || manifest.Service is not { ValueKind: System.Text.Json.JsonValueKind.Object } service)
+        {
+            return null;
+        }
+
+        if (service.TryGetProperty("command", out var command) && command.ValueKind == System.Text.Json.JsonValueKind.String)
+        {
+            var parts = new List<string> { command.GetString() ?? string.Empty };
+            if (service.TryGetProperty("arguments", out var arguments) && arguments.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                parts.AddRange(arguments.EnumerateArray().Where(item => item.ValueKind == System.Text.Json.JsonValueKind.String).Select(item => item.GetString() ?? string.Empty));
+            }
+
+            var text = string.Join(' ', parts);
+            return $"Starts a program on this machine: {(text.Length > 160 ? text[..160] + "..." : text)}";
+        }
+
+        return service.TryGetProperty("address", out var address) && address.ValueKind == System.Text.Json.JsonValueKind.String
+            ? $"Connects to a program at {address.GetString()}"
+            : null;
     }
 
     // A role the Library has no words for is shown by its id, so it still reads as a distinct line.

@@ -6,6 +6,7 @@ using MediaEngine.Api.Services.LocalAi;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Api.Services.Plugins.Declarative;
+using MediaEngine.Api.Services.Plugins.Service;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.Plugins;
@@ -159,7 +160,7 @@ internal static class PluginEndpoints
                 {
                     plugin_id = pluginId,
                     step = stepKey,
-                    status = AiStepStatusWord(result.Status),
+                    status = AiStatusWord(result.Status),
                     message = result.Message,
                     text = result.Text,
                 });
@@ -167,6 +168,52 @@ internal static class PluginEndpoints
         .WithName("RunPluginAiStep")
         .WithSummary("Run an AI step a JSON-only plugin declared. The plugin must be switched on and approved; Local AI answers as that plugin.")
         .Produces<PluginAiStepRunResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPost("/{pluginId}/service/lookup", async (
+            string pluginId,
+            HttpContext http,
+            PluginCatalog catalog,
+            [FromServices] PluginServiceClient service,
+            CancellationToken ct) =>
+        {
+            var registration = catalog.Get(pluginId);
+            if (registration is null)
+            {
+                return ApiErrors.NotFound($"There is no plugin '{pluginId}'.");
+            }
+
+            if (registration.Capabilities.OfType<ServiceLookupCapability>().FirstOrDefault() is null)
+            {
+                return ApiErrors.Conflict("This plugin is not a separate program.");
+            }
+
+            if (!registration.Enabled)
+            {
+                return ApiErrors.Conflict("Switch the plugin on first.");
+            }
+
+            var query = http.Request.Query
+                .Where(pair => pair.Key.Length <= 64)
+                .Take(10)
+                .ToDictionary(pair => pair.Key, pair => pair.Value.ToString(), StringComparer.Ordinal);
+            var result = await service.LookupAsync(pluginId, query, ct).ConfigureAwait(false);
+            return Results.Ok(new PluginServiceLookupResponse
+            {
+                plugin_id = pluginId,
+                status = result.Status switch
+                {
+                    ServiceCallStatus.Succeeded => "succeeded",
+                    ServiceCallStatus.NotRunning => "not_running",
+                    _ => "failed",
+                },
+                message = result.Message,
+                result = result.Json is null ? null : JsonDocument.Parse(result.Json).RootElement.Clone(),
+            });
+        })
+        .WithName("RunPluginServiceLookup")
+        .WithSummary("Ask a plugin that is a separate program to look something up (query values are passed on), to check that it works.")
+        .Produces<PluginServiceLookupResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
         group.MapPut("/{pluginId}/settings", (
@@ -533,7 +580,7 @@ internal static class PluginEndpoints
     /// statement's hash (the person confirmed it), which is recorded first. Anything else is an approval-required 409.
     /// A plugin that cannot work here keeps its own plain-English 409 and is never asked about.
     /// </summary>
-    private static string AiStepStatusWord(PluginAiStatus status) => status switch
+    internal static string AiStatusWord(PluginAiStatus status) => status switch
     {
         PluginAiStatus.Succeeded => "succeeded",
         PluginAiStatus.Refused => "refused",

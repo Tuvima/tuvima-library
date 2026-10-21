@@ -265,6 +265,10 @@ public sealed class MappedEndpointInventoryTests
             "/cast/v1/{grant}/text/{trackId:guid}",
             "/intercom",
             "/intercom/negotiate",
+            // Plugin programs have no person to sign in: the plugin-scoped key is their sign-in (checked inside, loopback only).
+            "/plugin-host/v1/ai/text",
+            "/plugin-host/v1/records/{collection}/{key}",
+            "/plugin-host/v1/whoami",
             "/stream/hls/{grant}/{packageId:guid}/{**resourcePath}",
             "/system/status",
         ], inventory.AnonymousPatterns);
