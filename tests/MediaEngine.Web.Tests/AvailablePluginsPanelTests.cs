@@ -36,6 +36,7 @@ public sealed class AvailablePluginsPanelTests : AsyncBunitContext
     private PluginDirectoryResponse? _afterCheck;
     private PluginDirectoryResponse? _afterSwitch;
     private bool _switchSaveWorks = true;
+    private string? _installProblem;
 
     public AvailablePluginsPanelTests()
     {
@@ -74,6 +75,14 @@ public sealed class AvailablePluginsPanelTests : AsyncBunitContext
                 }
 
                 return Task.FromResult(_switchSaveWorks);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.InstallDirectoryPluginAsync), args =>
+            {
+                _calls.Add("install");
+                var id = (string)args![0]!;
+                return Task.FromResult(_installProblem is null
+                    ? new PluginInstallOutcome(new PluginInstallResponse { PluginId = id, Name = "Sketchy", Version = "1.0.0", Message = "Sketchy was installed. It is switched off." })
+                    : new PluginInstallOutcome(null, _installProblem));
             });
             stub.SetHandler(nameof(IEngineApiClient.PreviewPluginDirectoryInstallAsync), args =>
             {
@@ -295,6 +304,58 @@ public sealed class AvailablePluginsPanelTests : AsyncBunitContext
 
         dialogs.WaitForAssertion(() => Assert.DoesNotContain("Install Sketchy?", dialogs.Markup));
         Assert.Equal(1, _calls.Count(call => call == "preview"));
+    }
+
+    [Fact]
+    public void ConfirmingInstall_InstallsThePlugin_AndTellsThePersonItIsSwitchedOff()
+    {
+        _directory = Directory(Entry("acme.sketchy", "Sketchy", warning: Warning));
+        _directory.InstallSupported = true;
+        var dialogs = Render<AppDialogHost>();
+        var toasts = Render<AppToastHost>();
+        var cut = Render<AvailablePluginsPanel>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=available-plugin-entry]")));
+
+        Entry(cut, "acme.sketchy").QuerySelector("[data-testid=available-plugin-install]")!.Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Install Sketchy?", dialogs.Markup));
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Install").Click();
+
+        toasts.WaitForAssertion(() => Assert.Contains("Sketchy was installed. It is switched off.", toasts.Markup, StringComparison.Ordinal));
+        Assert.Equal(1, _calls.Count(call => call == "install"));
+    }
+
+    [Fact]
+    public void WhenThePackageIsRefused_ThePersonSeesTheEnginesReason()
+    {
+        _installProblem = "The downloaded package does not match the checksum in the plugin directory, so it was not installed.";
+        _directory = Directory(Entry("acme.sketchy", "Sketchy", warning: Warning));
+        _directory.InstallSupported = true;
+        var dialogs = Render<AppDialogHost>();
+        var toasts = Render<AppToastHost>();
+        var cut = Render<AvailablePluginsPanel>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=available-plugin-entry]")));
+
+        Entry(cut, "acme.sketchy").QuerySelector("[data-testid=available-plugin-install]")!.Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Install Sketchy?", dialogs.Markup));
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Install").Click();
+
+        toasts.WaitForAssertion(() => Assert.Contains("does not match the checksum", toasts.Markup, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AnInstalledPlugin_WithANewerListedVersion_OffersAnUpdate_AndOneWithoutDoesNot()
+    {
+        var newer = Entry("acme.here", "Here", installed: true);
+        newer.UpdateAvailable = true;
+        newer.Version = "1.2.0";
+        _directory = Directory(newer, Entry("acme.same", "Same", installed: true));
+        _directory.InstallSupported = true;
+
+        var cut = Render<AvailablePluginsPanel>();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-testid=available-plugin-entry]").Count));
+        Assert.Contains("Update to 1.2.0", Entry(cut, "acme.here").QuerySelector("[data-testid=available-plugin-update]")!.TextContent, StringComparison.Ordinal);
+        Assert.Empty(Entry(cut, "acme.same").QuerySelectorAll("[data-testid=available-plugin-update]"));
     }
 
     [Fact]

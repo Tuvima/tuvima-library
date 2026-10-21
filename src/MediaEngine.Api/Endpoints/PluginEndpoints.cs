@@ -107,6 +107,53 @@ internal static class PluginEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .RequireEffectiveAdministrator();
 
+        group.MapPost("/directory/{pluginId}/install", async ([FromServices] PluginPackageInstaller installer, string pluginId, CancellationToken ct) =>
+        {
+            if (!PluginDirectoryService.InstallSupported)
+            {
+                return ApiErrors.BadRequest("Installing plugins from the directory is not switched on yet.");
+            }
+
+            try
+            {
+                return Results.Ok(await installer.InstallAsync(pluginId, ct).ConfigureAwait(false));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return ApiErrors.NotFound(ex.Message);
+            }
+            catch (PluginInstallException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+        })
+            .WithName("InstallDirectoryPlugin")
+            .WithSummary("Install, or update to the listed version, a plugin from the plugin directory. The package is downloaded from GitHub, checked against the directory's checksum (and, for checked plugins, Tuvima's signature) and unpacked safely. The plugin is left switched off; an update that asks for more than was approved leaves it off until approved again.")
+            .Produces<PluginInstallResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireEffectiveAdministrator();
+
+        group.MapGet("/{pluginId}/removal-impact", (string pluginId, PluginCatalog catalog) =>
+        {
+            if (catalog.Get(pluginId) is null)
+            {
+                return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+            }
+
+            return Results.Ok(new PluginRemovalImpactResponse
+            {
+                PluginId = pluginId,
+                WouldLose = catalog.DescribeRemovalImpact(pluginId).ToList(),
+                Keeps = "Anything this plugin already saved to your Library stays.",
+            });
+        })
+            .WithName("GetPluginRemovalImpact")
+            .WithSummary("What would have no source if the plugin were removed. Saved metadata is always kept.")
+            .Produces<PluginRemovalImpactResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
         group.MapGet("/{pluginId}", async (
             string pluginId,
             PluginCatalog catalog,

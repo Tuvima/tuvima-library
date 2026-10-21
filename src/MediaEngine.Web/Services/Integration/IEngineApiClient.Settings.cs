@@ -71,6 +71,12 @@ public partial interface IEngineApiClient
     /// <summary>POST /plugins/directory/{id}/approval-preview — what to show before installing a listed plugin. Null when the Engine could not be asked or does not list it.</summary>
     Task<ApprovalPreviewResponse?> PreviewPluginDirectoryInstallAsync(string pluginId, CancellationToken ct = default);
 
+    /// <summary>POST /plugins/directory/{id}/install — installs or updates a listed plugin. Carries the Engine's reason when it was refused.</summary>
+    Task<PluginInstallOutcome> InstallDirectoryPluginAsync(string pluginId, CancellationToken ct = default);
+
+    /// <summary>GET /plugins/{id}/removal-impact — what would have no source if the plugin were removed. Null when the Engine could not be asked.</summary>
+    Task<PluginRemovalImpactResponse?> GetPluginRemovalImpactAsync(string pluginId, CancellationToken ct = default);
+
     /// <summary>
     /// POST /plugins/{id}/enable|disable. Switching on can answer with <see cref="PluginActionResult.Approval"/> (the Engine
     /// wants the person to see what the plugin can do first); repeat the call with that preview's hash.

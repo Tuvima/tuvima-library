@@ -6636,9 +6636,12 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectoryEntry
   ReleaseUrl: System.String | nullability=nullable | accessors=get,set
   PackageUrl: System.String | nullability=nullable | accessors=get,set
   Sha256: System.String | nullability=nullable | accessors=get,set
+  Signature: System.String | nullability=nullable | accessors=get,set
   AddedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   IsNew: System.Boolean | nullability=not-null | accessors=get,set
   IsInstalled: System.Boolean | nullability=not-null | accessors=get,set
+  InstalledVersion: System.String | nullability=nullable | accessors=get,set
+  UpdateAvailable: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectoryResponse
   SchemaVersion: System.String | nullability=not-null | accessors=get,set
@@ -6701,6 +6704,14 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHostWhoAmIResp
   plugin_id: System.String | nullability=not-null | accessors=get,init
   name: System.String | nullability=not-null | accessors=get,init
   permissions: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginInstallResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Version: System.String | nullability=not-null | accessors=get,set
+  WasUpdate: System.Boolean | nullability=not-null | accessors=get,set
+  NeedsApprovalAgain: System.Boolean | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginJobSnapshot
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -6781,6 +6792,11 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPageSubmitRequ
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginPageSubmitResponse
   Saved: System.Boolean | nullability=not-null | accessors=get,set
   RecordKey: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemovalImpactResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  WouldLose: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Keeps: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSavedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init

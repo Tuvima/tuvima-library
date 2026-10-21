@@ -530,6 +530,10 @@ public sealed class PluginDirectoryEntryDto
     [JsonPropertyName("sha256")]
     public string? Sha256 { get; set; }
 
+    /// <summary>The signature the list gives for the package. Used by the install check only; never sent to the Dashboard.</summary>
+    [JsonIgnore]
+    public string? Signature { get; set; }
+
     [JsonPropertyName("added_at")]
     public DateTimeOffset? AddedAt { get; set; }
 
@@ -540,6 +544,14 @@ public sealed class PluginDirectoryEntryDto
     /// <summary>True when a plugin with this id is already installed on this server.</summary>
     [JsonPropertyName("is_installed")]
     public bool IsInstalled { get; set; }
+
+    /// <summary>The version installed on this server, or null when it is not installed.</summary>
+    [JsonPropertyName("installed_version")]
+    public string? InstalledVersion { get; set; }
+
+    /// <summary>True when the installed copy came from this list and the list now has a newer version.</summary>
+    [JsonPropertyName("update_available")]
+    public bool UpdateAvailable { get; set; }
 }
 
 /// <summary>Body of <c>PUT /plugins/directory/settings</c>: the plugin directory switch.</summary>
@@ -547,4 +559,44 @@ public sealed class PluginDirectorySettingsRequest
 {
     [JsonPropertyName("enabled")]
     public bool Enabled { get; set; }
+}
+
+/// <summary>Result of <c>POST /plugins/directory/{pluginId}/install</c>.</summary>
+public sealed class PluginInstallResponse
+{
+    [JsonPropertyName("plugin_id")]
+    public string PluginId { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("version")]
+    public string Version { get; set; } = "";
+
+    /// <summary>True when an installed copy was replaced by a newer version.</summary>
+    [JsonPropertyName("was_update")]
+    public bool WasUpdate { get; set; }
+
+    /// <summary>True when the new version asks for more than the person approved, so the plugin is off until they approve again.</summary>
+    [JsonPropertyName("needs_approval_again")]
+    public bool NeedsApprovalAgain { get; set; }
+
+    /// <summary>One plain sentence about what happened.</summary>
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = "";
+}
+
+/// <summary>Result of <c>GET /plugins/{pluginId}/removal-impact</c>: what stops working if the plugin is removed.</summary>
+public sealed class PluginRemovalImpactResponse
+{
+    [JsonPropertyName("plugin_id")]
+    public string PluginId { get; set; } = "";
+
+    /// <summary>One plain sentence per thing that would have no source once the plugin is gone. Empty when nothing depends on it.</summary>
+    [JsonPropertyName("would_lose")]
+    public List<string> WouldLose { get; set; } = [];
+
+    /// <summary>Always says that what the plugin already saved stays.</summary>
+    [JsonPropertyName("keeps")]
+    public string Keeps { get; set; } = "";
 }

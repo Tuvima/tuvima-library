@@ -75,6 +75,7 @@ The Library only accepts HTTPS addresses on `raw.githubusercontent.com` or `gith
       "release_url": "https://github.com/example/tuvima-sample-plugin/releases/tag/v0.1.0",
       "package_url": "https://github.com/example/tuvima-sample-plugin/releases/download/v0.1.0/sample-plugin.zip",
       "sha256": "64-character lowercase hex checksum",
+      "signature": "base64 signature over the package (verified and official plugins)",
       "added_at": "2026-10-20T00:00:00Z"
     }
   ]
@@ -104,7 +105,8 @@ Each plugin:
 | `minimum_library_version`, `maximum_library_version` | no | The Library versions it works with. The minimum defaults to `1.0.0`; no maximum means no upper limit. |
 | `supported_platforms` | no | Runtime ids (`win-x64`) or OS families (`windows`, `linux`, `macos`). Empty means every platform. |
 | `repository_url`, `release_url`, `package_url` | no | HTTPS addresses only; anything else is ignored. |
-| `sha256` | no | Checksum of the package: 64 lowercase hex characters, otherwise ignored. |
+| `sha256` | no | Checksum of the package: 64 lowercase hex characters, otherwise ignored. A plugin without one cannot be installed. |
+| `signature` | no | Tuvima's signature over the exact package bytes (ECDSA P-256 with SHA-256, base64, 64 bytes). Required to install a `verified` or `official` plugin. Never sent to the Dashboard. |
 | `added_at` | no | When the plugin was added to the list (UTC). |
 
 The Library reads the list defensively. An entry that cannot be understood (not an object, no `id` or `name`, an unknown or missing `kind`, or an `id` already used) is left out and counted; the page says how many entries could not be read. One bad entry never hides the rest of the list.
@@ -137,7 +139,17 @@ The Library remembers which plugin ids it has already shown. A listed plugin tha
 
 ## Install
 
-The list carries the package address and checksum so the Library can install a plugin, but this version only reads the list. An **Install** button appears on an entry only when the Engine reports `install_supported: true`; it opens the same approval step as switching a plugin on, built from what the list declares, before anything is downloaded. Until installing exists the button is not drawn.
+An **Install** button appears on an entry when the Engine reports `install_supported: true`. The install work is built, but it stays switched off (`install_supported: false`, and the install action answers `400`) until plugin keys are encrypted on disk. It opens the same approval step as switching a plugin on, built from what the list declares, and only after the person confirms does the Engine download the package. An installed plugin whose listed version is newer shows **Update to x.y.z** with the same step.
+
+What the Engine checks, in order, and refuses with a plain sentence if any fails:
+
+1. The download address is on `github.com` or `githubusercontent.com` over https, and still is after any redirect. The package may be at most 64 MB (256 MB unpacked, 2000 files).
+2. The package's SHA-256 equals the list's `sha256`. A list without a checksum cannot be installed.
+3. For `verified` and `official` entries, the package's `signature` verifies against a Tuvima release key built into the Library. With no key built in nothing verifies, so these entries are refused rather than trusted. `community` entries are checksum-only and always show the not-verified warning. A plugin that runs inside the Library (`kind` `official`) is never installed unless it is signed.
+4. The package unpacks safely (no path outside its folder, no links, size counted as it is written), holds a `plugin.json`, and that file's id, version and kind equal the list's and ask for no permission or address the list does not name. Sandboxed plugins are not installable yet.
+5. The plugin is not on the blocklist and fits this Library version and platform.
+
+Installing never switches a plugin on. The Library records how the plugin was installed (trust level and the checksum of its `plugin.json`) beside, not inside, the plugins folder; a plugin counts as Verified or Not verified only while that record matches, otherwise it is a private plugin. An update replaces the files and keeps the plugin's settings and saved records; because the approval is tied to what the plugin may do, an update that asks for more leaves the plugin switched off with "needs approval" until an administrator approves it again. A plugin added to the plugins folder by hand is never replaced by the directory. Removing a plugin first lists anything that would have no other source and says that what the plugin already saved stays.
 
 ## Submit your plugin
 

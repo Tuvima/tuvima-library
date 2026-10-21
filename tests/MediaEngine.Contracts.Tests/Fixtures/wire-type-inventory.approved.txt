@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1124; api=0; web-client=54
+# scopes: contracts=1126; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7778,10 +7778,13 @@
   ReleaseUrl: System.String | json=release_url | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PackageUrl: System.String | json=package_url | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Sha256: System.String | json=sha256 | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Signature: System.String | json=signature | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=Always | converter=default | number-handling=default | extension-data=no
   AddedAt: System.DateTimeOffset? | json=added_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsNew: System.Boolean | json=is_new | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsInstalled: System.Boolean | json=is_installed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","name":"sample","author":"sample","description":"sample","version":"sample","kind":"sample","trust_level":"sample","trust_warning":"sample","permissions":[],"allowed_to":[],"network":[],"capabilities":[],"minimum_library_version":"sample","maximum_library_version":"sample","supported_platforms":[],"repository_url":"sample","release_url":"sample","package_url":"sample","sha256":"sample","added_at":"2025-01-02T03:04:05+00:00","is_new":true,"is_installed":true}
+  InstalledVersion: System.String | json=installed_version | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  UpdateAvailable: System.Boolean | json=update_available | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","name":"sample","author":"sample","description":"sample","version":"sample","kind":"sample","trust_level":"sample","trust_warning":"sample","permissions":[],"allowed_to":[],"network":[],"capabilities":[],"minimum_library_version":"sample","maximum_library_version":"sample","supported_platforms":[],"repository_url":"sample","release_url":"sample","package_url":"sample","sha256":"sample","added_at":"2025-01-02T03:04:05+00:00","is_new":true,"is_installed":true,"installed_version":"sample","update_available":true}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginDirectoryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7864,6 +7867,16 @@
   name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   permissions: System.Collections.Generic.IReadOnlyList<System.String> | json=permissions | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"plugin_id":"sample","name":"sample","permissions":[]}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginInstallResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  PluginId: System.String | json=plugin_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Version: System.String | json=version | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WasUpdate: System.Boolean | json=was_update | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NeedsApprovalAgain: System.Boolean | json=needs_approval_again | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"plugin_id":"sample","name":"sample","version":"sample","was_update":true,"needs_approval_again":true,"message":"sample"}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginJobSnapshot
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7968,6 +7981,13 @@
   Saved: System.Boolean | json=saved | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RecordKey: System.String | json=record_key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"saved":true,"record_key":"sample"}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginRemovalImpactResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  PluginId: System.String | json=plugin_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WouldLose: System.Collections.Generic.List<System.String> | json=would_lose | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Keeps: System.String | json=keeps | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"plugin_id":"sample","would_lose":[],"keeps":"sample"}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginSavedResponse
   kind=class | converter=default | number-handling=default | unmapped=default

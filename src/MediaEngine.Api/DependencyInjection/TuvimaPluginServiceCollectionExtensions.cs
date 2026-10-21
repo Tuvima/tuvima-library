@@ -37,6 +37,8 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginPageService>();
         services.AddSingleton<PluginCatalog>();
         services.AddSingleton<PluginDirectoryService>();
+        services.AddSingleton<PluginSignatureVerifier>();
+        services.AddSingleton<PluginPackageInstaller>();
         services.AddSingleton<ILibraryUniverseQidGate, LibraryUniverseQidGate>();
         services.AddSingleton<PluginUniverseLoreService>();
         services.AddSingleton<PluginScheduledSegmentService>();

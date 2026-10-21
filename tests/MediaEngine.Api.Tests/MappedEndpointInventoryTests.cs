@@ -346,6 +346,7 @@ public sealed class MappedEndpointInventoryTests
             ("/plugins/directory/seen", HttpMethods.Post, "MarkPluginDirectorySeen"),
             ("/plugins/directory/settings", HttpMethods.Put, "SavePluginDirectorySettings"),
             ("/plugins/directory/{pluginId}/approval-preview", HttpMethods.Post, "PreviewPluginDirectoryInstall"),
+            ("/plugins/directory/{pluginId}/install", HttpMethods.Post, "InstallDirectoryPlugin"),
         })
         {
             var route = inventory.Require(pattern, method);

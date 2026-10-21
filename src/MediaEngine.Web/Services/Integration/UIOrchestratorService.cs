@@ -342,6 +342,12 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public Task<ApprovalPreviewResponse?> PreviewPluginDirectoryInstallAsync(string pluginId, CancellationToken ct = default) =>
         _api.PreviewPluginDirectoryInstallAsync(pluginId, ct);
 
+    public Task<PluginInstallOutcome> InstallDirectoryPluginAsync(string pluginId, CancellationToken ct = default) =>
+        _api.InstallDirectoryPluginAsync(pluginId, ct);
+
+    public Task<PluginRemovalImpactResponse?> GetPluginRemovalImpactAsync(string pluginId, CancellationToken ct = default) =>
+        _api.GetPluginRemovalImpactAsync(pluginId, ct);
+
     public Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, string? approvalHash = null, CancellationToken ct = default) =>
         _api.SetPluginEnabledAsync(pluginId, enabled, approvalHash, ct);
 
