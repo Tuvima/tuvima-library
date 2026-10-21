@@ -42,19 +42,18 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData(false, false)]
     [InlineData(false, true)]
     [InlineData(true, false)]
-    public async Task Vault_AnUnlockedProfile_SeesVaultItems_EvenWithoutAGrantOnTheVaultLibrary(bool administrator, bool grantedTheVaultLibrary)
+    public async Task Vault_AnUnlockedProfile_KeepsVaultItemsOutOfEverySharedList_ButCanOpenTheFile_EvenWithoutAGrantOnTheVaultLibrary(bool administrator, bool grantedTheVaultLibrary)
     {
+        // Videos spec D20, D27, D45 (security review M2): the Vault is its own area with its own routes. An unlocked session does not
+        // see Vault items mixed into the shared lists (works, visible ids, Home); it can still open a Vault file it found in the area.
         var shape = await SeedVaultAsync(administrator, grantedTheVaultLibrary);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var service = CreateService(VaultContext(shape.Account, session), RealReaders());
 
-        Assert.Equal(
-            new[] { shape.Normal.WorkId, shape.Secret.WorkId }.Order(),
-            (await service.LoadWorksAsync(default)).Select(row => row.WorkId).Order());
-        Assert.Equal(
-            new[] { shape.Normal.WorkId, shape.Secret.WorkId }.Order(),
-            (await service.LoadVisibleWorkIdsAsync(default)).Order());
+        Assert.Equal([shape.Normal.WorkId], (await service.LoadWorksAsync(default)).Select(row => row.WorkId).ToArray());
+        Assert.Equal([shape.Normal.WorkId], (await service.LoadVisibleWorkIdsAsync(default)).ToArray());
+        Assert.Equal([shape.Normal.WorkId], (await service.LoadHomeWorksAsync(default)).Select(row => row.WorkId).ToArray());
         Assert.Contains(shape.Secret.AssetId, (await service.LoadAuthorizedAssetsAsync(default)).Select(row => row.AssetId));
     }
 
@@ -68,6 +67,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         Assert.DoesNotContain(shape.Secret.WorkId, (await service.LoadWorksAsync(default)).Select(row => row.WorkId));
         Assert.DoesNotContain(shape.Secret.WorkId, await service.LoadVisibleWorkIdsAsync(default));
+        Assert.DoesNotContain(shape.Secret.AssetId, (await service.LoadAuthorizedAssetsAsync(default)).Select(row => row.AssetId));
     }
 
     [Fact]
@@ -99,8 +99,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var unlocked = CreateService(VaultContext(shape.Account, session), raw);
-        Assert.Equal(2, (await unlocked.LoadJourneyAsync(VaultProfile, null, default)).Count);
-        Assert.Equal(2, (await unlocked.LoadStatesAsync(VaultProfile, null, default)).Count);
+        // Unlocking opens the Vault area, not the shared Continue Watching (Videos spec D27, D33, D45).
+        Assert.Single(await unlocked.LoadJourneyAsync(VaultProfile, null, default));
+        Assert.Single(await unlocked.LoadStatesAsync(VaultProfile, null, default));
     }
 
     [Fact]
@@ -123,8 +124,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var unlocked = CreateService(VaultContext(shape.Account, session), raw);
-        Assert.Equal(2, (await unlocked.FilterRecentWorksAsync([normalRow, vaultRow], VaultProfile, default)).Count);
-        Assert.Equal(2, (await unlocked.FilterRecentCandidatesAsync(candidates, VaultProfile, default)).Count);
+        // Recently Added stays free of the Vault even when it is open (Videos spec D27, D45).
+        Assert.Equal([normalRow.WorkId], (await unlocked.FilterRecentWorksAsync([normalRow, vaultRow], VaultProfile, default)).Select(row => row.WorkId).ToArray());
+        Assert.Equal([normalRow.WorkId], (await unlocked.FilterRecentCandidatesAsync(candidates, VaultProfile, default)).Select(row => row.WorkId).ToArray());
     }
 
     [Fact]
@@ -141,7 +143,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var unlocked = CreateService(VaultContext(shape.Account, session), raw);
-        Assert.Equal(2, (await unlocked.LoadFavoriteWorkIdsAsync(VaultProfile, default)).Count);
+        Assert.Equal([normalRow.WorkId], (await unlocked.LoadFavoriteWorkIdsAsync(VaultProfile, default)).ToArray());
     }
 
     [Fact]
@@ -158,9 +160,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var unlockedRaw = RealReaders();
         var unlocked = CreateService(VaultContext(shape.Account, session), unlockedRaw);
         await unlocked.LoadHomeCollectionsAsync(VaultProfile, default);
-        Assert.True(
-            unlockedRaw.AllowedWorkIdsPassedToHomeCollections is null
-            || unlockedRaw.AllowedWorkIdsPassedToHomeCollections.Contains(shape.Secret.WorkId));
+        Assert.Equal([shape.Normal.WorkId], unlockedRaw.AllowedWorkIdsPassedToHomeCollections!.ToArray());
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var nsfw = new NsfwAccessRepository(_database);
 
         async Task<bool> SeesTheVaultAsync(Guid session) =>
-            (await CreateService(VaultContext(shape.Account, session), RealReaders()).LoadWorksAsync(default))
+            (await CreateService(VaultContext(shape.Account, session), RealReaders()).LoadAuthorizedAssetsAsync(default))
             .Any(row => row.WorkId == shape.Secret.WorkId);
 
         async Task<Guid> UnlockedSessionAsync()
