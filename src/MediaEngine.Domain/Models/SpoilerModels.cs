@@ -102,4 +102,29 @@ public sealed class ViewerProgress(IReadOnlyDictionary<Guid, TitleProgress> byTi
 
     public TitleProgress For(Guid titleId) =>
         byTitle.TryGetValue(titleId, out var progress) ? progress : TitleProgress.None;
+
+    /// <summary>
+    /// This progress plus the viewer standing at <paramref name="position"/> right now (a companion following a device or
+    /// holding a place set by hand): the title counts as started and, for a show, the episode as reached. It never moves a
+    /// viewer backwards and never marks anything finished.
+    /// </summary>
+    public ViewerProgress Reaching(WorkPosition position)
+    {
+        ArgumentNullException.ThrowIfNull(position);
+        if (position.TitleId == Guid.Empty)
+        {
+            return this;
+        }
+
+        var existing = For(position.TitleId);
+        var furthest = position.Episode is { } episode
+            && (existing.FurthestStartedEpisode is not { } current || episode > current)
+                ? episode
+                : existing.FurthestStartedEpisode;
+        var merged = new Dictionary<Guid, TitleProgress>(byTitle)
+        {
+            [position.TitleId] = existing with { Started = true, FurthestStartedEpisode = furthest },
+        };
+        return new ViewerProgress(merged);
+    }
 }

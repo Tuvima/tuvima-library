@@ -110,7 +110,7 @@ public partial interface IEngineApiClient
     /// profile may see) is an empty result; null means a real failure.
     /// </summary>
     Task<EntityAppearancesDto?> GetEntityAppearancesAsync(
-        string universeQid, string? entityQid, Guid? personId, CancellationToken ct = default);
+        string universeQid, string? entityQid, Guid? personId, CancellationToken ct = default, Guid? reachedWorkId = null);
 
     /// <summary>GET /universe/{qid}/adaptations — adaptation chain (based_on/derivative_work/inspired_by).</summary>
     Task<UniverseAdaptationTreeResponse?> GetUniverseAdaptationsAsync(string qid, CancellationToken ct = default);

@@ -108,6 +108,9 @@
     /// <summary>Raised once when the panel closes.</summary>
     [Parameter] public EventCallback OnClose { get; set; }
 
+    /// <summary>The Work the viewer is standing at (the phone companion); that place counts as reached for the spoiler rule.</summary>
+    [Parameter] public Guid? ReachedWorkId { get; set; }
+
     private enum SectionState { Loading, Loaded, Failed }
 
     private sealed class Section
@@ -139,7 +142,8 @@
         IReadOnlyList<(string Qid, string Label)> characters,
         Guid? personId = null,
         string? personName = null,
-        EventCallback onClose = default)
+        EventCallback onClose = default,
+        Guid? reachedWorkId = null)
     {
         ArgumentNullException.ThrowIfNull(dialogs);
         var parameters = new AppDialogParameters<AlsoAppearsInPanel>
@@ -149,6 +153,7 @@
             { component => component.PersonId, personId },
             { component => component.PersonName, personName },
             { component => component.OnClose, onClose },
+            { component => component.ReachedWorkId, reachedWorkId },
         };
         var dialog = await dialogs.ShowAsync<AlsoAppearsInPanel>(string.Empty, parameters, new AppDialogOptions
         {
@@ -205,7 +210,7 @@
         EntityAppearancesDto? result;
         try
         {
-            result = await ApiClient.GetEntityAppearancesAsync(UniverseQid, section.EntityQid, section.PersonId, _lifetime.Token);
+            result = await ApiClient.GetEntityAppearancesAsync(UniverseQid, section.EntityQid, section.PersonId, _lifetime.Token, ReachedWorkId);
         }
         catch (OperationCanceledException)
         {

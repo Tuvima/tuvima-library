@@ -43,6 +43,8 @@ public static class ApiReadServiceCollectionExtensions
         services.AddScoped<UniversePageReadService>();
         services.AddSingleton<UniverseLinkCache>();
         services.AddScoped<EntityAppearanceReadService>();
+        services.AddSingleton<ICompanionChapterSource, CompanionChapterSource>();
+        services.AddScoped<CompanionContextReadService>();
         services.AddScoped<CollectionPersonalMediaService>();
         services.AddSingleton<IReviewQueueReadService, ReviewQueueReadService>();
         services.AddSingleton<EditorSuggestionReadService>();

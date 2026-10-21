@@ -1,0 +1,426 @@
+@page "/companion"
+@page "/companion/{WorkId:guid}"
+@namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Companion
+@using MediaEngine.Web.Services.Companion
+@implements IDisposable
+@inject CompanionState Companion
+@inject IAppDialogService Dialogs
+@inject IAppToastService Snackbar
+@inject ILogger<CompanionPage> Logger
+
+<PageTitle>Companion - Library</PageTitle>
+
+@* The phone companion (U-WP13). /companion follows the device this browser chose (or the place it holds by hand);
+   /companion/{workId} is the "Companion" item in a title's "..." menu: it holds that title and lets the person pick the
+   episode or chapter they are at. Reading only: no editing, and no drawer. The page asks the Engine again every few seconds
+   while following, so the position stays within about one heartbeat of the device. *@
+<div class="companion-page">
+    @switch (_status)
+    {
+        case CompanionPageStatus.Loading:
+            <div class="companion-page__loading" aria-busy="true" aria-label="Loading the companion">
+                <AppSkeleton Height="6rem" Width="100%" />
+                <AppSkeleton Height="2.75rem" Width="100%" />
+                <AppSkeleton Height="10rem" Width="100%" />
+            </div>
+            break;
+
+        case CompanionPageStatus.Unavailable:
+            <AppErrorState Title="Can't reach the Engine"
+                           Message="The companion could not be loaded. Check that the Engine is running, then try again."
+                           Retry="RetryAsync" />
+            break;
+
+        case CompanionPageStatus.NothingToFollow:
+            @if (_devices.Count > 0)
+            {
+                <CompanionDeviceList Devices="_devices" OnFollow="FollowAsync" />
+            }
+            else
+            {
+                <AppEmptyState Title="Nothing is playing"
+                               Message="Start something on a TV, a computer or your phone and it shows up here. Or open any title, choose Companion from its ... menu, and pick the episode or chapter you are at.">
+                    <Action>
+                        <AppButton Label="Back to Home" Href="/" ButtonStyle="AppButtonStyle.Outlined" />
+                    </Action>
+                </AppEmptyState>
+            }
+            break;
+
+        case CompanionPageStatus.NotAvailable:
+            <AppEmptyState Title="This title isn't available."
+                           Message="It may have been removed, it may not be part of what this profile can see, or the Engine could not be reached.">
+                <Action>
+                    <AppButton Label="Back to Home" Href="/" ButtonStyle="AppButtonStyle.Outlined" />
+                </Action>
+            </AppEmptyState>
+            break;
+
+        default:
+            @if (_context is { } context)
+            {
+                @if (_place is { Mode: CompanionModes.Follow } && _followedStopped)
+                {
+                    <p class="companion-page__notice" data-note="stopped">Playback stopped. This is where you were.</p>
+                }
+
+                <CompanionScreen Context="context"
+                                 Mode="@(_place?.Mode ?? CompanionModes.Manual)"
+                                 DeviceLabel="@_place?.DeviceLabel"
+                                 SpoilerBusy="_spoilerBusy"
+                                 OnSpoilerLevelChanged="SetSpoilerLevelAsync"
+                                 OnOpenAlsoAppearsIn="OpenAlsoAppearsInAsync" />
+
+                <div class="companion-page__tools">
+                    <AppButton Label="@(_showPicker ? "Done picking" : PickLabel(context))"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               StartIcon="@AppMaterialIcons.Outlined.PushPin"
+                               OnClick="TogglePicker"
+                               Disabled="_holding" />
+                    @if (_place is { Mode: CompanionModes.Manual } && _devices.Count > 0)
+                    {
+                        <AppButton Label="Follow what is playing" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Devices" OnClick="@(() => FollowAsync(_devices[0]))" />
+                    }
+                    @if (_place is { Mode: CompanionModes.Follow })
+                    {
+                        <AppButton Label="Stop following" ButtonStyle="AppButtonStyle.Text" OnClick="StopAsync" />
+                    }
+                </div>
+
+                @if (_showPicker)
+                {
+                    <CompanionPositionPicker Picker="context.Picker"
+                                             Kind="@context.Kind"
+                                             CurrentWorkId="context.WorkId"
+                                             CurrentChapterIndex="context.ChapterIndex"
+                                             OnPick="PickAsync" />
+                }
+            }
+            break;
+    }
+</div>
+
+@code {
+    private enum CompanionPageStatus { Loading, Ready, NothingToFollow, NotAvailable, Unavailable }
+
+    /// <summary>How often the page asks the Engine again while following a device.</summary>
+    private static readonly TimeSpan FollowEvery = TimeSpan.FromSeconds(5);
+
+    /// <summary>The context is also re-read this often while following, so an audiobook's chapter keeps up with the device.</summary>
+    private const int ContextEveryTicks = 3;
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private CompanionPageStatus _status = CompanionPageStatus.Loading;
+    private CompanionContextDto? _context;
+    private CompanionPlace? _place;
+    private IReadOnlyList<CompanionLiveDeviceDto> _devices = [];
+    private bool _showPicker;
+    private bool _holding;
+    private bool _spoilerBusy;
+    private bool _followedStopped;
+    private int _ticks;
+    private Guid? _loadedFor;
+    private PeriodicTimer? _timer;
+
+    [Parameter] public Guid? WorkId { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // The same page serves /companion and /companion/{id}; a new id (or none) starts over.
+        if (_loadedFor == WorkId && _status != CompanionPageStatus.Loading)
+        {
+            return;
+        }
+
+        _loadedFor = WorkId;
+        await LoadAsync();
+        StartFollowTimer();
+    }
+
+    private async Task LoadAsync()
+    {
+        _status = CompanionPageStatus.Loading;
+        _showPicker = false;
+        _followedStopped = false;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            if (WorkId is { } workId)
+            {
+                // "Companion" from a title's menu: hold that title now; the person picks the episode or chapter below.
+                var held = await Companion.HoldAsync(workId, null, _lifetime.Token);
+                if (held is null)
+                {
+                    // Not found and not reachable look the same on the wire; the context read below tells them apart.
+                    _place = new CompanionPlace(workId, null, CompanionModes.Manual, null);
+                }
+                else
+                {
+                    _place = CompanionPlace.From(held) ?? new CompanionPlace(workId, null, CompanionModes.Manual, null);
+                }
+
+                _showPicker = true;
+            }
+            else
+            {
+                var session = await Companion.LoadSessionAsync(_lifetime.Token);
+                if (session is null)
+                {
+                    _status = CompanionPageStatus.Unavailable;
+                    return;
+                }
+
+                _place = CompanionPlace.From(session);
+            }
+
+            await LoadDevicesAsync();
+            if (_place is null)
+            {
+                _context = null;
+                _status = CompanionPageStatus.NothingToFollow;
+                return;
+            }
+
+            await LoadContextAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Left the page mid-load.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The companion could not be loaded");
+            _status = CompanionPageStatus.Unavailable;
+        }
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task LoadDevicesAsync()
+    {
+        var list = await Companion.LoadDevicesAsync(_lifetime.Token);
+        _devices = list?.Devices.Where(device => device.Item is not null).ToList() ?? [];
+    }
+
+    private async Task LoadContextAsync()
+    {
+        if (_place is not { } place)
+        {
+            return;
+        }
+
+        var context = await Companion.LoadContextAsync(place, _lifetime.Token);
+        if (context is null)
+        {
+            // The title is gone or hidden from this profile, or the Engine did not answer. A failed refresh of the same title keeps
+            // what is shown; a read for a different title never leaves the old title's details under the new place.
+            if (_context is not null && _context.WorkId == place.WorkId)
+            {
+                _status = CompanionPageStatus.Ready;
+                return;
+            }
+
+            _context = null;
+            _status = CompanionPageStatus.NotAvailable;
+            return;
+        }
+
+        _context = context;
+        _status = CompanionPageStatus.Ready;
+    }
+
+    private void StartFollowTimer()
+    {
+        if (_timer is not null)
+        {
+            return;
+        }
+
+        _timer = new PeriodicTimer(FollowEvery);
+        _ = FollowLoopAsync(_timer);
+    }
+
+    private async Task FollowLoopAsync(PeriodicTimer timer)
+    {
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_lifetime.Token))
+            {
+                await InvokeAsync(FollowTickAsync);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was left; nothing more to follow.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The circuit ended while a read was waiting.
+        }
+    }
+
+    // While following, ask the Engine where the device is. A change of title is read at once; the same title is re-read every
+    // few ticks so an audiobook's chapter keeps up. A manual place never changes by itself.
+    private async Task FollowTickAsync()
+    {
+        if (_place is not { Mode: CompanionModes.Follow } || _status == CompanionPageStatus.Loading || _holding)
+        {
+            return;
+        }
+
+        try
+        {
+            var session = await Companion.LoadSessionAsync(_lifetime.Token);
+            if (session is null)
+            {
+                return;
+            }
+
+            var next = CompanionPlace.From(session);
+            if (next is null)
+            {
+                // The followed device stopped. Keep showing where it was and say so.
+                _followedStopped = true;
+                await LoadDevicesAsync();
+                StateHasChanged();
+                return;
+            }
+
+            _followedStopped = false;
+            var changed = next.Value.WorkId != _place.Value.WorkId;
+            _place = next;
+            _ticks++;
+            if (changed || _ticks % ContextEveryTicks == 0)
+            {
+                await LoadContextAsync();
+            }
+
+            StateHasChanged();
+        }
+        catch (OperationCanceledException)
+        {
+            // Left the page mid-read.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The companion could not follow its device");
+            if (_context is not null && _place is { } moved && _context.WorkId != moved.WorkId)
+            {
+                _context = null;
+                _status = CompanionPageStatus.NotAvailable;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task FollowAsync(CompanionLiveDeviceDto device)
+    {
+        var session = await Companion.FollowAsync(device.DeviceId, _lifetime.Token);
+        if (session is null)
+        {
+            Snackbar.Add("Couldn't follow that device. Try again.", AppSeverity.Error);
+            return;
+        }
+
+        _place = CompanionPlace.From(session);
+        _showPicker = false;
+        _followedStopped = false;
+        _status = CompanionPageStatus.Loading;
+        await LoadContextAsync();
+        StartFollowTimer();
+    }
+
+    private async Task StopAsync()
+    {
+        await Companion.ClearAsync(_lifetime.Token);
+        _place = null;
+        _context = null;
+        await LoadDevicesAsync();
+        _status = CompanionPageStatus.NothingToFollow;
+    }
+
+    private void TogglePicker() => _showPicker = !_showPicker;
+
+    private async Task PickAsync(CompanionPickerChoiceDto choice)
+    {
+        if (_holding)
+        {
+            return;
+        }
+
+        _holding = true;
+        try
+        {
+            var session = await Companion.HoldAsync(choice.WorkId, choice.ChapterIndex, _lifetime.Token);
+            if (session is null)
+            {
+                Snackbar.Add("Couldn't set your place. Try again.", AppSeverity.Error);
+                return;
+            }
+
+            _place = CompanionPlace.From(session) ?? new CompanionPlace(choice.WorkId, choice.ChapterIndex, CompanionModes.Manual, null);
+            _followedStopped = false;
+            await LoadContextAsync();
+        }
+        finally
+        {
+            _holding = false;
+        }
+    }
+
+    // The switch writes the very same Spoilers preference as Settings > Preferences > Playback; the context is then read again,
+    // so the lists change at once.
+    private async Task SetSpoilerLevelAsync(string level)
+    {
+        if (_spoilerBusy || _context is null || string.Equals(_context.SpoilerLevel, level, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _spoilerBusy = true;
+        try
+        {
+            var saved = await Companion.SaveSpoilerLevelAsync(level, _lifetime.Token);
+            if (saved is null)
+            {
+                Snackbar.Add("The spoiler setting could not be saved.", AppSeverity.Error);
+                return;
+            }
+
+            await LoadContextAsync();
+        }
+        finally
+        {
+            _spoilerBusy = false;
+        }
+    }
+
+    private Task OpenAlsoAppearsInAsync(CompanionCharacterDto character)
+    {
+        var universe = string.IsNullOrWhiteSpace(character.UniverseQid) ? _context?.Universe?.Qid : character.UniverseQid;
+        return string.IsNullOrWhiteSpace(universe)
+            ? Task.CompletedTask
+            : MediaEngine.Web.Components.Universe.AlsoAppearsInPanel.OpenAsync(Dialogs, universe, [(character.Qid, character.Name)], reachedWorkId: _context?.WorkId);
+    }
+
+    private Task RetryAsync() => LoadAsync();
+
+    private static string PickLabel(CompanionContextDto context) => context.Kind switch
+    {
+        CompanionKinds.Episode => "Change episode",
+        CompanionKinds.Book or CompanionKinds.Audiobook => "Change chapter",
+        _ => "Set my place",
+    };
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _timer?.Dispose();
+        _lifetime.Dispose();
+    }
+}

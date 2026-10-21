@@ -29,6 +29,23 @@ public sealed class CompanionEndpointRouteTests
         Assert.DoesNotContain("IDatabaseConnection", endpointSource, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void TheContextAction_IsAReadOnQueueRead_AndTakesTheProfileFromTheCallersClaims()
+    {
+        var endpointSource = File.ReadAllText(GetRepoFilePath("src/MediaEngine.Api/Endpoints/CompanionEndpoints.cs"));
+        var readServices = File.ReadAllText(GetRepoFilePath("src/MediaEngine.Api/DependencyInjection/ApiReadServiceCollectionExtensions.cs"));
+
+        AssertRoute(endpointSource, "group.MapGet(\"/context\"", "ClientApiScopes.QueueRead");
+        var start = endpointSource.IndexOf("group.MapGet(\"/context\"", StringComparison.Ordinal);
+        var next = endpointSource.IndexOf("group.Map", start + 10, StringComparison.Ordinal);
+        var block = endpointSource[start..next];
+        // The profile is the caller's own, never the one in the query when the caller has a sign-in.
+        Assert.Contains("TuvimaClaimTypes.ActiveProfileId", block, StringComparison.Ordinal);
+        Assert.Contains("ClientApiScopes.LibraryRead", endpointSource[start..], StringComparison.Ordinal);
+        Assert.Contains("services.AddScoped<CompanionContextReadService>();", readServices, StringComparison.Ordinal);
+        Assert.Contains("services.AddSingleton<ICompanionChapterSource, CompanionChapterSource>();", readServices, StringComparison.Ordinal);
+    }
+
     private static void AssertRoute(string source, string route, string scope)
     {
         var start = source.IndexOf(route, StringComparison.Ordinal);
