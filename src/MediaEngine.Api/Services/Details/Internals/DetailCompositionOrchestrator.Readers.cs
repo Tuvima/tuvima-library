@@ -82,7 +82,7 @@ internal sealed partial class DetailCompositionOrchestrator
             WHERE LOWER(COALESCE(w.media_type, '')) LIKE '%audio%'
               AND candidate_asset.status = 'Normal'
               AND candidate_asset.is_orphaned = 0
-              AND (@restrictAssets = 0 OR candidate_asset.id IN @authorizedAssetIds)
+              AND (@restrictAssets = 0 OR candidate_asset.id IN (SELECT unhex(value) FROM json_each(@authorizedAssetIds)))
               AND {rowFilterSql}
             """,
             "rby_");
@@ -215,7 +215,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 WHERE woa.work_id=w.id
                   AND candidate.status='Normal'
                   AND candidate.is_orphaned=0
-                  AND (@restrictAssets = 0 OR candidate.id IN @authorizedAssetIds)
+                  AND (@restrictAssets = 0 OR candidate.id IN (SELECT unhex(value) FROM json_each(@authorizedAssetIds)))
                 ORDER BY progress.last_accessed DESC, candidate.id LIMIT 1
             )
             LEFT JOIN user_states us ON us.asset_id = ma.id
@@ -233,9 +233,7 @@ internal sealed partial class DetailCompositionOrchestrator
                     ? resolvedWorkIds.Select(GuidSql.ToBlob).ToArray()
                     : [GuidSql.ToBlob(Guid.Empty)],
                 restrictAssets = authorizedAssetIds is null ? 0 : 1,
-                authorizedAssetIds = authorizedAssetIds is { Count: > 0 }
-                    ? authorizedAssetIds.Select(GuidSql.ToBlob).ToArray()
-                    : [GuidSql.ToBlob(Guid.Empty)],
+                authorizedAssetIds = GuidSql.ToJsonHexArray(authorizedAssetIds ?? []),
             },
             cancellationToken: ct));
         var works = rawRows.Select(row => new CollectionWorkSummary(
@@ -444,16 +442,14 @@ internal sealed partial class DetailCompositionOrchestrator
             INNER JOIN editions e ON e.id = ma.edition_id
             WHERE e.work_id = @workId
               AND ma.status = 'Normal'
-              AND (@filterAssets=0 OR ma.id IN @authorizedAssetIds)
+              AND (@filterAssets=0 OR ma.id IN (SELECT unhex(value) FROM json_each(@authorizedAssetIds)))
             ORDER BY ma.id;
             """,
             new
             {
                 workId = GuidSql.ToBlob(workId),
                 filterAssets = authorizedAssetIds is null ? 0 : 1,
-                authorizedAssetIds = authorizedAssetIds is { Count: > 0 }
-                    ? authorizedAssetIds.Select(GuidSql.ToBlob).ToArray()
-                    : [GuidSql.ToBlob(Guid.Empty)],
+                authorizedAssetIds = GuidSql.ToJsonHexArray(authorizedAssetIds ?? []),
             },
             cancellationToken: ct));
         foreach (var assetId in assetIds.Distinct())
