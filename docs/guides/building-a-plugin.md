@@ -1,6 +1,6 @@
 ---
 title: "Build a Plugin"
-description: "How developers create dynamic Tuvima Library plugins and submit them for the approved catalog."
+description: "How developers create dynamic Tuvima Library plugins and submit them to the plugin directory."
 audience: "developer"
 category: "guide"
 product_area: "plugins"
@@ -15,7 +15,7 @@ status: current
 
 ## In this page
 
-Create a local .NET plugin, package its manifest, and load it through the Engine. The guide also explains the trust boundary and the evidence needed for an approved-catalog submission.
+Create a local .NET plugin, package its manifest, and load it through the Engine. The guide also explains the trust boundary and how to submit a plugin to the plugin directory.
 
 ## Where this lives in the code
 
@@ -36,7 +36,7 @@ The live contracts support:
 - `IPlaybackSegmentDetector` for playback markers such as commercial, intro, recap, and credits segments.
 - `IUniverseLoreProvider` for approved supplemental universe lore such as characters, locations, factions, and relationships.
 - `IPluginHealthCheck` for setup and dependency checks.
-- `IPluginJob` for plugin-owned work.
+- `IPluginScheduledJob`, `IPluginEventSubscriber` and `IPluginBackgroundService` for recurring jobs, Library events and always-on work, with `Records` on the context for the plugin's own stored records (see "Host services" below).
 - `IPluginSettingsSchemaProvider` for runtime settings metadata.
 - Host-bound media, HTTP, storage, tool, and AI services on `IPluginExecutionContext`.
 
@@ -245,8 +245,31 @@ Common permissions:
 - `ai.infer`: calls local AI through `IPluginAiClient`.
 - `storage.plugin`: reads or writes inside the invocation's plugin working directory.
 - `secrets.plugin`: reads the keys and logins the plugin declared in `secrets` (see below).
+- `plugin-records`: keeps the plugin's own records in the Library's data store (`context.Records`).
+- `scheduled-work`: runs the plugin's own recurring jobs (`IPluginScheduledJob`), listed in Scheduled tasks.
+- `library-events`: is told when things happen in the Library (`IPluginEventSubscriber`); covers every event except `playback.*`.
+- `watch-activity`: is told what people watch, read and listen to; needed for the `playback.*` events.
+- `background-work`: runs continuously in the background while switched on (`IPluginBackgroundService`).
 
 The Engine checks the live enabled state and the exact manifest permission again immediately before each host operation. Disabling a plugin therefore revokes an already-created context. Tool resolution accepts a declared tool id, and execution accepts only a resolution returned to that same context. Working and storage paths must remain inside the plugin directory.
+
+### Say where the plugin connects
+
+A plugin that declares `network.http` must also list every place it sends data in `network`. Each entry has:
+
+- `host` (required): an exact host such as `api.example.com`, or one leading wildcard label such as `*.fandom.com`. No `https://`, path, port or bare `*`.
+- `sends` (required): one plain sentence, 1 to 200 characters, saying what is sent there, for example "Searches for character and place names". Write it for a person deciding whether to switch the plugin on.
+- `max_requests_per_minute` (optional): a whole number from 1 to 600 asking for a rate cap for that host.
+
+```json
+"permissions": ["network.http"],
+"network": [
+  { "host": "www.wikidata.org", "sends": "Wikidata item IDs of Universes already in your Library", "max_requests_per_minute": 60 },
+  { "host": "*.fandom.com", "sends": "Requests for the page list of a wiki you approved", "max_requests_per_minute": 60 }
+]
+```
+
+The Library refuses to load a manifest that declares `network.http` with no destinations, lists destinations without `network.http`, repeats a host, or has a malformed host, and says why in Settings > Plugins. The destinations are part of what a person approves: the approval step and the plugin's card show one "Contacts host: what it sends" line per entry, so adding or changing a destination (a host or its `sends` sentence) asks for approval again. The plugin's web connection (`context.Http`) enforces this list: a request, or a redirect, to a host that is not listed is refused with a plain message and shows as the plugin's last problem. `*.example.com` covers subdomains only, never `example.com` itself. Each listed host also has a requests-a-minute limit (`max_requests_per_minute`, or 60 a minute when you leave it out); a request that would have to wait more than 30 seconds for its turn is refused with "Hit its limit of N requests a minute to host", and the plugin shows Needs attention while that keeps happening. Redirects are followed only for GET and HEAD requests, at most five times, and never from `https` to `http`; a login header is not carried to a different host.
 
 If a plugin uses tools, declare each `tool_requirements` entry with the executable name, license, source URL, supported platforms, download URL, SHA-256, and relative executable path when auto-install is supported.
 
@@ -261,6 +284,18 @@ If a plugin needs a key or login, declare each one in `secrets` (`name`, `label`
 
 If a plugin uses local AI, declare `ai_permissions` with role, token limit, schedule, and resource class. The AI client checks these declarations before running inference.
 
+## Host services
+
+A plugin that declares the permission can use these services. Each is bounded by limits the Library enforces; none is a setting. A plugin that goes over a limit is stopped or refused and its card in **Settings > Plugins** shows Needs attention (or Broken for always-on work that stopped for good) with the reason.
+
+**Its own records** (`plugin-records`). `context.Records` stores JSON documents by collection and key (`GetAsync`, `PutAsync`, `DeleteAsync`, `ListAsync`). Records belong to the plugin: it cannot name another plugin and cannot read another's records. Names are 1 to 128 printable characters. Limits: 64 KB for a value, 10,000 records and 16 MB in total. A write over a limit throws `PluginLimitExceededException` with a plain message and the card says "Reached its storage limit (16 MB)". Records survive an Engine restart.
+
+**Recurring jobs** (`scheduled-work`). Return `IPluginScheduledJob` capabilities: a `Key` (lower-case letters, digits, `-` and `_`), a `DisplayName`, a `DefaultSchedule` (`PluginSchedule.Every(...)`, at least five minutes, or `PluginSchedule.OnCron("0 3 * * *")`) and `RunAsync`. Every run is a run record, listed in **System > Tools and requirements > Scheduled tasks** as "Plugin name: Job name". An administrator can override a job's schedule by hand in the plugin's configuration file (`{library_root}/.data/plugin-config/{plugin-id}.json`) with a `schedules` object that maps the job key to a cron expression or an interval such as `30m`, `2h` or `1d`; there is no screen for it. A job never overlaps itself, at most two plugin jobs run at once across the Engine, and a run longer than ten minutes is cancelled and recorded as failed ("Stopped: ran longer than 10 minutes"). After three of those in a row the job pauses and the card says so until the plugin is switched off and on.
+
+**Library events** (`library-events`, plus `watch-activity` for `playback.*`). Return an `IPluginEventSubscriber` with the `EventTypes` it wants and `HandleAsync`. The events are the same ones webhooks use (the list in `ApplicationEventRegistry`), delivered with the same envelope JSON in `PluginEvent.PayloadJson`. A type the Library does not have is a load error. A new subscriber starts at the newest event, with no backlog, and carries on where it stopped after a restart. Each event is tried once with a 30-second limit; five failures in a row pause the subscription ("Stopped receiving events after 5 failures") until the plugin is switched off and on.
+
+**Always-on work** (`background-work`). Return an `IPluginBackgroundService`; `RunAsync` should run until its token is cancelled. The Library starts it when the plugin is switched on and approved and stops it (cancel, then ten seconds' grace) when the plugin is switched off, loses its approval, or the Engine stops. If it crashes or returns early it restarts after 5 seconds, then 30 seconds, 2 minutes and 10 minutes; the fifth crash inside an hour stops it for good and the card shows Broken ("Stopped after crashing 5 times in an hour") until the plugin is switched off and on. The context passed to `RunAsync` stays usable for the whole run and is cleaned up when the run ends.
+
 ## Universe lore plugins
 
 Universe lore plugins supplement Wikidata; they do not replace it. The Engine gives an `IUniverseLoreProvider` a Wikidata-backed universe QID and settings, the plugin can propose external lore sources, and admins approve or reject those sources in Chronicle Explorer before any data is imported. Approved data is stored as supplemental plugin lore and can be requested by the graph API as an overlay.
@@ -272,21 +307,21 @@ Use this shape when a source has useful structured lore but should stay visibly 
 - Extracted entities should include source URLs, confidence, evidence, and a stable external key.
 - Article prose should not be copied into Tuvima. Store structured metadata, relationships, and links back to the source.
 
-## Submit for the approved catalog
+## Submit your plugin
 
-To be listed as an approved plugin, publish a GitHub release that includes:
+Plugins reach the Library's list of available plugins (**Settings > Plugins > Available plugins**) through a short, public review.
 
-- A versioned archive containing `plugin.json` and compiled files.
-- A SHA-256 checksum for the archive.
-- Source repository URL.
-- Release URL.
-- Minimum Tuvima API version.
-- Capability list.
-- Install notes and tool requirements.
-- License information for plugin code and bundled or downloaded tools.
+1. Publish a GitHub release that includes:
+   - A versioned archive containing `plugin.json` and the plugin's files.
+   - A SHA-256 checksum for the archive.
+   - Your source repository URL and the release URL.
+   - The Library versions it works with (`minimum_library_version`, and `maximum_library_version` if there is a limit).
+   - The permissions it declares and the capabilities it provides.
+   - License information for the plugin and for any bundled or downloaded tools.
+2. Propose a change to the list file, [`docs/reference/approved-plugins.json`](../reference/approved-plugins.json), on GitHub. Add one entry in the [plugin directory format](../reference/plugin-catalog.md): `id`, `name`, `author`, `description`, `version`, `kind`, `permissions`, `capabilities`, `minimum_library_version`, `repository_url`, `release_url`, `package_url`, `sha256` and `added_at`. Use a real archive checksum, not the illustrative placeholder.
+3. Tuvima reviews the proposed change. It is listed as **Not verified**: Tuvima has not checked the plugin, and the entry says so beside it.
+4. The **Verified** mark is added only after Tuvima has checked the plugin and what it asks for. You cannot set it yourself; an entry that claims it is treated as a request until the review is done. Plugins built by Tuvima (**Official**) ship in the main repository and are not listed here.
 
-Submit the release metadata for maintainer review through the repository's contribution process. Maintainers can then add the approved release to [the catalog source](../reference/approved-plugins.json). The catalog currently has no third-party entries; built-in plugins ship with the application.
+The list is read-only: being listed does not install anything, and listing does not sandbox the plugin's code.
 
-Match the [catalog shape and status values](../reference/plugin-catalog.md): include `id`, `name`, `version`, `description`, `author`, `status`, `repository_url`, `release_url`, `package_url`, `sha256`, `minimum_library_version`, `capabilities`, and `install_notes`. Use a real archive checksum, not the illustrative placeholder. Catalog lookup is read-only and does not download or install an assembly. Catalog approval also does not sandbox the installed code.
-
-Plain English summary: A plugin is a small .NET package with a manifest and clear settings metadata. Developers implement the plugin contracts, package the assembly and `plugin.json` together, test it from the library `.data/plugins` folder, and publish a checksummed GitHub release for catalog approval.
+Plain English summary: A plugin is a small .NET package with a manifest and clear settings metadata. Developers implement the plugin contracts, package the assembly and `plugin.json` together, test it from the library `.data/plugins` folder, and publish a checksummed GitHub release and propose it for the plugin directory.

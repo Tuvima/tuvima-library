@@ -32,6 +32,24 @@ internal sealed class ApplicationWebhookService(
         return (await repository.ListAsync(applicationId, ct)).Select(Map).ToList();
     }
 
+    public const int DefaultAttemptCount = 6;
+    public const int MaximumAttemptCount = 50;
+
+    /// <summary>A webhook's most recent delivery attempts, newest first. Defaults to the last six; at most fifty.</summary>
+    public async Task<IReadOnlyList<ApplicationWebhookAttemptResponse>> ListAttemptsAsync(Guid applicationId, Guid webhookId, int? limit, CancellationToken ct)
+    {
+        await GetAsync(applicationId, webhookId, ct);
+        var attempts = await repository.ListAttemptsAsync(webhookId, Math.Clamp(limit ?? DefaultAttemptCount, 1, MaximumAttemptCount), ct);
+        return attempts.Select(WebhookAttempts.Map).ToList();
+    }
+
+    /// <summary>The webhook, once the application is known to be one that can have webhooks and to own it.</summary>
+    internal async Task<ApplicationWebhook> GetAsync(Guid applicationId, Guid webhookId, CancellationToken ct)
+    {
+        await RequireApplicationAsync(applicationId, ct);
+        return await RequireWebhookAsync(applicationId, webhookId, ct);
+    }
+
     /// <summary>
     /// Creates or updates a webhook. A webhook that will be switched on needs the person to have seen where events go
     /// (the approval rule): a new one always, an existing one when it was off or its address, events or private-network

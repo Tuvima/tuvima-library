@@ -80,7 +80,7 @@ public static class PluginCompatibility
             }
         }
 
-        return null;
+        return PluginNetworkRules.Validate(manifest.Permissions, manifest.Network);
     }
 
     /// <summary>

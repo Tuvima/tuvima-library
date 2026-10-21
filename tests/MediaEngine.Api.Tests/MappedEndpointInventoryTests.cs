@@ -198,6 +198,12 @@ public sealed class MappedEndpointInventoryTests
         inventory.Require("/access/applications/{applicationId:guid}/credentials/{credentialId:guid}/rotate", HttpMethods.Post)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityApplicationsWrite);
 
+        // The delivery history and Send test sit in the webhook group, so they need exactly what the other webhook actions need.
+        inventory.Require("/access/applications/{applicationId:guid}/webhooks/{webhookId:guid}/attempts", HttpMethods.Get)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityApplicationsWrite);
+        inventory.Require("/access/applications/{applicationId:guid}/webhooks/{webhookId:guid}/test", HttpMethods.Post)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityApplicationsWrite);
+
         inventory.Require("/auth/login", HttpMethods.Post)
             .RequiresNamedPolicy(AuthPolicies.DashboardService);
         inventory.Require("/auth/session/validate", HttpMethods.Post)
@@ -318,6 +324,34 @@ public sealed class MappedEndpointInventoryTests
         Assert.Contains(inventory.Endpoints, endpoint => endpoint.Name == "PreviewMediaEditorMembershipChange");
     }
 
+    [Fact]
+    public async Task PluginDirectory_IsReadWithPluginsRead_AndEveryActionIsForAdministratorsOnly()
+    {
+        await using var app = BuildEndpointOnlyApplication();
+        var inventory = EndpointInventory.From(app);
+
+        var read = inventory.Require("/plugins/directory", HttpMethods.Get);
+        Assert.Equal("GetPluginDirectory", read.Name);
+        read.RequiresAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        // Checking, marking seen, the switch and the install preview change what is remembered, switched or asked of
+        // GitHub, so a signed-in administrator is needed; no application permission stands in.
+        foreach (var (pattern, method, name) in new[]
+        {
+            ("/plugins/directory/check", HttpMethods.Post, "CheckPluginDirectory"),
+            ("/plugins/directory/seen", HttpMethods.Post, "MarkPluginDirectorySeen"),
+            ("/plugins/directory/settings", HttpMethods.Put, "SavePluginDirectorySettings"),
+            ("/plugins/directory/{pluginId}/approval-preview", HttpMethods.Post, "PreviewPluginDirectoryInstall"),
+        })
+        {
+            var route = inventory.Require(pattern, method);
+            Assert.Equal(name, route.Name);
+            route.RequiresNamedPolicy(AuthPolicies.Administrator);
+            Assert.Empty(route.Policies);
+        }
+
+        Assert.DoesNotContain(inventory.Endpoints, endpoint => endpoint.Pattern == "/plugins/approved");
+    }
     private static WebApplication BuildEndpointOnlyApplication()
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions

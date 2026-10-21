@@ -98,6 +98,84 @@ public sealed class StateCardPagesTests : AsyncBunitContext
     }
 
     [Fact]
+    public void PluginsPage_ACardForAPluginWithDestinations_ListsEveryHostAndWhatItSendsThere()
+    {
+        _plugins =
+        [
+            Plugin("a.lore", "Lore", enabled: true, trust: "official", permissions: ["network.http"],
+                allowedTo:
+                [
+                    "Contacts www.wikidata.org: Item IDs of Universes already in your Library",
+                    "Contacts *.fandom.com: Requests for the page list of a wiki you approved",
+                ],
+                sendsDataTo: "www.wikidata.org, *.fandom.com"),
+        ];
+
+        var cut = Render<PluginSettingsTab>();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
+        var card = cut.Find("[data-state-card=plugin]");
+        Assert.Equal("Yes, to www.wikidata.org, *.fandom.com", card.QuerySelector("[data-testid=sends-data]")!.TextContent.Trim());
+        Assert.Contains("Contacts www.wikidata.org: Item IDs of Universes already in your Library", card.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Contacts *.fandom.com: Requests for the page list of a wiki you approved", card.TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PluginsPage_ACardForAPluginThatSendsNothingOut_SaysNo()
+    {
+        _plugins = [Plugin("a.local", "Local", enabled: true, permissions: ["media.read"], allowedTo: ["Reads your media files"])];
+
+        var cut = Render<PluginSettingsTab>();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
+        Assert.Equal("No", cut.Find("[data-state-card=plugin] [data-testid=sends-data]").TextContent.Trim());
+    }
+
+    [Fact]
+    public void PluginsPage_AnInstalledPluginLink_ScrollsToThatCard_RingsIt_AndOpensItsSettings()
+    {
+        _plugins =
+        [
+            Plugin("a.official", "Alpha", enabled: true, trust: "official"),
+            Plugin("tuvima.fandom-lore", "Fandom Lore", enabled: false, trust: "official"),
+        ];
+
+        var cut = Render<PluginSettingsTab>(parameters => parameters.Add(page => page.FocusPluginId, "TUVIMA.fandom-lore"));
+
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-state-card=plugin]").Count));
+        var focused = cut.FindAll("[data-focused=true]");
+        var wrapper = Assert.Single(focused);
+        Assert.Equal("plugin-card-tuvima-fandom-lore", wrapper.Id);
+        Assert.Contains("settings-plugin-card-focus", wrapper.ClassName, StringComparison.Ordinal);
+        Assert.Contains("Fandom Lore", wrapper.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Alpha", wrapper.TextContent, StringComparison.Ordinal);
+        cut.WaitForAssertion(() => Assert.Contains("Configure Fandom Lore", cut.Markup, StringComparison.Ordinal));
+        cut.WaitForAssertion(() =>
+        {
+            var scroll = Assert.Single(JSInterop.Invocations["tuvimaEditorScrollTo"]);
+            Assert.Equal("#plugin-card-tuvima-fandom-lore", scroll.Arguments[0]);
+        });
+    }
+
+    [Theory]
+    [InlineData("no.such.plugin")]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void PluginsPage_AnUnknownOrEmptyPluginLink_OpensThePageNormally_WithNoRingNoScrollAndNoError(string? pluginId)
+    {
+        _plugins = [Plugin("a.official", "Alpha", enabled: true, trust: "official")];
+
+        var cut = Render<PluginSettingsTab>(parameters => parameters.Add(page => page.FocusPluginId, pluginId));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
+        Assert.Empty(cut.FindAll("[data-focused]"));
+        Assert.DoesNotContain("Configure Alpha", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Plugin settings could not be loaded", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "tuvimaEditorScrollTo");
+    }
+
+    [Fact]
     public void PluginsPage_AnEnabledPluginWithALoadError_ShowsBroken_WithRetry_AndTheMenuRowTurnsRed()
     {
         _plugins = [Plugin("a.bad", "Bad plugin", enabled: true, loadError: "The manifest is missing.")];

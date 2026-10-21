@@ -105,16 +105,17 @@ public sealed class Phase7LocalAiTests
         var plugins = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
 
         Assert.Contains("NormalizedSubsection", localAi, StringComparison.Ordinal);
-        // Plugins is one page: installed plugins, then the approved catalog, then the advanced sections.
+        // Plugins is one page: installed plugins, then Available plugins, then the advanced sections.
         Assert.DoesNotContain("NormalizedSubsection", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", localAi, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", plugins, StringComparison.Ordinal);
-        Assert.Contains("@ApprovedCatalogPanel()", plugins, StringComparison.Ordinal);
+        Assert.Contains("<AvailablePluginsPanel />", plugins, StringComparison.Ordinal);
         Assert.Contains("@AdvancedPluginPanel()", plugins, StringComparison.Ordinal);
         Assert.Contains("PluginHealthJobsPanel(plugin)", plugins, StringComparison.Ordinal);
         Assert.Contains("PluginCapabilitiesPanel(plugin)", plugins, StringComparison.Ordinal);
         Assert.Contains("DangerPanel(plugin)", plugins, StringComparison.Ordinal);
-        Assert.Contains("Install and update marketplace flows are planned", plugins, StringComparison.Ordinal);
+        Assert.DoesNotContain("marketplace flows are planned", plugins, StringComparison.Ordinal);
+        Assert.DoesNotContain("Approved Catalog", plugins, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -12,6 +12,7 @@ public static class ApplicationWebhookServiceCollectionExtensions
         services.AddSingleton<WebhookDestinationPolicy>();
         services.AddSingleton<IWebhookTransport, WebhookTransport>();
         services.AddScoped<ApplicationWebhookService>();
+        services.AddScoped<ApplicationWebhookTestSender>();
         services.AddScoped<ApplicationWebhookDispatcher>();
         services.AddHostedService<ApplicationWebhookWorker>();
         return services;

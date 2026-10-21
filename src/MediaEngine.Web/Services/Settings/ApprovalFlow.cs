@@ -52,7 +52,12 @@ public sealed class ApprovalFlow(IAppDialogService dialogs)
     /// Shows each preview in order. Returns the confirmed statement hash for each item (keyed by the preview's item id), or
     /// null as soon as the person cancels any one of them.
     /// </summary>
-    public async Task<IReadOnlyDictionary<string, string>?> ConfirmAsync(IReadOnlyList<ApprovalPreviewResponse> previews)
+    /// <param name="heading">Words for the dialog's heading when the usual one for the item does not fit (for example "Install X?").</param>
+    /// <param name="confirmLabel">Words for the confirming button when the usual ones for the item do not fit (for example "Install").</param>
+    public async Task<IReadOnlyDictionary<string, string>?> ConfirmAsync(
+        IReadOnlyList<ApprovalPreviewResponse> previews,
+        string? heading = null,
+        string? confirmLabel = null)
     {
         ArgumentNullException.ThrowIfNull(previews);
         var hashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -60,7 +65,12 @@ public sealed class ApprovalFlow(IAppDialogService dialogs)
         {
             var parameters = new AppDialogParameters<ApprovalDialog>();
             parameters.Add(dialog => dialog.Preview, preview);
-            var reference = await dialogs.ShowAsync<ApprovalDialog>(Heading(preview), parameters, DialogOptions);
+            if (!string.IsNullOrWhiteSpace(confirmLabel))
+            {
+                parameters.Add(dialog => dialog.ConfirmText, confirmLabel);
+            }
+
+            var reference = await dialogs.ShowAsync<ApprovalDialog>(heading ?? Heading(preview), parameters, DialogOptions);
             var result = await reference.Result;
             if (result is not { Canceled: false, Data: true })
             {

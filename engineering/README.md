@@ -23,7 +23,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
-| [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3; waves 1–2 and WP27 built 2026-10-20) |
+| [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3; waves 1–3 built 2026-10-20; waves 4–8 in [the handoff](handoffs/2026-10-20-developer-tools-waves-4-to-8.md)) |
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP4 to U-WP8, U-WP9 part 1, U-WP10 to U-WP12 built 2026-10-20, awaiting Local checks; rest in the [2026-10-20 Universes handoff](handoffs/2026-10-20-universe-remaining.md)) |
 | [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | In progress (v2): Waves 1–5 merged; WP8 left, see the 2026-10-21 handoff |
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v29, 2026-10-20) |
@@ -53,6 +53,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
 | [Handoff: finish the outstanding work, end to end (2026-10-19)](handoffs/2026-10-19-finish-outstanding-work.md) | Current |
 | [Handoff: finish the Details overlay and Editing Mode spec (2026-10-21)](handoffs/2026-10-21-details-overlay-finish.md) | Current: WP8 per-type pass and docs, plus follow-ups |
+| [Handoff: Developer tools waves 4 to 8 and wave 3 follow-ups (2026-10-20)](handoffs/2026-10-20-developer-tools-waves-4-to-8.md) | Current |
 | [Handoff: finish the Universes spec (2026-10-20)](handoffs/2026-10-20-universe-remaining.md) | Current (threads A to G: U-WP3b, U-WP13, U-WP14, U-WP9 part 2, U-WP4 priority, U-WP15, closing the spec) |
 | [Handoff: library read speed follow-ups (2026-10-21)](handoffs/2026-10-21-library-read-speed-follow-ups.md) | Current — T1 to T7; T4 and T5 wait on Shy's decisions |
 | [Handoff: developer tools after wave 2, and the follow-ups it turned up (2026-10-21)](handoffs/2026-10-21-developer-tools-and-follow-ups.md) | Current |
@@ -319,7 +320,7 @@ Published pages are listed in `website/publication.json`; status comes from each
 | Page | Status |
 |---|---|
 | [Build a Plugin](../docs/guides/building-a-plugin.md) | current |
-| [Approved Plugin Catalog](../docs/reference/plugin-catalog.md) | current |
+| [Plugin directory format](../docs/reference/plugin-catalog.md) | current |
 | [How to Add a New Metadata Provider](../docs/guides/adding-a-provider.md) | current |
 | [Provider onboarding contracts](../docs/architecture/provider-onboarding.md) | current |
 | [How to Write a New File Format Processor](../docs/guides/writing-a-processor.md) | current |
