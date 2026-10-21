@@ -214,6 +214,8 @@ TV/Breaking Bad (Q1079331)/Season 01/S01E01 - Pilot.mkv
 
 A file that covers several episodes (`S01E01E02`, `S01E01-E02`, `1x01-02`) uses the `{Episode}` token as `01-e02`. With the template above it is named `S01E01-e02 - Pilot.mkv`; the S and E letters follow whatever template you use. Single-episode files are named exactly as before. The file is never split or re-encoded, and the episodes it covers are recorded separately (see `media_asset_coverage`).
 
+The shipped template writes the season-and-episode part as `{EpisodeCode?}` (`s01e01`), which is empty unless both numbers are known, and drops the dash after it when empty. An episode with no number (one added to a season anyway, without being matched) is therefore named by its title alone, `Show - Pilot.mkv`, inside its season folder, never `sUnknowneUnknown`.
+
 ### Providers
 
 1. TMDB - series and episode metadata; poster and backdrop images
@@ -281,6 +283,8 @@ Example:
 ```
 Music/Pink Floyd/The Dark Side of the Moon (Q183221)/01 - Speak to Me.flac
 ```
+
+The shipped template writes the number as `{TrackNumber?}` and the dash after an optional token goes with it when it is empty, so a song with no track number (added to an album anyway) is named by its title alone, `Hidden Jam.flac`, inside the album folder, not `Unknown - Hidden Jam.flac`. Audiobook parts already do the same with `{TrackNumber?}`.
 
 ---
 

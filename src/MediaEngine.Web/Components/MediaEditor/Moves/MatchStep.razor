@@ -1,0 +1,413 @@
+@namespace MediaEngine.Web.Components.MediaEditor.Moves
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Ui
+@inject IAppDialogService Dialogs
+
+@* The Match step (details overlay spec D12 to D16): the one screen every kind of move uses. Left, what is being moved; right, the
+   destination's own list with entries that already have a file marked. The Engine's best guess is already chosen, with its reason.
+   Several items become a mapping table (current, then new entry) with unmatched rows highlighted. Apply stays off until every
+   item is matched, added as another version, or added anyway. A destination with no list needs no choices (D14). *@
+<section class="tl-match-step" aria-labelledby="tl-match-step-title" data-list-kind="@Selection.Preview.ListKind">
+    <header class="tl-match-step__header">
+        <h3 id="tl-match-step-title" class="tl-match-step__title">@Heading</h3>
+        <p class="tl-match-step__lead">@Lead</p>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Notice))
+    {
+        <div class="tl-match-step__message"><AppAlert Tone="AppUiTone.Warning">@Notice</AppAlert></div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <div class="tl-match-step__message"><AppAlert Tone="AppUiTone.Error">@Error</AppAlert></div>
+    }
+
+    @if (!Selection.HasList)
+    {
+        <ul class="tl-match-step__plain" aria-label="What you are moving">
+            @foreach (var row in Selection.Rows)
+            {
+                <li class="tl-match-step__plain-row" data-item-id="@row.ItemId">
+                    <strong>@row.Title</strong>
+                    <span class="tl-match-step__muted">@row.Source.CurrentPlacementLabel</span>
+                    @if (row.IsBlocked)
+                    {
+                        <span class="tl-match-step__blocked">@row.Source.BlockedReason</span>
+                    }
+                </li>
+            }
+        </ul>
+    }
+    else if (Selection.IsSingle)
+    {
+        var row = Selection.Rows[0];
+        <div class="tl-match-step__panes">
+            <section class="tl-match-step__pane" aria-label="What you are moving">
+                <h4 class="tl-match-step__pane-title">Moving</h4>
+                <div class="tl-match-step__item @(row.Choice == LibraryMoveRowChoice.Undecided ? "is-unmatched" : string.Empty)" data-item-id="@row.ItemId">
+                    <strong>@row.Title</strong>
+                    <span class="tl-match-step__muted">Now in: @row.Source.CurrentPlacementLabel</span>
+                    <span class="tl-match-step__row-note">@RowNote(row)</span>
+                    @if (row.IsBlocked)
+                    {
+                        <span class="tl-match-step__blocked">@row.Source.BlockedReason</span>
+                    }
+                    @if (row.PickNote is { } pickNote)
+                    {
+                        <span class="tl-match-step__row-note" data-pick-note="true">@pickNote</span>
+                    }
+                </div>
+                @if (!Selection.IsWithinCurrentPlace)
+                {
+                    <div class="tl-match-step__anyway">
+                        <p class="tl-match-step__muted">Nothing fits? Add it anyway. It won't get a @NumberWord number or details from @Destination.</p>
+                        <AppButton Label="Add anyway"
+                                   ButtonStyle="AppButtonStyle.Text"
+                                   Size="@AppControlSize.Compact"
+                                   Disabled="@(Busy || row.Choice == LibraryMoveRowChoice.AddAnyway)"
+                                   OnClick="@(() => AddAnyway(row))" />
+                    </div>
+                }
+            </section>
+            <section class="tl-match-step__pane" aria-label="@($"{Destination} {ListNoun}")">
+                <h4 class="tl-match-step__pane-title">@ListHeading</h4>
+                @if (Selection.Preview.Entries.Count == 0)
+                {
+                    <p class="tl-match-step__muted">@Destination has nothing to match against yet. You can add it anyway.</p>
+                }
+                else
+                {
+                    <div class="tl-match-step__entries">
+                        <AppList T="LibraryMoveEntry" Dense="true" aria-label="@($"{Destination} {ListNoun}")">
+                            @foreach (var entry in Selection.Preview.Entries)
+                            {
+                                var chosen = string.Equals(row.EntryKey, entry.EntryKey, StringComparison.Ordinal) && row.Choice is LibraryMoveRowChoice.Match or LibraryMoveRowChoice.AddAsVersion;
+                                var taken = Selection.IsTaken(entry.EntryKey, row.ItemId);
+                                var own = Selection.IsOwn(entry.EntryKey, row.ItemId);
+                                <AppListItem T="LibraryMoveEntry" Disabled="@(Busy || own || !row.CanPick(entry))" OnClick="@(() => PickAsync(row, entry.EntryKey))">
+                                    <span class="@($"tl-match-step__entry{(chosen ? " is-chosen" : string.Empty)}{(taken ? " is-taken" : string.Empty)}{(own ? " is-own" : string.Empty)}")"
+                                          data-entry-key="@entry.EntryKey">
+                                        <span class="tl-match-step__entry-number">@entry.Number</span>
+                                        <span class="tl-match-step__entry-title">@entry.Title</span>
+                                        @if (entry.LengthSeconds is > 0)
+                                        {
+                                            <span class="tl-match-step__entry-length">@FormatLength(entry.LengthSeconds.Value)</span>
+                                        }
+                                        @if (chosen)
+                                        {
+                                            <span class="sr-only">Chosen.</span>
+                                        }
+                                        @if (own)
+                                        {
+                                            <span class="tl-match-step__own">This is it now</span>
+                                        }
+                                        else if (taken)
+                                        {
+                                            <span class="tl-match-step__taken">Has a file</span>
+                                        }
+                                        @if (string.Equals(row.Source.SuggestedEntryKey, entry.EntryKey, StringComparison.Ordinal))
+                                        {
+                                            <span class="tl-match-step__guess">Best guess: @row.Source.SuggestionReason</span>
+                                        }
+                                    </span>
+                                </AppListItem>
+                            }
+                        </AppList>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(_takenNote))
+                {
+                    <p class="tl-match-step__taken-note" role="status">@_takenNote</p>
+                }
+            </section>
+        </div>
+    }
+    else
+    {
+        <table class="tl-match-step__table" aria-label="@($"Match to {Destination}")">
+            <thead>
+                <tr>
+                    <th scope="col">Now</th>
+                    <th scope="col"><span class="sr-only">Becomes</span></th>
+                    <th scope="col">New @NumberWord</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Selection.Rows)
+                {
+                    <tr class="tl-match-step__row @(row.Choice == LibraryMoveRowChoice.Undecided ? "is-unmatched" : string.Empty)" data-item-id="@row.ItemId">
+                        <td>
+                            <strong>@row.Title</strong>
+                            <span class="tl-match-step__muted">@row.Source.CurrentPlacementLabel</span>
+                            @if (row.IsBlocked)
+                            {
+                                <span class="tl-match-step__blocked">@row.Source.BlockedReason</span>
+                            }
+                        </td>
+                        <td class="tl-match-step__arrow" aria-hidden="true">&rarr;</td>
+                        <td>
+                            <AppNativeSelect @key="@((row.ItemId, _selectVersion))"
+                                             Value="@SelectValue(row)"
+                                             Disabled="@Busy"
+                                             aria-label="@($"New {NumberWord} for {row.Title}")"
+                                             OnChange="@(args => OnRowSelectChangedAsync(row, args))">
+                                <option value="">Choose a @NumberWord</option>
+                                @foreach (var entry in Selection.Preview.Entries)
+                                {
+                                    var other = Selection.IsPickedByOtherRow(row.ItemId, entry.EntryKey);
+                                    <option value="@entry.EntryKey" disabled="@(other || !row.CanPick(entry))">@EntryOption(entry, row)</option>
+                                }
+                                @if (!Selection.IsWithinCurrentPlace)
+                                {
+                                    <option value="@AnywayValue">Add anyway (no number)</option>
+                                }
+                            </AppNativeSelect>
+                            <span class="tl-match-step__row-note">@RowNote(row)</span>
+                            @if (row.PickNote is { } pickNote)
+                            {
+                                <span class="tl-match-step__row-note" data-pick-note="true">@pickNote</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (!string.IsNullOrWhiteSpace(_takenNote))
+        {
+            <p class="tl-match-step__taken-note" role="status">@_takenNote</p>
+        }
+    }
+
+    <footer class="tl-match-step__footer">
+        @if (BlockedReason is { } blocked)
+        {
+            <p class="tl-match-step__blocked-note" role="alert">@blocked</p>
+        }
+
+        <div class="tl-match-step__actions">
+            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="CancelAsync" />
+            @if (Selection.HasList && !Selection.IsSingle && !Selection.IsWithinCurrentPlace && Selection.UndecidedCount > 0)
+            {
+                <AppButton Label="Add unmatched without numbers"
+                           ButtonStyle="AppButtonStyle.Outlined"
+                           Disabled="@Busy"
+                           OnClick="AddUnmatched" />
+            }
+            <AppButton Label="Apply"
+                       ButtonStyle="AppButtonStyle.Filled"
+                       Tone="AppUiTone.Primary"
+                       Disabled="@(Busy || !Selection.CanApply)"
+                       OnClick="ApplyAsync" />
+        </div>
+    </footer>
+</section>
+
+@code {
+    private const string AnywayValue = "__add_anyway";
+
+    private string? _takenNote;
+    private int _selectVersion;
+
+    /// <summary>The Engine's preview and what has been chosen so far. Choices change this object in place.</summary>
+    [Parameter, EditorRequired] public LibraryMoveSelection Selection { get; set; } = default!;
+
+    /// <summary>A short line above the step, such as "Something changed while this was open. Check again."</summary>
+    [Parameter] public string? Notice { get; set; }
+
+    /// <summary>Why the last attempt failed, in plain words.</summary>
+    [Parameter] public string? Error { get; set; }
+
+    /// <summary>True while the Engine is working: every control is off.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>Apply was chosen with every item decided. The host confirms it with the preview.</summary>
+    [Parameter] public EventCallback<LibraryMoveSelection> OnApply { get; set; }
+
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private string Destination => LibraryMoveText.DestinationLabel(Selection.Preview.Destination);
+
+    private string NumberWord => LibraryMoveText.NumberWord(Selection.Preview.ListKind);
+
+    private string ListNoun => Selection.Preview.ListKind switch
+    {
+        LibraryMoveListKinds.Tracks => "tracks",
+        LibraryMoveListKinds.Episodes => "episodes",
+        LibraryMoveListKinds.Parts => "parts",
+        _ => "entries",
+    };
+
+    private string ListHeading => $"{Destination}: {ListNoun}";
+
+    private string Heading => Selection.AddAnywayOnly
+        ? $"Add to {Destination} without a number"
+        : !Selection.HasList
+        ? $"Move to {Destination}"
+        : Selection.IsWithinCurrentPlace && Selection.IsSingle ? $"Match {Selection.Rows[0].Title} in {Destination}"
+        : Selection.IsSingle ? $"Match {Selection.Rows[0].Title} to {Destination}" : $"Match {Selection.Rows.Count} items to {Destination}";
+
+    private string Lead => Selection.AddAnywayOnly
+        ? Selection.Preview.Note ?? $"{Destination} is built from each title's match. You can add {(Selection.IsSingle ? "this" : "these")} here without a number."
+        : !Selection.HasList
+        ? $"{Destination} has no list to match against, so {(Selection.IsSingle ? "this goes" : "these go")} to the end, in your own order."
+        : Selection.IsSingle
+            ? $"Choose which {NumberWord} this is. It takes that {NumberWord}'s number and details."
+            : $"Choose which {NumberWord} each one is. Each takes that {NumberWord}'s number and details.";
+
+    // "Try again when it has finished" only fits the reason that passes by itself; the other reasons are final.
+    private string? BlockedReason => Selection.Rows.FirstOrDefault(row => row.IsBlocked) is { } blocked
+        ? $"{blocked.Title}: {blocked.Source.BlockedReason!.Trim().TrimEnd('.')}."
+            + (string.Equals(blocked.Source.BlockedReason, LibraryMoveBlockedReasons.StillProcessing, StringComparison.Ordinal)
+                ? " Try again when it has finished."
+                : string.Empty)
+        : null;
+
+    private string SelectValue(LibraryMoveRowState row) => row.Choice switch
+    {
+        LibraryMoveRowChoice.AddAnyway => AnywayValue,
+        LibraryMoveRowChoice.Match or LibraryMoveRowChoice.AddAsVersion => row.EntryKey ?? string.Empty,
+        _ => string.Empty,
+    };
+
+    private string EntryOption(LibraryMoveEntry entry, LibraryMoveRowState row)
+    {
+        var text = $"{entry.Number}. {entry.Title}";
+        if (Selection.IsOwn(entry.EntryKey, row.ItemId))
+        {
+            text += " (this is it now)";
+        }
+        else if (Selection.IsTaken(entry.EntryKey, row.ItemId))
+        {
+            text += " (has a file)";
+        }
+        else if (Selection.RowChoosing(entry.EntryKey) is { } holder && holder.ItemId != row.ItemId)
+        {
+            text += " (matched to another item)";
+        }
+
+        return text;
+    }
+
+    // The line under an item: why the Engine chose its entry, what it chose, or that nothing is chosen yet.
+    private string RowNote(LibraryMoveRowState row)
+    {
+        switch (row.Choice)
+        {
+            case LibraryMoveRowChoice.AddAnyway:
+                return $"Added anyway: no {NumberWord} number.";
+            case LibraryMoveRowChoice.AddAsVersion:
+                return Selection.Entry(row.EntryKey) is { } version
+                    ? $"Another version of {LibraryMoveText.EntryLabel(Selection.Preview, version)}."
+                    : string.Empty;
+            case LibraryMoveRowChoice.Match when row.IsSuggestionChosen && Selection.Entry(row.EntryKey) is { } guess:
+                return $"Best guess: {LibraryMoveText.EntryLabel(Selection.Preview, guess)}. {row.Source.SuggestionReason}.";
+            case LibraryMoveRowChoice.Match when Selection.Entry(row.EntryKey) is { } picked:
+                return LibraryMoveText.EntryLabel(Selection.Preview, picked) + ".";
+            default:
+                if (Selection.Entry(row.Source.SuggestedEntryKey) is { } taken && Selection.IsTaken(taken.EntryKey, row.ItemId))
+                {
+                    return $"Best guess {LibraryMoveText.EntryLabel(Selection.Preview, taken)} already has a file.";
+                }
+
+                return Selection.IsWithinCurrentPlace
+                    ? $"Not matched yet. Choose a {NumberWord}."
+                    : $"Not matched yet. Choose a {NumberWord}, or add it anyway.";
+        }
+    }
+
+    private static string FormatLength(double seconds)
+    {
+        var span = TimeSpan.FromSeconds(Math.Max(0, seconds));
+        return span.TotalHours >= 1
+            ? $"{(int)span.TotalHours}:{span.Minutes:00}:{span.Seconds:00}"
+            : $"{span.Minutes}:{span.Seconds:00}";
+    }
+
+    private async Task OnRowSelectChangedAsync(LibraryMoveRowState row, ChangeEventArgs args)
+    {
+        var value = args.Value?.ToString() ?? string.Empty;
+        _takenNote = null;
+        if (value.Length == 0)
+        {
+            Selection.Clear(row.ItemId);
+        }
+        else if (string.Equals(value, AnywayValue, StringComparison.Ordinal))
+        {
+            Selection.AddAnyway(row.ItemId);
+        }
+        else
+        {
+            await PickAsync(row, value);
+        }
+
+        // A refused or declined choice leaves the old one in force, so the browser's select is rebuilt to show it.
+        _selectVersion++;
+    }
+
+    private async Task PickAsync(LibraryMoveRowState row, string entryKey)
+    {
+        _takenNote = null;
+        switch (Selection.Pick(row.ItemId, entryKey))
+        {
+            case LibraryMovePickResult.EntryTaken:
+                await HandleTakenAsync(row, entryKey);
+                break;
+            case LibraryMovePickResult.OwnEntry when Selection.Entry(entryKey) is { } own:
+                _takenNote = LibraryMoveText.OwnEntryMessage(Selection.Preview, own);
+                break;
+            case LibraryMovePickResult.MatchNotAllowed or LibraryMovePickResult.CannotMerge:
+                _takenNote = row.PickNote;
+                break;
+            case LibraryMovePickResult.PickedByAnotherItem:
+                _takenNote = $"Another item already has that {NumberWord}. Pick a different one.";
+                break;
+        }
+    }
+
+    // D16: the entry already has a file. Never replace it silently: add as another version (when the Engine can), or pick another.
+    private async Task HandleTakenAsync(LibraryMoveRowState row, string entryKey)
+    {
+        var entry = Selection.Entry(entryKey);
+        if (entry is null)
+        {
+            return;
+        }
+
+        if (!entry.CanAddVersion)
+        {
+            _takenNote = LibraryMoveText.TakenWithoutVersionMessage(Selection.Preview, entry);
+            return;
+        }
+
+        var answer = await AppConfirmDialog.ShowAsync(
+            Dialogs,
+            $"{LibraryMoveText.EntryLabel(Selection.Preview, entry)} already has a file",
+            LibraryMoveText.TakenMessage(Selection.Preview, entry),
+            "Add as another version",
+            "Pick another entry");
+        if (answer == AppConfirmResult.Primary)
+        {
+            Selection.AddAsVersion(row.ItemId, entryKey);
+        }
+    }
+
+    private void AddAnyway(LibraryMoveRowState row)
+    {
+        _takenNote = null;
+        Selection.AddAnyway(row.ItemId);
+    }
+
+    private void AddUnmatched()
+    {
+        _takenNote = null;
+        Selection.AddUnmatchedWithoutNumbers();
+        _selectVersion++;
+    }
+
+    private Task ApplyAsync() => Selection.CanApply ? OnApply.InvokeAsync(Selection) : Task.CompletedTask;
+
+    private Task CancelAsync() => OnCancel.InvokeAsync();
+}

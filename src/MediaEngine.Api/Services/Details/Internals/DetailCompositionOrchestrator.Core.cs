@@ -140,6 +140,12 @@ internal sealed partial class DetailCompositionOrchestrator
                 personalStatusAssetIds,
                 ct);
         }
+
+        if (model is not null)
+        {
+            await StampUnmatchedAsync(model, ct);
+        }
+
         return model;
     }
 }

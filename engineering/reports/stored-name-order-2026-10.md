@@ -239,4 +239,6 @@ Shy asked on October 20, 2026 for this to be recorded and fixed later, outside P
 
 Recommendation: confirm whether any planned screen needs it, then choose. If nothing does, removing it is the long-term answer.
 
-**Related, also open:** `creator` is single-valued in the data store although Wikidata can name several creators (see the last bullet above).
+**Related, decided 2026-10-21 (Shy: yes):** `creator` is now a list (`MetadataFieldConstants.MultiValuedKeys`), so a series can hold several creators, as Wikidata does. The group detail header names all of them, in order, when the series has no author. Pre-release data needs a reset to pick this up (no migration).
+
+**Outcome (2026-10-21, Shy: remove it):** the unused `GET /collections/artist-group-detail` action was removed, so its "Unknown Artist" result no longer exists. The Dashboard's artist pages (`/collections/artist-detail-by-name`) are unchanged.

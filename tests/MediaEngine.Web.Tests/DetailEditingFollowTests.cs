@@ -1,0 +1,302 @@
+using Bunit;
+using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Metadata;
+using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.MediaEditor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Editing;
+using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Navigation;
+using MediaEngine.Web.Services.Playback;
+using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Services.Ui;
+using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+namespace MediaEngine.Web.Tests;
+
+/// <summary>
+/// Following the surviving item after a move (details overlay spec D9, D12): when a move removes the title a page shows, the address
+/// follows the item and the page that loads there picks Editing Mode, the Match and Identity section and the move's result line back
+/// up, so the follow does not end the edit. The Engine is a hand-written stub; nothing is moved anywhere.
+/// </summary>
+public sealed class DetailEditingFollowTests : AsyncBunitContext
+{
+    private static readonly Guid MovieId = EditingModeTestData.MovieId;
+    private static readonly Guid SurvivorId = Guid.Parse("22222222-aaaa-bbbb-cccc-000000000002");
+    private const string Line = "Moved Paranoid Android to OK Computer as Track 2.";
+
+    private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
+    private readonly ManualClock _clock = new();
+
+    public DetailEditingFollowTests()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        Services.AddLogging();
+        Services.AddNativeUiServices();
+        var api = EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ => Task.FromResult<MediaEditorContextDto?>(EditingModeTestData.MovieContext())));
+        Services.AddSingleton<IEngineApiClient>(api);
+        Services.AddSingleton<IDetailsOverlayHistory>(new NoHistory());
+        Services.AddSingleton<TimeProvider>(_clock);
+        Services.AddScoped<DetailsOverlayState>();
+        Services.AddSingleton(_device);
+        Services.AddSingleton(new DashboardSessionAccessor());
+        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        Services.AddScoped<ActiveProfileSessionService>();
+        Services.AddScoped<UniverseStateContainer>();
+        Services.AddScoped<UIOrchestratorService>();
+        Services.AddScoped<MediaEditorLauncherService>();
+        Services.AddScoped<CollectionEditorLauncherService>();
+        Services.AddSingleton(new SavedItemService(api));
+        Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton<ListenAudioDragService>();
+        Services.AddSingleton(_ => new PlaybackSessionController(null!, null!));
+        Services.AddSingleton(_ => new ProviderCatalogueService(api, new MemoryCache(new MemoryCacheOptions())));
+        Render<AppPopoverHost>();
+    }
+
+    private DetailsOverlayState State => Services.GetRequiredService<DetailsOverlayState>();
+
+    private NavigationManager Nav => Services.GetRequiredService<NavigationManager>();
+
+    private static DetailPageViewModel Model(Guid id) => new()
+    {
+        Id = id.ToString("D"),
+        EntityType = DetailEntityType.Movie,
+        Title = "Dune: Part One",
+        Tabs = [new DetailTab { Key = "overview", Label = "Overview" }],
+        OverflowActions = [new DetailAction { Key = "edit", Label = "Edit", Icon = "edit" }],
+    };
+
+    private Task UseDeviceAsync(string formFactor) => formFactor == "desktop"
+        ? _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true))
+        : _device.InitialiseAsync(new DeviceContextSnapshot("web", formFactor, true));
+
+    private IRenderedComponent<DetailPage> RenderPage(Guid id) =>
+        Render<DetailPage>(parameters => parameters.Add(page => page.Model, Model(id)));
+
+    private static void StartEditing(IRenderedComponent<DetailPage> cut)
+    {
+        cut.Find("button[aria-label='More actions']").Click();
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
+        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim()));
+    }
+
+    // What the shell does after a move that removed the title: asks the host to follow.
+    private static Task<bool> FollowAsync(IRenderedComponent<DetailPage> cut, Guid from, Guid to, string? line = Line)
+    {
+        var request = cut.FindComponent<EditingSectionSlot>().Instance.BuildRequest("links", null)!;
+        return cut.InvokeAsync(() => request.OnEditedItemReplaced!(from, to, line));
+    }
+
+    // -- the follow keeps the edit going --------------------------------------------------------
+
+    [Fact]
+    public async Task FollowingTheSurvivingItem_KeepsEditingModeTheMatchSectionAndTheResultLine()
+    {
+        await UseDeviceAsync("desktop");
+        Nav.NavigateTo($"/details/movie/{MovieId}");
+        _ = State;
+        var first = RenderPage(MovieId);
+        StartEditing(first);
+
+        var followed = await FollowAsync(first, MovieId, SurvivorId);
+
+        Assert.True(followed);
+        Assert.EndsWith($"/details/movie/{SurvivorId}", Nav.Uri, StringComparison.Ordinal);
+
+        // The route host builds a new page for the surviving item (its @key changes) and the old one goes.
+        first.Dispose();
+        var second = RenderPage(SurvivorId);
+
+        second.WaitForAssertion(() => Assert.Equal("Done", second.Find("button.tl-editing-banner__done").TextContent.Trim()));
+        var slot = second.FindComponent<EditingSectionSlot>();
+        second.WaitForAssertion(() => Assert.Equal(EditingSection.Match, slot.Instance.Mode!.OpenSectionKind));
+        second.WaitForAssertion(() => Assert.Equal(Line, second.FindComponent<SharedMediaEditorShell>().Instance.Request.InitialMoveResult));
+    }
+
+    [Fact]
+    public async Task TheResultLine_IsGivenToTheSectionOnceAndNotToALaterOpening()
+    {
+        await UseDeviceAsync("desktop");
+        Nav.NavigateTo($"/details/movie/{MovieId}");
+        _ = State;
+        var first = RenderPage(MovieId);
+        StartEditing(first);
+        await FollowAsync(first, MovieId, SurvivorId);
+        first.Dispose();
+        var second = RenderPage(SurvivorId);
+        second.WaitForAssertion(() => Assert.Equal(EditingSection.Match, second.FindComponent<EditingSectionSlot>().Instance.Mode!.OpenSectionKind));
+
+        var slot = second.FindComponent<EditingSectionSlot>();
+        var again = slot.Instance.BuildRequest("links", null)!;
+
+        Assert.Null(again.InitialMoveResult);
+    }
+
+    [Fact]
+    public async Task APageThatShowsSomethingElse_AnswersFalseLeavesTheAddressAndOffersNothing()
+    {
+        await UseDeviceAsync("desktop");
+        Nav.NavigateTo($"/details/movie/{MovieId}");
+        _ = State;
+        var page = RenderPage(MovieId);
+        StartEditing(page);
+        var elsewhere = Guid.NewGuid();
+
+        var followed = await FollowAsync(page, elsewhere, SurvivorId);
+
+        Assert.False(followed);
+        Assert.EndsWith($"/details/movie/{MovieId}", Nav.Uri, StringComparison.Ordinal);
+        Assert.False(State.TryTakeEditResume(SurvivorId, out _));
+        Assert.Equal("Done", page.Find("button.tl-editing-banner__done").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task WhenTheAddressDoesNotNameThePreviousItem_TheNoteIsWithdrawn()
+    {
+        await UseDeviceAsync("desktop");
+        Nav.NavigateTo($"/details/movie/{Guid.NewGuid()}");
+        _ = State;
+        var page = RenderPage(MovieId);
+        StartEditing(page);
+
+        var followed = await FollowAsync(page, MovieId, SurvivorId);
+
+        Assert.False(followed);
+        Assert.False(State.TryTakeEditResume(SurvivorId, out _));
+    }
+
+    [Fact]
+    public async Task ADeviceThatNoLongerQualifies_OpensTheSurvivingPageToReadWithoutEditing()
+    {
+        await UseDeviceAsync("desktop");
+        State.OfferEditResume(new DetailsEditResume(SurvivorId, EditingSection.Match, Line));
+        await UseDeviceAsync("tablet");
+
+        var page = RenderPage(SurvivorId);
+
+        Assert.Empty(page.FindAll("button.tl-editing-banner__done"));
+        Assert.False(State.TryTakeEditResume(SurvivorId, out _));
+    }
+
+    [Fact]
+    public async Task APageForAnotherItem_DoesNotPickTheNoteUpAndTheNoteIsDropped()
+    {
+        await UseDeviceAsync("desktop");
+        State.OfferEditResume(new DetailsEditResume(SurvivorId, EditingSection.Match, Line));
+
+        var page = RenderPage(MovieId);
+
+        Assert.Empty(page.FindAll("button.tl-editing-banner__done"));
+        Assert.False(State.TryTakeEditResume(SurvivorId, out _));
+    }
+
+    // -- the one-shot note ------------------------------------------------------------------------
+
+    [Fact]
+    public void TheNote_IsTakenOnceForItsItemAndThenGone()
+    {
+        State.OfferEditResume(new DetailsEditResume(SurvivorId, EditingSection.Match, Line));
+
+        Assert.True(State.TryTakeEditResume(SurvivorId, out var resume));
+        Assert.Equal(EditingSection.Match, resume.Section);
+        Assert.Equal(Line, resume.ResultLine);
+        Assert.False(State.TryTakeEditResume(SurvivorId, out _));
+    }
+
+    [Fact]
+    public void TheNote_LapsesWhenNoPageTakesItSoon_SoALaterOpeningOfTheItemStaysInReadMode()
+    {
+        State.OfferEditResume(new DetailsEditResume(SurvivorId, EditingSection.Match, Line));
+        _clock.Advance(DetailsOverlayState.EditResumeLifetime + TimeSpan.FromSeconds(1));
+
+        Assert.False(State.TryTakeEditResume(SurvivorId, out _));
+    }
+
+    [Fact]
+    public void ANewNote_ReplacesTheOldOne_AndWithdrawingRemovesIt()
+    {
+        State.OfferEditResume(new DetailsEditResume(MovieId, EditingSection.Match, "old"));
+        State.OfferEditResume(new DetailsEditResume(SurvivorId, EditingSection.Match, "new"));
+
+        Assert.False(State.TryTakeEditResume(MovieId, out _));
+
+        State.OfferEditResume(new DetailsEditResume(SurvivorId, EditingSection.Match, "again"));
+        State.WithdrawEditResume();
+
+        Assert.False(State.TryTakeEditResume(SurvivorId, out _));
+    }
+
+    // -- when to follow ----------------------------------------------------------------------------
+
+    private static readonly Guid PartOfA = Guid.Parse("aa000000-0000-0000-0000-00000000000a");
+    private static readonly Guid AudiobookA = Guid.Parse("a0000000-0000-0000-0000-00000000000a");
+    private static readonly Guid AudiobookB = Guid.Parse("b0000000-0000-0000-0000-00000000000b");
+
+    [Fact]
+    public void ATitleMergedIntoAnEntrysOwnTitle_RemovedItsWork()
+    {
+        var removed = LibraryMoveRules.RemovedEditedWork(MovieId, MovieId, SurvivorId, ["Paranoid Android"], []);
+
+        Assert.True(removed);
+    }
+
+    [Fact]
+    public void ATitleThatStayedItsOwn_RemovedNothing()
+    {
+        var removed = LibraryMoveRules.RemovedEditedWork(MovieId, MovieId, MovieId, ["Paranoid Android"], []);
+
+        Assert.False(removed);
+    }
+
+    [Fact]
+    public void ANoAnswerFromTheEngine_RemovedNothing()
+    {
+        Assert.False(LibraryMoveRules.RemovedEditedWork(MovieId, MovieId, null, ["x"], []));
+        Assert.False(LibraryMoveRules.RemovedEditedWork(MovieId, MovieId, Guid.Empty, ["x"], []));
+    }
+
+    [Fact]
+    public void AnAudiobookPartJoiningAnotherWhileTheSourceStillHasOtherParts_RemovedNothingSoThePageStays()
+    {
+        var removed = LibraryMoveRules.RemovedEditedWork(AudiobookA, PartOfA, AudiobookB, ["Audiobook A", "Audiobook A (long title)"], []);
+
+        Assert.False(removed);
+    }
+
+    [Fact]
+    public void AnAudiobookPartJoiningAnotherWhoseLastPartItWas_RemovedTheAudiobookSoThePageFollows()
+    {
+        var removed = LibraryMoveRules.RemovedEditedWork(AudiobookA, PartOfA, AudiobookB, [null, "audiobook a "], ["Audiobook A"]);
+
+        Assert.True(removed);
+    }
+
+    [Fact]
+    public void AnAudiobookPartMove_WithOtherPlacesRemoved_StillLeavesTheSourceAlone()
+    {
+        var removed = LibraryMoveRules.RemovedEditedWork(AudiobookA, PartOfA, AudiobookB, ["Audiobook A"], ["Season 2", "My road trip"]);
+
+        Assert.False(removed);
+    }
+
+    private sealed class NoHistory : IDetailsOverlayHistory
+    {
+        public ValueTask<bool> GoBackAsync(int steps) => ValueTask.FromResult(true);
+    }
+
+    private sealed class ManualClock : TimeProvider
+    {
+        private DateTimeOffset _now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public void Advance(TimeSpan by) => _now += by;
+    }
+}

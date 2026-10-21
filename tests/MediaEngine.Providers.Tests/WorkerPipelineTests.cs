@@ -4243,6 +4243,12 @@ public sealed class WorkerPipelineTests
     {
         public Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default)
             => Task.CompletedTask;
+
+        public Task<AssetRefilePlan> PlanRefileAsync(Guid assetId, AssetRefilePlacement? placement, CancellationToken ct = default)
+            => Task.FromResult(AssetRefilePlan.Of(AssetRefileDisposition.AlreadyFits, string.Empty));
+
+        public Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default)
+            => Task.FromResult(new AssetRefileOutcome(AssetRefileOutcomeKind.AlreadyFits, AssetRefileDisposition.AlreadyFits, string.Empty, null));
     }
 
     /// <summary>No-op INarrativeRootRepository: nothing is known and nothing is stored.</summary>

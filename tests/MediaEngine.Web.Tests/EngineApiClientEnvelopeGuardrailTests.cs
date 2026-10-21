@@ -28,7 +28,9 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         // The "Also appears in" read is one more manual GET: a 404 means nothing is visible for that subject and comes back
         // as an empty result (so the panel says "Nothing else in your Library"), while any other failure stays null with
         // LastError; EngineApiClientUniverseAppearancesTests cover each outcome.
-        AssertAtOrBelow(source, "_http.GetAsync", 29);
+        // The move destinations read is one more manual GET: it tells not allowed (403), item gone (404), not accepted (400) and Engine
+        // unreachable apart so the Match step can word each; EngineApiClientLibraryMoveTests cover every outcome.
+        AssertAtOrBelow(source, "_http.GetAsync", 30);
         // One additional raw POST is the typed bookmark-create outcome path. Its focused tests
         // cover success classification, definite 4xx vs unknown 5xx/malformed results, and one
         // send per attempt with no automatic retry.
