@@ -2064,6 +2064,14 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailAction
   DisplayStyle: System.String | nullability=nullable | accessors=get,init
   Children: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailAction> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailAiResultsViewModel
+  Vibes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Themes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Moods: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  ContentWarnings: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Summary: System.String | nullability=nullable | accessors=get,init
+  IsEmpty: System.Boolean | nullability=not-null | accessors=get
+
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailEditorTarget
   EntityId: System.String | nullability=not-null | accessors=get,init
   EntityKind: System.String | nullability=not-null | accessors=get,init
@@ -2074,6 +2082,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailEditorTarget
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailEntityType
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailFactsViewModel
+  AiResults: MediaEngine.Contracts.Details.DetailAiResultsViewModel | nullability=nullable | accessors=get,init
   MediaKind: System.String | nullability=nullable | accessors=get,init
   Year: System.String | nullability=nullable | accessors=get,init
   ReleaseDate: System.String | nullability=nullable | accessors=get,init
@@ -2587,6 +2596,8 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayBrowseFacetsD
   Genres: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   Creators: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   Years: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Vibes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Themes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardBadgeDto
   Kind: System.String | nullability=not-null | accessors=get,init

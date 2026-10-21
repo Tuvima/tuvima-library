@@ -43,6 +43,8 @@ public static class DisplayEndpoints
             int? offset,
             int? limit,
             bool? includeCatalog,
+            string? vibes,
+            string? themes,
             ClaimsPrincipal user,
             DisplayComposerService display,
             CancellationToken ct) =>
@@ -62,7 +64,9 @@ public static class DisplayEndpoints
                 creator,
                 status,
                 year,
-                sort));
+                sort,
+                vibes,
+                themes));
         })
             .WithName("GetDisplayBrowse")
             .WithSummary("Returns cross-platform display cards for a media lane or browse query.")

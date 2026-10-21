@@ -199,6 +199,9 @@ public sealed class DisplayWorkProjectionReader
     private static readonly ArrayGroup NetworkArray = new("network", NetworkKeys, "; ");
     private static readonly ArrayGroup CountryArray = new("country_of_origin", ["country_of_origin"], "; ");
     private static readonly ArrayGroup FranchiseArray = new("franchise", ["franchise"], "; ");
+    // What the AI feature plugins worked out; empty unless one of them is on.
+    private static readonly ArrayGroup VibeArray = new("vibe", ["vibe"], ";");
+    private static readonly ArrayGroup ThemesArray = new("themes", ["themes"], ";");
 
     /// <summary>Only the first narrator (the lowest position), no joined list.</summary>
     private static readonly ArrayGroup NarratorFirst = new("narrator", ["narrator"], null);
@@ -585,6 +588,8 @@ public sealed class DisplayWorkProjectionReader
                  ))
                 """),
             ArrayFrom("Director", workRootAsset, DirectorArray),
+            ArrayFrom("Vibe", workRootAsset, VibeArray),
+            ArrayFrom("Themes", workRootAsset, ThemesArray),
             From("Network", rootWorkAsset, NetworkKeys),
             SearchAll("SearchNetwork", NetworkArray, NetworkKeys),
             SearchAll("CountryOfOrigin", CountryArray, "country_of_origin"),

@@ -63,6 +63,10 @@ public sealed class DisplayWorkRow : IDisplayArtworkRow
     public string? PageCount { get; set; }
     public string? Rating { get; set; }
     public string? Genre { get; set; }
+    /// <summary>Vibes the Vibe tags plugin chose, joined with semicolons; null when none.</summary>
+    public string? Vibe { get; set; }
+    /// <summary>Themes the Description insights plugin chose, joined with semicolons; null when none.</summary>
+    public string? Themes { get; set; }
     public string? Series { get; set; }
     public string? SeriesPosition { get; set; }
     public string? CollectionTitle { get; set; }

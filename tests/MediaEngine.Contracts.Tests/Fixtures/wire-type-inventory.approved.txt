@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1123; api=0; web-client=54
+# scopes: contracts=1124; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -2452,6 +2452,15 @@
   Children: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailAction> | json=children | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"key":"sample","label":"sample","subtitle":"sample","icon":"sample","route":"sample","tooltip":"sample","isPrimary":true,"isDestructive":true,"isAdminOnly":true,"isDisabled":true,"isSelected":true,"displayStyle":"sample","children":[]}
 
+[contracts] MediaEngine.Contracts.Details.DetailAiResultsViewModel
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Vibes: System.Collections.Generic.IReadOnlyList<System.String> | json=vibes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Themes: System.Collections.Generic.IReadOnlyList<System.String> | json=themes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Moods: System.Collections.Generic.IReadOnlyList<System.String> | json=moods | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ContentWarnings: System.Collections.Generic.IReadOnlyList<System.String> | json=contentWarnings | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Summary: System.String | json=summary | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsEmpty: System.Boolean | json=isEmpty | nullability=not-null | accessors=get | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
 [contracts] MediaEngine.Contracts.Details.DetailEditorTarget
   kind=class | converter=default | number-handling=default | unmapped=default
   EntityId: System.String | json=entityId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -2481,6 +2490,7 @@
 
 [contracts] MediaEngine.Contracts.Details.DetailFactsViewModel
   kind=class | converter=default | number-handling=default | unmapped=default
+  AiResults: MediaEngine.Contracts.Details.DetailAiResultsViewModel | json=aiResults | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MediaKind: System.String | json=mediaKind | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Year: System.String | json=year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ReleaseDate: System.String | json=releaseDate | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -2523,7 +2533,7 @@
   IssueTitle: System.String | json=issueTitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Publisher: System.String | json=publisher | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PageCount: System.String | json=pageCount | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"mediaKind":"sample","year":"sample","releaseDate":"sample","rating":"sample","contentRating":"sample","runtime":"sample","duration":"sample","language":"sample","genres":[],"identifiers":{},"authors":[],"artists":[],"albumArtists":[],"actors":[],"directors":[],"writers":[],"composers":[],"narrators":[],"illustrators":[],"producers":[],"showName":"sample","seasonNumber":"sample","episodeNumber":"sample","episodeTitle":"sample","network":"sample","seasonCount":"sample","episodeCount":"sample","album":"sample","albumArtist":"sample","trackNumber":"sample","trackCount":"sample","discNumber":"sample","discCount":"sample","isrc":"sample","label":"sample","isExplicit":true,"series":"sample","seriesPosition":"sample","issueNumber":"sample","issueTitle":"sample","publisher":"sample","pageCount":"sample"}
+  sample={"aiResults":null,"mediaKind":"sample","year":"sample","releaseDate":"sample","rating":"sample","contentRating":"sample","runtime":"sample","duration":"sample","language":"sample","genres":[],"identifiers":{},"authors":[],"artists":[],"albumArtists":[],"actors":[],"directors":[],"writers":[],"composers":[],"narrators":[],"illustrators":[],"producers":[],"showName":"sample","seasonNumber":"sample","episodeNumber":"sample","episodeTitle":"sample","network":"sample","seasonCount":"sample","episodeCount":"sample","album":"sample","albumArtist":"sample","trackNumber":"sample","trackCount":"sample","discNumber":"sample","discCount":"sample","isrc":"sample","label":"sample","isExplicit":true,"series":"sample","seriesPosition":"sample","issueNumber":"sample","issueTitle":"sample","publisher":"sample","pageCount":"sample"}
 
 [contracts] MediaEngine.Contracts.Details.DetailPageViewModel
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3134,6 +3144,8 @@
   Genres: System.Collections.Generic.IReadOnlyList<System.String> | json=genres | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Creators: System.Collections.Generic.IReadOnlyList<System.String> | json=creators | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Years: System.Collections.Generic.IReadOnlyList<System.String> | json=years | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Vibes: System.Collections.Generic.IReadOnlyList<System.String> | json=vibes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Themes: System.Collections.Generic.IReadOnlyList<System.String> | json=themes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Display.DisplayCardBadgeDto
   kind=class | converter=default | number-handling=default | unmapped=default
