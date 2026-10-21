@@ -588,6 +588,15 @@ else
 
     private void ResolveSectionAndNormalize()
     {
+        // A profile or authority change can reach this while the router has already moved to another settings page but has not
+        // handed this component the new Section yet. Redirecting from that stale Section sends the page to the old address, and the
+        // same mistake then sends it back, flipping between two pages as fast as ingestion events arrive. The router's own parameter
+        // update runs this again with a matching Section.
+        if (!RoutedSectionMatchesAddress())
+        {
+            return;
+        }
+
         if (_kidsBlocked)
         {
             Nav.NavigateTo("/", replace: true);
@@ -687,6 +696,15 @@ else
         {
             Nav.NavigateTo(targetRoute, replace: true);
         }
+    }
+
+    private bool RoutedSectionMatchesAddress()
+    {
+        var segments = NormalizePath(Nav.ToBaseRelativePath(RoutedPageAddress.AbsoluteFor(Nav, Overlay)))
+            .Trim('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var addressSection = segments.Length > 1 ? segments[1] : null;
+        return string.Equals(addressSection, Section, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizePath(string path)
