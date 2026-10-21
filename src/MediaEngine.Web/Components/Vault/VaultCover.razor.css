@@ -1,0 +1,10 @@
+.vault-cover { display: grid; gap: 6px; color: inherit; text-decoration: none; min-width: 0; }
+.vault-cover__art { display: grid; place-items: center; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px; background: var(--tl-bg-surface-raised); }
+.vault-cover__art img { width: 100%; height: 100%; object-fit: cover; transition: filter 0.15s ease; }
+.vault-cover--blur .vault-cover__art img { filter: blur(18px); }
+.vault-cover--blur:hover .vault-cover__art img, .vault-cover--blur:focus-visible .vault-cover__art img { filter: none; }
+.vault-cover__initials { font-size: 1.5rem; font-weight: 600; color: var(--tl-text-muted); }
+.vault-cover__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vault-cover--title-hidden .vault-cover__title { visibility: hidden; }
+.vault-cover--title-hidden:hover .vault-cover__title, .vault-cover--title-hidden:focus-visible .vault-cover__title { visibility: visible; }
+@media (prefers-reduced-motion: reduce) { .vault-cover__art img { transition: none; } }

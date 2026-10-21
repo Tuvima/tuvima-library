@@ -15,6 +15,13 @@
             <AppChoiceCard Title="Photos and personal videos (View)"
                            Description="@((LooksLikePhoneFootage ? "Suggested for this folder. " : string.Empty) + "Phone memories and home videos, shown with your photos in galleries and a timeline.")"
                            OnClick="@(() => Dialog.Close(AppDialogResult.Ok(new AddFolderPlaceAnswer(false, _youtubeLookup))))" />
+            @if (ShowVault)
+            {
+                @* Only drawn for an administrator while NSFW mode is on; nothing in this dialog mentions it otherwise. *@
+                <AppChoiceCard Title="Vault (adults only)"
+                               Description="Adult videos and images in their own area, visible only while NSFW mode is on. You'll confirm that everyone who can unlock it is an adult."
+                               OnClick="@(() => Dialog.Close(AppDialogResult.Ok(new AddFolderPlaceAnswer(false, false, true))))" />
+            }
             <AppSwitchRow Label="Look up YouTube videos online"
                           Description="Only for videos named with a YouTube ID. This contacts YouTube and sends just that ID, never your files. You can change it later."
                           Value="_youtubeLookup"
@@ -33,10 +40,13 @@
     /// <summary>The library's current YouTube lookup setting.</summary>
     [Parameter] public bool YoutubeLookup { get; set; } = true;
 
+    /// <summary>True for an administrator while NSFW mode is on: adds the third choice, the Vault (Videos spec D3, D45).</summary>
+    [Parameter] public bool ShowVault { get; set; }
+
     private bool _youtubeLookup;
 
     protected override void OnInitialized() => _youtubeLookup = YoutubeLookup;
 
-    /// <summary>The person's answer: Videos (Watch) or View, and whether YouTube may be asked.</summary>
-    public sealed record AddFolderPlaceAnswer(bool Watch, bool YoutubeLookup);
+    /// <summary>The person's answer: Videos (Watch), View or the Vault, and whether YouTube may be asked.</summary>
+    public sealed record AddFolderPlaceAnswer(bool Watch, bool YoutubeLookup, bool Vault = false);
 }

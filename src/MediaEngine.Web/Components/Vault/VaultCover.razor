@@ -1,0 +1,44 @@
+@namespace MediaEngine.Web.Components.Vault
+
+@* One Vault cover (Videos spec D24, D41). Show draws the picture, Blur draws it blurred until it is pointed at or focused, and Hide
+   draws plain initials with no picture at all (the image address is not even put on the page). The title can also stay hidden until
+   the card is pointed at. *@
+<a class="vault-cover vault-cover--@ModeClass @(TitleHidden ? "vault-cover--title-hidden" : null)"
+   href="@Route"
+   aria-label="@(TitleHidden ? "Open item" : Title)">
+    <span class="vault-cover__art" aria-hidden="true">
+        @if (Mode == VaultCoverMode.Hide || string.IsNullOrWhiteSpace(CoverUrl))
+        {
+            <span class="vault-cover__initials">@Initials</span>
+        }
+        else
+        {
+            <img src="@CoverUrl" alt="" loading="lazy" />
+        }
+    </span>
+    <span class="vault-cover__title">@Title</span>
+</a>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? CoverUrl { get; set; }
+    [Parameter] public string Route { get; set; } = "#";
+    [Parameter] public VaultCoverMode Mode { get; set; } = VaultCoverMode.Blur;
+    [Parameter] public bool TitleHidden { get; set; }
+
+    private string ModeClass => Mode switch
+    {
+        VaultCoverMode.Show => "show",
+        VaultCoverMode.Hide => "hide",
+        _ => "blur",
+    };
+
+    private string Initials
+    {
+        get
+        {
+            var words = Title.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return words.Length == 0 ? "?" : string.Concat(words.Take(2).Select(word => char.ToUpperInvariant(word[0])));
+        }
+    }
+}

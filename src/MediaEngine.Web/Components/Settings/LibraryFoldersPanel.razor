@@ -10,6 +10,8 @@
 @inject IAppDialogService DialogService
 @inject IAppToastService Snackbar
 @inject NavigationManager Navigation
+@inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
+@inject MediaEngine.Web.Services.Vault.VaultLibraryOnboarding VaultOnboarding
 @implements IDisposable
 
 @* One screen for libraries: media types on the left, the selected type's folders on the right.
@@ -519,6 +521,11 @@
         {
             var place = await AskAddFolderPlaceAsync(selected.LooksLikePhoneFootage);
             if (place is null) return;
+            if (place.Vault)
+            {
+                await AddToVaultAsync(selected.Path);
+                return;
+            }
             if (!place.Watch)
             {
                 _notice = "Add this folder under Photos and personal videos (Settings > Libraries > Photos) so it gets a gallery and timeline.";
@@ -586,6 +593,22 @@
         }
     }
 
+    // The Vault choice: PIN check, adults-only confirmation, library creation. Attaching the folder is the marked seam in
+    // IVaultFolderAttachment, so until the Engine can do it the person is told plainly that the folder was not added.
+    private async Task AddToVaultAsync(string folderPath)
+    {
+        var administrator = await Orchestrator.GetActiveProfileAsync();
+        if (administrator is null) return;
+        var result = await VaultOnboarding.AddFolderAsync(folderPath, administrator.Id, administrator.HasPin);
+        _notice = result.Outcome switch
+        {
+            MediaEngine.Web.Services.Vault.VaultOnboardingOutcome.FolderAttached => "Folder added to the Vault.",
+            MediaEngine.Web.Services.Vault.VaultOnboardingOutcome.LibraryReadyFolderNotAttached => result.Message,
+            MediaEngine.Web.Services.Vault.VaultOnboardingOutcome.Failed => result.Message ?? MediaEngine.Web.Services.Vault.VaultMessages.Unreachable,
+            _ => null,
+        };
+    }
+
     private bool IsVideosSelected => _selected.MediaTypes.Contains("Videos", StringComparer.OrdinalIgnoreCase);
 
     private bool? _pendingYoutubeLookup;
@@ -597,6 +620,8 @@
         {
             { component => component.LooksLikePhoneFootage, looksLikePhoneFootage },
             { component => component.YoutubeLookup, SelectedLibrary?.YoutubeLookup ?? true },
+            // The third choice exists only for an administrator while NSFW mode is on (Videos spec D45).
+            { component => component.ShowVault, !Embedded && Nsfw.Unlocked },
         };
         var dialog = await DialogService.ShowAsync<AddFolderPlaceDialog>(string.Empty, parameters, new AppDialogOptions
         {

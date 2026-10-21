@@ -1,0 +1,22 @@
+@namespace MediaEngine.Web.Components.Vault
+@implements IDisposable
+@inject NsfwModeState Nsfw
+
+@* The Blur toggle at the top of the Vault area and of its search results (Videos spec D24): covers can be unblurred or re-blurred in
+   one tap without opening settings. Every view starts blurred after NSFW mode locks and unlocks again. Drawn only while NSFW mode
+   is on, and not at all when the person chose to hide covers. *@
+@if (Nsfw.Unlocked && Nsfw.Preferences.Covers != VaultCoverMode.Hide)
+{
+    <AppSwitchRow Label="Blur"
+                  Value="@Nsfw.CoversBlurred"
+                  ValueChanged="@(blurred => Nsfw.SetCoversBlurred(blurred))"
+                  Class="vault-blur-toggle" />
+}
+
+@code {
+    protected override void OnInitialized() => Nsfw.Changed += OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Nsfw.Changed -= OnChanged;
+}

@@ -95,6 +95,9 @@
   <data name="Nav_View" xml:space="preserve">
     <value>Ansehen</value>
   </data>
+  <data name="Nav_Vault" xml:space="preserve">
+    <value>Tresor</value>
+  </data>
   <data name="Nav_OpenNavigation" xml:space="preserve">
     <value>Navigation öffnen</value>
   </data>

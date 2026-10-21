@@ -131,6 +131,9 @@
                         </AppButton>
                     </div>
                 }
+
+                @* The separate Vault group: drawn only while NSFW mode is on, never mixed into the results above. *@
+                <MediaEngine.Web.Components.Vault.VaultSearchGroup Query="@_query" />
             </div>
         </div>
         </AppFocusTrap>

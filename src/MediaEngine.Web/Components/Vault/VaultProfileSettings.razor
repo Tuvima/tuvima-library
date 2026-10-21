@@ -1,0 +1,287 @@
+@namespace MediaEngine.Web.Components.Vault
+@using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject NsfwModeState Nsfw
+@inject NsfwModeSwitching Switching
+@inject IEngineApiClient ApiClient
+@inject IAppDialogService Dialogs
+@inject IAppToastService Toasts
+@inject IItsYouConfirmer Confirmer
+
+@* NSFW mode on a profile page (Videos spec D23). Two parts, each drawn only when it applies:
+   - the person's own switch, top-menu check and NSFW PIN, only on their own page and only when the Engine's status route said this
+     profile can use NSFW mode (an Off, Kids or limited profile gets none of it: nothing is disabled, it is not drawn);
+   - the administrator's access setting for the person whose page it is (Off, PIN to unlock, Allowed), never for a Kids or
+     limited profile, which can only be Off. *@
+@if (ShowOwn)
+{
+    <div data-profile-section="nsfw-mode">
+        <SettingsSectionPanel Title="NSFW mode">
+            <div class="vault-settings">
+                <AppSwitchRow Label="NSFW mode"
+                              Description="@ModeDescription"
+                              Value="@Nsfw.Unlocked"
+                              ValueChanged="SwitchAsync" />
+                <AppSwitchRow Label="Show an SFW/NSFW check in the top menu"
+                              Description="Adds a quick switch to the profile menu. Off until you turn it on."
+                              Value="@Nsfw.Preferences.ShowQuickCheck"
+                              ValueChanged="QuickCheckAsync" />
+                @if (Nsfw.NeedsPin)
+                {
+                    <SettingsNavRow Key="nsfw-pin" Icon="@AppMaterialIcons.Outlined.Key" Title="NSFW PIN"
+                                    Status="@(Nsfw.HasPin ? "PIN set" : "No PIN yet")"
+                                    Note="Different from your profile PIN. An administrator can reset it but never read it."
+                                    OnClick="ChangePinAsync" />
+                }
+            </div>
+        </SettingsSectionPanel>
+    </div>
+}
+
+@if (ShowAccess)
+{
+    <div data-profile-section="nsfw-access">
+        <SettingsSectionPanel Title="NSFW access">
+            @if (!AdministratorHasPin)
+            {
+                <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true">@VaultMessages.SetProfilePinFirst</AppAlert>
+            }
+            else
+            {
+                <div class="vault-settings">
+                    <AppNativeSelect Value="@_mode" OnChange="@(e => _mode = e.Value?.ToString() ?? string.Empty)"
+                                     Disabled="@_busy" aria-label="@($"NSFW access for {Person.DisplayName}")">
+                        @if (!_modeKnown)
+                        {
+                            <option value="">Choose a setting</option>
+                        }
+                        <option value="off">Off: never available</option>
+                        <option value="pin">PIN to unlock</option>
+                        <option value="allowed">Allowed: no PIN</option>
+                    </AppNativeSelect>
+                    @if (_mode is "pin" or "allowed")
+                    {
+                        <AppNativeSelect Value="@_idle" OnChange="@(e => _idle = e.Value?.ToString() ?? string.Empty)"
+                                         Disabled="@_busy" aria-label="Switch NSFW mode off after">
+                            <option value="">Default idle time</option>
+                            <option value="5">After 5 minutes</option>
+                            <option value="15">After 15 minutes</option>
+                            <option value="30">After 30 minutes</option>
+                            <option value="60">After 1 hour</option>
+                            @if (_mode == "allowed")
+                            {
+                                <option value="0">Never</option>
+                            }
+                        </AppNativeSelect>
+                    }
+                    @if (!_modeKnown)
+                    {
+                        <small>The current setting isn't shown for other people. Choose one and save to change it.</small>
+                    }
+                    <div class="vault-settings__actions">
+                        <AppButton Label="Save access" Size="AppControlSize.Compact" Disabled="@(_busy || string.IsNullOrEmpty(_mode))" OnClick="SaveAccessAsync" />
+                        @if (_mode == "pin")
+                        {
+                            <AppButton Label="Reset their NSFW PIN" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="ResetPinAsync" />
+                        }
+                    </div>
+                </div>
+            }
+        </SettingsSectionPanel>
+    </div>
+}
+
+@code {
+    private string _mode = string.Empty;
+    private string _idle = string.Empty;
+    private bool _modeKnown;
+    private bool _busy;
+    private Guid _readFor;
+    private bool _stateRequested;
+
+    /// <summary>The person whose page this is.</summary>
+    [Parameter, EditorRequired] public ProfileViewModel Person { get; set; } = default!;
+
+    /// <summary>True on the signed-in person's own page.</summary>
+    [Parameter] public bool IsSelf { get; set; }
+
+    /// <summary>True when the signed-in person is an administrator.</summary>
+    [Parameter] public bool IsAdministrator { get; set; }
+
+    /// <summary>True when the signed-in administrator has a profile PIN of their own (Videos spec D25).</summary>
+    [Parameter] public bool AdministratorHasPin { get; set; }
+
+    private bool IsLimited => Person.IsRestricted || !string.IsNullOrWhiteSpace(Person.ContentLimit);
+
+    // Only the Engine's status route decides: a profile it answers "not found" to gets none of the person's own rows.
+    private bool ShowOwn => IsSelf && !IsLimited && Nsfw.IsAvailable;
+
+    private bool ShowAccess => IsAdministrator && !IsLimited;
+
+    private string ModeDescription => Nsfw.Status is { IdleLockMinutes: > 0 } status
+        ? $"Shows the Vault while it's on. It switches itself off after {status.IdleLockMinutes} minutes of inactivity, when you switch profile and when the app closes."
+        : "Shows the Vault while it's on. It switches itself off when you switch profile and when the app closes.";
+
+    protected override void OnInitialized() => Nsfw.Changed += OnStateChanged;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsSelf && !IsLimited && !_stateRequested)
+        {
+            _stateRequested = true;
+            await Nsfw.EnsureLoadedAsync(Person.Id, isKids: false);
+        }
+
+        if (_readFor != Person.Id)
+        {
+            _readFor = Person.Id;
+            ReadOwnAccess();
+        }
+    }
+
+    // Only the person's own mode can be read (the Engine shows nobody else's), so another person's setting starts unchosen.
+    private void ReadOwnAccess()
+    {
+        _mode = string.Empty;
+        _idle = string.Empty;
+        _modeKnown = false;
+        if (IsSelf && Nsfw.Status is { } status)
+        {
+            _mode = status.Mode;
+            _idle = status.IdleLockMinutes > 0 || _mode == "allowed" ? status.IdleLockMinutes.ToString() : string.Empty;
+            _modeKnown = true;
+        }
+    }
+
+    private void OnStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task SwitchAsync(bool on)
+    {
+        await Switching.SetAsync(on);
+    }
+
+    private Task QuickCheckAsync(bool on) => Nsfw.UpdatePreferencesAsync(preferences => preferences with { ShowQuickCheck = on });
+
+    // New PIN, again, then the proof the Engine asks for (the current NSFW PIN, or the profile PIN for a first one). The call is made
+    // by the last pad so a wrong proof can be retried there; no digits are kept anywhere but in these locals while the pads are open.
+    private async Task ChangePinAsync()
+    {
+        string newPin = string.Empty;
+        var hadPin = Nsfw.HasPin;
+        var profileHasPin = Person.HasPin;
+        var needsProof = hadPin || profileHasPin;
+        string proof = string.Empty;
+
+        if (!await VaultPinPrompt.AskAsync(Dialogs, hadPin ? "Choose a new NSFW PIN" : "Choose an NSFW PIN",
+                "4 to 12 digits. It must be different from your profile PIN.", "Next", "New NSFW PIN",
+                pin => Task.FromResult<string?>(CaptureNew(pin, out newPin))))
+        {
+            return;
+        }
+
+        async Task<string?> SaveAsync(string? current, string? profile)
+        {
+            var call = await SaveWithConfirmationAsync(new NsfwSetPinRequest { NewPin = newPin, CurrentPin = current, ProfilePin = profile });
+            return VaultMessages.For(call);
+        }
+
+        if (!await VaultPinPrompt.AskAsync(Dialogs, "Enter it again", null, needsProof ? "Next" : "Save PIN", "Repeat NSFW PIN",
+                pin => pin != newPin ? Task.FromResult<string?>("Those PINs didn't match.") : needsProof ? Task.FromResult<string?>(null) : SaveAsync(null, null)))
+        {
+            return;
+        }
+
+        if (needsProof)
+        {
+            var asksForCurrent = hadPin;
+            if (!await VaultPinPrompt.AskAsync(Dialogs,
+                    asksForCurrent ? "Enter your current NSFW PIN" : "Enter your profile PIN",
+                    asksForCurrent ? "Needed to change it." : "Needed to save your first NSFW PIN.",
+                    "Save PIN", asksForCurrent ? "Current NSFW PIN" : "Profile PIN",
+                    pin => { proof = pin; return asksForCurrent ? SaveAsync(proof, null) : SaveAsync(null, proof); }))
+            {
+                return;
+            }
+        }
+
+        Toasts.Add("NSFW PIN saved.", AppSeverity.Success);
+        await Nsfw.RefreshAsync(Person.Id, isKids: false);
+    }
+
+    private static string? CaptureNew(string pin, out string captured)
+    {
+        captured = pin;
+        return pin.Length is >= 4 and <= 12 && pin.All(char.IsAsciiDigit) ? null : "Use 4 to 12 digits.";
+    }
+
+    // The Engine asks to confirm it's you before a first PIN when the profile has no PIN of its own; confirm once and try again.
+    private async Task<VaultCall<bool>> SaveWithConfirmationAsync(NsfwSetPinRequest request)
+    {
+        var call = await ApiClient.SetNsfwPinAsync(request);
+        if (call.Outcome == VaultOutcome.ConfirmItsYou && await Confirmer.ConfirmAsync())
+        {
+            call = await ApiClient.SetNsfwPinAsync(request);
+        }
+
+        return call;
+    }
+
+    private async Task SaveAccessAsync()
+    {
+        if (string.IsNullOrEmpty(_mode) || _busy)
+        {
+            return;
+        }
+
+        int? idle = int.TryParse(_idle, out var minutes) ? minutes : null;
+        var mode = _mode;
+
+        async Task<string?> ApplyAsync(string? adminPin)
+        {
+            _busy = true;
+            try
+            {
+                var call = await ApiClient.SetProfileNsfwAccessAsync(Person.Id, new SetNsfwAccessRequest { Mode = mode, IdleLockMinutes = idle, AdminPin = adminPin });
+                return VaultMessages.For(call);
+            }
+            finally
+            {
+                _busy = false;
+            }
+        }
+
+        // Closing access needs no PIN; opening or changing it asks for the administrator's own profile PIN again.
+        var saved = mode == "off"
+            ? await ApplyAsync(null) is null
+            : await VaultPinPrompt.AskAsync(Dialogs, "Enter your PIN to continue",
+                "This is your own profile PIN, asked for again before NSFW access is opened.", "Save access", "Your profile PIN", ApplyAsync);
+        if (!saved)
+        {
+            return;
+        }
+
+        _modeKnown = true;
+        Toasts.Add("NSFW access saved.", AppSeverity.Success);
+        if (IsSelf)
+        {
+            await Nsfw.RefreshAsync(Person.Id, isKids: false);
+        }
+    }
+
+    private async Task ResetPinAsync()
+    {
+        async Task<string?> ResetAsync(string adminPin) =>
+            VaultMessages.For(await ApiClient.ResetProfileNsfwPinAsync(Person.Id, new ResetNsfwPinRequest { AdminPin = adminPin }));
+
+        if (await VaultPinPrompt.AskAsync(Dialogs, "Enter your PIN to continue",
+                "This is your own profile PIN. They will choose a new NSFW PIN themselves.", "Reset PIN", "Your profile PIN", ResetAsync))
+        {
+            Toasts.Add("Their NSFW PIN was reset.", AppSeverity.Success);
+        }
+    }
+
+    public void Dispose() => Nsfw.Changed -= OnStateChanged;
+}

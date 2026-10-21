@@ -1,0 +1,43 @@
+@page "/vault"
+@page "/vault/{View}"
+@namespace MediaEngine.Web.Components.Pages
+@implements IDisposable
+@inject NsfwModeState Nsfw
+@inject NavigationManager Nav
+
+@* The Vault area (Videos spec D45). The page title is deliberately plain: nothing in the browser tab or history names the area.
+   Anyone whose NSFW mode is not on, for any reason, is sent to the same "not found" page an unknown address gets. *@
+<PageTitle>Library</PageTitle>
+
+@if (Nsfw.Unlocked)
+{
+    <MediaEngine.Web.Components.Vault.VaultArea View="@View" />
+}
+
+@code {
+    /// <summary>The view named in the address, or none for Recently added.</summary>
+    [Parameter] public string? View { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Nsfw.Changed += OnChanged;
+        LeaveIfNotAllowed();
+    }
+
+    private void OnChanged() => _ = InvokeAsync(() =>
+    {
+        LeaveIfNotAllowed();
+        StateHasChanged();
+    });
+
+    // Wait for the Engine's answer before deciding: until it has answered nothing is drawn and nothing is redirected.
+    private void LeaveIfNotAllowed()
+    {
+        if (Nsfw.Resolved && !Nsfw.Unlocked)
+        {
+            VaultExit.Leave(Nav, VaultExit.NotFound);
+        }
+    }
+
+    public void Dispose() => Nsfw.Changed -= OnChanged;
+}

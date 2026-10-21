@@ -1,0 +1,4 @@
+.vault-library-settings { display: grid; gap: 12px; }
+.vault-library-settings__row { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+.vault-library-settings__row label { display: grid; gap: 4px; }
+.vault-library-settings__actions { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -1,0 +1,129 @@
+@namespace MediaEngine.Web.Components.Vault
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Navigation
+@implements IDisposable
+@inject NsfwModeState Nsfw
+@inject NavigationManager Nav
+@inject IVaultCatalogue Catalogue
+@inject DashboardSessionAccessor Session
+
+@* The Vault area (Videos spec D16, D39, D45): the fourth top-level area. The shell is the Blur toggle, Search, the viewing options of
+   D24 and the views of D39; Library settings sit inside it for administrators. It draws only while NSFW mode is on; the page that
+   hosts it sends everyone else to the same "not found" a missing page gets. *@
+@if (Nsfw.Unlocked)
+{
+    <div class="vault-area" data-vault-area>
+        <header class="vault-area__header">
+            <h1 class="vault-area__title">Vault</h1>
+            <div class="vault-area__tools">
+                <VaultBlurToggle />
+                <AppButton Label="Lock now" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="LockAsync" />
+            </div>
+        </header>
+
+        <AppSearchField Label="Search the Vault" HideLabel="true" Placeholder="Search the Vault"
+                        Value="@_query" ValueChanged="@(value => { _query = value ?? string.Empty; })" DebounceInterval="250" />
+        <VaultSearchGroup Query="@_query" />
+
+        <nav class="vault-area__views" aria-label="Vault views">
+            <AppSegmentedControl Options="@ViewOptions" Value="@_view.Key" ValueChanged="OpenViewAsync" AriaLabel="Vault views" />
+        </nav>
+
+        @if (_view.Key == VaultViews.LibrarySettings)
+        {
+            <VaultLibrarySettings />
+        }
+        else
+        {
+            <VaultViewOptions />
+            @if (_view.Key == VaultViews.RecentlyAdded)
+            {
+                <div class="vault-area__chips" role="group" aria-label="Filter">
+                    <AppSegmentedControl Options="@MatchFilters" Value="@_match" ValueChanged="@(value => _match = value)" AriaLabel="Matched or unmatched" Size="AppControlSize.Compact" />
+                    <AppSegmentedControl Options="@KindFilters" Value="@_kind" ValueChanged="@(value => _kind = value)" AriaLabel="Videos or images" Size="AppControlSize.Compact" />
+                </div>
+            }
+
+            @if (_result is null)
+            {
+                <AppSkeleton Height="160px" />
+            }
+            else if (_result.Items.Count == 0)
+            {
+                <AppEmptyState Title="@($"Nothing in {_view.Label} yet")"
+                               Message="@EmptyMessage" />
+            }
+            else
+            {
+                <div class="vault-area__grid vault-area__grid--@Nsfw.Preferences.Layout.ToString().ToLowerInvariant()">
+                    @foreach (var item in _result.Items)
+                    {
+                        <VaultCover @key="item.Id" Title="@item.Title" CoverUrl="@item.CoverUrl" Route="@item.Route"
+                                    Mode="@Nsfw.EffectiveCovers" TitleHidden="@Nsfw.Preferences.TitlesHiddenUntilPointed" />
+                    }
+                </div>
+            }
+        }
+    </div>
+}
+
+@code {
+    private VaultView _view = VaultViews.All[0];
+    private VaultCatalogueResult? _result;
+    private string _query = string.Empty;
+    private string _match = "all";
+    private string _kind = "all";
+    private string? _loadedKey;
+
+    private static readonly IReadOnlyList<AppSelectOption> MatchFilters =
+        [new("all", "All"), new("matched", "Matched"), new("unmatched", "Unmatched")];
+
+    private static readonly IReadOnlyList<AppSelectOption> KindFilters =
+        [new("all", "Videos and images"), new("videos", "Videos"), new("images", "Images")];
+
+    /// <summary>The view named in the address (<c>/vault/{view}</c>); the default when none.</summary>
+    [Parameter] public string? View { get; set; }
+
+    private bool IsAdministrator => Session.Authority?.EffectiveAdministrator == true;
+
+    private IReadOnlyList<AppSelectOption> ViewOptions =>
+        [.. VaultViews.For(IsAdministrator).Select(view => new AppSelectOption(view.Key, view.Label))];
+
+    private string EmptyMessage => IsAdministrator && _result is { Supported: false }
+        ? "Items appear here once a Vault folder has been added and scanned. Library settings holds the Vault's own settings."
+        : "Items appear here once a Vault folder has been added and scanned.";
+
+    protected override void OnInitialized() => Nsfw.Changed += OnChanged;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _view = VaultViews.Resolve(View, IsAdministrator) ?? VaultViews.All[0];
+        if (_loadedKey == _view.Key || !Nsfw.Unlocked)
+        {
+            return;
+        }
+
+        _loadedKey = _view.Key;
+        _result = null;
+        if (_view.Key != VaultViews.LibrarySettings)
+        {
+            _result = await Catalogue.ListAsync(_view.Key, Nsfw.Preferences);
+        }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private Task OpenViewAsync(string key)
+    {
+        Nav.NavigateTo(VaultViews.Route(key));
+        return Task.CompletedTask;
+    }
+
+    private async Task LockAsync()
+    {
+        await Nsfw.LockAsync();
+        VaultExit.Leave(Nav, VaultExit.Home);
+    }
+
+    public void Dispose() => Nsfw.Changed -= OnChanged;
+}

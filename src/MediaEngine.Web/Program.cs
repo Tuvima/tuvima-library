@@ -21,6 +21,7 @@ using MediaEngine.Web.Services.Navigation;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
+using MediaEngine.Web.Services.Vault;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -344,6 +345,15 @@ builder.Services.AddHealthChecks()
 builder.Services.AddScoped<UniverseStateContainer>();
 builder.Services.AddScoped<ICompanionDeviceIdStore, BrowserCompanionDeviceIdStore>();
 builder.Services.AddScoped<CompanionState>();
+
+// NSFW mode and the Vault (Videos spec D17 to D45). NsfwModeState is the one place that decides whether anything about it is drawn.
+builder.Services.AddScoped<IVaultPreferenceStore, BrowserVaultPreferenceStore>();
+builder.Services.AddScoped<NsfwModeState>();
+builder.Services.AddScoped<NsfwModeSwitching>();
+builder.Services.AddScoped<VaultLibraryOnboarding>();
+// Seams until the Engine has Vault list, search and folder routes (Videos spec WP11/WP12).
+builder.Services.AddScoped<IVaultCatalogue, PendingVaultCatalogue>();
+builder.Services.AddScoped<IVaultFolderAttachment, PendingVaultFolderAttachment>();
 builder.Services.AddScoped<ActiveProfileSessionService>();
 builder.Services.AddScoped<ViewWorkspaceService>();
 builder.Services.AddScoped<ViewAssetDragService>();

@@ -776,6 +776,41 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Assert.Empty(without.FindAll("[data-profile-section='pin-protection']"));
     }
 
+    private static readonly string[] NsfwTokens = ["nsfw", "vault", "sfw", "pin-pad"];
+
+    [Fact]
+    public void NsfwMode_IsNotDrawnAtAll_OnTheOwnPageOfAProfileThatIsOff()
+    {
+        // The Engine's status route answers "not found" (the stub's default), so there is no switch, no check, no PIN row and no word.
+        Setup(actions: [], navigation: []);
+
+        var cut = RenderFor(OwnId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
+        foreach (var token in NsfwTokens)
+        {
+            Assert.DoesNotContain(token, cut.Markup, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void NsfwAccess_IsNotDrawn_WhenAnAdministratorLooksAtAKidsProfile_ButIsOfferedForAnAdult()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(KidId, "Robin", true), Person(SamId, "Sam", false)]);
+
+        var kid = RenderFor(KidId);
+        kid.WaitForAssertion(() => Assert.NotEmpty(kid.FindAll("[data-nav-row='details']")));
+        foreach (var token in NsfwTokens)
+        {
+            Assert.DoesNotContain(token, kid.Markup, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var adult = RenderFor(SamId);
+        adult.WaitForAssertion(() => Assert.NotEmpty(adult.FindAll("[data-profile-section='nsfw-access']")));
+        Assert.DoesNotContain("Robin", adult.Markup);
+    }
+
     [Fact]
     public void PinProtection_IsNotOfferedToAMemberOnTheirOwnPage()
     {

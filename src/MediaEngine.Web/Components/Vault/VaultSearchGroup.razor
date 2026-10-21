@@ -1,0 +1,102 @@
+@namespace MediaEngine.Web.Components.Vault
+@using MediaEngine.Web.Models.ViewDTOs
+@implements IDisposable
+@inject NsfwModeState Nsfw
+@inject IVaultCatalogue Catalogue
+
+@* The separate "Vault" results group in Search (Videos spec D27). Drawn only while NSFW mode is on for this device session, never
+   mixed into the normal results, and with the Blur toggle at its top. For every other profile and every locked session it renders
+   nothing at all. *@
+@if (Nsfw.Unlocked && Query.Trim().Length >= MinimumQueryLength)
+{
+    <section class="vault-search" aria-labelledby="vault-search-title" data-vault-search-group>
+        <header class="vault-search__header">
+            <h2 id="vault-search-title">Vault</h2>
+            <VaultBlurToggle />
+        </header>
+        @if (_result is null)
+        {
+            <AppSkeleton Height="96px" />
+        }
+        else if (_result.Items.Count == 0)
+        {
+            <p class="vault-search__empty">@(_result.Supported ? $"Nothing in the Vault matches “{Query.Trim()}”." : "Nothing in the Vault to search yet.")</p>
+        }
+        else
+        {
+            <div class="vault-search__grid">
+                @foreach (var item in _result.Items)
+                {
+                    <VaultCover @key="item.Id" Title="@item.Title" CoverUrl="@item.CoverUrl" Route="@item.Route"
+                                Mode="@Nsfw.EffectiveCovers" TitleHidden="@Nsfw.Preferences.TitlesHiddenUntilPointed" />
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private const int MinimumQueryLength = 2;
+    private CancellationTokenSource? _cts;
+    private string _searched = string.Empty;
+    private VaultCatalogueResult? _result;
+
+    /// <summary>The text in the search box.</summary>
+    [Parameter] public string Query { get; set; } = string.Empty;
+
+    protected override void OnInitialized() => Nsfw.Changed += OnChanged;
+
+    protected override Task OnParametersSetAsync() => SearchAsync();
+
+    private async Task SearchAsync()
+    {
+        var query = Query.Trim();
+        if (!Nsfw.Unlocked || query.Length < MinimumQueryLength)
+        {
+            _cts?.Cancel();
+            _result = null;
+            _searched = string.Empty;
+            return;
+        }
+
+        if (query == _searched)
+        {
+            return;
+        }
+
+        _searched = query;
+        _result = null;
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+        try
+        {
+            await Task.Delay(250, ct);
+            var result = await Catalogue.SearchAsync(query, ct);
+            if (!ct.IsCancellationRequested)
+            {
+                _result = result;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer search replaced this one; nothing to show for it.
+        }
+    }
+
+    // Locking and unlocking change what may be searched, so a changed state searches (or clears) again.
+    private void OnChanged() => _ = InvokeAsync(async () =>
+    {
+        StateHasChanged();
+        await SearchAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        Nsfw.Changed -= OnChanged;
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

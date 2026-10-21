@@ -131,6 +131,14 @@
             </div>
         }
 
+        @if (!_forbidden)
+        {
+            <MediaEngine.Web.Components.Vault.VaultProfileSettings Person="@_person"
+                                                                   IsSelf="@IsSelf"
+                                                                   IsAdministrator="@IsAdministrator"
+                                                                   AdministratorHasPin="@(_active?.HasPin == true)" />
+        }
+
         @if (ShowHouseholdAccess)
         {
             <div class="profile-detail__group" data-profile-section="household-access">
