@@ -79,36 +79,6 @@ public sealed class RecapDetectionPlugin : ITuvimaPlugin
     ];
 }
 
-public sealed class AiVisualVerifierPlugin : ITuvimaPlugin
-{
-    public PluginManifest Manifest { get; } = SegmentManifestFactory.Create(
-        id: "tuvima.ai-visual-segment-verifier",
-        name: "AI Visual Segment Verifier",
-        description: "Reserved optional verifier for ambiguous segment candidates once local multimodal runtime support is enabled.",
-        capabilityName: "AI verifier",
-        settings: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["scheduled_batch_size"] = JsonSerializer.SerializeToElement(10),
-            ["allow_on_demand_ai"] = JsonSerializer.SerializeToElement(false),
-        },
-        tools: [],
-        ai:
-        [
-            new PluginAiPermission
-            {
-                Role = "vision",
-                MaxTokens = 256,
-                Schedule = "off-peak",
-                ResourceClass = "ai-heavy",
-            },
-        ]);
-
-    public IReadOnlyList<IPluginCapability> CreateCapabilities() =>
-    [
-        new AiVisualVerifierHealthCheck(),
-    ];
-}
-
 internal static class SegmentManifestFactory
 {
     public static PluginManifest Create(

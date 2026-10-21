@@ -25,7 +25,7 @@ namespace MediaEngine.Api.Services;
 /// </summary>
 public sealed class DescriptionIntelligenceRunner
 {
-    private const string FeatureKey = "description_intelligence";
+    private const string FeatureKey = AiFeatureKeys.DescriptionIntelligence;
     private const string PromptVersion = "description-intelligence-v1";
     private readonly AiSettings _settings;
     private readonly IConfigurationLoader _configLoader;

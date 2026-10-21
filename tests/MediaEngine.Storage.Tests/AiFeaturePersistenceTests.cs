@@ -468,6 +468,69 @@ public sealed class AiFeaturePersistenceTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task RetractAiFeature_RemovesWhatTheFeatureStillOwns_AndForgetsItsState()
+    {
+        var entityId = Guid.NewGuid();
+        await _canonicals.ReplaceAiFeatureAsync(Request(
+            entityId,
+            arrays: new Dictionary<string, IReadOnlyList<string>> { ["themes"] = ["survival", "ecology"] },
+            scalars: new Dictionary<string, string?> { ["setting"] = "Arrakis" }));
+
+        var retracted = await _canonicals.RetractAiFeatureAsync("description_intelligence");
+
+        Assert.Equal(1, retracted);
+        Assert.Empty(await _arrays.GetValuesAsync(entityId, "themes"));
+        Assert.DoesNotContain(await _canonicals.GetByEntityAsync(entityId), value => value.Key == "setting");
+        Assert.Null(await _canonicals.GetAiFeatureStateAsync(entityId, "description_intelligence"));
+    }
+
+    [Fact]
+    public async Task RetractAiFeature_LeavesValuesAPersonOrProviderHasSinceSet()
+    {
+        var entityId = Guid.NewGuid();
+        await _canonicals.ReplaceAiFeatureAsync(Request(
+            entityId,
+            arrays: new Dictionary<string, IReadOnlyList<string>> { ["themes"] = ["survival"] },
+            scalars: new Dictionary<string, string?> { ["setting"] = "Arrakis" }));
+        await _arrays.SetValuesAsync(entityId, "themes",
+        [
+            new CanonicalArrayEntry { Ordinal = 0, Value = "edited by a person" },
+        ]);
+        await _canonicals.UpsertBatchAsync(
+        [
+            new CanonicalValue
+            {
+                EntityId = entityId,
+                Key = "setting",
+                Value = "Trusted setting",
+                LastScoredAt = DateTimeOffset.UtcNow,
+                WinningProviderId = WellKnownProviders.Wikidata,
+            },
+        ]);
+
+        await _canonicals.RetractAiFeatureAsync("description_intelligence");
+
+        Assert.Equal(["edited by a person"], (await _arrays.GetValuesAsync(entityId, "themes")).Select(value => value.Value));
+        Assert.Equal("Trusted setting", Assert.Single(await _canonicals.GetByEntityAsync(entityId), value => value.Key == "setting").Value);
+        Assert.Null(await _canonicals.GetAiFeatureStateAsync(entityId, "description_intelligence"));
+    }
+
+    [Fact]
+    public async Task RetractAiFeature_OnlyTouchesTheNamedFeature()
+    {
+        var entityId = Guid.NewGuid();
+        await _canonicals.ReplaceAiFeatureAsync(Request(
+            entityId,
+            arrays: new Dictionary<string, IReadOnlyList<string>> { ["themes"] = ["survival"] },
+            scalars: new Dictionary<string, string?>()));
+
+        var retracted = await _canonicals.RetractAiFeatureAsync("vibe");
+
+        Assert.Equal(0, retracted);
+        Assert.Equal(["survival"], (await _arrays.GetValuesAsync(entityId, "themes")).Select(value => value.Value));
+    }
+
     private static AiFeatureWriteRequest Request(
         Guid entityId,
         IReadOnlyDictionary<string, IReadOnlyList<string>> arrays,

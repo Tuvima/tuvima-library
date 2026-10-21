@@ -88,6 +88,15 @@ public sealed class AiFeaturePluginTests : IDisposable
     }
 
     [Fact]
+    public void TheTasteSummaryPlugin_AsksToBeToldWhatPeopleWatch_AndTheOthersDoNot()
+    {
+        Assert.Contains(PluginPermissionIds.WatchActivity, _catalog.Get(AiFeaturePluginIds.TasteSummary)!.Manifest.Permissions);
+        Assert.All(
+            AiFeaturePluginIds.All.Where(id => id != AiFeaturePluginIds.TasteSummary),
+            id => Assert.DoesNotContain(PluginPermissionIds.WatchActivity, _catalog.Get(id)!.Manifest.Permissions));
+    }
+
+    [Fact]
     public void ThePluginsThatRunOnASchedule_AskToRunScheduledWork_AndDeclareTheirJobAsAValidOne()
     {
         foreach (var id in new[] { AiFeaturePluginIds.SeriesOrder, AiFeaturePluginIds.VibeTags, AiFeaturePluginIds.DescriptionInsights })
@@ -219,6 +228,35 @@ public sealed class AiFeaturePluginTests : IDisposable
         await succeeding.RunAsync(context, default);
     }
 
+    [Theory]
+    [InlineData(AiFeaturePluginIds.VibeTags, "vibe")]
+    [InlineData(AiFeaturePluginIds.SeriesOrder, "series_alignment")]
+    [InlineData(AiFeaturePluginIds.DescriptionInsights, "description_intelligence")]
+    public async Task SwitchingAFeaturePluginOff_RetractsTheResultsItRecorded(string pluginId, string featureKey)
+    {
+        var persistence = new RetractionSpy();
+        var service = new AiFeatureRetractionService(persistence, NullLogger<AiFeatureRetractionService>.Instance);
+
+        var retracted = await service.RetractForPluginAsync(pluginId, default);
+
+        Assert.Equal(1, retracted);
+        Assert.Equal([featureKey], persistence.Retracted);
+    }
+
+    [Theory]
+    [InlineData(AiFeaturePluginIds.SmartLabelling)]
+    [InlineData(AiFeaturePluginIds.TypeHelper)]
+    [InlineData(AiFeaturePluginIds.TasteSummary)]
+    [InlineData("someone.elses-plugin")]
+    public async Task APluginThatRecordsNoAiResults_RetractsNothing(string pluginId)
+    {
+        var persistence = new RetractionSpy();
+        var service = new AiFeatureRetractionService(persistence, NullLogger<AiFeatureRetractionService>.Instance);
+
+        Assert.Equal(0, await service.RetractForPluginAsync(pluginId, default));
+        Assert.Empty(persistence.Retracted);
+    }
+
     private IPluginScheduledJob Job(string pluginId) =>
         Assert.Single(_catalog.Get(pluginId)!.Capabilities.OfType<IPluginScheduledJob>());
 
@@ -229,7 +267,28 @@ public sealed class AiFeaturePluginTests : IDisposable
         new SeriesOrderPlugin(services),
         new VibeTagsPlugin(services),
         new DescriptionInsightsPlugin(services),
+        new TasteSummaryPlugin(),
     ];
+
+    private sealed class RetractionSpy : MediaEngine.Domain.Contracts.IAiFeaturePersistenceRepository
+    {
+        public List<string> Retracted { get; } = [];
+
+        public Task<int> RetractAiFeatureAsync(string featureKey, CancellationToken ct = default)
+        {
+            Retracted.Add(featureKey);
+            return Task.FromResult(1);
+        }
+
+        public Task<MediaEngine.Domain.Models.AiFeatureWriteResult> ReplaceAiFeatureAsync(MediaEngine.Domain.Models.AiFeatureWriteRequest request, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<MediaEngine.Domain.Models.AiFeatureState?> GetAiFeatureStateAsync(Guid entityId, string featureKey, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<MediaEngine.Domain.Models.AiFeatureState> RecordAiFeatureFailureAsync(MediaEngine.Domain.Models.AiFeatureFailureRequest request, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+    }
 
     private sealed class ApprovesEverything : IPluginApprovalCheck
     {

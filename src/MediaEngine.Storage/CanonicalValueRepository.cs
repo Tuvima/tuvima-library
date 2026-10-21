@@ -568,6 +568,95 @@ public sealed class CanonicalValueRepository : ICanonicalValueRepository, IAiFea
         }, ct).ConfigureAwait(false);
     }
 
+    public async Task<int> RetractAiFeatureAsync(
+        string featureKey,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(featureKey);
+        ct.ThrowIfCancellationRequested();
+
+        return await _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            var entityIds = conn.Query<Guid>(
+                "SELECT entity_id FROM ai_feature_artifacts WHERE feature_key = @featureKey;",
+                new { featureKey },
+                transaction: tx).ToList();
+
+            foreach (var entityId in entityIds)
+            {
+                innerCt.ThrowIfCancellationRequested();
+                var state = LoadAiFeatureState(conn, tx, entityId, featureKey);
+                if (state is not null)
+                {
+                    foreach (var (key, expected) in state.PublishedValues)
+                    {
+                        RemoveValueIfStillAiOwned(conn, tx, entityId, key, expected, state.ProviderId);
+                    }
+                }
+
+                conn.Execute(
+                    "DELETE FROM ai_feature_artifacts WHERE entity_id = @entityId AND feature_key = @featureKey;",
+                    new { entityId, featureKey },
+                    transaction: tx);
+            }
+
+            return entityIds.Count;
+        }, ct).ConfigureAwait(false);
+    }
+
+    private static void RemoveValueIfStillAiOwned(
+        Microsoft.Data.Sqlite.SqliteConnection conn,
+        Microsoft.Data.Sqlite.SqliteTransaction tx,
+        Guid entityId,
+        string key,
+        IReadOnlyList<string> expected,
+        Guid aiProviderId)
+    {
+        if (MetadataFieldConstants.IsMultiValued(key))
+        {
+            var current = conn.Query<ExistingArrayValueRow>(
+                """
+                SELECT value AS Value, value_qid AS ValueQid
+                FROM canonical_value_arrays
+                WHERE entity_id = @entityId AND key = @key
+                ORDER BY ordinal;
+                """,
+                new { entityId, key },
+                transaction: tx).ToList();
+            if (current.Count > 0
+                && current.All(row => row.ValueQid is null)
+                && current.Select(row => row.Value).SequenceEqual(expected, StringComparer.Ordinal))
+            {
+                conn.Execute(
+                    "DELETE FROM canonical_value_arrays WHERE entity_id = @entityId AND key = @key;",
+                    new { entityId, key },
+                    transaction: tx);
+            }
+
+            return;
+        }
+
+        var scalar = conn.QueryFirstOrDefault<ExistingCanonicalOwnerRow>(
+            """
+            SELECT value AS Value, winning_provider_id AS WinningProviderId
+            FROM canonical_values
+            WHERE entity_id = @entityId AND key = @key
+            LIMIT 1;
+            """,
+            new { entityId, key },
+            transaction: tx);
+        if (scalar is not null
+            && scalar.WinningProviderId == aiProviderId
+            && expected.Count == 1
+            && string.Equals(scalar.Value, expected[0], StringComparison.Ordinal))
+        {
+            conn.Execute(
+                "DELETE FROM canonical_values WHERE entity_id = @entityId AND key = @key;",
+                new { entityId, key },
+                transaction: tx);
+        }
+    }
+
     public Task<AiFeatureState?> GetAiFeatureStateAsync(
         Guid entityId,
         string featureKey,

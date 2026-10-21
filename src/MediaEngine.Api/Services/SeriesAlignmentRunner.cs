@@ -17,7 +17,7 @@ namespace MediaEngine.Api.Services;
 /// </summary>
 public sealed class SeriesAlignmentRunner
 {
-    private const string FeatureKey = "series_alignment";
+    private const string FeatureKey = AiFeatureKeys.SeriesAlignment;
     private const string ModelId = "text_quality";
     private const string PromptVersion = "series-position-v1";
 

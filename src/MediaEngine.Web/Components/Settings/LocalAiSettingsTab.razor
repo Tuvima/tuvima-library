@@ -168,7 +168,7 @@
 
     private string AutomationDescription() => _progress is null ? "Progress could not be loaded" : $"{_progress.CompletedCount} of {_progress.Total} completed";
 
-    // The Official plugins behind the Local AI features (Smart labelling, Type helper, Series order, Vibe tags, Description insights).
+    // The Official plugins behind the Local AI features (Smart labelling, Type helper, Series order, Vibe tags, Description insights, Taste summary).
     private static readonly HashSet<string> AiFeaturePluginIds = new(StringComparer.Ordinal)
     {
         "tuvima.ai-smart-labelling",
@@ -176,5 +176,6 @@
         "tuvima.ai-series-order",
         "tuvima.ai-vibe-tags",
         "tuvima.ai-description-insights",
+        "tuvima.ai-taste-summary",
     };
 }
