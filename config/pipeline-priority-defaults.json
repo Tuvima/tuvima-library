@@ -80,6 +80,7 @@
         "apple_api"
       ],
       "series": [
+        "wikidata_reconciliation",
         "apple_api"
       ],
       "description": [
@@ -323,12 +324,12 @@
         "tmdb"
       ],
       "series": [
-        "tmdb",
-        "wikidata_reconciliation"
+        "wikidata_reconciliation",
+        "tmdb"
       ],
       "series_position": [
-        "tmdb",
-        "wikidata_reconciliation"
+        "wikidata_reconciliation",
+        "tmdb"
       ],
       "sequence_total": [
         "tmdb",
@@ -499,12 +500,12 @@
         "comicvine"
       ],
       "series": [
-        "comicvine",
-        "wikidata_reconciliation"
+        "wikidata_reconciliation",
+        "comicvine"
       ],
       "series_position": [
-        "comicvine",
-        "wikidata_reconciliation"
+        "wikidata_reconciliation",
+        "comicvine"
       ],
       "issue_number": [
         "comicvine",
