@@ -64,7 +64,9 @@ public sealed partial class EngineApiClient
         string? creator = null,
         string? status = null,
         string? year = null,
-        string? sort = null)
+        string? sort = null,
+        string? vibes = null,
+        string? themes = null)
     {
         const string endpoint = "GET /api/v1/display/browse";
         try
@@ -78,6 +80,8 @@ public sealed partial class EngineApiClient
             AddQuery(query, "creator", creator);
             AddQuery(query, "status", status);
             AddQuery(query, "year", year);
+            AddQuery(query, "vibes", vibes);
+            AddQuery(query, "themes", themes);
             AddQuery(query, "sort", sort);
             AddQuery(query, "offset", offset?.ToString(System.Globalization.CultureInfo.InvariantCulture));
             AddQuery(query, "limit", limit?.ToString(System.Globalization.CultureInfo.InvariantCulture));

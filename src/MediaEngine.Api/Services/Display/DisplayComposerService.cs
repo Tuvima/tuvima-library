@@ -161,7 +161,9 @@ public sealed partial class DisplayComposerService
         string? creator = null,
         string? status = null,
         string? year = null,
-        string? sort = null)
+        string? sort = null,
+        string? vibes = null,
+        string? themes = null)
     {
         var normalizedLane = DisplayMediaRules.NormalizeLane(lane);
         if (normalizedLane is not null &&
@@ -236,6 +238,9 @@ public sealed partial class DisplayComposerService
                 return requestedGenres.Any(requested => workGenres.Contains(requested, StringComparer.OrdinalIgnoreCase));
             });
         }
+
+        filtered = FilterByAiValues(filtered, work => work.Vibe, vibes);
+        filtered = FilterByAiValues(filtered, work => work.Themes, themes);
 
         var requestedCreators = DisplayMediaRules.SplitValues(creator);
         if (requestedCreators.Count > 0)
@@ -1069,7 +1074,35 @@ public sealed partial class DisplayComposerService
             .OrderByDescending(value => value, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return new DisplayBrowseFacetsDto(genres, creators, years);
+        return new DisplayBrowseFacetsDto(genres, creators, years)
+        {
+            Vibes = FacetValues(source.Select(work => work.Vibe)),
+            Themes = FacetValues(source.Select(work => work.Themes)),
+        };
+    }
+
+    // Most common first, so the filter lists what the library actually has.
+    private static IReadOnlyList<string> FacetValues(IEnumerable<string?> stored) => stored
+        .SelectMany(value => DisplayMediaRules.SplitValues(value))
+        .GroupBy(value => value, StringComparer.OrdinalIgnoreCase)
+        .OrderByDescending(group => group.Count())
+        .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+        .Select(group => group.Key)
+        .ToList();
+
+    private static IEnumerable<DisplayWorkRow> FilterByAiValues(IEnumerable<DisplayWorkRow> works, Func<DisplayWorkRow, string?> stored, string? requested)
+    {
+        var wanted = DisplayMediaRules.SplitValues(requested);
+        if (wanted.Count == 0)
+        {
+            return works;
+        }
+
+        return works.Where(work =>
+        {
+            var have = DisplayMediaRules.SplitValues(stored(work));
+            return wanted.Any(value => have.Contains(value, StringComparer.OrdinalIgnoreCase));
+        });
     }
 
     private static IReadOnlyList<string> ContributorValues(DisplayWorkRow work)

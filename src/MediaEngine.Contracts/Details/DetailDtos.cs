@@ -112,8 +112,26 @@ public sealed class ExternalSourceLinkViewModel
     public string? Tooltip { get; init; }
 }
 
+/// <summary>
+/// What Local AI features worked out about an item: vibes, themes, moods, a short summary and content warnings. Always shown
+/// marked as AI, and empty (so absent) when the AI plugins are off or have nothing for the item.
+/// </summary>
+public sealed class DetailAiResultsViewModel
+{
+    public IReadOnlyList<string> Vibes { get; init; } = [];
+    public IReadOnlyList<string> Themes { get; init; } = [];
+    public IReadOnlyList<string> Moods { get; init; } = [];
+    public IReadOnlyList<string> ContentWarnings { get; init; } = [];
+    public string? Summary { get; init; }
+
+    public bool IsEmpty => Vibes.Count == 0 && Themes.Count == 0 && Moods.Count == 0 && ContentWarnings.Count == 0 && string.IsNullOrWhiteSpace(Summary);
+}
+
 public sealed class DetailFactsViewModel
 {
+    /// <summary>AI-made suggestions for this item, or null when there are none.</summary>
+    public DetailAiResultsViewModel? AiResults { get; init; }
+
     public string? MediaKind { get; init; }
     public string? Year { get; init; }
     public string? ReleaseDate { get; init; }

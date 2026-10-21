@@ -833,6 +833,27 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_CarriesTheAiVibesAndThemes_AndLeavesThemNullWhenNoPluginStoredAny()
+    {
+        using (var conn = _db.CreateConnection())
+        {
+            var (tagged, _, _) = await InsertFileAsync(conn, "Books", "standalone");
+            await SetArrayAsync(conn, tagged, "vibe", 1, "slow-burn");
+            await SetArrayAsync(conn, tagged, "vibe", 0, "cozy");
+            await SetArrayAsync(conn, tagged, "themes", 0, "friendship");
+            await InsertFileAsync(conn, "Books", "standalone");
+        }
+
+        var rows = await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None);
+
+        var withTags = Assert.Single(rows, row => row.Vibe is not null);
+        Assert.Equal("cozy;slow-burn", withTags.Vibe);
+        Assert.Equal("friendship", withTags.Themes);
+        var without = Assert.Single(rows, row => row.Vibe is null);
+        Assert.Null(without.Themes);
+    }
+
+    [Fact]
     public async Task LoadAsync_LeanReadReturnsNullForSearchOnlyColumnsAndFullReadFillsThem()
     {
         using (var conn = _db.CreateConnection())

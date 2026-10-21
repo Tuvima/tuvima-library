@@ -148,6 +148,46 @@
                                                        EmptyText="No matching years"
                                                        ShowLabel="false"
                                                        Class="browse-shell__multi-select browse-shell__multi-select--year" />
+
+                                     @if (VibeFacets.Count > 0)
+                                     {
+                                         <BrowseMultiSelect Label="Vibe"
+                                                            ButtonLabel="Vibes"
+                                                            MenuKey="vibes"
+                                                            OpenMenuKey="@_openFacetMenuKey"
+                                                            OpenMenuKeyChanged="OnOpenFacetMenuChanged"
+                                                            Icon="@AppMaterialIcons.Outlined.AutoAwesome"
+                                                           Options="VibeFacets"
+                                                           SelectedValues="SelectedVibes"
+                                                           SelectedValuesChanged="OnVibesChanged"
+                                                           SearchPlaceholder="Search vibes..."
+                                                           AllLabel="All vibes"
+                                                           AllHelpText="No vibe filter applied"
+                                                           EmptyText="No matching vibes"
+                                                           HelpText="Suggested by Local AI. Select one or more to filter results."
+                                                           ShowLabel="false"
+                                                           Class="browse-shell__multi-select browse-shell__multi-select--vibe" />
+                                     }
+
+                                     @if (ThemeFacets.Count > 0)
+                                     {
+                                         <BrowseMultiSelect Label="Theme"
+                                                            ButtonLabel="Themes"
+                                                            MenuKey="themes"
+                                                            OpenMenuKey="@_openFacetMenuKey"
+                                                            OpenMenuKeyChanged="OnOpenFacetMenuChanged"
+                                                            Icon="@AppMaterialIcons.Outlined.AutoAwesome"
+                                                           Options="ThemeFacets"
+                                                           SelectedValues="SelectedThemes"
+                                                           SelectedValuesChanged="OnThemesChanged"
+                                                           SearchPlaceholder="Search themes..."
+                                                           AllLabel="All themes"
+                                                           AllHelpText="No theme filter applied"
+                                                           EmptyText="No matching themes"
+                                                           HelpText="Suggested by Local AI. Select one or more to filter results."
+                                                           ShowLabel="false"
+                                                           Class="browse-shell__multi-select browse-shell__multi-select--theme" />
+                                     }
                                 }
                             </div>
 
@@ -405,6 +445,8 @@
     private readonly HashSet<string> _selectedGenres = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _selectedCreators = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _selectedYears = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _selectedVibes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _selectedThemes = new(StringComparer.OrdinalIgnoreCase);
     private string _status = string.Empty;
     private DisplayBrowseFacetsDto? _facets;
     private int _totalCount;
@@ -476,6 +518,10 @@
     private IReadOnlyList<string> GenreFacets => _facets?.Genres ?? [];
     private IReadOnlyList<string> CreatorFacets => _facets?.Creators ?? [];
     private IReadOnlyList<string> YearFacets => _facets?.Years ?? [];
+    private IReadOnlyList<string> VibeFacets => _facets?.Vibes ?? [];
+    private IReadOnlyList<string> ThemeFacets => _facets?.Themes ?? [];
+    private IReadOnlyList<string> SelectedVibes => _selectedVibes.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToList();
+    private IReadOnlyList<string> SelectedThemes => _selectedThemes.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToList();
     private IReadOnlyList<string> SelectedGenres => _selectedGenres.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToList();
     private IReadOnlyList<string> SelectedCreators => _selectedCreators.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToList();
     private IReadOnlyList<string> SelectedYears => _selectedYears.OrderByDescending(value => value, StringComparer.OrdinalIgnoreCase).ToList();
@@ -483,7 +529,9 @@
                                      || _selectedGenres.Count > 0
                                      || _selectedCreators.Count > 0
                                      || !string.IsNullOrWhiteSpace(_status)
-                                     || _selectedYears.Count > 0;
+                                     || _selectedYears.Count > 0
+                                     || _selectedVibes.Count > 0
+                                     || _selectedThemes.Count > 0;
     private string CreatorFilterLabel => CurrentTab.MediaType switch
     {
         "Books" or "Comics" => "Author / creator",
@@ -532,6 +580,10 @@
                 .Select(value => new ActiveFilterChip($"person:{value}", value)),
             .. _selectedYears.OrderByDescending(value => value, StringComparer.OrdinalIgnoreCase)
                 .Select(value => new ActiveFilterChip($"year:{value}", value)),
+            .. _selectedVibes.OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .Select(value => new ActiveFilterChip($"vibe:{value}", value)),
+            .. _selectedThemes.OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .Select(value => new ActiveFilterChip($"theme:{value}", value)),
             .. string.IsNullOrWhiteSpace(_status)
                 ? []
                 : new[] { new ActiveFilterChip("status", StatusDisplayLabel) },
@@ -583,6 +635,8 @@
         || _selectedGenres.Count > 0
         || _selectedCreators.Count > 0
         || _selectedYears.Count > 0
+        || _selectedVibes.Count > 0
+        || _selectedThemes.Count > 0
         || !string.IsNullOrWhiteSpace(_status);
 
     private string ActiveGroupingLabel => CurrentTab.GroupingOptions
@@ -717,6 +771,10 @@
         _status = state.Status;
         _selectedYears.Clear();
         _selectedYears.UnionWith(state.Years);
+        _selectedVibes.Clear();
+        _selectedVibes.UnionWith(state.Vibes ?? []);
+        _selectedThemes.Clear();
+        _selectedThemes.UnionWith(state.Themes ?? []);
         var query = System.Web.HttpUtility.ParseQueryString(new Uri(address).Query);
         _requestedTrackId = Guid.TryParse(query["track"], out var trackId) ? trackId : null;
         if (state.TileSize is int tileSize)
@@ -852,6 +910,8 @@
         string.Join(',', _selectedGenres.Order()),
         string.Join(',', _selectedCreators.Order()),
         string.Join(',', _selectedYears.Order()),
+        string.Join(',', _selectedVibes.Order()),
+        string.Join(',', _selectedThemes.Order()),
         _status,
         _sortBy,
         _layout,
@@ -873,6 +933,8 @@
             creator: _selectedCreators.Count == 0 ? null : string.Join(',', _selectedCreators),
             status: string.IsNullOrWhiteSpace(_status) ? null : _status,
             year: _selectedYears.Count == 0 ? null : string.Join(',', _selectedYears),
+            vibes: _selectedVibes.Count == 0 ? null : string.Join(',', _selectedVibes),
+            themes: _selectedThemes.Count == 0 ? null : string.Join(',', _selectedThemes),
             profileId: _activeProfileId,
             sort: _sortBy,
             ct: ct);
@@ -933,6 +995,8 @@
             creator: _selectedCreators.Count == 0 ? null : string.Join(',', _selectedCreators),
             status: string.IsNullOrWhiteSpace(_status) ? null : _status,
             year: _selectedYears.Count == 0 ? null : string.Join(',', _selectedYears),
+            vibes: _selectedVibes.Count == 0 ? null : string.Join(',', _selectedVibes),
+            themes: _selectedThemes.Count == 0 ? null : string.Join(',', _selectedThemes),
             profileId: _activeProfileId,
             sort: _sortBy,
             ct: ct);
@@ -1010,6 +1074,8 @@
             || _selectedGenres.Count > 0
             || _selectedCreators.Count > 0
             || _selectedYears.Count > 0
+            || _selectedVibes.Count > 0
+            || _selectedThemes.Count > 0
             || !string.IsNullOrWhiteSpace(_status))
         {
             var qualifyingPage = await ApiClient.GetDisplayBrowseAsync(
@@ -1022,6 +1088,8 @@
                 creator: _selectedCreators.Count == 0 ? null : string.Join(',', _selectedCreators),
                 status: string.IsNullOrWhiteSpace(_status) ? null : _status,
                 year: _selectedYears.Count == 0 ? null : string.Join(',', _selectedYears),
+                vibes: _selectedVibes.Count == 0 ? null : string.Join(',', _selectedVibes),
+                themes: _selectedThemes.Count == 0 ? null : string.Join(',', _selectedThemes),
                 profileId: _activeProfileId,
                 sort: _sortBy);
 
@@ -1490,6 +1558,8 @@
         _selectedCreators.Clear();
         _status = string.Empty;
         _selectedYears.Clear();
+        _selectedVibes.Clear();
+        _selectedThemes.Clear();
         ClearActiveGroupState();
         await NavigateAndReloadAsync();
     }
@@ -1576,6 +1646,20 @@
     {
         _selectedYears.Clear();
         _selectedYears.UnionWith(values);
+        await NavigateAndReloadAsync();
+    }
+
+    private async Task OnVibesChanged(IReadOnlyList<string> values)
+    {
+        _selectedVibes.Clear();
+        _selectedVibes.UnionWith(values);
+        await NavigateAndReloadAsync();
+    }
+
+    private async Task OnThemesChanged(IReadOnlyList<string> values)
+    {
+        _selectedThemes.Clear();
+        _selectedThemes.UnionWith(values);
         await NavigateAndReloadAsync();
     }
 
@@ -1715,6 +1799,10 @@
             _selectedCreators.Remove(key[7..]);
         else if (key.StartsWith("year:", StringComparison.Ordinal))
             _selectedYears.Remove(key[5..]);
+        else if (key.StartsWith("vibe:", StringComparison.Ordinal))
+            _selectedVibes.Remove(key[5..]);
+        else if (key.StartsWith("theme:", StringComparison.Ordinal))
+            _selectedThemes.Remove(key[6..]);
         else if (key == "status")
             _status = string.Empty;
 
@@ -1727,6 +1815,8 @@
         _selectedCreators.Clear();
         _status = string.Empty;
         _selectedYears.Clear();
+        _selectedVibes.Clear();
+        _selectedThemes.Clear();
 
         await NavigateAndReloadAsync();
     }
@@ -1924,6 +2014,18 @@
         {
             queryParts.AddRange(_selectedYears.OrderByDescending(value => value, StringComparer.OrdinalIgnoreCase)
                 .Select(value => $"year={Uri.EscapeDataString(value)}"));
+        }
+
+        if (_selectedVibes.Count > 0)
+        {
+            queryParts.AddRange(_selectedVibes.OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .Select(value => $"vibe={Uri.EscapeDataString(value)}"));
+        }
+
+        if (_selectedThemes.Count > 0)
+        {
+            queryParts.AddRange(_selectedThemes.OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .Select(value => $"theme={Uri.EscapeDataString(value)}"));
         }
 
         if (!string.Equals(_sortBy, ResolveSort(null), StringComparison.OrdinalIgnoreCase))

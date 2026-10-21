@@ -19,6 +19,18 @@ public sealed class BrowseQueryBuilderTests
         Assert.DoesNotContain(BrowseQueryBuilder.GetSortOptions("books", "timeline"), option => option.Value == "title");
     }
     [Fact]
+    public void Read_CarriesVibeAndThemeFilters_AndDefaultsToNone()
+    {
+        var state = BrowseQueryBuilder.Read(CreatePreset(), "books", "http://localhost/read/books?vibe=cozy&vibe=tense&theme=friendship");
+        Assert.Equal(["cozy", "tense"], state.Vibes!.Order(StringComparer.Ordinal));
+        Assert.Equal(["friendship"], state.Themes);
+
+        var none = BrowseQueryBuilder.Read(CreatePreset(), "books", "http://localhost/read/books");
+        Assert.Empty(none.Vibes!);
+        Assert.Empty(none.Themes!);
+    }
+
+    [Fact]
     public void Read_NormalizesTabGroupingLayoutSortAndIgnoresLegacyGroupState()
     {
         var preset = CreatePreset();

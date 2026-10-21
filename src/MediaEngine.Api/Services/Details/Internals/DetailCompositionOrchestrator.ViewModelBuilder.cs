@@ -47,6 +47,7 @@ internal sealed partial class DetailCompositionOrchestrator
 
         return new DetailFactsViewModel
         {
+            AiResults = BuildAiResults(canonicalValues),
             MediaKind = FormatEntityType(entityType),
             Year = StringHelpers.FirstNonBlankOr(
                 string.Empty,
@@ -144,6 +145,7 @@ internal sealed partial class DetailCompositionOrchestrator
 
         return new DetailFactsViewModel
         {
+            AiResults = BuildAiResults(canonicalValues),
             MediaKind = FormatEntityType(entityType),
             Year = displayedYear ?? string.Empty,
             ReleaseDate = displayedReleaseDate ?? string.Empty,
@@ -1149,6 +1151,24 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private static bool IsTruthy(string? value)
         => value?.Trim().ToLowerInvariant() is "1" or "true" or "yes" or "explicit";
+
+    /// <summary>The AI features' results for the detail page; null when no AI plugin has left anything for this item.</summary>
+    internal static DetailAiResultsViewModel? BuildAiResults(IReadOnlyDictionary<string, string> canonicalValues)
+    {
+        List<string> List(string key) => SplitMetadataValues(GetValue(canonicalValues, key))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var results = new DetailAiResultsViewModel
+        {
+            Vibes = List("vibe"),
+            Themes = List("themes"),
+            Moods = List("mood"),
+            ContentWarnings = List("content_warnings"),
+            Summary = GetValue(canonicalValues, "tldr"),
+        };
+        return results.IsEmpty ? null : results;
+    }
 
     private static IEnumerable<string> SplitMetadataValues(string? value)
     {
