@@ -286,7 +286,7 @@ Three waves. **Wave 1 is the first build (WP1 to WP4), the original V0 to V2.** 
 
 Built in the cloud, validated locally in one batch (`.claude/rules/cloud-first.md`). Cloud sessions append these to `engineering/validation/batch.md`; they do not run them.
 
-1. **Add-folder choice and Videos library (WP1-WP4):** on SHY-DESKTOP with `C:\\Temp\\real_import`, add a Videos folder with real YouTube downloads and phone clips; confirm Watch shows the first group and the clips land in View, with Windows paths.
+1. **Add-folder choice and Videos library (WP1-WP4):** on SHY-DESKTOP with `Z:\\Development\\testing\\media\\real_media`, add a Videos folder with real YouTube downloads and phone clips; confirm Watch shows the first group and the clips land in View, with Windows paths.
 2. **YouTube plugin (WP8):** a real download is identified from its filename ID; thumbnail, title and channel appear; Identify then "Identifying..." behaves.
 3. **Thumbnails and sidecars (WP6, WP7):** real files with .nfo/.info.json sidecars; random still thumbnails look right on the TV and phone.
 4. **Bookmarks (WP15):** add, Saved, quick look, scene range with Play this part, global bookmark as server admin, pack export and import, on a real film and an audiobook; iPhone and Android player.

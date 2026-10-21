@@ -48,7 +48,7 @@ Build U-WP3b of engineering/specs/universe.md. Read CLAUDE.md, the spec (U-WP3, 
 Shy decided 2026-10-20: a Series picked in the editor's Matching section is saved as a locked choice that the Engine always respects on later scans and re-identification.
 Also fix the four should-fixes from the U-WP3 re-review: (1) key the Series ambiguity Needs Review item so it doesn't duplicate; (2) resolve a stale ambiguity item automatically once the Series becomes clear; (3) use one source for the tie-break series_qid; (4) add a test with a real stored book plus audiobook manifest.
 If session "Universe collision check implementation" already has a branch (claude/universe-wp3b-series-lock), continue from it.
-The tie-break change can change ingestion output: add a record-and-replay comparison on C:\Temp\real_import to engineering/validation/batch.md as an Awaiting row (expected: only Series placement for ambiguous items changes). Add a visual-check row for the Matching Series block.
+The tie-break change can change ingestion output: add a record-and-replay comparison on Z:\Development\testing\media\real_media to engineering/validation/batch.md as an Awaiting row (expected: only Series placement for ambiguous items changes). Add a visual-check row for the Matching Series block.
 Finish with the CI-strength build, the tests, the reviewer, then merge. Report what merged.
 ```
 

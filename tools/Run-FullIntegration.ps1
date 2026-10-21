@@ -5,7 +5,7 @@ param(
     [string]$EngineUrl = "http://localhost:61495",
     [ValidateSet("Generated", "Real")]
     [string]$Mode = "Generated",
-    [string]$SourceRoot = "C:\Temp\real_import",
+    [string]$SourceRoot = "Z:\Development\testing\media\real_media",
     [Guid]$ProfileId = [Guid]::Empty,
     [ValidateSet(1, 12, 123)]
     [int]$Stages = 123,
