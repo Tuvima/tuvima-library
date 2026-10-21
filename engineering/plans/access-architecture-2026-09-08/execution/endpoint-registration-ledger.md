@@ -134,7 +134,6 @@ Generated from source by `generate-endpoint-ledger.ps1`. It is a syntactic inven
 | GET | `/collections/{id:guid}/parent` | RequireClientScope(ClientApiScopes.LibraryRead) | Production | `src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs:188` |
 | GET | `/collections/{id:guid}/related` | RequireClientScope(ClientApiScopes.LibraryRead) | Production | `src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs:220` |
 | GET | `/collections/{collectionId:guid}/group-detail` | RequireClientScope(ClientApiScopes.LibraryRead) | Production | `src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs:327` |
-| GET | `/collections/artist-group-detail` | RequireClientScope(ClientApiScopes.LibraryRead) | Production | `src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs:629` |
 | GET | `/collections/artist-detail-by-name` | RequireClientScope(ClientApiScopes.LibraryRead) | Production | `src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs:823` |
 | GET | `/collections/system-view-detail` | RequireClientScope(ClientApiScopes.LibraryRead) | Production | `src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs:978` |
 | GET | `/collections/content-groups` | RequireClientScope(ClientApiScopes.LibraryRead) | Production | `src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs:1289` |

@@ -998,6 +998,24 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
+        // Credits are worked out only for the files that could credit this person or one of their groups, never for
+        // the whole library (a superset found by one scan of the stored credits). The look-up stays one statement:
+        // every step is saved once (MATERIALIZED) because SQLite copies a step's text wherever it is named.
+        var candidateAssetsCte = PersonCreditSql.CandidateAssetsCte(
+            "credit_candidate_assets",
+            """
+            SELECT id, name, wikidata_qid FROM persons WHERE id = @personId
+            UNION
+            SELECT group_person.id, group_person.name, group_person.wikidata_qid
+            FROM person_group_members membership
+            INNER JOIN persons group_person ON group_person.id = membership.group_id
+            WHERE membership.member_id = @personId
+            """,
+            "cc_");
+        var scopedCreditsCte = PersonCreditSql.ScopedCreditsCte(
+            "credit_rows",
+            "SELECT asset_id FROM credit_candidate_assets",
+            "cr_");
         // The borrowed audiobook year is worked out once for the person's audiobooks, not once per row.
         var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
             "credit_related_book_year",
@@ -1019,7 +1037,10 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
             MediaDateSql.RelatedBookYearLookup("credit_related_book_year", "w.id", "ma.id"));
         var baseRows = (await conn.QueryAsync<PersonLibraryCreditRow>(
             $"""
-            WITH effective_credit AS MATERIALIZED (
+            WITH {candidateAssetsCte},
+            {scopedCreditsCte},
+            person_media_credits AS MATERIALIZED (SELECT * FROM credit_rows),
+            effective_credit AS MATERIALIZED (
                 SELECT direct_credit.media_asset_id,
                        direct_credit.person_id,
                        direct_credit.role,
@@ -1028,7 +1049,7 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
                        NULL AS via_group_name,
                        NULL AS membership_start_date,
                        NULL AS membership_end_date
-                FROM primary_person_media_credits direct_credit
+                FROM person_media_credits direct_credit
                 WHERE direct_credit.person_id = @personId
 
                 UNION ALL
@@ -1041,7 +1062,7 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
                        group_person.name AS via_group_name,
                        membership.start_date AS membership_start_date,
                        membership.end_date AS membership_end_date
-                FROM primary_person_media_credits group_credit
+                FROM person_media_credits group_credit
                 INNER JOIN person_group_members membership
                     ON membership.group_id = group_credit.person_id
                 INNER JOIN persons group_person
@@ -1139,7 +1160,7 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
               AND {WorkReadinessSql.ReadyWorkPredicate("w")}
               AND (primary_credit.role != 'Author' OR NOT EXISTS (
                   SELECT 1
-                  FROM primary_person_media_credits collective_credit
+                  FROM person_media_credits collective_credit
                   INNER JOIN persons collective_person ON collective_person.id = collective_credit.person_id
                   WHERE collective_credit.media_asset_id = primary_credit.media_asset_id
                     AND collective_credit.role = primary_credit.role
@@ -1150,7 +1171,7 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
                      c.display_name, primary_credit.role, primary_credit.association_type,
                      primary_credit.via_group_id, primary_credit.via_group_name,
                      primary_credit.membership_start_date, primary_credit.membership_end_date
-            ORDER BY Year DESC, Title, primary_credit.role;
+            ORDER BY Year DESC, Title, primary_credit.role, w.id;
             """,
             new { personId })).ToList();
 
