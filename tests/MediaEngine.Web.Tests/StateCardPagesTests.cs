@@ -216,6 +216,20 @@ public sealed class StateCardPagesTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TheAttentionState_KnowsWhetherAnAiFeaturePluginIsSwitchedOn()
+    {
+        _plugins = [Plugin("tuvima.ai-vibe-tags", "Vibe tags", enabled: false), Plugin("a.other", "Other", enabled: true)];
+        await State.StartAsync();
+        Assert.False(State.AiFeaturesOn);
+        State.Stop();
+
+        _plugins = [Plugin("tuvima.ai-vibe-tags", "Vibe tags", enabled: true)];
+        await State.StartAsync();
+        Assert.True(State.AiFeaturesOn);
+        State.Stop();
+    }
+
+    [Fact]
     public async Task TheAttentionState_ShadesPluginsFromTheListItReads_WithoutTheCardsPageOpen()
     {
         _plugins = [Plugin("a.bad", "Bad plugin", enabled: true, loadError: "Could not load.")];

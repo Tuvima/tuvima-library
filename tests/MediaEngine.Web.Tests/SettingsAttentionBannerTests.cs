@@ -620,7 +620,7 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task LocalAiBlocked_MakesTheMenuRowRedWithOff_AndToolsAreNeverShaded()
+    public async Task LocalAiBlocked_MakesTheMenuRowRedWithBroken_AndToolsAreNeverShaded()
     {
         SignIn(SettingsRole.ServerAdministrator);
         _reviewCount = 3;
@@ -631,7 +631,7 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
         var rows = Flatten(groups).ToArray();
 
         Assert.Equal(MediaSectionAttentionLevel.Blocked, rows.Single(row => row.Label == "Local AI").Attention);
-        Assert.Equal("Off", rows.Single(row => row.Label == "Local AI").AttentionLabel);
+        Assert.Equal("Broken", rows.Single(row => row.Label == "Local AI").AttentionLabel);
         Assert.Equal(MediaSectionAttentionLevel.Waiting, rows.Single(row => row.Label == "Library and Ingestion").Attention);
         Assert.Equal("3", rows.Single(row => row.Label == "Library and Ingestion").Meta);
         Assert.Equal(MediaSectionAttentionLevel.None, rows.Single(row => row.Label == "Tools and requirements").EffectiveAttention);

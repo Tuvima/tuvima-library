@@ -471,6 +471,13 @@ public sealed class DurablePipelineTests : IDisposable
         }
 
         Assert.Contains(history, entry => entry.EventType == "missing_confirmed");
+
+        // The change notification goes out after the status and the history entry, so wait for it as well.
+        for (var attempt = 0; attempt < 200 && !HasMissingNotice(); attempt++)
+        {
+            await Task.Delay(50);
+        }
+
         Assert.Contains(
             _publisher.Published.ToArray(),
             item => item.EventName == SignalREvents.MediaOperationChanged
@@ -516,6 +523,10 @@ public sealed class DurablePipelineTests : IDisposable
         Assert.Equal(MediaOperationStatus.MissingConfirmed, after!.Status);
         Assert.Null(await _operationRepo.GetActiveBySourcePathAsync(Path.GetFullPath(path)));
     }
+
+    private bool HasMissingNotice() => _publisher.Published.ToArray().Any(item =>
+        item.EventName == SignalREvents.MediaOperationChanged
+        && item.Payload is MediaOperationChangedEvent { Status: MediaOperationStatus.MissingConfirmed });
 
     private async Task<MediaOperation?> WaitForOperationAsync(Guid id, Func<MediaOperation, bool> isReady)
     {
