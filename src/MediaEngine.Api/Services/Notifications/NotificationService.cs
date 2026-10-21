@@ -15,7 +15,8 @@ namespace MediaEngine.Api.Services.Notifications;
 internal sealed class NotificationService(
     INotificationRepository repository,
     NotificationSettingsAccessor settingsStore,
-    IEnumerable<INotificationChannel> channels,
+    IEnumerable<INotificationChannel> builtInChannels,
+    IEnumerable<INotificationChannelSource> channelSources,
     IAccountRepository accounts,
     TimeProvider clock,
     ILogger<NotificationService> logger)
@@ -26,7 +27,10 @@ internal sealed class NotificationService(
     public static readonly TimeSpan GroupWindow = TimeSpan.FromMinutes(10);
     public static readonly TimeSpan MinimumSendInterval = TimeSpan.FromMinutes(1);
 
-    private readonly IReadOnlyList<INotificationChannel> _channels = channels.ToList();
+    private readonly IReadOnlyList<INotificationChannel> _builtInChannels = builtInChannels.ToList();
+
+    /// <summary>Built-in channels plus whatever switched-on plugins offer right now, so switching a plugin on or off changes the list without a restart.</summary>
+    private IReadOnlyList<INotificationChannel> _channels => [.. _builtInChannels, .. channelSources.SelectMany(source => source.GetChannels())];
 
     /// <summary>Handles one event: writes the inbox message and sends to the routed channels. Never throws for a channel problem.</summary>
     public async Task DispatchAsync(NotificationRequest request, CancellationToken ct)

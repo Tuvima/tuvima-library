@@ -18,6 +18,7 @@ internal sealed class DeclarativePlugin(PluginManifest manifest, DeclarativeDefi
         .. Definition.AiSteps.Select(step => new DeclarativeAiStepCapability(step)),
         .. Definition.ChannelSources.Select(source => new DeclarativeChannelSourceJob(source)),
         .. Definition.MetadataSources.Select(source => new DeclarativeMetadataSourceCapability(source)),
+        .. Definition.NotificationChannels.Select(channel => new DeclarativeNotificationChannelCapability(channel)),
     ];
 
     /// <summary>Builds the plugin for a manifest, or returns the plain reason it cannot be built.</summary>
@@ -34,6 +35,7 @@ internal static class DeclarativeCapabilityKinds
 {
     public const string AiStep = "declarative-ai-step";
     public const string MetadataSource = "declarative-metadata-source";
+    public const string NotificationChannel = "declarative-notification-channel";
 
     /// <summary>The collection a channel source keeps its latest fetch in, one record per source key.</summary>
     public const string ChannelRecords = "channels";
@@ -44,6 +46,13 @@ internal sealed class DeclarativeAiStepCapability(DeclarativeAiStep step) : IPlu
     public string Kind => DeclarativeCapabilityKinds.AiStep;
 
     public DeclarativeAiStep Step { get; } = step;
+}
+
+internal sealed class DeclarativeNotificationChannelCapability(DeclarativeNotificationChannel channel) : IPluginCapability
+{
+    public string Kind => DeclarativeCapabilityKinds.NotificationChannel;
+
+    public DeclarativeNotificationChannel Channel { get; } = channel;
 }
 
 internal sealed class DeclarativeMetadataSourceCapability(DeclarativeMetadataSource source) : IPluginCapability
