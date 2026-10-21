@@ -43,7 +43,7 @@ Tuvima downloads a model only when you ask. It downloads one helper tool by itse
 
 | What | Where from | When |
 |---|---|---|
-| FFmpeg and FFprobe (one pinned Windows build) | `github.com` (the BtbN/FFmpeg-Builds release), which hands the file on from GitHub's own release storage | Automatically at first-run setup and Engine start-up while it is missing (run from source or a repair), or **Install for me** or **Download again**; the Windows installer and the container image already include it |
+| FFmpeg and FFprobe (one pinned Windows build) | `github.com` (the GyanD/codexffmpeg release), which hands the file on from GitHub's own release storage | Automatically at first-run setup and Engine start-up while it is missing (run from source or a repair), or **Install for me** or **Download again**; the Windows installer and the container image already include it |
 | Tesseract's Windows setup program, plus English and page-orientation language data | `github.com` (UB-Mannheim/tesseract and tesseract-ocr/tessdata_fast) | **Install for me** on a run from source. You then run the setup program yourself and Windows asks for your approval |
 | Extra text recognition languages | `github.com` (tesseract-ocr/tessdata_fast) | Choosing a language under **Settings > Libraries > View > Documents** |
 | Local AI model files | The model host named for each model on the Local AI pages | **Download** on the Tools and requirements page |

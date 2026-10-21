@@ -127,27 +127,27 @@ public sealed class FfmpegDownload
 
     /// <summary>The version label shown to the person and written to the activity log.</summary>
     [JsonPropertyName("version")]
-    public string Version { get; set; } = "9.0.1";
+    public string Version { get; set; } = "9.0.2";
 
     [JsonPropertyName("url")]
     public string Url { get; set; } =
-        "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-28-17-08/ffmpeg-n9.0.1-11-ge47273f4d9-win64-gpl-9.0.zip";
+        "https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip";
 
     /// <summary>SHA-256 of the whole archive.</summary>
     [JsonPropertyName("sha256")]
-    public string Sha256 { get; set; } = "DEE63142094F79F6A50CDECE65384B7793181EAB3B6DB2EC907834981BB8AB10";
+    public string Sha256 { get; set; } = "60F467265B1E312373DBCD92200C2618A74850F98D3D078E94296BB3FA2047BA";
 
     /// <summary>The programs taken out of the archive by file name, each with the SHA-256 it must have once extracted.</summary>
     [JsonPropertyName("files")]
     public List<ExtractedFile> Files { get; set; } =
     [
-        new() { Name = "ffmpeg.exe", Sha256 = "989A60089B9B1A98896A5BD99EE793AB6841724E1B2441D5EF3E5D17DB0B0938" },
-        new() { Name = "ffprobe.exe", Sha256 = "001D80FDDF67BC303E91C6B8ECCDF53AF29A5F87ECF3837056B391CC3DD3F7B4" },
+        new() { Name = "ffmpeg.exe", Sha256 = "3256173F3F8BFFD7DF12227C68ADF68025EDB1832273A9530688A7BB1ED8EDEC" },
+        new() { Name = "ffprobe.exe", Sha256 = "F0D36ECBBDD3BCFAC3EFA078C96C7271C2E68B3810595552AC3B7F17E9A65C52" },
     ];
 
     /// <summary>File names, in order of preference, of the licence inside the archive. The first found is saved as <c>LICENSE.txt</c>.</summary>
     [JsonPropertyName("license_names")]
-    public List<string> LicenseNames { get; set; } = ["LICENSE.txt", "COPYING.GPLv3"];
+    public List<string> LicenseNames { get; set; } = ["LICENSE.txt", "COPYING.GPLv3", "LICENSE"];
 
     internal bool IsValid() =>
         Platform == ToolDownloadSettings.WindowsX64

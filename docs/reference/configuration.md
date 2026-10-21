@@ -505,7 +505,7 @@ The exact builds of FFmpeg and Tesseract the Library may fetch when an administr
 | `auto_install_required` | bool | `true` | When true, a Required tool the Library can fetch here (today FFmpeg) is downloaded by itself at first-run setup and Engine start-up while it is missing, with progress shown in setup and under Settings > Tools and requirements. Set it to `false` to keep "offer only". Development and test switch: set the environment variable `TUVIMA_FRESH_TOOLS=1` (or `true`) before starting the Engine and it ignores every installed FFmpeg (saved location, app folder, system PATH, standard folders) and removes the copy it fetched earlier from `{DataRoot}/tools/ffmpeg`, so a fresh start downloads FFmpeg again. Never set by default; Tesseract is not affected. |
 | `ffmpeg.platform` | string | `"win-x64"` | Only `win-x64` is offered today; Linux and macOS keep the install-it-yourself text. |
 | `ffmpeg.version` | string | `"9.0.1"` | Shown in the activity log. |
-| `ffmpeg.url` | string | pinned BtbN release | The archive. Must be `https://github.com/...`. |
+| `ffmpeg.url` | string | pinned gyan.dev release | The archive. Must be `https://github.com/...`. |
 | `ffmpeg.sha256` | string | pinned | SHA-256 of the whole archive. |
 | `ffmpeg.files[]` | object[] | `ffmpeg.exe`, `ffprobe.exe` | `name` and `sha256` of each program taken out of the archive by file name. Nothing else is unpacked and archive paths are never used to place a file. |
 | `ffmpeg.license_names[]` | string[] | `LICENSE.txt`, `COPYING.GPLv3` | The licence file to keep, saved as `LICENSE.txt` beside the programs. |

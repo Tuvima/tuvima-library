@@ -9,12 +9,12 @@
 
 $ErrorActionPreference = 'Stop'
 
-$release = 'autobuild-2026-08-28-17-08'
-$archive = 'ffmpeg-n9.0.1-11-ge47273f4d9-win64-gpl-9.0.zip'
-$archiveSha256 = 'DEE63142094F79F6A50CDECE65384B7793181EAB3B6DB2EC907834981BB8AB10'
-$ffmpegSha256 = '989A60089B9B1A98896A5BD99EE793AB6841724E1B2441D5EF3E5D17DB0B0938'
-$ffprobeSha256 = '001D80FDDF67BC303E91C6B8ECCDF53AF29A5F87ECF3837056B391CC3DD3F7B4'
-$url  = "https://github.com/BtbN/FFmpeg-Builds/releases/download/$release/$archive"
+$release = '9.0.2'
+$archive = 'ffmpeg-9.0.2-essentials_build.zip'
+$archiveSha256 = '60F467265B1E312373DBCD92200C2618A74850F98D3D078E94296BB3FA2047BA'
+$ffmpegSha256 = '3256173F3F8BFFD7DF12227C68ADF68025EDB1832273A9530688A7BB1ED8EDEC'
+$ffprobeSha256 = 'F0D36ECBBDD3BCFAC3EFA078C96C7271C2E68B3810595552AC3B7F17E9A65C52'
+$url  = "https://github.com/GyanD/codexffmpeg/releases/download/$release/$archive"
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("tuvima-ffmpeg-" + [Guid]::NewGuid().ToString('N'))
 $zip  = Join-Path $tempRoot $archive
 $out  = Join-Path $tempRoot 'extract'
@@ -36,7 +36,7 @@ try {
     $ffmpeg  = Get-ChildItem -Path $out -Recurse -Filter 'ffmpeg.exe'  | Select-Object -First 1
     $ffprobe = Get-ChildItem -Path $out -Recurse -Filter 'ffprobe.exe' | Select-Object -First 1
     $license = Get-ChildItem -Path $out -Recurse -File |
-        Where-Object { $_.Name -in @('LICENSE.txt', 'COPYING.GPLv3') } |
+        Where-Object { $_.Name -in @('LICENSE.txt', 'COPYING.GPLv3', 'LICENSE') } |
         Select-Object -First 1
 
     if (-not $ffmpeg -or -not $ffprobe) {
