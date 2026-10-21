@@ -17,7 +17,7 @@ Run this handoff end to end per `.claude/rules/end-to-end-runs.md`.
 | 7 Notifications, events and backups | WP23, WP25, then WP24, WP31, then WP26 | Not started |
 | 8 Close-out | WP8, WP22, WP11 (final regression), WP12 (docs) | Not started |
 
-What wave 3 added, in brief: webhook delivery history and Send test (data store step 0021); the live plugin directory with a saved copy, Check now, an off switch and trust labels (the Install button is hidden until WP19, Shy's decision); declared web addresses on plugin manifests, shown on the approval step and card (WP15a, added for Universes U-WP9 and WP26); plugin host services: own records, recurring jobs in Scheduled tasks, Library events, always-on work, and a rate-limited plugin web connection that refuses undeclared addresses (step 0022). Spec change and progress notes record the details.
+What wave 3 added, in brief: webhook delivery history and Send test (data store step 0022); the live plugin directory with a saved copy, Check now, an off switch and trust labels (the Install button is hidden until WP19, Shy's decision); declared web addresses on plugin manifests, shown on the approval step and card (WP15a, added for Universes U-WP9 and WP26); plugin host services: own records, recurring jobs in Scheduled tasks, Library events, always-on work, and a rate-limited plugin web connection that refuses undeclared addresses (step 0023). Spec change and progress notes record the details.
 
 ## 2. Wave 3 follow-ups (do these first, or fold them into wave 4)
 
@@ -56,7 +56,7 @@ Run waves one after another, at most two packets at once, each with the checkpoi
 | 8 | WP12 Docs | everything | Docs site build; the search list in WP12's done-when. |
 
 Practical notes from wave 3:
-- **Data store steps:** main has steps up to 0022 after wave 3. Other specs add steps too; check the highest number on `main` right before merging and renumber (re-run `pwsh -File tools/Update-SchemaSnapshot.ps1`).
+- **Data store steps:** main has steps up to 0023 after wave 3. Other specs add steps too; check the highest number on `main` right before merging and renumber (re-run `pwsh -File tools/Update-SchemaSnapshot.ps1`).
 - **Generated fixture files** (`tests/MediaEngine.Contracts.Tests/Fixtures/*.approved.txt`) conflict on almost every merge with main: take main's copy, rebuild, then `pwsh -File tools/Update-ContractFixtures.ps1`.
 - **`tools/` projects are not in the solution** but CI builds them with warnings as errors; search the whole repo for implementers before changing an interface.
 - **Visual checks without a visible browser pane:** use headless Chromium through `playwright-core` from a scratch folder (browsers are already in `%LOCALAPPDATA%\ms-playwright`), against an isolated copy (temp `TUVIMA_CONFIG_DIR`, `TUVIMA_DATA_DIR`, `TUVIMA_DATA_PROTECTION_DIR`; Engine and Dashboard on spare ports). First-run setup needs a password account; "Start without a password" only works from the Engine's own machine. Generate test credentials into the ignored run folder, never into chat.

@@ -48,7 +48,10 @@ public static class TuvimaIntelligenceServiceCollectionExtensions
         services.AddSingleton<IParentCollectionResolver>(sp =>
             new ParentCollectionResolver(
                 sp.GetRequiredService<ICollectionRepository>(),
+                sp.GetRequiredService<INarrativeRootRepository>(),
+                sp.GetRequiredService<ICanonicalValueRepository>(),
                 sp.GetRequiredService<ILogger<ParentCollectionResolver>>(),
+                sp.GetRequiredService<IQidLabelRepository>(),
                 sp.GetRequiredService<IConfigurationLoader>()));
         return services;
     }

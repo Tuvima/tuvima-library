@@ -158,15 +158,49 @@ public interface ICollectionRepository
     /// <summary>Sets or clears the parent Collection for a given Collection.</summary>
     Task SetParentCollectionAsync(Guid collectionId, Guid? parentCollectionId, CancellationToken ct = default);
 
-    /// <summary>Finds a Parent Collection by broader series/franchise/universe QID from collection_relationships.</summary>
-    Task<Collection?> FindParentCollectionByRelationshipAsync(string qid, CancellationToken ct = default);
+    /// <summary>
+    /// Sets the Universe record a Series shelf belongs to (<c>universe_qid</c>) and its Universe shelf
+    /// (<c>parent_collection_id</c>) together. Either can be null.
+    /// </summary>
+    Task SetUniverseAsync(Guid collectionId, string? universeQid, Guid? parentCollectionId, CancellationToken ct = default);
 
     /// <summary>
-    /// Returns the IDs of all Collections that have a <c>collection_relationships</c> row with the given
-    /// QID and a rel_type in ("series", "franchise", "fictional_universe").
-    /// Used by <c>ParentCollectionResolver</c> to find sibling shelf Collections that share a rollup.
+    /// Finds the Universe shelf (a Universe collection) that presents this Universe record. Null when the Library has no
+    /// shelf for it.
     /// </summary>
-    Task<IReadOnlyList<Guid>> FindCollectionIdsByFranchiseQidAsync(string qid, CancellationToken ct = default);
+    Task<Collection?> FindUniverseShelfByUniverseQidAsync(string universeQid, CancellationToken ct = default);
+
+    /// <summary>Lists the Series shelves whose <c>universe_qid</c> is this Universe record, oldest first.</summary>
+    Task<IReadOnlyList<Collection>> ListSeriesShelvesByUniverseQidAsync(string universeQid, CancellationToken ct = default);
+
+    /// <summary>
+    /// Lists the Series shelves (any media type) whose own Wikidata QID is <paramref name="qid"/>, oldest first.
+    /// </summary>
+    Task<IReadOnlyList<Collection>> FindSeriesShelvesByQidAsync(string qid, CancellationToken ct = default);
+
+    /// <summary>
+    /// Lists the Series shelves that have a rollup relationship (series, franchise, fictional universe, based on) naming
+    /// <paramref name="qid"/>, oldest first.
+    /// </summary>
+    Task<IReadOnlyList<Collection>> ListShelvesWithRollupRelationshipQidAsync(string qid, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a Universe shelf in one conditional write, only when it has no child shelves and no works and was never
+    /// edited (no display override, artwork or description). Returns whether it was deleted.
+    /// </summary>
+    Task<bool> DeleteUnusedUniverseShelfAsync(Guid universeShelfId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Finds the Series shelf that holds a Work or any Work below it (a TV show holds its episodes). Null when no Work
+    /// in that tree sits on a Series shelf.
+    /// </summary>
+    Task<Collection?> FindSeriesShelfForWorkTreeAsync(Guid rootWorkId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the root Work id (the show, album or book itself) of every Work that sits on this shelf. These are the
+    /// Works whose canonical values hold the narrative root.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> GetRootWorkIdsOnShelfAsync(Guid collectionId, CancellationToken ct = default);
 
     /// <summary>
     /// Returns the relationships for a single Collection without loading Works or CanonicalValues.
