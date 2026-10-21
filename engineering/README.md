@@ -29,7 +29,8 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v29, 2026-10-20) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: The live ingestion page and when items appear](specs/archive/ingestion-and-readiness.md) | Built (v4, archived 2026-10-20; bug 13 still needs the log line from that moment) |
-| [Spec: Home and item detail speed](specs/archive/home-and-detail-speed.md) | Built (v2, archived 2026-10-20; seven other reads still use the per-row audiobook year look-up) |
+| [Spec: Audiobook year on the remaining screens](specs/archive/audiobook-year-other-reads.md) | Built (v3, archived 2026-10-20; follow-ups: series search and person credits read the whole credit list) |
+| [Spec: Home and item detail speed](specs/archive/home-and-detail-speed.md) | Built (v2, archived 2026-10-20; the seven other reads were moved by the audiobook year spec) |
 | [Spec: Library list speed](specs/archive/library-list-speed.md) | Built (v2, archived 2026-10-19; Home, detail and the audiobook year look-up done in the Home and detail speed spec) |
 | [Spec: Settings revamp (one look, one menu, one attention banner)](specs/archive/settings-revamp.md) | Built (v1.1, archived 2026-10-19; Logs > Events is filled by the ingestion spec's WP12) |
 | [Spec: Editing Mode on the item page (as built)](specs/archive/editing-mode.md) | Built (v1, archived 2026-10-19) |
@@ -83,7 +84,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — outcome recorded in ADR 0001 |
 | [Universe U-WP0: what really mixes up The Expanse](reports/universe-expanse-check-2026-10-19.md) | Current — feeds U-WP3 |
 | [Slow library and Home reads at 4,000 works](reports/slow-reads-2026-10.md) | Current — causes 1–2 fixed by the library list speed spec; causes 3–4 fixed by the Home and detail speed spec |
-| [Which stored name wins when a field accepts several](reports/stored-name-order-2026-10.md) | Current — recommendations 1–3 approved and built (stored-name-order-fix); addendum recommendations 6–9 approved and built |
+| [Which stored name wins when a field accepts several](reports/stored-name-order-2026-10.md) | Current — recommendations 1–3 approved and built (stored-name-order-fix); addendum recommendations 6–9 approved and built; open remediation: the combined artist view's artist reader (see the report's last section) |
 
 ## History (pre-2026-10-17 engineering records)
 

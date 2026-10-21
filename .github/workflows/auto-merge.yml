@@ -16,6 +16,9 @@
 #
 # Without that setup the "Create App token" step fails and auto-merge does nothing (the pull request stays open for a
 # manual merge).
+#
+# Branch protection on main requires the CI "Build & Test" check (from GitHub Actions), so auto-merge waits for it to
+# pass. Without a required check, GitHub merges immediately and a red change lands on main.
 
 name: Auto-merge
 
