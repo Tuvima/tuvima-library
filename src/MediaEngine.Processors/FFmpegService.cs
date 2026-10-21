@@ -53,6 +53,11 @@ public sealed class FFmpegService : IFFmpegService
         _config = config;
         _logger = logger;
         _environment = environment ?? FFmpegEnvironment.Current(dataPaths.Root);
+        if (_environment.IgnoreInstalled)
+        {
+            RemoveFetchedCopy();
+        }
+
         _installation = Detect(config.LoadTranscoding(), previous: null);
         LogOutcome(_installation);
     }
@@ -121,6 +126,34 @@ public sealed class FFmpegService : IFFmpegService
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
+    /// <summary>
+    /// The development switch asks for a fresh start: the copy the Library itself fetched earlier is removed so it has to be
+    /// downloaded again. Only that one folder is touched.
+    /// </summary>
+    private void RemoveFetchedCopy()
+    {
+        if (string.IsNullOrWhiteSpace(_environment.DataRoot))
+        {
+            return;
+        }
+
+        var folder = Path.Combine(_environment.DataRoot, "tools", "ffmpeg");
+        try
+        {
+            if (Directory.Exists(folder))
+            {
+                Directory.Delete(folder, recursive: true);
+                _logger.LogWarning("{Variable} is on, so the FFmpeg copy in {Folder} was removed to test a fresh download.",
+                    FFmpegEnvironment.FreshToolsVariable, folder);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "{Variable} is on, but the FFmpeg copy in {Folder} could not be removed.",
+                FFmpegEnvironment.FreshToolsVariable, folder);
+        }
+    }
+
     private FFmpegInstallation Detect(TranscodingSettings settings, FFmpegInstallation? previous)
     {
         var ffmpeg = ResolveBinary("ffmpeg", settings.FfmpegBinaryPath, _environment);
@@ -165,7 +198,8 @@ public sealed class FFmpegService : IFFmpegService
     {
         // 1. An explicit deployment path is authoritative. Do not silently
         // hide a stale container/NAS configuration by falling back elsewhere.
-        if (!string.IsNullOrWhiteSpace(configuredPath))
+        // (The development fresh-tools switch ignores it, so the download is the only way in.)
+        if (!environment.IgnoreInstalled && !string.IsNullOrWhiteSpace(configuredPath))
         {
             return File.Exists(configuredPath)
                 ? new BinaryResolution(Path.GetFullPath(configuredPath), FFmpegDetectionSource.ExplicitPath, false)
@@ -182,6 +216,12 @@ public sealed class FFmpegService : IFFmpegService
             {
                 return new BinaryResolution(fetched, FFmpegDetectionSource.DataFolder, false);
             }
+        }
+
+        // The development fresh-tools switch looks nowhere else.
+        if (environment.IgnoreInstalled)
+        {
+            return new BinaryResolution(null, FFmpegDetectionSource.None, false);
         }
 
         // 3. tools/ffmpeg/ relative to app base directory

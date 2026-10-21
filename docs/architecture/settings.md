@@ -28,7 +28,7 @@ Use JSON for settings that affect startup, background workers, provider behavior
 - `config/core.json`: server identity, paths, organization templates, auth, storage policy.
 - `config/libraries.json`: source libraries and watched roots.
 - `config/providers/*.json` and `config/secrets/*.json`: provider capabilities, endpoints, credentials, weights, and limits.
-- `config/ai.json`: model files, AI feature flags, schedules, vocabulary, hardware profile.
+- `config/ai.json`: model files, hardware profile, Local AI limits and the default plugin allowance. AI feature switches, schedules and the vibe word list are plugin settings.
 - `config/transcoding.json`: playback encoding, offline variants, cache retention.
 - `config/hydration.json`, `config/pipelines.json`, `config/scoring.json`, `config/field_priorities.json`, `config/media_types.json`: metadata decision policy.
 - `config/maintenance.json` and `config/writeback*.json`: cleanup and file write-back policy.

@@ -639,7 +639,7 @@ public sealed class ServerFolderBrowserService(
 
             if (PathEquals(selection.Path, selection.RootPath) && ServerFolderSelectionModes.RequiresWrite(selectionMode))
             {
-                issues.Add(Issue("drive_root_managed", "Library cannot manage a whole drive. Choose a folder on it, or leave the drive as-is (read-only)."));
+                issues.Add(Issue("drive_root_managed", "Library cannot manage a whole drive. Choose a folder on it, or leave the drive as read-only."));
             }
 
             return;

@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1152; api=0; web-client=54
+# scopes: contracts=1153; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -29,7 +29,8 @@
   MediaType: System.String | json=media_type | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Count: System.Int32? | json=count | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Route: System.String | json=route | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":7,"occurred_at":"2025-01-02T03:04:05+00:00","category":"sample","kind":"sample","title":"sample","detail":"sample","media_type":"sample","count":7,"route":"sample"}
+  CoverUrl: System.String | json=cover_url | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":7,"occurred_at":"2025-01-02T03:04:05+00:00","category":"sample","kind":"sample","title":"sample","detail":"sample","media_type":"sample","count":7,"route":"sample","cover_url":"sample"}
 
 [contracts] MediaEngine.Contracts.Activity.ActivityStatsResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1630,7 +1631,10 @@
   LastCopyAt: System.DateTimeOffset? | json=last_copy_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LastCopyVerified: System.Boolean | json=last_copy_verified | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FreeSpaceBytes: System.Int64? | json=free_space_bytes | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","name":"sample","leaves_machine":true,"is_configured":true,"enabled":true,"state":"sample","state_label":"sample","last_copy_at":"2025-01-02T03:04:05+00:00","last_copy_verified":true,"free_space_bytes":7}
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Location: System.String | json=location | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Removable: System.Boolean | json=removable | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","name":"sample","leaves_machine":true,"is_configured":true,"enabled":true,"state":"sample","state_label":"sample","last_copy_at":"2025-01-02T03:04:05+00:00","last_copy_verified":true,"free_space_bytes":7,"kind":"sample","location":"sample","removable":true}
 
 [contracts] MediaEngine.Contracts.Backups.BackupDestinationOutcomeDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1691,6 +1695,20 @@
   Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Passphrase: System.String | json=passphrase | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"destination_id":"sample","name":"sample","passphrase":"sample"}
+
+[contracts] MediaEngine.Contracts.Backups.SaveBackupDestinationRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.String | json=id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Location: System.String | json=location | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Bucket: System.String | json=bucket | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Region: System.String | json=region | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Prefix: System.String | json=prefix | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Username: System.String | json=username | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Secret: System.String | json=secret | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ConfirmedHost: System.String | json=confirmed_host | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","kind":"sample","name":"sample","location":"sample","bucket":"sample","region":"sample","prefix":"sample","username":"sample","secret":"sample","confirmed_host":"sample"}
 
 [contracts] MediaEngine.Contracts.Backups.SetBackupPassphraseRequest
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -764,6 +764,20 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         });
     }
 
+    [Fact]
+    public async Task SettingsPage_WhoseRoutedSectionLagsTheAddress_DoesNotRedirectBackToTheOldPage()
+    {
+        // The router has already moved the address to Profiles, but this page still holds the Overview parameters (an access
+        // re-check can run in that gap). Redirecting from the stale parameters used to bounce the page between the two.
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/settings/profiles");
+
+        Render<Settings>(parameters => parameters.Add(page => page.Section, "overview"));
+        await Task.Delay(1500);
+
+        Assert.Equal("http://localhost/settings/profiles", navigation.Uri);
+    }
+
     [Theory]
     [InlineData("/settings", null)]
     [InlineData("/settings/overview", "overview")]

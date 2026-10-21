@@ -773,7 +773,17 @@ public sealed partial class EngineApiClient
                 path += $"&search={Uri.EscapeDataString(search)}";
             }
 
-            return await _http.GetFromJsonAsync<PagedResponse<ActivityLogEntryDto>>(path, ct);
+            var page = await _http.GetFromJsonAsync<PagedResponse<ActivityLogEntryDto>>(path, ct);
+            if (page is not null)
+            {
+                // Covers are Engine addresses; the browser reads them through the Dashboard's own artwork route.
+                foreach (var entry in page.Items.Where(entry => !string.IsNullOrWhiteSpace(entry.CoverUrl)))
+                {
+                    entry.CoverUrl = AbsoluteUrl(entry.CoverUrl!);
+                }
+            }
+
+            return page;
         }
         catch (OperationCanceledException) { return null; }
         catch (Exception ex)

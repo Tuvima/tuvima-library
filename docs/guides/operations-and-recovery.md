@@ -57,6 +57,10 @@ The archive contains a consistent SQLite snapshot, a manifest, and non-secret co
 
 Test restore uses temporary storage, checks archive boundaries and SQLite integrity, then removes temporary files. It does not schedule or apply a restore.
 
+## Copy backups to other places
+
+Under **Settings → Backup and recovery → Where backups go**, **Add a destination** copies each backup somewhere besides this computer: **Another folder** (such as an external drive), a **Network share** (a path such as `\\nas\backups`, or a mounted folder), **S3-compatible storage** (Amazon S3, MinIO, Backblaze B2, Wasabi) or **WebDAV** (Nextcloud and many NAS devices). Every copy that leaves this computer is encrypted with your backup passphrase first, so the destination only ever holds a sealed file, and each copy is read back and checked. A web destination asks you to agree to the exact address backups will be sent to. Its login is kept encrypted on this computer and is never shown again. Press **Test** to check a destination; for a network share the Library uses the access your computer already has, so mount or sign in to the share first.
+
 ## Restore a recovery point
 
 1. Choose **Restore** and confirm the recovery point.

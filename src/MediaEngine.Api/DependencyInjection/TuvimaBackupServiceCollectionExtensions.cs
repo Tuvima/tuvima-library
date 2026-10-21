@@ -9,6 +9,8 @@ public static class TuvimaBackupServiceCollectionExtensions
     {
         services.AddSingleton<BackupSettingsAccessor>();
         services.AddSingleton<IBackupDestination, LocalFolderBackupDestination>();
+        services.AddSingleton<IBackupHttp, BackupHttp>();
+        services.AddSingleton<ConfiguredBackupDestinations>();
         services.AddSingleton<BackupOrchestrator>();
         services.AddSingleton<BackupSettingsManager>();
         services.AddSingleton<BackupScheduleWorker>();

@@ -37,7 +37,7 @@ public sealed class BackupDestinationTests : IDisposable
         _repository = new BackupDestinationRepository(_db);
         _settings = new BackupSettingsAccessor(_repository, _clock);
         _orchestrator = new BackupOrchestrator(
-            _backups, [new LocalFolderBackupDestination(_backups), _remote], _settings, _repository, _published, _clock, NullLogger<BackupOrchestrator>.Instance);
+            _backups, [new LocalFolderBackupDestination(_backups), _remote], new ConfiguredBackupDestinations(_settings, new ReversingSecretStore(), new BackupHttp()), _settings, _repository, _published, _clock, NullLogger<BackupOrchestrator>.Instance);
     }
 
     public void Dispose()

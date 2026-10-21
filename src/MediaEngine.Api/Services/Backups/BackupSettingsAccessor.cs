@@ -22,6 +22,9 @@ internal sealed class BackupSettingsDocument
     /// <summary>Destination ids besides the local folder (which always receives the backup).</summary>
     public List<string> EnabledDestinations { get; set; } = [];
 
+    /// <summary>Destinations an administrator added: another folder, a network share, S3-compatible storage or WebDAV (WP26).</summary>
+    public List<ConfiguredDestination> Destinations { get; set; } = [];
+
     /// <summary>The backup key's public half, base64. Not secret.</summary>
     public string? PublicKey { get; set; }
 

@@ -4,6 +4,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Api.Services.Settings;
+using MediaEngine.Api.Services.Tools;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Domain.Configuration;
@@ -114,7 +115,7 @@ public static class SetupEndpoints
             var network = configuration.LoadNetwork();
             network.Local.PreferredServerName = hostName;
             configuration.SaveNetwork(network);
-            await onboarding.SetStepAsync("server", "passed", $"Named \"{serverName}\" ({hostName}.local).", null, null, ct).ConfigureAwait(false);
+            await onboarding.SetStepAsync("server", "passed", $"This server is called \"{serverName}\" and shows up on your home network as {hostName}.local.", null, null, ct).ConfigureAwait(false);
             return Results.Ok(new SetupServerIdentityDto(serverName, hostName));
         }).Produces<SetupServerIdentityDto>();
 
@@ -150,6 +151,19 @@ public static class SetupEndpoints
                 result.Passed ? null : "/setup?step=preflight", null, ct).ConfigureAwait(false);
             return Results.Ok(result);
         }).Produces<SetupPreflightDto>();
+
+        // The server check's tools list on its own, so setup can follow a download's progress without repeating the path checks.
+        group.MapGet("/tools", async (
+            HttpContext context, ClaimsPrincipal user, SetupSessionService sessions,
+            [FromServices] IToolRequirementsService tools, CancellationToken ct) =>
+        {
+            if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
+            {
+                return Results.Unauthorized();
+            }
+
+            return Results.Ok(await tools.GetAsync(ct).ConfigureAwait(false));
+        }).Produces<ToolRequirementsDto>();
 
         group.MapPost("/administrator", async (
             SetupAdministratorRequest request, HttpContext context, ClaimsPrincipal user,
