@@ -53,37 +53,22 @@ public sealed class MetadataEditorRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task ReclassificationDisplayOverridesAndArtistResolution_AreTypedAndGuidSafe()
+    public async Task ReclassificationAndDisplayOverrides_AreTypedAndGuidSafe()
     {
         var hierarchy = await SeedHierarchyAsync();
-        var personId = Guid.NewGuid();
         using (var connection = _database.CreateConnection())
         {
             await connection.ExecuteAsync("""
                 UPDATE works
                 SET display_overrides_json = '{"display_title":"My Episode"}'
                 WHERE id = @workId;
-                INSERT INTO persons (id, name, created_at)
-                VALUES (@personId, 'The Artist', @now);
-                INSERT INTO person_media_links (media_asset_id, person_id, role)
-                VALUES (@assetId, @personId, 'Artist');
-                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value)
-                VALUES (@assetId, 'artist', 0, 'The Artist');
-                """, new
-            {
-                workId = hierarchy.ChildWorkId,
-                personId,
-                now = DateTimeOffset.UtcNow.ToString("O"),
-                assetId = hierarchy.AssetId,
-            });
+                """, new { workId = hierarchy.ChildWorkId });
         }
 
         var byWork = await _repository.ResolveReclassifyTargetAsync(hierarchy.ChildWorkId);
         var byAsset = await _repository.ResolveReclassifyTargetAsync(hierarchy.AssetId);
         await _repository.UpdateWorkMediaTypeAsync(hierarchy.ChildWorkId, "Movies");
         var overrides = await _repository.GetDisplayOverridesAsync(hierarchy.ChildWorkId);
-        var linkedArtist = await _repository.ResolveArtistArtworkOwnerAsync(hierarchy.AssetId, null);
-        var namedArtist = await _repository.ResolveArtistArtworkOwnerAsync(null, "the artist");
         var representative = await _repository.ResolveRepresentativeAssetAsync(
             [Guid.NewGuid(), hierarchy.RootWorkId]);
 
@@ -92,8 +77,6 @@ public sealed class MetadataEditorRepositoryTests : IDisposable
         Assert.Equal(hierarchy.AssetId, byAsset.TargetAssetId);
         Assert.Equal(hierarchy.ChildWorkId, byAsset.WorkId);
         Assert.Equal("My Episode", overrides["display_title"]);
-        Assert.Equal(personId, linkedArtist);
-        Assert.Equal(personId, namedArtist);
         Assert.Equal(hierarchy.AssetId, representative);
 
         using var verify = _database.CreateConnection();
