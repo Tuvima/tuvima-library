@@ -72,7 +72,7 @@ public sealed partial class WikidataBridgeWorker
             {
                 _logger.LogWarning(ex, "Could not transition job {JobId} to BridgeSearching", job.Id);
             }
-            await UpdateBridgeOperationStageAsync(operationByJobId.GetValueOrDefault(job.Id), MediaOperationStage.ProviderLookup, 10, "Searching Wikidata bridge IDs.", ct).ConfigureAwait(false);
+            await UpdateBridgeOperationStageAsync(operationByJobId.GetValueOrDefault(job.Id), MediaOperationStage.ProviderLookup, 10, FindOwnedBookHandoffQid(job) is null ? "Searching Wikidata bridge IDs." : "Using the Wikidata identity from the owned book.", ct).ConfigureAwait(false);
             await MarkBridgeCapabilityRunningAsync(job, operationByJobId.GetValueOrDefault(job.Id), ct).ConfigureAwait(false);
         }
 
@@ -191,6 +191,15 @@ public sealed partial class WikidataBridgeWorker
                 {
                     Operation = operationByJobId.GetValueOrDefault(job.Id)
                 };
+
+                // An audiobook that took its Wikidata ID from an owned, confirmed book keeps it: no
+                // bridge-ID or text lookup runs for it.
+                var ownedBookQid = FindOwnedBookHandoffQid(job);
+                if (ownedBookQid is not null)
+                {
+                    ApplyOwnedBookHandoff(context, ownedBookQid);
+                }
+
                 contexts.Add(context);
             }
 
@@ -208,10 +217,13 @@ public sealed partial class WikidataBridgeWorker
             }
 
             var resolveRequests = contexts
+                .Where(ctx => ctx.ResolvedQid is null)
                 .Select(ctx => BuildResolveRequest(ctx, ctx.Job.Id.ToString()))
                 .ToList();
 
-            var resolveResults = await reconAdapter.ResolveBatchAsync(resolveRequests, ct);
+            var resolveResults = resolveRequests.Count == 0
+                ? new Dictionary<string, WikidataResolveResult>()
+                : await reconAdapter.ResolveBatchAsync(resolveRequests, ct);
 
             // ── Phase 5: Distribute results onto each job context ──────────────────
             foreach (var ctx in contexts)

@@ -144,6 +144,12 @@ internal sealed partial class DetailCompositionOrchestrator
             ? sourceContainerId
             : containerId;
 
+        // The Series the item page shows, when it is a Wikidata Series: each Work's own number in it comes from its stored
+        // (Series, position) pair, so a Work in two Series shows this Series' number and not the other's.
+        var placementSeriesQid = new[] { sourceContainerId, containerId }
+            .Select(ExtractQid)
+            .FirstOrDefault(IsWikidataQid);
+
         using var conn = _db.CreateConnection();
         var rows = (await conn.QueryAsync<SequenceRow>(new CommandDefinition(
             """
@@ -182,6 +188,9 @@ internal sealed partial class DetailCompositionOrchestrator
                        CASE WHEN w.ordinal_sort IS NOT NULL AND ABS(w.ordinal_sort - ROUND(w.ordinal_sort)) > 0.0001 THEN CAST(w.ordinal_sort AS TEXT) END,
                        CASE WHEN w.ordinal IS NOT NULL THEN CAST(w.ordinal AS TEXT) END) AS TEXT) AS PositionLabel,
                    w.ordinal_sort AS PositionSort,
+                   CAST(COALESCE(
+                       (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = ma.id AND cva.key = 'series_placement' AND cva.value_qid = @placementSeriesQid COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1),
+                       (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = w.id AND cva.key = 'series_placement' AND cva.value_qid = @placementSeriesQid COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1)) AS TEXT) AS SeriesPlacementPosition,
                    CAST(COALESCE(
                        (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'season_number' LIMIT 1),
                        (SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'season_number' LIMIT 1)) AS TEXT) AS SeasonLabel,
@@ -253,15 +262,19 @@ internal sealed partial class DetailCompositionOrchestrator
                 series = containerTitle,
                 mediaFilter = SeriesMediaFilter(entityType, detail.MediaType),
                 wikidataProviderId = WellKnownProviders.Wikidata.ToString(),
+                placementSeriesQid,
                 useEpisodeArtwork = entityType == DetailEntityType.TvEpisode ? 1 : 0,
             },
             cancellationToken: ct))).ToList();
 
         var items = rows.Select(row =>
         {
-            var positionLabel = ResolveSequencePositionLabel(entityType, row.PositionLabel, row.EpisodeLabel);
+            // This Series' own number for the Work (its stored pair) first, then today's chain.
+            var positionLabel = ResolveSequencePositionLabel(entityType, row.SeriesPlacementPosition ?? row.PositionLabel, row.EpisodeLabel);
             var positionNumber = TryParseSeriesPosition(positionLabel);
-            var positionSort = row.PositionSort ?? TryParseSeriesPositionSort(positionLabel);
+            var positionSort = SeriesPositionPairs.SortValueOf(row.SeriesPlacementPosition)
+                ?? row.PositionSort
+                ?? TryParseSeriesPositionSort(positionLabel);
             var group = ResolveSequenceGroup(entityType, row.SeasonLabel);
             var artworkKind = entityType == DetailEntityType.TvEpisode ? "background" : "cover";
             return new SequenceItemViewModel

@@ -88,7 +88,8 @@ public sealed class CollectionRepository : ICollectionRepository
         refresh_schedule  AS RefreshSchedule,
         last_refreshed_at AS LastRefreshedAt,
         modified_at       AS ModifiedAt,
-        media_type        AS MediaType
+        media_type        AS MediaType,
+        universe_qid      AS UniverseQid
         """;
 
     // Reusable SELECT list for collection_relationships rows.
@@ -199,6 +200,7 @@ public sealed class CollectionRepository : ICollectionRepository
             CreatedAt = DateTimeOffset.Parse(reader.GetString(3)),
             ParentCollectionId = ReadNullableGuid(reader, 5),
             WikidataQid = reader.IsDBNull(6) ? null : reader.GetString(6),
+            UniverseQid = reader.IsDBNull(31) ? null : reader.GetString(31),
             Description = reader.IsDBNull(8) ? null : reader.GetString(8),
             IconName = reader.IsDBNull(9) ? null : reader.GetString(9),
             ProfileId = ReadNullableGuid(reader, 11),
@@ -388,7 +390,7 @@ public sealed class CollectionRepository : ICollectionRepository
                        w.id, w.media_type, w.ordinal,
                        w.universe_mismatch, w.universe_mismatch_at,
                        w.wikidata_status, w.wikidata_checked_at, w.wikidata_qid,
-                       h.membership_mode, h.primary_area, h.owner_kind, h.audience
+                       h.membership_mode, h.primary_area, h.owner_kind, h.audience, h.universe_qid
                 FROM   collections h
                 LEFT JOIN works w ON w.collection_id = h.id
                 ORDER  BY h.created_at, w.id;
@@ -706,14 +708,15 @@ public sealed class CollectionRepository : ICollectionRepository
                 banner_artwork_path, banner_artwork_mime_type, logo_artwork_path, logo_artwork_mime_type, scope, profile_id,
                 membership_mode, primary_area, owner_kind, audience,
                 is_enabled, is_featured, min_items, rule_json, resolution, rule_hash,
-                group_by_field, match_mode, sort_field, sort_direction, secondary_sort_field, secondary_sort_direction, media_type)
+                group_by_field, match_mode, sort_field, sort_direction, secondary_sort_field, secondary_sort_direction, media_type, universe_qid)
                 VALUES (@id, @uid, @phid, @dn, @ca, @us, @wqid, @ht, @desc, @icon,
                     @coverArtworkPath, @coverArtworkMimeType, @backgroundArtworkPath, @backgroundArtworkMimeType,
                     @bannerArtworkPath, @bannerArtworkMimeType, @logoArtworkPath, @logoArtworkMimeType, @scope, @pid,
                     @membershipMode, @primaryArea, @ownerKind, @audience,
                     @enabled, @featured, @minItems, @ruleJson, @resolution, @ruleHash,
-                    @groupByField, @matchMode, @sortField, @sortDirection, @secondarySortField, @secondarySortDirection, @mediaType);
+                    @groupByField, @matchMode, @sortField, @sortDirection, @secondarySortField, @secondarySortDirection, @mediaType, @universeQid);
             UPDATE collections SET display_name = @dn, universe_status = @us, parent_collection_id = @phid,
+                            universe_qid = @universeQid,
                             wikidata_qid = @wqid, collection_type = @ht, description = @desc,
                             icon_name = @icon,
                             cover_artwork_path = @coverArtworkPath,
@@ -774,6 +777,7 @@ public sealed class CollectionRepository : ICollectionRepository
                 secondarySortField = collection.SecondarySortField,
                 secondarySortDirection = collection.SecondarySortDirection?.ToStorageValue(),
                 mediaType = collection.MediaType,
+                universeQid = collection.UniverseQid,
             }, transaction);
     }
 
@@ -1195,62 +1199,198 @@ public sealed class CollectionRepository : ICollectionRepository
     }
 
     /// <inheritdoc/>
-    public Task<Collection?> FindParentCollectionByRelationshipAsync(string qid, CancellationToken ct = default)
+    public Task SetUniverseAsync(
+        Guid collectionId,
+        string? universeQid,
+        Guid? parentCollectionId,
+        CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
+        if (parentCollectionId == collectionId)
+        {
+            parentCollectionId = null;
+        }
+
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+            conn.Execute(
+                "UPDATE collections SET universe_qid = @universeQid, parent_collection_id = @parentCollectionId WHERE id = @id;",
+                new
+                {
+                    universeQid,
+                    parentCollectionId,
+                    id = collectionId,
+                },
+                transaction: tx);
+        }, ct);
+    }
+
+    /// <inheritdoc/>
+    public Task<Collection?> FindUniverseShelfByUniverseQidAsync(string universeQid, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(universeQid);
+
         using var conn = _db.CreateConnection();
-        var rollupTypes = GetCollectionRollupRelationshipTypes();
-        var collection = conn.QueryFirstOrDefault<Collection>("""
-            SELECT h.id                AS Id,
-                   h.universe_id       AS UniverseId,
-                   h.display_name      AS DisplayName,
-                   h.created_at        AS CreatedAt,
-                   h.universe_status   AS UniverseStatus,
-                   h.parent_collection_id     AS ParentCollectionId,
-                   h.wikidata_qid      AS WikidataQid,
-                   h.collection_type          AS CollectionType,
-                   h.description       AS Description,
-                   h.icon_name         AS IconName,
-                   h.scope             AS Scope,
-                   h.profile_id        AS ProfileId,
-                   h.is_enabled        AS IsEnabled,
-                   h.is_featured       AS IsFeatured,
-                   h.min_items         AS MinItems,
-                   h.rule_json         AS RuleJson,
-                   h.refresh_schedule  AS RefreshSchedule,
-                   h.last_refreshed_at AS LastRefreshedAt,
-                   h.modified_at       AS ModifiedAt
-            FROM   collections h
-            INNER JOIN collection_relationships hr ON hr.collection_id = h.id
-            WHERE  hr.rel_qid = @qid
-              AND  hr.rel_type IN @rollupTypes
-              AND  h.parent_collection_id IS NULL
-              AND  COALESCE(h.collection_type, 'Universe') <> 'ContentGroup'
+        var collection = conn.QueryFirstOrDefault<Collection>($"""
+            SELECT {CollectionSelectColumns}
+            FROM   collections
+            WHERE  universe_qid = @universeQid
+              AND  collection_type = 'Universe'
+            ORDER  BY created_at, id
             LIMIT  1;
-            """, new { qid, rollupTypes });
+            """, new { universeQid });
+
+        if (collection is not null)
+        {
+            HydrateAudienceProfiles(conn, [collection]);
+        }
 
         return Task.FromResult(collection is null ? null : (Collection)NormalizeCollection(collection));
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<Guid>> FindCollectionIdsByFranchiseQidAsync(string qid, CancellationToken ct = default)
+    public Task<IReadOnlyList<Collection>> ListSeriesShelvesByUniverseQidAsync(string universeQid, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(universeQid);
+
+        using var conn = _db.CreateConnection();
+        var results = conn.Query<Collection>($"""
+            SELECT {CollectionSelectColumns}
+            FROM   collections
+            WHERE  universe_qid = @universeQid
+              AND  collection_type IN ('ContentGroup', 'Series')
+            ORDER  BY created_at, id;
+            """, new { universeQid }).Select(NormalizeCollection).ToList();
+        HydrateAudienceProfiles(conn, results);
+
+        return Task.FromResult<IReadOnlyList<Collection>>(results);
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<Collection>> FindSeriesShelvesByQidAsync(string qid, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(qid);
+
+        using var conn = _db.CreateConnection();
+        var results = conn.Query<Collection>($"""
+            SELECT {CollectionSelectColumns}
+            FROM   collections
+            WHERE  wikidata_qid = @qid
+              AND  collection_type IN ('ContentGroup', 'Series')
+            ORDER  BY created_at, id;
+            """, new { qid }).Select(NormalizeCollection).ToList();
+        HydrateAudienceProfiles(conn, results);
+
+        return Task.FromResult<IReadOnlyList<Collection>>(results);
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<Collection>> ListShelvesWithRollupRelationshipQidAsync(string qid, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(qid);
+
+        using var conn = _db.CreateConnection();
+        var rollupTypes = GetCollectionRollupRelationshipTypes();
+        var results = conn.Query<Collection>($"""
+            SELECT {CollectionSelectColumns}
+            FROM   collections
+            WHERE  collection_type IN ('ContentGroup', 'Series')
+              AND  id IN (SELECT collection_id
+                          FROM   collection_relationships
+                          WHERE  rel_qid = @qid
+                            AND  rel_type IN @rollupTypes)
+            ORDER  BY created_at, id;
+            """, new { qid, rollupTypes }).Select(NormalizeCollection).ToList();
+        HydrateAudienceProfiles(conn, results);
+
+        return Task.FromResult<IReadOnlyList<Collection>>(results);
+    }
+
+    /// <inheritdoc/>
+    public Task<bool> DeleteUnusedUniverseShelfAsync(Guid universeShelfId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+            var deleted = conn.Execute("""
+                -- readiness: maintenance that removes an unused Universe shelf by id
+                DELETE FROM collections
+                WHERE  id = @id
+                  AND  collection_type = 'Universe'
+                  AND  NOT EXISTS (SELECT 1 FROM collections child WHERE child.parent_collection_id = @id)
+                  AND  NOT EXISTS (SELECT 1 FROM works w WHERE w.collection_id = @id)
+                  AND  NOT EXISTS (SELECT 1 FROM collection_items ci WHERE ci.collection_id = @id)
+                  AND  NOT EXISTS (SELECT 1 FROM collection_placements cp WHERE cp.collection_id = @id)
+                  AND  NOT EXISTS (SELECT 1 FROM collection_profile_audience ca WHERE ca.collection_id = @id)
+                  AND  COALESCE(TRIM(display_overrides_json), '') IN ('', '{}')
+                  AND  COALESCE(cover_artwork_path, '') = ''
+                  AND  COALESCE(background_artwork_path, '') = ''
+                  AND  COALESCE(banner_artwork_path, '') = ''
+                  AND  COALESCE(logo_artwork_path, '') = ''
+                  AND  COALESCE(TRIM(description), '') = '';
+                """, new { id = universeShelfId }, transaction: tx);
+            return deleted > 0;
+        }, ct);
+    }
+
+    /// <inheritdoc/>
+    public Task<Collection?> FindSeriesShelfForWorkTreeAsync(Guid rootWorkId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
-        var rollupTypes = GetCollectionRollupRelationshipTypes();
-        var results = conn.Query<Guid>("""
-            SELECT DISTINCT hr.collection_id
-            FROM   collection_relationships hr
-            INNER JOIN collections h ON h.id = hr.collection_id
-            WHERE  hr.rel_qid  = @qid
-              AND  hr.rel_type IN @rollupTypes
-              AND  COALESCE(h.collection_type, 'ContentGroup') IN ('ContentGroup', 'Series');
-            """, new { qid, rollupTypes })
-            .ToList();
+        var collection = conn.QueryFirstOrDefault<Collection>($"""
+            -- readiness: shelf of one work tree, looked up by the root work's id
+            WITH RECURSIVE work_tree(id) AS (
+                SELECT id FROM works WHERE id = @rootWorkId
+                UNION ALL
+                SELECT child.id
+                FROM   works child
+                INNER JOIN work_tree ON child.parent_work_id = work_tree.id
+            )
+            SELECT {CollectionSelectColumns}
+            FROM   collections
+            WHERE  id = (SELECT c.id
+                         FROM   work_tree t
+                         INNER JOIN works w ON w.id = t.id
+                         INNER JOIN collections c ON c.id = w.collection_id
+                         WHERE  c.collection_type IN ('ContentGroup', 'Series')
+                         ORDER  BY CASE WHEN c.universe_qid IS NULL THEN 1 ELSE 0 END, c.created_at, c.id
+                         LIMIT  1);
+            """, new { rootWorkId });
 
-        return Task.FromResult<IReadOnlyList<Guid>>(results);
+        if (collection is not null)
+        {
+            HydrateAudienceProfiles(conn, [collection]);
+        }
+
+        return Task.FromResult(collection is null ? null : (Collection)NormalizeCollection(collection));
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<Guid>> GetRootWorkIdsOnShelfAsync(Guid collectionId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        using var conn = _db.CreateConnection();
+        var ids = conn.Query<Guid>("""
+            -- readiness: root works of one shelf, looked up by the shelf's id
+            SELECT DISTINCT COALESCE(gp.id, p.id, w.id)
+            FROM   works w
+            LEFT JOIN works p ON p.id = w.parent_work_id
+            LEFT JOIN works gp ON gp.id = p.parent_work_id
+            WHERE  w.collection_id = @collectionId;
+            """, new { collectionId }).AsList();
+
+        return Task.FromResult<IReadOnlyList<Guid>>(ids);
     }
 
     /// <inheritdoc/>
@@ -1759,7 +1899,7 @@ public sealed class CollectionRepository : ICollectionRepository
                        w.id, w.media_type, w.ordinal,
                        w.universe_mismatch, w.universe_mismatch_at,
                        w.wikidata_status, w.wikidata_checked_at, w.wikidata_qid,
-                       h.membership_mode, h.primary_area, h.owner_kind, h.audience
+                       h.membership_mode, h.primary_area, h.owner_kind, h.audience, h.universe_qid
                 FROM   collections h
                 INNER JOIN works w ON w.collection_id = h.id
                                AND {visibleWorkPredicate}
@@ -1845,7 +1985,7 @@ public sealed class CollectionRepository : ICollectionRepository
                        w.id, w.media_type, w.ordinal,
                        w.universe_mismatch, w.universe_mismatch_at,
                        w.wikidata_status, w.wikidata_checked_at, w.wikidata_qid,
-                       h.membership_mode, h.primary_area, h.owner_kind, h.audience
+                       h.membership_mode, h.primary_area, h.owner_kind, h.audience, h.universe_qid
                 FROM   collections h
                 LEFT JOIN works w ON w.collection_id = h.id
                 WHERE  h.id IN ({string.Join(", ", parameterNames)})

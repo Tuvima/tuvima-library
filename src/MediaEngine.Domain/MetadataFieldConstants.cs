@@ -46,6 +46,14 @@ public static class MetadataFieldConstants
     public const string Rating = "rating";
     public const string Series = "series";
     public const string SeriesPosition = "series_position";
+
+    /// <summary>
+    /// Every (Series, position) pair a Work has, as multi-valued rows in <c>canonical_value_arrays</c>: the value is the
+    /// position text as the source gives it ("1.5"), the value QID is the Series. A Work with several series statements
+    /// keeps each Series' own number here; <see cref="SeriesPosition"/> stays the single retail/older-reader number.
+    /// </summary>
+    public const string SeriesPlacement = "series_placement";
+
     public const string SeriesMembershipSource = "series_membership_source";
     public const string SeriesStartYear = "series_start_year";
     public const string SeriesEndYear = "series_end_year";
@@ -201,6 +209,9 @@ public static class MetadataFieldConstants
         "set_in_period",
         "filming_location",
 
+        // Every (Series, position) pair a Work has (value = position text, value_qid = Series QID)
+        "series_placement",
+
         // Technical track fields
         "subtitle_languages",
 
@@ -244,6 +255,7 @@ public static class MetadataFieldConstants
         "network_qid",
         "set_in_period_qid",
         "filming_location_qid",
+        "series_placement_qid",
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>

@@ -14,6 +14,8 @@ public sealed partial class DisplayComposerService
     private readonly DisplayFormatReader? _formats;
     private readonly DisplayGridPersonalReader? _personal;
     private readonly ISeriesManifestRepository? _manifests;
+    private readonly ICanonicalValueArrayRepository? _arrays;
+    private readonly ICollectionRepository? _collections;
 
     public DisplayComposerService(
         IDisplayProjectionReadService readService,
@@ -22,7 +24,9 @@ public sealed partial class DisplayComposerService
         MusicPlayStatsRepository? musicStats = null,
         DisplayFormatReader? formats = null,
         DisplayGridPersonalReader? personal = null,
-        ISeriesManifestRepository? manifests = null)
+        ISeriesManifestRepository? manifests = null,
+        ICanonicalValueArrayRepository? arrays = null,
+        ICollectionRepository? collections = null)
     {
         _readService = readService;
         _cards = cards;
@@ -31,6 +35,8 @@ public sealed partial class DisplayComposerService
         _formats = formats;
         _personal = personal;
         _manifests = manifests;
+        _arrays = arrays;
+        _collections = collections;
     }
 
     // Projection rows remain per asset for resume/state calculations. Only presentation
@@ -473,9 +479,15 @@ public sealed partial class DisplayComposerService
         }
 
         var placements = await SeriesShelfSplit.LoadPlacementsAsync(_manifests, [groupId], ct).ConfigureAwait(false);
+        var shelfQid = _collections is null
+            ? null
+            : (await _collections.GetByIdAsync(groupId, ct).ConfigureAwait(false))?.WikidataQid;
+        var seriesPairs = await SeriesShelfSplit.LoadSeriesPairsAsync(_arrays, works, ct).ConfigureAwait(false);
         var split = SeriesShelfSplit.Split(
             works,
-            placements.TryGetValue(groupId, out var byWork) ? byWork : new Dictionary<Guid, MediaEngine.Domain.Entities.SeriesManifestItemRecord>());
+            placements.TryGetValue(groupId, out var byWork) ? byWork : new Dictionary<Guid, MediaEngine.Domain.Entities.SeriesManifestItemRecord>(),
+            shelfQid,
+            seriesPairs);
         var episodes = split.TvRows
             .OrderBy(work => DisplayMediaRules.ParseDouble(work.SeriesPosition) ?? double.MaxValue)
             .ThenBy(work => work.SortTitle ?? work.Title, StringComparer.OrdinalIgnoreCase);
