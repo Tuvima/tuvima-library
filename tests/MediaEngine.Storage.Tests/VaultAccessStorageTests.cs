@@ -211,6 +211,69 @@ public sealed class VaultAccessStorageTests : IDisposable
     }
 
     [Fact]
+    public async Task IsInVault_IsTrueForAnEditionOfAVaultFile()
+    {
+        var vault = NewLibrary();
+        await _libraries.AddAsync(vault);
+        var (_, vaultAsset) = InsertAsset(vault.LibraryId);
+        var (_, normalAsset) = InsertAsset(Guid.NewGuid().ToString("D"));
+
+        Assert.True(await _libraries.IsInVaultAsync(EditionOf(vaultAsset)));
+        Assert.False(await _libraries.IsInVaultAsync(EditionOf(normalAsset)));
+    }
+
+    [Fact]
+    public async Task ASeriesOrSectionWithAVaultEpisodeBeneathIt_IsVaultToo_ButAnOrdinaryShowIsNot()
+    {
+        var vault = NewLibrary();
+        await _libraries.AddAsync(vault);
+        var series = InsertParent(null);
+        var section = InsertParent(series);
+        var (episode, _) = InsertAsset(vault.LibraryId, section);
+        var ordinarySeries = InsertParent(null);
+        var (ordinaryEpisode, _) = InsertAsset(Guid.NewGuid().ToString("D"), ordinarySeries);
+        var emptySeries = InsertParent(null);
+
+        Assert.True(await _libraries.IsInVaultAsync(series));
+        Assert.True(await _libraries.IsInVaultAsync(section));
+        Assert.True(await _libraries.IsInVaultAsync(episode));
+        Assert.False(await _libraries.IsInVaultAsync(ordinarySeries));
+        Assert.False(await _libraries.IsInVaultAsync(ordinaryEpisode));
+        Assert.False(await _libraries.IsInVaultAsync(emptySeries));
+
+        // The raw-query filters agree with it, for the work rule and the owner-of-any-kind rule.
+        using var connection = _database.CreateConnection();
+        var visibleWorks = connection.Query<Guid>($"SELECT id FROM works WHERE {VaultSql.NotVaultEntity("works.id")};")
+            .ToHashSet();
+        var visibleOwners = connection.Query<Guid>($"SELECT id FROM works WHERE {VaultSql.NotVaultAnyEntity("works.id")};")
+            .ToHashSet();
+        foreach (var visible in new[] { visibleWorks, visibleOwners })
+        {
+            Assert.DoesNotContain(series, visible);
+            Assert.DoesNotContain(section, visible);
+            Assert.DoesNotContain(episode, visible);
+            Assert.Contains(ordinarySeries, visible);
+            Assert.Contains(ordinaryEpisode, visible);
+            Assert.Contains(emptySeries, visible);
+        }
+    }
+
+    [Fact]
+    public async Task AParentLoop_DoesNotHangTheVaultCheck()
+    {
+        var vault = NewLibrary();
+        await _libraries.AddAsync(vault);
+        var first = InsertParent(null);
+        var second = InsertParent(first);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE works SET parent_work_id=@second WHERE id=@first;", new { first, second });
+        }
+
+        Assert.False(await _libraries.IsInVaultAsync(first));
+    }
+
+    [Fact]
     public async Task AFileCannotMoveIntoOrOutOfAVaultLibrary()
     {
         var vault = NewLibrary();
@@ -683,7 +746,23 @@ public sealed class VaultAccessStorageTests : IDisposable
     private VaultLibrary NewLibrary(string? id = null) =>
         new(id ?? Guid.NewGuid().ToString("D"), VaultLookupSources.None, null, _now, _admin, _now, _now);
 
-    private (Guid WorkId, Guid AssetId) InsertAsset(string libraryId)
+    private Guid InsertParent(Guid? parentId)
+    {
+        var id = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            "INSERT INTO works (id, media_type, work_kind, curator_state, parent_work_id) VALUES (@id, 'Videos', 'parent', 'accepted', @parent);",
+            new { id, parent = parentId });
+        return id;
+    }
+
+    private Guid EditionOf(Guid assetId)
+    {
+        using var connection = _database.CreateConnection();
+        return connection.ExecuteScalar<Guid>("SELECT edition_id FROM media_assets WHERE id=@assetId;", new { assetId });
+    }
+
+    private (Guid WorkId, Guid AssetId) InsertAsset(string libraryId, Guid? parentWorkId = null)
     {
         var workId = Guid.NewGuid();
         var editionId = Guid.NewGuid();
@@ -691,12 +770,12 @@ public sealed class VaultAccessStorageTests : IDisposable
         using var connection = _database.CreateConnection();
         connection.Execute(
             """
-            INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@workId, 'Videos', 'standalone', 'accepted');
+            INSERT INTO works (id, media_type, work_kind, curator_state, parent_work_id) VALUES (@workId, 'Videos', 'standalone', 'accepted', @parentWorkId);
             INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
             INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at, library_id)
             VALUES (@assetId, @editionId, @hash, @path, CURRENT_TIMESTAMP, @libraryId);
             """,
-            new { workId, editionId, assetId, hash = Guid.NewGuid().ToString("N"), path = $"C:/vault/{assetId:N}.mkv", libraryId });
+            new { workId, editionId, assetId, parentWorkId, hash = Guid.NewGuid().ToString("N"), path = $"C:/vault/{assetId:N}.mkv", libraryId });
         return (workId, assetId);
     }
 

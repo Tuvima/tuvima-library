@@ -36,14 +36,8 @@ public sealed class VaultLibraryRepository(IDatabaseConnection database) : IVaul
     {
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
-        var found = connection.ExecuteScalar<long>("""
-            SELECT EXISTS (
-                SELECT 1
-                FROM media_assets ma
-                JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE
-                WHERE ma.id = @id
-                   OR ma.edition_id IN (SELECT e.id FROM editions e WHERE e.work_id = @id));
-            """, new { id = GuidSql.ToBlob(id) });
+        // An asset id, an edition id, a work id, or a series or section whose episodes sit in a Vault library (security review L2, L3).
+        var found = connection.ExecuteScalar<long>(VaultSql.IsVaultAnyEntityStatement, new { id = GuidSql.ToBlob(id) });
         return Task.FromResult(found != 0);
     }
 
