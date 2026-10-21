@@ -75,19 +75,24 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<ApprovedPluginCatalogDto?> GetApprovedPluginCatalogAsync(CancellationToken ct = default)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApprovedPluginCatalogDto>("/plugins/approved", ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /plugins/approved failed");
-            return null;
-        }
-    }
+    public Task<PluginDirectoryResponse?> GetPluginDirectoryAsync(CancellationToken ct = default) =>
+        GetAsync<PluginDirectoryResponse>("GET /plugins/directory", "/plugins/directory", ct: ct);
+
+    public Task<PluginDirectoryResponse?> CheckPluginDirectoryAsync(CancellationToken ct = default) =>
+        PostAsync<object, PluginDirectoryResponse>("POST /plugins/directory/check", "/plugins/directory/check", new { }, ct: ct);
+
+    public Task<PluginDirectoryResponse?> MarkPluginDirectorySeenAsync(CancellationToken ct = default) =>
+        PostAsync<object, PluginDirectoryResponse>("POST /plugins/directory/seen", "/plugins/directory/seen", new { }, ct: ct);
+
+    public Task<bool> SavePluginDirectoryEnabledAsync(bool enabled, CancellationToken ct = default) =>
+        PutAsync("PUT /plugins/directory/settings", "/plugins/directory/settings", new PluginDirectorySettingsRequest { Enabled = enabled }, ct: ct);
+
+    public Task<ApprovalPreviewResponse?> PreviewPluginDirectoryInstallAsync(string pluginId, CancellationToken ct = default) =>
+        PostAsync<object, ApprovalPreviewResponse>(
+            "POST /plugins/directory/{id}/approval-preview",
+            $"/plugins/directory/{Uri.EscapeDataString(pluginId)}/approval-preview",
+            new { },
+            ct: ct);
 
     public async Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, string? approvalHash = null, CancellationToken ct = default)
     {

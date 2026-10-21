@@ -16,4 +16,13 @@ public static class PluginCapabilityKinds
     /// constant as a deliberate contract fix.
     /// </summary>
     public const string HealthCheckKind = "plugin-health-check";
+
+    /// <summary>Kind reported by an <see cref="IPluginScheduledJob"/> capability.</summary>
+    public const string ScheduledJobKind = "plugin-scheduled-job";
+
+    /// <summary>Kind reported by an <see cref="IPluginEventSubscriber"/> capability.</summary>
+    public const string EventSubscriberKind = "plugin-event-subscriber";
+
+    /// <summary>Kind reported by an <see cref="IPluginBackgroundService"/> capability.</summary>
+    public const string BackgroundServiceKind = "plugin-background-service";
 }

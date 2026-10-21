@@ -1063,8 +1063,7 @@
     padding-top: 18px;
 }
 
-:where(.settings-admin-panel) ::deep .settings-plugin-danger-card,
-:where(.settings-admin-panel) ::deep .settings-plugin-catalog-card {
+:where(.settings-admin-panel) ::deep .settings-plugin-danger-card {
     margin-top: 18px;
 }
 
@@ -1073,8 +1072,7 @@
     background: rgba(69, 10, 10, 0.16) !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-plugin-danger-header,
-:where(.settings-admin-panel) ::deep .settings-plugin-catalog-header {
+:where(.settings-admin-panel) ::deep .settings-plugin-danger-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1197,8 +1195,7 @@
 }
 
 @media (max-width: 720px) {
-:where(.settings-admin-panel) ::deep .settings-plugin-danger-header,
-:where(.settings-admin-panel) ::deep .settings-plugin-catalog-header {
+:where(.settings-admin-panel) ::deep .settings-plugin-danger-header {
         align-items: flex-start;
         flex-direction: column;
     }

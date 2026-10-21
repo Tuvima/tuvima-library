@@ -179,6 +179,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IScheduledTaskRunRepository, ScheduledTaskRunRepository>();
         services.AddSingleton<IApprovalRecordRepository, ApprovalRecordRepository>();
         services.AddSingleton<IAiUsageRecordRepository, AiUsageRecordRepository>();
+        services.AddSingleton<IPluginRecordRepository, PluginRecordRepository>();
+        services.AddSingleton<IPluginEventCursorRepository, PluginEventCursorRepository>();
         services.AddSingleton<IAccountNoticeDismissalRepository, AccountNoticeDismissalRepository>();
         services.AddSingleton<IProfileNoticeDismissalRepository, ProfileNoticeDismissalRepository>();
         services.AddSingleton<IPersonalActivityRepository, PersonalActivityRepository>();

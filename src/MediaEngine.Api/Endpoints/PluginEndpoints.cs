@@ -25,13 +25,17 @@ internal static class PluginEndpoints
         group.MapGet("", async (
             PluginCatalog catalog,
             [FromServices] IConfigSecretsStore secrets,
+            [FromServices] PluginHostServicesReader hostServices,
             ILoggerFactory loggers,
             CancellationToken ct) =>
         {
             var summaries = new List<PluginSummaryResponse>();
             foreach (var registration in catalog.List())
             {
-                summaries.Add(ToDto(registration, await CountConfiguredSecretsAsync(registration, secrets, loggers, ct).ConfigureAwait(false)));
+                summaries.Add(ToDto(
+                    registration,
+                    await CountConfiguredSecretsAsync(registration, secrets, loggers, ct).ConfigureAwait(false),
+                    await hostServices.DescribeAsync(registration, ct).ConfigureAwait(false)));
             }
 
             return Results.Ok(summaries);
@@ -40,23 +44,81 @@ internal static class PluginEndpoints
             .Produces<IEnumerable<PluginSummaryResponse>>(StatusCodes.Status200OK)
             .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
 
-        group.MapGet("/approved", async (ApprovedPluginCatalogService catalog, CancellationToken ct) =>
-            Results.Ok(await catalog.GetAsync(ct).ConfigureAwait(false)))
-            .WithName("ListApprovedPlugins")
-            .Produces<ApprovedPluginCatalogDto>(StatusCodes.Status200OK)
+        // The plugin directory (Available plugins): the saved copy of Tuvima's list on GitHub. Reading may check GitHub when the
+        // last check is over a day old; the actions below change what is remembered or switched, so they are for server
+        // administrators only.
+        group.MapGet("/directory", async (
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            PluginDirectoryService directory,
+            PluginCatalog catalog,
+            CancellationToken ct) =>
+            Results.Ok(await ReadDirectoryAsync(http, authorityResolver, directory, InstalledPluginIds(catalog), ct).ConfigureAwait(false)))
+            .WithName("GetPluginDirectory")
+            .WithSummary("The saved copy of the plugin directory. For a signed-in administrator it checks GitHub first when the switch is on and the last check is over a day old; any other caller (an outside application) gets the saved copy only.")
+            .Produces<PluginDirectoryResponse>(StatusCodes.Status200OK)
             .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        group.MapPost("/directory/check", async (PluginDirectoryService directory, PluginCatalog catalog, CancellationToken ct) =>
+            Results.Ok(await directory.CheckNowAsync(InstalledPluginIds(catalog), ct).ConfigureAwait(false)))
+            .WithName("CheckPluginDirectory")
+            .WithSummary("Check now: ask GitHub for the plugin directory. Makes no request when the switch is off.")
+            .Produces<PluginDirectoryResponse>(StatusCodes.Status200OK)
+            .RequireEffectiveAdministrator();
+
+        group.MapPost("/directory/seen", async (PluginDirectoryService directory, PluginCatalog catalog, CancellationToken ct) =>
+            Results.Ok(await directory.MarkSeenAsync(InstalledPluginIds(catalog), ct).ConfigureAwait(false)))
+            .WithName("MarkPluginDirectorySeen")
+            .WithSummary("Remember that the listed plugins have been seen, so none of them counts as new next time.")
+            .Produces<PluginDirectoryResponse>(StatusCodes.Status200OK)
+            .RequireEffectiveAdministrator();
+
+        group.MapPut("/directory/settings", async (
+            PluginDirectorySettingsRequest request,
+            PluginDirectoryService directory,
+            PluginCatalog catalog,
+            CancellationToken ct) =>
+        {
+            directory.SetEnabled(request.Enabled);
+            return Results.Ok(await directory.GetSavedAsync(InstalledPluginIds(catalog), ct).ConfigureAwait(false));
+        })
+            .WithName("SavePluginDirectorySettings")
+            .WithSummary("Switch the plugin directory on or off. Changes only that one setting.")
+            .Produces<PluginDirectoryResponse>(StatusCodes.Status200OK)
+            .RequireEffectiveAdministrator();
+
+        group.MapPost("/directory/{pluginId}/approval-preview", async (string pluginId, PluginDirectoryService directory, CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await directory.PreviewInstallAsync(pluginId, ct).ConfigureAwait(false));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return ApiErrors.NotFound(ex.Message);
+            }
+        })
+            .WithName("PreviewPluginDirectoryInstall")
+            .WithSummary("What a person is shown before installing a listed plugin, built from what the list declares for it.")
+            .Produces<ApprovalPreviewResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireEffectiveAdministrator();
 
         group.MapGet("/{pluginId}", async (
             string pluginId,
             PluginCatalog catalog,
             [FromServices] IConfigSecretsStore secrets,
+            [FromServices] PluginHostServicesReader hostServices,
             ILoggerFactory loggers,
             CancellationToken ct) =>
         {
             var plugin = catalog.Get(pluginId);
             return plugin is null
                 ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.")
-                : Results.Ok(ToDto(plugin, await CountConfiguredSecretsAsync(plugin, secrets, loggers, ct).ConfigureAwait(false)));
+                : Results.Ok(ToDto(
+                    plugin,
+                    await CountConfiguredSecretsAsync(plugin, secrets, loggers, ct).ConfigureAwait(false),
+                    await hostServices.DescribeAsync(plugin, ct).ConfigureAwait(false)));
         })
         .WithName("GetPlugin")
         .Produces<PluginSummaryResponse>(StatusCodes.Status200OK)
@@ -157,6 +219,7 @@ internal static class PluginEndpoints
             PluginCatalog catalog,
             IPluginExecutionContextFactory contexts,
             PluginAiBudget aiBudget,
+            [FromServices] PluginHostServicesReader hostServices,
             CancellationToken ct) =>
         {
             var plugin = catalog.Get(pluginId);
@@ -177,7 +240,9 @@ internal static class PluginEndpoints
                 checks.Add(await check.GetHealthAsync(context, ct).ConfigureAwait(false));
             }
 
-            return Results.Ok(await PluginHealthComposer.ComposeAsync(plugin.Manifest.Id, checks, aiBudget, ct).ConfigureAwait(false));
+            return Results.Ok(await PluginHealthComposer
+                .ComposeAsync(plugin.Manifest.Id, checks, aiBudget, ct, await hostServices.DescribeAsync(plugin, ct).ConfigureAwait(false))
+                .ConfigureAwait(false));
         })
         .WithName("CheckPluginHealth")
         .Produces<PluginHealthResponse>(StatusCodes.Status200OK)
@@ -500,7 +565,28 @@ internal static class PluginEndpoints
         _ => throw new ArgumentOutOfRangeException(nameof(trust), trust, "Unknown plugin trust level."),
     };
 
-    internal static PluginSummaryResponse ToDto(PluginRegistration registration, int configuredSecrets = 0) => new()
+    // The ids of the plugins on this server, so the directory can mark the ones already installed.
+    /// <summary>
+    /// Only a signed-in server administrator's read may start the once-a-day check of GitHub; an outside application that
+    /// holds <c>plugins.read</c> gets the saved copy and never causes a request to leave the machine.
+    /// </summary>
+    internal static async Task<PluginDirectoryResponse> ReadDirectoryAsync(
+        HttpContext http,
+        IRequestAuthorityResolver authorityResolver,
+        PluginDirectoryService directory,
+        IReadOnlyCollection<string> installedIds,
+        CancellationToken ct)
+    {
+        var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+        return authority.IsEffectiveAdministrator
+            ? await directory.GetAsync(installedIds, ct).ConfigureAwait(false)
+            : await directory.GetSavedAsync(installedIds, ct).ConfigureAwait(false);
+    }
+
+    private static string[] InstalledPluginIds(PluginCatalog catalog) =>
+        catalog.List().Select(registration => registration.Manifest.Id).ToArray();
+
+    internal static PluginSummaryResponse ToDto(PluginRegistration registration, int configuredSecrets = 0, PluginHostServicesDto? hostServices = null) => new()
     {
         Id = registration.Manifest.Id,
         Name = registration.Manifest.Name,
@@ -548,6 +634,11 @@ internal static class PluginEndpoints
         }).ToList(),
         AllowedTo = ApprovalStatementBuilder.PluginAllowedTo(registration.Manifest).ToList(),
         SendsDataTo = ApprovalStatementBuilder.PluginSendsDataTo(registration.Manifest),
+        NetworkDestinations = registration.Manifest.Network.Select(destination => new PluginNetworkDestinationDto
+        {
+            Host = destination.Host,
+            Sends = destination.Sends,
+        }).ToList(),
         DeclaredSecrets = registration.Manifest.Secrets.Count,
         ConfiguredSecrets = configuredSecrets,
         Settings = registration.Settings.ToDictionary(
@@ -556,5 +647,6 @@ internal static class PluginEndpoints
             StringComparer.OrdinalIgnoreCase),
         SettingsSchema = registration.SettingsSchema,
         ManifestPath = registration.ManifestPath,
+        HostServices = hostServices ?? new PluginHostServicesDto(),
     };
 }

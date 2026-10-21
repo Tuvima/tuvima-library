@@ -588,6 +588,29 @@ public sealed class LogsPageTests : AsyncBunitContext
         Assert.Equal("Ongoing", cut.Find("[data-testid=task-next-run]").TextContent);
     }
 
+    [Fact]
+    public void ScheduledTasks_APluginJob_ShowsItsPluginsNameAnIntervalInPlainWordsAndItsLastRun()
+    {
+        _onTasks = () => new ScheduledTaskListResponse
+        {
+            Tasks =
+            [
+                Scheduled(
+                    "plugin:test.plugin:refresh", "Test plugin: Refresh the reading list", "every 30 minutes",
+                    owner: "Plugin", place: "Set by the plugin", lastRun: Run("succeeded", Now.AddMinutes(-10)), next: Now.AddMinutes(20)),
+            ],
+        };
+
+        var cut = Render<ScheduledTasksCard>();
+
+        var item = Assert.Single(cut.FindAll("[data-testid=scheduled-task]"));
+        Assert.Contains("Test plugin: Refresh the reading list", item.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Plugin", item.TextContent, StringComparison.Ordinal);
+        Assert.Equal("Every 30 minutes", item.QuerySelector("[data-testid=task-schedule]")!.TextContent);
+        Assert.StartsWith("Done ", item.QuerySelector("[data-testid=task-last-run]")!.TextContent, StringComparison.Ordinal);
+        Assert.False(string.IsNullOrWhiteSpace(item.QuerySelector("[data-testid=task-next-run]")!.TextContent));
+    }
+
     [Theory]
     [InlineData("0 3 * * *", "Every day at 3:00")]
     [InlineData("30 3 * * *", "Every day at 3:30")]
