@@ -104,10 +104,10 @@ public sealed partial class LibraryItemDeletionService(
 {
     public const int MaxWorks = 200;
 
-    private RecycleBinStore? _bin;
+    private RecycleBinService? _bin;
 
     /// <summary>The recycle bin for library types that have it switched on.</summary>
-    private RecycleBinStore Bin => _bin ??= new RecycleBinStore(assetPaths.DataRoot, logger);
+    private RecycleBinService Bin => _bin ??= new RecycleBinService(assetPaths.DataRoot, logger);
 
     public const string OutsideLibraryReason = "This file is not inside any library folder Library manages.";
     public const string MissingReason = "This file is no longer on disk.";

@@ -81,9 +81,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddHostedService<ViewSharedContributionHostedService>();
         services.AddSingleton<LibraryReorganizationService>();
         services.AddSingleton<LibraryItemDeletionService>();
-        services.AddSingleton(sp => new MediaEngine.Api.Services.Libraries.RecycleBinStore(
+        services.AddSingleton(sp => new MediaEngine.Api.Services.Libraries.RecycleBinService(
             sp.GetRequiredService<AssetPathService>().DataRoot,
-            sp.GetRequiredService<ILoggerFactory>().CreateLogger("MediaEngine.Api.Services.Libraries.RecycleBinStore")));
+            sp.GetRequiredService<ILoggerFactory>().CreateLogger("MediaEngine.Api.Services.Libraries.RecycleBinService")));
         services.AddSingleton<ItemMoveRepository>();
         services.AddSingleton<ItemMoveService>();
         services.AddSingleton<ExcludedFileService>();

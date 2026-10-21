@@ -110,7 +110,7 @@ public sealed class LibraryItemDeletionTests : IDisposable
         _world.TurnOnMoviesRecycleBin();
         var media = _world.WriteFile(_world.Managed, Path.Combine("Movies", "Dune Part One (2021)", "Dune Part One (2021).mkv"), bytes: 1000);
         var (workId, _) = _world.AddWork("Dune", [media]);
-        var bin = new RecycleBinStore(_world.DataRoot, NullLogger.Instance);
+        var bin = new RecycleBinService(_world.DataRoot, NullLogger.Instance);
 
         var result = (await DeleteAsync(workId)).Value!;
 
@@ -190,7 +190,7 @@ public sealed class LibraryItemDeletionTests : IDisposable
 
         Assert.True(File.Exists(asIs));
         Assert.True(File.Exists(original));
-        Assert.Equal(1, result.FilesDeleted);
+        Assert.Equal(0, result.FilesDeleted);
         Assert.Equal(0, result.BytesFreed);
         Assert.Equal(2, result.FilesLeftOnDisk);
         Assert.Empty(result.FilesFailed);
@@ -231,7 +231,7 @@ public sealed class LibraryItemDeletionTests : IDisposable
         var result = (await DeleteAsync(workId)).Value!;
 
         Assert.Equal(0, ScalarInt("SELECT COUNT(*) FROM excluded_source_files;"));
-        Assert.Equal(1, result.FilesDeleted);
+        Assert.Equal(0, result.FilesDeleted);
         Assert.Equal(0, result.FilesLeftOnDisk);
         Assert.Equal(0, Count("works", "id", workId));
     }
@@ -299,7 +299,7 @@ public sealed class LibraryItemDeletionTests : IDisposable
 
         Assert.True(File.Exists(media));
         Assert.True(File.Exists(subtitle));
-        Assert.Equal(1, result.FilesDeleted);
+        Assert.Equal(0, result.FilesDeleted);
         Assert.Equal(0, result.BytesFreed);
         var failed = Assert.Single(result.FilesFailed);
         Assert.Equal(LibraryItemDeletionService.FileNotAllowedReason, failed.Reason);

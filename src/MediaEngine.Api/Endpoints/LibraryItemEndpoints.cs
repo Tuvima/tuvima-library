@@ -123,7 +123,7 @@ public static class LibraryItemEndpoints
 
         // The recycle bin of the library types that have it switched on. Same audience as deleting: effective administrators at
         // the Dashboard. Restoring never overwrites; emptying is the only step that removes files from the disk.
-        group.MapGet("/recycle-bin", ([FromServices] RecycleBinStore bin) => Results.Ok(bin.List().Select(entry => new RecycleBinItemDto
+        group.MapGet("/recycle-bin", ([FromServices] RecycleBinService bin) => Results.Ok(bin.List().Select(entry => new RecycleBinItemDto
         {
             Id = entry.Id,
             FileName = entry.FileName,
@@ -136,7 +136,7 @@ public static class LibraryItemEndpoints
         .Produces<IReadOnlyList<RecycleBinItemDto>>(StatusCodes.Status200OK)
         .RequireEffectiveAdministratorInPerson();
 
-        group.MapPost("/recycle-bin/{id:guid}/restore", (Guid id, [FromServices] RecycleBinStore bin) =>
+        group.MapPost("/recycle-bin/{id:guid}/restore", (Guid id, [FromServices] RecycleBinService bin) =>
             bin.Restore(id) switch
             {
                 RecycleBinRestoreResult.Restored => Results.NoContent(),
@@ -152,7 +152,7 @@ public static class LibraryItemEndpoints
         .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireEffectiveAdministratorInPerson();
 
-        group.MapPost("/recycle-bin/empty", ([FromServices] RecycleBinStore bin) => Results.Ok(new RecycleBinEmptiedDto { Removed = bin.Empty() }))
+        group.MapPost("/recycle-bin/empty", ([FromServices] RecycleBinService bin) => Results.Ok(new RecycleBinEmptiedDto { Removed = bin.Empty() }))
         .WithName("EmptyRecycleBin")
         .WithSummary("Remove every file in the recycle bin from the disk for good.")
         .Produces<RecycleBinEmptiedDto>(StatusCodes.Status200OK)

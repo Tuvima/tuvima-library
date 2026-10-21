@@ -3,17 +3,17 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
 
-public sealed class RecycleBinStoreTests : IDisposable
+public sealed class RecycleBinServiceTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "tuvima-bin-" + Guid.NewGuid().ToString("N"));
-    private readonly RecycleBinStore _store;
+    private readonly RecycleBinService _store;
     private readonly string _library;
 
-    public RecycleBinStoreTests()
+    public RecycleBinServiceTests()
     {
         _library = Path.Combine(_root, "library");
         Directory.CreateDirectory(_library);
-        _store = new RecycleBinStore(Path.Combine(_root, "data"), NullLogger.Instance);
+        _store = new RecycleBinService(Path.Combine(_root, "data"), NullLogger.Instance);
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);

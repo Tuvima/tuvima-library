@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage;
 
@@ -77,9 +78,13 @@ public sealed class VideoOrderRepository : IVideoOrderRepository
         Guid parentWorkId, IReadOnlyList<Guid> orderedWorkIds, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var conn = _db.CreateConnection();
-        using var tx = conn.BeginTransaction();
+        return _db.ExecuteWriteAsync<IReadOnlyList<VideoOrderPlacement>?>(
+            (conn, tx, _) => Reorder(conn, tx, parentWorkId, orderedWorkIds), ct);
+    }
 
+    private static IReadOnlyList<VideoOrderPlacement>? Reorder(
+        SqliteConnection conn, SqliteTransaction tx, Guid parentWorkId, IReadOnlyList<Guid> orderedWorkIds)
+    {
         var current = conn.Query<(Guid WorkId, Guid AssetId)>(
             """
             SELECT w.id AS WorkId, MIN(ma.id) AS AssetId
@@ -97,7 +102,7 @@ public sealed class VideoOrderRepository : IVideoOrderRepository
             || orderedWorkIds.Distinct().Count() != orderedWorkIds.Count
             || orderedWorkIds.Any(id => !current.ContainsKey(id)))
         {
-            return Task.FromResult<IReadOnlyList<VideoOrderPlacement>?>(null);
+            return null;
         }
 
         // Positions are unique inside a parent, so park every video on a free negative number first.
@@ -114,7 +119,6 @@ public sealed class VideoOrderRepository : IVideoOrderRepository
             placements.Add(new VideoOrderPlacement(orderedWorkIds[i], current[orderedWorkIds[i]], position));
         }
 
-        tx.Commit();
-        return Task.FromResult<IReadOnlyList<VideoOrderPlacement>?>(placements);
+        return placements;
     }
 }

@@ -29,7 +29,7 @@ public enum RecycleBinRestoreResult
 /// came from, and leaves the disk only when the bin is emptied. Putting a file back never overwrites anything. Files are
 /// held by the Engine's data folder, not inside a library folder, so a scan never sees them.
 /// </summary>
-public sealed class RecycleBinStore(string dataRoot, ILogger logger)
+public sealed class RecycleBinService(string dataRoot, ILogger logger)
 {
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = false };
 
