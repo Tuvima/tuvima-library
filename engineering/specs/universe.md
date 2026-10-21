@@ -249,6 +249,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Files likely touched:** `RelationshipPopulationService.cs`, `RecursiveFictionalEntityService.cs`, `config/providers/wikidata_reconciliation.json`, storage schema, tests.
 - **Depends on:** U-WP4. **Size:** Complex.
 - **Done when:** a test show hides characters first seen after the viewer's episode and labels unknown ones "no plot details".
+- **Status:** Built (2026-10-20; merges after U-WP4). Reads P3342 (significant person) and P7047 (enemy) for characters and P1344 as "participant in" an event (it was wrongly read as "opponent"); writes Works' "based on" (P144) and "derivative work" (P4969) links as adaptation edges, so Adaptations fill from evidence. "First seen at" is worked out from the owned episodes Wikidata links a character to (QIDs only, never names; no new storage); books and audiobooks have no chapter-level source, so they stay "no plot details". One spoiler rule (Shown, No plot details, Hidden) and a per-profile Spoilers preference ("Up to where I am" by default, or "Everything", on the profile's Playback preferences) apply everywhere a character name appears. A character met in any title is Shown; a finished title with no known position is Shown.
 
 ### U-WP12 — Companion session service
 - **What it does:** let a phone follow one chosen device of its own profile, allow several live states per profile, add manual position, expose it under `/api/v1`.
@@ -317,6 +318,8 @@ Before Claude Code starts the first packet, and again before each wave:
 **Further decisions (Shy, 2026-10-19, while building U-WP5 and U-WP10):** Edit Universe reuses the existing Universe editor, shown in-line beside the Universe page in the same side drawer Editing Mode uses (not a pop-up), desktop administrators only. "Also appears in" is a panel on the Universe page, not a character page.
 
 **Further decision (Shy, 2026-10-20, while building U-WP4):** the audiobook Wikidata fallback is option (a). When Apple has no match for an audiobook, it takes the Wikidata ID of an already-confirmed book in the Library with the same title and author. Nothing new is looked up outside the machine, and "no retail match = no Wikidata" stays true for everything else: an audiobook with no owned, confirmed book of the same title and author still goes to Needs Review.
+
+**Further decisions (Shy, 2026-10-20, while building U-WP11):** U-WP11 also reads Wikidata "based on" and "derivative work" links between owned Works, so the Adaptations lists fill from evidence. The spoiler rule applies wherever a character name appears: the Universe screens, title cast lists, person pages and people search; the actor still shows without the hidden character names. The administrator-only Universe editor stays unfiltered (it is a correction tool).
 
 **Landing alongside the locked Developer tools spec:** see section 6A. That spec (`engineering/specs/developer-tools.md`, Locked v2, 2026-10-19) owns the plugin platform and the shared state card, approval rule, health words and run records; this spec defines no plugin mechanics.
 
