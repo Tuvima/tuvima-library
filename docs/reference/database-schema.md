@@ -990,7 +990,7 @@ The libraries an account may open: `account_id` and `library_id` (primary key to
 
 ### grant_admin_protections
 
-Administrator PIN protection on one account-profile grant, set under **Protect admin settings**. `account_id` and `profile_id` (primary key; references `account_profile_grants`), `is_enabled`, `unlock_mode` (`FixedDuration`, `UntilProfileSwitch` or `LockOnLeave`), `unlock_minutes`, `pin_hash` and `hash_scheme` (both set while enabled), `failed_attempt_count`, `locked_until`, `protection_version` and `updated_at`.
+The "Ask for my PIN on admin pages" switch on one account-profile grant (off unless turned on). `account_id` and `profile_id` (primary key; references `account_profile_grants`), `is_enabled`, `unlock_mode` (`FixedDuration`, `UntilProfileSwitch` or `LockOnLeave`), `unlock_minutes`, `protection_version` and `updated_at`. The PIN asked for is the profile's own PIN (no PIN is stored here), so wrong tries count toward the profile PIN's one pause.
 
 ### grant_admin_unlocks
 
@@ -1288,7 +1288,7 @@ Saved reading positions.
 
 ### audiobook_bookmarks
 
-Saved playback positions in a video or an audiobook (the table keeps its audiobook name; a row works for any playable file). These are separate from EPUB reader bookmarks because they use seconds, optional chapter metadata, and the owning work. A bookmark is personal to `profile_id`, or global (`is_global = 1`): global bookmarks are seen by every profile that can see the title and are made and deleted only by a server administrator, with `profile_id` recording who made it. A bookmark on a Vault file is never listed, counted or found while NSFW mode is off.
+Saved playback positions in a video or an audiobook (the table keeps its audiobook name; a row works for any playable file). These are separate from EPUB reader bookmarks because they use seconds, optional chapter metadata, and the owning work. A bookmark is personal to `profile_id`, or global (`is_global = 1`): global bookmarks are seen by every profile that can see the title and are made and deleted only by a server administrator, with `profile_id` recording who made it. A bookmark on a Vault file is never listed, counted or found while Vault mode is off.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1583,14 +1583,13 @@ What a person removed from, or added to, the taste the Library learned about the
 
 ## Vault
 
-Added by upgrade step `0027_vault_access` (Videos spec WP9). A **Vault library** is a library whose items are absent for anyone without an unlocked NSFW session. An item is a Vault item because its `media_assets.library_id` appears in `vault_libraries`; that table is the single source of truth (there is no flag on the item). Rules that must hold whichever service writes are enforced by triggers, so a new code path cannot forget them.
+Added by upgrade step `0027_vault_access` (Videos spec WP9). A **Vault library** is a library whose items are absent for anyone without an unlocked Vault mode session. An item is a Vault item because its `media_assets.library_id` appears in `vault_libraries`; that table is the single source of truth (there is no flag on the item). Rules that must hold whichever service writes are enforced by triggers, so a new code path cannot forget them.
 
 | Table | Meaning |
 |---|---|
 | `vault_libraries` | One row per Vault library: `library_id` (primary key, text), `lookup_source` (`none` or `stash_box`; the only sources a Vault library may use), `lookup_server_id` (the chosen server), `adults_confirmed_at`, `created_by_profile_id`, `created_at`, `updated_at`. A library that already holds items cannot be marked, and a Vault library that holds items cannot be unmarked. |
-| `profile_nsfw_settings` | A profile's NSFW mode: `access_mode` (`off`, `pin`, `allowed`) and `idle_lock_minutes` (0 means never, for `allowed` only). No row means Off. A Kids profile or a profile with a content limit can never be given a mode other than `off` (trigger). |
-| `profile_nsfw_pins` | The hashed NSFW PIN (`secret_hash` with the `NsfwPin` credential-kind prefix, so the same digits never hash alike across the two PINs), with the failed-attempt count and pause time shared with the profile PIN rules. The PIN itself is never stored, logged or returned. |
-| `nsfw_session_unlocks` | One row per device session that has switched NSFW mode on: `session_id`, `profile_id`, `method` (`pin` or `allowed`), `unlocked_at`, `last_activity_at`, `expires_at` (the sliding idle limit; NULL means never). Triggers delete the row when the session changes profile, the profile's mode, PIN, role or content limit changes. |
+| `profile_nsfw_settings` | A profile's Vault mode: `access_mode` (`off`; `pin`, which asks for the profile PIN and can only be saved for a profile that has one; `allowed`, which needs no PIN) and `idle_lock_minutes` (5, 15, 30 or 60; 0 means never, for `allowed` only; the default is 60). There is no separate Vault PIN: the profile PIN in `profile_credentials` is the only PIN. No row means Off. A Kids profile or a profile with a content limit can never be given a mode other than `off` (trigger). |
+| `nsfw_session_unlocks` | One row per device session that has switched Vault mode on: `session_id`, `profile_id`, `method` (`pin` or `allowed`), `unlocked_at`, `last_activity_at`, `expires_at` (the sliding idle limit; NULL means never). Triggers delete the row when the session changes profile, or the profile's mode, PIN, role or content limit changes. |
 | `vault_performers`, `vault_studios`, `vault_tags` | Names that exist only inside the Vault, never shared with the People, Series or Tags of ordinary libraries. |
 | `vault_asset_performers`, `vault_asset_studios`, `vault_asset_tags` | Links from a Vault file to those names. A name with no remaining link is removed (trigger). |
 | `vault_artwork` | Artwork for a Vault file, performer or studio, stored only here (never in the shared artwork tables) and removed with its owner (trigger). |
@@ -1602,7 +1601,7 @@ Added by upgrade step `0027_vault_access` (Videos spec WP9). A **Vault library**
 | `vault_matches` | One row per matched Vault video: `asset_id` (primary key), `server_id`, `record_id`, `matched_by` (`fingerprint`, `product_code`, `title` or `identify`), `applied_via` (`automatic` or `identify`), `matched_at`. A Vault video with no row is Unmatched; nothing is queued in Needs Review for it. |
 | `vault_field_sources` | Where each field came from: one row per `asset_id` and `field` (`title`, `description`, `release_date`, `cover`, `studio`, `performers`, `tags`) with the server, record, how it was matched, how it was applied, the language noted for the text, and when. An Identify replaces the rows of the fields that were ticked. |
 | `vault_file_fingerprints` | Fingerprints computed on this machine (`OSHASH`, `MD5`, `PHASH`) with the file size they were computed at, kept so a big file is not read twice. Computed and sent only while the administrator's separate fingerprint permission is on. |
-| `vault_activity` | The quiet Vault activity list: `kind` (`added`, `matched`, `unmatched`, `identified`, `failed`), the file's own name, a fixed plain-words detail (never a title or path) and the time. Shown only inside NSFW mode to an administrator. |
+| `vault_activity` | The quiet Vault activity list: `kind` (`added`, `matched`, `unmatched`, `identified`, `failed`), the file's own name, a fixed plain-words detail (never a title or path) and the time. Shown only inside Vault mode to an administrator. |
 
 **Bookmarks waiting after a restore (upgrade step `0032_vault_pending_bookmarks`).** A backup never holds the Vault catalogue, so a person's Vault bookmarks travel in a backup as `vault_pending_bookmarks` and are re-linked after a rescan. The table is empty on a data store that was never restored.
 
