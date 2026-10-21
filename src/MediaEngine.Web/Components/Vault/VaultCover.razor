@@ -1,31 +1,66 @@
 @using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Models.ViewDTOs
 @namespace MediaEngine.Web.Components.Vault
 
-@* One Vault cover (Videos spec D24, D41). Show draws the picture, Blur draws it blurred until it is pointed at or focused, and Hide
-   draws plain initials with no picture at all (the image address is not even put on the page). The title can also stay hidden until
-   the card is pointed at. *@
-<a class="vault-cover vault-cover--@ModeClass @(TitleHidden ? "vault-cover--title-hidden" : null)"
+@* One Vault card (Videos spec D24, D41). Shapes: a scene is landscape 16:9, a performer portrait 2:3 (cropped from the top centre),
+   a studio a logo shown whole on a neutral tile. Show draws the picture, Blur draws it blurred until it is pointed at or focused
+   (every picture on the card, including the optional hover stills), and Hide draws plain initials with no picture at all (the image
+   address is not even put on the page). With no picture a performer shows initials and a studio its name. An unmatched scene carries a
+   small "Unmatched" mark. The title can also stay hidden until the card is pointed at. Pointing at a card with hover stills (Vault
+   only, off by default) cycles through them; a card without them does nothing. *@
+<a class="vault-cover vault-cover--@ModeClass vault-cover--@ShapeClass @(TitleHidden ? "vault-cover--title-hidden" : null)"
    href="@Route"
-   aria-label="@(TitleHidden ? "Open item" : Title)">
+   aria-label="@(TitleHidden ? "Open item" : Title)"
+   @onmouseenter="OnPointerEnter" @onfocus="OnPointerEnter">
     <span class="vault-cover__art" aria-hidden="true">
         @if (Mode == VaultCoverMode.Hide || string.IsNullOrWhiteSpace(CoverUrl))
         {
-            <span class="vault-cover__initials">@Initials</span>
+            <span class="vault-cover__initials">@Fallback</span>
         }
         else
         {
-            <img src="@CoverUrl" alt="" loading="lazy" />
+            <img src="@CoverUrl" srcset="@SourceSet" alt="" loading="lazy" decoding="async" class="@(Cycling ? "vault-cover__still vault-cover__still--0" : null)" />
+            @if (Cycling)
+            {
+                @for (var index = 0; index < HoverUrls.Count && index < 3; index++)
+                {
+                    <img @key="index" src="@HoverUrls[index]" alt="" loading="lazy" decoding="async" class="vault-cover__still vault-cover__still--@(index + 1)" />
+                }
+            }
+        }
+        @if (Unmatched)
+        {
+            <span class="vault-cover__mark">Unmatched</span>
         }
     </span>
     <span class="vault-cover__title">@Title</span>
+    @if (!string.IsNullOrWhiteSpace(Subtitle))
+    {
+        <span class="vault-cover__subtitle">@Subtitle</span>
+    }
 </a>
 
 @code {
+    private bool _pointed;
+
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
     [Parameter] public string? CoverUrl { get; set; }
+
+    /// <summary>The larger web-sized copy, offered to high-density screens.</summary>
+    [Parameter] public string? CoverUrl2x { get; set; }
+    [Parameter] public string? Subtitle { get; set; }
     [Parameter] public string Route { get; set; } = "#";
     [Parameter] public VaultCoverMode Mode { get; set; } = VaultCoverMode.Blur;
     [Parameter] public bool TitleHidden { get; set; }
+    [Parameter] public VaultCardShape Shape { get; set; } = VaultCardShape.Scene;
+    [Parameter] public bool Unmatched { get; set; }
+
+    /// <summary>Up to four saved stills of a matched scene, cycled while the card is pointed at. Empty means no cycling.</summary>
+    [Parameter] public IReadOnlyList<string> HoverUrls { get; set; } = [];
+
+    private bool Cycling => _pointed && HoverUrls.Count > 1 && Mode != VaultCoverMode.Hide && !string.IsNullOrWhiteSpace(CoverUrl);
+
+    private string? SourceSet => string.IsNullOrWhiteSpace(CoverUrl2x) ? null : $"{CoverUrl} 1x, {CoverUrl2x} 2x";
 
     private string ModeClass => Mode switch
     {
@@ -33,6 +68,25 @@
         VaultCoverMode.Hide => "hide",
         _ => "blur",
     };
+
+    private string ShapeClass => Shape switch
+    {
+        VaultCardShape.Performer => "performer",
+        VaultCardShape.Studio => "studio",
+        VaultCardShape.Tag => "tag",
+        _ => "scene",
+    };
+
+    private void OnPointerEnter()
+    {
+        if (HoverUrls.Count > 1)
+        {
+            _pointed = true;
+        }
+    }
+
+    // A performer or scene without a picture shows initials; a studio without a logo shows its name on the tile.
+    private string Fallback => Shape == VaultCardShape.Studio && Mode != VaultCoverMode.Hide ? Title : Initials;
 
     private string Initials
     {

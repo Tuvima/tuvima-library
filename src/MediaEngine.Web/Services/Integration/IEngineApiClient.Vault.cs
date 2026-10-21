@@ -52,4 +52,21 @@ public partial interface IEngineApiClient
 
     /// <summary>GET /api/v1/vault/activity - the quiet Vault activity list, for an unlocked administrator.</summary>
     Task<VaultCall<IReadOnlyList<VaultActivityItemDto>>> GetVaultActivityAsync(CancellationToken ct = default);
+
+    /// <summary>GET /api/v1/vault/scenes - Vault scenes (recently added, scenes, unmatched, or those of a performer, studio, tag or folder). <see cref="VaultOutcome.NotAvailable"/> for a locked session.</summary>
+    Task<VaultCall<VaultSceneListDto>> GetVaultScenesAsync(
+        string? match, string? sort, bool? descending, Guid? performerId, Guid? studioId, Guid? tagId, string? folderId,
+        int skip = 0, int take = 60, CancellationToken ct = default);
+
+    /// <summary>GET /api/v1/vault/scenes/{id} - one scene's own page.</summary>
+    Task<VaultCall<VaultSceneDetailDto>> GetVaultSceneAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>GET /api/v1/vault/folders - the series and sections of the Vault's folder layout.</summary>
+    Task<VaultCall<IReadOnlyList<VaultFolderDto>>> GetVaultFoldersAsync(CancellationToken ct = default);
+
+    /// <summary>GET /api/v1/vault/performers, /studios or /tags (<paramref name="kind"/>) - names with at least one owned scene.</summary>
+    Task<VaultCall<IReadOnlyList<VaultNameTileDto>>> GetVaultNamesAsync(string kind, string? sort, bool? descending, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/vault/search - the Vault search group. The typed text travels in the body, never in the address.</summary>
+    Task<VaultCall<VaultSearchResultDto>> SearchVaultAsync(string text, CancellationToken ct = default);
 }

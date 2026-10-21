@@ -1,5 +1,6 @@
 @page "/vault"
 @page "/vault/{View}"
+@page "/vault/{View}/{Id}"
 @namespace MediaEngine.Web.Components.Pages
 @implements IDisposable
 @inject NsfwModeState Nsfw
@@ -11,12 +12,15 @@
 
 @if (Nsfw.Unlocked)
 {
-    <MediaEngine.Web.Components.Vault.VaultArea View="@View" />
+    <MediaEngine.Web.Components.Vault.VaultArea View="@View" Id="@Id" />
 }
 
 @code {
     /// <summary>The view named in the address, or none for Recently added.</summary>
     [Parameter] public string? View { get; set; }
+
+    /// <summary>A performer, studio, tag or folder named in the address; its scenes are listed.</summary>
+    [Parameter] public string? Id { get; set; }
 
     protected override void OnInitialized()
     {

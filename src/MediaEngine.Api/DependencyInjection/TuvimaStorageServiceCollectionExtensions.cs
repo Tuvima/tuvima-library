@@ -120,6 +120,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         // How each Vault video was matched, where its fields came from, its fingerprints and the quiet Vault activity list (WP12).
         services.AddSingleton<IVaultMatchRepository, VaultMatchRepository>();
         services.AddSingleton<IVaultActivityRepository, VaultActivityRepository>();
+        // The Vault's own lists for browsing: scenes, folders, performers, studios and tags (WP14).
+        services.AddSingleton<IVaultBrowseRepository, VaultBrowseRepository>();
         services.AddSingleton<VaultAccessResolver>();
         services.AddSingleton<IAccountSignInMethodRepository, AccountSignInMethodRepository>();
         services.AddSingleton<IClientAuthorizationRepository, ClientAuthorizationRepository>();

@@ -1,0 +1,123 @@
+@using System.Globalization
+@using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Models.ViewDTOs
+@namespace MediaEngine.Web.Components.Vault
+
+@* The items of one Vault view in the person's chosen layout (Videos spec D24, D39): shelf rows, a grid of covers, a details list or a
+   timeline by date added, grouped by series or folder, tag or date added. Every view can use every layout. Cards follow the cover mode
+   (Show, Blur or Hide) and the titles setting. Tags are chips with no image. *@
+@if (Layout == VaultLayout.DetailsList)
+{
+    <div class="vault-list vault-list--details" role="table" aria-label="Vault items">
+        <div class="vault-list__head" role="row">
+            <span role="columnheader">Title</span>
+            <span role="columnheader">Details</span>
+            <span role="columnheader">Length</span>
+            <span role="columnheader">Added</span>
+        </div>
+        @foreach (var item in Items)
+        {
+            <a @key="item.Id" class="vault-list__row" role="row" href="@item.Route" aria-label="@(TitlesHidden ? "Open item" : item.Title)">
+                <span role="cell" class="vault-list__title @(TitlesHidden ? "vault-list__title--hidden" : null)">
+                    @item.Title
+                    @if (item.Unmatched)
+                    {
+                        <span class="vault-list__mark">Unmatched</span>
+                    }
+                </span>
+                <span role="cell" class="vault-list__muted">@(item.Subtitle ?? item.Folder)</span>
+                <span role="cell" class="vault-list__muted">@VaultFormat.Duration(item.DurationSeconds)</span>
+                <span role="cell" class="vault-list__muted">@VaultFormat.Date(item.AddedAt)</span>
+            </a>
+        }
+    </div>
+}
+else
+{
+    @foreach (var group in _groups)
+    {
+        <section class="vault-list__group" aria-label="@(string.IsNullOrEmpty(group.Name) ? "Vault items" : group.Name)">
+            @if (!string.IsNullOrEmpty(group.Name))
+            {
+                <h2 class="vault-list__heading">@group.Name</h2>
+            }
+            <div class="vault-list__cards vault-list__cards--@CardsClass()">
+                @foreach (var item in group.Items)
+                {
+                    @if (item.Shape == VaultCardShape.Tag)
+                    {
+                        <a @key="item.Id" class="vault-list__chip" href="@item.Route">
+                            <span class="@(TitlesHidden ? "vault-list__title--hidden" : null)">@item.Title</span>
+                            <span class="vault-list__muted">@item.Count</span>
+                        </a>
+                    }
+                    else
+                    {
+                        <VaultCover @key="item.Id" Title="@item.Title" Subtitle="@item.Subtitle" CoverUrl="@item.CoverUrl" CoverUrl2x="@item.CoverUrl2x"
+                                    Route="@item.Route" Mode="@Mode" TitleHidden="@TitlesHidden" Shape="@item.Shape"
+                                    Unmatched="@item.Unmatched" HoverUrls="@item.HoverUrls" />
+                    }
+                }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    private sealed record Group(string Name, List<VaultCatalogueItem> Items);
+
+    [Parameter, EditorRequired] public IReadOnlyList<VaultCatalogueItem> Items { get; set; } = [];
+    [Parameter] public VaultLayout Layout { get; set; } = VaultLayout.Grid;
+    [Parameter] public VaultGroupBy GroupBy { get; set; } = VaultGroupBy.Folder;
+    [Parameter] public VaultCoverMode Mode { get; set; } = VaultCoverMode.Blur;
+    [Parameter] public bool TitlesHidden { get; set; }
+
+    private List<Group> _groups = [];
+
+    protected override void OnParametersSet() => _groups = BuildGroups();
+
+    private List<Group> BuildGroups()
+    {
+        // The grid is one plain block of cards. Shelf rows group by the chosen key; the timeline always groups by month added.
+        // Items that are not scenes (performers, studios, tags, folders) have nothing to group by and stay in one plain block.
+        if (Layout == VaultLayout.Grid)
+        {
+            return [new Group(string.Empty, [.. Items])];
+        }
+
+        var key = Layout == VaultLayout.Timeline ? VaultGroupBy.DateAdded : GroupBy;
+        var groups = new List<Group>();
+        foreach (var item in Items)
+        {
+            var name = GroupName(item, key);
+            var group = groups.Find(existing => existing.Name == name);
+            if (group is null)
+            {
+                groups.Add(group = new Group(name, []));
+            }
+
+            group.Items.Add(item);
+        }
+
+        return groups;
+    }
+
+    private static string GroupName(VaultCatalogueItem item, VaultGroupBy key)
+    {
+        if (item.AssetId is null)
+        {
+            return string.Empty;
+        }
+
+        return key switch
+        {
+            VaultGroupBy.Tag => item.Tags.Count > 0 ? item.Tags[0] : "No tag",
+            VaultGroupBy.DateAdded => item.AddedAt is { } added ? added.ToLocalTime().ToString("MMMM yyyy", CultureInfo.InvariantCulture) : "Earlier",
+            _ => string.IsNullOrWhiteSpace(item.Folder) ? "Other" : item.Folder,
+        };
+    }
+
+    // Shelf rows scroll sideways once there is more than one shelf; a single block of cards simply wraps.
+    private string CardsClass() =>
+        Layout == VaultLayout.ShelfRows && _groups.Count > 1 ? "shelf" : "grid";
+}

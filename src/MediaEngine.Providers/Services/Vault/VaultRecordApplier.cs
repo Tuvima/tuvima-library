@@ -321,6 +321,7 @@ public sealed class VaultRecordApplier
         try
         {
             File.Delete(oldPath);
+            VaultArtworkSizer.DeleteCopies(oldPath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

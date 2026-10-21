@@ -454,6 +454,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     [Fact]
     public async Task TheVaultPage_ForAnUnlockedSession_ShowsTheAreaWithItsToolsAndTheViewsOfTheSpec()
     {
+        Services.AddScoped<IVaultCatalogue>(_ => new EmptyCatalogue());
         UseEngine();
         _mode = "allowed";
         await LoadAsync();
@@ -476,7 +477,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
 
         // Not an administrator: the library settings tab is not offered.
         Assert.DoesNotContain("Library settings", cut.Markup);
-        // The list is the marked seam: it says the Vault is empty rather than pretending.
+        // An answered but empty Vault says so plainly.
         Assert.Contains("Nothing in Recently added yet", cut.Markup);
     }
 
@@ -528,13 +529,28 @@ public sealed class VaultExperienceTests : AsyncBunitContext
 
     // -- Search and covers ------------------------------------------------------------------------------------------------
 
+    private sealed class EmptyCatalogue : IVaultCatalogue
+    {
+        public Task<VaultCatalogueResult> ListAsync(string viewKey, VaultViewPreferences preferences, VaultListFilter? filter = null, CancellationToken ct = default) =>
+            Task.FromResult(new VaultCatalogueResult(true, []));
+
+        public Task<VaultCatalogueResult> SearchAsync(string query, CancellationToken ct = default) =>
+            Task.FromResult(new VaultCatalogueResult(true, []));
+
+        public Task<VaultSceneDetail?> GetSceneAsync(Guid assetId, CancellationToken ct = default) =>
+            Task.FromResult<VaultSceneDetail?>(null);
+    }
+
     private sealed class FakeCatalogue : IVaultCatalogue
     {
-        public Task<VaultCatalogueResult> ListAsync(string viewKey, VaultViewPreferences preferences, CancellationToken ct = default) =>
+        public Task<VaultCatalogueResult> ListAsync(string viewKey, VaultViewPreferences preferences, VaultListFilter? filter = null, CancellationToken ct = default) =>
             Task.FromResult(VaultCatalogueResult.NotYetAvailable);
 
         public Task<VaultCatalogueResult> SearchAsync(string query, CancellationToken ct = default) =>
             Task.FromResult(new VaultCatalogueResult(true, [new VaultCatalogueItem("1", "Secret Title", null, "/cover/1.jpg", "/vault/item/1")]));
+
+        public Task<VaultSceneDetail?> GetSceneAsync(Guid assetId, CancellationToken ct = default) =>
+            Task.FromResult<VaultSceneDetail?>(null);
     }
 
     [Fact]

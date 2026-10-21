@@ -351,8 +351,9 @@ builder.Services.AddScoped<IVaultPreferenceStore, BrowserVaultPreferenceStore>()
 builder.Services.AddScoped<NsfwModeState>();
 builder.Services.AddScoped<NsfwModeSwitching>();
 builder.Services.AddScoped<VaultLibraryOnboarding>();
-// Seams until the Engine has Vault list, search and folder routes (Videos spec WP11/WP12).
-builder.Services.AddScoped<IVaultCatalogue, PendingVaultCatalogue>();
+// The Vault's lists and search come from the Engine's Vault routes (Videos spec WP14); only a session with NSFW mode on is answered.
+builder.Services.AddScoped<IVaultCatalogue, EngineVaultCatalogue>();
+// Seam until the Engine can put a folder into the Vault library (Videos spec WP11/WP12); makes no request.
 builder.Services.AddScoped<IVaultFolderAttachment, PendingVaultFolderAttachment>();
 builder.Services.AddScoped<ActiveProfileSessionService>();
 builder.Services.AddScoped<ViewWorkspaceService>();

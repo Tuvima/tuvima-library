@@ -38,6 +38,11 @@
         <option value="shown">Titles: Shown</option>
         <option value="hidden">Titles: Hidden until pointed at</option>
     </AppNativeSelect>
+    <AppNativeSelect Value="@(Nsfw.Preferences.HoverStills ? "on" : "off")" aria-label="Hover previews"
+                     OnChange="@(e => Change(preferences => preferences with { HoverStills = e.Value?.ToString() == "on" }))">
+        <option value="off">Hover previews: Off</option>
+        <option value="on">Hover previews: Matched scenes</option>
+    </AppNativeSelect>
 </div>
 
 @code {

@@ -56,4 +56,13 @@ public static class VaultViews
     public static IReadOnlyList<VaultView> For(bool isAdministrator) => isAdministrator ? [.. All, Settings] : All;
 
     public static string Route(string key) => key == RecentlyAdded ? ShellNavigation.VaultPath : $"{ShellNavigation.VaultPath}/{key}";
+
+    /// <summary>The views whose tiles open to a list of the scenes the person owns (a performer, studio, tag or folder).</summary>
+    public static bool OpensToScenes(string key) => key is "performers" or "studios" or "tags" or "folders";
+
+    /// <summary>A tile's page: the scenes of one performer, studio, tag or folder (<c>/vault/performers/{id}</c>).</summary>
+    public static string TileRoute(string key, string id) => $"{ShellNavigation.VaultPath}/{key}/{Uri.EscapeDataString(id)}";
+
+    /// <summary>One scene's own page, where Identify and playing live.</summary>
+    public static string ScenePath(Guid assetId) => $"{ShellNavigation.VaultPath}/scene/{assetId:D}";
 }

@@ -6,6 +6,7 @@ using MediaEngine.Contracts.Vault;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Identity;
+using MediaEngine.Providers.Services.Vault;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
@@ -256,9 +257,11 @@ public static class VaultEndpoints
         }).WithName("RemoveVaultLibrary").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status428PreconditionRequired)
           .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireEffectiveAdministratorInPerson();
 
-        // The Vault's own artwork (Videos spec D27). Anyone without an unlocked NSFW session gets exactly what a missing file gets.
+        // The Vault's own artwork (Videos spec D27, D41). Anyone without an unlocked NSFW session gets exactly what a missing file gets.
+        // "w" asks for a web-sized copy (300, 400, 640, 800 or 1280 wide), made once and kept beside the original; any other width
+        // gets the original. The stored original is never changed.
         app.MapGet("/api/v1/vault/artwork/{artworkId:guid}", async (
-            Guid artworkId, HttpContext http, IRequestAuthorityResolver resolver, VaultAccessResolver access,
+            Guid artworkId, [FromQuery] int? w, HttpContext http, IRequestAuthorityResolver resolver, VaultAccessResolver access,
             IVaultArtworkRepository artwork, CancellationToken ct) =>
         {
             // Private and uncacheable whether or not the image is found, so a cached answer never outlives the NSFW session.
@@ -271,13 +274,24 @@ public static class VaultEndpoints
                 return ApiErrors.NotFound("Artwork image not found.");
             }
 
-            var extension = Path.GetExtension(record.FilePath);
+            var path = record.FilePath;
+            if (w is { } width && VaultArtworkSizer.IsAllowedWidth(width))
+            {
+                var copy = await VaultArtworkSizer.GetOrCreateCopyAsync(record.FilePath, width, ct);
+                // No copy (unreadable or already small enough): the original is served.
+                path = copy ?? path;
+            }
+
+            var extension = Path.GetExtension(path);
             var contentType = extension.Equals(".png", StringComparison.OrdinalIgnoreCase) ? "image/png"
                 : extension.Equals(".webp", StringComparison.OrdinalIgnoreCase) ? "image/webp"
                 : "image/jpeg";
-            return Results.File(record.FilePath, contentType, enableRangeProcessing: true);
+            return Results.File(path, contentType, enableRangeProcessing: true);
         }).WithName("GetVaultArtwork").WithTags("Vault").Produces<byte[]>(StatusCodes.Status200OK, "image/jpeg")
           .ProducesProblem(StatusCodes.Status404NotFound).RequireAuthorization(AuthPolicies.Authenticated);
+
+        // Browsing: recently added, scenes, folders, performers, studios, tags and search (WP14), behind one central gate.
+        app.MapVaultBrowseEndpoints();
 
         // Identify, how a video was matched, and the quiet Vault activity list (WP12).
         app.MapVaultIdentifyEndpoints();

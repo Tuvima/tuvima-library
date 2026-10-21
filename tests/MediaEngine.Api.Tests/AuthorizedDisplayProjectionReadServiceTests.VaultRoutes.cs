@@ -257,6 +257,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         // The Identify routes (WP12) are mapped by MapVaultEndpoints too; they are only inferred here, never invoked.
         builder.Services.AddSingleton<IVaultMatchRepository>(new VaultMatchRepository(_database));
         builder.Services.AddSingleton<IVaultActivityRepository>(new VaultActivityRepository(_database));
+        // The browsing routes (WP14) read through their own repository and check the Watch feature on the account.
+        builder.Services.AddSingleton<IVaultBrowseRepository>(new VaultBrowseRepository(_database));
+        builder.Services.AddSingleton<IAccountRepository>(_accounts);
         builder.Services.AddSingleton(NewTouchFailsIdentifyService());
         var app = builder.Build();
         map(app);

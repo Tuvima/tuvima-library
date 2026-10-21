@@ -3,5 +3,9 @@
 .vault-area__title { margin: 0; }
 .vault-area__tools, .vault-area__chips { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .vault-area__views { overflow-x: auto; }
-.vault-area__grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
-.vault-area__grid--detailslist, .vault-area__grid--shelfrows { grid-template-columns: 1fr; }
+.vault-area__tile-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+.vault-area__back { color: inherit; display: inline-flex; align-items: center; min-height: 44px; }
+.vault-area__heading { margin: 0; }
+.vault-area__heading--hidden { visibility: hidden; }
+.vault-area__tile-head:hover .vault-area__heading--hidden, .vault-area__tile-head:focus-within .vault-area__heading--hidden { visibility: visible; }
+.vault-area__more { display: flex; justify-content: center; }

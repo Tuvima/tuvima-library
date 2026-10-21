@@ -1,0 +1,40 @@
+@page "/vault/scene/{AssetId:guid}"
+@namespace MediaEngine.Web.Components.Pages
+@implements IDisposable
+@inject NsfwModeState Nsfw
+@inject NavigationManager Nav
+
+@* One Vault video's own page (Videos spec D40): where Play and Identify live. As on the Vault page, the title of the page is plain and
+   anyone whose NSFW mode is not on is sent to the same "not found" page an unknown address gets. *@
+<PageTitle>Library</PageTitle>
+
+@if (Nsfw.Unlocked)
+{
+    <MediaEngine.Web.Components.Vault.VaultSceneView AssetId="@AssetId" />
+}
+
+@code {
+    [Parameter] public Guid AssetId { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Nsfw.Changed += OnChanged;
+        LeaveIfNotAllowed();
+    }
+
+    private void OnChanged() => _ = InvokeAsync(() =>
+    {
+        LeaveIfNotAllowed();
+        StateHasChanged();
+    });
+
+    private void LeaveIfNotAllowed()
+    {
+        if (Nsfw.Resolved && !Nsfw.Unlocked)
+        {
+            VaultExit.Leave(Nav, VaultExit.NotFound);
+        }
+    }
+
+    public void Dispose() => Nsfw.Changed -= OnChanged;
+}

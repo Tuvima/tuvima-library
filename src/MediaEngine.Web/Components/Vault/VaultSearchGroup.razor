@@ -24,13 +24,8 @@
         }
         else
         {
-            <div class="vault-search__grid">
-                @foreach (var item in _result.Items)
-                {
-                    <VaultCover @key="item.Id" Title="@item.Title" CoverUrl="@item.CoverUrl" Route="@item.Route"
-                                Mode="@Nsfw.EffectiveCovers" TitleHidden="@Nsfw.Preferences.TitlesHiddenUntilPointed" />
-                }
-            </div>
+            <VaultItemList Items="@_result.Items" Layout="MediaEngine.Contracts.Vault.VaultLayout.Grid"
+                           Mode="@Nsfw.EffectiveCovers" TitlesHidden="@Nsfw.Preferences.TitlesHiddenUntilPointed" />
         }
     </section>
 }

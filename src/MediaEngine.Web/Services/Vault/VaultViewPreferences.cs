@@ -25,6 +25,7 @@ public static class VaultViewLabels
         VaultSort.RecentlyAdded => "Recently added",
         VaultSort.Title => "Title",
         VaultSort.Year => "Year",
+        VaultSort.Duration => "Length",
         _ => "Recently played",
     };
 

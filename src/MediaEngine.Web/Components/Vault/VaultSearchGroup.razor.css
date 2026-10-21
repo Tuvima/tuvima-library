@@ -1,5 +1,4 @@
 .vault-search { display: grid; gap: 12px; padding: 16px 0; }
 .vault-search__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .vault-search__header h2 { margin: 0; }
-.vault-search__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
 .vault-search__empty { margin: 0; color: var(--tl-text-muted); }

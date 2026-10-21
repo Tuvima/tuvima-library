@@ -14,6 +14,7 @@ public sealed partial class EngineApiClient
 
     private const string NsfwStatusPath = "/api/v1/nsfw/status";
     private const string VaultLibrariesPath = "/api/v1/vault/libraries";
+    private const string VaultPath = "/api/v1/vault";
 
     public async Task<VaultCall<NsfwStatusDto>> GetNsfwStatusAsync(CancellationToken ct = default)
     {
@@ -147,6 +148,66 @@ public sealed partial class EngineApiClient
         return lines is null
             ? VaultCall<IReadOnlyList<VaultActivityItemDto>>.Of(VaultOutcome.NotAvailable)
             : VaultCall<IReadOnlyList<VaultActivityItemDto>>.Ok(lines);
+    }
+
+    // -- Browsing (/api/v1/vault/scenes, /folders, /performers, /studios, /tags, /search) ----------------------------
+    // Every read answers "not found" for a locked session, so an empty answer here is "not available", never "empty".
+
+    public async Task<VaultCall<VaultSceneListDto>> GetVaultScenesAsync(
+        string? match, string? sort, bool? descending, Guid? performerId, Guid? studioId, Guid? tagId, string? folderId,
+        int skip = 0, int take = 60, CancellationToken ct = default)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["match"] = match,
+            ["sort"] = sort,
+            ["desc"] = descending?.ToString().ToLowerInvariant(),
+            ["performer"] = performerId?.ToString("D"),
+            ["studio"] = studioId?.ToString("D"),
+            ["tag"] = tagId?.ToString("D"),
+            ["folder"] = folderId,
+            ["skip"] = skip.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["take"] = take.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+        var list = await GetAsync<VaultSceneListDto>("GET /api/v1/vault/scenes", VaultPath + "/scenes", query, logAsWarning: false, ct: ct);
+        return list is null ? VaultCall<VaultSceneListDto>.Of(VaultOutcome.NotAvailable) : VaultCall<VaultSceneListDto>.Ok(list);
+    }
+
+    public async Task<VaultCall<VaultSceneDetailDto>> GetVaultSceneAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var scene = await GetAsync<VaultSceneDetailDto>(
+            "GET /api/v1/vault/scenes/{id}", $"{VaultPath}/scenes/{assetId:D}", logAsWarning: false, ct: ct);
+        return scene is null ? VaultCall<VaultSceneDetailDto>.Of(VaultOutcome.NotAvailable) : VaultCall<VaultSceneDetailDto>.Ok(scene);
+    }
+
+    public async Task<VaultCall<IReadOnlyList<VaultFolderDto>>> GetVaultFoldersAsync(CancellationToken ct = default)
+    {
+        var folders = await GetAsync<List<VaultFolderDto>>("GET /api/v1/vault/folders", VaultPath + "/folders", logAsWarning: false, ct: ct);
+        return folders is null
+            ? VaultCall<IReadOnlyList<VaultFolderDto>>.Of(VaultOutcome.NotAvailable)
+            : VaultCall<IReadOnlyList<VaultFolderDto>>.Ok(folders);
+    }
+
+    public async Task<VaultCall<IReadOnlyList<VaultNameTileDto>>> GetVaultNamesAsync(string kind, string? sort, bool? descending, CancellationToken ct = default)
+    {
+        // The kind picks one of three fixed routes; anything else is not a Vault list.
+        if (kind is not ("performers" or "studios" or "tags"))
+        {
+            return VaultCall<IReadOnlyList<VaultNameTileDto>>.Of(VaultOutcome.NotAvailable);
+        }
+
+        var query = new Dictionary<string, string?> { ["sort"] = sort, ["desc"] = descending?.ToString().ToLowerInvariant() };
+        var names = await GetAsync<List<VaultNameTileDto>>($"GET /api/v1/vault/{kind}", $"{VaultPath}/{kind}", query, logAsWarning: false, ct: ct);
+        return names is null
+            ? VaultCall<IReadOnlyList<VaultNameTileDto>>.Of(VaultOutcome.NotAvailable)
+            : VaultCall<IReadOnlyList<VaultNameTileDto>>.Ok(names);
+    }
+
+    public async Task<VaultCall<VaultSearchResultDto>> SearchVaultAsync(string text, CancellationToken ct = default)
+    {
+        var result = await PostAsync<VaultSearchRequest, VaultSearchResultDto>(
+            "POST /api/v1/vault/search", VaultPath + "/search", new VaultSearchRequest { Text = text }, logAsWarning: false, ct: ct);
+        return result is null ? FailedVaultCall<VaultSearchResultDto>() : VaultCall<VaultSearchResultDto>.Ok(result);
     }
 
     /// <summary>Reads the failure the shared envelope just recorded and names it in the terms the Vault screens use.</summary>
