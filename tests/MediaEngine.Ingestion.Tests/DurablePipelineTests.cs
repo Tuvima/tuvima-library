@@ -110,7 +110,7 @@ public sealed class DurablePipelineTests : IDisposable
             _operationRepo,
             new MediaOperationEventRepository(db),
             _publisher,
-            NullLogger<MediaOperationTracker>.Instance);
+            NullLogger<MediaOperationTracker>.Instance, new VaultLibraryRepository(db));
 
         _scorer = new PriorityCascadeEngine(new StubConfigurationLoader(), NullLogger<PriorityCascadeEngine>.Instance);
     }
@@ -1835,6 +1835,7 @@ public sealed class DurablePipelineTests : IDisposable
             new OrganizeStageDependencies(null),
             new WriteBackStageDependencies(_entityAssetRepo, _assetPaths, _workRepo, null),
             new IdentityJobStageDependencies(new IdentityPipelineSignal()),
+            new NoVaultIngestionHook(),
             operationTracker: _operationTracker,
             operationRepository: _operationRepo,
             libraryFolderResolver: new LibraryFolderResolver(new OptionsMonitorStub<IngestionOptions>(options)),

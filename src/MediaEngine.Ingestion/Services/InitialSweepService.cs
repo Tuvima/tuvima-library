@@ -60,7 +60,7 @@ public sealed class InitialSweepService : IInitialSweepService
     private readonly IngestionOptions _options;
     private readonly IMediaTypeExtensionCatalog _extensionCatalog;
     private readonly ILogger<InitialSweepService> _logger;
-    private readonly IVaultIngestionHook? _vaultHook;
+    private readonly IVaultIngestionHook _vaultHook;
 
     public InitialSweepService(
         IAssetHasher hasher,
@@ -69,7 +69,7 @@ public sealed class InitialSweepService : IInitialSweepService
         IOptions<IngestionOptions> options,
         IMediaTypeExtensionCatalog extensionCatalog,
         ILogger<InitialSweepService> logger,
-        IVaultIngestionHook? vaultHook = null)
+        IVaultIngestionHook vaultHook)
     {
         _hasher = hasher;
         _cache = cache;
@@ -92,7 +92,7 @@ public sealed class InitialSweepService : IInitialSweepService
         var sweptLibraries = new List<LibraryFolderEntry>();
         foreach (var library in _options.LibraryFolders)
         {
-            if (_vaultHook is null || !await _vaultHook.IsVaultLibraryAsync(library.Id, ct).ConfigureAwait(false))
+            if (!await _vaultHook.IsVaultLibraryAsync(library.Id, ct).ConfigureAwait(false))
             {
                 sweptLibraries.Add(library);
             }

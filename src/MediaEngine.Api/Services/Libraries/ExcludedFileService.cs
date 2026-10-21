@@ -18,7 +18,7 @@ public sealed class ExcludedFileService(
     IExcludedSourceFileFilter excludedFileFilter,
     IFileIntake intake,
     ILogger<ExcludedFileService> logger,
-    IVaultLibraryRepository? vaultLibraries = null)
+    IVaultLibraryRepository vaultLibraries)
 {
     public const string QueuedMessage = "Added back. Library will scan it again.";
     public const string MissingMessage = "The file is no longer on disk.";
@@ -40,7 +40,7 @@ public sealed class ExcludedFileService(
     }
 
     private async Task<IReadOnlySet<string>> VaultLibraryIdsAsync(CancellationToken ct) =>
-        vaultLibraries is null ? new HashSet<string>() : await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false);
+        await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false);
 
     private static bool IsVault(IReadOnlySet<string> vaultIds, string? libraryId) =>
         libraryId is not null && vaultIds.Any(id => string.Equals(id, libraryId, StringComparison.OrdinalIgnoreCase));

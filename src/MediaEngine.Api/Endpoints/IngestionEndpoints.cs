@@ -457,8 +457,8 @@ public static class IngestionEndpoints
         IIngestionEngine engine,
         IOptions<IngestionOptions> opts,
         ISourceMutationPolicyGate mutationGate,
-        CancellationToken ct,
-        IVaultLibraryRepository? vaultLibraries = null)
+        IVaultLibraryRepository vaultLibraries,
+        CancellationToken ct)
     {
         var form = await request.ReadFormAsync(ct);
         var file = form.Files.GetFile("file");
@@ -482,7 +482,7 @@ public static class IngestionEndpoints
 
         // A Vault library answers exactly as a library that is not configured: the upload route never confirms it exists.
         if (library is null
-            || (vaultLibraries is not null && await vaultLibraries.GetAsync(library.Id, ct) is not null))
+            || await vaultLibraries.GetAsync(library.Id, ct) is not null)
         {
             return ApiErrors.BadRequest($"Destination library '{destinationLibraryId}' is not configured.");
         }

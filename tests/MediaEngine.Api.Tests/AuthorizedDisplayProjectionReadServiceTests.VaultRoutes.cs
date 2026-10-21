@@ -173,6 +173,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     private async Task<Guid> InsertReviewAsync(Guid entityId, string status, string entityType = "MediaAsset") =>
         await new ReviewQueueRepository(_database).InsertAsync(new ReviewQueueEntry
         {
+            Id = Guid.NewGuid(),
             EntityId = entityId,
             EntityType = entityType,
             Trigger = ReviewTrigger.MultipleQidMatches,
@@ -227,7 +228,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await MapRoutesAsync(builder => builder.MapReviewEndpoints());
 
     /// <summary>Maps the real routes over this test's data store. Services a Vault item must never reach fail the test when touched.</summary>
-    private Task<IReadOnlyDictionary<string, RouteEndpoint>> MapRoutesAsync(Action<IEndpointRouteBuilder> map)
+    private Task<IReadOnlyDictionary<string, RouteEndpoint>> MapRoutesAsync(
+        Action<IEndpointRouteBuilder> map, Action<WebApplicationBuilder>? configure = null)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = Environments.Production });
         builder.Services.AddAuthorization();
@@ -266,6 +268,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         // The images routes (WP16) go through one service over this test's data store.
         builder.Services.AddSingleton(_ => CreateVaultImageService());
         builder.Services.AddSingleton(NewTouchFailsIdentifyService());
+        configure?.Invoke(builder);
         var app = builder.Build();
         map(app);
         _routeApps.Add(app);

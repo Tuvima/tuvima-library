@@ -229,7 +229,7 @@ public sealed class VideosPipelineTests : IDisposable
         var publisher = _publisher;
         var workRepo = new WorkRepository(db);
         var operationRepo = new MediaOperationRepository(db);
-        var tracker = new MediaOperationTracker(operationRepo, new MediaOperationEventRepository(db), publisher, NullLogger<MediaOperationTracker>.Instance);
+        var tracker = new MediaOperationTracker(operationRepo, new MediaOperationEventRepository(db), publisher, NullLogger<MediaOperationTracker>.Instance, new VaultLibraryRepository(db));
         var options = _h.Options;
         using var debounce = new DebounceQueue(new DebounceOptions
         {
@@ -269,13 +269,13 @@ public sealed class VideosPipelineTests : IDisposable
             new HashDedupeStageDependencies(null), new ScoreIdentifyStageDependencies(null), new OrganizeStageDependencies(null),
             new WriteBackStageDependencies(new EntityAssetRepository(db), new AssetPathService(_h.LibraryRoot), workRepo, null),
             new IdentityJobStageDependencies(new IdentityPipelineSignal()),
+            vaultHook ?? new NoVaultIngestionHook(),
             operationTracker: tracker, operationRepository: operationRepo,
             libraryFolderResolver: new LibraryFolderResolver(monitor),
             sourceMutationPolicyGate: new SourceMutationPolicyGate(),
             videoReader: reader,
             videoLookup: lookup,
-            audienceGate: gate,
-            vaultHook: vaultHook);
+            audienceGate: gate);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         try

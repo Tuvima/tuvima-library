@@ -140,6 +140,7 @@ public sealed class UploadDestinationBehaviourTests : IDisposable
             engine ?? EngineProxy.Create(),
             Options.Create(new IngestionOptions()),
             new SourceMutationPolicyGate(),
+            new FixedVaultLibraries(),
             CancellationToken.None);
 
         return Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode ?? StatusCodes.Status200OK;

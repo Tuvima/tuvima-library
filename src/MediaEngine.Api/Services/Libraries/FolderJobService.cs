@@ -41,7 +41,7 @@ public sealed class FolderJobService
     private readonly FolderMergePreviewer _mergePreviewer;
     private readonly ServerFolderBrowserService _folders;
     private readonly ILogger<FolderJobService> _logger;
-    private readonly IVaultLibraryRepository? _vaultLibraries;
+    private readonly IVaultLibraryRepository _vaultLibraries;
 
     public FolderJobService(
         IConfigurationLoader configuration,
@@ -52,7 +52,7 @@ public sealed class FolderJobService
         FolderMergePreviewer mergePreviewer,
         ServerFolderBrowserService folders,
         ILogger<FolderJobService> logger,
-        IVaultLibraryRepository? vaultLibraries = null)
+        IVaultLibraryRepository vaultLibraries)
     {
         _configuration = configuration;
         _operations = operations;
@@ -1134,11 +1134,6 @@ public sealed class FolderJobService
     /// </summary>
     private async Task RefuseVaultFolderAsync(CancellationToken ct, params string?[] sourceIds)
     {
-        if (_vaultLibraries is null)
-        {
-            return;
-        }
-
         var libraries = _configuration.LoadLibraries();
         foreach (var text in sourceIds)
         {

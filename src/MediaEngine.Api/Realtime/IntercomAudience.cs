@@ -33,7 +33,7 @@ public sealed class IntercomAudienceAuthorizer(
     TimeProvider timeProvider,
     IVaultLibraryRepository vaultLibraries,
     INsfwAccessRepository nsfw,
-    IVaultPathClassifier? vaultPaths = null) : IIntercomAudienceAuthorizer
+    IVaultPathClassifier vaultPaths) : IIntercomAudienceAuthorizer
 {
     /// <summary>
     /// Events whose payload names a file, a folder or an item, so the audience decides by where it sits: an item or path in a Vault
@@ -162,11 +162,6 @@ public sealed class IntercomAudienceAuthorizer(
             {
                 return true;
             }
-        }
-
-        if (vaultPaths is null)
-        {
-            return false;
         }
 
         foreach (var path in Paths(payload))

@@ -12,7 +12,7 @@ public sealed class ApplicationEventProjectionPublisher(
     IApplicationEventProducer producer,
     IApplicationEventResourceResolver resources,
     ILogger<ApplicationEventProjectionPublisher> logger,
-    IVaultPathClassifier? vaultPaths = null)
+    IVaultPathClassifier vaultPaths)
 {
     private const string WorkingState = "working";
     private const string IdleState = "idle";
@@ -51,7 +51,7 @@ public sealed class ApplicationEventProjectionPublisher(
 
         // A file or folder in a Vault library is never reported to an app or a webhook, not even as "ingestion started" or a folder
         // health change (Videos spec D17, D33). Events about an item are stopped by id further down and by the data structure.
-        if (vaultPaths is not null && EventPath(value) is { } path && await vaultPaths.IsVaultPathAsync(path, ct).ConfigureAwait(false))
+        if (EventPath(value) is { } path && await vaultPaths.IsVaultPathAsync(path, ct).ConfigureAwait(false))
         {
             return null;
         }

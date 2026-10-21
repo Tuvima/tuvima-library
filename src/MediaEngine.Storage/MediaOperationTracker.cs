@@ -17,14 +17,14 @@ public sealed class MediaOperationTracker : IMediaOperationTracker
     private readonly IMediaOperationEventRepository _events;
     private readonly IEventPublisher _publisher;
     private readonly ILogger<MediaOperationTracker> _logger;
-    private readonly IVaultLibraryRepository? _vault;
+    private readonly IVaultLibraryRepository _vault;
 
     public MediaOperationTracker(
         IMediaOperationRepository operations,
         IMediaOperationEventRepository events,
         IEventPublisher publisher,
         ILogger<MediaOperationTracker> logger,
-        IVaultLibraryRepository? vault = null)
+        IVaultLibraryRepository vault)
     {
         _operations = operations;
         _events = events;
@@ -185,7 +185,7 @@ public sealed class MediaOperationTracker : IMediaOperationTracker
         {
             // Work on a file in a Vault library is never announced: not even its kind, stage or progress reaches an open screen
             // (Videos spec D17, D33). The operation itself is still tracked and resumed as usual.
-            if (operation.EntityId is { } entityId && _vault is not null
+            if (operation.EntityId is { } entityId
                 && await _vault.IsInVaultAsync(entityId, ct).ConfigureAwait(false))
             {
                 return;
