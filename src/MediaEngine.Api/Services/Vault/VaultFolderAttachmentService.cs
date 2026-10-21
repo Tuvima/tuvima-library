@@ -105,7 +105,7 @@ public sealed class VaultFolderAttachmentService(
             LibraryMutationEndpoints.WriteGate.Release();
         }
 
-        logger.LogInformation("A folder was added to Vault library {LibraryId} by profile {ProfileId}.", libraryId, adminProfileId);
+        logger.LogInformation("A folder was added to the Vault.");
         return new VaultFolderAttachmentOutcome(VaultFolderAttachmentStatus.Attached, Library: vaultLibrary);
     }
 
