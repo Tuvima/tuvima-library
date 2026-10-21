@@ -108,19 +108,17 @@
 .app-timeline__items {
     display: flex;
     min-width: 0;
+    flex-wrap: wrap;
     align-items: center;
-    gap: clamp(12px, 1.35vw, 18px);
-    overflow-x: auto;
+    gap: clamp(8px, 1vw, 12px);
     padding: 0 4px 2px 0;
-    scrollbar-width: thin;
 }
 
 .app-timeline__item {
-    display: inline-grid;
+    display: inline-flex;
     min-width: 0;
-    grid-template-columns: auto minmax(72px, 150px);
+    flex: 0 0 auto;
     align-items: center;
-    gap: 11px;
     color: rgba(242, 245, 251, 0.94);
     border-radius: 9px;
     text-decoration: none;
@@ -130,6 +128,11 @@
 .app-timeline__item:focus-visible {
     color: white;
     outline: none;
+}
+
+/* Covers by one creator sit close together; a wider gap separates the next creator's group. */
+.app-timeline__item.is-creator-start:not(:first-child) {
+    margin-left: clamp(8px, 1vw, 16px);
 }
 
 .app-timeline__artwork {
@@ -178,15 +181,6 @@
     box-shadow: 0 0 16px color-mix(in srgb, var(--tl-accent-primary) 22%, transparent);
 }
 
-.app-timeline__item-title {
-    display: -webkit-box;
-    overflow: hidden;
-    font-size: 0.86rem;
-    font-weight: 600;
-    line-height: 1.28;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-}
 
 @media (max-width: 900px) {
     .app-timeline ::deep .view-timeline-scrubber { grid-column: 1; }
@@ -209,10 +203,6 @@
         align-items: flex-start;
     }
 
-    .app-timeline__item {
-        grid-template-columns: minmax(0, 1fr);
-        align-items: start;
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {

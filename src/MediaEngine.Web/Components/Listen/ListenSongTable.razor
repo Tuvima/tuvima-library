@@ -31,7 +31,7 @@
             {
                 var trackTitle = DisplayTrackTitle(track);
                 <tr @key="track.Id"
-                    class="@(RowClass(track) + (track.IsUpdatingDetails ? " tl-enrichment-pending" : ""))"
+                    class="@RowClass(track)"
                     data-listen-immediate-start="music"
                     data-listen-start-url="@(track.AssetId is { } sourceId ? $"/engine-stream/{sourceId:D}" : null)"
                     tabindex="0"
@@ -136,7 +136,7 @@ else
             @{
                 var trackTitle = DisplayTrackTitle(track);
             }
-            <AppCssElement Tag="div" Class="@(RowClass(track) + (track.IsUpdatingDetails ? " tl-enrichment-pending" : ""))" title="@(track.IsUpdatingDetails ? "Metadata is being updated; playback is available" : null)"
+            <AppCssElement Tag="div" Class="@RowClass(track)"
                  @key="track.Id"
                  Css="@($"grid-template-columns: {GridTemplate}")"
                  role="row"
@@ -160,7 +160,7 @@ else
                 <div class="listen-song-table__song @(ShowArtwork ? null : "listen-song-table__song--play-only")" role="cell">
                     @if (ShowArtwork)
                     {
-                        <div class="listen-song-table__art">
+                        <div class="listen-song-table__art @(track.IsUpdatingDetails ? "is-updating" : null)" title="@(track.IsUpdatingDetails ? "Details are being updated; playback is available" : null)">
                             @if (!string.IsNullOrWhiteSpace(track.CoverUrl))
                             {
                                 <img src="@track.CoverUrl" alt="" loading="lazy" decoding="async" />

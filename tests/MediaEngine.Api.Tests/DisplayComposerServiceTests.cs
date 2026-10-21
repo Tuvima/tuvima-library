@@ -805,7 +805,7 @@ public sealed class DisplayComposerServiceTests
         var collectionId = Guid.Parse("aaaaaaaa-4444-4444-4444-aaaaaaaaaaaa");
         var repository = new StubDisplayProjectionRepository(
             [
-                Work(movieId, "Movie", "Arrival", year: "2016", genre: "Science Fiction", quality: "Ultra HD", source: "Max"),
+                Work(movieId, "Movie", "Arrival", year: "2016", genre: "Science Fiction", quality: "Ultra HD", source: "Max", backgroundUrl: "/arrival-background.jpg"),
                 Work(bookId, "Book", "Dune", author: "Frank Herbert", genre: "Science Fiction"),
                 Work(trackId, "Music", "Static", artist: "Among The Outcasts", album: "Static On The Line"),
             ],
@@ -905,7 +905,8 @@ public sealed class DisplayComposerServiceTests
                 Guid.Parse($"aaaaaaaa-9999-9999-9999-{index:D12}"),
                 "Movie",
                 $"Movie {index:D2}",
-                collectionId: sharedCollectionId))
+                collectionId: sharedCollectionId,
+                backgroundUrl: $"/movie-{index:D2}.jpg"))
             .ToList();
         var composer = CreateComposer(new StubDisplayProjectionRepository(works, []));
 

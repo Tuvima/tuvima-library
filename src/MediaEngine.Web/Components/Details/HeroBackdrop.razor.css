@@ -920,3 +920,57 @@
 .tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(69svh, 47rem); }
 @media (max-height: 760px) { .tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(58svh, 47rem); } }
 @media (width < 840px) { .tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(48svh, 26rem); } }
+
+/* Home hero, cover-led media. The detail page styles the foreground cover under .tl-detail-page, which Home does not have,
+   so books and audiobooks are placed here (the Home hero wraps this backdrop in .cinematic-hero--landing) and keep their real shape: books portrait, audiobooks and albums square. */
+.cinematic-hero--landing .tl-detail-media-stage__cover-wrap {
+    --home-cover-size: min(30rem, 52svh);
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    right: 8vw;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: auto;
+    height: var(--home-cover-size);
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.cinematic-hero--landing .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap,
+.cinematic-hero--landing .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+    width: var(--home-cover-size);
+    aspect-ratio: 1 / 1;
+}
+
+.cinematic-hero--landing .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+    --hero-book-cover-height: var(--home-cover-size);
+    aspect-ratio: 2 / 3;
+    height: auto;
+    max-height: var(--home-cover-size);
+}
+
+.cinematic-hero--landing .tl-detail-media-stage--audiobook .tl-detail-media-stage__foreground,
+.cinematic-hero--landing .tl-detail-media-stage--square .tl-detail-media-stage__foreground {
+    width: 100%;
+    height: 100%;
+}
+
+.cinematic-hero--landing .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover,
+.cinematic-hero--landing .tl-detail-media-stage--square .tl-detail-media-stage__cover {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 0.5rem;
+    box-shadow: 0 1.6rem 3.6rem rgba(0, 0, 0, 0.58);
+}
+
+@media (max-width: 840px) {
+    .cinematic-hero--landing .tl-detail-media-stage__cover-wrap {
+        --home-cover-size: min(14rem, 30svh);
+        right: 4vw;
+        top: calc(var(--app-topbar-height, 65px) + 1rem);
+        transform: none;
+    }
+}

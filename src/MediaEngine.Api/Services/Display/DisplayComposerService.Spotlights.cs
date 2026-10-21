@@ -13,8 +13,19 @@ public sealed partial class DisplayComposerService
         IReadOnlyList<DisplayCardDto> shows,
         IReadOnlyList<DisplayCardDto> candidates)
     {
+        // A hero is the first thing on Home, so it only features items that have finished settling and
+        // carry real artwork. Anything still being identified waits for the shelves.
+        var heroReady = works
+            .Where(work => !work.IsUpdatingDetails && HasStoredArtwork(work))
+            .SelectMany(work => new[] { work.WorkId, work.RootWorkId })
+            .Where(id => id != Guid.Empty)
+            .ToHashSet();
+        bool IsHeroReady(DisplayCardDto card) => !card.IsSettling
+            && (heroReady.Contains(card.Id) || (card.WorkId is { } workId && heroReady.Contains(workId)));
+        candidates = candidates.Where(IsHeroReady).ToList();
+
         var showHeroes = new List<DisplayHeroDto>();
-        foreach (var show in shows)
+        foreach (var show in shows.Where(IsHeroReady))
         {
             var owned = works.Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "TV"
                 && (work.RootWorkId == Guid.Empty ? work.WorkId : work.RootWorkId) == show.Id && work.AssetId != Guid.Empty)
@@ -123,6 +134,14 @@ public sealed partial class DisplayComposerService
         selected.AddRange(ranked.Where(hero => !selected.Contains(hero)).Take(5 - selected.Count));
         return selected;
     }
+
+    private static bool HasStoredArtwork(DisplayWorkRow work) =>
+        new[]
+        {
+            work.CoverUrl, work.SquareUrl, work.BackgroundUrl, work.BannerUrl, work.EpisodeStillUrl,
+            work.RootCoverUrl, work.RootSquareUrl, work.RootBackgroundUrl, work.RootBannerUrl,
+            work.CollectionCoverUrl, work.CollectionSquareUrl, work.CollectionBackgroundUrl, work.CollectionBannerUrl,
+        }.Any(url => !string.IsNullOrWhiteSpace(url));
 
     private static int? Number(string? number) => int.TryParse(number, out var value) ? value : null;
     private static string? EpisodeNumber(DisplayEpisodeContextDto context) => context.SeasonNumber.HasValue && context.EpisodeNumber.HasValue

@@ -153,6 +153,12 @@
     justify-content: center;
 }
 
+/* A song still being matched is marked on its cover art, and only while the row is hovered; no ring on every row. */
+.listen-song-table__row:hover .listen-song-table__art.is-updating,
+.listen-song-table__art.is-updating:hover {
+    box-shadow: 0 0 0 2px var(--tl-status-warning);
+}
+
 .listen-song-table__art img {
     width: 100%;
     height: 100%;
