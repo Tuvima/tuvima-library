@@ -2130,6 +2130,11 @@ input.app-control.tl-input-slot,
     color: var(--tl-text-secondary) !important;
 }
 
+/* The series Jump to picker is as wide as its longest entry, so each entry stays on one line. */
+.tl-series-jump-popover .tl-list-item {
+    white-space: nowrap;
+}
+
 .app-select__popover .tl-list-item:hover,
 .app-select__popover .tl-list-item:focus-visible,
 .app-overflow-menu__popover .tl-list-item:hover,

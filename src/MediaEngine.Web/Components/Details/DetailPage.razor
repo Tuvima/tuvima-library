@@ -580,8 +580,10 @@ else if (Model is not null)
         }
     }
 
-    private bool HasPrimaryModuleAfterNavigation => Model?.PrimaryModule.Kind is not
-        (DetailPrimaryModuleKind.None or DetailPrimaryModuleKind.Tracks or DetailPrimaryModuleKind.Chapters);
+    // A movie whose Series has no other owned movie gets no Series row (DetailSequenceRowRule).
+    private bool HasPrimaryModuleAfterNavigation => Model is null
+        || (Model.PrimaryModule.Kind is not (DetailPrimaryModuleKind.None or DetailPrimaryModuleKind.Tracks or DetailPrimaryModuleKind.Chapters)
+            && (Model.PrimaryModule.Kind is not DetailPrimaryModuleKind.Sequence || DetailSequenceRowRule.ShowsRow(Model.SequencePlacement)));
 
     private bool ShowPrimaryModuleAfterNavigation =>
         HasPrimaryModuleAfterNavigation
