@@ -1054,11 +1054,11 @@ internal sealed partial class DetailCompositionOrchestrator
             EntityAsset? thumb = null;
             seasonAssets?.TryGetValue("SeasonPoster", out poster);
             seasonAssets?.TryGetValue("SeasonThumb", out thumb);
-            var posterSmall = poster is null ? null : $"/stream/artwork/{poster.Id:D}?size=s";
-            var posterMedium = poster is null ? null : $"/stream/artwork/{poster.Id:D}?size=m";
+            var posterSmall = poster is null ? null : ArtworkCanonicalHelper.StoredArtworkUrl(poster, "s");
+            var posterMedium = poster is null ? null : ArtworkCanonicalHelper.StoredArtworkUrl(poster, "m");
             var backgroundMedium = thumb is null
                 ? posterMedium
-                : $"/stream/artwork/{thumb.Id:D}?size=m";
+                : ArtworkCanonicalHelper.StoredArtworkUrl(thumb, "m");
 
             result[seasonKey] = new SeasonArtworkPresentation(
                 season.WorkId.ToString("D"),
