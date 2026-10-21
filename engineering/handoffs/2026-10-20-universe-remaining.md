@@ -95,6 +95,8 @@ The spike needs three real titles and local hardware, so it is a local item: wri
 
 ### Thread H: reconcile the U-WP3b Series block with Details overlay D20 (remediation)
 
+**Done** (2026-10-21). Shy chose to keep the free search and "Remove from its Series" as rare overrides (recorded as D20a in the Details overlay spec and in the Universes spec section 7), with new wording: "Series override", a re-match-first line, "Pick a different Series", "Save override" and "Go back to the Library's choice". Nothing was narrowed; the brief below is kept for history.
+
 **Why.** Two of Shy's decisions from 2026-10-20 disagree.
 - **Details overlay D20:** "Series moves are dropped. A book, comic or movie is not moved into a Series by hand… Match chooses an entry of a list we already know, it does not invent membership." The only exception is Add anyway (D13).
 - **Universes U-WP3b:** "When I pick a Series in Matching, save it as a locked choice the Engine always respects."
