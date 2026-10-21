@@ -1,0 +1,82 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Upload spike</title></head>
+<body>
+<input type="file" id="file">
+<select id="mode"><option>plain</option><option>chunked</option></select>
+<input id="chunk" value="64">MB chunks
+<input id="base" value="">base path (e.g. /relay)
+<button id="go">Upload</button> <button id="cancel">Cancel</button>
+<pre id="out"></pre>
+<script>
+const out = document.getElementById('out');
+let cancel = null;
+window.__progress = 0;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function xhrSend(method, url, body) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open(method, url);
+    x.upload.onprogress = e => { window.__chunkSent = e.loaded; };
+    x.onload = () => resolve({ status: x.status, body: x.responseText });
+    x.onerror = () => reject(new Error('network'));
+    x.onabort = () => reject(new Error('aborted'));
+    cancel = () => x.abort();
+    x.send(body);
+  });
+}
+
+async function plain(file, base, maxAttempts) {
+  let attempts = 0, sentTotal = 0;
+  while (attempts < maxAttempts) {
+    attempts++;
+    try {
+      const r = await xhrSend('POST', `${base}/plain?name=${encodeURIComponent(file.name)}&size=${file.size}`, file);
+      sentTotal += window.__chunkSent || 0;
+      if (r.status === 200) return { ok: true, attempts, sentTotal };
+    } catch (e) { sentTotal += window.__chunkSent || 0; if (e.message === 'aborted') return { ok: false, cancelled: true, attempts }; }
+    await sleep(1000);
+  }
+  return { ok: false, attempts, sentTotal };
+}
+
+async function chunked(file, base, chunkMb) {
+  const chunk = chunkMb * 1048576;
+  const c = await (await fetch(`${base}/chunked?name=${encodeURIComponent(file.name)}&size=${file.size}`, { method: 'POST' })).json();
+  let offset = 0, retries = 0, requests = 0, cancelled = false;
+  window.__uploadId = c.id;
+  cancel = async () => { cancelled = true; await fetch(`${base}/chunked/${c.id}`, { method: 'DELETE' }); };
+  while (offset < file.size && !cancelled) {
+    const end = Math.min(offset + chunk, file.size);
+    try {
+      requests++;
+      const r = await fetch(`${base}/chunked/${c.id}?offset=${offset}`, { method: 'PUT', body: file.slice(offset, end) });
+      if (r.status === 200) { offset = (await r.json()).offset; window.__progress = offset / file.size; continue; }
+      throw new Error('status ' + r.status);
+    } catch (e) {
+      if (cancelled) break;
+      retries++;
+      if (retries > 20) return { ok: false, retries, requests, offset };
+      await sleep(Math.min(1000 * retries, 5000));
+      const s = await fetch(`${base}/chunked/${c.id}`);
+      if (s.ok) offset = (await s.json()).offset;
+    }
+  }
+  return { ok: !cancelled && offset === file.size, cancelled, retries, requests };
+}
+
+document.getElementById('cancel').onclick = () => cancel && cancel();
+document.getElementById('go').onclick = async () => {
+  const file = document.getElementById('file').files[0];
+  const base = document.getElementById('base').value;
+  const t0 = performance.now();
+  const r = document.getElementById('mode').value === 'plain'
+    ? await plain(file, base, Number(window.__plainAttempts || 2))
+    : await chunked(file, base, Number(document.getElementById('chunk').value));
+  r.seconds = (performance.now() - t0) / 1000;
+  r.mbPerSec = file.size / 1048576 / r.seconds;
+  window.__result = r;
+  out.textContent = JSON.stringify(r);
+};
+</script>
+</body></html>
