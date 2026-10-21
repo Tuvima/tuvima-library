@@ -14,14 +14,12 @@ public enum VaultOnboardingOutcome
     /// <summary>NSFW mode is off or the person cannot use the Vault, so nothing was offered.</summary>
     NotAvailable,
 
-    /// <summary>The library exists but the Engine cannot attach the folder yet (see <see cref="IVaultFolderAttachment"/>).</summary>
-    LibraryReadyFolderNotAttached,
+    /// <summary>The PIN was right but the Engine did not add the folder (missing, not allowed, not available or unreachable); <see cref="VaultOnboardingResult.Message"/> says why.</summary>
+    FolderNotAdded,
 
     /// <summary>The library exists and the folder is part of it.</summary>
     FolderAttached,
 
-    /// <summary>The Engine refused or could not be reached; <see cref="VaultOnboardingResult.Message"/> says why.</summary>
-    Failed,
 }
 
 public sealed record VaultOnboardingResult(VaultOnboardingOutcome Outcome, string? Message = null)
@@ -32,8 +30,8 @@ public sealed record VaultOnboardingResult(VaultOnboardingOutcome Outcome, strin
 /// <summary>
 /// The third Add folder choice (Videos spec D3, D45), for administrators in NSFW mode only. In order: the administrator needs a
 /// profile PIN of their own (D25), confirms that everyone who can unlock the Vault is an adult and the content is lawful and that
-/// the files stay visible on disk (D34), enters that PIN, and the Vault library is created (once; later folders reuse it). Attaching
-/// the folder itself goes through <see cref="IVaultFolderAttachment"/>.
+/// the files stay visible on disk (D34), and enters that PIN once; the Vault library is created if it does not exist yet (once; later
+/// folders reuse it) and the folder is added through <see cref="IVaultFolderAttachment"/>.
 /// </summary>
 public sealed class VaultLibraryOnboarding(
     NsfwModeState nsfw,
@@ -46,8 +44,7 @@ public sealed class VaultLibraryOnboarding(
         "Everyone who can unlock the Vault must be an adult, and the content in it must be lawful where you live. "
         + "The files themselves stay visible on disk to anyone who can browse that folder, and backups include Vault data under the same rules.";
 
-    public const string ReadyButNotAttached =
-        "The Vault library is ready. Adding its folder arrives with the Vault import update, so this folder wasn't added yet.";
+    public const string NotAdded = "That folder couldn't be added to the Vault.";
 
     /// <summary>Runs the whole choice for one chosen folder. <paramref name="administratorId"/> and <paramref name="administratorHasPin"/> describe the signed-in administrator.</summary>
     public async Task<VaultOnboardingResult> AddFolderAsync(string folderPath, Guid administratorId, bool administratorHasPin, CancellationToken ct = default)
@@ -85,34 +82,47 @@ public sealed class VaultLibraryOnboarding(
 
         var existing = await api.GetVaultLibrariesAsync(ct);
         VaultLibraryDto? library = existing.Succeeded ? existing.Value?.FirstOrDefault() : null;
-        string? failure = null;
-        if (library is null)
-        {
-            var created = await VaultPinPrompt.AskAsync(
-                dialogs,
-                "Enter your PIN to continue",
-                "This is your own profile PIN, asked for again before the Vault library is created.",
-                "Create library",
-                "Your profile PIN",
-                async pin =>
+        VaultOnboardingResult? outcome = null;
+
+        // One PIN entry covers both steps: creating the library (once; later folders reuse it) and adding the folder to it.
+        var accepted = await VaultPinPrompt.AskAsync(
+            dialogs,
+            "Enter your PIN to continue",
+            "This is your own profile PIN, asked for again before the folder is added to the Vault.",
+            "Add folder",
+            "Your profile PIN",
+            async pin =>
+            {
+                if (library is null)
                 {
-                    var call = await api.CreateVaultLibraryAsync(new CreateVaultLibraryRequest { LookupSource = "none", AdultsConfirmed = true, AdminPin = pin }, ct);
-                    if (call.Succeeded)
+                    var created = await api.CreateVaultLibraryAsync(new CreateVaultLibraryRequest { LookupSource = "none", AdultsConfirmed = true, AdminPin = pin }, ct);
+                    if (!created.Succeeded)
                     {
-                        library = call.Value;
+                        return VaultMessages.For(created);
                     }
 
-                    failure = VaultMessages.For(call);
-                    return failure;
-                });
-            if (!created || library is null)
-            {
-                return VaultOnboardingResult.Of(created ? VaultOnboardingOutcome.Failed : VaultOnboardingOutcome.Cancelled, failure);
-            }
-        }
+                    library = created.Value;
+                    if (library is null)
+                    {
+                        return VaultMessages.Unreachable;
+                    }
+                }
 
-        return await attachment.AttachAsync(library, folderPath, ct) == VaultFolderAttachmentResult.Attached
-            ? VaultOnboardingResult.Of(VaultOnboardingOutcome.FolderAttached)
-            : VaultOnboardingResult.Of(VaultOnboardingOutcome.LibraryReadyFolderNotAttached, ReadyButNotAttached);
+                var attached = await attachment.AttachAsync(library, folderPath, pin, ct);
+                switch (attached.Result)
+                {
+                    case VaultFolderAttachmentResult.Attached:
+                        outcome = VaultOnboardingResult.Of(VaultOnboardingOutcome.FolderAttached);
+                        return null;
+                    case VaultFolderAttachmentResult.PinNotAccepted:
+                        return attached.Message ?? VaultMessages.WrongPin;
+                    default:
+                        // The PIN was fine; the folder is the problem, so the pad closes and the person is told why.
+                        outcome = VaultOnboardingResult.Of(VaultOnboardingOutcome.FolderNotAdded, attached.Message ?? NotAdded);
+                        return null;
+                }
+            });
+
+        return accepted && outcome is not null ? outcome : VaultOnboardingResult.Of(VaultOnboardingOutcome.Cancelled);
     }
 }

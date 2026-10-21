@@ -29,6 +29,8 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     private static readonly Guid Other = Guid.Parse("00000000-0000-0000-0000-0000000000b2");
     private const string RightPin = "2468";
     private const string AdminPin = "1357";
+    private const string MissingFolder = "/media/gone";
+    private const string ForbiddenFolder = "/media/movies";
     private static readonly string[] Tokens = ["nsfw", "vault", "sfw", "pin-pad"];
 
     private string? _mode;
@@ -38,6 +40,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     private int _keepAlives;
     private readonly List<string?> _unlockPins = [];
     private readonly List<CreateVaultLibraryRequest> _created = [];
+    private readonly List<(string Library, AttachVaultFolderRequest Request)> _attached = [];
     private readonly List<NsfwSetPinRequest> _pinSaves = [];
     private readonly List<(Guid Profile, SetNsfwAccessRequest Request)> _accessSaves = [];
     private readonly List<(Guid Profile, ResetNsfwPinRequest Request)> _resets = [];
@@ -97,6 +100,22 @@ public sealed class VaultExperienceTests : AsyncBunitContext
                 return Task.FromResult(_createOutcome == VaultOutcome.Ok && request.AdminPin == AdminPin
                     ? VaultCall<VaultLibraryDto>.Ok(new VaultLibraryDto { Id = "vault-1", LookupSource = "none" })
                     : VaultCall<VaultLibraryDto>.Of(_createOutcome == VaultOutcome.Ok ? VaultOutcome.PinRequired : _createOutcome));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.AttachVaultFolderAsync), args =>
+            {
+                var request = (AttachVaultFolderRequest)args![1]!;
+                _attached.Add(((string)args[0]!, request));
+                if (request.AdminPin != AdminPin)
+                {
+                    return Task.FromResult(VaultCall<VaultLibraryDto>.Of(VaultOutcome.PinRequired));
+                }
+
+                return Task.FromResult(request.FolderPath switch
+                {
+                    MissingFolder => VaultCall<VaultLibraryDto>.Of(VaultOutcome.Rejected, "That folder wasn't found on the server, so nothing was added."),
+                    ForbiddenFolder => VaultCall<VaultLibraryDto>.Of(VaultOutcome.Rejected, "That folder can't be used for the Vault, so nothing was added."),
+                    _ => VaultCall<VaultLibraryDto>.Ok(new VaultLibraryDto { Id = (string)args[0]!, LookupSource = "none" }),
+                });
             });
             stub.SetHandler(nameof(IEngineApiClient.SetNsfwPinAsync), args =>
             {
@@ -647,7 +666,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AddToVault_ConfirmsAdultsAndThePin_CreatesTheLibraryOnce_AndLeavesTheFolderForTheImportWork()
+    public async Task AddToVault_ConfirmsAdultsAndThePin_CreatesTheLibraryOnce_AndAsksTheEngineToAddTheFolder()
     {
         var (dialogs, onboarding) = await OnboardingAsync();
 
@@ -658,39 +677,99 @@ public sealed class VaultExperienceTests : AsyncBunitContext
 
         dialogs.WaitForAssertion(() => Assert.Contains("Enter your PIN to continue", dialogs.Markup));
         await TypePinAsync(dialogs, "9999");
-        await PressAsync(dialogs, "Create library");
+        await PressAsync(dialogs, "Add folder");
         dialogs.WaitForAssertion(() => Assert.Contains(VaultMessages.WrongPin, dialogs.Markup));
+        Assert.Empty(_attached);
         await TypePinAsync(dialogs, AdminPin);
-        await PressAsync(dialogs, "Create library");
+        await PressAsync(dialogs, "Add folder");
         var result = await task;
 
-        Assert.Equal(VaultOnboardingOutcome.LibraryReadyFolderNotAttached, result.Outcome);
-        Assert.Equal(VaultLibraryOnboarding.ReadyButNotAttached, result.Message);
+        Assert.Equal(VaultOnboardingOutcome.FolderAttached, result.Outcome);
         Assert.Equal(2, _created.Count);
         var accepted = _created[^1];
         Assert.True(accepted.AdultsConfirmed);
         Assert.Equal(AdminPin, accepted.AdminPin);
         Assert.Equal("none", accepted.LookupSource);
-        // Nothing but the create was written to the Engine: the folder is the marked seam.
-        Assert.DoesNotContain(_stub.Calls, call => call.StartsWith("Update", StringComparison.Ordinal) || call.StartsWith("Save", StringComparison.Ordinal));
+        var (library, request) = Assert.Single(_attached);
+        Assert.Equal("vault-1", library);
+        Assert.Equal("/media/adult", request.FolderPath);
+        Assert.Equal(AdminPin, request.AdminPin);
     }
 
     [Fact]
-    public async Task AddToVault_ReusesTheLibraryThatExists_AndTheSeamIsAskedForTheFolder()
+    public async Task AddToVault_ReusesTheLibraryThatExists_AndAddsTheFolderWithOneFreshPin()
     {
-        var spy = new SpyAttachment();
-        Services.AddScoped<IVaultFolderAttachment>(_ => spy);
         var (dialogs, onboarding) = await OnboardingAsync();
         _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
 
         var task = onboarding.AddFolderAsync("/media/adult", Me, administratorHasPin: true);
         dialogs.WaitForAssertion(() => Assert.Contains("Adults only", dialogs.Markup));
         await PressAsync(dialogs, "I confirm");
+        dialogs.WaitForAssertion(() => Assert.Contains("Enter your PIN to continue", dialogs.Markup));
+        await TypePinAsync(dialogs, AdminPin);
+        await PressAsync(dialogs, "Add folder");
         var result = await task;
 
         Assert.Equal(VaultOnboardingOutcome.FolderAttached, result.Outcome);
         Assert.Empty(_created);
-        Assert.Equal(("vault-1", "/media/adult"), Assert.Single(spy.Attached));
+        Assert.Equal(("vault-1", "/media/adult"), (_attached.Single().Library, _attached.Single().Request.FolderPath));
+    }
+
+    [Fact]
+    public async Task AddToVault_AWrongPinForAnExistingLibrary_KeepsThePadOpen_AndAddsNothing()
+    {
+        var (dialogs, onboarding) = await OnboardingAsync();
+        _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
+
+        var task = onboarding.AddFolderAsync("/media/adult", Me, administratorHasPin: true);
+        await PressAsync(dialogs, "I confirm");
+        dialogs.WaitForAssertion(() => Assert.Contains("Enter your PIN to continue", dialogs.Markup));
+        await TypePinAsync(dialogs, "9999");
+        await PressAsync(dialogs, "Add folder");
+
+        dialogs.WaitForAssertion(() => Assert.Contains(VaultMessages.WrongPin, dialogs.Markup));
+        Assert.False(task.IsCompleted);
+        await TypePinAsync(dialogs, AdminPin);
+        await PressAsync(dialogs, "Add folder");
+        Assert.Equal(VaultOnboardingOutcome.FolderAttached, (await task).Outcome);
+    }
+
+    [Theory]
+    [InlineData(MissingFolder, "That folder wasn't found on the server, so nothing was added.")]
+    [InlineData(ForbiddenFolder, "That folder can't be used for the Vault, so nothing was added.")]
+    public async Task AddToVault_AFolderTheEngineRefuses_ClosesThePad_AndSaysWhyInPlainWords(string folder, string expected)
+    {
+        var (dialogs, onboarding) = await OnboardingAsync();
+        _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
+
+        var task = onboarding.AddFolderAsync(folder, Me, administratorHasPin: true);
+        await PressAsync(dialogs, "I confirm");
+        dialogs.WaitForAssertion(() => Assert.Contains("Enter your PIN to continue", dialogs.Markup));
+        await TypePinAsync(dialogs, AdminPin);
+        await PressAsync(dialogs, "Add folder");
+        var result = await task;
+
+        Assert.Equal(VaultOnboardingOutcome.FolderNotAdded, result.Outcome);
+        Assert.Equal(expected, result.Message);
+        Assert.DoesNotContain(folder, result.Message!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AddToVault_AnEngineThatCannotBeReached_IsToldPlainly_AndAddsNothing()
+    {
+        var (dialogs, onboarding) = await OnboardingAsync();
+        _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
+        _stub.SetHandler(nameof(IEngineApiClient.AttachVaultFolderAsync), _ => Task.FromResult(VaultCall<VaultLibraryDto>.Of(VaultOutcome.Failed)));
+
+        var task = onboarding.AddFolderAsync("/media/adult", Me, administratorHasPin: true);
+        await PressAsync(dialogs, "I confirm");
+        dialogs.WaitForAssertion(() => Assert.Contains("Enter your PIN to continue", dialogs.Markup));
+        await TypePinAsync(dialogs, AdminPin);
+        await PressAsync(dialogs, "Add folder");
+        var result = await task;
+
+        Assert.Equal(VaultOnboardingOutcome.FolderNotAdded, result.Outcome);
+        Assert.Equal(VaultMessages.Unreachable, result.Message);
     }
 
     [Fact]
@@ -705,17 +784,6 @@ public sealed class VaultExperienceTests : AsyncBunitContext
 
         Assert.Equal(VaultOnboardingOutcome.NotAvailable, result.Outcome);
         Assert.DoesNotContain(nameof(IEngineApiClient.GetVaultLibrariesAsync), _stub.Calls);
-    }
-
-    private sealed class SpyAttachment : IVaultFolderAttachment
-    {
-        public List<(string Library, string Folder)> Attached { get; } = [];
-
-        public Task<VaultFolderAttachmentResult> AttachAsync(VaultLibraryDto library, string folderPath, CancellationToken ct = default)
-        {
-            Attached.Add((library.Id, folderPath));
-            return Task.FromResult(VaultFolderAttachmentResult.Attached);
-        }
     }
 
     // -- The profile page: own switch and PIN, administrator access ------------------------------------------------------

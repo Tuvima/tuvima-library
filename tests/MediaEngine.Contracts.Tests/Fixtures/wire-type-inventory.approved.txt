@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1146; api=0; web-client=54
+# scopes: contracts=1147; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10938,6 +10938,12 @@
   Member: MediaEngine.Contracts.Universe.UniverseClientCastMemberDto | json=member | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | json=sources | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"member":null,"sources":[]}
+
+[contracts] MediaEngine.Contracts.Vault.AttachVaultFolderRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  FolderPath: System.String | json=folder_path | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"folder_path":"sample","admin_pin":"sample"}
 
 [contracts] MediaEngine.Contracts.Vault.CreateVaultLibraryRequest
   kind=class | converter=default | number-handling=default | unmapped=default

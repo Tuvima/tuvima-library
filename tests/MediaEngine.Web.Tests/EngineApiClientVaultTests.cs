@@ -119,6 +119,44 @@ public sealed class EngineApiClientVaultTests
         Assert.DoesNotContain(logs.Entries, entry => entry.Message.Contains(Pin, StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound, VaultOutcome.NotAvailable)]
+    [InlineData(HttpStatusCode.PreconditionRequired, VaultOutcome.PinRequired)]
+    [InlineData(HttpStatusCode.TooManyRequests, VaultOutcome.TooManyAttempts)]
+    [InlineData(HttpStatusCode.BadRequest, VaultOutcome.Rejected)]
+    [InlineData(HttpStatusCode.Conflict, VaultOutcome.Rejected)]
+    public async Task AttachFolder_SendsTheFolderAndPinOnlyInTheBody_AndTellsEachRefusalApart(HttpStatusCode status, VaultOutcome expected)
+    {
+        const string folder = "/media/secret-folder";
+        var (client, requests, logs) = Client(_ => Problem(status, status == HttpStatusCode.Conflict ? "Conflict." : "Invalid request.", "That folder wasn't found on the server, so nothing was added."));
+
+        var call = await client.AttachVaultFolderAsync("v1", new AttachVaultFolderRequest { FolderPath = folder, AdminPin = Pin });
+
+        Assert.Equal(expected, call.Outcome);
+        var sent = Assert.Single(requests);
+        Assert.Equal(HttpMethod.Post, sent.Method);
+        Assert.Equal("/api/v1/vault/libraries/v1/folders", sent.Path);
+        Assert.DoesNotContain("secret-folder", sent.Path, StringComparison.Ordinal);
+        Assert.Contains(folder, sent.Body, StringComparison.Ordinal);
+        Assert.Contains($"\"admin_pin\":\"{Pin}\"", sent.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain(logs.Entries, entry => entry.Message.Contains(Pin, StringComparison.Ordinal) || entry.Message.Contains("secret-folder", StringComparison.Ordinal));
+        if (expected == VaultOutcome.Rejected)
+        {
+            Assert.Equal("That folder wasn't found on the server, so nothing was added.", VaultMessages.For(call));
+        }
+    }
+
+    [Fact]
+    public async Task AttachFolder_Succeeds_WhenTheEngineReturnsTheLibrary()
+    {
+        var (client, _, _) = Client(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new VaultLibraryDto { Id = "v1", LookupSource = "none" }) });
+
+        var call = await client.AttachVaultFolderAsync("v1", new AttachVaultFolderRequest { FolderPath = "/media/adult", AdminPin = Pin });
+
+        Assert.True(call.Succeeded);
+        Assert.Equal("v1", call.Value!.Id);
+    }
+
     [Fact]
     public async Task TheLibraryCalls_UseTheEnginesRoutes()
     {

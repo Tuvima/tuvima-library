@@ -35,6 +35,9 @@ public partial interface IEngineApiClient
     /// <summary>PUT /api/v1/vault/libraries/{id} - change a Vault library's lookup source.</summary>
     Task<VaultCall<VaultLibraryDto>> UpdateVaultLibraryAsync(string libraryId, UpdateVaultLibraryRequest request, CancellationToken ct = default);
 
+    /// <summary>POST /api/v1/vault/libraries/{id}/folders - put a server folder into the Vault library (asks for the administrator's own PIN). The path travels in the body, never in the address.</summary>
+    Task<VaultCall<VaultLibraryDto>> AttachVaultFolderAsync(string libraryId, AttachVaultFolderRequest request, CancellationToken ct = default);
+
     /// <summary>POST /api/v1/vault/libraries/{id}/remove - remove a Vault library.</summary>
     Task<VaultCall<bool>> RemoveVaultLibraryAsync(string libraryId, RemoveVaultLibraryRequest request, CancellationToken ct = default);
 

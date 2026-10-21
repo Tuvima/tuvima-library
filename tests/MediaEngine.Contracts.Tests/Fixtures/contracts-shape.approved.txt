@@ -9283,6 +9283,10 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseSourcedCas
   Member: MediaEngine.Contracts.Universe.UniverseClientCastMemberDto | nullability=not-null | accessors=get,init
   Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.AttachVaultFolderRequest
+  FolderPath: System.String | nullability=not-null | accessors=get,init
+  AdminPin: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.CreateVaultLibraryRequest
   LookupSource: System.String | nullability=not-null | accessors=get,init
   LookupServerId: System.String | nullability=nullable | accessors=get,init

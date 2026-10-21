@@ -123,3 +123,15 @@ public sealed class RemoveVaultLibraryRequest
     [JsonPropertyName("admin_pin")]
     public string? AdminPin { get; init; }
 }
+
+/// <summary>Puts a folder on the server into a Vault library. Asked for by an unlocked administrator, with their own profile PIN.</summary>
+public sealed class AttachVaultFolderRequest
+{
+    /// <summary>The folder as the server sees it. Never logged.</summary>
+    [JsonPropertyName("folder_path")]
+    public string FolderPath { get; init; } = string.Empty;
+
+    /// <summary>The administrator's own profile PIN, asked for again at this moment.</summary>
+    [JsonPropertyName("admin_pin")]
+    public string? AdminPin { get; init; }
+}

@@ -593,8 +593,7 @@
         }
     }
 
-    // The Vault choice: PIN check, adults-only confirmation, library creation. Attaching the folder is the marked seam in
-    // IVaultFolderAttachment, so until the Engine can do it the person is told plainly that the folder was not added.
+    // The Vault choice: adults-only confirmation, then one PIN entry that creates the Vault library if needed and has the Engine add the folder.
     private async Task AddToVaultAsync(string folderPath)
     {
         var administrator = await Orchestrator.GetActiveProfileAsync();
@@ -603,8 +602,7 @@
         _notice = result.Outcome switch
         {
             MediaEngine.Web.Services.Vault.VaultOnboardingOutcome.FolderAttached => "Folder added to the Vault.",
-            MediaEngine.Web.Services.Vault.VaultOnboardingOutcome.LibraryReadyFolderNotAttached => result.Message,
-            MediaEngine.Web.Services.Vault.VaultOnboardingOutcome.Failed => result.Message ?? MediaEngine.Web.Services.Vault.VaultMessages.Unreachable,
+            MediaEngine.Web.Services.Vault.VaultOnboardingOutcome.FolderNotAdded => result.Message ?? MediaEngine.Web.Services.Vault.VaultLibraryOnboarding.NotAdded,
             _ => null,
         };
     }

@@ -103,6 +103,13 @@ public sealed partial class EngineApiClient
         return updated is null ? FailedVaultCall<VaultLibraryDto>() : VaultCall<VaultLibraryDto>.Ok(updated);
     }
 
+    public async Task<VaultCall<VaultLibraryDto>> AttachVaultFolderAsync(string libraryId, AttachVaultFolderRequest request, CancellationToken ct = default)
+    {
+        var attached = await PostAsync<AttachVaultFolderRequest, VaultLibraryDto>(
+            "POST /api/v1/vault/libraries/{id}/folders", $"{VaultLibrariesPath}/{Uri.EscapeDataString(libraryId)}/folders", request, logAsWarning: false, ct: ct);
+        return attached is null ? FailedVaultCall<VaultLibraryDto>() : VaultCall<VaultLibraryDto>.Ok(attached);
+    }
+
     public async Task<VaultCall<bool>> RemoveVaultLibraryAsync(string libraryId, RemoveVaultLibraryRequest request, CancellationToken ct = default) =>
         await PostAsync(
             "POST /api/v1/vault/libraries/{id}/remove", $"{VaultLibrariesPath}/{Uri.EscapeDataString(libraryId)}/remove", request, logAsWarning: false, ct: ct)

@@ -4,6 +4,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.Settings;
+using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Ingestion.Contracts;
@@ -26,11 +27,18 @@ internal static class LibraryMutationEndpoints
         group.MapPost("/libraries/mutations", async (LibraryMutationRequest request,
             IConfigurationLoader configuration, ServerFolderBrowserService folders,
             IFileOrganizer organizer, ViewStorageService storage, IProfileRepository profiles,
-            IViewProfileRepository policies, ImportFolderApplier importFolder, FolderJobService folderJobs, CancellationToken ct) =>
+            IViewProfileRepository policies, ImportFolderApplier importFolder, FolderJobService folderJobs, IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
             await WriteGate.WaitAsync(ct);
             try
             {
+                var vaultIds = await vaultLibraries.GetIdsAsync(ct);
+                // A Vault library is not edited from the library settings (Videos spec D45); it answers as a library that does not exist.
+                if (request.Library is { } requested && vaultIds.Contains(requested.Id))
+                {
+                    return ApiErrors.NotFound("Not found.");
+                }
+
                 var current = configuration.LoadLibraries();
                 var dto = SettingsContractMapper.ToContract(current);
                 var conflict = ApplyEdit(dto, request);
@@ -52,7 +60,8 @@ internal static class LibraryMutationEndpoints
                 FolderJobService.KeepEngineOwnedConversionState(current, proposed);
                 var error = SettingsEndpoints.ValidateViewStorage(proposed)
                     ?? SettingsEndpoints.ValidateViewRootChange(current, proposed)
-                    ?? LibraryTypeRules.ValidateOneLibraryPerType(current, proposed)
+                    ?? LibraryTypeRules.ValidateOneLibraryPerType(
+                        VaultLibrarySettings.WithoutVault(current, vaultIds), VaultLibrarySettings.WithoutVault(proposed, vaultIds))
                     ?? ImportFolderValidation.Validate(proposed);
                 if (error is not null)
                 {
@@ -118,7 +127,7 @@ internal static class LibraryMutationEndpoints
                     }
                 }
 
-                return Results.Ok(SettingsContractMapper.ToContract(proposed));
+                return Results.Ok(SettingsContractMapper.ToContract(VaultLibrarySettings.WithoutVault(proposed, vaultIds)));
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException or ServerFolderAccessException)
             {

@@ -353,25 +353,31 @@ public static class SettingsEndpoints
         .RequireEffectiveAdministrator();
 
         // ── GET/PUT /settings/libraries ───────────────────────────────────────
-        grp.MapGet("/libraries", (IConfigurationLoader configLoader) =>
+        grp.MapGet("/libraries", async (IConfigurationLoader configLoader, IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
-            return Results.Ok(SettingsContractMapper.ToContract(configLoader.LoadLibraries()));
+            // Vault libraries are in no Libraries list (Videos spec D45).
+            return Results.Ok(SettingsContractMapper.ToContract(
+                MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(configLoader.LoadLibraries(), await vaultLibraries.GetIdsAsync(ct))));
         })
         .WithName("GetLibraries")
         .WithSummary("Returns schema 7 catalogued libraries, the single View root, and approved storage.")
         .Produces<LibrariesConfigurationSettingsDto>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageStatusRead);
 
-        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, CancellationToken ct) =>
+        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
             await LibraryMutationEndpoints.WriteGate.WaitAsync(ct);
             try
             {
                 var config = SettingsContractMapper.ToStorage(request);
+                var vaultIds = await vaultLibraries.GetIdsAsync(ct);
+                MediaEngine.Api.Services.Vault.VaultLibrarySettings.KeepVault(configLoader.LoadLibraries(), config, vaultIds);
                 MediaEngine.Api.Services.Libraries.FolderJobService.KeepEngineOwnedConversionState(configLoader.LoadLibraries(), config);
                 var viewError = ValidateViewStorage(config)
                     ?? ValidateViewRootChange(configLoader.LoadLibraries(), config)
-                    ?? MediaEngine.Api.Services.Settings.LibraryTypeRules.ValidateOneLibraryPerType(configLoader.LoadLibraries(), config)
+                    ?? MediaEngine.Api.Services.Settings.LibraryTypeRules.ValidateOneLibraryPerType(
+                        MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(configLoader.LoadLibraries(), vaultIds),
+                        MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(config, vaultIds))
                     ?? MediaEngine.Api.Services.Settings.ImportFolderValidation.Validate(config);
                 if (viewError is not null)
                 {
@@ -406,7 +412,7 @@ public static class SettingsEndpoints
                     }
                 }
 
-                return Results.Ok(SettingsContractMapper.ToContract(config));
+                return Results.Ok(SettingsContractMapper.ToContract(MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(config, vaultIds)));
             }
             finally { LibraryMutationEndpoints.WriteGate.Release(); }
         })

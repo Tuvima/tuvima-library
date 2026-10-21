@@ -232,6 +232,35 @@ public static class VaultEndpoints
         }).WithName("UpdateVaultLibrary").Produces<VaultLibraryDto>().ProducesProblem(StatusCodes.Status428PreconditionRequired)
           .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireEffectiveAdministratorInPerson();
 
+        // Puts a folder on the server into a Vault library. Like every action that opens the Vault up it is for an unlocked administrator
+        // in person and asks for their own profile PIN again; anyone else gets "not found". A missing or unusable folder adds nothing.
+        libraries.MapPost("/{libraryId}/folders", async (string libraryId, AttachVaultFolderRequest request, HttpContext http, IRequestAuthorityResolver resolver, VaultFolderAttachmentService attachment, VaultAccessResolver access, CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            if (!authority.IsEffectiveAdministrator || authority.ActiveProfileId is not { } adminProfileId || adminProfileId == Guid.Empty || !await access.IsUnlockedAsync(authority, ct))
+            {
+                return ApiErrors.NotFound("Not found.");
+            }
+
+            try
+            {
+                var outcome = await attachment.AttachAsync(adminProfileId, libraryId, request.FolderPath, request.AdminPin, ct);
+                return outcome.Status switch
+                {
+                    VaultFolderAttachmentStatus.Attached when outcome.Library is { } attached => Results.Ok(ToDto(attached)),
+                    VaultFolderAttachmentStatus.FolderNotFound => ApiErrors.BadRequest(outcome.Message ?? VaultFolderAttachmentService.FolderNotFoundMessage),
+                    VaultFolderAttachmentStatus.NotAllowed => ApiErrors.Conflict(outcome.Message ?? VaultFolderAttachmentService.FolderNotAllowedMessage),
+                    _ => ApiErrors.NotFound("Not found."),
+                };
+            }
+            catch (Exception ex) when (ex is VaultAdminPinNotSetException or ProfilePinRequiredException or ProfilePinLockedException)
+            {
+                return PinFailure(ex);
+            }
+        }).WithName("AttachVaultFolder").Produces<VaultLibraryDto>().ProducesProblem(StatusCodes.Status400BadRequest)
+          .ProducesProblem(StatusCodes.Status409Conflict).ProducesProblem(StatusCodes.Status428PreconditionRequired)
+          .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireEffectiveAdministratorInPerson();
+
         libraries.MapPost("/{libraryId}/remove", async (string libraryId, RemoveVaultLibraryRequest request, HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault, VaultAccessResolver access, CancellationToken ct) =>
         {
             var authority = await resolver.ResolveAsync(http, ct);

@@ -96,6 +96,11 @@
   input itemId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
   response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
 
+[method] AttachVaultFolderAsync
+  input libraryId | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+  input request | default=required | shape=285905c16dfb29da5ab8f3de869b16f5759bb16d5f88c8f1abe0c642694904d0
+  response | shape=eba0cd40a4f9c9befa4729bc58e1924227158eb0b5ab83151917ae89a0314590
+
 [method] BeginSetupAsync
   input request | default=required | shape=e57947000a92099458059a086970ebeee4452ba16f914026a9b4b04d4fe72d3f
   response | shape=2268e19877f4de5768abb073403d0010b8cfd9031a7f131b2bceda61b137e8d3
@@ -4289,6 +4294,12 @@ property=connection | nullability=nullable | accessors=get,init | required=no | 
 property=offline | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
 property=client_timestamp | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=9313ffee236981b5ad45b01ec789f0975aeba31e050d5094f6446bc2d58447e6
 sample={"profileId":"11111111-2222-3333-4444-555555555555","sessionId":"11111111-2222-3333-4444-555555555555","sequence":7,"deviceId":"sample","client":"sample","queueItemId":"11111111-2222-3333-4444-555555555555","assetId":"11111111-2222-3333-4444-555555555555","isPlaying":true,"hasPlaybackEnded":true,"positionSeconds":7,"durationSeconds":7,"progressPct":7,"volume":7,"isMuted":true,"playbackRate":7,"stateVersion":7,"chapterIndex":7,"chapterTitle":"sample","audiobookStartKind":"sample","connection":null,"offline":true,"client_timestamp":"2025-01-02T03:04:05+00:00"}
+
+[shape] 285905c16dfb29da5ab8f3de869b16f5759bb16d5f88c8f1abe0c642694904d0
+direction=write | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=folder_path | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+property=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+sample={"folder_path":"sample","admin_pin":"sample"}
 
 [shape] 28620537113b50135b8ae7afcca90fc806db8f97772dd7c2c9ac48012417e5cc
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
