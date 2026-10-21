@@ -199,7 +199,7 @@ public sealed class StashBoxClient
 
             if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MaxReplyBytes)
             {
-                _logger.LogInformation("A stash-box server at {Host} answered with status {Status}", address.Host, (int)response.StatusCode);
+                _logger.LogInformation("A stash-box server at {Host} answered with status {Status}", SafeHost(address), (int)response.StatusCode);
                 return new RawReply("unavailable", null);
             }
 
@@ -226,10 +226,14 @@ public sealed class StashBoxClient
                 throw;
             }
 
-            _logger.LogInformation("A stash-box server at {Host} is unavailable: {Reason}", address.Host, ex.GetType().Name);
+            _logger.LogInformation("A stash-box server at {Host} is unavailable: {Reason}", SafeHost(address), ex.GetType().Name);
             return new RawReply("unavailable", null);
         }
     }
+
+    /// <summary>The server host with anything but letters, digits, dots, colons and dashes removed, so an entered address cannot forge log lines.</summary>
+    private static string SafeHost(Uri address) =>
+        new(address.Host.Where(c => char.IsAsciiLetterOrDigit(c) || c is '.' or ':' or '-').ToArray());
 
     private async Task WaitTurnAsync(CancellationToken ct)
     {
