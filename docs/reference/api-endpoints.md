@@ -430,8 +430,14 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/stream/{assetId}` | Stream media file. Supports HTTP 206 byte-range requests for seeking. | Required |
-| GET | `/stream/{assetId}/cover` | Full-size cover art (JPEG) | Required |
-| GET | `/stream/{assetId}/cover-thumb` | 200px-wide thumbnail (JPEG, quality 75, SkiaSharp-generated) | Required |
+| GET | `/stream/{assetId}/cover?size=` | The item's preferred cover. `size` is `t` (96 px long side), `s` (320), `m` (960) or `l` (2160); no size sends the original. | Required |
+| GET | `/stream/{assetId}/cover-thumb` | The item's cover at the small copy (320 px long side). | Required |
+| GET | `/stream/{assetId}/background?size=` | The item's preferred background, at a copy when `size` is given. | Required |
+| GET | `/stream/{assetId}/logo` | The item's preferred logo, as stored (logos have no copies). | Required |
+| GET | `/stream/artwork/{variantId}?size=&v=` | One stored artwork variant. `size` is `t` (96 px long side), `s` (320), `m` (960) or `l` (2160); any other value is `400`. `v` is the picture's change marker. | Required |
+| GET | `/stream/entity/{entityType}/{entityId}/cover?size=` | The cover a detail page shows, at a copy when `size` is given. | Required |
+
+**Picture sizes and browser keep (right-sized pictures).** A picture route given a size answers with that copy. When the copy is missing it sends the next bigger copy and makes the missing one in the background; when only the original exists it makes the copies first. It never sends the original for a sized request when a copy can be made. Responses are `Cache-Control: private` (the viewer's own browser only). A response is kept for a year (`max-age=31536000, immutable`) only when the address carries `v=` matching the picture's current change marker and the exact size was sent; everything else is `no-cache` with an `ETag` and `Last-Modified`, so an unchanged picture costs a `304` with no body. The "no picture" placeholder is `no-store`. The Dashboard's `/engine-image/…` relay forwards `If-None-Match` and `If-Modified-Since` and passes these headers back unchanged.
 
 ---
 
@@ -498,6 +504,7 @@ unauthorized identifiers return the same not-found shape as missing resources.
 |---|---|---|---|
 | GET | `/persons/{id}` | Person detail - biographical data, roles, library presence, social links | Required |
 | GET | `/persons/{id}/aliases` | Pseudonym list for a person, including resolved Wikidata aliases | Required |
+| GET | `/persons/{id}/headshot?size=&v=` | The person's face. `size` is `t` (96 px long side), `s` (320), `m` (960) or `l` (2160). Every face is a managed picture with all four copies; a face saved by the older direct download is adopted the first time it is asked for. | Required |
 
 ---
 
@@ -798,7 +805,7 @@ A device is **live** when its last heartbeat was playing or paused and arrived w
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/library/portraits/{portraitId}` | Stream one character portrait image (used by Cast and person credits) | Required |
+| GET | `/library/portraits/{portraitId}?size=&v=` | Stream one character portrait image (used by Cast and person credits). `size` is `t` (96 px long side), `s` (320), `m` (960) or `l` (2160); each copy is made the first time it is asked for. | Required |
 | POST | `/library/enrichment/universe/trigger` | Queue a universe enrichment sweep (takes no QID) | Effective administrator or precise Application permission |
 
 ---
