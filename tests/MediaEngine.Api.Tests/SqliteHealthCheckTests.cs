@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Api.Services.HealthChecks;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace MediaEngine.Api.Tests;
@@ -57,11 +58,7 @@ public sealed class SqliteHealthCheckTests : IDisposable
 
     public void Dispose()
     {
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-        foreach (var path in new[] { _databasePath, _databasePath + "-wal", _databasePath + "-shm" })
-        {
-            try { File.Delete(path); }
-            catch (IOException) { /* temp file still in use; the OS temp cleaner removes it */ }
-        }
+        _database.Dispose();
+        TestTemp.DeleteDatabase(_databasePath);
     }
 }
