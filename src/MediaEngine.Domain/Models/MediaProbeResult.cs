@@ -56,6 +56,9 @@ public sealed record MediaProbeResult
     public int ChapterCount { get; init; }
     public IReadOnlyList<MediaProbeChapter> Chapters { get; init; } = [];
     public IReadOnlyList<string> SubtitleLanguages { get; init; } = [];
+
+    /// <summary>Every subtitle stream in the container, with the absolute stream index ffmpeg maps it by.</summary>
+    public IReadOnlyList<EmbeddedSubtitleStream> SubtitleStreams { get; init; } = [];
 }
 
 public sealed record MediaProbeChapter(

@@ -420,6 +420,7 @@ public sealed class FFmpegService : IFFmpegService
             double? frameRate = null;
             bool hasCover = false;
             var subtitleLanguages = new List<string>();
+            var subtitleStreams = new List<EmbeddedSubtitleStream>();
             var audioStreams = new List<MediaProbeAudioStream>();
 
             if (root.TryGetProperty("streams", out var streams))
@@ -508,6 +509,20 @@ public sealed class FFmpegService : IFFmpegService
                             subtitleLanguage = TryReadLanguage(subtitleTags);
                         }
 
+                        var streamIndex = stream.TryGetProperty("index", out var streamIndexElement) && streamIndexElement.TryGetInt32(out var streamIndexValue)
+                            ? streamIndexValue
+                            : -1;
+                        if (streamIndex >= 0)
+                        {
+                            var flags = stream.TryGetProperty("disposition", out var subtitleDisposition) ? subtitleDisposition : (JsonElement?)null;
+                            subtitleStreams.Add(new EmbeddedSubtitleStream(
+                                streamIndex,
+                                codecName,
+                                subtitleLanguage ?? "und",
+                                flags?.TryGetProperty("forced", out var forcedFlag) == true && forcedFlag.GetInt32() == 1,
+                                flags?.TryGetProperty("hearing_impaired", out var hearingFlag) == true && hearingFlag.GetInt32() == 1));
+                        }
+
                         subtitleLanguage ??= codecName;
                         if (!string.IsNullOrWhiteSpace(subtitleLanguage))
                         {
@@ -592,6 +607,7 @@ public sealed class FFmpegService : IFFmpegService
                 ChapterCount = chapterCount,
                 Chapters = parsedChapters,
                 SubtitleLanguages = subtitleLanguages,
+                SubtitleStreams = subtitleStreams,
             };
         }
         catch
