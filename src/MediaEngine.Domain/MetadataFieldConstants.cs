@@ -177,6 +177,7 @@ public static class MetadataFieldConstants
         "producer",
         "guest_star",
         "author",
+        "creator",
         "narrator",
         "director",
         "illustrator",
