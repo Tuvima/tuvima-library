@@ -60,6 +60,10 @@ Choose **Bookmarks** in the video player (or the audiobook player) to open one p
 
 Each bookmark is a tick on the progress rail beside the file's own chapters. Point at a tick (or tap it on a touch screen) to see its short note; if it has a longer description, choose **More**. Bookmarks are personal to the profile that made them. A server administrator can switch on **Share with everyone** when adding, which makes a shared bookmark with a different tick shade and a small "Everyone" label; everyone who can see the title sees it, and only administrators can delete it. Adding a bookmark works on a phone or tablet and does not need Editing Mode.
 
+### Bookmark packs
+
+At the bottom of **Saved** in the video player, **Export** lets you pick some of your own bookmarks, review them and save a small pack file you can give to someone else; **Import** reads a pack someone gave you. The pack holds only how to recognise the film or show and each bookmark's time, end, chapter name, short note and longer description: no file paths, no profile names and nothing about what you watched. If the pack is for a different title it is refused; if it was made on a different cut (another running time or edition) you can **Align by chapter** or **Skip**. Imported bookmarks are read-only **pack bookmarks**, shown with the pack's name and author and their own tick shade on the progress rail, and each pack can be switched off or removed. They belong to your profile, are included in your library backups, and are not offered in the Vault.
+
 ## Resume and save separately
 
 Continue shelves and resume actions follow progress. Completed items show their completion state. Albums, tracks, and View items do not use long-form completion bars.

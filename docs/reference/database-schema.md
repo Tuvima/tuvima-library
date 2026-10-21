@@ -1304,7 +1304,39 @@ Saved playback positions in a video or an audiobook (the table keeps its audiobo
 | `note` | TEXT | The short note (up to 200 characters); on a bookmark saved before the longer description existed, its text |
 | `description` | TEXT | Optional longer description (up to 4,000 characters) |
 | `is_global` | INTEGER | 1 when shared with everyone (upgrade step 0029); 0 for a personal bookmark |
+| `end_seconds` | REAL | Optional end of a bookmark that marks a part of the video (a scene), after `position_seconds` (upgrade step 0031); NULL for a plain bookmark |
 | `created_at` | TEXT | Timestamp |
+
+### bookmark_packs
+
+One imported bookmark pack on one title for one profile (Videos spec D46, upgrade step 0031). The pack's bookmarks are read-only and live in `bookmark_pack_items`. `asset_id` is the file the pack was imported on: a pack on a file the caller cannot see (a Vault file without an unlocked session) is not listed, counted or found. A pack is never exported from the Vault.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | UUID, primary key |
+| `profile_id` | BLOB | FK -> `profiles.id`; the profile that imported the pack |
+| `work_id` | BLOB | FK -> `works.id` |
+| `asset_id` | BLOB | FK -> `media_assets.id` |
+| `name` | TEXT | The pack's name, shown on its bookmarks |
+| `author` | TEXT | Optional author typed by whoever exported the pack |
+| `content_hash` | TEXT | Fingerprint of the pack's content; unique per profile and title so the same pack is not added twice |
+| `source_running_time_seconds` | REAL | Running time of the copy the pack was made on |
+| `source_edition` | TEXT | Edition label of that copy |
+| `is_aligned` | INTEGER | 1 when the pack was for a different cut and was aligned by chapter on import |
+| `is_enabled` | INTEGER | 0 hides the pack's ticks and rows without removing it |
+| `imported_at` | TEXT | Timestamp |
+
+### bookmark_pack_items
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | UUID, primary key |
+| `pack_id` | BLOB | FK -> `bookmark_packs.id` (cascade) |
+| `position_seconds` | REAL | Time of the bookmark |
+| `end_seconds` | REAL | Optional end, after the time |
+| `chapter_title` | TEXT | Optional chapter name |
+| `note` | TEXT | Short note (up to 200 characters) |
+| `description` | TEXT | Longer description (up to 4,000 characters) |
 
 ### audiobook_chapter_title_overrides
 

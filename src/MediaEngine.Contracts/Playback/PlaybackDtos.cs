@@ -211,6 +211,8 @@ public sealed record AudiobookBookmarkDto
     public string? ChapterTitle { get; init; }
     public double PositionSeconds { get; init; }
     public double? DurationSeconds { get; init; }
+    /// <summary>Where the part ends, in seconds, when the bookmark marks a part of the video (a scene). Null for a plain bookmark.</summary>
+    public double? EndSeconds { get; init; }
     public string? Label { get; init; }
     /// <summary>The short note, up to 200 characters.</summary>
     public string? Note { get; init; }
@@ -239,6 +241,8 @@ public sealed record CreateAudiobookBookmarkRequestDto
     public string? ChapterTitle { get; init; }
     public double PositionSeconds { get; init; }
     public double? DurationSeconds { get; init; }
+    /// <summary>Where the part ends, in seconds, when the bookmark marks a part of the video (a scene). Must be after the position.</summary>
+    public double? EndSeconds { get; init; }
     public string? Label { get; init; }
     public string? Note { get; init; }
     /// <summary>The optional longer description, up to 4,000 characters.</summary>

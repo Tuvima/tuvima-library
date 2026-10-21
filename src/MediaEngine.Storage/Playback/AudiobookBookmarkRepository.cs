@@ -40,6 +40,7 @@ public sealed class AudiobookBookmarkRepository
                    chapter_title AS ChapterTitle,
                    position_seconds AS PositionSeconds,
                    duration_seconds AS DurationSeconds,
+                   end_seconds AS EndSeconds,
                    label AS Label,
                    note AS Note,
                    description AS Description,
@@ -83,6 +84,7 @@ public sealed class AudiobookBookmarkRepository
                 ChapterTitle = BlankToNull(request.ChapterTitle),
                 PositionSeconds = request.PositionSeconds,
                 DurationSeconds = request.DurationSeconds,
+                EndSeconds = request.EndSeconds,
                 Label = BlankToNull(request.Label),
                 Note = BlankToNull(request.Note),
                 Description = BlankToNull(request.Description),
@@ -94,10 +96,10 @@ public sealed class AudiobookBookmarkRepository
                 """
                 INSERT INTO audiobook_bookmarks
                     (id, profile_id, work_id, asset_id, chapter_index, chapter_title,
-                     position_seconds, duration_seconds, label, note, description, is_global, created_at)
+                     position_seconds, duration_seconds, end_seconds, label, note, description, is_global, created_at)
                 VALUES
                     (@Id, @ProfileId, @WorkId, @AssetId, @ChapterIndex, @ChapterTitle,
-                     @PositionSeconds, @DurationSeconds, @Label, @Note, @Description, @IsGlobal, @CreatedAt);
+                     @PositionSeconds, @DurationSeconds, @EndSeconds, @Label, @Note, @Description, @IsGlobal, @CreatedAt);
                 """,
                 new
                 {
@@ -109,6 +111,7 @@ public sealed class AudiobookBookmarkRepository
                     bookmark.ChapterTitle,
                     bookmark.PositionSeconds,
                     bookmark.DurationSeconds,
+                    bookmark.EndSeconds,
                     bookmark.Label,
                     bookmark.Note,
                     bookmark.Description,
@@ -162,6 +165,7 @@ public sealed class AudiobookBookmarkRepository
         ChapterTitle = row.ChapterTitle,
         PositionSeconds = row.PositionSeconds,
         DurationSeconds = row.DurationSeconds,
+        EndSeconds = row.EndSeconds,
         Label = row.Label,
         Note = row.Note,
         Description = row.Description,
@@ -182,6 +186,7 @@ public sealed class AudiobookBookmarkRepository
         public string? ChapterTitle { get; init; }
         public double PositionSeconds { get; init; }
         public double? DurationSeconds { get; init; }
+        public double? EndSeconds { get; init; }
         public string? Label { get; init; }
         public string? Note { get; init; }
         public string? Description { get; init; }

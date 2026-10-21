@@ -175,6 +175,7 @@
                         }
                     </div>
                 }
+                @if (SavedExtras is not null) { @SavedExtras }
                 @if (ShowMessage is { } savedMessage)
                 {
                     <div class="audiobook-bookmark-dialog__message" role="status">@savedMessage</div>
@@ -202,6 +203,8 @@
     [Parameter] public string PositionLabel { get; set; } = "Listening position";
     /// <summary>Opens on Add even when embedded, so the position is captured and ready the moment the panel opens.</summary>
     [Parameter] public bool StartOnAdd { get; set; }
+    /// <summary>Extra content at the end of the Saved tab (videos: bookmark packs, Videos spec D46).</summary>
+    [Parameter] public RenderFragment? SavedExtras { get; set; }
 
     private readonly BookmarkFormModel _form = new();
     private readonly string _noteId = $"bookmark-note-{Guid.NewGuid():N}";

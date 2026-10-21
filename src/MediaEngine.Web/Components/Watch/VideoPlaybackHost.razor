@@ -111,7 +111,8 @@
                                 <VideoBookmarkPanel ProfileId="@(Playback.ActiveProfileId ?? Guid.Empty)" WorkId="@bookmarkWorkId" AssetId="@bookmarkAssetId"
                                                     Title="@Playback.CurrentItem.Title" Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds"
                                                     Chapters="@VideoChapters" CanShare="@CanShareBookmarks" JumpTo="JumpToBookmarkAsync"
-                                                    SavedChanged="HandleBookmarksSaved" OnClose="CloseBookmarksAsync" />
+                                                    SavedChanged="HandleBookmarksSaved" OnClose="CloseBookmarksAsync"
+                                                    AllowPacks="@(!Playback.CurrentItem.IsVault)" Packs="@_packs" PacksChanged="ReloadPacksAsync" />
                             </ChildContent>
                         </PlaybackPopover>
                     }
@@ -240,6 +241,9 @@
     private bool _rateMenuOpen;
     // The title's saved bookmarks, drawn as ticks beside the chapters (Videos spec D43). Loaded again whenever the video changes.
     private IReadOnlyList<PlaybackRailBookmark> _railBookmarks = [];
+    // The profile's own, shared and pack bookmarks are kept apart so a change to one redraws the rail without the others being reloaded.
+    private IReadOnlyList<AudiobookBookmarkDto> _railSaved = [];
+    private IReadOnlyList<BookmarkPackDto> _packs = [];
     private Task? _railBookmarksLoad;
     private bool CanShareBookmarks => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
     private Guid? _loadedSubtitleAssetId;
@@ -413,6 +417,8 @@
         _selectedAudioTrackIndex = null; _textTrackStatus = null; _textTrackLoading = false;
         _profileAudioAppliedFor = null;
         _railBookmarks = [];
+        _railSaved = [];
+        _packs = [];
         if (identity?.ProfileId != _profileSubtitlesProfile) { _profileSubtitles = null; _profileSubtitlesProfile = identity?.ProfileId; }
         Tools.Close(); _rateMenuOpen = false;
         if (identity is null) return;
@@ -430,7 +436,17 @@
             if (_disposed || ct.IsCancellationRequested || !identity.IsCurrent(Playback)) return;
             if (result is { Outcome: AudiobookBookmarkOperationOutcome.Success, Value: { } saved })
             {
-                ShowRailBookmarks(saved.Where(bookmark => bookmark.AssetId == identity.AssetId));
+                _railSaved = saved.Where(bookmark => bookmark.AssetId == identity.AssetId).ToList();
+                RebuildRail();
+            }
+
+            // A Vault video has no packs: they cannot be made or added there.
+            if (Playback.CurrentItem is { IsVault: false })
+            {
+                var packs = await ApiClient.GetBookmarkPacksAsync(identity.WorkId, identity.ProfileId, ct);
+                if (_disposed || ct.IsCancellationRequested || !identity.IsCurrent(Playback)) return;
+                _packs = packs;
+                RebuildRail();
             }
         }
         catch (OperationCanceledException)
@@ -440,15 +456,29 @@
         }
     }
 
-    private void ShowRailBookmarks(IEnumerable<AudiobookBookmarkDto> saved)
+    private void RebuildRail()
     {
-        _railBookmarks = PlaybackRailBookmark.From(saved, Playback.DurationSeconds);
+        _railBookmarks = PlaybackRailBookmark.From(_railSaved, Playback.DurationSeconds)
+            .Concat(PlaybackRailBookmark.FromPacks(_packs, Playback.DurationSeconds))
+            .OrderBy(bookmark => bookmark.Seconds).ToList();
         if (!_disposed) _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ReloadPacksAsync()
+    {
+        if (VideoPlaybackIdentity.Capture(Playback) is not { } identity) return;
+        _packs = await ApiClient.GetBookmarkPacksAsync(identity.WorkId, identity.ProfileId);
+        RebuildRail();
     }
 
     private Task HandleBookmarksSaved(IReadOnlyList<AudiobookBookmarkDto> saved)
     {
-        if (Playback.CurrentItem?.AssetId is Guid assetId) ShowRailBookmarks(saved.Where(bookmark => bookmark.AssetId == assetId));
+        if (Playback.CurrentItem?.AssetId is Guid assetId)
+        {
+            _railSaved = saved.Where(bookmark => bookmark.AssetId == assetId).ToList();
+            RebuildRail();
+        }
+
         return Task.CompletedTask;
     }
 

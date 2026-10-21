@@ -17,13 +17,13 @@
                     var open = _quickLookId == bookmark.Id;
                     <span class="playback-seek-rail__bookmark-wrap" style="left:@Percent(bookmark.Seconds)%"
                           @onmouseenter="@(() => HoverBookmark(bookmark.Id))" @onmouseleave="@(() => LeaveBookmark(bookmark.Id))">
-                        <button type="button" class="playback-seek-rail__bookmark @(bookmark.IsGlobal ? "is-global" : null)"
+                        <button type="button" class="playback-seek-rail__bookmark @(bookmark.IsGlobal ? "is-global" : bookmark.IsPack ? "is-pack" : null)"
                                 aria-label="@BookmarkLabel(bookmark)" aria-expanded="@(open ? "true" : "false")" data-bookmark-id="@bookmark.Id"
                                 @onclick="@(() => ToggleBookmark(bookmark.Id))" @onfocus="@(() => HoverBookmark(bookmark.Id))"></button>
                         @if (open)
                         {
                             <div class="playback-seek-rail__quicklook" role="dialog" aria-label="Bookmark" style="@CardStyle(bookmark.Seconds)">
-                                <strong>@Time(bookmark.Seconds)@if (bookmark.IsGlobal) { <span> · Everyone</span> }</strong>
+                                <strong>@Time(bookmark.Seconds)@if (bookmark.IsGlobal) { <span> · Everyone</span> }@if (bookmark.IsPack) { <span> · @bookmark.PackLabel</span> }</strong>
                                 @if (!string.IsNullOrWhiteSpace(bookmark.Note)) { <p>@bookmark.Note</p> }
                                 @if (!string.IsNullOrWhiteSpace(bookmark.Description))
                                 {
@@ -61,7 +61,8 @@
         var fraction = seconds / Math.Max(1, Duration);
         return fraction < .25 ? "left:-6px;transform:none" : fraction > .75 ? "right:-6px;left:auto;transform:none" : string.Empty;
     }
-    private string BookmarkLabel(PlaybackRailBookmark bookmark) => $"{(bookmark.IsGlobal ? "Shared bookmark" : "Bookmark")} at {Time(bookmark.Seconds)}";
+    private string BookmarkLabel(PlaybackRailBookmark bookmark) =>
+        $"{(bookmark.IsPack ? $"Pack bookmark ({bookmark.PackLabel})" : bookmark.IsGlobal ? "Shared bookmark" : "Bookmark")} at {Time(bookmark.Seconds)}";
     private void HoverBookmark(Guid id) { if (_pinnedId is null) { _quickLookId = id; _moreId = null; } }
     private void LeaveBookmark(Guid id) { if (_pinnedId is null && _quickLookId == id) { _quickLookId = null; _moreId = null; } }
     private void ToggleBookmark(Guid id)

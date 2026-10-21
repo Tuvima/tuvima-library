@@ -14,6 +14,7 @@
 .playback-seek-rail__bookmark-wrap { position:absolute; top:50%; transform:translate(-50%,-50%); pointer-events:auto; }
 .playback-seek-rail__bookmark { box-sizing:content-box; width:6px; height:16px; padding:0; border:9px solid transparent; border-radius:12px; background:var(--tl-accent-primary) padding-box; cursor:pointer; }
 .playback-seek-rail__bookmark.is-global { background-color:var(--playback-text); }
+.playback-seek-rail__bookmark.is-pack { background-color:var(--tl-accent-secondary); }
 .playback-seek-rail__quicklook { position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); display:grid; gap:4px; width:max-content; max-width:min(260px,70vw); padding:8px 10px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm); background:var(--playback-surface); color:var(--playback-text); text-align:left; white-space:normal; overflow-wrap:anywhere; z-index:6; }
 .playback-seek-rail__quicklook p { margin:0; }
 .playback-seek-rail__more { justify-self:start; min-height:32px; padding:0 8px 0 0; border:0; background:none; color:var(--tl-accent-primary); font:inherit; cursor:pointer; }

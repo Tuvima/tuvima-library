@@ -218,6 +218,9 @@ public sealed class LibraryItemDeletionRepository(
                 SELECT lower(hex(profile_id)) FROM audiobook_bookmarks
                     WHERE work_id IN @ids OR asset_id IN (SELECT id FROM scoped_assets)
                 UNION
+                SELECT lower(hex(profile_id)) FROM bookmark_packs
+                    WHERE work_id IN @ids OR asset_id IN (SELECT id FROM scoped_assets)
+                UNION
                 SELECT lower(hex(profile_id)) FROM music_play_stats WHERE work_id IN @ids
                 UNION
                 SELECT lower(replace(user_id, '-', '')) FROM reader_bookmarks WHERE asset_id IN (SELECT id FROM scoped_assets)

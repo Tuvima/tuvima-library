@@ -15,7 +15,15 @@
     <div class="video-bookmark-panel">
         <AudiobookBookmarkDialog Context="_context" Actions="_service" AuthorizedAssetIds="_assets" WorkTitle="@Title"
                                  Surface="video" Embedded="true" StartOnAdd="true" CanShare="CanShare" AllowDescription="true"
-                                 PositionLabel="Position in video" OnClose="CloseAsync" />
+                                 PositionLabel="Position in video" OnClose="CloseAsync">
+            <SavedExtras>
+                @if (AllowPacks)
+                {
+                    <BookmarkPackSection ProfileId="ProfileId" WorkId="WorkId" AssetId="AssetId" Title="@Title" Duration="Duration"
+                                         Chapters="Chapters" Saved="_saved" Packs="Packs" PacksChanged="PacksChanged" JumpTo="JumpTo" />
+                }
+            </SavedExtras>
+        </AudiobookBookmarkDialog>
     </div>
 }
 else
@@ -39,10 +47,17 @@ else
     /// <summary>Raised whenever the title's saved bookmarks change, so the progress rail can redraw its ticks.</summary>
     [Parameter] public EventCallback<IReadOnlyList<AudiobookBookmarkDto>> SavedChanged { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+    /// <summary>Offers bookmark packs (Export and Import). False in the Vault, where a pack can never be made or added (Videos spec D46).</summary>
+    [Parameter] public bool AllowPacks { get; set; }
+    /// <summary>The packs already imported on this title.</summary>
+    [Parameter] public IReadOnlyList<BookmarkPackDto> Packs { get; set; } = [];
+    /// <summary>Raised after a pack is added, switched on or off, or removed, so the host reloads the packs and redraws the rail.</summary>
+    [Parameter] public EventCallback PacksChanged { get; set; }
 
     private AudiobookBookmarkActionService? _service;
     private AudiobookBookmarkActionContext? _context;
     private IReadOnlySet<Guid> _assets = new HashSet<Guid>();
+    private IReadOnlyList<AudiobookBookmarkDto> _saved = [];
     private bool _disposed;
 
     protected override async Task OnInitializedAsync()
@@ -96,7 +111,12 @@ else
     {
         if (_disposed || _context?.DialogId != dialogId || _service is null) return;
         var saved = _service.GetSnapshot(dialogId).Saved;
-        _ = InvokeAsync(() => SavedChanged.InvokeAsync(saved));
+        _ = InvokeAsync(async () =>
+        {
+            _saved = saved;
+            await SavedChanged.InvokeAsync(saved);
+            StateHasChanged();
+        });
     }
 
     private Task CloseAsync() => OnClose.InvokeAsync();

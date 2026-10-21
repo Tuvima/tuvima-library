@@ -1147,6 +1147,14 @@ public sealed class PlayerService
             return false;
         }
 
+        if (request.EndSeconds is double endSeconds
+            && (!double.IsFinite(endSeconds) || endSeconds <= request.PositionSeconds
+                || request.DurationSeconds is double total && endSeconds > total))
+        {
+            validationError = "A bookmark end must be finite, after its position, and inside the file.";
+            return false;
+        }
+
         if (!AudiobookBookmarkNotePolicy.TryNormalize(request.Note, out var note))
         {
             validationError = $"A bookmark note cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.";

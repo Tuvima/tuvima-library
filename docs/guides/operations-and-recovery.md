@@ -57,6 +57,12 @@ The archive contains a consistent SQLite snapshot, a manifest, and non-secret co
 
 Test restore uses temporary storage, checks archive boundaries and SQLite integrity, then removes temporary files. It does not schedule or apply a restore.
 
+**Bookmarks are in every recovery point.** Because the archive holds the whole data store, one restore brings back everything bookmark-related together: each profile's own bookmarks, bookmarks shared with everyone, scene bookmarks with an end time, and the bookmark packs you have imported (with whether each is switched on). Nothing needs exporting first. Bookmark pack files (below) are for sharing bookmarks by hand, not for backing them up.
+
+## Bookmark pack files
+
+A bookmark pack is a small `.zip` file made from **Bookmarks → Saved → Export** in the video player. It follows the same conventions as a recovery point: a ZIP with a `manifest.json` (`schema_version`, `created_at`, `includes_secrets: false`) and one `pack/bookmarks.json`, and it is checked on the way in with the same refusals (unexpected entries, unsafe paths, oversized or over-compressed contents). Like a recovery point it has no password, because it holds nothing secret: only how to recognise the title (IMDb, TMDB, TVDB, Wikidata or YouTube IDs, running time and edition) and, for each bookmark you choose, its time, optional end, chapter name, short note and longer description. It never holds file paths, profile names or what anyone watched, and a Vault title cannot be exported at all. **Import** (in the same Saved list) checks the pack is for the title, tells you when it was made on a different cut and offers **Align by chapter** or **Skip**, then adds read-only pack bookmarks labelled with the pack's name and author. Each pack can be switched off or removed on its own.
+
 ## Restore a recovery point
 
 1. Choose **Restore** and confirm the recovery point.

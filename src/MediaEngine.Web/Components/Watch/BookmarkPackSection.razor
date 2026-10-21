@@ -1,0 +1,315 @@
+@namespace MediaEngine.Web.Components.Watch
+@using System.Globalization
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@inject IEngineApiClient ApiClient
+@inject IJSRuntime JS
+@inject IAppToastService Toast
+
+@* Bookmark packs in a title's Saved list (Videos spec D46): Export (choose, review, save a small file), Import (check the pack is for
+   this title, then add it as read-only pack bookmarks) and the packs already added, each switchable off. A pack holds only how to
+   recognise the title and each bookmark's time, end, chapter name, note and description. *@
+<section class="bookmark-packs" aria-label="Bookmark packs">
+    <div class="bookmark-packs__toolbar">
+        <span>Bookmark packs</span>
+        <div class="bookmark-packs__buttons">
+            <AppButton Class="bookmark-packs__button" Disabled="@(_busy || OwnBookmarks.Count == 0)" title="@(OwnBookmarks.Count == 0 ? "Save a bookmark first" : "Export some of your bookmarks as a pack file")" OnClick="StartExport">Export</AppButton>
+            <AppFileUpload T="IBrowserFile" Accept=".zip,application/zip" Disabled="@_busy" FilesChanged="PickPackAsync">
+                <CustomContent Context="upload">
+                    <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="upload.OpenFilePickerAsync">Import</AppButton>
+                </CustomContent>
+            </AppFileUpload>
+        </div>
+    </div>
+
+    @if (_message is { } message)
+    {
+        <div class="bookmark-packs__message" role="status">@message</div>
+    }
+
+    @if (_step == PackStep.Choose)
+    {
+        <div class="bookmark-packs__panel" role="group" aria-label="Choose bookmarks to export">
+            <strong>Choose what to include</strong>
+            @foreach (var bookmark in OwnBookmarks)
+            {
+                <AppCheckboxRow Label="@Describe(bookmark)" Description="@bookmark.Note" Value="@_chosen.Contains(bookmark.Id)"
+                                ValueChanged="@(on => Toggle(bookmark.Id, on))" />
+            }
+            <AppTextField Label="Pack name" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)" MaxLength="@BookmarkPackLimits.MaximumNameLength" />
+            <AppTextField Label="Author (optional)" Value="@_author" ValueChanged="@(value => _author = value ?? string.Empty)"
+                          MaxLength="@BookmarkPackLimits.MaximumAuthorLength" HelpText="Shown on the pack's bookmarks. Not taken from your profile." />
+            <div class="bookmark-packs__buttons">
+                <AppButton Class="bookmark-packs__button" Disabled="@(_chosen.Count == 0 || string.IsNullOrWhiteSpace(_name))" OnClick="@(() => _step = PackStep.Review)">Review</AppButton>
+                <AppButton Class="bookmark-packs__button" OnClick="Cancel">Cancel</AppButton>
+            </div>
+        </div>
+    }
+    else if (_step == PackStep.Review)
+    {
+        <div class="bookmark-packs__panel" role="group" aria-label="Review the pack">
+            <strong>@_name.Trim()@(string.IsNullOrWhiteSpace(_author) ? null : $" by {_author.Trim()}")</strong>
+            <p class="bookmark-packs__note">The pack holds how to recognise this title and the @_chosen.Count bookmarks below. It does not hold file paths, profile names or what anyone watched.</p>
+            <ul class="bookmark-packs__list">
+                @foreach (var bookmark in OwnBookmarks.Where(item => _chosen.Contains(item.Id)).OrderBy(item => item.PositionSeconds))
+                {
+                    <li>
+                        <strong>@Range(bookmark.PositionSeconds, bookmark.EndSeconds)</strong>
+                        @if (!string.IsNullOrWhiteSpace(bookmark.ChapterTitle)) { <span> · @bookmark.ChapterTitle</span> }
+                        @if (!string.IsNullOrWhiteSpace(bookmark.Note)) { <div>@bookmark.Note</div> }
+                        @if (!string.IsNullOrWhiteSpace(bookmark.Description)) { <div>@bookmark.Description</div> }
+                    </li>
+                }
+            </ul>
+            <div class="bookmark-packs__buttons">
+                <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="SaveExportAsync">@(_busy ? "Saving…" : "Save pack file")</AppButton>
+                <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => _step = PackStep.Choose)">Back</AppButton>
+            </div>
+        </div>
+    }
+    else if (_step == PackStep.Import && _preview is { } preview)
+    {
+        <div class="bookmark-packs__panel" role="group" aria-label="Import a pack">
+            <strong>@preview.Name@(string.IsNullOrWhiteSpace(preview.Author) ? null : $" by {preview.Author}")</strong>
+            <p class="bookmark-packs__note">@preview.BookmarkCount bookmark@(preview.BookmarkCount == 1 ? null : "s"). @preview.Reason</p>
+            @if (preview.AlreadyImported)
+            {
+                <p class="bookmark-packs__note">This pack is already on this title.</p>
+            }
+            <div class="bookmark-packs__buttons">
+                @if (!preview.AlreadyImported && preview.Match == BookmarkPackMatchResults.Match)
+                {
+                    <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => ImportAsync(BookmarkPackImportModes.AsIs))">Add pack</AppButton>
+                }
+                else if (!preview.AlreadyImported && preview.Match == BookmarkPackMatchResults.DifferentCut)
+                {
+                    @if (preview.CanAlignByChapter)
+                    {
+                        <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => ImportAsync(BookmarkPackImportModes.AlignByChapter))">Align by chapter</AppButton>
+                    }
+                }
+                <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="Cancel">@(preview.Match == BookmarkPackMatchResults.DifferentCut ? "Skip" : "Close")</AppButton>
+            </div>
+        </div>
+    }
+
+    @foreach (var pack in Packs)
+    {
+        <article class="bookmark-packs__pack">
+            <AppSwitchRow Label="@PackLabel(pack)" Description="@PackDescription(pack)" Value="@pack.IsEnabled"
+                          ValueChanged="@(on => SetEnabledAsync(pack, on))" Size="AppSize.Small" />
+            @if (pack.IsEnabled)
+            {
+                <ul class="bookmark-packs__list">
+                    @foreach (var bookmark in pack.Bookmarks)
+                    {
+                        <li>
+                            <AppButton Class="bookmark-packs__play" ButtonStyle="AppButtonStyle.Text" aria-label="@($"Play pack bookmark at {Time(bookmark.PositionSeconds)}")" OnClick="@(() => PlayAsync(bookmark))">
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayArrow" />
+                            </AppButton>
+                            <strong>@Range(bookmark.PositionSeconds, bookmark.EndSeconds)</strong>
+                            @if (!string.IsNullOrWhiteSpace(bookmark.ChapterTitle)) { <span> · @bookmark.ChapterTitle</span> }
+                            @if (!string.IsNullOrWhiteSpace(bookmark.Note)) { <div>@bookmark.Note</div> }
+                            @if (!string.IsNullOrWhiteSpace(bookmark.Description)) { <div>@bookmark.Description</div> }
+                        </li>
+                    }
+                </ul>
+            }
+            <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => RemoveAsync(pack))">Remove pack</AppButton>
+        </article>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Guid ProfileId { get; set; }
+    [Parameter, EditorRequired] public Guid WorkId { get; set; }
+    [Parameter, EditorRequired] public Guid AssetId { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public double Duration { get; set; }
+    [Parameter] public IReadOnlyList<PlaybackChapterDto> Chapters { get; set; } = [];
+    /// <summary>The title's saved bookmarks as the Saved list shows them (this profile's own and the shared ones).</summary>
+    [Parameter] public IReadOnlyList<AudiobookBookmarkDto> Saved { get; set; } = [];
+    /// <summary>The packs already imported on the title.</summary>
+    [Parameter] public IReadOnlyList<BookmarkPackDto> Packs { get; set; } = [];
+    [Parameter] public EventCallback PacksChanged { get; set; }
+    [Parameter] public Func<double, bool, Task>? JumpTo { get; set; }
+
+    private enum PackStep { None, Choose, Review, Import }
+
+    private readonly HashSet<Guid> _chosen = [];
+    private PackStep _step = PackStep.None;
+    private string _name = string.Empty;
+    private string _author = string.Empty;
+    private string? _message;
+    private bool _busy;
+    private string? _importContent;
+    private BookmarkPackPreviewDto? _preview;
+
+    /// <summary>Only the profile's own bookmarks on this file can go in a pack: never a shared one.</summary>
+    private IReadOnlyList<AudiobookBookmarkDto> OwnBookmarks => Saved
+        .Where(bookmark => !bookmark.IsGlobal && bookmark.ProfileId == ProfileId && bookmark.AssetId == AssetId)
+        .OrderBy(bookmark => bookmark.PositionSeconds).ToList();
+
+    private IReadOnlyList<BookmarkPackChapterDto> ChapterDtos => Chapters
+        .Select(chapter => new BookmarkPackChapterDto { Title = chapter.Title, StartSeconds = chapter.StartSeconds }).ToList();
+
+    private double? RunningTime => Duration > 0 ? Duration : null;
+
+    private void StartExport()
+    {
+        _message = null;
+        _chosen.Clear();
+        _name = string.IsNullOrWhiteSpace(Title) ? "My bookmarks" : $"{Title} bookmarks";
+        if (_name.Length > BookmarkPackLimits.MaximumNameLength) _name = _name[..BookmarkPackLimits.MaximumNameLength];
+        _author = string.Empty;
+        _step = PackStep.Choose;
+    }
+
+    private void Toggle(Guid id, bool on)
+    {
+        if (on) _chosen.Add(id); else _chosen.Remove(id);
+    }
+
+    private void Cancel()
+    {
+        _step = PackStep.None;
+        _preview = null;
+        _importContent = null;
+    }
+
+    private async Task SaveExportAsync()
+    {
+        _busy = true;
+        try
+        {
+            var file = await ApiClient.ExportBookmarkPackAsync(WorkId, ProfileId, new BookmarkPackExportRequestDto
+            {
+                ProfileId = ProfileId,
+                AssetId = AssetId,
+                BookmarkIds = _chosen.ToList(),
+                Name = _name.Trim(),
+                Author = string.IsNullOrWhiteSpace(_author) ? null : _author.Trim(),
+                RunningTimeSeconds = RunningTime,
+                Chapters = ChapterDtos,
+            });
+            if (file is null)
+            {
+                _message = ApiClient.LastError ?? "The pack could not be made.";
+                return;
+            }
+
+            await using var stream = new MemoryStream(Convert.FromBase64String(file.ContentBase64), writable: false);
+            using var reference = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("tuvimaDownloads.fromStream", file.FileName, reference, "application/zip");
+            _message = $"Saved a pack with {file.BookmarkCount} bookmark{(file.BookmarkCount == 1 ? null : "s")}.";
+            _step = PackStep.None;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task PickPackAsync(IBrowserFile? file)
+    {
+        _message = null;
+        _preview = null;
+        if (file is null) return;
+        if (file.Size > BookmarkPackLimits.MaximumFileBytes)
+        {
+            _message = "That file is too large to be a bookmark pack.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await using var upload = file.OpenReadStream(BookmarkPackLimits.MaximumFileBytes);
+            using var buffer = new MemoryStream();
+            await upload.CopyToAsync(buffer);
+            _importContent = Convert.ToBase64String(buffer.ToArray());
+            _preview = await ApiClient.InspectBookmarkPackAsync(WorkId, ProfileId, ImportRequest(BookmarkPackImportModes.AsIs));
+            if (_preview is null)
+            {
+                _message = ApiClient.LastError ?? "That file could not be read as a bookmark pack.";
+                _step = PackStep.None;
+                return;
+            }
+
+            _step = PackStep.Import;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private BookmarkPackImportRequestDto ImportRequest(string mode) => new()
+    {
+        ProfileId = ProfileId,
+        AssetId = AssetId,
+        ContentBase64 = _importContent ?? string.Empty,
+        RunningTimeSeconds = RunningTime,
+        Chapters = ChapterDtos,
+        Mode = mode,
+    };
+
+    private async Task ImportAsync(string mode)
+    {
+        _busy = true;
+        try
+        {
+            var added = await ApiClient.ImportBookmarkPackAsync(WorkId, ProfileId, ImportRequest(mode));
+            if (added is null)
+            {
+                _message = ApiClient.LastError ?? "The pack could not be added.";
+                return;
+            }
+
+            _message = $"Added {added.Bookmarks.Count} bookmark{(added.Bookmarks.Count == 1 ? null : "s")} from this pack.";
+            Cancel();
+            await PacksChanged.InvokeAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SetEnabledAsync(BookmarkPackDto pack, bool on)
+    {
+        if (await ApiClient.SetBookmarkPackEnabledAsync(pack.Id, ProfileId, on)) await PacksChanged.InvokeAsync();
+        else Toast.Add(ApiClient.LastError ?? "The pack could not be changed.", AppSeverity.Error);
+    }
+
+    private async Task RemoveAsync(BookmarkPackDto pack)
+    {
+        if (await ApiClient.DeleteBookmarkPackAsync(pack.Id, ProfileId)) await PacksChanged.InvokeAsync();
+        else Toast.Add(ApiClient.LastError ?? "The pack could not be removed.", AppSeverity.Error);
+    }
+
+    private Task PlayAsync(PackBookmarkDto bookmark) => JumpTo is null ? Task.CompletedTask : JumpTo(bookmark.PositionSeconds, true);
+
+    private static string PackLabel(BookmarkPackDto pack) =>
+        string.IsNullOrWhiteSpace(pack.Author) ? pack.Name : $"{pack.Name} by {pack.Author}";
+
+    private static string PackDescription(BookmarkPackDto pack) =>
+        $"Pack · {pack.Bookmarks.Count} bookmark{(pack.Bookmarks.Count == 1 ? null : "s")}{(pack.IsAligned ? " · aligned by chapter" : null)}";
+
+    private static string Describe(AudiobookBookmarkDto bookmark) =>
+        string.IsNullOrWhiteSpace(bookmark.ChapterTitle) ? Range(bookmark.PositionSeconds, bookmark.EndSeconds)
+            : $"{Range(bookmark.PositionSeconds, bookmark.EndSeconds)} · {bookmark.ChapterTitle}";
+
+    private static string Range(double start, double? end) => end is double stop ? $"{Time(start)} to {Time(stop)}" : Time(start);
+
+    private static string Time(double seconds)
+    {
+        var span = TimeSpan.FromSeconds(Math.Max(0, Math.Floor(seconds)));
+        return span.TotalHours >= 1
+            ? string.Create(CultureInfo.InvariantCulture, $"{(int)span.TotalHours}:{span.Minutes:00}:{span.Seconds:00}")
+            : string.Create(CultureInfo.InvariantCulture, $"{span.Minutes}:{span.Seconds:00}");
+    }
+}
