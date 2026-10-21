@@ -527,20 +527,16 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | POST | `/ai/models/{role}/download` | Trigger download for a model role (`text_fast`, `text_quality`, `text_scholar`, `text_cjk`, `audio`) | Administrator |
 | POST | `/ai/models/{role}/load` | Load a model into memory | Administrator |
 | POST | `/ai/models/{role}/unload` | Unload a model from memory | Administrator |
-| GET | `/ai/config` | Full AI configuration, plus read-only `feature_info` (the Engine's plain words for each feature: `allowed_to`, `sends_data_to`) | Administrator |
-| PUT | `/ai/config` | Update AI configuration. A feature switched from off to on needs its statement hash in the optional `approvals` map (feature key to hash) unless a record for its current statement exists; otherwise `409 Conflict` `approval_required` listing every such feature, and nothing is saved. Confirmed approvals are recorded before the save. Turning a feature off needs nothing. | Administrator |
+| GET | `/ai/config` | The Local AI engine settings: resource profile, limits, the default plugin allowance and the runtime state | Administrator |
+| PUT | `/ai/config` | Update the Local AI engine settings. Which AI features run is not set here: each is an Official plugin switched on at Settings > Plugins, through the approval rule | Administrator |
 | GET | `/ai/usage` | Who used which Local AI ability over the last `days` (1 to 90, default 7), one row per caller and ability, plus each AI plugin's requests and busy time this hour against its allowance | Administrator |
 | GET | `/ai/profile` | Hardware profile - benchmark results, tier classification, GPU backend | Required |
 | POST | `/ai/benchmark` | Re-run hardware benchmark and reclassify tier | Administrator |
 | GET | `/ai/resources` | Live system resource usage - CPU load, RAM pressure, active transcoding tasks | Required |
 | GET | `/ai/enrichment/progress` | Background enrichment batch progress | Required |
-| GET | `/ai/enrich/tldr/{entityId}` | Generate a TL;DR summary for a work using its description | Effective administrator or precise Application permission |
-| GET | `/ai/enrich/vibes/{entityId}` | Generate vibe tags for a work | Effective administrator or precise Application permission |
-| POST | `/ai/enrich/search/intent` | Parse a natural-language search query into structured field filters | Required |
-| POST | `/ai/enrich/extract-url` | Extract metadata from a URL (book page, IMDB entry, etc.) | Effective administrator or precise Application permission |
 
 `/ai/config` preserves the complete settings graph, including `models`,
-`model_catalog`, `operational_roles`, `role_requirements`, feature flags, and
+`model_catalog`, `operational_roles`, `role_requirements`, and
 scheduling/resource policy. `/ai/resources` includes numeric `cpu_pressure`;
 clients should use that contract value rather than derive pressure from labels.
 

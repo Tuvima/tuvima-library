@@ -383,7 +383,7 @@ The administrator destination for current ingestion work, waits, outcomes, and r
 
 ### Plugin
 
-Optional compiled code loaded by the Engine to add behavior. Plugins run in-process and are not sandboxed; administrators install and manage trusted plugins.
+An optional add-on that extends the Library. There are four kinds: Official plugins (compiled code that ships with the Library and runs inside the Engine with its trust), JSON-only plugins (a manifest the Library runs for them, no code), separate-program plugins (a program the Library starts and watches, talking through a local door), and sandboxed plugins (WebAssembly with strict limits). Nothing switches on until an administrator has approved what it can do.
 
 ## Retired Terms
 
