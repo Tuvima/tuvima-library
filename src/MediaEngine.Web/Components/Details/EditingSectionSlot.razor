@@ -39,6 +39,10 @@
                                     SavingChanged="OnSavingChanged"
                                     Committed="OnCommittedAsync"
                                     Closed="OnShellClosedAsync" />
+            @if (mode.OpenSectionKind == EditingSection.Match)
+            {
+                <EditingVideoIdentify Mode="mode" OnMatched="OnCommitted" />
+            }
         </div>
     </section>
 }

@@ -153,6 +153,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IPersonRepository, PersonRepository>();
         services.AddSingleton<IWorkRepository, WorkRepository>();
         services.AddSingleton<IVideoOrderRepository, VideoOrderRepository>();
+        services.AddSingleton<IVideoSeriesRepository, VideoSeriesRepository>();
         services.AddSingleton<ISeriesManifestRepository, SeriesManifestRepository>();
         services.AddSingleton<IBookFormatSiblingFinder, BookFormatSiblingFinder>();
         services.AddSingleton<HierarchyResolver>();

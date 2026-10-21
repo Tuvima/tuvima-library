@@ -21,6 +21,9 @@ public sealed class EditingVideoOrderTests : AsyncBunitContext
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<(Guid Parent, Guid[] Ordered)> _saves = [];
     private int _videoCount = 3;
+    private bool _canRename;
+    private int _renames;
+    private bool _renameSucceeds = true;
 
     public EditingVideoOrderTests()
     {
@@ -44,9 +47,15 @@ public sealed class EditingVideoOrderTests : AsyncBunitContext
                         ParentId = Parent,
                         Title = "Course",
                         Entries = Videos.Take(_videoCount).Select((id, i) => new VideoOrderEntryDto { Id = id, Title = $"Video {i + 1}" }).ToList(),
+                        CanRenameFiles = _canRename,
                     },
                 ],
             }));
+            stub.SetHandler(nameof(IEngineApiClient.RenameVideoFilesToOrderAsync), _ =>
+            {
+                _renames++;
+                return Task.FromResult<VideoRenameResponse?>(_renameSucceeds ? new VideoRenameResponse { Renamed = 3, Skipped = 0 } : null);
+            });
             stub.SetHandler(nameof(IEngineApiClient.SaveVideoOrderAsync), args =>
             {
                 _saves.Add(((Guid)args![1]!, ((IReadOnlyList<Guid>)args[2]!).ToArray()));
@@ -91,5 +100,58 @@ public sealed class EditingVideoOrderTests : AsyncBunitContext
         _videoCount = 1;
         var alone = await RenderAsync();
         alone.WaitForAssertion(() => Assert.Empty(alone.FindAll(".tl-editing-order__row")));
+    }
+
+    [Fact]
+    public async Task InAnAsIsFolder_NoRenameButtonIsOffered()
+    {
+        var cut = await RenderAsync();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-order__row")));
+        Assert.DoesNotContain("Rename files", cut.Markup);
+    }
+
+    [Fact]
+    public async Task InAManagedFolder_RenamingAsksFirst_ThenRenamesOnce()
+    {
+        _canRename = true;
+        var cut = await RenderAsync();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-order__row")));
+
+        cut.Find("button:contains('Rename files to match this order')").Click();
+        Assert.Equal(0, _renames);
+        Assert.Contains("cannot be undone", cut.Markup);
+        cut.Find("button:contains('Rename files')").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Renamed 3 files.", cut.Find("[role='status']").TextContent));
+        Assert.Equal(1, _renames);
+    }
+
+    [Fact]
+    public async Task CancellingTheRenameQuestion_RenamesNothing()
+    {
+        _canRename = true;
+        var cut = await RenderAsync();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-order__row")));
+
+        cut.Find("button:contains('Rename files to match this order')").Click();
+        cut.Find("button:contains('Cancel')").Click();
+
+        Assert.Equal(0, _renames);
+        Assert.NotEmpty(cut.FindAll("button:contains('Rename files to match this order')"));
+    }
+
+    [Fact]
+    public async Task ARefusedRename_SaysNothingWasChanged()
+    {
+        _canRename = true;
+        _renameSucceeds = false;
+        var cut = await RenderAsync();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-order__row")));
+
+        cut.Find("button:contains('Rename files to match this order')").Click();
+        cut.Find("button:contains('Rename files')").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("nothing was changed", cut.Find("[role='alert']").TextContent));
     }
 }

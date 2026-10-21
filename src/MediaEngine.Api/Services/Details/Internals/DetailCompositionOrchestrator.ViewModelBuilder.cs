@@ -811,10 +811,17 @@ internal sealed partial class DetailCompositionOrchestrator
         Guid id,
         DetailEntityType entityType,
         DetailActionAuthorizationContext authorization,
-        bool updatingDetails = false)
+        bool updatingDetails = false,
+        bool isVideo = false,
+        bool videoMatched = false)
     {
         _ = id;
-        DetailAction[] candidates = [DetailEditAction.Build(entityType, updatingDetails)];
+        var candidates = new List<DetailAction> { DetailEditAction.Build(entityType, updatingDetails) };
+        if (isVideo)
+        {
+            candidates.AddRange(DetailEditAction.BuildVideoShortcuts(videoMatched, updatingDetails));
+        }
+
         return candidates.Where(action => authorization.Allows(action.Key)).ToList();
     }
 

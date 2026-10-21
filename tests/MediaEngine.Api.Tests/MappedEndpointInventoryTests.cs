@@ -326,6 +326,8 @@ public sealed class MappedEndpointInventoryTests
             options.CreateConfiguredDirectories = false;
             options.RegisterHostedService = false;
         });
+        builder.Services.AddSingleton<IVideoOnlineLookup>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not contact an online video lookup."));
         builder.Services.AddTuvimaDisplay();
         builder.Services.AddTuvimaIntelligence();
         builder.Services.AddSingleton<AiSettings>(_ => throw new InvalidOperationException(

@@ -122,6 +122,7 @@ public sealed class VideoLibraryReader : IVideoLibraryReader
             claims.Add(new ExtractedClaim { Key = key, Value = value, Confidence = confidence });
         }
 
+        Put(MetadataFieldConstants.VideoLookupSource, "youtube", 1.0);
         Put(MetadataFieldConstants.Title, info.Title, 0.96);
         Put(MetadataFieldConstants.Network, info.Channel, 0.9);
         Put(MetadataFieldConstants.Description, info.Description, 0.92);

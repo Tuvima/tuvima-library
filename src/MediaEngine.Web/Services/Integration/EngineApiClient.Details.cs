@@ -306,6 +306,38 @@ public sealed partial class EngineApiClient
             new MediaEngine.Contracts.Items.VideoOrderRequest { ParentId = parentId, OrderedIds = orderedIds.ToList() },
             ct: ct);
 
+    public Task<MediaEngine.Contracts.Items.VideoRenameResponse?> RenameVideoFilesToOrderAsync(Guid entityId, Guid parentId, CancellationToken ct = default) =>
+        PostAsync<MediaEngine.Contracts.Items.VideoRenameRequest, MediaEngine.Contracts.Items.VideoRenameResponse>(
+            "POST /library/items/{id}/video-rename",
+            $"/library/items/{entityId}/video-rename",
+            new MediaEngine.Contracts.Items.VideoRenameRequest { ParentId = parentId },
+            ct: ct);
+
+    public Task<MediaEngine.Contracts.Items.VideoSeriesStateResponse?> GetVideoSeriesAsync(Guid entityId, CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Items.VideoSeriesStateResponse>(
+            "GET /library/items/{id}/video-series", $"/library/items/{entityId}/video-series", ct: ct);
+
+    public Task<bool> PromoteVideoToSeriesAsync(Guid entityId, Guid? seriesId, string? newSeriesName, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /library/items/{id}/video-series",
+            $"/library/items/{entityId}/video-series",
+            new MediaEngine.Contracts.Items.VideoSeriesPromoteRequest { ParentId = seriesId, NewSeriesName = newSeriesName },
+            ct: ct);
+
+    public Task<MediaEngine.Contracts.Items.VideoIdentifyStateResponse?> GetVideoIdentifyStateAsync(Guid entityId, CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Items.VideoIdentifyStateResponse>(
+            "GET /library/items/{id}/video-identify", $"/library/items/{entityId}/video-identify", ct: ct);
+
+    public Task<MediaEngine.Contracts.Items.VideoIdentifyResponse?> IdentifyVideoFromLinkAsync(Guid entityId, string link, CancellationToken ct = default) =>
+        PostAsync<MediaEngine.Contracts.Items.VideoIdentifyRequest, MediaEngine.Contracts.Items.VideoIdentifyResponse>(
+            "POST /library/items/{id}/video-identify",
+            $"/library/items/{entityId}/video-identify",
+            new MediaEngine.Contracts.Items.VideoIdentifyRequest { Link = link },
+            ct: ct);
+
+    public Task<bool> RemoveVideoFromSeriesAsync(Guid entityId, CancellationToken ct = default) =>
+        PostAsync("POST /library/items/{id}/video-series/remove", $"/library/items/{entityId}/video-series/remove", new { }, ct: ct);
+
     public async Task<IReadOnlyList<RecycleBinItemDto>?> GetRecycleBinAsync(CancellationToken ct = default) =>
         await GetAsync<List<RecycleBinItemDto>>("GET /library/items/recycle-bin", "/library/items/recycle-bin", ct: ct);
 

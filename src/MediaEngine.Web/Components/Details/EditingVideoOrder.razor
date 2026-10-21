@@ -33,9 +33,30 @@
                         </li>
                     }
                 </ol>
+                @if (group.CanRenameFiles)
+                {
+                    <div class="tl-editing-order__rename">
+                        @if (_confirmRename == group.ParentId)
+                        {
+                            <p class="tl-editing-order__note">This renames the video files in your Managed folder to start with their position, like "01 - Title". It cannot be undone from here.</p>
+                            <div class="tl-editing-order__rename-actions">
+                                <AppButton Label="Rename files" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="@(() => RenameAsync(group))" />
+                                <AppButton Label="Cancel" Size="AppControlSize.Compact" Disabled="@_saving" OnClick="@(() => _confirmRename = null)" />
+                            </div>
+                        }
+                        else
+                        {
+                            <AppButton Label="Rename files to match this order" Size="AppControlSize.Compact" Disabled="@_saving" OnClick="@(() => _confirmRename = group.ParentId)" />
+                        }
+                    </div>
+                }
             </div>
         }
-        <p class="tl-editing-order__note">The order is saved in Library. Your files are not renamed.</p>
+        <p class="tl-editing-order__note">The order is saved in Library. Your files are only renamed if you ask below.</p>
+        @if (_message is not null)
+        {
+            <p class="tl-editing-order__note" role="status">@_message</p>
+        }
         @if (_error is not null)
         {
             <p class="tl-editing-order__error" role="alert">@_error</p>
@@ -49,6 +70,8 @@
     private List<VideoOrderGroupDto> _groups = [];
     private bool _saving;
     private string? _error;
+    private string? _message;
+    private Guid? _confirmRename;
 
     [CascadingParameter] public EditingModeContext? Mode { get; set; }
 
@@ -100,6 +123,7 @@
         ParentId = group.ParentId,
         Title = group.Title,
         Entries = group.Entries.ToList(),
+        CanRenameFiles = group.CanRenameFiles,
     };
 
     private async Task MoveAsync(VideoOrderGroupDto group, int index, int by)
@@ -117,11 +141,37 @@
         if (await Api.SaveVideoOrderAsync(Mode.Fields.EntityId, group.ParentId, entries.Select(entry => entry.Id).ToList()))
         {
             var position = _groups.IndexOf(group);
-            _groups[position] = new VideoOrderGroupDto { ParentId = group.ParentId, Title = group.Title, Entries = entries };
+            _groups[position] = new VideoOrderGroupDto { ParentId = group.ParentId, Title = group.Title, Entries = entries, CanRenameFiles = group.CanRenameFiles };
         }
         else
         {
             _error = "That could not be saved. The list may have changed; reload the page and try again.";
+        }
+
+        _saving = false;
+    }
+
+    private async Task RenameAsync(VideoOrderGroupDto group)
+    {
+        if (_saving || Mode is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        _message = null;
+        var result = await Api.RenameVideoFilesToOrderAsync(Mode.Fields.EntityId, group.ParentId);
+        if (result is null)
+        {
+            _error = "The files could not be renamed. Only files in a Managed folder can be; nothing was changed.";
+        }
+        else
+        {
+            _confirmRename = null;
+            _message = result.Skipped > 0
+                ? $"Renamed {result.Renamed} files. {result.Skipped} were left as they were."
+                : $"Renamed {result.Renamed} files.";
         }
 
         _saving = false;

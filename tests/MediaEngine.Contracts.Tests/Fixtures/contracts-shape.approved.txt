@@ -3377,6 +3377,17 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.RecycleBinItemDto
   SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
   DeletedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoIdentifyRequest
+  Link: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoIdentifyResponse
+  Title: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoIdentifyStateResponse
+  Supported: System.Boolean | nullability=not-null | accessors=get,init
+  Matched: System.Boolean | nullability=not-null | accessors=get,init
+  LookupEnabled: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoOrderEntryDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
@@ -3385,6 +3396,7 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoOrderGroupDto
   ParentId: System.Guid | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
   Entries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.VideoOrderEntryDto> | nullability=not-null | accessors=get,init
+  CanRenameFiles: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoOrderRequest
   ParentId: System.Guid | nullability=not-null | accessors=get,init
@@ -3392,6 +3404,28 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoOrderRequest
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoOrderResponse
   Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.VideoOrderGroupDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoRenameRequest
+  ParentId: System.Guid | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoRenameResponse
+  Renamed: System.Int32 | nullability=not-null | accessors=get,init
+  Skipped: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoSeriesPromoteRequest
+  ParentId: System.Guid? | nullability=nullable | accessors=get,init
+  NewSeriesName: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoSeriesStateResponse
+  Supported: System.Boolean | nullability=not-null | accessors=get,init
+  InSeries: System.Boolean | nullability=not-null | accessors=get,init
+  SeriesTitle: System.String | nullability=nullable | accessors=get,init
+  Targets: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Items.VideoSeriesTargetDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoSeriesTargetDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  VideoCount: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchEditPreview
   AffectedCount: System.Int32 | nullability=not-null | accessors=get,init

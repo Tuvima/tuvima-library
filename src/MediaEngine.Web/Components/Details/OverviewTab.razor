@@ -122,7 +122,8 @@
 
         <EditingLibraryFields />
         <EditingExplicitMark />
-        <EditingVideoOrder />
+        <EditingVideoSeries OnChanged="@(() => _orderVersion++)" />
+        <EditingVideoOrder @key="_orderVersion" />
     }
 </div>
 
@@ -132,6 +133,7 @@
     [Parameter] public EventCallback<SequenceContainerOptionViewModel> OnContainerSelected { get; set; }
 
     private bool _creditsExpanded;
+    private int _orderVersion;
 
     // Editing Mode: the description is editable; the credits are provider facts and show a lock with the reason.
     private static readonly string[] DescriptionKeys = ["description", "episode_description", "issue_description"];

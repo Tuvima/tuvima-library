@@ -77,6 +77,7 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<IImportFolderWaitingReader, ImportFolderWaitingReader>();
         services.TryAddSingleton<IOrganiseFileMover, SystemOrganiseFileMover>();
         services.TryAddSingleton<SidecarMover>();
+        services.TryAddSingleton<VideoOrderRenamer>();
         services.TryAddSingleton<AutoOrganizeService>();
         services.TryAddSingleton<IAutoOrganizeService>(sp => sp.GetRequiredService<AutoOrganizeService>());
         services.TryAddSingleton<IFileIntake, IngestionEngineFileIntake>();

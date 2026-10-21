@@ -33,6 +33,8 @@ public sealed class VideoLibraryReaderTests : IDisposable
         Assert.Equal("2020", merged.Claims.Single(c => c.Key == MetadataFieldConstants.Year).Value);
         Assert.True(Confidence(MetadataFieldConstants.Title) > 0.95);
         Assert.DoesNotContain(merged.Claims, c => c.Key == MetadataFieldConstants.Description);
+        // The mark that says "matched online", which hides Identify from the video's "..." menu.
+        Assert.Equal("youtube", merged.Claims.Single(c => c.Key == MetadataFieldConstants.VideoLookupSource).Value);
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);

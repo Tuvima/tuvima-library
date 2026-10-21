@@ -1,0 +1,147 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Items
+@implements IDisposable
+@inject IEngineApiClient Api
+
+@* Editing Mode on a video: put a video that stands alone into a series, or take it out of one. It only changes how Library
+   shows the video; the file is never moved or renamed. Nothing is drawn for anything that is not a video. *@
+@if (Mode is { IsOn: true } mode && mode.Fields.Loaded && _state is { Supported: true })
+{
+    <section class="tl-editing-series" aria-label="Series">
+        <header class="tl-editing-series__heading"><span>Series</span></header>
+        @if (_state.InSeries)
+        {
+            <p class="tl-editing-series__text">In the series <strong>@_state.SeriesTitle</strong>.</p>
+            <div class="tl-editing-series__actions">
+                <AppButton Label="Take out of series" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="RemoveAsync" />
+            </div>
+        }
+        else
+        {
+            <p class="tl-editing-series__text">This video stands on its own. Put it in a series to show it with the others.</p>
+            <AppSelect Label="Series" Native="true" Value="@_choice" ValueChanged="@(value => _choice = value ?? string.Empty)"
+                       Options="Options" Disabled="@_busy" />
+            @if (_choice == NewSeries)
+            {
+                <AppTextField Label="Name of the new series" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)"
+                              MaxLength="200" Disabled="@_busy" />
+            }
+            <div class="tl-editing-series__actions">
+                <AppButton Label="Put in series" Size="AppControlSize.Compact" Disabled="@(_busy || !CanPromote)" OnClick="PromoteAsync" />
+            </div>
+        }
+        <p class="tl-editing-series__note">Your files are not moved or renamed.</p>
+        @if (_error is not null)
+        {
+            <p class="tl-editing-series__error" role="alert">@_error</p>
+        }
+    </section>
+}
+
+@code {
+    private const string NewSeries = "new";
+
+    private EditingModeContext? _subscribed;
+    private Guid _loadedFor;
+    private VideoSeriesStateResponse? _state;
+    private string _choice = string.Empty;
+    private string _name = string.Empty;
+    private bool _busy;
+    private string? _error;
+
+    [CascadingParameter] public EditingModeContext? Mode { get; set; }
+
+    /// <summary>Raised after the video joined or left a series, so the order list beside it can reload.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private IReadOnlyList<AppSelectOption> Options => [
+        new AppSelectOption(string.Empty, "Choose a series"),
+        .. (_state?.Targets ?? []).Select(target => new AppSelectOption(target.Id.ToString("D"), $"{target.Title} ({target.VideoCount})")),
+        new AppSelectOption(NewSeries, "Start a new series", SeparatorBefore: true),
+    ];
+
+    private bool CanPromote => _choice == NewSeries ? !string.IsNullOrWhiteSpace(_name) : Guid.TryParse(_choice, out _);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!ReferenceEquals(_subscribed, Mode))
+        {
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed -= OnModeChanged;
+            }
+
+            _subscribed = Mode;
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed += OnModeChanged;
+            }
+        }
+
+        await EnsureLoadedAsync();
+    }
+
+    private async Task EnsureLoadedAsync()
+    {
+        if (Mode is not { IsOn: true } mode || !mode.Fields.Loaded || mode.Fields.EntityId == Guid.Empty)
+        {
+            return;
+        }
+
+        var id = mode.Fields.EntityId;
+        if (id == _loadedFor)
+        {
+            return;
+        }
+
+        _loadedFor = id;
+        _state = await Api.GetVideoSeriesAsync(id);
+    }
+
+    private async Task PromoteAsync()
+    {
+        if (Mode is null || !CanPromote)
+        {
+            return;
+        }
+
+        var existing = Guid.TryParse(_choice, out var seriesId) ? seriesId : (Guid?)null;
+        await RunAsync(() => Api.PromoteVideoToSeriesAsync(
+            Mode.Fields.EntityId, existing, existing is null ? _name.Trim() : null));
+    }
+
+    private Task RemoveAsync() => Mode is null ? Task.CompletedTask : RunAsync(() => Api.RemoveVideoFromSeriesAsync(Mode.Fields.EntityId));
+
+    private async Task RunAsync(Func<Task<bool>> save)
+    {
+        _busy = true;
+        _error = null;
+        if (await save())
+        {
+            _choice = string.Empty;
+            _name = string.Empty;
+            _state = await Api.GetVideoSeriesAsync(Mode!.Fields.EntityId);
+            await OnChanged.InvokeAsync();
+        }
+        else
+        {
+            _error = "That could not be saved. The series may have changed; reload the page and try again.";
+        }
+
+        _busy = false;
+    }
+
+    private void OnModeChanged() => _ = InvokeAsync(async () =>
+    {
+        await EnsureLoadedAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnModeChanged;
+        }
+    }
+}
