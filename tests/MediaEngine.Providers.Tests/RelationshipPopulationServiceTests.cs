@@ -1,10 +1,14 @@
+using System.Text.Json;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Providers.Adapters;
 using MediaEngine.Providers.Models;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
+using Tuvima.Wikidata;
 
 namespace MediaEngine.Providers.Tests;
 
@@ -137,6 +141,82 @@ public sealed class RelationshipPopulationServiceTests : IDisposable
         Assert.Null(await _entities.FindByQidAsync("Q-deprecated-mentor"));
     }
 
+    [Fact]
+    public async Task SignificantPersonAndEnemyClaims_BecomeCharacterRelationships()
+    {
+        // The property map is read from the shipped config, so a missing P3342/P7047 entry fails here.
+        var config = JsonSerializer.Deserialize<ReconciliationProviderConfig>(
+            await File.ReadAllTextAsync(Path.Combine(FindRepoRoot(), "config", "providers", "wikidata_reconciliation.json")),
+            new JsonSerializerOptions { AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip });
+        Assert.NotNull(config);
+        var source = await CreateEntityAsync("Q-hero", FictionalEntityType.Character);
+        var entity = new WikidataEntityInfo
+        {
+            Id = source.WikidataQid,
+            Claims = new Dictionary<string, IReadOnlyList<WikidataClaim>>
+            {
+                ["P3342"] = [EntityClaim("P3342", "Q-ally")],
+                ["P7047"] = [EntityClaim("P7047", "Q-nemesis")],
+            },
+        };
+
+        var evidence = ReconciliationAdapter.BuildFictionalEntityGraphEvidence(
+            entity,
+            config!.DataExtension.CharacterProperties,
+            config.DataExtension.PropertyLabels);
+        await CreateService().PopulateAsync(
+            source.WikidataQid,
+            new Dictionary<string, string>(),
+            "Q-universe",
+            "Universe",
+            statementEvidence: evidence.Statements,
+            maxDepth: 0);
+
+        var facts = await _relationships.GetBySubjectAsync(source.WikidataQid);
+        Assert.Equal(2, facts.Count);
+        Assert.Contains(facts, fact => fact.RelationshipTypeValue == RelationshipType.SignificantPerson && fact.ObjectQid == "Q-ally");
+        Assert.Contains(facts, fact => fact.RelationshipTypeValue == RelationshipType.Enemy && fact.ObjectQid == "Q-nemesis");
+        Assert.Equal(FictionalEntityType.Character, (await _entities.FindByQidAsync("Q-ally"))!.EntitySubType);
+        Assert.Equal(FictionalEntityType.Character, (await _entities.FindByQidAsync("Q-nemesis"))!.EntitySubType);
+    }
+
+    [Fact]
+    public async Task AParticipantInClaim_BecomesAnEventParticipationRelationship_NotAnOpponent()
+    {
+        // P1344 is Wikidata's "participant in": the character took part in an event.
+        var config = JsonSerializer.Deserialize<ReconciliationProviderConfig>(
+            await File.ReadAllTextAsync(Path.Combine(FindRepoRoot(), "config", "providers", "wikidata_reconciliation.json")),
+            new JsonSerializerOptions { AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip });
+        Assert.NotNull(config);
+        var source = await CreateEntityAsync("Q-fighter", FictionalEntityType.Character);
+        var entity = new WikidataEntityInfo
+        {
+            Id = source.WikidataQid,
+            Claims = new Dictionary<string, IReadOnlyList<WikidataClaim>>
+            {
+                ["P1344"] = [EntityClaim("P1344", "Q-battle")],
+            },
+        };
+
+        var evidence = ReconciliationAdapter.BuildFictionalEntityGraphEvidence(
+            entity,
+            config!.DataExtension.CharacterProperties,
+            config.DataExtension.PropertyLabels);
+        await CreateService().PopulateAsync(
+            source.WikidataQid,
+            new Dictionary<string, string>(),
+            "Q-universe",
+            "Universe",
+            statementEvidence: evidence.Statements,
+            maxDepth: 0);
+
+        var fact = Assert.Single(await _relationships.GetBySubjectAsync(source.WikidataQid));
+        Assert.Equal(RelationshipType.ParticipantIn, fact.RelationshipTypeValue);
+        Assert.Equal("Q-battle", fact.ObjectQid);
+        Assert.NotEqual("opponent", fact.RelationshipTypeValue);
+        Assert.Equal(FictionalEntityType.Event, (await _entities.FindByQidAsync("Q-battle"))!.EntitySubType);
+    }
+
     public void Dispose()
     {
         _database.Dispose();
@@ -181,6 +261,35 @@ public sealed class RelationshipPopulationServiceTests : IDisposable
             targetQid,
             0.9,
             qualifiers);
+
+    private static WikidataClaim EntityClaim(string propertyId, string entityId) => new()
+    {
+        PropertyId = propertyId,
+        Rank = "normal",
+        Value = new WikidataValue
+        {
+            Kind = WikidataValueKind.EntityId,
+            EntityId = entityId,
+            EntityLabel = entityId,
+            RawValue = entityId,
+        },
+    };
+
+    private static string FindRepoRoot()
+    {
+        var dir = Path.GetDirectoryName(typeof(RelationshipPopulationServiceTests).Assembly.Location);
+        while (dir != null)
+        {
+            if (File.Exists(Path.Combine(dir, "MediaEngine.slnx")))
+            {
+                return dir;
+            }
+
+            dir = Path.GetDirectoryName(dir);
+        }
+
+        throw new InvalidOperationException("Could not find repository root (MediaEngine.slnx).");
+    }
 
     private static FictionalEntityStatementQualifier Qualifier(string propertyId, string value, string kind) =>
         new(propertyId, value, kind);

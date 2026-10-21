@@ -124,9 +124,16 @@ public sealed class UniverseConnectionsDto
     [JsonPropertyName("characters")]
     public IReadOnlyList<UniverseCharacterDto> Characters { get; init; } = [];
 
-    /// <summary>All visible characters, including any beyond <see cref="Characters"/>.</summary>
+    /// <summary>All characters the profile may be shown, including any beyond <see cref="Characters"/>; the hidden ones are not counted.</summary>
     [JsonPropertyName("character_count")]
     public int CharacterCount { get; init; }
+
+    /// <summary>
+    /// Characters left out of <see cref="Characters"/> and the Cast to avoid spoilers: the profile has not yet reached them
+    /// (spoiler level "Up to where I am"). Only the number is told; 0 when the level is "Everything".
+    /// </summary>
+    [JsonPropertyName("hidden_character_count")]
+    public int HiddenCharacterCount { get; init; }
 
     /// <summary>The helper-app Cast rows, in the same order, each with its sources.</summary>
     [JsonPropertyName("cast")]
@@ -154,8 +161,9 @@ public sealed class UniverseCharacterDto
     public int WorkCount { get; init; }
 
     /// <summary>
-    /// True when every appearance the profile may see is marked as a spoiler for a work. Until the Library knows how far the
-    /// viewer has got, such a character is listed by name and source only: no work count, no "Also appears in".
+    /// True when the Library cannot place the character within what the profile has watched or read (it appears in a title the
+    /// profile has not started, or somewhere within a title with no episode to place it by). Such a character is listed by
+    /// name and source only, labelled "No plot details": no work count and no descriptions.
     /// </summary>
     [JsonPropertyName("no_plot_details")]
     public bool NoPlotDetails { get; init; }

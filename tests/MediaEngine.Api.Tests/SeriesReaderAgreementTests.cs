@@ -301,8 +301,8 @@ public sealed class SeriesReaderAgreementTests : IDisposable
             new EntityRelationshipRepository(_db),
             new NarrativeRootRepository(_db),
             new PersonRepository(_db),
-            display,
-            new PluginLoreRepository(_db));
+            new PluginLoreRepository(_db),
+            SpoilerTestKit.Create(display, _db));
         var universes = new UniverseClientReadService(
             collections, display, new DisplayCardBuilder(), connections,
             new SeriesManifestRepository(_db), arrays: new CanonicalValueArrayRepository(_db));

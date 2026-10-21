@@ -39,6 +39,7 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<INarrativeRootResolver, NarrativeRootResolver>();
         services.AddSingleton<IRecursiveFictionalEntityService, RecursiveFictionalEntityService>();
         services.AddSingleton<IRelationshipPopulationService, RelationshipPopulationService>();
+        services.AddSingleton<IWorkAdaptationEdgeService, WorkAdaptationEdgeService>();
         services.AddSingleton<IUniverseGraphQueryService, UniverseGraphQueryService>();
         services.AddSingleton<IArtworkPaletteService, ArtworkPaletteService>();
         services.AddSingleton<ILoreDeltaService, LoreDeltaService>();

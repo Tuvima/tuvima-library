@@ -24,8 +24,11 @@ public static class RelationshipType
     /// <summary>P40 — Child relationship (parent → child).</summary>
     public const string Child = "child";
 
-    /// <summary>P1344 — Enemy or rival relationship.</summary>
-    public const string Opponent = "opponent";
+    /// <summary>P1344 — Participant in: a character took part in an event (the reverse of <see cref="Participant"/>).</summary>
+    public const string ParticipantIn = "participant_in";
+
+    /// <summary>P7047 — Enemy (a character's declared enemy).</summary>
+    public const string Enemy = "enemy";
 
     /// <summary>P1066 — Student-of / mentor relationship.</summary>
     public const string StudentOf = "student_of";
