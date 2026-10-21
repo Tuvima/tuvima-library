@@ -183,6 +183,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ICharacterPortraitRepository, CharacterPortraitRepository>();
         services.AddSingleton<IEntityAssetRepository, EntityAssetRepository>();
         services.AddSingleton<ITextTrackRepository, TextTrackRepository>();
+        services.AddSingleton<ISubtitleIndexRepository, SubtitleIndexRepository>();
         services.AddSingleton<IDeferredEnrichmentRepository, DeferredEnrichmentRepository>();
         services.AddSingleton<IBridgeIdRepository, BridgeIdRepository>();
         services.AddSingleton<IEntityTimelineRepository, EntityTimelineRepository>();
