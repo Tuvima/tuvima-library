@@ -37,7 +37,7 @@ Use the [shared AI storage guide](shared-ai-storage.md) for weights and native r
 3. Use the offered load and benchmark controls when needed.
 4. Check feature readiness before enabling a dependent feature.
 
-Saved feature flags do not override missing dependencies. A downloaded file alone does not prove that a feature is ready.
+Switching an AI plugin on does not override missing dependencies. A downloaded file alone does not prove that a feature is ready.
 
 ## Enable audio only when needed
 

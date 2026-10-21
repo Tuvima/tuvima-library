@@ -23,7 +23,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
-| [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3; waves 1–3 built 2026-10-20; waves 4–8 in [the handoff](handoffs/2026-10-20-developer-tools-waves-4-to-8.md)) |
+| [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | Built, awaiting your Local checks (v3; all waves built 2026-10-21; WP8 waits for the first community plugin; checks in [the batch list](validation/batch.md); handoff: [waves 4–8](handoffs/2026-10-20-developer-tools-waves-4-to-8.md)) |
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP3b, U-WP4 to U-WP8, U-WP9 part 1, U-WP10 to U-WP12 built 2026-10-20, and U-WP9 part 2, U-WP13 (Dashboard) and U-WP14 built 2026-10-21, awaiting Local checks; rest in the [2026-10-20 Universes handoff](handoffs/2026-10-20-universe-remaining.md)) |
 | [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | In progress (v2): Waves 1–5 merged; WP8 left, see the 2026-10-21 handoff |
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | In progress (v29, 2026-10-20; Waves 1 and 2 built, the Vault is next) |

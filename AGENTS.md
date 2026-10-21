@@ -399,6 +399,8 @@ If you are new to the repo, read these files in roughly this order:
 
 That sequence explains the product, the runtime wiring, the intake flow, the enrichment flow, the decision logic, and the persistence/config layer.
 
+For the Developer area (Settings > Developer), start from `docs/guides/developer-tools.md` and decisions 0012 and 0013 in `engineering/architecture/decisions/`. The code: plugin loading, approval, install and the four kinds are under `src/MediaEngine.Api/Services/Plugins/` (`PluginCatalog.cs`, `PluginPackageInstaller.cs`, `Declarative/`, `Service/`, `Sandbox/`, `AiFeatures/`); the contracts every kind shares are in `src/MediaEngine.Plugins/`; the one event list is `src/MediaEngine.Api/Services/Events/LibraryEvents.cs`; notifications are under `Services/Notifications/`; backups and their destinations are under `Services/Backups/`; the Local AI engine room is `src/MediaEngine.AI/EngineRoom/`.
+
 ## Practical Reading Notes
 
 - Ignore `bin/`, `obj/`, `.data/`, and `logs/` when learning the architecture.
