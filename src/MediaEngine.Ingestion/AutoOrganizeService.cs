@@ -22,7 +22,7 @@ namespace MediaEngine.Ingestion;
 ///
 /// After promotion: moves companion artwork files and publishes the completion event.
 /// </summary>
-public sealed class AutoOrganizeService : IAutoOrganizeService
+public sealed partial class AutoOrganizeService : IAutoOrganizeService
 {
     private readonly IMediaAssetRepository _assetRepo;
     private readonly ICanonicalValueRepository _canonicalRepo;
@@ -33,6 +33,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     private readonly IOrganizationGate _gate;
     private readonly IngestionOptions _options;
     private readonly IEntityAssetRepository? _entityAssetRepo;
+    private readonly IWorkRepository? _workRepo;
     private readonly IMediaAssetCoverageRepository? _coverageRepo;
     private readonly AssetPathService? _assetPathService;
     private readonly ILibraryFolderResolver? _libraryResolver;
@@ -82,6 +83,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         _gate = gate;
         _options = options.Value;
         _entityAssetRepo = entityAssetRepo;
+        _workRepo = workRepo;
         _assetPathService = assetPathService;
         _libraryResolver = libraryResolver;
         _sourceMutationGate = sourceMutationGate ?? new SourceMutationPolicyGate();
@@ -643,7 +645,6 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
 
         // Path changed (QID now available) — move file to new location.
         var oldPath = asset.FilePathRoot;
-        var oldFolder = Path.GetDirectoryName(oldPath) ?? string.Empty;
 
         // The new name must stay inside the folder the file already lives in. Anything that would leave it is refused,
         // so tidying can never carry a file across folders or drives.
@@ -686,7 +687,21 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             return;
         }
 
-        var relocatedPath = await _organizer.ExecuteMoveAsync(asset.FilePathRoot, newDest, ct)
+        await MoveFiledAssetAsync(asset, assetId, mediaType, newDest, "after hydration", ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Renames and moves an already-filed asset's file to <paramref name="newDest"/> (every check has been made by the caller):
+    /// the file moves without overwriting anything, then the stored path, the files that travel with it and the folders it left
+    /// follow the path the file really ended up at. Returns that path, or null when the file did not move.
+    /// </summary>
+    private async Task<string?> MoveFiledAssetAsync(
+        Domain.Aggregates.MediaAsset asset, Guid assetId, MediaType? mediaType, string newDest, string reason, CancellationToken ct)
+    {
+        var oldPath = asset.FilePathRoot;
+        var oldFolder = Path.GetDirectoryName(oldPath) ?? string.Empty;
+
+        var relocatedPath = await _organizer.ExecuteMoveAsync(oldPath, newDest, ct)
             .ConfigureAwait(false);
 
         if (relocatedPath is not null)
@@ -702,8 +717,8 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             CleanEmptyParents(oldFolder, sourceRoot ?? oldFolder);
 
             _logger.LogInformation(
-                "Re-organized asset {Id} after hydration (QID in path): {Old} → {New}",
-                assetId, asset.FilePathRoot, relocatedPath);
+                "Re-organized asset {Id} {Reason}: {Old} → {New}",
+                assetId, reason, oldPath, relocatedPath);
 
             try
             {
@@ -712,7 +727,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
                     ActionType = SystemActionType.PathUpdated,
                     EntityId = assetId,
                     EntityType = mediaType?.ToString() ?? "Unknown",
-                    Detail = $"Re-organized after hydration: {Path.GetFileName(relocatedPath)}",
+                    Detail = $"Re-organized {reason}: {Path.GetFileName(relocatedPath)}",
                 }, ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -720,6 +735,8 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
                 _logger.LogDebug(ex, "Failed to log re-organization activity for {Id}", assetId);
             }
         }
+
+        return relocatedPath;
     }
 
     // -------------------------------------------------------------------------

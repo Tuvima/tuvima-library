@@ -43,6 +43,7 @@ public static class ReviewIssueClassifier
             "MultipleQidMatches" => new(ReviewIssueBucket.ManualReview, "Canonical identity needs confirmation", "More than one Wikidata identity may match the confirmed retail record.", false),
             "RetailMatchFailed" => new(ReviewIssueBucket.ManualReview, "No reliable match", "No configured provider returned a sufficiently reliable match.", false),
             "PlaceholderTitle" => new(ReviewIssueBucket.ManualReview, "Missing identifying information", "A usable title or identifier is required before matching can continue.", false),
+            "BatchEditFailed" => new(ReviewIssueBucket.ManualReview, "A batch edit didn't apply", "A batch edit changed the other items but couldn't change this one. Nothing was changed on it.", false),
             "MetadataConflict" => new(ReviewIssueBucket.ManualReview, "Metadata sources disagree", "Two or more sources supplied similarly credible but conflicting values.", false),
             _ when rootCause == ReviewRootCause.EnrichmentIncomplete => new(ReviewIssueBucket.QuickFix, "Enrichment incomplete", "The item is identified but one enrichment step needs confirmation.", false),
             _ => new(ReviewIssueBucket.ManualReview, "Manual review needed", "The ingestion pipeline could not safely make this decision automatically.", false),
