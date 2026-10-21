@@ -67,11 +67,24 @@ clears catalogued library/database/cache/artwork state while preserving accounts
 profiles, access rules, settings, configured libraries, and provider configuration,
 recreates the selected Standard or Stress fixtures, queues them through grouped
 normal ingestion scans, and resumes watching. `POST /ingestion/rescan` remains the
-canonical no-wipe operation for configured source media. Reset paths include guards
-that refuse destructive cleanup when a library output path overlaps a source folder.
-Before deleting anything, a reset waits at most 20 seconds for background enrichment
-workers to stop and at most 20 seconds for the data store's write lock. If either does
-not let go, or the folders overlap, the reset stops with nothing deleted, answers `409`
+canonical no-wipe operation for configured source media.
+
+A reset deletes only files the Library created, so it works when the source folders sit
+inside the library folder (the default layout). Seeding records each fixture's path; before
+clearing the data store the reset follows each one through `ingestion_log` (the path a file
+was first found at) to its media asset's current path, so a fixture is found after
+ingestion filed it. It deletes those files, the subtitle and lyric files the Engine wrote
+for them (never user-owned tracks), leftover `.tuvima.bak` copies and the folders they
+leave empty, then clears the regenerable folders in `.data` (assets, staging, generated,
+sidecars-cache, variants).
+It deletes only inside managed, writable source folders and the library folder, never in
+as-is folders, the Import folder, the photo space or the data store, and it lists the
+files it kept because the Library did not create them. The full wipe (`wipeScope=full`),
+which empties every managed source folder, refuses when one of them holds the Library's
+data folder, the photo space or the Import folder. Development resets are refused while
+real-media protection is on. Before deleting anything, a reset waits at most 20 seconds
+for background enrichment workers to stop and at most 20 seconds for the data store's
+write lock. If either does not let go, the reset stops with nothing deleted, answers `409`
 with a message naming what is blocking it, and turns file watching back on.
 
 Fresh-ingest validation is the proof path for sequence, artwork, and attribution
