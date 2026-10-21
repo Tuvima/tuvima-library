@@ -296,7 +296,7 @@ internal static class AiEndpoints
     /// <summary>Usage per caller and ability since <c>days</c> ago (1 to 90, default 7), plus each AI plugin's hourly standing.</summary>
     internal static async Task<IResult> GetAiUsageAsync(
         IAiUsageRecordRepository usage,
-        PluginAiBudget budget,
+        [FromServices] PluginAiBudget budget,
         Services.Plugins.PluginCatalog plugins,
         TimeProvider clock,
         CancellationToken ct,
