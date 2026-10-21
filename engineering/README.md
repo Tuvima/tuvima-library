@@ -30,7 +30,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Right-sized pictures on every screen](specs/right-sized-pictures.md) | Locked (v1, 2026-10-21) |
 | [Spec: Delete a show, season, album or Series, and the Recycle bin](specs/delete-groups.md) | Locked (v7, 2026-10-21) |
 | [Spec: Safer deleting in View](specs/safer-deleting-in-view.md) | Locked (v2, 2026-10-21) |
-| [Spec: Simpler library setup (Watch, Listen, Read, View, Vault)](specs/library-setup-groups.md) | Locked (v21, 2026-10-21) |
+| [Spec: Simpler library setup (Watch, Listen, Read, View, Vault)](specs/library-setup-groups.md) | In progress (v21; WP11 large upload spike done 2026-10-21, awaiting its real-network Local check; WP1 to WP3 wait for the Libraries local-check fixes) |
 | [Spec: Encrypted plugin and integration keys](specs/encrypted-plugin-keys.md) | Locked (v1, 2026-10-21; EK1 and EK3 before plugin install WP19, EK2 with backup passphrase WP25) |
 | [Spec: Backup and restore (settings and personal state)](specs/backup-and-restore.md) | Locked (v2, 2026-10-21; [handoff](handoffs/2026-10-21-backup-and-restore.md); coordinate with Developer tools WP25 and Encrypted keys EK2) |
 | [Spec: Person credits and series search without the whole-library credit list](specs/archive/person-credits-and-series-search-speed.md) | Built (v2, archived 2026-10-21; follow-ups R1 and R2 in its section 8) |
@@ -99,6 +99,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Slow library and Home reads at 4,000 works](reports/slow-reads-2026-10.md) | Current — causes 1–2 fixed by the library list speed spec; causes 3–4 fixed by the Home and detail speed spec; follow-ups in the 2026-10-21 read speed handoff |
 | [Which stored name wins when a field accepts several](reports/stored-name-order-2026-10.md) | Current — recommendations 1–3 approved and built (stored-name-order-fix); addendum recommendations 6–9 approved and built; open remediation: the combined artist view's artist reader (see the report's last section) |
 | [Which library reads are slow or break on very large libraries](reports/library-read-speed-measurements-2026-10.md) | Current — measured 2026-10-21; people search, presence counts and library-sized id lists fixed |
+| [Large upload spike: dropping 1, 10 and 50 GB files on a library page](reports/large-upload-spike-2026-10.md) | Current — WP11 of the library setup spec, measured 2026-10-21; feeds WP12 (resumable 64 MB pieces, 50 GB warning threshold pending the real-network check) |
 
 ## History (pre-2026-10-17 engineering records)
 
