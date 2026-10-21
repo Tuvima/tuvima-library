@@ -483,6 +483,64 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         Assert.Equal(0, _time.LiveTimers);
     }
 
+    // -- Search remembers nothing about the Vault -----------------------------------------------------------------------
+
+    private static void Type(IRenderedComponent<MediaEngine.Web.Components.Search.UniversalSearchOverlay> overlay, string text)
+    {
+        var input = overlay.Find(".universal-search-overlay__input-shell input");
+        input.Input(text);
+        overlay.WaitForElement(".universal-search-overlay__clear");
+        input.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Escape" });
+    }
+
+    private static async Task ReopenWithAnEmptyBoxAsync(IRenderedComponent<MediaEngine.Web.Components.Search.UniversalSearchOverlay> overlay)
+    {
+        await overlay.InvokeAsync(() => overlay.Instance.Open());
+        overlay.WaitForElement(".universal-search-overlay__clear").Click();
+    }
+
+    [Fact]
+    public async Task RecentSearches_AreRemembered_WhileLocked_ButNothingTypedWhileNsfwModeIsOnIsKept()
+    {
+        UseEngine();
+        _mode = "allowed";
+        await LoadAsync();
+        var overlay = Render<MediaEngine.Web.Components.Search.UniversalSearchOverlay>();
+
+        await overlay.InvokeAsync(() => overlay.Instance.Open());
+        Type(overlay, "dune");
+        await ReopenWithAnEmptyBoxAsync(overlay);
+        Assert.Contains("Recent searches", overlay.Markup);
+        Assert.Contains("dune", overlay.Markup);
+
+        await State.UnlockAsync(null);
+        Type(overlay, "secretterm");
+        await ReopenWithAnEmptyBoxAsync(overlay);
+        Assert.DoesNotContain("secretterm", overlay.Markup);
+        Assert.Contains("dune", overlay.Markup);
+    }
+
+    [Fact]
+    public async Task LockingNsfwMode_WipesTheSearchBoxAndTheRecentSearches()
+    {
+        UseEngine();
+        _mode = "allowed";
+        await LoadAsync();
+        var overlay = Render<MediaEngine.Web.Components.Search.UniversalSearchOverlay>();
+        await overlay.InvokeAsync(() => overlay.Instance.Open());
+        Type(overlay, "dune");
+        await State.UnlockAsync(null);
+        await overlay.InvokeAsync(() => overlay.Instance.Open());
+        overlay.Find(".universal-search-overlay__input-shell input").Input("typedwhileunlocked");
+        Assert.Contains("typedwhileunlocked", overlay.Markup);
+
+        await overlay.InvokeAsync(() => State.LockAsync());
+
+        overlay.WaitForAssertion(() => Assert.DoesNotContain("typedwhileunlocked", overlay.Markup));
+        Assert.DoesNotContain("dune", overlay.Markup);
+        Assert.DoesNotContain("Recent searches", overlay.Markup);
+    }
+
     // -- The area ---------------------------------------------------------------------------------------------------------
 
     [Fact]
