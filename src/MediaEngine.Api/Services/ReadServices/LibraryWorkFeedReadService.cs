@@ -62,6 +62,7 @@ public sealed class LibraryWorkFeedReadService(IDatabaseConnection db) : ILibrar
                 WHERE w.work_kind != 'parent'
                   AND {visibleWorkPredicate}
                   AND {visibleAssetPredicate}
+                  AND {VaultSql.NotVaultAsset("ad.asset_id")}
                   AND (@RestrictWorks = 0 OR w.id IN (SELECT unhex(value) FROM json_each(@AllowedWorkIds)))
             )
             SELECT

@@ -111,6 +111,13 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IHouseholdRepository, HouseholdRepository>();
         services.AddSingleton<IApplicationRepository, ApplicationRepository>();
         services.AddSingleton<IIdentityRepository, IdentityRepository>();
+        // The Vault (Videos spec WP9): the list of Vault libraries, per-profile NSFW access and device-session unlocks, the NSFW PIN,
+        // and the Vault's own name and artwork records. VaultAccessResolver is what every catalogue check asks first.
+        services.AddSingleton<IVaultLibraryRepository, VaultLibraryRepository>();
+        services.AddSingleton<INsfwAccessRepository, NsfwAccessRepository>();
+        services.AddSingleton<IVaultNameRepository, VaultNameRepository>();
+        services.AddSingleton<IVaultArtworkRepository, VaultArtworkRepository>();
+        services.AddSingleton<VaultAccessResolver>();
         services.AddSingleton<IAccountSignInMethodRepository, AccountSignInMethodRepository>();
         services.AddSingleton<IClientAuthorizationRepository, ClientAuthorizationRepository>();
         services.AddSingleton<OnboardingRepository>();
@@ -133,6 +140,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ExternalIdentityTransactionService>();
         services.AddSingleton<IFirstPartyIdentityService, FirstPartyIdentityService>();
         services.AddSingleton<IProfilePinVerifier>(sp => (FirstPartyIdentityService)sp.GetRequiredService<IFirstPartyIdentityService>());
+        services.AddSingleton<INsfwPinService, NsfwPinService>();
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultAdministrationService>();
         services.AddTuvimaSecurity();
         services.AddSingleton<SetupSessionService>();
         services.AddSingleton<SetupPreflightService>();

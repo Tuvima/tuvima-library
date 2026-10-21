@@ -60,6 +60,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapUISettingsEndpoints();
         app.MapProfileEndpoints();
         app.MapProfileStateEndpoints();
+        app.MapVaultEndpoints();
         app.MapPersonEndpoints();
         app.MapWorkEndpoints();
         app.MapProgressEndpoints();

@@ -465,6 +465,7 @@ public sealed class PlaybackTelemetryRepository(
             (@allAccounts=1 OR account_id=@accountId)
             AND (@profileId IS NULL OR profile_id=@profileId)
             AND (@allLibraries=1 OR HEX(library_id) IN @libraryHex)
+            AND HEX(library_id) NOT IN (SELECT UPPER(REPLACE(library_id, '-', '')) FROM vault_libraries)
             AND feature_id IN @features
             AND (@from IS NULL OR started_at>=@from)
             AND (@to IS NULL OR started_at<@to)

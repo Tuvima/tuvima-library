@@ -42,13 +42,17 @@ public static class HlsStreamEndpoints
         context.User = new ClaimsPrincipal(new ClaimsIdentity(
             validation.Scopes.Select(scope => new Claim(TuvimaClaimTypes.Scope, scope)),
             "hls-grant"));
-        if (await authorization.EvaluateAssetAsync(
-                validation.Authority,
-                validation.AssetId,
-                ApplicationPermissionIds.PlaybackRead,
-                ct).ConfigureAwait(false) != CatalogueResourceAccess.Allowed)
+        var access = await authorization.EvaluateAssetAsync(
+            validation.Authority,
+            validation.AssetId,
+            ApplicationPermissionIds.PlaybackRead,
+            ct).ConfigureAwait(false);
+        if (access != CatalogueResourceAccess.Allowed)
         {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            // A file the caller cannot know about (for example a Vault file once NSFW mode is off) is not found, never forbidden.
+            context.Response.StatusCode = access == CatalogueResourceAccess.NotFound
+                ? StatusCodes.Status404NotFound
+                : StatusCodes.Status403Forbidden;
             return;
         }
 

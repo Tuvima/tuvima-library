@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.ReadServices;
@@ -16,7 +17,7 @@ public sealed class LibraryOverviewReadService(IDatabaseConnection db) : ILibrar
         var since7d = now.AddDays(-7).ToString("O");
         var since30d = now.AddDays(-30).ToString("O");
 
-        const string RecentlyAddedSql = """
+        var recentlyAddedSql = $"""
             SELECT COUNT(*)
             FROM (
                 SELECT e.work_id,
@@ -24,22 +25,24 @@ public sealed class LibraryOverviewReadService(IDatabaseConnection db) : ILibrar
                 FROM editions e
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
                 INNER JOIN metadata_claims mc ON mc.entity_id = ma.id
+                WHERE {VaultSql.NotVaultAsset("ma.id")}
                 GROUP BY e.work_id
             ) added
             WHERE julianday(added.first_claimed_at) >= julianday(@since);
             """;
 
         var added24h = await conn.ExecuteScalarAsync<int>(
-            new CommandDefinition(RecentlyAddedSql, new { since = since24h }, cancellationToken: ct));
+            new CommandDefinition(recentlyAddedSql, new { since = since24h }, cancellationToken: ct));
         var added7d = await conn.ExecuteScalarAsync<int>(
-            new CommandDefinition(RecentlyAddedSql, new { since = since7d }, cancellationToken: ct));
+            new CommandDefinition(recentlyAddedSql, new { since = since7d }, cancellationToken: ct));
         var added30d = await conn.ExecuteScalarAsync<int>(
-            new CommandDefinition(RecentlyAddedSql, new { since = since30d }, cancellationToken: ct));
+            new CommandDefinition(recentlyAddedSql, new { since = since30d }, cancellationToken: ct));
 
         var pipelineRows = await conn.QueryAsync<(string State, int Count)>(new CommandDefinition(
-            """
+            $"""
             SELECT state AS State, COUNT(*) AS Count
             FROM identity_jobs
+            WHERE {VaultSql.NotVaultEntity("entity_id")}
             GROUP BY state
             """,
             cancellationToken: ct));

@@ -21,7 +21,8 @@ public sealed class FirstPartyIdentityService(
     IPasswordHasher<ProfileCredential> profileSecretHasher,
     TimeProvider timeProvider,
     IAuthenticationPolicyProvider authenticationPolicy,
-    ITwoStepSecretProtector? twoStepSecrets = null) : IFirstPartyIdentityService, IHostAdministratorRecoveryService, IHostTwoStepRecoveryService, IProfilePinVerifier
+    ITwoStepSecretProtector? twoStepSecrets = null,
+    INsfwAccessRepository? nsfwAccess = null) : IFirstPartyIdentityService, IHostAdministratorRecoveryService, IHostTwoStepRecoveryService, IProfilePinVerifier
 {
     /// <summary>The name an authenticator app shows for this server.</summary>
     public const string TwoStepIssuer = "Tuvima Library";
@@ -31,13 +32,13 @@ public sealed class FirstPartyIdentityService(
     private static readonly TimeSpan RecentlyActiveSessionWindow = TimeSpan.FromMinutes(10);
     private const string ThisComputerMethod = "ThisComputer";
     private const string ThisComputerStamp = "this_computer";
-    private const int MaxFailedAttempts = 5;
+    private const int MaxFailedAttempts = ProfileSecretFormat.MaxFailedAttempts;
     private const int MinimumPasswordLength = 12;
     private const int MaximumPasswordLength = 128;
     private const string PasswordRuleMessage = "Use at least 12 characters, and avoid common passwords or your email address.";
     private const string CommonPasswordsResourceName = "MediaEngine.Identity.common-passwords.txt";
     private static readonly FrozenSet<string> CommonPasswords = LoadCommonPasswords();
-    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan LockoutDuration = ProfileSecretFormat.LockoutDuration;
     private static readonly TimeSpan RecoveryLifetime = TimeSpan.FromDays(365);
     private static readonly TimeSpan PasswordResetLifetime = TimeSpan.FromMinutes(30);
     private readonly ConcurrentDictionary<Guid, SemaphoreSlim> sessionIssueLocks = new();
@@ -1276,9 +1277,42 @@ public sealed class FirstPartyIdentityService(
     {
         _ = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Profile '{profileId}' was not found.");
         if (string.IsNullOrWhiteSpace(secret)) { await identities.DeleteCredentialAsync(profileId, kind, ct).ConfigureAwait(false); return; }
-        ValidatePin(secret); var credential = await identities.GetCredentialAsync(profileId, kind, ct).ConfigureAwait(false) ?? NewProfileCredential(profileId, kind, secret);
+        ValidatePin(secret);
+        await RejectSameDigitsAsNsfwPinAsync(profileId, secret, ct).ConfigureAwait(false);
+        var credential = await identities.GetCredentialAsync(profileId, kind, ct).ConfigureAwait(false) ?? NewProfileCredential(profileId, kind, secret);
         credential.SecretHash = Hash(credential, secret); credential.SecurityStamp = NewSecurityStamp(); credential.UpdatedAt = UtcNow; credential.FailedAttemptCount = 0; credential.LockedUntil = null;
         await identities.UpsertCredentialAsync(credential, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The profile PIN and the NSFW PIN are never the same digits (Videos spec D25). The comparison counts as a wrong try against the
+    /// NSFW PIN, and is refused outright while that PIN is paused, so saving PINs can never be used to guess the other one.
+    /// </summary>
+    private async Task RejectSameDigitsAsNsfwPinAsync(Guid profileId, string pin, CancellationToken ct)
+    {
+        if (nsfwAccess is null || await nsfwAccess.GetPinAsync(profileId, ct).ConfigureAwait(false) is not { } nsfwPin)
+        {
+            return;
+        }
+
+        var now = UtcNow;
+        if (nsfwPin.LockedUntil is { } until && until > now)
+        {
+            throw new ProfilePinLockedException();
+        }
+
+        if (!Verify(nsfwPin, pin, out _))
+        {
+            return;
+        }
+
+        var attempt = await nsfwAccess.ReservePinAttemptAsync(nsfwPin.Id, MaxFailedAttempts, now, CancellationToken.None).ConfigureAwait(false);
+        if (attempt is null || attempt >= MaxFailedAttempts)
+        {
+            await nsfwAccess.LockExhaustedPinAsync(nsfwPin.Id, MaxFailedAttempts, now.Add(LockoutDuration), CancellationToken.None).ConfigureAwait(false);
+        }
+
+        throw new ArgumentException("Choose a PIN that is different from your other PIN.");
     }
 
     private async Task ReplacePasswordAsync(Guid accountId, AccountCredential credential, string password, string reason, CancellationToken ct)
@@ -1300,8 +1334,8 @@ public sealed class FirstPartyIdentityService(
     private ProfileCredential NewProfileCredential(Guid profileId, ProfileCredentialKind kind, string secret) { var now = UtcNow; var c = new ProfileCredential { Id = Guid.NewGuid(), ProfileId = profileId, Kind = kind, SecurityStamp = NewSecurityStamp(), CreatedAt = now, UpdatedAt = now }; c.SecretHash = Hash(c, secret); return c; }
     private string Hash(AccountCredential c, string secret) => accountPasswordHasher.HashPassword(c, $"tuvima:{c.Kind}:v1\n{secret}");
     private bool Verify(AccountCredential c, string secret, out bool rehash) { var r = accountPasswordHasher.VerifyHashedPassword(c, c.SecretHash, $"tuvima:{c.Kind}:v1\n{secret}"); rehash = r == PasswordVerificationResult.SuccessRehashNeeded; return r is PasswordVerificationResult.Success or PasswordVerificationResult.SuccessRehashNeeded; }
-    private string Hash(ProfileCredential c, string secret) => profileSecretHasher.HashPassword(c, $"tuvima:{c.Kind}:v1\n{secret}");
-    private bool Verify(ProfileCredential c, string secret, out bool rehash) { var r = profileSecretHasher.VerifyHashedPassword(c, c.SecretHash, $"tuvima:{c.Kind}:v1\n{secret}"); rehash = r == PasswordVerificationResult.SuccessRehashNeeded; return r is PasswordVerificationResult.Success or PasswordVerificationResult.SuccessRehashNeeded; }
+    private string Hash(ProfileCredential c, string secret) => profileSecretHasher.HashPassword(c, ProfileSecretFormat.Format(c.Kind, secret));
+    private bool Verify(ProfileCredential c, string secret, out bool rehash) { var r = profileSecretHasher.VerifyHashedPassword(c, c.SecretHash, ProfileSecretFormat.Format(c.Kind, secret)); rehash = r == PasswordVerificationResult.SuccessRehashNeeded; return r is PasswordVerificationResult.Success or PasswordVerificationResult.SuccessRehashNeeded; }
     private Task AuditAsync(Guid? accountId, Guid? profileId, Guid? sessionId, string type, bool ok, string? detail, CancellationToken ct) => identities.WriteAuditEventAsync(accountId, profileId, sessionId, type, ok, detail, UtcNow, ct);
     private DateTimeOffset UtcNow => timeProvider.GetUtcNow();
     private static string NormalizeEmail(string value) { if (string.IsNullOrWhiteSpace(value)) { throw new ArgumentException("Email is required."); } try { return new MailAddress(value.Trim()).Address.ToUpperInvariant(); } catch (FormatException) { throw new ArgumentException("Enter a valid email address.", nameof(value)); } }
@@ -1356,13 +1390,7 @@ public sealed class FirstPartyIdentityService(
 
         return entries.ToFrozenSet(StringComparer.Ordinal);
     }
-    private static void ValidatePin(string value)
-    {
-        if (value.Length is < 4 or > 12 || value.Any(c => !char.IsAsciiDigit(c)))
-        {
-            throw new ArgumentException("PIN must contain 4 to 12 digits.");
-        }
-    }
+    private static void ValidatePin(string value) => ProfileSecretFormat.ValidatePin(value);
     private static string Sanitize(string? value, int max, string fallback) { var result = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim(); return result.Length <= max ? result : result[..max]; }
     private static string SanitizeReason(string value) => Sanitize(value, 100, "revoked");
 }

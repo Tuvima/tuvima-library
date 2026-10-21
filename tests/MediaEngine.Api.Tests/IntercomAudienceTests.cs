@@ -44,7 +44,8 @@ public sealed class IntercomAudienceTests : IDisposable
         await SeedHumanAsync();
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System);
+            new ProfileRepository(_database), TimeProvider.System,
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var media = new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Visible", _assetId);
 
@@ -114,7 +115,8 @@ public sealed class IntercomAudienceTests : IDisposable
 
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System);
+            new ProfileRepository(_database), TimeProvider.System,
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
 
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.ReviewItemCreated,
@@ -132,7 +134,8 @@ public sealed class IntercomAudienceTests : IDisposable
         await SeedHumanAsync();
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System);
+            new ProfileRepository(_database), TimeProvider.System,
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var removed = new LibraryItemsRemovedEvent([Guid.NewGuid()], [Guid.NewGuid()]);
 
@@ -150,7 +153,8 @@ public sealed class IntercomAudienceTests : IDisposable
         await SeedHumanAsync();
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System);
+            new ProfileRepository(_database), TimeProvider.System,
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         await _identities.RevokeSessionAsync(_sessionId, DateTimeOffset.UtcNow, "test");
 

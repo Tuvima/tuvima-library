@@ -638,6 +638,41 @@ public sealed class PersonalActivityRepositoryTests : IDisposable
         Assert.Equal("image/jpeg", kept.ContentType);
     }
 
+    // The Vault never shows in anyone's activity (Videos spec D17): not as an item, not in the date rail, not in the totals.
+    [Fact]
+    public async Task VaultActivity_IsAbsentFromTheListTheDateRailAndTheSummary()
+    {
+        var person = SeedProfile("Alex");
+        var (normalWork, normalAsset) = SeedWork("Movies");
+        var (vaultWork, vaultAsset) = SeedWork("Videos");
+        await _repository.AddPlaybackAsync(person, PersonalActivityKinds.Watch, false, Guid.NewGuid(), _start,
+            new PersonalActivityDevice("TV", "television"),
+            new PersonalActivitySnapshot("Movies", "Ordinary film", null, null, 2000, normalWork, normalAsset, null),
+            new PersonalActivityProgress(_start.AddMinutes(10), 600, 100, true));
+        await _repository.AddPlaybackAsync(person, PersonalActivityKinds.Watch, false, Guid.NewGuid(), _start.AddDays(1),
+            new PersonalActivityDevice("TV", "television"),
+            new PersonalActivitySnapshot("Videos", "Secret scene", null, null, 2020, vaultWork, vaultAsset, null),
+            new PersonalActivityProgress(_start.AddDays(1).AddMinutes(10), 9000, 100, true));
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO vault_libraries(library_id, lookup_source, adults_confirmed_at, created_at, updated_at)
+                SELECT library_id, 'none', @now, @now, @now FROM media_assets WHERE id = @vaultAsset;
+                """, new { vaultAsset, now = _start.ToString("O") });
+        }
+
+        var filter = new PersonalActivityFilter { ProfileIds = Ids(person) };
+        var titles = (await Items(person)).Items.Select(item => item.Entries[0].Title).ToList();
+        var periods = await _repository.GetPeriodsAsync(filter, PersonalActivityGrouping.None);
+        var summary = await _repository.GetSummaryAsync(person);
+
+        Assert.Equal(["Ordinary film"], titles);
+        Assert.Equal(1, periods.Sum(period => period.Count));
+        Assert.Equal(600, summary.WatchSeconds);
+        Assert.Equal(1, summary.FinishedCount);
+    }
+
     // ----- Helpers -----
 
     private async Task<PersonalActivityItemPage> Items(Guid person) => await _repository.GetItemsAsync(

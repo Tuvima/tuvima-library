@@ -19,12 +19,17 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     IAccountRepository accounts,
     IAuthorizationEvaluator evaluator,
     IDatabaseConnection database,
-    IConfigurationLoader? configuration = null) : IDisplayProjectionReadService
+    IConfigurationLoader? configuration = null,
+    TimeProvider? clock = null) : IDisplayProjectionReadService
 {
-    // Built from the same data store connection, so every host that can authorize a catalogue request can also enforce the limit.
+    // Built from the same data store connection, so every host that can authorize a catalogue request can also enforce the
+    // limit and keep the Vault out of view.
     private ContentLimitPolicy? _contentLimits;
 
-    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database), configuration);
+    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(
+        new ProfileContentLimitRepository(database),
+        new VaultAccessResolver(new VaultLibraryRepository(database), new NsfwAccessRepository(database), clock ?? TimeProvider.System),
+        configuration);
 
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct) =>
         FilterWorks(await inner.LoadWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
@@ -44,8 +49,10 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return new HashSet<Guid>();
         }
 
-        return (await inner.LoadVisibleWorkRowsAsync(ct).ConfigureAwait(false))
-            .Where(row => Allows(row.LibraryId, row.MediaType, row.ContentRating, scope))
+        var visibleRows = await inner.LoadVisibleWorkRowsAsync(ct).ConfigureAwait(false);
+        var vaultWorks = WorksInHiddenVault(visibleRows.Select(row => (row.WorkId, row.LibraryId)), scope);
+        return visibleRows
+            .Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope))
             .Select(row => row.WorkId)
             .ToHashSet();
     }
@@ -110,7 +117,8 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         {
             return [];
         }
-        return rows.Where(row => Allows(row.LibraryId, row.MediaType, row.ContentRating, scope)).ToList();
+        var vaultWorks = WorksInHiddenVault(rows.Select(row => (row.WorkId, row.LibraryId)), scope);
+        return rows.Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope)).ToList();
     }
 
     /// <summary>
@@ -162,7 +170,15 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return new HashSet<Guid>();
         }
 
-        return await inner.LoadFavoriteWorkIdsAsync(profileId, ct).ConfigureAwait(false);
+        var favorites = await inner.LoadFavoriteWorkIdsAsync(profileId, ct).ConfigureAwait(false);
+        if (!scope.Content.Vault.HasHiddenLibraries)
+        {
+            return favorites;
+        }
+
+        // A favourite that is a Vault item does not exist for a request without an unlocked NSFW session.
+        var visible = await AllowedWorkIdsAsync(scope, ct).ConfigureAwait(false);
+        return favorites.Where(visible.Contains).ToHashSet();
     }
 
     public async Task<IReadOnlyList<DisplayHomeCollectionRow>> LoadHomeCollectionsAsync(Guid? profileId, CancellationToken ct)
@@ -173,7 +189,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return [];
         }
 
-        if (scope.AllLibraries && scope.Content.IsUnrestricted)
+        if (scope.AllLibraries && scope.Content.NeedsNoFiltering)
         {
             return await inner.LoadHomeCollectionsAsync(profileId, ct).ConfigureAwait(false);
         }
@@ -236,23 +252,47 @@ internal sealed class AuthorizedDisplayProjectionReadService(
 
     private static IReadOnlyList<DisplayWorkRow> FilterWorks(
         IReadOnlyList<DisplayWorkRow> rows,
-        CatalogueScope scope) =>
-        scope.IsValid
-            ? rows.Where(row => Allows(row.LibraryId, row.MediaType, row.ContentRating, scope))
-                .GroupBy(row => row.WorkId)
-                .Select(group => group
-                    .OrderBy(row => row.CreatedAt)
-                    .ThenBy(row => row.AssetId)
-                    .First())
-                .OrderByDescending(row => row.CreatedAt)
-                .ToList()
-            : [];
+        CatalogueScope scope)
+    {
+        if (!scope.IsValid)
+        {
+            return [];
+        }
+
+        var vaultWorks = WorksInHiddenVault(rows.Select(row => (row.WorkId, row.LibraryId)), scope);
+        return rows.Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope))
+            .GroupBy(row => row.WorkId)
+            .Select(group => group
+                .OrderBy(row => row.CreatedAt)
+                .ThenBy(row => row.AssetId)
+                .First())
+            .OrderByDescending(row => row.CreatedAt)
+            .ToList();
+    }
 
     private static bool Allows(string? libraryId, string mediaType, string? contentRating, CatalogueScope scope) =>
-        scope.Content.Allows(contentRating) && scope.Content.AllowsVideo(libraryId, mediaType) && AllowsLibraryAndFeature(libraryId, mediaType, scope);
+        !scope.Content.HidesLibrary(libraryId)
+        && scope.Content.Allows(contentRating)
+        && scope.Content.AllowsVideo(libraryId, mediaType)
+        && AllowsLibraryAndFeature(libraryId, mediaType, scope);
+
+    /// <summary>
+    /// The works that have at least one file in a Vault library this request cannot see. Such a work is absent as a whole, so
+    /// a work that somehow spans a Vault library and a normal one still cannot show its Vault side's title to a locked request.
+    /// </summary>
+    private static HashSet<Guid> WorksInHiddenVault(IEnumerable<(Guid WorkId, string? LibraryId)> rows, CatalogueScope scope) =>
+        scope.Content.Vault.HasHiddenLibraries
+            ? rows.Where(row => scope.Content.HidesLibrary(row.LibraryId)).Select(row => row.WorkId).ToHashSet()
+            : [];
 
     private static bool AllowsLibraryAndFeature(string? libraryId, string mediaType, CatalogueScope scope)
     {
+        if (scope.Content.IsVaultLibrary(libraryId))
+        {
+            // Vault access is the device session's NSFW mode, not an account's library grants; the Watch feature still applies.
+            return scope.Content.Vault.Unlocked && scope.Features.Contains(AccountFeatureId.Watch);
+        }
+
         if (!scope.Features.Contains(FeatureFor(mediaType)))
         {
             return false;

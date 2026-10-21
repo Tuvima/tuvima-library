@@ -14,13 +14,18 @@ internal sealed class CatalogueResourceAuthorizationService(
     IRequestAuthorityResolver authorities,
     IAccountAccessDecisionService accounts,
     IAuthorizationEvaluator evaluator,
-    IConfigurationLoader? configuration = null)
+    IConfigurationLoader? configuration = null,
+    TimeProvider? clock = null)
 {
-    // Built from the same data store connection, so every host that can authorize a catalogue request can also enforce the limit.
+    // Built from the same data store connection, so every host that can authorize a catalogue request can also enforce the
+    // limit and keep the Vault out of view.
     private ContentLimitPolicy? _contentLimits;
+    private VaultAccessResolver? _vaultAccess;
 
-    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database), configuration);
+    private VaultAccessResolver VaultAccess => _vaultAccess ??=
+        new(new VaultLibraryRepository(database), new NsfwAccessRepository(database), clock ?? TimeProvider.System);
 
+    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database), VaultAccess, configuration);
 
     public async ValueTask<CatalogueResourceAccess> EvaluateArtworkLinkAsync(
         HttpContext context, Guid linkId, ApplicationPermissionId permission, CancellationToken ct = default)
@@ -86,15 +91,20 @@ internal sealed class CatalogueResourceAuthorizationService(
             return CatalogueResourceAccess.NotFound;
         }
 
+        // Files the request cannot know about (a Vault file without an unlocked NSFW session) answer "not found". An entity whose
+        // files are all like that is itself not found, never forbidden.
+        var sawDenied = false;
         foreach (var assetId in candidates)
         {
-            if (await EvaluateAssetAsync(authority, assetId, applicationPermission, ct).ConfigureAwait(false) ==
-                CatalogueResourceAccess.Allowed)
+            var access = await EvaluateAssetAsync(authority, assetId, applicationPermission, ct).ConfigureAwait(false);
+            if (access == CatalogueResourceAccess.Allowed)
             {
                 return CatalogueResourceAccess.Allowed;
             }
+
+            sawDenied |= access == CatalogueResourceAccess.Denied;
         }
-        return CatalogueResourceAccess.Denied;
+        return sawDenied ? CatalogueResourceAccess.Denied : CatalogueResourceAccess.NotFound;
     }
 
     public async ValueTask<Guid?> FindAuthorizedAssetForWorkAsync(
@@ -272,6 +282,14 @@ internal sealed class CatalogueResourceAuthorizationService(
             return CatalogueResourceAccess.NotFound;
         }
 
+        // A Vault file is absent, not forbidden, for anyone without an unlocked NSFW session (Videos spec D17): the answer is the
+        // same one a file that does not exist gets, before any grant, feature or application permission is looked at.
+        var vault = await VaultAccess.ResolveAsync(authority, ct).ConfigureAwait(false);
+        if (vault.HidesLibrary(resource.LibraryId))
+        {
+            return CatalogueResourceAccess.NotFound;
+        }
+
         if (!Guid.TryParse(resource.LibraryId, out var libraryId) || libraryId == Guid.Empty)
         {
             return CatalogueResourceAccess.Denied;
@@ -314,7 +332,9 @@ internal sealed class CatalogueResourceAuthorizationService(
             return CatalogueResourceAccess.Denied;
         }
 
-        if (!(await accounts.EvaluateLibraryAsync(authority, libraryId, ct).ConfigureAwait(false)).IsAllowed)
+        // Vault access is the device session's NSFW mode (already checked above), not an account's library grants.
+        if (!vault.IsVaultLibrary(resource.LibraryId)
+            && !(await accounts.EvaluateLibraryAsync(authority, libraryId, ct).ConfigureAwait(false)).IsAllowed)
         {
             return CatalogueResourceAccess.Denied;
         }

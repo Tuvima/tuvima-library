@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Events;
@@ -29,7 +30,9 @@ public sealed class IntercomAudienceAuthorizer(
     IAccountRepository accounts,
     IApplicationEventResourceResolver resources,
     IProfileRepository profiles,
-    TimeProvider timeProvider) : IIntercomAudienceAuthorizer
+    TimeProvider timeProvider,
+    IVaultLibraryRepository vaultLibraries,
+    INsfwAccessRepository nsfw) : IIntercomAudienceAuthorizer
 {
     public async ValueTask<bool> CanReceiveAsync<T>(
         IntercomAudienceConnection connection,
@@ -66,6 +69,16 @@ public sealed class IntercomAudienceAuthorizer(
             activeProfile?.Role != ProfileRole.RestrictedProfile;
 
         var assetId = AssetId(eventName, payload);
+
+        // The Vault reaches nobody who has not switched NSFW mode on in this very session, administrators included (Videos spec D17).
+        // Whether an event is about a Vault item is read from the item's library, never from what the event says about it.
+        if ((assetId ?? EntityId(eventName, payload)) is { } subjectId
+            && await vaultLibraries.IsInVaultAsync(subjectId, ct).ConfigureAwait(false))
+        {
+            return await nsfw.IsUnlockedAsync(session.Id, session.ActiveProfileId, timeProvider.GetUtcNow(), ct).ConfigureAwait(false)
+                && await accounts.HasFeatureGrantAsync(account.Id, AccountFeatureId.Watch, ct).ConfigureAwait(false);
+        }
+
         if (assetId is { } id)
         {
             if (administrator)
@@ -94,6 +107,12 @@ public sealed class IntercomAudienceAuthorizer(
             session.Id, account.Id, grant.ProfileId, timeProvider.GetUtcNow(), ct).ConfigureAwait(false);
         return unlock is not null && unlock.ProtectionVersion == protection.ProtectionVersion;
     }
+
+    private static Guid? EntityId<T>(string eventName, T payload) where T : notnull => (eventName, payload) switch
+    {
+        (SignalREvents.ReviewItemCreated, ReviewItemCreatedEvent value) => value.EntityId,
+        _ => null,
+    };
 
     private static Guid? AssetId<T>(string eventName, T payload) where T : notnull => (eventName, payload) switch
     {
