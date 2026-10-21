@@ -1,0 +1,200 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Backups
+@using MediaEngine.Web.Services.Settings
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+
+@if (_settings is not null)
+{
+    <div class="backup-destinations" data-testid="backup-destinations">
+        <AppCard Title="Automatic backups">
+            <AppSwitchRow Label="Back up automatically" Value="_settings.Schedule.Enabled" Disabled="@_busy" ValueChanged="SetScheduleEnabledAsync" />
+            @if (_settings.Schedule.Enabled)
+            {
+                <div class="backup-destinations__row">
+                    <AppSelect Native="true" Label="How often" Value="@_settings.Schedule.Frequency" Options="@FrequencyOptions" Disabled="@_busy" ValueChanged="SetFrequencyAsync" />
+                    <AppTextField Label="At" InputType="AppInputType.Time" Value="@_settings.Schedule.Time" Immediate="false" Disabled="@_busy" ValueChanged="SetTimeAsync" />
+                </div>
+                @if (_settings.NextRunAt is { } next)
+                {
+                    <small class="backup-destinations__hint">Next backup: @next.ToLocalTime().ToString("MMM d · h:mm tt")</small>
+                }
+            }
+            <small class="backup-destinations__hint">The newest @_settings.KeepLast backups are kept at each destination.</small>
+            @if (_settings.LastRestoreCheckResult is { } check)
+            {
+                <small class="backup-destinations__hint" data-testid="restore-check">Monthly restore check: @check</small>
+            }
+        </AppCard>
+
+        <AppCard Title="Backup passphrase">
+            <p class="backup-destinations__note">
+                Copies that leave this computer are encrypted with your passphrase. We never store it. If you lose it, those copies cannot be restored.
+            </p>
+            @if (_settings.PassphraseSet)
+            {
+                <AppTextField Label="Current passphrase" InputType="AppInputType.Password" Value="@_currentPassphrase" ValueChanged="@(value => _currentPassphrase = value)" />
+            }
+            <AppTextField Label="@(_settings.PassphraseSet ? "New passphrase" : "Passphrase (at least 10 characters)")" InputType="AppInputType.Password" Value="@_passphrase" ValueChanged="@(value => _passphrase = value)" />
+            <AppButton Label="@(_settings.PassphraseSet ? "Change passphrase" : "Set passphrase")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || string.IsNullOrWhiteSpace(_passphrase))" OnClick="SavePassphraseAsync" />
+        </AppCard>
+
+        <AppCard Title="Where backups go">
+            @foreach (var destination in _settings.Destinations)
+            {
+                <div class="backup-destinations__destination" data-testid="@($"destination-{destination.Id}")">
+                    <div class="backup-destinations__identity">
+                        <strong>@destination.Name</strong>
+                        <small>@destination.StateLabel@(destination.LastCopyAt is { } at ? $" · last copy {StateCardHealth.RelativeTime(at, DateTimeOffset.UtcNow)}{(destination.LastCopyVerified ? ", checked" : "")}" : "")</small>
+                    </div>
+                    <div class="backup-destinations__actions">
+                        @if (destination.Id != BackupDestinationIds.Local)
+                        {
+                            <AppSwitchRow Label="On" Value="destination.Enabled" Disabled="@_busy" ValueChanged="@(on => SetDestinationAsync(destination.Id, on))" />
+                        }
+                        <AppButton Label="Test" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => TestAsync(destination.Id))" />
+                    </div>
+                </div>
+            }
+            <AppButton Label="Back up now" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" Loading="@_busy" OnClick="RunNowAsync" />
+            @if (_lastRun is not null)
+            {
+                <ul class="backup-destinations__outcomes" data-testid="run-outcomes">
+                    @foreach (var outcome in _lastRun.Destinations)
+                    {
+                        <li><strong>@outcome.Name</strong>: @outcome.Message</li>
+                    }
+                </ul>
+            }
+        </AppCard>
+
+        <AppCard Title="Restore from a destination">
+            <AppSelect Native="true" Label="Destination" Value="@_restoreDestination" Options="@DestinationOptions" Disabled="@_busy" ValueChanged="LoadDestinationBackupsAsync" />
+            @if (_held.Count > 0)
+            {
+                <AppSelect Native="true" Label="Backup" Value="@_restoreName" Options="@HeldOptions" Disabled="@_busy" ValueChanged="@(value => _restoreName = value)" />
+                @if (_held.FirstOrDefault(item => item.Name == _restoreName)?.Encrypted == true)
+                {
+                    <AppTextField Label="Backup passphrase" InputType="AppInputType.Password" Value="@_restorePassphrase" ValueChanged="@(value => _restorePassphrase = value)" />
+                }
+                <AppButton Label="Restore this backup" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Warning" Disabled="@(_busy || string.IsNullOrEmpty(_restoreName))" OnClick="RestoreAsync" />
+            }
+            else if (_restoreLoaded)
+            {
+                <small class="backup-destinations__hint">Nothing found at this destination.</small>
+            }
+        </AppCard>
+    </div>
+}
+
+@code {
+    private static readonly IReadOnlyList<AppSelectOption> FrequencyOptions =
+    [
+        new(BackupFrequencies.Daily, "Every day"),
+        new(BackupFrequencies.Weekly, "Every week"),
+    ];
+
+    private BackupSettingsResponse? _settings;
+    private BackupRunResponse? _lastRun;
+    private List<DestinationBackupDto> _held = [];
+    private string? _restoreDestination = BackupDestinationIds.Local;
+    private string? _restoreName;
+    private string? _restorePassphrase;
+    private string? _passphrase;
+    private string? _currentPassphrase;
+    private bool _restoreLoaded;
+    private bool _busy;
+
+    private IReadOnlyList<AppSelectOption> DestinationOptions => [.. _settings!.Destinations.Select(item => new AppSelectOption(item.Id, item.Name))];
+    private IReadOnlyList<AppSelectOption> HeldOptions => [.. _held.Select(item => new AppSelectOption(item.Name, $"{item.ModifiedAt.ToLocalTime():MMM d, yyyy · h:mm tt}{(item.Encrypted ? " (encrypted)" : "")}"))];
+
+    protected override async Task OnInitializedAsync() => _settings = await ApiClient.GetBackupSettingsAsync();
+
+    private async Task SaveAsync(UpdateBackupSettingsRequest request)
+    {
+        _busy = true;
+        var saved = await ApiClient.UpdateBackupSettingsAsync(request);
+        if (saved is null) Snackbar.Add("The backup settings could not be saved.", AppSeverity.Error);
+        else _settings = saved;
+        _busy = false;
+    }
+
+    private Task SetScheduleEnabledAsync(bool on) => SaveAsync(new() { Schedule = With(s => s.Enabled = on) });
+    private Task SetFrequencyAsync(string? value) => SaveAsync(new() { Schedule = With(s => s.Frequency = value ?? BackupFrequencies.Daily) });
+    private Task SetTimeAsync(string? value) => SaveAsync(new() { Schedule = With(s => s.Time = value ?? s.Time) });
+
+    private BackupScheduleDto With(Action<BackupScheduleDto> change)
+    {
+        var current = _settings!.Schedule;
+        var copy = new BackupScheduleDto { Enabled = current.Enabled, Frequency = current.Frequency, Time = current.Time, Weekday = current.Weekday };
+        change(copy);
+        return copy;
+    }
+
+    private Task SetDestinationAsync(string id, bool on)
+    {
+        var ids = _settings!.Destinations.Where(item => item.Enabled && item.Id != id).Select(item => item.Id).ToList();
+        if (on) ids.Add(id);
+        return SaveAsync(new() { EnabledDestinations = ids });
+    }
+
+    private async Task SavePassphraseAsync()
+    {
+        _busy = true;
+        var saved = await ApiClient.SetBackupPassphraseAsync(new() { Passphrase = _passphrase ?? "", CurrentPassphrase = _currentPassphrase });
+        if (saved is null)
+        {
+            Snackbar.Add("The passphrase was not saved. Check the current passphrase, and that the new one is at least 10 characters.", AppSeverity.Error);
+        }
+        else
+        {
+            _settings = saved;
+            _passphrase = null;
+            _currentPassphrase = null;
+            Snackbar.Add("Backup passphrase saved. Keep it somewhere safe.", AppSeverity.Success);
+        }
+        _busy = false;
+    }
+
+    private async Task TestAsync(string id)
+    {
+        _busy = true;
+        var result = await ApiClient.TestBackupDestinationAsync(id);
+        Snackbar.Add(result?.Message ?? "The destination could not be tested.", result?.Success == true ? AppSeverity.Success : AppSeverity.Error);
+        _busy = false;
+    }
+
+    private async Task RunNowAsync()
+    {
+        _busy = true;
+        _lastRun = await ApiClient.RunBackupNowAsync();
+        if (_lastRun is null) Snackbar.Add("The backup could not be made.", AppSeverity.Error);
+        else
+        {
+            Snackbar.Add(_lastRun.AllOk ? "Backup copied everywhere it should go." : "Backup finished, but some copies need attention.", _lastRun.AllOk ? AppSeverity.Success : AppSeverity.Warning);
+            _settings = await ApiClient.GetBackupSettingsAsync() ?? _settings;
+        }
+        _busy = false;
+    }
+
+    private async Task LoadDestinationBackupsAsync(string? id)
+    {
+        _restoreDestination = id;
+        _busy = true;
+        var held = id is null ? null : await ApiClient.GetDestinationBackupsAsync(id);
+        _held = held?.Items ?? [];
+        _restoreName = _held.FirstOrDefault()?.Name;
+        _restoreLoaded = true;
+        _busy = false;
+    }
+
+    private async Task RestoreAsync()
+    {
+        _busy = true;
+        var result = await ApiClient.RestoreFromDestinationAsync(new() { DestinationId = _restoreDestination ?? "", Name = _restoreName ?? "", Passphrase = _restorePassphrase });
+        _restorePassphrase = null;
+        if (result?.Scheduled == true) Snackbar.Add(result.Message, AppSeverity.Warning);
+        else Snackbar.Add("The restore could not be staged. If the backup is encrypted, check the passphrase.", AppSeverity.Error);
+        _busy = false;
+    }
+}

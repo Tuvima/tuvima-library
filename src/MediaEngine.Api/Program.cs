@@ -506,6 +506,7 @@ builder.Services.AddTuvimaApprovals();
 builder.Services.AddTuvimaHostedServices();
 builder.Services.AddTuvimaToolRequirements();
 builder.Services.AddTuvimaNotifications();
+builder.Services.AddTuvimaBackupDestinations();
 
 builder.Services.AddSingleton<StartupReadinessService>();
 builder.Services.AddHealthChecks()

@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0027 notification_service).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0028 backup_destinations).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -416,6 +416,24 @@ CREATE TABLE authorization_audit_events (
     subject_type TEXT NOT NULL,
     subject_id TEXT NOT NULL,
     changes_json TEXT NOT NULL
+);
+
+CREATE TABLE backup_copies (
+    id              TEXT    NOT NULL PRIMARY KEY,   -- GUID
+    destination_id  TEXT    NOT NULL,
+    remote_name     TEXT    NOT NULL,               -- the file name at the destination
+    size_bytes      INTEGER NOT NULL,
+    sha256          TEXT    NOT NULL,               -- of the bytes sent (the encrypted file)
+    state           TEXT    NOT NULL,               -- sent, verified, failed or deleted
+    verified_at     TEXT,                           -- ISO 8601 UTC; set when the copy was read back and matched
+    last_error      TEXT,                           -- plain words, never a secret
+    created_at      TEXT    NOT NULL                -- ISO 8601 UTC
+);
+
+CREATE TABLE backup_settings (
+    setting_key  TEXT NOT NULL PRIMARY KEY,
+    value_json   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
 );
 
 CREATE TABLE bridge_ids (
@@ -3294,6 +3312,8 @@ CREATE INDEX ix_application_webhook_delivery_due ON application_webhook_deliveri
 CREATE INDEX ix_application_webhooks_application ON application_webhooks(application_id);
 
 CREATE INDEX ix_approval_records_item ON approval_records(item_kind, item_id, approved_at);
+
+CREATE INDEX ix_backup_copies_destination ON backup_copies (destination_id, created_at DESC);
 
 CREATE INDEX ix_collection_view_sources_collection
     ON collection_view_sources(collection_id, position, id);
