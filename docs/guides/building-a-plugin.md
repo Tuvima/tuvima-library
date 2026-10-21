@@ -191,7 +191,7 @@ Use reverse-DNS style ids when possible, such as `com.example.sample-plugin`.
 
 The Library checks these fields before a plugin can be switched on:
 
-- `kind` is one of `official` (an in-process .NET plugin, today's contract), `declarative` (JSON only), `service` (a separate program) or `sandboxed` (WebAssembly). It defaults to `official`. `official` and `declarative` plugins run in this version of the Library; a manifest of kind `service` or `sandboxed` loads without an error but cannot be switched on ("This kind of plugin (...) is not supported by this version of the Library yet.").
+- `kind` is one of `official` (an in-process .NET plugin, today's contract), `declarative` (JSON only), `service` (a separate program) or `sandboxed` (WebAssembly). It defaults to `official`. All four kinds run in this version of the Library; see [Sandboxed plugins (WebAssembly)](#sandboxed-plugins-webassembly) for the WebAssembly kind.
 - `minimum_library_version` (default `1.0.0`) and the optional `maximum_library_version` (inclusive; `null` or absent for no upper limit) are `major.minor.patch` versions. Any `-prerelease` or `+build` suffix on the Library version is ignored when comparing. A malformed version is a load error.
 - `supported_platforms` lists runtime identifiers for an exact match (`win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `linux-musl-x64`, `osx-x64`, `osx-arm64`, and the other `x86`/`x64`/`arm`/`arm64` combinations) or an operating-system family (`windows`, `linux`, `macos`) that matches any architecture. An empty list means every platform. An unknown value is a load error that names the value.
 - Each capability may list the `fields` it supplies (for example `series_position`); the list defaults to empty.
@@ -387,6 +387,33 @@ A plugin can be its own program in any language (Python, Go, Node, a compiled bi
 - **Limits and restarts**: a program that exits, stops answering, or grows past `max_memory_mb` is restarted after a growing pause (5 seconds, 30 seconds, 2 minutes, 10 minutes). The fifth crash within an hour stops it and the plugin shows Broken until it is switched off and on. The key changes on every start and ends when the program stops.
 - **What it is not**: the program runs with the same access to this machine as the Library, so the approval says "only turn on plugins you trust". The Library controls what the program may ask of the Library and gives it a small environment (no Engine settings or keys), not what it does on its own.
 - **Where it runs**: the memory limit is checked by the Library for the main program process; hard operating-system limits and per-system builds are the author's choice (ship a `supported_platforms` list and one folder per system, or run the program in a container and use `address`).
+
+## Sandboxed plugins (WebAssembly)
+
+A plugin can be a WebAssembly module (written in Rust, C, Go, AssemblyScript or anything that compiles to WebAssembly). Set `"kind": "sandboxed"`, ask for `scheduled-work`, and describe the module in a `sandbox` section. The Library runs the module inside a sandbox on every platform it supports (Windows, Linux and the container image), with hard limits and no way out except the Library's own plugin services.
+
+```json
+{
+  "id": "acme.reading-list",
+  "name": "Reading list",
+  "version": "1.0.0",
+  "kind": "sandboxed",
+  "permissions": ["scheduled-work", "plugin-records", "network.http"],
+  "network": [{ "host": "api.example.com", "sends": "The titles on your shelf" }],
+  "sandbox": {
+    "module": "plugin.wasm",
+    "jobs": [{ "key": "refresh", "name": "Refresh the reading list", "schedule": "6h" }],
+    "max_memory_mb": 64,
+    "max_seconds": 10
+  }
+}
+```
+
+The module must export `memory`, `alloc(length) -> address`, and one function per job (default name `run`, or the job's `export`) that takes `(address, length)` and returns an `i64`. The Library writes a JSON input into the module's memory (`plugin_id`, `job`, `settings`) and calls the function. The function returns `(result_address << 32) | result_length`, or `0` for no result. The result is UTF-8 text, at most 1 MB. If it is JSON with a `records` list of `{ "collection", "key", "json" }`, the Library saves them as the plugin's own records (needs `plugin-records`). The last run, with its log lines, is kept as the record `sandbox/<job key>`.
+
+The module can import exactly two functions from the module name `library`: `log(address, length)` writes a line to the run's log, and `http_get(address, length) -> i64` fetches a web address and returns the answer the same packed way (it calls `alloc` to place it). `http_get` goes through the same checked network access as every other plugin: it needs `network.http`, only reaches hosts listed under `network`, and answers `0` when refused. There is no file system, no clock, no random numbers from the machine, no programs and no environment; a module that imports anything else does not start.
+
+Limits, per run: memory (`max_memory_mb`, 1 to 512, default 64), time by the clock (`max_seconds`, 1 to 60, default 10) and work (`max_steps`, counted in WebAssembly instructions, default 1,000,000,000). A run that goes over is stopped and the Scheduled tasks entry shows a plain message such as "The plugin ran for more than 10 seconds and was stopped." Nothing carries over from one run to the next; keep state in records. The module file must be inside the plugin's folder and at most 16 MB. A `.wat` text file of up to 512 KB is also accepted, which is handy for small modules and tests. Only two modules run at the same time across the whole Library.
 
 ## Universe lore plugins
 

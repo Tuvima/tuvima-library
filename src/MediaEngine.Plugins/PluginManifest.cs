@@ -88,6 +88,13 @@ public sealed record PluginManifest
     public JsonElement? Service { get; init; }
 
     /// <summary>
+    /// How a plugin of kind <see cref="PluginKind.Sandboxed"/> (WebAssembly) runs: <c>module</c> (a .wasm file inside the plugin's
+    /// folder), <c>jobs</c>, and the limits <c>max_memory_mb</c>, <c>max_seconds</c> and <c>max_steps</c>. Ignored by other kinds.
+    /// </summary>
+    [JsonPropertyName("sandbox")]
+    public JsonElement? Sandbox { get; init; }
+
+    /// <summary>
     /// Pages and menu entries the plugin adds, chosen from the Library's own page types (list, grid, guide, form, detail).
     /// Needs the <c>plugin-pages</c> and <c>plugin-records</c> permissions. Read by <c>PluginPageDeclarations</c>.
     /// </summary>

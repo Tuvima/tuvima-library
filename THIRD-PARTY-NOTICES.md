@@ -16,6 +16,10 @@ Font Awesome Free SVG artwork under `src/MediaEngine.Web/wwwroot/icons/fontaweso
 
 NUglify 1.23.3 is used only for Release CSS compilation and is excluded from Dashboard runtime assets. Copyright 2016 Alexandre Mutel. Its BSD 2-clause license and original Microsoft Ajax Minifier Apache 2.0 notice are preserved in `licenses/NUglify.txt`.
 
+## Wasmtime (sandboxed plugins)
+
+Wasmtime 48.0.2 (Bytecode Alliance, Apache License 2.0 with LLVM exception, <https://github.com/bytecodealliance/wasmtime>) runs sandboxed WebAssembly plugins inside the Engine, with limits on time, memory and steps, and with no access to files or the network except through the Library's own plugin services. It is used through the Wasmtime .NET package (same licence). The licence is kept in `licenses/Wasmtime-Apache-2.0-with-LLVM-exception.txt`. Plugin code never leaves the computer.
+
 ## QRCoder (invitation QR codes)
 
 QRCoder 1.6.0 draws the QR code that Users & Access shows with an invitation link. It runs inside the Dashboard, so the link never leaves the computer. Copyright Raffael Herrmann, MIT License.

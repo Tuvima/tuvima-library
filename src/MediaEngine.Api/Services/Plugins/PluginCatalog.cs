@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
 using MediaEngine.Api.Services.Plugins.Declarative;
+using MediaEngine.Api.Services.Plugins.Sandbox;
 using MediaEngine.Api.Services.Plugins.Service;
 using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Domain.Contracts;
@@ -611,6 +612,16 @@ public sealed class PluginCatalog
                     results.Add(program is null
                         ? LoadFailure(manifest, problem ?? "The plugin description could not be read.", manifestPath)
                         : BuildRegistration(program, manifest, isBuiltIn: false, loadError: null, manifestPath: manifestPath));
+                    continue;
+                }
+
+                if (manifest is not null && manifest.Kind == PluginKind.Sandboxed)
+                {
+                    // WebAssembly: the module is read when a job runs, inside a sandbox with limits.
+                    var (sandboxed, problem) = SandboxPlugin.TryCreate(manifest, Path.GetDirectoryName(Path.GetFullPath(manifestPath)));
+                    results.Add(sandboxed is null
+                        ? LoadFailure(manifest, problem ?? "The plugin description could not be read.", manifestPath)
+                        : BuildRegistration(sandboxed, manifest, isBuiltIn: false, loadError: null, manifestPath: manifestPath));
                     continue;
                 }
 
