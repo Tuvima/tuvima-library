@@ -217,3 +217,26 @@ Shy approved recommendations 6–9 on October 20, 2026, with titles always using
   - The editor's artist-artwork owner lookup (`ResolveArtistArtworkOwnerAsync`) was computed and never used, so it was removed rather than fixed.
   - The combined artist view's person lookup now logs a failure instead of swallowing it.
   - Not changed: `creator` is single-valued in the data store although Wikidata can name several creators, so the editor navigator's `author`/`creator` list read can only ever find `author`. Whether `creator` should become a list is a separate decision.
+
+### Remediation to address later: the combined artist view
+
+Shy asked on October 20, 2026 for this to be recorded and fixed later, outside PR #356. Not started.
+
+**Where:** `GET /collections/artist-group-detail?collection_ids=…` in `src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs` (handler from about line 680). It builds one artist's albums as one view.
+
+**What is wrong:** it reads album-level facts from the first visible track's single stored values (`GetCanonical(firstWorkDto, …)`, around lines 776–782) instead of from the album's root Work:
+- Artist: `combinedCreator ??= GetCanonical(firstWorkDto, "artist") ?? GetCanonical(firstWorkDto, "author")`. Credits are list fields (`MetadataFieldConstants.IsMultiValued`) stored only in `canonical_value_arrays`, and on the album root, not the track. So this is always empty.
+- Genre: `combinedGenre ??= GetCanonical(firstWorkDto, "genre")`. Genre is also a list field, so it has the same problem.
+- Year (`release_year`, then `year`) and `child_entities_json` are also read from tracks. The single-album group detail reads them from the root Work (`ParentCv`), so those two reads should be checked too.
+
+**What a person would see:** the view's title falls back to "Unknown Artist", with no artist name, photo, person link or genre. The person lookup (`personRepo.FindByNameAsync`, now logged after PR #356) never runs, because there is no name to look up.
+
+**Who uses it today:** nothing found. No Dashboard page, native client, test or doc calls `artist-group-detail` (searched `src/`, `clients/`, `tests/`). Its only mention is the endpoint ledger (`engineering/plans/access-architecture-2026-09-08/execution/endpoint-registration-ledger.md`). The Dashboard's artist pages use `/collections/artist-detail-by-name`, which already reads credits correctly.
+
+**Options for when it is picked up:**
+1. **Fix it:** resolve each album's root Work (`ICollectionBrowseReadService.GetRootWorkIdAsync`) and take the artist from `CollectionEndpoints.ResolveGroupCreatorAsync(…, isMusic: true, …)`. Read genre from the root's `genre` list, and year and `child_entities_json` from the root's single values, as the group detail does. Add behaviour tests on a temporary data store, as in `tests/MediaEngine.Api.Tests/StoredCreditReadTests.cs`.
+2. **Remove it:** if no screen is meant to use it, delete the action and its ledger row. This is less code to keep correct.
+
+Recommendation: confirm whether any planned screen needs it, then choose. If nothing does, removing it is the long-term answer.
+
+**Related, also open:** `creator` is single-valued in the data store although Wikidata can name several creators (see the last bullet above).
