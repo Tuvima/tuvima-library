@@ -45,6 +45,10 @@
                 <div class="backup-destinations__destination" data-testid="@($"destination-{destination.Id}")">
                     <div class="backup-destinations__identity">
                         <strong>@destination.Name</strong>
+                        @if (destination.Location.Length > 0)
+                        {
+                            <small>@KindLabel(destination.Kind) · @destination.Location</small>
+                        }
                         <small>@destination.StateLabel@(destination.LastCopyAt is { } at ? $" · last copy {StateCardHealth.RelativeTime(at, DateTimeOffset.UtcNow)}{(destination.LastCopyVerified ? ", checked" : "")}" : "")</small>
                     </div>
                     <div class="backup-destinations__actions">
@@ -53,8 +57,48 @@
                             <AppSwitchRow Label="On" Value="destination.Enabled" Disabled="@_busy" ValueChanged="@(on => SetDestinationAsync(destination.Id, on))" />
                         }
                         <AppButton Label="Test" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => TestAsync(destination.Id))" />
+                        @if (destination.Removable)
+                        {
+                            <AppButton Label="Remove" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Warning" Disabled="@_busy" OnClick="@(() => RemoveAsync(destination.Id))" />
+                        }
                     </div>
                 </div>
+            }
+            @if (_adding)
+            {
+                <div class="backup-destinations__add" data-testid="add-destination">
+                    <AppSelect Native="true" Label="Kind of destination" Value="@_new.Kind" Options="@KindOptions" Disabled="@_busy" ValueChanged="@(value => _new.Kind = value ?? BackupDestinationKinds.Folder)" />
+                    <AppTextField Label="Name" Value="@_new.Name" ValueChanged="@(value => _new.Name = value ?? "")" />
+                    <AppTextField Label="@LocationLabel" Value="@_new.Location" ValueChanged="@(value => _new.Location = value ?? "")" />
+                    @if (_new.Kind == BackupDestinationKinds.S3)
+                    {
+                        <div class="backup-destinations__row">
+                            <AppTextField Label="Bucket" Value="@_new.Bucket" ValueChanged="@(value => _new.Bucket = value)" />
+                            <AppTextField Label="Region (optional)" Value="@_new.Region" ValueChanged="@(value => _new.Region = value)" />
+                        </div>
+                        <AppTextField Label="Folder inside the bucket (optional)" Value="@_new.Prefix" ValueChanged="@(value => _new.Prefix = value)" />
+                    }
+                    @if (BackupDestinationKinds.IsWeb(_new.Kind))
+                    {
+                        <div class="backup-destinations__row">
+                            <AppTextField Label="@(_new.Kind == BackupDestinationKinds.S3 ? "Access key" : "User name")" Value="@_new.Username" ValueChanged="@(value => _new.Username = value)" />
+                            <AppTextField Label="@(_new.Kind == BackupDestinationKinds.S3 ? "Secret key" : "Password")" InputType="AppInputType.Password" Value="@_new.Secret" ValueChanged="@(value => _new.Secret = value)" />
+                        </div>
+                        @if (NewHost is { } host)
+                        {
+                            <AppSwitchRow Label="@($"Send encrypted backups to {host}")" Value="_confirmed" ValueChanged="@(on => _confirmed = on)" />
+                        }
+                        <small class="backup-destinations__hint">Only encrypted copies are sent. The login is kept encrypted on this computer and is never shown again.</small>
+                    }
+                    <div class="backup-destinations__actions">
+                        <AppButton Label="Add destination" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || !CanAdd)" OnClick="AddAsync" />
+                        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => _adding = false)" />
+                    </div>
+                </div>
+            }
+            else
+            {
+                <AppButton Label="Add a destination" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="StartAdding" />
             }
             <AppButton Label="Back up now" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" Loading="@_busy" OnClick="RunNowAsync" />
             @if (_lastRun is not null)
@@ -94,6 +138,17 @@
         new(BackupFrequencies.Weekly, "Every week"),
     ];
 
+    private static readonly IReadOnlyList<AppSelectOption> KindOptions =
+    [
+        new(BackupDestinationKinds.Folder, "Another folder"),
+        new(BackupDestinationKinds.Share, "Network share"),
+        new(BackupDestinationKinds.S3, "S3-compatible storage"),
+        new(BackupDestinationKinds.WebDav, "WebDAV"),
+    ];
+
+    private SaveBackupDestinationRequest _new = new() { Kind = BackupDestinationKinds.Folder };
+    private bool _adding;
+    private bool _confirmed;
     private BackupSettingsResponse? _settings;
     private BackupRunResponse? _lastRun;
     private List<DestinationBackupDto> _held = [];
@@ -107,6 +162,22 @@
 
     private IReadOnlyList<AppSelectOption> DestinationOptions => [.. _settings!.Destinations.Select(item => new AppSelectOption(item.Id, item.Name))];
     private IReadOnlyList<AppSelectOption> HeldOptions => [.. _held.Select(item => new AppSelectOption(item.Name, $"{item.ModifiedAt.ToLocalTime():MMM d, yyyy · h:mm tt}{(item.Encrypted ? " (encrypted)" : "")}"))];
+
+    private static string KindLabel(string kind) => KindOptions.FirstOrDefault(option => option.Value == kind)?.Label ?? "This computer";
+
+    private string LocationLabel => _new.Kind switch
+    {
+        BackupDestinationKinds.Folder => "Folder path (for example D:\\Backups)",
+        BackupDestinationKinds.Share => "Share path (for example \\\\nas\\backups)",
+        BackupDestinationKinds.S3 => "Service address (for example https://s3.us-east-1.amazonaws.com)",
+        _ => "WebDAV folder address",
+    };
+
+    /// <summary>The host the person is agreeing to send backups to, shown beside the switch so the address is in front of them.</summary>
+    private string? NewHost => BackupDestinationKinds.IsWeb(_new.Kind) && Uri.TryCreate(_new.Location?.Trim(), UriKind.Absolute, out var uri) ? uri.Host : null;
+
+    private bool CanAdd => !string.IsNullOrWhiteSpace(_new.Name) && !string.IsNullOrWhiteSpace(_new.Location)
+        && (!BackupDestinationKinds.IsWeb(_new.Kind) || (NewHost is not null && _confirmed));
 
     protected override async Task OnInitializedAsync() => _settings = await ApiClient.GetBackupSettingsAsync();
 
@@ -153,6 +224,39 @@
             _currentPassphrase = null;
             Snackbar.Add("Backup passphrase saved. Keep it somewhere safe.", AppSeverity.Success);
         }
+        _busy = false;
+    }
+
+    private void StartAdding()
+    {
+        _new = new SaveBackupDestinationRequest { Kind = BackupDestinationKinds.Folder };
+        _confirmed = false;
+        _adding = true;
+    }
+
+    private async Task AddAsync()
+    {
+        _busy = true;
+        _new.ConfirmedHost = _confirmed ? NewHost : null;
+        var saved = await ApiClient.SaveBackupDestinationAsync(_new);
+        if (saved is null)
+        {
+            Snackbar.Add("The destination was not added. Check the details, then try again.", AppSeverity.Error);
+        }
+        else
+        {
+            _settings = saved;
+            _adding = false;
+            Snackbar.Add(_settings.PassphraseSet ? "Destination added. Use Test to check it." : "Destination added. Set a backup passphrase before the first copy.", AppSeverity.Success);
+        }
+        _busy = false;
+    }
+
+    private async Task RemoveAsync(string id)
+    {
+        _busy = true;
+        if (await ApiClient.RemoveBackupDestinationAsync(id)) _settings = await ApiClient.GetBackupSettingsAsync() ?? _settings;
+        else Snackbar.Add("The destination could not be removed.", AppSeverity.Error);
         _busy = false;
     }
 

@@ -6,6 +6,7 @@
 .backup-destinations__identity strong, .backup-destinations__identity small { display: block; }
 .backup-destinations__identity small { color: var(--tl-text-muted); }
 .backup-destinations__actions { display: flex; align-items: center; gap: 6px; }
+.backup-destinations__add { display: grid; gap: var(--tl-space-3); padding: 10px 0; }
 .backup-destinations__outcomes { margin: 0; padding-left: 18px; color: var(--tl-text-secondary); }
 @media (max-width: 840px) {
     .backup-destinations__row { grid-template-columns: 1fr; }
