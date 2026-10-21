@@ -23,13 +23,13 @@
                 <span class="@("activity-tile__collage activity-tile__collage--" + CollageColumns)" data-activity-collage>
                     @foreach (var cover in Covers)
                     {
-                        <img class="activity-tile__cover" src="@cover" alt="" loading="lazy" decoding="async" />
+                        <img class="activity-tile__cover" src="@MediaTileArtworkUrl.ForDrawnSize(cover, CoverDrawnPx)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(cover, CoverDrawnPx)" alt="" loading="lazy" decoding="async" />
                     }
                 </span>
             }
             else if (!string.IsNullOrWhiteSpace(Tile.ArtworkUrl))
             {
-                <img class="activity-tile__image" src="@Tile.ArtworkUrl" alt="" loading="lazy" decoding="async" />
+                <img class="activity-tile__image" src="@MediaTileArtworkUrl.ForDrawnSize(Tile.ArtworkUrl, 256)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Tile.ArtworkUrl, 256)" alt="" loading="lazy" decoding="async" />
             }
             else
             {
@@ -57,7 +57,7 @@
             <div id="@_cardId" class="@("activity-card__body" + (CardImage is null ? " activity-card__body--text" : string.Empty))" data-activity-card>
                 @if (CardImage is { } image)
                 {
-                    <img class="activity-card__image" src="@image" alt="" decoding="async" />
+                    <img class="activity-card__image" src="@MediaTileArtworkUrl.ForDrawnSize(image, 144)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(image, 144)" alt="" loading="lazy" decoding="async" />
                 }
                 <div class="activity-card__copy">
                     <strong class="activity-card__title">@PersonalActivityPresentation.HoverTitle(Tile)</strong>
@@ -103,6 +103,8 @@
     private string Caption => PersonalActivityPresentation.Caption(Tile);
 
     // A collage is as many columns as it needs to stay square: one cover, two by two, then three by three.
+    // The art box is 9rem (144px) tall and at most 16:9 (256px) wide; a collage splits that width between its columns.
+    private int CoverDrawnPx => 256 / CollageColumns;
     private int CollageColumns => Covers.Count switch { <= 1 => 1, <= 4 => 2, _ => 3 };
 
     private string? CardImage => !string.IsNullOrWhiteSpace(Tile.ArtworkUrl) ? Tile.ArtworkUrl : Covers.FirstOrDefault();

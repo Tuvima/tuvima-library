@@ -3002,14 +3002,6 @@ public partial class SharedMediaEditorShell
             string.Equals(slot.AssetType, assetType, StringComparison.OrdinalIgnoreCase))?.Variants
         ?? [];
 
-    protected static string? GetArtworkThumbnailUrl(ArtworkVariantDisplayItem item)
-    {
-        return MediaTileArtworkUrl.Sized(item.ImageUrl, "s") ?? item.ImageUrl;
-    }
-
-    protected static string? GetArtworkThumbnailSrcSet(ArtworkVariantDisplayItem item) => MediaTileArtworkUrl.SrcSet(
-        MediaTileArtworkUrl.Sized(item.ImageUrl, "s"), MediaTileArtworkUrl.Sized(item.ImageUrl, "m"));
-
     protected ArtworkVariantDto? GetPreferredArtworkVariant(string assetType) =>
         GetArtworkVariants(assetType)
             .OrderByDescending(variant => variant.IsPreferred)

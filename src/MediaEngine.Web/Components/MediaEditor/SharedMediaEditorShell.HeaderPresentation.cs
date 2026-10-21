@@ -24,15 +24,13 @@ public partial class SharedMediaEditorShell
         ?? GetHeaderArtworkPreviewUrl(StaticHeaderScope, "Poster")
         ?? GetHeaderArtworkPreviewUrl(StaticHeaderScope, "CoverArt")
         ?? (StaticHeaderScope?.FieldEntityId == ActiveScope?.FieldEntityId ? CurrentCoverUrl : Request.CoverUrl);
-    protected string? SmallEditorArtworkUrl(string? url) => MediaTileArtworkUrl.Sized(url, "s") ?? url;
-    protected string StaticHeaderArtworkSizes => StaticHeaderArtworkShapeClass switch
+    // Drawn long side of the header cover: square 88px, landscape 140px, portrait 64x96px (EditorHeaderSection.razor.css).
+    protected int StaticHeaderArtworkPx => StaticHeaderArtworkShapeClass switch
     {
-        "is-square" => "88px",
-        "is-landscape" => "(max-width: 900px) 96px, 140px",
-        _ => "(max-width: 900px) 52px, 64px",
+        "is-square" => 88,
+        "is-landscape" => 140,
+        _ => 96,
     };
-    protected string? EditorArtworkSrcSet(string? url) => MediaTileArtworkUrl.SrcSet(
-        MediaTileArtworkUrl.Sized(url, "s"), MediaTileArtworkUrl.Sized(url, "m"), MediaTileArtworkUrl.Sized(url, "l"));
     protected string StaticHeaderKind => NavigatorRootNode?.NodeKind switch
     {
         "show" or "tvshow" => "TV Series",

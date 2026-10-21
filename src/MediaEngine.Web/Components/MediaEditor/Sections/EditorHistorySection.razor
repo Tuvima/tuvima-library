@@ -14,7 +14,7 @@
         <span class="sme-history-summary-art @ArtworkShapeClass">
             @if (!string.IsNullOrWhiteSpace(CurrentCoverUrl))
             {
-                <img src="@SmallEditorArtworkUrl(CurrentCoverUrl)" srcset="@EditorArtworkSrcSet(CurrentCoverUrl)" sizes="64px" alt="@HeaderTitle" />
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(CurrentCoverUrl, 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(CurrentCoverUrl, 64)" alt="@HeaderTitle" />
             }
             else
             {
@@ -92,8 +92,6 @@
 </div>
 
 @code {
-    [Parameter] public Func<string?, string?> SmallEditorArtworkUrl { get; set; } = default!;
-    [Parameter] public Func<string?, string?> EditorArtworkSrcSet { get; set; } = default!;
     [Parameter] public Func<DateTime, string> FormatHistoryDate { get; set; } = default!;
     [Parameter] public Func<DateTimeOffset, string> FormatRelativeHistoryAge { get; set; } = default!;
     [Parameter] public Func<string?, string?, AppHistoryPresentationDescriptor> GetHistoryPresentation { get; set; } = default!;

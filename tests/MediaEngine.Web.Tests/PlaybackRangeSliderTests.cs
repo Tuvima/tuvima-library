@@ -86,8 +86,8 @@ public sealed class AppRangeSliderTests : BunitContext
 
         var row = cut.Find("[data-playback-current='true']");
         Assert.Equal("true", row.GetAttribute("aria-current"));
-        Assert.Equal("/stream/artwork/item-1?role=cover&size=s", cut.Find("img").GetAttribute("src"));
-        Assert.Null(cut.Find("img").GetAttribute("srcset")); // No native artwork dimensions were provided.
+        Assert.Equal("/stream/artwork/item-1?role=cover&size=t", cut.Find("img").GetAttribute("src")); // Drawn 56px: the tiny copy.
+        Assert.Contains("/stream/artwork/item-1?role=cover&size=s 2x", cut.Find("img").GetAttribute("srcset"), StringComparison.Ordinal); // Sharper screens get the next copy up.
         Assert.Contains("playback-context-row__activity", row.InnerHtml);
         cut.Find(".playback-context-row__identity").Click();
         Assert.True(clicked);
