@@ -1,5 +1,6 @@
 // Drives one upload in headless Chromium and prints a JSON line of measurements.
-import { chromium } from '/opt/node-tools/node_modules/playwright/index.mjs';
+// Needs Playwright; PLAYWRIGHT_MODULE points at its index.mjs when it is not installed next to this script.
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 import { execSync } from 'node:child_process';
 const a = Object.fromEntries(process.argv.slice(2).map(x => x.replace(/^--/, '').split('=')));
 const page_ = a.page ?? 'http://127.0.0.1:5200/';

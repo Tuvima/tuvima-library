@@ -58,8 +58,10 @@ async function chunked(file, base, chunkMb) {
       retries++;
       if (retries > 20) return { ok: false, retries, requests, offset };
       await sleep(Math.min(1000 * retries, 5000));
-      const s = await fetch(`${base}/chunked/${c.id}`);
-      if (s.ok) offset = (await s.json()).offset;
+      try {
+        const s = await fetch(`${base}/chunked/${c.id}`);
+        if (s.ok) offset = (await s.json()).offset;
+      } catch { /* still offline: the next pass retries the same piece after a longer pause */ }
     }
   }
   return { ok: !cancelled && offset === file.size, cancelled, retries, requests };

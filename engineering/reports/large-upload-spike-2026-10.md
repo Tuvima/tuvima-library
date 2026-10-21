@@ -8,13 +8,13 @@ product_area: "engine, dashboard"
 
 # Large upload spike: dropping 1, 10 and 50 GB files on a library page
 
-October 21, 2026. Work packet WP11 of [Simpler library setup](../specs/library-setup-groups.md) (decision D44). Investigation only: no product code changed. The throwaway harness is in [`large-upload-spike-2026-10/harness/`](large-upload-spike-2026-10/harness/), and the raw numbers are in [`measurements.jsonl`](large-upload-spike-2026-10/measurements.jsonl).
+October 21, 2026. Work packet WP11 of [Simpler library setup](../specs/library-setup-groups.md) (decision D44). Investigation only: no product code changed. Sizes are in binary units throughout (1 GB here is 1,024³ bytes). The throwaway harness is in [`large-upload-spike-2026-10/harness/`](large-upload-spike-2026-10/harness/), and the raw numbers are in [`measurements.jsonl`](large-upload-spike-2026-10/measurements.jsonl).
 
 ## Summary
 
-- **Resumable upload is needed.** A plain upload (the whole file in one request) fails outright once it takes longer than 100 seconds, because the Dashboard's link to the Engine gives up at 100 seconds. That limit is reached at about **10 GB on a wired gigabit network** and **about 3 GB on Wi-Fi**. When the connection drops, a plain upload starts again from zero: a drop at 60% of a 10 GB file sent **18.9 GB** to deliver 10 GB.
-- **Resumable upload in 64 MB pieces worked at every size tested, up to 50 GB.** A dropped connection cost one retry and a few seconds, with no data resent. Cancel left nothing behind. Engine and relay memory stayed at about **100 MB** whatever the file size. The browser stayed at about **380 MB**.
-- **Speed is the network, not Library.** On a simulated gigabit network every size ran at the network's speed (about 108 MB/s): **1 GB in 9.5 s, 10 GB in 1 min 42 s, 50 GB in 7 min 52 s**. On simulated Wi-Fi (30 MB/s), 1 GB took 34 s and 10 GB took 5 min 44 s, including a drop.
+- **Resumable upload is needed.** A plain upload (the whole file in one request) fails outright once it takes longer than 100 seconds, because the Dashboard's link to the Engine gives up at 100 seconds. That limit is reached at about **10 GB on a wired gigabit network** and **about 3 GB on Wi-Fi**. When the connection drops, a plain upload starts again from zero: a drop at 60% of a 10 GB file sent **17.6 GB** to deliver 10 GB.
+- **Resumable upload in 64 MB pieces worked at every size tested, up to 50 GB.** A dropped connection cost one retry and a few seconds, with no data resent. Cancel left nothing behind. Memory did not grow with file size: the harness's Engine-style store and relay stayed at about **100 MB** each, and the browser at about **380 MB**, from 1 GB to 50 GB.
+- **Speed is set by the network, not by the upload method.** On a simulated gigabit network every size ran at the network's speed (about 108 MB/s): **1 GB in 9.5 s, 10 GB in 1 min 42 s, 50 GB in 7 min 52 s**. On simulated Wi-Fi (30 MB/s), 1 GB took 34 s and 10 GB took 5 min 44 s, including a drop.
 - **The file is stored once, not twice.** The upload is written into a hidden working file next to its destination and renamed at the end. Peak extra disk use equals the file's size.
 - **Proposed D44 setting:** the amber "Large uploads can fail" warning appears **above 50 GB** (the largest size proven), not at 4 GB. This holds only if the local check on the real home network agrees. If it does, the warning effectively never shows for normal media.
 - **Two Engine settings must change for WP12.** Uploads must not count against the Engine's limit of 600 requests a minute. That limit is shared by everything the Dashboard sends. Uploads also need their own longer per-piece time limit (details below).
@@ -33,6 +33,7 @@ The Engine has no upload action yet, so the harness copies the path WP12 will bu
 | The 10 and 50 GB source files were sparse (they read as zeros without disk reads). | Browser-side disk reading was not measured; a real film is read from disk at a few hundred MB/s, far above the network. |
 | The 50 GB runs discarded the data instead of writing it (the cloud disk has 29 GB). | Disk writing was measured separately: 10 GB was written at 294 MB/s, so the disk is not the bottleneck at network speeds. |
 | The drop was made by the Engine side cutting the connection. | A real Wi-Fi drop can instead leave a request hanging silently. WP12 needs a "no progress for 30 seconds" rule that abandons the piece and resumes (see recommendations). |
+| Memory figures are for the harness's own small store and relay programs, not the real Engine and Dashboard (which hold far more in memory for other work). | What carries over is that memory did not grow with file size, because each piece is streamed straight to disk. |
 | Not measured: Windows Defender scanning new files, reverse proxies (nginx, Traefik) in front of Library, Docker volumes, and the Blazor live connection (`InputFile`). | The live-connection route is ruled out by D44 itself. Proxies often cap request bodies (nginx's default is 1 MB); 64 MB pieces need that cap raised, and this goes in the WP12 docs. |
 
 ## Measurements
@@ -52,7 +53,7 @@ All runs used a real browser. "Relay" means through the Dashboard-style hop. Mem
 | 1 GB | Wi-Fi | resumable, relay | done | 34.3 s | 1 GB | 106 / 106 / 377 MB |
 | 10 GB | gigabit | plain, relay | done, **93 s of the 100 s limit** | 93.1 s | 10 GB | 98 / 99 / 375 MB |
 | 10 GB | gigabit | resumable, relay | done | 101.9 s | 10 GB | 102 / 100 / 379 MB |
-| 10 GB | Wi-Fi | plain, relay | **failed at 100 s**, working file removed | 106 s | 4.7 GB wasted | 98 / 101 / 378 MB |
+| 10 GB | Wi-Fi | plain, relay | **failed at 100 s**, working file removed | 106 s | 4.4 GB wasted | 98 / 101 / 378 MB |
 | 10 GB | Wi-Fi | resumable, relay, drop at 60% | done, 1 retry | 343.7 s | 10 GB | 106 / 106 / 380 MB |
 | 50 GB | gigabit | resumable, relay | done | 471.6 s | 50 GB | 108 / 104 / 393 MB |
 | 50 GB | gigabit | resumable, relay, drop at 60% | done, 1 retry | 473.2 s | 50 GB | 103 / 109 / 393 MB |
@@ -61,12 +62,12 @@ All runs used a real browser. "Relay" means through the Dashboard-style hop. Mem
 
 | Method | What happened | Time | Data sent for 10 GB |
 |---|---|---:|---:|
-| Plain | The working file was discarded; the browser started again from zero | 155.8 s | 18.9 GB |
+| Plain | The working file was discarded; the browser started again from zero | 155.8 s | 17.6 GB |
 | Resumable | Asked the Engine how much had arrived, carried on from there | 96.2 s | 10 GB |
 
 ### Cancel (10 GB resumable, cancelled at 30%)
 
-The working file was deleted at once. The store held 3.0 GB at the moment of Cancel and **0 bytes** afterwards.
+The working file was deleted at once. The store held 3.0 GB at the moment of Cancel and **0 bytes** afterwards. That run was on Linux, which lets a file be deleted while it is still open. Windows does not, so after review the harness's Cancel was changed to stop the piece in flight first and then delete; it was re-run in the cloud (2 GB cancelled at 40%: store empty) and is in the real-network check. WP12 must do the same.
 
 ### Piece size (10 GB, machine limit, direct)
 
@@ -85,12 +86,12 @@ The working file was deleted at once. The store held 3.0 GB at the moment of Can
 3. **Rate limit.** The Engine counts requests per sender address, and every Dashboard request shares one address. Small pieces would use up the budget of every screen for every user. Exempt the upload actions from the general limit and give them their own limit: one upload at a time per person, a few in total. (Reason: **Reliability**.)
 4. **Time limits.** Give the Dashboard's upload relay its own client with a per-piece limit of about 5 minutes, separate from the shared 100-second clients. Raise the Engine's request-size limit for the piece action only, to 64 MB plus headers. (Reason: **Reliability** on slow Wi-Fi.)
 5. **Stalls.** In the browser, abandon any piece that makes no progress for 30 seconds, ask for the status, and resume. Retry with a growing pause for up to about 2 minutes, then show "Upload paused: connection lost" with Resume and Cancel. Working files with no activity for 24 hours are removed by a background task. (Reason: **Reliability**. A real Wi-Fi drop can hang a request instead of failing it.)
-6. **Progress and Cancel** come straight from the piece loop: progress updates after each piece, and Cancel stops the loop and deletes the working file. Both behaved correctly in the spike.
+6. **Progress and Cancel** come straight from the piece loop: progress updates after each piece. Cancel stops the loop, ends the piece being written, and only then deletes the working file (Windows refuses to delete a file that is still open).
 7. **D44 size setting.** Default it to **50 GB**, the largest size proven, as a setting in `config/`. Below it, uploads run normally. Above it, the amber warning offers the Import folder's path with Copy path. If the real-network check fails, lower the setting to the largest size that passed, and record the result here.
 
 ## Run it yourself
 
-On SHY-DESKTOP, from this folder (needs the .NET 10 SDK):
+On SHY-DESKTOP, from the repository root (needs the .NET 10 SDK). Windows Firewall asks once whether to allow ports 5200 and 5201 on private networks: allow it, and remove the rule afterwards.
 
 ```powershell
 pwsh -File engineering/reports/large-upload-spike-2026-10/harness/start.ps1
@@ -104,7 +105,7 @@ Then, from a laptop on Wi-Fi or a wired PC on the same network:
 4. When it finishes, the page shows time and MB/s. Repeat with a 10 GB file, then pull the cable or turn Wi-Fi off for 10 seconds halfway: it should carry on by itself.
 5. Press Cancel during another upload: the `store` folder next to the script should then be empty.
 
-Stop the harness by closing its two `dotnet` windows (or `Stop-Process` on those two process IDs). The harness is not part of the app and is not built by CI. It is never pointed at real media folders: it writes only to its own `store` folder.
+Stop the harness with `Get-Process dotnet | Where-Object { $_.CommandLine -like '*UploadSpike.dll*' } | Stop-Process` (only the two harness processes match). The spec planned the harness for the ignored `.tmp/` folder; it is kept here instead so the local check can re-run it. The harness is not part of the app and is not built by CI. It is never pointed at real media folders: it writes only to its own `store` folder.
 
 ## Plain English summary
 

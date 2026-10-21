@@ -51,15 +51,15 @@ Stream OpenSink(string path, long offset)
 }
 
 // Copy with fault injection: returns bytes copied; aborts the connection once when the absolute offset passes dropAt.
-async Task<long> CopyAsync(HttpContext ctx, Stream sink, long startOffset)
+async Task<long> CopyAsync(HttpContext ctx, Stream sink, long startOffset, CancellationToken ct)
 {
     var buf = new byte[1 << 20];
     long copied = 0;
     int n;
     var clock = Stopwatch.StartNew();
-    while ((n = await ctx.Request.Body.ReadAsync(buf, ctx.RequestAborted)) > 0)
+    while ((n = await ctx.Request.Body.ReadAsync(buf, ct)) > 0)
     {
-        await sink.WriteAsync(buf.AsMemory(0, n), ctx.RequestAborted);
+        await sink.WriteAsync(buf.AsMemory(0, n), ct);
         copied += n;
         if (rateMbps > 0)
         {
@@ -87,7 +87,7 @@ app.MapPost("/plain", async (HttpContext ctx, string name, long size) =>
     long copied = 0;
     try
     {
-        await using (var sink = OpenSink(partial, 0)) copied = await CopyAsync(ctx, sink, 0);
+        await using (var sink = OpenSink(partial, 0)) copied = await CopyAsync(ctx, sink, 0, ctx.RequestAborted);
         if (!sinkDiscard) File.Move(partial, Path.Combine(store, name), true);
         log.Enqueue(new { mode = "plain", name, size, copied, seconds = sw.Elapsed.TotalSeconds, ok = copied == size });
         return Results.Ok(new { copied });
@@ -108,9 +108,17 @@ app.MapPost("/chunked", (string name, long size) =>
     return Results.Json(new { id });
 });
 app.MapGet("/chunked/{id}", (string id) => sessions.TryGetValue(id, out var s) ? Results.Json(new { offset = s.Offset }) : Results.NotFound());
-app.MapDelete("/chunked/{id}", (string id) =>
+// Cancel stops the piece in flight first, then deletes: Windows refuses to delete a file that is still open.
+app.MapDelete("/chunked/{id}", async (string id) =>
 {
-    if (sessions.TryRemove(id, out var s) && File.Exists(s.Path)) File.Delete(s.Path);
+    if (!sessions.TryRemove(id, out var s)) return Results.Ok();
+    s.Cancel.Cancel();
+    await s.Gate.WaitAsync();
+    try
+    {
+        if (File.Exists(s.Path)) File.Delete(s.Path);
+    }
+    finally { s.Gate.Release(); }
     return Results.Ok();
 });
 app.MapPut("/chunked/{id}", async (HttpContext ctx, string id, long offset) =>
@@ -124,8 +132,9 @@ app.MapPut("/chunked/{id}", async (HttpContext ctx, string id, long offset) =>
         long copied = 0;
         try
         {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ctx.RequestAborted, s.Cancel.Token);
             await using var sink = OpenSink(s.Path, offset);
-            copied = await CopyAsync(ctx, sink, offset);
+            copied = await CopyAsync(ctx, sink, offset, linked.Token);
         }
         catch (Exception ex) when (ex is IOException or OperationCanceledException or BadHttpRequestException)
         {
@@ -187,5 +196,6 @@ sealed class ChunkSession(string name, long size, string path)
     public long Offset { get; set; }
     public int Drops { get; set; }
     public SemaphoreSlim Gate { get; } = new(1, 1);
+    public CancellationTokenSource Cancel { get; } = new();
     public Stopwatch Clock { get; } = Stopwatch.StartNew();
 }
