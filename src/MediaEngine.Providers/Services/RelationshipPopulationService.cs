@@ -73,7 +73,8 @@ internal static class RelationshipClaimMap
             ["spouse_qid"] = (RelationshipType.Spouse, FictionalEntityType.Character),
             ["sibling_qid"] = (RelationshipType.Sibling, FictionalEntityType.Character),
             ["child_qid"] = (RelationshipType.Child, FictionalEntityType.Character),
-            ["opponent_qid"] = (RelationshipType.Opponent, FictionalEntityType.Character),
+            ["participant_in_qid"] = (RelationshipType.ParticipantIn, FictionalEntityType.Event),
+            ["enemy_qid"] = (RelationshipType.Enemy, FictionalEntityType.Character),
             ["student_of_qid"] = (RelationshipType.StudentOf, FictionalEntityType.Character),
 
             // Character → Character (romantic)
