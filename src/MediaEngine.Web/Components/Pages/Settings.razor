@@ -197,7 +197,7 @@ else
                                                      TargetNameChanged="OnPlaybackTargetNameChanged" />
                                 break;
                             case SettingsSection.Libraries:
-                                <LibrariesTab Subsection="@_activeSubsection" />
+                                <LibrariesTab Subsection="@_activeSubsection" Detail="@Detail" />
                                 break;
                             case SettingsSection.Ingestion:
                                 <IngestionTasksTab View="@IngestionView" />
@@ -354,7 +354,7 @@ else
     private string BrowserTitle => IsProfileDetailRoute
         ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Library"
         : _activeSection == SettingsSection.Libraries
-        ? $"{(_activeSubsection == "view" ? "View" : "Libraries")} - Library"
+        ? $"{LibraryGroupCatalog.TryGetGroup(_activeSubsection)?.Label ?? "Libraries"} - Library"
         : CurrentLocation?.Parent is { } parent
         ? $"{GetHeroTitle()} - {parent.Label} - Library"
         : $"{GetHeroTitle()} - Library";
@@ -686,7 +686,7 @@ else
 
         var currentPath = NormalizePath(Nav.ToBaseRelativePath(RoutedPageAddress.AbsoluteFor(Nav, Overlay)));
         var targetRoute = _activeSection == SettingsSection.Libraries && IsLibraryRouteSegment(Subsection)
-            ? $"/settings/libraries/{_activeSubsection}"
+            ? $"/settings/libraries/{_activeSubsection}{(string.IsNullOrWhiteSpace(Detail) ? string.Empty : "/" + Detail.Trim().ToLowerInvariant())}"
             : IsProfileDetailRoute
             ? $"/settings/profiles/{_activeSubsection}"
             : _activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail)
@@ -730,12 +730,13 @@ else
         return "/" + relative.Trim('/').TrimEnd('/');
     }
 
-    private static bool IsLibraryRouteSegment(string? value) =>
-        string.Equals(value, "view", StringComparison.OrdinalIgnoreCase);
+    // Libraries has its own levels: /settings/libraries/{group}, /settings/libraries/{group}/{type} and /settings/libraries/import.
+    private static bool IsLibraryRouteSegment(string? value) => SettingsNav.IsLibraryRouteSegment(value);
 
     private static bool IsValidDetailRoute(SettingsSection section, string subsection, string? detail)
     {
         if (string.IsNullOrWhiteSpace(detail)) return true;
+        if (section == SettingsSection.Libraries) return SettingsNav.IsLibraryRouteSegment(subsection) && IsProviderRouteKey(detail);
         if (section != SettingsSection.Providers) return false;
         return subsection == "providers" && IsProviderRouteKey(detail);
     }
@@ -854,10 +855,8 @@ else
 
         if (_activeSection == SettingsSection.Libraries)
         {
-            var hasView = !string.IsNullOrWhiteSpace(_activeSubsection);
-            breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, hasView ? pageRoute : null));
-            if (hasView)
-                breadcrumbs.Add(new SettingsBreadcrumb(_activeSubsection == "view" ? "View" : "Library", null));
+            // The group and type pages draw their own breadcrumb (Libraries > Watch > Movies) above their content.
+            breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, null));
             return breadcrumbs;
         }
 
@@ -917,7 +916,7 @@ else
         SettingsSection.AdminOverview => _activeSubsection == SettingsNav.LogsSubsection
             ? "What the Library did, the Engine's technical log, and how long logs are kept."
             : "How this server is doing: its version, processor, memory and storage.",
-        SettingsSection.Libraries => "Manage structured libraries and storage roots.",
+        SettingsSection.Libraries => "Your media, grouped the way you browse it.",
         SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",
         SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",
         SettingsSection.Network => "Manage how devices reach Library at home and away without exposing unnecessary technical detail.",

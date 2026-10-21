@@ -9,6 +9,7 @@ using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -197,27 +198,46 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         _popovers = Render<AppPopoverHost>();
     }
 
+    // Each type has its own page (/settings/libraries/{group}/{type}); this opens the one for a type's label.
+    private static readonly Dictionary<string, (string Group, string Type)> TypePages = new()
+    {
+        ["Movies"] = ("watch", "movies"),
+        ["TV Shows"] = ("watch", "tv"),
+        ["Videos"] = ("watch", "videos"),
+        ["Music"] = ("listen", "music"),
+        ["Audiobooks"] = ("listen", "audiobooks"),
+        ["Books"] = ("read", "books"),
+        ["Comics"] = ("read", "comics"),
+    };
+
     private IRenderedComponent<LibrariesTab> Open(string typeLabel)
     {
-        var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".library-folders__type");
-        cut.FindAll(".library-folders__type").Single(x => x.TextContent.Contains(typeLabel)).Click();
+        var (group, type) = TypePages[typeLabel];
+        var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, group).Add(x => x.Detail, type));
         cut.WaitForElement(".folder-table, .library-folders__empty");
+        return cut;
+    }
+
+    private IRenderedComponent<LibrariesTab> OpenImport()
+    {
+        var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, "import"));
+        cut.WaitForElement("#library-import-title");
         return cut;
     }
 
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
+    // The front door lists the groups (Watch, Listen, Read, View) with their types and folder counts; the Import folder is one row under them.
     [Fact]
-    public void OverviewListsEveryLibraryTypeWithItsFolderCount()
+    public void OverviewListsEveryGroupWithItsTypesAndFolderCount()
     {
         var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".library-folders__type");
-        Assert.Equal(8, cut.FindAll(".library-folders__type").Count);
-        Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Audiobooks") && x.TextContent.Contains("1 folder"));
-        Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Movies") && x.TextContent.Contains("3 folders"));
-        Assert.Contains("Add Folder", cut.Markup);
+        cut.WaitForElement(".lib-door__group");
+        Assert.Equal(4, cut.FindAll(".lib-door__group").Count);
+        Assert.Contains(cut.FindAll(".lib-door__group"), x => x.TextContent.Contains("Listen") && x.TextContent.Contains("Audiobooks") && x.TextContent.Contains("1 folder"));
+        Assert.Contains(cut.FindAll(".lib-door__group"), x => x.TextContent.Contains("Watch") && x.TextContent.Contains("Movies") && x.TextContent.Contains("4 folders"));
         Assert.Contains("/settings/libraries/view", cut.Markup);
+        Assert.Contains("Import folder", Text(cut.Find(".lib-door__import")));
     }
 
     private static ImportFolderStatusDto ConfiguredImport() => new()
@@ -232,16 +252,16 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         ],
     };
 
-    // I1 to I3: the Import folder is the eighth entry (after the seven media types), reads Not set, and shows only the Set button with no type lines.
+    // I1 to I3: the front door has one Import folder row that reads Not set; its page shows only the Set button with no type lines.
     [Fact]
-    public void ImportFolderIsTheEighthEntryAndShowsOnlySetWhenNotSet()
+    public void ImportFolderIsOneRowOnTheFrontDoorAndShowsOnlySetWhenNotSet()
     {
-        var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".library-folders__type");
-        var entries = cut.FindAll(".library-folders__type");
-        Assert.Equal("Import folder", Text(entries[7].QuerySelector("strong")!));
-        Assert.Equal("Not set", Text(entries[7].QuerySelector("small")!));
-        entries[7].Click();
+        var front = Render<LibrariesTab>();
+        front.WaitForElement(".lib-door__import");
+        Assert.Equal("Import folder", Text(front.Find(".lib-door__import strong")));
+        Assert.Equal("Not set", Text(front.Find(".lib-door__import .lib-door__counts")));
+        Assert.Equal("/settings/libraries/import", front.Find(".lib-door__import").GetAttribute("href"));
+        var cut = OpenImport();
         cut.WaitForAssertion(() => Assert.Contains("Set import folder", cut.Markup));
         Assert.Empty(cut.FindAll(".library-folders__destination"));
         Assert.DoesNotContain("Where imported files go", cut.Markup);
@@ -256,11 +276,10 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public void ImportPanelShowsTheFolderRowAndOneLinePerType()
     {
         _configuration.ImportFolderStatus = ConfiguredImport();
-        var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".library-folders__type");
-        var entries = cut.FindAll(".library-folders__type");
-        Assert.Equal("Set", Text(entries[7].QuerySelector("small")!));
-        entries[7].Click();
+        var front = Render<LibrariesTab>();
+        front.WaitForElement(".lib-door__import");
+        Assert.Equal("Set", Text(front.Find(".lib-door__import .lib-door__counts")));
+        var cut = OpenImport();
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".library-folders__destination").Count));
         Assert.Contains("C:\\media\\Import", cut.Find(".library-folders__table-row").TextContent);
         Assert.Contains("Where imported files go", cut.Markup);
@@ -272,12 +291,12 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Contains("To bring in a whole existing folder once, use Merge into on a managed folder.", cut.Markup);
     }
 
-    // Choose jumps to that type's folders and points at Add Folder.
+    // With the type list (the default), Choose jumps to that type's folders and points at Add Folder.
     [Fact]
     public void ChooseOnAnImportLineOpensThatTypeAndHighlightsAddFolder()
     {
         _configuration.ImportFolderStatus = ConfiguredImport();
-        var cut = Render<LibrariesTab>();
+        var cut = Render<LibraryFoldersPanel>();
         cut.WaitForElement(".library-folders__type");
         cut.FindAll(".library-folders__type")[7].Click();
         cut.WaitForElement(".library-folders__destination");
@@ -287,6 +306,17 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             Assert.Contains("Audiobooks", Text(cut.Find(".library-folders__type[aria-current=true]")));
             Assert.NotEmpty(cut.FindAll(".library-folders__add.is-highlighted"));
         });
+    }
+
+    // On the Import folder's own address there is no type list, so Choose opens that type's page instead.
+    [Fact]
+    public void ChooseOnAnImportLineOnItsOwnPageOpensThatTypesAddress()
+    {
+        _configuration.ImportFolderStatus = ConfiguredImport();
+        var cut = OpenImport();
+        cut.WaitForElement(".library-folders__destination");
+        cut.FindAll(".library-folders__destination").Single(x => x.TextContent.Contains("Audiobooks")).QuerySelector("button")!.Click();
+        Assert.EndsWith("/settings/libraries/listen/audiobooks", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
     }
 
     // A type whose files cannot be filed shows the Engine's own sentence under its line.
@@ -302,9 +332,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
                 new() { MediaType = "TV Shows", Folder = "TV", FileCount = 2, Reason = "folder_unavailable", Message = "TV Shows are staying in the Import folder because the New media folder is offline." },
             ],
         };
-        var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".library-folders__type");
-        cut.FindAll(".library-folders__type")[7].Click();
+        var cut = OpenImport();
         cut.WaitForAssertion(() =>
         {
             var tv = cut.FindAll(".library-folders__destination").Single(x => x.TextContent.StartsWith("TV Shows"));
@@ -938,12 +966,13 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.All(cut.FindAll(".folder-table__none"), none => Assert.Equal("img", none.GetAttribute("role")));
     }
 
-    // The type's name is the selected entry in the list; the pane beside it starts with the folders instead of repeating it as a heading.
+    // The type's name is the last step of the breadcrumb; the page starts with the folders instead of repeating it as a heading, and has no type list.
     [Fact]
     public void ThePaneDoesNotRepeatTheSelectedLibrariesNameAsAHeading()
     {
         var cut = Open("Movies");
-        Assert.Contains("Movies", Text(cut.Find(".library-folders__type[aria-current=true]")));
+        Assert.Equal("Movies", Text(cut.Find(".lib-crumbs [aria-current=page]")));
+        Assert.Empty(cut.FindAll(".library-folders__type"));
         Assert.Empty(cut.FindAll(".library-folders__detail h3"));
         Assert.DoesNotContain("Folders that make up", cut.Markup);
         Assert.NotEmpty(cut.FindAll(".library-folders__detail .folder-table"));

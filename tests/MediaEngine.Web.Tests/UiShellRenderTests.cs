@@ -778,6 +778,31 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Equal("http://localhost/settings/profiles", navigation.Uri);
     }
 
+    // The Libraries levels are real addresses: a type page (group and type) must not be redirected to the front door or /not-found.
+    [Theory]
+    [InlineData("/settings/libraries/watch/movies", "watch", "movies")]
+    [InlineData("/settings/libraries/watch", "watch", null)]
+    [InlineData("/settings/libraries/import", "import", null)]
+    [InlineData("/settings/libraries/view/photos", "view", "photos")]
+    public async Task SettingsPage_OnALibrariesLevelAddress_StaysOnThatAddress(string address, string subsection, string? detail)
+    {
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo(address);
+
+        var cut = Render<Settings>(parameters =>
+        {
+            parameters.Add(page => page.Section, "libraries").Add(page => page.Subsection, subsection);
+            if (detail is not null)
+            {
+                parameters.Add(page => page.Detail, detail);
+            }
+        });
+        await Task.Delay(1500);
+
+        Assert.Equal($"http://localhost{address}", navigation.Uri);
+        Assert.NotEmpty(cut.FindAll(".libraries"));
+    }
+
     [Theory]
     [InlineData("/settings", null)]
     [InlineData("/settings/overview", "overview")]

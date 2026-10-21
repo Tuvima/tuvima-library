@@ -1,0 +1,30 @@
+.lib-crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--tl-text-muted);
+    font-size: .85rem;
+    font-weight: 600;
+}
+
+.lib-crumbs a {
+    color: var(--tl-text-secondary);
+    text-decoration: none;
+}
+
+.lib-crumbs a:hover,
+.lib-crumbs a:focus-visible {
+    color: var(--tl-text-primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.lib-crumbs span[aria-current="page"] {
+    color: var(--tl-text-primary);
+}
+
+.lib-crumbs__separator {
+    color: var(--tl-text-faint);
+}

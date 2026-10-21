@@ -13,8 +13,9 @@
 @implements IDisposable
 
 @* One screen for libraries: media types on the left, the selected type's folders on the right.
-   Used by the first-run setup step and by Settings > Libraries, so both behave identically. *@
-<div class="library-folders">
+   Used by the first-run setup step and by Settings > Libraries, so both behave identically. Settings > Libraries opens it on
+   one type's address instead (ShowTypeNav false, TypeKey set), so the type list is not drawn there. *@
+<div class="@(ShowTypeNav ? "library-folders" : "library-folders library-folders--single")">
     @if (_loading)
     {
         <AppPageState Kind="AppPageStateKind.Loading" Title="Loading libraries" />
@@ -30,6 +31,8 @@
     {
         @* Shown on phones only (see the stylesheet): folders are read-only there, so every control that adds, converts or merges is hidden. *@
         <p class="library-folders__phone-note">@PhoneNote</p>
+        @if (ShowTypeNav)
+        {
         <AppCard Class="library-folders__types">
         <nav class="library-folders__nav" aria-label="Library types">
             @foreach (var type in LibraryTypes)
@@ -73,8 +76,19 @@
             }
         </nav>
         </AppCard>
+        }
 
-        @if (ImportSelected)
+        @if (_unknownType)
+        {
+            <AppCard Class="library-folders__detail">
+                <div class="library-folders__empty">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
+                    <strong>This library type does not exist</strong>
+                    <span><a href="/settings/libraries">Back to Libraries</a></span>
+                </div>
+            </AppCard>
+        }
+        else if (ImportSelected)
         {
             <AppCard Class="library-folders__detail">
                 <header class="library-folders__detail-header">
@@ -279,18 +293,7 @@
     // The import folder is the storage location with this id (see ImportFolderRules in the Engine).
     private const string ImportLocationId = "incoming";
 
-    private sealed record LibraryTypeOption(string Key, string Label, string PluralLabel, string Area, string[] MediaTypes, string Icon, string? LibraryId = null);
-
-    private static readonly LibraryTypeOption[] LibraryTypes =
-    [
-        new("books", "Books", "Books", "read", ["Books"], AppMediaPresentation.IconFor("Books", outlined: true)),
-        new("audiobooks", "Audiobooks", "Audiobooks", "listen", ["Audiobooks"], AppMediaPresentation.IconFor("Audiobooks", outlined: true)),
-        new("movies", "Movies", "Movies", "watch", ["Movies"], AppMediaPresentation.IconFor("Movies", outlined: true)),
-        new("tv", "TV Shows", "TV shows", "watch", ["TV", "TVShows"], AppMediaPresentation.IconFor("TV", outlined: true)),
-        new("music", "Music", "Music", "listen", ["Music"], AppMediaPresentation.IconFor("Music", outlined: true)),
-        new("comics", "Comics", "Comics", "read", ["Comics"], AppMediaPresentation.IconFor("Comics", outlined: true)),
-        new("videos", "Videos", "Videos", "watch", ["Videos"], AppMediaPresentation.IconFor("Videos", outlined: true)),
-    ];
+    private static IReadOnlyList<LibraryTypeOption> LibraryTypes => LibraryTypeCatalog.Types;
 
     /// <summary>True when the first-run setup session is in use instead of the signed-in Settings endpoints.</summary>
     [Parameter] public bool Embedded { get; set; }
@@ -298,6 +301,10 @@
     [Parameter] public bool ReadOnly { get; set; }
     /// <summary>Empty-state links open the screen on a given type, for example ?type=movies.</summary>
     [SupplyParameterFromQuery(Name = "type")] public string? PreselectedType { get; set; }
+    /// <summary>The type to show (a standard key, "import" or "other-{libraryId}") when the type list is not drawn.</summary>
+    [Parameter] public string? TypeKey { get; set; }
+    /// <summary>False when the host already chose the type (its own address): the list of types is not drawn and the selection follows <see cref="TypeKey"/>.</summary>
+    [Parameter] public bool ShowTypeNav { get; set; } = true;
     /// <summary>Raised after any saved change so the host can refresh its own state.</summary>
     [Parameter] public EventCallback Changed { get; set; }
 
@@ -308,6 +315,7 @@
     private bool _loading = true;
     private bool _saving;
     private LibraryTypeOption _selected = LibraryTypes[0];
+    private bool _unknownType;
     private IReadOnlyDictionary<string, string> _pathIssues = new Dictionary<string, string>();
 
     // Advanced tabs follow the order people think in; the template key is the type's entry in organization_templates.
@@ -349,9 +357,20 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
-        _selected = LibraryTypes.FirstOrDefault(type => string.Equals(type.Key, PreselectedType, StringComparison.OrdinalIgnoreCase))
-            ?? LibraryTypes.FirstOrDefault(type => FolderCount(type) > 0)
-            ?? LibraryTypes[0];
+        if (!ShowTypeNav)
+        {
+            // The host's address names the type; an unknown name shows a small state instead of a different type.
+            var chosen = ResolveTypeKey(TypeKey);
+            _unknownType = chosen is null;
+            if (chosen is not null) _selected = chosen;
+        }
+        else
+        {
+            _selected = LibraryTypes.FirstOrDefault(type => string.Equals(type.Key, PreselectedType, StringComparison.OrdinalIgnoreCase))
+                ?? LibraryTypes.FirstOrDefault(type => FolderCount(type) > 0)
+                ?? LibraryTypes[0];
+        }
+
         await InvokeAsync(StateHasChanged);
         await RefreshPathIssuesAsync();
         await RefreshWaitingAsync();
@@ -363,26 +382,7 @@
     private async Task RefreshPathIssuesAsync()
     {
         if (_configuration is null || Embedded) return;
-        var folders = _configuration.Libraries.SelectMany(library => library.Sources)
-            .Where(source => !string.IsNullOrWhiteSpace(source.Path))
-            .GroupBy(source => source.Path, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToList();
-        using var gate = new SemaphoreSlim(4);
-        var checks = folders.Select(async source =>
-        {
-            await gate.WaitAsync();
-            try { return (Source: source, Result: await Orchestrator.TestPathAsync(source.Path)); }
-            finally { gate.Release(); }
-        }).ToList();
-        var issues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (source, result) in await Task.WhenAll(checks))
-        {
-            if (result is null) continue;
-            if (!result.Exists) issues[source.Path] = "Folder unavailable";
-            else if (!result.HasRead || (IsManaged(source) && !result.HasWrite)) issues[source.Path] = "No access";
-        }
-        _pathIssues = issues;
+        _pathIssues = await LibraryFolderHealth.CheckAsync(_configuration, path => Orchestrator.TestPathAsync(path));
         await InvokeAsync(StateHasChanged);
     }
 
@@ -397,39 +397,21 @@
         _loading = false;
     }
 
-    private LibraryFolderDto? LibraryFor(LibraryTypeOption type) => type.LibraryId is not null
-        ? _configuration?.Libraries.FirstOrDefault(library => library.Id == type.LibraryId)
-        : PrimaryLibraryFor(type);
+    private LibraryFolderDto? LibraryFor(LibraryTypeOption type) => LibraryRollup.LibraryFor(_configuration, type);
 
-    private LibraryFolderDto? PrimaryLibraryFor(LibraryTypeOption type) => _configuration?.Libraries
-        .FirstOrDefault(library => IsCatalogued(library)
-            && library.MediaTypes.Any(token => type.MediaTypes.Contains(token, StringComparer.OrdinalIgnoreCase)));
-
-    private static bool IsCatalogued(LibraryFolderDto library) => string.Equals(library.Kind, "catalogued", StringComparison.OrdinalIgnoreCase);
+    private LibraryFolderDto? PrimaryLibraryFor(LibraryTypeOption type) => LibraryRollup.PrimaryLibraryFor(_configuration, type);
 
     // Libraries that are not the one library of a standard type (an older custom type, or a second library of a standard
     // type) still show here, so their folders can be seen and removed instead of silently hiding.
-    private IReadOnlyList<LibraryTypeOption> OtherLibraries => _configuration is null
-        ? []
-        : _configuration.Libraries
-            .Where(library => IsCatalogued(library) && !LibraryTypes.Any(type => ReferenceEquals(PrimaryLibraryFor(type), library)))
-            .Select(library => new LibraryTypeOption(
-                $"other-{library.Id}",
-                string.IsNullOrWhiteSpace(library.Name) ? "Other library" : library.Name,
-                string.IsNullOrWhiteSpace(library.Name) ? "other" : library.Name,
-                library.Area,
-                [.. library.MediaTypes],
-                OtherIcon(library.Area),
-                library.Id))
-            .ToList();
+    private IReadOnlyList<LibraryTypeOption> OtherLibraries => LibraryRollup.OtherLibraries(_configuration);
 
-    private static string OtherIcon(string? area) => area?.ToLowerInvariant() switch
+    private LibraryTypeOption? ResolveTypeKey(string? key)
     {
-        "read" => AppMaterialIcons.Outlined.MenuBook,
-        "watch" => AppMaterialIcons.Outlined.Movie,
-        "listen" => AppMaterialIcons.Outlined.Headphones,
-        _ => AppMaterialIcons.Outlined.Folder,
-    };
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        if (string.Equals(key, ImportEntry.Key, StringComparison.OrdinalIgnoreCase)) return ImportEntry;
+        return LibraryTypes.FirstOrDefault(type => string.Equals(type.Key, key, StringComparison.OrdinalIgnoreCase))
+            ?? OtherLibraries.FirstOrDefault(type => string.Equals(type.Key, key, StringComparison.OrdinalIgnoreCase));
+    }
 
     private int FolderCount(LibraryTypeOption type) => LibraryFor(type)?.Sources.Count ?? 0;
     private static string FolderCountText(int count) => count == 1 ? "1 folder" : $"{count} folders";
@@ -438,8 +420,15 @@
     private void SelectImport() => Select(ImportEntry);
 
     // Choose on an Import line jumps to that type's folders and points at Add Folder.
+    // On its own address (no type list), the jump is a navigation to that type's address instead.
     private void ChooseDestinationType(LibraryTypeOption type)
     {
+        if (!ShowTypeNav && LibraryGroupCatalog.GroupFor(type.Key) is { } group)
+        {
+            Navigation.NavigateTo(LibraryGroupCatalog.TypeAddress(group, type.Key));
+            return;
+        }
+
         Select(type);
         _highlightAdd = true;
     }

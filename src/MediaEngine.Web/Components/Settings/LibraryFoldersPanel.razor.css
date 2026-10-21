@@ -5,6 +5,12 @@
     min-height: 360px;
 }
 
+/* On a type's own address the list of types is not drawn, so the folders take the whole width. */
+.library-folders--single {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+}
+
 /* Both columns are standard cards; their padding and surface come from the card itself. */
 .library-folders__types {
     min-width: 0;

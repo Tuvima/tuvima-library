@@ -1,0 +1,66 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Contracts.Settings
+
+@* One group's page (Watch, Listen, Read, View): a row per library type with its counts and health, then that area's other
+   libraries. Each row opens the type's own page. Folders are added and changed on the type page, not here. *@
+<div class="lib-page">
+    <LibraryBreadcrumb Crumbs="@Crumbs" />
+    <h2 class="lib-page__title">@Group.Label</h2>
+
+    @if (ReadOnly)
+    {
+        <p class="lib-page__note">Use a desktop or tablet to change folders.</p>
+    }
+
+    <div class="lib-page__list" role="group" aria-label="@($"{Group.Label} libraries")">
+        <div class="lib-page__head" aria-hidden="true">
+            <span>Name</span>
+            <span>Folders</span>
+            <span>Status</span>
+        </div>
+        @foreach (var row in Rows)
+        {
+            var type = row.Type;
+            <a class="lib-page__row" href="@AddressFor(type)" data-type="@type.Key" aria-label="@AccessibleName(row)">
+                <span class="lib-page__name">
+                    <span class="@($"lib-page__icon lib-page__icon--{IconKey(type)}")"><AppMaterialIcon Icon="@type.Icon" /></span>
+                    <strong>@type.Label</strong>
+                </span>
+                <span class="lib-page__counts">@LibraryRollup.CountsText(row.Folders, row.Titles)</span>
+                <span class="lib-page__status">
+                    <LibraryHealthIcon Health="@row.Health" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
+                </span>
+            </a>
+        }
+    </div>
+
+    <LibraryIconLegend ShowHealth="true" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public LibraryGroup Group { get; set; } = default!;
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    [Parameter] public LibraryOverviewDto? Overview { get; set; }
+    [Parameter] public int? ViewFolders { get; set; }
+    [Parameter] public IReadOnlyDictionary<string, string> PathIssues { get; set; } = new Dictionary<string, string>();
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private IReadOnlyList<LibraryCrumb> Crumbs => [new("Libraries", "/settings/libraries"), new(Group.Label)];
+
+    private IReadOnlyList<LibraryRowSummary> Rows => LibraryRollup.RowsFor(Group, Configuration, Overview, ViewFolders, PathIssues);
+
+    private string AddressFor(LibraryTypeOption type) => LibraryGroupCatalog.TypeAddress(Group, type.Key);
+
+    // Other libraries keep their per-type icon colour only when they are a standard type; they use the quiet colour.
+    private static string IconKey(LibraryTypeOption type) => type.LibraryId is null ? type.Key : "other";
+
+    private static string AccessibleName(LibraryRowSummary row)
+    {
+        if (row.Folders is null) return row.Type.Label;
+        if (row.Folders == 0) return $"{row.Type.Label}, nothing added yet";
+        var counts = LibraryRollup.CountsText(row.Folders, row.Titles).Replace(" · ", ", ", StringComparison.Ordinal);
+        return $"{row.Type.Label}, {counts}, {(row.Health.Healthy ? "all folders healthy" : row.Health.Text)}";
+    }
+}

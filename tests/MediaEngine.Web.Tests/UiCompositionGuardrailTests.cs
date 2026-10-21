@@ -31,6 +31,20 @@ public sealed class UiCompositionGuardrailTests
     private static readonly string RemovedPageComponent = "Library" + "Page";
     private static readonly string RemovedSurfaceType = "LibrarySurface" + "Preset";
 
+    // The retired all-in-one workspace used the bare product label. The private group of Settings > Libraries (spec
+    // library-setup-groups D1, D4, D13: an area beside Watch, Listen, Read and View, drawn only when its mode is on) is a
+    // different, approved thing, so only the files that implement that group may use the label. Every other retired
+    // term stays refused in them, and no other file may use the label.
+    private static readonly string[] PrivateGroupFiles =
+    [
+        "src/MediaEngine.Web/Components/Settings/LibrariesTab.razor",
+        "src/MediaEngine.Web/Components/Settings/Libraries/LibraryCatalog.cs",
+        "src/MediaEngine.Web/Components/Settings/Libraries/LibraryFrontDoor.razor",
+        "src/MediaEngine.Web/Components/Settings/Libraries/LibraryFrontDoor.razor.css",
+        "src/MediaEngine.Web/Models/ViewDTOs/SettingsNav.cs",
+        "tests/MediaEngine.Web.Tests/LibraryFrontDoorTests.cs",
+    ];
+
     // The old all-in-one screen's name is retired entirely (Registry retirement D2). Only the bare word is refused:
     // technical identifiers such as PermissionRegistry or CapabilityRegistry, and lowercase "registry" (a Docker
     // image registry), stay legal.
@@ -125,7 +139,7 @@ public sealed class UiCompositionGuardrailTests
                 || path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
                 || path.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
             .Where(path => !RemovedAllInOneWorkspaceFiles.Contains(ToRelativePath(path), StringComparer.OrdinalIgnoreCase))
-            .Where(path => ContainsRemovedWorkspaceLanguage(Sanitize(File.ReadAllText(path))))
+            .Where(path => ContainsRemovedWorkspaceLanguage(Sanitize(File.ReadAllText(path)), ToRelativePath(path)))
             .Select(ToRelativePath)
             .ToList();
 
@@ -150,7 +164,7 @@ public sealed class UiCompositionGuardrailTests
             .Where(root => File.Exists(root) || Directory.Exists(root))
             .SelectMany(EnumerateTextFiles)
             .Where(path => !IsGeneratedOrBuildOutput(path))
-            .Where(path => ContainsRemovedWorkspaceLanguage(File.ReadAllText(path)))
+            .Where(path => ContainsRemovedWorkspaceLanguage(File.ReadAllText(path), ToRelativePath(path)))
             .Select(ToRelativePath)
             .ToList();
 
@@ -339,10 +353,11 @@ public sealed class UiCompositionGuardrailTests
             });
     }
 
-    private static bool ContainsRemovedWorkspaceLanguage(string contents)
+    private static bool ContainsRemovedWorkspaceLanguage(string contents, string? relativePath = null)
     {
+        var mayUseTheProductLabel = relativePath is not null && PrivateGroupFiles.Contains(relativePath, StringComparer.OrdinalIgnoreCase);
         return contents.Contains(RemovedRouteSegment, StringComparison.OrdinalIgnoreCase)
-            || contents.Contains(RemovedProductLabel, StringComparison.OrdinalIgnoreCase)
+            || (!mayUseTheProductLabel && contents.Contains(RemovedProductLabel, StringComparison.OrdinalIgnoreCase))
             || contents.Contains(RemovedWorkspaceLabel, StringComparison.OrdinalIgnoreCase)
             || contents.Contains(RemovedCssPrefix, StringComparison.OrdinalIgnoreCase)
             || contents.Contains(RemovedPageComponent, StringComparison.OrdinalIgnoreCase)

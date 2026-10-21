@@ -1,0 +1,20 @@
+@namespace MediaEngine.Web.Components.Settings
+
+@* A green tick when every folder is healthy, an amber warning icon (with the words in a tooltip) when not. Never colour alone:
+   the icon changes shape and carries an accessible name either way. *@
+@if (Health.Healthy)
+{
+    <span class="lib-health lib-health--ok" role="img" aria-label="@HealthyLabel" title="@HealthyLabel"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /></span>
+}
+else
+{
+    <AppTooltip Text="@Health.Text">
+        <span class="lib-health lib-health--warning" role="img" aria-label="@Health.Text"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" /></span>
+    </AppTooltip>
+}
+
+@code {
+    [Parameter, EditorRequired] public LibraryHealth Health { get; set; } = LibraryHealth.Ok;
+    /// <summary>The words for the tick, for example "All folders healthy".</summary>
+    [Parameter] public string HealthyLabel { get; set; } = "All folders healthy";
+}
