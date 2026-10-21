@@ -1,0 +1,154 @@
+@namespace MediaEngine.Web.Components.Companion
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Services.Companion
+@implements IDisposable
+@inject CompanionState Companion
+@inject IEngineApiClient ApiClient
+@inject NavigationManager Navigation
+@inject ILogger<CompanionNowPlayingCard> Logger
+
+@* "Now playing" on Home (spec 4A.3): shown only while this profile is playing or has paused something on one of its devices,
+   for example "The Fellowship of the Ring, on Living Room TV", with a Companion button. The Engine lists only the active
+   profile's own devices, so this card can never show what someone else in the house is watching. While nothing plays the
+   card is not drawn at all. *@
+@if (_devices.Count > 0)
+{
+    var device = _devices[0];
+    <section class="companion-now" aria-label="Now playing" data-section="now-playing">
+        <span class="companion-now__cover" aria-hidden="true">
+            @if (!string.IsNullOrWhiteSpace(device.Item?.CoverUrl))
+            {
+                <img src="@ApiClient.ToAbsoluteEngineUrl(device.Item!.CoverUrl!)" alt="" loading="lazy" />
+            }
+            else
+            {
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Devices" />
+            }
+        </span>
+        <div class="companion-now__copy">
+            <p class="companion-now__eyebrow">@(device.PlaybackState == PlayerPlaybackStates.Paused ? "Paused" : "Now playing")</p>
+            <p class="companion-now__title">@TitleOf(device)</p>
+            <p class="companion-now__where">on @CompanionPlace.DeviceLabelOf(device)@MoreText</p>
+        </div>
+        <div class="companion-now__action">
+        <AppButton Label="Companion"
+                   StartIcon="@AppMaterialIcons.Outlined.Groups"
+                   ButtonStyle="AppButtonStyle.Filled"
+                   Tone="AppUiTone.Primary"
+                   Disabled="_busy"
+                   OnClick="OpenAsync"
+                   FullWidth="true" />
+        </div>
+    </section>
+}
+
+@code {
+    /// <summary>How often Home asks again while it is open, so the card appears and goes within a few heartbeats.</summary>
+    private static readonly TimeSpan RefreshEvery = TimeSpan.FromSeconds(10);
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<CompanionLiveDeviceDto> _devices = [];
+    private bool _busy;
+    private PeriodicTimer? _timer;
+
+    private string MoreText => _devices.Count > 1 ? $" and {_devices.Count - 1} more" : string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _timer = new PeriodicTimer(RefreshEvery);
+        _ = TickAsync(_timer);
+    }
+
+    private async Task TickAsync(PeriodicTimer timer)
+    {
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_lifetime.Token))
+            {
+                await InvokeAsync(RefreshAsync);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The card was removed from the page; nothing more to refresh.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The circuit ended while a refresh was waiting.
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            var list = await Companion.LoadDevicesAsync(_lifetime.Token);
+            // A failed read keeps what is shown; Home must never lose its place over a missed refresh.
+            if (list is null)
+            {
+                return;
+            }
+
+            _devices = list.Devices.Where(device => device.Item is not null).ToList();
+            StateHasChanged();
+        }
+        catch (OperationCanceledException)
+        {
+            // Left the page mid-read.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The Now playing card could not read this profile's playing devices");
+        }
+    }
+
+    private async Task OpenAsync()
+    {
+        if (_devices.Count == 0 || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            // One device: follow it and open the companion. Several: open the companion to choose, the same list the card links to.
+            if (_devices.Count == 1)
+            {
+                var session = await Companion.FollowAsync(_devices[0].DeviceId, _lifetime.Token);
+                if (session is null)
+                {
+                    Logger.LogWarning("The companion could not follow {DeviceId}", _devices[0].DeviceId);
+                }
+            }
+
+            Navigation.NavigateTo("/companion");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string TitleOf(CompanionLiveDeviceDto device)
+    {
+        var item = device.Item;
+        if (item is null)
+        {
+            return "Something is playing";
+        }
+
+        var episode = !string.IsNullOrWhiteSpace(item.EpisodeNumber)
+            ? $"S{item.SeasonNumber ?? "1"}E{item.EpisodeNumber}"
+            : null;
+        return episode is null ? item.Title : $"{item.Title} · {episode}";
+    }
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _timer?.Dispose();
+        _lifetime.Dispose();
+    }
+}

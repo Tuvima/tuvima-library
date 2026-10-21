@@ -1,0 +1,30 @@
+.companion-page {
+    display: grid;
+    gap: var(--tl-space-5);
+    min-width: 0;
+    padding: var(--tl-space-4);
+}
+
+.companion-page__loading {
+    display: grid;
+    gap: var(--tl-space-3);
+}
+
+.companion-page__notice {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--tl-text-secondary);
+}
+
+.companion-page__tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-2);
+}
+
+@media (min-width: 600px) {
+    .companion-page {
+        max-width: 48rem;
+        margin: 0 auto;
+    }
+}

@@ -86,6 +86,10 @@ See [Universe Graph architecture](../architecture/universe-graph.md) and [the pr
 
 </details>
 
+## Follow along on your phone
+
+While something plays on a TV or another device on your profile, Home on your phone shows a **Now playing** card with a **Companion** button. The companion shows who is on screen up to where you are, where else you have met those characters in your own library, and what happened in the episode before. Reading a book or listening somewhere the Library cannot see? Open any title's ... menu, choose **Companion**, and pick the episode or chapter you are at. The small **Up to here / Everything** switch is the same spoiler setting as in Settings. When the Library has no character details for something, the companion says so rather than guessing.
+
 ## Next steps
 
 - [Tour Collections and the media lanes](../guides/dashboard-tour.md)

@@ -71,6 +71,13 @@ public sealed class CharacterSpoilerView(SpoilerLevel level, OwnedStory story, V
 {
     public SpoilerLevel Level => level;
 
+    /// <summary>
+    /// The same judgement for a viewer who is standing at <paramref name="position"/> right now, as a companion following a
+    /// playing device or holding a place set by hand does. The place counts as reached (never as finished), so the one
+    /// spoiler rule still decides everything else.
+    /// </summary>
+    public CharacterSpoilerView WithReached(WorkPosition position) => new(level, story, progress.Reaching(position));
+
     /// <summary>The owned story this judgement was made against.</summary>
     public OwnedStory Story => story;
 

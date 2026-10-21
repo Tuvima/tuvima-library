@@ -1,0 +1,214 @@
+@namespace MediaEngine.Web.Components.Companion
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Domain.Models
+@inject IEngineApiClient ApiClient
+
+@* The phone companion for one Work at one position (U-WP13, spec 4A.3): a title and your place, a small "Up to here" /
+   "Everything" switch (the same Spoilers preference as Settings), "Who's here", "Where you've seen them", "Previously" and a
+   way back to the Universe. It is read-only and invents nothing: a part the Library has no data for says so. The position
+   comes from a followed device or from the person's own pick; this component only shows it. *@
+<article class="companion" data-kind="@Context.Kind" data-mode="@Mode" aria-labelledby="@_headingId">
+    <header class="companion__header">
+        <span class="companion__cover" aria-hidden="true">
+            @if (!string.IsNullOrWhiteSpace(Context.CoverUrl))
+            {
+                <img src="@ApiClient.ToAbsoluteEngineUrl(Context.CoverUrl)" alt="" loading="lazy" />
+            }
+            else
+            {
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />
+            }
+        </span>
+        <div class="companion__heading">
+            @if (!string.IsNullOrWhiteSpace(Context.ShowTitle))
+            {
+                <p class="companion__eyebrow">@Context.ShowTitle</p>
+            }
+            <h1 id="@_headingId" class="companion__title">@Context.Title</h1>
+            <p class="companion__position" data-part="position">@Context.PositionLabel</p>
+            <p class="companion__mode" data-part="mode">
+                @if (Mode == CompanionModes.Follow)
+                {
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Devices" />
+                    <span>Following @(string.IsNullOrWhiteSpace(DeviceLabel) ? "your device" : DeviceLabel)</span>
+                }
+                else
+                {
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PushPin" />
+                    <span>Place set by you</span>
+                }
+            </p>
+        </div>
+    </header>
+
+    <div class="companion__spoiler" data-part="spoiler">
+        <AppSegmentedControl Options="SpoilerOptions"
+                             Value="@Context.SpoilerLevel"
+                             ValueChanged="OnSpoilerLevelChanged"
+                             AriaLabel="Spoilers"
+                             Disabled="SpoilerBusy"
+                             Class="companion__spoiler-control" />
+    </div>
+
+    <div class="companion__actions">
+        @if (!string.IsNullOrWhiteSpace(Context.DetailsRoute))
+        {
+            <AppButton Label="Open item page" Href="@Context.DetailsRoute" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.OpenInNew" />
+        }
+        @if (Context.Universe is { } universe)
+        {
+            <AppButton Label="@($"The {universe.Name} Universe")" Href="@($"/universe/{Uri.EscapeDataString(universe.Qid)}")" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Public" />
+        }
+    </div>
+
+    <section class="companion__section" aria-labelledby="@_synopsisId" data-section="synopsis">
+        <h2 id="@_synopsisId" class="companion__section-title">@SynopsisHeading</h2>
+        @if (!string.IsNullOrWhiteSpace(Context.Synopsis))
+        {
+            <p class="companion__text">@Context.Synopsis</p>
+        }
+        else
+        {
+            <p class="companion__empty">No synopsis for this one yet.</p>
+        }
+    </section>
+
+    <section class="companion__section" aria-labelledby="@_whosHereId" data-section="whos-here">
+        <h2 id="@_whosHereId" class="companion__section-title">Who's here</h2>
+        @if (!Context.WhosHere.HasCharacterDetails)
+        {
+            <p class="companion__empty" data-note="no-character-details">No character details for this one yet.</p>
+            @if (Context.Cast.Count > 0)
+            {
+                <p class="companion__text companion__cast" data-part="cast"><span class="companion__cast-label">Cast</span> @string.Join(", ", Context.Cast)</p>
+            }
+        }
+        else
+        {
+            @if (Context.WhosHere.Characters.Count == 0)
+            {
+                <p class="companion__empty" data-note="nothing-yet">Characters show up here as you reach them.</p>
+            }
+            else
+            {
+                <ul class="companion__list">
+                    @foreach (var character in Context.WhosHere.Characters)
+                    {
+                        <li class="companion__character" data-visibility="@character.Visibility">
+                            <span class="companion__character-name">@character.Name</span>
+                            <span class="companion__character-detail">
+                                @CharacterDetail(character)
+                            </span>
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (Context.WhosHere.HeldBackCount > 0)
+            {
+                <p class="companion__note" data-note="held-back">@HeldBackText(Context.WhosHere.HeldBackCount)</p>
+            }
+
+            @if (IsBookLike && Context.WhosHere.Characters.Any(character => character.Visibility == CompanionCharacterVisibility.NoPlotDetails))
+            {
+                <p class="companion__note" data-note="no-chapter-level">No source says who appears in which chapter, so characters are named without plot details.</p>
+            }
+        }
+    </section>
+
+    @if (SeenElsewhere.Count > 0)
+    {
+        <section class="companion__section" aria-labelledby="@_seenId" data-section="where-seen">
+            <h2 id="@_seenId" class="companion__section-title">Where you've seen them</h2>
+            <ul class="companion__list">
+                @foreach (var character in SeenElsewhere)
+                {
+                    <li>
+                        <AppNativeButton Type="button"
+                                         Class="companion__row"
+                                         AriaLabel="@($"{character.Name} also appears in {character.OtherWorkCount} other works")"
+                                         OnClick="@(() => OnOpenAlsoAppearsIn.InvokeAsync(character))">
+                            <span class="companion__row-copy">
+                                <span class="companion__character-name">@character.Name</span>
+                                <span class="companion__character-detail">Also in @OtherWorks(character.OtherWorkCount)</span>
+                            </span>
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
+                        </AppNativeButton>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    @if (Context.Previously is { } previously)
+    {
+        <section class="companion__section" aria-labelledby="@_previouslyId" data-section="previously">
+            <h2 id="@_previouslyId" class="companion__section-title">Previously</h2>
+            <p class="companion__previously-label">@previously.Label · @previously.Title</p>
+            @if (!string.IsNullOrWhiteSpace(previously.Synopsis))
+            {
+                <p class="companion__text">@previously.Synopsis</p>
+            }
+            else
+            {
+                <p class="companion__empty">No synopsis for the last episode you own.</p>
+            }
+        </section>
+    }
+</article>
+
+@code {
+    private static readonly IReadOnlyList<AppSelectOption> SpoilerOptions =
+    [
+        new(SpoilerLevels.UpToProgress, "Up to here"),
+        new(SpoilerLevels.Everything, "Everything"),
+    ];
+
+    private readonly string _headingId = $"companion-{Guid.NewGuid():N}";
+    private readonly string _synopsisId = $"companion-synopsis-{Guid.NewGuid():N}";
+    private readonly string _whosHereId = $"companion-whos-here-{Guid.NewGuid():N}";
+    private readonly string _seenId = $"companion-seen-{Guid.NewGuid():N}";
+    private readonly string _previouslyId = $"companion-previously-{Guid.NewGuid():N}";
+
+    [Parameter, EditorRequired] public CompanionContextDto Context { get; set; } = new();
+
+    /// <summary>"follow" (a playing device) or "manual" (a place the person set).</summary>
+    [Parameter] public string Mode { get; set; } = CompanionModes.Manual;
+
+    /// <summary>The followed device's name, when following.</summary>
+    [Parameter] public string? DeviceLabel { get; set; }
+
+    /// <summary>True while the spoiler preference is being saved.</summary>
+    [Parameter] public bool SpoilerBusy { get; set; }
+
+    /// <summary>Raised with the new level, <c>up_to_progress</c> or <c>everything</c>; the page saves the profile's Spoilers preference.</summary>
+    [Parameter] public EventCallback<string> OnSpoilerLevelChanged { get; set; }
+
+    /// <summary>Raised when a character's "Also in N other works" row is tapped; the page opens the Also appears in panel.</summary>
+    [Parameter] public EventCallback<CompanionCharacterDto> OnOpenAlsoAppearsIn { get; set; }
+
+    private bool IsBookLike => Context.Kind is CompanionKinds.Book or CompanionKinds.Audiobook;
+
+    private string SynopsisHeading => Context.Kind == CompanionKinds.Episode ? "This episode" : "Synopsis";
+
+    private IReadOnlyList<CompanionCharacterDto> SeenElsewhere =>
+        Context.WhosHere.Characters.Where(character => character.OtherWorkCount > 0).ToList();
+
+    private static string CharacterDetail(CompanionCharacterDto character)
+    {
+        if (character.Visibility == CompanionCharacterVisibility.NoPlotDetails)
+        {
+            return $"No plot details · {character.Source}";
+        }
+
+        return string.IsNullOrWhiteSpace(character.PerformedBy)
+            ? character.Source
+            : $"{character.PerformedBy} · {character.Source}";
+    }
+
+    private static string HeldBackText(int count) => count == 1
+        ? "1 more character is held back to avoid spoilers."
+        : $"{count} more characters are held back to avoid spoilers.";
+
+    private static string OtherWorks(int count) => count == 1 ? "1 other work you own" : $"{count} other works you own";
+}

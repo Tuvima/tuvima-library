@@ -5648,6 +5648,35 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CastTextTrackDto
   Path: System.String | nullability=not-null | accessors=get,init
   ContentType: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionCharacterDto
+  Qid: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  UniverseQid: System.String | nullability=not-null | accessors=get,init
+  Source: System.String | nullability=not-null | accessors=get,init
+  Visibility: System.String | nullability=not-null | accessors=get,init
+  PerformedBy: System.String | nullability=nullable | accessors=get,init
+  OtherWorkCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionCharacterVisibility
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionContextDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  ShowTitle: System.String | nullability=nullable | accessors=get,init
+  PositionLabel: System.String | nullability=not-null | accessors=get,init
+  ChapterIndex: System.Int32? | nullability=nullable | accessors=get,init
+  ChapterTitle: System.String | nullability=nullable | accessors=get,init
+  CoverUrl: System.String | nullability=nullable | accessors=get,init
+  Synopsis: System.String | nullability=nullable | accessors=get,init
+  DetailsRoute: System.String | nullability=nullable | accessors=get,init
+  SpoilerLevel: System.String | nullability=not-null | accessors=get,init
+  Universe: MediaEngine.Contracts.Playback.CompanionUniverseLinkDto | nullability=nullable | accessors=get,init
+  WhosHere: MediaEngine.Contracts.Playback.CompanionWhosHereDto | nullability=not-null | accessors=get,init
+  Previously: MediaEngine.Contracts.Playback.CompanionPreviouslyDto | nullability=nullable | accessors=get,init
+  Cast: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Picker: MediaEngine.Contracts.Playback.CompanionPickerDto | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionDeviceListDto
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
   Devices: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.CompanionLiveDeviceDto> | nullability=not-null | accessors=get,init
@@ -5657,6 +5686,8 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionFollowReq
   ProfileId: System.Guid? | nullability=nullable | accessors=get,init
   CompanionDeviceId: System.String | nullability=nullable | accessors=get,init
   DeviceId: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionKinds
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionLiveDeviceDto
   DeviceId: System.String | nullability=not-null | accessors=get,init
@@ -5685,6 +5716,24 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionManualPos
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionModes
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionPickerChoiceDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  ChapterIndex: System.Int32? | nullability=nullable | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionPickerDto
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Choices: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.CompanionPickerChoiceDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionPickerKinds
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionPreviouslyDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Synopsis: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionSessionDto
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
   CompanionDeviceId: System.String | nullability=not-null | accessors=get,init
@@ -5695,6 +5744,15 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionSessionDt
   Manual: MediaEngine.Contracts.Playback.CompanionManualPositionDto | nullability=nullable | accessors=get,init
   UpdatedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   ObservedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionUniverseLinkDto
+  Qid: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionWhosHereDto
+  Characters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.CompanionCharacterDto> | nullability=not-null | accessors=get,init
+  HeldBackCount: System.Int32 | nullability=not-null | accessors=get,init
+  HasCharacterDetails: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ContextSidebarLayoutDto
   Open: System.Boolean | nullability=not-null | accessors=get,set

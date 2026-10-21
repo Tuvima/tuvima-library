@@ -128,6 +128,26 @@ public sealed class DetailActionDestinationTests : IDisposable
     }
 
     [Fact]
+    public async Task TitlesWithAPositionToFollow_HaveACompanionLink_InTheMenu_AndOthersDoNot()
+    {
+        var pages = await ComposeEveryKindAsync();
+
+        foreach (var name in new[] { "movie", "book", "audiobook", "tv episode" })
+        {
+            var companion = Assert.Single(pages[name].OverflowActions, action => action.Key == "companion");
+            Assert.Equal("Companion", companion.Label);
+            Assert.Equal($"/companion/{pages[name].Id}", companion.Route);
+            // It is a link, so the Dashboard needs no handler for it; Edit stays in the menu beside it.
+            Assert.Contains(pages[name].OverflowActions, action => action.Key == "edit");
+        }
+
+        foreach (var name in new[] { "tv show", "music album", "universe", "person" })
+        {
+            Assert.DoesNotContain(pages[name].OverflowActions, action => action.Key == "companion");
+        }
+    }
+
+    [Fact]
     public async Task AUniverseDetailPage_OpensTheUniversePage_NotTheTimeline()
     {
         var page = await _composer.BuildAuthorizedAsync(

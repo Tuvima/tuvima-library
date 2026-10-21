@@ -208,4 +208,34 @@ public sealed class SpoilerRuleTests
         Assert.True(E(2, 3) >= E(2, 3));
         Assert.Equal([E(1, 2), E(1, 10), E(2, 1)], new[] { E(2, 1), E(1, 10), E(1, 2) }.Order());
     }
+
+    // Standing somewhere right now (the phone companion) -----------------------------------------------------------
+    [Fact]
+    public void AViewerWhoIsStandingAtAnEpisode_HasReachedItInThatShow_AndAnEarlierOneIsNotTakenBack()
+    {
+        var progress = Viewer((Show, WatchedUpTo(1, 4))).Reaching(InShow(1, 2));
+        var fresh = ViewerProgress.Empty.Reaching(InShow(1, 2));
+
+        // Never moves a viewer backwards, but a fresh viewer standing at episode 2 has started the show and reached episode 2.
+        Assert.Equal(E(1, 4), progress.For(Show).FurthestStartedEpisode);
+        Assert.True(fresh.For(Show).Started);
+        Assert.False(fresh.For(Show).Finished);
+        Assert.Equal(E(1, 2), fresh.For(Show).FurthestStartedEpisode);
+        Assert.Null(fresh.For(Show).FurthestFinishedEpisode);
+        Assert.Equal(CharacterVisibility.Shown, Judge(SpoilerLevel.UpToProgress, [InShow(1, 2)], fresh));
+        Assert.Equal(CharacterVisibility.Hidden, Judge(SpoilerLevel.UpToProgress, [InShow(1, 3)], fresh));
+    }
+
+    [Fact]
+    public void AViewerStandingInAFilmOrBook_HasStartedItButNeverFinishedIt_SoItsCharactersStayWithoutPlotDetails()
+    {
+        var inFilm = ViewerProgress.Empty.Reaching(new WorkPosition(Film));
+        var inUnownedPlace = ViewerProgress.Empty.Reaching(WorkPosition.Unowned);
+
+        Assert.True(inFilm.For(Film).Started);
+        Assert.False(inFilm.For(Film).Finished);
+        Assert.Equal(CharacterVisibility.NoPlotDetails, Judge(SpoilerLevel.UpToProgress, [new WorkPosition(Film)], inFilm));
+        // A place the viewer cannot have reached changes nothing.
+        Assert.Same(ViewerProgress.Empty, inUnownedPlace);
+    }
 }

@@ -1,0 +1,97 @@
+@namespace MediaEngine.Web.Components.Companion
+@using MediaEngine.Contracts.Playback
+
+@* Manual mode: "I'm at episode 3 / chapter 12". Manual is a first-class way to use the companion, not a fallback, so it works
+   for books and audiobooks too. Episodes and chapters are plain 44 px buttons in one scrolling list (nothing is hover-only or
+   drag-only). A book with no table of contents gets a chapter-number stepper instead. Picking raises OnPick; the page holds
+   the place through the Engine. *@
+<section class="companion-picker" aria-labelledby="@_headingId" data-section="picker">
+    <h2 id="@_headingId" class="companion-picker__title">@Heading</h2>
+
+    @if (Picker is { Choices.Count: > 0 } picker)
+    {
+        <ul class="companion-picker__list" role="list">
+            @foreach (var choice in picker.Choices)
+            {
+                var current = IsCurrent(picker, choice);
+                <li>
+                    <AppNativeButton Type="button"
+                                     Class="@($"companion-picker__choice{(current ? " companion-picker__choice--current" : string.Empty)}")"
+                                     aria-pressed="@(current ? "true" : "false")"
+                                     AriaLabel="@ChoiceLabel(choice)"
+                                     OnClick="@(() => OnPick.InvokeAsync(choice))">
+                        <span class="companion-picker__label">@choice.Label</span>
+                        @if (!string.IsNullOrWhiteSpace(choice.Title))
+                        {
+                            <span class="companion-picker__name">@choice.Title</span>
+                        }
+                    </AppNativeButton>
+                </li>
+            }
+        </ul>
+    }
+    else if (SupportsChapterNumber)
+    {
+        <div class="companion-picker__stepper" role="group" aria-label="Chapter number">
+            <AppNativeButton Type="button"
+                             Class="companion-picker__step"
+                             AriaLabel="Previous chapter"
+                             Disabled="@(CurrentChapterIndex is null or <= 0)"
+                             OnClick="@(() => StepAsync(-1))">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Remove" />
+            </AppNativeButton>
+            <span class="companion-picker__number" aria-live="polite">@(CurrentChapterIndex is { } index ? $"Chapter {index + 1}" : "No chapter chosen")</span>
+            <AppNativeButton Type="button"
+                             Class="companion-picker__step"
+                             AriaLabel="Next chapter"
+                             OnClick="@(() => StepAsync(1))">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />
+            </AppNativeButton>
+        </div>
+        <p class="companion-picker__note">This file has no list of chapters, so set the number you are at.</p>
+    }
+    else
+    {
+        <p class="companion-picker__note">There is nothing to pick for this one; the companion shows it as a whole.</p>
+    }
+</section>
+
+@code {
+    private readonly string _headingId = $"companion-picker-{Guid.NewGuid():N}";
+
+    [Parameter] public CompanionPickerDto? Picker { get; set; }
+
+    /// <summary>The kind of title (<see cref="CompanionKinds"/>); a book or audiobook without a chapter list gets the stepper.</summary>
+    [Parameter] public string Kind { get; set; } = CompanionKinds.Other;
+
+    [Parameter] public Guid CurrentWorkId { get; set; }
+
+    [Parameter] public int? CurrentChapterIndex { get; set; }
+
+    [Parameter] public EventCallback<CompanionPickerChoiceDto> OnPick { get; set; }
+
+    private bool SupportsChapterNumber => Kind is CompanionKinds.Book or CompanionKinds.Audiobook;
+
+    private string Heading => Picker?.Kind == CompanionPickerKinds.Episode || Kind == CompanionKinds.Episode
+        ? "Where are you up to? Pick an episode"
+        : "Where are you up to? Pick a chapter";
+
+    private bool IsCurrent(CompanionPickerDto picker, CompanionPickerChoiceDto choice) =>
+        picker.Kind == CompanionPickerKinds.Episode
+            ? choice.WorkId == CurrentWorkId
+            : choice.WorkId == CurrentWorkId && choice.ChapterIndex == CurrentChapterIndex;
+
+    private static string ChoiceLabel(CompanionPickerChoiceDto choice) =>
+        string.IsNullOrWhiteSpace(choice.Title) ? choice.Label : $"{choice.Label}, {choice.Title}";
+
+    private Task StepAsync(int delta)
+    {
+        var next = Math.Max(0, (CurrentChapterIndex ?? -1) + delta);
+        return OnPick.InvokeAsync(new CompanionPickerChoiceDto
+        {
+            WorkId = CurrentWorkId,
+            ChapterIndex = next,
+            Label = $"Chapter {next + 1}",
+        });
+    }
+}
