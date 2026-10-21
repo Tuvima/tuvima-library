@@ -96,6 +96,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService(sp => sp.GetRequiredService<PluginJobScheduler>());
         services.AddHostedService(sp => sp.GetRequiredService<PluginEventDispatcher>());
         services.AddHostedService(sp => sp.GetRequiredService<PluginBackgroundHost>());
+        services.AddHostedService(sp => sp.GetRequiredService<MediaEngine.Api.Services.Plugins.Service.PluginServiceHost>());
         return services;
     }
 }

@@ -40,6 +40,8 @@ public sealed class PluginEndpointAuthorizationTests
             ("/plugins/{pluginId}", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}/enable", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/disable", "POST", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/ai-steps/{stepKey}/run", "POST", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/service/lookup", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/settings", "PUT", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/manifest", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}/manifest", "PUT", ApplicationPermissionIds.PluginsManage),

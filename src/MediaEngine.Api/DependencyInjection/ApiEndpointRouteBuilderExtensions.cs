@@ -85,6 +85,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapSearchEndpoints();
         app.MapAiEndpoints();
         app.MapPluginEndpoints();
+        app.MapPluginHostEndpoints();
         app.MapApprovalEndpoints();
         app.MapPluginApplicationServiceEndpoints();
 

@@ -6538,6 +6538,16 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginAiPermissionDt
   Schedule: System.String | nullability=not-null | accessors=get,set
   ResourceClass: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginAiStepRunRequest
+  inputs: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginAiStepRunResponse
+  plugin_id: System.String | nullability=not-null | accessors=get,init
+  step: System.String | nullability=not-null | accessors=get,init
+  status: System.String | nullability=not-null | accessors=get,init
+  message: System.String | nullability=not-null | accessors=get,init
+  text: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginApplicationOperationDto
   OperationId: System.String | nullability=not-null | accessors=get,init
   PluginId: System.String | nullability=not-null | accessors=get,init
@@ -6613,10 +6623,21 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHealthResponse
   Status: System.String | nullability=not-null | accessors=get,set
   Checks: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginHealthCheckDto> | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHostAiTextResponse
+  status: System.String | nullability=not-null | accessors=get,init
+  message: System.String | nullability=not-null | accessors=get,init
+  text: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHostJobDto
   Key: System.String | nullability=not-null | accessors=get,set
   Name: System.String | nullability=not-null | accessors=get,set
   State: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHostRecordResponse
+  collection: System.String | nullability=not-null | accessors=get,init
+  key: System.String | nullability=not-null | accessors=get,init
+  value: System.Text.Json.JsonElement | nullability=not-null | accessors=get,init
+  updated_at: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHostServicesDto
   State: System.String | nullability=not-null | accessors=get,set
@@ -6627,6 +6648,11 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHostServicesDt
   Jobs: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginHostJobDto> | nullability=not-null | accessors=get,set
   EventSubscription: System.String | nullability=nullable | accessors=get,set
   BackgroundService: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHostWhoAmIResponse
+  plugin_id: System.String | nullability=not-null | accessors=get,init
+  name: System.String | nullability=not-null | accessors=get,init
+  permissions: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginJobSnapshot
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -6670,6 +6696,12 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSecretStatusRe
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSecretWriteRequest
   Value: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginServiceLookupResponse
+  plugin_id: System.String | nullability=not-null | accessors=get,init
+  status: System.String | nullability=not-null | accessors=get,init
+  message: System.String | nullability=not-null | accessors=get,init
+  result: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryResponse
   Id: System.String | nullability=not-null | accessors=get,set

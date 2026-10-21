@@ -1,0 +1,16 @@
+{
+  "id": "tuvima.sample.python-lookup",
+  "name": "Python lookup (sample)",
+  "version": "1.0.0",
+  "kind": "service",
+  "description": "A tiny metadata lookup written in Python. It shows how a plugin in any language runs as its own program.",
+  "permissions": ["process.execute", "plugin-records"],
+  "service": {
+    "command": "python3",
+    "arguments": ["server.py"],
+    "health_path": "/health",
+    "lookup_path": "/lookup",
+    "max_memory_mb": 256,
+    "startup_seconds": 20
+  }
+}

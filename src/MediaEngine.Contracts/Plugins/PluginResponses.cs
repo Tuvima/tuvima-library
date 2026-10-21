@@ -23,6 +23,65 @@ public sealed record PluginSavedResponse
     public bool saved { get; init; }
 }
 
+/// <summary>Body of <c>POST /plugins/{pluginId}/ai-steps/{stepKey}/run</c>: the values for the step's <c>{name}</c> placeholders.</summary>
+public sealed record PluginAiStepRunRequest
+{
+    public Dictionary<string, string> inputs { get; init; } = new(StringComparer.Ordinal);
+}
+
+/// <summary>
+/// Response for <c>POST /plugins/{pluginId}/ai-steps/{stepKey}/run</c>. <c>status</c> is one of succeeded, refused,
+/// ai_unavailable, busy, over_allowance, timed_out, invalid_answer or failed; <c>text</c> is set only when it succeeded.
+/// </summary>
+public sealed record PluginAiStepRunResponse
+{
+    public string plugin_id { get; init; } = string.Empty;
+    public string step { get; init; } = string.Empty;
+    public string status { get; init; } = string.Empty;
+    public string message { get; init; } = string.Empty;
+    public string? text { get; init; }
+}
+
+/// <summary>
+/// Response for <c>POST /plugins/{pluginId}/service/lookup</c>. <c>status</c> is succeeded, not_running or failed; <c>result</c>
+/// is the program's JSON answer when it succeeded.
+/// </summary>
+public sealed record PluginServiceLookupResponse
+{
+    public string plugin_id { get; init; } = string.Empty;
+    public string status { get; init; } = string.Empty;
+    public string message { get; init; } = string.Empty;
+    public global::System.Text.Json.JsonElement? result { get; init; }
+}
+
+/// <summary>Response for <c>GET /plugin-host/v1/whoami</c>: the plugin the key belongs to and what it was approved to do.</summary>
+public sealed record PluginHostWhoAmIResponse
+{
+    public string plugin_id { get; init; } = string.Empty;
+    public string name { get; init; } = string.Empty;
+    public IReadOnlyList<string> permissions { get; init; } = [];
+}
+
+/// <summary>
+/// Response for <c>POST /plugin-host/v1/ai/text</c>. <c>status</c> is one of succeeded, refused, ai_unavailable, busy,
+/// over_allowance, timed_out, invalid_answer or failed; <c>text</c> is set only when it succeeded.
+/// </summary>
+public sealed record PluginHostAiTextResponse
+{
+    public string status { get; init; } = string.Empty;
+    public string message { get; init; } = string.Empty;
+    public string? text { get; init; }
+}
+
+/// <summary>Response for <c>GET /plugin-host/v1/records/{collection}/{key}</c>: one of the plugin's own records.</summary>
+public sealed record PluginHostRecordResponse
+{
+    public string collection { get; init; } = string.Empty;
+    public string key { get; init; } = string.Empty;
+    public global::System.Text.Json.JsonElement value { get; init; }
+    public DateTimeOffset updated_at { get; init; }
+}
+
 /// <summary>
 /// Response for <c>GET /plugins/{pluginId}/manifest</c>.
 /// </summary>

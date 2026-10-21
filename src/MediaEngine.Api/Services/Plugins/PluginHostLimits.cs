@@ -72,6 +72,20 @@ public sealed record PluginHostLimits
     /// <summary>Crashes older than this no longer count towards <see cref="BackgroundCrashesBeforeStop"/>.</summary>
     public TimeSpan BackgroundCrashWindow { get; init; } = TimeSpan.FromHours(1);
 
+    // ── Separate programs (kind service) ─────────────────────────────────────
+
+    /// <summary>How often a running program is asked whether it is healthy.</summary>
+    public TimeSpan ServiceHealthInterval { get; init; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>A health or lookup question that takes longer than this counts as no answer.</summary>
+    public TimeSpan ServiceRequestTimeout { get; init; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>This many unanswered health questions in a row and the program is restarted.</summary>
+    public int ServiceHealthFailuresBeforeRestart { get; init; } = 3;
+
+    /// <summary>How long a program gets to end by itself before it is stopped by force.</summary>
+    public TimeSpan ServiceStopGrace { get; init; } = TimeSpan.FromSeconds(5);
+
     // ── Web connection (network.http) ────────────────────────────────────────
 
     /// <summary>The requests a minute a destination allows when its declaration sets no number.</summary>

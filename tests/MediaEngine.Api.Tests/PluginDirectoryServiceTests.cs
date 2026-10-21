@@ -502,7 +502,7 @@ public sealed class PluginDirectoryServiceTests : IDisposable
         Assert.Equal("acme.sketchy", unverified.ItemId);
         Assert.Equal("Sketchy", unverified.Title);
         Assert.Contains("Tuvima hasn't checked this plugin. Only install plugins from people you trust.", unverified.Notes);
-        Assert.Contains("This plugin runs as a separate program and talks to the Library through its published contract. Only turn on plugins you trust.", unverified.Notes);
+        Assert.Contains("This plugin runs as a separate program on this machine. The Library limits what it can ask the Library to do, but not what the program does on its own, so only turn on plugins you trust.", unverified.Notes);
         Assert.DoesNotContain(unverified.Notes, note => note.Contains("without a sandbox", StringComparison.Ordinal));
         Assert.Contains("Connects to the internet", unverified.CanDo);
         Assert.Contains("Reads your media files", unverified.CanDo);

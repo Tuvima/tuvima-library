@@ -461,7 +461,15 @@ public sealed class DurablePipelineTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(closed!.MissingReason));
         Assert.Null(await _operationRepo.GetActiveBySourcePathAsync(Path.GetFullPath(path)));
 
-        var history = await new MediaOperationEventRepository(_dbFactory.Connection).GetByOperationAsync(waiting.Id);
+        // The status changes a moment before the history entry is written, so wait for the entry rather than read it at once.
+        var events = new MediaOperationEventRepository(_dbFactory.Connection);
+        var history = await events.GetByOperationAsync(waiting.Id);
+        for (var attempt = 0; attempt < 100 && !history.Any(entry => entry.EventType == "missing_confirmed"); attempt++)
+        {
+            await Task.Delay(50);
+            history = await events.GetByOperationAsync(waiting.Id);
+        }
+
         Assert.Contains(history, entry => entry.EventType == "missing_confirmed");
         Assert.Contains(
             _publisher.Published.ToArray(),

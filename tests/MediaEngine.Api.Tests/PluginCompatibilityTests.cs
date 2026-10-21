@@ -162,8 +162,6 @@ public sealed class PluginCompatibilityTests
     }
 
     [Theory]
-    [InlineData("declarative")]
-    [InlineData("service")]
     [InlineData("sandboxed")]
     public void NonOfficialKind_LoadsWithoutAnError_ButCannotBeEnabled(string kind)
     {
