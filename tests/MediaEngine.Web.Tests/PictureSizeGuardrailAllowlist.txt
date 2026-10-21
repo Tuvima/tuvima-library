@@ -1,0 +1,3 @@
+# Pictures exempt from PictureSizeGuardrailTests (right-sized pictures spec D6).
+# One per line: file under src/MediaEngine.Web|src expression exactly as in the markup|reason.
+# Prefer sizing the picture over adding a line here.
