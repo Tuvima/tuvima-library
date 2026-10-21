@@ -25,8 +25,6 @@
                     @if (!IsSection)
                     {
                     <EditorHeaderSection
-                        SmallEditorArtworkUrl="@((string? url) => SmallEditorArtworkUrl(url))"
-                        EditorArtworkSrcSet="@((string? url) => EditorArtworkSrcSet(url))"
                         StaticHeaderProviderUrl="@((MediaEngine.Contracts.Metadata.MediaEditorIdentitySummaryDto identity) => StaticHeaderProviderUrl(identity))"
                         HeaderProviderDisplayName="@((string? provider) => HeaderProviderDisplayName(provider))"
                         HeaderProviderIcon="@((string? provider) => HeaderProviderIcon(provider))"
@@ -38,7 +36,7 @@
                         StaticHeaderSubtitle="@(StaticHeaderSubtitle)"
                         StaticHeaderArtworkShapeClass="@(StaticHeaderArtworkShapeClass)"
                         StaticHeaderCoverUrl="@(StaticHeaderCoverUrl)"
-                        StaticHeaderArtworkSizes="@(StaticHeaderArtworkSizes)"
+                        StaticHeaderArtworkPx="@(StaticHeaderArtworkPx)"
                         StaticHeaderKind="@(StaticHeaderKind)"
                         StaticHeaderYear="@(StaticHeaderYear)"
                         StaticHeaderRuntime="@(StaticHeaderRuntime)"
@@ -64,7 +62,7 @@
                                OnClick="@(() => SelectEditorContextTargetAsync(ContextRootEntityId))">
                         @if (!string.IsNullOrWhiteSpace(ContextRootArtworkUrl))
                         {
-                            <img class="sme-context-root__artwork @(NavigatorRootNode?.NodeKind is "album" or "artist" ? "is-square" : "is-portrait")" src="@SmallEditorArtworkUrl(ContextRootArtworkUrl)" srcset="@EditorArtworkSrcSet(ContextRootArtworkUrl)" sizes="(max-width: 700px) 2rem, 2.8rem" alt="" loading="lazy" />
+                            <img class="sme-context-root__artwork @(NavigatorRootNode?.NodeKind is "album" or "artist" ? "is-square" : "is-portrait")" src="@MediaTileArtworkUrl.ForDrawnSize(ContextRootArtworkUrl, 68)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ContextRootArtworkUrl, 68)" alt="" loading="lazy" />
                         }
                         else
                         {
@@ -292,7 +290,7 @@
                             <span class="sme-content-media-summary__art">
                                 @if (!string.IsNullOrWhiteSpace(CurrentCoverUrl))
                                 {
-                                    <img src="@SmallEditorArtworkUrl(CurrentCoverUrl)" srcset="@EditorArtworkSrcSet(CurrentCoverUrl)" sizes="64px" alt="@HeaderTitle" />
+                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(CurrentCoverUrl, 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(CurrentCoverUrl, 64)" alt="@HeaderTitle" />
                                 }
                                 else
                                 {
@@ -412,8 +410,6 @@
                         RefreshMetadataStatus="@(_refreshStatus)"
                         RefreshMetadataError="@(_refreshError)"
                         RefreshMetadataRequested="@(QueueFullEnrichmentAsync)"
-                        SmallEditorArtworkUrl="@((string? url) => SmallEditorArtworkUrl(url))"
-                        EditorArtworkSrcSet="@((string? url) => EditorArtworkSrcSet(url))"
                         SetTvdbLocalFilterRequested="@(SetTvdbLocalFilter)"
                         GetRetailCandidateArtworkShape="@((MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => GetRetailCandidateArtworkShape(candidate))"
                         CanonicalConfidencePercentage="@((MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto candidate) => CanonicalConfidencePercentage(candidate))"
@@ -543,8 +539,6 @@
                         SetArtworkDragTargetRequested="@(SetArtworkDragTarget)"
                         ClearArtworkDragTargetRequested="@(ClearArtworkDragTarget)"
                         IsArtworkDragTarget="@((string assetType) => IsArtworkDragTarget(assetType))"
-                        GetArtworkThumbnailUrl="@((MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => GetArtworkThumbnailUrl(item))"
-                        GetArtworkThumbnailSrcSet="@((MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => GetArtworkThumbnailSrcSet(item))"
                         GetArtworkRowItems="@((string assetType) => GetArtworkRowItems(assetType))"
                         DeleteArtworkVariantWithConfirmationAsyncRequested="@(DeleteArtworkVariantWithConfirmationAsync)"
                         RetryArtworkUploadAsyncRequested="@(RetryArtworkUploadAsync)"
@@ -843,8 +837,6 @@
                 else if (_activeTab == "history")
                 {
                     <EditorHistorySection
-                        SmallEditorArtworkUrl="@((string? url) => SmallEditorArtworkUrl(url))"
-                        EditorArtworkSrcSet="@((string? url) => EditorArtworkSrcSet(url))"
                         FormatHistoryDate="@((DateTime date) => FormatHistoryDate(date))"
                         FormatRelativeHistoryAge="@((DateTimeOffset occurredAt) => FormatRelativeHistoryAge(occurredAt))"
                         GetHistoryPresentation="@((string? eventType, string? category) => GetHistoryPresentation(eventType, category))"

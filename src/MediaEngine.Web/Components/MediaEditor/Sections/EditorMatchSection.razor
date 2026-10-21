@@ -106,7 +106,7 @@
                     <div class="sme-match-current-item">
                         <div class="sme-match-current-art @ArtworkShapeClass">
                             @if (!string.IsNullOrWhiteSpace(currentRetail.CoverUrl))
-                            { <img src="@SmallEditorArtworkUrl(currentRetail.CoverUrl)" srcset="@EditorArtworkSrcSet(currentRetail.CoverUrl)" sizes="96px" alt="@currentRetail.Title" loading="lazy" /> }
+                            { <img src="@MediaTileArtworkUrl.ForDrawnSize(currentRetail.CoverUrl, 96)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(currentRetail.CoverUrl, 96)" alt="@currentRetail.Title" loading="lazy" /> }
                             else
                             { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Class="tl-u-font-size-32px tl-u-opacity-0-24" /> }
                         </div>
@@ -231,7 +231,7 @@
                                     var selected = SelectedTvdbCandidate?.Id == candidate.Id;
                                     <AppNativeButton Type="button" Class="@(selected ? "sme-match-result-row is-selected" : "sme-match-result-row")" role="option" aria-selected="@selected" Disabled="@(!CanSelectTvdbCandidates)" OnClick="@(() => SelectTvdbCandidate(candidate))">
                                         <span class="sme-match-result-art sme-match-result-art--episode">
-                                            @if (!string.IsNullOrWhiteSpace(candidate.ImageUrl)) { <img src="@SmallEditorArtworkUrl(ToAbsoluteEngineUrl(candidate.ImageUrl))" srcset="@EditorArtworkSrcSet(ToAbsoluteEngineUrl(candidate.ImageUrl))" sizes="96px" alt="" loading="lazy" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /> }
+                                            @if (!string.IsNullOrWhiteSpace(candidate.ImageUrl)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(ToAbsoluteEngineUrl(candidate.ImageUrl), 96)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ToAbsoluteEngineUrl(candidate.ImageUrl), 96)" alt="" loading="lazy" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /> }
                                         </span>
                                         <span class="sme-match-result-copy"><strong>@TvdbCandidateDisplayTitle(candidate)</strong><span>@candidate.Date</span><small>@(candidate.Description ?? "")</small></span>
                                         <AppMaterialIcon Icon="@(selected ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" Class="sme-match-radio" />
@@ -265,7 +265,7 @@
                                         var selected = IsCandidateSelected(GetCandidateId(candidate));
                                         <AppNativeButton Type="button" Class="@(selected ? "sme-match-result-row sme-match-result-row--canonical is-selected" : "sme-match-result-row sme-match-result-row--canonical")" aria-pressed="@selected" OnClick="@(() => SelectCandidate(candidate))">
                                             <span class="sme-match-result-art sme-match-result-art--square">
-                                                @if (!string.IsNullOrWhiteSpace(candidate.CoverUrl)) { <img src="@SmallEditorArtworkUrl(candidate.CoverUrl)" srcset="@EditorArtworkSrcSet(candidate.CoverUrl)" sizes="96px" alt="" loading="lazy" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /> }
+                                                @if (!string.IsNullOrWhiteSpace(candidate.CoverUrl)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(candidate.CoverUrl, 96)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(candidate.CoverUrl, 96)" alt="" loading="lazy" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /> }
                                             </span>
                                             <span class="sme-match-result-copy"><strong>@candidate.Label</strong><span>@BuildWikidataCandidateSubtitle(candidate)</span><small>@(candidate.WikipediaExtract ?? candidate.Description ?? "")</small></span>
                                             <span class="sme-match-score">@CanonicalConfidencePercentage(candidate)</span>
@@ -280,7 +280,7 @@
                                         var selected = IsCandidateSelected(GetRetailCandidateId(candidate));
                                         <AppNativeButton Type="button" Class="@(selected ? "sme-match-result-row is-selected" : "sme-match-result-row")" aria-pressed="@selected" OnClick="@(() => SelectCandidateAsync(candidate))">
                                             <span class="sme-match-result-art @GetRetailCandidateArtworkShape(candidate)">
-                                                @if (!string.IsNullOrWhiteSpace(GetRetailCandidateArtworkUrl(candidate))) { <img src="@SmallEditorArtworkUrl(GetRetailCandidateArtworkUrl(candidate))" srcset="@EditorArtworkSrcSet(GetRetailCandidateArtworkUrl(candidate))" sizes="96px" alt="" loading="lazy" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /> }
+                                                @if (!string.IsNullOrWhiteSpace(GetRetailCandidateArtworkUrl(candidate))) { <img src="@MediaTileArtworkUrl.ForDrawnSize(GetRetailCandidateArtworkUrl(candidate), 96)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(GetRetailCandidateArtworkUrl(candidate), 96)" alt="" loading="lazy" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /> }
                                             </span>
                                             <span class="sme-match-result-copy"><strong>@candidate.Title</strong><span>@NormalizeDisplaySpacing(BuildRetailCandidateSubtitle(candidate))</span><small>@(candidate.Description ?? "")</small></span>
                                             <span class="sme-match-score">@FormatCandidateScore(GetRetailCandidateScore(candidate))</span>
@@ -303,7 +303,7 @@
                         <h3>Selected match</h3>
                         <div class="sme-match-selected-hero">
                             <span class="sme-match-selected-art sme-match-selected-art--episode">
-                                @if (!string.IsNullOrWhiteSpace(tvdbSelected.ImageUrl)) { <img src="@SmallEditorArtworkUrl(ToAbsoluteEngineUrl(tvdbSelected.ImageUrl))" srcset="@EditorArtworkSrcSet(ToAbsoluteEngineUrl(tvdbSelected.ImageUrl))" sizes="96px" alt="" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /> }
+                                @if (!string.IsNullOrWhiteSpace(tvdbSelected.ImageUrl)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(ToAbsoluteEngineUrl(tvdbSelected.ImageUrl), 96)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ToAbsoluteEngineUrl(tvdbSelected.ImageUrl), 96)" alt="" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /> }
                             </span>
                             <div><strong>@TvdbCandidateDisplayTitle(tvdbSelected)</strong><span>@tvdbSelected.Date</span><small>Confidence · Not scored</small></div>
                         </div>
@@ -319,7 +319,7 @@
                         <h3>Selected match</h3>
                         <div class="sme-match-selected-hero">
                             <span class="sme-match-selected-art">
-                                @if (!string.IsNullOrWhiteSpace(canonicalSelected.CoverUrl)) { <img src="@SmallEditorArtworkUrl(canonicalSelected.CoverUrl)" srcset="@EditorArtworkSrcSet(canonicalSelected.CoverUrl)" sizes="96px" alt="" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /> }
+                                @if (!string.IsNullOrWhiteSpace(canonicalSelected.CoverUrl)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(canonicalSelected.CoverUrl, 96)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(canonicalSelected.CoverUrl, 96)" alt="" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /> }
                             </span>
                             <div><strong>@canonicalSelected.Label</strong><span>@BuildWikidataCandidateSubtitle(canonicalSelected)</span><small>Confidence · @CanonicalConfidencePercentage(canonicalSelected) (estimated)</small></div>
                         </div>
@@ -335,7 +335,7 @@
                         <h3>Selected match</h3>
                         <div class="sme-match-selected-hero">
                             <span class="sme-match-selected-art">
-                                @if (!string.IsNullOrWhiteSpace(GetRetailCandidateArtworkUrl(retailSelected))) { <img src="@SmallEditorArtworkUrl(GetRetailCandidateArtworkUrl(retailSelected))" srcset="@EditorArtworkSrcSet(GetRetailCandidateArtworkUrl(retailSelected))" sizes="96px" alt="" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /> }
+                                @if (!string.IsNullOrWhiteSpace(GetRetailCandidateArtworkUrl(retailSelected))) { <img src="@MediaTileArtworkUrl.ForDrawnSize(GetRetailCandidateArtworkUrl(retailSelected), 96)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(GetRetailCandidateArtworkUrl(retailSelected), 96)" alt="" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /> }
                             </span>
                             <div><strong>@retailSelected.Title</strong><span>@NormalizeDisplaySpacing(BuildRetailCandidateSubtitle(retailSelected))</span><small>Confidence · @FormatCandidateScore(GetRetailCandidateScore(retailSelected))</small></div>
                         </div>
@@ -430,8 +430,6 @@
 </div>
 
 @code {
-    [Parameter] public Func<string?, string?> SmallEditorArtworkUrl { get; set; } = default!;
-    [Parameter] public Func<string?, string?> EditorArtworkSrcSet { get; set; } = default!;
     [Parameter] public EventCallback<string?> SetTvdbLocalFilterRequested { get; set; }
     [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, string> GetRetailCandidateArtworkShape { get; set; } = default!;
     [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto, string> CanonicalConfidencePercentage { get; set; } = default!;

@@ -57,8 +57,6 @@ public sealed class EditorMatchSectionIdentityFactsTests : AsyncBunitContext
             .Add(component => component.BuildCurrentRetailMatchCard, () => card)
             .Add(component => component.BuildCurrentWikidataMatchCard, () => card)
             .Add(component => component.GetGroupsForTab, _ => Array.Empty<MediaEditorFieldGroup>())
-            .Add(component => component.SmallEditorArtworkUrl, url => url)
-            .Add(component => component.EditorArtworkSrcSet, url => url)
             .Add(component => component.NormalizeContributorDisplay, value => value ?? string.Empty));
     }
 

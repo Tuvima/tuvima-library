@@ -5,7 +5,23 @@ namespace MediaEngine.Web.Services.Playback;
 /// <summary>Bounded artwork shared by audio presentations, including restored legacy book queues.</summary>
 public static class PlaybackArtworkUrl
 {
-    public static string? SrcSet(ListenQueueItem? item) => MediaTileArtworkUrl.SrcSet(ForItem(item, "s"), ForItem(item, "m"), ForItem(item, "l"));
+    /// <summary>The copy for a cover drawn at <paramref name="drawnPx"/> CSS pixels (same rule as <see cref="MediaTileArtworkUrl.ForDrawnSize"/>).</summary>
+    public static string? ForDrawnSize(ListenQueueItem? item, int drawnPx) => ForItem(item, ArtworkSize.ForPixels(drawnPx));
+
+    /// <summary>A "1x, 2x, 3x" source list for a cover drawn at a fixed size; null when every density uses the same address.</summary>
+    public static string? SrcSetForDrawnSize(ListenQueueItem? item, int drawnPx)
+    {
+        if (item is null || drawnPx <= 0)
+        {
+            return null;
+        }
+
+        var urls = new[] { 1, 2, 3 }.Select(density => ForDrawnSize(item, drawnPx * density)).ToArray();
+        return urls.Any(string.IsNullOrWhiteSpace) || urls.All(url => url == urls[0])
+            ? null
+            : string.Join(", ", urls.Select((url, index) => $"{url} {index + 1}x"));
+    }
+
     public static string? ForItem(ListenQueueItem? item, string size = "m") => item is null ? null
         : item.PlaybackExperience == PlaybackExperience.Audiobook
             ? AudiobookCover(item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId, item.CoverUrl, size)
