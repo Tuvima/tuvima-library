@@ -73,14 +73,23 @@ internal static class PluginHostEndpoints
             WithPlugin(http, keys, catalog, async registration =>
             {
                 await using var context = contexts.Create(registration.Manifest.Id, "service");
-                var record = await context.Records.GetAsync(collection, key, ct).ConfigureAwait(false);
+                PluginRecord? record;
+                try
+                {
+                    record = await context.Records.GetAsync(collection, key, ct).ConfigureAwait(false);
+                }
+                catch (ArgumentException ex)
+                {
+                    return ApiErrors.BadRequest(ex.Message);
+                }
+
                 return record is null
                     ? ApiErrors.NotFound("There is no such record.")
                     : Results.Ok(new PluginHostRecordResponse
                     {
                         collection = record.Collection,
                         key = record.Key,
-                        value = JsonDocument.Parse(record.Json).RootElement.Clone(),
+                        value = ParseRecord(record.Json),
                         updated_at = record.UpdatedAt,
                     });
             }))
@@ -134,7 +143,12 @@ internal static class PluginHostEndpoints
         PluginCatalog catalog,
         Func<PluginRegistration, Task<IResult>> call)
     {
-        if (http.Connection.RemoteIpAddress is { } remote && !System.Net.IPAddress.IsLoopback(remote))
+        // Same machine only: the caller must be on a loopback address (or the Library's own address), the connection must not
+        // have been passed on by a proxy or tunnel, and an unknown caller is refused rather than let through.
+        var remote = http.Connection.RemoteIpAddress;
+        var forwarded = http.Request.Headers.ContainsKey("X-Forwarded-For") || http.Request.Headers.ContainsKey("Forwarded")
+            || http.Request.Headers.ContainsKey("X-Real-IP");
+        if (remote is null || forwarded || !(System.Net.IPAddress.IsLoopback(remote) || remote.Equals(http.Connection.LocalIpAddress)))
         {
             return ApiErrors.Forbidden("The plugin door answers only programs on this machine.");
         }
@@ -154,6 +168,12 @@ internal static class PluginHostEndpoints
         {
             return ApiErrors.Forbidden(ex.Message);
         }
+    }
+
+    private static JsonElement ParseRecord(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.Clone();
     }
 
     private static async Task<string?> ReadTextAsync(HttpContext http, CancellationToken ct)

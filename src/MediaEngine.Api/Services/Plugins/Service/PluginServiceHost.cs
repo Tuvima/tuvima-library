@@ -28,6 +28,12 @@ internal sealed class PluginServiceHost : BackgroundService
         public ServiceEndpoint? Endpoint { get; set; }
     }
 
+    private static readonly HashSet<string> InheritedVariables = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "PATH", "HOME", "USERPROFILE", "TEMP", "TMP", "TMPDIR", "SystemRoot", "ComSpec", "PATHEXT", "LANG", "LANGUAGE", "TZ",
+        "LOCALAPPDATA", "APPDATA", "ProgramData", "ProgramFiles", "ProgramFiles(x86)", "USER", "LOGNAME",
+    };
+
     private readonly PluginCatalog _catalog;
     private readonly PluginHostStatusRegistry _statuses;
     private readonly PluginKeyRegistry _keys;
@@ -118,7 +124,9 @@ internal sealed class PluginServiceHost : BackgroundService
 
         foreach (var (pluginId, runner) in _runners.ToList())
         {
-            if (!wanted.ContainsKey(pluginId) || runner.Generation != _statuses.Get(pluginId).Generation)
+            if (!wanted.ContainsKey(pluginId)
+                || runner.Generation != _statuses.Get(pluginId).Generation
+                || (runner.Loop.IsCompleted && !_statuses.Get(pluginId).IsPaused(PluginHostMessages.BackgroundProblemKey)))
             {
                 await StopAsync(runner).ConfigureAwait(false);
                 _runners.Remove(pluginId);
@@ -144,11 +152,7 @@ internal sealed class PluginServiceHost : BackgroundService
     /// <summary>Stops every program (used when the Engine stops, and by tests).</summary>
     public async Task StopAllAsync()
     {
-        foreach (var runner in _runners.Values.ToList())
-        {
-            await StopAsync(runner).ConfigureAwait(false);
-        }
-
+        await Task.WhenAll(_runners.Values.ToList().Select(StopAsync)).ConfigureAwait(false);
         _runners.Clear();
     }
 
@@ -167,28 +171,47 @@ internal sealed class PluginServiceHost : BackgroundService
 
     private async Task RunLoopAsync(Runner runner, ServiceDefinition definition, string? pluginDirectory, PluginHostStatus status)
     {
+        try
+        {
+            await RunLoopCoreAsync(runner, definition, pluginDirectory, status).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (!runner.Cancellation.IsCancellationRequested)
+        {
+            // Whatever went wrong, the card must not stay on "running": say so, and let the next check start it again.
+            _logger.LogError(ex, "Plugin {PluginId} program supervision failed", runner.PluginId);
+            status.SetLastProblem("Its program could not be supervised: " + ex.Message);
+            status.SetBackgroundService("restarting");
+        }
+        catch (OperationCanceledException)
+        {
+            // Asked to stop.
+        }
+    }
+
+    private async Task RunLoopCoreAsync(Runner runner, ServiceDefinition definition, string? pluginDirectory, PluginHostStatus status)
+    {
         var token = runner.Cancellation.Token;
         while (!token.IsCancellationRequested)
         {
             string crash;
             Process? process = null;
+            ServiceEndpoint? endpoint = null;
             try
             {
                 var last = new LastLine();
-                ServiceEndpoint endpoint;
                 if (definition.IsSupervised)
                 {
                     var port = FreePort();
                     var key = _keys.Issue(runner.PluginId);
-                    process = Launch(runner.PluginId, definition, pluginDirectory, port, key, last);
                     endpoint = new ServiceEndpoint(new Uri($"http://127.0.0.1:{port}"), key);
+                    process = Launch(runner.PluginId, definition, pluginDirectory, port, key, last);
                 }
                 else
                 {
                     endpoint = new ServiceEndpoint(definition.Address!, null);
                 }
 
-                crash = await WatchAsync(runner, definition, endpoint, process, last, status, token).ConfigureAwait(false);
+                crash = await WatchAsync(runner, definition, endpoint!, process, last, status, token).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -201,8 +224,16 @@ internal sealed class PluginServiceHost : BackgroundService
             }
             finally
             {
-                _endpoints.TryRemove(runner.PluginId, out _);
-                _keys.Revoke(runner.PluginId);
+                // Only this run's own endpoint and key: a slow-to-finish old run must not take its replacement's away.
+                if (endpoint is not null)
+                {
+                    _endpoints.TryRemove(new KeyValuePair<string, ServiceEndpoint>(runner.PluginId, endpoint));
+                    if (endpoint.Key is not null)
+                    {
+                        _keys.Revoke(runner.PluginId, endpoint.Key);
+                    }
+                }
+
                 await EndProcessAsync(process).ConfigureAwait(false);
             }
 
@@ -283,7 +314,7 @@ internal sealed class PluginServiceHost : BackgroundService
             }
             else if (++failures >= _limits.ServiceHealthFailuresBeforeRestart)
             {
-                _endpoints.TryRemove(runner.PluginId, out _);
+                _endpoints.TryRemove(new KeyValuePair<string, ServiceEndpoint>(runner.PluginId, endpoint));
                 return "it stopped answering health checks";
             }
 
@@ -295,7 +326,7 @@ internal sealed class PluginServiceHost : BackgroundService
     {
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(endpoint.BaseAddress, definition.HealthPath));
+            using var request = new HttpRequestMessage(HttpMethod.Get, ServiceUrls.Build(endpoint.BaseAddress, definition.HealthPath));
             using var response = await _http.SendAsync(request, token).ConfigureAwait(false);
             return response.IsSuccessStatusCode;
         }
@@ -337,6 +368,15 @@ internal sealed class PluginServiceHost : BackgroundService
             startInfo.ArgumentList.Add(argument);
         }
 
+        // The program gets a small, fixed environment, not the Engine's: no data-store paths, keys or tokens the Engine runs with.
+        var inherited = startInfo.Environment.Where(pair => InheritedVariables.Contains(pair.Key) || pair.Key.StartsWith("LC_", StringComparison.Ordinal)).ToList();
+        startInfo.Environment.Clear();
+        foreach (var (name, value) in inherited)
+        {
+            startInfo.Environment[name] = value;
+        }
+
+        startInfo.RedirectStandardInput = true;
         startInfo.Environment["TUVIMA_PLUGIN_ID"] = pluginId;
         startInfo.Environment["TUVIMA_PLUGIN_PORT"] = port.ToString(System.Globalization.CultureInfo.InvariantCulture);
         startInfo.Environment["TUVIMA_PLUGIN_KEY"] = key;
@@ -361,6 +401,7 @@ internal sealed class PluginServiceHost : BackgroundService
             throw new InvalidOperationException($"the program \"{command}\" could not be started on this machine ({ex.Message})");
         }
 
+        process.StandardInput.Close();
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         _logger.LogInformation("Started program for plugin {PluginId} (process {ProcessId}) on port {Port}", pluginId, process.Id, port);

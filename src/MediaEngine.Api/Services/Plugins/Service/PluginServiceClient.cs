@@ -50,13 +50,13 @@ internal sealed class PluginServiceClient
             return new ServiceLookupResult(ServiceCallStatus.NotRunning, "The plugin's program is not running right now.");
         }
 
-        var builder = new UriBuilder(new Uri(endpoint.BaseAddress, definition.LookupPath))
-        {
-            Query = string.Join('&', query.Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}")),
-        };
+        var lookupUri = ServiceUrls.Build(
+            endpoint.BaseAddress,
+            definition.LookupPath,
+            string.Join('&', query.Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}")));
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, builder.Uri);
+            using var request = new HttpRequestMessage(HttpMethod.Get, lookupUri);
             if (endpoint.Key is not null)
             {
                 request.Headers.TryAddWithoutValidation(KeyHeader, endpoint.Key);
@@ -68,8 +68,12 @@ internal sealed class PluginServiceClient
                 return new ServiceLookupResult(ServiceCallStatus.Failed, $"The program answered {(int)response.StatusCode} to the lookup.");
             }
 
+            // The headers came back in time; the body gets the same allowance so a program cannot drip-feed an answer for ever.
+            using var bodyTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            bodyTimeout.CancelAfter(_http.Timeout);
+            cancellationToken = bodyTimeout.Token;
             await using var body = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            var buffer = new MemoryStream();
+            using var buffer = new MemoryStream();
             var chunk = new byte[8192];
             int read;
             while ((read = await body.ReadAsync(chunk, cancellationToken).ConfigureAwait(false)) > 0)
@@ -93,7 +97,7 @@ internal sealed class PluginServiceClient
 
             return new ServiceLookupResult(ServiceCallStatus.Succeeded, "The program answered.", text);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
         {
             return new ServiceLookupResult(ServiceCallStatus.Failed, "The program did not answer in time.");
         }

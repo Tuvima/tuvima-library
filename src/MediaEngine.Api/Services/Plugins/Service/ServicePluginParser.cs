@@ -9,6 +9,9 @@ namespace MediaEngine.Api.Services.Plugins.Service;
 /// </summary>
 internal static class ServicePluginParser
 {
+    private const int MaxArguments = 32;
+    private const int MaxArgumentLength = 512;
+
     private static readonly string[] KnownKeys =
         ["command", "arguments", "address", "health_path", "lookup_path", "max_memory_mb", "startup_seconds"];
 
@@ -87,15 +90,20 @@ internal static class ServicePluginParser
             }
 
             arguments.AddRange(argumentList.EnumerateArray().Select(item => item.GetString() ?? string.Empty));
+            if (arguments.Count > MaxArguments || arguments.Any(argument => argument.Length > MaxArgumentLength || argument.Any(char.IsControl)))
+            {
+                return (null, $"\"arguments\" may list at most {MaxArguments} values of up to {MaxArgumentLength} characters each, without control characters.");
+            }
         }
 
         var healthPath = Text(root, "health_path") ?? "/health";
         var lookupPath = Text(root, "lookup_path") ?? "/lookup";
         foreach (var (name, value) in new[] { ("health_path", healthPath), ("lookup_path", lookupPath) })
         {
-            if (!value.StartsWith('/') || value.Contains("..", StringComparison.Ordinal) || value.Any(char.IsControl) || value.Contains('?'))
+            if (!value.StartsWith('/') || value.StartsWith("//", StringComparison.Ordinal) || value.Contains('\\') || value.Contains('%')
+                || value.Contains("..", StringComparison.Ordinal) || value.Any(char.IsControl) || value.Contains('?') || value.Contains('#'))
             {
-                return (null, $"\"{name}\" must be a path on the program starting with / (for example /health).");
+                return (null, $"\"{name}\" must be a plain path on the program starting with a single / (for example /health), with no \\, %, ? or #.");
             }
         }
 

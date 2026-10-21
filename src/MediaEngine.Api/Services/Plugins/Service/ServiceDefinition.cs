@@ -23,6 +23,13 @@ internal sealed record ServiceDefinition(
 }
 
 /// <summary>The one capability a program plugin has: it can be asked to look up metadata.</summary>
+internal static class ServiceUrls
+{
+    /// <summary>The program's address with a path (and optional query) on it. The path is set as a path, never resolved as a reference, so it cannot name another host.</summary>
+    public static Uri Build(Uri baseAddress, string path, string? query = null) =>
+        new UriBuilder(baseAddress) { Path = path, Query = query ?? string.Empty }.Uri;
+}
+
 internal sealed class ServiceLookupCapability(ServiceDefinition definition) : IPluginCapability
 {
     public const string CapabilityKind = "service-lookup";

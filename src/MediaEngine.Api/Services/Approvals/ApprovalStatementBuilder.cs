@@ -49,7 +49,7 @@ internal static class ApprovalStatementBuilder
     private const string KeepsOwnKeysAndLogins = "Keeps its own keys and logins";
     private const string UnsandboxedNote = "Plugins run inside the server without a sandbox. Only turn on plugins you trust.";
     private const string DeclarativeNote = "This plugin is a description file; it runs no code of its own.";
-    private const string ServiceNote = "This plugin runs as a separate program and talks to the Library through its published contract. Only turn on plugins you trust.";
+    private const string ServiceNote = "This plugin runs as a separate program on this machine. The Library limits what it can ask the Library to do, but not what the program does on its own, so only turn on plugins you trust.";
     private const string SandboxedNote = "This plugin runs in a sandbox with limited access.";
     private const string OfficialNote = "This plugin ships with the Library.";
 
@@ -137,38 +137,46 @@ internal static class ApprovalStatementBuilder
             lines.Add($"{KeepsOwnKeysAndLogins}: {string.Join(", ", labels)}");
         }
 
-        if (ProgramLine(manifest) is { } program)
-        {
-            lines.Add(program);
-        }
+        lines.AddRange(ProgramLines(manifest));
 
         lines.Add($"{RunsAs}: {PluginKindName(manifest.Kind)}");
         return lines.Distinct(StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>What a separate-program plugin runs or connects to, so the approval names the exact program and changing it asks again.</summary>
-    private static string? ProgramLine(PluginManifest manifest)
+    /// <summary>
+    /// What a separate-program plugin runs or connects to, in full and never shortened: the program, each argument on its own
+    /// line (so ["-c", "a b"] and ["-c", "a", "b"] read differently), and the two paths the Library calls on it. All of it is
+    /// part of the fingerprint, so changing any of it asks again.
+    /// </summary>
+    private static IEnumerable<string> ProgramLines(PluginManifest manifest)
     {
         if (manifest.Kind != PluginKind.Service || manifest.Service is not { ValueKind: System.Text.Json.JsonValueKind.Object } service)
         {
-            return null;
+            yield break;
         }
 
-        if (service.TryGetProperty("command", out var command) && command.ValueKind == System.Text.Json.JsonValueKind.String)
+        static string? Text(System.Text.Json.JsonElement element, string name) =>
+            element.TryGetProperty(name, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.String ? value.GetString() : null;
+
+        if (Text(service, "command") is { } command)
         {
-            var parts = new List<string> { command.GetString() ?? string.Empty };
+            yield return $"Starts a program on this machine: {command}";
             if (service.TryGetProperty("arguments", out var arguments) && arguments.ValueKind == System.Text.Json.JsonValueKind.Array)
             {
-                parts.AddRange(arguments.EnumerateArray().Where(item => item.ValueKind == System.Text.Json.JsonValueKind.String).Select(item => item.GetString() ?? string.Empty));
+                var number = 0;
+                foreach (var argument in arguments.EnumerateArray().Where(item => item.ValueKind == System.Text.Json.JsonValueKind.String))
+                {
+                    number++;
+                    yield return $"Program argument {number}: {System.Text.Json.JsonSerializer.Serialize(argument.GetString())}";
+                }
             }
-
-            var text = string.Join(' ', parts);
-            return $"Starts a program on this machine: {(text.Length > 160 ? text[..160] + "..." : text)}";
+        }
+        else if (Text(service, "address") is { } address)
+        {
+            yield return $"Connects to a program at {address}";
         }
 
-        return service.TryGetProperty("address", out var address) && address.ValueKind == System.Text.Json.JsonValueKind.String
-            ? $"Connects to a program at {address.GetString()}"
-            : null;
+        yield return $"Asks the program at: {Text(service, "health_path") ?? "/health"} and {Text(service, "lookup_path") ?? "/lookup"}";
     }
 
     // A role the Library has no words for is shown by its id, so it still reads as a distinct line.
@@ -219,7 +227,7 @@ internal static class ApprovalStatementBuilder
             PluginAllowedTo(manifest),
             sendsTo is not null,
             sendsTo,
-            [TrustNote(trust), UnsandboxedNote]);
+            [TrustNote(trust), manifest.Kind == PluginKind.Service ? ServiceNote : UnsandboxedNote]);
     }
 
     /// <summary>

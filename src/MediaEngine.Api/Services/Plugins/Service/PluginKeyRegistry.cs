@@ -32,6 +32,19 @@ internal sealed class PluginKeyRegistry
         }
     }
 
+    /// <summary>Ends the key only if it is still the plugin's current one, so a run that is slow to finish cannot end its replacement's key.</summary>
+    public void Revoke(string pluginId, string key)
+    {
+        var hash = Hash(key);
+        lock (_gate)
+        {
+            if (_hashes.TryGetValue(pluginId, out var current) && CryptographicOperations.FixedTimeEquals(hash, current))
+            {
+                _hashes.Remove(pluginId);
+            }
+        }
+    }
+
     /// <summary>The plugin a key belongs to, or null when the key is unknown, wrong or revoked.</summary>
     public string? Resolve(string? key)
     {

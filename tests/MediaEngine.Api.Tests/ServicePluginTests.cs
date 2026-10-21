@@ -104,7 +104,9 @@ public sealed class ServicePluginTests : IDisposable
     [InlineData("\"permissions\": [], \"service\": { \"command\": \"python3\" }", "process.execute")]
     [InlineData("\"permissions\": [\"process.execute\"], \"service\": { \"command\": \"../escape.sh\" }", "outside the plugin's own folder")]
     [InlineData("\"permissions\": [\"process.execute\"], \"service\": { \"command\": \"python3 -m evil\" }", "one program name")]
-    [InlineData("\"permissions\": [\"process.execute\"], \"service\": { \"command\": \"python3\", \"health_path\": \"health\" }", "starting with /")]
+    [InlineData("\"permissions\": [\"process.execute\"], \"service\": { \"command\": \"python3\", \"health_path\": \"health\" }", "plain path")]
+    [InlineData("\"permissions\": [\"process.execute\"], \"service\": { \"command\": \"python3\", \"health_path\": \"//169.254.169.254/latest\" }", "plain path")]
+    [InlineData("\"permissions\": [\"process.execute\"], \"service\": { \"command\": \"python3\", \"lookup_path\": \"/a\\\\b\" }", "plain path")]
     [InlineData("\"permissions\": [\"process.execute\"], \"service\": { \"command\": \"python3\", \"max_memory_mb\": 4 }", "whole number from 32 to 8192")]
     [InlineData("\"permissions\": [\"process.execute\"], \"service\": { \"command\": \"python3\", \"shell\": true }", "unknown setting \\\"shell\\\"")]
     [InlineData("\"permissions\": [], \"service\": { \"address\": \"ftp://example.com\" }", "http:// or https://")]
@@ -139,7 +141,8 @@ public sealed class ServicePluginTests : IDisposable
 
         var allowed = ApprovalStatementBuilder.PluginAllowedTo(manifest);
 
-        Assert.Contains("Starts a program on this machine: python3 server.py", allowed);
+        Assert.Contains("Starts a program on this machine: python3", allowed);
+        Assert.Contains("Program argument 1: \"server.py\"", allowed);
         Assert.Contains("Runs as: separate program", allowed);
     }
 
@@ -228,6 +231,57 @@ public sealed class ServicePluginTests : IDisposable
         // No ai.infer permission: refused as a plain status, never answered by Local AI.
         Assert.Equal(HttpStatusCode.OK, ai.StatusCode);
         Assert.Contains("\"status\":\"refused\"", await ai.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task TheDoor_RefusesACallThatCameThroughAProxy_EvenWithAValidKey()
+    {
+        CopySample();
+        _catalog.SetEnabled("tuvima.sample.python-lookup", true);
+        await using var door = await StartDoorAsync();
+        var key = _keys.Issue("tuvima.sample.python-lookup");
+
+        using var http = new HttpClient(new SocketsHttpHandler { UseProxy = false });
+        using var request = new HttpRequestMessage(HttpMethod.Get, door.Address + "/plugin-host/v1/whoami");
+        request.Headers.Add(PluginServiceClient.KeyHeader, key);
+        request.Headers.Add("X-Forwarded-For", "203.0.113.9");
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await http.SendAsync(request)).StatusCode);
+    }
+
+    [Fact]
+    public void ARevokeNamingAnOldKey_LeavesTheNewKeyAlone()
+    {
+        var old = _keys.Issue("one");
+        var current = _keys.Issue("one");
+
+        _keys.Revoke("one", old);
+
+        Assert.Equal("one", _keys.Resolve(current));
+    }
+
+    [PythonFact]
+    public async Task TheProgram_DoesNotInheritTheEnginesEnvironment()
+    {
+        Add("svc.env", """ "permissions": ["process.execute"], "service": { "command": "python3", "arguments": ["-c", "import os, sys; sys.exit(7 if 'TUVIMA_CANARY_SECRET' in os.environ else 3)"], "startup_seconds": 5 } """);
+        _catalog.SetEnabled("svc.env", true);
+        Environment.SetEnvironmentVariable("TUVIMA_CANARY_SECRET", "do-not-leak");
+        try
+        {
+            var host = NewHost(libraryUrl: null);
+            await host.ReconcileAsync();
+            await HostServicesHarness.EventuallyAsync(
+                () => _statuses.Get("svc.env").Describe().LastProblem?.Contains("exited with code", StringComparison.Ordinal) == true,
+                "the program to exit",
+                timeoutMs: 20000);
+
+            Assert.Contains("exited with code 3", _statuses.Get("svc.env").Describe().LastProblem);
+            await host.StopAllAsync();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TUVIMA_CANARY_SECRET", null);
+        }
     }
 
     [Fact]
