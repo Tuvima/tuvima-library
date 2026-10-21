@@ -39,11 +39,11 @@ The words of every document, whether read from the file or recognised from a sca
 
 ## Know what can be downloaded when you ask
 
-Tuvima never downloads a helper tool or a model by itself. The only downloads are the ones below, and each starts when an administrator presses a button under **Settings > Tools and requirements** (or **Install for me** on the banner that appears above every Settings page when a Required tool is missing). The banner's **X** does not download anything: it hides that line, and Tuvima remembers the choice for that profile (on any browser) until a different tool goes missing.
+Tuvima downloads a model only when you ask. It downloads one helper tool by itself: FFmpeg, and only while it is missing on a run from source or after a repair (never in the Windows installer or a container, which include it). It starts at first-run setup or when the Engine starts, shows its progress, and can be turned off with `auto_install_required` in `config/tool_downloads.json`. Every other download below starts when an administrator presses a button under **Settings > Tools and requirements** (or **Install for me** on the banner that appears above every Settings page when a Required tool is missing). The banner's **X** does not download anything: it hides that line, and Tuvima remembers the choice for that profile (on any browser) until a different tool goes missing.
 
 | What | Where from | When |
 |---|---|---|
-| FFmpeg and FFprobe (one pinned Windows build) | `github.com` (the BtbN/FFmpeg-Builds release), which hands the file on from GitHub's own release storage | **Install for me** or **Download again**, for a run from source or a repair; the Windows installer and the container image already include it |
+| FFmpeg and FFprobe (one pinned Windows build) | `github.com` (the GyanD/codexffmpeg release), which hands the file on from GitHub's own release storage | Automatically at first-run setup and Engine start-up while it is missing (run from source or a repair), or **Install for me** or **Download again**; the Windows installer and the container image already include it |
 | Tesseract's Windows setup program, plus English and page-orientation language data | `github.com` (UB-Mannheim/tesseract and tesseract-ocr/tessdata_fast) | **Install for me** on a run from source. You then run the setup program yourself and Windows asks for your approval |
 | Extra text recognition languages | `github.com` (tesseract-ocr/tessdata_fast) | Choosing a language under **Settings > Libraries > View > Documents** |
 | Local AI model files | The model host named for each model on the Local AI pages | **Download** on the Tools and requirements page |

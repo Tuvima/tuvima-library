@@ -139,6 +139,12 @@
       "section": "Use Tuvima"
     },
     {
+      "source": "guides/developer-tools.md",
+      "slug": "guides/developer-tools",
+      "group": "Guides",
+      "section": "Use Tuvima"
+    },
+    {
       "source": "guides/library-settings.md",
       "slug": "guides/library-settings",
       "group": "Guides",
@@ -435,6 +441,12 @@
     {
       "source": "architecture/settings.md",
       "slug": "architecture/settings",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/backup-and-restore.md",
+      "slug": "architecture/backup-and-restore",
       "group": "Develop",
       "section": "Architecture"
     },

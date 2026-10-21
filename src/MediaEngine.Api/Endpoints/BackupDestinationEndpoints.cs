@@ -38,6 +38,29 @@ public static class BackupDestinationEndpoints
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireEffectiveAdministrator();
 
+        group.MapPost("/destinations", async (SaveBackupDestinationRequest request, [FromServices] BackupSettingsManager manager, CancellationToken ct) =>
+        {
+            var problem = await manager.SaveDestinationAsync(request, ct).ConfigureAwait(false);
+            return problem is null
+                ? Results.Ok(await manager.GetAsync(ct).ConfigureAwait(false))
+                : ApiErrors.BadRequest(problem);
+        })
+        .WithName("SaveBackupDestination")
+        .WithSummary("Adds a backup destination (another folder, a network share, S3-compatible storage or WebDAV), or changes one when an id is given. A web destination needs the host to be confirmed; its login is stored encrypted and never returned.")
+        .Produces<BackupSettingsResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireEffectiveAdministratorInPerson();
+
+        group.MapDelete("/destinations/{destinationId}", async (string destinationId, [FromServices] BackupSettingsManager manager, CancellationToken ct) =>
+            await manager.RemoveDestinationAsync(destinationId, ct).ConfigureAwait(false)
+                ? Results.Ok(await manager.GetAsync(ct).ConfigureAwait(false))
+                : ApiErrors.NotFound("That destination was not found."))
+        .WithName("RemoveBackupDestination")
+        .WithSummary("Stops using a destination that was added and forgets its login. Copies already there are left alone.")
+        .Produces<BackupSettingsResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministratorInPerson();
+
         group.MapPost("/passphrase", async (SetBackupPassphraseRequest request, [FromServices] BackupSettingsManager manager, CancellationToken ct) =>
         {
             var problem = await manager.SetPassphraseAsync(request, ct).ConfigureAwait(false);

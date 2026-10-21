@@ -13,7 +13,7 @@ status: current
 
 # Use Plugins
 
-Add optional tools to Tuvima Library with [plugins](../reference/glossary.md#plugin). Allow a few minutes for setup, plus time to get and check the files. Only admins can manage plugins.
+Add optional tools to Tuvima Library with [plugins](../reference/glossary.md#plugin). Allow a few minutes for setup, plus time to get and check the files. Only admins can manage plugins. For how plugins fit with Local AI, Integrations and the approval rule, see [Developer Tools](developer-tools.md).
 
 You can list built-in and dynamic plugins, enable or disable them, edit settings, check health, and view recent jobs. **Available plugins** shows a public list of plugins from GitHub. One-click install and update flows are not ready.
 

@@ -429,4 +429,22 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".app-provider-logo__fallback"));
     }
 
+    [Fact]
+    public void OptionsSizedSelectIsAsWideAsItsLongestOptionWhateverIsSelected()
+    {
+        Render<AppPopoverHost>();
+        var cut = Render<AppSelect>(parameters => parameters
+            .Add(component => component.AriaLabel, "Jump to movie by name")
+            .Add(component => component.Sizing, "options")
+            .Add(component => component.Value, "0")
+            .Add(component => component.Options, new[]
+            {
+                new AppSelectOption("0", "#1 — 28 Days Later"),
+                new AppSelectOption("1", "#3 — 28 Years Later: The Bone Temple"),
+            }));
+
+        Assert.Contains("app-select--intrinsic", cut.Find(".app-field").ClassList);
+        Assert.Equal("#3 — 28 Years Later: The Bone Temple", cut.Find(".app-select__width-label").TextContent);
+    }
+
 }

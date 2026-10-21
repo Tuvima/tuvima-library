@@ -137,8 +137,8 @@
                            ValueChanged="SelectJump"
                            Options="@JumpSelectOptions"
                            Size="AppControlSize.Large"
-                           Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
-                           PopoverClass="app-select__popover tl-series-select-popover"
+                           Class="tl-series-detail__select" Sizing="options" FullWidth="false"
+                           PopoverClass="app-select__popover tl-series-select-popover tl-series-jump-popover"
                            aria-label="@($"Jump to {ItemNoun.ToLowerInvariant()} by name")" />
             </div>
         }
@@ -728,7 +728,7 @@ else
     }
 
     private string PanelClass => $"{MediaShapeClass}{(IsLongSequence ? " tl-series-placement--long" : string.Empty)}{(Compact ? " tl-series-placement--compact" : string.Empty)}";
-    private string DetailSurfaceClass => $"tl-series-detail {MediaShapeClass}{(IsSeasonContainer ? " is-season-container" : string.Empty)}";
+    private string DetailSurfaceClass => $"tl-series-detail {MediaShapeClass}{(IsSeasonContainer ? " is-season-container" : UsesScrollingRail ? " is-scrolling-rail" : string.Empty)}";
     private string MediaShapeClass => Placement.CurrentItem.EntityType switch
     {
         DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => "tl-series-panel--landscape",
@@ -887,9 +887,8 @@ else
     private bool ShowJumpSelector => ActiveItems.Count > 10;
     private string? JumpSelectionValue => _jumpSelectionValue;
     private IReadOnlyList<AppSelectOption> JumpSelectOptions => ActiveItems
-        .Select((item, index) => new AppSelectOption(
-            index.ToString(CultureInfo.InvariantCulture),
-            $"#{SequenceNumber(item)} — {SequenceItemTitle(item)}"))
+        .Select((item, index) => $"#{SequenceNumber(item)} — {SequenceItemTitle(item)}")
+        .Select((label, index) => new AppSelectOption(index.ToString(CultureInfo.InvariantCulture), label, Title: label))
         .ToList();
     private int OwnedCount => IsWindowedGroup && ActiveGroup is { } windowedGroup
         ? windowedGroup.OwnedCount
@@ -939,9 +938,12 @@ else
     private int VisibleWindowSize => PortraitWindowSize;
     private int VisibleCount => Math.Min(ActiveItems.Count, VisibleWindowSize);
     private int WindowStart => Math.Clamp(_windowCenterIndex - (VisibleCount / 2), 0, Math.Max(0, ActiveItems.Count - VisibleCount));
-    private IReadOnlyList<SequenceItemViewModel> VisibleItems => IsSeasonContainer ? ActiveItems : ActiveItems.Skip(WindowStart).Take(VisibleCount).ToList();
-    private bool CanPageLeft => IsSeasonContainer ? !_episodeAtStart : WindowStart > 0;
-    private bool CanPageRight => IsSeasonContainer ? !_episodeAtEnd : WindowStart + VisibleCount < ActiveItems.Count;
+    // Episodes and a movie Series scroll as one full-width rail; other runs page through a window of six.
+    private bool UsesScrollingRail => IsSeasonContainer
+        || (DetailSurface && Placement.CurrentItem.EntityType is DetailEntityType.Movie or DetailEntityType.MovieSeries);
+    private IReadOnlyList<SequenceItemViewModel> VisibleItems => UsesScrollingRail ? ActiveItems : ActiveItems.Skip(WindowStart).Take(VisibleCount).ToList();
+    private bool CanPageLeft => UsesScrollingRail ? !_episodeAtStart : WindowStart > 0;
+    private bool CanPageRight => UsesScrollingRail ? !_episodeAtEnd : WindowStart + VisibleCount < ActiveItems.Count;
     private string LeftArrowClass => $"tl-series-carousel__arrow tl-series-carousel__arrow--left{(CanPageLeft ? string.Empty : " is-hidden")}";
     private string RightArrowClass => $"tl-series-carousel__arrow tl-series-carousel__arrow--right{(CanPageRight ? string.Empty : " is-hidden")}";
     private IReadOnlyList<SequenceContainerOptionViewModel> DistinctAvailableContainers => BuildDistinctContainerOptions(Placement.AvailableContainers);
@@ -1146,7 +1148,7 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (IsSeasonContainer && !_seasonBrowserOpen && _episodeStrip is not null
+        if (UsesScrollingRail && !_seasonBrowserOpen && _episodeStrip is not null
             && !_observedEpisodeStrip.Equals(_episodeStrip.Element))
         {
             if (_episodeReference is not null) await Js.InvokeVoidAsync("unregisterMediaShelfBoundaries", _observedEpisodeStrip);
@@ -1157,7 +1159,8 @@ else
         if (_scrollToCurrentEpisode)
         {
             _scrollToCurrentEpisode = false;
-            await Js.InvokeVoidAsync("scrollSequenceItem", _episodeStripId, 0, "start", "auto");
+            // A season starts at its first episode; a movie Series opens with the open movie in view.
+            await Js.InvokeVoidAsync("scrollSequenceItem", _episodeStripId, IsSeasonContainer ? 0 : _windowCenterIndex, IsSeasonContainer ? "start" : "center", "auto");
         }
         if (_scrollToCurrentSeason)
         {
@@ -1479,7 +1482,7 @@ else
 
     private void ResetWindowToCurrentItem()
     {
-        _scrollToCurrentEpisode = IsSeasonContainer;
+        _scrollToCurrentEpisode = UsesScrollingRail;
         var currentIndex = ActiveItems.ToList().FindIndex(item => item.IsCurrent);
         _windowCenterIndex = Math.Max(0, currentIndex);
         _jumpSelectionValue = ShowJumpSelector && currentIndex >= 0
@@ -1498,13 +1501,13 @@ else
 
         _jumpSelectionValue = value;
         _windowCenterIndex = index;
-        if (IsSeasonContainer)
+        if (UsesScrollingRail)
             await Js.InvokeVoidAsync("scrollSequenceItem", _episodeStripId, index, "nearest", "smooth");
     }
 
     private async Task PageLeft()
     {
-        if (IsSeasonContainer)
+        if (UsesScrollingRail)
         {
             await Js.InvokeVoidAsync("scrollSequenceRail", _episodeStripId, -1);
             return;
@@ -1517,7 +1520,7 @@ else
 
     private async Task PageRight()
     {
-        if (IsSeasonContainer)
+        if (UsesScrollingRail)
         {
             await Js.InvokeVoidAsync("scrollSequenceRail", _episodeStripId, 1);
             return;

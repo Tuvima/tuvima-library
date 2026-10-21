@@ -27,7 +27,7 @@ This page holds the per-subsystem summaries that previously lived in the root `C
 > **Detail docs** live in `docs/architecture/*.md`. Each subsection below is a short summary — read the linked detail doc when working on a subsystem.
 
 > **Architecture reading map** (selected subsystem pages and retained engineering references):
-> Subsystem deep-dives — [`ingestion-pipeline.md`](ingestion-pipeline.md), [`scoring-and-cascade.md`](scoring-and-cascade.md), [`hydration-and-providers.md`](hydration-and-providers.md), [`universe-graph.md`](universe-graph.md), [`ai-integration.md`](ai-integration.md), [`collections.md`](collections.md), [`dashboard-ui.md`](dashboard-ui.md), [`security.md`](security.md), [`localization.md`](localization.md), [`target-state.md`](target-state.md).
+> Subsystem deep-dives — [`ingestion-pipeline.md`](ingestion-pipeline.md), [`scoring-and-cascade.md`](scoring-and-cascade.md), [`hydration-and-providers.md`](hydration-and-providers.md), [`universe-graph.md`](universe-graph.md), [`ai-integration.md`](ai-integration.md), [`collections.md`](collections.md), [`dashboard-ui.md`](dashboard-ui.md), [`security.md`](security.md), [`backup-and-restore.md`](backup-and-restore.md), [`localization.md`](localization.md), [`target-state.md`](target-state.md).
 > Boundaries & policy — [`api-boundaries.md`](api-boundaries.md), [`api-boundary-debt.md`](../../engineering/architecture/archive/api-boundary-debt.md), [`project-boundaries.md`](project-boundaries.md), [`storage-policy-adr.md`](storage-policy-adr.md), [`storage-policy-review.md`](../../engineering/architecture/archive/storage-policy-review.md), [`configuration.md`](configuration.md).
 > Cross-cutting — [`display-api.md`](display-api.md), [`js-interop.md`](js-interop.md), [`openapi-migration.md`](../../engineering/architecture/archive/openapi-migration.md), [`performance-and-large-libraries.md`](performance-and-large-libraries.md), [`inline-media-editing.md`](inline-media-editing.md).
 
@@ -147,7 +147,7 @@ All settings live in `config/` as individual JSON files grouped by concern. Prov
 | `libraries.json` | Watch folders, media-type hints, organization templates |
 | `providers/*.json` | One file per provider; includes language strategy |
 | `providers/wikidata_reconciliation.json` | All Wikidata config — reconciliation, edition pivot, data extension, child entity discovery |
-| `ai.json` | Local models, feature toggles, cron schedules |
+| `ai.json` | Local models, engine-room limits, default plugin allowance |
 | `pipelines.json` | Ranked Stage 1 provider pipelines per media type (Waterfall / Cascade / Sequential) |
 | `scoring.json`, `field_priorities.json` | Metadata priority |
 | `ui/palette.json`, `ui/global.json`, `ui/devices/*`, `ui/profiles/*` | UI theming and device profiles |
@@ -175,7 +175,7 @@ Settings at `/settings/{Section}[/{Subsection}]` is the Dashboard's configuratio
 | **Personal** | `overview` → `OverviewPage` (children `overview/activity` → `ActivityPage`, `overview/taste` → `OverviewTastePage`; off-menu `overview/apps` → `OverviewAppsPage`), `profiles` → `ProfilesTab` (administrators; child `profiles/households` → `HouseholdsTab`; person page `ProfileDetailPage`), `preferences` → `PreferencesSummaryPage` (children `playback`, `listening`, `reading`), `security` → `SecuritySettingsPage` (child `security/devices` → `DevicesTab`) |
 | **Server** | `ingestion` → `IngestionTasksTab` with `LibrarySummary` (Library and Ingestion; off-menu `recently-added` → `RecentlyAddedPageContent`, off-menu `review` → `NeedsReviewPageContent`; children `libraries` → `LibrariesTab`, `metadata` → `MetadataSettingsPage`), `network` → `NetworkRemoteAccessSettings` (Local Network, Remote Access, Advanced), `delivery` → Streaming (Limits and Quality, Hardware Acceleration, Optimized Copies, Diagnostics) |
 | **Manage** | `access/users` → `UsersAccessSettingsTab` (Users; child Sign-in Methods), `system` → `SystemSummaryPage` (children `tools` → `ToolsRequirementsTab` with Scheduled tasks, `system/logs` → `LogsPage`, `backup-recovery`) |
-| **Developer** | `ai` → `LocalAiSettingsTab` (Runtime, Vocabulary, Automation), `access/applications` → Integrations, `plugins` → `PluginSettingsTab` (one page), `developer` → Developer Tools (Provider Tester, Enrichment Tester; feature-flagged) |
+| **Developer** | `ai` → `LocalAiSettingsTab` (Status, Model and hardware, Budget, Usage), `access/applications` → Integrations, `plugins` → `PluginSettingsTab` (one page), `developer` → Developer Tools (Provider Tester, Enrichment Tester; feature-flagged) |
 
 Navigation is URL-driven: `/settings` lands on Overview (Kids profiles do not reach Settings), `/settings/review` is the Needs Review page (the old `/settings/recently-added?review=expanded` link redirects to it), and `/my-activity` opens the person's own Activity outside Settings.
 

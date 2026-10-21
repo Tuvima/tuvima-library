@@ -598,6 +598,15 @@ else
             return;
         }
 
+        // A profile or authority change can reach this while the router has already moved to another settings page (or another tab of the same page) but has not
+        // handed this component the new Section, Subsection and Detail yet. Redirecting from that stale Section sends the page to the old address, and the
+        // same mistake then sends it back, flipping between two pages as fast as ingestion events arrive. The router's own parameter
+        // update runs this again with matching ones.
+        if (!RoutedSectionMatchesAddress())
+        {
+            return;
+        }
+
         if (!_legacyRedirectIssued
             && Section is not null
             && (Section.Equals("activity", StringComparison.OrdinalIgnoreCase)
@@ -691,6 +700,23 @@ else
         {
             Nav.NavigateTo(targetRoute, replace: true);
         }
+    }
+
+    private bool RoutedSectionMatchesAddress()
+    {
+        var segments = NormalizePath(Nav.ToBaseRelativePath(RoutedPageAddress.AbsoluteFor(Nav, Overlay)))
+            .Trim('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0 || !string.Equals(segments[0], "settings", StringComparison.OrdinalIgnoreCase))
+        {
+            // The address is not a Settings address at all, so there is no newer page to wait for.
+            return true;
+        }
+
+        string? SegmentAt(int index) => segments.Length > index ? segments[index] : null;
+        return string.Equals(SegmentAt(1), Section, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(SegmentAt(2), Subsection, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(SegmentAt(3), Detail, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizePath(string path)

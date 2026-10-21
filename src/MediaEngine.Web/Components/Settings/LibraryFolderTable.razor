@@ -3,14 +3,13 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 
-@* One media type's folders as a table: folder, how Tuvima handles it, where new media goes, and what happens to its files.
+@* One media type's folders as a table: folder (its icon says whether Library manages it or only reads it), where new media goes, and what happens to its files.
    Under 840px of its own width each row becomes a stacked card. The host owns every save; this component only raises what was
    tapped. One polite live region (below) announces what is organising or merging, instead of one per row. *@
 <span class="sr-only" role="status">@LiveStatusText</span>
 <div class="folder-table" role="table" aria-label="@($"{TypeLabel} folders")">
     <div class="folder-table__head" role="row">
         <span role="columnheader">Folder</span>
-        <span role="columnheader">Handling</span>
         <span role="columnheader">New media</span>
         <span role="columnheader">Files</span>
         <span role="columnheader"><span class="sr-only">Actions</span></span>
@@ -25,7 +24,13 @@
         var name = source.DisplayName();
         <div class="@RowClass(source)" role="row" @key="source.Id">
             <div class="folder-table__folder" role="cell">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
+                <span class="@HandlingIconClass(source)" role="img" aria-label="@HandlingTitle(source)" title="@HandlingTitle(source)">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
+                    @if (!managed)
+                    {
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Lock" Class="folder-table__lock" />
+                    }
+                </span>
                 <div class="folder-table__folder-text">
                     <strong>@name</strong>
                     <span class="folder-table__path" title="@source.Path">@source.Path</span>
@@ -53,17 +58,6 @@
                         <span class="folder-table__status folder-table__status--warning">@issue</span>
                     }
                 </div>
-            </div>
-            <div class="folder-table__handling" role="cell">
-                <AppNativeButton Type="button"
-                                 Class="@HandlingClass(source)"
-                                 Disabled="@(ReadOnly || Busy || IsMerging(source))"
-                                 AriaLabel="@HandlingAriaLabel(source)"
-                                 OnClick="@(_ => OnChangeHandling.InvokeAsync(source))">
-                    @HandlingLabel(source)
-                </AppNativeButton>
-                @* Under 840px folders are read-only: the stylesheet swaps the button for this plain label. *@
-                <span class="@HandlingTagClass(source)">@HandlingLabel(source)</span>
             </div>
             <div class="@(marked ? "folder-table__marker is-marked" : "folder-table__marker")" role="cell">
                 @if (!managed)
@@ -119,7 +113,7 @@
                         {
                             <AppMenuItem Label="Merge into…" Icon="@AppMaterialIcons.Outlined.ArrowForward" OnClick="@(() => OnMerge.InvokeAsync(source))" />
                         }
-                        <AppMenuItem Label="@(managed ? "Switch to As-is" : "Switch to Managed")" Icon="@(managed ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.DriveFileMove)" OnClick="@(() => OnChangeHandling.InvokeAsync(source))" />
+                        <AppMenuItem Label="@(managed ? "Switch to Read-only" : "Switch to Managed")" Icon="@(managed ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.DriveFileMove)" Disabled="@IsMerging(source)" OnClick="@(() => OnChangeHandling.InvokeAsync(source))" />
                         <AppMenuItem Label="Label" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OnLabel.InvokeAsync(source))" />
                         <AppMenuItem Label="Remove folder" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => OnRemove.InvokeAsync(source))" />
                     </AppOverflowMenu>
@@ -214,16 +208,14 @@
     private bool IsOrganising(LibrarySourceDto source) =>
         IsConverting(source) || IsMerging(source) || (JobFor(source) is { State: "queued" or "running" or "paused" });
 
-    private string HandlingLabel(LibrarySourceDto source) => IsOrganising(source)
-        ? IsMerging(source) || (JobFor(source) is { } job && FolderJobFormat.IsMerge(job) && FolderJobFormat.IsOpen(job)) ? "Merging…" : "Converting…"
-        : IsManaged(source) ? "Managed" : "As-is";
+    // The folder's icon is its state: full access (Library manages it), read-only (Library never changes its files) or busy. The label
+    // and tooltip say it in words too, so the state is never colour alone.
+    private string HandlingTitle(LibrarySourceDto source) => IsOrganising(source)
+        ? IsMerging(source) || (JobFor(source) is { } job && FolderJobFormat.IsMerge(job) && FolderJobFormat.IsOpen(job)) ? "Merging" : "Converting"
+        : IsManaged(source) ? "Managed: Library has full access" : "Read-only: Library never changes these files";
 
-    private string HandlingState(LibrarySourceDto source) =>
-        IsOrganising(source) ? "is-converting" : IsManaged(source) ? "is-managed" : "is-asis";
-
-    private string HandlingClass(LibrarySourceDto source) => $"folder-table__chip {HandlingState(source)}";
-
-    private string HandlingTagClass(LibrarySourceDto source) => $"folder-table__tag {HandlingState(source)}";
+    private string HandlingIconClass(LibrarySourceDto source) =>
+        $"folder-table__icon {(IsOrganising(source) ? "is-converting" : IsManaged(source) ? "is-managed" : "is-readonly")}";
 
     // What the one live region says: which folders are organising or merging, and how finished jobs ended. It carries no
     // progress numbers, so it changes (and is read out) only when a job starts, pauses, ends or a folder is merged.
@@ -255,10 +247,6 @@
 
         return IsMerged(source) ? $"{name}: {MergedText(source)}" : string.Empty;
     }
-
-    private string HandlingAriaLabel(LibrarySourceDto source) => IsManaged(source)
-        ? $"{source.DisplayName()} is managed by Library. Choose to use it as-is."
-        : $"{source.DisplayName()} is used as-is. Choose to let Library manage it.";
 
     private string RowClass(LibrarySourceDto source) =>
         $"folder-table__row{(IsExpanded(source) ? " is-expanded" : string.Empty)}{(IsNewMediaFolder(source) ? " is-marked" : string.Empty)}";

@@ -283,7 +283,7 @@ They are absent in any other environment.
 
 ### POST /dev/reset-and-seed
 
-This is the primary Development Tools workflow. It preserves application configuration and configured source media, clears catalogued library and derived ingestion state, creates the selected fixtures, queues them through normal ingestion, and resumes file watching. Generated fixture paths are recorded in a manifest. Cleanup follows each one to wherever ingestion filed it and deletes it, the subtitle files the Engine wrote for it and the folders it leaves empty, only inside managed, writable source folders and the library folder. Anything else (your own files, as-is folders, the Import folder, photos) stays, and the result lists the files it kept. This works on the default layout, where the source folders sit inside the library folder.
+This is the primary Development Tools workflow. It preserves application configuration and configured source media, clears catalogued library and derived ingestion state, creates the selected fixtures, queues them through normal ingestion, and resumes file watching. Generated fixture paths are recorded in a manifest. Cleanup follows each one to wherever ingestion filed it and deletes it, the subtitle files the Engine wrote for it and the folders it leaves empty, only inside managed, writable source folders and the library folder. Anything else (your own files, read-only folders, the Import folder, photos) stays, and the result lists the files it kept. This works on the default layout, where the source folders sit inside the library folder.
 
 ```bash
 curl -X POST "http://localhost:61495/dev/reset-and-seed?types=books,tv,music&fixtureSet=standard"
