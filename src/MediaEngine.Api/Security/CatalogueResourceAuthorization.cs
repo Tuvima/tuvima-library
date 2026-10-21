@@ -329,7 +329,8 @@ internal sealed class CatalogueResourceAuthorizationService(
         if (feature is null || !(await accounts.EvaluateFeatureAsync(
                 authority, feature.Value, ct).ConfigureAwait(false)).IsAllowed)
         {
-            return CatalogueResourceAccess.Denied;
+            // A Vault file never confirms it exists to a caller who may not watch: same answer as a missing file.
+            return vault.IsVaultLibrary(resource.LibraryId) ? CatalogueResourceAccess.NotFound : CatalogueResourceAccess.Denied;
         }
 
         // Vault access is the device session's NSFW mode (already checked above), not an account's library grants.

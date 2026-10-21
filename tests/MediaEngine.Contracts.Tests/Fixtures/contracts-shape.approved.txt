@@ -9178,3 +9178,41 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseSourcedCas
   Member: MediaEngine.Contracts.Universe.UniverseClientCastMemberDto | nullability=not-null | accessors=get,init
   Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.CreateVaultLibraryRequest
+  LookupSource: System.String | nullability=not-null | accessors=get,init
+  LookupServerId: System.String | nullability=nullable | accessors=get,init
+  AdultsConfirmed: System.Boolean | nullability=not-null | accessors=get,init
+  AdminPin: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwSetPinRequest
+  NewPin: System.String | nullability=not-null | accessors=get,init
+  CurrentPin: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwStatusDto
+  Mode: System.String | nullability=not-null | accessors=get,init
+  Unlocked: System.Boolean | nullability=not-null | accessors=get,init
+  HasPin: System.Boolean | nullability=not-null | accessors=get,init
+  IdleLockMinutes: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.NsfwUnlockRequest
+  Pin: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.RemoveVaultLibraryRequest
+  AdminPin: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.SetNsfwAccessRequest
+  Mode: System.String | nullability=not-null | accessors=get,init
+  IdleLockMinutes: System.Int32? | nullability=nullable | accessors=get,init
+  AdminPin: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.UpdateVaultLibraryRequest
+  LookupSource: System.String | nullability=not-null | accessors=get,init
+  LookupServerId: System.String | nullability=nullable | accessors=get,init
+  AdminPin: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultLibraryDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  LookupSource: System.String | nullability=not-null | accessors=get,init
+  LookupServerId: System.String | nullability=nullable | accessors=get,init
+  AdultsConfirmedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+

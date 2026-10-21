@@ -667,6 +667,63 @@ public sealed class VaultAccessStorageTests : IDisposable
         return sessionId;
     }
 
+    // Nothing about the Vault reaches an app, a webhook or the activity history: the data structure skips it whoever writes it.
+    [Fact]
+    public async Task AnEventAboutAVaultItem_IsNeverStoredForAppsOrWebhooks_ButAnOrdinaryOneIs()
+    {
+        var vault = NewLibrary();
+        await _libraries.AddAsync(vault);
+        var normal = Guid.NewGuid().ToString("D");
+        var (vaultWork, vaultAsset) = InsertAsset(vault.LibraryId);
+        var (normalWork, normalAsset) = InsertAsset(normal);
+
+        InsertEvent(vaultAsset.ToString("D"), null);
+        InsertEvent(vaultWork.ToString("D"), null);
+        InsertEvent("not-an-id", Guid.Parse(vault.LibraryId));
+        InsertEvent(normalAsset.ToString("D"), null);
+        InsertEvent(normalWork.ToString("D"), Guid.Parse(normal));
+
+        using var connection = _database.CreateConnection();
+        Assert.Equal(2, connection.ExecuteScalar<long>("SELECT COUNT(*) FROM application_events;"));
+    }
+
+    [Fact]
+    public async Task ActivityAboutAVaultFile_IsNeverStored_ButAnOrdinaryFileIs()
+    {
+        var vault = NewLibrary();
+        await _libraries.AddAsync(vault);
+        var (_, vaultAsset) = InsertAsset(vault.LibraryId);
+        var (_, normalAsset) = InsertAsset(Guid.NewGuid().ToString("D"));
+
+        InsertActivity(vaultAsset);
+        InsertActivity(normalAsset);
+
+        using var connection = _database.CreateConnection();
+        Assert.Equal(1, connection.ExecuteScalar<long>("SELECT COUNT(*) FROM personal_activity;"));
+    }
+
+    private void InsertEvent(string subjectId, Guid? libraryId)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO application_events(event_id,event_type,version,occurred_at,server_id,subject_type,subject_id,library_id,payload_json)
+            VALUES(@eventId,'media.added',1,@now,'server','asset',@subjectId,@libraryId,'{}');
+            """,
+            new { eventId = Guid.NewGuid(), now = _now.ToString("O"), subjectId, libraryId });
+    }
+
+    private void InsertActivity(Guid assetId)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO personal_activity(id,profile_id,kind,started_at,media_type,title,asset_id)
+            VALUES(@id,@profile,'watch',@now,'Movies','Title',@assetId);
+            """,
+            new { id = Guid.NewGuid(), profile = _adult, now = _now.ToString("O"), assetId });
+    }
+
     private void SwitchSession(Guid sessionId, Guid profileId)
     {
         using var connection = _database.CreateConnection();

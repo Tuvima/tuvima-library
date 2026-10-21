@@ -1546,6 +1546,22 @@ The order a person last chose on each "View all" grid (Watch, Read, Listen, My l
 
 What a person removed from, or added to, the taste the Library learned about them (Settings > Personal > Overview > Taste). Added by upgrade step `0010_profile_taste_overrides`. The learned taste (the taste profiler's reading of their history) is never changed; these rows are applied on top whenever taste is shown, so a removed value is hidden and an added value is shown as "Added by you". One row per `profile_id` (cascades on profile deletion), `taste_group` (`genre`, `mood` or `era`) and `value` (trimmed and lower-cased, the way the profiler writes its keys), with `action` (`removed` or `added`) and `created_at` (UTC). Setting a value again replaces its row. Only the signed-in person writes their own rows.
 
+## Vault
+
+Added by upgrade step `0027_vault_access` (Videos spec WP9). A **Vault library** is a library whose items are absent for anyone without an unlocked NSFW session. An item is a Vault item because its `media_assets.library_id` appears in `vault_libraries`; that table is the single source of truth (there is no flag on the item). Rules that must hold whichever service writes are enforced by triggers, so a new code path cannot forget them.
+
+| Table | Meaning |
+|---|---|
+| `vault_libraries` | One row per Vault library: `library_id` (primary key, text), `lookup_source` (`none` or `stash_box`; the only sources a Vault library may use), `lookup_server_id` (the chosen server), `adults_confirmed_at`, `created_by_profile_id`, `created_at`, `updated_at`. A library that already holds items cannot be marked, and a Vault library that holds items cannot be unmarked. |
+| `profile_nsfw_settings` | A profile's NSFW mode: `access_mode` (`off`, `pin`, `allowed`) and `idle_lock_minutes` (0 means never, for `allowed` only). No row means Off. A Kids profile or a profile with a content limit can never be given a mode other than `off` (trigger). |
+| `profile_nsfw_pins` | The hashed NSFW PIN (`secret_hash` with the `NsfwPin` credential-kind prefix, so the same digits never hash alike across the two PINs), with the failed-attempt count and pause time shared with the profile PIN rules. The PIN itself is never stored, logged or returned. |
+| `nsfw_session_unlocks` | One row per device session that has switched NSFW mode on: `session_id`, `profile_id`, `method` (`pin` or `allowed`), `unlocked_at`, `last_activity_at`, `expires_at` (the sliding idle limit; NULL means never). Triggers delete the row when the session changes profile, the profile's mode, PIN, role or content limit changes. |
+| `vault_performers`, `vault_studios`, `vault_tags` | Names that exist only inside the Vault, never shared with the People, Series or Tags of ordinary libraries. |
+| `vault_asset_performers`, `vault_asset_studios`, `vault_asset_tags` | Links from a Vault file to those names. A name with no remaining link is removed (trigger). |
+| `vault_artwork` | Artwork for a Vault file, performer or studio, stored only here (never in the shared artwork tables) and removed with its owner (trigger). |
+
+**Skipped writes (triggers):** `trg_application_events_no_vault` stops an event about a Vault item from reaching `application_events` (and so apps and webhooks); `trg_personal_activity_no_vault` stops a Vault file from entering anyone's activity history. A skipped write is simply not stored. A file cannot move into or out of a Vault library once it exists (`trg_media_assets_vault_library_fixed`).
+
 ## Related
 
 - [Engine API Reference](api-endpoints.md)

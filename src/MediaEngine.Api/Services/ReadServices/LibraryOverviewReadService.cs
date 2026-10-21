@@ -17,7 +17,7 @@ public sealed class LibraryOverviewReadService(IDatabaseConnection db) : ILibrar
         var since7d = now.AddDays(-7).ToString("O");
         var since30d = now.AddDays(-30).ToString("O");
 
-        var recentlyAddedSql = $"""
+        var RecentlyAddedSql = $"""
             SELECT COUNT(*)
             FROM (
                 SELECT e.work_id,
@@ -32,11 +32,11 @@ public sealed class LibraryOverviewReadService(IDatabaseConnection db) : ILibrar
             """;
 
         var added24h = await conn.ExecuteScalarAsync<int>(
-            new CommandDefinition(recentlyAddedSql, new { since = since24h }, cancellationToken: ct));
+            new CommandDefinition(RecentlyAddedSql, new { since = since24h }, cancellationToken: ct));
         var added7d = await conn.ExecuteScalarAsync<int>(
-            new CommandDefinition(recentlyAddedSql, new { since = since7d }, cancellationToken: ct));
+            new CommandDefinition(RecentlyAddedSql, new { since = since7d }, cancellationToken: ct));
         var added30d = await conn.ExecuteScalarAsync<int>(
-            new CommandDefinition(recentlyAddedSql, new { since = since30d }, cancellationToken: ct));
+            new CommandDefinition(RecentlyAddedSql, new { since = since30d }, cancellationToken: ct));
 
         var pipelineRows = await conn.QueryAsync<(string State, int Count)>(new CommandDefinition(
             $"""

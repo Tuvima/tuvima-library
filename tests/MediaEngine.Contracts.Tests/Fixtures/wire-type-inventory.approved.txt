@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1097; api=0; web-client=54
+# scopes: contracts=1105; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10807,6 +10807,60 @@
   Member: MediaEngine.Contracts.Universe.UniverseClientCastMemberDto | json=member | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | json=sources | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"member":null,"sources":[]}
+
+[contracts] MediaEngine.Contracts.Vault.CreateVaultLibraryRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  LookupSource: System.String | json=lookup_source | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LookupServerId: System.String | json=lookup_server_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AdultsConfirmed: System.Boolean | json=adults_confirmed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"lookup_source":"sample","lookup_server_id":"sample","adults_confirmed":true,"admin_pin":"sample"}
+
+[contracts] MediaEngine.Contracts.Vault.NsfwSetPinRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  NewPin: System.String | json=new_pin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CurrentPin: System.String | json=current_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"new_pin":"sample","current_pin":"sample"}
+
+[contracts] MediaEngine.Contracts.Vault.NsfwStatusDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Mode: System.String | json=mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Unlocked: System.Boolean | json=unlocked | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HasPin: System.Boolean | json=has_pin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IdleLockMinutes: System.Int32 | json=idle_lock_minutes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"mode":"sample","unlocked":true,"has_pin":true,"idle_lock_minutes":7}
+
+[contracts] MediaEngine.Contracts.Vault.NsfwUnlockRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Pin: System.String | json=pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"pin":"sample"}
+
+[contracts] MediaEngine.Contracts.Vault.RemoveVaultLibraryRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"admin_pin":"sample"}
+
+[contracts] MediaEngine.Contracts.Vault.SetNsfwAccessRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Mode: System.String | json=mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IdleLockMinutes: System.Int32? | json=idle_lock_minutes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"mode":"sample","idle_lock_minutes":7,"admin_pin":"sample"}
+
+[contracts] MediaEngine.Contracts.Vault.UpdateVaultLibraryRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  LookupSource: System.String | json=lookup_source | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LookupServerId: System.String | json=lookup_server_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"lookup_source":"sample","lookup_server_id":"sample","admin_pin":"sample"}
+
+[contracts] MediaEngine.Contracts.Vault.VaultLibraryDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.String | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LookupSource: System.String | json=lookup_source | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LookupServerId: System.String | json=lookup_server_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AdultsConfirmedAt: System.DateTimeOffset | json=adults_confirmed_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","lookup_source":"sample","lookup_server_id":"sample","adults_confirmed_at":"2025-01-02T03:04:05+00:00"}
 
 [web-client] MediaEngine.Web.Models.ViewDTOs.AiOperationResultDto
   kind=class | converter=default | number-handling=default | unmapped=default
