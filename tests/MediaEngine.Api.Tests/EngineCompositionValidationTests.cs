@@ -159,6 +159,7 @@ public sealed class EngineCompositionValidationTests
         services.AddTuvimaApprovals();
         services.AddTuvimaHostedServices();
         services.AddTuvimaToolRequirements();
+        services.AddTuvimaNotifications();
 
         return services;
     }

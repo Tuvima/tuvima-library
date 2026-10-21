@@ -5417,6 +5417,61 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.WikidataSearchItem
   label: System.String | nullability=nullable | accessors=get,init
   description: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.MarkNotificationsReadRequest
+  Ids: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  IsExternal: System.Boolean | nullability=not-null | accessors=get,set
+  IsConfigured: System.Boolean | nullability=not-null | accessors=get,set
+  State: System.String | nullability=not-null | accessors=get,set
+  StateLabel: System.String | nullability=not-null | accessors=get,set
+  LastSuccessAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelIds
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationChannelStates
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationEventDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  Description: System.String | nullability=not-null | accessors=get,set
+  Channels: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationItemDto
+  Id: System.Guid | nullability=not-null | accessors=get,set
+  EventId: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  Body: System.String | nullability=not-null | accessors=get,set
+  OccurrenceCount: System.Int32 | nullability=not-null | accessors=get,set
+  UpdatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+  IsRead: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationListResponse
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Notifications.NotificationItemDto> | nullability=not-null | accessors=get,set
+  UnreadCount: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationQuietHoursDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+  Start: System.String | nullability=not-null | accessors=get,set
+  End: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationSettingsResponse
+  Events: System.Collections.Generic.List<MediaEngine.Contracts.Notifications.NotificationEventDto> | nullability=not-null | accessors=get,set
+  Channels: System.Collections.Generic.List<MediaEngine.Contracts.Notifications.NotificationChannelDto> | nullability=not-null | accessors=get,set
+  QuietHours: MediaEngine.Contracts.Notifications.NotificationQuietHoursDto | nullability=not-null | accessors=get,set
+  IncludeDetails: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.NotificationTestResponse
+  Success: System.Boolean | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Notifications.MediaEngine.Contracts.Notifications.UpdateNotificationSettingsRequest
+  Routes: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<System.String>> | nullability=not-null | accessors=get,set
+  QuietHours: MediaEngine.Contracts.Notifications.NotificationQuietHoursDto | nullability=nullable | accessors=get,set
+  IncludeDetails: System.Boolean? | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Operations.MediaEngine.Contracts.Operations.AssetStoreSweepResponse
   cleaned: System.Int32 | nullability=not-null | accessors=get,init
   message: System.String | nullability=not-null | accessors=get,init
