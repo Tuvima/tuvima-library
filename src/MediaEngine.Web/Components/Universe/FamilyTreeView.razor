@@ -54,7 +54,8 @@
                             <div class="family-node @(memberQid == _selectedCharQid ? "family-node-center" : "")">
                                 @if (!string.IsNullOrWhiteSpace(memberImage))
                                 {
-                                    <AppAvatar Size="AppSize.Medium"><img src="@memberImage" alt="@memberLabel" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" /></AppAvatar>
+                                    @* Drawn 42px, the normal avatar (tuvima.tokens.css). *@
+                                    <AppAvatar Size="AppSize.Medium"><img src="@MediaTileArtworkUrl.ForDrawnSize(memberImage, 42)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(memberImage, 42)" alt="@memberLabel" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" loading="lazy" decoding="async" /></AppAvatar>
                                 }
                                 else
                                 {

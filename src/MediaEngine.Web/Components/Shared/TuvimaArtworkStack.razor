@@ -21,7 +21,8 @@
                 <div class="artwork-stack__item"
                      data-shape="@ShapeValue(slot.item.Shape)"
                      style="@SlotStyle(slot.index, slot.item.Shape)">
-                    <img src="@slot.item.ImageUrl"
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(slot.item.ImageUrl, DrawnPx)"
+                         srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(slot.item.ImageUrl, DrawnPx)"
                          alt="@(IsDecorative ? string.Empty : slot.item.Title)"
                          loading="lazy" />
                     @if (ShowPositionBadge(slot.item))
@@ -45,6 +46,9 @@
     [Parameter] public bool PreferShapeBalancedLayout { get; set; } = true;
     [Parameter] public bool PreserveOrder { get; set; }
     [Parameter] public MediaEngine.Domain.Models.ArtworkPalette? Palette { get; set; }
+
+    /// <summary>The long side one picture in the stack is drawn at, in CSS pixels (tile and Universe stacks stay under 320).</summary>
+    [Parameter] public int DrawnPx { get; set; } = ArtworkSize.SmallPx;
 
     private IReadOnlyList<ArtworkStackItem> _visibleArtwork = [];
     private string _layoutClass = "artwork-stack--empty";

@@ -7,7 +7,7 @@
 
             @if (UseLogo && !string.IsNullOrWhiteSpace(LogoUrl))
             {
-                <img class="tl-detail-hero__logo" src="@LogoUrl" alt="@Title" />
+                <img class="tl-detail-hero__logo" src="@MediaTileArtworkUrl.ForDrawnSize(LogoUrl, 544)" alt="@Title" />
             }
             else
             {

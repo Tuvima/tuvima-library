@@ -25,8 +25,10 @@ public sealed class AutomaticCollectionMembershipTests : BunitContext
         Assert.All(cut.FindAll("img"), image =>
         {
             Assert.EndsWith("size=s", image.GetAttribute("src"));
-            Assert.Null(image.GetAttribute("srcset")); // Native dimensions are unavailable in membership DTOs.
-            Assert.Equal("(max-width: 600px) 96px, 112px", image.GetAttribute("sizes"));
+            // Drawn up to 168px tall: the small copy, with the medium one offered to sharper screens.
+            Assert.Contains("size=s", image.GetAttribute("srcset"));
+            Assert.Contains("size=m", image.GetAttribute("srcset"));
+            Assert.Null(image.GetAttribute("sizes"));
         });
         Assert.Single(cut.FindAll(".is-square"));
     }

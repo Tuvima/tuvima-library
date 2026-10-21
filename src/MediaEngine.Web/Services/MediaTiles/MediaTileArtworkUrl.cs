@@ -54,6 +54,24 @@ public static class MediaTileArtworkUrl
         return string.Join(", ", sizes.Select((size, index) => $"{Sized(url, size)} {index + 1}x"));
     }
 
+    /// <summary>
+    /// A width list for a screen-wide landscape or square picture whose own size is not known: the copies' long
+    /// sides (320, 960, 2160) are its widths, so the browser takes the medium copy on a phone and the large one on
+    /// a desktop or TV screen. Null when the address has no copies.
+    /// </summary>
+    public static string? SrcSetByLongSide(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !SupportsRenditions(url))
+        {
+            return null;
+        }
+
+        return string.Join(", ",
+            $"{Sized(url, ArtworkSize.Small)} {ArtworkSize.SmallPx}w",
+            $"{Sized(url, ArtworkSize.Medium)} {ArtworkSize.MediumPx}w",
+            $"{Sized(url, ArtworkSize.Large)} {ArtworkSize.LargePx}w");
+    }
+
     public static string? SrcSet(string? smallUrl, string? mediumUrl) => SrcSet(smallUrl, mediumUrl, null, null, null);
     public static string? SrcSet(string? smallUrl, string? mediumUrl, string? largeUrl) => SrcSet(smallUrl, mediumUrl, largeUrl, null, null);
 
