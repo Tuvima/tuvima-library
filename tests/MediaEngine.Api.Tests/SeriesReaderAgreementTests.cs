@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using Dapper;
 using MediaEngine.Api.Services.Details;
+using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Details;
@@ -194,6 +195,270 @@ public sealed class SeriesReaderAgreementTests : IDisposable
         Assert.DoesNotContain("GetViewByCollectionIdAsync", source);
         Assert.DoesNotContain("GetViewByCollectionIdAsync", split);
     }
+
+    // ----------------------------------------------------------------------------------------------------------------
+    // A Work in two Series: each Series shows that Series' own number
+    // ----------------------------------------------------------------------------------------------------------------
+
+    private const string Trilogy = "Q111";
+    private const string Cycle = "Q222";
+
+    [Fact]
+    public async Task AWorkInTwoSeries_ShowsEachSeriesItsOwnNumber_OnEachShelf_WithDecimalsIntact()
+    {
+        var seeded = await SeedTwoSeriesAsync();
+
+        var trilogy = await ReadNativeItemsAsync(seeded.TrilogyShelf, [seeded.Opener, seeded.Both]);
+        var cycle = await ReadNativeItemsAsync(seeded.CycleShelf, [seeded.Sibling, seeded.Both]);
+
+        Assert.Equal(["Opener:1", "Both:3"], Run(trilogy.Select(Describe)));
+        // 7.5 after 7 even though the Work's single stored number (3) would put it first.
+        Assert.Equal(["Sibling:7", "Both:7.5"], Run(cycle.Select(Describe)));
+    }
+
+    [Fact]
+    public async Task AWorkInTwoSeries_ShowsEachSeriesItsOwnNumber_OnTheSeriesPage()
+    {
+        var seeded = await SeedTwoSeriesAsync();
+        var composer = new MediaEngine.Api.Services.Details.Internals.DetailCompositionOrchestrator(
+            _db, null!, null!, null!, null!, null!, null!, null!);
+
+        var trilogy = await LoadSeriesPageWorkAsync(composer, seeded.TrilogyShelf, [seeded.Opener, seeded.Both], "Both");
+        var cycle = await LoadSeriesPageWorkAsync(composer, seeded.CycleShelf, [seeded.Sibling, seeded.Both], "Both");
+
+        Assert.Equal(("3", 3d), trilogy);
+        Assert.Equal(("7.5", 7.5d), cycle);
+    }
+
+    [Fact]
+    public async Task AWorkInTwoSeries_ShowsTheSelectedSeriesNumber_OnTheItemPage()
+    {
+        var seeded = await SeedTwoSeriesAsync();
+        var composer = new MediaEngine.Api.Services.Details.Internals.DetailCompositionOrchestrator(
+            _db, null!, null!, null!, null!, new SeriesManifestRepository(_db), null!, null!);
+        var detail = new LibraryItemDetail { EntityId = seeded.Both, Title = "Both", MediaType = "Books", Series = "Trilogy" };
+
+        var onTrilogy = await BuildItemPagePlacementAsync(composer, seeded.Both, detail, Trilogy);
+        var onCycle = await BuildItemPagePlacementAsync(composer, seeded.Both, detail, Cycle);
+
+        Assert.Equal(("3", 3d), (onTrilogy.CurrentItem.PositionLabel, onTrilogy.CurrentItem.PositionSort));
+        Assert.Equal(("7.5", 7.5d), (onCycle.CurrentItem.PositionLabel, onCycle.CurrentItem.PositionSort));
+    }
+
+    [Fact]
+    public async Task AWorkInTwoSeries_IsOrderedByEachSeriesOwnNumber_InTheHelperAppUniverse()
+    {
+        var seeded = await SeedTwoSeriesAsync();
+        var collections = new CollectionRepository(_db);
+        var universe = new Collection
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "World",
+            WikidataQid = "Q333",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        universe.RestoreDefinition(
+            CollectionType.Universe, CollectionScope.Library, CollectionResolution.Materialized,
+            CollectionMatchMode.All, CollectionSortDirection.Desc, CollectionUniverseStatus.Unknown);
+        await collections.UpsertAsync(universe);
+        await collections.SetParentCollectionAsync(seeded.TrilogyShelf, universe.Id);
+        await collections.SetParentCollectionAsync(seeded.CycleShelf, universe.Id);
+
+        var display = new DisplayRowsStub(
+        [
+            HelperRow(seeded.Opener, "Opener", seeded.TrilogyShelf, "1"),
+            HelperRow(seeded.Both, "Both", seeded.TrilogyShelf, "3"),
+            HelperRow(seeded.Sibling, "Sibling", seeded.CycleShelf, "7"),
+            HelperRow(seeded.Both, "Both", seeded.CycleShelf, "3"),
+        ]);
+        var connections = new UniverseConnectionsReadService(
+            new FictionalEntityRepository(_db),
+            new EntityRelationshipRepository(_db),
+            new NarrativeRootRepository(_db),
+            new PersonRepository(_db),
+            display,
+            new PluginLoreRepository(_db));
+        var universes = new UniverseClientReadService(
+            collections, display, new DisplayCardBuilder(), connections,
+            new SeriesManifestRepository(_db), arrays: new CanonicalValueArrayRepository(_db));
+
+        var detail = await universes.LoadAsync("Q333", profile: null);
+
+        Assert.NotNull(detail);
+        var cycle = detail!.Shelves.Single(shelf => shelf.CollectionId == seeded.CycleShelf);
+        // The Work's single stored number (3) would list it before Sibling (7); the Cycle's own number is 7.5.
+        Assert.Equal([seeded.Sibling, seeded.Both], cycle.Shelf.Items.Select(card => card.WorkId!.Value));
+    }
+
+    private static DisplayWorkRow HelperRow(Guid workId, string title, Guid collectionId, string position) => new()
+    {
+        WorkId = workId,
+        RootWorkId = workId,
+        AssetId = Guid.NewGuid(),
+        EditionId = Guid.NewGuid(),
+        CollectionId = collectionId,
+        MediaType = "Books",
+        Title = title,
+        SeriesPosition = position,
+        CreatedAt = DateTimeOffset.UtcNow,
+    };
+
+    private sealed class DisplayRowsStub(IReadOnlyList<DisplayWorkRow> rows) : IDisplayProjectionReadService
+    {
+        public Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct) => Task.FromResult(rows);
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct) => LoadJourneyAsync(profileId, lane, ct);
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(Guid? profileId, string? lane, CancellationToken ct) => Task.FromResult<IReadOnlyList<DisplayJourneyRow>>([]);
+        public Task<IReadOnlySet<Guid>> LoadFavoriteWorkIdsAsync(Guid? profileId, CancellationToken ct) => Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
+        public Task<IReadOnlyList<DisplayHomeCollectionRow>> LoadHomeCollectionsAsync(Guid? profileId, CancellationToken ct) => Task.FromResult<IReadOnlyList<DisplayHomeCollectionRow>>([]);
+    }
+
+    [Fact]
+    public async Task AWorkWithNoPairForTheShelfsSeries_KeepsTodaysSingleNumber()
+    {
+        var seeded = await SeedTwoSeriesAsync();
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("DELETE FROM canonical_value_arrays WHERE entity_id = @id;", new { id = seeded.Both });
+        }
+
+        var cycle = await ReadNativeItemsAsync(seeded.CycleShelf, [seeded.Sibling, seeded.Both]);
+
+        Assert.Equal(["Both:3", "Sibling:7"], Run(cycle.Select(Describe)));
+    }
+
+    private static async Task<(string? Label, double? Sort)> LoadSeriesPageWorkAsync(
+        object composer, Guid collectionId, IReadOnlyList<Guid> workIds, string title)
+    {
+        var method = composer.GetType().GetMethod("LoadCollectionWorksAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var load = (Task)method.Invoke(composer, [collectionId, null, CancellationToken.None, workIds, null, null])!;
+        await load;
+        var works = ((System.Collections.IEnumerable)load.GetType().GetProperty("Result")!.GetValue(load)!).Cast<object>();
+        var work = works.Single(candidate => (string?)candidate.GetType().GetProperty("Title")!.GetValue(candidate) == title);
+        return (
+            (string?)work.GetType().GetProperty("RetailSeriesPosition")!.GetValue(work),
+            (double?)work.GetType().GetProperty("OrdinalSort")!.GetValue(work));
+    }
+
+    private static async Task<SequencePlacementViewModel> BuildItemPagePlacementAsync(
+        object composer, Guid workId, LibraryItemDetail detail, string requestedContainerId)
+    {
+        var method = composer.GetType().GetMethod("BuildSequencePlacementAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var task = (Task)method.Invoke(composer, [workId, detail, DetailEntityType.Book, requestedContainerId, null, detail.Title, CancellationToken.None])!;
+        await task;
+        return Assert.IsType<SequencePlacementViewModel>(task.GetType().GetProperty("Result")!.GetValue(task));
+    }
+
+    private sealed record TwoSeries(Guid TrilogyShelf, Guid CycleShelf, Guid Opener, Guid Both, Guid Sibling);
+
+    /// <summary>
+    /// Two Series shelves. "Both" sits in each: number 3 in the Trilogy and 7.5 in the Cycle (its single stored number
+    /// is the Trilogy's, 3). "Opener" is the Trilogy's 1 and "Sibling" the Cycle's 7.
+    /// </summary>
+    private async Task<TwoSeries> SeedTwoSeriesAsync()
+    {
+        var collections = new CollectionRepository(_db);
+        var manifests = new SeriesManifestRepository(_db);
+        var trilogy = await UpsertShelfAsync(collections, "Trilogy", Trilogy);
+        var cycle = await UpsertShelfAsync(collections, "Cycle", Cycle);
+
+        var opener = Guid.NewGuid();
+        var both = Guid.NewGuid();
+        var sibling = Guid.NewGuid();
+        InsertTwoSeriesWork(opener, "Opener", trilogy, 1d, (Trilogy, "1"));
+        InsertTwoSeriesWork(both, "Both", trilogy, 3d, (Trilogy, "3"), (Cycle, "7.5"));
+        InsertTwoSeriesWork(sibling, "Sibling", cycle, 7d, (Cycle, "7"));
+
+        await UpsertManifestAsync(manifests, trilogy, Trilogy, "Trilogy", (opener, "Opener"), (both, "Both"));
+        await UpsertManifestAsync(manifests, cycle, Cycle, "Cycle", (sibling, "Sibling"), (both, "Both"));
+        return new TwoSeries(trilogy, cycle, opener, both, sibling);
+    }
+
+    private static async Task<Guid> UpsertShelfAsync(CollectionRepository collections, string name, string qid)
+    {
+        var collection = new Collection
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = name,
+            WikidataQid = qid,
+            MediaType = "Books",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        collection.RestoreDefinition(
+            CollectionType.ContentGroup, CollectionScope.Library, CollectionResolution.Materialized,
+            CollectionMatchMode.All, CollectionSortDirection.Desc, CollectionUniverseStatus.Unknown);
+        await collections.UpsertAsync(collection);
+        return collection.Id;
+    }
+
+    private void InsertTwoSeriesWork(Guid id, string title, Guid collectionId, double sort, params (string Qid, string Position)[] pairs)
+    {
+        using var conn = _db.CreateConnection();
+        conn.Execute(
+            """
+            INSERT INTO works (id, collection_id, media_type, work_kind, ordinal, ordinal_sort)
+            VALUES (@id, @collectionId, 'Books', 'standalone', @ordinal, @sort);
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@id, 'title', @title, @now);
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@id, 'series_position', @position, @now);
+            INSERT INTO editions (id, work_id) VALUES (@edition, @id);
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at)
+            VALUES (@asset, @edition, @hash, @path, CURRENT_TIMESTAMP);
+            """,
+            new
+            {
+                id,
+                collectionId,
+                ordinal = ToWhole(sort),
+                sort,
+                title,
+                position = pairs[0].Position,
+                now = DateTimeOffset.UtcNow.ToString("O"),
+                edition = Guid.NewGuid(),
+                asset = Guid.NewGuid(),
+                hash = Guid.NewGuid().ToString("N"),
+                path = $"C:/library/{Guid.NewGuid():N}.epub",
+            });
+
+        for (var index = 0; index < pairs.Length; index++)
+        {
+            conn.Execute(
+                "INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid) VALUES (@id, 'series_placement', @index, @position, @qid);",
+                new { id, index, position = pairs[index].Position, qid = pairs[index].Qid });
+        }
+    }
+
+    private static Task UpsertManifestAsync(
+        SeriesManifestRepository manifests, Guid collectionId, string seriesQid, string label, params (Guid WorkId, string Title)[] members)
+        => manifests.UpsertManifestAsync(
+            new SeriesManifestHydration
+            {
+                SeriesQid = seriesQid,
+                CollectionId = collectionId,
+                SeriesLabel = label,
+                WarningsJson = "[]",
+                ApiMetadataJson = "{}",
+                LastHydratedAt = DateTimeOffset.UtcNow,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            },
+            members.Select((member, index) => new SeriesManifestItemRecord
+            {
+                Id = Guid.NewGuid(),
+                CollectionId = collectionId,
+                SeriesQid = seriesQid,
+                ItemQid = "Q-" + member.Title,
+                ItemLabel = member.Title,
+                MediaType = "Books",
+                SortOrder = index + 1,
+                OrderSource = "SeriesOrdinal",
+                OwnershipState = "Owned",
+                LinkedWorkId = member.WorkId,
+                MembershipScope = SeriesMembershipScopeNames.MainSequence,
+                SourcePropertiesJson = "[]",
+                RelationshipsJson = "[]",
+                LastHydratedAt = DateTimeOffset.UtcNow,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            }).ToList());
 
     // ----------------------------------------------------------------------------------------------------------------
     // The three readers

@@ -537,7 +537,7 @@ public static class CollectionEndpoints
             // Collection-level header canonical values come from the topmost Work row.
             // Phase 4 — parent-scoped fields (author, director, artist, genre, cover,
             // network) live on the root parent Work, not on individual child works.
-            string? collectionCreator = ParentCv("author") ?? ParentCv("artist");
+            string? collectionCreator = await ResolveGroupCreatorAsync(canonicalArrayRepo, rootParentWorkId, parentCvs, isMusic, ct);
             string? collectionDirector = isTv ? null : ParentCv("director");
             string? collectionWriter = ParentCv("writer");
             string? collectionGenre = ParentCv("genre");
@@ -684,6 +684,7 @@ public static class CollectionEndpoints
             ICollectionBrowseReadService browseReadService,
             IDisplayProjectionReadService display,
             AlbumTrackManifestService manifestService,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(collectionIdsParam))
@@ -840,7 +841,11 @@ public static class CollectionEndpoints
                         }
                     }
                 }
-                catch { /* best-effort lookup */ }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    loggerFactory.CreateLogger("CollectionArtistGroupDetail")
+                        .LogWarning(ex, "Could not look up the person for artist {ArtistName}", combinedCreator);
+                }
             }
 
             var response = new CollectionGroupDetailDto
@@ -2925,6 +2930,45 @@ public static class CollectionEndpoints
         }
 
         return person;
+    }
+
+    /// <summary>
+    /// The credit a group's header names: an album's artist (album_artist, then artist) or, for any other
+    /// group, its first author. Those credits are multi-valued, so they live only in canonical_value_arrays on
+    /// the root Work, and within a key the first by ordinal wins. A group with no author falls back to its
+    /// creator, which the data store keeps as a single value in canonical_values.
+    /// </summary>
+    internal static async Task<string?> ResolveGroupCreatorAsync(
+        ICanonicalValueArrayRepository canonicalArrayRepo,
+        Guid? rootWorkId,
+        IReadOnlyList<CanonicalValue> rootValues,
+        bool isMusic,
+        CancellationToken ct)
+    {
+        if (rootWorkId is not { } workId)
+        {
+            return null;
+        }
+
+        string[] arrayKeys = isMusic ? ["album_artist", MetadataFieldConstants.Artist] : [MetadataFieldConstants.Author];
+        foreach (var key in arrayKeys)
+        {
+            var credit = (await canonicalArrayRepo.GetValuesAsync(workId, key, ct))
+                .OrderBy(entry => entry.Ordinal)
+                .Select(entry => entry.Value)
+                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+            if (credit is not null)
+            {
+                return credit.Trim();
+            }
+        }
+
+        return isMusic
+            ? null
+            : StringHelpers.FirstNonBlank(rootValues
+                .Where(value => string.Equals(value.Key, "creator", StringComparison.OrdinalIgnoreCase))
+                .Select(value => value.Value)
+                .ToArray())?.Trim();
     }
 
     private static async Task<Profile?> ResolveActiveProfileAsync(

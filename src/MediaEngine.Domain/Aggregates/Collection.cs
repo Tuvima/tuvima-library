@@ -89,6 +89,13 @@ public sealed class Collection
     public Guid? ParentCollectionId { get; set; }
 
     /// <summary>
+    /// The Universe record this shelf belongs to or presents (the <c>narrative_roots</c> row with this QID). On a Series
+    /// shelf it names the Universe the Series sits in, stored even when it is the only Series of that Universe. On a
+    /// Universe shelf it is the record the shelf presents and always equals <see cref="WikidataQid"/>.
+    /// </summary>
+    public string? UniverseQid { get; set; }
+
+    /// <summary>
     /// The type of collection container: Universe, Smart, System, Mix, Playlist, Genre, Author, Collection, or Custom.
     /// Defaults to "Universe" for broad story-world rollups.
     /// </summary>

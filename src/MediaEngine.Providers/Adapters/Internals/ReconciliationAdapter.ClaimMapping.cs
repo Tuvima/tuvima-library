@@ -287,6 +287,20 @@ public sealed partial class ReconciliationAdapter
                             MetadataFieldConstants.SeriesPosition,
                             seriesPosition,
                             ClaimConfidence.WikidataProperty);
+
+                        // The same position paired with its own Series, so a Work in two Series keeps each number.
+                        if (!string.IsNullOrWhiteSpace(claim.Value?.EntityId))
+                        {
+                            var pairedPosition = seriesPosition.Trim();
+                            yield return new ProviderClaim(
+                                MetadataFieldConstants.SeriesPlacement,
+                                pairedPosition,
+                                ClaimConfidence.WikidataProperty);
+                            yield return new ProviderClaim(
+                                MetadataFieldConstants.SeriesPlacement + MetadataFieldConstants.CompanionQidSuffix,
+                                $"{claim.Value!.EntityId}::{pairedPosition}",
+                                ClaimConfidence.EntityQidReference);
+                        }
                     }
                 }
 

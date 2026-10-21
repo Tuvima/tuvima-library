@@ -132,13 +132,21 @@ public sealed partial class WikidataBridgeWorker
             EpisodeNumber: episodeNumber,
             IssueNumber: issueNumber);
 
+        // An audiobook that took its Wikidata ID from an owned, confirmed book keeps it: no lookup runs.
+        var ownedBookQid = FindOwnedBookHandoffQid(job);
+        if (ownedBookQid is not null)
+        {
+            ApplyOwnedBookHandoff(ctx, ownedBookQid);
+        }
+
         // Resolve QID for this single job via the unified facade.
         try
         {
-            var result = await reconAdapter.ResolveAsync(
-                BuildResolveRequest(ctx, job.Id.ToString()), ct);
+            var result = ctx.ResolvedQid is null
+                ? await reconAdapter.ResolveAsync(BuildResolveRequest(ctx, job.Id.ToString()), ct)
+                : null;
 
-            if (result.Found)
+            if (result is { Found: true })
             {
                 ctx.ResolvedQid = result.WorkQid ?? result.Qid;
                 ctx.AdditionalClaims.AddRange(result.Claims);

@@ -195,6 +195,12 @@ public interface IWorkRepository
     /// retail identity but the provider bridge does not resolve directly.
     /// Implementations must require a normalized title match and should use
     /// creator matching when a creator hint is available.
+    /// <para>
+    /// With <paramref name="requireSettledIdentity"/> the match must also be a book whose identity is
+    /// settled: its latest identity job has resolved or hydrated its Wikidata ID (or it has no identity job), and
+    /// it has no Pending review item other than a write-back or media-inspection failure. The default keeps the
+    /// earlier, broader behaviour used by the post-retail sibling step.
+    /// </para>
     /// </summary>
     Task<ConfirmedSiblingWorkQid?> FindConfirmedSiblingQidAsync(
         MediaType sourceMediaType,
@@ -202,6 +208,7 @@ public interface IWorkRepository
         string title,
         string? creator,
         Guid? excludeWorkId = null,
+        bool requireSettledIdentity = false,
         CancellationToken ct = default);
 }
 
