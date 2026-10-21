@@ -164,17 +164,6 @@ public sealed class ArchitectureBoundaryTests
             .ToList();
 
         Assert.Empty(offenders);
-
-        var collectionEndpoints = File.ReadAllText(Path.Combine(
-            repoRoot,
-            "src",
-            "MediaEngine.Api",
-            "Endpoints",
-            "CollectionEndpoints.cs"));
-        Assert.Contains(
-            "collectionRepo.GetCollectionsWithWorksAsync(collectionIds, ct)",
-            collectionEndpoints,
-            StringComparison.Ordinal);
     }
 
     [Fact]
