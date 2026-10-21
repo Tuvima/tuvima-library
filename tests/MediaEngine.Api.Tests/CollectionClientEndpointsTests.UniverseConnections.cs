@@ -196,6 +196,75 @@ public sealed partial class CollectionClientEndpointsTests
     }
 
     [Fact]
+    public async Task Connections_ShowAFilmBasedOnAnOwnedNovel_AsOneAdaptationRow()
+    {
+        SeedCast();
+        // Works are not fictional entities: this is the edge the Work-adaptation step writes for a film with a P144 claim.
+        AddRelationship("QW1", "based_on", "QW2");
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var adaptations = (await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"))["connections"]!["adaptations"]!.AsArray();
+
+        var row = Assert.Single(adaptations)!["adaptation"]!;
+        Assert.Equal("QW1", row["qid"]!.GetValue<string>());
+        Assert.Equal("Cast One", row["label"]!.GetValue<string>());
+        Assert.Equal("based on", row["relationship"]!.GetValue<string>());
+        Assert.Equal("QW2", row["source_qid"]!.GetValue<string>());
+        Assert.Equal("Cast Two", row["source_label"]!.GetValue<string>());
+        Assert.Equal("Movie", row["media_type"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Connections_ListNoAdaptation_WhenTheOtherWorkIsOneTheProfileCannotSee()
+    {
+        SeedCast();
+        // QW3 is the R-rated work a PG profile cannot see, so the edge to it is never shown or counted.
+        AddRelationship("QW1", "based_on", "QW3");
+        SetContentLimit("PG");
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var adaptations = (await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"))["connections"]!["adaptations"]!.AsArray();
+
+        Assert.Empty(adaptations);
+    }
+
+    [Fact]
+    public async Task Connections_ListNoAdaptation_ForAnEdgeBetweenWorksOfOtherUniverses()
+    {
+        SeedCast();
+        SeedUniverse("Q7300", "Other World", [("Movies", "Other One")]);
+        SeedUniverse("Q7301", "Third World", [("Movies", "Third One")]);
+        SetWorkQid(WorkIdByTitle("Other One"), "QO1");
+        SetWorkQid(WorkIdByTitle("Third One"), "QO2");
+        // Both Works are visible, but neither belongs to this Universe, so the edge is not this page's.
+        AddRelationship("QO1", "based_on", "QO2");
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var here = (await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"))["connections"]!["adaptations"]!.AsArray();
+        var there = (await GetJsonAsync(app, $"{GraphActions}/universe/Q7300/overview"))["connections"]!["adaptations"]!.AsArray();
+
+        Assert.Empty(here);
+        Assert.Single(there);
+    }
+
+    [Fact]
+    public async Task TheAdaptationTree_NamesOwnedWorks_FromWhatTheProfileOwns()
+    {
+        SeedCast();
+        AddRelationship("QW1", "based_on", "QW2");
+        AddNarrativeRoot();
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var tree = await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/adaptations");
+
+        var root = Assert.Single(tree["works"]!.AsArray())!;
+        Assert.Equal("QW2", root["qid"]!.GetValue<string>());
+        Assert.Equal("Cast Two", root["label"]!.GetValue<string>());
+        var child = Assert.Single(root["children"]!.AsArray())!;
+        Assert.Equal("Cast One", child["label"]!.GetValue<string>());
+    }
+
+    [Fact]
     public async Task Connections_AreEmpty_ForAUniverseWithNoFictionalEntities()
     {
         SeedUniverse("Q7200", "Quiet World", [("Movies", "Quiet One")]);

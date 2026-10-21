@@ -302,7 +302,7 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
 
             var lookup = stage3Scope.Canonicals.ToDictionary(v => v.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
             var narrativeRoot = await services.NarrativeRootResolver.ResolveAsync(stage3Scope.CanonicalEntityId, ct).ConfigureAwait(false);
-            await services.WorkAdaptationEdges.WriteAsync(stage3Scope.CanonicalEntityId, request.WorkQid, ct).ConfigureAwait(false);
+            await WriteAdaptationEdgesAsync(services.WorkAdaptationEdges, request, stage3Scope, ct).ConfigureAwait(false);
             var hasUniversePath = HasUniversePath(lookup, narrativeRoot);
             var workTitle = request.WorkTitle ?? GetBestTitle(lookup) ?? request.WorkQid;
 
@@ -561,7 +561,26 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
         var canonicalEntityId = lineage?.TargetForParentScope ?? entityId;
         var canonicals = await canonicalRepository.GetByEntityAsync(canonicalEntityId, ct).ConfigureAwait(false);
 
-        return new Stage3Scope(canonicalEntityId, canonicals);
+        return new Stage3Scope(canonicalEntityId, canonicals, lineage is not null && lineage.WorkId != lineage.RootParentWorkId);
+    }
+
+    // Adaptation edges are best effort: a failure here is logged and must not stop the rest of stage 3 for this Work.
+    // The claims are Parent-scope, so for an episode the fallback is the show's identity (read from the show's own values by
+    // the edge service), never the episode's.
+    private async Task WriteAdaptationEdgesAsync(
+        IWorkAdaptationEdgeService edges,
+        UniverseEnrichmentRequest request,
+        Stage3Scope scope,
+        CancellationToken ct)
+    {
+        try
+        {
+            await edges.WriteAsync(scope.CanonicalEntityId, scope.RequestIsChild ? null : request.WorkQid, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Adaptation edges could not be written for Work {WorkQid}; stage 3 continues.", request.WorkQid);
+        }
     }
 
     private static bool HasUniversePath(
@@ -707,7 +726,8 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
 
     private sealed record Stage3Scope(
         Guid CanonicalEntityId,
-        IReadOnlyList<CanonicalValue> Canonicals);
+        IReadOnlyList<CanonicalValue> Canonicals,
+        bool RequestIsChild);
 
     private enum Stage3Source
     {

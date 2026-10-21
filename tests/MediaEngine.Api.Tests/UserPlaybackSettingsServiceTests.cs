@@ -116,6 +116,27 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ABulkSaveRunningBesideAChosenSpoilerLevel_NeverPutsTheOldLevelBack()
+    {
+        var stale = await _service.GetAsync(_profileId);
+        var saves = Enumerable.Range(0, 12)
+            .Select(_ => Task.Run(() => _service.UpdateAsync(_profileId, CopyOf(stale))))
+            .ToList();
+        var choice = Task.Run(() => _service.SetSpoilerLevelAsync(_profileId, "everything"));
+        saves.AddRange(Enumerable.Range(0, 12).Select(_ => Task.Run(() => _service.UpdateAsync(_profileId, CopyOf(stale)))));
+
+        await Task.WhenAll(saves);
+        await choice;
+
+        Assert.Equal(SpoilerLevel.Everything, await _service.GetSpoilerLevelAsync(_profileId));
+    }
+
+    private static UserPlaybackSettingsDto CopyOf(UserPlaybackSettingsDto source) =>
+        System.Text.Json.JsonSerializer.Deserialize<UserPlaybackSettingsDto>(
+            System.Text.Json.JsonSerializer.Serialize(source, MediaEngine.Domain.Services.MediaEngineJson.Web),
+            MediaEngine.Domain.Services.MediaEngineJson.Web)!;
+
+    [Fact]
     public async Task ABulkPlaybackSave_NeverChangesTheSpoilerLevel()
     {
         await _service.SetSpoilerLevelAsync(_profileId, "everything");

@@ -82,11 +82,7 @@ public sealed class EntityAppearanceReadService(
             };
         }
 
-        var visibleLinks = isCharacter
-            ? view.Counted(seenLinks)
-            : view.Level == SpoilerLevel.Everything
-                ? seenLinks
-                : seenLinks.Where(link => string.IsNullOrWhiteSpace(link.SpoilerForWorkQid)).ToList();
+        var visibleLinks = view.VisibleAppearances(seenLinks, isCharacter);
         if (visibleLinks.Count == 0)
         {
             return null;

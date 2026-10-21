@@ -20,6 +20,10 @@ public interface IWorkAdaptationEdgeService
     /// <param name="fallbackWorkQid">The Work's QID when its own claims do not name it.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>How many adaptation statements were written.</returns>
+    /// <remarks>
+    /// A statement this service wrote earlier whose claim the Work no longer carries is removed, so an edge cannot outlive
+    /// the claim behind it. Only edges this service wrote are touched (they carry its own statement-key prefix).
+    /// </remarks>
     Task<int> WriteAsync(Guid canonicalEntityId, string? fallbackWorkQid, CancellationToken ct = default);
 }
 
@@ -35,6 +39,9 @@ public sealed class WorkAdaptationEdgeService : IWorkAdaptationEdgeService
 {
     private const string WikidataProvider = "wikidata";
     private const string WikidataProvenance = "Wikidata";
+
+    // Marks the statements this service wrote, so a clean-up never touches an edge another writer stored.
+    private const string StatementKeyPrefix = "work-adaptation|";
 
     private readonly ICanonicalValueRepository _canonicalValues;
     private readonly ICanonicalValueArrayRepository _canonicalArrays;
@@ -67,17 +74,23 @@ public sealed class WorkAdaptationEdgeService : IWorkAdaptationEdgeService
 
         var basedOn = CollectTargetQids(scalars, arrays, MetadataFieldConstants.BasedOn);
         var derivatives = CollectTargetQids(scalars, arrays, MetadataFieldConstants.DerivativeWork);
-        if (basedOn.Count == 0 && derivatives.Count == 0)
-        {
-            return 0;
-        }
 
         var workQid = CleanQid(scalars.GetValueOrDefault(BridgeIdKeys.WikidataQid)) ?? CleanQid(fallbackWorkQid);
         if (workQid is null)
         {
-            _logger.LogDebug(
-                "Work {EntityId} carries adaptation claims but no Wikidata QID of its own; no adaptation edges written.",
-                canonicalEntityId);
+            if (basedOn.Count > 0 || derivatives.Count > 0)
+            {
+                _logger.LogDebug(
+                    "Work {EntityId} carries adaptation claims but no Wikidata QID of its own; no adaptation edges written.",
+                    canonicalEntityId);
+            }
+
+            return 0;
+        }
+
+        await RemoveStaleEdgesAsync(workQid, basedOn, derivatives, ct).ConfigureAwait(false);
+        if (basedOn.Count == 0 && derivatives.Count == 0)
+        {
             return 0;
         }
 
@@ -102,6 +115,48 @@ public sealed class WorkAdaptationEdgeService : IWorkAdaptationEdgeService
         return written;
     }
 
+    private static string StatementKeyFor(string subjectQid, string relationshipType, string objectQid) =>
+        $"{StatementKeyPrefix}{subjectQid.ToUpperInvariant()}|{relationshipType}|{objectQid.ToUpperInvariant()}";
+
+    /// <summary>Removes the edges this service wrote for the Work whose claim is gone.</summary>
+    private async Task RemoveStaleEdgesAsync(
+        string workQid,
+        IReadOnlyCollection<string> basedOn,
+        IReadOnlyCollection<string> derivatives,
+        CancellationToken ct)
+    {
+        var stale = new List<string>();
+        foreach (var edge in await _relationships.GetBySubjectAsync(workQid, ct).ConfigureAwait(false))
+        {
+            if (IsOwnEdge(edge, RelationshipType.BasedOn)
+                && !basedOn.Contains(edge.ObjectQid, StringComparer.OrdinalIgnoreCase))
+            {
+                stale.Add(edge.StatementKey);
+            }
+        }
+
+        foreach (var edge in await _relationships.GetByObjectAsync(workQid, ct).ConfigureAwait(false))
+        {
+            if (IsOwnEdge(edge, RelationshipType.DerivativeWork)
+                && !derivatives.Contains(edge.SubjectQid, StringComparer.OrdinalIgnoreCase))
+            {
+                stale.Add(edge.StatementKey);
+            }
+        }
+
+        if (stale.Count == 0)
+        {
+            return;
+        }
+
+        var removed = await _relationships.DeleteByStatementKeysAsync(stale, ct).ConfigureAwait(false);
+        _logger.LogInformation("Removed {Count} adaptation edge(s) for Work {WorkQid} whose claim is gone", removed, workQid);
+    }
+
+    private static bool IsOwnEdge(EntityRelationship edge, string relationshipType) =>
+        string.Equals(edge.RelationshipTypeValue, relationshipType, StringComparison.OrdinalIgnoreCase)
+        && edge.StatementKey.StartsWith(StatementKeyPrefix, StringComparison.Ordinal);
+
     private async Task<int> WriteEdgeAsync(string subjectQid, string relationshipType, string objectQid, CancellationToken ct)
     {
         if (string.Equals(subjectQid, objectQid, StringComparison.OrdinalIgnoreCase))
@@ -112,6 +167,7 @@ public sealed class WorkAdaptationEdgeService : IWorkAdaptationEdgeService
         // The data store keys a statement by subject, type, object and source, so a re-run updates the row it wrote before.
         await _relationships.CreateAsync(new EntityRelationship
         {
+            StatementKey = StatementKeyFor(subjectQid, relationshipType, objectQid),
             SubjectQid = subjectQid,
             RelationshipTypeValue = relationshipType,
             ObjectQid = objectQid,

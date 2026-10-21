@@ -35,12 +35,14 @@ public static class UniverseGraphEndpoints
             IFictionalEntityRepository entityRepo,
             IEntityRelationshipRepository relRepo,
             UniverseConnectionsReadService connections,
+            IProfileRepository profiles,
             HttpContext httpContext,
             CatalogueResourceAuthorizationService resourceAuthorization,
             CancellationToken ct) =>
         {
             var roots = await rootRepo.ListAllAsync(ct);
             var visibleWorkQids = await connections.LoadVisibleWorkQidsAsync(ct);
+            var viewer = await CollectionClientEndpoints.ResolveActiveProfileAsync(httpContext, profiles, ct);
             var results = new List<UniverseListItemDto>();
             foreach (var root in roots)
             {
@@ -56,6 +58,8 @@ public static class UniverseGraphEndpoints
                 var scope = await LoadVisibleUniverseScopeAsync(
                     root.Qid, entityRepo, visibleWorkQids, ct);
                 var entities = scope.Entities;
+                // A character the profile has not reached is not counted.
+                var listVisibility = await connections.EvaluateCharactersAsync(scope, viewer, ct);
                 var entityQids = entities.Select(e => e.WikidataQid).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 IReadOnlyList<MediaEngine.Domain.Entities.EntityRelationship> relationships =
                     entityQids.Count == 0
@@ -68,7 +72,7 @@ public static class UniverseGraphEndpoints
                     level: root.Level,
                     parent_qid: root.ParentQid,
                     entity_count: entities.Count,
-                    character_count: entities.Count(e => e.EntitySubType == "Character"),
+                    character_count: entities.Count(e => e.EntitySubType == "Character" && !IsHidden(listVisibility, e)),
                     location_count: entities.Count(e => e.EntitySubType == "Location"),
                     organization_count: entities.Count(e => e.EntitySubType == "Organization"),
                     event_count: entities.Count(e => e.EntitySubType == "Event"),
@@ -93,6 +97,8 @@ public static class UniverseGraphEndpoints
             IFictionalEntityRepository entityRepo,
             IEntityRelationshipRepository relRepo,
             UniverseConnectionsReadService connections,
+            HttpContext http,
+            IProfileRepository profiles,
             CancellationToken ct) =>
         {
             var root = await rootRepo.FindByQidAsync(qid, ct);
@@ -102,15 +108,18 @@ public static class UniverseGraphEndpoints
             }
 
             var visibleWorkQids = await connections.LoadVisibleWorkQidsAsync(ct);
-            var entities = (await LoadVisibleUniverseScopeAsync(
-                qid, entityRepo, visibleWorkQids, ct)).Entities;
+            var detailScope = await LoadVisibleUniverseScopeAsync(qid, entityRepo, visibleWorkQids, ct);
+            var entities = detailScope.Entities;
+            // A character the profile has not reached is not counted.
+            var detailVisibility = await connections.EvaluateCharactersAsync(
+                detailScope, await CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct), ct);
             var entityQids = entities.Select(e => e.WikidataQid).ToHashSet();
             var relationships = await relRepo.GetByUniverseAsync(entityQids, ct);
 
             return Results.Ok(new UniverseDetailResponse(
                 universe: new UniverseDetailRef(qid: root.Qid, label: root.Label, level: root.Level),
                 entity_count: entities.Count,
-                character_count: entities.Count(e => e.EntitySubType == "Character"),
+                character_count: entities.Count(e => e.EntitySubType == "Character" && !IsHidden(detailVisibility, e)),
                 location_count: entities.Count(e => e.EntitySubType == "Location"),
                 organization_count: entities.Count(e => e.EntitySubType == "Organization"),
                 relationship_count: relationships.Count));
@@ -184,7 +193,8 @@ public static class UniverseGraphEndpoints
                 qid, entityRepo, visibleWorkQids, ct);
             // Characters the profile has not reached are left out of the graph, the same rule as every other list of characters.
             var profile = await CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct);
-            var visibility = await connections.EvaluateCharactersAsync(visibleScope, profile, ct);
+            var spoilerView = await connections.LoadSpoilerViewAsync(profile, ct);
+            var visibility = UniverseConnectionsReadService.EvaluateCharacters(spoilerView, visibleScope);
             var allEntities = visibleScope.Entities
                 .Where(entity => !IsHidden(visibility, entity))
                 .ToList();
@@ -294,8 +304,10 @@ public static class UniverseGraphEndpoints
                     // "No plot details" names the character and nothing else.
                     description: visibility.GetValueOrDefault(entity.Id) == CharacterVisibility.NoPlotDetails ? null : entity.Description,
                     image: image,
-                    works: workLinksByEntity[entity.Id]
-                        .Where(link => visibleWorkQids.Contains(link.WorkQid))
+                    // Appearances marked as a spoiler are dropped the same way every other list drops them.
+                    works: spoilerView.VisibleAppearances(
+                            workLinksByEntity[entity.Id].Where(link => visibleWorkQids.Contains(link.WorkQid)).ToList(),
+                            string.Equals(entity.EntitySubType, "Character", StringComparison.OrdinalIgnoreCase))
                         .Select(link => new UniverseGraphWorkLinkDto(
                             qid: link.WorkQid,
                             label: link.WorkLabel,
@@ -381,7 +393,7 @@ public static class UniverseGraphEndpoints
             IFictionalEntityRepository entityRepo,
             CancellationToken ct) =>
         {
-            var visibleQids = await LoadVisibleEntityQidsAsync(
+            var (visibleQids, _) = await LoadVisibleEntityQidsAsync(
                 qid, entityRepo, connections,
                 await CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct), ct);
             var paths = await graphQuery.FindPathsAsync(qid, from, to, maxHops ?? 4, ct);
@@ -404,9 +416,15 @@ public static class UniverseGraphEndpoints
             IFictionalEntityRepository entityRepo,
             CancellationToken ct) =>
         {
-            var visibleQids = await LoadVisibleEntityQidsAsync(
+            var (visibleQids, hiddenQids) = await LoadVisibleEntityQidsAsync(
                 qid, entityRepo, connections,
                 await CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct), ct);
+            // A character the profile has not reached is not found, so the tree cannot confirm they exist.
+            if (hiddenQids.Contains(character))
+            {
+                return ApiErrors.NotFound($"Character '{character}' not found.");
+            }
+
             var tree = await graphQuery.GetFamilyTreeAsync(qid, character, generations ?? 3, ct);
             return Results.Ok(new UniverseFamilyTreeResponse(
                 universe_qid: qid,
@@ -452,7 +470,7 @@ public static class UniverseGraphEndpoints
         return app;
     }
 
-    private static async Task<HashSet<string>> LoadVisibleEntityQidsAsync(
+    private static async Task<(HashSet<string> Visible, HashSet<string> Hidden)> LoadVisibleEntityQidsAsync(
         string universeQid,
         IFictionalEntityRepository entityRepo,
         UniverseConnectionsReadService connections,
@@ -465,10 +483,15 @@ public static class UniverseGraphEndpoints
             await connections.LoadVisibleWorkQidsAsync(ct),
             ct);
         var visibility = await connections.EvaluateCharactersAsync(scope, profile, ct);
-        return scope.Entities
-            .Where(entity => !IsHidden(visibility, entity))
-            .Select(entity => entity.WikidataQid)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return (
+            scope.Entities
+                .Where(entity => !IsHidden(visibility, entity))
+                .Select(entity => entity.WikidataQid)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase),
+            scope.Entities
+                .Where(entity => IsHidden(visibility, entity))
+                .Select(entity => entity.WikidataQid)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase));
     }
 
     private static bool IsHidden(IReadOnlyDictionary<Guid, CharacterVisibility> visibility, FictionalEntity entity) =>

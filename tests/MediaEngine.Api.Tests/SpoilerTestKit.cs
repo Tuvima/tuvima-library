@@ -15,6 +15,7 @@ internal static class SpoilerTestKit
         return new CharacterSpoilerService(
             new CharacterFirstSeenReader(display, progress),
             progress,
-            new UserPlaybackSettingsService(database, new ProfileRepository(database)));
+            new UserPlaybackSettingsService(database, new ProfileRepository(database)),
+            new FictionalEntityRepository(database));
     }
 }

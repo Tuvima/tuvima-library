@@ -1236,7 +1236,7 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddScoped<CharacterSpoilerService>();
         builder.Services.AddScoped<UniverseConnectionsReadService>();
         // The other graph actions are mapped too when asked, so they need to bind; only the graph action reads the era actors.
-        builder.Services.AddSingleton<IUniverseGraphQueryService>(_ => throw new NotSupportedException());
+        builder.Services.AddSingleton<IUniverseGraphQueryService, NoGraphQuery>();
         builder.Services.AddSingleton<IEraActorResolverService, NoEraActors>();
         builder.Services.AddSingleton<ILoreDeltaService>(_ => throw new NotSupportedException());
         builder.Services.AddSingleton<IPluginLoreRepository, PluginLoreRepository>();
@@ -1290,6 +1290,20 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
             Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
         public Task<IReadOnlyList<DisplayHomeCollectionRow>> LoadHomeCollectionsAsync(Guid? profileId, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<DisplayHomeCollectionRow>>([]);
+    }
+
+    /// <summary>The paths and family-tree actions: nothing is stored in the in-memory graph here, so every answer is empty.</summary>
+    private sealed class NoGraphQuery : IUniverseGraphQueryService
+    {
+        public Task<IReadOnlyList<IReadOnlyList<string>>> FindPathsAsync(string universeQid, string fromQid, string toQid, int maxHops = 4, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<IReadOnlyList<string>>>([]);
+
+        public Task<IReadOnlyDictionary<int, IReadOnlyList<string>>> GetFamilyTreeAsync(string universeQid, string characterQid, int generations = 3, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyDictionary<int, IReadOnlyList<string>>>(new Dictionary<int, IReadOnlyList<string>>());
+
+        public void InvalidateCache(string universeQid)
+        {
+        }
     }
 
     /// <summary>The graph action asks for era actors only with a timeline year; none is known here.</summary>

@@ -150,6 +150,47 @@ public sealed class OwnedStoryTests
     }
 
     [Fact]
+    public async Task TheStory_IsBuiltOncePerRequest_HoweverManyTimesItIsAsked()
+    {
+        var display = new CountingDisplay([Episode(Guid.NewGuid(), "Q-ep1", "1", "1")]);
+        var reader = new CharacterFirstSeenReader(display, new NoProgress());
+
+        var first = await reader.LoadAsync();
+        var second = await reader.LoadAsync();
+
+        Assert.Same(first, second);
+        Assert.Equal(1, display.Loads);
+    }
+
+    private sealed class CountingDisplay(IReadOnlyList<DisplayWorkRow> rows) : IDisplayProjectionReadService
+    {
+        public int Loads { get; private set; }
+
+        public Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct)
+        {
+            Loads++;
+            return Task.FromResult(rows);
+        }
+
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct) => LoadJourneyAsync(profileId, lane, ct);
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(Guid? profileId, string? lane, CancellationToken ct) => Task.FromResult<IReadOnlyList<DisplayJourneyRow>>([]);
+        public Task<IReadOnlySet<Guid>> LoadFavoriteWorkIdsAsync(Guid? profileId, CancellationToken ct) => Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
+        public Task<IReadOnlyList<DisplayHomeCollectionRow>> LoadHomeCollectionsAsync(Guid? profileId, CancellationToken ct) => Task.FromResult<IReadOnlyList<DisplayHomeCollectionRow>>([]);
+    }
+
+    private sealed class NoProgress : IViewerProgressRepository
+    {
+        public Task<IReadOnlyList<ViewerWorkProgress>> GetStartedWorksAsync(Guid profileId, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<ViewerWorkProgress>>([]);
+
+        public Task<IReadOnlyDictionary<Guid, string>> GetWorkQidsAsync(IEnumerable<Guid> workIds, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());
+
+        public Task<IReadOnlySet<string>> GetChildWorkQidsAsync(IEnumerable<string> workQids, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+    }
+
+    [Fact]
     public void ACharacterCountsOncePerTitle_NotOncePerEpisode()
     {
         var story = Story(

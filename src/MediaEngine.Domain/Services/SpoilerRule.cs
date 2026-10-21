@@ -13,7 +13,8 @@ namespace MediaEngine.Domain.Services;
 /// character is tied to episodes of a show, otherwise the title itself with the position unknown (books and audiobooks never
 /// have a position within the title). A character is judged per title and the most permissive reading wins: someone the
 /// profile has met in any title it appears in (a film it finished, an episode it has reached) is <see cref="CharacterVisibility.Shown"/>,
-/// even if another title first sees them later. The reading for one title:
+/// even if another title first sees them later. A title the profile has finished shows everyone in it, whether or not an
+/// episode is known for them. The reading for one title:
 /// </para>
 /// <list type="bullet">
 /// <item><description>Level "Everything": always <see cref="CharacterVisibility.Shown"/>, spoiler markers included.</description></item>

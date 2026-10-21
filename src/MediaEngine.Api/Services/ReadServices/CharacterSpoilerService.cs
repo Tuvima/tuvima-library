@@ -16,10 +16,41 @@ namespace MediaEngine.Api.Services.ReadServices;
 public sealed class CharacterSpoilerService(
     CharacterFirstSeenReader firstSeen,
     IViewerProgressRepository progress,
-    IUserPlaybackSettingsService settings)
+    IUserPlaybackSettingsService settings,
+    IFictionalEntityRepository entities)
 {
     /// <summary>The owned story the requesting profile may see (see <see cref="OwnedStory"/>).</summary>
     public Task<OwnedStory> LoadStoryAsync(CancellationToken ct = default) => firstSeen.LoadAsync(ct);
+
+    /// <summary>
+    /// Which of the given Character entities the profile has not reached, judged by their visible appearances. Used by the
+    /// lists that name a character without loading a Universe: the credits on cast lists and person pages, and people search.
+    /// Empty at the level "Everything".
+    /// </summary>
+    public async Task<IReadOnlySet<Guid>> HiddenEntityIdsAsync(
+        Profile? profile,
+        IEnumerable<Guid> entityIds,
+        CancellationToken ct = default)
+    {
+        var ids = entityIds.Where(id => id != Guid.Empty).Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return new HashSet<Guid>();
+        }
+
+        var view = await LoadAsync(profile, ct).ConfigureAwait(false);
+        if (view.Level == SpoilerLevel.Everything)
+        {
+            return new HashSet<Guid>();
+        }
+
+        var visibleLinks = (await entities.GetWorkLinksAsync(ids, ct).ConfigureAwait(false))
+            .Where(link => view.Story.VisibleQids.Contains(link.WorkQid))
+            .ToLookup(link => link.FictionalEntityId);
+        return ids
+            .Where(id => visibleLinks.Contains(id) && view.Evaluate(visibleLinks[id]) == CharacterVisibility.Hidden)
+            .ToHashSet();
+    }
 
     public async Task<CharacterSpoilerView> LoadAsync(Profile? profile, CancellationToken ct = default)
     {
@@ -82,6 +113,23 @@ public sealed class CharacterSpoilerView(SpoilerLevel level, OwnedStory story, V
 
         var plain = visibleLinks.Where(link => !IsSpoilerMarked(link)).ToList();
         return plain.Count > 0 ? plain : visibleLinks;
+    }
+
+    /// <summary>
+    /// The appearance links a surface may state for an entity: for a character, those that count (see <see cref="Counted"/>);
+    /// for a place or organisation, which has no episode to place it by, every one at "Everything" and otherwise only the
+    /// ones not marked as a spoiler.
+    /// </summary>
+    public IReadOnlyList<FictionalEntityWorkLink> VisibleAppearances(IReadOnlyList<FictionalEntityWorkLink> visibleLinks, bool isCharacter)
+    {
+        if (isCharacter)
+        {
+            return Counted(visibleLinks);
+        }
+
+        return level == SpoilerLevel.Everything
+            ? visibleLinks
+            : visibleLinks.Where(link => !IsSpoilerMarked(link)).ToList();
     }
 
     /// <summary>

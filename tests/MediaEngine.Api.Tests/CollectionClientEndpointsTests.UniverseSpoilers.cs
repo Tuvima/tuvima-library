@@ -181,6 +181,68 @@ public sealed partial class CollectionClientEndpointsTests
             graph["nodes"]!.AsArray().Select(node => node!["id"]!.GetValue<string>()).Order());
     }
 
+    [Fact]
+    public async Task TheGraph_DropsSpoilerMarkedAppearances_ButKeepsThemAtEverything()
+    {
+        var show = SeedSpoilerShow();
+        var aria = EntityIdOf(AriaQid);
+        LinkEntityWithEvidence(aria, Episode3Qid, spoilerForWorkQid: ShowQid, appearanceSuffix: "marked");
+        WatchFully(show.Episode1);
+        AddNarrativeRoot();
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        SetSpoilerLevel(SpoilerLevels.UpToProgress);
+        var guarded = await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/graph");
+        SetSpoilerLevel(SpoilerLevels.Everything);
+        var everything = await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/graph");
+
+        string[] WorksOf(JsonNode graph) => graph["nodes"]!.AsArray()
+            .Single(node => node!["id"]!.GetValue<string>() == AriaQid)!["works"]!.AsArray()
+            .Select(work => work!["qid"]!.GetValue<string>())
+            .Order()
+            .ToArray();
+        Assert.Equal([Episode1Qid, Episode2Qid], WorksOf(guarded));
+        Assert.Equal([Episode1Qid, Episode2Qid, Episode3Qid], WorksOf(everything));
+    }
+
+    [Fact]
+    public async Task TheUniverseCounts_LeaveOutACharacterTheProfileHasNotReached()
+    {
+        var show = SeedSpoilerShow();
+        SetSpoilerLevel(SpoilerLevels.UpToProgress);
+        WatchFully(show.Episode1);
+        AddNarrativeRoot();
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var detail = await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}");
+        using var listResponse = await app.Client.GetAsync($"{GraphActions}/universes");
+        var list = JsonNode.Parse(await listResponse.Content.ReadAsStringAsync())!.AsArray();
+
+        // Aria and Cora; Bram (first seen in episode 3) is not counted.
+        Assert.Equal(2, detail["character_count"]!.GetValue<int>());
+        Assert.Equal(2, list.Single(item => item!["qid"]!.GetValue<string>() == UniverseQid)!["character_count"]!.GetValue<int>());
+
+        SetSpoilerLevel(SpoilerLevels.Everything);
+        var everything = await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}");
+        Assert.Equal(3, everything["character_count"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task TheFamilyTree_IsNotFound_ForACharacterTheProfileHasNotReached()
+    {
+        var show = SeedSpoilerShow();
+        SetSpoilerLevel(SpoilerLevels.UpToProgress);
+        WatchFully(show.Episode1);
+        AddNarrativeRoot();
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        using var hidden = await app.Client.GetAsync($"{GraphActions}/universe/{UniverseQid}/family-tree?character={BramQid}");
+        using var reached = await app.Client.GetAsync($"{GraphActions}/universe/{UniverseQid}/family-tree?character={AriaQid}");
+
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, hidden.StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.OK, reached.StatusCode);
+    }
+
     // Seeds ------------------------------------------------------------------------------------------------------
 
     private sealed record SpoilerShow(Guid Show, Guid Episode1, Guid Episode2, Guid Episode3);
@@ -286,6 +348,12 @@ public sealed partial class CollectionClientEndpointsTests
         connection.Execute(
             "INSERT INTO narrative_roots (qid, label, level, created_at) VALUES (@qid, 'Test Universe', 'Universe', '2026-01-01 00:00:00');",
             new { qid = UniverseQid });
+    }
+
+    private Guid EntityIdOf(string qid)
+    {
+        using var connection = _database.CreateConnection();
+        return connection.QuerySingle<Guid>("SELECT id FROM fictional_entities WHERE wikidata_qid = @qid;", new { qid });
     }
 
     private Guid WorkIdOf(string workQid)

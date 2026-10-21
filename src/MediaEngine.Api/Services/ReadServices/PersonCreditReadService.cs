@@ -7,6 +7,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Api.Services.ReadServices;
 
@@ -19,18 +20,44 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
     private readonly ICanonicalValueArrayRepository _canonicalArrayRepo;
     private readonly IPersonRepository _personRepo;
     private readonly IDatabaseConnection _db;
+    private readonly IHttpContextAccessor? _http;
 
     public PersonCreditReadService(
         ICanonicalValueArrayRepository canonicalArrayRepo,
         IPersonRepository personRepo,
-        IDatabaseConnection db)
+        IDatabaseConnection db,
+        IHttpContextAccessor? http = null)
     {
         _canonicalArrayRepo = canonicalArrayRepo;
         _personRepo = personRepo;
         _db = db;
+        _http = http;
     }
 
-    public async Task<List<CastCreditDto>> BuildForWorkAsync(
+    // Every "as Character" a request is shown goes through the one spoiler rule: the actor stays, a character the requesting
+    // profile has not reached is dropped. Work outside a request (no one to protect) is not filtered.
+    private CharacterCreditSpoilerFilter? RequestFilter =>
+        _http?.HttpContext?.RequestServices.GetService<CharacterCreditSpoilerFilter>();
+
+    public async Task<List<CastCreditDto>> BuildForWorkAsync(Guid workId, CancellationToken ct)
+    {
+        var credits = await BuildForWorkCoreAsync(workId, ct);
+        return RequestFilter is { } filter ? await filter.FilterAsync(credits, ct) : credits;
+    }
+
+    public async Task<List<CastCreditDto>> BuildForCollectionRootAsync(Guid rootWorkId, string? rootWorkQid, CancellationToken ct)
+    {
+        var credits = await BuildForCollectionRootCoreAsync(rootWorkId, rootWorkQid, ct);
+        return RequestFilter is { } filter ? await filter.FilterAsync(credits, ct) : credits;
+    }
+
+    public async Task<List<PersonLibraryCreditDto>> GetLibraryCreditsAsync(Guid personId, CancellationToken ct)
+    {
+        var credits = await GetLibraryCreditsCoreAsync(personId, ct);
+        return RequestFilter is { } filter ? await filter.FilterAsync(credits, ct) : credits;
+    }
+
+    private async Task<List<CastCreditDto>> BuildForWorkCoreAsync(
         Guid workId,
         CancellationToken ct)
     {
@@ -164,7 +191,7 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
         return credits.Take(MaxCastCredits).ToList();
     }
 
-    public async Task<List<CastCreditDto>> BuildForCollectionRootAsync(
+    private async Task<List<CastCreditDto>> BuildForCollectionRootCoreAsync(
         Guid rootWorkId,
         string? rootWorkQid,
         CancellationToken ct)
@@ -965,7 +992,7 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
             .ToList();
     }
 
-    public async Task<List<PersonLibraryCreditDto>> GetLibraryCreditsAsync(
+    private async Task<List<PersonLibraryCreditDto>> GetLibraryCreditsCoreAsync(
         Guid personId,
         CancellationToken ct)
     {

@@ -84,6 +84,30 @@ public sealed class ViewerProgressRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task ChildWorkQids_CountAnEpisodeWhoseOnlyIdentityIsAStoredValue()
+    {
+        var (episode, _) = SeedWork("child", null);
+        var (ownsOne, _) = SeedWork("child", "Q710");
+        var (show, _) = SeedWork("parent", null);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@episode, 'wikidata_qid', 'Q700', CURRENT_TIMESTAMP),
+                       (@ownsOne, 'wikidata_qid', 'Q711', CURRENT_TIMESTAMP),
+                       (@show, 'wikidata_qid', 'Q720', CURRENT_TIMESTAMP);
+                """,
+                new { episode, ownsOne, show });
+        }
+
+        var found = await _repository.GetChildWorkQidsAsync(["Q700", "Q710", "Q711", "Q720"]);
+
+        // The identity a row shows is the work's own QID, else the stored one: only that decides, and a show is never an episode.
+        Assert.Equal(["Q700", "Q710"], found.Order());
+    }
+
+    [Fact]
     public async Task ChildWorkQids_AreEmpty_WhenNoneIsAsked()
     {
         Assert.Empty(await _repository.GetChildWorkQidsAsync([]));

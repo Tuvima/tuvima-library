@@ -88,10 +88,18 @@ public sealed class ViewerProgressRepository(IDatabaseConnection db) : IViewerPr
         {
             foreach (var qid in connection.Query<string>(new CommandDefinition(
                          """
-                         SELECT DISTINCT wikidata_qid
-                         FROM works
-                         WHERE work_kind = 'child'
-                           AND wikidata_qid IN @qids;
+                         SELECT DISTINCT TRIM(w.wikidata_qid)
+                         FROM works w
+                         WHERE w.work_kind = 'child'
+                           AND TRIM(w.wikidata_qid) IN @qids
+                         UNION
+                         SELECT DISTINCT TRIM(cv.value)
+                         FROM canonical_values cv
+                         JOIN works w ON w.id = cv.entity_id
+                         WHERE w.work_kind = 'child'
+                           AND cv.key = 'wikidata_qid'
+                           AND NULLIF(TRIM(w.wikidata_qid), '') IS NULL
+                           AND TRIM(cv.value) IN @qids;
                          """,
                          new { qids = batch },
                          cancellationToken: ct)))

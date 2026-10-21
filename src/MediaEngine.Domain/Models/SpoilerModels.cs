@@ -41,7 +41,10 @@ public enum CharacterVisibility
     /// <summary>The character, with everything the surface normally shows.</summary>
     Shown = 0,
 
-    /// <summary>The character's name and source only, labelled "No plot details": no descriptions, counts or appearances.</summary>
+    /// <summary>
+    /// The character's name and source only, labelled "No plot details": no descriptions and no work count. Its "Also appears in"
+    /// still opens, because that lists Works, not plot.
+    /// </summary>
     NoPlotDetails = 1,
 
     /// <summary>Left out entirely; surfaces say only how many characters were held back.</summary>

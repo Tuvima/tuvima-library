@@ -15,7 +15,12 @@ public sealed class CharacterFirstSeenReader(
     IDisplayProjectionReadService display,
     IViewerProgressRepository progress)
 {
-    public async Task<OwnedStory> LoadAsync(CancellationToken ct = default)
+    // The reader is scoped to one request, which sees one set of works, so the story is built once per request.
+    private Task<OwnedStory>? _story;
+
+    public Task<OwnedStory> LoadAsync(CancellationToken ct = default) => _story ??= BuildAsync(ct);
+
+    private async Task<OwnedStory> BuildAsync(CancellationToken ct)
     {
         var rows = await display.LoadWorksAsync(ct).ConfigureAwait(false);
         var tvQids = rows
@@ -32,6 +37,9 @@ public sealed class CharacterFirstSeenReader(
         return new OwnedStory(rows, childQids, rootQids);
     }
 }
+
+/// <summary>A visible Work as a list names it.</summary>
+public sealed record StoryWork(string Label, string MediaType, string? CoverUrl);
 
 /// <summary>The owned works a profile may see, indexed for the spoiler rule: where a Wikidata work item sits, and how far the profile is.</summary>
 public sealed class OwnedStory
@@ -73,6 +81,46 @@ public sealed class OwnedStory
     /// (or other root work) it belongs to. This is the one visibility set every Universe read judges a link against.
     /// </summary>
     public IReadOnlySet<string> VisibleQids { get; }
+
+    /// <summary>The identities of the given rows' works and of the shows they belong to: how a Universe's own works are named.</summary>
+    public IReadOnlySet<string> QidsOf(IEnumerable<DisplayWorkRow> rows)
+    {
+        var qids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            if (!string.IsNullOrWhiteSpace(row.IdentityQid))
+            {
+                qids.Add(row.IdentityQid.Trim());
+            }
+
+            if (_rootQids.TryGetValue(row.RootWorkId, out var rootQid))
+            {
+                qids.Add(rootQid);
+            }
+        }
+
+        return qids;
+    }
+
+    /// <summary>
+    /// How a visible Work is named on a list: a show by its show name, anything else by its title, with its format and cover.
+    /// Null when the profile may not see a Work with that identity.
+    /// </summary>
+    public StoryWork? Describe(string workQid)
+    {
+        var rows = RowsFor(workQid);
+        if (rows.Count == 0)
+        {
+            return null;
+        }
+
+        var first = rows[0];
+        var kind = DisplayMediaRules.NormalizeDisplayKind(first.MediaType);
+        var isShow = kind == "TV" && !_childQids.Contains(workQid.Trim());
+        var label = isShow && !string.IsNullOrWhiteSpace(first.ShowName) ? first.ShowName : first.Title;
+        var cover = isShow ? first.RootCoverUrl ?? first.CoverUrl : first.CoverUrl;
+        return new StoryWork(label, kind, cover);
+    }
 
     /// <summary>The visible rows a Wikidata work item reaches: rows with that identity, and every row of a title whose own identity it is.</summary>
     public IReadOnlyList<DisplayWorkRow> RowsFor(string workQid)

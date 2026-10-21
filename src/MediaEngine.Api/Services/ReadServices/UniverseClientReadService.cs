@@ -160,8 +160,12 @@ public sealed partial class UniverseClientReadService(
         }
 
         var visibleWorkQids = await connections.LoadVisibleWorkQidsAsync(ct).ConfigureAwait(false);
+        // The Universe's own Works (its Series members and its standalone works) anchor the adaptation edges between Works.
+        var story = await connections.LoadStoryAsync(ct).ConfigureAwait(false);
+        var universeWorkQids = story.QidsOf(rowsByCollection.Values.SelectMany(memberRows => memberRows)
+            .Concat(StandaloneRowsOf(universe, allRows)));
         var universeConnections = await connections.GetConnectionsAsync(
-            normalized, visibleWorkQids, includeCharacters, profile, ct).ConfigureAwait(false);
+            normalized, visibleWorkQids, includeCharacters, profile, universeWorkQids, ct).ConfigureAwait(false);
 
         return new UniverseBuild(
             new UniverseClientDetailDto

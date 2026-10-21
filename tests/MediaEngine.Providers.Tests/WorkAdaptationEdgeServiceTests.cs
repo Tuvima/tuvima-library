@@ -109,6 +109,58 @@ public sealed class WorkAdaptationEdgeServiceTests : IDisposable
         Assert.Empty(await _relationships.GetByEntityAsync("Q-loop"));
     }
 
+    [Fact]
+    public async Task AClaimThatIsGone_RemovesTheEdgeThisServiceWrote_AndKeepsTheOnesStillClaimed()
+    {
+        var film = await SeedWorkAsync("Q-film");
+        await SetArrayAsync(film, MetadataFieldConstants.BasedOn, ("The novel", "Q-novel"), ("The play", "Q-play"));
+        var service = CreateService();
+        await service.WriteAsync(film, fallbackWorkQid: null);
+
+        await SetArrayAsync(film, MetadataFieldConstants.BasedOn, ("The play", "Q-play"));
+        await service.WriteAsync(film, fallbackWorkQid: null);
+
+        var edge = Assert.Single(await _relationships.GetBySubjectAsync("Q-film"));
+        Assert.Equal("Q-play", edge.ObjectQid);
+    }
+
+    [Fact]
+    public async Task WhenEveryClaimIsGone_NoEdgeIsLeftBehind_ForEitherDirection()
+    {
+        var novel = await SeedWorkAsync("Q-novel");
+        await SetArrayAsync(novel, MetadataFieldConstants.BasedOn, ("The poem", "Q-poem"));
+        await SetArrayAsync(novel, MetadataFieldConstants.DerivativeWork, ("The film", "Q-film"));
+        var service = CreateService();
+        await service.WriteAsync(novel, fallbackWorkQid: null);
+        Assert.Equal(2, (await _relationships.GetByEntityAsync("Q-novel")).Count);
+
+        await SetArrayAsync(novel, MetadataFieldConstants.BasedOn);
+        await SetArrayAsync(novel, MetadataFieldConstants.DerivativeWork);
+        var written = await service.WriteAsync(novel, fallbackWorkQid: null);
+
+        Assert.Equal(0, written);
+        Assert.Empty(await _relationships.GetByEntityAsync("Q-novel"));
+    }
+
+    [Fact]
+    public async Task AnEdgeAnotherWriterStored_IsNeverRemoved()
+    {
+        var film = await SeedWorkAsync("Q-film");
+        await _relationships.CreateAsync(new EntityRelationship
+        {
+            SubjectQid = "Q-film",
+            RelationshipTypeValue = RelationshipType.BasedOn,
+            ObjectQid = "Q-other-source",
+            SourceProvider = "wikidata",
+            Provenance = "Wikidata",
+            DiscoveredAt = DateTimeOffset.UtcNow,
+        });
+
+        await CreateService().WriteAsync(film, fallbackWorkQid: null);
+
+        Assert.Equal("Q-other-source", Assert.Single(await _relationships.GetBySubjectAsync("Q-film")).ObjectQid);
+    }
+
     public void Dispose()
     {
         _db.Dispose();
