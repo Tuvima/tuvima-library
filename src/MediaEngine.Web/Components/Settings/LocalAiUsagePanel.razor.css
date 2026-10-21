@@ -1,0 +1,28 @@
+.local-ai-usage {
+    display: grid;
+    gap: var(--tl-space-4);
+}
+
+.local-ai-usage__plugins {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--tl-space-2);
+    list-style: none;
+}
+
+.local-ai-usage__plugin {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2) var(--tl-space-4);
+}
+
+.local-ai-usage__plugin-name {
+    flex: 1 1 12rem;
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.local-ai-usage__plugin-hour {
+    color: var(--tl-text-secondary);
+}

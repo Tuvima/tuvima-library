@@ -184,6 +184,14 @@ public sealed class AiConfigDto
     [JsonPropertyName("enrichment_batch_size")]
     public int EnrichmentBatchSize { get; set; } = 10;
 
+    /// <summary>How much Local AI each plugin may use per rolling hour, unless it has its own allowance.</summary>
+    [JsonPropertyName("plugin_budget")]
+    public AiPluginBudgetDto PluginBudget { get; set; } = new();
+
+    /// <summary>Allowances that replace the default for single plugins, by plugin id.</summary>
+    [JsonPropertyName("plugin_budget_overrides")]
+    public Dictionary<string, AiPluginBudgetOverrideDto> PluginBudgetOverrides { get; set; } = new(StringComparer.Ordinal);
+
 }
 
 /// <summary>
@@ -262,4 +270,102 @@ public sealed class EnrichmentProgressDto
 
     [JsonPropertyName("total")]
     public int Total { get; set; }
+}
+
+/// <summary>A plugin's Local AI allowance, counted over the last rolling hour.</summary>
+public sealed class AiPluginBudgetDto
+{
+    [JsonPropertyName("requests_per_hour")]
+    public int RequestsPerHour { get; set; } = 120;
+
+    [JsonPropertyName("busy_seconds_per_hour")]
+    public int BusySecondsPerHour { get; set; } = 600;
+
+    [JsonPropertyName("max_wait_seconds")]
+    public int MaxWaitSeconds { get; set; } = 120;
+}
+
+/// <summary>A change to the default allowance for one plugin; a missing field keeps the default.</summary>
+public sealed class AiPluginBudgetOverrideDto
+{
+    [JsonPropertyName("requests_per_hour")]
+    public int? RequestsPerHour { get; set; }
+
+    [JsonPropertyName("busy_seconds_per_hour")]
+    public int? BusySecondsPerHour { get; set; }
+
+    [JsonPropertyName("max_wait_seconds")]
+    public int? MaxWaitSeconds { get; set; }
+}
+
+/// <summary>One line of the Usage page: what one caller asked of one ability over the period.</summary>
+public sealed class AiUsageRowDto
+{
+    /// <summary>person, ingestion, library or plugin.</summary>
+    [JsonPropertyName("caller_kind")]
+    public string CallerKind { get; set; } = "";
+
+    [JsonPropertyName("caller_id")]
+    public string CallerId { get; set; } = "";
+
+    /// <summary>The plugin's name when the caller is a plugin that is installed, otherwise the key.</summary>
+    [JsonPropertyName("caller_name")]
+    public string CallerName { get; set; } = "";
+
+    /// <summary>The ability in plain words, for example "Write text (quick)".</summary>
+    [JsonPropertyName("ability")]
+    public string Ability { get; set; } = "";
+
+    [JsonPropertyName("requests")]
+    public int Requests { get; set; }
+
+    [JsonPropertyName("succeeded")]
+    public int Succeeded { get; set; }
+
+    [JsonPropertyName("busy_seconds")]
+    public double BusySeconds { get; set; }
+
+    [JsonPropertyName("last_used_at")]
+    public DateTimeOffset LastUsedAt { get; set; }
+}
+
+/// <summary>A plugin's standing against its hourly allowance, shown beside its usage.</summary>
+public sealed class AiPluginBudgetStandingDto
+{
+    [JsonPropertyName("plugin_id")]
+    public string PluginId { get; set; } = "";
+
+    [JsonPropertyName("plugin_name")]
+    public string PluginName { get; set; } = "";
+
+    [JsonPropertyName("requests_this_hour")]
+    public int RequestsThisHour { get; set; }
+
+    [JsonPropertyName("requests_per_hour")]
+    public int RequestsPerHour { get; set; }
+
+    [JsonPropertyName("busy_seconds_this_hour")]
+    public double BusySecondsThisHour { get; set; }
+
+    [JsonPropertyName("busy_seconds_per_hour")]
+    public int BusySecondsPerHour { get; set; }
+
+    [JsonPropertyName("over_budget")]
+    public bool OverBudget { get; set; }
+}
+
+/// <summary>Response for <c>GET /ai/usage</c>.</summary>
+public sealed class AiUsageResponse
+{
+    [JsonPropertyName("since")]
+    public DateTimeOffset Since { get; set; }
+
+    [JsonPropertyName("days")]
+    public int Days { get; set; }
+
+    [JsonPropertyName("rows")]
+    public List<AiUsageRowDto> Rows { get; set; } = [];
+
+    [JsonPropertyName("plugins")]
+    public List<AiPluginBudgetStandingDto> Plugins { get; set; } = [];
 }

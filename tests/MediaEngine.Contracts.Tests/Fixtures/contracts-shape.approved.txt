@@ -137,6 +137,8 @@ MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiConfigDto
   EffectiveResourceProfile: System.String | nullability=not-null | accessors=get,set
   AudioPackEnabled: System.Boolean | nullability=not-null | accessors=get,set
   EnrichmentBatchSize: System.Int32 | nullability=not-null | accessors=get,set
+  PluginBudget: MediaEngine.Contracts.Ai.AiPluginBudgetDto | nullability=not-null | accessors=get,set
+  PluginBudgetOverrides: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Ai.AiPluginBudgetOverrideDto> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiDownloadCancelledResponse
   cancelled: System.Boolean | nullability=not-null | accessors=get,init
@@ -202,8 +204,43 @@ MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiModelUnloadedResponse
   unloaded: System.Boolean | nullability=not-null | accessors=get,init
   role: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiPluginBudgetDto
+  RequestsPerHour: System.Int32 | nullability=not-null | accessors=get,set
+  BusySecondsPerHour: System.Int32 | nullability=not-null | accessors=get,set
+  MaxWaitSeconds: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiPluginBudgetOverrideDto
+  RequestsPerHour: System.Int32? | nullability=nullable | accessors=get,set
+  BusySecondsPerHour: System.Int32? | nullability=nullable | accessors=get,set
+  MaxWaitSeconds: System.Int32? | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiPluginBudgetStandingDto
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  PluginName: System.String | nullability=not-null | accessors=get,set
+  RequestsThisHour: System.Int32 | nullability=not-null | accessors=get,set
+  RequestsPerHour: System.Int32 | nullability=not-null | accessors=get,set
+  BusySecondsThisHour: System.Double | nullability=not-null | accessors=get,set
+  BusySecondsPerHour: System.Int32 | nullability=not-null | accessors=get,set
+  OverBudget: System.Boolean | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiSettingsSavedResponse
   saved: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiUsageResponse
+  Since: System.DateTimeOffset | nullability=not-null | accessors=get,set
+  Days: System.Int32 | nullability=not-null | accessors=get,set
+  Rows: System.Collections.Generic.List<MediaEngine.Contracts.Ai.AiUsageRowDto> | nullability=not-null | accessors=get,set
+  Plugins: System.Collections.Generic.List<MediaEngine.Contracts.Ai.AiPluginBudgetStandingDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiUsageRowDto
+  CallerKind: System.String | nullability=not-null | accessors=get,set
+  CallerId: System.String | nullability=not-null | accessors=get,set
+  CallerName: System.String | nullability=not-null | accessors=get,set
+  Ability: System.String | nullability=not-null | accessors=get,set
+  Requests: System.Int32 | nullability=not-null | accessors=get,set
+  Succeeded: System.Int32 | nullability=not-null | accessors=get,set
+  BusySeconds: System.Double | nullability=not-null | accessors=get,set
+  LastUsedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.EnrichmentProgressDto
   PendingCount: System.Int32 | nullability=not-null | accessors=get,set

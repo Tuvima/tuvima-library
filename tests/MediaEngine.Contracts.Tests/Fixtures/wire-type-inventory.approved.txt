@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1118; api=0; web-client=54
+# scopes: contracts=1123; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -163,7 +163,9 @@
   EffectiveResourceProfile: System.String | json=effective_resource_profile | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AudioPackEnabled: System.Boolean | json=audio_pack_enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   EnrichmentBatchSize: System.Int32 | json=enrichment_batch_size | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"dev_skip_download":true,"models_directory":"sample","native_runtime_directory":"sample","idle_unload_seconds":7,"inference_timeout_seconds":7,"minimum_free_disk_mb":7,"resource_profile":"sample","effective_resource_profile":"sample","audio_pack_enabled":true,"enrichment_batch_size":7}
+  PluginBudget: MediaEngine.Contracts.Ai.AiPluginBudgetDto | json=plugin_budget | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PluginBudgetOverrides: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Ai.AiPluginBudgetOverrideDto> | json=plugin_budget_overrides | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"dev_skip_download":true,"models_directory":"sample","native_runtime_directory":"sample","idle_unload_seconds":7,"inference_timeout_seconds":7,"minimum_free_disk_mb":7,"resource_profile":"sample","effective_resource_profile":"sample","audio_pack_enabled":true,"enrichment_batch_size":7,"plugin_budget":null,"plugin_budget_overrides":{}}
 
 [contracts] MediaEngine.Contracts.Ai.AiDownloadCancelledResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -236,9 +238,54 @@
   unloaded: System.Boolean | json=unloaded | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   role: System.String | json=role | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
+[contracts] MediaEngine.Contracts.Ai.AiPluginBudgetDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  RequestsPerHour: System.Int32 | json=requests_per_hour | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BusySecondsPerHour: System.Int32 | json=busy_seconds_per_hour | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MaxWaitSeconds: System.Int32 | json=max_wait_seconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"requests_per_hour":7,"busy_seconds_per_hour":7,"max_wait_seconds":7}
+
+[contracts] MediaEngine.Contracts.Ai.AiPluginBudgetOverrideDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  RequestsPerHour: System.Int32? | json=requests_per_hour | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BusySecondsPerHour: System.Int32? | json=busy_seconds_per_hour | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MaxWaitSeconds: System.Int32? | json=max_wait_seconds | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"requests_per_hour":7,"busy_seconds_per_hour":7,"max_wait_seconds":7}
+
+[contracts] MediaEngine.Contracts.Ai.AiPluginBudgetStandingDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  PluginId: System.String | json=plugin_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PluginName: System.String | json=plugin_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RequestsThisHour: System.Int32 | json=requests_this_hour | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RequestsPerHour: System.Int32 | json=requests_per_hour | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BusySecondsThisHour: System.Double | json=busy_seconds_this_hour | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BusySecondsPerHour: System.Int32 | json=busy_seconds_per_hour | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OverBudget: System.Boolean | json=over_budget | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"plugin_id":"sample","plugin_name":"sample","requests_this_hour":7,"requests_per_hour":7,"busy_seconds_this_hour":7,"busy_seconds_per_hour":7,"over_budget":true}
+
 [contracts] MediaEngine.Contracts.Ai.AiSettingsSavedResponse
   kind=class | converter=default | number-handling=default | unmapped=default
   saved: System.Boolean | json=saved | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Ai.AiUsageResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Since: System.DateTimeOffset | json=since | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Days: System.Int32 | json=days | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Rows: System.Collections.Generic.List<MediaEngine.Contracts.Ai.AiUsageRowDto> | json=rows | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Plugins: System.Collections.Generic.List<MediaEngine.Contracts.Ai.AiPluginBudgetStandingDto> | json=plugins | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"since":"2025-01-02T03:04:05+00:00","days":7,"rows":[],"plugins":[]}
+
+[contracts] MediaEngine.Contracts.Ai.AiUsageRowDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  CallerKind: System.String | json=caller_kind | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CallerId: System.String | json=caller_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CallerName: System.String | json=caller_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Ability: System.String | json=ability | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Requests: System.Int32 | json=requests | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Succeeded: System.Int32 | json=succeeded | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BusySeconds: System.Double | json=busy_seconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastUsedAt: System.DateTimeOffset | json=last_used_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"caller_kind":"sample","caller_id":"sample","caller_name":"sample","ability":"sample","requests":7,"succeeded":7,"busy_seconds":7,"last_used_at":"2025-01-02T03:04:05+00:00"}
 
 [contracts] MediaEngine.Contracts.Ai.EnrichmentProgressDto
   kind=class | converter=default | number-handling=default | unmapped=default

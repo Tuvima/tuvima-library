@@ -12,7 +12,7 @@ public sealed class Phase7LocalAiTests
         // The overview keeps AI settings only; the runtime (profile, limits, diagnostics) is the Runtime page of Local AI.
         Assert.DoesNotContain("GetAiProfileAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("GetResourceSnapshotAsync", source, StringComparison.Ordinal);
-        Assert.Contains("GetEnrichmentProgressAsync", source, StringComparison.Ordinal);
+        Assert.Contains("GetAiModelStatusesAsync", source, StringComparison.Ordinal);
         Assert.Contains("GetAiProfileAsync", runtime, StringComparison.Ordinal);
         Assert.Contains("GetResourceSnapshotAsync", runtime, StringComparison.Ordinal);
         // Whether Local AI can run is told by the permanent page notice from the shared attention state, not by an alert here.
@@ -96,12 +96,14 @@ public sealed class Phase7LocalAiTests
 
         Assert.Contains("DeviceContext.IsMobile", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI is partially available", source, StringComparison.Ordinal);
-        // Every AI feature is a plugin: the overview lists them and links to the Plugins page instead of holding switches.
-        Assert.Contains("AI features", source, StringComparison.Ordinal);
-        Assert.Contains("tuvima.ai-vibe-tags", source, StringComparison.Ordinal);
+        // Every AI feature is a plugin: Status points at the Plugins page and holds no feature list or switches.
+        Assert.Contains("AI features are plugins", source, StringComparison.Ordinal);
+        Assert.Contains("/settings/plugins", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("tuvima.ai-vibe-tags", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Save features", source, StringComparison.Ordinal);
-        Assert.Contains("Tools and requirements", source, StringComparison.Ordinal);
-        // Vocabulary and Automation are rows of the Settings menu tree, not link cards on this page; only Runtime is linked.
+        // Budget and Usage are their own pages, as well as Model and hardware.
+        Assert.Contains("LocalAiBudgetPanel", source, StringComparison.Ordinal);
+        Assert.Contains("LocalAiUsagePanel", source, StringComparison.Ordinal);
         Assert.DoesNotContain("/settings/ai/vocabulary", source, StringComparison.Ordinal);
         Assert.DoesNotContain("/settings/ai/automation", source, StringComparison.Ordinal);
         Assert.Contains("/settings/ai/models", source, StringComparison.Ordinal);

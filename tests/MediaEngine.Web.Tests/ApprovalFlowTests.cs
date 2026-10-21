@@ -1,4 +1,5 @@
 using Bunit;
+using MediaEngine.Contracts.Ai;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Plugins;
@@ -30,6 +31,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
     private readonly IEngineApiClient _api;
     private readonly List<(string PluginId, bool Enabled, string? Hash)> _pluginCalls = [];
     private List<PluginSummaryResponse> _plugins = [];
+    private AiUsageResponse _usage = new() { Days = 7 };
     private List<ApprovalRecordResponse> _approvals = [];
     private bool _pluginNeedsApproval = true;
 
@@ -42,6 +44,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetPluginsAsync), _ =>
                 Task.FromResult<IReadOnlyList<PluginSummaryResponse>>(_plugins.ToList()));
+            stub.SetHandler(nameof(IEngineApiClient.GetAiUsageAsync), _ => Task.FromResult<AiUsageResponse?>(_usage));
             stub.SetHandler(nameof(IEngineApiClient.SetPluginEnabledAsync), args =>
             {
                 var hash = (string?)args![2];
@@ -185,25 +188,56 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
     // ── Local AI ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task LocalAiOverview_ListsTheAiFeaturePlugins_WithTheirStateAndALinkToThePluginsPage_AndHasNoSwitchesOfItsOwn()
+    public async Task LocalAiStatus_PointsAtThePluginsPage_AndHasNoFeatureListOrSwitchesOfItsOwn()
     {
-        _plugins =
-        [
-            AiPlugin("tuvima.ai-vibe-tags", "Vibe tags", enabled: true),
-            AiPlugin("tuvima.ai-smart-labelling", "Smart labelling", enabled: false),
-            Plugin(enabled: true),
-        ];
-
         var cut = await RenderLocalAiAsync();
 
         var text = cut.Markup;
-        Assert.Contains("Vibe tags", text, StringComparison.Ordinal);
-        Assert.Contains("Smart labelling", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("Alpha", text, StringComparison.Ordinal);
-        Assert.Contains("/settings/plugins?plugin=tuvima.ai-vibe-tags", text, StringComparison.Ordinal);
+        Assert.Contains("AI features are plugins", text, StringComparison.Ordinal);
+        Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/settings/plugins");
         Assert.DoesNotContain("Save features", text, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll("[data-state-card=plugin] input[role=switch]"));
-        Assert.Contains("1", cut.Find(".local-ai-settings__summary-card strong").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("input[role=switch]"));
+        Assert.Empty(cut.FindAll(".local-ai-settings__summary-card"));
+    }
+
+    [Fact]
+    public void LocalAiUsage_ListsPluginsAgainstTheirAllowance_WithALinkToTheirPluginCard()
+    {
+        _usage = new AiUsageResponse
+        {
+            Days = 7,
+            Since = DateTimeOffset.UtcNow.AddDays(-7),
+            Plugins =
+            [
+                new AiPluginBudgetStandingDto { PluginId = "tuvima.ai-vibe-tags", PluginName = "Vibe tags", RequestsThisHour = 130, RequestsPerHour = 120, OverBudget = true },
+                new AiPluginBudgetStandingDto { PluginId = "tuvima.ai-smart-labelling", PluginName = "Smart labelling", RequestsThisHour = 3, RequestsPerHour = 120 },
+            ],
+            Rows =
+            [
+                new AiUsageRowDto { CallerKind = "plugin", CallerId = "tuvima.ai-vibe-tags", CallerName = "Vibe tags", Ability = "Classify", Requests = 12, Succeeded = 12, BusySeconds = 4.5, LastUsedAt = DateTimeOffset.UtcNow },
+            ],
+        };
+
+        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "usage"));
+
+        cut.WaitForAssertion(() => Assert.Contains("Vibe tags", cut.Markup, StringComparison.Ordinal));
+        Assert.Contains("Smart labelling", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("130 of 120 requests this hour", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Needs attention", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/settings/plugins?plugin=tuvima.ai-vibe-tags");
+        Assert.Contains("Classify", cut.Find("table").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LocalAiBudget_ShowsTheDefaultPluginAllowance_AndSavesWhatTheAdministratorChanges()
+    {
+        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "budget"));
+
+        cut.WaitForAssertion(() => Assert.Contains("Plugin allowance", cut.Markup, StringComparison.Ordinal));
+        Assert.Contains("Requests per hour", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Busy seconds per hour", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Longest wait", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Save allowance");
     }
 
     [Fact]
@@ -283,8 +317,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
     {
         await Services.GetRequiredService<SettingsAttentionState>().StartAsync();
         var cut = Render<LocalAiSettingsTab>();
-        cut.WaitForAssertion(() => Assert.Contains("AI features", cut.Markup));
-        cut.WaitForAssertion(() => Assert.DoesNotContain("AI features unavailable", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Contains("AI features are plugins", cut.Markup));
         return cut;
     }
 

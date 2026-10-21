@@ -336,7 +336,10 @@ public static class SettingsNav
         [
             Node("Local AI", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, children:
             [
-                Node("Runtime", AppMaterialIcons.Outlined.Storage, SettingsSection.LocalAi, "models"),
+                Node("Status", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, "status"),
+                Node("Model and hardware", AppMaterialIcons.Outlined.Storage, SettingsSection.LocalAi, "models"),
+                Node("Budget", AppMaterialIcons.Outlined.Speed, SettingsSection.LocalAi, "budget"),
+                Node("Usage", AppMaterialIcons.Outlined.Assessment, SettingsSection.LocalAi, "usage"),
             ]),
             Node("Integrations", AppMaterialIcons.Outlined.Link, SettingsSection.Access, "applications"),
             Node("Plugins", AppMaterialIcons.Outlined.Extension, SettingsSection.Plugins),
@@ -392,7 +395,10 @@ public static class SettingsNav
             ],
             [SettingsSection.LocalAi] =
             [
-                new("models", "Runtime", AppMaterialIcons.Outlined.Storage),
+                new("status", "Status", AppMaterialIcons.Outlined.Memory),
+                new("models", "Model and hardware", AppMaterialIcons.Outlined.Storage),
+                new("budget", "Budget", AppMaterialIcons.Outlined.Speed),
+                new("usage", "Usage", AppMaterialIcons.Outlined.Assessment),
             ],
             [SettingsSection.Plugins] = [],
             [SettingsSection.Delivery] =
