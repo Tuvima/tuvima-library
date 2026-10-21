@@ -88,7 +88,7 @@ public sealed class PipelineConfigurationTests
 
         Assert.Equal(["wikidata_reconciliation", "apple_api"], ReadPriority(document, "Audiobooks", "title"));
         Assert.Equal(["wikidata_reconciliation", "apple_api"], ReadPriority(document, "Audiobooks", "author"));
-        Assert.Equal(["apple_api"], ReadPriority(document, "Audiobooks", "series"));
+        Assert.Equal(["wikidata_reconciliation", "apple_api"], ReadPriority(document, "Audiobooks", "series"));
         Assert.Equal(["apple_api"], ReadPriority(document, "Audiobooks", "narrator"));
         Assert.Equal(["apple_api"], ReadPriority(document, "Audiobooks", "cover"));
     }
@@ -99,15 +99,15 @@ public sealed class PipelineConfigurationTests
         var configPath = FindRepoFile("config", "pipelines.json");
         using var document = JsonDocument.Parse(File.ReadAllText(configPath));
 
-        Assert.Equal(["tmdb", "wikidata_reconciliation"], ReadPriority(document, "Movies", "series"));
-        Assert.Equal(["tmdb", "wikidata_reconciliation"], ReadPriority(document, "Movies", "series_position"));
+        Assert.Equal(["wikidata_reconciliation", "tmdb"], ReadPriority(document, "Movies", "series"));
+        Assert.Equal(["wikidata_reconciliation", "tmdb"], ReadPriority(document, "Movies", "series_position"));
         Assert.Equal(["tmdb", "wikidata_reconciliation"], ReadPriority(document, "Movies", "sequence_total"));
 
         Assert.Equal(["tvdb", "wikidata_reconciliation"], ReadPriority(document, "TV", "episode_number"));
         Assert.Equal(["wikidata_reconciliation"], ReadPriority(document, "TV", "episode_count"));
         Assert.Equal(["wikidata_reconciliation"], ReadPriority(document, "TV", "sequence_total"));
 
-        Assert.Equal(["comicvine", "wikidata_reconciliation"], ReadPriority(document, "Comics", "series"));
+        Assert.Equal(["wikidata_reconciliation", "comicvine"], ReadPriority(document, "Comics", "series"));
         Assert.Equal(["comicvine", "wikidata_reconciliation"], ReadPriority(document, "Comics", "issue_number"));
         Assert.Equal(["comicvine", "local_processor"], ReadPriority(document, "Comics", "issue_title"));
         Assert.Equal(["comicvine", "local_processor"], ReadPriority(document, "Comics", "issue_description"));
