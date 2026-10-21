@@ -87,6 +87,13 @@ public sealed record PluginManifest
     [JsonPropertyName("service")]
     public JsonElement? Service { get; init; }
 
+    /// <summary>
+    /// Pages and menu entries the plugin adds, chosen from the Library's own page types (list, grid, guide, form, detail).
+    /// Needs the <c>plugin-pages</c> and <c>plugin-records</c> permissions. Read by <c>PluginPageDeclarations</c>.
+    /// </summary>
+    [JsonPropertyName("pages")]
+    public JsonElement? Pages { get; init; }
+
     [JsonPropertyName("settings_schema")]
     public JsonElement? SettingsSchema { get; init; }
 }

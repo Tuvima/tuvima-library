@@ -140,6 +140,18 @@
                     }
                 }
 
+                @foreach (var entry in PluginMenu)
+                {
+                    <a class="top-nav-account-menu__item"
+                       href="@PluginPageRoute.Href(entry)"
+                       role="menuitem"
+                       @onclick="CloseMenu">
+                        <AppMaterialIcon Icon="@PluginPageRoute.Icon(entry.PageType)"
+                                 Class="top-nav-account-menu__item-icon" />
+                        <span>@entry.Label</span>
+                    </a>
+                }
+
                 @if (!IsKids)
                 {
                     <a class="top-nav-account-menu__item"
@@ -207,6 +219,8 @@
     [Parameter] public Guid? ActiveProfileId { get; set; }
     [Parameter] public IReadOnlyList<ProfileViewModel> Profiles { get; set; } = [];
     [Parameter] public int ReviewCount { get; set; }
+    /// <summary>Pages plugins add to the menu, already cut to what the active profile may see.</summary>
+    [Parameter] public IReadOnlyList<PluginMenuEntryDto> PluginMenu { get; set; } = [];
     [Parameter] public bool CanViewReview { get; set; }
     [Parameter] public bool ShowSignOut { get; set; }
 

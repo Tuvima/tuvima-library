@@ -1,6 +1,7 @@
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Api.Services.Plugins.Declarative;
+using MediaEngine.Api.Services.Plugins.Pages;
 using MediaEngine.Api.Services.Plugins.Service;
 using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Plugin.CommercialSkip;
@@ -33,6 +34,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginSettingsService>();
         services.AddSingleton<IPluginApprovalCheck, PluginApprovalCheck>();
         services.AddSingleton<PluginBlocklist>();
+        services.AddSingleton<PluginPageService>();
         services.AddSingleton<PluginCatalog>();
         services.AddSingleton<PluginDirectoryService>();
         services.AddSingleton<ILibraryUniverseQidGate, LibraryUniverseQidGate>();

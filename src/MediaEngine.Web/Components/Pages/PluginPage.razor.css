@@ -1,0 +1,196 @@
+.plugin-page {
+    display: flex;
+    min-width: 0;
+    max-width: 80rem;
+    flex-direction: column;
+    gap: var(--tl-space-4);
+    margin-inline: auto;
+    padding: var(--tl-space-4) var(--tl-space-6) var(--tl-space-6);
+    box-sizing: border-box;
+    color: var(--tl-text-primary);
+}
+
+.plugin-page__header {
+    display: grid;
+    gap: var(--tl-space-1);
+}
+
+.plugin-page__title {
+    margin: 0;
+    font-size: var(--tl-font-size-xl);
+    font-weight: var(--tl-font-weight-bold);
+}
+
+.plugin-page__source,
+.plugin-page__note {
+    margin: 0;
+    color: var(--tl-text-secondary);
+}
+
+.plugin-page__actions {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.plugin-page__form {
+    display: grid;
+    max-width: 36rem;
+    gap: var(--tl-space-4);
+}
+
+.plugin-page__list,
+.plugin-page__grid {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.plugin-page__list {
+    display: grid;
+    gap: var(--tl-space-2);
+}
+
+.plugin-page__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--tl-space-2) var(--tl-space-6);
+    padding: var(--tl-space-3) var(--tl-space-4);
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface-raised);
+}
+
+.plugin-page__row-main {
+    display: grid;
+    min-width: 0;
+    flex: 1 1 12rem;
+}
+
+.plugin-page__row-title,
+.plugin-page__tile-title {
+    font-weight: var(--tl-font-weight-semibold);
+    overflow-wrap: anywhere;
+}
+
+.plugin-page__row-subtitle,
+.plugin-page__tile-subtitle,
+.plugin-page__row-cell-label {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.plugin-page__row-cell {
+    display: grid;
+    min-width: 6rem;
+}
+
+.plugin-page__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: var(--tl-space-4);
+}
+
+.plugin-page__tile {
+    display: grid;
+    gap: var(--tl-space-1);
+    align-content: start;
+}
+
+.plugin-page__tile-image {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    border-radius: var(--tl-radius-md);
+    object-fit: cover;
+    background: var(--tl-bg-surface-raised);
+}
+
+.plugin-page__details {
+    display: grid;
+    margin: 0;
+    gap: var(--tl-space-3);
+}
+
+.plugin-page__detail-row {
+    display: grid;
+    gap: var(--tl-space-1);
+}
+
+.plugin-page__detail-row dt {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.plugin-page__detail-row dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.plugin-page__guide-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+}
+
+.plugin-page__guide-axis,
+.plugin-page__guide-row {
+    display: grid;
+    min-width: 56rem;
+    grid-template-columns: 9rem 1fr;
+}
+
+.plugin-page__guide-row {
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
+.plugin-page__guide-channel {
+    padding: var(--tl-space-3);
+    font-weight: var(--tl-font-weight-semibold);
+    overflow-wrap: anywhere;
+    background: var(--tl-bg-surface-raised);
+}
+
+.plugin-page__guide-track {
+    position: relative;
+    min-height: 3.5rem;
+}
+
+.plugin-page__guide-tick {
+    position: absolute;
+    top: var(--tl-space-3);
+    transform: translateX(-50%);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.plugin-page__guide-slot {
+    position: absolute;
+    top: var(--tl-space-1);
+    bottom: var(--tl-space-1);
+    display: grid;
+    align-content: center;
+    box-sizing: border-box;
+    padding: 0 var(--tl-space-2);
+    overflow: hidden;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-raised);
+}
+
+.plugin-page__guide-slot-title {
+    overflow: hidden;
+    font-weight: var(--tl-font-weight-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.plugin-page__guide-slot-time {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+@media (max-width: 600px) {
+    .plugin-page {
+        padding-inline: var(--tl-space-4);
+    }
+}

@@ -38,6 +38,29 @@
                 }
             </ul>
 
+            @if (PluginEntries.Count > 0)
+            {
+                <hr class="phone-nav-menu__divider" />
+
+                <ul class="phone-nav-menu__list">
+                    @foreach (var entry in PluginEntries)
+                    {
+                        var path = PluginPageRoute.Href(entry);
+                        var current = ShellNavigation.IsCurrent(path, CurrentPath);
+                        <li @key="path">
+                            <a class="@ItemClass(current)"
+                               href="@path"
+                               aria-current="@(current ? "page" : null)"
+                               @onclick="@(() => NavigateAsync(path))"
+                               @onclick:preventDefault="true">
+                                <AppMaterialIcon Icon="@PluginPageRoute.Icon(entry.PageType)" />
+                                <span>@entry.Label</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+
             <hr class="phone-nav-menu__divider" />
 
             <ul class="phone-nav-menu__list">
@@ -95,6 +118,9 @@
 
     /// <summary>Switch profile is offered when the household has more than one profile.</summary>
     [Parameter] public bool ShowSwitchProfile { get; set; }
+
+    /// <summary>Pages plugins add that suit a phone (never the guide timeline).</summary>
+    [Parameter] public IReadOnlyList<PluginMenuEntryDto> PluginEntries { get; set; } = [];
 
     /// <summary>Raised when the menu should close: its Close button, Escape, Back, or after an entry was chosen.</summary>
     [Parameter] public EventCallback OnClose { get; set; }

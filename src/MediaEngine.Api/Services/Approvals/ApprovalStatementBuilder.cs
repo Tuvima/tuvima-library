@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MediaEngine.Api.Services.Plugins.Pages;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Plugins;
 
@@ -73,6 +74,7 @@ internal static class ApprovalStatementBuilder
         ["library-events"] = "Is told when things happen in the Library (items added, ingestion finished, metadata changes)",
         ["watch-activity"] = "Is told what people watch, read and listen to",
         ["background-work"] = "Runs continuously in the background while switched on",
+        ["plugin-pages"] = "Adds pages and menu entries to the Library",
     };
 
     private static readonly IReadOnlyDictionary<string, string> AiRoleNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -124,6 +126,9 @@ internal static class ApprovalStatementBuilder
         }
 
         lines.AddRange(manifest.ToolRequirements.Select(tool => $"Needs {ToolName(tool)}"));
+        // Who sees each page is part of what the administrator approves, so widening an audience asks again.
+        lines.AddRange(PluginPageDeclarations.Read(manifest).Pages.Select(page =>
+            $"Shows the page '{page.Title}' to {PluginPageDeclarations.AudienceWords(page.Audience)}"));
         lines.AddRange(manifest.AiPermissions
             .Select(permission => $"{UsesLocalAi}: {AiRoleName(permission.Role)}")
             .Distinct(StringComparer.Ordinal)
