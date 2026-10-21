@@ -312,7 +312,7 @@ public sealed class PluginCatalog
         {
             compatibility = PluginCompatibilityResult.Incompatible(
                 string.IsNullOrWhiteSpace(block.Reason)
-                    ? "Blocked: Tuvima has removed this plugin from its directory."
+                    ? "Blocked: this plugin has been removed from the plugin directory."
                     : $"Blocked: {block.Reason}");
         }
 
