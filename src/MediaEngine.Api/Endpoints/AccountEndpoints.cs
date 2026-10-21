@@ -624,7 +624,7 @@ public static class AccountEndpoints
     private static void MapManagedProfiles(RouteGroupBuilder access)
     {
         access.MapGet("/libraries", async (HttpContext http, IRequestAuthorityResolver resolver,
-            IAccountRepository accounts, IConfigurationLoader configuration, IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
+            IAccountRepository accounts, IConfigurationLoader configuration, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
             // The Vault is in no library list, not even the one an administrator picks grants from (Videos spec D45).
             var vaultIds = await vaultLibraries.GetIdsAsync(ct);

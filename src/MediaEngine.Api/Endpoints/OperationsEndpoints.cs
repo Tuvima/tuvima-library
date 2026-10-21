@@ -20,7 +20,7 @@ public static class OperationsEndpoints
             string? queueName,
             int? limit,
             IMediaOperationRepository repository,
-            VaultOperationGate vault,
+            [Microsoft.AspNetCore.Mvc.FromServices] VaultOperationGate vault,
             CancellationToken ct) =>
         {
             var paged = PagedRequest.From(null, limit, defaultLimit: 200);
@@ -36,7 +36,7 @@ public static class OperationsEndpoints
             Guid id,
             IMediaOperationRepository repository,
             IMediaOperationEventRepository events,
-            VaultOperationGate vault,
+            [Microsoft.AspNetCore.Mvc.FromServices] VaultOperationGate vault,
             CancellationToken ct) =>
         {
             var operation = await repository.GetByIdAsync(id, ct);
@@ -72,7 +72,7 @@ public static class OperationsEndpoints
         group.MapPost("/{id:guid}/retry", async (
             Guid id,
             IMediaOperationRepository repository,
-            VaultOperationGate vault,
+            [Microsoft.AspNetCore.Mvc.FromServices] VaultOperationGate vault,
             CancellationToken ct) =>
         {
             if (await repository.GetByIdAsync(id, ct) is not { } operation || await vault.HidesAsync(operation, ct))
@@ -91,7 +91,7 @@ public static class OperationsEndpoints
         group.MapPost("/{id:guid}/cancel", async (
             Guid id,
             IMediaOperationRepository repository,
-            VaultOperationGate vault,
+            [Microsoft.AspNetCore.Mvc.FromServices] VaultOperationGate vault,
             CancellationToken ct) =>
         {
             if (await repository.GetByIdAsync(id, ct) is not { } operation || await vault.HidesAsync(operation, ct))

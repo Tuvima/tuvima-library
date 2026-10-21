@@ -256,7 +256,7 @@ internal static class PluginEndpoints
         group.MapGet("/{pluginId}/jobs", async (
             string pluginId,
             IMediaOperationRepository operations,
-            VaultOperationGate vault,
+            [Microsoft.AspNetCore.Mvc.FromServices] VaultOperationGate vault,
             CancellationToken ct) =>
         {
             var jobs = await vault.VisibleAsync(await operations.GetByPluginAsync(pluginId, 200, ct).ConfigureAwait(false), ct).ConfigureAwait(false);

@@ -83,7 +83,7 @@ public static class ReviewEndpoints
             Guid id,
             ReviewResolveRequestDto request,
             IReviewQueueRepository reviewRepo,
-            IVaultLibraryRepository vaults,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaults,
             IMetadataClaimRepository claimRepo,
             IHydrationPipelineService pipeline,
             ICanonicalValueRepository canonicalRepo,
@@ -235,7 +235,7 @@ public static class ReviewEndpoints
         group.MapPost("/{id:guid}/dismiss", async (
             Guid id,
             IReviewQueueRepository reviewRepo,
-            IVaultLibraryRepository vaults,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaults,
             ICanonicalValueRepository canonicalRepo,
             IEventPublisher publisher,
             ISystemActivityRepository activityRepo,
@@ -315,7 +315,7 @@ public static class ReviewEndpoints
             Guid id,
             IReviewMoveToTvService moveToTv,
             IReviewQueueRepository reviewRepo,
-            IVaultLibraryRepository vaults,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaults,
             CancellationToken ct) =>
         {
             // A Vault item answers exactly like a missing one, before the service looks at it.
@@ -346,7 +346,7 @@ public static class ReviewEndpoints
         group.MapPost("/{id:guid}/skip-universe", async (
             Guid id,
             IReviewQueueRepository reviewRepo,
-            IVaultLibraryRepository vaults,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaults,
             ICollectionRepository collectionRepo,
             ICanonicalValueRepository canonicalRepo,
             IEventPublisher publisher,

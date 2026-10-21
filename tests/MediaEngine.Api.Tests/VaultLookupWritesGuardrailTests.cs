@@ -33,6 +33,8 @@ public sealed class VaultLookupWritesGuardrailTests
     private static readonly Dictionary<string, string[]> OwnRowsOutsideVaultTables = new(StringComparer.Ordinal)
     {
         ["VaultImageRepository.cs"] = ["local_items", "local_files", "local_file_sources"],
+        // Putting a restored bookmark back is personal state the person made, not a lookup result; it names no person, series or tag.
+        ["VaultBookmarkRelinkRepository.cs"] = ["audiobook_bookmarks"],
     };
 
     private static readonly Regex Writes = new(

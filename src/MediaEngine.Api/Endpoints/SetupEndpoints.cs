@@ -238,7 +238,7 @@ public static class SetupEndpoints
 
         group.MapGet("/libraries", async (
             HttpContext context, ClaimsPrincipal user, SetupSessionService sessions,
-            IConfigurationLoader configuration, IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
+            IConfigurationLoader configuration, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
             if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
             {

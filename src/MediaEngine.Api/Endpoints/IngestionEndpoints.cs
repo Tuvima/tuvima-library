@@ -134,7 +134,7 @@ public static class IngestionEndpoints
         group.MapPost("/assets/{assetId:guid}/reread-metadata", async (
             Guid assetId,
             IIngestionEngine engine,
-            IVaultLibraryRepository vaultLibraries,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries,
             CancellationToken ct) =>
         {
             // A Vault file answers exactly as a file that does not exist (Videos spec D17).
@@ -457,7 +457,7 @@ public static class IngestionEndpoints
         IIngestionEngine engine,
         IOptions<IngestionOptions> opts,
         ISourceMutationPolicyGate mutationGate,
-        IVaultLibraryRepository vaultLibraries,
+        [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries,
         CancellationToken ct)
     {
         var form = await request.ReadFormAsync(ct);
