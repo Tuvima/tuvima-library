@@ -36,7 +36,7 @@ public sealed class NotificationServiceTests : IDisposable
         _repository = new NotificationRepository(_db);
         _accounts = new AccountRepository(_db);
         _settings = new NotificationSettingsAccessor(_repository, _clock);
-        _service = new NotificationService(_repository, _settings, [_email], _accounts, _clock, NullLogger<NotificationService>.Instance);
+        _service = new NotificationService(_repository, _settings, [_email], [], _accounts, _clock, NullLogger<NotificationService>.Instance);
     }
 
     public void Dispose()
