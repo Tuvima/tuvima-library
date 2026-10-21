@@ -170,8 +170,11 @@ jobs:
           if [ "${{ github.event_name }}" != "pull_request" ]; then coverage=(--collect:"XPlat Code Coverage"); fi
           # Build first, one after another, so lanes never race on the shared project outputs.
           for project in ${{ matrix.projects }}; do dotnet build "$project" --verbosity quiet; done
+          # At most three projects at once: timing-sensitive tests (file watchers, UI timers) misfire when
+          # eleven test hosts fight over four cores.
           pids=()
           for project in ${{ matrix.projects }}; do
+            while [ "$(jobs -rp | wc -l)" -ge 3 ]; do sleep 1; done
             name=$(basename "$project")
             dotnet test "$project" --no-build --verbosity minimal --filter "Category!=LiveProvider" "${coverage[@]}" \
               --results-directory "./TestResults/$name" > "test-$name.log" 2>&1 &
