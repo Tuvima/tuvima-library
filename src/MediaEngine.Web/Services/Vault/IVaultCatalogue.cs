@@ -1,3 +1,4 @@
+using MediaEngine.Contracts.Vault;
 using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Vault;

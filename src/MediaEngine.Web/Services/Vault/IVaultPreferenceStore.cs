@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Contracts.Vault;
 using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Services.Vault;

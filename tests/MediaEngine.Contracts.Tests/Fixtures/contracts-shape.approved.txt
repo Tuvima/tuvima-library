@@ -9314,9 +9314,25 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.UpdateVaultLibraryReques
   LookupServerId: System.String | nullability=nullable | accessors=get,init
   AdminPin: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultCoverMode
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultGroupBy
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultLayout
+
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultLibraryDto
   Id: System.String | nullability=not-null | accessors=get,init
   LookupSource: System.String | nullability=not-null | accessors=get,init
   LookupServerId: System.String | nullability=nullable | accessors=get,init
   AdultsConfirmedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultSort
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultViewPreferences
+  Layout: MediaEngine.Contracts.Vault.VaultLayout | nullability=not-null | accessors=get,init
+  GroupBy: MediaEngine.Contracts.Vault.VaultGroupBy | nullability=not-null | accessors=get,init
+  Sort: MediaEngine.Contracts.Vault.VaultSort | nullability=not-null | accessors=get,init
+  Covers: MediaEngine.Contracts.Vault.VaultCoverMode | nullability=not-null | accessors=get,init
+  TitlesHiddenUntilPointed: System.Boolean | nullability=not-null | accessors=get,init
+  ShowQuickCheck: System.Boolean | nullability=not-null | accessors=get,init
 

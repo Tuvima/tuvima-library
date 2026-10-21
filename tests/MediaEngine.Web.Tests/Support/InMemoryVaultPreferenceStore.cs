@@ -1,3 +1,4 @@
+using MediaEngine.Contracts.Vault;
 using MediaEngine.Web.Services.Vault;
 
 namespace MediaEngine.Web.Tests.Support;

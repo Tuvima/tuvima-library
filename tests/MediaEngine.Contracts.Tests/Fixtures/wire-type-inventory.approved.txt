@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1122; api=0; web-client=54
+# scopes: contracts=1127; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10986,6 +10986,25 @@
   AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"lookup_source":"sample","lookup_server_id":"sample","admin_pin":"sample"}
 
+[contracts] MediaEngine.Contracts.Vault.VaultCoverMode
+  kind=enum | converter=default | number-handling=default | unmapped=default
+  enum Show=0 | json=0
+  enum Blur=1 | json=1
+  enum Hide=2 | json=2
+
+[contracts] MediaEngine.Contracts.Vault.VaultGroupBy
+  kind=enum | converter=default | number-handling=default | unmapped=default
+  enum Folder=0 | json=0
+  enum Tag=1 | json=1
+  enum DateAdded=2 | json=2
+
+[contracts] MediaEngine.Contracts.Vault.VaultLayout
+  kind=enum | converter=default | number-handling=default | unmapped=default
+  enum ShelfRows=0 | json=0
+  enum Grid=1 | json=1
+  enum DetailsList=2 | json=2
+  enum Timeline=3 | json=3
+
 [contracts] MediaEngine.Contracts.Vault.VaultLibraryDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Id: System.String | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -10993,6 +11012,22 @@
   LookupServerId: System.String | json=lookup_server_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AdultsConfirmedAt: System.DateTimeOffset | json=adults_confirmed_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"sample","lookup_source":"sample","lookup_server_id":"sample","adults_confirmed_at":"2025-01-02T03:04:05+00:00"}
+
+[contracts] MediaEngine.Contracts.Vault.VaultSort
+  kind=enum | converter=default | number-handling=default | unmapped=default
+  enum RecentlyAdded=0 | json=0
+  enum Title=1 | json=1
+  enum Year=2 | json=2
+  enum RecentlyPlayed=3 | json=3
+
+[contracts] MediaEngine.Contracts.Vault.VaultViewPreferences
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Layout: MediaEngine.Contracts.Vault.VaultLayout | json=layout | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GroupBy: MediaEngine.Contracts.Vault.VaultGroupBy | json=groupBy | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Sort: MediaEngine.Contracts.Vault.VaultSort | json=sort | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Covers: MediaEngine.Contracts.Vault.VaultCoverMode | json=covers | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TitlesHiddenUntilPointed: System.Boolean | json=titlesHiddenUntilPointed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ShowQuickCheck: System.Boolean | json=showQuickCheck | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [web-client] MediaEngine.Web.Models.ViewDTOs.AiOperationResultDto
   kind=class | converter=default | number-handling=default | unmapped=default
