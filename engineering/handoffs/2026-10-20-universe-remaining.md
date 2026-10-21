@@ -69,6 +69,7 @@ Finish with the CI-strength build, the tests, the reviewer, then merge. Report w
 ```
 
 ### Thread D: U-WP9 part 2, "Add Fandom details" opens the plugin card
+The same item is listed in [the Developer tools waves 4 to 8 handoff](2026-10-20-developer-tools-waves-4-to-8.md), section 2, item 6. Build it once: whichever coordinator reaches it first checks `main` and the other handoff, then marks both done.
 ```
 Build U-WP9 part 2 of engineering/specs/universe.md, after Developer tools wave 3 (PR 336: declared web destinations, rate-limited plugin web client, /settings/plugins?plugin={id}) is on main.
 (1) The Universe page's "Add Fandom details" line (UniverseConnections.razor) links to /settings/plugins?plugin=tuvima.fandom-lore.
