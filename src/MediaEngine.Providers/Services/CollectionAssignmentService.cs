@@ -378,17 +378,19 @@ public sealed class CollectionAssignmentService
         Guid workId,
         CancellationToken ct)
     {
+        // One query for the work's file list and one batched read of every canonical value: the lineage root first, then the
+        // files in file-id order, the same order manifest linking reads. A blank value is no claim (as in linking).
         var fileIds = _placementRepo is null
             ? [assignedFileId]
             : await _placementRepo.GetFileIdsAsync(workId, ct).ConfigureAwait(false);
-        var entities = new List<IEnumerable<KeyValuePair<string, string>>>();
-        foreach (var id in new[] { rootEntityId }.Concat(fileIds).Distinct())
-        {
-            var values = await _canonicalRepo.GetByEntityAsync(id, ct).ConfigureAwait(false);
-            entities.Add(values
-                .Where(v => ClaimedSeriesQidReader.Keys.Contains(v.Key, StringComparer.OrdinalIgnoreCase))
-                .Select(v => new KeyValuePair<string, string>(v.Key, v.Value)));
-        }
+        var ordered = new[] { rootEntityId }.Concat(fileIds).Distinct().ToList();
+        var byEntity = await _canonicalRepo.GetByEntitiesAsync(ordered, ct).ConfigureAwait(false);
+        var entities = ordered.Select(id => byEntity.TryGetValue(id, out var values)
+            ? values
+                .Where(v => !string.IsNullOrWhiteSpace(v.Value)
+                    && ClaimedSeriesQidReader.Keys.Contains(v.Key, StringComparer.OrdinalIgnoreCase))
+                .Select(v => new KeyValuePair<string, string>(v.Key, v.Value))
+            : []);
 
         return ClaimedSeriesQidReader.Merge(entities);
     }

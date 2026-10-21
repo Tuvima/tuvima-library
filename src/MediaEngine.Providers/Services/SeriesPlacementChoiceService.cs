@@ -68,6 +68,7 @@ public sealed class SeriesPlacementChoiceService
         await _placements.ReleaseChoiceAsync(workId, ct).ConfigureAwait(false);
 
         var entities = await _placements.GetReviewEntitiesAsync(workId, ct).ConfigureAwait(false);
+        Guid? alreadyResolved = null;
         if (entities.StableAssetId is { } assetId)
         {
             // A Work with a file goes through collection assignment, which also uses the Work's retail identity.
@@ -78,6 +79,9 @@ public sealed class SeriesPlacementChoiceService
             {
                 return SeriesPlacementReleaseResult.PlacementFailed;
             }
+
+            // Finalization already ran the Universe step for the shelf the work landed on.
+            alreadyResolved = outcome.ParentResolutionAttempted ? outcome.Assignment.CollectionId : null;
         }
         else
         {
@@ -94,13 +98,13 @@ public sealed class SeriesPlacementChoiceService
         }
 
         var after = await _placements.GetCurrentShelfIdAsync(workId, ct).ConfigureAwait(false);
-        await ResolveParentsAsync([after, before], ct).ConfigureAwait(false);
+        await ResolveParentsAsync([after, before], ct, skip: alreadyResolved).ConfigureAwait(false);
         return SeriesPlacementReleaseResult.Released;
     }
 
-    private async Task ResolveParentsAsync(IEnumerable<Guid?> shelves, CancellationToken ct)
+    private async Task ResolveParentsAsync(IEnumerable<Guid?> shelves, CancellationToken ct, Guid? skip = null)
     {
-        foreach (var shelf in shelves.OfType<Guid>().Distinct())
+        foreach (var shelf in shelves.OfType<Guid>().Distinct().Where(shelf => shelf != skip))
         {
             try
             {

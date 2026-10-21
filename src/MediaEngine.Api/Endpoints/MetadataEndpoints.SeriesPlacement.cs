@@ -10,8 +10,10 @@ namespace MediaEngine.Api.Endpoints;
 
 public static partial class MetadataEndpoints
 {
+    // No set-based visibility check exists for Series shelves (the display projection answers for Ready works only), so the
+    // per-Series resource check is bounded instead: at most 20 candidates, and only for a search term of 2 or more characters.
     private const int SeriesPlacementCandidateLimit = 20;
-    private const int SeriesPlacementCandidateFetch = 50;
+    private const int SeriesPlacementMinSearchLength = 2;
 
     /// <summary>
     /// The editor's Matching Series block: which Series a Work is on, which Series list it, and a person's locked choice.
@@ -138,14 +140,18 @@ public static partial class MetadataEndpoints
             return new SeriesPlacementDto { WorkId = workId.Value, MediaType = mediaType, SupportsSeries = false };
         }
 
-        // Ask for more than will be shown: shelves the caller may not see are dropped, and the rest are cut to the limit.
-        var view = await placements.GetViewAsync(workId.Value, q, SeriesPlacementCandidateFetch, ct).ConfigureAwait(false);
+        // Other Series are offered only for a real search term; shorter text offers none and costs no per-Series check.
+        var searching = q?.Trim().Length >= SeriesPlacementMinSearchLength;
+        var view = await placements.GetViewAsync(workId.Value, q, searching ? SeriesPlacementCandidateLimit : 0, ct).ConfigureAwait(false);
         if (view is null)
         {
             return null;
         }
 
-        var current = view.Current is { } now && await canSeeShelf(now.CollectionId).ConfigureAwait(false) ? now : null;
+        // The Series the work is on is always shown to anyone who can see the work (the work belongs to it, so there is no
+        // separate check), which keeps "Chosen by you" from ever sitting beside "Not in a Series". The Series that list the work
+        // and the Series offered for choosing need at least one member the caller can see.
+        var current = view.Current;
         var listed = await VisibleAsync(view.Listed, canSeeShelf, int.MaxValue).ConfigureAwait(false);
         var candidates = await VisibleAsync(view.Candidates, canSeeShelf, SeriesPlacementCandidateLimit).ConfigureAwait(false);
         return new SeriesPlacementDto

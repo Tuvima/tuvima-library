@@ -68,7 +68,7 @@ else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.Ca
             </div>
             @if (placement.Candidates.Count == 0)
             {
-                <p class="sme-series__note">@(string.IsNullOrWhiteSpace(_query) ? "No other Series of this kind yet." : "No other Series match that name.")</p>
+                <p class="sme-series__note">@(_query.Trim().Length < MinSearchLength ? "Type at least two letters to search other Series." : "No other Series match that name.")</p>
             }
             else
             {
@@ -127,6 +127,9 @@ else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.Ca
     /// <summary>Raised after a Series choice was saved or released, so the editor can refresh what the page shows.</summary>
     [Parameter] public EventCallback Applied { get; set; }
 
+    internal const int MinSearchLength = 2;
+    internal const int SearchDebounceMilliseconds = 300;
+
     private SeriesPlacementDto? _placement;
     private bool _loadFailed;
     private Guid _loadedFor;
@@ -171,8 +174,8 @@ else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.Ca
     {
         _query = value ?? string.Empty;
         var version = ++_searchVersion;
-        // Wait for a pause in typing so one search runs per burst of keystrokes.
-        await Task.Delay(250);
+        // Wait for a pause in typing so one search runs per burst of keystrokes, and search only for a real term.
+        await Task.Delay(SearchDebounceMilliseconds);
         if (version != _searchVersion)
         {
             return;

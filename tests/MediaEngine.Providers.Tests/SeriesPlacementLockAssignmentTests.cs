@@ -32,6 +32,7 @@ public sealed class SeriesPlacementLockAssignmentTests : IDisposable
     private readonly SeriesAmbiguityReviewer _reviewer;
     private readonly SeriesPlacementChoiceService _choices;
     private readonly RecordingParentResolver _parents = new();
+    private readonly CountingCanonicalValues _canonicalReads;
 
     public SeriesPlacementLockAssignmentTests()
     {
@@ -60,9 +61,10 @@ public sealed class SeriesPlacementLockAssignmentTests : IDisposable
             new MediaAssetRepository(_db),
             _reviews,
             _placements);
+        _canonicalReads = new CountingCanonicalValues(canonicals);
         _assignment = new CollectionAssignmentService(
             _collections,
-            canonicals,
+            _canonicalReads,
             new WorkRepository(_db),
             NullLogger<CollectionAssignmentService>.Instance,
             new CanonicalValueArrayRepository(_db),
@@ -406,6 +408,70 @@ public sealed class SeriesPlacementLockAssignmentTests : IDisposable
         Assert.Single(await _reviews.GetPendingAsync(50), r => r.Trigger == ReviewTrigger.AmbiguousSeriesMembership);
     }
 
+    [Fact]
+    public async Task ReadingTheClaims_IsOneBatchedRead_HoweverManyFilesTheWorkHas()
+    {
+        var oneFile = AddWork("One file", seriesQid: "QA1", seriesLabel: "Series A");
+        var manyFiles = AddWork("Many files", seriesQid: "QA1", seriesLabel: "Series A");
+        for (var index = 0; index < 5; index++)
+        {
+            AddFile(manyFiles, claim: "QA1");
+        }
+
+        _canonicalReads.Reset();
+        await _assignment.AssignAsync(oneFile.AssetId);
+        var singleReads = _canonicalReads.PerEntityReads;
+        var singleBatches = _canonicalReads.BatchedReads;
+
+        _canonicalReads.Reset();
+        await _assignment.AssignAsync(manyFiles.AssetId);
+
+        // The claims are one batched read; the per-entity reads are the fixed pair the retail identity needs, not one per file.
+        Assert.Equal(1, singleBatches);
+        Assert.Equal(1, _canonicalReads.BatchedReads);
+        Assert.Equal(singleReads, _canonicalReads.PerEntityReads);
+        Assert.True(_canonicalReads.PerEntityReads <= 2);
+    }
+
+    [Fact]
+    public async Task ABlankClaimIsNoClaim_OnBothPaths_SoTheNextFilesClaimDecides()
+    {
+        var first = await CreateShelfAsync("QA1", "Series A");
+        var second = await CreateShelfAsync("QB1", "Series B");
+        var lowFile = Guid.Parse("00000000-0000-0000-0000-0000000000a1");
+        var highFile = Guid.Parse("00000000-0000-0000-0000-0000000000a2");
+        // The lower file has a blank series_qid, the higher names Series B. A blank is dropped, so B is the claim; if the blank
+        // counted, the lowest Series id (A) would win instead.
+        var viaAssign = AddWork("Blank (assign)", seriesQid: null, seriesLabel: null, claimOnFile: "QB1", fileId: highFile);
+        AddFile(viaAssign, lowFile, claim: "   ");
+        await StoreManifestOnlyAsync(first, "QA1", viaAssign, SeriesMembershipScopeNames.Supplementary);
+        await StoreManifestOnlyAsync(second, "QB1", viaAssign, SeriesMembershipScopeNames.Supplementary);
+        var viaLink = AddWork("Blank (link)", seriesQid: null, seriesLabel: null, claimOnFile: "QB1", fileId: Guid.Parse("00000000-0000-0000-0000-0000000000b2"));
+        AddFile(viaLink, Guid.Parse("00000000-0000-0000-0000-0000000000b1"), claim: "   ");
+
+        await _assignment.AssignAsync(highFile);
+        await StoreManifestAsync(first, "QA1", viaLink, SeriesMembershipScopeNames.Supplementary);
+        await StoreManifestAsync(second, "QB1", viaLink, SeriesMembershipScopeNames.Supplementary);
+
+        Assert.Equal(second, await ShelfOfAsync(viaAssign));
+        Assert.Equal(second, await ShelfOfAsync(viaLink));
+    }
+
+    [Fact]
+    public async Task LettingTheLibraryDecide_ForAWorkWithAFile_RunsTheUniverseStepOncePerShelf()
+    {
+        var chosen = await CreateShelfAsync("QChosen", "Chosen");
+        var claimed = await CreateShelfAsync("QClaimed", "Claimed");
+        var work = AddWork("Work", seriesQid: "QClaimed", seriesLabel: "Claimed");
+        await _choices.ChooseAsync(work.WorkId, chosen);
+        _parents.Resolved.Clear();
+
+        await _choices.ReleaseAsync(work.WorkId);
+
+        Assert.Equal(1, _parents.Resolved.Count(id => id == claimed));
+        Assert.Equal(1, _parents.Resolved.Count(id => id == chosen));
+    }
+
     // ----------------------------------------------------------------------------------------------------------------
 
     private sealed record Library(Guid WorkId, Guid AssetId);
@@ -588,6 +654,41 @@ public sealed class SeriesPlacementLockAssignmentTests : IDisposable
         public Task PublishAsync<TPayload>(string eventName, TPayload payload, CancellationToken ct = default)
             where TPayload : notnull
             => Task.CompletedTask;
+    }
+
+    /// <summary>Counts how the canonical values are read, so a test can pin the batched read.</summary>
+    private sealed class CountingCanonicalValues(ICanonicalValueRepository inner) : ICanonicalValueRepository
+    {
+        public int PerEntityReads { get; private set; }
+        public int BatchedReads { get; private set; }
+
+        public void Reset()
+        {
+            PerEntityReads = 0;
+            BatchedReads = 0;
+        }
+
+        public Task<IReadOnlyList<CanonicalValue>> GetByEntityAsync(Guid entityId, CancellationToken ct = default)
+        {
+            PerEntityReads++;
+            return inner.GetByEntityAsync(entityId, ct);
+        }
+
+        public Task<IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalValue>>> GetByEntitiesAsync(
+            IReadOnlyList<Guid> entityIds, CancellationToken ct = default)
+        {
+            BatchedReads++;
+            return inner.GetByEntitiesAsync(entityIds, ct);
+        }
+
+        public Task UpsertBatchAsync(IReadOnlyList<CanonicalValue> values, CancellationToken ct = default) => inner.UpsertBatchAsync(values, ct);
+        public Task<IReadOnlyList<CanonicalValue>> GetConflictedAsync(CancellationToken ct = default) => inner.GetConflictedAsync(ct);
+        public Task DeleteByEntityAsync(Guid entityId, CancellationToken ct = default) => inner.DeleteByEntityAsync(entityId, ct);
+        public Task DeleteByKeyAsync(Guid entityId, string key, CancellationToken ct = default) => inner.DeleteByKeyAsync(entityId, key, ct);
+        public Task<IReadOnlyList<Guid>> FindByValueAsync(string key, string value, CancellationToken ct = default) => inner.FindByValueAsync(key, value, ct);
+        public Task<IReadOnlyList<CanonicalValue>> FindByKeyAndPrefixAsync(string key, string prefix, CancellationToken ct = default) => inner.FindByKeyAndPrefixAsync(key, prefix, ct);
+        public Task<IReadOnlyList<Guid>> GetEntitiesNeedingEnrichmentAsync(string hasField, string missingField, int limit, CancellationToken ct = default)
+            => inner.GetEntitiesNeedingEnrichmentAsync(hasField, missingField, limit, ct);
     }
 
     private sealed class RecordingParentResolver : IParentCollectionResolver

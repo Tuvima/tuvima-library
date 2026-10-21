@@ -199,6 +199,13 @@ public sealed class EditorSeriesBlockTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".sme-series")));
     }
 
+    [Fact]
+    public void TheSearchWaitsForAPause_AndNeedsAtLeastTwoLetters()
+    {
+        Assert.Equal(300, EditorSeriesBlock.SearchDebounceMilliseconds);
+        Assert.Equal(2, EditorSeriesBlock.MinSearchLength);
+    }
+
     private static SeriesPlacementShelfDto Shelf(Guid id, string label, string scope, string? position) => new()
     {
         CollectionId = id,

@@ -16,10 +16,13 @@
     background: var(--tl-bg-base);
 }
 
-.app-choice-row:hover:not(:disabled),
-.app-choice-row:focus-visible {
+.app-choice-row:hover:not(:disabled) {
     border-color: color-mix(in srgb, var(--tl-accent-primary) 72%, var(--tl-border-subtle));
-    outline: none;
+}
+
+.app-choice-row:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
 }
 
 .app-choice-row.is-selected {

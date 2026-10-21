@@ -133,8 +133,14 @@ public sealed class SeriesPlacementEndpointTests : IDisposable
         // "dune" matches no other Series of this kind that is not already shown; the Audiobooks Series is never offered.
         Assert.Empty(body.GetProperty("candidates").EnumerateArray());
 
-        var (_, all) = await SendAsync("GET", work.WorkId);
-        Assert.Equal(["Spice Wars"], all.GetProperty("candidates").EnumerateArray().Select(c => c.GetProperty("label").GetString()));
+        var (_, found) = await SendAsync("GET", work.WorkId, query: "?q=spi");
+        Assert.Equal(["Spice Wars"], found.GetProperty("candidates").EnumerateArray().Select(c => c.GetProperty("label").GetString()));
+
+        // Other Series are offered only for a search term of two or more characters.
+        var (_, none) = await SendAsync("GET", work.WorkId);
+        var (_, oneLetter) = await SendAsync("GET", work.WorkId, query: "?q=s");
+        Assert.Empty(none.GetProperty("candidates").EnumerateArray());
+        Assert.Empty(oneLetter.GetProperty("candidates").EnumerateArray());
     }
 
     [Fact]
@@ -144,9 +150,72 @@ public sealed class SeriesPlacementEndpointTests : IDisposable
         AddShelf("QHidden", "Hidden Series", visible: false);
         var work = AddWork("Dune");
 
-        var (_, body) = await SendAsync("GET", work.WorkId);
+        var (_, body) = await SendAsync("GET", work.WorkId, query: "?q=series");
 
         Assert.Equal(["Open Series"], body.GetProperty("candidates").EnumerateArray().Select(c => c.GetProperty("label").GetString()));
+    }
+
+    [Fact]
+    public async Task Read_OffersAtMostTwentySeries_ForASearch()
+    {
+        for (var index = 0; index < 25; index++)
+        {
+            AddShelf($"QMany{index}", $"Many Series {index:00}");
+        }
+
+        var work = AddWork("Dune");
+
+        var (_, body) = await SendAsync("GET", work.WorkId, query: "?q=many");
+
+        Assert.Equal(20, body.GetProperty("candidates").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Read_AlwaysShowsTheSeriesTheWorkIsOn_EvenWhenNoOtherMemberOfItIsVisible()
+    {
+        // Every other member of this Series is hidden from the caller, but the work itself is theirs: its own Series is shown,
+        // so "Chosen by you" never sits beside "Not in a Series".
+        var shelf = AddShelf("QOwn", "Own Series", visible: false);
+        var work = AddWork("Dune");
+        await _placements.SetChoiceAsync(work.WorkId, shelf);
+
+        var (_, body) = await SendAsync("GET", work.WorkId);
+
+        Assert.True(body.GetProperty("is_person_choice").GetBoolean());
+        Assert.Equal("Own Series", body.GetProperty("current").GetProperty("label").GetString());
+    }
+
+    [Fact]
+    public async Task ASeriesWithNoVisibleMember_IsNotOffered_AndChoosingItIsNotFound()
+    {
+        var empty = AddShelf("QEmpty", "Empty Series", members: false);
+        var work = AddWork("Dune");
+
+        var (_, found) = await SendAsync("GET", work.WorkId, query: "?q=empty");
+        var (status, _) = await SendAsync("PUT", work.WorkId, new { collection_id = empty, locked = true });
+
+        Assert.Empty(found.GetProperty("candidates").EnumerateArray());
+        Assert.Equal(StatusCodes.Status404NotFound, status);
+        Assert.Null(await _placements.GetLockAsync(work.WorkId));
+    }
+
+    [Fact]
+    public async Task WhenPlacementFailsAfterTheRelease_TheAnswerIsA500Problem_AndTheChoiceStaysReleased()
+    {
+        var chosen = AddShelf("QChosen", "Chosen Series");
+        var work = AddWork("Dune", seriesQid: "Q9");
+        await SendAsync("PUT", work.WorkId, new { collection_id = chosen, locked = true });
+        // Placement reads the manifests; with them gone it cannot run, which finalization reports as a failure.
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("DROP TABLE series_manifest_items;");
+        }
+
+        var (status, body) = await SendAsync("PUT", work.WorkId, new { collection_id = (Guid?)null, locked = false });
+
+        Assert.Equal(StatusCodes.Status500InternalServerError, status);
+        Assert.Equal("Series placement failed", body.GetProperty("title").GetString());
+        Assert.Null(await _placements.GetLockAsync(work.WorkId));
     }
 
     [Fact]
@@ -407,7 +476,7 @@ public sealed class SeriesPlacementEndpointTests : IDisposable
     }
 
     /// <summary>A Series shelf with one member work whose file the caller may (or may not) see; a shelf nobody can see is not offered.</summary>
-    private Guid AddShelf(string qid, string name, string mediaType = "Books", bool visible = true)
+    private Guid AddShelf(string qid, string name, string mediaType = "Books", bool visible = true, bool members = true)
     {
         var collection = new Collection
         {
@@ -421,7 +490,11 @@ public sealed class SeriesPlacementEndpointTests : IDisposable
             CollectionType.ContentGroup, CollectionScope.Library, CollectionResolution.Materialized,
             CollectionMatchMode.All, CollectionSortDirection.Desc, CollectionUniverseStatus.Unknown);
         _collections.UpsertAsync(collection).GetAwaiter().GetResult();
-        AddWork($"{name} member", mediaType, visible, shelf: collection.Id);
+        if (members)
+        {
+            AddWork($"{name} member", mediaType, visible, shelf: collection.Id);
+        }
+
         return collection.Id;
     }
 
