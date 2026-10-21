@@ -108,6 +108,8 @@ public sealed partial class UiShellRenderTests
         Assert.Empty(host.FindAll(".review-pinned__header"));
 
         host.Find("article.review-row .app-overflow-menu__trigger").Click();
+        host.WaitForAssertion(() => Assert.Single(host.FindAll("button.app-menu-item"),
+            button => button.TextContent.Contains("Dismiss from review", StringComparison.Ordinal)));
         host.FindAll("button.app-menu-item")
             .Single(button => button.TextContent.Contains("Dismiss from review", StringComparison.Ordinal))
             .Click();
