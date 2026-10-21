@@ -588,10 +588,10 @@ else
 
     private void ResolveSectionAndNormalize()
     {
-        // A profile or authority change can reach this while the router has already moved to another settings page but has not
-        // handed this component the new Section yet. Redirecting from that stale Section sends the page to the old address, and the
+        // A profile or authority change can reach this while the router has already moved to another settings page (or another tab of the same page) but has not
+        // handed this component the new Section, Subsection and Detail yet. Redirecting from that stale Section sends the page to the old address, and the
         // same mistake then sends it back, flipping between two pages as fast as ingestion events arrive. The router's own parameter
-        // update runs this again with a matching Section.
+        // update runs this again with matching ones.
         if (!RoutedSectionMatchesAddress())
         {
             return;
@@ -703,8 +703,10 @@ else
         var segments = NormalizePath(Nav.ToBaseRelativePath(RoutedPageAddress.AbsoluteFor(Nav, Overlay)))
             .Trim('/')
             .Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var addressSection = segments.Length > 1 ? segments[1] : null;
-        return string.Equals(addressSection, Section, StringComparison.OrdinalIgnoreCase);
+        string? SegmentAt(int index) => segments.Length > index ? segments[index] : null;
+        return string.Equals(SegmentAt(1), Section, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(SegmentAt(2), Subsection, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(SegmentAt(3), Detail, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizePath(string path)
