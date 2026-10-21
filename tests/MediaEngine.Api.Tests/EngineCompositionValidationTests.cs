@@ -160,6 +160,8 @@ public sealed class EngineCompositionValidationTests
         services.AddTuvimaHostedServices();
         services.AddTuvimaToolRequirements();
         services.AddTuvimaNotifications();
+        services.AddSingleton(sp => new DatabaseBackupService(sp.GetRequiredService<IDatabaseConnection>(), Path.GetTempPath()));
+        services.AddTuvimaBackupDestinations();
 
         return services;
     }

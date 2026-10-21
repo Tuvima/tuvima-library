@@ -1649,3 +1649,31 @@ Named factual entries in a Wikidata series manifest, including works the local l
 | `order_source` | TEXT | How ordering was determined. |
 | `ownership_state` | TEXT | `Owned`, `Missing`, `Provisional`, or `Ambiguous`. |
 | `linked_work_id` | TEXT | FK to `works.id` when exactly one local work matches. |
+
+### backup_settings
+
+The backup schedule, how many backups to keep, which destinations are switched on, and the two key halves for encrypted copies (JSON rows; currently the single key `settings`). The passphrase itself is never stored: the public key is not secret, and the private key is locked with the passphrase.
+
+| Column | Type | Notes |
+|---|---|---|
+| `setting_key` | TEXT | Primary key |
+| `value_json` | TEXT | The settings document |
+| `updated_at` | TEXT | ISO 8601 UTC |
+
+Added by upgrade step `0028_backup_destinations`.
+
+### backup_copies
+
+One row per copy sent to a destination, so the Backup destinations section can say when the newest copy arrived and whether it was read back and matched.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | TEXT | Primary key |
+| `destination_id` | TEXT | `local` or the destination's own id |
+| `remote_name` | TEXT | File name at the destination |
+| `size_bytes`, `sha256` | INTEGER, TEXT | What was sent |
+| `state` | TEXT | `sent`, `verified`, `failed` or `deleted` |
+| `verified_at`, `last_error` | TEXT | When it was read back; plain-words reason when it failed |
+| `created_at` | TEXT | ISO 8601 UTC |
+
+Added by upgrade step `0028_backup_destinations`.

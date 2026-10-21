@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1140; api=0; web-client=54
+# scopes: contracts=1151; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1610,6 +1610,93 @@
   AvatarIcon: System.String | json=avatar_icon | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ContentLimit: System.String | json=content_limit | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ContentLimitAllowUnrated: System.Boolean? | json=content_limit_allow_unrated | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Backups.BackupDestinationDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.String | json=id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LeavesMachine: System.Boolean | json=leaves_machine | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsConfigured: System.Boolean | json=is_configured | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Enabled: System.Boolean | json=enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  State: System.String | json=state | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StateLabel: System.String | json=state_label | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastCopyAt: System.DateTimeOffset? | json=last_copy_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastCopyVerified: System.Boolean | json=last_copy_verified | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FreeSpaceBytes: System.Int64? | json=free_space_bytes | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","name":"sample","leaves_machine":true,"is_configured":true,"enabled":true,"state":"sample","state_label":"sample","last_copy_at":"2025-01-02T03:04:05+00:00","last_copy_verified":true,"free_space_bytes":7}
+
+[contracts] MediaEngine.Contracts.Backups.BackupDestinationOutcomeDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.String | json=id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Outcome: System.String | json=outcome | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","name":"sample","outcome":"sample","message":"sample"}
+
+[contracts] MediaEngine.Contracts.Backups.BackupDestinationTestResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Success: System.Boolean | json=success | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"success":true,"message":"sample"}
+
+[contracts] MediaEngine.Contracts.Backups.BackupRunResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ArchiveName: System.String | json=archive_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Destinations: System.Collections.Generic.List<MediaEngine.Contracts.Backups.BackupDestinationOutcomeDto> | json=destinations | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AllOk: System.Boolean | json=all_ok | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"archive_name":"sample","destinations":[],"all_ok":true}
+
+[contracts] MediaEngine.Contracts.Backups.BackupScheduleDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Enabled: System.Boolean | json=enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Frequency: System.String | json=frequency | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Time: System.String | json=time | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Weekday: System.Int32 | json=weekday | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"enabled":true,"frequency":"sample","time":"sample","weekday":7}
+
+[contracts] MediaEngine.Contracts.Backups.BackupSettingsResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Schedule: MediaEngine.Contracts.Backups.BackupScheduleDto | json=schedule | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  KeepLast: System.Int32 | json=keep_last | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PassphraseSet: System.Boolean | json=passphrase_set | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Destinations: System.Collections.Generic.List<MediaEngine.Contracts.Backups.BackupDestinationDto> | json=destinations | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NextRunAt: System.DateTimeOffset? | json=next_run_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastRestoreCheckAt: System.DateTimeOffset? | json=last_restore_check_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastRestoreCheckResult: System.String | json=last_restore_check_result | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"schedule":null,"keep_last":7,"passphrase_set":true,"destinations":[],"next_run_at":"2025-01-02T03:04:05+00:00","last_restore_check_at":"2025-01-02T03:04:05+00:00","last_restore_check_result":"sample"}
+
+[contracts] MediaEngine.Contracts.Backups.DestinationBackupDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SizeBytes: System.Int64 | json=size_bytes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ModifiedAt: System.DateTimeOffset | json=modified_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Encrypted: System.Boolean | json=encrypted | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample","size_bytes":7,"modified_at":"2025-01-02T03:04:05+00:00","encrypted":true}
+
+[contracts] MediaEngine.Contracts.Backups.DestinationBackupsResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Backups.DestinationBackupDto> | json=items | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"items":[]}
+
+[contracts] MediaEngine.Contracts.Backups.RestoreFromDestinationRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  DestinationId: System.String | json=destination_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Passphrase: System.String | json=passphrase | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"destination_id":"sample","name":"sample","passphrase":"sample"}
+
+[contracts] MediaEngine.Contracts.Backups.SetBackupPassphraseRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Passphrase: System.String | json=passphrase | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CurrentPassphrase: System.String | json=current_passphrase | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"passphrase":"sample","current_passphrase":"sample"}
+
+[contracts] MediaEngine.Contracts.Backups.UpdateBackupSettingsRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Schedule: MediaEngine.Contracts.Backups.BackupScheduleDto | json=schedule | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  KeepLast: System.Int32? | json=keep_last | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EnabledDestinations: System.Collections.Generic.List<System.String> | json=enabled_destinations | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"schedule":null,"keep_last":7,"enabled_destinations":[]}
 
 [contracts] MediaEngine.Contracts.Characters.UniverseEnrichmentTriggerResponse
   kind=class | converter=default | number-handling=default | unmapped=default
