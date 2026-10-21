@@ -3,6 +3,7 @@ using System.Runtime.Loader;
 using System.Text.Json;
 using MediaEngine.Api.Services.Plugins.Declarative;
 using MediaEngine.Api.Services.Plugins.Service;
+using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
 using MediaEngine.Storage.Contracts;
@@ -38,6 +39,7 @@ public sealed class PluginCatalog
     private readonly string _libraryVersion;
     private readonly string _platform;
     private readonly PluginBlocklist? _blocklist;
+    private readonly PluginMetadataSourceFiles? _sourceFiles;
     private readonly object _lock = new();
     private List<PluginRegistration> _registrations = [];
     private bool _loaded;
@@ -54,8 +56,9 @@ public sealed class PluginCatalog
         IConfigurationLoader configurationLoader,
         IPluginApprovalCheck approvals,
         ILogger<PluginCatalog> logger,
-        PluginBlocklist? blocklist = null)
-        : this(builtInPlugins, settingsService, configurationLoader, approvals, logger, LibraryVersion.Current, PluginCompatibility.CurrentRid, blocklist)
+        PluginBlocklist? blocklist = null,
+        PluginMetadataSourceFiles? sourceFiles = null)
+        : this(builtInPlugins, settingsService, configurationLoader, approvals, logger, LibraryVersion.Current, PluginCompatibility.CurrentRid, blocklist, sourceFiles)
     {
     }
 
@@ -69,8 +72,10 @@ public sealed class PluginCatalog
         ILogger<PluginCatalog> logger,
         string libraryVersion,
         string platform,
-        PluginBlocklist? blocklist = null)
+        PluginBlocklist? blocklist = null,
+        PluginMetadataSourceFiles? sourceFiles = null)
     {
+        _sourceFiles = sourceFiles;
         _blocklist = blocklist;
         if (blocklist is not null)
         {
@@ -276,6 +281,9 @@ public sealed class PluginCatalog
             _registrations = [];
         }
         EnsureLoaded();
+
+        // Metadata sources supplied by switched-on JSON plugins live in the providers folder; keep it in step.
+        _sourceFiles?.Reconcile(List());
     }
 
     private void EnsureLoaded()

@@ -136,6 +136,24 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
         Assert.Contains("Continue", saved.Markup, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void EnhanceStep_SaysWhatTheLibraryNeeds_AndWhichSourcesSupplyIt()
+    {
+        var movies = new LibrariesConfigurationDto
+        {
+            Libraries = [new LibraryFolderDto { Kind = "catalogued", MediaTypes = ["Movies"] }],
+        };
+        var source = new ProviderCatalogueDto { DisplayName = "Example", MediaTypes = ["Movies"], Capabilities = ["artwork"] };
+
+        var cut = Render<SetupProvidersStage>(parameters => parameters
+            .Add(p => p.Catalogue, [source])
+            .Add(p => p.Libraries, movies));
+
+        var need = Assert.Single(cut.FindAll("[data-testid='setup-need']"));
+        Assert.Contains("artwork", need.TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Example", need.TextContent, StringComparison.Ordinal);
+    }
+
     private static ProviderCatalogueDto Provider(bool configured) => new()
     {
         DisplayName = "Example",

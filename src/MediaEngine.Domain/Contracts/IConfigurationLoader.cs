@@ -156,6 +156,9 @@ public interface IConfigurationLoader
     /// </summary>
     void SaveProvider(ProviderConfiguration config);
 
+    /// <summary>Remove the provider file <c>config/providers/{name}.json</c> (and its backup). Does nothing when it does not exist.</summary>
+    void DeleteProvider(string name);
+
     /// <summary>
     /// Load all provider configuration files from <c>config/providers/</c>.
     /// Files that fail to deserialize are silently skipped.

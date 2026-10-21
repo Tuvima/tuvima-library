@@ -75,6 +75,15 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
+    public Task<PluginSourcesResponse?> GetPluginSourcesAsync(CancellationToken ct = default) =>
+        GetAsync<PluginSourcesResponse>("GET /plugin-sources", "/plugin-sources", ct: ct);
+
+    public Task<PluginSourceImpactDto?> GetPluginSourceSwitchOffImpactAsync(string name, CancellationToken ct = default) =>
+        GetAsync<PluginSourceImpactDto>("GET /plugin-sources/{name}/switch-off-impact", $"/plugin-sources/{Uri.EscapeDataString(name)}/switch-off-impact", ct: ct);
+
+    public Task<PluginSourceComparisonDto?> ComparePluginSourcesAsync(string from, string to, CancellationToken ct = default) =>
+        GetAsync<PluginSourceComparisonDto>("GET /plugin-sources/compare", $"/plugin-sources/compare?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}", ct: ct);
+
     public Task<PluginDirectoryResponse?> GetPluginDirectoryAsync(CancellationToken ct = default) =>
         GetAsync<PluginDirectoryResponse>("GET /plugins/directory", "/plugins/directory", ct: ct);
 

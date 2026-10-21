@@ -95,3 +95,18 @@
     ::deep .setup-checks article > .app-status-badge { grid-column: 2; justify-self: start; }
 
 }
+
+.setup-needs {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.setup-needs h3 {
+    margin: 0;
+}
+
+.setup-needs ul {
+    margin: 0;
+    padding-left: 20px;
+}

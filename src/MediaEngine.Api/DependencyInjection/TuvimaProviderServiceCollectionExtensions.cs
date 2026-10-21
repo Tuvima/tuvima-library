@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Api.Services.Review;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -133,6 +134,7 @@ public static class TuvimaProviderServiceCollectionExtensions
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 
         var providerConfigurations = configLoader.LoadAllProviders();
+        services.AddSingleton(new ProviderStartupSnapshot(providerConfigurations.Where(config => config.PluginId is not null && config.Enabled).Select(config => config.Name)));
         foreach (var providerConfig in ConfigDrivenProviders(providerConfigurations).Where(config => config.RegistrationOrder <= 0))
         {
             RegisterConfigDrivenProvider(services, providerConfig);

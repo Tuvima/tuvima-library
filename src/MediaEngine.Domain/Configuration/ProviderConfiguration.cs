@@ -158,6 +158,13 @@ public sealed class ProviderConfiguration
     [JsonPropertyName("provider_id")]
     public string? ProviderId { get; set; }
 
+    /// <summary>
+    /// The plugin that supplied this source, or null for a source that ships with the Library. The Library writes this when it
+    /// puts a plugin's metadata source in the providers folder, and removes the file again when the plugin is switched off.
+    /// </summary>
+    [JsonPropertyName("plugin_id")]
+    public string? PluginId { get; set; }
+
     /// <summary>Human-readable provider name for the Dashboard.</summary>
     [JsonPropertyName("display_name")]
     public string? DisplayName { get; set; }

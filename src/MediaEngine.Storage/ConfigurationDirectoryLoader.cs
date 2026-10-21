@@ -307,6 +307,20 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     }
 
     /// <inheritdoc/>
+    public void DeleteProvider(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (name.Any(c => c is '/' or '\\') || name.Contains("..", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("A provider name cannot be a path.", nameof(name));
+        }
+
+        var path = Path.Combine(_configDir, ProvidersSubdir, $"{name}.json");
+        File.Delete(path);
+        File.Delete(path + ".bak");
+    }
+
+    /// <inheritdoc/>
     public IReadOnlyList<ProviderConfiguration> LoadAllProviders()
     {
         var dir = Path.Combine(_configDir, ProvidersSubdir);

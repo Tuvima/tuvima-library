@@ -2278,6 +2278,7 @@ public sealed class DurablePipelineTests : IDisposable
         public FieldPriorityConfiguration LoadFieldPriorities() => new();
         public void SaveFieldPriorities(FieldPriorityConfiguration config) { }
         public ProviderConfiguration? LoadProvider(string name) => null;
+        public void DeleteProvider(string name) { }
         public void SaveProvider(ProviderConfiguration config) { }
         public T? LoadAi<T>() where T : class => default;
         public void SaveAi<T>(T settings) where T : class { }

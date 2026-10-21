@@ -343,6 +343,7 @@ file sealed class IntegrationConfigLoader : IConfigurationLoader
     public void SaveFieldPriorities(FieldPriorityConfiguration config) { }
     public LibrariesConfiguration LoadLibraries() => new();
     public ProviderConfiguration? LoadProvider(string name) => null;
+    public void DeleteProvider(string name) { }
     public void SaveProvider(ProviderConfiguration config) { }
     public IReadOnlyList<ProviderConfiguration> LoadAllProviders() => [];
     public T? LoadConfig<T>(string subdirectory, string name) where T : class => null;
