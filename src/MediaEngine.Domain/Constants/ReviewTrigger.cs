@@ -143,4 +143,12 @@ public static class ReviewTrigger
     /// <c>candidates_json</c> names the competing Series.
     /// </summary>
     public const string AmbiguousSeriesMembership = "AmbiguousSeriesMembership";
+
+    /// <summary>
+    /// A batch edit could not change this item (a value it only inherits, a value outside the field's limits, a list that
+    /// would be left empty, or a write error) while the rest of the batch applied. Nothing was changed on the item;
+    /// <c>detail</c> names the fields and the reason. It has its own trigger so it never merges into a pipeline
+    /// <see cref="MetadataConflict"/> row on the same item.
+    /// </summary>
+    public const string BatchEditFailed = "BatchEditFailed";
 }

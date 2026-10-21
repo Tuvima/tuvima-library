@@ -1,0 +1,449 @@
+using MediaEngine.Api.Services.Libraries.Moves;
+using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Application.ReadModels;
+using MediaEngine.Contracts.Library;
+using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Models;
+using MediaEngine.Storage;
+
+namespace MediaEngine.Api.Tests;
+
+/// <summary>
+/// What a move must never do: move a whole container or make a loop, throw away what people did with a title, lose details the person
+/// set, reach into a private collection, leave stale links, or let an application do more than it holds permission for.
+/// </summary>
+public sealed class LibraryMoveSafetyTests : IDisposable
+{
+    private static readonly Guid Person = Profile.SeedProfileId;
+
+    private readonly LibraryMoveTestWorld _world = new();
+
+    public void Dispose() => _world.Dispose();
+
+    // ----- containers and loops ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task AWholeShow_CannotBeMoved_NotEvenIntoItsOwnSeason()
+    {
+        var show = _world.AddParent("TV", "Northwatch");
+        var season = _world.AddParent("TV", string.Empty, show, ordinal: 1);
+        _world.AddChild(season, "TV", "Pilot", 1);
+
+        var refused = await PreviewAsync([show], season);
+
+        Assert.Equal(LibraryMoveRefusalKind.Invalid, refused.Refusal!.Kind);
+        Assert.Contains("can't be moved", refused.Refusal.Message, StringComparison.Ordinal);
+        Assert.Equal(show, _world.Work(season).Parent);
+        Assert.Null(_world.Work(show).Parent);
+    }
+
+    [Fact]
+    public async Task AWholeAlbumOrSeries_CannotBeMovedIntoAnotherOne()
+    {
+        var album = _world.AddParent("Music", "The Best Of");
+        _world.AddChild(album, "Music", "Airbag", 1);
+        var other = _world.AddParent("Music", "OK Computer");
+        _world.AddChild(other, "Music", "Karma Police", 1);
+        var series = _world.AddParent("Books", "Dune");
+        _world.AddChild(series, "Books", "Dune", 1);
+        var otherSeries = _world.AddParent("Books", "Foundation");
+        _world.AddChild(otherSeries, "Books", "Foundation", 1);
+
+        Assert.Equal(LibraryMoveRefusalKind.Invalid, (await PreviewAsync([album], other)).Refusal!.Kind);
+        Assert.Equal(LibraryMoveRefusalKind.Invalid, (await PreviewAsync([series], otherSeries)).Refusal!.Kind);
+        Assert.Equal(album, _world.Scalar<Guid>("SELECT id FROM works WHERE id = @album;", new { album }));
+    }
+
+    [Fact]
+    public async Task ATitleThatHoldsOtherItems_CannotBeMoved_EvenWhenItIsNotMarkedAsAContainer()
+    {
+        var album = _world.AddParent("Music", "The Best Of");
+        var (song, _, _) = _world.AddChild(album, "Music", "Airbag", 1);
+        _world.AddChild(song, "Music", "Hidden track", 2);
+        var other = AlbumWith("OK Computer");
+
+        var refused = await PreviewAsync([song], other);
+
+        Assert.Equal(LibraryMoveRefusalKind.Invalid, refused.Refusal!.Kind);
+        Assert.Equal(album, _world.Work(song).Parent);
+    }
+
+    // ----- what people did with a title is kept ----------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task AHeartedSongWithPlays_KeepsItsHeartAndPlays_WhenMatchedOntoAnExistingEntry()
+    {
+        var bestOf = _world.AddParent("Music", "The Best Of");
+        var (song, _, _) = _world.AddChild(bestOf, "Music", "Paranoid Android", 3);
+        var okComputer = _world.AddParent("Music", "OK Computer");
+        var (entry, _, _) = _world.AddChild(okComputer, "Music", "Paranoid Android", 2, hasFile: false, catalogOnly: true);
+        _world.Execute(
+            """
+            INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, 'Song', @song, '2026-10-01T00:00:00Z');
+            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Song', @song, 'Love', '2026-10-05T00:00:00Z');
+            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Song', @entry, 'Dislike', '2026-10-02T00:00:00Z');
+            INSERT INTO music_play_stats (profile_id, work_id, play_count, last_played_at) VALUES (@person, @song, 5, '2026-10-04T00:00:00Z');
+            INSERT INTO music_play_stats (profile_id, work_id, play_count, last_played_at) VALUES (@person, @entry, 2, '2026-10-03T00:00:00Z');
+            INSERT INTO profile_work_preferences (profile_id, work_id, local_tags_json, revision, updated_at) VALUES (@person, @song, '["mine"]', 1, '2026-10-01T00:00:00Z');
+            INSERT INTO profile_work_preferences (profile_id, work_id, local_tags_json, revision, updated_at) VALUES (@person, @entry, '["entry"]', 1, '2026-10-01T00:00:00Z');
+            """,
+            new { person = Person, song, entry });
+
+        var preview = await Preview([song], okComputer);
+        var result = await Commit(preview, Match(song, preview.Entries.Single().EntryKey));
+
+        Assert.True(result.IsSuccess, result.Refusal?.Message);
+        Assert.False(_world.WorkExists(song));
+        Assert.Equal(1, _world.Scalar<long>("SELECT COUNT(*) FROM profile_saved_items WHERE entity_id = @entry;", new { entry }));
+        Assert.Equal("Love", _world.Scalar<string>("SELECT reaction FROM profile_reactions WHERE entity_id = @entry;", new { entry }));
+        Assert.Equal(7, _world.Scalar<long>("SELECT play_count FROM music_play_stats WHERE work_id = @entry;", new { entry }));
+        Assert.Equal("2026-10-04T00:00:00Z", _world.Scalar<string>("SELECT last_played_at FROM music_play_stats WHERE work_id = @entry;", new { entry }));
+        Assert.Equal("[\"entry\"]", _world.Scalar<string>("SELECT local_tags_json FROM profile_work_preferences WHERE work_id = @entry;", new { entry }));
+    }
+
+    [Fact]
+    public async Task AnEarlierHeartOnTheEntry_IsNotOverwrittenByAnOlderOneOnTheMovedSong()
+    {
+        var bestOf = _world.AddParent("Music", "The Best Of");
+        var (song, _, _) = _world.AddChild(bestOf, "Music", "Paranoid Android", 3);
+        var okComputer = _world.AddParent("Music", "OK Computer");
+        var (entry, _, _) = _world.AddChild(okComputer, "Music", "Paranoid Android", 2, hasFile: false, catalogOnly: true);
+        _world.Execute(
+            """
+            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Song', @song, 'Dislike', '2026-10-01T00:00:00Z');
+            INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Song', @entry, 'Love', '2026-10-09T00:00:00Z');
+            """,
+            new { person = Person, song, entry });
+
+        var preview = await Preview([song], okComputer);
+        await Commit(preview, Match(song, preview.Entries.Single().EntryKey));
+
+        Assert.Equal("Love", _world.Scalar<string>("SELECT reaction FROM profile_reactions WHERE entity_id = @entry;", new { entry }));
+    }
+
+    [Fact]
+    public async Task AnAudiobookEmptiedByAMove_HandsItsBookmarksHistoryAndCollectionsToTheOneThatTookItsFiles()
+    {
+        var (target, _) = _world.AddAudiobook("Dune (audiobook)", [(1, "Part one")], partCount: 3);
+        var (source, parts) = _world.AddAudiobook("Dune disc three", [(1, "Chapter three")]);
+        var collection = _world.AddCollection("Road trip", source);
+        _world.Execute(
+            """
+            INSERT INTO audiobook_bookmarks (id, profile_id, work_id, asset_id, position_seconds, created_at) VALUES (@bookmark, @person, @source, @asset, 12, '2026-10-01T00:00:00Z');
+            INSERT INTO audiobook_listen_history (id, profile_id, work_id, asset_id, title, position_seconds, device_id, client, started_at, ended_at)
+            VALUES (@history, @person, @source, @asset, 'Chapter three', 30, 'd', 'web', '2026-10-01T00:00:00Z', '2026-10-01T00:05:00Z');
+            """,
+            new { bookmark = Guid.NewGuid(), history = Guid.NewGuid(), person = Person, source, asset = parts[0].AssetId });
+
+        var preview = await Preview([parts[0].EditionId], target);
+        var free = preview.Entries.Single(entry => entry.Number == "2");
+        var result = await Commit(preview, Match(parts[0].EditionId, free.EntryKey));
+
+        Assert.True(result.IsSuccess, result.Refusal?.Message);
+        Assert.False(_world.WorkExists(source));
+        Assert.Equal(target, _world.Scalar<Guid>("SELECT work_id FROM audiobook_bookmarks;"));
+        Assert.Equal(target, _world.Scalar<Guid>("SELECT work_id FROM audiobook_listen_history;"));
+        Assert.Equal(1, _world.Scalar<long>("SELECT COUNT(*) FROM collection_items WHERE collection_id = @collection AND work_id = @target;", new { collection, target }));
+        Assert.Equal(1, _world.Scalar<long>("SELECT COUNT(*) FROM collections WHERE id = @collection;", new { collection }));
+        Assert.DoesNotContain(result.Value!.RemovedContainers, name => name == "Road trip");
+    }
+
+    // ----- details the person set --------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task MovingAllThreePartsOfARenamedAudiobook_IsRefused_ButTwoOfThreeIsFine()
+    {
+        var (target, _) = _world.AddAudiobook("Dune (audiobook)", [(1, "Part one")], partCount: 5);
+        var (source, parts) = _world.AddAudiobook("Dune disc", [(1, "A"), (2, "B"), (3, "C")]);
+        _world.Execute("UPDATE works SET display_overrides_json = '{\"title\":\"My own title\"}' WHERE id = @source;", new { source });
+
+        var all = await Preview([.. parts.Select(part => part.EditionId)], target);
+        Assert.All(all.Rows, row => Assert.Contains("last file can't be moved", row.BlockedReason, StringComparison.Ordinal));
+        var rows = all.Rows.Select(row => AddAnyway(row.ItemId)).ToArray();
+        var refused = await Commit(all, rows);
+        Assert.Equal(LibraryMoveRefusalKind.Invalid, refused.Refusal!.Kind);
+        Assert.True(_world.WorkExists(source));
+        Assert.Equal(3, _world.EditionCount(source));
+
+        var some = await Preview([parts[0].EditionId, parts[1].EditionId], target);
+        Assert.All(some.Rows, row => Assert.Null(row.BlockedReason));
+        var moved = await Commit(some, AddAnyway(parts[0].EditionId), AddAnyway(parts[1].EditionId));
+        Assert.True(moved.IsSuccess, moved.Refusal?.Message);
+        Assert.True(_world.WorkExists(source));
+        Assert.Equal(1, _world.EditionCount(source));
+    }
+
+    // ----- the source collection ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task APrivateProfileCollection_IsRefusedAsTheSourceOfAMove()
+    {
+        var bestOf = _world.AddParent("Music", "The Best Of");
+        var (song, _, _) = _world.AddChild(bestOf, "Music", "Paranoid Android", 3);
+        var favourites = _world.AddCollection("Favourites");
+        var secret = _world.AddCollection("Somebody's private list", song);
+        _world.Execute("UPDATE collections SET owner_kind = 'Profile', profile_id = @person, scope = 'profile' WHERE id = @secret;", new { person = Person, secret });
+
+        var refused = await _world.Service.PreviewAsync(
+            new LibraryMovePreviewRequest { ItemIds = [song], DestinationId = favourites, SourceCollectionId = secret },
+            LibraryMoveTestWorld.Actor,
+            LibraryMoveTestWorld.Everything);
+
+        Assert.Equal(LibraryMoveRefusalKind.Invalid, refused.Refusal!.Kind);
+        Assert.Equal(1, _world.Scalar<long>("SELECT COUNT(*) FROM collection_items WHERE collection_id = @secret;", new { secret }));
+    }
+
+    [Fact]
+    public async Task ASourceCollectionTheCallerMayNotEdit_IsRefusedInThePreviewAndTheCommit()
+    {
+        var bestOf = _world.AddParent("Music", "The Best Of");
+        var (song, _, _) = _world.AddChild(bestOf, "Music", "Paranoid Android", 3);
+        var (other, _, _) = _world.AddChild(bestOf, "Music", "Airbag", 4);
+        var favourites = _world.AddCollection("Favourites");
+        var roadTrip = _world.AddCollection("Road trip", song, other);
+        LibraryMoveAccess everythingButTheCollection = (id, _, _) => ValueTask.FromResult(id != roadTrip);
+        var request = new LibraryMovePreviewRequest { ItemIds = [song], DestinationId = favourites, SourceCollectionId = roadTrip };
+
+        var refused = await _world.Service.PreviewAsync(request, LibraryMoveTestWorld.Actor, everythingButTheCollection);
+        var preview = (await _world.Service.PreviewAsync(request, LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.Everything)).Value!;
+        var commit = await _world.Service.CommitAsync(
+            new LibraryMoveCommitRequest { PreviewToken = preview.PreviewToken, Rows = [Free(song)] },
+            LibraryMoveTestWorld.Actor,
+            everythingButTheCollection);
+
+        Assert.Equal(LibraryMoveRefusalKind.Unavailable, refused.Refusal!.Kind);
+        Assert.Equal(LibraryMoveRefusalKind.Unavailable, commit.Refusal!.Kind);
+        Assert.Equal(1, _world.Scalar<long>("SELECT COUNT(*) FROM collection_items WHERE collection_id = @roadTrip AND work_id = @song;", new { roadTrip, song }));
+    }
+
+    // ----- files Tuvima wrote ------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task APictureOnlyTheMergedAwayTitleUsed_IsRemovedAfterTheMove_AndASourceFileIsNeverTouched()
+    {
+        var bestOf = _world.AddParent("Music", "The Best Of");
+        var (song, _, _) = _world.AddChild(bestOf, "Music", "Paranoid Android", 3);
+        var okComputer = _world.AddParent("Music", "OK Computer");
+        _world.AddChild(okComputer, "Music", "Paranoid Android", 2, hasFile: false, catalogOnly: true);
+        var picture = Path.Combine(_world.AssetPaths.AssetsRoot, "artwork", "paranoid-android.jpg");
+        Directory.CreateDirectory(Path.GetDirectoryName(picture)!);
+        File.WriteAllBytes(picture, [1, 2, 3]);
+        var sourceMedia = Path.Combine(_world.Root, "library", "Paranoid Android.mp3");
+        Directory.CreateDirectory(Path.GetDirectoryName(sourceMedia)!);
+        File.WriteAllBytes(sourceMedia, [9, 9, 9]);
+        _world.Execute(
+            """
+            INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, local_image_path) VALUES (@a, @song, 'Work', 'CoverArt', @picture);
+            INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, local_image_path) VALUES (@b, @song, 'Work', 'Banner', @sourceMedia);
+            """,
+            new { a = Guid.NewGuid(), b = Guid.NewGuid(), song, picture, sourceMedia });
+
+        var preview = await Preview([song], okComputer);
+        var result = await Commit(preview, Match(song, preview.Entries.Single().EntryKey));
+
+        Assert.True(result.IsSuccess, result.Refusal?.Message);
+        Assert.False(File.Exists(picture));
+        Assert.True(File.Exists(sourceMedia));
+    }
+
+    // ----- one definition of taken -------------------------------------------------------------------------------------------------
+
+    // ----- links -------------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ATitleAddedAnywayToASeriesWithNoSeriesLink_DoesNotStayTiedToTheSeriesItLeft()
+    {
+        var oldCollection = _world.AddSeriesCollection("wd:Q1", [("q1", "wd:Q1", 1, "Dune", null)]);
+        var oldSeries = _world.AddParent("Books", "Dune");
+        var (book, _, _) = _world.AddChild(oldSeries, "Books", "Dune Messiah", 2, collection: oldCollection);
+        var newSeries = _world.AddParent("Books", "Loose books");
+        _world.AddChild(newSeries, "Books", "Another", 1);
+        Assert.Equal(oldCollection, _world.Work(book).Collection);
+
+        var preview = await Preview([book], newSeries);
+        var result = await Commit(preview, AddAnyway(book));
+
+        Assert.True(result.IsSuccess, result.Refusal?.Message);
+        Assert.Null(_world.Work(book).Collection);
+    }
+
+    // ----- permissions -------------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task MatchingAndAddingAVersionNeedTheMatchRight_AddingAnywayAndFreeMovesNeedOnlyWrite()
+    {
+        var bestOf = _world.AddParent("Music", "The Best Of");
+        var (first, _, _) = _world.AddChild(bestOf, "Music", "Paranoid Android", 3);
+        var (second, _, _) = _world.AddChild(bestOf, "Music", "Airbag", 4);
+        var okComputer = _world.AddParent("Music", "OK Computer", manifestJson: """{"tracks":[{"title":"Paranoid Android","track_number":2,"disc_number":1}]}""");
+        var previewed = await _world.Service.PreviewAsync(
+            new LibraryMovePreviewRequest { ItemIds = [first, second], DestinationId = okComputer },
+            LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.WriteOnly);
+        Assert.True(previewed.IsSuccess, previewed.Refusal?.Message);
+        var preview = previewed.Value!;
+        var entry = preview.Entries.Single();
+        var matchRefused = await _world.Service.CommitAsync(
+            new LibraryMoveCommitRequest { PreviewToken = preview.PreviewToken, Rows = [Match(first, entry.EntryKey), AddAnyway(second)] },
+            LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.WriteOnly);
+        var addAnyway = await _world.Service.CommitAsync(
+            new LibraryMoveCommitRequest { PreviewToken = preview.PreviewToken, Rows = [AddAnyway(first), AddAnyway(second)] },
+            LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.WriteOnly);
+
+        Assert.Equal(LibraryMoveRefusalKind.Unavailable, matchRefused.Refusal!.Kind);
+        Assert.True(addAnyway.IsSuccess, addAnyway.Refusal?.Message);
+
+        var (third, _, _) = _world.AddChild(_world.AddParent("Music", "Other"), "Music", "Karma Police", 1);
+        var (keeper, _, _) = _world.AddChild(_world.AddParent("Music", "Yet another"), "Music", "Lucky", 1);
+        var favourites = _world.AddCollection("Favourites", keeper);
+        var freePreview = await _world.Service.PreviewAsync(
+            new LibraryMovePreviewRequest { ItemIds = [third], DestinationId = favourites },
+            LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.WriteOnly);
+        Assert.True(freePreview.IsSuccess, freePreview.Refusal?.Message);
+        var free = freePreview.Value!;
+        var moved = await _world.Service.CommitAsync(
+            new LibraryMoveCommitRequest { PreviewToken = free.PreviewToken, Rows = [Free(third)] },
+            LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.WriteOnly);
+        Assert.True(moved.IsSuccess, moved.Refusal?.Message);
+    }
+
+    // ----- add anyway stays unnumbered -----------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task AfterAddAnyway_ReReadingTheFileKeepsTheTitleUnnumbered_AndALaterMatchNumbersItAgain()
+    {
+        var bestOf = _world.AddParent("Music", "The Best Of");
+        var (song, _, songAsset) = _world.AddChild(bestOf, "Music", "Hidden Bonus Jam", 3);
+        _world.Put(song, "track_number", "9");
+        _world.Put(songAsset!.Value, "track_number", "9");
+        var okComputer = _world.AddParent("Music", "OK Computer", manifestJson: """{"tracks":[{"title":"Hidden Bonus Jam","track_number":11,"disc_number":1}]}""");
+        _world.AddChild(okComputer, "Music", "Airbag", 1);
+
+        var preview = await Preview([song], okComputer);
+        Assert.True((await Commit(preview, AddAnyway(song))).IsSuccess);
+        var canonicals = new CanonicalValueRepository(_world.Database);
+
+        // The file still carries its track number tag, and it is read again (re-scan, re-read, re-identify).
+        await canonicals.UpsertBatchAsync(
+        [
+            new CanonicalValue { EntityId = songAsset.Value, Key = "track_number", Value = "9", LastScoredAt = DateTimeOffset.UtcNow },
+            new CanonicalValue { EntityId = song, Key = "track_number", Value = "9", LastScoredAt = DateTimeOffset.UtcNow },
+            new CanonicalValue { EntityId = songAsset.Value, Key = "title", Value = "Hidden Bonus Jam", LastScoredAt = DateTimeOffset.UtcNow },
+        ]);
+
+        var state = _world.Work(song);
+        Assert.Null(state.Ordinal);
+        Assert.Null(state.OrdinalSort);
+        Assert.Equal(1, state.Unmatched);
+        Assert.Null(_world.Canonical(song, "track_number"));
+        Assert.Null(_world.Canonical(songAsset.Value, "track_number"));
+        Assert.Equal("Hidden Bonus Jam", _world.Canonical(songAsset.Value, "title"));
+
+        // Matching it to a real entry later clears the mark and numbers it.
+        var elsewhere = _world.AddParent("Music", "Another Album", manifestJson: """{"tracks":[{"title":"Hidden Bonus Jam","track_number":4,"disc_number":1}]}""");
+        _world.AddChild(elsewhere, "Music", "Opener", 1);
+        var second = await Preview([song], elsewhere);
+        var entry = second.Entries.Single(candidate => candidate.Title == "Hidden Bonus Jam");
+        Assert.True((await Commit(second, Match(song, entry.EntryKey))).IsSuccess);
+
+        var matched = _world.Work(song);
+        Assert.Equal(0, matched.Unmatched);
+        Assert.Equal(4, matched.Ordinal);
+        Assert.Equal("4", _world.Canonical(song, "track_number"));
+        Assert.Equal("4", _world.Canonical(songAsset.Value, "track_number"));
+        await canonicals.UpsertBatchAsync([new CanonicalValue { EntityId = songAsset.Value, Key = "track_number", Value = "4", LastScoredAt = DateTimeOffset.UtcNow }]);
+        Assert.Equal("4", _world.Canonical(songAsset.Value, "track_number"));
+    }
+
+    [Fact]
+    public async Task AReMatchPreview_ForATitleAddedAnyway_IsAllowedAndChangesNothing()
+    {
+        var (episode, request) = EpisodeAddedAnywayWithReMatchRequest();
+
+        var preview = await HierarchyAlignmentService.BuildMembershipPreviewAsync(episode, request, _world.Database, CancellationToken.None);
+
+        // Spec D20: a re-match against known data is how a title added anyway gets placed properly, so it is not refused.
+        Assert.NotEqual("conflict", preview!.Action);
+        Assert.True(preview.CanApply, $"{preview.Action}: {preview.Message} | {preview.ConflictMessage}");
+        Assert.Null(_world.Work(episode).Ordinal);
+        Assert.Equal(1L, _world.Scalar<long>("SELECT placement_unmatched FROM works WHERE id = @episode;", new { episode }));
+    }
+
+    [Fact]
+    public async Task AppliedReMatch_ForATitleAddedAnyway_ClearsTheNotMatchedMark()
+    {
+        var (episode, request) = EpisodeAddedAnywayWithReMatchRequest();
+
+        var applied = await HierarchyAlignmentService.ApplyMembershipChangeAsync(
+            episode, request, _world.Database, new NoOpPipeline(), CancellationToken.None);
+
+        Assert.True(applied!.Applied, $"{applied.Action}: {applied.Message} | {applied.ConflictMessage}");
+        Assert.Equal(0L, _world.Scalar<long>("SELECT placement_unmatched FROM works WHERE id = @episode;", new { episode }));
+    }
+
+    private (Guid Episode, MembershipPreviewRequest Request) EpisodeAddedAnywayWithReMatchRequest()
+    {
+        // The episode was added anyway to the wrong show; the re-match identifies it as Southwatch season 1 episode 5.
+        var show = _world.AddParent("TV", "Northwatch");
+        var season = _world.AddParent("TV", string.Empty, show, ordinal: 1);
+        var rightShow = _world.AddParent("TV", "Southwatch");
+        var rightSeason = _world.AddParent("TV", string.Empty, rightShow, ordinal: 1);
+        var (episode, _, _) = _world.AddChild(season, "TV", "Pilot", null, ordinalSort: null);
+        _world.Execute("UPDATE works SET placement_unmatched = 1 WHERE id = @episode;", new { episode });
+        var request = new MembershipPreviewRequest(
+            "show_episode",
+            new Dictionary<string, string?> { ["show_name"] = "Southwatch", ["season_number"] = "1", ["episode_number"] = "5" },
+            new Dictionary<string, Guid?> { ["show"] = rightShow, ["season"] = rightSeason },
+            null);
+        return (episode, request);
+    }
+
+    private sealed class NoOpPipeline : IHydrationPipelineService
+    {
+        public ValueTask<Guid> EnqueueAsync(HarvestRequest request, CancellationToken ct = default) => ValueTask.FromResult(Guid.NewGuid());
+
+        public Task<HydrationResult> RunSynchronousAsync(HarvestRequest request, CancellationToken ct = default)
+            => throw new NotSupportedException();
+    }
+
+    // ----- helpers ---------------------------------------------------------------------------------------------------------------
+
+    private Guid AlbumWith(string name)
+    {
+        var album = _world.AddParent("Music", name);
+        _world.AddChild(album, "Music", "Karma Police", 1);
+        return album;
+    }
+
+    private Task<LibraryMoveResult<LibraryMovePreview>> PreviewAsync(IReadOnlyList<Guid> items, Guid destination) =>
+        _world.Service.PreviewAsync(
+            new LibraryMovePreviewRequest { ItemIds = items, DestinationId = destination },
+            LibraryMoveTestWorld.Actor,
+            LibraryMoveTestWorld.Everything);
+
+    private async Task<LibraryMovePreview> Preview(IReadOnlyList<Guid> items, Guid destination)
+    {
+        var result = await PreviewAsync(items, destination);
+        Assert.True(result.IsSuccess, result.Refusal?.Message);
+        return result.Value!;
+    }
+
+    private Task<LibraryMoveResult<LibraryMoveCommitResult>> Commit(LibraryMovePreview preview, params LibraryMoveCommitRow[] rows) =>
+        _world.Service.CommitAsync(
+            new LibraryMoveCommitRequest { PreviewToken = preview.PreviewToken, Rows = rows },
+            LibraryMoveTestWorld.Actor,
+            LibraryMoveTestWorld.Everything);
+
+    private static LibraryMoveCommitRow Match(Guid item, string entryKey) =>
+        new() { ItemId = item, Mode = LibraryMoveModes.Match, EntryKey = entryKey };
+
+    private static LibraryMoveCommitRow AsVersion(Guid item, string entryKey) =>
+        new() { ItemId = item, Mode = LibraryMoveModes.AddAsVersion, EntryKey = entryKey };
+
+    private static LibraryMoveCommitRow AddAnyway(Guid item) =>
+        new() { ItemId = item, Mode = LibraryMoveModes.AddAnyway };
+
+    private static LibraryMoveCommitRow Free(Guid item) =>
+        new() { ItemId = item, Mode = LibraryMoveModes.Match };
+}

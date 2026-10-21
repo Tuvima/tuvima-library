@@ -341,24 +341,7 @@
                         </div>
                         @if (!string.IsNullOrWhiteSpace(retailSelected.Description)) { <p class="sme-match-selected-description">@retailSelected.Description</p> }
                         <dl class="sme-match-selected-facts">@foreach (var fact in BuildRetailCandidateFacts(retailSelected)) { <div><dt>@fact.Label</dt><dd>@fact.Value</dd></div> }</dl>
-                        @if (IsMusicTrackMoveTarget)
-                        {
-                            @if (MusicTrackMovePrerequisite(retailSelected) is { } prerequisite)
-                            {
-                                <div class="sme-match-evidence-notice" role="status">@prerequisite</div>
-                            }
-                            else
-                            {
-                                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@MusicTrackMoveBusy" OnClick="@(() => PreviewMusicTrackMoveAsync(retailSelected))">@(MusicTrackMoveBusy ? "Reviewing…" : "Review exact release tracks")</AppButton>
-                            }
-                            @if (MusicTrackMovePreview is { } movePreview)
-                            {
-                                <section class="sme-music-move-review" aria-label="Verified release tracks"><h4>@movePreview.Album</h4><p>@movePreview.Artist · Select the exact track for this file.</p><div class="sme-music-move-review__choices">@foreach (var track in movePreview.Tracks) { <AppNativeButton Type="button" Class="@(MusicTrackMoveChoiceId == track.ReleaseTrackId ? "is-selected" : "")" aria-pressed="@(MusicTrackMoveChoiceId == track.ReleaseTrackId)" OnClick="@(() => SelectMusicTrackMoveChoice.InvokeAsync(track.ReleaseTrackId))"><span>@track.DiscNumber.@track.TrackNumber</span><strong>@track.Title</strong></AppNativeButton> }</div><AppButton Label="Save track move" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(MusicTrackMoveBusy || MusicTrackMoveChoiceId is null)" OnClick="SaveMusicTrackMoveAsync" /></section>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(MusicTrackMoveError)) { <p class="sme-match-blocked-reason" role="alert">@MusicTrackMoveError</p> }
-                        }
-                        else
-                        {
+                        @* This is the retail match: identity only. Moving a title into another album, season or series is the Move area above. *@
                             @if (IsDirty) { <div class="sme-match-blocked-reason" role="status">Save or discard your unsaved editor changes before applying a retail match.</div> }
                             else if (!retailSelected.IsApplicable && !string.IsNullOrWhiteSpace(retailSelected.BlockedReason)) { <div class="sme-match-blocked-reason" role="status">@retailSelected.BlockedReason</div> }
                             else if (GetRetailCandidateEvidenceNotice(retailSelected) is { } notice) { <div class="sme-match-evidence-notice" role="status">@notice</div> }
@@ -381,8 +364,7 @@
                                     </div>
                                 }
                             }
-                        }
-                        @if (!IsMusicTrackMoveTarget) { <div class="sme-match-selected-actions"><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@MatchActionPending" OnClick="CancelMatchDraft">Cancel</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanApplyRetailCandidate(retailSelected))" OnClick="@(() => ApplyRetailCandidateAsync(retailSelected))">@(MatchActionPending ? "Saving…" : "Save match")</AppButton></div> }
+                        <div class="sme-match-selected-actions"><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@MatchActionPending" OnClick="CancelMatchDraft">Cancel</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanApplyRetailCandidate(retailSelected))" OnClick="@(() => ApplyRetailCandidateAsync(retailSelected))">@(MatchActionPending ? "Saving…" : "Save match")</AppButton></div>
                     }
                     else
                     {
@@ -474,9 +456,6 @@
     [Parameter] public EventCallback<MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto> SelectCandidateRequested { get; set; }
     [Parameter] public EventCallback CancelMatchDraftRequested { get; set; }
     [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, bool> CanApplyRetailCandidate { get; set; } = default!;
-    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, string?> MusicTrackMovePrerequisite { get; set; } = default!;
-    [Parameter] public EventCallback<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto> PreviewMusicTrackMoveAsyncRequested { get; set; }
-    [Parameter] public EventCallback SaveMusicTrackMoveAsyncRequested { get; set; }
     [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, MediaEngine.Contracts.Metadata.MediaEditorMembershipPreviewDto?> GetRetailHierarchyImpactPreview { get; set; } = default!;
     [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, string?> GetRetailHierarchyPreviewStatus { get; set; } = default!;
     [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto, bool> CanApplyLinkedCandidate { get; set; } = default!;
@@ -528,7 +507,6 @@
     [Parameter] public string CurrentCanonicalQid { get; set; } = default!;
     [Parameter] public bool HasCurrentRetailMatch { get; set; } = default!;
     [Parameter] public bool HasCurrentCanonicalIdentity { get; set; } = default!;
-    [Parameter] public bool IsMusicTrackMoveTarget { get; set; } = default!;
     [Parameter] public string ArtworkShapeClass { get; set; } = default!;
     [Parameter] public bool IsTvdbScopedMatching { get; set; } = default!;
     [Parameter] public bool CanSelectTvdbCandidates { get; set; } = default!;
@@ -536,10 +514,6 @@
     [Parameter] public MediaEngine.Contracts.Search.RetailCandidateDetailDto? RetailCandidateDetail { get; set; } = default!;
     [Parameter] public MediaEngine.Contracts.Matching.RetailMatchMovePreviewDto? RetailMovePreview { get; set; } = default!;
     [Parameter] public MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto? PendingRetailMoveCandidate { get; set; } = default!;
-    [Parameter] public MediaEngine.Contracts.Metadata.MusicTrackMovePreview? MusicTrackMovePreview { get; set; } = default!;
-    [Parameter] public string? MusicTrackMoveChoiceId { get; set; } = default!;
-    [Parameter] public string? MusicTrackMoveError { get; set; } = default!;
-    [Parameter] public bool MusicTrackMoveBusy { get; set; } = default!;
     [Parameter] public string? MovedItemNotice { get; set; } = default!;
     [Parameter] public System.Nullable<Guid> MovedItemDestinationId { get; set; } = default!;
     [Parameter] public bool MatchActionPending { get; set; } = default!;
@@ -565,7 +539,6 @@
     [Parameter] public Func<string, string> ToAbsoluteEngineUrl { get; set; } = default!;
     [Parameter] public EventCallback CancelParentMove { get; set; }
     [Parameter] public EventCallback CancelTvdbSelection { get; set; }
-    [Parameter] public EventCallback<string> SelectMusicTrackMoveChoice { get; set; }
     [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, string> GetRetailCandidateId { get; set; } = default!;
     // Read-only technical facts from the editor-context response; the Engine only fills them for
     // callers allowed to open the editor, and nothing is shown when they are absent.
@@ -591,8 +564,6 @@
     private Task SelectCandidateAsync(MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => SelectCandidateAsyncRequested.InvokeAsync(candidate);
     private Task SelectCandidate(MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto candidate) => SelectCandidateRequested.InvokeAsync(candidate);
     private Task CancelMatchDraft() => CancelMatchDraftRequested.InvokeAsync();
-    private Task PreviewMusicTrackMoveAsync(MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => PreviewMusicTrackMoveAsyncRequested.InvokeAsync(candidate);
-    private Task SaveMusicTrackMoveAsync() => SaveMusicTrackMoveAsyncRequested.InvokeAsync();
     private Task SelectMatchSearchMode(string mode) => SelectMatchSearchModeRequested.InvokeAsync(mode);
     private Task SetActiveMatchSearchQuery(string? value) => SetActiveMatchSearchQueryRequested.InvokeAsync(value);
     private Task CancelActiveMatchSearch() => CancelActiveMatchSearchRequested.InvokeAsync();

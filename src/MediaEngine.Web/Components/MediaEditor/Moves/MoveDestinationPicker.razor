@@ -1,0 +1,87 @@
+@namespace MediaEngine.Web.Components.MediaEditor.Moves
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+
+@* The destination picker for a move (details overlay spec D15): a searchable list of the places the Engine says accept this kind of
+   item. Wrong kinds are never offered, because the Engine filters them. Choosing one asks the Engine for the Match step. *@
+<section class="tl-move-picker" aria-labelledby="tl-move-picker-title">
+    <header class="tl-move-picker__header">
+        <h3 id="tl-move-picker-title" class="tl-move-picker__title">@Heading</h3>
+        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="CancelAsync" />
+    </header>
+
+    <AppSearchField Value="@Query"
+                    ValueChanged="QueryChangedAsync"
+                    Label="@SearchLabel"
+                    HideLabel="true"
+                    Placeholder="@SearchLabel"
+                    DebounceInterval="300" />
+
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <div class="tl-move-picker__message"><AppAlert Tone="AppUiTone.Error">@Error</AppAlert></div>
+    }
+
+    @if (Loading)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading" Title="Looking for places" />
+    }
+    else if (Destinations.Count == 0 && string.IsNullOrWhiteSpace(Error))
+    {
+        <p class="tl-move-picker__empty">@(string.IsNullOrWhiteSpace(Query) ? LibraryMoveText.NoDestinationsMessage : $"Nothing matches \"{Query}\".")</p>
+    }
+    else
+    {
+        <div class="tl-move-picker__list">
+            <AppList T="LibraryMoveDestination" aria-label="Places to move to">
+                @foreach (var destination in Destinations)
+                {
+                    <AppListItem T="LibraryMoveDestination" Disabled="@Busy" OnClick="@(() => PickAsync(destination))">
+                        <span class="tl-move-picker__option" data-destination-id="@destination.Id">
+                            <span class="tl-move-picker__label">@destination.Label</span>
+                            @if (!string.IsNullOrWhiteSpace(destination.ParentLabel))
+                            {
+                                <span class="tl-move-picker__parent">@destination.ParentLabel</span>
+                            }
+                            @if (!destination.HasList)
+                            {
+                                <span class="tl-move-picker__parent">Your own order</span>
+                            }
+                        </span>
+                    </AppListItem>
+                }
+            </AppList>
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>The label that names the place for this kind of item, such as "Move to another album".</summary>
+    [Parameter, EditorRequired] public string Heading { get; set; } = string.Empty;
+
+    [Parameter] public IReadOnlyList<LibraryMoveDestination> Destinations { get; set; } = [];
+
+    [Parameter] public string? Query { get; set; }
+
+    [Parameter] public bool Loading { get; set; }
+
+    /// <summary>True while the Engine builds the Match step for the chosen place.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    [Parameter] public string? Error { get; set; }
+
+    [Parameter] public EventCallback<string?> QueryChanged { get; set; }
+
+    [Parameter] public EventCallback<LibraryMoveDestination> OnPick { get; set; }
+
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private string SearchLabel => "Search places";
+
+    private Task QueryChangedAsync(string? value) => QueryChanged.InvokeAsync(value);
+
+    private Task PickAsync(LibraryMoveDestination destination) => OnPick.InvokeAsync(destination);
+
+    private Task CancelAsync() => OnCancel.InvokeAsync();
+}
