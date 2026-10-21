@@ -79,7 +79,7 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         TwPersonSearchResult libResult;
         try
         {
-            libResult = await _reconciler.Persons.SearchAsync(
+            libResult = await RetryTransientAsync(() => _reconciler.Persons.SearchAsync(
                 new TwPersonSearchRequest
                 {
                     Name = name,
@@ -90,7 +90,7 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
                     // IncludeMusicalGroups left null — the library defaults
                     // Performer / Artist to true and every other role to false,
                     // which matches the legacy MusicRoles set.
-                }, ct).ConfigureAwait(false);
+                }, ct), ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
@@ -160,7 +160,7 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         IReadOnlyList<TwPersonSearchResult> batchResults;
         try
         {
-            batchResults = await _reconciler.Persons.SearchBatchAsync(
+            batchResults = await RetryTransientAsync(() => _reconciler.Persons.SearchBatchAsync(
                 uniqueRequests.Select(req => new TwPersonSearchRequest
                 {
                     Name = req.Name,
@@ -169,7 +169,7 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
                     Language = language,
                     AcceptThreshold = AutoAcceptThreshold,
                 }).ToList(),
-                ct).ConfigureAwait(false);
+                ct), ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
@@ -213,6 +213,28 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         }
 
         return results;
+    }
+
+    private const int SearchAttempts = 3;
+
+    /// <summary>
+    /// A search that failed on a passing problem (a timeout, a busy provider) is tried again before giving up. Without
+    /// this a person got a Wikidata id on one run and none on the next, depending on when the provider hiccuped.
+    /// </summary>
+    private async Task<T> RetryTransientAsync<T>(Func<Task<T>> search, CancellationToken ct)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await search().ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException && attempt < SearchAttempts)
+            {
+                _logger.LogDebug(ex, "Person reconciliation search failed on attempt {Attempt}; trying again", attempt);
+                await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt), ct).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>

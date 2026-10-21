@@ -77,4 +77,48 @@ public static class LibraryTagCatalog
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList()
             : [];
+
+    /// <summary>
+    /// Applies one batch change to a title's tags (details overlay spec D8): <c>add</c> keeps what is there and adds the new tags,
+    /// <c>remove</c> takes the named tags away (tags not present are ignored), <c>replace</c> sets exactly the new tags.
+    /// Returns false with the reason when a tag is not acceptable. The result is in the normal display form.
+    /// </summary>
+    public static bool TryApplyDisplayChange(
+        string? existing,
+        string? change,
+        string mode,
+        out string result,
+        out string? error)
+    {
+        result = string.Empty;
+        if (!TryNormalizeDisplayValue(change, out var normalizedChange, out error))
+        {
+            return false;
+        }
+
+        if (string.Equals(mode, "replace", StringComparison.OrdinalIgnoreCase))
+        {
+            result = normalizedChange;
+            return true;
+        }
+
+        var current = ParseDisplayValue(existing);
+        var named = ParseDisplayValue(normalizedChange);
+        IEnumerable<string> merged;
+        if (string.Equals(mode, "add", StringComparison.OrdinalIgnoreCase))
+        {
+            merged = current.Concat(named);
+        }
+        else if (string.Equals(mode, "remove", StringComparison.OrdinalIgnoreCase))
+        {
+            merged = current.Where(tag => !named.Contains(tag, StringComparer.OrdinalIgnoreCase));
+        }
+        else
+        {
+            error = $"Unknown change mode '{mode}'.";
+            return false;
+        }
+
+        return TryNormalizeDisplayValue(string.Join("; ", merged), out result, out error);
+    }
 }

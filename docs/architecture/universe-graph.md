@@ -217,6 +217,12 @@ Device constraints: on phones the graph is full width with a height of at most 7
 
 The first implemented universe lore plugin is `tuvima.fandom-lore`. It reads Wikidata `P6262` Fandom article IDs to suggest candidate Fandom wiki sources, or admins can add a Fandom URL manually. Approval happens in Chronicle Explorer's **Sources** tab for the selected universe. Pending sources are inert; the plugin only imports entities or relationships from sources with status `Approved`.
 
+What the lore plugin may send, and where:
+
+- **Only Universes the Library holds.** Discover, add-a-source and enrich act on a QID only when it is a narrative root or a root Universe collection already in this Library (`ILibraryUniverseQidGate`, checked once in `PluginUniverseLoreService` and in the Fandom discovery application operation). Any other QID answers 404 (a 400 invalid-payload answer for the application operation) and sends nothing out.
+- **Only Wikidata and Fandom hosts.** Wikidata is called only at `www.wikidata.org`, with the Universe's own QID (`action=wbgetclaims&entity=Q…&property=P6262`). A source's address must be `https` on `fandom.com` or a subdomain such as `starwars.fandom.com` (`FandomHostRule`). A `P6262` value that points anywhere else is ignored; an admin's manually added address on another host is refused with a 400 ("Only Fandom wiki addresses can be added."); an already stored source on another host is skipped with a log line and never called. The structured page request carries no title, author, file name or search term.
+- **No title list leaves the machine.** Work titles, authors and file names are never part of any lore request (`UniverseLorePrivacyTests.NoTitleListLeavesTheMachine`). The User-Agent carries only the contact the admin chose to enter in the plugin settings.
+
 The imported rows live in:
 
 | Table | Purpose |
@@ -243,11 +249,11 @@ Stage 3 universe enrichment runs plugin lore after the core Wikidata enhancer pa
 | GET | `/universe/{qid}/adaptations` | Adaptation tree built from based-on, derivative-work and inspired-by relationships, each child with its `source`; empty when none are recorded (never a flat list of every entity) |
 | GET | `/universe/{qid}/lore-delta` | Check for Wikidata revisions newer than stored |
 | GET | `/universe/{qid}/lore-sources` | Admin list of plugin lore sources for the universe |
-| POST | `/universe/{qid}/lore-sources/discover` | Ask enabled lore plugins to suggest source candidates |
-| POST | `/universe/{qid}/lore-sources/manual` | Add a manual source candidate |
+| POST | `/universe/{qid}/lore-sources/discover` | Ask enabled lore plugins to suggest source candidates; 404 when the Library does not hold the Universe |
+| POST | `/universe/{qid}/lore-sources/manual` | Add a manual source candidate; 404 when the Library does not hold the Universe, 400 when the address is not a Fandom wiki |
 | POST | `/universe/{qid}/lore-sources/{sourceId}/approve` | Approve a source for plugin enrichment |
 | POST | `/universe/{qid}/lore-sources/{sourceId}/reject` | Reject a source |
-| POST | `/universe/{qid}/lore/enrich` | Import approved plugin lore for the universe |
+| POST | `/universe/{qid}/lore/enrich` | Import approved plugin lore for the universe; 404 when the Library does not hold the Universe |
 | POST | `/library/enrichment/universe/trigger` | Queue a universe enrichment sweep (takes no QID) |
 | GET | `/library/portraits/{portraitId}` | Stream one character portrait image (cast credits link to it) |
 | GET | `/metadata/{entityId}/canon-discrepancies` | Compare edition against master work |

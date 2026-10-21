@@ -1,16 +1,22 @@
+using MediaEngine.Api.Services.ScheduledTasks;
+using MediaEngine.Domain.Contracts;
+
 namespace MediaEngine.Api.Services;
 
 /// <summary>Promotes due calendar entries into the ordinary enrichment queues.</summary>
 public sealed class EnrichmentRefreshScheduleWorker : BackgroundService
 {
     private readonly EnrichmentRefreshScheduleService _schedule;
+    private readonly IRecurringTaskRecorder _recorder;
     private readonly ILogger<EnrichmentRefreshScheduleWorker> _logger;
 
     public EnrichmentRefreshScheduleWorker(
         EnrichmentRefreshScheduleService schedule,
+        IRecurringTaskRecorder recorder,
         ILogger<EnrichmentRefreshScheduleWorker> logger)
     {
         _schedule = schedule;
+        _recorder = recorder;
         _logger = logger;
     }
 
@@ -21,7 +27,15 @@ public sealed class EnrichmentRefreshScheduleWorker : BackgroundService
         {
             try
             {
-                var queued = await _schedule.QueueDueAsync(50, stoppingToken).ConfigureAwait(false);
+                var queued = 0;
+                await _recorder.RecordAsync(
+                    ScheduledTaskKeys.EnrichmentRefreshSchedule,
+                    async ct =>
+                    {
+                        queued = await _schedule.QueueDueAsync(50, ct).ConfigureAwait(false);
+                        return queued;
+                    },
+                    stoppingToken).ConfigureAwait(false);
                 if (queued > 0)
                 {
                     _logger.LogInformation("Queued {Count} scheduled enrichment refreshes", queued);

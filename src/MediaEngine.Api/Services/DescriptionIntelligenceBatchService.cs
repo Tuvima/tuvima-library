@@ -135,12 +135,12 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
             }
 
             var cron = _settings.Scheduling.DescriptionIntelligenceCron;
-            var delay = CronScheduler.UntilNext(cron, TimeSpan.FromMinutes(15));
+            var nextRun = CronScheduler.NextRunAt(cron, TimeSpan.FromMinutes(15));
 
-            _logger.LogInformation("[DESCRIPTION-INTEL-BATCH] Next run in {Delay}", delay);
+            _logger.LogInformation("[DESCRIPTION-INTEL-BATCH] Next run at {NextRun}", nextRun.ToLocalTime());
             try
             {
-                await _configurationStore.WaitForDelayOrChangeAsync(delay, stoppingToken);
+                await _configurationStore.WaitUntilOrChangeAsync(nextRun, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

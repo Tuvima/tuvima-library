@@ -7,6 +7,7 @@ namespace MediaEngine.Web.Components.Settings;
 public static class ScheduledTaskText
 {
     public const string NeverRun = "Has not run yet";
+    public const string RunsInBackground = "Runs quietly in the background";
     public const string NextUnknown = "Not scheduled yet";
     public const string CustomSchedule = "On a custom schedule";
 
@@ -28,7 +29,7 @@ public static class ScheduledTaskText
         ArgumentNullException.ThrowIfNull(task);
         if (task.LastRun is not { } run)
         {
-            return NeverRun;
+            return task.IsContinuous ? RunsInBackground : NeverRun;
         }
 
         var when = Moment(run.FinishedAt ?? run.StartedAt, now);

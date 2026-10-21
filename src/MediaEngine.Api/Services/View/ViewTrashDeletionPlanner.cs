@@ -214,8 +214,13 @@ public sealed class ViewTrashDeletionPlanner(
         }
 
         // 4. Manual Galleries that lose items, counts by kind, and the fingerprint the person confirms.
-        var memberships = (await trash.GetManualGalleryMembershipsAsync(space.Id, ownerId, ct).ConfigureAwait(false))
+        var deletingMemberships = (await trash.GetManualGalleryMembershipsAsync(space.Id, ownerId, ct).ConfigureAwait(false))
             .Where(membership => deleting.Contains(membership.ItemId))
+            .ToList();
+
+        // An item in two Galleries counts once: this is "how many of these were in a Gallery", not a sum over Galleries.
+        var galleryItemCount = deletingMemberships.Select(membership => membership.ItemId).Distinct().Count();
+        var memberships = deletingMemberships
             .GroupBy(membership => membership.GalleryId)
             .Select(group => new ViewTrashPreviewGalleryDto(
                 group.Key, group.First().Name, group.Select(membership => membership.ItemId).Distinct().Count()))
@@ -235,6 +240,7 @@ public sealed class ViewTrashDeletionPlanner(
         var preview = new ViewTrashEmptyPreviewDto(
             plannedItems.Select(item => new ViewTrashPreviewItemDto(item.ItemId, item.MediaKind, item.Outcome, item.Reason)).ToList(),
             memberships,
+            galleryItemCount,
             deleted.Count,
             deleted.Count(item => item.MediaKind == LocalAssetMediaKinds.Image),
             deleted.Count(item => item.MediaKind == LocalAssetMediaKinds.Video),
@@ -243,7 +249,7 @@ public sealed class ViewTrashDeletionPlanner(
             skipped,
             bytesFreed,
             deleted.Any(item => item.IsCompound),
-            ComputeFingerprint(ownerId, plannedItems, memberships));
+            ComputeFingerprint(ownerId, plannedItems, memberships, galleryItemCount));
 
         return new ViewTrashPlanResult(ViewTrashPlanStatus.Ok, new ViewTrashPlan(space.Id, ownerId, plannedItems, preview));
     }
@@ -446,7 +452,8 @@ public sealed class ViewTrashDeletionPlanner(
     private static string ComputeFingerprint(
         Guid ownerId,
         IReadOnlyList<ViewTrashPlannedItem> items,
-        IReadOnlyList<ViewTrashPreviewGalleryDto> galleries)
+        IReadOnlyList<ViewTrashPreviewGalleryDto> galleries,
+        int galleryItemCount)
     {
         var lines = new List<string> { "owner|" + ownerId.ToString("D", CultureInfo.InvariantCulture) };
         foreach (var item in items)
@@ -465,6 +472,8 @@ public sealed class ViewTrashDeletionPlanner(
             lines.Add(string.Join('|', "gallery", gallery.GalleryId.ToString("D", CultureInfo.InvariantCulture),
                 gallery.ItemCount.ToString(CultureInfo.InvariantCulture)));
         }
+
+        lines.Add("gallery_items|" + galleryItemCount.ToString(CultureInfo.InvariantCulture));
 
         lines.Sort(StringComparer.Ordinal);
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('\n', lines))));

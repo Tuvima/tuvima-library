@@ -76,7 +76,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
         Assert.Contains("ScanDirectories", service, StringComparison.Ordinal);
         Assert.Contains("ResumeWatcherAsync", service, StringComparison.Ordinal);
         Assert.Contains("PreservedConfigurationTables", reset, StringComparison.Ordinal);
-        Assert.Contains("ResetLibraryDatabaseAsync", reset, StringComparison.Ordinal);
+        Assert.Contains("ResetLibraryDatabase(", reset, StringComparison.Ordinal);
         Assert.Contains("\"accounts\"", reset, StringComparison.Ordinal);
         Assert.Contains("\"profiles\"", reset, StringComparison.Ordinal);
         Assert.Contains("\"metadata_providers\"", reset, StringComparison.Ordinal);

@@ -42,6 +42,87 @@ public static class ArtworkCanonicalHelper
         LastScoredAt = lastScoredAt,
     };
 
+    /// <summary>
+    /// Canonical holding the bridge id (TMDB or TheTVDB id) for which that provider's images pass last chose
+    /// the owner's poster. Written only when the pass actually chose one, never by a pass that skipped or failed.
+    /// </summary>
+    public static string PosterChoiceKey(string provider) => $"{provider}_artwork_poster_bridge_id";
+
+    /// <summary>Address prefix of a stored artwork variant, as written into display canonicals.</summary>
+    public const string StoredArtworkUrlPrefix = "/stream/artwork/";
+
+    /// <summary>
+    /// Reads the variant id from a stored artwork address (<c>/stream/artwork/{id}</c>, with or without a
+    /// size query). Provider URLs and other values return false.
+    /// </summary>
+    public static bool TryParseStoredArtworkId(string? url, out Guid assetId)
+    {
+        assetId = Guid.Empty;
+        if (string.IsNullOrWhiteSpace(url)
+            || !url.StartsWith(StoredArtworkUrlPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var idPart = url.AsSpan(StoredArtworkUrlPrefix.Length);
+        var queryStart = idPart.IndexOf('?');
+        return Guid.TryParse(queryStart >= 0 ? idPart[..queryStart] : idPart, out assetId);
+    }
+
+    /// <summary>Display canonicals written for an owner's preferred variant of <paramref name="assetType"/>.</summary>
+    public static IReadOnlyList<string> DisplayCanonicalKeys(string assetType)
+    {
+        var prefix = assetType switch
+        {
+            "CoverArt" => "cover",
+            "Background" => "background",
+            "Logo" => "logo",
+            "SeasonPoster" => "season_poster",
+            "SeasonThumb" => "season_thumb",
+            "EpisodeStill" => "episode_still",
+            _ => null,
+        };
+        if (prefix is null)
+        {
+            return [];
+        }
+
+        var keys = new List<string>
+        {
+            $"{prefix}_url_s",
+            $"{prefix}_url_m",
+            $"{prefix}_url_l",
+            $"{prefix}_aspect_class",
+            $"{prefix}_width_px",
+            $"{prefix}_height_px",
+            $"{prefix}_primary_hex",
+            $"{prefix}_secondary_hex",
+            $"{prefix}_accent_hex",
+        };
+        keys.AddRange(assetType switch
+        {
+            "CoverArt" => [MetadataFieldConstants.CoverUrl],
+            "Background" => ["background", "background_url"],
+            "Logo" => ["logo", "logo_url"],
+            "SeasonPoster" => ["season_poster", "season_poster_url"],
+            "SeasonThumb" => ["season_thumb", "season_thumb_url"],
+            "EpisodeStill" => ["episode_still", "episode_still_url"],
+            _ => [],
+        });
+        if (assetType == "CoverArt")
+        {
+            keys.AddRange(
+            [
+                MetadataFieldConstants.ArtworkPrimaryHex,
+                MetadataFieldConstants.ArtworkSecondaryHex,
+                MetadataFieldConstants.ArtworkAccentHex,
+                "dominant_color",
+            ]);
+        }
+
+        return keys.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
     public static List<CanonicalValue> CreatePreferredAssetCanonicals(
         Guid entityId,
         EntityAsset asset,
@@ -50,11 +131,11 @@ public static class ArtworkCanonicalHelper
         ArgumentNullException.ThrowIfNull(asset);
 
         var values = new List<CanonicalValue>();
-        var baseUrl = $"/stream/artwork/{asset.Id}";
+        var baseUrl = $"{StoredArtworkUrlPrefix}{asset.Id}";
         var hasRenditions = ShouldGenerateRenditions(asset.AssetTypeValue);
-        var smallUrl = $"/stream/artwork/{asset.Id}?size=s";
-        var mediumUrl = $"/stream/artwork/{asset.Id}?size=m";
-        var largeUrl = $"/stream/artwork/{asset.Id}?size=l";
+        var smallUrl = $"{baseUrl}?size=s";
+        var mediumUrl = $"{baseUrl}?size=m";
+        var largeUrl = $"{baseUrl}?size=l";
 
         foreach (var key in ResolvePrimaryUrlKeys(asset.AssetTypeValue))
         {
@@ -102,20 +183,26 @@ public static class ArtworkCanonicalHelper
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(asset.PrimaryHex))
+        // The shared colour set is "the title's colours", read by Home, the library, the detail hero and
+        // browse. Only a main picture writes it; a background or logo keeps just its prefixed set so it
+        // cannot re-tint the title (or flip it when the start-up repair walks preferred assets).
+        if (WritesSharedColourSet(asset.AssetTypeValue))
         {
-            values.Add(Create(entityId, MetadataFieldConstants.ArtworkPrimaryHex, asset.PrimaryHex, lastScoredAt));
-        }
+            if (!string.IsNullOrWhiteSpace(asset.PrimaryHex))
+            {
+                values.Add(Create(entityId, MetadataFieldConstants.ArtworkPrimaryHex, asset.PrimaryHex, lastScoredAt));
+            }
 
-        if (!string.IsNullOrWhiteSpace(asset.SecondaryHex))
-        {
-            values.Add(Create(entityId, MetadataFieldConstants.ArtworkSecondaryHex, asset.SecondaryHex, lastScoredAt));
-        }
+            if (!string.IsNullOrWhiteSpace(asset.SecondaryHex))
+            {
+                values.Add(Create(entityId, MetadataFieldConstants.ArtworkSecondaryHex, asset.SecondaryHex, lastScoredAt));
+            }
 
-        if (!string.IsNullOrWhiteSpace(asset.AccentHex))
-        {
-            values.Add(Create(entityId, MetadataFieldConstants.ArtworkAccentHex, asset.AccentHex, lastScoredAt));
-            values.Add(Create(entityId, "dominant_color", asset.AccentHex, lastScoredAt));
+            if (!string.IsNullOrWhiteSpace(asset.AccentHex))
+            {
+                values.Add(Create(entityId, MetadataFieldConstants.ArtworkAccentHex, asset.AccentHex, lastScoredAt));
+                values.Add(Create(entityId, "dominant_color", asset.AccentHex, lastScoredAt));
+            }
         }
 
         return values;
@@ -134,6 +221,16 @@ public static class ArtworkCanonicalHelper
         "EpisodeStill" => ["episode_still", "episode_still_url"],
         "CharacterPortrait" => ["character_portrait", "character_portrait_url"],
         _ => [],
+    };
+
+    /// <summary>
+    /// True for the pictures that stand for the record itself (cover, season poster, episode still,
+    /// headshot, character portrait). Backgrounds, logos and thumbs never write the shared colour set.
+    /// </summary>
+    private static bool WritesSharedColourSet(string assetTypeValue) => assetTypeValue switch
+    {
+        "CoverArt" or "SeasonPoster" or "EpisodeStill" or "Headshot" or "CharacterPortrait" => true,
+        _ => false,
     };
 
     private static string? ResolveMetadataPrefix(string assetTypeValue) => assetTypeValue switch

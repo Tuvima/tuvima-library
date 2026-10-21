@@ -19,6 +19,10 @@ internal static class SeedIds
     public const int ArtworkLink = 9;
     public const int Review = 10;
     public const int Job = 11;
+    public const int Profile = 12;
+
+    /// <summary>The profile that owns the seeded play history (added 2026-10-20). <c>user_states.user_id</c> is this id.</summary>
+    public static readonly Guid PlayHistoryProfile = Id(Profile, 1);
 
     /// <summary>Offset that keeps music-album parent ids apart from TV-show parent ids.</summary>
     public const long MusicParentBase = 10_000_000;

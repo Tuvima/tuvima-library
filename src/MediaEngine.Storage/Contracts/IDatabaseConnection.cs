@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Contracts;
@@ -59,8 +60,18 @@ public interface IDatabaseConnection : IDisposable
     /// <see cref="ExecuteWriteAsync{T}"/> or
     /// <see cref="ExecuteWriteAsync(Action{SqliteConnection, SqliteTransaction, CancellationToken}, CancellationToken)"/>
     /// instead so the write-lock contract is enforced structurally.
+    /// The caller's file and member name are recorded as the holder, so a wait that times out can say who holds it.
     /// </summary>
-    Task AcquireWriteLockAsync(CancellationToken ct = default);
+    Task AcquireWriteLockAsync(
+        CancellationToken ct = default,
+        [CallerFilePath] string holderFile = "",
+        [CallerMemberName] string holderMember = "");
+
+    /// <summary>
+    /// Says who holds the global write lock and for how long ("StorageMaintenanceService.RunAsync, held for 12 s"),
+    /// or <c>null</c> when it is free.
+    /// </summary>
+    string? DescribeWriteLockHolder();
 
     /// <summary>
     /// Releases the global write-serialization lock.
@@ -83,13 +94,17 @@ public interface IDatabaseConnection : IDisposable
     /// </summary>
     Task<T> ExecuteWriteAsync<T>(
         Func<SqliteConnection, SqliteTransaction, CancellationToken, T> body,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        [CallerFilePath] string holderFile = "",
+        [CallerMemberName] string holderMember = "");
 
     /// <summary>
     /// Non-generic overload of <see cref="ExecuteWriteAsync{T}"/>.
     /// </summary>
     Task ExecuteWriteAsync(
         Action<SqliteConnection, SqliteTransaction, CancellationToken> body,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        [CallerFilePath] string holderFile = "",
+        [CallerMemberName] string holderMember = "");
 
 }

@@ -28,6 +28,23 @@ public sealed class LibraryListFixture : IDisposable
     /// </summary>
     public static readonly Guid FeaturedPersonId = new("a0d10b00-0000-4000-8000-000000000042");
 
+    // Play history and narrators for the guardrails of spec "Audiobook year on the remaining screens" (D7). Each read is measured
+    // twice, once with audiobooks that need a borrowed year and once with the same number of audiobooks that have their own,
+    // so the difference is the year's own cost. One audiobook per 100 leaf works per profile or narrator (40 at 4,000 works),
+    // and, for the listeners, one book per 200 leaf works (20 at 4,000), so a listener has 60 plays at 4,000 works.
+
+    /// <summary>Plays audiobooks without a year of their own (<c>seq % 20 = 18</c>) and books, all at 40%.</summary>
+    public static readonly Guid YearBorrowingListenerId = new("a0d10b00-0000-4000-8000-0000000000a1");
+
+    /// <summary>Plays the same number of audiobooks that have their own year (<c>seq % 20 = 8</c>) and the same books, all at 40%.</summary>
+    public static readonly Guid OwnYearListenerId = new("a0d10b00-0000-4000-8000-0000000000a2");
+
+    /// <summary>Credited as the second narrator of audiobooks without a year of their own, one per 100 leaf works.</summary>
+    public static readonly Guid YearBorrowingNarratorId = new("a0d10b00-0000-4000-8000-0000000000b1");
+
+    /// <summary>Credited as the second narrator of the same number of audiobooks that have their own year.</summary>
+    public static readonly Guid OwnYearNarratorId = new("a0d10b00-0000-4000-8000-0000000000b2");
+
     private readonly List<string> _paths = [];
 
     public LibraryListFixture()
@@ -73,6 +90,7 @@ public sealed class LibraryListFixture : IDisposable
     // third borrow the year of a book with the same title and the same author, a third have a book's title but another author
     // (so they borrow nothing), and a third match no book; some borrowers spell the title in capitals with spaces around it.
     // So the list, Home and detail reads exercise the audiobook year look-up, which must grow in proportion to the library.
+    // Two listeners and two narrators (constants above) let a guardrail separate the borrowed year's own cost from the rest of a read.
     // Odd tens of books and audiobooks (10 to 19, 30 to 39, ...) belong to one series each, so a book's detail returns its
     // series mates. Two persons are called "Featured Author" (one with a headshot, one with a Wikidata id), which is credited
     // on 24 books and on the first album, so the person page, the credit look-ups and the album artist all meet a shared name.
@@ -268,6 +286,32 @@ public sealed class LibraryListFixture : IDisposable
                    strftime('%Y-%m-%dT%H:%M:%fZ', '2026-01-01', '+' || seq || ' minutes')
             FROM seed_leaf;
 
+            -- Two profiles' play history: one play per 100 leaf works on audiobooks (every fifth audiobook of its kind, skipping the first, which is the Home and detail guardrails' audiobook) and one
+            -- per 200 on books, at 40%, with a distinct last_accessed. The two profiles play the same books.
+            INSERT INTO user_states (user_id, asset_id, progress_pct, last_accessed)
+            SELECT @yearBorrowingListenerId,
+                   asset_id, 40.0, strftime('%Y-%m-%dT%H:%M:%fZ', '2026-06-01', '+' || seq || ' minutes')
+            FROM seed_leaf
+            WHERE (media_type = 'Audiobooks' AND seq % 20 = 18 AND (seq / 20) % 5 = 1) OR (media_type = 'Books' AND seq % 200 = 1)
+            UNION ALL
+            SELECT @ownYearListenerId,
+                   asset_id, 40.0, strftime('%Y-%m-%dT%H:%M:%fZ', '2026-06-01', '+' || seq || ' minutes')
+            FROM seed_leaf
+            WHERE (media_type = 'Audiobooks' AND seq % 20 = 8 AND (seq / 20) % 5 = 1) OR (media_type = 'Books' AND seq % 200 = 1);
+
+            -- Two narrators, each credited (second billing, so the author matching the borrowed year uses is untouched) on one
+            -- audiobook per 100 leaf works: the first on audiobooks without a year of their own, the second on ones with a year.
+            INSERT INTO persons (id, name, is_pseudonym, created_at)
+            VALUES (@yearBorrowingNarratorId, 'Year Borrowing Narrator', 0, @readyAt),
+                   (@ownYearNarratorId, 'Own Year Narrator', 0, @readyAt);
+
+            INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value)
+            SELECT work_id, 'narrator', 1, 'Year Borrowing Narrator'
+            FROM seed_leaf WHERE media_type = 'Audiobooks' AND seq % 20 = 18 AND (seq / 20) % 5 = 1
+            UNION ALL
+            SELECT work_id, 'narrator', 1, 'Own Year Narrator'
+            FROM seed_leaf WHERE media_type = 'Audiobooks' AND seq % 20 = 8 AND (seq / 20) % 5 = 1;
+
             DROP TABLE seed_leaf;
             DROP TABLE seed_group;
             DROP TABLE seed_series;
@@ -280,6 +324,10 @@ public sealed class LibraryListFixture : IDisposable
                 audiobookId = GuidSql.ToBlob(AudiobookWorkId),
                 episodeId = GuidSql.ToBlob(TvEpisodeWorkId),
                 featuredPersonId = GuidSql.ToBlob(FeaturedPersonId),
+                yearBorrowingListenerId = GuidSql.ToBlob(YearBorrowingListenerId),
+                ownYearListenerId = GuidSql.ToBlob(OwnYearListenerId),
+                yearBorrowingNarratorId = GuidSql.ToBlob(YearBorrowingNarratorId),
+                ownYearNarratorId = GuidSql.ToBlob(OwnYearNarratorId),
             },
             transaction,
             commandTimeout: 120);

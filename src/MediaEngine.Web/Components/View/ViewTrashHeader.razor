@@ -1,0 +1,141 @@
+@namespace MediaEngine.Web.Components.View
+@using MediaEngine.Contracts.LocalAssets
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject DeviceContextService Device
+@inject IAppDialogService DialogService
+@inject IAppToastService Toasts
+@inject ViewWorkspaceService Workspace
+
+@* The header over the Trash in Photos and in Documents. Both show the whole Trash (one Trash per Personal Space), so the size is the
+   Engine's summary, not the length of the list below. Only the owner, on a desktop with a mouse, empties it; the Engine checks again. *@
+@* When the Engine can't answer (or refuses), nothing is shown rather than a guess at the size. *@
+@if (IsMine && _loaded && _summary is not null)
+{
+    <section class="view-trash-header" aria-label="Trash">
+        @if (_summary.ItemCount == 0)
+        {
+            <p class="view-trash-header__empty">@EmptyTrashText.TrashIsEmpty</p>
+        }
+        else
+        {
+            <div class="view-trash-header__copy">
+                <p class="view-trash-header__lead">@EmptyTrashText.HeaderLead</p>
+                <p class="view-trash-header__size">@EmptyTrashText.SizeLine(_summary)</p>
+            </div>
+            @if (EditorDeviceRule.CanEdit(Device))
+            {
+                <div class="view-trash-header__action">
+                    <AppButton Label="@EmptyTrashText.EmptyButton" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" OnClick="EmptyTrashAsync" />
+                </div>
+            }
+            else
+            {
+                <p class="view-trash-header__computer">@EmptyTrashText.EmptyOnAComputer</p>
+            }
+        }
+    </section>
+}
+
+@code {
+    /// <summary>True only while the person looks at their own Personal Space (Mine). Anything else shows no Trash header at all.</summary>
+    [Parameter] public bool IsMine { get; set; }
+
+    /// <summary>The page bumps this after it reloads its list (trash, restore, empty), so the size is read again.</summary>
+    [Parameter] public int Version { get; set; }
+
+    /// <summary>Raised after Trash changed from here (emptied, or found changed), so the page reloads its list.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private ViewTrashSummaryDto? _summary;
+    private bool _loaded;
+    private int _loadedVersion = -1;
+    private bool _wasMine;
+    private bool _disposed;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!IsMine)
+        {
+            _wasMine = false;
+            return;
+        }
+
+        if (_wasMine && _loadedVersion == Version)
+        {
+            return;
+        }
+
+        _wasMine = true;
+        _loadedVersion = Version;
+        await RefreshAsync();
+    }
+
+    protected override void OnInitialized() => Device.OnChanged += DeviceChanged;
+
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task RefreshAsync()
+    {
+        var outcome = await ApiClient.GetViewTrashSummaryAsync();
+        if (_disposed)
+        {
+            return;
+        }
+
+        _summary = outcome.IsOk ? outcome.Value : null;
+        _loaded = true;
+    }
+
+    /// <summary>
+    /// Opens the Empty Trash confirmation. Public so the same checks hold when something other than the button calls it: only the
+    /// owner's own space, and only on a desktop with a mouse (<see cref="EditorDeviceRule"/>), ever gets as far as the dialog.
+    /// </summary>
+    public async Task EmptyTrashAsync()
+    {
+        if (!IsMine)
+        {
+            return;
+        }
+
+        if (!EditorDeviceRule.CanEdit(Device))
+        {
+            Toasts.Add(EmptyTrashText.EmptyOnAComputer, AppSeverity.Info);
+            return;
+        }
+
+        var before = _summary;
+        var dialog = await DialogService.ShowAsync<EmptyTrashDialog>(
+            string.Empty,
+            new AppDialogParameters<EmptyTrashDialog>(),
+            new AppDialogOptions
+            {
+                MaxWidth = AppMaxWidth.Medium,
+                FullWidth = true,
+                CloseButton = false,
+                NoHeader = true,
+                CloseOnEscapeKey = true,
+            });
+
+        var deleted = (await dialog.Result) is { Canceled: false, Data: ViewTrashEmptyResultDto result } ? result : null;
+        if (deleted is not null)
+        {
+            var (message, warning) = EmptyTrashText.Outcome(deleted);
+            Toasts.Add(message, warning ? AppSeverity.Warning : AppSeverity.Success);
+            Workspace.ReplaceTrashFailures(deleted.Failed);
+        }
+
+        // However the dialog ended, ask again: a reply that never came (or an Escape after one) may still have emptied Trash.
+        await RefreshAsync();
+        if (deleted is not null || before?.ItemCount != _summary?.ItemCount)
+        {
+            await OnChanged.InvokeAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Device.OnChanged -= DeviceChanged;
+    }
+}

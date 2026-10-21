@@ -53,9 +53,9 @@ public sealed class PluginScheduledSegmentService : BackgroundService
             var cron = maintenance.Schedules.TryGetValue(ScheduledTaskKeys.PluginSegmentDetection, out var configured)
                 ? configured
                 : DefaultSchedule;
-            var delay = CronScheduler.UntilNext(string.IsNullOrWhiteSpace(cron) ? DefaultSchedule : cron, TimeSpan.FromHours(24));
-            _logger.LogInformation("PluginScheduledSegmentService: next run in {Delay}", delay);
-            await Task.Delay(delay, stoppingToken).ConfigureAwait(false);
+            var nextRun = CronScheduler.NextRunAt(string.IsNullOrWhiteSpace(cron) ? DefaultSchedule : cron, TimeSpan.FromHours(24));
+            _logger.LogInformation("PluginScheduledSegmentService: next run at {NextRun}", nextRun.ToLocalTime());
+            await CronScheduler.WaitUntilAsync(nextRun, stoppingToken).ConfigureAwait(false);
         }
     }
 

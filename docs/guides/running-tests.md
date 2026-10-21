@@ -124,6 +124,7 @@ These tests are intentionally about preventing regressions, not only checking on
 - `UiCompositionGuardrailTests` prevents removed all-in-one management workflows, outdated navigation labels, current Dashboard docs for removed workflows, and non-shared media editing paths from returning.
 - `ArchitectureBoundaryTests` keeps Domain independent, blocks Web-to-Storage implementation coupling in active UI, flags direct SQL in Razor, and tracks endpoint files that still use direct database access.
 - `DatabaseConnectionGuardrailTests` reserves `IDatabaseConnection.Open()` for startup/schema work and keeps silent catches limited to documented legacy locations.
+- `DapperGuidListParameterGuardrailTests` reads the compiled Engine assemblies and fails when a Guid list goes into a Dapper parameter object unconverted. Dapper expands `IN @ids` without the Guid handler, so such a list matches no rows; convert it with `.Select(GuidSql.ToBlob).ToArray()`.
 - `DatabaseStartupSafetyTests` initializes temporary SQLite databases from scratch, verifies idempotent startup, checks WAL/foreign-key/integrity settings, and rejects retired schema state. Pre-beta databases are reset and reingested rather than migrated in place.
 - `DockerfileGuardrailTests` verifies Docker restore inputs and readiness-based container startup.
 
@@ -244,8 +245,9 @@ only the process it started. Your `config/`, your data store and any sample fold
 you point it at are never written (a before/after listing of the sample folder
 proves it). The run's copied `maintenance.json` holds every clock-scheduled task
 (nightly sweeps, reconciliation, pruning) and switches off the off-hours retag and
-storage sweeps, so a run that crosses the night gives the same answer as one that
-does not.
+storage sweeps, and its copied `ai.json` holds the nightly series-order
+(`series_check_cron`) and vibe-tag (`vibe_batch_cron`) schedules, so a run that
+crosses the night gives the same answer as one that does not.
 
 ```powershell
 # Generated samples: deterministic EPUB, two PDFs (one text, one "scanned"),
@@ -281,13 +283,15 @@ They are absent in any other environment.
 
 ### POST /dev/reset-and-seed
 
-This is the primary Development Tools workflow. It preserves application configuration and configured source media, clears catalogued library and derived ingestion state, creates the selected fixtures, queues them through normal ingestion, and resumes file watching. Generated fixture paths are recorded in a manifest; cleanup deletes only those recorded paths inside configured source roots.
+This is the primary Development Tools workflow. It preserves application configuration and configured source media, clears catalogued library and derived ingestion state, creates the selected fixtures, queues them through normal ingestion, and resumes file watching. Generated fixture paths are recorded in a manifest. Cleanup follows each one to wherever ingestion filed it and deletes it, the subtitle files the Engine wrote for it and the folders it leaves empty, only inside managed, writable source folders and the library folder. Anything else (your own files, as-is folders, the Import folder, photos) stays, and the result lists the files it kept. This works on the default layout, where the source folders sit inside the library folder.
 
 ```bash
 curl -X POST "http://localhost:61495/dev/reset-and-seed?types=books,tv,music&fixtureSet=standard"
 ```
 
 Use `fixtureSet=standard` for a small deterministic structural regression set or `fixtureSet=stress` for the full high-volume fixture catalog.
+
+A reset that cannot start safely answers `409` straight away, with nothing deleted: when another reset is running, when real-media protection is on, when a background worker or another data store writer does not let go within 20 seconds (the message names it), or, for the full wipe only, when a source folder holds the Library's data folder, the photo space or the Import folder.
 
 ### POST /dev/reset-library-data
 

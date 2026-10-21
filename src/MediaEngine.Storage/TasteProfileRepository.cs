@@ -60,16 +60,33 @@ public sealed class TasteProfileRepository : ITasteProfileRepository
         }
 
         using var conn = _db.CreateConnection();
+        // The borrowed audiobook year is worked out once for the profile's played audiobook files, not once per row
+        // (and never from the whole library's credit list). The limit below is not applied here; a longer list is fine.
+        var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "related_book_year",
+            """
+            -- readiness: candidates for the borrowed year only; the read's own rows carry the Ready filter
+            SELECT candidate_work.id AS work_id, candidate_state.asset_id AS asset_id
+            FROM user_states candidate_state
+            JOIN media_assets candidate_asset ON candidate_asset.id = candidate_state.asset_id
+            JOIN editions candidate_edition ON candidate_edition.id = candidate_asset.edition_id
+            JOIN works candidate_work ON candidate_work.id = candidate_edition.work_id
+            WHERE candidate_state.user_id = @userId
+              AND LOWER(COALESCE(candidate_work.media_type, '')) LIKE '%audio%'
+            """,
+            "rby_");
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
             "w.id",
             "COALESCE(gp.id, p.id, w.id)",
             "us.asset_id",
-            "w.media_type");
+            "w.media_type",
+            MediaDateSql.RelatedBookYearLookup("related_book_year", "w.id", "us.asset_id"));
         // user_states is the only persisted interaction source keyed by profile.
         // Metadata rating claims are deliberately excluded because they have no
         // profile id and therefore cannot be attributed to the requested user.
         var interactions = conn.Query<InteractionRow>(
             $"""
+            WITH {relatedBookYearCte}
             SELECT us.asset_id AS AssetId,
                    us.progress_pct AS ProgressPct,
                    us.last_accessed AS LastAccessed,

@@ -421,7 +421,7 @@ managed-source deletion happens afterward and can remain cleanup-pending.
 `item_id` on both `view_shared_contribution_items` and `view_shared_transfers` is
 optional and clears itself (`ON DELETE SET NULL`) when the personal item is removed
 by Empty Trash, so a finished, failed, declined or cancelled contribution keeps its
-history row with no item link (upgrade step 0019). Work still in flight (a pending
+history row with no item link (upgrade step 0020). Work still in flight (a pending
 contribution, an accepted item that is waiting, copying or cleaning up, or a transfer
 that is planned, copying or cleaning up) never reaches that point: Empty Trash skips
 the item first. The `contribution_item_id` link from a transfer to its contribution
@@ -1174,13 +1174,15 @@ External provider identifiers (ISBN, ASIN, TMDB ID, MBID) used for cross-provide
 
 | Column | Type | Notes |
 |---|---|---|
-| `entity_id` | TEXT | |
-| `entity_type` | TEXT | |
-| `id_type` | TEXT | `"ISBN"`, `"ASIN"`, `"TMDB"`, `"MBID"`, etc. |
-| `value` | TEXT | The identifier value |
-| `source_id` | TEXT | Which provider supplied this ID |
+| `id` | BLOB | Primary key |
+| `entity_id` | BLOB | Asset or Work the identifier describes |
+| `id_type` | TEXT | Bridge key such as `isbn`, `asin`, `tmdb_id`, `musicbrainz_release_id` |
+| `id_value` | TEXT | The identifier value |
+| `wikidata_property` | TEXT | Matching Wikidata property, when there is one |
+| `provider_id` | TEXT | Which provider supplied this ID. A Wikidata confirmation of the same value keeps the earlier non-Wikidata source, because Stage 2 resolves only from ids Wikidata did not supply. |
+| `created_at` | TEXT | Timestamp |
 
-**Index:** `entity_id + id_type`, `value + id_type` (for reverse lookup)
+**Unique:** `entity_id + id_type`
 
 ---
 

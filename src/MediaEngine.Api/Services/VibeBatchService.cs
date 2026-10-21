@@ -91,10 +91,10 @@ public sealed class VibeBatchService : BackgroundService
             }
 
             var cron = _settings.Scheduling.VibeBatchCron;
-            var delay = CronScheduler.UntilNext(cron, TimeSpan.FromHours(24));
+            var nextRun = CronScheduler.NextRunAt(cron, TimeSpan.FromHours(24));
 
-            _logger.LogInformation("VibeBatchService: next run in {Delay}", delay);
-            await _configurationStore.WaitForDelayOrChangeAsync(delay, stoppingToken);
+            _logger.LogInformation("VibeBatchService: next run at {NextRun}", nextRun.ToLocalTime());
+            await _configurationStore.WaitUntilOrChangeAsync(nextRun, stoppingToken);
         }
     }
 

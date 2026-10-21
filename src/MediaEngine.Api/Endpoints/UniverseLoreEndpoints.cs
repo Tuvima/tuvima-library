@@ -9,6 +9,8 @@ namespace MediaEngine.Api.Endpoints;
 
 internal static class UniverseLoreEndpoints
 {
+    private const string UniverseNotInLibrary = "That Universe is not in this Library.";
+
     internal static RouteGroupBuilder MapUniverseLoreEndpoints(this IEndpointRouteBuilder routes)
     {
         var group = routes.MapGroup("/universe/{qid}")
@@ -32,10 +34,13 @@ internal static class UniverseLoreEndpoints
             CancellationToken ct) =>
         {
             var sources = await lore.DiscoverSourcesAsync(qid, ct).ConfigureAwait(false);
-            return Results.Ok(sources.Select(ToDto).ToList());
+            return sources is null
+                ? ApiErrors.NotFound(UniverseNotInLibrary)
+                : Results.Ok(sources.Select(ToDto).ToList());
         })
         .WithName("DiscoverUniverseLoreSources")
         .Produces<List<UniverseLoreSourceResponse>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
         .RequireEffectiveAdministrator();
 
         group.MapPost("/lore-sources/manual", async (
@@ -57,7 +62,9 @@ internal static class UniverseLoreEndpoints
                     request.BaseUrl,
                     request.ApiUrl,
                     ct).ConfigureAwait(false);
-                return Results.Ok(ToDto(source));
+                return source is null
+                    ? ApiErrors.NotFound(UniverseNotInLibrary)
+                    : Results.Ok(ToDto(source));
             }
             catch (UriFormatException ex)
             {
@@ -66,6 +73,8 @@ internal static class UniverseLoreEndpoints
         })
         .WithName("AddManualUniverseLoreSource")
         .Produces<UniverseLoreSourceResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
         group.MapPost("/lore-sources/{sourceId:guid}/approve", async (
@@ -124,6 +133,11 @@ internal static class UniverseLoreEndpoints
             CancellationToken ct) =>
         {
             var summary = await lore.EnrichUniverseAsync(qid, ct).ConfigureAwait(false);
+            if (summary is null)
+            {
+                return ApiErrors.NotFound(UniverseNotInLibrary);
+            }
+
             return Results.Ok(new UniverseLoreEnrichResponse(
                 universe_qid: summary.UniverseQid,
                 sources_enriched: summary.SourcesEnriched,
@@ -132,6 +146,7 @@ internal static class UniverseLoreEndpoints
         })
         .WithName("EnrichUniverseLoreSources")
         .Produces<UniverseLoreEnrichResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsJobsRun);
 
         return group;

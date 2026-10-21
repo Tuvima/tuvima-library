@@ -875,6 +875,7 @@ public static class CollectionEndpoints
             IPersonRepository personRepo,
             IDisplayProjectionReadService display,
             AlbumTrackManifestService manifestService,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(artistName))
@@ -975,24 +976,26 @@ public static class CollectionEndpoints
                 };
             }).ToList();
 
-            // Resolve artist photo via the persons table.
+            // Resolve artist photo via the persons table. The panel is for artistName, so that
+            // person is looked up first; the picked track credit is only a fallback.
             string? artistPhotoUrl = null;
             Guid? artistPersonId = null;
-            if (!string.IsNullOrWhiteSpace(combinedCreator))
+            try
             {
-                try
+                var person = await FindArtistPersonAsync(personRepo, artistName, combinedCreator, ct);
+                if (person is not null)
                 {
-                    var person = await personRepo.FindByNameAsync(combinedCreator, ct);
-                    if (person is not null)
+                    artistPersonId = person.Id;
+                    if (!string.IsNullOrEmpty(person.LocalHeadshotPath) || !string.IsNullOrEmpty(person.HeadshotUrl))
                     {
-                        artistPersonId = person.Id;
-                        if (!string.IsNullOrEmpty(person.LocalHeadshotPath) || !string.IsNullOrEmpty(person.HeadshotUrl))
-                        {
-                            artistPhotoUrl = $"/persons/{person.Id}/headshot";
-                        }
+                        artistPhotoUrl = $"/persons/{person.Id}/headshot";
                     }
                 }
-                catch { /* best-effort lookup */ }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                loggerFactory.CreateLogger("CollectionArtistDetail")
+                    .LogWarning(ex, "Could not look up the person for artist {ArtistName}", artistName);
             }
 
             var response = new CollectionGroupDetailDto
@@ -1095,9 +1098,10 @@ public static class CollectionEndpoints
                 var rootWorkId = row.RootWorkId;
                 var title = row.Title;
                 var episodeTitle = row.EpisodeTitle;
-                var cover = string.IsNullOrWhiteSpace(row.Cover) && assetId.HasValue
-                    ? $"/stream/{assetId.Value:D}/cover"
-                    : row.Cover;
+                // A provider's web link never reaches the browser: the file's cover route serves the Engine's copy.
+                var cover = assetId.HasValue
+                    ? DisplayArtworkUrlResolver.Resolve(row.Cover, assetId.Value, "cover", state: "present")
+                    : DisplayArtworkUrlResolver.IsExternalProviderUrl(row.Cover) ? null : row.Cover;
                 var background = row.Background;
                 string? banner = null;
                 var hero = row.Hero;
@@ -2901,6 +2905,27 @@ public static class CollectionEndpoints
     // only reference Domain. See PreviewCollection ("/collections/preview").
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The person an artist panel shows: the artist the panel is for, or, when nobody has that name,
+    /// the credit picked from its tracks.
+    /// </summary>
+    internal static async Task<Person?> FindArtistPersonAsync(
+        IPersonRepository personRepo,
+        string artistName,
+        string? pickedName,
+        CancellationToken ct)
+    {
+        var person = await personRepo.FindByNameAsync(artistName, ct);
+        if (person is null
+            && !string.IsNullOrWhiteSpace(pickedName)
+            && !string.Equals(pickedName, artistName, StringComparison.OrdinalIgnoreCase))
+        {
+            person = await personRepo.FindByNameAsync(pickedName, ct);
+        }
+
+        return person;
+    }
 
     private static async Task<Profile?> ResolveActiveProfileAsync(
         Guid? profileId,
