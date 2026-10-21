@@ -82,6 +82,7 @@
                 <LibraryFoldersPanel @key="@level.TypeKey"
                                      ShowTypeNav="false"
                                      TypeKey="@level.TypeKey"
+                                     HighlightAddFolder="@HighlightAdd"
                                      ReadOnly="@(readOnly || _engineUnavailable)"
                                      Changed="RefreshConfigurationAsync" />
                 @if (level.TypeKey != LibraryTypeCatalog.ImportKey)
@@ -116,7 +117,8 @@
     private LibrariesConfigurationDto? _configuration;
     private LibraryOverviewDto? _overview;
     private int? _viewFolders;
-    private IReadOnlyDictionary<string, string> _pathIssues = new Dictionary<string, string>();
+    // Null until the folder checks finish: no health icon is shown before then.
+    private IReadOnlyDictionary<string, string>? _pathIssues;
     private string? _loadError;
     private bool _loading = true;
     private bool _engineUnavailable;
@@ -191,12 +193,15 @@
     }
 
     // View keeps its folders per profile, outside the library list: the distinct folders across every profile's sources.
+    // The count is unknown (null) when the profiles could not be read or any profile's sources could not, never a guessed zero.
     private async Task<int?> CountViewFoldersAsync()
     {
         var profiles = await ApiClient.GetProfilesAsync();
+        // The client answers an empty list on failure, so an empty list only counts as "no profiles" when no failure was recorded.
+        if (profiles.Count == 0 && !string.IsNullOrWhiteSpace(ApiClient.LastError)) return null;
         var reviews = await Task.WhenAll(profiles.Select(profile => ApiClient.GetViewProfileSourcesAsync(profile.Id)));
+        if (reviews.Any(review => review is null)) return null;
         return reviews
-            .Where(review => review is not null)
             .SelectMany(review => review!.Sources)
             .Select(source => source.Location)
             .Where(location => !string.IsNullOrWhiteSpace(location))
@@ -210,6 +215,9 @@
         var latest = await Orchestrator.GetLibrariesAsync();
         if (latest is not null) _configuration = latest;
     }
+
+    // A jump from the Import folder's "Choose" arrives with ?highlight=add so Add Folder is pointed at on the type's page.
+    private bool HighlightAdd => string.Equals(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("highlight"), "add", StringComparison.OrdinalIgnoreCase);
 
     private Level CurrentLevel => ResolveLevel();
 
@@ -231,8 +239,8 @@
             return orphan is null ? new Level(LevelKind.NotFound) : new Level(LevelKind.Type, null, orphan.Key);
         }
 
-        var group = LibraryGroupCatalog.TryGetGroup(subsection);
-        if (group is null || (group.Key == LibraryGroupCatalog.VaultKey && !VaultVisible)) return new Level(LevelKind.NotFound);
+        var group = LibraryGroupCatalog.TryGetVisibleGroup(subsection, VaultVisible);
+        if (group is null) return new Level(LevelKind.NotFound);
         if (string.IsNullOrEmpty(detail)) return new Level(LevelKind.Group, group);
 
         if (group.Key == "view")

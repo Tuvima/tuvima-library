@@ -15,6 +15,8 @@
         {
             var group = summary.Group;
             var vault = group.Key == LibraryGroupCatalog.VaultKey;
+            @* The warning's words open on hover and on keyboard focus of the link itself. *@
+            <AppTooltip Class="lib-door__tip" Text="@(summary.Health is { Healthy: false } ? summary.Health.Text : null)">
             <a class="@($"lib-door__group lib-door__group--{group.Key}{(vault ? " lib-door__group--strip" : string.Empty)}")"
                href="@LibraryGroupCatalog.GroupAddress(group)"
                data-group="@group.Key"
@@ -31,6 +33,7 @@
                 <LibraryHealthIcon Health="@summary.Health" />
                 <span class="lib-door__chevron"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
             </a>
+            </AppTooltip>
         }
     </div>
 
@@ -61,8 +64,8 @@
     [Parameter] public LibraryOverviewDto? Overview { get; set; }
     /// <summary>View's own folder count; null while it is not known (the card shows no count rather than a guess).</summary>
     [Parameter] public int? ViewFolders { get; set; }
-    /// <summary>Folder path to issue, from <see cref="LibraryFolderHealth.CheckAsync"/>.</summary>
-    [Parameter] public IReadOnlyDictionary<string, string> PathIssues { get; set; } = new Dictionary<string, string>();
+    /// <summary>Folder path to issue, from <see cref="LibraryFolderHealth.CheckAsync"/>; null while the checks have not finished (no health icon is shown then).</summary>
+    [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     /// <summary>
     /// Draws the Vault strip. The Vault card follows the Vault's privacy rules, so the host decides; today it is always false
     /// because Vault mode does not exist yet (the Videos Vault work adds it, and a later packet wires it here).
@@ -87,6 +90,8 @@
         if (summary.Folders is null) return summary.Group.Label;
         if (summary.Folders == 0) return $"{summary.Group.Label}, nothing added yet";
         var counts = LibraryRollup.CountsText(summary.Folders, summary.Titles).Replace(" · ", ", ", StringComparison.Ordinal);
-        return $"{summary.Group.Label}, {counts}, {(summary.Health.Healthy ? "all folders healthy" : summary.Health.Text)}";
+        return summary.Health is null
+            ? $"{summary.Group.Label}, {counts}"
+            : $"{summary.Group.Label}, {counts}, {(summary.Health.Healthy ? "all folders healthy" : summary.Health.Text)}";
     }
 }

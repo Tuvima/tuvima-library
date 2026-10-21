@@ -51,6 +51,11 @@
     border-color: var(--tl-status-danger-border);
 }
 
+/* The tooltip wrapper adds no box of its own; the link inside stays the grid item. */
+.lib-door__tip {
+    display: contents;
+}
+
 .lib-door__tile {
     display: inline-flex;
     align-items: center;

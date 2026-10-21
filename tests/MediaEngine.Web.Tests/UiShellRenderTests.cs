@@ -803,6 +803,23 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.NotEmpty(cut.FindAll(".libraries"));
     }
 
+    // The tab title names a Libraries group only when the page shows it: with the private group off, its address never reaches the title.
+    [Theory]
+    [InlineData("watch", "Watch - Library")]
+    [InlineData("view", "View - Library")]
+    [InlineData("import", "Libraries - Library")]
+    [InlineData("vault", "Libraries - Library")]
+    public void SettingsPage_OnALibrariesAddress_TitlesTheTabFromTheGroupsThatAreShown(string subsection, string expectedTitle)
+    {
+        Services.GetRequiredService<NavigationManager>().NavigateTo($"/settings/libraries/{subsection}");
+
+        var cut = Render<Settings>(parameters => parameters.Add(page => page.Section, "libraries").Add(page => page.Subsection, subsection));
+        cut.WaitForElement(".libraries");
+
+        var title = (string)typeof(Settings).GetProperty("BrowserTitle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cut.Instance)!;
+        Assert.Equal(expectedTitle, title);
+    }
+
     [Theory]
     [InlineData("/settings", null)]
     [InlineData("/settings/overview", "overview")]

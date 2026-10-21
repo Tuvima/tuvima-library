@@ -22,6 +22,8 @@
         @foreach (var row in Rows)
         {
             var type = row.Type;
+            @* The warning's words open on hover and on keyboard focus of the link itself. *@
+            <AppTooltip Class="lib-page__tip" Text="@(row.Health is { Healthy: false } ? row.Health.Text : null)">
             <a class="lib-page__row" href="@AddressFor(type)" data-type="@type.Key" aria-label="@AccessibleName(row)">
                 <span class="lib-page__name">
                     <span class="@($"lib-page__icon lib-page__icon--{IconKey(type)}")"><AppMaterialIcon Icon="@type.Icon" /></span>
@@ -33,6 +35,7 @@
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                 </span>
             </a>
+            </AppTooltip>
         }
     </div>
 
@@ -44,7 +47,7 @@
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
     [Parameter] public LibraryOverviewDto? Overview { get; set; }
     [Parameter] public int? ViewFolders { get; set; }
-    [Parameter] public IReadOnlyDictionary<string, string> PathIssues { get; set; } = new Dictionary<string, string>();
+    [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
 
     private IReadOnlyList<LibraryCrumb> Crumbs => [new("Libraries", "/settings/libraries"), new(Group.Label)];
@@ -61,6 +64,8 @@
         if (row.Folders is null) return row.Type.Label;
         if (row.Folders == 0) return $"{row.Type.Label}, nothing added yet";
         var counts = LibraryRollup.CountsText(row.Folders, row.Titles).Replace(" · ", ", ", StringComparison.Ordinal);
-        return $"{row.Type.Label}, {counts}, {(row.Health.Healthy ? "all folders healthy" : row.Health.Text)}";
+        return row.Health is null
+            ? $"{row.Type.Label}, {counts}"
+            : $"{row.Type.Label}, {counts}, {(row.Health.Healthy ? "all folders healthy" : row.Health.Text)}";
     }
 }

@@ -26,6 +26,10 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     private LibraryOverviewDto? _overview = new() { MediaTypeCounts = new() { ["Movies"] = 1284, ["Audiobooks"] = 12 } };
     private Func<string, PathTestResultDto> _pathProbe = _ => new() { Exists = true, HasRead = true, HasWrite = true };
     private IReadOnlyList<ViewSourceAdminDto> _viewSources = [];
+    // Holds every folder check open until released, to look at the page while the checks are still running.
+    private TaskCompletionSource? _pathGate;
+    private bool _profilesFail;
+    private bool _viewSourcesUnavailable;
 
     // Libraries has pages below it (a group, then a type), so its menu row matches them; every other row stays exact.
     [Fact]
@@ -88,9 +92,14 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryOverviewAsync), _ => Task.FromResult(_overview));
-            stub.SetHandler(nameof(IEngineApiClient.TestPathAsync), args => Task.FromResult<PathTestResultDto?>(_pathProbe((string)args![0]!)));
+            stub.SetHandler(nameof(IEngineApiClient.TestPathAsync), args => ProbeAsync((string)args![0]!));
             stub.SetHandler(nameof(IEngineApiClient.GetViewProfileSourcesAsync), args =>
-                Task.FromResult<ViewPersonalSpaceAdminReviewDto?>(new((Guid)args![0]!, null, _viewSources, [])));
+                Task.FromResult<ViewPersonalSpaceAdminReviewDto?>(_viewSourcesUnavailable ? null : new((Guid)args![0]!, null, _viewSources, [])));
+            // The client answers an empty list and records an error when the profiles cannot be read.
+            stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(_profilesFail
+                ? new List<ProfileViewModel>()
+                : [new ProfileViewModel(Guid.Parse("00000000-0000-0000-0000-000000000001"), "Test User", "#C9922E", "Administrator", DateTimeOffset.UtcNow)]));
+            stub.SetHandler("get_LastError", _ => _profilesFail ? "The Engine did not answer." : null);
             stub.SetHandler(nameof(IEngineApiClient.GetImportFolderWaitingAsync), _ => Task.FromResult<MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse?>(null));
             stub.SetHandler(nameof(IEngineApiClient.GetFolderJobsAsync), _ => Task.FromResult<IReadOnlyList<FolderJobStatusDto>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetExcludedFilesAsync), _ => Task.FromResult<IReadOnlyList<ExcludedFileDto>>([]));
@@ -99,6 +108,16 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
+    }
+
+    private async Task<PathTestResultDto?> ProbeAsync(string path)
+    {
+        if (_pathGate is not null)
+        {
+            await _pathGate.Task;
+        }
+
+        return _pathProbe(path);
     }
 
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
@@ -205,6 +224,85 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.Contains("1 folder unavailable", Card(cut, "watch").GetAttribute("aria-label"));
         Assert.Equal("All folders healthy", Card(cut, "listen").QuerySelector(".lib-health--ok")!.GetAttribute("aria-label"));
         Assert.Empty(Card(cut, "listen").QuerySelectorAll(".lib-health--warning"));
+    }
+
+    // Health is shown only once it is known: no tick before the folder checks finish, and View's folders are never checked.
+    [Fact]
+    public async Task NoHealthIconShowsWhileTheFolderChecksAreRunningAndTheWarningAppearsWhenTheyFinish()
+    {
+        _pathGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pathProbe = path => path == "F:\\Movies" ? new() { Exists = false } : new() { Exists = true, HasRead = true, HasWrite = true };
+        var cut = Open();
+
+        cut.WaitForAssertion(() => Assert.Equal("2 folders · 1,284 titles", Text(Card(cut, "watch").QuerySelector(".lib-door__counts")!)));
+        Assert.Empty(cut.FindAll(".lib-health"));
+
+        var group = Open("watch");
+        group.WaitForAssertion(() => Assert.Equal("2 folders · 1,284 titles", Text(group.Find(".lib-page__row[data-type=movies] .lib-page__counts"))));
+        Assert.Empty(group.FindAll(".lib-health"));
+
+        _pathGate.SetResult();
+        await Task.Yield();
+        cut.WaitForAssertion(() => Assert.Equal("1 folder unavailable", Card(cut, "watch").QuerySelector(".lib-health--warning")!.GetAttribute("aria-label")));
+        Assert.NotEmpty(Card(cut, "listen").QuerySelectorAll(".lib-health--ok"));
+    }
+
+    [Fact]
+    public void ViewShowsNoHealthIconOnItsCardOrItsRowBecauseItsFoldersAreNeverChecked()
+    {
+        var cut = Open();
+        cut.WaitForAssertion(() => Assert.NotEmpty(Card(cut, "watch").QuerySelectorAll(".lib-health--ok")));
+        Assert.Empty(Card(cut, "view").QuerySelectorAll(".lib-health"));
+
+        var group = Open("view");
+        group.WaitForElement(".lib-page__row");
+        Assert.Empty(group.FindAll(".lib-health"));
+    }
+
+    [Fact]
+    public void TheWarningWordsOpenFromTheLinkItselfSoKeyboardFocusShowsThem()
+    {
+        _pathProbe = path => path == "F:\\Movies" ? new() { Exists = false } : new() { Exists = true, HasRead = true, HasWrite = true };
+        var cut = Open();
+        cut.WaitForAssertion(() => Assert.NotEmpty(Card(cut, "watch").QuerySelectorAll(".lib-health--warning")));
+
+        var tip = Card(cut, "watch").ParentElement!;
+        Assert.Equal("1 folder unavailable", tip.GetAttribute("data-playback-tooltip"));
+        Assert.Null(Card(cut, "listen").ParentElement!.GetAttribute("data-playback-tooltip"));
+
+        var group = Open("watch");
+        group.WaitForAssertion(() => Assert.Equal("1 folder unavailable", group.Find(".lib-page__row[data-type=movies]").ParentElement!.GetAttribute("data-playback-tooltip")));
+    }
+
+    // The View folder count is unknown (no counts line), never "Nothing added yet", when it could not be read.
+    [Fact]
+    public void ViewShowsNoCountsLineWhenTheProfilesCannotBeRead()
+    {
+        _profilesFail = true;
+        var cut = Open();
+
+        cut.WaitForAssertion(() => Assert.Equal("2 folders · 1,284 titles", Text(Card(cut, "watch").QuerySelector(".lib-door__counts")!)));
+        cut.WaitForAssertion(() => Assert.NotEmpty(Card(cut, "watch").QuerySelectorAll(".lib-health")));
+        Assert.Equal(string.Empty, Text(Card(cut, "view").QuerySelector(".lib-door__counts")!));
+        Assert.DoesNotContain("Nothing added yet", Text(Card(cut, "view")));
+    }
+
+    [Fact]
+    public void ViewShowsNoCountsLineWhenAProfilesSourcesCannotBeRead()
+    {
+        _viewSourcesUnavailable = true;
+        var cut = Open();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(Card(cut, "watch").QuerySelectorAll(".lib-health")));
+        Assert.Equal(string.Empty, Text(Card(cut, "view").QuerySelector(".lib-door__counts")!));
+    }
+
+    [Fact]
+    public void ViewShowsNothingAddedYetWhenThereAreNoProfilesAndNoErrorWasRecorded()
+    {
+        var cut = Open();
+
+        cut.WaitForAssertion(() => Assert.Equal("Nothing added yet", Text(Card(cut, "view").QuerySelector(".lib-door__counts")!)));
     }
 
     // 4. Phone.

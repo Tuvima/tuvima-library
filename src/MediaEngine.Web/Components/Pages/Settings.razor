@@ -354,7 +354,7 @@ else
     private string BrowserTitle => IsProfileDetailRoute
         ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Library"
         : _activeSection == SettingsSection.Libraries
-        ? $"{LibraryGroupCatalog.TryGetGroup(_activeSubsection)?.Label ?? "Libraries"} - Library"
+        ? $"{LibraryGroupCatalog.TryGetVisibleGroup(_activeSubsection, showVault: false)?.Label ?? "Libraries"} - Library"
         : CurrentLocation?.Parent is { } parent
         ? $"{GetHeroTitle()} - {parent.Label} - Library"
         : $"{GetHeroTitle()} - Library";

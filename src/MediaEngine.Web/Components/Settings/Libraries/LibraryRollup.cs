@@ -8,10 +8,10 @@ namespace MediaEngine.Web.Components.Settings;
 /// <summary>One row on a group page, and one line of a group card: what a library type holds and how its folders are doing.</summary>
 /// <param name="Folders">Folder count; null only for View while its folders are not known yet.</param>
 /// <param name="Titles">Titles the Engine counts for the type; null when the overview is not available or the type has no count.</param>
-public sealed record LibraryRowSummary(LibraryTypeOption Type, int? Folders, int? Titles, LibraryHealth Health);
+public sealed record LibraryRowSummary(LibraryTypeOption Type, int? Folders, int? Titles, LibraryHealth? Health);
 
 /// <summary>A group card: its rows plus their totals and the worst health among them.</summary>
-public sealed record LibraryGroupSummary(LibraryGroup Group, IReadOnlyList<LibraryRowSummary> Rows, int? Folders, int? Titles, LibraryHealth Health);
+public sealed record LibraryGroupSummary(LibraryGroup Group, IReadOnlyList<LibraryRowSummary> Rows, int? Folders, int? Titles, LibraryHealth? Health);
 
 /// <summary>
 /// Works out what the Libraries front door and group pages show from the library configuration, the Engine's overview counts
@@ -72,17 +72,17 @@ public static class LibraryRollup
         LibrariesConfigurationDto configuration,
         LibraryOverviewDto? overview,
         int? viewFolders,
-        IReadOnlyDictionary<string, string> issues)
+        IReadOnlyDictionary<string, string>? issues)
     {
         if (type.Key == LibraryTypeCatalog.PhotosKey)
         {
             // View keeps its folders outside the library list and the Engine counts no titles for it, so only folders show.
-            return new LibraryRowSummary(type, viewFolders, null, LibraryHealth.Ok);
+            return new LibraryRowSummary(type, viewFolders, null, null);
         }
 
         var library = LibraryFor(configuration, type);
         var sources = library?.Sources ?? [];
-        return new LibraryRowSummary(type, sources.Count, TitlesFor(type, overview), LibraryFolderHealth.Worst(sources, issues));
+        return new LibraryRowSummary(type, sources.Count, TitlesFor(type, overview), issues is null ? null : LibraryFolderHealth.Worst(sources, issues));
     }
 
     /// <summary>The rows of a group page: its types in order, then that area's other libraries.</summary>
@@ -91,7 +91,7 @@ public static class LibraryRollup
         LibrariesConfigurationDto configuration,
         LibraryOverviewDto? overview,
         int? viewFolders,
-        IReadOnlyDictionary<string, string> issues) =>
+        IReadOnlyDictionary<string, string>? issues) =>
         [.. group.TypeKeys
             .Select(LibraryTypeCatalog.Find)
             .OfType<LibraryTypeOption>()
@@ -103,14 +103,17 @@ public static class LibraryRollup
         LibrariesConfigurationDto configuration,
         LibraryOverviewDto? overview,
         int? viewFolders,
-        IReadOnlyDictionary<string, string> issues)
+        IReadOnlyDictionary<string, string>? issues)
     {
         var rows = RowsFor(group, configuration, overview, viewFolders, issues);
         int? folders = rows.Any(row => row.Folders is null) ? null : rows.Sum(row => row.Folders!.Value);
         int? titles = overview is null || rows.All(row => row.Titles is null) ? null : rows.Sum(row => row.Titles ?? 0);
         var sources = rows.Where(row => row.Type.Key != LibraryTypeCatalog.PhotosKey)
             .SelectMany(row => LibraryFor(configuration, row.Type)?.Sources ?? []);
-        return new LibraryGroupSummary(group, rows, folders, titles, LibraryFolderHealth.Worst(sources, issues));
+        // View's folders are never checked, so a group of only View has no health to show; others wait for the checks.
+        var checkedRows = rows.Where(row => row.Type.Key != LibraryTypeCatalog.PhotosKey).ToList();
+        var health = issues is null || checkedRows.Count == 0 ? null : LibraryFolderHealth.Worst(sources, issues);
+        return new LibraryGroupSummary(group, rows, folders, titles, health);
     }
 
     /// <summary>The titles the Engine counts for a type, or null when the overview could not be read.</summary>

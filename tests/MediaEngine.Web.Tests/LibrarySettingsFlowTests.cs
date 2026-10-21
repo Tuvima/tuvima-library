@@ -316,7 +316,20 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var cut = OpenImport();
         cut.WaitForElement(".library-folders__destination");
         cut.FindAll(".library-folders__destination").Single(x => x.TextContent.Contains("Audiobooks")).QuerySelector("button")!.Click();
-        Assert.EndsWith("/settings/libraries/listen/audiobooks", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+        Assert.EndsWith("/settings/libraries/listen/audiobooks?highlight=add", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+    }
+
+    // The jump keeps pointing at Add Folder: the type's page opened that way highlights it, and opened any other way does not.
+    [Fact]
+    public void ATypePageOpenedFromAnImportChooseHighlightsAddFolder()
+    {
+        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/libraries/listen/audiobooks?highlight=add");
+        var highlighted = Open("Audiobooks");
+        Assert.NotEmpty(highlighted.FindAll(".library-folders__add.is-highlighted"));
+
+        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/libraries/listen/audiobooks");
+        var plain = Open("Audiobooks");
+        Assert.Empty(plain.FindAll(".library-folders__add.is-highlighted"));
     }
 
     // A type whose files cannot be filed shows the Engine's own sentence under its line.

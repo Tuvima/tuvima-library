@@ -305,6 +305,8 @@
     [Parameter] public string? TypeKey { get; set; }
     /// <summary>False when the host already chose the type (its own address): the list of types is not drawn and the selection follows <see cref="TypeKey"/>.</summary>
     [Parameter] public bool ShowTypeNav { get; set; } = true;
+    /// <summary>Opens with Add Folder pointed at (a jump from an Import line's Choose arrives this way when the type list is not drawn).</summary>
+    [Parameter] public bool HighlightAddFolder { get; set; }
     /// <summary>Raised after any saved change so the host can refresh its own state.</summary>
     [Parameter] public EventCallback Changed { get; set; }
 
@@ -356,6 +358,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _highlightAdd = HighlightAddFolder;
         await LoadAsync();
         if (!ShowTypeNav)
         {
@@ -425,7 +428,7 @@
     {
         if (!ShowTypeNav && LibraryGroupCatalog.GroupFor(type.Key) is { } group)
         {
-            Navigation.NavigateTo(LibraryGroupCatalog.TypeAddress(group, type.Key));
+            Navigation.NavigateTo(LibraryGroupCatalog.TypeAddress(group, type.Key) + "?highlight=add");
             return;
         }
 

@@ -52,6 +52,11 @@
     background: var(--tl-accent-primary-soft);
 }
 
+/* The tooltip wrapper adds no box of its own; the link inside stays the list row. */
+.lib-page__tip {
+    display: contents;
+}
+
 .lib-page__name {
     display: flex;
     align-items: center;

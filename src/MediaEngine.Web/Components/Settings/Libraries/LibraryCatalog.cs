@@ -61,6 +61,10 @@ public static class LibraryGroupCatalog
     public static LibraryGroup? TryGetGroup(string? key) =>
         Groups.FirstOrDefault(group => string.Equals(group.Key, key?.Trim(), StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>A group by key, only when it may be shown: the Vault is not found while Vault mode is off.</summary>
+    public static LibraryGroup? TryGetVisibleGroup(string? key, bool showVault) =>
+        Visible(showVault).FirstOrDefault(group => string.Equals(group.Key, key?.Trim(), StringComparison.OrdinalIgnoreCase));
+
     /// <summary>The group a catalogued library with this area sits under, or null when the area is unknown.</summary>
     public static LibraryGroup? ForArea(string? area) =>
         string.Equals(area?.Trim(), VaultKey, StringComparison.OrdinalIgnoreCase) ? null : TryGetGroup(area);
