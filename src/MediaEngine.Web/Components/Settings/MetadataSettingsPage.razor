@@ -395,6 +395,14 @@
         _saving = true;
         try
         {
+            // Switching a source off can leave a kind of information with no source, so say so before it is saved.
+            foreach (var (key, draft) in _providerDrafts)
+            {
+                var wasOn = _snapshot?.Providers.FirstOrDefault(provider => provider.Key == key)?.Enabled == true;
+                if (!wasOn || draft.Enabled) continue;
+                if (!await ConfirmSwitchOffAsync(key)) return;
+            }
+
             foreach (var (key, draft) in _providerDrafts)
             {
                 if (_providerBaselines.GetValueOrDefault(key) == draft.Fingerprint()) continue;
@@ -415,6 +423,44 @@
             Snackbar.Add("Provider settings could not be saved.", AppSeverity.Error);
         }
         finally { _saving = false; }
+    }
+
+    // The warning (Developer tools spec WP20, D-J): what would have no source, what other sources still cover, and that
+    // everything already in the Library is kept. Existing matches are never undone by switching a source off.
+    private async Task<bool> ConfirmSwitchOffAsync(string key)
+    {
+        var impact = await ApiClient.GetPluginSourceSwitchOffImpactAsync(key);
+        if (impact is null) return true;
+
+        RenderFragment preview = builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddAttribute(1, "data-testid", "switch-off-warning");
+            builder.OpenElement(2, "p");
+            builder.AddContent(3, impact.WouldLose.Count == 0
+                ? "Everything this source supplies is also supplied by another source."
+                : "Nothing else would supply: " + string.Join(", ", impact.WouldLose) + ".");
+            builder.CloseElement();
+            if (impact.StillCovered.Count > 0)
+            {
+                builder.OpenElement(4, "p");
+                builder.AddContent(5, "Still covered: " + string.Join("; ", impact.StillCovered.Select(c => c.Supplies + " by " + string.Join(", ", c.By))) + ".");
+                builder.CloseElement();
+            }
+            builder.OpenElement(6, "p");
+            builder.AddContent(7, impact.Keeps);
+            builder.CloseElement();
+            builder.CloseElement();
+        };
+        var answer = await AppConfirmDialog.ShowAsync(
+            DialogService,
+            $"Switch off {impact.DisplayName}?",
+            null,
+            primaryLabel: "Switch off",
+            secondaryLabel: "Keep on",
+            primaryDestructive: impact.WouldLose.Count > 0,
+            preview: preview);
+        return answer == AppConfirmResult.Primary;
     }
 
     private async Task TestProviderAsync(string key)

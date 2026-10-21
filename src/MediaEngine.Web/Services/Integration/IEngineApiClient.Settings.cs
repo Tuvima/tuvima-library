@@ -59,6 +59,15 @@ public partial interface IEngineApiClient
     /// <summary>GET /plugins/directory — the saved plugin directory (Available plugins). The Engine checks GitHub first only when the switch is on and the last check is over a day old. Null when the Engine could not be asked.</summary>
     Task<PluginDirectoryResponse?> GetPluginDirectoryAsync(CancellationToken ct = default);
 
+    /// <summary>GET /plugin-sources: every metadata source with what it supplies, and whether the Engine must restart to match the list.</summary>
+    Task<PluginSourcesResponse?> GetPluginSourcesAsync(CancellationToken ct = default);
+
+    /// <summary>GET /plugin-sources/{name}/switch-off-impact: what would have no source if this one were switched off. Null when unknown.</summary>
+    Task<PluginSourceImpactDto?> GetPluginSourceSwitchOffImpactAsync(string name, CancellationToken ct = default);
+
+    /// <summary>GET /plugin-sources/compare: two sources side by side. Null when either is unknown.</summary>
+    Task<PluginSourceComparisonDto?> ComparePluginSourcesAsync(string from, string to, CancellationToken ct = default);
+
     /// <summary>POST /plugins/directory/check — Check now. Null when the Engine could not be asked.</summary>
     Task<PluginDirectoryResponse?> CheckPluginDirectoryAsync(CancellationToken ct = default);
 

@@ -584,6 +584,7 @@ public sealed partial class CollectionClientEndpointsTests
         public FieldPriorityConfiguration LoadFieldPriorities() => new();
         public void SaveFieldPriorities(FieldPriorityConfiguration config) { }
         public ProviderConfiguration? LoadProvider(string name) => null;
+        public void DeleteProvider(string name) { }
         public void SaveProvider(ProviderConfiguration config) { }
         public IReadOnlyList<ProviderConfiguration> LoadAllProviders() => [];
 

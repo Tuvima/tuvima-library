@@ -8,9 +8,22 @@
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudSync" />
         <div>
             <h2 id="setup-stage-title">Enhance your library</h2>
-            <p>Connect services that add richer identity, artwork, people, and relationships for the media you selected.</p>
+            <p>Choose where information about your media comes from. Each source below says what it can supply for the media you selected.</p>
         </div>
     </div>
+
+    @if (Needs.Count > 0)
+    {
+        <section class="setup-needs" aria-labelledby="setup-needs-heading" data-testid="setup-needs">
+            <h3 id="setup-needs-heading">What your library needs</h3>
+            <ul>
+                @foreach (var need in Needs)
+                {
+                    <li data-testid="setup-need">@need.Phrase: @(need.Sources.Count == 0 ? "no source yet" : string.Join(", ", need.Sources))</li>
+                }
+            </ul>
+        </section>
+    }
 
     @if (Catalogue.Count == 0)
     {
@@ -88,6 +101,21 @@
         .SelectMany(library => library.MediaTypes)
         .Where(mediaType => !string.IsNullOrWhiteSpace(mediaType))
         .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    private sealed record Need(string Phrase, IReadOnlyList<string> Sources);
+
+    // For each kind of media the library holds, each thing a source can supply and which sources supply it. The wording is
+    // shared with the Engine (ProviderCapabilityPhrases), so the same sentence appears on the Plugins page and here.
+    private IReadOnlyList<Need> Needs => Catalogue.Count == 0
+        ? []
+        : ConfiguredMediaTypes
+            .OrderBy(mediaType => mediaType, StringComparer.OrdinalIgnoreCase)
+            .SelectMany(mediaType => Catalogue
+                .Where(provider => provider.MediaTypes.Count == 0 || provider.MediaTypes.Contains(mediaType, StringComparer.OrdinalIgnoreCase))
+                .SelectMany(provider => provider.Capabilities.Select(capability => (Phrase: ProviderCapabilityPhrases.Phrase(mediaType, capability), provider.DisplayName))))
+            .GroupBy(pair => pair.Phrase, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new Need(group.Key, group.Select(pair => pair.DisplayName).Distinct(StringComparer.OrdinalIgnoreCase).ToList()))
+            .ToList();
 
     private IReadOnlyList<ProviderCatalogueDto> RelevantProviders => Catalogue
         .OrderBy(provider => provider.DisplayName, StringComparer.OrdinalIgnoreCase)

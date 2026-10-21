@@ -257,6 +257,11 @@ internal static partial class DeclarativePluginParser
             return $"{label} needs a \"name\".";
         }
 
+        if (into.Any(existing => string.Equals(existing.Name, configuration.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            return $"The metadata source name \"{configuration.Name}\" is used more than once.";
+        }
+
         if (!KeyPattern().IsMatch(configuration.Name))
         {
             return $"The metadata source name \"{configuration.Name}\" must be 1 to 64 lower-case letters, digits, hyphens or underscores.";

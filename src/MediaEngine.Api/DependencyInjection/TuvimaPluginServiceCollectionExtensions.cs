@@ -3,6 +3,7 @@ using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Api.Services.Plugins.Declarative;
 using MediaEngine.Api.Services.Plugins.Pages;
 using MediaEngine.Api.Services.Plugins.Service;
+using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Plugin.CommercialSkip;
 using MediaEngine.Plugin.FandomLore;
@@ -35,7 +36,9 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<IPluginApprovalCheck, PluginApprovalCheck>();
         services.AddSingleton<PluginBlocklist>();
         services.AddSingleton<PluginPageService>();
+        services.AddSingleton<PluginMetadataSourceFiles>();
         services.AddSingleton<PluginCatalog>();
+        services.AddSingleton<ProviderCapabilityCatalogue>();
         services.AddSingleton<PluginDirectoryService>();
         services.AddSingleton<PluginSignatureVerifier>();
         services.AddSingleton<PluginPackageInstaller>();

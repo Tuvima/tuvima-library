@@ -327,6 +327,12 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public Task<IReadOnlyList<PluginSummaryResponse>> GetPluginsAsync(CancellationToken ct = default) =>
         _api.GetPluginsAsync(ct);
 
+    public Task<PluginSourcesResponse?> GetPluginSourcesAsync(CancellationToken ct = default) =>
+        _api.GetPluginSourcesAsync(ct);
+
+    public Task<PluginSourceComparisonDto?> ComparePluginSourcesAsync(string from, string to, CancellationToken ct = default) =>
+        _api.ComparePluginSourcesAsync(from, to, ct);
+
     public Task<PluginDirectoryResponse?> GetPluginDirectoryAsync(CancellationToken ct = default) =>
         _api.GetPluginDirectoryAsync(ct);
 

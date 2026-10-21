@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1126; api=0; web-client=54
+# scopes: contracts=1131; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8015,6 +8015,50 @@
   message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   result: System.Text.Json.JsonElement? | json=result | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"plugin_id":"sample","status":"sample","message":"sample","result":{"sample":true}}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginSourceComparisonDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  From: System.String | json=from | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  To: System.String | json=to | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Both: System.Collections.Generic.List<System.String> | json=both | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OnlyFrom: System.Collections.Generic.List<System.String> | json=only_from | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OnlyTo: System.Collections.Generic.List<System.String> | json=only_to | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Keeps: System.String | json=keeps | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"from":"sample","to":"sample","both":[],"only_from":[],"only_to":[],"keeps":"sample"}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginSourceCoverageDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Supplies: System.String | json=supplies | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  By: System.Collections.Generic.List<System.String> | json=by | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"supplies":"sample","by":[]}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginSourceDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DisplayName: System.String | json=display_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Enabled: System.Boolean | json=enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Origin: System.String | json=origin | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PluginId: System.String | json=plugin_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RequiresKey: System.Boolean | json=requires_key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MediaTypes: System.Collections.Generic.List<System.String> | json=media_types | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Supplies: System.Collections.Generic.List<System.String> | json=supplies | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SendsDataTo: System.Collections.Generic.List<System.String> | json=sends_data_to | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample","display_name":"sample","enabled":true,"origin":"sample","plugin_id":"sample","requires_key":true,"media_types":[],"supplies":[],"sends_data_to":[]}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginSourceImpactDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DisplayName: System.String | json=display_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WouldLose: System.Collections.Generic.List<System.String> | json=would_lose | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StillCovered: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSourceCoverageDto> | json=still_covered | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Keeps: System.String | json=keeps | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample","display_name":"sample","would_lose":[],"still_covered":[],"keeps":"sample"}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginSourcesResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Sources: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSourceDto> | json=sources | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RestartNeeded: System.Boolean | json=restart_needed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"sources":[],"restart_needed":true}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginSummaryResponse
   kind=class | converter=default | number-handling=default | unmapped=default

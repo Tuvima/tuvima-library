@@ -366,6 +366,7 @@ internal sealed class StubConfigurationLoader : IConfigurationLoader
     public void SaveFieldPriorities(FieldPriorityConfiguration config) { }
     public LibrariesConfiguration LoadLibraries() => Libraries;
     public ProviderConfiguration? LoadProvider(string name) => null;
+    public void DeleteProvider(string name) { }
     public void SaveProvider(ProviderConfiguration config) { }
     public IReadOnlyList<ProviderConfiguration> LoadAllProviders() => [];
     public T? LoadConfig<T>(string subdirectory, string name) where T : class =>
