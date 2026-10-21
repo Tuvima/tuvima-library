@@ -1,0 +1,13 @@
+.tl-not-matched-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px var(--tl-space-2);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-pill);
+    background: var(--tl-status-unmatched-soft);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+    line-height: 1.5;
+    white-space: nowrap;
+}

@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.BatchEdit;
 using MediaEngine.Api.Services.Collections;
 using MediaEngine.Api.Services.Matching;
 using MediaEngine.Api.Services.ReadServices;
@@ -26,6 +27,8 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<ILibraryOverviewReadService, LibraryOverviewReadService>();
         services.AddSingleton<ILibraryWorkFeedReadService, LibraryWorkFeedReadService>();
         services.AddSingleton<ILibraryCurationReadService, LibraryCurationReadService>();
+        services.AddSingleton<ILibraryBatchEditService, LibraryBatchEditService>();
+        services.AddScoped<LibraryBatchEditAccessService>();
         services.AddSingleton<IMetadataClaimHistoryReadService, MetadataClaimHistoryReadService>();
         services.AddSingleton<ICollectionBrowseReadService, CollectionBrowseReadService>();
         services.AddSingleton<ICollectionSearchReadService, CollectionSearchReadService>();
@@ -51,7 +54,6 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<IMediaEditorMembershipReadService>(sp => sp.GetRequiredService<MediaEditorNavigationReadService>());
         services.AddSingleton<IMediaEditorOwnedChildReadService, MediaEditorOwnedChildReadService>();
         services.AddSingleton<MediaEditorWorkVersionReadRepository>();
-        services.AddSingleton<MusicTrackRelocationRepository>();
         services.AddSingleton<MediaEditorFileCoverageRepository>();
         services.AddSingleton<MediaEditorSelectionHistoryReadService>();
         services.AddSingleton<PairingAssetReadService>();

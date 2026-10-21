@@ -1,0 +1,20 @@
+.tl-row-select {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    margin-inline-end: var(--tl-space-2);
+    vertical-align: middle;
+}
+
+/* On a card the box sits in the top-left corner over the artwork, on a backing so it reads on any image. */
+.tl-row-select--floating {
+    position: absolute;
+    inset-block-start: var(--tl-space-2);
+    inset-inline-start: var(--tl-space-2);
+    z-index: 2;
+    margin: 0;
+    padding: var(--tl-space-1);
+    border-radius: var(--tl-radius-sm);
+    background: color-mix(in srgb, var(--tl-bg-shell) 82%, transparent);
+    backdrop-filter: blur(0.5rem);
+}

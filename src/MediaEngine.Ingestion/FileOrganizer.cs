@@ -38,6 +38,8 @@ namespace MediaEngine.Ingestion;
 ///   {Disc}         — zero-padded disc number for multi-disc albums (empty when single-disc — pair with conditional `({Disc})`)
 ///   {Season}       — zero-padded TV season
 ///   {Episode}      — zero-padded TV episode
+///   {EpisodeCode}  — "s01e05" (season and episode together); empty unless both are known, so a file with no
+///                    episode number can use <c>{EpisodeCode?}</c> and read as just its title
 ///   {EpisodeTitle} — TV episode title (falls back to {Title})
 ///   {IssueNumber}  — comic issue number
 ///   {ImdbId}       — IMDB id (e.g. "tt1856101"); empty when unknown
@@ -121,9 +123,11 @@ public sealed class FileOrganizer : IFileOrganizer
     // Matches an optional token of the form `{Token?}` — group 1 captures the
     // bare token name. Optional tokens that resolve to empty produce an empty
     // string (rather than "Unknown") and any path segment they leave empty is
-    // dropped in the cleanup pass.
+    // dropped in the cleanup pass. Group 2 is a dash separator right after the
+    // token (`{TrackNumber?} - {Title}`): it stays with a value and goes with an
+    // empty one, so an unnumbered file reads `Title.flac`, not `- Title.flac`.
     private static readonly System.Text.RegularExpressions.Regex OptionalTokenRegex = new(
-        @"\{([A-Za-z0-9_]+)\?\}",
+        @"\{([A-Za-z0-9_]+)\?\}([ \t]*[-\u2013\u2014][ \t]*)?",
         System.Text.RegularExpressions.RegexOptions.Compiled);
 
     // Matches two or more consecutive whitespace characters.
@@ -325,7 +329,7 @@ public sealed class FileOrganizer : IFileOrganizer
                 && !string.IsNullOrWhiteSpace(value))
             {
                 string sanitized = Sanitize(value);
-                return string.IsNullOrWhiteSpace(sanitized) ? string.Empty : sanitized;
+                return string.IsNullOrWhiteSpace(sanitized) ? string.Empty : sanitized + match.Groups[2].Value;
             }
             return string.Empty;
         });
@@ -432,6 +436,9 @@ public sealed class FileOrganizer : IFileOrganizer
 
         var ext = Path.GetExtension(candidate.Path); // includes the dot: ".epub"
 
+        var season = PadNumeric(meta.GetValueOrDefault("season", "") is { Length: > 0 } sn ? sn : meta.GetValueOrDefault("season_number", string.Empty));
+        var episode = ResolveEpisodeToken(meta);
+
         var tokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["Title"] = meta.GetValueOrDefault(MetadataFieldConstants.Title, "Unknown"),
@@ -459,8 +466,9 @@ public sealed class FileOrganizer : IFileOrganizer
             ["TrackNumber"] = PadNumeric(meta.GetValueOrDefault(MetadataFieldConstants.TrackNumber, string.Empty) is { Length: > 0 } track
                                   ? track
                                   : meta.GetValueOrDefault("audiobook_part_number", string.Empty)),
-            ["Season"] = PadNumeric(meta.GetValueOrDefault("season", "") is { Length: > 0 } sn ? sn : meta.GetValueOrDefault("season_number", string.Empty)),
-            ["Episode"] = ResolveEpisodeToken(meta),
+            ["Season"] = season,
+            ["Episode"] = episode,
+            ["EpisodeCode"] = string.IsNullOrWhiteSpace(season) || string.IsNullOrWhiteSpace(episode) ? string.Empty : $"s{season}e{episode}",
             // ── TV episode title (Plex/Jellyfin filename convention) ─────────────
             ["EpisodeTitle"] = meta.GetValueOrDefault("episode_title", "") is { Length: > 0 } et
                                   ? et

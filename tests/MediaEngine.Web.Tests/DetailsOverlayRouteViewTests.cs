@@ -306,6 +306,43 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
     }
 
     [Fact]
+    public void WhenAMoveRemovesTheShownItem_TheOverlayAddressFollowsTheSurvivingItemKeepingTheUnderlayAndTheQuery()
+    {
+        var view = RenderAt("/listen", Underlay());
+        _nav.NavigateTo(DetailUri(TitleId, "?tab=overview"));
+        RouterShows(view, Detail(TitleId));
+        var guard = new RecordingGuard(allow: false);
+        using var registration = State.RegisterDismissGuard(guard);
+
+        var followed = DetailsOverlayNavigation.FollowItem(_nav, State, TitleId, OtherTitleId);
+
+        Assert.True(followed);
+        Assert.EndsWith(DetailUri(OtherTitleId, "?tab=overview"), _nav.Uri);
+        Assert.Equal(0, guard.Asked);
+        Assert.True(State.IsOpen);
+        Assert.Equal("/listen", State.Current.UnderlayUri);
+        Assert.Equal(1, State.Current.Depth);
+        Assert.Empty(_history.Steps);
+        var entry = History.First(item => item.State == Bunit.TestDoubles.NavigationState.Succeeded);
+        Assert.True(entry.Options.ReplaceHistoryEntry);
+    }
+
+    [Fact]
+    public void AnAddressThatDoesNotNameTheRemovedItem_IsLeftAlone()
+    {
+        var view = RenderAt("/listen", Underlay());
+        _nav.NavigateTo(DetailUri(OtherTitleId));
+        RouterShows(view, Detail(OtherTitleId));
+        var entriesBefore = SucceededEntries;
+
+        var followed = DetailsOverlayNavigation.FollowItem(_nav, State, TitleId, Guid.NewGuid());
+
+        Assert.False(followed);
+        Assert.EndsWith(DetailUri(OtherTitleId), _nav.Uri);
+        Assert.Equal(entriesBefore, SucceededEntries);
+    }
+
+    [Fact]
     public async Task AFailedHistoryStep_FallsBackToTheUnderlayAndDoesNotLeaveTheGuardBypassed()
     {
         var view = RenderAt("/listen", Underlay());
