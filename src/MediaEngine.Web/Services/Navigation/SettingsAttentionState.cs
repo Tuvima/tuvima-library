@@ -37,6 +37,7 @@ public sealed class SettingsAttentionState(
     private int _reviewCount;
     private bool _loaded;
     private bool _pluginsBroken;
+    private bool _aiFeaturesOn;
     private bool _dismissalsLoaded;
     private bool _busy;
     private string? _actionError;
@@ -102,6 +103,18 @@ public sealed class SettingsAttentionState(
     public bool LocalAiBlocked => LocalAiBlockers.Count > 0;
 
     /// <summary>
+    /// An AI feature plugin is switched on, so it needs Local AI. Local AI itself has no switch: it only counts as broken
+    /// (red in the menu) when something switched on is waiting on it. False for anyone who is not a server administrator.
+    /// </summary>
+    public bool AiFeaturesOn => IsServerAdministrator && Volatile.Read(ref _aiFeaturesOn);
+
+    /// <summary>The Official AI feature plugins all have ids starting with this.</summary>
+    private const string AiFeaturePluginPrefix = "tuvima.ai-";
+
+    private static bool AnyAiFeatureOn(IEnumerable<PluginSummaryResponse> plugins) =>
+        plugins.Any(plugin => plugin.Enabled && plugin.Id.StartsWith(AiFeaturePluginPrefix, StringComparison.Ordinal));
+
+    /// <summary>
     /// A plugin that is switched on cannot do its job (it did not load, or it does not work with this Library), so the
     /// Plugins menu row shows red. A plugin that is switched off never counts. False for anyone who is not a server administrator.
     /// </summary>
@@ -114,8 +127,12 @@ public sealed class SettingsAttentionState(
     public void ReportPlugins(IEnumerable<PluginSummaryResponse> plugins)
     {
         ArgumentNullException.ThrowIfNull(plugins);
-        var broken = plugins.Any(StateCardHealth.IsPluginBroken);
-        if (Interlocked.Exchange(ref _pluginsBroken, broken) != broken)
+        var list = plugins as IReadOnlyCollection<PluginSummaryResponse> ?? plugins.ToList();
+        var broken = list.Any(StateCardHealth.IsPluginBroken);
+        var aiOn = AnyAiFeatureOn(list);
+        var changed = Interlocked.Exchange(ref _pluginsBroken, broken) != broken;
+        changed |= Interlocked.Exchange(ref _aiFeaturesOn, aiOn) != aiOn;
+        if (changed)
         {
             Changed?.Invoke();
         }
@@ -240,6 +257,7 @@ public sealed class SettingsAttentionState(
                 Volatile.Write(ref _reviewCount, 0);
                 Volatile.Write(ref _tools, null);
                 Volatile.Write(ref _pluginsBroken, false);
+                Volatile.Write(ref _aiFeaturesOn, false);
                 Volatile.Write(ref _loaded, true);
                 Changed?.Invoke();
                 return;
@@ -267,7 +285,9 @@ public sealed class SettingsAttentionState(
                 Volatile.Write(ref _tools, tools);
             }
 
-            Volatile.Write(ref _pluginsBroken, (await pluginsTask.ConfigureAwait(false)).Any(StateCardHealth.IsPluginBroken));
+            var pluginsRead = await pluginsTask.ConfigureAwait(false);
+            Volatile.Write(ref _pluginsBroken, pluginsRead.Any(StateCardHealth.IsPluginBroken));
+            Volatile.Write(ref _aiFeaturesOn, AnyAiFeatureOn(pluginsRead));
 
             if (await noticesTask.ConfigureAwait(false) is { } notices)
             {

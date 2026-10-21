@@ -10,7 +10,8 @@ namespace MediaEngine.Web.Services.Navigation;
 /// <param name="ReviewCount">Items waiting in Needs Review.</param>
 /// <param name="SecurityNeedsAttention">Security carries the small attention dot.</param>
 /// <param name="IsSectionEnabled">Switches a page off for reasons that are not about rights (a feature flag). Null means all are on.</param>
-/// <param name="LocalAiBlocked">Local AI cannot work until the tools and libraries it needs are downloaded; its row shows red with "Off".</param>
+/// <param name="LocalAiBlocked">Local AI cannot work until the tools and libraries it needs are downloaded.</param>
+/// <param name="AiFeaturesOn">An AI feature plugin is switched on. Local AI has no switch of its own, so its row shows red with "Broken" only when it is blocked while something switched on needs it; nothing switched off is ever red.</param>
 /// <param name="PluginsBroken">A plugin that is switched on cannot do its job; the Plugins row shows red with "Broken". Nothing switched off counts.</param>
 public sealed record SettingsMenuContext(
     bool AdministrationAllowed,
@@ -20,7 +21,8 @@ public sealed record SettingsMenuContext(
     bool SecurityNeedsAttention,
     Func<SettingsSection, bool>? IsSectionEnabled = null,
     bool LocalAiBlocked = false,
-    bool PluginsBroken = false);
+    bool PluginsBroken = false,
+    bool AiFeaturesOn = true);
 
 /// <summary>One line of the phone page selector: a page and how deep it sits in the tree.</summary>
 public sealed record SettingsPhoneMenuOption(string Route, string Label, int Depth);
@@ -67,21 +69,33 @@ public static class SettingsMenuBuilder
             return false;
         }
 
+        // Phones and tablets are for consuming media: the Developer area (Local AI, Integrations, Plugins, Developer Tools) is not
+        // listed there at all. Its pages stay reachable by address from a mobile browser.
+        if (context.IsMobile && IsDeveloperArea(node))
+        {
+            return false;
+        }
+
         return !context.IsMobile
                || SettingsNav.IsVisibleOnMobile(node.Section)
                && SettingsNav.IsMobileRouteAvailable(node.Section, node.Subsection);
     }
 
+    // Integrations lives under the Access page but sits in the Developer menu group.
+    private static bool IsDeveloperArea(SettingsMenuNode node) =>
+        SettingsNav.GetGroup(node.Section).Key == "developer"
+        || node is { Section: SettingsSection.Access, Subsection: "applications" };
+
     private static MediaSectionNavigationItem BuildItem(SettingsMenuNode node, SettingsMenuContext context)
     {
         // Needs Review is reached from the Library and Ingestion page (Recently Added is no longer a menu row), so that
         // row carries the count and the amber "waiting" shading;
-        // Local AI shows red with "Off" while it cannot work and Plugins shows red with "Broken" while a switched-on plugin
-        // cannot; a parent shows its most urgent child's level. Phones show
+        // Local AI and Plugins show red with "Broken" while something switched on cannot work (Local AI: an AI feature is on and
+        // the tools are missing); a parent shows its most urgent child's level. Phones show
         // plain rows, and Tools and requirements is never shaded.
         var showReview = node is { Section: SettingsSection.Ingestion, Subsection: null } && context.ReviewCount > 0;
         var count = showReview ? DisplayFormat.FormatCount(context.ReviewCount) : null;
-        var localAiOff = node is { Section: SettingsSection.LocalAi, Subsection: null } && context.LocalAiBlocked && !context.IsMobile;
+        var localAiOff = node is { Section: SettingsSection.LocalAi, Subsection: null } && context.LocalAiBlocked && context.AiFeaturesOn && !context.IsMobile;
         var pluginsBroken = node is { Section: SettingsSection.Plugins, Subsection: null } && context.PluginsBroken && !context.IsMobile;
 
         return new MediaSectionNavigationItem(
@@ -103,6 +117,6 @@ public static class SettingsMenuBuilder
                 : showReview && !context.IsMobile
                     ? MediaSectionAttentionLevel.Waiting
                     : MediaSectionAttentionLevel.None,
-            AttentionLabel: localAiOff ? "Off" : pluginsBroken ? "Broken" : null);
+            AttentionLabel: localAiOff || pluginsBroken ? "Broken" : null);
     }
 }

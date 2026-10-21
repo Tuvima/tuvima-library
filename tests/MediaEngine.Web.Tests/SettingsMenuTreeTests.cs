@@ -104,16 +104,39 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void LocalAiBlocked_MakesItsRowRedWithOff_AndItsGroupInheritsIt_ButToolsStayUnshaded()
+    public void LocalAiBlocked_WithAnAiFeatureOn_MakesItsRowRedWithBroken_AndItsGroupInheritsIt_ButToolsStayUnshaded()
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { LocalAiBlocked = true });
 
         var localAi = Flatten(groups).Single(row => row.Label == "Local AI");
         Assert.Equal(MediaSectionAttentionLevel.Blocked, localAi.Attention);
-        Assert.Equal("Off", localAi.AttentionLabel);
+        Assert.Equal("Broken", localAi.AttentionLabel);
         Assert.Equal(MediaSectionAttentionLevel.Blocked, groups.Single(group => group.Label == "Developer").Items.Max(row => row.EffectiveAttention));
         Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Tools and requirements").EffectiveAttention);
         Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Library and Ingestion").EffectiveAttention);
+    }
+
+    [Fact]
+    public void LocalAiBlocked_WithNoAiFeatureSwitchedOn_IsNeverRed()
+    {
+        var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { LocalAiBlocked = true, AiFeaturesOn = false });
+
+        var localAi = Flatten(groups).Single(row => row.Label == "Local AI");
+        Assert.Equal(MediaSectionAttentionLevel.None, localAi.EffectiveAttention);
+        Assert.Null(localAi.AttentionLabel);
+    }
+
+    [Fact]
+    public void OnAPhoneOrTablet_TheDeveloperAreaIsNotListedAtAll()
+    {
+        var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { IsMobile = true });
+
+        var labels = Flatten(groups).Select(row => row.Label).ToArray();
+        Assert.DoesNotContain("Local AI", labels);
+        Assert.DoesNotContain("Plugins", labels);
+        Assert.DoesNotContain("Integrations", labels);
+        Assert.DoesNotContain(groups, group => group.Label == "Developer");
+        Assert.DoesNotContain(SettingsMenuBuilder.BuildPhoneSelector(groups), group => group.Label == "Developer");
     }
 
     [Fact]
