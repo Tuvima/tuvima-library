@@ -1,0 +1,186 @@
+using System.Text.RegularExpressions;
+
+namespace MediaEngine.Plugins;
+
+// Host services a plugin can use beyond its own capabilities: its own records, recurring jobs, Library events and
+// always-on background work. Each sits behind its own declared permission (see PluginPermissionIds) and is bounded by
+// limits the Library enforces; none of these types references the Library's storage or domain.
+
+/// <summary>One record a plugin keeps in the Library's data store.</summary>
+/// <param name="Collection">The plugin's own grouping name, for example <c>watched-titles</c>.</param>
+/// <param name="Key">The record's key inside the collection.</param>
+/// <param name="Json">The record's value: a JSON document written by the plugin.</param>
+/// <param name="UpdatedAt">When the record was last written (UTC).</param>
+public sealed record PluginRecord(string Collection, string Key, string Json, DateTimeOffset UpdatedAt);
+
+/// <summary>
+/// A plugin's own records. Always scoped to the calling plugin: there is no way to name another plugin, and one plugin
+/// can never read another's records. Needs the <c>plugin-records</c> permission. Names are 1 to 128 printable characters.
+/// </summary>
+public interface IPluginRecordStore
+{
+    /// <summary>The record, or null when there is none.</summary>
+    Task<PluginRecord?> GetAsync(string collection, string key, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Saves a record, replacing any record with the same collection and key. <paramref name="json"/> must be valid JSON.
+    /// Throws <see cref="PluginLimitExceededException"/> when the value, the record count or the plugin's total space
+    /// is over its limit.
+    /// </summary>
+    Task PutAsync(string collection, string key, string json, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes a record. Returns false when there was none.</summary>
+    Task<bool> DeleteAsync(string collection, string key, CancellationToken cancellationToken = default);
+
+    /// <summary>Records in a collection ordered by key, optionally only those whose key starts with <paramref name="keyPrefix"/>. At most <paramref name="limit"/> (1 to 1,000).</summary>
+    Task<IReadOnlyList<PluginRecord>> ListAsync(
+        string collection,
+        string? keyPrefix = null,
+        int limit = 100,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>A plugin asked for more than the Library allows it. <see cref="Exception.Message"/> is plain English.</summary>
+public sealed class PluginLimitExceededException(string message) : Exception(message);
+
+/// <summary>
+/// When a recurring job runs: every so often (an interval of at least five minutes) or on a five-field cron schedule
+/// evaluated in the machine's local time zone. The Library checks a cron text when the plugin loads.
+/// </summary>
+public sealed partial record PluginSchedule
+{
+    /// <summary>The shortest interval a plugin job may use.</summary>
+    public static readonly TimeSpan MinimumInterval = TimeSpan.FromMinutes(5);
+
+    private PluginSchedule(TimeSpan? interval, string? cron)
+    {
+        Interval = interval;
+        Cron = cron;
+    }
+
+    /// <summary>Set for an interval schedule.</summary>
+    public TimeSpan? Interval { get; }
+
+    /// <summary>Set for a cron schedule.</summary>
+    public string? Cron { get; }
+
+    /// <summary>Runs every <paramref name="interval"/>, which must be at least <see cref="MinimumInterval"/>.</summary>
+    public static PluginSchedule Every(TimeSpan interval)
+    {
+        if (interval < MinimumInterval)
+        {
+            throw new ArgumentOutOfRangeException(nameof(interval), "A plugin job cannot run more often than every 5 minutes.");
+        }
+
+        return new PluginSchedule(interval, null);
+    }
+
+    /// <summary>Runs on a five-field cron schedule such as <c>0 3 * * *</c>.</summary>
+    public static PluginSchedule OnCron(string cron)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(cron);
+        return new PluginSchedule(null, cron.Trim());
+    }
+
+    /// <summary>
+    /// Reads schedule text: a cron expression, or an interval such as <c>30m</c>, <c>2h</c>, <c>1d</c> or
+    /// <c>every 30 minutes</c>. Returns false for an interval under five minutes. A cron text is only checked for its
+    /// shape here; the Library checks it fully before running anything.
+    /// </summary>
+    public static bool TryParse(string? text, out PluginSchedule? schedule)
+    {
+        schedule = null;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        var match = IntervalPattern().Match(text.Trim());
+        if (match.Success)
+        {
+            if (!int.TryParse(match.Groups["n"].ValueSpan, out var count) || count <= 0)
+            {
+                return false;
+            }
+
+            var unit = char.ToLowerInvariant(match.Groups["unit"].Value[0]);
+            var interval = unit switch
+            {
+                'm' => TimeSpan.FromMinutes(count),
+                'h' => TimeSpan.FromHours(count),
+                _ => TimeSpan.FromDays(count),
+            };
+            if (interval < MinimumInterval || interval > TimeSpan.FromDays(366))
+            {
+                return false;
+            }
+
+            schedule = new PluginSchedule(interval, null);
+            return true;
+        }
+
+        var fields = text.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (fields.Length != 5)
+        {
+            return false;
+        }
+
+        schedule = new PluginSchedule(null, string.Join(' ', fields));
+        return true;
+    }
+
+    [GeneratedRegex(@"^(?:every\s+)?(?<n>\d+)\s*(?<unit>m(?:in(?:ute)?s?)?|h(?:(?:ou)?rs?)?|d(?:ays?)?)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex IntervalPattern();
+}
+
+/// <summary>
+/// A recurring job a plugin runs. Needs the <c>scheduled-work</c> permission. Each run is a run record listed in
+/// Scheduled tasks. A job never overlaps itself, and a run longer than ten minutes is cancelled and recorded as failed.
+/// </summary>
+public interface IPluginScheduledJob : IPluginCapability
+{
+    /// <summary>A short stable name for the job: lower-case letters, digits, hyphens and underscores (1 to 64 characters).</summary>
+    string Key { get; }
+
+    /// <summary>The name shown in Scheduled tasks after the plugin's name, for example "Refresh the reading list".</summary>
+    string DisplayName { get; }
+
+    /// <summary>When the job runs unless the administrator overrides it in the plugin's configuration file.</summary>
+    PluginSchedule DefaultSchedule { get; }
+
+    Task RunAsync(IPluginExecutionContext context, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// A Library event delivered to a plugin. <paramref name="PayloadJson"/> is the same envelope JSON that webhooks
+/// receive (event id, type, version, time, server, subject and payload).
+/// </summary>
+/// <param name="Type">The event type, for example <c>library.item_added</c>.</param>
+/// <param name="EventId">The event's unique id.</param>
+/// <param name="Sequence">The event's position in the Library's event list; always rising.</param>
+/// <param name="OccurredAt">When it happened (UTC).</param>
+/// <param name="PayloadJson">The webhook envelope JSON for this event.</param>
+public sealed record PluginEvent(string Type, string EventId, long Sequence, DateTimeOffset OccurredAt, string PayloadJson);
+
+/// <summary>
+/// A plugin that is told when things happen in the Library. Needs <c>library-events</c>, plus <c>watch-activity</c> for the
+/// <c>playback.*</c> events. A type the Library does not know is a load error. Each event is tried once with a 30-second
+/// limit; five failures in a row pause the subscription.
+/// </summary>
+public interface IPluginEventSubscriber : IPluginCapability
+{
+    /// <summary>The event types to receive, for example <c>library.item_added</c>.</summary>
+    IReadOnlyList<string> EventTypes { get; }
+
+    Task HandleAsync(PluginEvent evt, IPluginExecutionContext context, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Always-on work a plugin runs while it is switched on and approved. Needs <c>background-work</c>. The Library starts it,
+/// cancels the token to stop it (then waits ten seconds), and restarts it with a growing pause if it crashes or returns.
+/// The context stays usable for the whole run.
+/// </summary>
+public interface IPluginBackgroundService : IPluginCapability
+{
+    Task RunAsync(IPluginExecutionContext context, CancellationToken stoppingToken);
+}

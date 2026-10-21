@@ -36,15 +36,15 @@ public sealed class PluginCapabilityAuthorizationTests
         using var fixture = new CatalogFixture(Manifest([PluginPermissionIds.NetworkHttp]));
         fixture.Enable();
         var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-        var client = new BoundPluginHttpClient(TestPlugin.Id, new PluginPermissionGate(fixture.Catalog), new SingleClientFactory(handler));
+        var client = HttpClientFor(fixture, handler);
 
-        using var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://example.test/data"));
+        using var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://api.example.com/data"));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(1, handler.RequestCount);
 
         fixture.Catalog.SetEnabled(TestPlugin.Id, false);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://example.test/again")));
+            client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://api.example.com/again")));
         Assert.Equal(1, handler.RequestCount);
     }
 
@@ -54,10 +54,10 @@ public sealed class PluginCapabilityAuthorizationTests
         using var fixture = new CatalogFixture(Manifest([PluginPermissionIds.MediaRead]));
         fixture.Enable();
         var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-        var client = new BoundPluginHttpClient(TestPlugin.Id, new PluginPermissionGate(fixture.Catalog), new SingleClientFactory(handler));
+        var client = HttpClientFor(fixture, handler);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://example.test/data")));
+            client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://api.example.com/data")));
         Assert.Equal(0, handler.RequestCount);
     }
 
@@ -196,6 +196,39 @@ public sealed class PluginCapabilityAuthorizationTests
     {
         await Assert.ThrowsAsync<NotSupportedException>(
             () => new PluginAiClient(new RecordingEngineRoom()).InferTextAsync(TestPlugin.Id, role, "prompt"));
+    }
+
+    [Fact]
+    public void Catalog_FailsAnInternetPluginThatListsNoDestination_AndADestinationWithoutTheInternetPermission()
+    {
+        var noDestination = Manifest([PluginPermissionIds.NetworkHttp]) with { Network = [] };
+        using (var fixture = new CatalogFixture(noDestination))
+        {
+            var registration = Assert.Single(fixture.Catalog.List());
+            Assert.Contains("no network destinations", registration.LoadError, StringComparison.Ordinal);
+            Assert.Empty(registration.Capabilities);
+            Assert.False(registration.Compatibility.IsCompatible);
+        }
+
+        var withoutPermission = Manifest([PluginPermissionIds.MediaRead]) with
+        {
+            Network = [new PluginNetworkDestination { Host = "api.example.com", Sends = "Titles" }],
+        };
+        using (var fixture = new CatalogFixture(withoutPermission))
+        {
+            var registration = Assert.Single(fixture.Catalog.List());
+            Assert.Contains("does not declare the network.http permission", registration.LoadError, StringComparison.Ordinal);
+        }
+
+        var malformed = Manifest([PluginPermissionIds.NetworkHttp]) with
+        {
+            Network = [new PluginNetworkDestination { Host = "https://api.example.com", Sends = "Titles" }],
+        };
+        using (var fixture = new CatalogFixture(malformed))
+        {
+            var registration = Assert.Single(fixture.Catalog.List());
+            Assert.Contains("https://api.example.com", registration.LoadError, StringComparison.Ordinal);
+        }
     }
 
     [Fact]
@@ -371,7 +404,7 @@ public sealed class PluginCapabilityAuthorizationTests
         var storageRoot = Path.Combine(fixture.Root, "working");
         var storage = new BoundPluginStorage(TestPlugin.Id, storageRoot, new PluginPermissionGate(fixture.Catalog));
         storage.CreateDirectory("nested");
-        var context = new PluginExecutionContext(TestPlugin.Id, new Dictionary<string, System.Text.Json.JsonElement>(), null!, null!, storage, null!, null!, null!);
+        var context = new PluginExecutionContext(TestPlugin.Id, new Dictionary<string, System.Text.Json.JsonElement>(), null!, null!, storage, null!, null!, null!, null!);
 
         await context.DisposeAsync();
 
@@ -386,6 +419,24 @@ public sealed class PluginCapabilityAuthorizationTests
             [PluginPermissionIds.MediaRead, PluginPermissionIds.ProcessExecute, PluginPermissionIds.ToolDownload, PluginPermissionIds.PluginStorage],
             new CommercialSkipPlugin().Manifest.Permissions);
         Assert.Equal([PluginPermissionIds.NetworkHttp], new FandomLorePlugin().Manifest.Permissions);
+        Assert.Equal(
+            [("www.wikidata.org", 60), ("*.fandom.com", 60)],
+            new FandomLorePlugin().Manifest.Network.Select(destination => (destination.Host, destination.MaxRequestsPerMinute ?? 0)));
+        Assert.Equal(
+            [
+                "Contacts www.wikidata.org: Wikidata item IDs (QIDs) of Universes already in your Library, to find their Fandom wiki",
+                "Contacts *.fandom.com: Requests for the page list of a wiki you approved; nothing about your Library",
+            ],
+            MediaEngine.Api.Services.Approvals.ApprovalStatementBuilder.PluginAllowedTo(new FandomLorePlugin().Manifest).Take(2));
+        Assert.Equal(
+            "www.wikidata.org, *.fandom.com",
+            MediaEngine.Api.Services.Approvals.ApprovalStatementBuilder.PluginSendsDataTo(new FandomLorePlugin().Manifest));
+        Assert.All(
+            new ITuvimaPlugin[] { new CommercialSkipPlugin(), new FandomLorePlugin(), new IntroSkipPlugin(), new RecapDetectionPlugin(), new AiVisualVerifierPlugin() },
+            plugin => Assert.Null(PluginCompatibility.ValidateManifest(plugin.Manifest)));
+        Assert.All(
+            new ITuvimaPlugin[] { new CommercialSkipPlugin(), new IntroSkipPlugin(), new RecapDetectionPlugin(), new AiVisualVerifierPlugin() },
+            plugin => Assert.Empty(plugin.Manifest.Network));
         Assert.Equal(
             [PluginPermissionIds.MediaRead, PluginPermissionIds.ProcessExecute, PluginPermissionIds.PluginStorage],
             new IntroSkipPlugin().Manifest.Permissions);
@@ -408,6 +459,15 @@ public sealed class PluginCapabilityAuthorizationTests
             property.PropertyType == typeof(IPluginExecutionContextFactory));
     }
 
+    private static BoundPluginHttpClient HttpClientFor(CatalogFixture fixture, HttpMessageHandler handler) =>
+        new(
+            TestPlugin.Id,
+            new PluginPermissionGate(fixture.Catalog),
+            new SingleClientFactory(handler),
+            new PluginHttpRateLimiter(PluginHostLimits.Default),
+            PluginHostLimits.Default,
+            new PluginHostStatus(TimeProvider.System));
+
     private static PluginManifest Manifest(
         IReadOnlyList<string> permissions,
         IReadOnlyList<PluginToolRequirement>? tools = null,
@@ -417,6 +477,7 @@ public sealed class PluginCapabilityAuthorizationTests
             Id = TestPlugin.Id,
             Name = "Capability test plugin",
             Permissions = permissions,
+            Network = permissions.Contains(PluginPermissionIds.NetworkHttp) ? [new PluginNetworkDestination { Host = "api.example.com", Sends = "Looks up titles by name" }] : [],
             ToolRequirements = tools ?? [],
             AiPermissions = ai ?? [],
             DefaultSettings = settings is null

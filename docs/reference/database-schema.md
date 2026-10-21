@@ -95,7 +95,7 @@ A single title, independent of version or format.
 | `last_enriched_at` | TEXT | Timestamp |
 | `ready_at` | TEXT | UTC ISO-8601 time the Work first became Ready. Set by the Engine's readiness service the first time a leaf Work (`standalone` or `child`) is matched to a real title, not in Needs Review, placed in its show or album, and has its artwork present or settled; cleared when it hits a negative outcome (Needs Review, no match, failure, rejection, lost file or placement). NULL means not Ready. It is the only gate for Home, the hero, lanes, Watch, Read, Listen, collections and the Library list. |
 | `first_ready_at` | TEXT | UTC ISO-8601 time the Work was Ready for the first time. Set together with the first `ready_at` and never cleared; the Engine announces a Work as added only when this was empty. |
-| `series_placement_locked` | INTEGER | `NOT NULL DEFAULT 0`. 1 means `collection_id` is a person's choice made in the editor's Matching section (NULL `collection_id` = they chose "Not in a Series"); nothing automatic (collection assignment, manifest linking, backfill) may change it. Cleared by "Let the Library decide", and by the `trg_works_series_lock_released_with_shelf` trigger (a `BEFORE DELETE` on `collections`) when the chosen Series shelf is deleted, so the Library decides again on the next placement. Added by upgrade step `0022_series_placement_lock`. This is a placement lock, not a claim lock. |
+| `series_placement_locked` | INTEGER | `NOT NULL DEFAULT 0`. 1 means `collection_id` is a person's choice made in the editor's Matching section (NULL `collection_id` = they chose "Not in a Series"); nothing automatic (collection assignment, manifest linking, backfill) may change it. Cleared by "Let the Library decide", and by the `trg_works_series_lock_released_with_shelf` trigger (a `BEFORE DELETE` on `collections`) when the chosen Series shelf is deleted, so the Library decides again on the next placement. Added by upgrade step `0024_series_placement_lock`. This is a placement lock, not a claim lock. |
 
 **Indices:** `wikidata_qid`, `collection_id`, `media_type`, `status`, `ready_at`
 
@@ -1059,6 +1059,54 @@ One row for every request that reached the Local AI engine room: text written or
 | `message` | TEXT | Plain-English result or reason |
 
 **Indices:** `ix_ai_usage_records_caller (caller_kind, caller_id, started_at)` and `ix_ai_usage_records_started (started_at)`. Added by upgrade step `0019_ai_usage_records`.
+
+### application_webhook_attempts
+
+One row per attempt to send an event to a webhook receiver, including the Send test button's test sends. `application_webhook_deliveries` keeps one row per event and only its latest state, so this table is the history the Integrations page shows: each webhook's last six attempts, with the time, the attempt number and what the receiver returned. A row never holds the event body, the signing secret or anything the receiver sent back; `result` is the short status text only. Rows older than seven days are removed with the delivery rows, but each webhook keeps its newest twenty attempts regardless of age. Deleting a webhook deletes its attempts.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | 16-byte GUID, primary key |
+| `webhook_id` | BLOB | The webhook; rows are deleted with it |
+| `delivery_id` | BLOB | The delivery row the attempt belongs to (no foreign key: the delivery may be pruned first) |
+| `event_id` | BLOB | The event sent; for a test, a fresh id |
+| `event_type` | TEXT | For example `ingestion.completed`; `webhook.test` for a test send |
+| `attempt_number` | INTEGER | 1 for the first try of a delivery; always 1 for a test |
+| `attempted_at` | TEXT | ISO 8601 UTC |
+| `delivered` | INTEGER | 1 when the receiver accepted it |
+| `result` | TEXT | Short plain text, such as `HTTP 503`, `Receiver unavailable` or `Delivery timed out` |
+| `http_status` | INTEGER | The receiver's HTTP status code, when it answered |
+| `duration_ms` | INTEGER | How long the send took |
+| `is_test` | INTEGER | 1 for a Send test |
+
+**Indices:** `ix_application_webhook_attempts_webhook_time (webhook_id, attempted_at DESC)`. Added by upgrade step `0022_webhook_delivery_attempts`.
+
+### plugin_records
+
+The records a plugin keeps for itself, written through the plugin's own record store (the `plugin-records` permission). One row per plugin, collection and key; the value is a JSON document the plugin wrote. The Library scopes every read and write to the calling plugin's id, so a plugin never sees another plugin's rows, and it limits each plugin to 64 KB per value, 10,000 records and 16 MB in total (a write over a limit is refused and the plugin's card shows Needs attention). Records survive an Engine restart and are not touched when a plugin is switched off. Removing a plugin's records when the plugin is uninstalled belongs to the plugin install and removal work, not to this table.
+
+| Column | Type | Notes |
+|---|---|---|
+| `plugin_id` | TEXT | The plugin's manifest id; first part of the primary key |
+| `collection` | TEXT | The plugin's own grouping name, 1 to 128 printable characters |
+| `record_key` | TEXT | The key inside the collection, 1 to 128 printable characters |
+| `value_json` | TEXT | The record, a JSON document, at most 64 KB |
+| `size_bytes` | INTEGER | UTF-8 size of `value_json`, so a plugin's total is a cheap sum |
+| `updated_at` | TEXT | ISO 8601 UTC |
+
+**Key:** `PRIMARY KEY (plugin_id, collection, record_key)`. Added by upgrade step `0023_plugin_host_services`.
+
+### plugin_event_cursors
+
+Where each plugin has got to in the Library's event list (`application_events`): the sequence of the newest event already handed to it. The plugin event dispatcher reads events after this sequence, so a restart carries on where it stopped. A plugin that subscribes for the first time, or that is switched off and on again, starts at the newest event with no backlog.
+
+| Column | Type | Notes |
+|---|---|---|
+| `plugin_id` | TEXT | The plugin's manifest id, primary key |
+| `last_sequence` | INTEGER | The newest `application_events.sequence` already delivered |
+| `updated_at` | TEXT | ISO 8601 UTC |
+
+Added by upgrade step `0023_plugin_host_services`.
 
 ### media_operations (file intake rows)
 

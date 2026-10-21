@@ -56,7 +56,20 @@ public partial interface IEngineApiClient
 
     Task<IReadOnlyList<PluginSummaryResponse>> GetPluginsAsync(CancellationToken ct = default);
 
-    Task<ApprovedPluginCatalogDto?> GetApprovedPluginCatalogAsync(CancellationToken ct = default);
+    /// <summary>GET /plugins/directory — the saved plugin directory (Available plugins). The Engine checks GitHub first only when the switch is on and the last check is over a day old. Null when the Engine could not be asked.</summary>
+    Task<PluginDirectoryResponse?> GetPluginDirectoryAsync(CancellationToken ct = default);
+
+    /// <summary>POST /plugins/directory/check — Check now. Null when the Engine could not be asked.</summary>
+    Task<PluginDirectoryResponse?> CheckPluginDirectoryAsync(CancellationToken ct = default);
+
+    /// <summary>POST /plugins/directory/seen — remembers that the listed plugins have been seen. Null when the Engine could not be asked.</summary>
+    Task<PluginDirectoryResponse?> MarkPluginDirectorySeenAsync(CancellationToken ct = default);
+
+    /// <summary>PUT /plugins/directory/settings — the plugin directory switch. False when it could not be saved.</summary>
+    Task<bool> SavePluginDirectoryEnabledAsync(bool enabled, CancellationToken ct = default);
+
+    /// <summary>POST /plugins/directory/{id}/approval-preview — what to show before installing a listed plugin. Null when the Engine could not be asked or does not list it.</summary>
+    Task<ApprovalPreviewResponse?> PreviewPluginDirectoryInstallAsync(string pluginId, CancellationToken ct = default);
 
     /// <summary>
     /// POST /plugins/{id}/enable|disable. Switching on can answer with <see cref="PluginActionResult.Approval"/> (the Engine

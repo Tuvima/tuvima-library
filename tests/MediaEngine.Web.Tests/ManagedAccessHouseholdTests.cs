@@ -81,6 +81,7 @@ public sealed class ManagedAccessHouseholdTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("sam@home.test", cut.Markup));
 
         cut.Find("button[aria-label='Actions for sam@home.test']").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Set temporary password"));
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Set temporary password").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("Set a temporary password", cut.Find(".access-drawer__body").TextContent));
