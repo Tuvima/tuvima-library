@@ -104,11 +104,6 @@ public sealed class PluginPackageInstaller
 
         var trust = entry.TrustLevel;
         var kind = entry.Kind;
-        if (kind == "sandboxed")
-        {
-            throw new PluginInstallException("Sandboxed plugins cannot be installed by this version of the Library yet.");
-        }
-
         // An in-process plugin is code that runs with the Library's own access, so only a signed package may be one.
         if (kind == "official" && trust == "community")
         {

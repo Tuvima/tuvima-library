@@ -161,23 +161,6 @@ public sealed class PluginCompatibilityTests
         Assert.Empty(registration.Capabilities);
     }
 
-    [Theory]
-    [InlineData("sandboxed")]
-    public void NonOfficialKind_LoadsWithoutAnError_ButCannotBeEnabled(string kind)
-    {
-        using var fixture = new Fixture("1.0.0", "win-x64");
-        fixture.AddExternalPlugin("tuvima.test.kind", $$""" "kind": "{{kind}}" """, withEntryPoint: false);
-
-        var registration = Assert.Single(fixture.Catalog.List());
-        Assert.Null(registration.LoadError);
-        Assert.False(registration.Compatibility.IsCompatible);
-        Assert.Equal($"This kind of plugin ({kind}) is not supported by this version of the Library yet.", registration.Compatibility.Problem);
-        Assert.Empty(registration.Capabilities);
-
-        var refused = Assert.Throws<PluginCannotBeEnabledException>(() => fixture.Catalog.SetEnabled("tuvima.test.kind", true));
-        Assert.Equal(registration.Compatibility.Problem, refused.Message);
-    }
-
     [Fact]
     public void ManifestWithoutAKind_IsOfficial()
     {

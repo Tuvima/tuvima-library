@@ -8,6 +8,7 @@
   <ItemGroup>
     <!-- Cronos: configurable cron scheduling for background services. -->
     <PackageReference Include="Cronos" />
+    <PackageReference Include="Wasmtime" />
     <!-- Swashbuckle 7.x: intentionally pinned — see Directory.Packages.props for rationale. -->
     <PackageReference Include="Swashbuckle.AspNetCore" />
     <!-- Serilog: structured logging with rolling file sinks for headless Engine operation. -->

@@ -7,6 +7,8 @@
     <!-- Cronos: lightweight cron expression parser for configurable background schedules.
          MIT license — approved for AGPLv3 compatibility (see CLAUDE.md §5.1). -->
     <PackageVersion Include="Cronos" Version="0.8.4" />
+    <!-- Wasmtime 48.0.2 (Bytecode Alliance, Apache-2.0 WITH LLVM-exception, AGPLv3-compatible): runs sandboxed WebAssembly plugins with time, memory and step limits and no file or network access. See THIRD-PARTY-NOTICES.md. -->
+    <PackageVersion Include="Wasmtime" Version="48.0.2" />
     <!-- QRCoder: renders the invitation link as an SVG QR code in the Dashboard (no network use).
          MIT license — approved for AGPLv3 compatibility (see CLAUDE.md §6.1). -->
     <PackageVersion Include="QRCoder" Version="1.6.0" />
