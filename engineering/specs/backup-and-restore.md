@@ -1,6 +1,6 @@
 # Spec: Backup and restore (settings and personal state)
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-21 · **Related docs:** [Product overview](../product/overview.md) · [Videos spec](videos.md) D43, D46 (bookmark packs) · [Developer tools spec](developer-tools.md) D-P, WP25, WP26 (destinations, schedule, passphrase) · [Encrypted plugin keys](encrypted-plugin-keys.md) EK2 · [Delete groups](delete-groups.md) · [Safer deleting in View](safer-deleting-in-view.md)
+> **Status:** In progress · **Version:** 2 · **Last updated:** 2026-10-21 · **Related docs:** [Product overview](../product/overview.md) · [Videos spec](videos.md) D43, D46 (bookmark packs) · [Developer tools spec](developer-tools.md) D-P, WP25, WP26 (destinations, schedule, passphrase) · [Encrypted plugin keys](encrypted-plugin-keys.md) EK2 · [Delete groups](delete-groups.md) · [Safer deleting in View](safer-deleting-in-view.md)
 
 ## 1. Goal
 

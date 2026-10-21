@@ -32,7 +32,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Safer deleting in View](specs/safer-deleting-in-view.md) | Locked (v2, 2026-10-21) |
 | [Spec: Simpler library setup (Watch, Listen, Read, View, Vault)](specs/library-setup-groups.md) | Locked (v21, 2026-10-21) |
 | [Spec: Encrypted plugin and integration keys](specs/encrypted-plugin-keys.md) | Locked (v1, 2026-10-21; EK1 and EK3 before plugin install WP19, EK2 with backup passphrase WP25) |
-| [Spec: Backup and restore (settings and personal state)](specs/backup-and-restore.md) | Locked (v2, 2026-10-21; [handoff](handoffs/2026-10-21-backup-and-restore.md); coordinate with Developer tools WP25 and Encrypted keys EK2) |
+| [Spec: Backup and restore (settings and personal state)](specs/backup-and-restore.md) | In progress (v2, 2026-10-21; [handoff](handoffs/2026-10-21-backup-and-restore.md); WP1 and WP2 building; WP3 waits for the bookmark pack matcher in Videos Wave 3, #374) |
 | [Spec: Person credits and series search without the whole-library credit list](specs/archive/person-credits-and-series-search-speed.md) | Built (v2, archived 2026-10-21; follow-ups R1 and R2 in its section 8) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: The live ingestion page and when items appear](specs/archive/ingestion-and-readiness.md) | Built (v4, archived 2026-10-20; bug 13 still needs the log line from that moment) |
