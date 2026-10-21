@@ -129,6 +129,10 @@ public sealed record PluginSummaryResponse
     [JsonPropertyName("sends_data_to")]
     public string? SendsDataTo { get; set; }
 
+    /// <summary>Each place the plugin says it contacts, and what it sends there. Empty when the plugin does not use the internet.</summary>
+    [JsonPropertyName("network_destinations")]
+    public List<PluginNetworkDestinationDto> NetworkDestinations { get; set; } = [];
+
     [JsonPropertyName("settings")]
     public Dictionary<string, JsonElement> Settings { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
@@ -138,6 +142,70 @@ public sealed record PluginSummaryResponse
 
     [JsonPropertyName("manifest_path")]
     public string? ManifestPath { get; set; }
+
+    /// <summary>How the plugin is getting on with the Library's host services (its own records, recurring jobs, events, background work and web connection). Always present; kept in memory, so it starts clean after an Engine restart.</summary>
+    [JsonPropertyName("host_services")]
+    public PluginHostServicesDto HostServices { get; set; } = new();
+}
+
+/// <summary>The state of a plugin's host services. <see cref="State"/> is <c>working</c>, <c>needs_attention</c> or <c>broken</c>.</summary>
+public sealed record PluginHostServicesDto
+{
+    /// <summary><c>working</c>, <c>needs_attention</c> (a limit was reached; see <see cref="Problem"/>) or <c>broken</c> (its always-on work stopped for good).</summary>
+    [JsonPropertyName("state")]
+    public string State { get; set; } = "working";
+
+    /// <summary>The plain-English reason behind <see cref="State"/>, or null while it is <c>working</c>. Examples: "Reached its storage limit (16 MB)", "Stopped after crashing 5 times in an hour".</summary>
+    [JsonPropertyName("problem")]
+    public string? Problem { get; set; }
+
+    /// <summary>The most recent thing that went wrong that does not change <see cref="State"/> (an event handler failed, a web address was refused), or null.</summary>
+    [JsonPropertyName("last_problem")]
+    public string? LastProblem { get; set; }
+
+    /// <summary>How many records the plugin keeps in the Library's data store.</summary>
+    [JsonPropertyName("records_used")]
+    public int RecordsUsed { get; set; }
+
+    /// <summary>How much space those records take, in bytes.</summary>
+    [JsonPropertyName("record_bytes_used")]
+    public long RecordBytesUsed { get; set; }
+
+    /// <summary>The plugin's recurring jobs. Empty when it has none or is switched off.</summary>
+    [JsonPropertyName("jobs")]
+    public List<PluginHostJobDto> Jobs { get; set; } = [];
+
+    /// <summary><c>active</c> or <c>paused</c> when the plugin subscribes to Library events; null when it does not.</summary>
+    [JsonPropertyName("event_subscription")]
+    public string? EventSubscription { get; set; }
+
+    /// <summary><c>running</c>, <c>restarting</c>, <c>stopping</c> (asked to stop and not finished yet) or <c>stopped</c> when the plugin has always-on work; null when it does not.</summary>
+    [JsonPropertyName("background_service")]
+    public string? BackgroundService { get; set; }
+}
+
+/// <summary>One recurring job of a plugin.</summary>
+public sealed record PluginHostJobDto
+{
+    [JsonPropertyName("key")]
+    public string Key { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    /// <summary><c>scheduled</c>, <c>running</c> or <c>paused</c> (stopped after running too long three times in a row).</summary>
+    [JsonPropertyName("state")]
+    public string State { get; set; } = "scheduled";
+}
+
+/// <summary>One place a plugin says it contacts: a host (exact, or one leading <c>*.</c> wildcard) and a plain sentence on what it sends there.</summary>
+public sealed record PluginNetworkDestinationDto
+{
+    [JsonPropertyName("host")]
+    public string Host { get; set; } = "";
+
+    [JsonPropertyName("sends")]
+    public string Sends { get; set; } = "";
 }
 
 public sealed record PluginCapabilityDto
@@ -285,28 +353,60 @@ public sealed record PluginJobSnapshot
 public sealed record PluginJsonUpdateRequest(
     [property: JsonPropertyName("json")] string Json);
 
-public sealed class ApprovedPluginCatalogDto
+/// <summary>
+/// The plugin directory as the Engine shows it (<c>GET /plugins/directory</c>): the saved copy of the list Tuvima keeps
+/// on GitHub, when it was last checked, and whether the last check worked. The Engine reads the list; it never installs
+/// from it yet.
+/// </summary>
+public sealed class PluginDirectoryResponse
 {
     [JsonPropertyName("schema_version")]
-    public string SchemaVersion { get; set; } = "1.0";
+    public string SchemaVersion { get; set; } = "2.0";
 
     [JsonPropertyName("source_url")]
     public string SourceUrl { get; set; } = "";
 
-    [JsonPropertyName("last_updated")]
-    public DateTimeOffset? LastUpdated { get; set; }
+    /// <summary>When the list itself says it was last changed.</summary>
+    [JsonPropertyName("updated_at")]
+    public DateTimeOffset? UpdatedAt { get; set; }
 
+    /// <summary><c>fresh</c> (the last check worked), <c>saved_copy</c> (the last check failed; showing the copy kept earlier), <c>unavailable</c> (no copy and the check failed), <c>disabled</c> (the switch is off) or <c>invalid_source</c>.</summary>
     [JsonPropertyName("status")]
-    public string Status { get; set; } = "ok";
+    public string Status { get; set; } = "fresh";
 
+    /// <summary>A plain sentence for the person when something needs saying; null otherwise.</summary>
     [JsonPropertyName("message")]
     public string? Message { get; set; }
 
+    /// <summary>Whether the directory switch is on. When off, the Engine makes no request and shows the saved copy, if any.</summary>
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>When the Engine last tried to reach the list (worked or not); null before the first try.</summary>
+    [JsonPropertyName("last_checked_at")]
+    public DateTimeOffset? LastCheckedAt { get; set; }
+
+    /// <summary>When the Engine last got the list successfully; the saved copy is from this time.</summary>
+    [JsonPropertyName("last_success_at")]
+    public DateTimeOffset? LastSuccessAt { get; set; }
+
+    /// <summary>How many listed plugins the person has not yet been shown (see <c>POST /plugins/directory/seen</c>).</summary>
+    [JsonPropertyName("new_count")]
+    public int NewCount { get; set; }
+
+    /// <summary>How many entries in the list could not be read and were left out.</summary>
+    [JsonPropertyName("skipped_count")]
+    public int SkippedCount { get; set; }
+
+    /// <summary>True only when this Library can install a listed plugin. The Dashboard shows an Install button only when it is true.</summary>
+    [JsonPropertyName("install_supported")]
+    public bool InstallSupported { get; set; }
+
     [JsonPropertyName("plugins")]
-    public List<ApprovedPluginDto> Plugins { get; set; } = [];
+    public List<PluginDirectoryEntryDto> Plugins { get; set; } = [];
 }
 
-public sealed class ApprovedPluginDto
+public sealed class PluginDirectoryEntryDto
 {
     [JsonPropertyName("id")]
     public string Id { get; set; } = "";
@@ -314,17 +414,50 @@ public sealed class ApprovedPluginDto
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 
-    [JsonPropertyName("version")]
-    public string Version { get; set; } = "";
+    [JsonPropertyName("author")]
+    public string Author { get; set; } = "";
 
     [JsonPropertyName("description")]
     public string Description { get; set; } = "";
 
-    [JsonPropertyName("author")]
-    public string Author { get; set; } = "";
+    [JsonPropertyName("version")]
+    public string Version { get; set; } = "";
 
-    [JsonPropertyName("status")]
-    public string Status { get; set; } = "approved";
+    /// <summary><c>official</c>, <c>declarative</c>, <c>service</c> or <c>sandboxed</c>.</summary>
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = "declarative";
+
+    /// <summary><c>official</c>, <c>verified</c> or <c>community</c> (not verified). Anything missing or unknown is <c>community</c>.</summary>
+    [JsonPropertyName("trust_level")]
+    public string TrustLevel { get; set; } = "community";
+
+    /// <summary>The plain warning to show beside a plugin Tuvima has not checked; null for official and verified plugins.</summary>
+    [JsonPropertyName("trust_warning")]
+    public string? TrustWarning { get; set; }
+
+    /// <summary>The permission ids the plugin declares.</summary>
+    [JsonPropertyName("permissions")]
+    public List<string> Permissions { get; set; } = [];
+
+    /// <summary>What the plugin may do, in the Engine's plain words (one line per declared permission).</summary>
+    [JsonPropertyName("allowed_to")]
+    public List<string> AllowedTo { get; set; } = [];
+
+    /// <summary>Where the plugin says it will send data and what it sends there (list format 2.x <c>network</c>); empty when the list does not say.</summary>
+    [JsonPropertyName("network")]
+    public List<PluginNetworkDestinationDto> Network { get; set; } = [];
+
+    [JsonPropertyName("capabilities")]
+    public List<string> Capabilities { get; set; } = [];
+
+    [JsonPropertyName("minimum_library_version")]
+    public string MinimumLibraryVersion { get; set; } = "1.0.0";
+
+    [JsonPropertyName("maximum_library_version")]
+    public string? MaximumLibraryVersion { get; set; }
+
+    [JsonPropertyName("supported_platforms")]
+    public List<string> SupportedPlatforms { get; set; } = [];
 
     [JsonPropertyName("repository_url")]
     public string? RepositoryUrl { get; set; }
@@ -338,12 +471,21 @@ public sealed class ApprovedPluginDto
     [JsonPropertyName("sha256")]
     public string? Sha256 { get; set; }
 
-    [JsonPropertyName("minimum_library_version")]
-    public string MinimumLibraryVersion { get; set; } = "1.0.0";
+    [JsonPropertyName("added_at")]
+    public DateTimeOffset? AddedAt { get; set; }
 
-    [JsonPropertyName("capabilities")]
-    public List<string> Capabilities { get; set; } = [];
+    /// <summary>True when the plugin was not in the list the last time the person looked.</summary>
+    [JsonPropertyName("is_new")]
+    public bool IsNew { get; set; }
 
-    [JsonPropertyName("install_notes")]
-    public string? InstallNotes { get; set; }
+    /// <summary>True when a plugin with this id is already installed on this server.</summary>
+    [JsonPropertyName("is_installed")]
+    public bool IsInstalled { get; set; }
+}
+
+/// <summary>Body of <c>PUT /plugins/directory/settings</c>: the plugin directory switch.</summary>
+public sealed class PluginDirectorySettingsRequest
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
 }

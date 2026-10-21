@@ -33,6 +33,17 @@ public sealed class ApplicationEventRegistry(IPermissionRegistry permissions)
 
     public IReadOnlyList<ApplicationEventDefinition> GetAll() => Values;
 
+    /// <summary>
+    /// True when the Library has an event of this type. Webhooks and plugin event subscriptions both draw on this one list,
+    /// so an event added to it is available to both.
+    /// </summary>
+    public static bool IsKnownType(string? eventType) =>
+        eventType is not null && Array.Exists(Values, value => string.Equals(value.EventType, eventType, StringComparison.Ordinal));
+
+    /// <summary>True for the events that say what people watch, read and listen to (<c>playback.*</c>).</summary>
+    public static bool IsWatchActivity(string eventType) =>
+        eventType.StartsWith("playback.", StringComparison.Ordinal);
+
     public IReadOnlyList<string> ListAvailableTypes() =>
         Values.Where(value =>
                 permissions.TryGet(ApplicationPermissionIds.EventsSubscribe, out var subscribe) && subscribe.IsAvailable &&

@@ -263,8 +263,11 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("Optimized copy storage", encode, StringComparison.Ordinal);
         Assert.DoesNotContain("Variant storage", encode, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Diagnostics", delivery, StringComparison.Ordinal);
-        Assert.Contains("Install and update marketplace flows are planned", plugins, StringComparison.Ordinal);
-        Assert.Contains("plugin-provided settings", plugins, StringComparison.Ordinal);
+        // No "planned" note: Available plugins draws an Install button only when the Engine says installing is supported.
+        Assert.DoesNotContain("marketplace flows are planned", plugins, StringComparison.Ordinal);
+        Assert.Contains("<AvailablePluginsPanel />", plugins, StringComparison.Ordinal);
+        var available = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/AvailablePluginsPanel.razor");
+        Assert.Contains("InstallSupported: true", available, StringComparison.Ordinal);
         Assert.Contains("Advanced settings", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("Text=\"JSON\"", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("Text=\"Manifest\"", plugins, StringComparison.Ordinal);

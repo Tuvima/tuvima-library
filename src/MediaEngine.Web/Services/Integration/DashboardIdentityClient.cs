@@ -705,6 +705,27 @@ public sealed class DashboardIdentityClient(
         CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Delete, $"/access/applications/{applicationId:D}/webhooks/{webhookId:D}", ct);
 
+    /// <summary>A webhook's recent delivery attempts, newest first; null when the Engine could not be read.</summary>
+    public Task<List<ApplicationWebhookAttemptResponse>?> GetApplicationWebhookAttemptsAsync(
+        Guid applicationId,
+        Guid webhookId,
+        int limit = 6,
+        CancellationToken ct = default) =>
+        GetAsync<List<ApplicationWebhookAttemptResponse>>(
+            $"/access/applications/{applicationId:D}/webhooks/{webhookId:D}/attempts?limit={limit}", ct);
+
+    /// <summary>Sends one signed test event to the webhook's receiver; the result carries the recorded attempt.</summary>
+    public Task<DashboardAccessMutationResult<ApplicationWebhookAttemptResponse>> SendApplicationWebhookTestResultAsync(
+        Guid applicationId,
+        Guid webhookId,
+        CancellationToken ct = default) =>
+        SendMutationAsync<object, ApplicationWebhookAttemptResponse>(
+            HttpMethod.Post,
+            $"/access/applications/{applicationId:D}/webhooks/{webhookId:D}/test",
+            new { },
+            ct,
+            includeMessage: true);
+
     public Task<GrantAdminUnlockResponse?> GetAdministratorUnlockAsync(CancellationToken ct = default) =>
         GetAsync<GrantAdminUnlockResponse>("/access/admin-unlock", ct);
 

@@ -27,7 +27,7 @@ Enabled metadata providers can request identifiers, descriptions, artwork, lyric
 
 Provider behavior depends on configuration, credentials, media type, and processing state. Model downloads retrieve local model files from external hosts when you ask; subsequent supported inference runs locally. [Everything that can be downloaded on request](#know-what-can-be-downloaded-when-you-ask) is listed below.
 
-Refreshing the approved plugin catalog contacts GitHub. Installed plugins can use external services according to their implementation and declared permissions. Only install code you trust.
+The plugin directory (Settings > Plugins > Available plugins) contacts GitHub, and only when an administrator opens Available plugins and the saved copy is more than a day old, or presses Check now. There is no background schedule. The request is a plain read of a public file, with the Library's standard User-Agent and nothing about you, your media or your server in it. The Library keeps a saved copy of the list on the server, so the page works without GitHub. A switch on the section turns the lookup off completely: with it off no request is made. Installed plugins can use external services according to their implementation and declared permissions. Only install code you trust.
 
 ## Know how scanned documents are read
 

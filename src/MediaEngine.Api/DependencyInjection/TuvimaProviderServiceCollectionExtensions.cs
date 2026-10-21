@@ -123,6 +123,11 @@ public static class TuvimaProviderServiceCollectionExtensions
             TimeSpan.FromMinutes(10),
             addStandardResilience: false);
         services.AddTuvimaHttpClient("plugin_catalog", TimeSpan.FromSeconds(15));
+        // The plugin web connection. Redirects are not followed by the handler: the Library follows them itself, one hop at
+        // a time, so every hop is checked against the places the plugin declared. The standard retry pipeline is left off
+        // because a hidden retry would send more requests than the plugin's requests-a-minute limit counts.
+        services.AddTuvimaHttpClient("plugin_http", TimeSpan.FromSeconds(30), addStandardResilience: false)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 
         var providerConfigurations = configLoader.LoadAllProviders();
         foreach (var providerConfig in ConfigDrivenProviders(providerConfigurations).Where(config => config.RegistrationOrder <= 0))

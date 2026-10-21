@@ -65,7 +65,7 @@
                     <div class="access-applications__row" role="row" @key="app.Id">
                         <div role="cell"><strong>@app.Name</strong><small>@TypeLabel(app.ApplicationType)</small></div>
                         <div role="cell"><AppChip Text="@PresetLabel(app)" Tone="@(app.IsAdministrator ? AppUiTone.Warning : AppUiTone.Neutral)" /></div>
-                        <div role="cell">@app.Credentials.Count(credential => credential.RevokedAt is null) active</div>
+                        <div role="cell">@app.Credentials.Count(credential => credential.RevokedAt is null) active @if (CredentialExpirySummary(app) is { } summary) { <small>@summary</small> }</div>
                         <div role="cell"><small>@(app.LastUsedAt?.ToLocalTime().ToString("g") ?? "Never")</small></div>
                         <div role="cell"><span class="access-status @(app.IsEnabled ? "access-status--enabled" : "access-status--disabled")">@(app.IsEnabled ? "Enabled" : "Disabled")</span></div>
                         <div class="access-applications__actions" role="cell">
@@ -159,7 +159,7 @@
                         @foreach (var credential in _editing.Credentials)
                         {
                             <div class="access-credential-row">
-                                <div><strong>@credential.Name</strong><small>Created @credential.CreatedAt.ToLocalTime().ToString("g") · @(credential.RevokedAt is null ? credential.ExpiresAt is null ? "No expiration" : $"Expires {credential.ExpiresAt.Value.ToLocalTime():g}" : "Revoked")</small><small>Last used @(credential.LastUsedAt?.ToLocalTime().ToString("g") ?? "never")</small></div>
+                                <div><strong>@credential.Name</strong><small>Created @credential.CreatedAt.ToLocalTime().ToString("g") · @ExpiryText(credential)</small><small>@LastUsedText(credential)</small></div>
                                 <div><AppButton Label="Rotate" Size="AppControlSize.Compact" Disabled="@(_saving || credential.RevokedAt is not null)" OnClick="@(() => RotateCredential(credential))" /><AppButton Label="Revoke" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@(_saving || credential.RevokedAt is not null)" OnClick="@(() => RevokeCredential(credential))" /></div>
                             </div>
                         }
@@ -538,6 +538,32 @@
     private bool IsCompatible(string id, ApplicationTypeDto type) => _permissions.Any(permission => permission.Id == id && permission.IsAvailable && permission.ApplicationTypes.Contains(type));
     private string[] ParseClientIds() => _clientIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.Ordinal).ToArray();
     private ApplicationPermissionPresetDto? MatchingPreset(ApplicationResponse app) => _presets.FirstOrDefault(preset => preset.IsAdministrator == app.IsAdministrator && (app.IsAdministrator || preset.PermissionIds.Order().SequenceEqual(app.PermissionIds.Order())));
+    /// <summary>What a key's card says about its expiry: always something plain, never blank.</summary>
+    private static string ExpiryText(ApplicationCredentialResponse credential)
+    {
+        if (credential.RevokedAt is not null)
+            return "Revoked";
+        if (credential.ExpiresAt is not { } expires)
+            return "No expiry";
+        return expires <= DateTimeOffset.UtcNow ? $"Expired {expires.ToLocalTime():g}" : $"Expires {expires.ToLocalTime():g}";
+    }
+
+    private static string LastUsedText(ApplicationCredentialResponse credential) =>
+        credential.LastUsedAt is { } used ? $"Last used {used.ToLocalTime():g}" : "Never used";
+
+    /// <summary>The soonest expiry among an application's keys that are not revoked, for the credentials cell; null when it has none.</summary>
+    private static string? CredentialExpirySummary(ApplicationResponse app)
+    {
+        var live = app.Credentials.Where(credential => credential.RevokedAt is null).ToList();
+        if (live.Count == 0)
+            return null;
+        var expiries = live.Where(credential => credential.ExpiresAt is not null).Select(credential => credential.ExpiresAt!.Value).ToList();
+        if (expiries.Count == 0)
+            return "No expiry";
+        var soonest = expiries.Min();
+        return soonest <= DateTimeOffset.UtcNow ? $"Expired {soonest.ToLocalTime():g}" : $"Next expiry {soonest.ToLocalTime():g}";
+    }
+
     private string PresetLabel(ApplicationResponse app) => MatchingPreset(app)?.DisplayName ?? "Custom";
     private static string TypeLabel(ApplicationTypeDto type) => type switch { ApplicationTypeDto.UserClient => "User Client", ApplicationTypeDto.ServerIntegration => "Server Integration", ApplicationTypeDto.Automation => "Automation", _ => "Other" };
     private static AppUiTone RiskTone(string risk) => risk.Equals("Sensitive", StringComparison.OrdinalIgnoreCase) || risk.Equals("High", StringComparison.OrdinalIgnoreCase) ? AppUiTone.Warning : AppUiTone.Neutral;

@@ -1,0 +1,271 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Plugins
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Settings
+@implements IDisposable
+@inject UIOrchestratorService Orchestrator
+@inject IAppToastService Snackbar
+@inject ApprovalFlow Approvals
+
+@* Available plugins (Developer tools spec D-F, D-H): the plugins other people have shared, read from the saved copy of
+   Tuvima's list on GitHub. Every word about trust, permissions and the not-verified warning comes from the Engine. The
+   Install button exists only when the Engine says installing is supported; Install opens the same approval step as
+   switching a plugin on. *@
+<AppCard Title="Available plugins"
+         Description="Plugins other people have shared, from a public list on GitHub."
+         Class="available-plugins">
+    <Actions>
+        <AppButton Label="Check now"
+                   StartIcon="@AppMaterialIcons.Outlined.Refresh"
+                   Size="AppControlSize.Compact"
+                   Tone="AppUiTone.Primary"
+                   Loading="@_checking"
+                   Disabled="@(_directory is { Enabled: false } || _loading)"
+                   OnClick="@CheckNowAsync"
+                   data-testid="available-plugins-check" />
+    </Actions>
+    <ChildContent>
+        <div class="available-plugins__body" data-testid="available-plugins">
+            @if (_directory is not null)
+            {
+                <AppSwitchRow Label="Look for available plugins"
+                              Description="The list is checked at most once a day, and when you press Check now. Nothing about you or your Library is sent."
+                              Icon="@AppMaterialIcons.Outlined.CloudDownload"
+                              Value="@_directory.Enabled"
+                              ValueChanged="@SetEnabledAsync"
+                              Disabled="@(_loading || _checking)" />
+            }
+            @if (_loading)
+            {
+                <AppSkeleton Size="AppControlSize.Large" />
+            }
+            else if (_directory is null)
+            {
+                <AppAlert Tone="AppUiTone.Error">The plugin directory could not be loaded from the Engine.</AppAlert>
+            }
+            else
+            {
+                @DirectoryStatus(_directory)
+                @if (_newCount > 0)
+                {
+                    <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" data-testid="available-plugins-new">@(_newCount == 1 ? "1 new plugin available" : $"{_newCount} new plugins available")</AppText>
+                }
+                @if (_directory.SkippedCount > 0)
+                {
+                    <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" data-testid="available-plugins-skipped">@(_directory.SkippedCount == 1 ? "1 entry in the list could not be read and is not shown." : $"{_directory.SkippedCount} entries in the list could not be read and are not shown.")</AppText>
+                }
+                @if (_directory.Plugins.Count == 0)
+                {
+                    @if (_directory.LastSuccessAt is not null)
+                    {
+                        <AppEmptyState Title="No plugins are listed right now" Message="Plugins that ship with the Library are already installed above." />
+                    }
+                }
+                else
+                {
+                    <div class="available-plugins__list" role="list">
+                        @foreach (var entry in _directory.Plugins)
+                        {
+                            <div role="listitem" @key="entry.Id">@Entry(entry)</div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </ChildContent>
+</AppCard>
+
+@code {
+    private readonly CancellationTokenSource _disposed = new();
+    private PluginDirectoryResponse? _directory;
+    private bool _loading = true;
+    private bool _checking;
+    private int _newCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Opening Available plugins reads the saved copy; the Engine checks GitHub first only when that copy is over a day old.
+        await ShowAsync(await Orchestrator.GetPluginDirectoryAsync(_disposed.Token));
+    }
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _disposed.Dispose();
+    }
+
+    private RenderFragment DirectoryStatus(PluginDirectoryResponse directory) => @<div class="available-plugins__status" data-testid="available-plugins-status">
+        @if (!string.IsNullOrWhiteSpace(directory.Message))
+        {
+            <AppAlert Tone="@StatusTone(directory.Status)" data-testid="available-plugins-message">@directory.Message</AppAlert>
+        }
+        @if (directory.LastCheckedAt is { } checkedAt)
+        {
+            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" data-testid="available-plugins-checked">Last checked @FormatMoment(checkedAt)</AppText>
+        }
+        @if (directory.LastSuccessAt is { } copyDate && directory.Status != "fresh")
+        {
+            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" data-testid="available-plugins-copy">Saved copy from @FormatMoment(copyDate)</AppText>
+        }
+    </div>;
+
+    private RenderFragment Entry(PluginDirectoryEntryDto entry) => @<article class="available-plugins__entry" data-testid="available-plugin-entry" data-plugin-id="@entry.Id" data-trust="@entry.TrustLevel">
+        <div class="available-plugins__entry-header">
+            <div class="available-plugins__entry-title">
+                <strong>@entry.Name</strong>
+                <span class="available-plugins__entry-meta">@EntryMeta(entry)</span>
+            </div>
+            <div class="available-plugins__entry-badges">
+                <span data-testid="available-plugin-trust"><AppStatusBadge Text="@TrustLabel(entry.TrustLevel)" Tone="@TrustTone(entry.TrustLevel)" /></span>
+                @if (entry.IsInstalled)
+                {
+                    <span data-testid="available-plugin-installed"><AppStatusBadge Text="Installed" Tone="AppUiTone.Success" /></span>
+                }
+            </div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(entry.Description))
+        {
+            <p class="available-plugins__entry-description">@entry.Description</p>
+        }
+        @if (entry.AllowedTo.Count > 0)
+        {
+            <ul class="available-plugins__entry-allowed" aria-label="What it can do">
+                @foreach (var line in entry.AllowedTo)
+                {
+                    <li>@line</li>
+                }
+            </ul>
+        }
+        @if (!string.IsNullOrWhiteSpace(entry.TrustWarning))
+        {
+            <AppAlert Tone="AppUiTone.Warning" Dense="true" data-testid="available-plugin-warning">@entry.TrustWarning</AppAlert>
+        }
+        <div class="available-plugins__entry-actions">
+            @if (_directory is { InstallSupported: true } && !entry.IsInstalled)
+            {
+                <AppButton Label="Install"
+                           Size="AppControlSize.Compact"
+                           Tone="AppUiTone.Primary"
+                           ButtonStyle="AppButtonStyle.Filled"
+                           OnClick="@(() => InstallAsync(entry))"
+                           data-testid="available-plugin-install" />
+            }
+            @if (!string.IsNullOrWhiteSpace(entry.ReleaseUrl))
+            {
+                <AppLink Href="@entry.ReleaseUrl" Target="_blank">Release</AppLink>
+            }
+            @if (!string.IsNullOrWhiteSpace(entry.RepositoryUrl))
+            {
+                <AppLink Href="@entry.RepositoryUrl" Target="_blank">Source</AppLink>
+            }
+        </div>
+    </article>;
+
+    private async Task ShowAsync(PluginDirectoryResponse? directory)
+    {
+        _directory = directory;
+        _newCount = directory?.NewCount ?? 0;
+        _loading = false;
+        if (_disposed.IsCancellationRequested)
+        {
+            return;
+        }
+
+        await InvokeAsync(StateHasChanged);
+
+        // Looking at the list is what makes its plugins "seen"; the note above stays for this visit only.
+        if (directory is not null && directory.Plugins.Any(entry => entry.IsNew))
+        {
+            await Orchestrator.MarkPluginDirectorySeenAsync(_disposed.Token);
+        }
+    }
+
+    private async Task CheckNowAsync()
+    {
+        _checking = true;
+        var directory = await Orchestrator.CheckPluginDirectoryAsync(_disposed.Token);
+        _checking = false;
+        if (directory is null)
+        {
+            Snackbar.Add("The plugin directory could not be checked.", AppSeverity.Error);
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        await ShowAsync(directory);
+    }
+
+    private async Task SetEnabledAsync(bool enabled)
+    {
+        if (!await Orchestrator.SavePluginDirectoryEnabledAsync(enabled, _disposed.Token))
+        {
+            Snackbar.Add("The plugin directory switch could not be saved.", AppSeverity.Error);
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        // Switching on may check GitHub (when the saved copy is old); switching off makes no request and keeps the copy.
+        _loading = true;
+        await InvokeAsync(StateHasChanged);
+        await ShowAsync(await Orchestrator.GetPluginDirectoryAsync(_disposed.Token));
+    }
+
+    private async Task InstallAsync(PluginDirectoryEntryDto entry)
+    {
+        var preview = await Orchestrator.PreviewPluginDirectoryInstallAsync(entry.Id, _disposed.Token);
+        if (preview is null)
+        {
+            Snackbar.Add($"Couldn't get the details for {entry.Name}.", AppSeverity.Error);
+            return;
+        }
+
+        // The same approval step as switching a plugin on, in the Engine's own words. Cancel leaves everything as it was.
+        var hashes = await Approvals.ConfirmAsync([preview], $"Install {entry.Name}?", "Install");
+        if (hashes is null || !hashes.ContainsKey(entry.Id))
+        {
+            return;
+        }
+
+        // The download and install of the package arrive with the install work; the Engine reports installing as
+        // unsupported until then, so the Install button is not drawn and this point is not reached.
+    }
+
+    private static string EntryMeta(PluginDirectoryEntryDto entry)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(entry.Version))
+        {
+            parts.Add("v" + entry.Version);
+        }
+
+        if (!string.IsNullOrWhiteSpace(entry.Author))
+        {
+            parts.Add("by " + entry.Author);
+        }
+
+        return string.Join(" - ", parts);
+    }
+
+    // The viewer's own time, formatted the way webhook history shows its attempt times.
+    private static string FormatMoment(DateTimeOffset value) => value.ToLocalTime().ToString("g");
+
+    private static string TrustLabel(string trustLevel) => trustLevel.ToLowerInvariant() switch
+    {
+        "official" => "Official",
+        "verified" => "Verified",
+        _ => "Not verified",
+    };
+
+    private static AppUiTone TrustTone(string trustLevel) => trustLevel.ToLowerInvariant() switch
+    {
+        "official" => AppUiTone.Primary,
+        "verified" => AppUiTone.Info,
+        _ => AppUiTone.Warning,
+    };
+
+    private static AppUiTone StatusTone(string status) => status switch
+    {
+        "disabled" => AppUiTone.Info,
+        _ => AppUiTone.Warning,
+    };
+}

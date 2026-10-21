@@ -38,6 +38,9 @@ internal static class ApprovalStatementBuilder
     /// <summary>Where an integration's existing keys are described, since the Engine cannot know the software.</summary>
     public const string TheSoftwareHoldingItsKeys = "the software that holds its keys";
 
+    /// <summary>The warning shown wherever a plugin Tuvima has not checked is offered (the plugin directory and its install approval).</summary>
+    public const string NotVerifiedWarning = "Tuvima hasn't checked this plugin. Only install plugins from people you trust.";
+
     public const string PluginKindLabel = "Plugin";
     public const string AiFeatureKindLabel = "Local AI feature";
     public const string CredentialKindLabel = "Application key";
@@ -50,6 +53,10 @@ internal static class ApprovalStatementBuilder
     private const string RunsWithLocalAi = "Runs on this machine with Local AI";
     private const string ModelMayDownload = "May download an AI model to this machine first";
     private const string UnsandboxedNote = "Plugins run inside the server without a sandbox. Only turn on plugins you trust.";
+    private const string DeclarativeNote = "This plugin is a description file; it runs no code of its own.";
+    private const string ServiceNote = "This plugin runs as a separate program and talks to the Library through its published contract. Only turn on plugins you trust.";
+    private const string SandboxedNote = "This plugin runs in a sandbox with limited access.";
+    private const string OfficialNote = "This plugin ships with the Library.";
 
     private static readonly JsonSerializerOptions CanonicalJson = new()
     {
@@ -66,6 +73,11 @@ internal static class ApprovalStatementBuilder
         ["ai.infer"] = UsesLocalAi,
         ["storage.plugin"] = "Keeps its own data",
         ["secrets.plugin"] = KeepsOwnKeysAndLogins,
+        ["plugin-records"] = "Keeps its own records in the Library's data store",
+        ["scheduled-work"] = "Runs its own recurring jobs, listed in Scheduled tasks",
+        ["library-events"] = "Is told when things happen in the Library (items added, ingestion finished, metadata changes)",
+        ["watch-activity"] = "Is told what people watch, read and listen to",
+        ["background-work"] = "Runs continuously in the background while switched on",
     };
 
     private static readonly IReadOnlyDictionary<string, string> AiRoleNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -103,6 +115,18 @@ internal static class ApprovalStatementBuilder
         PermissionWords.TryGetValue(permissionId, out var words) ? words : permissionId;
 
     /// <summary>
+    /// The lines for one permission. Internet access with declared destinations is one "Contacts host: what it sends" line
+    /// per destination instead of the general line; every other permission is its plain words.
+    /// </summary>
+    public static IEnumerable<string> PermissionLines(string permissionId, IReadOnlyList<PluginNetworkDestination> network)
+    {
+        ArgumentNullException.ThrowIfNull(network);
+        return network.Count > 0 && IsNetworkHttp(permissionId)
+            ? network.Select(DestinationLine)
+            : [PermissionText(permissionId)];
+    }
+
+    /// <summary>
     /// What a plugin may do: one line per declared permission, per tool it needs ("Needs FFmpeg"), per Local AI ability it
     /// asks for ("Uses Local AI: write text (quick)", sorted), when it declares keys or logins which ones by label, and how
     /// it runs ("Runs as: separate program"). Duplicate lines are shown once. Every line is part of the fingerprint, so a
@@ -121,7 +145,7 @@ internal static class ApprovalStatementBuilder
                 continue;
             }
 
-            lines.Add(PermissionText(permission));
+            lines.AddRange(PermissionLines(permission, manifest.Network));
         }
 
         lines.AddRange(manifest.ToolRequirements.Select(tool => $"Needs {ToolName(tool)}"));
@@ -154,14 +178,29 @@ internal static class ApprovalStatementBuilder
         _ => kind.ToString(),
     };
 
-    /// <summary>"the internet" when the plugin can reach the internet; otherwise null (nothing leaves this machine).</summary>
+    /// <summary>
+    /// The hosts the plugin declares it contacts, separated by commas, when it can reach the internet; "the internet" for a
+    /// plugin that can but does not say where (a plugin directory entry that predates the network list); otherwise null
+    /// (nothing leaves this machine).
+    /// </summary>
     public static string? PluginSendsDataTo(PluginManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        return manifest.Permissions.Any(permission => string.Equals(permission, PluginPermissionIds.NetworkHttp, StringComparison.OrdinalIgnoreCase))
-            ? TheInternet
-            : null;
+        if (!manifest.Permissions.Any(IsNetworkHttp))
+        {
+            return null;
+        }
+
+        return manifest.Network.Count > 0
+            ? string.Join(", ", manifest.Network.Select(destination => destination.Host).Distinct(StringComparer.OrdinalIgnoreCase))
+            : TheInternet;
     }
+
+    private static bool IsNetworkHttp(string permission) =>
+        string.Equals(permission, PluginPermissionIds.NetworkHttp, StringComparison.OrdinalIgnoreCase);
+
+    private static string DestinationLine(PluginNetworkDestination destination) =>
+        $"Contacts {destination.Host}: {destination.Sends.Trim()}";
 
     /// <summary>What a Local AI feature is allowed to do, in plain words; empty for a feature the Library has no words for.</summary>
     public static IReadOnlyList<string> AiFeatureAllowedTo(string featureKey) =>
@@ -184,6 +223,39 @@ internal static class ApprovalStatementBuilder
             sendsTo,
             [TrustNote(trust), UnsandboxedNote]);
     }
+
+    /// <summary>
+    /// What a person is shown before installing a plugin from the plugin directory, built only from what the list declares.
+    /// A plugin Tuvima has not checked gets the plain warning on top of the usual notes.
+    /// </summary>
+    public static ApprovalStatement ForDirectoryEntry(PluginManifest manifest, PluginTrustLevel trust)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        var sendsTo = PluginSendsDataTo(manifest);
+        var notes = new List<string> { TrustNote(trust) };
+        if (trust is not (PluginTrustLevel.Official or PluginTrustLevel.Verified))
+        {
+            notes.Add(NotVerifiedWarning);
+        }
+
+        notes.Add(RunLocationNote(manifest.Kind));
+        return new ApprovalStatement(
+            string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Id : manifest.Name,
+            PluginKindLabel,
+            PluginAllowedTo(manifest),
+            sendsTo is not null,
+            sendsTo,
+            notes);
+    }
+
+    // A listed plugin is described by how it runs, so a description file is not told it runs inside the server.
+    private static string RunLocationNote(PluginKind kind) => kind switch
+    {
+        PluginKind.Declarative => DeclarativeNote,
+        PluginKind.Service => ServiceNote,
+        PluginKind.Sandboxed => SandboxedNote,
+        _ => OfficialNote,
+    };
 
     /// <param name="modelReady">True when the model the feature reads is already on this machine.</param>
     public static ApprovalStatement ForAiFeature(string featureKey, bool modelReady)

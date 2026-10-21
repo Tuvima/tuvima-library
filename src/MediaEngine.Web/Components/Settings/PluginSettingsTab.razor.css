@@ -46,6 +46,14 @@
     scroll-margin-top: 96px;
 }
 
+/* The card a /settings/plugins?plugin={id} link points at: scrolled into view and ringed in the accent colour. */
+.settings-plugin-card-focus {
+    scroll-margin-top: 96px;
+    border-radius: 12px;
+    outline: 2px solid var(--tl-accent-primary);
+    outline-offset: 4px;
+}
+
 .settings-plugin-detail-stack {
     display: grid;
     gap: 18px;
