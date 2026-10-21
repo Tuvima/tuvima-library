@@ -106,6 +106,7 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
         yield return Case(SignalREvents.FolderHealthChanged, new FolderHealthChangedEvent(VaultFolder, true, true, true, now));
         yield return Case(SignalREvents.WatchFolderActive, new WatchFolderActiveEvent(VaultFolder + "/new", now));
         yield return Case(SignalREvents.InitialSweepStarted, new InitialSweepStartedEvent([OrdinaryFile, VaultFolder], now));
+        yield return Case(SignalREvents.LibraryItemsRemoved, new LibraryItemsRemovedEvent([work], [asset]));
     }
 
     private static object[] Case(string name, object payload) => [name, payload];
@@ -139,6 +140,8 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
         Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.ReviewItemResolved, new ReviewItemResolvedEvent(Guid.NewGuid(), _ordinaryWork, "Resolved")));
         Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.IngestionItemProgress,
             new IngestionItemProgressEvent(Guid.NewGuid(), _ordinaryAsset, OrdinaryFile, "Dune.mkv", "Scan", 1, 10, false)));
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.LibraryItemsRemoved,
+            new LibraryItemsRemovedEvent([_ordinaryWork, Guid.NewGuid()], [_ordinaryAsset])));
     }
 
     [Fact]
@@ -196,6 +199,7 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
         ReviewItemResolvedEvent value => value with { EntityId = _vaultWork },
         ReviewItemResolvedSupplementaryEvent value => value with { EntityId = _vaultAsset },
         EntityReviewResolvedEvent value => value with { EntityId = _vaultWork },
+        LibraryItemsRemovedEvent => new LibraryItemsRemovedEvent([_vaultWork], [_vaultAsset]),
         _ => payload,
     };
 

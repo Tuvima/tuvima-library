@@ -907,6 +907,12 @@ public static class SettingsEndpoints
                 return ApiErrors.BadRequest("language_strategy must be one of: source, localized, both.");
             }
 
+            // The default Stash-box server's key goes to the address its endpoint names, so that address stays what the key was saved for.
+            if (MediaEngine.Api.Services.Settings.ProviderEndpointPinning.ChangesPinnedEndpoint(name, existing.Endpoints, request.Endpoints))
+            {
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.Settings.ProviderEndpointPinning.StashBoxAddressMessage);
+            }
+
             // Update mutable fields.
             if (request.Enabled.HasValue)
             {

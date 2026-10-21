@@ -102,13 +102,6 @@ public sealed class IntercomAudienceAuthorizer(
             return false;
         }
 
-        // Titles deleted from the library carry only ids of things that no longer exist, so there is nothing to protect:
-        // every signed-in person's open screens must drop them, not just administrators'.
-        if (eventName == SignalREvents.LibraryItemsRemoved)
-        {
-            return true;
-        }
-
         // A child (restricted) profile never gets administrator authority, as on Engine requests.
         var activeProfile = await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false);
         var administrator = account.IsAdministrator && grant.AdminEnabled &&
@@ -123,6 +116,14 @@ public sealed class IntercomAudienceAuthorizer(
         {
             return await nsfw.IsUnlockedAsync(session.Id, session.ActiveProfileId, timeProvider.GetUtcNow(), ct).ConfigureAwait(false)
                 && await accounts.HasFeatureGrantAsync(account.Id, AccountFeatureId.Watch, ct).ConfigureAwait(false);
+        }
+
+        // Titles deleted from the library carry only ids of things that no longer exist, so every signed-in person's open screens
+        // must drop them, not just administrators'. A deletion never includes a Vault item (its plan leaves them out), and an id
+        // that can still be classified as Vault was judged above, so a locked session is never told about Vault items (review L13).
+        if (eventName == SignalREvents.LibraryItemsRemoved)
+        {
+            return true;
         }
 
         if (assetId is { } id)
@@ -180,6 +181,14 @@ public sealed class IntercomAudienceAuthorizer(
         if (assetId is { } asset)
         {
             yield return asset;
+        }
+
+        if (payload is LibraryItemsRemovedEvent removed)
+        {
+            foreach (var removedId in removed.WorkIds.Concat(removed.AssetIds))
+            {
+                yield return removedId;
+            }
         }
 
         var other = payload switch

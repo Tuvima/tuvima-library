@@ -43,6 +43,9 @@ public sealed record StashBoxReply(string Status, IReadOnlyList<StashBoxScene> S
 public sealed class StashBoxClient
 {
     public const string HttpClientName = "stashbox";
+
+    /// <summary>The client for cover images from a server that is not on this machine; it connects to public addresses only.</summary>
+    public const string CoverHttpClientName = "stashbox_cover";
     public const long MaxReplyBytes = 2L * 1024 * 1024;
     public const long MaxCoverBytes = 8L * 1024 * 1024;
     public const int MaxSceneResults = 10;
@@ -139,7 +142,8 @@ public sealed class StashBoxClient
         try
         {
             await WaitTurnAsync(ct).ConfigureAwait(false);
-            var client = _http.CreateClient(HttpClientName);
+            // A server on this machine serves its own covers; every other cover connects to public internet addresses only.
+            var client = _http.CreateClient(StashBoxAddress.IsLocalHost(server) ? HttpClientName : CoverHttpClientName);
             using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MaxCoverBytes)
             {

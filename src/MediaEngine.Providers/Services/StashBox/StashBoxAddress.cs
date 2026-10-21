@@ -50,7 +50,9 @@ public static class StashBoxAddress
 
     /// <summary>
     /// True when <paramref name="imageUrl"/> is an https address on the server's own host or one of its sub-hosts (for example a
-    /// CDN host such as cdn.example.org for a server at example.org). A server on this machine may serve images over its own scheme.
+    /// CDN host such as cdn.example.org for a server at example.org), never a sibling under the same registrable domain. A server on
+    /// this machine may serve images over its own scheme. Where the connection may go is checked separately, when it is made
+    /// (<see cref="StashBoxPublicConnect"/>).
     /// </summary>
     public static bool IsOwnImageHost(Uri server, Uri imageUrl)
     {
@@ -77,19 +79,14 @@ public static class StashBoxAddress
             return true;
         }
 
-        // The site's own domain: the last two labels of the server host (a bare IP address has none).
-        if (IPAddress.TryParse(serverHost.Trim('[', ']'), out _))
+        // A sub-host of the configured host only (cdn.example.org for example.org). Guessing the "site" from the last labels of the
+        // host would let x.co.uk accept evil.co.uk, so the configured host itself is the only base. A bare IP address has no sub-hosts,
+        // and a literal IP image address never matches a name.
+        if (IPAddress.TryParse(serverHost.Trim('[', ']'), out _) || IPAddress.TryParse(imageHost.Trim('[', ']'), out _))
         {
             return false;
         }
 
-        var labels = serverHost.Split('.');
-        if (labels.Length < 2)
-        {
-            return false;
-        }
-
-        var site = string.Join('.', labels[^2..]);
-        return imageHost == site || imageHost.EndsWith("." + site, StringComparison.Ordinal);
+        return imageHost.EndsWith("." + serverHost, StringComparison.Ordinal);
     }
 }

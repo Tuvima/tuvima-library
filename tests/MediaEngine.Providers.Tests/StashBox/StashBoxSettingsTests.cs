@@ -124,4 +124,22 @@ public sealed class StashBoxSettingsTests : IDisposable
     {
         Assert.Equal(expected, StashBoxAddress.IsOwnImageHost(new Uri("https://stashdb.org/graphql"), new Uri(image)));
     }
+
+    [Theory]
+    [InlineData("https://x.co.uk/graphql", "https://evil.co.uk/a.jpg", false)]
+    [InlineData("https://x.co.uk/graphql", "https://other.co.uk/a.jpg", false)]
+    [InlineData("https://x.co.uk/graphql", "https://cdn.x.co.uk/a.jpg", true)]
+    [InlineData("https://x.co.uk/graphql", "https://x.co.uk/a.jpg", true)]
+    [InlineData("https://api.example.org/graphql", "https://cdn.example.org/a.jpg", false)]
+    [InlineData("https://api.example.org/graphql", "https://img.api.example.org/a.jpg", true)]
+    [InlineData("https://203.0.113.9/graphql", "https://cdn.203.0.113.9/a.jpg", false)]
+    [InlineData("https://stashdb.org/graphql", "https://10.0.0.5/a.jpg", false)]
+    [InlineData("https://stashdb.org/graphql", "https://[::1]/a.jpg", false)]
+    [InlineData("http://localhost:9999/graphql", "http://localhost:9999/a.jpg", true)]
+    [InlineData("http://localhost:9999/graphql", "http://localhost:9998/a.jpg", false)]
+    [InlineData("http://localhost:9999/graphql", "https://localhost:9999/a.jpg", false)]
+    public void IsOwnImageHost_UsesTheConfiguredHostAsTheOnlyBase_NotTheLastTwoLabels(string server, string image, bool expected)
+    {
+        Assert.Equal(expected, StashBoxAddress.IsOwnImageHost(new Uri(server), new Uri(image)));
+    }
 }

@@ -121,6 +121,8 @@ public static class TuvimaProviderServiceCollectionExtensions
         // IProviderAudienceGate is the one place that keeps Vault items to adult-only providers and every other provider away from them.
         services.AddTuvimaHttpClient(StashBoxClient.HttpClientName, TimeSpan.FromSeconds(15), addStandardResilience: false)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
+        services.AddTuvimaHttpClient(StashBoxClient.CoverHttpClientName, TimeSpan.FromSeconds(15), addStandardResilience: false)
+            .ConfigurePrimaryHttpMessageHandler(StashBoxPublicConnect.CreateHandler);
         services.AddSingleton<StashBoxClient>();
         services.AddSingleton<IStashBoxSettings, StashBoxSettings>();
         services.AddSingleton<StashBoxVideoLookup>();
