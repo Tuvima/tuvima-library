@@ -9567,6 +9567,10 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultNameTileDto
   SceneCount: System.Int32 | nullability=not-null | accessors=get,init
   ImageId: System.Guid? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultRestoredBookmarksDto
+  Waiting: System.Int32 | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultSceneDetailDto
   Scene: MediaEngine.Contracts.Vault.VaultSceneDto | nullability=not-null | accessors=get,init
   Description: System.String | nullability=nullable | accessors=get,init

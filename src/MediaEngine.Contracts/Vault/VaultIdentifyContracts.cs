@@ -224,3 +224,18 @@ public sealed class VaultActivityItemDto
     [JsonPropertyName("at")]
     public DateTimeOffset At { get; init; }
 }
+
+/// <summary>
+/// How many saved Vault bookmarks that came back with a restored backup are still waiting for their video. A backup keeps a bookmark
+/// as the title it belongs to (never as a Vault file); each one is re-linked when a rescan finds the matching video. Counts only, no titles.
+/// </summary>
+public sealed class VaultRestoredBookmarksDto
+{
+    /// <summary>Bookmarks not yet re-linked. Zero when nothing was restored, or when every bookmark found its video.</summary>
+    [JsonPropertyName("waiting")]
+    public int Waiting { get; init; }
+
+    /// <summary>Plain words for the Vault settings page, or empty when nothing is waiting.</summary>
+    [JsonPropertyName("message")]
+    public string Message { get; init; } = string.Empty;
+}

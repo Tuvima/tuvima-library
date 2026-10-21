@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0031 bookmark_packs).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0032 vault_pending_bookmarks).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2665,6 +2665,23 @@ CREATE TABLE vault_matches (
     matched_at  TEXT NOT NULL
 );
 
+CREATE TABLE vault_pending_bookmarks (
+    id                    BLOB NOT NULL PRIMARY KEY,
+    profile_id            BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    is_global             INTEGER NOT NULL DEFAULT 0 CHECK (is_global IN (0, 1)),
+    identity_json         TEXT NOT NULL CHECK (json_valid(identity_json)),
+    position_seconds      REAL NOT NULL DEFAULT 0.0,
+    end_seconds           REAL CHECK (end_seconds IS NULL OR end_seconds > position_seconds),
+    duration_seconds      REAL,
+    chapter_index         INTEGER,
+    chapter_title         TEXT,
+    chapter_start_seconds REAL,
+    label                 TEXT,
+    note                  TEXT,
+    description           TEXT,
+    created_at            TEXT NOT NULL
+);
+
 CREATE TABLE vault_performers (
     id         BLOB NOT NULL PRIMARY KEY,
     library_id TEXT NOT NULL REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
@@ -3433,6 +3450,8 @@ CREATE INDEX idx_vault_asset_performers_performer ON vault_asset_performers(perf
 CREATE INDEX idx_vault_asset_studios_studio ON vault_asset_studios(studio_id);
 
 CREATE INDEX idx_vault_asset_tags_tag ON vault_asset_tags(tag_id);
+
+CREATE INDEX idx_vault_pending_bookmarks_profile ON vault_pending_bookmarks(profile_id);
 
 CREATE INDEX idx_view_shared_contribution_events_batch
     ON view_shared_contribution_events(contribution_id, occurred_at, id);

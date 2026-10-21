@@ -1604,6 +1604,12 @@ Added by upgrade step `0027_vault_access` (Videos spec WP9). A **Vault library**
 | `vault_file_fingerprints` | Fingerprints computed on this machine (`OSHASH`, `MD5`, `PHASH`) with the file size they were computed at, kept so a big file is not read twice. Computed and sent only while the administrator's separate fingerprint permission is on. |
 | `vault_activity` | The quiet Vault activity list: `kind` (`added`, `matched`, `unmatched`, `identified`, `failed`), the file's own name, a fixed plain-words detail (never a title or path) and the time. Shown only inside NSFW mode to an administrator. |
 
+**Bookmarks waiting after a restore (upgrade step `0032_vault_pending_bookmarks`).** A backup never holds the Vault catalogue, so a person's Vault bookmarks travel in a backup as `vault_pending_bookmarks` and are re-linked after a rescan. The table is empty on a data store that was never restored.
+
+| Table | What it holds |
+|---|---|
+| `vault_pending_bookmarks` | One row per saved Vault bookmark waiting for its video: `profile_id` (cascade), `is_global`, `identity_json` (the canonical IDs including the Stash-box record as `stash_box_id`, `running_time_seconds`, `edition`, `content_hash` and exact `fingerprints`), the bookmark itself (`position_seconds`, `end_seconds`, `duration_seconds`, `chapter_index`, `chapter_title`, `chapter_start_seconds`, `label`, `note`, `description`) and `created_at`. The Engine moves a row into `audiobook_bookmarks` (and deletes it) when a Vault video matches; a row with no matching video stays and is counted. |
+
 **Skipped writes (triggers):** `trg_application_events_no_vault` stops an event about a Vault item from reaching `application_events` (and so apps and webhooks); `trg_personal_activity_no_vault` stops a Vault file from entering anyone's activity history. A skipped write is simply not stored. A file cannot move into or out of a Vault library once it exists (`trg_media_assets_vault_library_fixed`).
 
 ## Related

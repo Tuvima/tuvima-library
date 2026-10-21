@@ -10,6 +10,7 @@ using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Api.Services.Vault;
 using MediaEngine.Api.Services.View;
 using MediaEngine.Providers.Services;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Services;
 
 namespace MediaEngine.Api.DependencyInjection;
@@ -23,6 +24,11 @@ public static class TuvimaHostedServiceCollectionExtensions
         // The Vault's folder list for the logging and activity writers (Videos spec D17). Started first so no line is written before it is known.
         services.AddSingleton<VaultLocationGuardRefreshService>();
         services.AddHostedService(sp => sp.GetRequiredService<VaultLocationGuardRefreshService>());
+
+        // After a restore: re-links saved Vault bookmarks to their videos as the rescan finds them (WP17, backups).
+        services.AddSingleton<VaultBookmarkRelinkRepository>();
+        services.AddSingleton<VaultBookmarkRelinkService>();
+        services.AddHostedService<VaultBookmarkRelinkHostedService>();
 
         // Logs page and log/activity retention (recurring runs are recorded through the ScheduledTaskRunner).
         services.AddSingleton(EngineLogLocation.FromEnvironment());

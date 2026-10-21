@@ -51,10 +51,23 @@ public static class BookmarkPackMatcher
     private const double MinimumRunningTimeToleranceSeconds = 2.0;
     private const double RunningTimeToleranceFraction = 0.002;
 
-    public static BookmarkPackMatch Compare(BookmarkPackTitle pack, BookmarkPackTitle local)
+    /// <summary>
+    /// The extra ID a restored Vault bookmark may use to recognise a matched Vault video: the Stash-box server and record, written
+    /// <c>server|record</c>. It is only ever read by <see cref="VaultBookmarkRelinkPlanner"/>; a pack never writes it.
+    /// </summary>
+    public const string VaultStashBoxIdKey = "stash_box_id";
+
+    public static BookmarkPackMatch Compare(BookmarkPackTitle pack, BookmarkPackTitle local) =>
+        Compare(pack, local, extraIdKeys: null);
+
+    /// <summary>
+    /// Same rules as <see cref="Compare(BookmarkPackTitle, BookmarkPackTitle)"/>, also recognising the given extra ID keys
+    /// (the Vault re-link uses this to add the Stash-box ID without changing what a pack may carry).
+    /// </summary>
+    public static BookmarkPackMatch Compare(BookmarkPackTitle pack, BookmarkPackTitle local, IReadOnlySet<string>? extraIdKeys)
     {
-        var packIds = Normalize(pack.Ids);
-        var localIds = Normalize(local.Ids);
+        var packIds = Normalize(pack.Ids, extraIdKeys);
+        var localIds = Normalize(local.Ids, extraIdKeys);
         var shared = packIds.Keys.Where(localIds.ContainsKey).ToList();
         if (shared.Count == 0)
         {
@@ -135,8 +148,16 @@ public static class BookmarkPackMatcher
         return new BookmarkPackAlignment(aligned, skipped);
     }
 
-    private static Dictionary<string, string> Normalize(IReadOnlyDictionary<string, string> ids) => ids
-        .Where(pair => RecognitionIdKeys.Contains(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value))
+    /// <summary>True when both sides carry at least one recognition ID of the same kind (whether or not the values agree).</summary>
+    public static bool ShareAnIdKind(
+        IReadOnlyDictionary<string, string> first, IReadOnlyDictionary<string, string> second, IReadOnlySet<string>? extraIdKeys)
+    {
+        var secondIds = Normalize(second, extraIdKeys);
+        return Normalize(first, extraIdKeys).Keys.Any(secondIds.ContainsKey);
+    }
+
+    private static Dictionary<string, string> Normalize(IReadOnlyDictionary<string, string> ids, IReadOnlySet<string>? extraIdKeys) => ids
+        .Where(pair => (RecognitionIdKeys.Contains(pair.Key) || (extraIdKeys?.Contains(pair.Key) ?? false)) && !string.IsNullOrWhiteSpace(pair.Value))
         .GroupBy(pair => pair.Key.Trim().ToLowerInvariant(), StringComparer.Ordinal)
         .ToDictionary(group => group.Key, group => group.First().Value.Trim(), StringComparer.Ordinal);
 

@@ -826,6 +826,7 @@ Every Vault route answers exactly like a missing item (404) to anyone without an
 | POST | `/api/v1/vault/items/{assetId}/identify/preview` | The video's current values beside what a chosen record (`server_id`, `record_id`) would put there, one row per field with a tick. Rows holding a person's own edit cannot be ticked. | Same |
 | POST | `/api/v1/vault/items/{assetId}/identify/apply` | Applies exactly the fields ticked (`fields`) from the chosen record, read again from the server by id; records where each field came from. Title, description, release date, cover, studio, performers and tags. | Same |
 | GET | `/api/v1/vault/items/{assetId}/match` | How a Vault video was matched, if it was: server, record, signal, how it was applied, and where each field came from. `matched: false` is Unmatched. | Unlocked NSFW session plus effective administrator or `metadata.read` |
+| GET | `/api/v1/vault/restored-bookmarks` | `{ waiting, message }`: how many saved Vault bookmarks from a restored backup still wait for a matching video (a count only, never a title). | Effective administrator with NSFW mode unlocked |
 | GET | `/api/v1/vault/activity` | The quiet Vault activity list (added, matched, unmatched, identified, failed), newest first. The only place Vault ingestion shows. | Effective administrator with NSFW mode unlocked |
 
 ---
