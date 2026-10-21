@@ -65,6 +65,7 @@ public sealed partial class WikidataBridgeWorker
                 "bridge_id" => (1.0, true),
                 "comic_series_rollup" => (0.90, true),
                 "sibling_variant" => (0.93, true),
+                QidResolutionMethods.OwnedBookNoRetail => (0.93, true),
                 _ => (0.75, false)
             };
 
@@ -115,8 +116,15 @@ public sealed partial class WikidataBridgeWorker
             }
 
             // Record timeline event.
-            var timelineMethod = ctx.PrimaryBridgeIdType ?? ctx.MatchedBy ?? "bridge_id";
-            await _timeline.RecordBridgeResolvedAsync(job.EntityId, ctx.ResolvedQid, timelineMethod, ct);
+            if (ctx.MatchedBy == QidResolutionMethods.OwnedBookNoRetail)
+            {
+                await _timeline.RecordOwnedBookQidKeptAsync(job.EntityId, ctx.ResolvedQid, ct);
+            }
+            else
+            {
+                var timelineMethod = ctx.PrimaryBridgeIdType ?? ctx.MatchedBy ?? "bridge_id";
+                await _timeline.RecordBridgeResolvedAsync(job.EntityId, ctx.ResolvedQid, timelineMethod, ct);
+            }
 
             _logger.LogInformation(
                 "Wikidata: '{Title}' identified as {Qid} via {Method} [entity {EntityId}]",
@@ -368,7 +376,7 @@ public sealed partial class WikidataBridgeWorker
                 ctx.TitleHint!,
                 creator,
                 lineage?.TargetForSelfScope,
-                ct).ConfigureAwait(false);
+                ct: ct).ConfigureAwait(false);
 
             if (match is null || string.IsNullOrWhiteSpace(match.WikidataQid))
             {

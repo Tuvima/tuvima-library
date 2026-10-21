@@ -34,6 +34,8 @@ A collection is defined by membership or **rules**, its **type**, ownership/audi
 
 Product role note: lane-level shelves and top-level Collections are intentionally different surfaces. A generated book series, movie series, TV show, music album, or audiobook series is a **shelf** and belongs in its lane: books/comics in Read, movies/TV in Watch, and music/audiobooks in Listen. The Collections page shows broader rollups only when a shared series/franchise/universe relationship connects at least two shelves. A single shelf, even with multiple items, stays out of the Collections surface; ebook/audiobook variants of the same work also do not trigger a rollup.
 
+One Universe record: every Series shelf names the Universe it belongs to (`collections.universe_qid`, the `narrative_roots` row), even when it is the only Series there. `ParentCollectionResolver` decides it with the one `UniverseIdentityRule` (a fictional universe, then a franchise, then a broader Series, then a work it is based on, then the shelf's own Series; the lowest QID wins within a type), and the Work-level narrative root uses the same rule, so the Library and the graph agree. A Universe shelf is created once at least two Series shelves name the same record (the book and audiobook Series of one book Series, both carrying the Universe's own QID, do not count as two on their own), and it presents that record (`universe_qid` equals its `wikidata_qid`). The decision is recomputed on every call, so a shelf that moves to another Universe leaves the old one cleanly: a Universe shelf left without children is removed only if nobody edited it.
+
 ## Shelf Identity, Ordering, And Counts
 
 Lane shelves are immediate containers. A comic shelf is a Comic Vine volume/run,

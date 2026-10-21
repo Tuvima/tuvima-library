@@ -110,7 +110,7 @@ public sealed class CatalogUpsertServiceTests
         public Task<WorkLineage?> GetLineageByAssetAsync(Guid assetId, CancellationToken ct = default)
             => Task.FromResult<WorkLineage?>(null);
 
-        public Task<ConfirmedSiblingWorkQid?> FindConfirmedSiblingQidAsync(MediaType sourceMediaType, IReadOnlyList<MediaType> candidateMediaTypes, string title, string? creator, Guid? excludeWorkId = null, CancellationToken ct = default)
+        public Task<ConfirmedSiblingWorkQid?> FindConfirmedSiblingQidAsync(MediaType sourceMediaType, IReadOnlyList<MediaType> candidateMediaTypes, string title, string? creator, Guid? excludeWorkId = null, bool requireSettledIdentity = false, CancellationToken ct = default)
             => Task.FromResult<ConfirmedSiblingWorkQid?>(null);
     }
 

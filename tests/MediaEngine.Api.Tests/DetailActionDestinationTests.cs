@@ -150,8 +150,9 @@ public sealed class DetailActionDestinationTests : IDisposable
         var work = SeedOwnedWork("Arrival", "Movie");
         using (var connection = _database.CreateConnection())
         {
+            // The item page links to the work's stored Universe record (Universes U-WP4), not to a raw P1434 value.
             connection.Execute(
-                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@work, 'fictional_universe_qid', 'Q4242', CURRENT_TIMESTAMP);",
+                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@work, 'narrative_root_qid', 'Q4242', CURRENT_TIMESTAMP);",
                 new { work });
         }
 

@@ -224,7 +224,7 @@ Stage 6-8 data artifacts:
 | Fictional entities | `fictional_entities`, `character_portraits` | Characters, locations, organizations, portraits, actor-character images. |
 | Relationships | `entity_relationships`, `collection_relationships`, `series_members` | Universe, series, franchise, member-of, has-part, pseudonym, cast/role, and narrative links. |
 | Supplemental plugin lore | `plugin_lore_sources`, `plugin_lore_entities`, `plugin_lore_relationships` | Admin-approved plugin data that supplements Wikidata without becoming canonical. |
-| Narrative roots | `narrative_roots` | Universe/franchise/series umbrellas used for graph grouping. |
+| Narrative roots | `narrative_roots` | The Universe record: one row per Universe QID, shared by the graph and the Universe shelf (`collections.universe_qid`). |
 | Text tracks | `text_tracks`, `.data/assets/text-tracks/...` | Lyrics/subtitles and normalized track metadata. |
 | Timeline/activity | `entity_timeline`, `system_activity` | Operational history visible in diagnostics and Dashboard progress. |
 
