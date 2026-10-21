@@ -16,11 +16,25 @@ internal static partial class PluginPackageRules
     public const long MaxUnpackedBytes = 256L * 1024 * 1024;
     public const int MaxEntries = 2000;
 
-    [GeneratedRegex("^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")]
+    [GeneratedRegex("^[A-Za-z0-9]([A-Za-z0-9._-]{0,126}[A-Za-z0-9])?$")]
     private static partial Regex SafeIdPattern();
 
-    /// <summary>A plugin id that is safe to use as a folder and file name (letters, digits, dot, dash, underscore; no path parts).</summary>
-    public static bool IsSafeId(string? id) => id is not null && SafeIdPattern().IsMatch(id) && !id.Contains("..", StringComparison.Ordinal);
+    // Names Windows reserves for devices; as a folder or file name they would not mean a file.
+    private static readonly HashSet<string> ReservedNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
+        "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+    };
+
+    /// <summary>
+    /// A plugin id that is safe to use as a folder and file name: letters, digits, dot, dash and underscore, starting and ending
+    /// with a letter or digit (a trailing dot is the same folder as none on Windows), no path parts and no reserved device name.
+    /// </summary>
+    public static bool IsSafeId(string? id) =>
+        id is not null
+        && SafeIdPattern().IsMatch(id)
+        && !id.Contains("..", StringComparison.Ordinal)
+        && !id.Split('.').Any(ReservedNames.Contains);
 
     /// <summary>Packages may only be fetched over https from GitHub (the repository, its release files and its raw files).</summary>
     public static bool IsAllowedPackageAddress(Uri uri)
@@ -43,6 +57,19 @@ internal static partial class PluginPackageRules
     /// package's own headers. Returns the folder that holds <c>plugin.json</c> (the folder itself, or its one top-level folder).
     /// </summary>
     public static string Unpack(byte[] package, string destination)
+    {
+        try
+        {
+            return UnpackCore(package, destination);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or NotSupportedException)
+        {
+            // A damaged compressed stream shows up while reading an entry, not when the archive opens.
+            throw new PluginInstallException("The downloaded file is not a valid plugin package.");
+        }
+    }
+
+    private static string UnpackCore(byte[] package, string destination)
     {
         ZipArchive archive;
         try
@@ -108,17 +135,46 @@ internal static partial class PluginPackageRules
             }
         }
 
+        string top;
         if (File.Exists(Path.Combine(destination, "plugin.json")))
         {
-            return destination;
+            top = destination;
         }
-
-        var folders = Directory.GetDirectories(destination);
-        if (folders.Length == 1 && File.Exists(Path.Combine(folders[0], "plugin.json")))
+        else
         {
-            return folders[0];
+            var folders = Directory.GetDirectories(destination);
+            if (folders.Length != 1 || !File.Exists(Path.Combine(folders[0], "plugin.json")))
+            {
+                throw new PluginInstallException("The plugin package has no plugin.json at its top.");
+            }
+
+            top = folders[0];
         }
 
-        throw new PluginInstallException("The plugin package has no plugin.json at its top.");
+        // The plugins folder is scanned for every plugin.json under it, so a second one would register a plugin nobody was shown.
+        var manifests = Directory.EnumerateFiles(destination, "*", SearchOption.AllDirectories)
+            .Count(file => string.Equals(Path.GetFileName(file), "plugin.json", StringComparison.OrdinalIgnoreCase));
+        if (manifests != 1)
+        {
+            throw new PluginInstallException("The plugin package holds more than one plugin.json, which is not allowed.");
+        }
+
+        return top;
+    }
+
+    /// <summary>A hash over every file in a plugin folder (sorted relative paths and contents), so a swapped or added file changes it.</summary>
+    public static string HashTree(string folder)
+    {
+        var root = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+        foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+                     .Select(path => (Full: path, Relative: Path.GetFullPath(path)[root.Length..].Replace('\\', '/')))
+                     .OrderBy(item => item.Relative, StringComparer.Ordinal))
+        {
+            hash.AppendData(System.Text.Encoding.UTF8.GetBytes(file.Relative + "\n"));
+            hash.AppendData(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(file.Full)));
+        }
+
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 }

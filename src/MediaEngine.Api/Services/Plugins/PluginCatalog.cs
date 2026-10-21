@@ -91,7 +91,7 @@ public sealed class PluginCatalog
         _pluginRoot = Path.Combine(root, "plugins");
         _installRecordRoot = Path.Combine(root, "plugin-installs");
         _stagingRoot = Path.Combine(root, "plugin-staging");
-        InstallRecords = new PluginInstallRecords(_installRecordRoot);
+        InstallRecords = new PluginInstallRecords(_installRecordRoot, _pluginRoot);
     }
 
     /// <summary>What the Library remembers about plugins it installed from the directory (their trust level and the manifest it checked).</summary>

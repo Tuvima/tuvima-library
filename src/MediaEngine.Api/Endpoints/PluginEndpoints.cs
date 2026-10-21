@@ -128,7 +128,7 @@ internal static class PluginEndpoints
             }
         })
             .WithName("InstallDirectoryPlugin")
-            .WithSummary("Install, or update to the listed version, a plugin from the plugin directory. The package is downloaded from GitHub, checked against the directory's checksum (and, for checked plugins, Tuvima's signature) and unpacked safely. The plugin is left switched off; an update that asks for more than was approved leaves it off until approved again.")
+            .WithSummary("Install, or update to the listed version, a plugin from the plugin directory. The package is downloaded from GitHub, checked against the directory's checksum (and, for verified plugins, the publisher's signature) and unpacked safely. The plugin is left switched off; an update that asks for more than was approved leaves it off until approved again.")
             .Produces<PluginInstallResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)

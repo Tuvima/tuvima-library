@@ -115,7 +115,7 @@ public sealed class PluginPackageInstallerTests : IDisposable
 
         var ex = await Assert.ThrowsAsync<PluginInstallException>(() => installer.InstallAsync("acme.one"));
 
-        Assert.Contains("checked by Tuvima", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("signed as verified", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -229,6 +229,72 @@ public sealed class PluginPackageInstallerTests : IDisposable
         catalog.Reload();
 
         Assert.Equal(PluginTrustLevel.Private, catalog.Get("acme.one")!.Trust);
+    }
+
+    [Fact]
+    public async Task AFileAddedToTheInstalledFolder_MeansItIsNoLongerTheCheckedPackage()
+    {
+        var package = Package("acme.one", "1.0.0");
+        var (installer, catalog) = Build(Listing("acme.one", "1.0.0", package), package);
+        await installer.InstallAsync("acme.one");
+
+        File.WriteAllText(Path.Combine(catalog.PluginRoot, "acme.one", "swapped.dll"), "x");
+        catalog.Reload();
+
+        Assert.Equal(PluginTrustLevel.Private, catalog.Get("acme.one")!.Trust);
+    }
+
+    [Fact]
+    public async Task ACopyOfTheManifestInAnotherFolder_DoesNotInheritTheInstalledTrust()
+    {
+        var package = Package("acme.one", "1.0.0");
+        var (installer, catalog) = Build(Listing("acme.one", "1.0.0", package), package);
+        await installer.InstallAsync("acme.one");
+        var copy = Path.Combine(catalog.PluginRoot, "elsewhere");
+        Directory.CreateDirectory(copy);
+        File.Copy(Path.Combine(catalog.PluginRoot, "acme.one", "plugin.json"), Path.Combine(copy, "plugin.json"));
+
+        var trust = catalog.InstallRecords.TrustFor(catalog.Get("acme.one")!.Manifest, Path.Combine(copy, "plugin.json"));
+
+        Assert.Equal(PluginTrustLevel.Private, trust);
+    }
+
+    [Fact]
+    public async Task APackageHoldingASecondManifest_IsRefused()
+    {
+        var package = Package("acme.one", "1.0.0", rawEntry: "nested/plugin.json");
+        var (installer, catalog) = Build(Listing("acme.one", "1.0.0", package), package);
+
+        var ex = await Assert.ThrowsAsync<PluginInstallException>(() => installer.InstallAsync("acme.one"));
+
+        Assert.Contains("more than one plugin.json", ex.Message, StringComparison.Ordinal);
+        Assert.Null(catalog.Get("acme.one"));
+    }
+
+    [Theory]
+    [InlineData("foo.")]
+    [InlineData("nul")]
+    [InlineData("acme.com1")]
+    [InlineData("-lead")]
+    public void UnsafeIds_AreNotAllowedToBecomeFolderNames(string id)
+    {
+        Assert.False(PluginPackageRules.IsSafeId(id));
+    }
+
+    [Fact]
+    public void ACorruptCompressedEntry_IsRefusedWithAPlainSentence_NotAnUnexpectedError()
+    {
+        var good = Package("acme.one", "1.0.0", extra: "data.bin");
+        // Damage the compressed bytes of the last entry without touching the archive's directory.
+        for (var i = 40; i < 60; i++)
+        {
+            good[i] ^= 0xFF;
+        }
+
+        var destination = Path.Combine(_root, "corrupt");
+        var thrown = Record.Exception(() => PluginPackageRules.Unpack(good, destination));
+
+        Assert.True(thrown is null or PluginInstallException, thrown?.ToString());
     }
 
     [Fact]

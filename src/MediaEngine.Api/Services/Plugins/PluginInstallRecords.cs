@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MediaEngine.Domain.Services;
 using MediaEngine.Plugins;
 
 namespace MediaEngine.Api.Services.Plugins;
@@ -22,6 +23,10 @@ public sealed record PluginInstallRecord
     [JsonPropertyName("manifest_sha256")]
     public string ManifestSha256 { get; init; } = "";
 
+    /// <summary>Hash over every file of the installed folder; if anything in it changes later, the plugin is no longer what was checked.</summary>
+    [JsonPropertyName("tree_sha256")]
+    public string TreeSha256 { get; init; } = "";
+
     [JsonPropertyName("package_sha256")]
     public string PackageSha256 { get; init; } = "";
 
@@ -36,13 +41,15 @@ public sealed record PluginInstallRecord
 /// </summary>
 public sealed class PluginInstallRecords
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    private static readonly JsonSerializerOptions Json = MediaEngineJson.Indented;
 
     private readonly string _root;
+    private readonly string _pluginRoot;
 
-    public PluginInstallRecords(string root)
+    public PluginInstallRecords(string root, string pluginRoot)
     {
         _root = root;
+        _pluginRoot = pluginRoot;
     }
 
     public PluginInstallRecord? Find(string pluginId)
@@ -93,7 +100,11 @@ public sealed class PluginInstallRecords
 
         try
         {
-            if (!string.Equals(HashFile(manifestPath), record.ManifestSha256, StringComparison.OrdinalIgnoreCase))
+            // Only the folder the installer used counts, and only while every file in it is still the one that was checked.
+            var expected = Path.GetFullPath(Path.Combine(_pluginRoot, manifest.Id.ToLowerInvariant(), "plugin.json"));
+            if (!string.Equals(Path.GetFullPath(manifestPath), expected, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(HashFile(manifestPath), record.ManifestSha256, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(PluginPackageRules.HashTree(Path.GetDirectoryName(expected)!), record.TreeSha256, StringComparison.OrdinalIgnoreCase))
             {
                 return PluginTrustLevel.Private;
             }

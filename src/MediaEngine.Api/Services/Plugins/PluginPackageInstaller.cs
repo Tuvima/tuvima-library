@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using MediaEngine.Contracts.Plugins;
+using MediaEngine.Domain.Services;
 using MediaEngine.Plugins;
 
 namespace MediaEngine.Api.Services.Plugins;
@@ -111,7 +112,7 @@ public sealed class PluginPackageInstaller
         // An in-process plugin is code that runs with the Library's own access, so only a signed package may be one.
         if (kind == "official" && trust == "community")
         {
-            throw new PluginInstallException("A plugin that runs inside the Library must be checked by Tuvima before it can be installed.");
+            throw new PluginInstallException("A plugin that runs inside the Library must be signed as verified before it can be installed.");
         }
 
         if (string.IsNullOrWhiteSpace(entry.PackageUrl) || !Uri.TryCreate(entry.PackageUrl, UriKind.Absolute, out var packageUri))
@@ -151,11 +152,12 @@ public sealed class PluginPackageInstaller
         {
             throw new PluginInstallException(
                 _verifier.HasKeys
-                    ? "This plugin is listed as checked by Tuvima, but its signature does not verify, so it was not installed."
-                    : "This plugin is listed as checked by Tuvima, but this Library has no Tuvima signing key to confirm it, so it was not installed.");
+                    ? "This plugin is listed as verified, but its signature does not verify, so it was not installed."
+                    : "This plugin is listed as verified, but this Library has no signing key to confirm it, so it was not installed.");
         }
 
         var staging = Path.Combine(_catalog.StagingRoot, Guid.NewGuid().ToString("N"));
+        var keepStaging = false;
         try
         {
             var unpacked = PluginPackageRules.Unpack(package, Path.Combine(staging, "new"));
@@ -182,20 +184,30 @@ public sealed class PluginPackageInstaller
                     Version = manifest.Version,
                     Trust = verified ? "verified" : "community",
                     ManifestSha256 = PluginInstallRecords.HashFile(Path.Combine(target, "plugin.json")),
+                    TreeSha256 = PluginPackageRules.HashTree(target),
                     PackageSha256 = entry.Sha256.ToLowerInvariant(),
                     InstalledAt = _time.GetUtcNow(),
                 });
             }
             catch
             {
-                if (Directory.Exists(target))
+                try
                 {
-                    Directory.Delete(target, recursive: true);
-                }
+                    if (Directory.Exists(target))
+                    {
+                        Directory.Delete(target, recursive: true);
+                    }
 
-                if (hadOldCopy)
+                    if (hadOldCopy)
+                    {
+                        Directory.Move(oldCopy, target);
+                    }
+                }
+                catch (Exception rollback) when (rollback is IOException or UnauthorizedAccessException)
                 {
-                    Directory.Move(oldCopy, target);
+                    // The earlier copy is still in the staging folder: leave it there for recovery rather than delete it.
+                    keepStaging = true;
+                    _logger.LogError(rollback, "Rolling back the install of plugin {PluginId} failed; the earlier copy is kept at {Path}", entry.Id, oldCopy);
                 }
 
                 throw;
@@ -210,7 +222,10 @@ public sealed class PluginPackageInstaller
         }
         finally
         {
-            TryDelete(staging);
+            if (!keepStaging)
+            {
+                TryDelete(staging);
+            }
         }
 
         var installed = _catalog.Get(entry.Id);
@@ -235,6 +250,10 @@ public sealed class PluginPackageInstaller
     {
         try
         {
+            // The whole download, body included, gets two minutes; a trickling server must not hold every install.
+            using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            limit.CancelAfter(TimeSpan.FromMinutes(2));
+            ct = limit.Token;
             var client = _httpClientFactory.CreateClient(HttpClientName);
             using var response = await client.GetAsync(address, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
@@ -280,7 +299,7 @@ public sealed class PluginPackageInstaller
                 AllowTrailingCommas = true,
                 CommentHandling = JsonCommentHandling.Skip,
             });
-            return document.Deserialize<PluginManifest>(new JsonSerializerOptions { AllowTrailingCommas = true })
+            return document.Deserialize<PluginManifest>(MediaEngineJson.Web)
                 ?? throw new PluginInstallException("The plugin package's plugin.json is empty.");
         }
         catch (JsonException)
