@@ -105,11 +105,13 @@
             }
             @if (ShowsAlbumTrackCount)
             {
-                @* An album is one tile however many songs it holds; the count is the only hint of that, kept to an icon and a number. *@
-                <span class="media-tile-track-count" aria-label="@GroupCountAriaLabel" title="@GroupCountAriaLabel">
-                    <AppMaterialIcon Icon="@GroupCountIcon" Size="AppSize.Small" />
-                    <span>@Item.PreviewTotalCount</span>
-                </span>
+                @* An album is one tile however many songs it holds; the count is the only hint of that. *@
+                <div class="media-tile-group-indicators">
+                    <span class="media-tile-group-count" aria-label="@GroupCountAriaLabel" title="@GroupCountAriaLabel">
+                        <AppMaterialIcon Icon="@GroupCountIcon" />
+                        <span>@Item.PreviewTotalCount</span>
+                    </span>
+                </div>
             }
             <AppArtworkProgress Enabled="@SupportsCompletion" State="@Item.ContinuationState" Percent="@Item.ProgressPct" MediaKind="@Item.MediaKind" RemainingSeconds="@Item.RemainingSeconds" Label="@Item.ProgressLabel" />
         </div>

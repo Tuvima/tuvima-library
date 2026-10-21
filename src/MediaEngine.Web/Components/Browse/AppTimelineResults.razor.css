@@ -1,5 +1,4 @@
 .app-timeline {
-    --timeline-artwork-size: 88px;
     display: grid;
     width: 100%;
     min-width: 0;
@@ -9,15 +8,6 @@
     padding: 18px 0 30px;
 }
 
-.app-timeline--art-72 { --timeline-artwork-size: 72px; }
-.app-timeline--art-76 { --timeline-artwork-size: 76px; }
-.app-timeline--art-80 { --timeline-artwork-size: 80px; }
-.app-timeline--art-84 { --timeline-artwork-size: 84px; }
-.app-timeline--art-88 { --timeline-artwork-size: 88px; }
-.app-timeline--art-92 { --timeline-artwork-size: 92px; }
-.app-timeline--art-96 { --timeline-artwork-size: 96px; }
-.app-timeline--art-100 { --timeline-artwork-size: 100px; }
-.app-timeline--art-104 { --timeline-artwork-size: 104px; }
 
 .app-timeline__content {
     grid-column: 1;
@@ -39,14 +29,6 @@
     gap: 5px;
     padding: 3px 4px 17px;
     border-bottom: 1px solid color-mix(in srgb, var(--tl-accent-primary) 35%, rgba(128, 146, 180, 0.16));
-}
-
-.app-timeline__header span {
-    color: color-mix(in srgb, var(--tl-accent-primary) 64%, white);
-    font-size: 0.82rem;
-    font-weight: 800;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
 }
 
 .app-timeline__header small {
@@ -130,10 +112,6 @@
     outline: none;
 }
 
-/* Covers by one creator sit close together; a wider gap separates the next creator's group. */
-.app-timeline__item.is-creator-start:not(:first-child) {
-    margin-left: clamp(8px, 1vw, 16px);
-}
 
 .app-timeline__artwork {
     position: relative;
@@ -198,11 +176,6 @@
         grid-template-columns: minmax(0, 1fr);
         gap: 12px;
     }
-
-    .app-timeline__items {
-        align-items: flex-start;
-    }
-
 }
 
 @media (prefers-reduced-motion: reduce) {

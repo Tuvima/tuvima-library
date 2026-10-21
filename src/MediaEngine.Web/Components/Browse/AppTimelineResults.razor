@@ -15,7 +15,7 @@
             <small>@YearSemantic</small>
         </header>
 
-        <div class="app-timeline__groups">
+        <AppCssElement Tag="div" Class="app-timeline__groups" Css="@($"--timeline-artwork-size:{TimelineArtworkSizePx}px")">
             @foreach (var group in Groups)
             {
                 @if (Grouping == TimelineGrouping.Decade && (group == Groups.First() || (Groups.TakeWhile(value => value != group).Last().Key / 10 != group.Key / 10)))
@@ -32,10 +32,9 @@
                     </header>
 
                     <div class="app-timeline__items">
-                        @foreach (var entry in ItemsInYear(group))
+                        @foreach (var item in ItemsInYear(group))
                         {
-                            var item = entry.Item;
-                            <a class="@($"app-timeline__item{(entry.StartsCreatorGroup ? " is-creator-start" : string.Empty)}")"
+                            <a class="app-timeline__item"
                                href="@ItemNavigationUrl(item)"
                                title="@HoverDetails(item)"
                                aria-label="@($"Open {HoverDetails(item)}")"
@@ -60,7 +59,7 @@
                     </div>
                 </section>
             }
-        </div>
+        </AppCssElement>
     </div>
 </section>
 
@@ -142,18 +141,15 @@
         ? $"1 {ItemNoun}"
         : $"{count} {ItemNoun}s";
 
-    private sealed record TimelineEntry(MediaTileViewModel Item, bool StartsCreatorGroup);
-
     // Covers by the same creator sit side by side within a year, in the order the creator's first item appears; unknown creators come last.
-    private static IReadOnlyList<TimelineEntry> ItemsInYear(IEnumerable<MediaTileViewModel> items)
+    private static IReadOnlyList<MediaTileViewModel> ItemsInYear(IEnumerable<MediaTileViewModel> items)
     {
         var ordered = items
             .Select((item, index) => (item, index, creator: CreatorKey(item)))
             .GroupBy(entry => entry.creator, StringComparer.OrdinalIgnoreCase)
             .OrderBy(group => group.Key.Length == 0)
             .ThenBy(group => group.Min(entry => entry.index))
-            .SelectMany(group => group.OrderBy(entry => entry.index)
-                .Select((entry, position) => new TimelineEntry(entry.item, position == 0)))
+            .SelectMany(group => group.OrderBy(entry => entry.index).Select(entry => entry.item))
             .ToList();
         return ordered;
     }
