@@ -24,7 +24,7 @@
     }
     else
     {
-    @if (Sizing == "intrinsic") { <span class="app-select__width-label" aria-hidden="true">@SelectedLabel</span> }
+    @if (SizesToContent) { <span class="app-select__width-label" aria-hidden="true">@WidthLabel</span> }
     <AppTypedSelect @key="_typedSelectRenderVersion"
                @ref="_typedSelect"
                TValue="string"
@@ -133,6 +133,11 @@
 
     [Parameter] public bool Native { get; set; }
     [Parameter] public string Sizing { get; set; } = "field";
+    // "intrinsic" sizes the field to the selected label; "options" sizes it to the longest option, so the list never wraps.
+    private bool SizesToContent => Sizing is "intrinsic" or "options";
+    private string? WidthLabel => Sizing == "options"
+        ? Options?.Select(option => option.Label).MaxBy(label => label?.Length ?? 0) ?? SelectedLabel
+        : SelectedLabel;
     private string? SelectedLabel => Options?.FirstOrDefault(option => option.Value == Value)?.Label ?? ToStringFunc?.Invoke(Value) ?? Value;
     private Task NativeChangedAsync(ChangeEventArgs args) => ValueChanged.InvokeAsync(args.Value?.ToString());
     private IJSObjectReference? _sizingModule;
@@ -165,14 +170,14 @@
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private string RootClass =>
-        string.Join(" ", new[] { "app-field", Sizing == "intrinsic" ? "app-select--intrinsic" : null, AppUiMaps.SizeClass(Size), NormalizedAppearance == "playback-flat" ? "app-select--playback-flat" : null, NormalizedAppearance == "playback-flat" && EffectiveOpen ? "app-select--open" : null, NormalizedAppearance == "playback-flat" && Disabled ? "app-select--disabled" : null, TriggerContent is not null ? "app-select--has-trigger-content" : null, Class }
+        string.Join(" ", new[] { "app-field", SizesToContent ? "app-select--intrinsic" : null, AppUiMaps.SizeClass(Size), NormalizedAppearance == "playback-flat" ? "app-select--playback-flat" : null, NormalizedAppearance == "playback-flat" && EffectiveOpen ? "app-select--open" : null, NormalizedAppearance == "playback-flat" && Disabled ? "app-select--disabled" : null, TriggerContent is not null ? "app-select--has-trigger-content" : null, Class }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private string NormalizedAppearance => Appearance == "playback-flat" ? "playback-flat" : "standard";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (Sizing == "intrinsic" && _sizingKey != $"{_root.Id}:{SelectedLabel}")
+        if (SizesToContent && _sizingKey != $"{_root.Id}:{SelectedLabel}")
         {
             _sizingKey = $"{_root.Id}:{SelectedLabel}";
             _sizingModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-select-sizing.js");

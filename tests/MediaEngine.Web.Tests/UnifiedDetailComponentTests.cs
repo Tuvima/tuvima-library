@@ -685,7 +685,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("LongSequenceThreshold = 6", source);
         Assert.Contains("PortraitWindowSize = 6", source);
         Assert.DoesNotContain("LandscapeWindowSize", source);
-        Assert.Contains("IsSeasonContainer ? ActiveItems", source);
+        Assert.Contains("UsesScrollingRail ? ActiveItems", source);
         Assert.Contains("nextStart + (VisibleCount / 2)", source);
         Assert.Contains("SequenceItemTitleClass", source);
         Assert.Contains("is-very-long", source);

@@ -51,6 +51,8 @@
     flex: 1 1 auto;
     overflow: auto;
     overscroll-behavior: auto;
+    /* Keep the scrollbar's space so columns don't shift when "Show missing tracks" makes the list scroll. */
+    scrollbar-gutter: stable;
     scrollbar-color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 56%, transparent) transparent;
 }
 
@@ -770,6 +772,7 @@
     flex: 1 1 auto;
     overflow-y: auto;
     overscroll-behavior: auto;
+    scrollbar-gutter: stable;
     scrollbar-color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 56%, transparent) transparent;
 }
 
@@ -914,6 +917,7 @@
     max-height: 100%;
     overflow: auto;
     overscroll-behavior: auto;
+    scrollbar-gutter: stable;
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-detail-primary-module--tracks .tl-detail-track-table thead {
