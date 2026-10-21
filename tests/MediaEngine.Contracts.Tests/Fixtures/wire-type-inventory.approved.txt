@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1097; api=0; web-client=54
+# scopes: contracts=1103; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7592,6 +7592,20 @@
   ResourceClass: System.String | json=resource_class | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"role":"sample","max_tokens":7,"schedule":"sample","resource_class":"sample"}
 
+[contracts] MediaEngine.Contracts.Plugins.PluginAiStepRunRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  inputs: System.Collections.Generic.Dictionary<System.String, System.String> | json=inputs | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"inputs":{}}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginAiStepRunResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  plugin_id: System.String | json=plugin_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  step: System.String | json=step | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  text: System.String | json=text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"plugin_id":"sample","step":"sample","status":"sample","message":"sample","text":"sample"}
+
 [contracts] MediaEngine.Contracts.Plugins.PluginApplicationOperationDto
   kind=class | converter=default | number-handling=default | unmapped=default
   OperationId: System.String | json=operation_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -7684,12 +7698,27 @@
   Checks: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginHealthCheckDto> | json=checks | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"plugin_id":"sample","status":"sample","checks":[]}
 
+[contracts] MediaEngine.Contracts.Plugins.PluginHostAiTextResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  text: System.String | json=text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"status":"sample","message":"sample","text":"sample"}
+
 [contracts] MediaEngine.Contracts.Plugins.PluginHostJobDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Key: System.String | json=key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   State: System.String | json=state | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"key":"sample","name":"sample","state":"sample"}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginHostRecordResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  collection: System.String | json=collection | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  key: System.String | json=key | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  value: System.Text.Json.JsonElement | json=value | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  updated_at: System.DateTimeOffset | json=updated_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"collection":"sample","key":"sample","value":{"sample":true},"updated_at":"2025-01-02T03:04:05+00:00"}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginHostServicesDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7702,6 +7731,13 @@
   EventSubscription: System.String | json=event_subscription | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   BackgroundService: System.String | json=background_service | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"state":"sample","problem":"sample","last_problem":"sample","records_used":7,"record_bytes_used":7,"jobs":[],"event_subscription":"sample","background_service":"sample"}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginHostWhoAmIResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  plugin_id: System.String | json=plugin_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  permissions: System.Collections.Generic.IReadOnlyList<System.String> | json=permissions | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"plugin_id":"sample","name":"sample","permissions":[]}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginJobSnapshot
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7759,6 +7795,14 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Value: System.String | json=value | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"value":"sample"}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginServiceLookupResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  plugin_id: System.String | json=plugin_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  result: System.Text.Json.JsonElement? | json=result | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"plugin_id":"sample","status":"sample","message":"sample","result":{"sample":true}}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginSummaryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
