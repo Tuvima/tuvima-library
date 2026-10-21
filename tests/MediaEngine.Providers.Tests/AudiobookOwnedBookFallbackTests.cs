@@ -616,6 +616,12 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
     private sealed class NoOpAutoOrganizeService : IAutoOrganizeService
     {
         public Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task<AssetRefilePlan> PlanRefileAsync(Guid assetId, AssetRefilePlacement? placement, CancellationToken ct = default)
+            => Task.FromResult(AssetRefilePlan.Of(AssetRefileDisposition.AlreadyFits, string.Empty));
+
+        public Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default)
+            => Task.FromResult(new AssetRefileOutcome(AssetRefileOutcomeKind.AlreadyFits, AssetRefileDisposition.AlreadyFits, string.Empty, null));
     }
 
     private sealed class FixedScoringEngine : IScoringEngine

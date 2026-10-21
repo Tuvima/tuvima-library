@@ -16,6 +16,15 @@ public static class GuidSql
         return bytes;
     }
 
+    /// <summary>
+    /// Many ids as one JSON array of upper-case hex strings, for one statement parameter instead of one value per id
+    /// (SQLite accepts at most 32,766 values in a statement). In SQL turn it back into id blobs with
+    /// <c>SELECT unhex(value) FROM json_each(@parameter)</c>.
+    /// </summary>
+    public static string ToJsonHexArray(IEnumerable<Guid> values) =>
+        System.Text.Json.JsonSerializer.Serialize(
+            values.Select(value => value.ToString("N").ToUpperInvariant()));
+
     public static object? ToDb(Guid? value) =>
         value.HasValue ? ToBlob(value.Value) : DBNull.Value;
 

@@ -115,6 +115,48 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
         Assert.Equal(operation.OperationToken, intent.Token);
     }
 
+    [Theory]
+    [InlineData("pending")]
+    [InlineData("writing")]
+    public async Task ASaveMadeWhileALibraryMoveStillWaitsForItsFileRename_KeepsTheMovesTrigger(string status)
+    {
+        SeedIntent("library_move", status);
+
+        var committed = await new MediaEditorCommitRepository(_database).CommitVerifiedTvEpisodeMoveAsync(Move());
+
+        Assert.Equal(MediaEditorCommitOutcome.Committed, committed.Outcome);
+        using var connection = _database.CreateConnection();
+        var intent = connection.QuerySingle<(string Trigger, string Status)>(
+            "SELECT trigger AS Trigger, status AS Status FROM media_file_write_intents WHERE asset_id = @asset;", new { asset = _asset });
+        Assert.Equal("library_move", intent.Trigger);
+        Assert.Equal("pending", intent.Status);
+    }
+
+    [Theory]
+    [InlineData("verified")]
+    [InlineData("failed")]
+    [InlineData("blocked")]
+    public async Task ASaveMadeAfterALibraryMoveWasDealtWith_QueuesAnOrdinaryEditorWrite(string status)
+    {
+        SeedIntent("library_move", status);
+
+        var committed = await new MediaEditorCommitRepository(_database).CommitVerifiedTvEpisodeMoveAsync(Move());
+
+        Assert.Equal(MediaEditorCommitOutcome.Committed, committed.Outcome);
+        using var connection = _database.CreateConnection();
+        Assert.Equal("editor_commit", connection.QuerySingle<string>(
+            "SELECT trigger FROM media_file_write_intents WHERE asset_id = @asset;", new { asset = _asset }));
+    }
+
+    private void SeedIntent(string trigger, string status)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO media_file_write_intents (asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at)
+            VALUES (@asset, 1, 'move:seed', @trigger, @status, 0, '2026-10-20T00:00:00.0000000+00:00', '2026-10-20T00:00:00.0000000+00:00');
+            """, new { asset = _asset, trigger, status });
+    }
+
     [Fact]
     public async Task StaleRevisionOrReusedTokenCannotPartiallyCommit()
     {

@@ -312,6 +312,15 @@ public sealed class LibraryListFixture : IDisposable
             SELECT work_id, 'narrator', 1, 'Own Year Narrator'
             FROM seed_leaf WHERE media_type = 'Audiobooks' AND seq % 20 = 8 AND (seq / 20) % 5 = 1;
 
+            -- One group ("Person 70", with "Person 71" as a member) and one pen name ("Person 140"), for the credit reads.
+            UPDATE persons SET is_group = 1 WHERE name = 'Person 70';
+            INSERT INTO person_group_members (group_id, member_id, start_date, end_date)
+            SELECT group_person.id, member_person.id, NULL, NULL
+            FROM persons group_person
+            INNER JOIN persons member_person ON member_person.name = 'Person 71'
+            WHERE group_person.name = 'Person 70';
+            UPDATE persons SET is_pseudonym = 1 WHERE name = 'Person 140';
+
             DROP TABLE seed_leaf;
             DROP TABLE seed_group;
             DROP TABLE seed_series;

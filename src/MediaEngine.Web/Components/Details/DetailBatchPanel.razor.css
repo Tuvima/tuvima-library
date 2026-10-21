@@ -1,0 +1,62 @@
+/* The ticked rows' bar, the batch section and the result line: one block in the list column, directly above the rows. */
+
+.tl-batch {
+    display: grid;
+    gap: var(--tl-space-3);
+    box-sizing: border-box;
+    width: 100%;
+    margin-bottom: var(--tl-space-4);
+    color: var(--tl-text-primary);
+}
+
+.tl-batch__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-2) var(--tl-space-4);
+    padding: var(--tl-space-2) var(--tl-space-4);
+    border: 1px solid var(--tl-accent-primary, #8852FC);
+    border-radius: var(--tl-radius-md);
+    background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 10%, var(--tl-bg-surface));
+}
+
+.tl-batch__count {
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-batch__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
+
+.tl-batch__result {
+    display: grid;
+    gap: var(--tl-space-1);
+    padding: var(--tl-space-3) var(--tl-space-4);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface);
+}
+
+.tl-batch__result.has-problems {
+    border-color: var(--tl-status-warning-border);
+}
+
+.tl-batch__result-line {
+    margin: 0;
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-batch__result-notes {
+    display: grid;
+    gap: var(--tl-space-1);
+    margin: 0;
+    padding-left: var(--tl-space-5);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}

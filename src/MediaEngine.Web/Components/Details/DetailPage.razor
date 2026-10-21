@@ -44,6 +44,7 @@
 else if (Model is not null)
 {
     <CascadingValue Value="_editing" IsFixed="true">
+    <CascadingValue Value="_batch" IsFixed="true">
     <article class="tl-detail-page">
         @* Editing Mode: the banner is the first thing in the page's scroll container and sticks to its top; it is outside the
            hero because the full-bleed hero clips what overflows it. *@
@@ -75,12 +76,6 @@ else if (Model is not null)
         <EditingSectionSlot Mode="_editing"
                             BuildRequest="BuildSectionRequest"
                             OnCommitted="RefreshAfterSectionCommitAsync" />
-
-        @* Batch editing: the selection bar and the section for the ticked rows sit above the rows, in the page's own column. *@
-        @if (BatchRowNouns is { } nouns)
-        {
-            <EditingBatchSection Mode="_editing" Singular="@nouns.Singular" Plural="@nouns.Plural" MoveMediaType="@BatchMoveMediaType" OnApplied="RefreshAfterSectionCommitAsync" />
-        }
 
         @if (ShowPrimaryModuleAfterNavigation)
         {
@@ -124,6 +119,7 @@ else if (Model is not null)
         </section>
     </article>
     </CascadingValue>
+    </CascadingValue>
 }
 
 @code {
@@ -149,23 +145,6 @@ else if (Model is not null)
     private DetailPresentationCapabilities PresentationCapabilities =>
         DetailPresentationCapabilities.For(Model?.EntityType ?? DetailEntityType.Work);
     private bool IsMusicAlbum => PresentationCapabilities.IsMusicAlbum;
-
-    // What the ticked rows are called, for the pages whose rows can be batch edited (episodes, tracks, audiobook parts); null elsewhere.
-    private (string Singular, string Plural)? BatchRowNouns => Model?.EntityType switch
-    {
-        DetailEntityType.TvShow or DetailEntityType.TvSeason => ("episode", "episode" + "s"),
-        DetailEntityType.MusicAlbum => ("track", "track" + "s"),
-        DetailEntityType.Audiobook => ("part", "part" + "s"),
-        _ => null,
-    };
-    // Where the ticked rows can be moved to (album, season, audiobook); the Engine still decides what each row accepts.
-    private string? BatchMoveMediaType => Model?.EntityType switch
-    {
-        DetailEntityType.TvShow or DetailEntityType.TvSeason => "TV",
-        DetailEntityType.MusicAlbum => "Music",
-        DetailEntityType.Audiobook => "Audiobooks",
-        _ => null,
-    };
     private bool IsAudiobook => PresentationCapabilities.IsAudiobook
         || MediaKindClassifier.IsAudiobook(Model?.Facts?.MediaKind)
         || Model?.OwnedFormats.Any(format => format.FormatType == MediaFormatType.Audiobook) == true;
@@ -177,6 +156,9 @@ else if (Model is not null)
     // Editing Mode (the banner, pencils and one section below the hero) is for single items. Collections, series shelves and
     // people keep their own editors.
     private EditingModeContext? _editing;
+
+    // The rows ticked for "Edit together", Move and Delete (spec D8). It ends with Editing Mode; the rows ask the page to refresh through it.
+    private readonly DetailBatchSelection _batch = new();
     private Guid? _editingProfileId;
     private IDisposable? _overlayGuard;
     private IDisposable? _overlayEscape;
@@ -190,11 +172,55 @@ else if (Model is not null)
         };
         _editing.Changed += OnEditingChanged;
         _editing.Fields.Saved += RefreshAfterFieldSavedAsync;
+        _batch.RefreshAsync = RefreshAfterSectionCommitAsync;
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         UpdateEditingEligibility();
     }
 
-    protected override void OnParametersSet() => UpdateEditingEligibility();
+    // A page that replaced one which followed its item here (a move removed the title it showed) picks Editing Mode back up: the mode
+    // is on again, Match and Identity is open and the move's result line is showing, so following the surviving item does not end the edit.
+    protected override async Task OnInitializedAsync() => await ResumeEditingAsync();
+
+    private async Task ResumeEditingAsync()
+    {
+        if (_editing is null || Model is null || !Guid.TryParse(Model.Id, out var entityId)
+            || EditResumeStore is not { } store || !store.TryTakeEditResume(entityId, out var resume))
+        {
+            return;
+        }
+
+        // The device or the person may no longer qualify: then the page simply opens to read, as a deep link would.
+        if (!await _editing.EnterAsync() || _disposed)
+        {
+            return;
+        }
+
+        if (resume.Section == EditingSection.Match && !_editing.Fields.CanMatch)
+        {
+            // The new item cannot be matched, so there is no section to hold the line: say it here instead.
+            if (!string.IsNullOrWhiteSpace(resume.ResultLine))
+            {
+                Snackbar.Add(resume.ResultLine, AppSeverity.Success);
+            }
+
+            return;
+        }
+
+        _resumeMoveLine = resume.ResultLine;
+        _editing.OpenSection(resume.Section);
+    }
+
+    // The one-shot note lives in the overlay state: this page's own cascade when it is in the overlay, else the circuit's.
+    private DetailsOverlayState? EditResumeStore => Overlay ?? Services.GetService<DetailsOverlayState>();
+
+    // The result line the Match and Identity section shows when it first opens after a move was carried over; the section takes it once.
+    private string? _resumeMoveLine;
+
+    protected override void OnParametersSet()
+    {
+        UpdateEditingEligibility();
+        _batch.MediaType = Model is null ? null : ResolveEditorMediaType(Model.EntityType, Model.PresentationContext);
+    }
 
     /// <summary>The details overlay this page is shown in; null when the page is rendered on its own.</summary>
     [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
@@ -218,6 +244,12 @@ else if (Model is not null)
 
     private void OnEditingChanged()
     {
+        if (_editing is { IsOn: false })
+        {
+            // Leaving Editing Mode (Done, a device change, a removed title) ends the ticks and the last batch result with it.
+            _batch.Clear();
+        }
+
         SyncOverlayGuards();
         _ = InvokeAsync(StateHasChanged);
     }
@@ -301,7 +333,14 @@ else if (Model is not null)
             return null;
         }
 
-        return BuildMediaEditorRequest(entityId, ResolveEditorTarget(entityId), _editingProfileId, tab, artworkSlot);
+        string? moveLine = null;
+        if (tab == "links")
+        {
+            moveLine = _resumeMoveLine;
+            _resumeMoveLine = null;
+        }
+
+        return BuildMediaEditorRequest(entityId, ResolveEditorTarget(entityId), _editingProfileId, tab, artworkSlot, moveLine);
     }
 
     // A field saved from a pencil: the item is already updated, so refresh what the page shows. A failed refresh
@@ -776,7 +815,8 @@ else if (Model is not null)
         (Guid EntityId, string EntityKind, string ContainerMode, string? InitialTab, string? InitialScope) target,
         Guid? activeProfileId,
         string initialTab,
-        string? initialArtworkSlot)
+        string? initialArtworkSlot,
+        string? initialMoveResult = null)
     {
         if (Model is null)
         {
@@ -803,6 +843,9 @@ else if (Model is not null)
             HeaderSubtitle = Model.Subtitle,
             CoverUrl = coverUrl,
             OnArtworkChanged = RefreshCurrentDetailAsync,
+            OnEditedItemReplaced = FollowMovedItemAsync,
+            InitialMoveResult = initialMoveResult,
+            IsUnmatched = Model.IsUnmatched && Guid.TryParse(Model.Id, out var pageItemId) && pageItemId == target.EntityId,
             PreviewItems =
             [
                 new MediaEditorPreviewItem
@@ -914,6 +957,29 @@ else if (Model is not null)
             CanEdit = collection.CanEdit,
             CanShare = collection.CanShare,
         };
+
+    // A move merged the title this page shows into another (or emptied the audiobook it shows), so the Work in the address is gone: the
+    // address now names the Work the item lives in. In the overlay the entry is replaced with its underlay kept, so Back still returns to
+    // the page beneath. The page that loads there picks Editing Mode, the Match and Identity section and the result line back up from
+    // the note left here, so following the item does not end the edit. A page showing something else (an album with a song moved out of
+    // it) keeps its address and answers false, so the editor re-targets itself.
+    private Task<bool> FollowMovedItemAsync(Guid previousId, Guid survivingId, string? resultLine)
+    {
+        if (Model is null || _disposed || !Guid.TryParse(Model.Id, out var pageId) || pageId != previousId)
+        {
+            return Task.FromResult(false);
+        }
+
+        var store = EditResumeStore;
+        store?.OfferEditResume(new DetailsEditResume(survivingId, EditingSection.Match, resultLine));
+        if (!DetailsOverlayNavigation.FollowItem(Nav, Overlay, previousId, survivingId))
+        {
+            store?.WithdrawEditResume();
+            return Task.FromResult(false);
+        }
+
+        return Task.FromResult(true);
+    }
 
     private async Task RefreshCurrentDetailAsync()
     {

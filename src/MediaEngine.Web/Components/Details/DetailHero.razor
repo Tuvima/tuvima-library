@@ -137,6 +137,10 @@
                 }
             </SecondaryTitleTrailingContent>
             <IdentityAfterTitle>
+                @if (Model.IsUnmatched)
+                {
+                    <p class="tl-detail-hero__not-matched"><NotMatchedTag /></p>
+                }
                 @if (Model.UniverseLink is { } universeLink && !string.IsNullOrWhiteSpace(universeLink.Qid))
                 {
                     @* One quiet line under the secondary line; the Universe page is its own destination, never a tab. *@

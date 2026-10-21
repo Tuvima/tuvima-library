@@ -494,7 +494,7 @@ public sealed class UniversePageTests : AsyncBunitContext
             Assert.Equal(expected, links.Count == 1);
             if (expected)
             {
-                Assert.Equal("/settings/plugins", links[0].GetAttribute("href"));
+                Assert.Equal("/settings/plugins?plugin=tuvima.fandom-lore", links[0].GetAttribute("href"));
                 Assert.Equal("Add Fandom details", links[0].TextContent);
             }
         });

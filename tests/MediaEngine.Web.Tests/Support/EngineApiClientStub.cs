@@ -67,6 +67,11 @@ internal class EngineApiClientStub : DispatchProxy
         _handlers[nameof(IEngineApiClient.ToAbsoluteEngineUrl)] =
             args => args?[0]?.ToString() ?? string.Empty;
 
+        // The Move area asks where an item sits now when it shows; by default it sits in no place with a list.
+        _handlers[nameof(IEngineApiClient.GetLibraryMoveDestinationsAsync)] =
+            _ => Task.FromResult(LibraryMoveOutcome<MediaEngine.Contracts.Library.LibraryMoveDestinationsResponse>.Ok(
+                new MediaEngine.Contracts.Library.LibraryMoveDestinationsResponse()));
+
         _handlers[nameof(IEngineApiClient.GetResolvedUISettingsAsync)] =
             _ => Task.FromResult<ResolvedUISettingsViewModel?>(new ResolvedUISettingsViewModel
             {
