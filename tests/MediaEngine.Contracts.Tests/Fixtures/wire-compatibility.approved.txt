@@ -1264,6 +1264,10 @@
 [method] GetSetupStatusAsync
   response | shape=454b7a09d29ed5f750e08ee3780295503cff77828780995012360595bb0fd310
 
+[method] GetSetupToolRequirementsAsync
+  input setupSession | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+  response | shape=9017118702f28d005cf5ce6e1c44c9cdc900541358881b65b3ab1d3bc1959082
+
 [method] GetSharedEntityAppearancesAsync
   input target | default=required | shape=59ec971f7d1deffb7c4243cd2474c6a5208b35beb31fdbd78ac7ba25a8ba7c2a
   response | shape=553b4e370f661b0453f1ca5fc8de29c5d8ce3496f814119b6c40309a5d9eee9e

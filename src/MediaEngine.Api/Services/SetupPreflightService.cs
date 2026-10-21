@@ -13,7 +13,8 @@ public sealed class SetupPreflightService(
     IConfigurationLoader configuration,
     IDatabaseConnection database,
     IToolRequirementsService toolRequirements,
-    ILogger<SetupPreflightService> logger)
+    ILogger<SetupPreflightService> logger,
+    IToolAutoInstaller? autoInstaller = null)
 {
     public async Task<SetupPreflightDto> RunAsync(CancellationToken ct)
     {
@@ -54,7 +55,13 @@ public sealed class SetupPreflightService(
         }
 
         // A missing tool is reported, never a reason to fail the server check (Passed covers paths and the data store only).
+        // A missing Required tool the Library can fetch (FFmpeg) starts downloading here, so a first run needs no manual install;
+        // the list then shows it as downloading and setup follows its progress.
         var tools = await toolRequirements.CheckAsync(ct).ConfigureAwait(false);
+        if (autoInstaller is not null && tools.NeedsAttention && checks.All(check => check.Status == "passed"))
+        {
+            tools = await autoInstaller.StartMissingRequiredAsync(tools, ct).ConfigureAwait(false);
+        }
 
         var inContainer = ContainerEnvironment.IsContainer();
         return new SetupPreflightDto(

@@ -65,7 +65,10 @@ public static class DashboardAuthenticationEndpoints
                     deviceId,
                     SafeReturnUrl(returnUrl),
                     PasskeyOriginGate.IsPublicOrigin(context),
-                    thisComputerName: thisComputerName),
+                    thisComputerName: thisComputerName,
+                    // Not after an explicit sign-out: that person chose to see this page. Any other copy that shows the button
+                    // (a prerendered or background copy) goes in as soon as it is really on screen.
+                    continueAutomatically: string.IsNullOrEmpty(signedOut)),
                 "text/html",
                 Encoding.UTF8);
         }).AllowAnonymous();
@@ -610,7 +613,8 @@ public static class DashboardAuthenticationEndpoints
         string returnUrl,
         bool atPublicOrigin,
         string? message = null,
-        string? thisComputerName = null)
+        string? thisComputerName = null,
+        bool continueAutomatically = false)
     {
         methods ??= new SignInMethodsResponse(true, false, [], true);
         var showPasskey = methods.Passkey && atPublicOrigin;
@@ -636,16 +640,24 @@ public static class DashboardAuthenticationEndpoints
         var continueAs = string.IsNullOrWhiteSpace(thisComputerName)
             ? string.Empty
             : $"""
-              <form method="post"><input type="hidden" name="__RequestVerificationToken" value="{H(token)}"><input type="hidden" name="action" value="this-computer"><input type="hidden" name="returnUrl" value="{H(returnUrl)}">
+              <form id="continue-form" method="post"><input type="hidden" name="__RequestVerificationToken" value="{H(token)}"><input type="hidden" name="action" value="this-computer"><input type="hidden" name="returnUrl" value="{H(returnUrl)}">
               <button id="continue-on-this-computer">Go back in as {H(thisComputerName)}</button></form>
               <p class="supporting">This computer only. Add a password later to use Library on other devices.</p>
+              {(continueAutomatically ? ContinueAutomaticallyScript : string.Empty)}
               """;
+        // Nothing to type when the only account has no password: the email and password form (and the note that it is
+        // unavailable) are left out, so the person sees just the way back in.
+        var passwordSection = methods.Password
+            ? passwordForm
+            : string.IsNullOrWhiteSpace(thisComputerName)
+                ? "<p class=\"supporting\">Password sign-in isn't available from here.</p>"
+                : string.Empty;
         var form = $"""
               <p class="eyebrow">Library</p>
               <h1>Sign in to Library</h1>
               {(message is null ? string.Empty : $"<p class=\"error\" role=\"alert\">{H(message)}</p>")}
               {continueAs}
-              {(methods.Password ? passwordForm : "<p class=\"supporting\">Password sign-in isn't available from here.</p>")}
+              {passwordSection}
               {(showPasskey ? "<button type=\"button\" id=\"passkey-login\">Sign in with a passkey</button><p id=\"passkey-message\" class=\"supporting\"></p>" : string.Empty)}
               {externalButtons}
               {(methods.InvitationCode ? "<p class=\"supporting\"><a href=\"/auth/invite\">Have an invitation code?</a></p>" : string.Empty)}
@@ -654,6 +666,16 @@ public static class DashboardAuthenticationEndpoints
 
         return Shell(form);
     }
+
+    /// <summary>
+    /// Submits the "Go back in" form once the page is really being shown, never while the browser is only prerendering it or
+    /// it sits in a background tab. The form carries its own antiforgery token and goes through the same check as a click.
+    /// </summary>
+    private const string ContinueAutomaticallyScript = """
+        <script>
+        (function(){var form=document.getElementById('continue-form');if(!form)return;var done=false;function go(){if(done||document.prerendering||document.visibilityState!=='visible')return;done=true;form.submit();}go();document.addEventListener('prerenderingchange',go);document.addEventListener('visibilitychange',go);})();
+        </script>
+        """;
 
     /// <summary>
     /// While the account has no password there is nothing to type: when the Engine says this visitor (on this computer or

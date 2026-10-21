@@ -498,10 +498,11 @@ The helper is found in this order: `tesseract_binary_path` when set, then `tools
 
 ## config/tool_downloads.json
 
-The exact builds of FFmpeg and Tesseract the Library may fetch when an administrator presses **Install for me** or **Download again** under **Settings > Tools and requirements** (the same builds as `tools/Download-FFmpeg.ps1` and `tools/Download-Tesseract.ps1`). Nothing is ever downloaded by itself. A missing file means the values below. The Local AI models and extra OCR languages keep their own download settings (`config/ai.json`, `language_download_url` in `config/ocr.json`).
+The exact builds of FFmpeg and Tesseract the Library may fetch when an administrator presses **Install for me** or **Download again** under **Settings > Tools and requirements** (the same builds as `tools/Download-FFmpeg.ps1` and `tools/Download-Tesseract.ps1`). Only FFmpeg is ever downloaded by itself, while it is missing and `auto_install_required` is true; Tesseract and every repair start only when a person asks. A missing file means the values below. The Local AI models and extra OCR languages keep their own download settings (`config/ai.json`, `language_download_url` in `config/ocr.json`).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `auto_install_required` | bool | `true` | When true, a Required tool the Library can fetch here (today FFmpeg) is downloaded by itself at first-run setup and Engine start-up while it is missing, with progress shown in setup and under Settings > Tools and requirements. Set it to `false` to keep "offer only". Development and test switch: set the environment variable `TUVIMA_FRESH_TOOLS=1` (or `true`) before starting the Engine and it ignores every installed FFmpeg (saved location, app folder, system PATH, standard folders) and removes the copy it fetched earlier from `{DataRoot}/tools/ffmpeg`, so a fresh start downloads FFmpeg again. Never set by default; Tesseract is not affected. |
 | `ffmpeg.platform` | string | `"win-x64"` | Only `win-x64` is offered today; Linux and macOS keep the install-it-yourself text. |
 | `ffmpeg.version` | string | `"9.0.1"` | Shown in the activity log. |
 | `ffmpeg.url` | string | pinned BtbN release | The archive. Must be `https://github.com/...`. |

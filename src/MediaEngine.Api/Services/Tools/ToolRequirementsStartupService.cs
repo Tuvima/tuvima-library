@@ -4,10 +4,13 @@ namespace MediaEngine.Api.Services.Tools;
 
 /// <summary>
 /// Runs the tools check once at start-up and writes one summary line to the log: Information when every Required
-/// tool is ready, Warning otherwise. It runs after start-up completes, so a slow probe never delays the Engine.
+/// tool is ready, Warning otherwise. It runs after start-up completes, so a slow probe never delays the Engine. When a
+/// Required tool the Library can fetch (FFmpeg) is missing, it then starts that download once, so files waiting for
+/// "media tools" are released without anyone pressing a button.
 /// </summary>
 public sealed class ToolRequirementsStartupService(
     IToolRequirementsService tools,
+    IToolAutoInstaller autoInstaller,
     ILogger<ToolRequirementsStartupService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -20,6 +23,7 @@ public sealed class ToolRequirementsStartupService(
             if (result.NeedsAttention)
             {
                 logger.LogWarning("Tools check: {Summary}", summary);
+                await autoInstaller.StartMissingRequiredAsync(result, stoppingToken).ConfigureAwait(false);
             }
             else
             {

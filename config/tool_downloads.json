@@ -1,5 +1,7 @@
 {
-  "_comment": "The exact builds of FFmpeg and Tesseract the Library may fetch when a person presses Install for me or Download again in Settings. Nothing downloads by itself. Every address must be https on github.com and every file must match its sha256, or it is refused. The same builds as tools/Download-FFmpeg.ps1 and tools/Download-Tesseract.ps1.",
+  "_comment": "The exact builds of FFmpeg and Tesseract the Library may fetch. A missing Required tool (FFmpeg) is fetched by itself at first-run setup and at Engine start-up while auto_install_required is true; everything else (Tesseract, a repair, Download again) starts only when a person presses the button in Settings. Every address must be https on github.com and every file must match its sha256, or it is refused. The same builds as tools/Download-FFmpeg.ps1 and tools/Download-Tesseract.ps1.",
+
+  "auto_install_required": true,
 
   "ffmpeg": {
     "platform": "win-x64",

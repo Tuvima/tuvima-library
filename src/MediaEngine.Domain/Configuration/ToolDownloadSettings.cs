@@ -5,11 +5,19 @@ namespace MediaEngine.Domain.Configuration;
 /// <summary>
 /// The exact builds of FFmpeg and Tesseract the Library may fetch when the person asks, loaded from
 /// <c>config/tool_downloads.json</c>. Every entry is a fixed address and the SHA-256 value the download (and, for
-/// FFmpeg, each program inside it) must match. A missing file means the pinned values below. Nothing here is ever
-/// fetched by itself.
+/// FFmpeg, each program inside it) must match. A missing file means the pinned values below. FFmpeg is fetched by the
+/// Library on its own only while it is missing and <see cref="AutoInstallRequired"/> is on; everything else is fetched
+/// only when the person asks.
 /// </summary>
 public sealed class ToolDownloadSettings
 {
+    /// <summary>
+    /// When true (the default), a Required tool the Library can fetch here (today FFmpeg) is downloaded by itself at
+    /// first-run setup and at Engine start-up whenever it is missing. Turn it off to keep the older "offer only" behaviour.
+    /// </summary>
+    [JsonPropertyName("auto_install_required")]
+    public bool AutoInstallRequired { get; set; } = true;
+
     /// <summary>The only host a download may come from.</summary>
     public const string AllowedHost = "github.com";
 
