@@ -57,7 +57,7 @@ Not yet checked: exact on-screen sizes of each surface, and the actual file size
 | Editor artwork picker previews | 150-300 px | small / medium |
 | Artwork picker "full view" and downloads | full | original |
 
-Sizes are estimates; WP1 replaces them with measured values.
+Sizes are estimates; WP1 replaced them with measured values in section 11.
 
 ## 6. UI behaviour
 
@@ -129,6 +129,47 @@ Sizes are estimates; WP1 replaces them with measured values.
 
 - **Risks:** a stale picture shown after an edit if the change marker is missed (caught by L3); extra disk use for a fourth copy (small: a 96 px file is a few KB per picture); a first-open delay while missing copies are made (D5 shows the next size meanwhile).
 - **Open questions:** none. Q1 to Q3 were settled as D7 to D9 when Shy locked the spec.
+
+## 11. Follow-up notes: WP1 measurements (2026-10-21)
+
+Measured in the cloud from the Dashboard CSS and the Engine code. Byte figures are estimates from generated photo-like test pictures saved the way the Engine saves them (JPEG quality 88), because the cloud cannot reach Shy's library or the provider picture servers; L1 checks real numbers. Shy's own report (B31: about 200 KB per face) matches the estimate for a face original.
+
+**Bytes per copy (estimated)**
+
+| Picture | Original | tiny 96 | small 320 | medium 960 | large 2160 |
+|---|---|---|---|---|---|
+| Face (Wikimedia-like, 1000x1250) | ~250 KB | ~3 KB | ~19 KB | ~118 KB | (original) |
+| Poster (2000x3000) | ~1.2 MB | ~3 KB | ~21 KB | ~130 KB | ~510 KB |
+| Backdrop (3840x2160) | ~1.7 MB | ~3 KB | ~19 KB | ~116 KB | ~480 KB |
+| Square cover (1400x1400) | ~400 KB | ~4 KB | ~24 KB | ~155 KB | (original) |
+
+**Per surface** (drawn size from the component CSS; "today" is what the Dashboard asks for now; the rule is the smallest copy at least the drawn size, at 1x and at 2x screen sharpness)
+
+| Surface | Drawn px | Today | Bytes today (est.) | Request (1x / 2x) | Bytes after (est.) |
+|---|---|---|---|---|---|
+| People list (Collections > People) | 48 (50 under 920 px) | original | ~250 KB | tiny / tiny | ~3 KB |
+| Universe cast list, cast comparison, family tree | 36-48 | original | ~250 KB | tiny / tiny | ~3 KB |
+| Search results faces and covers | ~48-64 | original | 250 KB-1.2 MB | tiny / small | 3-20 KB |
+| Credit card face and character picture (details People tab) | up to 140 square | original | ~250 KB | small / small | ~19 KB |
+| Person details portrait | up to 288 x 432 | original | ~250 KB | small / medium | 19-118 KB |
+| Recently Added / Events rows, Settings ingestion rows | 50 | small | ~20 KB | tiny / small | 3-20 KB |
+| Library table covers, song table, Listen rows and rails | 32-64 | original (raw address) | 0.4-1.2 MB | tiny / small | 3-20 KB |
+| Now playing bar, queue and history rows | 48-64 | small | ~20 KB | tiny / small | 3-20 KB |
+| Home, Watch, Listen, Read tiles and shelves | 128-228 wide | small, medium by browser choice when the size is known | ~20 KB | small / medium (browser choice) | 20-130 KB |
+| Tile hover panel | 320-440 | medium/large by browser choice | 130-500 KB | medium (browser choice) | ~130 KB |
+| Details overlay cover, album and phone hero cover | 250-400 | medium | ~130 KB | medium | ~130 KB |
+| Hero carousel and details backgrounds | full width | medium, large by browser choice when the size is known | 116-480 KB | medium on phone, large on desktop and TV (browser choice) | same, chosen per screen |
+| Full player (phone, popout, desktop) | 220-520 | medium | ~130 KB | medium | ~130 KB |
+| Editor artwork picker preview | up to 640 | large | ~500 KB | medium | ~130 KB |
+| Editor thumbnails (header, match, artwork lists) | 64-128 | small | ~20 KB | tiny / small | 3-20 KB |
+| Artwork picker "full view", downloads | full | original | as is | original (unchanged) | as is |
+
+**Biggest wins**
+
+1. Faces: People list, cast lists, search and credit cards download the full original (about 250 KB) for a 36-140 px circle. Tiny or small copies cut that by 90-99%, and the People list goes from about 50 MB to under 1 MB for 200 people.
+2. About 40 places on Listen, library tables, search, Universe and Settings put the Engine address on screen with no size at all, so they get the original too.
+3. Browser keep: the Engine sends "keep for 1 day, shared" on stored artwork and nothing on faces, character pictures and the editor's artwork; nothing tells the browser when a picture changed, so an edited cover can show the old picture for up to a day.
+4. Several surfaces already build a "pick the best size" list that the browser never sees, because it is only made when the picture's own size is known. Fixed-size places switch to "1x / 2x" lists, which need no picture size.
 
 ## Plain English summary
 

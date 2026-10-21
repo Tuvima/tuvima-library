@@ -93,7 +93,7 @@ public sealed class StreamEndpointArtworkTests
     }
 
     [Fact]
-    public async Task CreateLocalArtworkResult_StreamsFileWithValidatorsAndPublicCacheHeaders()
+    public async Task CreateLocalArtworkResult_StreamsFileWithValidatorsAndPrivateRevalidateHeaders()
     {
         var path = CreateTempImagePath();
         try
@@ -111,7 +111,7 @@ public sealed class StreamEndpointArtworkTests
             Assert.Equal("image/jpeg", context.Response.ContentType);
             Assert.False(string.IsNullOrWhiteSpace(context.Response.Headers.ETag));
             Assert.False(string.IsNullOrWhiteSpace(context.Response.Headers.LastModified));
-            Assert.Contains("public", context.Response.Headers.CacheControl.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("private, no-cache", context.Response.Headers.CacheControl.ToString());
             Assert.Equal(await File.ReadAllBytesAsync(path), responseBody.ToArray());
         }
         finally

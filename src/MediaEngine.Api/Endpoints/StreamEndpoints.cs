@@ -19,22 +19,6 @@ namespace MediaEngine.Api.Endpoints;
 
 public static class StreamEndpoints
 {
-    private const string ArtworkPlaceholderSvg = """
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 480" role="img" aria-label="Artwork unavailable">
-          <defs>
-            <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#1f2937"/>
-              <stop offset="0.55" stop-color="#334155"/>
-              <stop offset="1" stop-color="#0f172a"/>
-            </linearGradient>
-          </defs>
-          <rect width="320" height="480" rx="16" fill="url(#bg)"/>
-          <rect x="68" y="146" width="184" height="188" rx="12" fill="none" stroke="#94a3b8" stroke-width="10" opacity="0.72"/>
-          <circle cx="124" cy="204" r="24" fill="#cbd5e1" opacity="0.78"/>
-          <path d="M82 308l56-62 38 42 24-28 38 48z" fill="#cbd5e1" opacity="0.78"/>
-        </svg>
-        """;
-
     private static readonly Dictionary<string, string> MimeMap =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -692,78 +676,11 @@ public static class StreamEndpoints
             : asset.LocalImagePath;
     }
 
-    private static IResult? CreateLocalArtworkResult(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-        {
-            return null;
-        }
+    private static IResult? CreateLocalArtworkResult(string? path) => ArtworkFileResults.Local(path);
 
-        if (!HasRecognizedImageSignature(path))
-        {
-            return CreateArtworkPlaceholderResult();
-        }
+    internal static bool HasRecognizedImageSignature(string path) => ArtworkFileResults.HasRecognizedImageSignature(path);
 
-        return new CacheableArtworkFileResult(path, GetArtworkContentType(path));
-    }
+    internal static string GetArtworkContentType(string path) => ArtworkFileResults.GetArtworkContentType(path);
 
-    internal static bool HasRecognizedImageSignature(string path)
-    {
-        try
-        {
-            Span<byte> header = stackalloc byte[12];
-            using var stream = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.ReadWrite | FileShare.Delete,
-                header.Length,
-                FileOptions.SequentialScan);
-            var read = stream.Read(header);
-            return read >= 2 && header[0] == 0xFF && header[1] == 0xD8
-                || read >= 8 && header[..8].SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A })
-                || read >= 6 && (header[..6].SequenceEqual("GIF87a"u8) || header[..6].SequenceEqual("GIF89a"u8))
-                || read >= 12 && header[..4].SequenceEqual("RIFF"u8) && header[8..12].SequenceEqual("WEBP"u8)
-                || read >= 2 && header[0] == (byte)'B' && header[1] == (byte)'M';
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    internal static string GetArtworkContentType(string path) =>
-        Path.GetExtension(path).ToLowerInvariant() switch
-        {
-            ".png" => "image/png",
-            ".gif" => "image/gif",
-            ".webp" => "image/webp",
-            ".bmp" => "image/bmp",
-            _ => "image/jpeg",
-        };
-
-    internal static IResult CreateArtworkPlaceholderResult() =>
-        Results.Text(ArtworkPlaceholderSvg, "image/svg+xml");
-
-    private sealed class CacheableArtworkFileResult(string path, string contentType) : IResult
-    {
-        public Task ExecuteAsync(HttpContext httpContext)
-        {
-            var file = new FileInfo(path);
-            var modified = new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero);
-            var tag = new EntityTagHeaderValue($"\"{file.Length:x}-{file.LastWriteTimeUtc.Ticks:x}\"");
-            httpContext.Response.GetTypedHeaders().CacheControl = new CacheControlHeaderValue
-            {
-                Public = true,
-                MaxAge = TimeSpan.FromDays(1),
-            };
-            return Results.File(
-                    path,
-                    contentType,
-                    lastModified: modified,
-                    entityTag: tag,
-                    enableRangeProcessing: false)
-                .ExecuteAsync(httpContext);
-        }
-    }
+    internal static IResult CreateArtworkPlaceholderResult() => ArtworkFileResults.Placeholder();
 }
