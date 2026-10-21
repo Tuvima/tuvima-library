@@ -439,6 +439,12 @@
       "section": "Architecture"
     },
     {
+      "source": "architecture/backup-and-restore.md",
+      "slug": "architecture/backup-and-restore",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
       "source": "architecture/localization.md",
       "slug": "architecture/localization",
       "group": "Develop",
