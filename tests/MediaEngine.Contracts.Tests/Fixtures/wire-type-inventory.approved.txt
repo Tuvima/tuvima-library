@@ -6789,8 +6789,9 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Characters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.CompanionCharacterDto> | json=characters | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HeldBackCount: System.Int32 | json=heldBackCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MoreCount: System.Int32 | json=moreCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HasCharacterDetails: System.Boolean | json=hasCharacterDetails | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"characters":[],"heldBackCount":7,"hasCharacterDetails":true}
+  sample={"characters":[],"heldBackCount":7,"moreCount":7,"hasCharacterDetails":true}
 
 [contracts] MediaEngine.Contracts.Playback.ContextSidebarLayoutDto
   kind=class | converter=default | number-handling=default | unmapped=Disallow

@@ -92,7 +92,7 @@ public sealed class CompanionContextReadService(
             WhosHere = whosHere,
             Previously = kind == CompanionKinds.Episode && episode is { } current ? Previously(row, rows, current) : null,
             Cast = await LoadCastAsync(row, kind, ct).ConfigureAwait(false),
-            Picker = BuildPicker(row, rows, kind, chapterList),
+            Picker = BuildPicker(row, rows, kind, chapterList, view.Level, episode, chapter?.Index ?? chapterIndex),
         };
     }
 
@@ -183,17 +183,19 @@ public sealed class CompanionContextReadService(
             });
         }
 
-        return new CompanionWhosHereDto
-        {
-            HasCharacterDetails = true,
-            HeldBackCount = heldBack,
-            Characters = listed
+        var ordered = listed
                 .OrderBy(character => character.Visibility == CompanionCharacterVisibility.NoPlotDetails)
                 .ThenByDescending(character => character.OtherWorkCount)
                 .ThenBy(character => character.Name, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(character => character.Qid, StringComparer.OrdinalIgnoreCase)
-                .Take(MaxCharacters)
-                .ToList(),
+                .ToList();
+
+        return new CompanionWhosHereDto
+        {
+            HasCharacterDetails = true,
+            HeldBackCount = heldBack,
+            MoreCount = Math.Max(0, ordered.Count - MaxCharacters),
+            Characters = ordered.Take(MaxCharacters).ToList(),
         };
     }
 
@@ -260,8 +262,13 @@ public sealed class CompanionContextReadService(
         DisplayWorkRow row,
         IReadOnlyList<DisplayWorkRow> rows,
         string kind,
-        IReadOnlyList<CompanionChapter> chapterList)
+        IReadOnlyList<CompanionChapter> chapterList,
+        SpoilerLevel level,
+        EpisodePosition? currentEpisode,
+        int? currentChapter)
     {
+        // "Up to here" never sends a title from ahead of the place: later episodes and chapters are only numbered.
+        var everything = level == SpoilerLevel.Everything;
         if (kind == CompanionKinds.Episode)
         {
             var choices = rows
@@ -278,7 +285,7 @@ public sealed class CompanionContextReadService(
                 {
                     WorkId = pair.Row.WorkId,
                     Label = EpisodeLabel(pair.Row),
-                    Title = NullIfBlank(pair.Row.Title),
+                    Title = everything || pair.Position is { } at && currentEpisode is { } here && at <= here ? NullIfBlank(pair.Row.Title) : null,
                 })
                 .ToList();
             return choices.Count == 0 ? null : new CompanionPickerDto { Kind = CompanionPickerKinds.Episode, Choices = choices };
@@ -295,7 +302,7 @@ public sealed class CompanionContextReadService(
                         WorkId = row.WorkId,
                         ChapterIndex = chapter.Index,
                         Label = $"Chapter {(ordinal + 1).ToString(CultureInfo.InvariantCulture)}",
-                        Title = NullIfBlank(chapter.Title),
+                        Title = everything || currentChapter is { } here && chapter.Index <= here ? NullIfBlank(chapter.Title) : null,
                     })
                     .ToList(),
             };

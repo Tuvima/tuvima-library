@@ -48,7 +48,8 @@ public sealed class EntityAppearanceReadService(
         string universeQid,
         string entityQid,
         Profile? profile,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        Guid? reachedWorkId = null)
     {
         var entity = await entities.FindByQidAsync(entityQid.Trim(), ct).ConfigureAwait(false);
         if (entity is null)
@@ -58,6 +59,12 @@ public sealed class EntityAppearanceReadService(
 
         var rows = await display.LoadWorksAsync(ct).ConfigureAwait(false);
         var view = await spoilers.LoadAsync(profile, ct).ConfigureAwait(false);
+        // The phone companion asks as someone standing at a Work: that place counts as reached, as on the companion screen.
+        if (reachedWorkId is { } reached && rows.FirstOrDefault(candidate => candidate.WorkId == reached) is { } reachedRow)
+        {
+            view = view.WithReached(OwnedStory.PositionOf(reachedRow));
+        }
+
         var story = view.Story;
 
         // The same visibility rule as every Universe read: only links to a work the profile may see.

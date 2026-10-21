@@ -177,6 +177,20 @@ public sealed class CompanionPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void WhenTheContextCannotBeReadAtTheNewPlace_TheOldTitlesDetailsAreNotLeftUnderIt()
+    {
+        var cut = RenderPage(Episode2);
+        cut.WaitForAssertion(() => Assert.Contains("Pilot", cut.Markup, StringComparison.Ordinal));
+        _context = id => id == Episode1 ? null : Context(id, "Second");
+
+        cut.FindAll("[data-section='picker'] button")[0].Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("This title isn't available.", cut.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain("A synopsis.", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-section='whos-here']"));
+    }
+
+    [Fact]
     public void AnAudiobookChapterPick_HoldsTheChapterIndex()
     {
         var book = Guid.NewGuid();

@@ -78,6 +78,9 @@ public sealed record CompanionWhosHereDto
     /// <summary>How many characters are held back to avoid spoilers (always 0 at the level "Everything").</summary>
     public int HeldBackCount { get; init; }
 
+    /// <summary>How many more characters could be listed but were cut to keep the list short (the screen says "and N more").</summary>
+    public int MoreCount { get; init; }
+
     /// <summary>False when the Library holds no character details for this Work at all (so the screen says so).</summary>
     public bool HasCharacterDetails { get; init; }
 }

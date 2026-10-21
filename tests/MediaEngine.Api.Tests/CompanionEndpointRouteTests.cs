@@ -40,7 +40,8 @@ public sealed class CompanionEndpointRouteTests
         var next = endpointSource.IndexOf("group.Map", start + 10, StringComparison.Ordinal);
         var block = endpointSource[start..next];
         // The profile is the caller's own, never the one in the query when the caller has a sign-in.
-        Assert.Contains("PlayerEndpoints.Bind(user, profileId, null, null)", block, StringComparison.Ordinal);
+        Assert.Contains("TuvimaClaimTypes.ActiveProfileId", block, StringComparison.Ordinal);
+        Assert.Contains("ClientApiScopes.LibraryRead", endpointSource[start..], StringComparison.Ordinal);
         Assert.Contains("services.AddScoped<CompanionContextReadService>();", readServices, StringComparison.Ordinal);
         Assert.Contains("services.AddSingleton<ICompanionChapterSource, CompanionChapterSource>();", readServices, StringComparison.Ordinal);
     }

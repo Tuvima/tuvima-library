@@ -217,8 +217,16 @@
         var context = await Companion.LoadContextAsync(place, _lifetime.Token);
         if (context is null)
         {
-            // The title is gone or hidden from this profile, or the Engine did not answer.
-            _status = _context is null ? CompanionPageStatus.NotAvailable : CompanionPageStatus.Ready;
+            // The title is gone or hidden from this profile, or the Engine did not answer. A failed refresh of the same title keeps
+            // what is shown; a read for a different title never leaves the old title's details under the new place.
+            if (_context is not null && _context.WorkId == place.WorkId)
+            {
+                _status = CompanionPageStatus.Ready;
+                return;
+            }
+
+            _context = null;
+            _status = CompanionPageStatus.NotAvailable;
             return;
         }
 
@@ -301,6 +309,12 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The companion could not follow its device");
+            if (_context is not null && _place is { } moved && _context.WorkId != moved.WorkId)
+            {
+                _context = null;
+                _status = CompanionPageStatus.NotAvailable;
+                StateHasChanged();
+            }
         }
     }
 
@@ -391,7 +405,7 @@
         var universe = string.IsNullOrWhiteSpace(character.UniverseQid) ? _context?.Universe?.Qid : character.UniverseQid;
         return string.IsNullOrWhiteSpace(universe)
             ? Task.CompletedTask
-            : MediaEngine.Web.Components.Universe.AlsoAppearsInPanel.OpenAsync(Dialogs, universe, [(character.Qid, character.Name)]);
+            : MediaEngine.Web.Components.Universe.AlsoAppearsInPanel.OpenAsync(Dialogs, universe, [(character.Qid, character.Name)], reachedWorkId: _context?.WorkId);
     }
 
     private Task RetryAsync() => LoadAsync();

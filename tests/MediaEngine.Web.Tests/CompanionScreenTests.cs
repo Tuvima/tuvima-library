@@ -72,6 +72,20 @@ public sealed class CompanionScreenTests : AsyncBunitContext
     }
 
     [Fact]
+    public void WhenCharactersWereCutFromTheList_TheScreenSaysHowManyMore()
+    {
+        var context = Context(CompanionKinds.Film, "The Crowd", "Film") with
+        {
+            WhosHere = new CompanionWhosHereDto { HasCharacterDetails = true, MoreCount = 6, Characters = [Character("Alice")] },
+        };
+
+        var cut = RenderScreen(context);
+
+        Assert.Contains("and 6 more", cut.Find("[data-note='more-characters']").TextContent);
+        Assert.Empty(RenderScreen(Context(CompanionKinds.Film, "Quiet", "Film")).FindAll("[data-note='more-characters']"));
+    }
+
+    [Fact]
     public void AnEpisode_ListsWhosHereUpToTheEpisode_WhereElseYouHaveSeenThem_AndPreviously()
     {
         var context = Context(CompanionKinds.Episode, "Second", "Season 1 · Episode 2") with

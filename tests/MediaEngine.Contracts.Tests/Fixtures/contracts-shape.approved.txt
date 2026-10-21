@@ -5762,6 +5762,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionUniverseL
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionWhosHereDto
   Characters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.CompanionCharacterDto> | nullability=not-null | accessors=get,init
   HeldBackCount: System.Int32 | nullability=not-null | accessors=get,init
+  MoreCount: System.Int32 | nullability=not-null | accessors=get,init
   HasCharacterDetails: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ContextSidebarLayoutDto

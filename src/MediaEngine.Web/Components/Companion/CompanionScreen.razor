@@ -104,6 +104,11 @@
                 </ul>
             }
 
+            @if (Context.WhosHere.MoreCount > 0)
+            {
+                <p class="companion__note" data-note="more-characters">and @Context.WhosHere.MoreCount more not listed here. The Universe page lists them all.</p>
+            }
+
             @if (Context.WhosHere.HeldBackCount > 0)
             {
                 <p class="companion__note" data-note="held-back">@HeldBackText(Context.WhosHere.HeldBackCount)</p>

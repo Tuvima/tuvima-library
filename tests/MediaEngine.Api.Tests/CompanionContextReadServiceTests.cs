@@ -142,6 +142,78 @@ public sealed class CompanionContextReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AtUpToHere_TheEpisodePickerSendsNoTitleFromAheadOfThePlace_AndEverythingSendsThemAll()
+    {
+        var (service, episodes) = await ShowWithThreeEpisodesAsync();
+        var upToHere = await ProfileWithLevelAsync(SpoilerLevels.UpToProgress);
+
+        var context = await service.GetAsync(episodes[1].WorkId, null, null, upToHere);
+
+        var choices = context!.Picker!.Choices;
+        Assert.Equal(["Pilot", "Second", null], choices.Select(choice => choice.Title));
+        // The label still numbers the later episode, but nothing about it leaks.
+        Assert.Equal("Season 1 · Episode 3", choices[2].Label);
+
+        var everything = await ProfileWithLevelAsync(SpoilerLevels.Everything);
+        var all = await service.GetAsync(episodes[1].WorkId, null, null, everything);
+        Assert.Equal(["Pilot", "Second", "Third"], all!.Picker!.Choices.Select(choice => choice.Title));
+    }
+
+    [Fact]
+    public async Task AtUpToHere_TheChapterPickerSendsNoTitleFromAheadOfTheChapter_AndNoChapterMeansNoTitles()
+    {
+        var audiobook = Row(Guid.NewGuid(), "Audiobooks", "Q-audio-picker", "The Gate (read aloud)");
+        var service = CreateService(
+            [audiobook],
+            new FixedChapters(new CompanionChapter(0, "Opening", 0), new CompanionChapter(1, "The Gate", 600), new CompanionChapter(2, "The Betrayal", 1200)));
+        var upToHere = await ProfileWithLevelAsync(SpoilerLevels.UpToProgress);
+
+        var atSecond = await service.GetAsync(audiobook.WorkId, 1, null, upToHere);
+        var nowhere = await service.GetAsync(audiobook.WorkId, null, null, upToHere);
+
+        Assert.Equal(["Opening", "The Gate", null], atSecond!.Picker!.Choices.Select(choice => choice.Title));
+        Assert.Equal(["Chapter 1", "Chapter 2", "Chapter 3"], atSecond.Picker.Choices.Select(choice => choice.Label));
+        Assert.All(nowhere!.Picker!.Choices, choice => Assert.Null(choice.Title));
+        Assert.DoesNotContain("The Betrayal", System.Text.Json.JsonSerializer.Serialize(nowhere), StringComparison.Ordinal);
+
+        var everything = await ProfileWithLevelAsync(SpoilerLevels.Everything);
+        var all = await service.GetAsync(audiobook.WorkId, 0, null, everything);
+        Assert.Equal(["Opening", "The Gate", "The Betrayal"], all!.Picker!.Choices.Select(choice => choice.Title));
+    }
+
+    [Fact]
+    public async Task WhenMoreCharactersFitThanAreListed_TheCutOnesAreCounted()
+    {
+        var film = Row(Guid.NewGuid(), "Movies", "Q-crowd", "The Crowd");
+        var total = CompanionContextReadService.MaxCharacters + 6;
+        for (var index = 0; index < total; index++)
+        {
+            var qid = $"Q-extra-{index:D2}";
+            await CreateEntityAsync(qid, $"Extra {index:D2}", "Character");
+            await LinkAsync(qid, "Q-crowd");
+        }
+
+        var service = CreateService([film]);
+        var profile = await ProfileWithLevelAsync(SpoilerLevels.Everything);
+
+        var context = await service.GetAsync(film.WorkId, null, null, profile);
+
+        Assert.Equal(CompanionContextReadService.MaxCharacters, context!.WhosHere.Characters.Count);
+        Assert.Equal(6, context.WhosHere.MoreCount);
+        Assert.Equal(0, context.WhosHere.HeldBackCount);
+    }
+
+    [Fact]
+    public async Task WhenEveryCharacterIsListed_NothingIsCountedAsCut()
+    {
+        var (service, episodes) = await ShowWithThreeEpisodesAsync();
+
+        var context = await service.GetAsync(episodes[2].WorkId, null, null, profile: null);
+
+        Assert.Equal(0, context!.WhosHere.MoreCount);
+    }
+
+    [Fact]
     public async Task ACharacterAlsoMetInAFilm_CarriesHowManyOtherWorksTheProfileOwns()
     {
         var (service, episodes, film) = await ShowAndFilmAsync();

@@ -122,9 +122,18 @@ public static class CompanionEndpoints
                 return ApiErrors.BadRequest("A work id is required, a chapter must be zero or more and a position must be zero or more.");
             }
 
-            // The profile comes from the caller's claims, never from another profile's id in the query.
-            var identity = PlayerEndpoints.Bind(user, profileId, null, null);
-            var profile = identity.ProfileId is { } id ? await profiles.GetByIdAsync(id, ct) : null;
+            // The profile comes from the caller's claims alone. A query that names a different profile is refused, and a caller
+            // with no profile claim is judged at the default protection level, so no one can read another profile's spoiler level.
+            var claimed = Guid.TryParse(user.FindFirstValue(TuvimaClaimTypes.ActiveProfileId), out var claimedId) ? claimedId : (Guid?)null;
+            if (profileId is { } asked && claimed is { } own && asked != own)
+            {
+                return Results.Problem(
+                    detail: "The companion only answers for the signed-in profile.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    title: "Forbidden.");
+            }
+
+            var profile = claimed is { } id ? await profiles.GetByIdAsync(id, ct) : null;
             var result = await context.GetAsync(workId, chapterIndex, positionSeconds, profile, ct);
             return result is null ? ApiErrors.NotFound($"Work '{workId}' not found.") : Results.Ok(result);
         })
@@ -132,8 +141,10 @@ public static class CompanionEndpoints
         .WithSummary("Return what the companion shows for one work at one position: who is here up to that point, where else they appear, the previous episode and the Universe.")
         .Produces<CompanionContextDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireClientScope(ClientApiScopes.QueueRead);
+        .RequireClientScope(ClientApiScopes.QueueRead)
+        .RequireClientScope(ClientApiScopes.LibraryRead);
 
         group.MapDelete("/session", async (
             Guid? profileId,
