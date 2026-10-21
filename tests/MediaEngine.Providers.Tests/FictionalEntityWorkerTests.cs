@@ -86,6 +86,7 @@ public sealed class FictionalEntityWorkerTests : IDisposable
             _canonicalRepo,
             _canonicalArrayRepo,
             new NarrativeRootRepository(_db),
+            new CollectionRepository(_db),
             new QidLabelRepository(_db),
             new SystemActivityRepository(_db),
             NullLogger<NarrativeRootResolver>.Instance);
@@ -134,6 +135,7 @@ public sealed class FictionalEntityWorkerTests : IDisposable
             _canonicalRepo,
             _canonicalArrayRepo,
             new NarrativeRootRepository(_db),
+            new CollectionRepository(_db),
             new QidLabelRepository(_db),
             new SystemActivityRepository(_db),
             NullLogger<NarrativeRootResolver>.Instance);

@@ -779,6 +779,15 @@ public sealed partial class RetailMatchWorker
         }
         else
         {
+            // An audiobook Apple could not match may take the Wikidata ID of an owned, confirmed book with
+            // the same title and author. Every other media type, and an audiobook with no such book, goes on
+            // to the normal no-match handling below.
+            if (mediaType == MediaType.Audiobooks
+                && await TryLinkAudiobookToOwnedBookAsync(job, hints, lineage, ct).ConfigureAwait(false))
+            {
+                return;
+            }
+
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailNoMatch, ct: ct);
             await EnrichPeopleWithoutMediaMatchAsync(job.EntityId, ct).ConfigureAwait(false);
 

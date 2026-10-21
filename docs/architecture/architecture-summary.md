@@ -49,7 +49,7 @@ The Intelligence project's main public surface:
 - `IdentityDecisionService` (in `Intelligence/Services`) — accept/review/retry verdicts using a `ConfidenceBand` (Exact / Strong / Provisional / Ambiguous / Insufficient) and a `ReviewRootCause`.
 - `IdentityMatcher` — routes a candidate to the right media-type identity strategy.
 - `CollectionArbiter` — decides whether a Work belongs in a Collection.
-- `ParentCollectionResolver` — resolves parent/child collection hierarchy (Series→Universe).
+- `ParentCollectionResolver` — decides each Series shelf's Universe with `UniverseIdentityRule` (the same rule the work-level `NarrativeRootResolver` uses), stores it as `collections.universe_qid` and keeps the Universe shelf (Series→Universe) in step with the one `narrative_roots` record.
 - `FuzzyMatchingService` — Levenshtein + phonetic name matching.
 - `Intelligence/Strategies/` — seven `IMediaTypeIdentityStrategy` implementations: `ExactMatchStrategy`, `BookIdentityStrategy`, `MovieIdentityStrategy`, `AudiobookIdentityStrategy`, `ComicIdentityStrategy`, `MusicIdentityStrategy`, `TvIdentityStrategy`.
 
@@ -125,7 +125,7 @@ Operations keeps a group in flight on the live ingestion page while durable jobs
 
 A durable staged enrichment pipeline runs after ingestion. `identity_jobs` rows (SQLite) replace any in-memory queue. Pipeline workers poll for jobs:
 
-- **`RetailMatchWorker`** - Stage 1. Active configured providers score candidates through `RetailMatchScoringService`; music runs MusicBrainz first for recording/release identity and Apple second for artwork/retail enrichment. Strong candidates auto-accept, ambiguous candidates route to review, and failed provider matches do not trigger broad Wikidata fallback.
+- **`RetailMatchWorker`** - Stage 1. Active configured providers score candidates through `RetailMatchScoringService`; music runs MusicBrainz first for recording/release identity and Apple second for artwork/retail enrichment. Strong candidates auto-accept, ambiguous candidates route to review, and failed provider matches do not trigger broad Wikidata fallback (the one exception: an audiobook Apple cannot match takes the Wikidata ID of an owned, confirmed book with the same title and author, with no outside lookup).
 - **`WikidataBridgeWorker`** - Stage 2. Uses retail/catalogue bridge IDs (ISBN, ASIN, TMDB ID, MusicBrainz ID, Apple ID, Comic Vine ID, etc.) to resolve a QID.
 - **`QuickHydrationWorker`** — Populates canonical values, hero images, collection assignment.
 - **Stage 3 enrichment workers** — Fanart.tv, people enrichment, universe graph population, lyrics/subtitles, fictional entities, relationships, and additional images.
