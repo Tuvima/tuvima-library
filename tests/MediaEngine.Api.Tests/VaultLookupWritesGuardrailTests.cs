@@ -33,8 +33,14 @@ public sealed class VaultLookupWritesGuardrailTests
     private static readonly Dictionary<string, string[]> OwnRowsOutsideVaultTables = new(StringComparer.Ordinal)
     {
         ["VaultImageRepository.cs"] = ["local_items", "local_files", "local_file_sources"],
+<<<<<<< HEAD
         // Putting a restored bookmark back is personal state the person made, not a lookup result; it names no person, series or tag.
         ["VaultBookmarkRelinkRepository.cs"] = ["audiobook_bookmarks"],
+=======
+
+        // Removing a Vault library (an administrator action, not the lookup) purges the residue that only the Vault mark made
+        // recognisable: the library's excluded-file rows and the file operations about its folders (security review L1).
+        ["VaultLibraryRepository.cs"] = ["excluded_source_files", "media_operations", "media_operation_events"],
     };
 
     private static readonly Regex Writes = new(

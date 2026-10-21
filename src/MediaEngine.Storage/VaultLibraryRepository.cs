@@ -128,8 +128,12 @@ public sealed class VaultLibraryRepository(IDatabaseConnection database) : IVaul
         }, ct);
     }
 
-    public Task<bool> RemoveAsync(string libraryId, CancellationToken ct = default) =>
-        database.ExecuteWriteAsync((connection, transaction, token) =>
+    public Task<bool> RemoveAsync(string libraryId, CancellationToken ct = default) => RemoveAsync(libraryId, [], ct);
+
+    public Task<bool> RemoveAsync(string libraryId, IReadOnlyCollection<string> sourcePaths, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(sourcePaths);
+        return database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
             if (connection.ExecuteScalar<int>(
@@ -139,8 +143,38 @@ public sealed class VaultLibraryRepository(IDatabaseConnection database) : IVaul
                 throw new InvalidOperationException("A Vault library that still has items cannot be removed.");
             }
 
+            // Records that are Vault only by the library id or by where the file sat stop being recognised the moment the mark is
+            // gone, so they go with it (Videos spec D17, security review L1).
+            if (connection.ExecuteScalar<int>("SELECT EXISTS(SELECT 1 FROM vault_libraries WHERE library_id = @libraryId);", new { libraryId }, transaction) == 1)
+            {
+                connection.Execute("DELETE FROM excluded_source_files WHERE library_id = @libraryId COLLATE NOCASE;", new { libraryId }, transaction);
+                foreach (var path in sourcePaths.Select(Normalize).Where(path => path.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    var parameters = new { exact = path, under = EscapeLike(path) + "/%" };
+                    connection.Execute(
+                        """
+                        DELETE FROM media_operation_events WHERE operation_id IN (
+                            SELECT id FROM media_operations
+                            WHERE REPLACE(source_path, '\', '/') = @exact COLLATE NOCASE
+                               OR REPLACE(source_path, '\', '/') LIKE @under ESCAPE '\');
+                        """, parameters, transaction);
+                    connection.Execute(
+                        """
+                        DELETE FROM media_operations
+                        WHERE REPLACE(source_path, '\', '/') = @exact COLLATE NOCASE
+                           OR REPLACE(source_path, '\', '/') LIKE @under ESCAPE '\';
+                        """, parameters, transaction);
+                }
+            }
+
             return connection.Execute("DELETE FROM vault_libraries WHERE library_id = @libraryId;", new { libraryId }, transaction) == 1;
         }, ct);
+    }
+
+    private static string Normalize(string path) => path.Trim().Replace('\\', '/').TrimEnd('/');
+
+    private static string EscapeLike(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal);
 
     internal static string Iso(DateTimeOffset value) => value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
 

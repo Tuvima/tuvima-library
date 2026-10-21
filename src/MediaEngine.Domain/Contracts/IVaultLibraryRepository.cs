@@ -63,4 +63,12 @@ public interface IVaultLibraryRepository
     /// so its items can never turn into normal ones.
     /// </summary>
     Task<bool> RemoveAsync(string libraryId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes the Vault mark and, in the same write, the records that were only recognised as Vault because of it: the library's
+    /// excluded-file rows and the operations (with their events) about files under <paramref name="sourcePaths"/>. Left behind they
+    /// would turn into ordinary rows that name Vault files. Refused like <see cref="RemoveAsync(string, CancellationToken)"/> while
+    /// any item is still in the library.
+    /// </summary>
+    Task<bool> RemoveAsync(string libraryId, IReadOnlyCollection<string> sourcePaths, CancellationToken ct = default);
 }

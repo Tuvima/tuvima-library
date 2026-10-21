@@ -262,6 +262,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         // The Identify routes (WP12) are mapped by MapVaultEndpoints too; they are only inferred here, never invoked.
         builder.Services.AddSingleton<IVaultMatchRepository>(new VaultMatchRepository(_database));
         builder.Services.AddSingleton<IVaultActivityRepository>(new VaultActivityRepository(_database));
+        // The remove-a-library route looks in the recycle bin before it asks the service; an empty bin in an unused folder.
+        builder.Services.AddSingleton(new MediaEngine.Api.Services.Libraries.RecycleBinService(
+            Path.Combine(Path.GetTempPath(), "tuvima_route_bin_" + Guid.NewGuid().ToString("N")),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance));
         // The browsing routes (WP14) read through their own repository and check the Watch feature on the account.
         builder.Services.AddSingleton<IVaultBrowseRepository>(new VaultBrowseRepository(_database));
         builder.Services.AddSingleton<IAccountRepository>(_accounts);

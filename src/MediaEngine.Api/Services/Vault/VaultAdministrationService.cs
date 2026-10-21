@@ -89,7 +89,8 @@ public sealed class VaultAdministrationService(
             : null;
     }
 
-    public async Task<bool> RemoveLibraryAsync(Guid adminProfileId, string libraryId, string? adminPin, CancellationToken ct)
+    public async Task<bool> RemoveLibraryAsync(
+        Guid adminProfileId, string libraryId, string? adminPin, CancellationToken ct, IReadOnlyCollection<string>? sourcePaths = null)
     {
         if (await libraries.GetAsync(libraryId, ct).ConfigureAwait(false) is null)
         {
@@ -97,7 +98,7 @@ public sealed class VaultAdministrationService(
         }
 
         await RequireAdminPinAsync(adminProfileId, adminPin, ct).ConfigureAwait(false);
-        return await libraries.RemoveAsync(libraryId, ct).ConfigureAwait(false);
+        return await libraries.RemoveAsync(libraryId, sourcePaths ?? [], ct).ConfigureAwait(false);
     }
 
     /// <summary>

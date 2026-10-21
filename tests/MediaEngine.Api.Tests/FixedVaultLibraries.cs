@@ -27,6 +27,8 @@ internal sealed class FixedVaultLibraries(params string[] ids) : IVaultLibraryRe
 
     public Task<bool> RemoveAsync(string libraryId, CancellationToken ct = default) => throw new NotSupportedException();
 
+    public Task<bool> RemoveAsync(string libraryId, IReadOnlyCollection<string> sourcePaths, CancellationToken ct = default) => throw new NotSupportedException();
+
     private static VaultLibrary Build(string id) =>
         new(id, VaultLookupSources.None, null, DateTimeOffset.UnixEpoch, null, DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch);
 }

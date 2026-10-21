@@ -128,6 +128,73 @@ public sealed class VaultAccessStorageTests : IDisposable
     }
 
     [Fact]
+    public async Task RemovingAVaultLibrary_AlsoDropsItsExcludedFileRowsAndTheOperationsAboutItsFiles_ButNeverAnyoneElses()
+    {
+        var vault = NewLibrary();
+        var other = Guid.NewGuid().ToString("D");
+        await _libraries.AddAsync(vault);
+        var vaultFolder = "/media/Private";
+        InsertExcluded(vault.LibraryId, "vault-source", "clip.mkv");
+        InsertExcluded(other, "movie-source", "Dune.mkv");
+        var inside = InsertOperation(vaultFolder + "/Clips/one.mkv");
+        var insideWindows = InsertOperation(@"\MEDIA\private\two.mkv");
+        var beside = InsertOperation("/media/PrivateStuff/three.mkv");
+        var ordinary = InsertOperation("/media/Movies/Dune.mkv");
+
+        Assert.True(await _libraries.RemoveAsync(vault.LibraryId, [vaultFolder + "/", "/media/Private"]));
+
+        using var connection = _database.CreateConnection();
+        Assert.Equal(0, connection.ExecuteScalar<long>("SELECT COUNT(*) FROM excluded_source_files WHERE library_id = @id;", new { id = vault.LibraryId }));
+        Assert.Equal(1, connection.ExecuteScalar<long>("SELECT COUNT(*) FROM excluded_source_files WHERE library_id = @id;", new { id = other }));
+        var left = connection.Query<string>("SELECT source_path FROM media_operations ORDER BY source_path;").ToList();
+        Assert.Equal(["/media/Movies/Dune.mkv", "/media/PrivateStuff/three.mkv"], left);
+        Assert.Equal(2, connection.ExecuteScalar<long>("SELECT COUNT(*) FROM media_operation_events;"));
+        Assert.Equal(0, connection.ExecuteScalar<long>("SELECT COUNT(*) FROM media_operation_events WHERE operation_id IN (@a, @b);", new { a = inside, b = insideWindows }));
+        Assert.NotEqual(beside, ordinary);
+    }
+
+    [Fact]
+    public async Task RemovingAVaultLibraryThatStillHasItems_ChangesNothingElse()
+    {
+        var vault = NewLibrary();
+        await _libraries.AddAsync(vault);
+        InsertAsset(vault.LibraryId);
+        InsertExcluded(vault.LibraryId, "vault-source", "clip.mkv");
+        InsertOperation("/media/Private/one.mkv");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _libraries.RemoveAsync(vault.LibraryId, ["/media/Private"]));
+
+        using var connection = _database.CreateConnection();
+        Assert.Equal(1, connection.ExecuteScalar<long>("SELECT COUNT(*) FROM excluded_source_files;"));
+        Assert.Equal(1, connection.ExecuteScalar<long>("SELECT COUNT(*) FROM media_operations;"));
+    }
+
+    private void InsertExcluded(string libraryId, string sourceId, string relativePath)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO excluded_source_files(id, library_id, source_id, relative_path, excluded_at)
+            VALUES(@id, @libraryId, @sourceId, @relativePath, @now);
+            """,
+            new { id = Guid.NewGuid(), libraryId, sourceId, relativePath, now = _now.ToString("O") });
+    }
+
+    private Guid InsertOperation(string sourcePath)
+    {
+        var id = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO media_operations(id, operation_type, operation_kind, source_path, status, position_key, created_at, updated_at, idempotency_key)
+            VALUES(@id, 'test', 'test', @sourcePath, 'Queued', 1, @now, @now, @key);
+            INSERT INTO media_operation_events(id, operation_id, event_type, occurred_at) VALUES(@eventId, @id, 'created', @now);
+            """,
+            new { id, sourcePath, now = _now.ToString("O"), key = id.ToString("N"), eventId = Guid.NewGuid() });
+        return id;
+    }
+
+    [Fact]
     public async Task IsInVault_IsTrueForAFileAndForItsWork_AndFalseForEverythingElse()
     {
         var vault = NewLibrary();

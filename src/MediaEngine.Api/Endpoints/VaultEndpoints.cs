@@ -1,5 +1,6 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Vault;
@@ -265,7 +266,7 @@ public static class VaultEndpoints
           .ProducesProblem(StatusCodes.Status409Conflict).ProducesProblem(StatusCodes.Status428PreconditionRequired)
           .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireEffectiveAdministratorInPerson();
 
-        libraries.MapPost("/{libraryId}/remove", async (string libraryId, RemoveVaultLibraryRequest request, HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault, VaultAccessResolver access, IConfigurationLoader configuration, CancellationToken ct) =>
+        libraries.MapPost("/{libraryId}/remove", async (string libraryId, RemoveVaultLibraryRequest request, HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault, VaultAccessResolver access, IConfigurationLoader configuration, RecycleBinService recycleBin, CancellationToken ct) =>
         {
             var authority = await resolver.ResolveAsync(http, ct);
             if (!authority.IsEffectiveAdministrator || authority.ActiveProfileId is not { } adminProfileId || !await access.IsUnlockedAsync(authority, ct))
@@ -273,9 +274,21 @@ public static class VaultEndpoints
                 return ApiErrors.NotFound("Not found.");
             }
 
+            // Files deleted from this library wait in the bin, where they are recognised as Vault only through the library. They are
+            // the person's to restore or empty first; removing the library never throws them away.
+            if (recycleBin.List().Any(entry => string.Equals(entry.LibraryId, libraryId, StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiErrors.Conflict("Restore or empty this library's recycle bin entries before removing it.");
+            }
+
+            var sourcePaths = configuration.LoadLibraries().Libraries
+                .Where(library => string.Equals(library.Id, libraryId, StringComparison.OrdinalIgnoreCase))
+                .SelectMany(library => library.Sources)
+                .Select(source => source.Path)
+                .ToList();
             try
             {
-                if (!await vault.RemoveLibraryAsync(adminProfileId, libraryId, request.AdminPin, ct))
+                if (!await vault.RemoveLibraryAsync(adminProfileId, libraryId, request.AdminPin, ct, sourcePaths))
                 {
                     return ApiErrors.NotFound("Not found.");
                 }
