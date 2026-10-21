@@ -27,7 +27,7 @@ public static class BackupTableClassification
         Config("profile_credentials", "Profile PIN hashes, needed to switch profile after a restore."),
         Config("profile_grid_preferences", "How a profile sorts each grid."),
         Config("profile_notice_dismissals", "Notices a profile has dismissed, so they do not return."),
-        Config("profile_sequence_preferences", "Whether a profile shows missing items in a series or sequence."),
+        Config("profile_sequence_preferences", "Whether a profile shows missing items in a series or sequence.", refs: [Other("container_key")]),
         Config("profile_view_policies", "What a profile may do in View (access, sharing, documents)."),
         Config("profile_view_preferences", "A profile's View display preferences."),
         Config("user_playback_settings", "A profile's playback settings."),
@@ -43,7 +43,7 @@ public static class BackupTableClassification
         Config("metadata_providers", "The list of metadata providers and whether each is switched on."),
         Config("provider_config", "Provider settings; rows marked secret are left out of a backup.", keepWhere: "is_secret = 0"),
         Config("notification_settings", "Notification channels and rules."),
-        Config("backup_settings", "Backup schedule, destination and retention settings."),
+        Config("backup_settings", "Backup schedule, destination and retention settings; the machine-encrypted destination logins are left out.", excludedJson: [new ExcludedJsonProperty("value_json", "EncryptedSecret")]),
         Config("doc_types", "Document types a person defined."),
         Config("doc_field_definitions", "Custom document fields a person defined."),
         Config("doc_field_choices", "The choices offered by a document field."),
@@ -64,12 +64,14 @@ public static class BackupTableClassification
         Config("view_gallery_items", "The View items in a person-built gallery.", refs: [LocalItem("item_id")]),
         Config("view_gallery_shares", "Who a person-built View gallery is shared with."),
         Config("doc_field_values", "Values a person entered in custom document fields.", refs: [LocalItem("item_id")]),
+        Config("local_item_tag_links", "Which tags a person put on which View item.", refs: [LocalItem("item_id")]),
+        Config("doc_item_details", "Filing details a person entered for a document (machine suggestions are rebuilt).", refs: [LocalItem("item_id")], excluded: ["suggestions_json"]),
         Config("excluded_source_files", "Files a person removed from the library and chose to keep out, so a rescan does not add them back."),
-        Config("collections", "Collections and playlists a person built; collections built from providers (universes and series) are rebuilt.", refs: [Other("universe_id"), Coll("parent_collection_id"), Other("universe_qid")], excluded: ["cover_artwork_path", "background_artwork_path", "banner_artwork_path", "logo_artwork_path"], keepWhere: PersonBuiltCollections),
+        Config("collections", "Collections and playlists a person built; collections built from providers (universes and series) are rebuilt.", refs: [Other("universe_id"), Coll("parent_collection_id")], excluded: ["cover_artwork_path", "background_artwork_path", "banner_artwork_path", "logo_artwork_path"], keepWhere: PersonBuiltCollections),
         Config("collection_items", "The titles in a person-built collection.", refs: [Work("work_id")], keepWhere: InPersonBuiltCollection),
         Config("collection_placements", "Where a person-built collection appears.", keepWhere: InPersonBuiltCollection),
         Config("collection_profile_audience", "Which profiles can see a person-built collection.", keepWhere: InPersonBuiltCollection),
-        Config("collection_view_sources", "The gallery or rule feeding a person-built collection.", refs: [Other("gallery_id")], keepWhere: InPersonBuiltCollection),
+        Config("collection_view_sources", "The gallery or rule feeding a person-built collection.", keepWhere: InPersonBuiltCollection),
 
         // ---------------------------------------------------------------------------------------------------------
         // Personal state: a person's own state tied to a title. Kept, re-attached by recognition data after a rescan.
@@ -81,8 +83,8 @@ public static class BackupTableClassification
         Personal("audiobook_listen_history", "profile_id", "What a person listened to in audiobooks.", refs: [Work("work_id"), Asset("asset_id")]),
         Personal("music_play_stats", "profile_id", "Play counts and last played time per album or track.", refs: [Work("work_id")]),
         Personal("consumption_history", "profile_id", "What a person watched, read or listened to, with progress.", refs: [Asset("asset_id")]),
-        Personal("personal_activity", "profile_id", "A person's own activity feed (what they played and for how long).", refs: [Work("work_id"), Asset("asset_id")]),
-        Personal("player_device_states", "profile_id", "Where a person stopped on each device (playback positions).", refs: [Asset("asset_id"), Work("work_id")]),
+        Personal("personal_activity", "profile_id", "A person's own activity feed (what they played and for how long).", refs: [Work("work_id"), Asset("asset_id")], excluded: ["artwork_key"]),
+        Personal("player_device_states", "profile_id", "Where a person stopped on each device (playback positions); the live player session is left out.", refs: [Asset("asset_id"), Work("work_id")], excluded: ["player_session_id"]),
         Personal("user_states", "user_id", "A person's progress and extended state per file.", refs: [Asset("asset_id")]),
         Personal("user_taste_profiles", "user_id", "A person's taste profile.", refs: []),
         Personal("profile_reactions", "profile_id", "A person's reactions (likes and dislikes) to titles and other items.", refs: [Other("entity_id")]),
@@ -152,16 +154,14 @@ public static class BackupTableClassification
         Catalogue("subtitle_lines", "Indexed subtitle text."),
         Catalogue("subtitle_name_tags", "Characters found in subtitle text."),
         Catalogue("text_tracks", "Subtitle and lyric tracks found for files."),
-        Catalogue("local_items", "Photos, documents and other View items found on disk."),
+        Catalogue("local_items", "Photos, documents and other View items found on disk; a person's own choices on them (favourite, hidden, archived, trashed, capture date they set) are kept.", choices: ["favorite", "hidden", "archived_at", "trashed_at", "captured_at_user_override", "captured_at"]),
         Catalogue("local_files", "Files behind View items."),
         Catalogue("local_file_sources", "Where View files were found."),
         Catalogue("local_item_files", "Which files belong to which View item."),
         Catalogue("local_item_metadata", "Metadata read from View items."),
         Catalogue("local_item_annotations", "Labels and detections found on View items."),
-        Catalogue("local_item_tag_links", "Which tags are on which View item."),
         Catalogue("local_item_search", "Search index over View items."),
         Catalogue("local_item_search_keys", "Row numbers linking View items to their search index entries."),
-        Catalogue("doc_item_details", "Filing details of documents (tied to View items, which have no stable id after a rescan)."),
         Catalogue("doc_item_field_sources", "Where document field values came from (tied to View items)."),
         Catalogue("view_shared_assets", "View items promoted to the shared library."),
         Catalogue("personal_activity_artwork", "Cached pictures for the activity feed."),
@@ -330,21 +330,27 @@ public static class BackupTableClassification
     }
 
     // Collections built by a person (custom collections and playlists). Rows for universes and series come from providers.
-    private const string PersonBuiltCollections = "collection_type IN ('Custom', 'Playlist')";
+    private const string PersonBuiltCollections = "collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart')";
 
     private const string InPersonBuiltCollection = "collection_id IN (SELECT id FROM collections WHERE " + PersonBuiltCollections + ")";
 
-    private static BackupTableRule Config(string table, string reason, CatalogueReference[]? refs = null, string[]? excluded = null, string? keepWhere = null) =>
-        new(table, BackupDataKind.Configuration, reason, refs ?? [], excluded ?? [], null, keepWhere);
+    private static BackupTableRule Config(
+        string table,
+        string reason,
+        CatalogueReference[]? refs = null,
+        string[]? excluded = null,
+        string? keepWhere = null,
+        ExcludedJsonProperty[]? excludedJson = null) =>
+        new(table, BackupDataKind.Configuration, reason, refs ?? [], excluded ?? [], null, [], keepWhere, excludedJson ?? []);
 
-    private static BackupTableRule Personal(string table, string? owner, string reason, CatalogueReference[] refs) =>
-        new(table, BackupDataKind.PersonalState, reason, refs, [], owner, null);
+    private static BackupTableRule Personal(string table, string? owner, string reason, CatalogueReference[] refs, string[]? excluded = null) =>
+        new(table, BackupDataKind.PersonalState, reason, refs, excluded ?? [], owner, [], null, []);
 
-    private static BackupTableRule Catalogue(string table, string reason) =>
-        new(table, BackupDataKind.Catalogue, reason, [], [], null, null);
+    private static BackupTableRule Catalogue(string table, string reason, string[]? choices = null) =>
+        new(table, BackupDataKind.Catalogue, reason, [], [], null, choices ?? [], null, []);
 
     private static BackupTableRule Transient(string table, string reason) =>
-        new(table, BackupDataKind.Transient, reason, [], [], null, null);
+        new(table, BackupDataKind.Transient, reason, [], [], null, [], null, []);
 
     private static CatalogueReference Work(string column) => new(column, CatalogueTarget.Work);
 
