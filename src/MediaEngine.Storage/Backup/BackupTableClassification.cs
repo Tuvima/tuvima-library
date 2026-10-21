@@ -1,0 +1,330 @@
+namespace MediaEngine.Storage.Backup;
+
+/// <summary>
+/// The one registry saying what a backup does with every data store table. A guardrail test fails when a table is
+/// not listed here, so a new table cannot ship without a decision (Configuration, PersonalState, Catalogue or
+/// Transient). The public description is <c>docs/architecture/backup-and-restore.md</c>.
+/// </summary>
+public static partial class BackupTableClassification
+{
+    private static readonly IReadOnlyList<BackupTableRule> AllRules =
+    [
+        // ---------------------------------------------------------------------------------------------------------
+        // Configuration: settings and access, kept as rows.
+        // ---------------------------------------------------------------------------------------------------------
+        Config("accounts", "Sign-in accounts and their administrator and household settings."),
+        Config("account_credentials", "Password hashes, needed to sign in after a restore."),
+        Config("account_external_logins", "Links between an account and an outside sign-in provider."),
+        Config("account_passkeys", "Passkey public keys, needed to sign in after a restore."),
+        Config("account_two_step", "Two-step sign-in data, needed to sign in after a restore (the secret is protected with this machine's Data Protection keys)."),
+        Config("account_feature_grants", "Which features an account may use."),
+        Config("account_library_grants", "Which libraries an account may use."),
+        Config("account_profile_grants", "Which profiles an account may use."),
+        Config("account_notice_dismissals", "Notices an account has dismissed, so they do not return."),
+        Config("grant_admin_protections", "Optional extra lock (PIN hash and lock settings) on an administrator grant."),
+        Config("households", "Households that group accounts and profiles."),
+        Config("profiles", "People using the Library, with their display, content limit and navigation settings.", excluded: ["avatar_image_path"]),
+        Config("profile_credentials", "Profile PIN hashes, needed to switch profile after a restore."),
+        Config("profile_grid_preferences", "How a profile sorts each grid."),
+        Config("profile_notice_dismissals", "Notices a profile has dismissed, so they do not return."),
+        Config("profile_sequence_preferences", "Whether a profile shows missing items in a series or sequence.", refs: [Other("container_key")]),
+        Config("profile_view_policies", "What a profile may do in View (access, sharing, documents)."),
+        Config("profile_view_preferences", "A profile's View display preferences."),
+        Config("user_playback_settings", "A profile's playback settings."),
+        Config("device_profile_preferences", "Which profile a device opens by default for an account."),
+        Config("client_devices", "Paired devices and their capabilities (their tokens are not kept, so a device signs in again)."),
+        Config("applications", "Registered outside applications and what kind of access each has."),
+        Config("application_client_bindings", "Which client ids belong to which application."),
+        Config("application_credentials", "Hashed application credentials, which are access settings."),
+        Config("application_permission_grants", "Which permissions an application has been granted."),
+        Config("application_webhooks", "Webhook destinations an application has registered.", excluded: ["secret_ciphertext"]),
+        Config("approval_records", "Approvals an administrator has given, with the statement approved."),
+        Config("plugin_lore_sources", "Lore sources a person approved or rejected; sources only discovered but never decided on are rebuilt.", keepWhere: "approved_at IS NOT NULL OR rejected_at IS NOT NULL"),
+        Config("metadata_providers", "The list of metadata providers and whether each is switched on."),
+        Config("provider_config", "Provider settings; rows marked secret are left out of a backup.", keepWhere: "is_secret = 0"),
+        Config("notification_settings", "Notification channels and rules."),
+        Config("backup_settings", "Backup schedule, destination and retention settings; the machine-encrypted destination logins are left out.", excludedJson: [new ExcludedJsonProperty("value_json", "EncryptedSecret")]),
+        Config("doc_types", "Document types a person defined."),
+        Config("doc_field_definitions", "Custom document fields a person defined."),
+        Config("doc_field_choices", "The choices offered by a document field."),
+        Config("doc_correspondents", "Correspondents (senders and recipients) a person defined for documents."),
+        Config("doc_rules", "Rules that file documents automatically."),
+        Config("doc_rule_conditions", "The conditions of a document filing rule."),
+        Config("doc_rule_actions", "The actions of a document filing rule."),
+        Config("tags", "Tags a person created for View items."),
+        Config("view_personal_spaces", "Each profile's private View space."),
+        Config("view_sources", "Folders and devices a View space reads from."),
+        Config("view_source_policies", "Whether a View source appears in the timeline."),
+        Config("view_devices", "Devices that back up into a View space."),
+        Config("view_folder_pins", "Folders a profile pinned in View."),
+        Config("view_folder_timeline_policies", "Whether a folder appears in the View timeline."),
+        Config("view_storage_labels", "Names a person gave to View storage locations."),
+        Config("view_shared_library", "Which library a household shares in View."),
+        Config("view_galleries", "Galleries a person built in View.", refs: [LocalItem("cover_item_id"), Coll("soundtrack_playlist_id")]),
+        Config("view_gallery_items", "The View items in a person-built gallery.", refs: [LocalItem("item_id")]),
+        Config("view_gallery_shares", "Who a person-built View gallery is shared with."),
+        Config("doc_field_values", "Values a person entered in custom document fields.", refs: [LocalItem("item_id")]),
+        Config("local_item_tag_links", "Which tags a person put on which View item.", refs: [LocalItem("item_id")]),
+        Config("doc_item_details", "Filing details a person entered for a document (machine suggestions are rebuilt).", refs: [LocalItem("item_id")], excluded: ["suggestions_json"]),
+        Config("excluded_source_files", "Files a person removed from the library and chose to keep out, so a rescan does not add them back.", excluded: ["title", "excluded_by_name"]),
+        Config("collections", "Collections and playlists a person built; collections built from providers (universes and series) are rebuilt.", refs: [Other("universe_id"), Coll("parent_collection_id")], excluded: ["cover_artwork_path", "background_artwork_path", "banner_artwork_path", "logo_artwork_path"], keepWhere: PersonBuiltCollections),
+        Config("collection_items", "The titles in a person-built collection.", refs: [Work("work_id")], keepWhere: InPersonBuiltCollection),
+        Config("collection_placements", "Where a person-built collection appears.", keepWhere: InPersonBuiltCollection),
+        Config("collection_profile_audience", "Which profiles can see a person-built collection.", keepWhere: InPersonBuiltCollection),
+        Config("collection_view_sources", "The gallery or rule feeding a person-built collection.", keepWhere: InPersonBuiltCollection),
+
+        // ---------------------------------------------------------------------------------------------------------
+        // Personal state: a person's own state tied to a title. Kept, re-attached by recognition data after a rescan.
+        // ---------------------------------------------------------------------------------------------------------
+        Personal("reader_bookmarks", "user_id", "Bookmarks a person placed in a book.", refs: [Asset("asset_id")]),
+        Personal("reader_highlights", "user_id", "Highlights and notes a person made in a book.", refs: [Asset("asset_id")]),
+        Personal("reader_statistics", "user_id", "A person's reading time and speed per book.", refs: [Asset("asset_id")]),
+        Personal("audiobook_bookmarks", "profile_id", "Bookmarks a person placed in an audiobook.", refs: [Work("work_id"), Asset("asset_id")]),
+        Personal("audiobook_listen_history", "profile_id", "What a person listened to in audiobooks.", refs: [Work("work_id"), Asset("asset_id")]),
+        Personal("music_play_stats", "profile_id", "Play counts and last played time per album or track.", refs: [Work("work_id")]),
+        Personal("consumption_history", "profile_id", "What a person watched, read or listened to, with progress.", refs: [Asset("asset_id")]),
+        Personal("personal_activity", "profile_id", "A person's own activity feed (what they played and for how long).", refs: [Work("work_id"), Asset("asset_id")], excluded: ["artwork_key"]),
+        Personal("player_device_states", "profile_id", "Where a person stopped on each device (playback positions); the live player session is left out.", refs: [Asset("asset_id"), Work("work_id")], excluded: ["player_session_id"]),
+        Personal("user_states", "user_id", "A person's progress and extended state per file.", refs: [Asset("asset_id")]),
+        Personal("user_taste_profiles", "user_id", "A person's taste profile.", refs: []),
+        Personal("profile_reactions", "profile_id", "A person's reactions (likes and dislikes) to titles and other items.", refs: [Other("entity_id")]),
+        Personal("profile_saved_items", "profile_id", "Items a person saved (favourites and watch later).", refs: [Other("entity_id")]),
+        Personal("profile_taste_overrides", "profile_id", "Genres and tastes a person switched on or off.", refs: []),
+        Personal("profile_work_preferences", "profile_id", "A person's own tags and preferences for a title.", refs: [Work("work_id")]),
+        Personal("profile_person_preferences", "profile_id", "A person's own tags and preferences for a creator or performer.", refs: [Person("person_id")]),
+
+        // ---------------------------------------------------------------------------------------------------------
+        // Catalogue: anything a rescan rebuilds. Never kept.
+        // ---------------------------------------------------------------------------------------------------------
+        Catalogue("works", "Titles; rebuilt by a rescan."),
+        Catalogue("editions", "Editions of a title; rebuilt by a rescan."),
+        Catalogue("media_assets", "The files themselves; rebuilt by a rescan."),
+        Catalogue("media_asset_chapters", "Chapters read from a file."),
+        Catalogue("media_asset_coverage", "Which part of a work a file covers."),
+        Catalogue("media_artwork_writeback", "Artwork write-back state for files."),
+        Catalogue("media_inspection_holds", "Inspection holds on files."),
+        Catalogue("playback_inspection_cache", "Cached file inspection results."),
+        Catalogue("playback_segments", "Intro, credits and recap segments found in files."),
+        Catalogue("audio_fingerprints", "Audio fingerprints computed from files."),
+        Catalogue("file_hash_cache", "Cached file hashes."),
+        Catalogue("canonical_values", "Winning metadata values, rebuilt from claims."),
+        Catalogue("canonical_value_arrays", "Winning list-type metadata values, rebuilt from claims."),
+        Catalogue("metadata_claims", "What each provider said about a title; rebuilt by enrichment."),
+        Catalogue("bridge_ids", "External ids found for a title."),
+        Catalogue("entity_events", "Identity and enrichment history of a title."),
+        Catalogue("entity_field_changes", "Field changes recorded in a title's history."),
+        Catalogue("entity_relationships", "Relationships between titles, people and characters from Wikidata."),
+        Catalogue("entity_relationship_qualifiers", "Details of those relationships."),
+        Catalogue("entity_capability_states", "What enrichment has done for each title."),
+        Catalogue("identity_jobs", "Identification and enrichment jobs."),
+        Catalogue("retail_match_candidates", "Retail match candidates for an identification job."),
+        Catalogue("wikidata_bridge_candidates", "Wikidata candidates for an identification job."),
+        Catalogue("deferred_enrichment_queue", "Titles waiting for enrichment."),
+        Catalogue("enrichment_refresh_schedule", "When each title is next refreshed."),
+        Catalogue("ai_feature_artifacts", "Results of optional AI features."),
+        Catalogue("pending_person_signals", "People spotted in files, waiting to be matched."),
+        Catalogue("review_queue", "Needs Review items; a rescan raises them again."),
+        Catalogue("artwork_assets", "Artwork files known to the Library."),
+        Catalogue("artwork_asset_context", "Where each artwork file is used."),
+        Catalogue("artwork_asset_search", "Search index over artwork."),
+        Catalogue("entity_artwork_links", "Which artwork belongs to which title or person."),
+        Catalogue("entity_assets", "Images attached to titles and people."),
+        Catalogue("image_cache", "Cached downloaded images."),
+        Catalogue("image_cache_sources", "Where cached images came from."),
+        Catalogue("character_portraits", "Character portraits."),
+        Catalogue("character_performer_links", "Which performer plays which character."),
+        Catalogue("fictional_entities", "Characters, places and other fictional things from Wikidata."),
+        Catalogue("fictional_entity_work_links", "Where a fictional thing appears."),
+        Catalogue("fictional_entity_user_overrides", "A person's name and description corrections for a fictional thing."),
+        Catalogue("narrative_roots", "Universes and franchises from Wikidata."),
+        Catalogue("narrative_root_user_overrides", "A person's name and description corrections for a universe."),
+        Catalogue("persons", "Creators and performers; rebuilt from files and providers."),
+        Catalogue("person_aliases", "Pseudonyms of people."),
+        Catalogue("person_group_members", "Members of bands and groups."),
+        Catalogue("person_media_links", "Which person worked on which file."),
+        Catalogue("person_roles", "The roles a person has."),
+        Catalogue("collection_relationships", "Relationships of provider-built collections."),
+        Catalogue("series_manifest_hydrations", "Series information fetched from providers."),
+        Catalogue("series_manifest_items", "The items of a series fetched from providers."),
+        Catalogue("series_members", "Series membership fetched from providers."),
+        Catalogue("tv_episode_credits", "Episode credits from providers."),
+        Catalogue("audiobook_chapter_title_overrides", "A person's chapter title corrections (no owner is recorded, so they are not kept)."),
+        Catalogue("subtitle_index_assets", "Subtitle indexing state per file."),
+        Catalogue("subtitle_index_tracks", "Subtitle tracks that were indexed."),
+        Catalogue("subtitle_lines", "Indexed subtitle text."),
+        Catalogue("subtitle_name_tags", "Characters found in subtitle text."),
+        Catalogue("text_tracks", "Subtitle and lyric tracks found for files."),
+        Catalogue("local_items", "Photos, documents and other View items found on disk; a person's own choices on them (favourite, hidden, archived, trashed, capture date they set) are kept.", choices: ["favorite", "hidden", "archived_at", "trashed_at", "captured_at_user_override", "captured_at"]),
+        Catalogue("local_files", "Files behind View items."),
+        Catalogue("local_file_sources", "Where View files were found."),
+        Catalogue("local_item_files", "Which files belong to which View item."),
+        Catalogue("local_item_metadata", "Metadata read from View items."),
+        Catalogue("local_item_annotations", "Labels and detections found on View items."),
+        Catalogue("local_item_search", "Search index over View items."),
+        Catalogue("local_item_search_keys", "Row numbers linking View items to their search index entries."),
+        Catalogue("doc_item_field_sources", "Where document field values came from (tied to View items)."),
+        Catalogue("view_shared_assets", "View items promoted to the shared library."),
+        Catalogue("personal_activity_artwork", "Cached pictures for the activity feed."),
+        Catalogue("provider_response_cache", "Cached provider answers."),
+        Catalogue("resolver_cache", "Cached identification answers."),
+        Catalogue("search_results_cache", "Cached search answers."),
+        Catalogue("qid_labels", "Cached Wikidata labels."),
+
+        // ---------------------------------------------------------------------------------------------------------
+        // Transient: not kept and not rebuilt from files.
+        // ---------------------------------------------------------------------------------------------------------
+        Transient("auth_sessions", "Sign-in sessions."),
+        Transient("client_tokens", "Device and application tokens."),
+        Transient("service_credentials", "Service credentials; they are issued again."),
+        Transient("account_invitations", "One-time invitation tokens."),
+        Transient("password_recovery_codes", "One-time recovery codes."),
+        Transient("password_reset_challenges", "One-time reset links."),
+        Transient("two_step_challenges", "One-time sign-in challenges."),
+        Transient("setup_codes", "One-time setup codes."),
+        Transient("grant_admin_unlocks", "Temporary administrator unlocks."),
+        Transient("device_pairing_requests", "Pairing requests from devices."),
+        Transient("authorization_audit_events", "Access change audit log."),
+        Transient("identity_audit_events", "Sign-in audit log."),
+        Transient("system_activity", "System activity log."),
+        Transient("transaction_log", "Change log."),
+        Transient("ingestion_log", "Ingestion run log."),
+        Transient("folder_organise_log", "Folder organise run log."),
+        Transient("scheduled_task_runs", "Scheduled task run log."),
+        Transient("media_operations", "Media operation queue."),
+        Transient("media_operation_events", "Media operation log."),
+        Transient("media_file_write_intents", "Pending file write-back jobs."),
+        Transient("encode_jobs", "Encode job queue."),
+        Transient("alignment_jobs", "Book and audiobook alignment job queue."),
+        Transient("adaptive_hls_packages", "Streaming copies prepared for playback."),
+        Transient("offline_variants", "Offline copies prepared for devices."),
+        Transient("device_downloads", "What each device has downloaded."),
+        Transient("device_photo_downloads", "Which photos each device has downloaded."),
+        Transient("playback_telemetry_sessions", "Playback telemetry."),
+        Transient("audiobook_listen_active_segments", "Audiobook listening in progress."),
+        Transient("music_play_active_segments", "Music playing in progress."),
+        Transient("player_sessions", "Live player sessions."),
+        Transient("player_queue_items", "Live player queues."),
+        Transient("companion_sessions", "Companion screen sessions."),
+        Transient("personal_status_commands", "Recent status changes kept for undo."),
+        Transient("ai_usage_records", "AI usage telemetry."),
+        Transient("provider_health", "Provider health telemetry."),
+        Transient("provider_connection_checks", "Provider connection checks."),
+        Transient("application_events", "Application event outbox."),
+        Transient("application_webhook_attempts", "Webhook delivery attempts."),
+        Transient("application_webhook_deliveries", "Webhook delivery queue."),
+        Transient("plugin_event_cursors", "How far each plugin has read events."),
+        Transient("plugin_records", "Plugin working data."),
+        Transient("plugin_lore_entities", "Lore entities found by plugins."),
+        Transient("plugin_lore_relationships", "Lore relationships found by plugins."),
+        Transient("media_editor_commits", "Editor save records, kept for repeat requests."),
+        Transient("media_editor_commit_items", "Items of editor save records."),
+        Transient("media_editor_commit_artwork", "Artwork of editor save records."),
+        Transient("media_editor_edition_artwork_commits", "Edition artwork save records."),
+        Transient("media_editor_preferred_artwork_commits", "Preferred artwork save records."),
+        Transient("media_editor_music_pairing_commits", "Music pairing save records."),
+        Transient("media_editor_music_pairing_commit_items", "Items of music pairing save records."),
+        Transient("view_shared_contributions", "Shared library contribution requests."),
+        Transient("view_shared_contribution_items", "Items of shared library contribution requests."),
+        Transient("view_shared_contribution_events", "Shared library contribution log."),
+        Transient("view_shared_transfers", "Shared library transfers in progress."),
+        Transient("notifications", "Notifications already sent."),
+        Transient("notification_channel_state", "Notification channel health."),
+        Transient("notification_rate_marks", "Notification rate limiting marks."),
+        Transient("backup_copies", "Records of backup copies already made."),
+        Transient("ui_settings_cache", "Cached Dashboard settings."),
+        Transient("onboarding_workflows", "First-run setup progress."),
+        Transient("onboarding_steps", "First-run setup steps."),
+        Transient("onboarding_sessions", "First-run setup sessions."),
+        Transient("onboarding_restore_operations", "Restore operations started from first-run setup."),
+        Transient("data_store_upgrades", "Which data store upgrade steps have run."),
+        Transient("storage_metadata", "Data store bookkeeping."),
+
+        // ---------------------------------------------------------------------------------------------------------
+        // Registered ahead of Videos Wave 3 (PR #374).
+        // These tables are created by that branch (git show origin/claude/project-thread-lo9aal:
+        // src/MediaEngine.Storage/Schema/schema.snapshot.sql) and do not exist on main yet. That branch adds the rules
+        // for its own area-specific tables when it merges. These are listed in
+        // RegisteredAhead so the guardrail tolerates them until that branch merges; remove each name from that set
+        // once its table lands.
+        // ---------------------------------------------------------------------------------------------------------
+        Config("profile_nsfw_settings", "How each profile's adult area is locked."),
+        Config("profile_nsfw_pins", "Adult area PIN hashes, needed to open it after a restore."),
+        Personal("bookmark_packs", "profile_id", "Bookmark packs a person imported for a title.", refs: [Work("work_id"), Asset("asset_id")]),
+        Personal("bookmark_pack_items", null, "The bookmarks inside a pack (owned through the pack's profile).", refs: []),
+        Transient("nsfw_session_unlocks", "Temporary adult area unlocks."),
+
+        .. SearchIndexRules(),
+    ];
+
+    /// <summary>
+    /// Tables registered before they exist on main (Videos Wave 3 adds them). The guardrail tests allow a rule
+    /// for a table that does not exist only if the table is named here.
+    /// </summary>
+    public static IReadOnlySet<string> RegisteredAhead { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "profile_nsfw_settings",
+        "profile_nsfw_pins",
+        "bookmark_packs",
+        "bookmark_pack_items",
+        "nsfw_session_unlocks",
+    };
+
+    /// <summary>Every rule, by table name (case-insensitive).</summary>
+    public static IReadOnlyDictionary<string, BackupTableRule> Rules { get; } = BuildRules();
+
+    /// <summary>The rule for a table, or null when the table is not classified.</summary>
+    public static BackupTableRule? Find(string table) => Rules.GetValueOrDefault(table);
+
+    /// <summary>Every rule of one kind, in the order they are listed.</summary>
+    public static IEnumerable<BackupTableRule> OfKind(BackupDataKind kind) =>
+        AllRules.Where(rule => rule.Kind == kind);
+
+    private static Dictionary<string, BackupTableRule> BuildRules()
+    {
+        var rules = new Dictionary<string, BackupTableRule>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rule in AllRules)
+        {
+            if (!rules.TryAdd(rule.Table, rule))
+            {
+                throw new InvalidOperationException($"Table '{rule.Table}' is classified twice in BackupTableClassification.");
+            }
+        }
+
+        return rules;
+    }
+
+    // Collections built by a person (custom collections and playlists). Rows for universes and series come from providers.
+    private const string PersonBuiltCollections = "collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart')";
+
+    private const string InPersonBuiltCollection = "collection_id IN (SELECT id FROM collections WHERE " + PersonBuiltCollections + ")";
+
+    private static BackupTableRule Config(
+        string table,
+        string reason,
+        CatalogueReference[]? refs = null,
+        string[]? excluded = null,
+        string? keepWhere = null,
+        ExcludedJsonProperty[]? excludedJson = null) =>
+        new(table, BackupDataKind.Configuration, reason, refs ?? [], excluded ?? [], null, [], keepWhere, excludedJson ?? []);
+
+    private static BackupTableRule Personal(string table, string? owner, string reason, CatalogueReference[] refs, string[]? excluded = null) =>
+        new(table, BackupDataKind.PersonalState, reason, refs, excluded ?? [], owner, [], null, []);
+
+    private static BackupTableRule Catalogue(string table, string reason, string[]? choices = null) =>
+        new(table, BackupDataKind.Catalogue, reason, [], [], null, choices ?? [], null, []);
+
+    private static BackupTableRule Transient(string table, string reason) =>
+        new(table, BackupDataKind.Transient, reason, [], [], null, [], null, []);
+
+    private static CatalogueReference Work(string column) => new(column, CatalogueTarget.Work);
+
+    private static CatalogueReference Asset(string column) => new(column, CatalogueTarget.MediaAsset);
+
+    private static CatalogueReference Coll(string column) => new(column, CatalogueTarget.Collection);
+
+    private static CatalogueReference Person(string column) => new(column, CatalogueTarget.Person);
+
+    private static CatalogueReference LocalItem(string column) => new(column, CatalogueTarget.LocalItem);
+
+    private static CatalogueReference Other(string column) => new(column, CatalogueTarget.Other);
+}
