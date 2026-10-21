@@ -72,4 +72,49 @@ public partial interface IEngineApiClient
 
     /// <summary>POST /api/v1/vault/search - the Vault search group. The typed text travels in the body, never in the address.</summary>
     Task<VaultCall<VaultSearchResultDto>> SearchVaultAsync(string text, CancellationToken ct = default);
+
+    /// <summary>GET /api/v1/vault/images - Vault images, newest first: all, or one gallery's, one tag's or the favourites. <see cref="VaultOutcome.NotAvailable"/> for a locked session.</summary>
+    Task<VaultCall<VaultImagePageDto>> GetVaultImagesAsync(Guid? galleryId, Guid? tagId, bool favoritesOnly, string? cursor, int take, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/vault/images/search - searches only the Vault's images. The typed text travels in the body, never in the address.</summary>
+    Task<VaultCall<VaultImagePageDto>> SearchVaultImagesAsync(VaultImageSearchRequest request, CancellationToken ct = default);
+
+    /// <summary>GET /api/v1/vault/images/galleries - folder, hand-made and rule galleries.</summary>
+    Task<VaultCall<IReadOnlyList<VaultImageGalleryDto>>> GetVaultImageGalleriesAsync(CancellationToken ct = default);
+
+    /// <summary>GET /api/v1/vault/images/{id} - one image with its tags, for the viewer.</summary>
+    Task<VaultCall<VaultImageDetailDto>> GetVaultImageAsync(Guid imageId, CancellationToken ct = default);
+
+    /// <summary>PUT /api/v1/vault/images/{id}/tags - replaces the image's tags by name.</summary>
+    Task<VaultCall<VaultImageDetailDto>> SetVaultImageTagsAsync(Guid imageId, IReadOnlyList<string> tags, CancellationToken ct = default);
+
+    /// <summary>PUT /api/v1/vault/images/{id}/favorite.</summary>
+    Task<VaultCall<bool>> SetVaultImageFavoriteAsync(Guid imageId, bool favorite, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/vault/images/galleries - makes a hand-made or rule gallery.</summary>
+    Task<VaultCall<VaultImageGalleryDto>> CreateVaultImageGalleryAsync(VaultImageGalleryRequest request, CancellationToken ct = default);
+
+    /// <summary>PUT /api/v1/vault/images/galleries/{id} - changes a hand-made or rule gallery.</summary>
+    Task<VaultCall<VaultImageGalleryDto>> UpdateVaultImageGalleryAsync(Guid galleryId, VaultImageGalleryRequest request, CancellationToken ct = default);
+
+    /// <summary>DELETE /api/v1/vault/images/galleries/{id} - the images are kept.</summary>
+    Task<VaultCall<bool>> DeleteVaultImageGalleryAsync(Guid galleryId, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/vault/images/galleries/{id}/items - adds images to a hand-made gallery.</summary>
+    Task<VaultCall<int>> AddVaultImagesToGalleryAsync(Guid galleryId, IReadOnlyList<Guid> imageIds, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/vault/images/scan - an administrator looks for new Vault images; counts only come back.</summary>
+    Task<VaultCall<VaultImageScanDto>> ScanVaultImagesAsync(CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/vault/images/{id}/delete - an administrator moves an image to the recycle bin.</summary>
+    Task<VaultCall<bool>> DeleteVaultImageAsync(Guid imageId, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/vault/images/{id}/restore - an administrator puts a deleted image back.</summary>
+    Task<VaultCall<bool>> RestoreVaultImageAsync(Guid imageId, CancellationToken ct = default);
+
+    /// <summary>GET /api/v1/vault/images/trash - an administrator's list of deleted Vault images.</summary>
+    Task<VaultCall<VaultImagePageDto>> GetVaultImageTrashAsync(string? cursor, int take, CancellationToken ct = default);
+
+    /// <summary>POST /api/v1/vault/images/trash/empty - an administrator removes every deleted Vault image for good.</summary>
+    Task<VaultCall<VaultImageEmptiedDto>> EmptyVaultImageTrashAsync(CancellationToken ct = default);
 }

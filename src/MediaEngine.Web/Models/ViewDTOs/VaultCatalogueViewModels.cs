@@ -7,6 +7,9 @@ public enum VaultCardShape
     Performer,
     Studio,
     Tag,
+
+    /// <summary>A Vault image (Videos spec D44): a square thumbnail that opens the viewer.</summary>
+    Image,
 }
 
 /// <summary>
@@ -40,6 +43,11 @@ public sealed record VaultCatalogueItem(string Id, string Title, string? Subtitl
     public string? CoverUrl2x { get; init; }
 
     public int? Count { get; init; }
+
+    /// <summary>The Vault image's id; set only for an image card (the viewer asks for its picture by this id).</summary>
+    public Guid? ImageId { get; init; }
+
+    public bool Favorite { get; init; }
 }
 
 /// <summary>
@@ -55,6 +63,9 @@ public sealed record VaultCatalogueResult(bool Supported, IReadOnlyList<VaultCat
 
     /// <summary>How many items match before paging; equals <see cref="Items"/> count when everything came back.</summary>
     public int Total { get; init; } = Items.Count;
+
+    /// <summary>Asks for the next page of images (images page by cursor, not by count); null when there is no more.</summary>
+    public string? NextCursor { get; init; }
 }
 
 /// <summary>One scene's own page: the card facts, the description and the linked names (each a link to its owned scenes).</summary>
@@ -75,8 +86,14 @@ public sealed record VaultListFilter
     /// <summary>"all", "matched" or "unmatched".</summary>
     public string Match { get; init; } = "all";
 
-    /// <summary>"all", "videos" or "images". Images arrive with the Vault image galleries, so that choice lists nothing yet.</summary>
+    /// <summary>"all", "videos" or "images".</summary>
     public string Kind { get; init; } = "all";
+
+    /// <summary>On the Images view: "all" for every image, or a gallery's id for the images of that gallery.</summary>
+    public string? ImageGallery { get; init; }
+
+    /// <summary>The cursor an image page was answered with, to ask for the page after it.</summary>
+    public string? Cursor { get; init; }
 
     public Guid? PerformerId { get; init; }
     public Guid? StudioId { get; init; }

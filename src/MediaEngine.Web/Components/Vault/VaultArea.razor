@@ -57,6 +57,13 @@
                 </div>
             }
 
+            @if (_view.Key == "images")
+            {
+                @* The Images view lists the galleries (a gallery for every folder of images, then hand-made and rule galleries); a
+                   gallery's own page can edit or delete a hand-made or rule gallery. *@
+                <VaultGalleryTools GalleryId="@(HasTile ? Id : null)" IsAdministrator="@IsAdministrator" OnChanged="ReloadAsync" />
+            }
+
             @if (_items is null)
             {
                 <AppSkeleton Height="160px" />
@@ -78,10 +85,11 @@
             else
             {
                 <VaultItemList Items="@_items" Layout="@Nsfw.Preferences.Layout" GroupBy="@Nsfw.Preferences.GroupBy"
-                               Mode="@Nsfw.EffectiveCovers" TitlesHidden="@Nsfw.Preferences.TitlesHiddenUntilPointed" />
+                               Mode="@Nsfw.EffectiveCovers" TitlesHidden="@Nsfw.Preferences.TitlesHiddenUntilPointed"
+                               IsAdministrator="@IsAdministrator" OnImageChanged="ReloadAsync" />
             }
 
-            @if (_items is not null && _items.Count < _total)
+            @if (_items is not null && (_items.Count < _total || _cursor is not null))
             {
                 <div class="vault-area__more">
                     <AppButton Label="Show more" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="ShowMoreAsync" />
@@ -101,6 +109,7 @@
     private string _match = "all";
     private string _kind = "all";
     private string? _loadedKey;
+    private string? _cursor;
     private int _version;
 
     private static readonly IReadOnlyList<AppSelectOption> MatchFilters =
@@ -119,7 +128,10 @@
 
     private bool HasTile => !string.IsNullOrEmpty(Id) && VaultViews.OpensToScenes(_view.Key);
 
-    private string? TileHeading => _heading ?? _items?.FirstOrDefault()?.Folder;
+    private string? TileHeading => _heading ?? (_view.Key == "images" ? ImagesHeading : _items?.FirstOrDefault()?.Folder);
+
+    // A gallery's page is headed by "All images" or its own name (the gallery tile that opened it carries the name in the list before).
+    private string? ImagesHeading => Id == VaultViews.AllImages ? "All images" : null;
 
     private IReadOnlyList<AppSelectOption> ViewOptions =>
         [.. VaultViews.For(IsAdministrator).Select(view => new AppSelectOption(view.Key, view.Label))];
@@ -130,6 +142,7 @@
         "studios" when !HasTile => "Studios appear here once a matched video has one, and only while you own one of their scenes.",
         "tags" when !HasTile => "Tags appear here once a matched video brings some back.",
         "unmatched" => "Videos the Library could not match with confidence appear here. Nothing is lost: you can identify them by hand.",
+        "images" when HasTile => "This gallery has no images yet.",
         "images" => "Images appear here once a Vault folder with images has been added and scanned.",
         _ when IsAdministrator && !_supported => "Items appear here once a Vault folder has been added and scanned. Library settings holds the Vault's own settings.",
         _ => "Items appear here once a Vault folder has been added and scanned.",
@@ -169,13 +182,13 @@
 
         _loadedKey = key;
         _items = null;
-        await LoadAsync(skip: 0);
+        await LoadAsync(skip: 0, append: false);
     }
 
-    private async Task LoadAsync(int skip)
+    private async Task LoadAsync(int skip, bool append)
     {
         var version = ++_version;
-        var filter = FilterFor(skip);
+        var filter = FilterFor(skip, append);
         var result = await Catalogue.ListAsync(_view.Key, Nsfw.Preferences, filter);
         if (version != _version)
         {
@@ -184,8 +197,9 @@
 
         _supported = result.Supported;
         _total = result.Total;
+        _cursor = result.NextCursor;
         _heading = result.Heading;
-        if (skip == 0)
+        if (!append)
         {
             _items = [.. result.Items];
         }
@@ -197,9 +211,9 @@
         StateHasChanged();
     }
 
-    private VaultListFilter FilterFor(int skip)
+    private VaultListFilter FilterFor(int skip, bool append)
     {
-        var filter = new VaultListFilter { Match = _match, Kind = _kind, Skip = skip, Take = EngineVaultCatalogue.DefaultPageSize };
+        var filter = new VaultListFilter { Match = _match, Kind = _kind, Skip = skip, Take = EngineVaultCatalogue.DefaultPageSize, Cursor = append ? _cursor : null };
         if (!HasTile)
         {
             return filter;
@@ -207,6 +221,7 @@
 
         return _view.Key switch
         {
+            "images" => filter with { ImageGallery = Id },
             "performers" when Guid.TryParse(Id, out var performer) => filter with { PerformerId = performer },
             "studios" when Guid.TryParse(Id, out var studio) => filter with { StudioId = studio },
             "tags" when Guid.TryParse(Id, out var tag) => filter with { TagId = tag },
@@ -215,7 +230,9 @@
         };
     }
 
-    private Task ShowMoreAsync() => LoadAsync(_items?.Count ?? 0);
+    // Images page by cursor and videos by count; asking for the next page sends whichever the last answer gave.
+    // Recently added puts its newest images among the first page of videos, so only the videos count towards the skip.
+    private Task ShowMoreAsync() => LoadAsync(_items?.Count(item => item.ImageId is null) ?? 0, append: true);
 
     private Task ReloadAsync()
     {

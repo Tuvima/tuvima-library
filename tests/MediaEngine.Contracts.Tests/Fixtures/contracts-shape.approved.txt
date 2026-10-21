@@ -9402,6 +9402,79 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultIdentifyPreviewRequ
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultIdentifySearchRequest
   Text: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImageDetailDto
+  Image: MediaEngine.Contracts.Vault.VaultImageDto | nullability=not-null | accessors=get,init
+  Tags: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultImageTagDto> | nullability=not-null | accessors=get,init
+  Folder: System.String | nullability=nullable | accessors=get,init
+  SizeBytes: System.Int64? | nullability=nullable | accessors=get,init
+  Device: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImageDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  MimeType: System.String | nullability=not-null | accessors=get,init
+  Width: System.Int32? | nullability=nullable | accessors=get,init
+  Height: System.Int32? | nullability=nullable | accessors=get,init
+  CapturedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  AddedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  Favorite: System.Boolean | nullability=not-null | accessors=get,init
+  Deleted: System.Boolean | nullability=not-null | accessors=get,init
+  FolderId: System.Guid? | nullability=nullable | accessors=get,init
+  Tags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImageEmptiedDto
+  Removed: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImageFavoriteRequest
+  Favorite: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImageGalleryDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  ImageCount: System.Int32 | nullability=not-null | accessors=get,init
+  CoverImageId: System.Guid? | nullability=nullable | accessors=get,init
+  SmartRuleJson: System.String | nullability=nullable | accessors=get,init
+  Editable: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImageGalleryKinds
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImageGalleryRequest
+  Name: System.String | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  SmartRuleJson: System.String | nullability=nullable | accessors=get,init
+  CoverImageId: System.Guid? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImageIdsRequest
+  ImageIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImagePageDto
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultImageDto> | nullability=not-null | accessors=get,init
+  NextCursor: System.String | nullability=nullable | accessors=get,init
+  HasMore: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImageScanDto
+  ImagesFound: System.Int32 | nullability=not-null | accessors=get,init
+  ImagesAdded: System.Int32 | nullability=not-null | accessors=get,init
+  Errors: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImageSearchRequest
+  Text: System.String | nullability=nullable | accessors=get,init
+  GalleryId: System.Guid? | nullability=nullable | accessors=get,init
+  Cursor: System.String | nullability=nullable | accessors=get,init
+  Take: System.Int32? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImageTagDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  ImageCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultImageTagsRequest
+  Tags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultLayout
 
 MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultLibraryDto

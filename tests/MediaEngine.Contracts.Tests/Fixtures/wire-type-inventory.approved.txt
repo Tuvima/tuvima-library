@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1147; api=0; web-client=54
+# scopes: contracts=1158; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10939,12 +10939,6 @@
   Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | json=sources | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"member":null,"sources":[]}
 
-[contracts] MediaEngine.Contracts.Vault.AttachVaultFolderRequest
-  kind=class | converter=default | number-handling=default | unmapped=default
-  FolderPath: System.String | json=folder_path | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  AdminPin: System.String | json=admin_pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"folder_path":"sample","admin_pin":"sample"}
-
 [contracts] MediaEngine.Contracts.Vault.CreateVaultLibraryRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   LookupSource: System.String | json=lookup_source | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -11105,6 +11099,101 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Text: System.String | json=text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"text":"sample"}
+
+[contracts] MediaEngine.Contracts.Vault.VaultImageDetailDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Image: MediaEngine.Contracts.Vault.VaultImageDto | json=image | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Tags: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultImageTagDto> | json=tags | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Folder: System.String | json=folder | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SizeBytes: System.Int64? | json=size_bytes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Device: System.String | json=device | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"image":null,"tags":[],"folder":"sample","size_bytes":7,"device":"sample"}
+
+[contracts] MediaEngine.Contracts.Vault.VaultImageDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MimeType: System.String | json=mime_type | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Width: System.Int32? | json=width | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Height: System.Int32? | json=height | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CapturedAt: System.DateTimeOffset? | json=captured_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AddedAt: System.DateTimeOffset | json=added_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Favorite: System.Boolean | json=favorite | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Deleted: System.Boolean | json=deleted | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FolderId: System.Guid? | json=folder_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Tags: System.Collections.Generic.IReadOnlyList<System.String> | json=tags | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","title":"sample","file_name":"sample","mime_type":"sample","width":7,"height":7,"captured_at":"2025-01-02T03:04:05+00:00","added_at":"2025-01-02T03:04:05+00:00","favorite":true,"deleted":true,"folder_id":"11111111-2222-3333-4444-555555555555","tags":[]}
+
+[contracts] MediaEngine.Contracts.Vault.VaultImageEmptiedDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Removed: System.Int32 | json=removed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"removed":7}
+
+[contracts] MediaEngine.Contracts.Vault.VaultImageFavoriteRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Favorite: System.Boolean | json=favorite | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"favorite":true}
+
+[contracts] MediaEngine.Contracts.Vault.VaultImageGalleryDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ImageCount: System.Int32 | json=image_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CoverImageId: System.Guid? | json=cover_image_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SmartRuleJson: System.String | json=smart_rule_json | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Editable: System.Boolean | json=editable | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","kind":"sample","name":"sample","description":"sample","image_count":7,"cover_image_id":"11111111-2222-3333-4444-555555555555","smart_rule_json":"sample","editable":true}
+
+[contracts] MediaEngine.Contracts.Vault.VaultImageGalleryRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SmartRuleJson: System.String | json=smart_rule_json | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CoverImageId: System.Guid? | json=cover_image_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample","description":"sample","kind":"sample","smart_rule_json":"sample","cover_image_id":"11111111-2222-3333-4444-555555555555"}
+
+[contracts] MediaEngine.Contracts.Vault.VaultImageIdsRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ImageIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=image_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"image_ids":[]}
+
+[contracts] MediaEngine.Contracts.Vault.VaultImagePageDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Vault.VaultImageDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NextCursor: System.String | json=next_cursor | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HasMore: System.Boolean | json=has_more | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"items":[],"next_cursor":"sample","has_more":true}
+
+[contracts] MediaEngine.Contracts.Vault.VaultImageScanDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ImagesFound: System.Int32 | json=images_found | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ImagesAdded: System.Int32 | json=images_added | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Errors: System.Int32 | json=errors | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"images_found":7,"images_added":7,"errors":7}
+
+[contracts] MediaEngine.Contracts.Vault.VaultImageSearchRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Text: System.String | json=text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GalleryId: System.Guid? | json=gallery_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Cursor: System.String | json=cursor | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Take: System.Int32? | json=take | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"text":"sample","gallery_id":"11111111-2222-3333-4444-555555555555","cursor":"sample","take":7}
+
+[contracts] MediaEngine.Contracts.Vault.VaultImageTagDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ImageCount: System.Int32 | json=image_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","name":"sample","image_count":7}
+
+[contracts] MediaEngine.Contracts.Vault.VaultImageTagsRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Tags: System.Collections.Generic.IReadOnlyList<System.String> | json=tags | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"tags":[]}
 
 [contracts] MediaEngine.Contracts.Vault.VaultLayout
   kind=enum | converter=default | number-handling=default | unmapped=default

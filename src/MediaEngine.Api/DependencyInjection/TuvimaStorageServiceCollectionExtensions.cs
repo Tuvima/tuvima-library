@@ -122,6 +122,11 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IVaultActivityRepository, VaultActivityRepository>();
         // The Vault's own lists for browsing: scenes, folders, performers, studios and tags (WP14).
         services.AddSingleton<IVaultBrowseRepository, VaultBrowseRepository>();
+        // The Vault's images and galleries, built on View's photo system with the Vault scope on (WP16).
+        services.AddSingleton<IVaultImageRepository, VaultImageRepository>();
+        services.AddSingleton<IVaultGalleryRepository, VaultGalleryRepository>();
+        services.AddSingleton<IVaultImageIndexer>(sp => sp.GetRequiredService<ViewLibraryService>());
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultImageService>();
         services.AddSingleton<VaultAccessResolver>();
         services.AddSingleton<IAccountSignInMethodRepository, AccountSignInMethodRepository>();
         services.AddSingleton<IClientAuthorizationRepository, ClientAuthorizationRepository>();

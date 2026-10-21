@@ -1,0 +1,110 @@
+@using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@namespace MediaEngine.Web.Components.Vault
+@inject IEngineApiClient ApiClient
+@inject NsfwModeState Nsfw
+@inject GalleryEditorLauncherService GalleryEditor
+@inject IAppToastService Toasts
+
+@* The buttons of the Vault's Images view (Videos spec D44): make a gallery, look for new images (administrators), and, on the page of a
+   hand-made or rule gallery, change it. A folder gallery has no Edit: it appears by itself and follows the folder. The editor is View's
+   Gallery editor opened in its Vault mode, so it saves Vault galleries only. Editing is for a desktop pointer; the launcher refuses
+   everywhere else. On a gallery's page the gallery's name heads the list. *@
+@if (_gallery is not null && !Nsfw.Preferences.TitlesHiddenUntilPointed)
+{
+    <h2>@_gallery.Name</h2>
+}
+<div role="group" aria-label="Images">
+    @if (GalleryId is null)
+    {
+        <AppButton Label="New gallery" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="NewAsync" />
+        @if (IsAdministrator)
+        {
+            <AppButton Label="Look for new images" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                       Disabled="@_scanning" OnClick="ScanAsync" />
+        }
+    }
+    else if (_gallery is { Editable: true })
+    {
+        <AppButton Label="Edit gallery" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="EditAsync" />
+    }
+</div>
+
+@code {
+    private VaultImageGalleryDto? _gallery;
+    private string? _loadedFor;
+    private bool _scanning;
+
+    /// <summary>The gallery whose page is open: a gallery id, or "all" / nothing on the Images view's own page.</summary>
+    [Parameter] public string? GalleryId { get; set; }
+
+    [Parameter] public bool IsAdministrator { get; set; }
+
+    /// <summary>Called after something changed (a gallery was made, edited or deleted, or new images were found) so the list is read again.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == GalleryId)
+        {
+            return;
+        }
+
+        _loadedFor = GalleryId;
+        _gallery = null;
+        if (!Guid.TryParse(GalleryId, out _))
+        {
+            return;
+        }
+
+        var call = await ApiClient.GetVaultImageGalleriesAsync();
+        _gallery = call.Succeeded && call.Value is { } all ? all.FirstOrDefault(gallery => gallery.Id.ToString("D") == GalleryId) : null;
+    }
+
+    private async Task NewAsync()
+    {
+        if (await GalleryEditor.OpenAsync(new GalleryEditorLaunchRequest { Vault = true }))
+        {
+            await OnChanged.InvokeAsync();
+        }
+    }
+
+    private async Task EditAsync()
+    {
+        if (_gallery is { Editable: true } gallery
+            && await GalleryEditor.OpenAsync(new GalleryEditorLaunchRequest { Vault = true, EditingVaultGallery = gallery }))
+        {
+            _loadedFor = null;
+            await OnParametersSetAsync();
+            await OnChanged.InvokeAsync();
+        }
+    }
+
+    private async Task ScanAsync()
+    {
+        if (_scanning)
+        {
+            return;
+        }
+
+        _scanning = true;
+        try
+        {
+            var call = await ApiClient.ScanVaultImagesAsync();
+            Toasts.Add(
+                call.Succeeded && call.Value is { } scan
+                    ? (scan.ImagesAdded == 0 ? "No new images found." : $"{scan.ImagesAdded} new images added.")
+                    : call.Message ?? "The Vault could not be scanned.",
+                call.Succeeded ? AppSeverity.Success : AppSeverity.Error);
+            if (call.Succeeded)
+            {
+                await OnChanged.InvokeAsync();
+            }
+        }
+        finally
+        {
+            _scanning = false;
+        }
+    }
+}

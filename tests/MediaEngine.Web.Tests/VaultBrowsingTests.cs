@@ -574,11 +574,16 @@ public sealed class EngineVaultCatalogueTests
     public async Task RecentlyAdded_AsksForEveryScene_NewestFirst_AtTheSceneSizes()
     {
         var image = Guid.NewGuid();
-        var (catalogue, requests, _) = Create(_ => Json(new VaultSceneListDto { Items = [SceneDto(true, image), SceneDto(false, image)], Total = 2 }));
+        var (catalogue, requests, _) = Create(request => request.RequestUri!.AbsolutePath.StartsWith("/api/v1/vault/images", StringComparison.Ordinal)
+            ? Json(new VaultImagePageDto())
+            : Json(new VaultSceneListDto { Items = [SceneDto(true, image), SceneDto(false, image)], Total = 2 }));
 
         var result = await catalogue.ListAsync(VaultViews.RecentlyAdded, new VaultViewPreferences(Sort: VaultSort.Title), new VaultListFilter { Match = "all" });
 
-        var request = Assert.Single(requests);
+        // Videos first; the newest images join the same page (Recently added shows both, with chips to narrow it).
+        Assert.Equal(2, requests.Count);
+        Assert.StartsWith("/api/v1/vault/images?", requests[1].PathAndQuery, StringComparison.Ordinal);
+        var request = requests[0];
         Assert.Equal(HttpMethod.Get, request.Method);
         Assert.StartsWith("/api/v1/vault/scenes?", request.PathAndQuery, StringComparison.Ordinal);
         Assert.Contains("match=all", request.PathAndQuery, StringComparison.Ordinal);
@@ -667,14 +672,21 @@ public sealed class EngineVaultCatalogueTests
     [Fact]
     public async Task TheSceneViews_NeverAskForPerformersStudiosOrTags()
     {
-        var (catalogue, requests, _) = Create(_ => Json(new VaultSceneListDto()));
+        var (catalogue, requests, _) = Create(request => request.RequestUri!.AbsolutePath.StartsWith("/api/v1/vault/images", StringComparison.Ordinal)
+            ? Json(new VaultImagePageDto())
+            : Json(new VaultSceneListDto()));
 
         foreach (var view in new[] { VaultViews.RecentlyAdded, "scenes", "unmatched" })
         {
             await catalogue.ListAsync(view, VaultViewPreferences.Default);
         }
 
-        Assert.All(requests, request => Assert.StartsWith("/api/v1/vault/scenes", request.PathAndQuery, StringComparison.Ordinal));
+        // Only the scenes route, and (for Recently added) the images route: never the name lists.
+        Assert.All(requests, request =>
+            Assert.True(
+                request.PathAndQuery.StartsWith("/api/v1/vault/scenes", StringComparison.Ordinal)
+                || request.PathAndQuery.StartsWith("/api/v1/vault/images", StringComparison.Ordinal),
+                request.PathAndQuery));
     }
 
     [Fact]
@@ -713,17 +725,92 @@ public sealed class EngineVaultCatalogueTests
     }
 
     [Fact]
-    public async Task Images_AreEmptyUntilTheImageGalleriesArrive_WithoutAskingTheEngine()
+    public async Task Images_ListTheGalleriesAsTiles_WithAllImagesFirst_AndAThumbnailAtTheOfferedSizes()
     {
-        var (catalogue, requests, _) = Create(_ => Json(new VaultSceneListDto()));
+        var cover = Guid.NewGuid();
+        var folder = Guid.NewGuid();
+        var (catalogue, requests, _) = Create(_ => Json(new List<VaultImageGalleryDto>
+        {
+            new() { Id = folder, Kind = VaultImageGalleryKinds.Folder, Name = "Trips", ImageCount = 2, CoverImageId = cover },
+            new() { Id = Guid.NewGuid(), Kind = VaultImageGalleryKinds.Smart, Name = "Starred", ImageCount = 1, Editable = true },
+        }));
 
-        var images = await catalogue.ListAsync("images", VaultViewPreferences.Default);
-        var kind = await catalogue.ListAsync(VaultViews.RecentlyAdded, VaultViewPreferences.Default, new VaultListFilter { Kind = "images" });
+        var result = await catalogue.ListAsync("images", VaultViewPreferences.Default);
 
-        Assert.True(images.Supported);
+        Assert.Equal("/api/v1/vault/images/galleries", Assert.Single(requests).PathAndQuery);
+        Assert.True(result.Supported);
+        Assert.Equal(["All images", "Trips", "Starred"], result.Items.Select(i => i.Title).ToArray());
+        Assert.Equal(VaultViews.TileRoute("images", "all"), result.Items[0].Route);
+        Assert.Equal(VaultViews.TileRoute("images", folder.ToString("D")), result.Items[1].Route);
+        Assert.Equal($"/engine-image/api/v1/vault/images/{cover:D}/thumbnail?w=320", result.Items[1].CoverUrl);
+        Assert.Equal($"/engine-image/api/v1/vault/images/{cover:D}/thumbnail?w=640", result.Items[1].CoverUrl2x);
+        Assert.Equal("2 images", result.Items[1].Subtitle);
+        Assert.Equal("1 image", result.Items[2].Subtitle);
+    }
+
+    [Fact]
+    public async Task AGalleryTile_ListsItsImages_ByCursor_AsImageCards_InTheOrderTheEngineSentThem()
+    {
+        var gallery = Guid.NewGuid();
+        var first = new VaultImageDto { Id = Guid.NewGuid(), Title = "One", FileName = "one.jpg", AddedAt = DateTimeOffset.UtcNow, CapturedAt = new DateTimeOffset(2026, 8, 19, 0, 0, 0, TimeSpan.Zero), Favorite = true, Tags = ["sea"] };
+        var (catalogue, requests, _) = Create(_ => Json(new VaultImagePageDto { Items = [first], NextCursor = "next-page", HasMore = true }));
+
+        var result = await catalogue.ListAsync(
+            "images", VaultViewPreferences.Default, new VaultListFilter { ImageGallery = gallery.ToString("D"), Cursor = "this-page", Take = 50 });
+
+        var request = Assert.Single(requests);
+        Assert.StartsWith("/api/v1/vault/images?", request.PathAndQuery, StringComparison.Ordinal);
+        Assert.Contains($"gallery={gallery:D}", request.PathAndQuery, StringComparison.Ordinal);
+        Assert.Contains("cursor=this-page", request.PathAndQuery, StringComparison.Ordinal);
+        Assert.Contains("take=50", request.PathAndQuery, StringComparison.Ordinal);
+        var card = Assert.Single(result.Items);
+        Assert.Equal(VaultCardShape.Image, card.Shape);
+        Assert.Equal(first.Id, card.ImageId);
+        Assert.True(card.Favorite);
+        Assert.Equal(first.CapturedAt, card.AddedAt);
+        Assert.Equal($"/engine-image/api/v1/vault/images/{first.Id:D}/thumbnail?w=320", card.CoverUrl);
+        Assert.Equal("next-page", result.NextCursor);
+    }
+
+    [Fact]
+    public async Task AllImages_AsksForNoGallery_AndTheImagesChip_ListsTheNewestImagesNotVideos()
+    {
+        var (catalogue, requests, _) = Create(_ => Json(new VaultImagePageDto()));
+
+        await catalogue.ListAsync("images", VaultViewPreferences.Default, new VaultListFilter { ImageGallery = VaultViews.AllImages });
+        await catalogue.ListAsync(VaultViews.RecentlyAdded, VaultViewPreferences.Default, new VaultListFilter { Kind = "images" });
+
+        Assert.All(requests, request => Assert.DoesNotContain("gallery=", request.PathAndQuery, StringComparison.Ordinal));
+        Assert.All(requests, request => Assert.StartsWith("/api/v1/vault/images?", request.PathAndQuery, StringComparison.Ordinal));
+        Assert.Equal(2, requests.Count);
+    }
+
+    [Fact]
+    public async Task ALockedSession_ReadsTheImagesAsNotAvailable_AndDrawsNothing()
+    {
+        var (catalogue, _, _) = Create(_ => NotFound());
+
+        var galleries = await catalogue.ListAsync("images", VaultViewPreferences.Default);
+        var images = await catalogue.ListAsync("images", VaultViewPreferences.Default, new VaultListFilter { ImageGallery = VaultViews.AllImages });
+
+        Assert.False(galleries.Supported);
+        Assert.False(images.Supported);
+        Assert.Empty(galleries.Items);
         Assert.Empty(images.Items);
-        Assert.Empty(kind.Items);
-        Assert.Empty(requests);
+    }
+
+    [Fact]
+    public void TheProxy_AllowsOnlyAVaultImageThumbnailAndPreview_ByIdAndNothingElseUnderImages()
+    {
+        var id = Guid.NewGuid();
+
+        Assert.True(EngineImageProxyPath.IsAllowedEnginePath($"/api/v1/vault/images/{id:D}/thumbnail?w=320"));
+        Assert.True(EngineImageProxyPath.IsAllowedEnginePath($"/api/v1/vault/images/{id:D}/preview?w=1280"));
+        Assert.False(EngineImageProxyPath.IsAllowedEnginePath($"/api/v1/vault/images/{id:D}"));
+        Assert.False(EngineImageProxyPath.IsAllowedEnginePath($"/api/v1/vault/images/{id:D}/delete"));
+        Assert.False(EngineImageProxyPath.IsAllowedEnginePath("/api/v1/vault/images/galleries"));
+        Assert.False(EngineImageProxyPath.IsAllowedEnginePath("/api/v1/vault/images/not-a-guid/thumbnail"));
+        Assert.False(EngineImageProxyPath.IsAllowedEnginePath("/api/v1/vault/images/trash"));
     }
 
     [Fact]
@@ -738,10 +825,13 @@ public sealed class EngineVaultCatalogueTests
 
         var result = await catalogue.SearchAsync(Typed);
 
-        var request = Assert.Single(requests);
-        Assert.Equal(HttpMethod.Post, request.Method);
-        Assert.Equal("/api/v1/vault/search", request.PathAndQuery);
-        Assert.Contains(Typed, request.Body, StringComparison.Ordinal);
+        // One search for the videos and names, one for the Vault's images; both carry the words in a body and neither in an address.
+        Assert.Equal(["/api/v1/vault/search", "/api/v1/vault/images/search"], requests.Select(r => r.PathAndQuery).ToArray());
+        Assert.All(requests, request =>
+        {
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Contains(Typed, request.Body, StringComparison.Ordinal);
+        });
         Assert.DoesNotContain(logs.Entries, entry => entry.Message.Contains(Typed, StringComparison.Ordinal));
         Assert.Equal([VaultCardShape.Scene, VaultCardShape.Performer, VaultCardShape.Studio], result.Items.Select(i => i.Shape).ToArray());
     }

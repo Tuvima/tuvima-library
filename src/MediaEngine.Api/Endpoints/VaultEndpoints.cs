@@ -321,6 +321,7 @@ public static class VaultEndpoints
 
         // Browsing: recently added, scenes, folders, performers, studios, tags and search (WP14), behind one central gate.
         app.MapVaultBrowseEndpoints();
+        app.MapVaultImageEndpoints();
 
         // Identify, how a video was matched, and the quiet Vault activity list (WP12).
         app.MapVaultIdentifyEndpoints();

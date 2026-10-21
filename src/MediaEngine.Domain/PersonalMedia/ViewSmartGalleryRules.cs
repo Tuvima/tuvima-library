@@ -150,6 +150,42 @@ public static class ViewSmartGalleryRules
         _ => throw new ArgumentException($"Unsupported document date range '{name}'.", nameof(name)),
     };
 
+    /// <summary>
+    /// The conditions a Vault gallery rule may use (Videos spec D44). The Vault uses the same rule document and the same checks as
+    /// View's Smart Galleries, but only on what its images really have: their kind, file type, shape, date, own tags and
+    /// favourite mark. Anything that reaches into View's people, devices, sources, owners or Documents is refused.
+    /// </summary>
+    public static readonly IReadOnlySet<string> VaultFields =
+        Set("media_type", "file_type", "orientation", "captured_date", "tags", "favorite");
+
+    /// <summary>Validates <paramref name="definition"/> as a Vault gallery rule: the View checks plus the Vault's narrower field list.</summary>
+    public static void ValidateForVault(CollectionRuleDefinition definition)
+    {
+        Validate(definition);
+        foreach (var condition in definition.Groups.SelectMany(group => group.Conditions))
+        {
+            if (!VaultFields.Contains(condition.Field))
+            {
+                throw new ArgumentException($"Vault gallery rules cannot use the field '{condition.Field}'.", nameof(definition));
+            }
+        }
+    }
+
+    /// <summary>Parses and validates a stored Vault gallery rule.</summary>
+    public static CollectionRuleDefinition ParseForVault(string json)
+    {
+        var definition = Parse(json);
+        ValidateForVault(definition);
+        return definition;
+    }
+
+    /// <summary>Validates a Vault gallery rule built in code and writes it as the stored rule document.</summary>
+    public static string SerializeForVault(CollectionRuleDefinition definition)
+    {
+        ValidateForVault(definition);
+        return Serialize(definition);
+    }
+
     public static void Validate(CollectionRuleDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);

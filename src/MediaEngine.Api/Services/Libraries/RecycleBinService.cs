@@ -133,6 +133,38 @@ public sealed class RecycleBinService(string dataRoot, ILogger logger)
         return removed;
     }
 
+    /// <summary>True while the bin still holds the entry with this id.</summary>
+    public bool Contains(Guid id) => Directory.Exists(FolderOf(id));
+
+    /// <summary>
+    /// Removes the named entries from the disk for good (the Vault's image bin empties only its own images this way). An entry that is
+    /// already gone counts as removed. Returns false when any entry could not be removed; those stay in the bin.
+    /// </summary>
+    public bool Remove(IReadOnlyCollection<Guid> ids)
+    {
+        var allGone = true;
+        foreach (var id in ids)
+        {
+            var folder = FolderOf(id);
+            if (!Directory.Exists(folder))
+            {
+                continue;
+            }
+
+            try
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Could not empty one recycle bin entry; it stays in the bin");
+                allGone = false;
+            }
+        }
+
+        return allGone;
+    }
+
     private static bool IsHidden(RecycleBinEntry entry, IReadOnlySet<string>? hiddenLibraryIds) =>
         hiddenLibraryIds is { Count: > 0 } && entry.LibraryId is { } library && hiddenLibraryIds.Contains(library);
 

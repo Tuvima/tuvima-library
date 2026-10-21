@@ -1,0 +1,303 @@
+@using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@namespace MediaEngine.Web.Components.Vault
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject NsfwModeState Nsfw
+@inject IAppToastService Toasts
+
+@* The Vault image viewer (Videos spec D44): one picture at a time with next and previous (the arrow keys too), the favourite mark, tags,
+   "add to gallery" and, for an administrator, Delete (to the recycle bin). The picture follows the cover mode like every thumbnail:
+   Show draws it, Blur draws it blurred until it is pointed at or focused, Hide draws no picture at all (its address is not put on the
+   page). Nothing here is read from or written to the browser's storage, and the viewer closes at once when NSFW mode locks. *@
+@if (Current is { ImageId: { } imageId } current)
+{
+    <div class="vault-viewer" role="dialog" aria-modal="true" aria-label="Image viewer" tabindex="0" @ref="_root" @onkeydown="OnKeyDownAsync">
+        <div class="vault-viewer__stage vault-viewer__stage--@ModeClass">
+            @if (Mode == VaultCoverMode.Hide)
+            {
+                <span class="vault-viewer__hidden">Pictures are hidden</span>
+            }
+            else
+            {
+                <img src="@VaultArtworkUrls.ImagePreview(imageId)"
+                     srcset="@($"{VaultArtworkUrls.ImagePreview(imageId)} 1x, {VaultArtworkUrls.ImagePreviewLarge(imageId)} 2x")"
+                     alt="" decoding="async" tabindex="0" />
+            }
+        </div>
+        <aside class="vault-viewer__panel">
+            <header class="vault-viewer__bar">
+                <span class="vault-viewer__title @(TitlesHidden ? "vault-viewer__title--hidden" : null)">@current.Title</span>
+                <span class="vault-viewer__count">@(Index + 1) of @Images.Count</span>
+                <AppButton Label="Close" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="CloseAsync" />
+            </header>
+            <div class="vault-viewer__nav">
+                <AppButton Label="Previous" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                           Disabled="@(Index <= 0)" OnClick="PreviousAsync" />
+                <AppButton Label="Next" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                           Disabled="@(Index >= Images.Count - 1)" OnClick="NextAsync" />
+                <AppButton Label="@(_favorite ? "Remove favourite" : "Favourite")" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
+                           Size="AppControlSize.Compact" OnClick="ToggleFavoriteAsync" />
+            </div>
+            @if (_detail is { } detail)
+            {
+                <dl class="vault-viewer__facts">
+                    <dt>File</dt><dd class="@(TitlesHidden ? "vault-viewer__title--hidden" : null)">@detail.Image.FileName</dd>
+                    @if (detail.Image.Width is { } width && detail.Image.Height is { } height)
+                    {
+                        <dt>Size</dt><dd>@width × @height</dd>
+                    }
+                    @if (detail.Image.CapturedAt is { } captured)
+                    {
+                        <dt>Date</dt><dd>@VaultFormat.Date(captured)</dd>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(detail.Folder))
+                    {
+                        <dt>Folder</dt><dd>@detail.Folder</dd>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(detail.Device))
+                    {
+                        <dt>Taken with</dt><dd>@detail.Device</dd>
+                    }
+                </dl>
+                <AppTextField T="string" @bind-Value="_tags" Label="Tags (separated by commas)" Variant="AppVariant.Outlined" Immediate="true" />
+                <div class="vault-viewer__actions">
+                    <AppButton Label="Save tags" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                               Disabled="@_busy" OnClick="SaveTagsAsync" />
+                    @if (_manualGalleries.Count > 0)
+                    {
+                        <AppSelect T="string" Value="@_galleryChoice" ValueChanged="@(value => { _galleryChoice = value; return Task.CompletedTask; })"
+                                   Label="Add to gallery" Variant="AppVariant.Outlined">
+                            <AppSelectItem T="string" Value="@(string.Empty)">Choose a gallery</AppSelectItem>
+                            @foreach (var gallery in _manualGalleries)
+                            {
+                                <AppSelectItem T="string" Value="@(gallery.Id.ToString("D"))">@gallery.Name</AppSelectItem>
+                            }
+                        </AppSelect>
+                        <AppButton Label="Add" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                   Disabled="@(_busy || string.IsNullOrEmpty(_galleryChoice))" OnClick="AddToGalleryAsync" />
+                    }
+                    @if (IsAdministrator)
+                    {
+                        <AppButton Label="Delete" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Compact"
+                                   Disabled="@_busy" OnClick="DeleteAsync" />
+                    }
+                </div>
+            }
+        </aside>
+    </div>
+}
+
+@code {
+    private ElementReference _root;
+    private Guid? _loadedFor;
+    private VaultImageDetailDto? _detail;
+    private IReadOnlyList<VaultImageGalleryDto> _manualGalleries = [];
+    private string _tags = string.Empty;
+    private string _galleryChoice = string.Empty;
+    private bool _favorite;
+    private bool _busy;
+    private bool _focusPending = true;
+    private int _version;
+
+    /// <summary>The pictures to walk through, in the order the list draws them.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<VaultCatalogueItem> Images { get; set; } = [];
+
+    [Parameter] public int Index { get; set; }
+    [Parameter] public EventCallback<int> IndexChanged { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public VaultCoverMode Mode { get; set; } = VaultCoverMode.Blur;
+    [Parameter] public bool TitlesHidden { get; set; }
+    [Parameter] public bool IsAdministrator { get; set; }
+
+    /// <summary>Called after a delete, so the page can read its list again.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private VaultCatalogueItem? Current => Index >= 0 && Index < Images.Count ? Images[Index] : null;
+
+    private string ModeClass => Mode switch
+    {
+        VaultCoverMode.Show => "show",
+        VaultCoverMode.Hide => "hide",
+        _ => "blur",
+    };
+
+    protected override void OnInitialized() => Nsfw.Changed += OnNsfwChanged;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Current?.ImageId is not { } id || _loadedFor == id)
+        {
+            return;
+        }
+
+        _loadedFor = id;
+        _favorite = Current.Favorite;
+        var version = ++_version;
+        var call = await ApiClient.GetVaultImageAsync(id);
+        if (version != _version)
+        {
+            return;
+        }
+
+        _detail = call.Succeeded ? call.Value : null;
+        _favorite = _detail?.Image.Favorite ?? _favorite;
+        _tags = _detail is null ? string.Empty : string.Join(", ", _detail.Tags.Select(tag => tag.Name));
+        _galleryChoice = string.Empty;
+        if (_manualGalleries.Count == 0)
+        {
+            var galleries = await ApiClient.GetVaultImageGalleriesAsync();
+            _manualGalleries = galleries.Succeeded && galleries.Value is { } all
+                ? [.. all.Where(gallery => gallery.Kind == VaultImageGalleryKinds.Manual)]
+                : [];
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusPending && Current is not null)
+        {
+            _focusPending = false;
+            await _root.FocusAsync();
+        }
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs args)
+    {
+        // The keys act on the picture, not on the tag box while a person types in it.
+        switch (args.Key)
+        {
+            case "ArrowLeft" when Index > 0 && !args.CtrlKey:
+                await PreviousAsync();
+                break;
+            case "ArrowRight" when Index < Images.Count - 1 && !args.CtrlKey:
+                await NextAsync();
+                break;
+            case "Escape":
+                await CloseAsync();
+                break;
+        }
+    }
+
+    private Task PreviousAsync() => MoveAsync(Index - 1);
+
+    private Task NextAsync() => MoveAsync(Index + 1);
+
+    private async Task MoveAsync(int index)
+    {
+        if (index < 0 || index >= Images.Count)
+        {
+            return;
+        }
+
+        await IndexChanged.InvokeAsync(index);
+    }
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+
+    private async Task ToggleFavoriteAsync()
+    {
+        if (Current?.ImageId is not { } id)
+        {
+            return;
+        }
+
+        var next = !_favorite;
+        var call = await ApiClient.SetVaultImageFavoriteAsync(id, next);
+        if (!call.Succeeded)
+        {
+            Toasts.Add("The favourite mark could not be saved.", AppSeverity.Error);
+            return;
+        }
+
+        _favorite = next;
+    }
+
+    private async Task SaveTagsAsync()
+    {
+        if (Current?.ImageId is not { } id || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var names = _tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var call = await ApiClient.SetVaultImageTagsAsync(id, names);
+            if (!call.Succeeded || call.Value is not { } saved)
+            {
+                Toasts.Add(call.Message ?? "The tags could not be saved.", AppSeverity.Error);
+                return;
+            }
+
+            _detail = saved;
+            _tags = string.Join(", ", saved.Tags.Select(tag => tag.Name));
+            Toasts.Add("Tags saved.", AppSeverity.Success);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task AddToGalleryAsync()
+    {
+        if (Current?.ImageId is not { } id || _busy || !Guid.TryParse(_galleryChoice, out var gallery))
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var call = await ApiClient.AddVaultImagesToGalleryAsync(gallery, [id]);
+            Toasts.Add(call.Succeeded ? "Added to the gallery." : call.Message ?? "It could not be added.", call.Succeeded ? AppSeverity.Success : AppSeverity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (Current?.ImageId is not { } id || _busy || !IsAdministrator)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var call = await ApiClient.DeleteVaultImageAsync(id);
+            if (!call.Succeeded)
+            {
+                Toasts.Add(call.Message ?? "The image could not be deleted.", AppSeverity.Error);
+                return;
+            }
+
+            Toasts.Add("Moved to the recycle bin.", AppSeverity.Success);
+        }
+        finally
+        {
+            _busy = false;
+        }
+
+        await OnClose.InvokeAsync();
+        await OnChanged.InvokeAsync();
+    }
+
+    // Locking closes the viewer at once, so no picture stays on the screen behind the closed Vault.
+    private void OnNsfwChanged() => _ = InvokeAsync(async () =>
+    {
+        if (!Nsfw.Unlocked)
+        {
+            _detail = null;
+            await OnClose.InvokeAsync();
+        }
+    });
+
+    public void Dispose() => Nsfw.Changed -= OnNsfwChanged;
+}

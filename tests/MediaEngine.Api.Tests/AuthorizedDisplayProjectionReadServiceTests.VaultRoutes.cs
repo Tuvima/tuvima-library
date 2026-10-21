@@ -263,6 +263,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         // The browsing routes (WP14) read through their own repository and check the Watch feature on the account.
         builder.Services.AddSingleton<IVaultBrowseRepository>(new VaultBrowseRepository(_database));
         builder.Services.AddSingleton<IAccountRepository>(_accounts);
+        // The images routes (WP16) go through one service over this test's data store.
+        builder.Services.AddSingleton(_ => CreateVaultImageService());
         builder.Services.AddSingleton(NewTouchFailsIdentifyService());
         var app = builder.Build();
         map(app);

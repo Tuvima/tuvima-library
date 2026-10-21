@@ -58,7 +58,10 @@ public static class VaultViews
     public static string Route(string key) => key == RecentlyAdded ? ShellNavigation.VaultPath : $"{ShellNavigation.VaultPath}/{key}";
 
     /// <summary>The views whose tiles open to a list of the scenes the person owns (a performer, studio, tag or folder).</summary>
-    public static bool OpensToScenes(string key) => key is "performers" or "studios" or "tags" or "folders";
+    public static bool OpensToScenes(string key) => key is "performers" or "studios" or "tags" or "folders" or "images";
+
+    /// <summary>The Images view's address for every image rather than one gallery's (<c>/vault/images/all</c>).</summary>
+    public const string AllImages = "all";
 
     /// <summary>A tile's page: the scenes of one performer, studio, tag or folder (<c>/vault/performers/{id}</c>).</summary>
     public static string TileRoute(string key, string id) => $"{ShellNavigation.VaultPath}/{key}/{Uri.EscapeDataString(id)}";

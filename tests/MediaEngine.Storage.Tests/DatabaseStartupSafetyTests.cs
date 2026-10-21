@@ -717,6 +717,20 @@ public sealed class DatabaseStartupSafetyTests
             ("vault_file_fingerprints", "asset_id"),
             ("vault_activity", "id"),
             ("vault_activity", "asset_id"),
+            ("vault_image_libraries", "library_id"),
+            ("vault_image_folders", "id"),
+            ("vault_image_folders", "library_id"),
+            ("vault_image_items", "item_id"),
+            ("vault_image_items", "library_id"),
+            ("vault_image_items", "folder_id"),
+            ("vault_image_tags", "item_id"),
+            ("vault_image_tags", "tag_id"),
+            ("vault_galleries", "id"),
+            ("vault_galleries", "library_id"),
+            ("vault_galleries", "created_by_profile_id"),
+            ("vault_galleries", "cover_item_id"),
+            ("vault_gallery_items", "gallery_id"),
+            ("vault_gallery_items", "item_id"),
         ];
 
         foreach (var (table, column) in internalGuidColumns)

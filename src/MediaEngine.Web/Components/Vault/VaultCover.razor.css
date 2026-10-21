@@ -1,6 +1,7 @@
 .vault-cover { display: grid; gap: 4px; color: inherit; text-decoration: none; min-width: 0; align-content: start; }
 .vault-cover__art { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px; background: var(--tl-bg-surface-raised); }
 .vault-cover--performer .vault-cover__art { aspect-ratio: 2 / 3; }
+.vault-cover--image .vault-cover__art { aspect-ratio: 1 / 1; }
 .vault-cover--studio .vault-cover__art { aspect-ratio: 3 / 2; padding: 12px; box-sizing: border-box; }
 .vault-cover__art img { width: 100%; height: 100%; object-fit: cover; transition: filter 0.15s ease; }
 .vault-cover--performer .vault-cover__art img { object-position: 50% 0; }

@@ -220,6 +220,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
               LEFT JOIN doc_correspondents dc ON dc.id = dd.correspondent_id
               LEFT JOIN doc_types dt ON dt.id = dd.doc_type_id
              WHERE li.library_id = @LibraryId
+               AND NOT EXISTS (SELECT 1 FROM vault_image_items vx WHERE vx.item_id = li.id)
                AND ((@HiddenOnly = 1 AND li.hidden = 1)
                     OR (@HiddenOnly = 0 AND (@IncludeHidden = 1 OR li.hidden = 0)))
                AND (@FavoritesOnly = 0 OR li.favorite = 1)
@@ -305,10 +306,11 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         // household's shared assets.
         var parameters = new DynamicParameters();
         var libraryPredicate = ViewCatalogueSql.LibraryPredicate("li", libraryIds, parameters);
+        var vaultPredicate = VaultPredicate(query.Vault, parameters);
 
         var smartRule = query.SmartRule is null
             ? new LocalAssetSmartRuleSql("1 = 1", new DynamicParameters())
-            : LocalAssetSmartRuleSqlCompiler.Compile(query.SmartRule);
+            : query.Vault is null ? LocalAssetSmartRuleSqlCompiler.Compile(query.SmartRule) : LocalAssetSmartRuleSqlCompiler.CompileForVault(query.SmartRule);
         parameters.AddDynamicParams(new
         {
             query.IncludeHidden,
@@ -387,7 +389,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
               LEFT JOIN doc_correspondents dc ON dc.id = dd.correspondent_id
               LEFT JOIN doc_types dt ON dt.id = dd.doc_type_id
               LEFT JOIN view_shared_assets vsa ON vsa.item_id = li.id
-             WHERE ({{libraryPredicate}})
+             WHERE ({{libraryPredicate}}) AND ({{vaultPredicate}})
                AND ((@HiddenOnly = 1 AND li.hidden = 1)
                     OR (@HiddenOnly = 0 AND (@IncludeHidden = 1 OR li.hidden = 0)))
                AND (@FavoritesOnly = 0 OR li.favorite = 1)
@@ -501,10 +503,11 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         // household's shared assets.
         var parameters = new DynamicParameters();
         var libraryPredicate = ViewCatalogueSql.LibraryPredicate("li", libraryIds, parameters);
+        var vaultPredicate = VaultPredicate(query.Vault, parameters);
 
         var smartRule = query.SmartRule is null
             ? new LocalAssetSmartRuleSql("1 = 1", new DynamicParameters())
-            : LocalAssetSmartRuleSqlCompiler.Compile(query.SmartRule);
+            : query.Vault is null ? LocalAssetSmartRuleSqlCompiler.Compile(query.SmartRule) : LocalAssetSmartRuleSqlCompiler.CompileForVault(query.SmartRule);
         parameters.AddDynamicParams(new
         {
             query.IncludeHidden,
@@ -533,7 +536,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
               FROM local_items li
               LEFT JOIN local_item_metadata lm ON lm.item_id = li.id
               LEFT JOIN view_shared_assets vsa ON vsa.item_id = li.id
-             WHERE ({{libraryPredicate}})
+             WHERE ({{libraryPredicate}}) AND ({{vaultPredicate}})
                AND ((@HiddenOnly = 1 AND li.hidden = 1)
                     OR (@HiddenOnly = 0 AND (@IncludeHidden = 1 OR li.hidden = 0)))
                AND (@FavoritesOnly = 0 OR li.favorite = 1)
@@ -806,6 +809,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             var now = DateTimeOffset.UtcNow;
             var normalizedKind = NormalizeMediaKind(registration.MediaKind);
             var scopeKind = NormalizeScopeKind(registration.ScopeKind);
+            var isVault = string.Equals(registration.ScopeKind, LocalAssetScopeKinds.Vault, StringComparison.Ordinal);
             if (scopeKind == LocalAssetScopeKinds.Personal)
             {
                 var spaceOwner = connection.QuerySingleOrDefault<(Guid OwnerProfileId, Guid LibraryId)>("""
@@ -820,6 +824,14 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                 if (spaceOwner.OwnerProfileId != registration.OwnerProfileId || spaceOwner.LibraryId != registration.LibraryId)
                 {
                     throw new InvalidOperationException("Asset owner, Personal Space, and configured library must identify the same ownership boundary.");
+                }
+            }
+            else if (isVault)
+            {
+                if (connection.ExecuteScalar<long>(
+                        "SELECT COUNT(*) FROM vault_image_libraries WHERE library_id=@LibraryId;", registration, transaction) == 0)
+                {
+                    throw new InvalidOperationException("A Vault image must use a Vault image library.");
                 }
             }
             else if (connection.ExecuteScalar<long>("""
@@ -1039,7 +1051,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             foreach (var file in registration.Files)
             {
                 token.ThrowIfCancellationRequested();
-                ValidateSourceIdentity(connection, transaction, registration, scopeKind, file);
+                ValidateSourceIdentity(connection, transaction, registration, scopeKind, isVault, file);
                 var hash = NormalizeHash(file.ContentHash);
                 var role = NormalizeRole(file.Role);
                 var fileId = connection.QuerySingleOrDefault<Guid?>(
@@ -1212,6 +1224,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
               JOIN local_file_sources lfs ON lfs.file_id = lf.id AND lfs.library_id = li.library_id
              WHERE li.media_kind IN ('document', 'image')
                AND li.trashed_at IS NULL
+               AND NOT EXISTS (SELECT 1 FROM vault_image_items vx WHERE vx.item_id = li.id)
                AND (@after IS NULL OR li.id > @after)
                AND (m.text_source IS NULL OR m.text_source = 'none')
                AND CASE WHEN m.metadata_json IS NOT NULL AND json_valid(m.metadata_json)
@@ -1778,8 +1791,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                         || COALESCE(lm.location_region, '') || ' ' || COALESCE(lm.location_country, '') || ' '
                         || COALESCE(lm.location_country_code, '')) AS Location,
                    trim(COALESCE(lm.description, '') || ' ' || COALESCE(lm.document_text, '')) AS DocumentText,
-                   (SELECT group_concat(tg.name, ' ') FROM local_item_tag_links tl
-                      JOIN tags tg ON tg.id = tl.tag_id WHERE tl.item_id = li.id) AS Tags,
+                   trim(COALESCE((SELECT group_concat(tg.name, ' ') FROM local_item_tag_links tl
+                      JOIN tags tg ON tg.id = tl.tag_id WHERE tl.item_id = li.id), '') || ' '
+                      || COALESCE((SELECT group_concat(vt.name, ' ') FROM vault_image_tags vit
+                      JOIN vault_tags vt ON vt.id = vit.tag_id WHERE vit.item_id = li.id), '')) AS Tags,
                    (SELECT trim(COALESCE(dc.name, '') || ' ' || COALESCE(dt.name, '') || ' ' || COALESCE(dd.archive_number, ''))
                       FROM doc_item_details dd
                       LEFT JOIN doc_correspondents dc ON dc.id = dd.correspondent_id
@@ -2096,6 +2111,30 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         return normalized;
     }
 
+    /// <summary>
+    /// The one test that keeps Vault images and View items apart (Videos spec D44). A query without a Vault scope never returns a
+    /// Vault image, even if it is handed a Vault library; a query with one returns only Vault images, optionally of one folder
+    /// gallery or one hand-made Vault gallery.
+    /// </summary>
+    private static string VaultPredicate(LocalAssetVaultScope? vault, DynamicParameters parameters)
+    {
+        if (vault is null)
+        {
+            return "NOT EXISTS (SELECT 1 FROM vault_image_items vx WHERE vx.item_id = li.id)";
+        }
+
+        parameters.Add("VaultFolderId", vault.FolderId is { } folder ? GuidSql.ToBlob(folder) : null, System.Data.DbType.Binary);
+        parameters.Add("VaultGalleryId", vault.GalleryId is { } gallery ? GuidSql.ToBlob(gallery) : null, System.Data.DbType.Binary);
+        return """
+            EXISTS (SELECT 1 FROM vault_image_items vx
+                     WHERE vx.item_id = li.id
+                       AND (@VaultFolderId IS NULL OR vx.folder_id = @VaultFolderId)
+                       AND (@VaultGalleryId IS NULL OR EXISTS (
+                            SELECT 1 FROM vault_gallery_items vgx
+                             WHERE vgx.gallery_id = @VaultGalleryId AND vgx.item_id = vx.item_id)))
+            """;
+    }
+
     private static string? BuildSearchExpression(string? search)
     {
         if (string.IsNullOrWhiteSpace(search))
@@ -2119,6 +2158,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
     {
         LocalAssetScopeKinds.Personal => LocalAssetScopeKinds.Personal,
         LocalAssetScopeKinds.Shared => LocalAssetScopeKinds.Shared,
+        // A Vault image is stored as a shared item with no owner; the Vault image library it sits in is what makes it Vault.
+        LocalAssetScopeKinds.Vault => LocalAssetScopeKinds.Shared,
         _ => throw new ArgumentException("Local item scope must be personal or shared.", nameof(value)),
     };
 
@@ -2127,8 +2168,20 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         System.Data.IDbTransaction transaction,
         LocalAssetRegistration registration,
         string scopeKind,
+        bool isVault,
         LocalAssetFileRegistration file)
     {
+        if (isVault)
+        {
+            // A Vault image has no View source or device: it is never part of a Personal Space, the Shared library or a source policy.
+            if (file.SourceId is not null || file.DeviceId is not null)
+            {
+                throw new InvalidOperationException("A Vault image cannot belong to a View source or device.");
+            }
+
+            return;
+        }
+
         if (file.SourceId.HasValue && connection.ExecuteScalar<long>("""
                 SELECT COUNT(1) FROM view_sources
                  WHERE id=@SourceId AND scope_kind=@scopeKind AND library_id=@LibraryId

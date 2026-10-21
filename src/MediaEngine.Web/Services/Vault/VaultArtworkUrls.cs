@@ -25,6 +25,19 @@ public static class VaultArtworkUrls
 
     public static string Studio(Guid artworkId) => Url(artworkId, StudioWidth);
 
+    /// <summary>A Vault image's thumbnail (320 wide) and the larger copy for high-density screens (640). The Engine makes each once and keeps it apart from View's.</summary>
+    public static string ImageThumbnail(Guid imageId) => ImageUrl(imageId, "thumbnail", 320);
+
+    public static string ImageThumbnailLarge(Guid imageId) => ImageUrl(imageId, "thumbnail", 640);
+
+    /// <summary>The viewer's picture (1280 wide) and its larger copy (2048).</summary>
+    public static string ImagePreview(Guid imageId) => ImageUrl(imageId, "preview", 1280);
+
+    public static string ImagePreviewLarge(Guid imageId) => ImageUrl(imageId, "preview", 2048);
+
+    private static string ImageUrl(Guid imageId, string kind, int width) =>
+        $"{EngineImageProxyPath.ProxyPrefix}/api/v1/vault/images/{imageId:D}/{kind}?w={width}";
+
     private static string Url(Guid artworkId, int width) =>
         $"{EngineImageProxyPath.ProxyPrefix}/api/v1/vault/artwork/{artworkId:D}?w={width}";
 }

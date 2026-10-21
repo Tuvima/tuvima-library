@@ -27,7 +27,7 @@ public sealed class ViewLibraryService(
     IMediaOperationRepository? operations = null,
     DocumentOcrQueue? ocrQueue = null,
     DocumentRulesQueue? rulesQueue = null,
-    PersonalMediaActivityRecorder? activityRecorder = null) : IViewPathIndexer
+    PersonalMediaActivityRecorder? activityRecorder = null) : IViewPathIndexer, IVaultImageIndexer
 {
     private const int MaxDocumentCharacters = 256 * 1024;
 
@@ -329,6 +329,99 @@ public sealed class ViewLibraryService(
             throw;
         }
     }
+
+    /// <summary>
+    /// Indexes the images under one Vault folder (Videos spec D44) with the same image reading View uses. Only images are taken. The
+    /// content hash is salted so a Vault file never shares a file record with the same bytes in View, GPS and place are not kept,
+    /// there is no Personal Space, source, device, activity entry or text recognition, and a failure is logged as a kind of error only.
+    /// </summary>
+    public async Task<VaultImageIndexResult> IndexFolderAsync(
+        Guid libraryId, string root, bool includeSubdirectories, CancellationToken ct = default)
+    {
+        var images = new List<VaultIndexedImage>();
+        if (libraryId == Guid.Empty || string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+        {
+            return new VaultImageIndexResult(0, 0, 0, images);
+        }
+
+        IReadOnlyList<string> paths;
+        try
+        {
+            paths = Directory.GetFiles(root, "*", includeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning("A Vault image folder could not be read ({Kind}).", exception.GetType().Name);
+            return new VaultImageIndexResult(0, 0, 1, images);
+        }
+
+        var candidates = paths
+            .Where(path => !ViewStorageService.IsInsideStagingFolder(path))
+            .Select(TryCreateCandidate)
+            .Where(candidate => candidate is { Type.MediaKind: LocalAssetMediaKinds.Image })
+            .Cast<FileCandidate>()
+            .ToList();
+        var itemsAdded = 0;
+        var errors = 0;
+        foreach (var group in BuildGroups(candidates))
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                var metadata = await ReadMetadataAsync(group.Primary, ct);
+                var registrations = new List<LocalAssetFileRegistration>(group.Files.Count);
+                foreach (var member in group.Files)
+                {
+                    var info = new FileInfo(member.Candidate.Path);
+                    registrations.Add(new LocalAssetFileRegistration(
+                        Path.GetFullPath(member.Candidate.Path),
+                        SaltVaultHash(await HashAsync(member.Candidate.Path, ct)),
+                        info.Name,
+                        member.Candidate.Type.MimeType,
+                        info.Length,
+                        new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
+                        member.Role));
+                }
+
+                var upserted = await repository.UpsertAsync(new LocalAssetRegistration(
+                    LibraryId: libraryId,
+                    PersonalSpaceId: null,
+                    OwnerProfileId: null,
+                    MediaKind: LocalAssetMediaKinds.Image,
+                    Title: metadata.Title ?? Path.GetFileNameWithoutExtension(group.Primary.Path),
+                    CapturedAt: metadata.CapturedAt,
+                    Files: registrations,
+                    Width: metadata.Width,
+                    Height: metadata.Height,
+                    DeviceMake: metadata.DeviceMake,
+                    DeviceModel: metadata.DeviceModel,
+                    LensModel: metadata.LensModel,
+                    ExposureTime: metadata.ExposureTime,
+                    Aperture: metadata.Aperture,
+                    Iso: metadata.Iso,
+                    FocalLengthMm: metadata.FocalLengthMm,
+                    ScopeKind: LocalAssetScopeKinds.Vault), ct);
+                if (upserted.ItemAdded)
+                {
+                    itemsAdded++;
+                }
+
+                images.Add(new VaultIndexedImage(
+                    upserted.ItemId, Path.GetDirectoryName(group.Primary.Path) ?? root, upserted.ItemAdded));
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                logger.LogWarning("A Vault image could not be indexed ({Kind}).", exception.GetType().Name);
+                errors++;
+            }
+        }
+
+        return new VaultImageIndexResult(candidates.Count, itemsAdded, errors, images);
+    }
+
+    /// <summary>A Vault file's content hash, so the same bytes in View and in the Vault never share a file record.</summary>
+    internal static string SaltVaultHash(string contentHash) =>
+        Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("vault-image:" + contentHash)));
 
     private int Count(Guid libraryId, string? mediaKind, CancellationToken ct) =>
         repository.Query(new LocalAssetQuery(

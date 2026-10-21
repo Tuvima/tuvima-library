@@ -53,17 +53,17 @@ public static class ViewRuleCatalog
         ],
     };
 
-    private static RuleFieldDefinition Choice(string category, string key, string label, string icon, IReadOnlyList<RuleOptionDefinition> options) =>
+    internal static RuleFieldDefinition Choice(string category, string key, string label, string icon, IReadOnlyList<RuleOptionDefinition> options) =>
         new(category, key, label, $"Filter by {label.ToLowerInvariant()}.", icon, [RuleOperators.Is, RuleOperators.IsNot],
             new(RuleValueProviderKind.StaticOptions, $"view.{key}", options));
 
-    private static RuleFieldDefinition Text(string category, string key, string label, string icon, IReadOnlyList<RuleOperatorDefinition> operators) =>
+    internal static RuleFieldDefinition Text(string category, string key, string label, string icon, IReadOnlyList<RuleOperatorDefinition> operators) =>
         new(category, key, label, $"Filter by {label.ToLowerInvariant()}.", icon, operators, new(RuleValueProviderKind.Text));
 
     private static RuleFieldDefinition Lookup(string category, string key, string label, string icon, string providerKey, string? requiredCapability = null) =>
         new(category, key, label, $"Filter by {label.ToLowerInvariant()} metadata.", icon, RuleOperators.Lookup,
             new(RuleValueProviderKind.DeferredLookup, providerKey, SearchPlaceholder: $"Search {label.ToLowerInvariant()}…"), requiredCapability);
 
-    private static RuleFieldDefinition Boolean(string category, string key, string label, string icon) =>
+    internal static RuleFieldDefinition Boolean(string category, string key, string label, string icon) =>
         new(category, key, label, $"Include items based on {label.ToLowerInvariant()} state.", icon, RuleOperators.Boolean, new(RuleValueProviderKind.Boolean));
 }

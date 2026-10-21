@@ -217,6 +217,131 @@ public sealed partial class EngineApiClient
         return result is null ? FailedVaultCall<VaultSearchResultDto>() : VaultCall<VaultSearchResultDto>.Ok(result);
     }
 
+    // -- Images and galleries (/api/v1/vault/images) -------------------------------------------------------------------
+    // Same rules as the scenes above: a locked session reads "not found", search words travel only in a body, and ids (never names,
+    // paths or words) are what appear in an address.
+
+    private const string VaultImagesPath = VaultPath + "/images";
+
+    public async Task<VaultCall<VaultImagePageDto>> GetVaultImagesAsync(
+        Guid? galleryId, Guid? tagId, bool favoritesOnly, string? cursor, int take, CancellationToken ct = default)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["gallery"] = galleryId?.ToString("D"),
+            ["tag"] = tagId?.ToString("D"),
+            ["favorite"] = favoritesOnly ? "true" : null,
+            ["cursor"] = cursor,
+            ["take"] = take.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+        var page = await GetAsync<VaultImagePageDto>("GET /api/v1/vault/images", VaultImagesPath, query, logAsWarning: false, ct: ct);
+        return page is null ? VaultCall<VaultImagePageDto>.Of(VaultOutcome.NotAvailable) : VaultCall<VaultImagePageDto>.Ok(page);
+    }
+
+    public async Task<VaultCall<VaultImagePageDto>> SearchVaultImagesAsync(VaultImageSearchRequest request, CancellationToken ct = default)
+    {
+        var page = await PostAsync<VaultImageSearchRequest, VaultImagePageDto>(
+            "POST /api/v1/vault/images/search", VaultImagesPath + "/search", request, logAsWarning: false, ct: ct);
+        return page is null ? FailedVaultCall<VaultImagePageDto>() : VaultCall<VaultImagePageDto>.Ok(page);
+    }
+
+    public async Task<VaultCall<IReadOnlyList<VaultImageGalleryDto>>> GetVaultImageGalleriesAsync(CancellationToken ct = default)
+    {
+        var galleries = await GetAsync<List<VaultImageGalleryDto>>(
+            "GET /api/v1/vault/images/galleries", VaultImagesPath + "/galleries", logAsWarning: false, ct: ct);
+        return galleries is null
+            ? VaultCall<IReadOnlyList<VaultImageGalleryDto>>.Of(VaultOutcome.NotAvailable)
+            : VaultCall<IReadOnlyList<VaultImageGalleryDto>>.Ok(galleries);
+    }
+
+    public async Task<VaultCall<VaultImageDetailDto>> GetVaultImageAsync(Guid imageId, CancellationToken ct = default)
+    {
+        var detail = await GetAsync<VaultImageDetailDto>(
+            "GET /api/v1/vault/images/{id}", $"{VaultImagesPath}/{imageId:D}", logAsWarning: false, ct: ct);
+        return detail is null ? VaultCall<VaultImageDetailDto>.Of(VaultOutcome.NotAvailable) : VaultCall<VaultImageDetailDto>.Ok(detail);
+    }
+
+    public async Task<VaultCall<VaultImageDetailDto>> SetVaultImageTagsAsync(Guid imageId, IReadOnlyList<string> tags, CancellationToken ct = default)
+    {
+        var detail = await PutAsync<VaultImageTagsRequest, VaultImageDetailDto>(
+            "PUT /api/v1/vault/images/{id}/tags", $"{VaultImagesPath}/{imageId:D}/tags",
+            new VaultImageTagsRequest { Tags = tags }, logAsWarning: false, ct: ct);
+        return detail is null ? FailedVaultCall<VaultImageDetailDto>() : VaultCall<VaultImageDetailDto>.Ok(detail);
+    }
+
+    public async Task<VaultCall<bool>> SetVaultImageFavoriteAsync(Guid imageId, bool favorite, CancellationToken ct = default) =>
+        await PutAsync(
+            "PUT /api/v1/vault/images/{id}/favorite", $"{VaultImagesPath}/{imageId:D}/favorite",
+            new VaultImageFavoriteRequest { Favorite = favorite }, logAsWarning: false, ct: ct)
+            ? VaultCall<bool>.Ok(true)
+            : FailedVaultCall<bool>();
+
+    public async Task<VaultCall<VaultImageGalleryDto>> CreateVaultImageGalleryAsync(VaultImageGalleryRequest request, CancellationToken ct = default)
+    {
+        var gallery = await PostAsync<VaultImageGalleryRequest, VaultImageGalleryDto>(
+            "POST /api/v1/vault/images/galleries", VaultImagesPath + "/galleries", request, logAsWarning: false, ct: ct);
+        return gallery is null ? FailedVaultCall<VaultImageGalleryDto>() : VaultCall<VaultImageGalleryDto>.Ok(gallery);
+    }
+
+    public async Task<VaultCall<VaultImageGalleryDto>> UpdateVaultImageGalleryAsync(Guid galleryId, VaultImageGalleryRequest request, CancellationToken ct = default)
+    {
+        var gallery = await PutAsync<VaultImageGalleryRequest, VaultImageGalleryDto>(
+            "PUT /api/v1/vault/images/galleries/{id}", $"{VaultImagesPath}/galleries/{galleryId:D}", request, logAsWarning: false, ct: ct);
+        return gallery is null ? FailedVaultCall<VaultImageGalleryDto>() : VaultCall<VaultImageGalleryDto>.Ok(gallery);
+    }
+
+    public async Task<VaultCall<bool>> DeleteVaultImageGalleryAsync(Guid galleryId, CancellationToken ct = default) =>
+        await DeleteAsync(
+            "DELETE /api/v1/vault/images/galleries/{id}", $"{VaultImagesPath}/galleries/{galleryId:D}", logAsWarning: false, ct: ct)
+            ? VaultCall<bool>.Ok(true)
+            : FailedVaultCall<bool>();
+
+    public async Task<VaultCall<int>> AddVaultImagesToGalleryAsync(Guid galleryId, IReadOnlyList<Guid> imageIds, CancellationToken ct = default)
+    {
+        var added = await PostAsync<VaultImageIdsRequest, int?>(
+            "POST /api/v1/vault/images/galleries/{id}/items", $"{VaultImagesPath}/galleries/{galleryId:D}/items",
+            new VaultImageIdsRequest { ImageIds = imageIds }, logAsWarning: false, ct: ct);
+        return added is null ? FailedVaultCall<int>() : VaultCall<int>.Ok(added.Value);
+    }
+
+    public async Task<VaultCall<VaultImageScanDto>> ScanVaultImagesAsync(CancellationToken ct = default)
+    {
+        var scan = await PostAsync<object, VaultImageScanDto>(
+            "POST /api/v1/vault/images/scan", VaultImagesPath + "/scan", new { }, logAsWarning: false, ct: ct);
+        return scan is null ? FailedVaultCall<VaultImageScanDto>() : VaultCall<VaultImageScanDto>.Ok(scan);
+    }
+
+    public async Task<VaultCall<bool>> DeleteVaultImageAsync(Guid imageId, CancellationToken ct = default) =>
+        await PostAsync(
+            "POST /api/v1/vault/images/{id}/delete", $"{VaultImagesPath}/{imageId:D}/delete", new { }, logAsWarning: false, ct: ct)
+            ? VaultCall<bool>.Ok(true)
+            : FailedVaultCall<bool>();
+
+    public async Task<VaultCall<bool>> RestoreVaultImageAsync(Guid imageId, CancellationToken ct = default) =>
+        await PostAsync(
+            "POST /api/v1/vault/images/{id}/restore", $"{VaultImagesPath}/{imageId:D}/restore", new { }, logAsWarning: false, ct: ct)
+            ? VaultCall<bool>.Ok(true)
+            : FailedVaultCall<bool>();
+
+    public async Task<VaultCall<VaultImagePageDto>> GetVaultImageTrashAsync(string? cursor, int take, CancellationToken ct = default)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["cursor"] = cursor,
+            ["take"] = take.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+        var page = await GetAsync<VaultImagePageDto>(
+            "GET /api/v1/vault/images/trash", VaultImagesPath + "/trash", query, logAsWarning: false, ct: ct);
+        return page is null ? VaultCall<VaultImagePageDto>.Of(VaultOutcome.NotAvailable) : VaultCall<VaultImagePageDto>.Ok(page);
+    }
+
+    public async Task<VaultCall<VaultImageEmptiedDto>> EmptyVaultImageTrashAsync(CancellationToken ct = default)
+    {
+        var emptied = await PostAsync<object, VaultImageEmptiedDto>(
+            "POST /api/v1/vault/images/trash/empty", VaultImagesPath + "/trash/empty", new { }, logAsWarning: false, ct: ct);
+        return emptied is null ? FailedVaultCall<VaultImageEmptiedDto>() : VaultCall<VaultImageEmptiedDto>.Ok(emptied);
+    }
+
     /// <summary>Reads the failure the shared envelope just recorded and names it in the terms the Vault screens use.</summary>
     private VaultCall<T> FailedVaultCall<T>()
     {

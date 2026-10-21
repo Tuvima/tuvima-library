@@ -17,7 +17,8 @@
         </div>
         @foreach (var item in Items)
         {
-            <a @key="item.Id" class="vault-list__row" role="row" href="@item.Route" aria-label="@(TitlesHidden ? "Open item" : item.Title)">
+            <a @key="item.Id" class="vault-list__row" role="row" href="@item.Route" aria-label="@(TitlesHidden ? "Open item" : item.Title)"
+               @onclick="@(() => OpenViewer(item.ImageId))" @onclick:preventDefault="@(item.ImageId is not null)">
                 <span role="cell" class="vault-list__title @(TitlesHidden ? "vault-list__title--hidden" : null)">
                     @item.Title
                     @if (item.Unmatched)
@@ -55,7 +56,8 @@ else
                     {
                         <VaultCover @key="item.Id" Title="@item.Title" Subtitle="@item.Subtitle" CoverUrl="@item.CoverUrl" CoverUrl2x="@item.CoverUrl2x"
                                     Route="@item.Route" Mode="@Mode" TitleHidden="@TitlesHidden" Shape="@item.Shape"
-                                    Unmatched="@item.Unmatched" HoverUrls="@item.HoverUrls" />
+                                    Unmatched="@item.Unmatched" HoverUrls="@item.HoverUrls"
+                                    OnOpen="@(item.ImageId is { } image ? EventCallback.Factory.Create(this, () => OpenViewer(image)) : default)" />
                     }
                 }
             </div>
@@ -63,8 +65,40 @@ else
     }
 }
 
+@if (_viewerIndex is { } at && at < ViewerImages.Count)
+{
+    @* Next and previous walk the pictures of this list in the order they are drawn. *@
+    <VaultImageViewer Images="@ViewerImages" Index="@at" IndexChanged="@(index => _viewerIndex = index)" OnClose="CloseViewer"
+                      Mode="@Mode" TitlesHidden="@TitlesHidden" IsAdministrator="@IsAdministrator" OnChanged="OnImageChanged" />
+}
+
 @code {
     private sealed record Group(string Name, List<VaultCatalogueItem> Items);
+
+    private int? _viewerIndex;
+
+    /// <summary>True when the signed-in person is an administrator: only an administrator may delete an image from the viewer.</summary>
+    [Parameter] public bool IsAdministrator { get; set; }
+
+    /// <summary>Called when something about an image changed (a delete, a tag, a favourite) so the page can read the list again.</summary>
+    [Parameter] public EventCallback OnImageChanged { get; set; }
+
+    // The pictures in the order the list draws them, so next and previous follow what the person sees (including the timeline's order).
+    private IReadOnlyList<VaultCatalogueItem> ViewerImages =>
+        [.. _groups.SelectMany(group => group.Items).Where(item => item.ImageId is not null)];
+
+    private void OpenViewer(Guid? imageId)
+    {
+        if (imageId is null)
+        {
+            return;
+        }
+
+        var index = ViewerImages.ToList().FindIndex(item => item.ImageId == imageId);
+        _viewerIndex = index < 0 ? null : index;
+    }
+
+    private void CloseViewer() => _viewerIndex = null;
 
     [Parameter, EditorRequired] public IReadOnlyList<VaultCatalogueItem> Items { get; set; } = [];
     [Parameter] public VaultLayout Layout { get; set; } = VaultLayout.Grid;
@@ -104,7 +138,8 @@ else
 
     private static string GroupName(VaultCatalogueItem item, VaultGroupBy key)
     {
-        if (item.AssetId is null)
+        // Folder and gallery tiles have nothing to group by; scenes and images do. Images fall under their first tag, else "No tag".
+        if (item.AssetId is null && item.ImageId is null)
         {
             return string.Empty;
         }
@@ -113,7 +148,7 @@ else
         {
             VaultGroupBy.Tag => item.Tags.Count > 0 ? item.Tags[0] : "No tag",
             VaultGroupBy.DateAdded => item.AddedAt is { } added ? added.ToLocalTime().ToString("MMMM yyyy", CultureInfo.InvariantCulture) : "Earlier",
-            _ => string.IsNullOrWhiteSpace(item.Folder) ? "Other" : item.Folder,
+            _ => string.IsNullOrWhiteSpace(item.Folder) ? (item.ImageId is null ? "Other" : string.Empty) : item.Folder,
         };
     }
 

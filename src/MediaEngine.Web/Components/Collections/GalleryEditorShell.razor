@@ -3,6 +3,8 @@
 @using System.Text.Json
 @using MediaEngine.Contracts.Collections
 @using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Services.Vault
 @using MediaEngine.Domain.PersonalMedia
 @using MediaEngine.Web.Components.MediaEditor
 @using MediaEngine.Web.Components.Rules
@@ -19,7 +21,7 @@
             <div class="sme-header-copy">
                 <div class="sme-kicker">Gallery editor</div>
                 <h2 class="sme-title">@(string.IsNullOrWhiteSpace(_name) ? (IsEditing ? "Edit Gallery" : "New Gallery") : _name)</h2>
-                <div class="sme-subtitle">Organize photos and videos with the same manual or smart membership model.</div>
+                <div class="sme-subtitle">@(Request.Vault ? "Organize Vault images by hand or with a rule." : "Organize photos and videos with the same manual or smart membership model.")</div>
             </div>
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close editor" AriaLabel="Close editor" OnClick="Cancel" />
         </header>
@@ -35,7 +37,7 @@
                 {
                     <div class="collection-editor-rail-footer">
                         <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.DeleteOutline" OnClick="DeleteAsync">Delete gallery</AppButton>
-                        <small>Original photos and videos are kept.</small>
+                        <small>@(Request.Vault ? "The images are kept." : "Original photos and videos are kept.")</small>
                     </div>
                 }
             </nav>
@@ -57,14 +59,23 @@
                     else if (_activeTab == "membership")
                     {
                         <div class="collection-editor-pane"><MediaEditorPanel Title="Membership" Description="Choose how photos and videos enter this Gallery.">
-                            <div class="collection-editor-membership-mode"><div class="collection-editor-membership-mode__options">
-                                <AppNativeButton Type="button" Class="@(!_smart ? "is-selected" : null)" OnClick="@(() => SetSmart(false))">Manual</AppNativeButton>
-                                <AppNativeButton Type="button" Class="@(_smart ? "is-selected" : null)" OnClick="@(() => SetSmart(true))">Smart</AppNativeButton>
-                            </div></div>
+                            @if (!(Request.Vault && IsEditing))
+                            {
+                                <div class="collection-editor-membership-mode"><div class="collection-editor-membership-mode__options">
+                                    <AppNativeButton Type="button" Class="@(!_smart ? "is-selected" : null)" OnClick="@(() => SetSmart(false))">Manual</AppNativeButton>
+                                    <AppNativeButton Type="button" Class="@(_smart ? "is-selected" : null)" OnClick="@(() => SetSmart(true))">Smart</AppNativeButton>
+                                </div></div>
+                            }
                         </MediaEditorPanel>
                         @if (_smart)
                         {
-                            <ViewRuleBuilder Definition="@_rules" DefinitionChanged="RulesChanged" />
+                            <ViewRuleBuilder Catalog="@(Request.Vault ? VaultRuleCatalog.Instance : null)" Definition="@_rules" DefinitionChanged="RulesChanged" />
+                        }
+                        else if (Request.Vault)
+                        {
+                            <MediaEditorPanel Title="Manual items" Description="Open an image in the Vault viewer and choose Add to gallery.">
+                                <div class="collection-editor-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AddPhotoAlternate" /><span>Images are added one at a time from the viewer.</span></div>
+                            </MediaEditorPanel>
                         }
                         else
                         {
@@ -120,8 +131,11 @@
         ("soundtrack", "Soundtrack", AppMaterialIcons.Outlined.MusicNote),
         ("history", "History", AppMaterialIcons.Outlined.History),
     ];
-    private IEnumerable<(string Id, string Label, string Icon)> VisibleTabs => Tabs.Where(tab => IsEditing || tab.Id != "history");
-    private bool IsEditing => Request.EditingGallery is not null;
+    // A Vault gallery has a name and its membership only: no artwork choice, no soundtrack and no history.
+    private IEnumerable<(string Id, string Label, string Icon)> VisibleTabs => Request.Vault
+        ? Tabs.Where(tab => tab.Id is "details" or "membership")
+        : Tabs.Where(tab => IsEditing || tab.Id != "history");
+    private bool IsEditing => Request.Vault ? Request.EditingVaultGallery is not null : Request.EditingGallery is not null;
     private string _activeTab = "details";
     private string _name = string.Empty;
     private string? _description;
@@ -142,6 +156,17 @@
 
     protected override void OnInitialized()
     {
+        if (Request.Vault)
+        {
+            _name = Request.EditingVaultGallery?.Name ?? string.Empty;
+            _description = Request.EditingVaultGallery?.Description;
+            _smart = Request.EditingVaultGallery?.Kind == VaultImageGalleryKinds.Smart
+                || string.Equals(Request.InitialMembershipMode, "Smart", StringComparison.OrdinalIgnoreCase);
+            if (_smart && Request.EditingVaultGallery is not null)
+                _rules = ParseRules(Request.EditingVaultGallery.SmartRuleJson);
+            return;
+        }
+
         _name = Request.EditingGallery?.Name ?? string.Empty;
         _description = Request.EditingGallery?.Description;
         _smart = Request.EditingGallery?.Kind == ViewGalleryKind.Smart || string.Equals(Request.InitialMembershipMode, "Smart", StringComparison.OrdinalIgnoreCase);
@@ -152,6 +177,10 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // The Vault has no soundtrack, so it reads no playlists.
+        if (Request.Vault)
+            return;
+
         var activeProfile = await Orchestrator.GetActiveProfileAsync();
         _playlists = (await ApiClient.GetManagedCollectionsAsync(activeProfile?.Id))
             .Where(collection => collection.IsEnabled
@@ -172,6 +201,12 @@
         if (string.IsNullOrWhiteSpace(_name)) { Snackbar.Add("Enter a Gallery name.", AppSeverity.Warning); _activeTab = "details"; return; }
         var ruleJson = _smart ? SerializeRules(_rules) : null;
         if (_smart && ruleJson is null) { Snackbar.Add("A Smart Gallery needs at least one complete rule.", AppSeverity.Warning); _activeTab = "membership"; return; }
+        if (Request.Vault)
+        {
+            await SaveVaultAsync(ruleJson);
+            return;
+        }
+
         _saving = true;
         var soundtrackPlaylistId = Guid.TryParse(_soundtrackPlaylistValue, out var parsedPlaylistId) ? parsedPlaylistId : (Guid?)null;
         var request = new ViewGalleryRequest(_name.Trim(), _smart ? ViewGalleryKind.Smart : ViewGalleryKind.Manual,
@@ -184,15 +219,44 @@
         DialogContext?.Close(AppDialogResult.Ok(true));
     }
 
+    private async Task SaveVaultAsync(string? ruleJson)
+    {
+        _saving = true;
+        VaultCall<VaultImageGalleryDto> saved;
+        try
+        {
+            var request = new VaultImageGalleryRequest
+            {
+                Name = _name.Trim(),
+                Description = _description,
+                Kind = _smart ? VaultImageGalleryKinds.Smart : VaultImageGalleryKinds.Manual,
+                SmartRuleJson = ruleJson,
+                CoverImageId = Request.EditingVaultGallery?.CoverImageId,
+            };
+            saved = Request.EditingVaultGallery is { } existing
+                ? await ApiClient.UpdateVaultImageGalleryAsync(existing.Id, request)
+                : await ApiClient.CreateVaultImageGalleryAsync(request);
+        }
+        finally { _saving = false; }
+        if (!saved.Succeeded) { Snackbar.Add(saved.Message ?? "The gallery could not be saved.", AppSeverity.Error); return; }
+        Snackbar.Add(IsEditing ? "Gallery updated." : "Gallery created.", AppSeverity.Success);
+        DialogContext?.Close(AppDialogResult.Ok(true));
+    }
+
     private async Task DeleteAsync()
     {
         if (_saving) return;
         _saving = true;
         bool deleted;
-        try { deleted = IsEditing && await ApiClient.DeleteViewGalleryAsync(Request.EditingGallery!.Id); }
+        try
+        {
+            deleted = Request.Vault
+                ? Request.EditingVaultGallery is { } vaultGallery && (await ApiClient.DeleteVaultImageGalleryAsync(vaultGallery.Id)).Succeeded
+                : IsEditing && await ApiClient.DeleteViewGalleryAsync(Request.EditingGallery!.Id);
+        }
         finally { _saving = false; }
         if (!deleted) { Snackbar.Add("The Gallery could not be deleted.", AppSeverity.Error); return; }
-        Snackbar.Add("Gallery deleted. Original media was kept.", AppSeverity.Success);
+        Snackbar.Add(Request.Vault ? "Gallery deleted. The images were kept." : "Gallery deleted. Original media was kept.", AppSeverity.Success);
         DialogContext?.Close(AppDialogResult.Ok(true));
     }
 

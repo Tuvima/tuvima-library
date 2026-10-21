@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0029 bookmark_description_and_sharing).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0030 vault_images).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2565,6 +2565,61 @@ CREATE TABLE vault_file_fingerprints (
     PRIMARY KEY (asset_id, algorithm)
 );
 
+CREATE TABLE vault_galleries (
+    id                    BLOB NOT NULL PRIMARY KEY,
+    library_id            BLOB NOT NULL REFERENCES vault_image_libraries(library_id) ON DELETE CASCADE,
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    name                  TEXT NOT NULL,
+    description           TEXT,
+    gallery_kind          TEXT NOT NULL CHECK (gallery_kind IN ('manual', 'smart')),
+    smart_rule_json       TEXT CHECK (smart_rule_json IS NULL OR json_valid(smart_rule_json)),
+    cover_item_id         BLOB REFERENCES local_items(id) ON DELETE SET NULL,
+    sort_order            INTEGER NOT NULL DEFAULT 0,
+    created_at            TEXT NOT NULL,
+    updated_at            TEXT NOT NULL,
+    CHECK ((gallery_kind = 'manual' AND smart_rule_json IS NULL)
+        OR (gallery_kind = 'smart' AND smart_rule_json IS NOT NULL))
+);
+
+CREATE TABLE vault_gallery_items (
+    gallery_id BLOB NOT NULL REFERENCES vault_galleries(id) ON DELETE CASCADE,
+    item_id    BLOB NOT NULL REFERENCES vault_image_items(item_id) ON DELETE CASCADE,
+    position   INTEGER NOT NULL DEFAULT 0,
+    added_at   TEXT NOT NULL,
+    PRIMARY KEY (gallery_id, item_id)
+);
+
+CREATE TABLE vault_image_folders (
+    id         BLOB NOT NULL PRIMARY KEY,
+    library_id BLOB NOT NULL REFERENCES vault_image_libraries(library_id) ON DELETE CASCADE,
+    name       TEXT NOT NULL,
+    folder_key TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (library_id, folder_key)
+);
+
+CREATE TABLE vault_image_items (
+    item_id          BLOB NOT NULL PRIMARY KEY REFERENCES local_items(id) ON DELETE CASCADE,
+    library_id       BLOB NOT NULL REFERENCES vault_image_libraries(library_id) ON DELETE CASCADE,
+    folder_id        BLOB REFERENCES vault_image_folders(id) ON DELETE SET NULL,
+    recycle_entries  TEXT CHECK (recycle_entries IS NULL OR json_valid(recycle_entries)),
+    added_at         TEXT NOT NULL
+);
+
+CREATE TABLE vault_image_libraries (
+    library_id       BLOB NOT NULL PRIMARY KEY,
+    vault_library_id TEXT NOT NULL UNIQUE COLLATE NOCASE REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
+    created_at       TEXT NOT NULL
+);
+
+CREATE TABLE vault_image_tags (
+    item_id  BLOB NOT NULL REFERENCES vault_image_items(item_id) ON DELETE CASCADE,
+    tag_id   BLOB NOT NULL REFERENCES vault_tags(id) ON DELETE CASCADE,
+    added_at TEXT NOT NULL,
+    PRIMARY KEY (item_id, tag_id)
+);
+
 CREATE TABLE vault_libraries (
     library_id            TEXT NOT NULL PRIMARY KEY COLLATE NOCASE,
     lookup_source         TEXT NOT NULL DEFAULT 'none' CHECK (lookup_source IN ('none', 'stash_box')),
@@ -3527,6 +3582,16 @@ CREATE INDEX ix_scheduled_task_runs_task_started ON scheduled_task_runs(task_key
 
 CREATE INDEX ix_tv_episode_credits_show ON tv_episode_credits(show_work_id, season, episode);
 
+CREATE INDEX ix_vault_galleries_library   ON vault_galleries(library_id, sort_order, updated_at DESC, id);
+
+CREATE INDEX ix_vault_gallery_items_item  ON vault_gallery_items(item_id, gallery_id);
+
+CREATE INDEX ix_vault_image_items_folder  ON vault_image_items(folder_id, item_id);
+
+CREATE INDEX ix_vault_image_items_library ON vault_image_items(library_id, item_id);
+
+CREATE INDEX ix_vault_image_tags_tag      ON vault_image_tags(tag_id, item_id);
+
 CREATE INDEX ix_view_devices_space_backup
     ON view_devices(personal_space_id, last_backup_at DESC, id);
 
@@ -3661,6 +3726,11 @@ AFTER UPDATE OF active_profile_id ON auth_sessions
 WHEN OLD.active_profile_id <> NEW.active_profile_id
 BEGIN DELETE FROM nsfw_session_unlocks WHERE session_id = NEW.id; END;
 
+CREATE TRIGGER trg_local_item_tag_links_no_vault_image
+BEFORE INSERT ON local_item_tag_links
+WHEN EXISTS (SELECT 1 FROM vault_image_items WHERE item_id = NEW.item_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault image cannot use the shared tag list.'); END;
+
 CREATE TRIGGER trg_local_items_delete_search
 BEFORE DELETE ON local_items
 BEGIN
@@ -3669,12 +3739,26 @@ BEGIN
 END;
 
 CREATE TRIGGER trg_local_items_scope_insert BEFORE INSERT ON local_items BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) AND NOT EXISTS (SELECT 1 FROM vault_image_libraries v WHERE v.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
 END;
 
 CREATE TRIGGER trg_local_items_scope_update BEFORE UPDATE OF scope_kind,personal_space_id,owner_profile_id,library_id ON local_items BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) AND NOT EXISTS (SELECT 1 FROM vault_image_libraries v WHERE v.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
 END;
+
+CREATE TRIGGER trg_local_items_vault_image_register
+AFTER INSERT ON local_items
+WHEN EXISTS (SELECT 1 FROM vault_image_libraries WHERE library_id = NEW.library_id)
+BEGIN
+    INSERT INTO vault_image_items (item_id, library_id, added_at) VALUES (NEW.id, NEW.library_id, NEW.created_at);
+END;
+
+CREATE TRIGGER trg_local_items_vault_library_fixed
+BEFORE UPDATE OF library_id ON local_items
+WHEN OLD.library_id IS NOT NEW.library_id
+ AND (EXISTS (SELECT 1 FROM vault_image_libraries WHERE library_id = OLD.library_id)
+   OR EXISTS (SELECT 1 FROM vault_image_libraries WHERE library_id = NEW.library_id))
+BEGIN SELECT RAISE(ABORT, 'Items cannot be moved into or out of a Vault image library.'); END;
 
 CREATE TRIGGER trg_media_assets_vault_library_fixed
 BEFORE UPDATE OF library_id ON media_assets
@@ -3773,6 +3857,46 @@ WHEN NOT EXISTS (
     SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
 BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have Vault fingerprints.'); END;
 
+CREATE TRIGGER trg_vault_galleries_cover_same_library
+BEFORE UPDATE OF cover_item_id ON vault_galleries
+WHEN NEW.cover_item_id IS NOT NULL
+ AND NOT EXISTS (SELECT 1 FROM vault_image_items WHERE item_id = NEW.cover_item_id AND library_id = NEW.library_id)
+BEGIN SELECT RAISE(ABORT, 'A gallery cover must be an image of its own Vault library.'); END;
+
+CREATE TRIGGER trg_vault_galleries_cover_same_library_insert
+BEFORE INSERT ON vault_galleries
+WHEN NEW.cover_item_id IS NOT NULL
+ AND NOT EXISTS (SELECT 1 FROM vault_image_items WHERE item_id = NEW.cover_item_id AND library_id = NEW.library_id)
+BEGIN SELECT RAISE(ABORT, 'A gallery cover must be an image of its own Vault library.'); END;
+
+CREATE TRIGGER trg_vault_gallery_items_same_library
+BEFORE INSERT ON vault_gallery_items
+WHEN (SELECT library_id FROM vault_image_items WHERE item_id = NEW.item_id)
+     IS NOT (SELECT library_id FROM vault_galleries WHERE id = NEW.gallery_id)
+BEGIN SELECT RAISE(ABORT, 'A gallery can only hold images of its own Vault library.'); END;
+
+CREATE TRIGGER trg_vault_image_libraries_not_view
+BEFORE INSERT ON vault_image_libraries
+WHEN EXISTS (SELECT 1 FROM local_items WHERE library_id = NEW.library_id)
+  OR EXISTS (SELECT 1 FROM view_personal_spaces WHERE library_id = NEW.library_id)
+  OR EXISTS (SELECT 1 FROM view_shared_library WHERE library_id = NEW.library_id)
+BEGIN SELECT RAISE(ABORT, 'A library that View already uses cannot hold Vault images.'); END;
+
+CREATE TRIGGER trg_vault_image_tags_same_library
+BEFORE INSERT ON vault_image_tags
+WHEN lower((SELECT vil.vault_library_id FROM vault_image_items vii
+              JOIN vault_image_libraries vil ON vil.library_id = vii.library_id
+             WHERE vii.item_id = NEW.item_id))
+     IS NOT lower((SELECT library_id FROM vault_tags WHERE id = NEW.tag_id))
+BEGIN SELECT RAISE(ABORT, 'An image can only use the tags of its own Vault library.'); END;
+
+CREATE TRIGGER trg_vault_libraries_images_in_use
+BEFORE DELETE ON vault_libraries
+WHEN EXISTS (SELECT 1 FROM vault_image_items vii
+               JOIN vault_image_libraries vil ON vil.library_id = vii.library_id
+              WHERE vil.vault_library_id = OLD.library_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault library that still has items cannot be removed.'); END;
+
 CREATE TRIGGER trg_vault_libraries_in_use
 BEFORE DELETE ON vault_libraries
 WHEN EXISTS (SELECT 1 FROM media_assets WHERE library_id = OLD.library_id COLLATE NOCASE)
@@ -3783,6 +3907,21 @@ BEFORE INSERT ON vault_matches
 WHEN NOT EXISTS (
     SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
 BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have a Vault match.'); END;
+
+CREATE TRIGGER trg_view_galleries_cover_no_vault_image_insert
+BEFORE INSERT ON view_galleries
+WHEN NEW.cover_item_id IS NOT NULL AND EXISTS (SELECT 1 FROM vault_image_items WHERE item_id = NEW.cover_item_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault image cannot be a View gallery cover.'); END;
+
+CREATE TRIGGER trg_view_galleries_cover_no_vault_image_update
+BEFORE UPDATE OF cover_item_id ON view_galleries
+WHEN NEW.cover_item_id IS NOT NULL AND EXISTS (SELECT 1 FROM vault_image_items WHERE item_id = NEW.cover_item_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault image cannot be a View gallery cover.'); END;
+
+CREATE TRIGGER trg_view_gallery_items_no_vault_image
+BEFORE INSERT ON view_gallery_items
+WHEN EXISTS (SELECT 1 FROM vault_image_items WHERE item_id = NEW.item_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault image cannot be added to a View gallery.'); END;
 
 CREATE TRIGGER trg_view_personal_space_identity_immutable
 BEFORE UPDATE OF owner_profile_id,library_id ON view_personal_spaces
@@ -3799,6 +3938,11 @@ BEFORE UPDATE OF library_id ON view_personal_spaces WHEN EXISTS (
     SELECT 1 FROM view_shared_library WHERE library_id=NEW.library_id)
 BEGIN SELECT RAISE(ABORT,'Personal Space library cannot use the Shared library identity'); END;
 
+CREATE TRIGGER trg_view_personal_spaces_not_vault
+BEFORE INSERT ON view_personal_spaces
+WHEN EXISTS (SELECT 1 FROM vault_image_libraries WHERE library_id = NEW.library_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault image library cannot be a View library.'); END;
+
 CREATE TRIGGER trg_view_shared_library_collision_insert
 BEFORE INSERT ON view_shared_library WHEN EXISTS (
     SELECT 1 FROM view_personal_spaces WHERE library_id=NEW.library_id)
@@ -3812,6 +3956,11 @@ BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted while it hol
 CREATE TRIGGER trg_view_shared_library_identity_immutable
 BEFORE UPDATE OF library_id ON view_shared_library WHEN NEW.library_id<>OLD.library_id
 BEGIN SELECT RAISE(ABORT,'Shared library identity is immutable'); END;
+
+CREATE TRIGGER trg_view_shared_library_not_vault
+BEFORE INSERT ON view_shared_library
+WHEN EXISTS (SELECT 1 FROM vault_image_libraries WHERE library_id = NEW.library_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault image library cannot be a View library.'); END;
 
 CREATE TRIGGER trg_view_sources_scope_insert BEFORE INSERT ON view_sources BEGIN
     SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;

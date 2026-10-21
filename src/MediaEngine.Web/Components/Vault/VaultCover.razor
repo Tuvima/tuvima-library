@@ -11,6 +11,7 @@
 <a class="vault-cover vault-cover--@ModeClass vault-cover--@ShapeClass @(TitleHidden ? "vault-cover--title-hidden" : null)"
    href="@Route"
    aria-label="@(TitleHidden ? "Open item" : Title)"
+   @onclick="OpenAsync" @onclick:preventDefault="@OnOpen.HasDelegate"
    @onmouseenter="OnPointerEnter" @onfocus="OnPointerEnter">
     <span class="vault-cover__art" aria-hidden="true">
         @if (Mode == VaultCoverMode.Hide || string.IsNullOrWhiteSpace(CoverUrl))
@@ -55,6 +56,11 @@
     [Parameter] public VaultCardShape Shape { get; set; } = VaultCardShape.Scene;
     [Parameter] public bool Unmatched { get; set; }
 
+    /// <summary>When set, a click calls this (an image opens the viewer) instead of following <see cref="Route"/>.</summary>
+    [Parameter] public EventCallback OnOpen { get; set; }
+
+    private Task OpenAsync() => OnOpen.HasDelegate ? OnOpen.InvokeAsync() : Task.CompletedTask;
+
     /// <summary>Up to four saved stills of a matched scene, cycled while the card is pointed at. Empty means no cycling.</summary>
     [Parameter] public IReadOnlyList<string> HoverUrls { get; set; } = [];
 
@@ -74,6 +80,7 @@
         VaultCardShape.Performer => "performer",
         VaultCardShape.Studio => "studio",
         VaultCardShape.Tag => "tag",
+        VaultCardShape.Image => "image",
         _ => "scene",
     };
 
