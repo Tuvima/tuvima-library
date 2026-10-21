@@ -24,9 +24,7 @@ public sealed class VaultRouteInventoryTests
     [
         ("/api/v1/devices/current/downloads/photos/", "View photos are a separate index that never holds Vault items"),
         ("/api/v1/player/audiobooks/", "Audiobook player routes; the work is checked by the player catalogue scope"),
-        ("/api/v1/profile-state/", "Reactions and saves are checked against the authorized projection of the signed-in profile"),
         ("/reader/", "EPUB annotations for books; Vault libraries hold videos only"),
-        ("/api/v1/collections/", "Items are limited by the authorized projection"),
         ("/api/v1/display/artwork/assets/", "Shared artwork only; Vault artwork is kept apart in vault_artwork"),
         ("/api/v1/display/artwork/media-assets/", "The handler authorizes the file through the catalogue"),
         ("/api/v1/display/artwork/universes/", "Universe artwork listing; entities are limited by the authorized projection"),
@@ -34,9 +32,7 @@ public sealed class VaultRouteInventoryTests
         ("/assets/", "Capabilities answer empty exactly as for an unknown id"),
         ("/entity-editor/universes/", "Universe entity editor; entity ids come from the authorized projection"),
         ("/ingestion/refresh-schedule/", "Refresh schedules for universes and series, never single files"),
-        ("/metadata/", "The handler authorizes the owning work before answering"),
         ("/read/resolve/", "The handler goes through the catalogue authorization service"),
-        ("/works/", "The handler goes through the catalogue authorization service"),
         ("/review/", "Vault files never get review items; the review actions are covered by their own tests"),
         ("/library/excluded-files/", "The excluded-files service drops Vault rows (ExcludedFileService)"),
         ("/library/items/recycle-bin/", "The recycle-bin service is covered by its own tests"),
@@ -46,6 +42,21 @@ public sealed class VaultRouteInventoryTests
         ("/profiles/", "Profile ids, not catalogue items"),
         ("/settings/tools/", "Tool installers, not catalogue items"),
         ("/operations/", "Gated by VaultOperationGate; a Vault operation answers like a missing one"),
+    ];
+
+    // Exact route patterns, for the few routes whose whole prefix cannot be vouched for: a new route under /works/, /collections/,
+    // /metadata/ or /profile-state/ that takes an item id has to be listed here with its own reason (security review L14).
+    private static readonly (string Pattern, string Reason)[] AllowedRoutes =
+    [
+        ("/api/v1/profile-state/reactions/{entityKind}/{entityId:guid}", "Reactions are checked against the authorized projection of the signed-in profile"),
+        ("/api/v1/profile-state/reactions/{entityKind}/{entityId:guid}/{reaction}", "Reactions are checked against the authorized projection of the signed-in profile"),
+        ("/api/v1/profile-state/saved/{entityKind}/{entityId:guid}", "Saves are checked against the authorized projection of the signed-in profile"),
+        ("/api/v1/collections/{id:guid}", "Items are limited by the authorized projection"),
+        ("/api/v1/collections/{id:guid}/items", "Items are limited by the authorized projection"),
+        ("/metadata/{entityId:guid}/tvdb-match/previews/{token}", "The handler authorizes the owning work (EvaluateEntityAsync) before answering"),
+        ("/works/{workId:guid}", "The handler restricts the work to the files the catalogue authorization allows, and answers not found for none"),
+        ("/works/{workId:guid}/editions", "The handler restricts the work to the files the catalogue authorization allows, and answers not found for none"),
+        ("/works/{workId:guid}/cast", "The handler answers not found unless the catalogue authorization allows a file of the work"),
     ];
 
     [Fact]
@@ -70,7 +81,9 @@ public sealed class VaultRouteInventoryTests
                 || route.Metadata.OfType<CatalogueArtworkAccessMetadata>().Any()
                 || route.Metadata.OfType<CatalogueQidAccessMetadata>().Any()
                 || route.Metadata.OfType<CatalogueCharacterPortraitAccessMetadata>().Any();
-            if (cleared || Allowed.Any(entry => pattern.StartsWith(entry.Prefix, StringComparison.OrdinalIgnoreCase)))
+            if (cleared
+                || Allowed.Any(entry => pattern.StartsWith(entry.Prefix, StringComparison.OrdinalIgnoreCase))
+                || AllowedRoutes.Any(entry => string.Equals(pattern, entry.Pattern, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
@@ -89,5 +102,25 @@ public sealed class VaultRouteInventoryTests
     public void EveryAllowedPrefix_HasAReason()
     {
         Assert.All(Allowed, entry => Assert.False(string.IsNullOrWhiteSpace(entry.Reason), entry.Prefix));
+    }
+
+    [Fact]
+    public void EveryAllowedRoute_HasAReason_AndNoBroadPrefixIsLeftForTheRoutesThatNeedAnExactEntry()
+    {
+        Assert.All(AllowedRoutes, entry => Assert.False(string.IsNullOrWhiteSpace(entry.Reason), entry.Pattern));
+        var broad = new[] { "/works/", "/metadata/", "/api/v1/collections/", "/api/v1/profile-state/" };
+        Assert.Empty(Allowed.Select(entry => entry.Prefix).Intersect(broad, StringComparer.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task EveryExactAllowedRoute_StillExists_SoTheListCannotGoStale()
+    {
+        var build = typeof(MappedEndpointInventoryTests).GetMethod("BuildEndpointOnlyApplication", BindingFlags.NonPublic | BindingFlags.Static)!;
+        await using var app = (WebApplication)build.Invoke(null, null)!;
+        var patterns = ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>()
+            .Select(route => (route.RoutePattern.RawText ?? string.Empty).TrimEnd('/'))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.All(AllowedRoutes, entry => Assert.Contains(entry.Pattern, patterns));
     }
 }
