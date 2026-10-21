@@ -80,3 +80,30 @@ Templates name the path **inside the type's own folder** and never start with th
 - `LibraryReconciliationService.CleanStaleRootSidecars` (~line 550) cleans `library.xml` directly inside category folders, from an old shallow-template bug. With the new templates, `{Author}` is the first level inside the type folder, so this is unaffected, but read it once.
 - `IngestionEngine.Pipeline` `isAtTargetLocation` is a suffix match on the relative path. It still works, and is now stricter.
 - Gate behaviour change: an unknown-type file in a library with Keep original names is still never held by gate 3 (`FilingCategory` returns null). That matches the old behaviour.
+
+## 6. Session state when paused (2026-10-20)
+
+- **Save point:** `4e06a1671` "WIP: naming templates name the path inside the type's own folder", pushed to `origin/claude/nifty-bardeen-de8194`. No proposed change has been opened yet. Replace the WIP message before opening one.
+- **Worktree:** `.claude/worktrees/nifty-bardeen-de8194` in the main checkout. The resuming session works on this branch, either in a fresh worktree checked out from it or by reusing this one. Remove the old worktree and branch once the work merges (no orphaned branches).
+- **Engine slot:** never claimed. No Engine or Dashboard was started.
+- **Timings on SHY-DESKTOP:** the solution assembled in 1 min 15 s. The Ingestion test project took several minutes.
+- **Build:** `dotnet build MediaEngine.slnx` gives 0 errors, 0 warnings (incremental). The CI-strength build (`--warnaserror --no-incremental`) has not been run.
+- **Tests:** only `tests/MediaEngine.Ingestion.Tests` has been run (filter `Category!=LiveProvider`). Failures, all in classes that expect the doubled path:
+  - `CaseOnlyRenameSafetyTests` (6)
+  - `FolderConversionTests` (about 20)
+  - `FolderConversionLinkTests` (1)
+  - `FolderMergeTests` (about 12)
+  - `ManagedFolderTidyInPlaceTests` (5, including the staging test at ~line 65 that pinned `MoviesDir/Movies/Dune (2021)/...`)
+  - `HydrationDataSafetyTests` (about 13)
+  - `ImportFolderFilingTests` (6)
+  - `ImportFolderPipelineTests` (1)
+
+  No other project has been run yet.
+- **Shared notes:** `C:\Users\shaya\AppData\Local\Claude-Data\claude_pzs8sxrjxfjjc\side-session-notes\local_6ec2c299-bfbd-4bfc-a93e-6c420b843d5b\doubled-category-folder-plan.md` (the route map; outside the repo).
+- **Origin:** found by the Reset & Seed default-layout work (PR #354), which is unaffected because the reset follows files wherever they are filed.
+
+## 7. Prompt for the session that resumes it
+
+```
+Run engineering/handoffs/2026-10-20-doubled-category-folder.md end to end per .claude/rules/end-to-end-runs.md. Read CLAUDE.md first. Start from the save point on claude/nifty-bardeen-de8194 (git fetch; do not start from main). Shy approved option B on 2026-10-20, so merge when done without asking again (CLAUDE.md step 9). Do section 4 in order: fix the tests that pin the doubled path (confirm each failure is that cause), add the per-route and gate tests, the Settings examples with visual checks, the docs, the CI-strength build and test filter, one short isolated Engine check on the shared slot, the reviewer, then open the proposed change with Auto-fix and merge. Clean up the old worktree and branch. Finish as Complete or Waiting on you (CLAUDE.md step 10).
+```

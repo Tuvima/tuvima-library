@@ -37,6 +37,7 @@
 | 3 | Developer tools waves 3 to 8 | one other thread | Continue wave by wave, one thread per wave. |
 | 3 | Lane View all grid (3d) |  any gap | Built 2026-10-20, merged in PR #297 (rules: `docs/product/presentation-rules.md` › Shelves and View all grids). |
 | 3 | Deletion specs, then slow-read investigation | any gap | Locked specs, unscheduled. The investigation is read-only. |
+| 3 | Doubled category folder fix (3f) | any gap | Approved 2026-10-20 (option B), paused mid-build; save point on `claude/nifty-bardeen-de8194`. Touches Ingestion filing and its tests, so not beside 1a. |
 | 4 | Details overlay and Editing Mode planning | needs Shy | Planning first (Claude Code cannot start without a spec). |
 
 Spec dependency notes: Universe U-WP4 waits on Developer tools WP9. Developer tools WP2, WP4, WP6, WP10 and WP30 wait on WP1; WP10, WP28 and WP30 also wait on WP27; WP17 waits on WP9, WP10 and WP13.
@@ -97,6 +98,12 @@ Do, two at a time: U-WP5 (Universe page, entry points, empty and partly-ready st
 Depends on: the ingestion finish and Developer tools foundation threads being merged. One session runs all three waves. Wave 2 needs the Details overlay and Editing Mode "..." menu and banner, and the Developer tools secrets store. Wave 3 checks the StashDB terms with Shy before the Stash-box plugin. The Vault access, PIN, history-isolation and leak-audit packets (WP9, WP12, WP13, WP17) need an independent security review.
 ```
 Run engineering/specs/videos.md end to end, all waves, per .claude/rules/end-to-end-runs.md. Read CLAUDE.md first.
+```
+
+### Thread 3f: Doubled category folder fix (approved 2026-10-20, paused)
+Media in a managed folder is filed to `library\Books\Books\...`. Shy chose option B (templates name the path inside the type's own folder). The Engine changes are on a save point; tests, Settings examples, docs, the Engine check, review and merge remain. Full details: `engineering/handoffs/2026-10-20-doubled-category-folder.md`.
+```
+Run engineering/handoffs/2026-10-20-doubled-category-folder.md end to end per .claude/rules/end-to-end-runs.md, starting from the save point on claude/nifty-bardeen-de8194. Read CLAUDE.md first.
 ```
 
 ### Thread 3d: Lane "View all" grid (H4e)
