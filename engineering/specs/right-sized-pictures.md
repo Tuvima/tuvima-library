@@ -1,6 +1,6 @@
 # Spec: Right-sized pictures on every screen
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-21 · **Related docs:** [Product overview](../product/overview.md) · [Design system](../design/design-system.md) · Local check bugs B31, B32, B23
+> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-10-21 · **Related docs:** [Product overview](../product/overview.md) · [Design system](../design/design-system.md) · Local check bugs B31, B32, B23
 
 ## 1. Goal
 
