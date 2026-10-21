@@ -267,7 +267,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             Path.Combine(Path.GetTempPath(), "tuvima_route_bin_" + Guid.NewGuid().ToString("N")),
             Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance));
         // The browsing routes (WP14) read through their own repository and check the Watch feature on the account.
-        builder.Services.AddSingleton<IVaultBrowseRepository>(new VaultBrowseRepository(_database));
+        builder.Services.AddSingleton<IVaultBrowseRepository>(new VaultBrowseRepository(
+            _database,
+            new MediaEngine.Storage.Secrets.ConfigFolderSecretsStore(Path.Combine(Path.GetTempPath(), "tuvima_route_cfg_" + Guid.NewGuid().ToString("N")))));
         builder.Services.AddSingleton<IAccountRepository>(_accounts);
         // The images routes (WP16) go through one service over this test's data store.
         builder.Services.AddSingleton(_ => CreateVaultImageService());

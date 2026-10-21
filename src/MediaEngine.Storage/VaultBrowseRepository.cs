@@ -13,12 +13,16 @@ namespace MediaEngine.Storage;
 /// nothing from here can join a shared People, Tag or Series record. Performers, studios and tags are counted through the scenes the
 /// person actually owns (not orphaned, not a derived copy), so a name with no scene left is never listed.
 /// </summary>
-public sealed class VaultBrowseRepository(IDatabaseConnection database) : IVaultBrowseRepository
+public sealed class VaultBrowseRepository(IDatabaseConnection database, IConfigSecretsStore secrets) : IVaultBrowseRepository
 {
     private const int MaxTake = 200;
     private const int MaxStillsPerScene = 4;
     private const int MaxTagsPerScene = 12;
     private const char TagSeparator = '\u001f';
+    private const string FolderKeyOwner = "vault";
+    private const string FolderKeyName = "folder_id_key";
+
+    private readonly Lazy<byte[]> _folderKey = new(() => LoadOrCreateFolderKey(secrets), LazyThreadSafetyMode.ExecutionAndPublication);
 
     // One row per owned Vault scene. The picture is the earliest stash-box cover, else the earliest saved still frame, so what a card
     // shows never changes between visits (D41). Date added is when the Vault activity list first saw the file.
@@ -257,7 +261,7 @@ public sealed class VaultBrowseRepository(IDatabaseConnection database) : IVault
 
     private static string EscapeLike(string text) => text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal);
 
-    private static VaultSceneRow Map(SceneRow r)
+    private VaultSceneRow Map(SceneRow r)
     {
         var (folderName, folderId) = Folder(r.FilePath);
         var fileName = LastSegment(r.FilePath);
@@ -296,15 +300,43 @@ public sealed class VaultBrowseRepository(IDatabaseConnection database) : IVault
     }
 
     // A folder is named by its own name and identified by a hash of its path, so a folder id never carries a path.
-    private static (string Name, string Id) Folder(string filePath)
+    private (string Name, string Id) Folder(string filePath)
     {
         var trimmed = filePath.TrimEnd('/', '\\');
         var cut = trimmed.LastIndexOfAny(['/', '\\']);
         var directory = cut >= 0 ? trimmed[..cut] : string.Empty;
         var name = directory.Length == 0 ? "Vault" : LastSegment(directory);
         var normal = directory.Replace('\\', '/').ToLowerInvariant();
-        var id = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normal)))[..16].ToLowerInvariant();
+        // Keyed with a secret that belongs to this install, so a folder id cannot be checked against a guessed path (security review L8).
+        var id = Convert.ToHexString(HMACSHA256.HashData(_folderKey.Value, Encoding.UTF8.GetBytes(normal)))[..16].ToLowerInvariant();
         return (name, id);
+    }
+
+    private static byte[] LoadOrCreateFolderKey(IConfigSecretsStore secrets)
+    {
+        var owner = SecretOwner.Provider(FolderKeyOwner);
+        // The key sits in the secrets folder (not the data store), so ids stay the same across a data store reset and never travel in a backup.
+        // Loaded once, at first use, by the one thread the lazy field allows.
+        var stored = secrets.GetAsync(owner, FolderKeyName).GetAwaiter().GetResult();
+        if (!string.IsNullOrEmpty(stored))
+        {
+            try
+            {
+                var bytes = Convert.FromBase64String(stored);
+                if (bytes.Length >= 32)
+                {
+                    return bytes;
+                }
+            }
+            catch (FormatException)
+            {
+                // A damaged value is replaced below; ids are only names for this install's folders, so a new key is safe.
+            }
+        }
+
+        var created = RandomNumberGenerator.GetBytes(32);
+        secrets.SetAsync(owner, new Dictionary<string, string> { [FolderKeyName] = Convert.ToBase64String(created) }).GetAwaiter().GetResult();
+        return created;
     }
 
     private sealed class SceneRow

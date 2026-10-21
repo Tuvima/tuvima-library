@@ -12,6 +12,7 @@ public sealed class VaultBrowseStorageTests : IDisposable
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_vault_browse_{Guid.NewGuid():N}.db");
     private readonly DatabaseConnection _database;
     private readonly VaultBrowseRepository _browse;
+    private readonly string _configDirectory = Path.Combine(Path.GetTempPath(), $"tuvima_vault_browse_cfg_{Guid.NewGuid():N}");
     private readonly DateTimeOffset _now = new(2026, 10, 21, 12, 0, 0, TimeSpan.Zero);
     private readonly string _vaultLibrary = Guid.NewGuid().ToString("D");
     private readonly string _normalLibrary = Guid.NewGuid().ToString("D");
@@ -22,7 +23,7 @@ public sealed class VaultBrowseStorageTests : IDisposable
         _database = new DatabaseConnection(_databasePath);
         _database.InitializeSchema();
         _database.RunStartupChecks();
-        _browse = new VaultBrowseRepository(_database);
+        _browse = new VaultBrowseRepository(_database, new MediaEngine.Storage.Secrets.ConfigFolderSecretsStore(_configDirectory));
         var admin = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute(
@@ -39,6 +40,11 @@ public sealed class VaultBrowseStorageTests : IDisposable
         using (var pool = new SqliteConnection($"Data Source={_databasePath}"))
         {
             SqliteConnection.ClearPool(pool);
+        }
+
+        if (Directory.Exists(_configDirectory))
+        {
+            Directory.Delete(_configDirectory, recursive: true);
         }
 
         foreach (var path in new[] { _databasePath, _databasePath + "-wal", _databasePath + "-shm" })
@@ -301,6 +307,33 @@ public sealed class VaultBrowseStorageTests : IDisposable
 
         var inB = await _browse.ListScenesAsync(new VaultSceneQuery(FolderId: folders.Single(f => f.Name == "Series B").Id));
         Assert.Equal([other], inB.Items.Select(i => i.AssetId));
+    }
+
+    [Fact]
+    public async Task FolderIds_AreKeyedWithThisInstallsSecret_StableAcrossRestarts_AndNotAGuessableHashOfThePath()
+    {
+        AddScene("C:/vault/Series A/one.mkv");
+        var first = (await _browse.ListFoldersAsync()).Single().Id;
+
+        // A restart: a new repository over the same secrets folder gives the same id.
+        var restarted = new VaultBrowseRepository(_database, new MediaEngine.Storage.Secrets.ConfigFolderSecretsStore(_configDirectory));
+        Assert.Equal(first, (await restarted.ListFoldersAsync()).Single().Id);
+
+        // The old unsalted form, a hash of the lower-cased path, no longer matches, so a guessed path proves nothing.
+        var unsalted = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("c:/vault/series a")))[..16].ToLowerInvariant();
+        Assert.NotEqual(unsalted, first);
+
+        // Another install has another secret, so the same folder has another id.
+        var otherConfig = Path.Combine(Path.GetTempPath(), $"tuvima_vault_browse_cfg_{Guid.NewGuid():N}");
+        try
+        {
+            var other = new VaultBrowseRepository(_database, new MediaEngine.Storage.Secrets.ConfigFolderSecretsStore(otherConfig));
+            Assert.NotEqual(first, (await other.ListFoldersAsync()).Single().Id);
+        }
+        finally
+        {
+            Directory.Delete(otherConfig, recursive: true);
+        }
     }
 
     [Fact]
