@@ -82,10 +82,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         public Task<T> ExecuteReadAsync<T>(Func<Microsoft.Data.Sqlite.SqliteConnection, Microsoft.Data.Sqlite.SqliteTransaction, CancellationToken, T> body, CancellationToken ct = default) => inner.ExecuteReadAsync(body, ct);
         public void InitializeSchema() => inner.InitializeSchema();
         public void RunStartupChecks() => inner.RunStartupChecks();
-        public Task AcquireWriteLockAsync(CancellationToken ct = default) => inner.AcquireWriteLockAsync(ct);
+        public Task AcquireWriteLockAsync(CancellationToken ct = default, string holderFile = "", string holderMember = "") => inner.AcquireWriteLockAsync(ct, holderFile, holderMember);
         public void ReleaseWriteLock() => inner.ReleaseWriteLock();
-        public Task<T> ExecuteWriteAsync<T>(Func<Microsoft.Data.Sqlite.SqliteConnection, Microsoft.Data.Sqlite.SqliteTransaction, CancellationToken, T> body, CancellationToken ct = default) => inner.ExecuteWriteAsync(body, ct);
-        public Task ExecuteWriteAsync(Action<Microsoft.Data.Sqlite.SqliteConnection, Microsoft.Data.Sqlite.SqliteTransaction, CancellationToken> body, CancellationToken ct = default) => inner.ExecuteWriteAsync(body, ct);
+        public string? DescribeWriteLockHolder() => inner.DescribeWriteLockHolder();
+        public Task<T> ExecuteWriteAsync<T>(Func<Microsoft.Data.Sqlite.SqliteConnection, Microsoft.Data.Sqlite.SqliteTransaction, CancellationToken, T> body, CancellationToken ct = default, string holderFile = "", string holderMember = "") => inner.ExecuteWriteAsync(body, ct, holderFile, holderMember);
+        public Task ExecuteWriteAsync(Action<Microsoft.Data.Sqlite.SqliteConnection, Microsoft.Data.Sqlite.SqliteTransaction, CancellationToken> body, CancellationToken ct = default, string holderFile = "", string holderMember = "") => inner.ExecuteWriteAsync(body, ct, holderFile, holderMember);
         public void Dispose() { }
     }
 

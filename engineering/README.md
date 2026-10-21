@@ -23,14 +23,15 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
-| [Spec: Deleting personal files in View](specs/view-personal-file-deletion.md) | In progress (v3, started 2026-10-20) |
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3; waves 1–2 and WP27 built 2026-10-20) |
-| [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP5 to U-WP8, U-WP10, U-WP12 built 2026-10-20) |
-| [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | In progress (v2, started 2026-10-20) |
-| [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v25, 2026-10-20) |
+| [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP4 to U-WP8, U-WP10, U-WP12 built 2026-10-20) |
+| [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | Built, awaiting your Local checks (v2) |
+| [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v29, 2026-10-20) |
+| [Spec: Person credits and series search without the whole-library credit list](specs/person-credits-and-series-search-speed.md) | Locked (v2, 2026-10-20; follow-up of the audiobook year spec) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: The live ingestion page and when items appear](specs/archive/ingestion-and-readiness.md) | Built (v4, archived 2026-10-20; bug 13 still needs the log line from that moment) |
-| [Spec: Home and item detail speed](specs/archive/home-and-detail-speed.md) | Built (v2, archived 2026-10-20; seven other reads still use the per-row audiobook year look-up) |
+| [Spec: Audiobook year on the remaining screens](specs/archive/audiobook-year-other-reads.md) | Built (v3, archived 2026-10-20; follow-ups: series search and person credits read the whole credit list) |
+| [Spec: Home and item detail speed](specs/archive/home-and-detail-speed.md) | Built (v2, archived 2026-10-20; the seven other reads were moved by the audiobook year spec) |
 | [Spec: Library list speed](specs/archive/library-list-speed.md) | Built (v2, archived 2026-10-19; Home, detail and the audiobook year look-up done in the Home and detail speed spec) |
 | [Spec: Settings revamp (one look, one menu, one attention banner)](specs/archive/settings-revamp.md) | Built (v1.1, archived 2026-10-19; Logs > Events is filled by the ingestion spec's WP12) |
 | [Spec: Editing Mode on the item page (as built)](specs/archive/editing-mode.md) | Built (v1, archived 2026-10-19) |
@@ -41,6 +42,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Item Detail page](specs/archive/item-detail.md) | Built (v5, archived 2026-10-17) |
 | [Spec: Registry retirement — Needs Review is the home for exceptions](specs/archive/registry-retirement.md) | Built (v5, archived 2026-10-17) |
 | [Spec: Delete from library](specs/archive/delete-from-library.md) | Built (v5, archived 2026-10-20) |
+| [Spec: Deleting personal files in View](specs/archive/view-personal-file-deletion.md) | Built (v3, archived 2026-10-20) |
 | [Spec: Open from the start — retire "Who can connect"](specs/archive/open-from-the-start.md) | Built (v3, archived 2026-10-18) |
 | [Spec: Numbered data store upgrades and contributor guide](specs/archive/data-store-upgrade-scripts.md) | Built (v2, archived 2026-10-18) |
 
@@ -50,6 +52,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
 | [Handoff: finish the outstanding work, end to end (2026-10-19)](handoffs/2026-10-19-finish-outstanding-work.md) | Current |
+| [Handoff: developer tools after wave 2, and the follow-ups it turned up (2026-10-21)](handoffs/2026-10-21-developer-tools-and-follow-ups.md) | Current |
 | [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — Shy chose to stay on Dapper (2026-10-17) |
 
 ## Architecture decisions
@@ -83,6 +86,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — outcome recorded in ADR 0001 |
 | [Universe U-WP0: what really mixes up The Expanse](reports/universe-expanse-check-2026-10-19.md) | Current — feeds U-WP3 |
 | [Slow library and Home reads at 4,000 works](reports/slow-reads-2026-10.md) | Current — causes 1–2 fixed by the library list speed spec; causes 3–4 fixed by the Home and detail speed spec |
+| [Which stored name wins when a field accepts several](reports/stored-name-order-2026-10.md) | Current — recommendations 1–3 approved and built (stored-name-order-fix); addendum recommendations 6–9 approved and built; open remediation: the combined artist view's artist reader (see the report's last section) |
 
 ## History (pre-2026-10-17 engineering records)
 
@@ -430,7 +434,13 @@ Published pages are listed in `website/publication.json`; status comes from each
 | [.claude/agents/verifier.md](../.claude/agents/verifier.md) | Current — helper agent |
 | [.claude/rules/architecture-boundaries.md](../.claude/rules/architecture-boundaries.md) | Current — Claude rule file |
 | [.claude/rules/build-and-ai-runtime.md](../.claude/rules/build-and-ai-runtime.md) | Current — Claude rule file |
+| [.claude/rules/cloud-first.md](../.claude/rules/cloud-first.md) | Current — Claude rule file |
+| [engineering/validation/batch.md](validation/batch.md) | Current — local validation batch list |
 | [.claude/rules/dashboard-surfaces.md](../.claude/rules/dashboard-surfaces.md) | Current — Claude rule file |
+| [.claude/rules/dashboard-surfaces-collections-tv.md](../.claude/rules/dashboard-surfaces-collections-tv.md) | Current — Claude rule file (split from dashboard-surfaces) |
+| [.claude/rules/dashboard-surfaces-editor.md](../.claude/rules/dashboard-surfaces-editor.md) | Current — Claude rule file (split from dashboard-surfaces) |
+| [.claude/rules/dashboard-surfaces-home-player.md](../.claude/rules/dashboard-surfaces-home-player.md) | Current — Claude rule file (split from dashboard-surfaces) |
+| [.claude/rules/dashboard-surfaces-settings-setup.md](../.claude/rules/dashboard-surfaces-settings-setup.md) | Current — Claude rule file (split from dashboard-surfaces) |
 | [.claude/rules/data-store.md](../.claude/rules/data-store.md) | Current — Claude rule file |
 | [.claude/rules/dependencies.md](../.claude/rules/dependencies.md) | Current — Claude rule file |
 | [.claude/rules/docs.md](../.claude/rules/docs.md) | Current — Claude rule file |

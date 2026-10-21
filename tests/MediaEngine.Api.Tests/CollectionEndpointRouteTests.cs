@@ -5,6 +5,24 @@ namespace MediaEngine.Api.Tests;
 public sealed class CollectionEndpointRouteTests
 {
     [Fact]
+    public void ArtistDetailByName_LooksUpThePersonByTheArtistTheOpenedPanelIsForAndLogsFailures()
+    {
+        // The lookup order itself is covered by ArtistPanelPersonLookupTests; this checks the handler uses it and logs failures.
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs"));
+        var start = source.IndexOf("group.MapGet(\"/artist-detail-by-name\"", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        var end = source.IndexOf(".WithName(\"GetArtistDetailByName\")", start, StringComparison.Ordinal);
+        Assert.True(end > start);
+        var handler = source[start..end];
+
+        Assert.Contains("FindArtistPersonAsync(personRepo, artistName, combinedCreator, ct)", handler, StringComparison.Ordinal);
+        Assert.Contains("Creator = combinedCreator", handler, StringComparison.Ordinal);
+        Assert.Contains("ILoggerFactory loggerFactory", handler, StringComparison.Ordinal);
+        Assert.Contains("catch (Exception ex) when (ex is not OperationCanceledException)", handler, StringComparison.Ordinal);
+        Assert.DoesNotContain("catch {", handler, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CollectionEndpoints_GroupFeedsUseSharedVisibilityRulesAndRichMetadata()
     {
         // Response shaping moved out of the endpoint file into

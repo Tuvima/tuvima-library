@@ -130,6 +130,10 @@ Stages 1 and 2 create or update:
 | `review_queue` | Human review for blocked, ambiguous, low-confidence, or invalid items. |
 | `identity_jobs` / operation state | Durable handoff between retail, Wikidata, hydration, and universe work. |
 
+The part files of one audiobook recording folder share one identity job, and it always belongs to the lead part (the lowest part number, then the first path), not to whichever part finished ingesting first: a lower part that arrives later takes over the job while it still waits for its first lease, and the job is not leased until every part the folder holds has been registered (at most 10 minutes after the job was created, so an unreadable part cannot hold the recording back for good). The retail match, people and review rows therefore always land on the same part.
+
+A job that reaches its outcome (ready, or no match) clears its last failure category: a provider outage or timeout it retried past is history, and whether one happened depends on load rather than on what the Library decided. The music album sweeps (track-manifest repair and MusicBrainz enrichment) leave an album alone while any of its tracks still has an identity job running, so they never act on the half-finished state of a track that is still being identified.
+
 Local processors read what the file itself can prove:
 
 | Media type | Processor evidence | Typical Stage 2 result |
@@ -206,7 +210,7 @@ Stage 6-8 providers and services include:
 | Wikidata graph/property expansion | Narrative roots, series/franchise/universe QIDs, fictional entity references, relationship edges, and Event P585/P580/P582/P4895 in-universe chronology. |
 | Recursive identity enrichment | QID-backed people records and person-media links. |
 | Metadata harvesting | Person biography, birth/death/nationality/occupation, pseudonym and group relationships, headshots. |
-| TMDB artwork and tagged images | Movie/TV posters, backdrops, logos, network/studio logos, season art, episode stills, and cast/character portrait seeds when available. |
+| TMDB artwork and tagged images | Movie/TV posters, backdrops, logos, network/studio logos, season art, episode stills, and cast/character portrait seeds when available. The poster this pass ranks (or a user's choice) stays preferred whether it runs before or after Quick Hydration's cover step, which then only adds the retail cover as an alternative; an explicit retail rematch still replaces it. A repeat pass counts the same held artwork, including brand logos already stored. |
 | LRCLIB/SubDL | Lyrics, subtitles, normalized text-track files, optional preferred exports. |
 
 Stage 6-8 data artifacts:

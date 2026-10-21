@@ -184,7 +184,7 @@
     {
         var kind = item.Kind?.ToLowerInvariant();
         return kind is "certification" or "content_rating" or "rating" or "type" or "duration" or "year"
-            or "page_count" or "track_count" or "season_count" or "episode_count" or "genre" or "quality"
+            or "page_count" or "track_count" or "season_count" or "episode_count" or "genre" or "match_state" or "quality"
             or "item_count" or "read_count" or "watch_count" or "listen_count";
     }
 
@@ -196,14 +196,14 @@
             return kind is "certification" or "content_rating" or "year" or "episode_count" or "duration" or "genre" or "quality" or "subtitles" or "rating";
         }
 
-        return kind is "certification" or "content_rating" or "rating" or "duration" or "year" or "genre" or "quality" or "subtitles";
+        return kind is "certification" or "content_rating" or "rating" or "duration" or "year" or "genre" or "match_state" or "quality" or "subtitles";
     }
 
     private static bool IsPrimaryChromeHeroStat(MetadataPill item)
     {
         var kind = item.Kind?.ToLowerInvariant();
         return kind is "certification" or "content_rating" or "rating" or "duration" or "year"
-            or "page_count" or "track_count" or "season_count" or "episode_count" or "genre" or "quality" or "subtitles"
+            or "page_count" or "track_count" or "season_count" or "episode_count" or "genre" or "match_state" or "quality" or "subtitles"
             or "item_count" or "read_count" or "watch_count" or "listen_count";
     }
 

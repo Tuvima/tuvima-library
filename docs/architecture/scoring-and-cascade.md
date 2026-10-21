@@ -81,6 +81,8 @@ When no earlier tier resolves a field, the highest-confidence remaining claim wi
 
 Every claim from one provider response or one file read carries the same `ClaimedAt`, and claims are read back in insertion order. Claims from the same response therefore tie on time in every tier and keep the source's own order: the first credited composer or author wins. Clock ticks between rows can no longer decide the winner.
 
+Background work cannot change that order either. Storage maintenance compacts exact duplicate claims, but only copies from an older observation or superseded copies: every claim of a provider's newest observation stays, even one that repeats a value inside it. Providers also drop repeat credits at the source (TMDB lists a composer once per job; one role keeps one credit per person).
+
 ---
 
 ## Field Count Scaling

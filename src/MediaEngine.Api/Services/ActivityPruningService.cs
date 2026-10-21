@@ -82,9 +82,9 @@ public sealed class ActivityPruningService : BackgroundService
                 schedule = DefaultSchedule;
             }
 
-            var delay = CronScheduler.UntilNext(schedule, TimeSpan.FromHours(24));
-            _logger.LogInformation("Next activity prune at {NextRun}", DateTimeOffset.Now.Add(delay));
-            await Task.Delay(delay, stoppingToken);
+            var nextRun = CronScheduler.NextRunAt(schedule, TimeSpan.FromHours(24));
+            _logger.LogInformation("Next activity prune at {NextRun}", nextRun.ToLocalTime());
+            await CronScheduler.WaitUntilAsync(nextRun, stoppingToken);
         }
     }
 

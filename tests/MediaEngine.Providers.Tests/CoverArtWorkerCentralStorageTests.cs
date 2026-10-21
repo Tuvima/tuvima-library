@@ -308,7 +308,10 @@ public sealed class CoverArtWorkerCentralStorageTests : IDisposable
             _canonicalRepo,
             _workRepo,
             new NoOpImageCacheRepository(),
-            new RoutingHttpClientFactory(_ => ImageResponse(CreateTestImageBytes())),
+            // Each picture has its own bytes: artwork rows are content-addressed, and a file another row still
+            // references is kept.
+            new RoutingHttpClientFactory(request => ImageResponse(CreateTestImageBytes(
+                request.RequestUri!.AbsolutePath.Contains("new-two-towers", StringComparison.Ordinal) ? 20 : 16))),
             _assetPaths,
             NullLogger<CoverArtWorker>.Instance,
             assetExportService: null,
@@ -322,7 +325,7 @@ public sealed class CoverArtWorkerCentralStorageTests : IDisposable
         var staleBackgroundId = Guid.NewGuid();
         var staleBackgroundPath = _assetPaths.GetCentralAssetPath("Work", bookWorkId, "Background", staleBackgroundId, ".jpg");
         Directory.CreateDirectory(Path.GetDirectoryName(staleBackgroundPath)!);
-        await File.WriteAllBytesAsync(staleBackgroundPath, CreateTestImageBytes());
+        await File.WriteAllBytesAsync(staleBackgroundPath, CreateTestImageBytes(17));
         await _entityAssetRepo.UpsertAsync(new EntityAsset
         {
             Id = staleBackgroundId,
@@ -340,7 +343,7 @@ public sealed class CoverArtWorkerCentralStorageTests : IDisposable
         var userLogoId = Guid.NewGuid();
         var userLogoPath = _assetPaths.GetCentralAssetPath("Work", bookWorkId, "Logo", userLogoId, ".jpg");
         Directory.CreateDirectory(Path.GetDirectoryName(userLogoPath)!);
-        await File.WriteAllBytesAsync(userLogoPath, CreateTestImageBytes());
+        await File.WriteAllBytesAsync(userLogoPath, CreateTestImageBytes(19));
         await _entityAssetRepo.UpsertAsync(new EntityAsset
         {
             Id = userLogoId,
@@ -438,9 +441,9 @@ public sealed class CoverArtWorkerCentralStorageTests : IDisposable
             Content = new ByteArrayContent(bytes),
         };
 
-    private static byte[] CreateTestImageBytes()
+    private static byte[] CreateTestImageBytes(int size = 16)
     {
-        using var bitmap = new SKBitmap(16, 16);
+        using var bitmap = new SKBitmap(size, size);
         using var canvas = new SKCanvas(bitmap);
         canvas.Clear(SKColors.DarkOrange);
 

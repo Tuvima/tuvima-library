@@ -2035,6 +2035,59 @@ public sealed class RepositoryTests : IDisposable
         Assert.Equal("text", storageTypes.ProviderType);
     }
 
+    [Theory]
+    [InlineData("wikidata")]
+    [InlineData("b3000003-d000-4000-8000-000000000004")]
+    public async Task BridgeId_WikidataConfirmingRetailValue_KeepsRetailSource(string wikidataProvider)
+    {
+        var repo = new BridgeIdRepository(_db);
+        var showId = Guid.NewGuid();
+        var tvdb = WellKnownProviders.Tvdb.ToString();
+
+        await repo.UpsertBatchAsync([Bridge(showId, BridgeIdKeys.TvdbId, "81189", tvdb)]);
+        await repo.UpsertAsync(Bridge(showId, BridgeIdKeys.TvdbId, "81189", wikidataProvider));
+
+        var stored = Assert.Single(await repo.GetByEntityAsync(showId));
+        Assert.Equal("81189", stored.IdValue);
+        Assert.Equal(tvdb, stored.ProviderId);
+    }
+
+    [Fact]
+    public async Task BridgeId_WikidataChangingValue_TakesWikidataSource()
+    {
+        var repo = new BridgeIdRepository(_db);
+        var showId = Guid.NewGuid();
+
+        await repo.UpsertAsync(Bridge(showId, BridgeIdKeys.TvdbId, "81189", WellKnownProviders.Tvdb.ToString()));
+        await repo.UpsertBatchAsync([Bridge(showId, BridgeIdKeys.TvdbId, "99999", "wikidata")]);
+
+        var stored = Assert.Single(await repo.GetByEntityAsync(showId));
+        Assert.Equal("99999", stored.IdValue);
+        Assert.Equal("wikidata", stored.ProviderId);
+    }
+
+    [Fact]
+    public async Task BridgeId_RetailConfirmingWikidataValue_TakesRetailSource()
+    {
+        var repo = new BridgeIdRepository(_db);
+        var showId = Guid.NewGuid();
+        var tvdb = WellKnownProviders.Tvdb.ToString();
+
+        await repo.UpsertAsync(Bridge(showId, BridgeIdKeys.TvdbId, "81189", "wikidata"));
+        await repo.UpsertAsync(Bridge(showId, BridgeIdKeys.TvdbId, "81189", tvdb));
+
+        Assert.Equal(tvdb, Assert.Single(await repo.GetByEntityAsync(showId)).ProviderId);
+    }
+
+    private static BridgeIdEntry Bridge(Guid entityId, string idType, string idValue, string providerId) => new()
+    {
+        Id = Guid.NewGuid(),
+        EntityId = entityId,
+        IdType = idType,
+        IdValue = idValue,
+        ProviderId = providerId,
+    };
+
     // ════════════════════════════════════════════════════════════════════════
     //  SystemActivityRepository
     // ════════════════════════════════════════════════════════════════════════

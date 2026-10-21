@@ -1,8 +1,8 @@
 # Spec: Deleting personal files in View
 
-> **Status:** In progress · **Version:** 3 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Delete from library](archive/delete-from-library.md) (D22–D24, proposed change #244) · [View personal media (public)](../../docs/architecture/view-personal-media.md) · [Library model and intake (public)](../../docs/architecture/library-model-and-intake.md) ("Personal items") · [Security model (public)](../../docs/architecture/security.md)
+> **Status:** Built · **Version:** 3 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../../product/overview.md) · [Delete from library](delete-from-library.md) (D22–D24, proposed change #244) · [View personal media (public)](../../../docs/architecture/view-personal-media.md) · [Library model and intake (public)](../../../docs/architecture/library-model-and-intake.md) ("Personal items") · [Security model (public)](../../../docs/architecture/security.md)
 
-> Written 2026-10-17 from Shy's decisions in the Delete from library spec: library media is deleted straight away after a confirmation (D22), but personal files in View can't be downloaded again, so they always go to a recycle bin first (D23), in a spec of their own (D24). View already has a **Trash** that only hides items; nothing in it ever leaves the disk. This spec adds the one step that does: **Empty Trash**. Version 2 (same day) records Shy's answers to Q1–Q9 as D13–D21, and version 3 the answer to Q10 as D22. No questions are left. Shy Locked it on 2026-10-18. Nothing here is built yet.
+> Written 2026-10-17 from Shy's decisions in the Delete from library spec: library media is deleted straight away after a confirmation (D22), but personal files in View can't be downloaded again, so they always go to a recycle bin first (D23), in a spec of their own (D24). View already has a **Trash** that only hides items; nothing in it ever leaves the disk. This spec adds the one step that does: **Empty Trash**. Version 2 (same day) records Shy's answers to Q1–Q9 as D13–D21, and version 3 the answer to Q10 as D22. No questions are left. Shy Locked it on 2026-10-18. Built 2026-10-20 (Shy's answer on failed Shared Library copies recorded as D23; as-built notes at the end of section 8).
 
 ## 1. Goal
 
@@ -23,7 +23,7 @@ Someone using View can finally free disk space by getting rid of photos, home vi
 - Engine actions for the summary and for Empty Trash, their permission checks, and the tests.
 
 **Out of scope**
-- Library media (films, TV, books, audiobooks, music, comics): see [Delete from library](archive/delete-from-library.md).
+- Library media (films, TV, books, audiobooks, music, comics): see [Delete from library](delete-from-library.md).
 - **"Delete immediately"**, deleting chosen items from inside Trash, or any other way to remove a personal file from disk except emptying the whole Trash (D1, D16).
 - A Trash that empties itself after a period (D15).
 - **Shared Library** items: the household's shared photos and documents (the Shared Timeline and named Shared folders, which people contribute to and a household administrator accepts). Nobody can trash or delete them; that is a later spec (D14).
@@ -65,6 +65,7 @@ Shy's answers (2026-10-17):
 - **D20. (Q8) Trashed items leave Galleries while in Trash.** A trashed item disappears from Manual Galleries and can't be a Gallery's cover; Restore brings it back where it was.
 - **D21. (Q9) The paired-app gap is fixed separately, first.** The possible gap that lets a paired phone app move photos to Trash (section 8) is checked and fixed in its own small change before this spec is built.
 - **D22. (Q10) Phones keep Move to Trash and Restore.** Only Empty Trash needs a computer. Nothing leaves the disk from a phone, and Trash can always be undone.
+- **D23. Only in-flight Shared Library work protects an item** (Shy, 2026-10-20). D12 applies to items whose contribution is still pending, or whose transfer is waiting, planned, being copied or being cleaned up. A copy that failed, needs a household administrator's attention, was cancelled, declined or completed no longer holds the item back: Empty Trash deletes the person's own copy, and the history stays without a link to it.
 
 ## 4. UI behaviour
 
@@ -183,3 +184,15 @@ Found while writing this spec (2026-10-17):
 - **Manual Galleries still show trashed items** and can keep one as cover (D20, WP3).
 - **Deleted files aren't noticed.** View's folder watcher listens for new, changed and renamed files only, and scans only add. A file deleted outside Tuvima leaves its item in View, showing as missing when opened. Out of scope; worth its own spec.
 - **No live update for View changes.** Other open windows see trash and delete changes on their next refresh.
+
+As built (2026-10-20):
+
+- **Order of removal.** Empty Trash moves an item's files into a hidden staging folder inside the owner's own managed folder, removes the records in one transaction, and only then deletes the staged files and thumbnails. If a move or the transaction fails, the files go back. A recovery sweep at startup and after each Empty Trash finishes or undoes interrupted work. This keeps the records and the disk consistent at every step (D6).
+- **Last checks.** Just before removal the Engine checks again that each item is still in Trash, that no Shared Library work has started on it, and that no other item, in this or another library, now uses one of its files; any change puts the files back and keeps the item in Trash.
+- **Links are refused.** A file reached through any link (junction or symbolic link), even one that stays inside the folder, is never removed.
+- **Read-only from the item's own library.** An item counts as read-only only when one of its files is in a linked folder of its own library; someone else's linked copy of the same photo doesn't make it read-only.
+- **The Trash size** (`GET /view/trash/summary`) is for the person at the Dashboard only, like the other Trash actions; native apps have no Trash screens.
+- **Wording.** The dialog's last line reads "Library has no other copy." (the app is called Library in everything people see). The dialog shows "Deleting…" without a running count, because the Engine answers once at the end.
+- **Galleries in the dialog** use a count of distinct items in any of your Galleries (`gallery_item_count`).
+- **Places and Gallery pages** already offered Move to Trash from the shared photo viewer before this spec (section 4 lists them as having no trash actions); that viewer now hides it for read-only items like everywhere else.
+- **Visual check done 2026-10-20** (proposed change #331): desktop light and dark and phone width; small footer-spacing, Cancel-focus and tile-note fixes landed there.

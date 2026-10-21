@@ -1,0 +1,332 @@
+@namespace MediaEngine.Web.Components.MediaEditor
+@using MediaEngine.Contracts.Items
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject IAppDialogService Dialogs
+
+@* The Match step for moving a song, an episode or an audiobook part (details overlay spec D12 to D17): choose where it goes, then say
+   which entry of that place's own list it is. We never drop a title into a list that does not have it: it takes an entry's number and
+   identity, or, if nothing fits, it is added anyway with no number and a "Not matched" tag. The Engine works out the preview and the
+   sentence the confirmation shows, and checks again when the person confirms. *@
+@if (_movable)
+{
+    <section class="item-move" aria-label="@($"Move to another {Noun}")">
+        @if (_step == MoveStep.Closed)
+        {
+            <div class="item-move__intro">
+                <div>
+                    <strong>Move to another @Noun</strong>
+                    <span>Say which entry this is, and it takes that entry's number and details.</span>
+                </div>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.DriveFileMove" OnClick="OpenAsync">
+                    Choose where
+                </AppButton>
+            </div>
+        }
+        else if (_step == MoveStep.ChooseDestination)
+        {
+            <div class="item-move__head">
+                <strong>Where does it go?</strong>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="Close">Cancel</AppButton>
+            </div>
+            <AppTextField Label="@($"Find a {Noun}")" Value="@_query" ValueChanged="SearchAsync" Placeholder="@($"Search your {Noun}s")" DebounceInterval="250" />
+            @if (_busy)
+            {
+                <p class="item-move__note" role="status">Looking…</p>
+            }
+            else if (_destinations.Count == 0)
+            {
+                <p class="item-move__note">No other @(Noun)s take this. A song only goes to an album, an episode to a season.</p>
+            }
+            else
+            {
+                <ul class="item-move__list" aria-label="Places it can go">
+                    @foreach (var destination in _destinations)
+                    {
+                        <li>
+                            <AppNativeButton Type="button" Class="item-move__row" OnClick="@(() => PickDestinationAsync(destination))">
+                                <strong>@destination.Title</strong>
+                                <span>@destination.EntryCount @(destination.EntryCount == 1 ? "entry" : "entries")</span>
+                            </AppNativeButton>
+                        </li>
+                    }
+                </ul>
+            }
+        }
+        else if (_preview is { } preview)
+        {
+            <div class="item-move__head">
+                <strong>Match to @preview.DestinationTitle</strong>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackAsync">Choose another @Noun</AppButton>
+            </div>
+            <p class="item-move__what">Moving <strong>@preview.Title</strong>@(string.IsNullOrWhiteSpace(preview.FromTitle) ? string.Empty : $" from {preview.FromTitle}")</p>
+
+            @if (preview.Mode != ItemMoveModes.AddAnyway)
+            {
+                @if (preview.GuessReason is { } reason && preview.SelectedEntryId is not null)
+                {
+                    <p class="item-move__guess" role="status">Best guess: @reason. Change it if it is wrong.</p>
+                }
+
+                <ul class="item-move__entries" aria-label="@($"Entries in {preview.DestinationTitle}")">
+                    @foreach (var entry in OrderedEntries(preview))
+                    {
+                        var selected = entry.Id == preview.SelectedEntryId;
+                        <li>
+                            <AppNativeButton Type="button"
+                                             Class="@($"item-move__entry{(selected ? " is-selected" : string.Empty)}{(entry.Taken ? " is-taken" : string.Empty)}")"
+                                             aria-pressed="@(selected ? "true" : "false")"
+                                             Disabled="@_busy"
+                                             OnClick="@(() => PickEntryAsync(entry.Id))">
+                                <span class="item-move__number">@(entry.Number?.ToString() ?? "—")</span>
+                                <strong>@entry.Title</strong>
+                                @if (entry.Taken)
+                                {
+                                    <small>Already has a file</small>
+                                }
+                                else if (entry.Number is null)
+                                {
+                                    <small>Not matched</small>
+                                }
+                            </AppNativeButton>
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(preview.BlockedReason))
+            {
+                <p class="item-move__note" role="status">@preview.BlockedReason</p>
+            }
+
+            <div class="item-move__actions">
+                @if (preview.Mode == ItemMoveModes.AddAnyway)
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_busy" OnClick="MatchInsteadAsync">Match instead</AppButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="ConfirmAsync">Add anyway</AppButton>
+                }
+                else
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_busy" OnClick="AddAnywayAsync">Add anyway</AppButton>
+                    @if (preview.SelectedEntryTaken)
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Disabled="@_busy" OnClick="AnotherVersionAsync">Add as another version</AppButton>
+                    }
+                    else
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || preview.BlockedReason is not null)" OnClick="ConfirmAsync">Move here</AppButton>
+                    }
+                }
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <p class="item-move__error" role="alert">@_error</p>
+        }
+    </section>
+}
+
+@code {
+    private enum MoveStep { Closed, ChooseDestination, Match }
+
+    private MoveStep _step = MoveStep.Closed;
+    private bool _movable;
+    private bool _busy;
+    private string? _query;
+    private string? _error;
+    private Guid _loadedFor;
+    private IReadOnlyList<ItemMoveDestinationDto> _destinations = [];
+    private ItemMovePreview? _preview;
+
+    /// <summary>The song, episode or part being moved.</summary>
+    [Parameter, EditorRequired] public Guid WorkId { get; set; }
+
+    /// <summary>"Music", "TV" or "Audiobooks"; only used to say album, season or audiobook.</summary>
+    [Parameter] public string? MediaType { get; set; }
+
+    /// <summary>Raised after the move succeeded; the editor refreshes and offers the way to the new place.</summary>
+    [Parameter] public EventCallback<ItemMoveResultDto> OnMoved { get; set; }
+
+    private string Noun => MediaType switch
+    {
+        "TV" => "season",
+        "Audiobooks" => "audiobook",
+        _ => "album",
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (WorkId == Guid.Empty || WorkId == _loadedFor)
+        {
+            return;
+        }
+
+        _loadedFor = WorkId;
+        _step = MoveStep.Closed;
+        _preview = null;
+        _error = null;
+        // The Engine decides what can move: for anything else it says no and this panel stays out of the way.
+        var found = await Api.FindItemMoveDestinationsAsync(WorkId, null);
+        _movable = found.IsOk;
+        if (found.IsOk)
+        {
+            _destinations = found.Value!.Destinations;
+        }
+    }
+
+    private async Task OpenAsync()
+    {
+        _step = MoveStep.ChooseDestination;
+        _error = null;
+        await SearchAsync(_query);
+    }
+
+    private void Close()
+    {
+        _step = MoveStep.Closed;
+        _preview = null;
+        _error = null;
+    }
+
+    private async Task SearchAsync(string? query)
+    {
+        _query = query;
+        _busy = true;
+        try
+        {
+            var found = await Api.FindItemMoveDestinationsAsync(WorkId, query);
+            _destinations = found.IsOk ? found.Value!.Destinations : [];
+            _error = found.IsOk ? null : found.Message ?? "The places could not be loaded.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task PickDestinationAsync(ItemMoveDestinationDto destination)
+    {
+        await LoadPreviewAsync(destination.Id, null, null);
+        if (_preview is not null)
+        {
+            _step = MoveStep.Match;
+        }
+    }
+
+    private Task PickEntryAsync(Guid entryId) =>
+        LoadPreviewAsync(_preview!.DestinationId, entryId, null);
+
+    private async Task AnotherVersionAsync()
+    {
+        await LoadPreviewAsync(_preview!.DestinationId, _preview.SelectedEntryId, ItemMoveModes.AnotherVersion);
+        if (_preview is { Mode: ItemMoveModes.AnotherVersion, BlockedReason: null })
+        {
+            await ConfirmAsync();
+        }
+    }
+
+    private async Task AddAnywayAsync()
+    {
+        // Add anyway is the smaller, secondary way (D13): ask first, with the plain warning.
+        await LoadPreviewAsync(_preview!.DestinationId, null, ItemMoveModes.AddAnyway);
+        if (_preview is { Mode: ItemMoveModes.AddAnyway })
+        {
+            await ConfirmAsync();
+        }
+    }
+
+    private Task MatchInsteadAsync() => LoadPreviewAsync(_preview!.DestinationId, null, null);
+
+    private async Task BackAsync()
+    {
+        _preview = null;
+        _step = MoveStep.ChooseDestination;
+        await SearchAsync(_query);
+    }
+
+    private async Task LoadPreviewAsync(Guid destinationId, Guid? entryId, string? mode)
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var outcome = await Api.GetItemMovePreviewAsync(WorkId, destinationId, entryId, mode);
+            if (outcome.IsOk)
+            {
+                _preview = outcome.Value;
+            }
+            else
+            {
+                _error = outcome.Message ?? "That place could not be checked. Try again.";
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // Every move is confirmed in the one shared dialog (D17) with the Engine's own sentence; the Engine checks the plan again.
+    private async Task ConfirmAsync()
+    {
+        if (_preview is not { BlockedReason: null } preview)
+        {
+            return;
+        }
+
+        var addAnyway = preview.Mode == ItemMoveModes.AddAnyway;
+        var answer = await AppConfirmDialog.ShowAsync(
+            Dialogs,
+            addAnyway ? "Add without a number?" : preview.Mode == ItemMoveModes.AnotherVersion ? "Add as another version?" : $"Move to {preview.DestinationTitle}?",
+            preview.Message,
+            primaryLabel: addAnyway ? "Add anyway" : preview.Mode == ItemMoveModes.AnotherVersion ? "Add version" : "Move",
+            secondaryLabel: addAnyway ? "Match instead" : "Cancel");
+        if (answer == AppConfirmResult.Secondary && addAnyway)
+        {
+            await MatchInsteadAsync();
+            return;
+        }
+
+        if (answer != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var outcome = await Api.MoveItemAsync(new ItemMoveRequest
+            {
+                WorkId = WorkId,
+                DestinationId = preview.DestinationId,
+                EntryId = preview.SelectedEntryId,
+                Mode = preview.Mode,
+                Fingerprint = preview.Fingerprint,
+            });
+            if (outcome.IsOk)
+            {
+                _step = MoveStep.Closed;
+                _preview = null;
+                _movable = false;
+                await OnMoved.InvokeAsync(outcome.Value!);
+                return;
+            }
+
+            // A changed plan is shown again, never applied: the person looks at what would happen now.
+            _preview = outcome.FreshPreview ?? _preview;
+            _error = outcome.Status == ItemMoveOutcomeStatus.Conflict
+                ? outcome.Message ?? "Something changed since you looked. Nothing was moved."
+                : outcome.Message ?? "It could not be moved. Nothing was changed.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // Numbered entries in order, then the unnumbered group at the end (D13).
+    private static IEnumerable<ItemMoveEntryDto> OrderedEntries(ItemMovePreview preview) =>
+        preview.Entries.OrderBy(e => e.Number is null).ThenBy(e => e.Number);
+}

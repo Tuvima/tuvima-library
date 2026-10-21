@@ -121,7 +121,7 @@ public sealed class PluginApplicationServiceGatewayTests
     public async Task FandomAdapter_TracksLiveEnableStateAndUsesOnlyBoundContextFactory()
     {
         using var fixture = new FandomFixture();
-        var operation = new FandomLoreDiscoveryOperation(fixture.Catalog, fixture.Contexts);
+        var operation = new FandomLoreDiscoveryOperation(fixture.Catalog, fixture.Contexts, new HoldsEveryQid());
         var registry = new PluginApplicationOperationRegistry([operation]);
         Assert.False(operation.IsAvailable(out _));
         Assert.False(Assert.Single(registry.List()).IsAvailable);
@@ -300,6 +300,11 @@ public sealed class PluginApplicationServiceGatewayTests
                 new("example.fandom.com", "Example Fandom", "https://example.fandom.com", "https://example.fandom.com/api.php", "CC", .9, default)
             ]);
         public Task<PluginUniverseLoreResult> EnrichUniverseAsync(PluginUniverseLoreContext universe, PluginLoreSource source, IPluginExecutionContext context, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
+    private sealed class HoldsEveryQid : ILibraryUniverseQidGate
+    {
+        public Task<bool> HoldsAsync(string? qid, CancellationToken ct = default) => Task.FromResult(true);
     }
 
     private sealed class FakeContextFactory : IPluginExecutionContextFactory

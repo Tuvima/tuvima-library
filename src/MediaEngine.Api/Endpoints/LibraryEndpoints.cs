@@ -9,6 +9,7 @@ using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -209,11 +210,23 @@ public static class LibraryEndpoints
             IMetadataClaimRepository claimRepo,
             IItemCanonicalRepository itemCanonicalRepo,
             ILibraryCurationReadService curationReadService,
+            IReviewQueueRepository reviewQueue,
             CancellationToken ct) =>
         {
             if (request.EntityIds.Count == 0 || request.FieldChanges.Count == 0)
             {
                 return ApiErrors.BadRequest("Must provide entity IDs and field changes.");
+            }
+
+            // Add and Remove are for list fields only (the library tags); every other field is a single value that is replaced.
+            var badMode = request.FieldChanges.FirstOrDefault(change =>
+                !string.Equals(change.Mode, LibraryFieldChangeModes.Replace, StringComparison.OrdinalIgnoreCase)
+                && (!string.Equals(change.Key.Trim(), "custom_tags", StringComparison.OrdinalIgnoreCase)
+                    || !(string.Equals(change.Mode, LibraryFieldChangeModes.Add, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(change.Mode, LibraryFieldChangeModes.Remove, StringComparison.OrdinalIgnoreCase))));
+            if (badMode is not null)
+            {
+                return ApiErrors.BadRequest($"'{badMode.Key}' cannot be changed with '{badMode.Mode}'.");
             }
 
             var customTagChanges = request.FieldChanges
@@ -272,11 +285,19 @@ public static class LibraryEndpoints
                             continue;
                         }
 
+                        overrideState.Values.TryGetValue("custom_tags", out var existingTags);
+                        if (!LibraryTagCatalog.TryApplyDisplayChange(existingTags, customTags, customTagChanges[0].Mode, out var mergedTags, out var mergeError))
+                        {
+                            failedIds.Add(entityId);
+                            errors.Add($"{entityId}: {mergeError}");
+                            continue;
+                        }
+
                         DetailDisplayOverrideCatalog.ApplyChanges(
                             overrideState.Values,
                             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                             {
-                                ["custom_tags"] = customTags ?? string.Empty,
+                                ["custom_tags"] = mergedTags,
                             });
                         if (!await itemCanonicalRepo.SaveDisplayOverridesAsync(workId, overrideState.Values, ct))
                         {
@@ -340,11 +361,34 @@ public static class LibraryEndpoints
                 await canonicalRepo.UpsertBatchAsync(canonicalsByTargetAndKey.Values.ToList(), ct);
             }
 
+            // A row that could not take the change goes to Needs Review so a person can look at it; the others still applied (spec D11).
+            var sentToReview = 0;
+            for (var index = 0; index < failedIds.Count; index++)
+            {
+                try
+                {
+                    await reviewQueue.InsertAsync(new ReviewQueueEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        EntityId = failedIds[index],
+                        EntityType = "Work",
+                        Trigger = ReviewTrigger.MetadataConflict,
+                        Detail = $"A batch edit could not be applied to this item. {(index < errors.Count ? errors[index] : string.Empty)}".Trim(),
+                    }, ct);
+                    sentToReview++;
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"{failedIds[index]}: could not be sent to Needs Review ({ex.Message}).");
+                }
+            }
+
             return Results.Ok(new LibraryBatchEditResult
             {
                 UpdatedCount = updatedCount,
                 FailedIds = failedIds,
                 Errors = errors,
+                SentToReviewCount = sentToReview,
             });
         })
         .WithName("ApplyBatchEdit")

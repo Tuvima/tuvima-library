@@ -770,6 +770,24 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_ACoverTakesTheEnginesOwnCopyBeforeTheProvidersLink()
+    {
+        var managedCover = $"/stream/artwork/{Guid.NewGuid():D}";
+        using (var conn = _db.CreateConnection())
+        {
+            var (workId, _, _) = await InsertFileAsync(conn, "Movies", "standalone");
+            // The covers are the exception to the alphabetical rule: cover_url is written first and wins over cover.
+            await SetValueAsync(conn, workId, "cover", "https://image.tmdb.org/t/p/original/poster.jpg");
+            await SetValueAsync(conn, workId, "cover_url", managedCover);
+        }
+
+        var row = Assert.Single(await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None));
+
+        Assert.Equal(managedCover, row.CoverUrl);
+        Assert.Equal(managedCover, row.RootCoverUrl);
+    }
+
+    [Fact]
     public async Task LoadAsync_AnEmptyValueOnTheFirstStoredNameStillCountsAsTheValue()
     {
         Guid workId;

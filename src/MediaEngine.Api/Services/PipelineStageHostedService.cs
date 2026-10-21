@@ -63,7 +63,7 @@ public abstract class PipelineStageHostedService<TWorker> : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
                 int processed;
 
-                using (var executionLease = await _executionGate.EnterAsync(stoppingToken).ConfigureAwait(false))
+                using (var executionLease = await _executionGate.EnterAsync(GetType().Name, stoppingToken).ConfigureAwait(false))
                 {
                     resetCancellationToken = executionLease.PauseCancellationToken;
                     using var pollCancellation = CancellationTokenSource.CreateLinkedTokenSource(

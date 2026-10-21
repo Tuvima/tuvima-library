@@ -231,7 +231,7 @@ public sealed class OcrServiceTests : IDisposable
         new AssetPathService(Path.Combine(_root, "library"), null, Path.Combine(_root, "data")),
         _runner,
         NullLogger<OcrService>.Instance,
-        new OcrEnvironment(baseDirectory, pathDirectories ?? [], dataRoot, standardFolders));
+        new OcrEnvironment(baseDirectory, pathDirectories ?? [], dataRoot, standardFolders, SystemLanguageDataFolders: []));
 
     private static string PlaceHelper(string directory, bool withLanguageData = false)
     {

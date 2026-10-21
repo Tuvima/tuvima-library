@@ -98,7 +98,8 @@ public sealed class MusicTrackRelocationRepository(IDatabaseConnection database)
                 Put(album, "album", move.Album); Put(album, "title", move.Album);
                 if (!string.IsNullOrWhiteSpace(move.Artist))
                 {
-                    Put(album, "artist", move.Artist);
+                    // Credits are lists; ingestion stores an album's artist as album_artist in canonical_value_arrays.
+                    conn.Execute("INSERT OR REPLACE INTO canonical_value_arrays(entity_id,key,ordinal,value,value_qid) VALUES(@album,'album_artist',0,@artist,NULL)", new { album, artist = move.Artist }, tx);
                 }
                 Put(album, "musicbrainz_release_id", move.ReleaseId);
                 Put(album, "child_entities_json", move.ManifestJson);

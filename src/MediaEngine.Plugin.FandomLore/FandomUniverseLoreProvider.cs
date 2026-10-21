@@ -1,11 +1,15 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using MediaEngine.Plugins;
 
 namespace MediaEngine.Plugin.FandomLore;
 
 public sealed class FandomUniverseLoreProvider : IUniverseLoreProvider
 {
+    private static readonly Regex WikiKeyPattern = new("^[a-z0-9][a-z0-9.-]*$", RegexOptions.CultureInvariant);
+    private static readonly Regex QidPattern = new("^Q[1-9][0-9]{0,11}$", RegexOptions.CultureInvariant);
+
     public string Kind => "universe-lore-provider";
 
     public async Task<IReadOnlyList<PluginLoreSourceCandidate>> DiscoverSourcesAsync(
@@ -25,7 +29,13 @@ public sealed class FandomUniverseLoreProvider : IUniverseLoreProvider
             return [];
         }
 
-        var url = $"https://www.wikidata.org/w/api.php?action=wbgetclaims&format=json&entity={Uri.EscapeDataString(universe.UniverseQid)}&property=P6262";
+        // The one thing sent to Wikidata is the Universe's own QID; nothing from the user's titles or files.
+        if (!QidPattern.IsMatch(universe.UniverseQid))
+        {
+            return [];
+        }
+
+        var url = $"https://{FandomHostRule.WikidataHost}/w/api.php?action=wbgetclaims&format=json&entity={Uri.EscapeDataString(universe.UniverseQid)}&property=P6262";
         using var document = await GetJsonAsync(url, context, cancellationToken).ConfigureAwait(false);
         if (document is null)
         {
@@ -64,6 +74,12 @@ public sealed class FandomUniverseLoreProvider : IUniverseLoreProvider
         var maxPages = Math.Clamp(FandomSettings.ReadInt(context.Settings, "max_pages_per_run", 50), 1, 500);
         var threshold = Math.Clamp(FandomSettings.ReadDouble(context.Settings, "confidence_threshold", 0.65), 0.1, 1.0);
         var apiUrl = string.IsNullOrWhiteSpace(source.ApiUrl) ? BuildApiUrl(source.BaseUrl) : source.ApiUrl;
+        if (!FandomHostRule.IsFandomAddress(apiUrl))
+        {
+            // A stored source on another host is never called.
+            return new PluginUniverseLoreResult([], [], "Source address is not a Fandom wiki and was skipped.");
+        }
+
         var url = $"{apiUrl}?action=query&format=json&formatversion=2&generator=allpages&gapnamespace=0&gaplimit={maxPages}&prop=info%7Ccategories%7Ctemplates&inprop=url&cllimit=max&tllimit=max";
 
         using var document = await GetJsonAsync(url, context, cancellationToken).ConfigureAwait(false);
@@ -169,9 +185,16 @@ public sealed class FandomUniverseLoreProvider : IUniverseLoreProvider
         string baseUrl;
         string sourceName;
         string? pageTitle = null;
-        if (Uri.TryCreate(raw, UriKind.Absolute, out var uri))
+        if (Uri.TryCreate(raw, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
         {
-            baseUrl = $"{uri.Scheme}://{uri.Host}";
+            // Only Fandom wikis are called. An address on any other host is ignored; the wiki is always reached over https.
+            if (!FandomHostRule.IsFandomHost(uri.Host) || !uri.IsDefaultPort || !string.IsNullOrEmpty(uri.UserInfo))
+            {
+                return false;
+            }
+
+            baseUrl = $"https://{uri.Host.ToLowerInvariant()}";
             sourceName = ToTitle(uri.Host.Replace(".fandom.com", "", StringComparison.OrdinalIgnoreCase));
             pageTitle = uri.Segments.LastOrDefault()?.Replace('_', ' ');
         }
@@ -185,19 +208,26 @@ public sealed class FandomUniverseLoreProvider : IUniverseLoreProvider
 
             var wikiKey = parts[0].Trim().ToLowerInvariant();
             pageTitle = parts.Length == 2 ? parts[1].Replace('_', ' ') : null;
-            if (wikiKey.Contains("fandom.com", StringComparison.OrdinalIgnoreCase))
+            if (!WikiKeyPattern.IsMatch(wikiKey))
             {
-                var host = wikiKey.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                    ? new Uri(wikiKey).Host
-                    : wikiKey.Trim('/');
-                baseUrl = $"https://{host}";
-                sourceName = ToTitle(host.Replace(".fandom.com", "", StringComparison.OrdinalIgnoreCase));
+                return false;
+            }
+
+            if (wikiKey.EndsWith("fandom.com", StringComparison.Ordinal))
+            {
+                baseUrl = $"https://{wikiKey}";
+                sourceName = ToTitle(wikiKey.Replace(".fandom.com", "", StringComparison.OrdinalIgnoreCase));
             }
             else
             {
                 baseUrl = $"https://{wikiKey}.fandom.com";
                 sourceName = ToTitle(wikiKey);
             }
+        }
+
+        if (!FandomHostRule.IsFandomAddress(baseUrl))
+        {
+            return false;
         }
 
         var sourceKey = new Uri(baseUrl).Host.ToLowerInvariant();

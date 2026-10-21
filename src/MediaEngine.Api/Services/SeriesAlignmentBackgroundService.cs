@@ -90,12 +90,12 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
             }
 
             var cron = _settings.Scheduling.SeriesCheckCron;
-            var delay = CronScheduler.UntilNext(cron, TimeSpan.FromHours(24));
-            _logger.LogInformation("SeriesAlignmentService: next run in {Delay}", delay);
+            var nextRun = CronScheduler.NextRunAt(cron, TimeSpan.FromHours(24));
+            _logger.LogInformation("SeriesAlignmentService: next run at {NextRun}", nextRun.ToLocalTime());
 
             try
             {
-                await _configurationStore.WaitForDelayOrChangeAsync(delay, stoppingToken);
+                await _configurationStore.WaitUntilOrChangeAsync(nextRun, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

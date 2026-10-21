@@ -4388,6 +4388,23 @@ public sealed class WorkerPipelineTests
             return Task.CompletedTask;
         }
 
+        public async Task<IReadOnlyList<string>> DeleteVariantAsync(Guid assetId, CancellationToken ct = default)
+        {
+            await DeleteAsync(assetId, ct);
+            return [];
+        }
+
+        public Task SetUserChoiceAsync(Guid assetId, CancellationToken ct = default)
+        {
+            var target = Assets.FirstOrDefault(asset => asset.Id == assetId);
+            if (target is not null)
+            {
+                target.IsUserOverride = true;
+            }
+
+            return SetPreferredAsync(assetId, ct);
+        }
+
         public Task SetPreferredAsync(Guid assetId, CancellationToken ct = default)
         {
             var target = Assets.FirstOrDefault(asset => asset.Id == assetId);
@@ -4536,7 +4553,7 @@ public sealed class WorkerPipelineTests
         public Task PromoteCatalogToOwnedAsync(Guid workId, CancellationToken ct = default)
             => Task.CompletedTask;
 
-        public Task WriteExternalIdentifiersAsync(Guid workId, IReadOnlyDictionary<string, string> identifiers, CancellationToken ct = default)
+        public Task WriteExternalIdentifiersAsync(Guid workId, IReadOnlyDictionary<string, string> identifiers, CancellationToken ct = default, bool overwrite = false)
             => Task.CompletedTask;
 
         public Task<WorkLineage?> GetLineageByAssetAsync(Guid assetId, CancellationToken ct = default)

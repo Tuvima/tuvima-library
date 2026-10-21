@@ -55,8 +55,9 @@ sealed class ReadOnlyDatabase(string path) : IDatabaseConnection
     public void Dispose() { }
     public void InitializeSchema() => throw new NotSupportedException();
     public void RunStartupChecks() => throw new NotSupportedException();
-    public Task AcquireWriteLockAsync(CancellationToken ct = default) => throw new NotSupportedException();
+    public Task AcquireWriteLockAsync(CancellationToken ct = default, string holderFile = "", string holderMember = "") => throw new NotSupportedException();
+    public string? DescribeWriteLockHolder() => null;
     public void ReleaseWriteLock() => throw new NotSupportedException();
-    public Task<T> ExecuteWriteAsync<T>(Func<SqliteConnection, SqliteTransaction, CancellationToken, T> body, CancellationToken ct = default) => throw new NotSupportedException();
-    public Task ExecuteWriteAsync(Action<SqliteConnection, SqliteTransaction, CancellationToken> body, CancellationToken ct = default) => throw new NotSupportedException();
+    public Task<T> ExecuteWriteAsync<T>(Func<SqliteConnection, SqliteTransaction, CancellationToken, T> body, CancellationToken ct = default, string holderFile = "", string holderMember = "") => throw new NotSupportedException();
+    public Task ExecuteWriteAsync(Action<SqliteConnection, SqliteTransaction, CancellationToken> body, CancellationToken ct = default, string holderFile = "", string holderMember = "") => throw new NotSupportedException();
 }

@@ -544,6 +544,82 @@ public sealed class CollectionReadServicesTests : IDisposable
     }
 
     [Fact]
+    public async Task SystemViewDetailWorks_RootColoursPreferTheSharedSetOverTheCoverSet()
+    {
+        var seeded = await SeedMusicHierarchyAsync();
+        using (var connection = _database.CreateConnection())
+        {
+            // The cover set holds the larger hex codes, so a "largest value wins" read would pick it.
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
+                    (@AlbumWorkId, 'cover_primary_hex', '#fffff1', @Now),
+                    (@AlbumWorkId, 'artwork_primary_hex', '#000001', @Now),
+                    (@AlbumWorkId, 'cover_secondary_hex', '#fffff2', @Now),
+                    (@AlbumWorkId, 'artwork_secondary_hex', '#000002', @Now),
+                    (@AlbumWorkId, 'dominant_color', '#fffff3', @Now),
+                    (@AlbumWorkId, 'cover_accent_hex', '#fffff4', @Now),
+                    (@AlbumWorkId, 'artwork_accent_hex', '#000003', @Now);
+                """,
+                new { seeded.AlbumWorkId, Now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var row = Assert.Single(await _browse.GetSystemViewDetailWorksAsync(
+            "album", "The Album", "Music", "The Artist", CancellationToken.None));
+
+        Assert.Equal("#000001", row.PrimaryColor);
+        Assert.Equal("#000002", row.SecondaryColor);
+        Assert.Equal("#000003", row.AccentColor);
+    }
+
+    [Fact]
+    public async Task SystemViewDetailWorks_FileColourFallbackFollowsTheFixedNameOrder()
+    {
+        var seeded = await SeedMusicHierarchyAsync();
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
+                    (@AssetId, 'primary_color', '#fffff1', @Now),
+                    (@AssetId, 'cover_primary_hex', '#eeeee1', @Now),
+                    (@AssetId, 'artwork_primary_hex', '#000001', @Now),
+                    (@AssetId, 'dominant_color', '#fffff3', @Now),
+                    (@AssetId, 'accent_color', '#fffff4', @Now),
+                    (@AssetId, 'cover_accent_hex', '#eeeee3', @Now);
+                """,
+                new { seeded.AssetId, Now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var row = Assert.Single(await _browse.GetSystemViewDetailWorksAsync(
+            "album", "The Album", "Music", "The Artist", CancellationToken.None));
+
+        Assert.Equal("#000001", row.PrimaryColor);
+        Assert.Equal("#eeeee3", row.AccentColor);
+    }
+
+    [Fact]
+    public async Task ArtistWorks_NameFollowsAlbumArtistThenArtistThenPerformer()
+    {
+        var seeded = await SeedMusicHierarchyAsync();
+        using (var connection = _database.CreateConnection())
+        {
+            // 'Zed Performer' sorts last, so a "largest value wins" read would show it instead of the album artist.
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value) VALUES
+                    (@TrackWorkId, 'performer', 0, 'Zed Performer'),
+                    (@AssetId, 'album_artist', 0, 'The Artist');
+                """,
+                new { seeded.TrackWorkId, seeded.AssetId });
+        }
+
+        var row = Assert.Single(await _browse.GetArtistWorksAsync("The Artist", CancellationToken.None));
+
+        Assert.Equal("The Artist", row.Artist);
+    }
+
+    [Fact]
     public async Task MusicAlbumGroups_SameNamedRoots_ResolveFromEveryMemberRootId()
     {
         var first = await SeedMusicHierarchyAsync("Track One", "hash-sn-1");

@@ -65,8 +65,8 @@ public sealed class LogFileRetentionService : BackgroundService
                 schedule = DefaultSchedule;
             }
 
-            var delay = CronScheduler.UntilNext(schedule, TimeSpan.FromHours(24));
-            await Task.Delay(delay, stoppingToken);
+            var nextRun = CronScheduler.NextRunAt(schedule, TimeSpan.FromHours(24));
+            await CronScheduler.WaitUntilAsync(nextRun, stoppingToken);
         }
     }
 

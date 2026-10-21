@@ -411,7 +411,7 @@ That sequence explains the product, the runtime wiring, the intake flow, the enr
 
 Detailed working rules moved out of this file on 2026-10-17 so there is one copy of each:
 
-- Dashboard product-surface rules (Collections, TV, Libraries, Setup, editor model, Home, player): `.claude/rules/dashboard-surfaces.md`
+- Dashboard product-surface rules (Collections, TV, Libraries, Setup, editor model, Home, player): `.claude/rules/dashboard-surfaces*.md` (index in `dashboard-surfaces.md`)
 - Dashboard code map, CSS ownership, icon rows, native controls and release styling: `src/MediaEngine.Web/CLAUDE.md`
 - Access authority: `.claude/rules/security.md` and `docs/architecture/security.md`
 - Shared AI storage and worktree retention: `.claude/rules/build-and-ai-runtime.md`

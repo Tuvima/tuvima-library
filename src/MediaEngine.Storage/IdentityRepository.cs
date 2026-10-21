@@ -283,7 +283,7 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
             WHERE account_id=@accountId AND revoked_at IS NULL AND (@exceptSessionId IS NULL OR id<>@exceptSessionId);
             """, new { accountId, revokedAt = revokedAt.ToString("O"), reason, exceptSessionId }, transaction);
         connection.Execute("DELETE FROM grant_admin_unlocks WHERE session_id IN @affected;",
-            new { affected }, transaction);
+            new { affected = affected.Select(GuidSql.ToBlob).ToArray() }, transaction);
         return changed;
     }, ct);
 

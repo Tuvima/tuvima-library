@@ -1549,7 +1549,8 @@ public static partial class MetadataEndpoints
                 return ApiErrors.NotFound($"Artwork variant {variantId} not found.");
             }
 
-            await entityAssetRepo.SetPreferredAsync(variantId, ct);
+            // Choosing a variant is the user's choice, kept through later artwork passes like an upload.
+            await entityAssetRepo.SetUserChoiceAsync(variantId, ct);
             target = await entityAssetRepo.FindByIdAsync(variantId, ct);
             if (target is null)
             {
@@ -2252,14 +2253,7 @@ public static partial class MetadataEndpoints
 
         var rootCanonicalMap = BuildLatestCanonicalMap(rootCanonicals);
 
-        var artistOwnerId = string.Equals(launch.MediaType, "Music", StringComparison.OrdinalIgnoreCase)
-            ? await metadataData.ResolveArtistArtworkOwnerAsync(
-                launch.RepresentativeAssetId,
-                StringHelpers.FirstNonBlankOr(string.Empty, GetCanonicalValue(rootCanonicalMap, "artist"), GetCanonicalValue(canonicalMap, "artist")),
-                ct)
-            : null;
-
-        var scopes = BuildEditorScopes(launch, launchDetail, canonicalMap, rootDetail, rootCanonicalMap, artistOwnerId);
+        var scopes = BuildEditorScopes(launch, launchDetail, canonicalMap, rootDetail, rootCanonicalMap);
         if (scopes.Count == 0)
         {
             return null;
@@ -2784,8 +2778,7 @@ public static partial class MetadataEndpoints
         LibraryItemDetail? detail,
         IReadOnlyDictionary<string, string> canonicalMap,
         LibraryItemDetail? rootDetail,
-        IReadOnlyDictionary<string, string> rootCanonicalMap,
-        Guid? artistOwnerId)
+        IReadOnlyDictionary<string, string> rootCanonicalMap)
     {
         var scopes = new List<EditorScopeResolution>();
         var mediaType = NormalizeEditorMediaType(launch.MediaType);
@@ -2802,11 +2795,11 @@ public static partial class MetadataEndpoints
             GetCanonicalValue(canonicalMap, "title"),
             itemTitle,
             "Episode");
+        // Credits are multi-valued, so they live only in canonical_value_arrays. The library detail's Artist is
+        // read from there on the album (album_artist, then artist, then performer, by ordinal).
         var artistName = StringHelpers.FirstNonBlankOr(string.Empty,
-            GetCanonicalValue(rootCanonicalMap, "artist"),
-            GetCanonicalValue(canonicalMap, "artist"),
-            rootDetail?.Author,
-            detail?.Author,
+            rootDetail?.Artist,
+            detail?.Artist,
             itemTitle);
         var albumName = StringHelpers.FirstNonBlankOr(string.Empty,
             GetCanonicalValue(canonicalMap, "album"),

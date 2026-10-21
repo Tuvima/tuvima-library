@@ -1,0 +1,8 @@
+/* Emitted directly by ViewDocumentsPage (not by a child component), so it is styled from here rather than from app.css. */
+.view-document-card__note {
+    display: block;
+    padding: 0 var(--tl-space-3) var(--tl-space-3);
+    color: var(--tl-text-secondary);
+    font-size: .85rem;
+    line-height: 1.35;
+}
