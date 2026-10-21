@@ -164,6 +164,17 @@ public sealed class ServerFolderPickerUiTests
         Assert.DoesNotContain("Revisiting", preflight, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Picker_LocationListIsATightTreeOnDesktopAndKeepsTouchTargetsElsewhere()
+    {
+        var css = Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor.css");
+
+        // Short rows with small gaps for a mouse and keyboard desktop only; the base row keeps the 44px tap target.
+        Assert.Contains("@media (hover: hover) and (pointer: fine) and (min-width: 1180px)", css, StringComparison.Ordinal);
+        Assert.Contains(".server-folder-picker__location { min-height: 36px; }", css, StringComparison.Ordinal);
+        Assert.Contains("gap: 2px;", css, StringComparison.Ordinal);
+    }
+
     private static string Read(string relativePath) =>
         File.ReadAllText(Path.Combine(RepoRoot, relativePath));
 }

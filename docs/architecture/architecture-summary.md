@@ -147,7 +147,7 @@ All settings live in `config/` as individual JSON files grouped by concern. Prov
 | `libraries.json` | Watch folders, media-type hints, organization templates |
 | `providers/*.json` | One file per provider; includes language strategy |
 | `providers/wikidata_reconciliation.json` | All Wikidata config — reconciliation, edition pivot, data extension, child entity discovery |
-| `ai.json` | Local models, feature toggles, cron schedules |
+| `ai.json` | Local models, engine-room limits, default plugin allowance |
 | `pipelines.json` | Ranked Stage 1 provider pipelines per media type (Waterfall / Cascade / Sequential) |
 | `scoring.json`, `field_priorities.json` | Metadata priority |
 | `ui/palette.json`, `ui/global.json`, `ui/devices/*`, `ui/profiles/*` | UI theming and device profiles |
@@ -175,7 +175,7 @@ Settings at `/settings/{Section}[/{Subsection}]` is the Dashboard's configuratio
 | **Personal** | `overview` → `OverviewPage` (children `overview/activity` → `ActivityPage`, `overview/taste` → `OverviewTastePage`; off-menu `overview/apps` → `OverviewAppsPage`), `profiles` → `ProfilesTab` (administrators; child `profiles/households` → `HouseholdsTab`; person page `ProfileDetailPage`), `preferences` → `PreferencesSummaryPage` (children `playback`, `listening`, `reading`), `security` → `SecuritySettingsPage` (child `security/devices` → `DevicesTab`) |
 | **Server** | `ingestion` → `IngestionTasksTab` with `LibrarySummary` (Library and Ingestion; off-menu `recently-added` → `RecentlyAddedPageContent`, off-menu `review` → `NeedsReviewPageContent`; children `libraries` → `LibrariesTab`, `metadata` → `MetadataSettingsPage`), `network` → `NetworkRemoteAccessSettings` (Local Network, Remote Access, Advanced), `delivery` → Streaming (Limits and Quality, Hardware Acceleration, Optimized Copies, Diagnostics) |
 | **Manage** | `access/users` → `UsersAccessSettingsTab` (Users; child Sign-in Methods), `system` → `SystemSummaryPage` (children `tools` → `ToolsRequirementsTab` with Scheduled tasks, `system/logs` → `LogsPage`, `backup-recovery`) |
-| **Developer** | `ai` → `LocalAiSettingsTab` (Runtime, Vocabulary, Automation), `access/applications` → Integrations, `plugins` → `PluginSettingsTab` (one page), `developer` → Developer Tools (Provider Tester, Enrichment Tester; feature-flagged) |
+| **Developer** | `ai` → `LocalAiSettingsTab` (Status, Model and hardware, Budget, Usage), `access/applications` → Integrations, `plugins` → `PluginSettingsTab` (one page), `developer` → Developer Tools (Provider Tester, Enrichment Tester; feature-flagged) |
 
 Navigation is URL-driven: `/settings` lands on Overview (Kids profiles do not reach Settings), `/settings/review` is the Needs Review page (the old `/settings/recently-added?review=expanded` link redirects to it), and `/my-activity` opens the person's own Activity outside Settings.
 

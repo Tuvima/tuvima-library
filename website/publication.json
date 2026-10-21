@@ -139,6 +139,12 @@
       "section": "Use Tuvima"
     },
     {
+      "source": "guides/developer-tools.md",
+      "slug": "guides/developer-tools",
+      "group": "Guides",
+      "section": "Use Tuvima"
+    },
+    {
       "source": "guides/library-settings.md",
       "slug": "guides/library-settings",
       "group": "Guides",

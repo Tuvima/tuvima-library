@@ -54,7 +54,7 @@ public sealed record ToolInstallResult(ToolInstallOutcome Outcome, string? Messa
 
 /// <summary>
 /// Fetches FFmpeg and Tesseract on request, from the fixed addresses and with the checksums in
-/// <c>config/tool_downloads.json</c>. One job per tool at a time; nothing ever starts by itself.
+/// <c>config/tool_downloads.json</c>. One job per tool at a time; a job starts on request, or from <see cref="IToolAutoInstaller"/> for a missing Required tool.
 /// </summary>
 public interface IToolInstallerService
 {

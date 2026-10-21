@@ -82,6 +82,40 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     }
 
     [Fact]
+    public void SetupStep_WhileARequiredToolDownloads_ShowsItsProgressInsteadOfAskingForAnInstall()
+    {
+        var cut = Render<SetupPreflightStage>(parameters => parameters
+            .Add(p => p.Preflight, Passed(Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Downloading, percent: 55)))));
+
+        Assert.Contains("Getting your media tools", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("A few things to install", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Downloading 55%", cut.Find("[data-tool-id=ffmpeg]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Continue", string.Join(' ', cut.FindAll("button").Select(button => button.TextContent)), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SetupStep_WhenTheDownloadFailed_SaysWhyAndHowToTryAgain()
+    {
+        var failed = Tool("ffmpeg", "FFmpeg") with { StateReason = "The download didn't finish. Check the connection and try again." };
+
+        var cut = Render<SetupPreflightStage>(parameters => parameters.Add(p => p.Preflight, Passed(Tools(failed))));
+
+        Assert.Contains("A few things to install", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("The download didn't finish.", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("press Check again", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SetupToolRules_FollowOnlyADownloadOfARequiredTool()
+    {
+        Assert.True(SetupToolRules.IsDownloadingRequiredTool(Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Downloading))));
+        Assert.False(SetupToolRules.IsDownloadingRequiredTool(Tools(Tool("ffmpeg", "FFmpeg"))));
+        Assert.False(SetupToolRules.IsDownloadingRequiredTool(Tools(
+            Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Downloading))));
+        Assert.False(SetupToolRules.IsDownloadingRequiredTool(null));
+    }
+
+    [Fact]
     public void SetupStep_NeverOffersLocateIt_BecauseThatLivesInSettings()
     {
         var cut = Render<SetupPreflightStage>(parameters => parameters
@@ -185,16 +219,42 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ReadinessStep_RemindsAboutAMissingRequiredTool_ButNeverAnAiModel()
+    public void ReadinessStep_ShowsAMissingRequiredToolAsOneShortWarningBubble_ButNeverAnAiModel()
     {
         var cut = RenderReadiness(Tools(
             Tool("ffmpeg", "FFmpeg"),
             Tool("ai_model:audio", "Local AI audio model", kind: "ai_model", requirement: ToolRequirementLevels.Optional)));
 
-        var notes = cut.FindAll(".setup-tool-notes li").Select(item => item.TextContent.Trim()).ToList();
-        var reminder = Assert.Single(notes);
-        Assert.StartsWith("FFmpeg is still missing.", reminder, StringComparison.Ordinal);
-        Assert.Contains("Tools and requirements", reminder, StringComparison.Ordinal);
+        var bubble = Assert.Single(cut.FindAll(".setup-tool-warning"));
+        Assert.Contains("tl-alert-warning", bubble.ClassName, StringComparison.Ordinal);
+        Assert.Equal("FFmpeg is missing", bubble.QuerySelector("strong")!.TextContent.Trim());
+        Assert.Contains(FfmpegEffect, bubble.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Next step:", bubble.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Tools and requirements", bubble.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("still missing", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".setup-tool-notes"));
+    }
+
+    [Fact]
+    public void ReadinessStep_ShowsWhyADownloadFailed_AndStaysAWarning()
+    {
+        var failed = Tool("ffmpeg", "FFmpeg") with { StateReason = "The download didn't finish. Check the connection and try again." };
+
+        var cut = RenderReadiness(Tools(failed));
+
+        var bubble = Assert.Single(cut.FindAll(".setup-tool-warning"));
+        Assert.Contains("The download didn't finish.", bubble.TextContent, StringComparison.Ordinal);
+        Assert.Contains("tl-alert-warning", bubble.ClassName, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReadinessStep_ShowsADownloadInProgressAsAnInfoBubbleWithItsPercentage()
+    {
+        var cut = RenderReadiness(Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Downloading, percent: 40)));
+
+        var bubble = Assert.Single(cut.FindAll(".setup-tool-warning"));
+        Assert.Equal("Downloading FFmpeg (40%)", bubble.QuerySelector("strong")!.TextContent.Trim());
+        Assert.DoesNotContain("tl-alert-warning", bubble.ClassName, StringComparison.Ordinal);
     }
 
     [Fact]

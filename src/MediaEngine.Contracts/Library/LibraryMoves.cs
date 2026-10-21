@@ -188,7 +188,7 @@ public sealed class LibraryMovePreviewRow
     [JsonPropertyName("file_change")] public LibraryMoveFileChange? FileChange { get; init; }
 
     /// <summary>
-    /// One plain line about the files: why they are not touched ("As-is folder: the file stays where it is.", "Protected original: the file
+    /// One plain line about the files: why they are not touched ("Read-only folder: the file stays where it is.", "Protected original: the file
     /// is not touched."), or a summary when several move ("2 files will be renamed and moved to OK Computer."). Null when there is nothing to say.
     /// </summary>
     [JsonPropertyName("file_note")] public string? FileNote { get; init; }

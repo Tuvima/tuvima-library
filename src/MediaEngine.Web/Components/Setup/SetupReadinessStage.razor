@@ -23,15 +23,20 @@
                 </article>
             }
         </div>
-        @if (RequiredToolNotes.Count > 0)
+        @* The server check only lists missing tools the first time it runs; this reminds anyone who continued past it.
+           One short warning bubble per tool: what is held back, then the next step. *@
+        @foreach (var tool in RequiredTools)
         {
-            @* The server check only lists missing tools the first time it runs; this reminds anyone who continued past it. *@
-            <ul class="setup-tool-notes" aria-label="Tools still to install">
-                @foreach (var note in RequiredToolNotes)
+            var downloading = tool.State == ToolRequirementStates.Downloading;
+            <AppAlert Tone="@(downloading ? AppUiTone.Info : AppUiTone.Warning)" Class="setup-tool-warning" data-tool-id="@tool.Id">
+                <strong>@ToolHeadline(tool)</strong>
+                <p>@tool.Effect</p>
+                @if (!downloading && !string.IsNullOrWhiteSpace(tool.StateReason))
                 {
-                    <li>@note</li>
+                    <p>@tool.StateReason</p>
                 }
-            </ul>
+                <p><b>Next step:</b> @NextStep(tool)</p>
+            </AppAlert>
         }
         @if (OptionalToolNotes.Count > 0)
         {
@@ -74,10 +79,17 @@
 
     private const string TesseractNote = "Scanned documents won't be readable until Tesseract is installed.";
 
-    private IReadOnlyList<string> RequiredToolNotes => Tools?.Tools
+    private IReadOnlyList<ToolRequirementDto> RequiredTools => Tools?.Tools
         .Where(tool => tool.Kind == "tool" && tool.Requirement == ToolRequirementLevels.Required && tool.State != ToolRequirementStates.Ready)
-        .Select(tool => $"{tool.Name} is still missing. {tool.Effect} You can install it later from Settings, Tools and requirements.")
         .ToList() ?? [];
+
+    private static string ToolHeadline(ToolRequirementDto tool) => tool.State == ToolRequirementStates.Downloading
+        ? tool.DownloadPercent is { } percent ? $"Downloading {tool.Name} ({percent}%)" : $"Downloading {tool.Name}"
+        : $"{tool.Name} is missing";
+
+    private static string NextStep(ToolRequirementDto tool) => tool.State == ToolRequirementStates.Downloading
+        ? "None. Library finishes this in the background."
+        : "Open your library, then go to Settings, Tools and requirements to install it.";
 
     private IReadOnlyList<string> OptionalToolNotes => Tools?.Tools
         .Where(tool => tool.Kind == "tool" && tool.Requirement == ToolRequirementLevels.Optional && tool.State != ToolRequirementStates.Ready)
@@ -85,8 +97,8 @@
         .ToList() ?? [];
 
     private static bool ShowRow(SetupCapabilityDto item) => item.Key != "readiness" && (item.Key != "preflight" || item.Status == "blocked");
-    private static string CapabilityLabel(string key) => key switch { "preflight" => "Server check", "administrator" => "Your account", "media-locations" => "Libraries", "providers" => "Enhance your library", _ => key.Replace('-', ' ') };
-    private static string CapabilityIcon(string key) => key switch { "preflight" => AppMaterialIcons.Outlined.Dns, "administrator" => AppMaterialIcons.Outlined.PersonOutline, "media-locations" => AppMaterialIcons.Outlined.FolderOpen, "providers" => AppMaterialIcons.Outlined.Storage, _ => AppMaterialIcons.Outlined.CheckCircleOutline };
+    private static string CapabilityLabel(string key) => key switch { "server" => "Server", "preflight" => "Server check", "administrator" => "Your Account", "media-locations" => "Libraries", "providers" => "Enhance your library", _ => key.Replace('-', ' ') };
+    private static string CapabilityIcon(string key) => key switch { "server" or "preflight" => AppMaterialIcons.Outlined.Dns, "administrator" => AppMaterialIcons.Outlined.PersonOutline, "media-locations" => AppMaterialIcons.Outlined.FolderOpen, "providers" => AppMaterialIcons.Outlined.Storage, _ => AppMaterialIcons.Outlined.CheckCircleOutline };
     private static string StatusLabel(string status) => status switch { "passed" => "Ready", "deferred" => "Ready · later", "blocked" => "Needs attention", _ => "Not checked" };
     private static AppUiTone StatusTone(string status) => status switch { "passed" => AppUiTone.Success, "blocked" => AppUiTone.Error, "deferred" => AppUiTone.Neutral, _ => AppUiTone.Neutral };
 }

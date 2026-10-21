@@ -44,9 +44,9 @@ These are model-file sizes, not total memory or installation requirements. The r
 
 ## Understand assistance and limits
 
-Supported AI services can assist with filename cleanup, ambiguous media types, candidate selection, summaries, vibe tags, description analysis, search intent, and audio transcription or alignment. Each feature depends on its own runtime connection and settings.
+Local AI is the engine room: it runs the models and keeps the machine fair. The things it helps with are plugins that ship with the Library: filename cleanup (Smart labelling), ambiguous media types (Type helper), series order, vibe tags, description analysis and a short taste summary, plus audio language detection with the optional audio pack. Each is off until an administrator approves what it uses and switches it on at Settings > Plugins. They share one queue, where a person comes first, then ingestion, then the Library's own background work, then plugins, and each plugin has an hourly allowance. What the AI suggests is marked "Suggested by Local AI" on the item, ranks below every provider, and never replaces a value a person or provider set.
 
-The repository disables smart labeling, type logic, series alignment, vibe tags, summaries, and description intelligence by default. Enabling a flag is not proof that processing has run on existing items.
+Every AI plugin is off by default. Switching one on is not proof that processing has run on existing items; check the plugin's card and Settings > Local AI > Usage.
 
 Changes may require a model reload, Engine restart, scheduler reload, rescan, or a later enrichment job. Follow the status shown for that feature rather than assuming every change acts immediately.
 
@@ -65,13 +65,13 @@ Inspect the hardware profile, benchmark controls, and resource settings on the R
 <details>
 <summary>Technical details</summary>
 
-`config/ai.json` selects `resource_profile`, `audio_pack_enabled`, concurrency, timeout, CPU reservation, free-disk threshold, idle unloading, features, vocabulary, and schedules. The code-owned `AiResourceProfileCatalog` defines Essential, Standard, Advanced, and the optional Whisper pack. Text fast, quality, scholar, and CJK roles clone the selected text model with role-specific context/token limits.
+`config/ai.json` selects `resource_profile`, `audio_pack_enabled`, concurrency, timeout, CPU reservation, free-disk threshold, idle unloading, and the default plugin allowance. Which features run, their schedules and the vibe words are plugin settings. The code-owned `AiResourceProfileCatalog` defines Essential, Standard, Advanced, and the optional Whisper pack. Text fast, quality, scholar, and CJK roles clone the selected text model with role-specific context/token limits.
 
 The launch catalog records artifact URLs, SHA-256 hashes, memory envelopes, runtime compatibility, and validation requirements. It does not make an arbitrary model URL a supported runtime. Gated artifacts require deliberate license acceptance and verified installation when supported by policy.
 
 LLamaSharp handles text inference; Whisper.net handles supported audio tasks. Grammar-constrained output helps produce expected structured formats, but it does not guarantee factual accuracy or eliminate runtime failures. Services must still validate results and handle errors.
 
-AI responsibilities include SmartLabeler, QidDisambiguator, MediaTypeAdvisor, VibeTagger, DescriptionIntelligenceService, IntentSearchParser, and supported Whisper transcription. Description analysis can extract themes, mood, setting, pace, a short summary, and character names after provider descriptions arrive. Its configured schedule is every 15 minutes; disabled or unready processing does not run merely because that schedule exists.
+AI responsibilities are the six AI plugins and supported Whisper language detection. Description insights can extract themes, mood, setting, pace, a short summary, and character names after provider descriptions arrive, on the plugin's own schedule; a plugin that is off or a model that is not ready does not run merely because a schedule exists.
 
 Supported GPU acceleration depends on the installed backend and hardware. Runtime/resource policies govern scheduling and transcoding competition. Evaluation fixtures, outputs, promotion reports, and model state stay local unless deliberately exported. Hardware benchmarking and live evaluation follow their explicit opt-in controls.
 

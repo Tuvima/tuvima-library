@@ -54,12 +54,22 @@
 }
 
 .library-folders__detail {
+    display: flex;
+    flex-direction: column;
     min-width: 0;
+}
+
+.library-folders__recycle {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-form-row-gap, 12px);
+    margin-top: auto;
 }
 
 .library-folders__detail-header {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 14px;
 }
 

@@ -102,7 +102,76 @@ public sealed class FFmpegServiceDetectionTests : IDisposable
         Assert.Equal(FFmpegDetectionSource.ExplicitPath, service.Detection.Source);
     }
 
-    private FFmpegService Service(IReadOnlyList<string>? pathDirectories = null, IReadOnlyList<string>? standardFolders = null) =>
+    // ── The development switch that makes a fresh start download FFmpeg again ──
+
+    [Fact]
+    public void FreshToolsSwitch_IgnoresThePathStandardFoldersAndASavedLocation()
+    {
+        var onPath = Place(Path.Combine(_root, "bin"));
+        var standard = Place(Path.Combine(_root, "standard"));
+        var chosen = Place(Path.Combine(_root, "chosen"));
+        _config.Settings.FfmpegBinaryPath = Path.Combine(chosen, FfmpegName);
+        _config.Settings.FfprobeBinaryPath = Path.Combine(chosen, FfprobeName);
+
+        var service = Service(pathDirectories: [onPath], standardFolders: [standard], ignoreInstalled: true);
+
+        Assert.False(service.IsAvailable);
+        Assert.Equal(FFmpegDetectionSource.None, service.Detection.Source);
+        Assert.False(service.Detection.ExplicitPathMissing);
+    }
+
+    [Fact]
+    public void FreshToolsSwitch_RemovesTheCopyTheLibraryFetchedEarlier_SoItMustBeDownloadedAgain()
+    {
+        var fetched = Place(Path.Combine(_root, "data", "tools", "ffmpeg"));
+
+        var service = Service(ignoreInstalled: true);
+
+        Assert.False(service.IsAvailable);
+        Assert.False(Directory.Exists(fetched));
+    }
+
+    [Fact]
+    public void FreshToolsSwitch_StillFindsTheCopyDownloadedAfterTheStart()
+    {
+        var service = Service(ignoreInstalled: true);
+        Assert.False(service.IsAvailable);
+
+        var folder = Place(Path.Combine(_root, "data", "tools", "ffmpeg"));
+        var found = service.Redetect();
+
+        Assert.True(found);
+        Assert.Equal(Path.Combine(folder, FfmpegName), service.FfmpegPath);
+        Assert.Equal(FFmpegDetectionSource.DataFolder, service.Detection.Source);
+    }
+
+    [Fact]
+    public void WithoutTheSwitch_TheCopyTheLibraryFetchedEarlierIsKept()
+    {
+        var fetched = Place(Path.Combine(_root, "data", "tools", "ffmpeg"));
+
+        var service = Service();
+
+        Assert.True(service.IsAvailable);
+        Assert.True(Directory.Exists(fetched));
+    }
+
+    [Theory]
+    [InlineData("1", true)]
+    [InlineData("true", true)]
+    [InlineData("TRUE", true)]
+    [InlineData(" true ", true)]
+    [InlineData("0", false)]
+    [InlineData("yes", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void FreshToolsSwitch_IsOnlyOnForOneOrTrue(string? value, bool expected) =>
+        Assert.Equal(expected, FFmpegEnvironment.IsFreshToolsRequested(value));
+
+    private FFmpegService Service(
+        IReadOnlyList<string>? pathDirectories = null,
+        IReadOnlyList<string>? standardFolders = null,
+        bool ignoreInstalled = false) =>
         new(
             _config,
             new TuvimaDataPaths(Path.Combine(_root, "data")),
@@ -111,7 +180,8 @@ public sealed class FFmpegServiceDetectionTests : IDisposable
                 Path.Combine(_root, "app"),
                 Path.Combine(_root, "data"),
                 pathDirectories ?? [],
-                standardFolders ?? []));
+                standardFolders ?? [],
+                ignoreInstalled));
 
     private static string Place(string folder)
     {

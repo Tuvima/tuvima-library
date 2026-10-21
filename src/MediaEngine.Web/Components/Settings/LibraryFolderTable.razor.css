@@ -8,10 +8,10 @@
 .folder-table__head,
 .folder-table__row {
     display: grid;
-    grid-template-columns: minmax(220px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 56px;
+    grid-template-columns: minmax(220px, 2.2fr) minmax(190px, 1.4fr) 150px 56px;
     align-items: center;
     gap: 12px;
-    padding: 8px 12px;
+    padding: 4px 12px;
 }
 
 .folder-table__head {
@@ -23,7 +23,7 @@
 }
 
 .folder-table__row {
-    min-height: 64px;
+    min-height: 56px;
     border-top: 1px solid var(--tl-border-subtle);
 }
 
@@ -32,6 +32,33 @@
     align-items: center;
     gap: 10px;
     min-width: 0;
+}
+
+/* The folder's icon is its state: purple for a folder Library manages, blue with a lock for a read-only one, amber while it is busy. */
+.folder-table__icon {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--app-radius-sm, 6px);
+}
+
+.folder-table__icon.is-managed {
+    color: var(--tl-accent-primary);
+    background: var(--tl-accent-primary-soft);
+}
+
+.folder-table__icon.is-readonly {
+    color: var(--tl-status-info);
+    background: var(--tl-status-info-soft);
+}
+
+.folder-table__icon.is-converting {
+    color: var(--tl-status-warning);
+    background: var(--tl-status-warning-soft);
 }
 
 .folder-table__folder-text {
@@ -87,14 +114,13 @@
         grid-template-columns: auto 1fr auto;
         grid-template-areas:
             "folder folder actions"
-            "handling marker marker"
+            "marker marker marker"
             "files files files";
         row-gap: 8px;
         padding: 12px;
     }
 
     .folder-table__folder { grid-area: folder; }
-    .folder-table__handling { grid-area: handling; }
     .folder-table__marker { grid-area: marker; }
     .folder-table__files { grid-area: files; display: none; }
     .folder-table__actions { grid-area: actions; }

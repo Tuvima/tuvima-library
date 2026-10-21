@@ -31,6 +31,8 @@ public static class TuvimaToolRequirementsServiceCollectionExtensions
             provider.GetRequiredService<ToolInstallPlatform>(),
             () => provider.GetRequiredService<IToolRequirementsService>(),
             provider.GetRequiredService<ILogger<ToolInstallerService>>()));
+        // Starts the download of a missing Required tool (FFmpeg) at first-run setup and at Engine start-up.
+        services.AddSingleton<IToolAutoInstaller, ToolAutoInstaller>();
         // Nothing is held back until the work that holds files registers its own counter in place of this one.
         services.TryAddSingleton<IToolWaitingWorkCounter, NoToolWaitingWorkCounter>();
         services.AddHostedService<ToolRequirementsStartupService>();
