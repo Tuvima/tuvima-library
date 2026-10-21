@@ -544,7 +544,10 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
             }
         }
 
-        var results = await new CollectionSearchReadService(_db).SearchAsync("Frank Herbert", CancellationToken.None);
+        var searchIndex = new SearchIndexRepository(_db);
+        await searchIndex.RebuildAsync(CancellationToken.None);
+
+        var results = await new CollectionSearchReadService(_db, searchIndex).SearchAsync("Frank Herbert", CancellationToken.None);
 
         var result = Assert.Single(results);
         Assert.Equal(workId, result.WorkId);
