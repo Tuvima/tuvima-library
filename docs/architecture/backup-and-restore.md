@@ -32,7 +32,7 @@ After a restore and a rescan, your own state finds its way back to the right tit
 
 **Personal state** is a person's own state tied to a title: bookmarks, highlights, reading statistics, audiobook bookmarks and listening history, music play stats, consumption history, reactions, saved items, taste overrides, personal activity and playback positions. It is kept and re-attached to titles by recognition data. Each rule names an owner column (the profile or user the row belongs to), so one profile's state can be exported on its own.
 
-**Catalogue** is anything a rescan rebuilds: works, editions, media assets, canonical values, claims, artwork, fingerprints, subtitles, people, provider caches, search indexes, the Needs Review queue, and identity and enrichment jobs, and View items with what the Engine works out about them. It is never kept. The Vault's catalogue is in this group too. The one exception is a person's own choice on a catalogue row, such as a favourite View item: a rule can name choice columns, and the exporter keeps only those columns (as a reference to the row plus the values), only for rows where a choice differs from its default.
+**Catalogue** is anything a rescan rebuilds: works, editions, media assets, canonical values, claims, artwork, fingerprints, subtitles, people, provider caches, search indexes, the Needs Review queue, and identity and enrichment jobs, and View items with what the Engine works out about them. It is never kept. The adult-video area's catalogue is in this group too. The one exception is a person's own choice on a catalogue row, such as a favourite View item: a rule can name choice columns, and the exporter keeps only those columns (as a reference to the row plus the values), only for rows where a choice differs from its default.
 
 **Transient** is not kept and not rebuilt from files: sessions and tokens, one-time codes and challenges, run, operation and audit logs, telemetry, device pairing requests, notifications already sent, job queues, backup copy records and data store bookkeeping.
 
@@ -44,7 +44,7 @@ Secrets are never kept. Provider settings marked secret, webhook secrets and sim
 
 ## Backup contents (manifest)
 
-A backup's manifest will name its kind (`settings-and-personal-state`) and list what the backup leaves out: media files, folders, artwork, the catalogue, the Vault catalogue and secrets. The manifest and the export itself are built in a later step; this page defines only what is kept.
+A backup's manifest will name its kind (`settings-and-personal-state`) and list what the backup leaves out: media files, folders, artwork, the catalogue, the adult-video catalogue and secrets. The export of kept rows is built (`PersonalStateBackupRepository`, `BackupArchiveFormat`); writing it into backups, the manifest and restore come in the next step.
 
 ## Configuration tables (60)
 
@@ -285,36 +285,17 @@ None of these are kept.
 | `data_store_upgrades` | Which data store upgrade steps have run. |
 | `storage_metadata` | Data store bookkeeping. |
 
-## Registered ahead of the Vault
+## Registered ahead of Videos Wave 3
 
-The Vault (Videos Wave 3) adds its own tables in a separate proposed change. They are classified now so the Vault cannot ship an unclassified table. They do not exist yet on the main line, and the guardrail allows a rule for a missing table only while it is named in the registry's registered-ahead list. When the Vault lands, those names come out of the list and the guardrail checks the real columns. The Vault's catalogue is never in a backup; its settings and access, and a person's own Vault state, are.
+Videos Wave 3 adds its own tables in a separate proposed change. The ones below are classified now; they do not exist yet on the main line, and the guardrail allows a rule for a missing table only while it is named in the registry's registered-ahead list. That change adds the rules for the rest of its tables itself (the guardrail fails until it does), and when it lands these names come out of the list so the guardrail checks their real columns.
 
 | Table | Kind | Why |
 |---|---|---|
-| `vault_libraries` | Configuration | Which libraries are Vault libraries and where they look titles up. |
-| `profile_nsfw_settings` | Configuration | How each profile's Vault is locked. |
-| `profile_nsfw_pins` | Configuration | Vault PIN hashes, needed to open the Vault after a restore. |
-| `vault_pending_bookmarks` | Personal state | A person's Vault bookmarks waiting for their titles, already keyed by recognition data. |
+| `profile_nsfw_settings` | Configuration | How each profile's adult area is locked. |
+| `profile_nsfw_pins` | Configuration | Adult area PIN hashes, needed to open it after a restore. |
 | `bookmark_packs` | Personal state | Bookmark packs a person imported for a title. |
 | `bookmark_pack_items` | Personal state | The bookmarks inside a pack (owned through the pack's profile). |
-| `vault_activity` | Catalogue | Vault activity feed. |
-| `vault_artwork` | Catalogue | Vault artwork. |
-| `vault_asset_performers` | Catalogue | Which Vault performers are on which Vault title. |
-| `vault_asset_studios` | Catalogue | Which Vault studios made which Vault title. |
-| `vault_asset_tags` | Catalogue | Which Vault tags are on which Vault title. |
-| `vault_field_sources` | Catalogue | Where Vault metadata came from. |
-| `vault_file_fingerprints` | Catalogue | Vault file fingerprints. |
-| `vault_matches` | Catalogue | Vault title matches. |
-| `vault_performers` | Catalogue | Vault performers. |
-| `vault_studios` | Catalogue | Vault studios. |
-| `vault_tags` | Catalogue | Vault tags. |
-| `vault_galleries` | Catalogue | Vault image galleries. |
-| `vault_gallery_items` | Catalogue | The items in a Vault image gallery. |
-| `vault_image_folders` | Catalogue | Vault image folders. |
-| `vault_image_items` | Catalogue | Vault image items. |
-| `vault_image_libraries` | Catalogue | Vault image libraries. |
-| `vault_image_tags` | Catalogue | Which Vault tags are on which Vault image. |
-| `nsfw_session_unlocks` | Transient | Temporary Vault unlocks. |
+| `nsfw_session_unlocks` | Transient | Temporary adult area unlocks. |
 
 ## How to add a table
 

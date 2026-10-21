@@ -5,7 +5,7 @@ namespace MediaEngine.Storage.Backup;
 /// not listed here, so a new table cannot ship without a decision (Configuration, PersonalState, Catalogue or
 /// Transient). The public description is <c>docs/architecture/backup-and-restore.md</c>.
 /// </summary>
-public static class BackupTableClassification
+public static partial class BackupTableClassification
 {
     private static readonly IReadOnlyList<BackupTableRule> AllRules =
     [
@@ -169,7 +169,6 @@ public static class BackupTableClassification
         Catalogue("resolver_cache", "Cached identification answers."),
         Catalogue("search_results_cache", "Cached search answers."),
         Catalogue("qid_labels", "Cached Wikidata labels."),
-        Catalogue("search_index", "Search index over titles."),
 
         // ---------------------------------------------------------------------------------------------------------
         // Transient: not kept and not rebuilt from files.
@@ -241,67 +240,32 @@ public static class BackupTableClassification
         Transient("storage_metadata", "Data store bookkeeping."),
 
         // ---------------------------------------------------------------------------------------------------------
-        // Registered ahead of Videos Wave 3 (Vault, PR #374).
-        // These tables are created by the Vault branch (git show origin/claude/project-thread-lo9aal:
-        // src/MediaEngine.Storage/Schema/schema.snapshot.sql) and do not exist on main yet. They are listed in
+        // Registered ahead of Videos Wave 3 (PR #374).
+        // These tables are created by that branch (git show origin/claude/project-thread-lo9aal:
+        // src/MediaEngine.Storage/Schema/schema.snapshot.sql) and do not exist on main yet. That branch adds the rules
+        // for its own area-specific tables when it merges. These are listed in
         // RegisteredAhead so the guardrail tolerates them until that branch merges; remove each name from that set
         // once its table lands.
         // ---------------------------------------------------------------------------------------------------------
-        Config("vault_libraries", "Which libraries are Vault libraries and where they look titles up."),
-        Config("profile_nsfw_settings", "How each profile's Vault is locked."),
-        Config("profile_nsfw_pins", "Vault PIN hashes, needed to open the Vault after a restore."),
-        Personal("vault_pending_bookmarks", "profile_id", "A person's Vault bookmarks waiting for their titles, already keyed by recognition data.", refs: []),
+        Config("profile_nsfw_settings", "How each profile's adult area is locked."),
+        Config("profile_nsfw_pins", "Adult area PIN hashes, needed to open it after a restore."),
         Personal("bookmark_packs", "profile_id", "Bookmark packs a person imported for a title.", refs: [Work("work_id"), Asset("asset_id")]),
         Personal("bookmark_pack_items", null, "The bookmarks inside a pack (owned through the pack's profile).", refs: []),
-        Catalogue("vault_activity", "Vault activity feed."),
-        Catalogue("vault_artwork", "Vault artwork."),
-        Catalogue("vault_asset_performers", "Which Vault performers are on which Vault title."),
-        Catalogue("vault_asset_studios", "Which Vault studios made which Vault title."),
-        Catalogue("vault_asset_tags", "Which Vault tags are on which Vault title."),
-        Catalogue("vault_field_sources", "Where Vault metadata came from."),
-        Catalogue("vault_file_fingerprints", "Vault file fingerprints."),
-        Catalogue("vault_matches", "Vault title matches."),
-        Catalogue("vault_performers", "Vault performers."),
-        Catalogue("vault_studios", "Vault studios."),
-        Catalogue("vault_tags", "Vault tags."),
-        Catalogue("vault_galleries", "Vault image galleries."),
-        Catalogue("vault_gallery_items", "The items in a Vault image gallery."),
-        Catalogue("vault_image_folders", "Vault image folders."),
-        Catalogue("vault_image_items", "Vault image items."),
-        Catalogue("vault_image_libraries", "Vault image libraries."),
-        Catalogue("vault_image_tags", "Which Vault tags are on which Vault image."),
-        Transient("nsfw_session_unlocks", "Temporary Vault unlocks."),
+        Transient("nsfw_session_unlocks", "Temporary adult area unlocks."),
+
+        .. SearchIndexRules(),
     ];
 
     /// <summary>
-    /// Tables registered before they exist on main (the Vault branch adds them). The guardrail tests allow a rule
+    /// Tables registered before they exist on main (Videos Wave 3 adds them). The guardrail tests allow a rule
     /// for a table that does not exist only if the table is named here.
     /// </summary>
     public static IReadOnlySet<string> RegisteredAhead { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        "vault_libraries",
         "profile_nsfw_settings",
         "profile_nsfw_pins",
-        "vault_pending_bookmarks",
         "bookmark_packs",
         "bookmark_pack_items",
-        "vault_activity",
-        "vault_artwork",
-        "vault_asset_performers",
-        "vault_asset_studios",
-        "vault_asset_tags",
-        "vault_field_sources",
-        "vault_file_fingerprints",
-        "vault_matches",
-        "vault_performers",
-        "vault_studios",
-        "vault_tags",
-        "vault_galleries",
-        "vault_gallery_items",
-        "vault_image_folders",
-        "vault_image_items",
-        "vault_image_libraries",
-        "vault_image_tags",
         "nsfw_session_unlocks",
     };
 

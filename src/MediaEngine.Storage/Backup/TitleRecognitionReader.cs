@@ -91,7 +91,7 @@ internal sealed class TitleRecognitionReader
 
     /// <summary>
     /// Whether a title must not carry a name, parent name or year in a backup. Today nothing is withheld; this is
-    /// wired to the Vault libraries when Videos Wave 3 merges, so a Vault title appears only as ids and
+    /// wired to the adult-video libraries when Videos Wave 3 merges, so such a title appears only as ids and
     /// fingerprints.
     /// </summary>
     private static bool IsWithheldTitle(CatalogueTarget target, byte[] id)
