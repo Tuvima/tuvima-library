@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Contracts.Activity;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
@@ -132,7 +133,7 @@ public sealed class ActivityLogPanelTests : AsyncBunitContext
         Assert.Equal(2, rows.Count);
         Assert.Equal("Dune: Part Two", rows[0].QuerySelector(".activity-log__title")!.TextContent);
         Assert.Equal("Added to Movies from /films/dune2.mkv", rows[0].QuerySelector(".activity-log__detail")!.TextContent);
-        Assert.Equal("Movies", rows[0].QuerySelector(".activity-log__media-type")!.TextContent);
+        Assert.Equal("Movie", rows[0].QuerySelector(".activity-log__media-type")!.GetAttribute("aria-label"));
         Assert.Equal("failed", rows[1].GetAttribute("data-category"));
         Assert.Null(rows[1].QuerySelector(".activity-log__media-type"));
         Assert.NotNull(rows[0].QuerySelector("time[title]"));
@@ -149,7 +150,68 @@ public sealed class ActivityLogPanelTests : AsyncBunitContext
 
         var row = Assert.Single(cut.FindAll("[data-testid=activity-log-row]"));
         Assert.Equal("3,000 photos", row.QuerySelector(".activity-log__title")!.TextContent);
-        Assert.Equal("Photos", row.QuerySelector(".activity-log__media-type")!.TextContent);
+        Assert.Equal("Photos", row.QuerySelector(".activity-log__media-type")!.GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void TheMediaType_IsAnIconWithAnAccessibleName_NotAPillOfText()
+    {
+        _onLog = (_, _, offset, limit) => Page(
+            [Entry(1, "added", "Dune", null, mediaType: "Books")],
+            offset, limit, hasMore: false, total: 1);
+
+        var cut = Render<ActivityLogPanel>();
+
+        var type = cut.Find(".activity-log__media-type");
+        Assert.Equal("img", type.GetAttribute("role"));
+        Assert.Equal("Book", type.GetAttribute("aria-label"));
+        Assert.Equal(string.Empty, type.TextContent.Trim());
+        Assert.NotNull(type.QuerySelector("svg"));
+    }
+
+    [Fact]
+    public void AnAddedRow_ShowsItsCover_AndATypeIconWhereThereIsNone()
+    {
+        _onLog = (_, _, offset, limit) => Page(
+            [
+                Entry(1, "added", "Dune", null, mediaType: "Movies", coverUrl: "/engine-image/stream/entity/work/00000000-0000-0000-0000-000000000001/cover?size=s"),
+                Entry(2, "added", "Emma", null, mediaType: "Books"),
+                Entry(3, "system", "The Library started", null),
+            ],
+            offset, limit, hasMore: false, total: 3);
+
+        var cut = Render<ActivityLogPanel>();
+
+        var rows = cut.FindAll("[data-testid=activity-log-row]");
+        Assert.Contains("/stream/entity/work/00000000-0000-0000-0000-000000000001/cover", rows[0].QuerySelector(".activity-log__art img")!.GetAttribute("src"), StringComparison.Ordinal);
+        Assert.Null(rows[1].QuerySelector(".activity-log__art img"));
+        Assert.NotNull(rows[1].QuerySelector(".activity-log__art .app-media-artwork__fallback"));
+        Assert.Null(rows[2].QuerySelector(".activity-log__art .app-media-artwork"));
+    }
+
+    [Fact]
+    public async Task SortingByType_GroupsTheRowsByTypeKeepingNewestFirstWithinEach_AndNoTypeLast()
+    {
+        _onLog = (_, _, offset, limit) => Page(
+            [
+                Entry(1, "added", "Dune", null, mediaType: "Movies"),
+                Entry(2, "system", "The Library started", null),
+                Entry(3, "added", "Emma", null, mediaType: "Books"),
+                Entry(4, "added", "Heat", null, mediaType: "Movies"),
+                Entry(5, "added", "Ulysses", null, mediaType: "Books"),
+            ],
+            offset, limit, hasMore: false, total: 5);
+        var cut = Render<ActivityLogPanel>();
+        Assert.Equal(["Dune", "The Library started", "Emma", "Heat", "Ulysses"], RowTitles(cut));
+
+        await cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync("type"));
+
+        Assert.Equal(["Emma", "Ulysses", "Dune", "Heat", "The Library started"], RowTitles(cut));
+        Assert.Single(_requests);
+
+        await cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync("newest"));
+
+        Assert.Equal(["Dune", "The Library started", "Emma", "Heat", "Ulysses"], RowTitles(cut));
     }
 
     [Fact]
@@ -231,6 +293,9 @@ public sealed class ActivityLogPanelTests : AsyncBunitContext
         Assert.Equal(2, _requests.Count);
     }
 
+    private static string[] RowTitles(IRenderedComponent<ActivityLogPanel> cut) =>
+        cut.FindAll("[data-testid=activity-log-row] .activity-log__title").Select(title => title.TextContent.Trim()).ToArray();
+
     private static AngleSharp.Dom.IElement Chip(IRenderedComponent<ActivityLogPanel> cut, string label) =>
         cut.FindAll(".app-segmented-control__item").Single(chip => chip.TextContent.Trim() == label);
 
@@ -246,7 +311,7 @@ public sealed class ActivityLogPanelTests : AsyncBunitContext
 
     private static ActivityLogEntryDto Entry(
         long id, string category, string title, string? detail,
-        string? mediaType = null, int? count = null, string? route = null) =>
+        string? mediaType = null, int? count = null, string? route = null, string? coverUrl = null) =>
         new()
         {
             Id = id,
@@ -258,5 +323,6 @@ public sealed class ActivityLogPanelTests : AsyncBunitContext
             MediaType = mediaType,
             Count = count,
             Route = route,
+            CoverUrl = coverUrl,
         };
 }

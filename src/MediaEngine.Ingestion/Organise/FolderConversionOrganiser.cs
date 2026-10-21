@@ -472,7 +472,7 @@ public sealed class FolderConversionOrganiser
         await _ledger.UpsertAsync(
             new FolderOrganiseLogEntry(
                 entry.OperationId, entry.SourceId, entry.OldPath, entry.NewPath, FolderOrganiseOutcomes.Moved,
-                DateTimeOffset.UtcNow, "Finished after the folder was switched to As-is; nothing else was changed."),
+                DateTimeOffset.UtcNow, "Finished after the folder was switched to Read-only; nothing else was changed."),
             ct).ConfigureAwait(false);
     }
 

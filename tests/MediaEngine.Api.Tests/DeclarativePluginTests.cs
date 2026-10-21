@@ -298,6 +298,62 @@ public sealed class DeclarativePluginTests : IDisposable
         Assert.Contains("#EXTM3U", wrongFormat.Message, StringComparison.Ordinal);
     }
 
+    // ── Live TV readiness (decision 0012) ────────────────────────────────────
+
+    [Fact]
+    public void LiveTvReadiness_AChannelListAndAGuideCanBothBeDeclared_WithNoTunerNoCodeAndNoScreens()
+    {
+        Add("json.livetv", """
+            "permissions": ["network.http", "scheduled-work", "plugin-records"],
+            "network": [{ "host": "lists.example.com", "sends": "Nothing; it only downloads the list" }],
+            "declarative": { "channel_sources": [
+              { "key": "channels", "name": "Channels", "format": "m3u", "url": "https://lists.example.com/a.m3u" },
+              { "key": "guide", "name": "Guide", "format": "xmltv", "url": "https://lists.example.com/guide.xml" }
+            ] }
+            """);
+
+        var plugin = Assert.IsType<PluginRegistration>(_catalog.Get("json.livetv"));
+
+        Assert.Null(plugin.LoadError);
+        Assert.Equal(["channels-channels", "channels-guide"], plugin.Capabilities.OfType<IPluginScheduledJob>().Select(job => job.Key).Order());
+        Assert.DoesNotContain(plugin.Capabilities, capability => capability.Kind != PluginCapabilityKinds.ScheduledJobKind);
+    }
+
+    [Fact]
+    public async Task LiveTvReadiness_TheKeptRecordsHoldEverythingALaterLiveTvNeeds()
+    {
+        Add("json.livetv", """
+            "permissions": ["network.http", "scheduled-work", "plugin-records"],
+            "network": [{ "host": "lists.example.com", "sends": "Nothing; it only downloads the list" }],
+            "declarative": { "channel_sources": [
+              { "key": "channels", "name": "Channels", "format": "m3u", "url": "https://lists.example.com/a.m3u" },
+              { "key": "guide", "name": "Guide", "format": "xmltv", "url": "https://lists.example.com/guide.xml" }
+            ] }
+            """);
+        var jobs = _catalog.Get("json.livetv")!.Capabilities.OfType<IPluginScheduledJob>().ToDictionary(job => job.Key);
+        var channels = new JobContext("#EXTM3U\n#EXTINF:-1 tvg-id=\"news.1\" tvg-logo=\"https://img.example.com/n.png\" group-title=\"News\",News One\nhttps://stream.example.com/news1.m3u8\n");
+        var guide = new JobContext("""
+            <tv><channel id="news.1"><display-name>News One</display-name></channel>
+            <programme start="20261021183000 +0100" stop="20261021190000 +0100" channel="news.1"><title>Evening news</title></programme></tv>
+            """);
+
+        await jobs["channels-channels"].RunAsync(channels, default);
+        await jobs["channels-guide"].RunAsync(guide, default);
+
+        using var list = JsonDocument.Parse(Assert.Single(channels.Saved).Json);
+        var channel = list.RootElement.GetProperty("channels")[0];
+        Assert.Equal("news.1", channel.GetProperty("id").GetString());
+        Assert.Equal("News One", channel.GetProperty("name").GetString());
+        Assert.Equal("News", channel.GetProperty("group").GetString());
+        Assert.Equal("https://img.example.com/n.png", channel.GetProperty("logo_url").GetString());
+        Assert.Equal("https://stream.example.com/news1.m3u8", channel.GetProperty("stream_url").GetString());
+        using var programmes = JsonDocument.Parse(Assert.Single(guide.Saved).Json);
+        var programme = programmes.RootElement.GetProperty("programmes")[0];
+        Assert.Equal("news.1", programme.GetProperty("channel_id").GetString());
+        Assert.Equal("Evening news", programme.GetProperty("title").GetString());
+        Assert.True(programme.TryGetProperty("start", out _) && programme.TryGetProperty("stop", out _));
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private void Add(string id, string fields)

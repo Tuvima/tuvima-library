@@ -14,7 +14,7 @@ namespace MediaEngine.Api.Services.Tools;
 /// <summary>
 /// Fetches FFmpeg and Tesseract when a person asks. Every download is a fixed https address on github.com from
 /// <c>config/tool_downloads.json</c> and must match its recorded SHA-256 before anything is placed; a file that does
-/// not match is thrown away and the old copy is left alone. Nothing downloads by itself, no library data is sent, and
+/// not match is thrown away and the old copy is left alone. A download starts when a person asks, or when <see cref="ToolAutoInstaller"/> starts one for a missing Required tool (FFmpeg). No library data is sent, and
 /// every attempt is written to the system activity log in plain words.
 /// </summary>
 public sealed class ToolInstallerService : IToolInstallerService

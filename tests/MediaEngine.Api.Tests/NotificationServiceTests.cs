@@ -221,7 +221,7 @@ public sealed class NotificationServiceTests : IDisposable
             new ToolRequirementDto("ffmpeg", "FFmpeg", "tool", ToolRequirementLevels.Required, ToolRequirementStates.Missing, "Video cannot be prepared.", null, "Install FFmpeg.", null, 3, true, false, false, null),
             new ToolRequirementDto("tesseract", "Tesseract", "tool", ToolRequirementLevels.Optional, ToolRequirementStates.Missing, "Scanned pages are not read.", null, "Install it.", null, 0, true, false, false, null),
         ]));
-        var service = new ToolRequirementsStartupService(tools, publisher, NullLogger<ToolRequirementsStartupService>.Instance);
+        var service = new ToolRequirementsStartupService(tools, new NoAutoInstaller(), publisher, NullLogger<ToolRequirementsStartupService>.Instance);
 
         await service.StartAsync(CancellationToken.None);
         await Task.Delay(300);
@@ -358,6 +358,11 @@ public sealed class NotificationServiceTests : IDisposable
             Sent.Add(new SentMessage(message, [.. recipients.Select(recipient => recipient.Email)]));
             return Task.FromResult(ChannelSendResult.Sent);
         }
+    }
+
+    private sealed class NoAutoInstaller : IToolAutoInstaller
+    {
+        public Task<ToolRequirementsDto> StartMissingRequiredAsync(ToolRequirementsDto tools, CancellationToken ct) => Task.FromResult(tools);
     }
 
     private sealed class SpyPublisher : INotificationPublisher

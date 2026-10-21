@@ -27,7 +27,7 @@ Understand how local inference, model lifecycle, prompts, and hardware limits su
 
 ## Role in the System
 
-Local AI assists filename interpretation, media-type advice, and enrichment when those features are enabled. The committed configuration disables the six text feature flags and the optional audio pack. `ModelAutoDownloadService` skips downloads when neither text features nor the audio pack are enabled; basic setup does not require downloading every model.
+Local AI is the engine room: it runs the models and keeps the machine fair, and **plugins are how AI is used**. The AI features that ship with the Library (Smart labelling, Type helper, Series order, Vibe tags, Description insights and Taste summary) are Official plugins, each off until an administrator approves what it uses and switches it on on **Settings > Plugins**. The committed configuration leaves the optional audio pack off. `ModelAutoDownloadService` skips downloads when no AI plugin that needs a text model is on and the audio pack is off; basic setup does not require downloading every model.
 
 Inference runs on the local machine. Model downloads and configured metadata-provider requests still use the network; local inference is not a claim that the whole Engine never makes outbound requests.
 
@@ -85,13 +85,13 @@ Whisper Medium is a separate optional audio pack: 1,500 MB declared download and
 
 ### Model catalog ownership
 
-`config/ai.json` selects `resource_profile`, feature flags, and `audio_pack_enabled`; code owns artifact URLs, SHA-256 values, role definitions, catalog metadata, and role requirements. `AiSettings.Models`, `ModelCatalog`, and `RoleRequirements` are JSON-ignored runtime state, not editable artifact definitions in the configuration file. See [the model portfolio](local-ai-model-portfolio.md).
+`config/ai.json` selects `resource_profile`, `audio_pack_enabled` and the engine-room limits (concurrency, timeouts, the default hourly plugin allowance); which features run, their schedules and the words Vibe tags may use belong to the plugins and are saved as plugin settings. Code owns artifact URLs, SHA-256 values, role definitions, catalog metadata, and role requirements. `AiSettings.Models`, `ModelCatalog`, and `RoleRequirements` are JSON-ignored runtime state, not editable artifact definitions in the configuration file. See [the model portfolio](local-ai-model-portfolio.md).
 
 Older design candidates such as Llama baselines, Gemma, Distil-Whisper, Whisper turbo, Parakeet, and Qwen3-ASR are not entries in the supported launch catalog. Evaluating them requires a deliberate runtime/catalog change and validation; they are not selectable setup options.
 
 ## Structured Output
 
-All LLM calls use GBNF grammar constraints - llama.cpp forces the model to produce valid JSON at the token level. This is model-agnostic and works with Llama, Mistral, Phi, Gemma, and Qwen models. JSON schema validation and retry logic serve as a safety net over the grammar constraint.
+A call may carry a GBNF grammar, and llama.cpp then forces the model to produce valid JSON at the token level. The abilities that pull out structured facts or classify require a grammar; writing text does not. Grammar constraints are model-agnostic and work with Llama, Mistral, Phi, Gemma, and Qwen models. JSON schema validation and retry logic serve as a safety net over the grammar constraint.
 
 ---
 
@@ -126,60 +126,20 @@ Gemma 4 audio is not a Whisper replacement for sync in the current architecture.
 
 ## Features
 
-This is a capability and design inventory, not a default-enabled feature list. Current feature flags and registered services determine execution. The shipped configuration disables text features; entries such as cross-media scene mapping and assisted URL extraction require their own implementation/acceptance evidence before being presented as available. A logical role name below always uses the selected resource-profile artifact.
+AI features are plugins. Each is an Official plugin that is **off until an administrator approves it** (the approval lists "Uses Local AI") and each asks the engine room for an ability; it never names a model. A plugin gets its own hourly allowance (requests, busy seconds, longest wait); going over it shows Needs attention on **Settings > Local AI > Usage**.
 
-### Ingestion (automatic, runs during file processing)
-
-| Feature | Model | What it does |
+| Plugin | Ability | What it does |
 |---|---|---|
-| Smart Labeling | text_quality | Cleans raw filenames into structured title/author/year/series fields. Supplies structured filename evidence to intake. |
-| Media Type Classification | text_quality | Classifies ambiguous file formats (MP3, MP4, M4A) when heuristic signals are insufficient. Supplements processor evidence when the feature is enabled. |
-| Batch Manifest Builder | text_quality | Analyses an entire folder of files as a group before retail API calls, inferring series, author, and format context. Aims to reduce repeated retail API calls; no general percentage reduction is established here. Folder hinting remains a separate intake concern. |
-| Audio Language Detection | audio | Detects the spoken language of audio files using Whisper. |
+| Smart labelling | text_quality | Cleans raw file and folder names into title, author, year, series and episode suggestions when files are added. With it off, plain filename rules run. |
+| Type helper | text_quality | Decides the media type of a file when the usual signals are unclear. With it off, the unclear file goes to Needs Review. |
+| Series order | text_quality | Infers reading or watching order within a Series when Wikidata position data is missing or inconsistent. Runs on the plugin's schedule. |
+| Vibe tags | text_quality | Gives each work 3 to 5 mood and atmosphere tags from a controlled word list (the plugin's settings). Vibes describe how something feels; genre, from Wikidata and retail providers, says what it is. Runs on the plugin's schedule. |
+| Description insights | text_quality | Reads a work's description for themes, moods, content warnings and a short summary. Runs on the plugin's schedule. |
+| Taste summary | text_quality | Writes a short plain-language summary of a profile's taste. It also asks to read what people watch, so it is off by default; with it off the profile page keeps its numbers and shows a plain sentence. |
 
-### Alignment (automatic / on-demand)
+Results are recorded as AI-sourced values under the plugin's own key. They never replace a value a provider or a person set, they rank below providers in the Priority Cascade, and the item's Details tab shows them under **Suggested by Local AI** with an AI mark. Switching a plugin off removes what it still owns and leaves anything a person or provider has since set. Vibes and themes are also browse filters.
 
-| Feature | Model | What it does |
-|---|---|---|
-| QID Disambiguation | text_quality | When the Reconciliation API returns multiple Wikidata candidates, picks the best match using semantic reasoning over title, description, and existing metadata. |
-| Series Alignment | text_quality | Infers correct reading/watching order within a series when Wikidata series position data is absent or inconsistent. Background service (3 AM daily). |
-| Watching Order | text_fast | Generates a recommended cross-media consumption order for a Collection (read the book before watching the film, etc.). On-demand. |
-
-### Enrichment (background / on-demand)
-
-| Feature | Model | What it does |
-|---|---|---|
-| Vibe Tags | text_quality | Generates mood and atmosphere tags (3-5 per work) using per-category controlled vocabularies defined in `config/ai.json`. 25-30 tags per media type, organised by dimension: pacing, mood, atmosphere, tone, intensity. Vibes describe *how something feels*, not *what it is* - genre handles categorisation (from Wikidata/retail), vibes handle the emotional/atmospheric space. Background service (4 AM daily). |
-| TL;DR | text_fast | Generates a 2-3 sentence plain-language summary of a work's description. On-demand. |
-| Cover Art Validation | text_fast | Verifies that a downloaded cover image matches the expected work (catches mismatched covers from retail providers). |
-| Audio Similarity | - | Chromaprint-based acoustic fingerprinting to detect duplicate audio files across formats. No LLM required. |
-
-### Syncing (scheduled / on-demand)
-
-| Feature | Models | What it does |
-|---|---|---|
-| Immersive Bake | audio + text_quality | Generates a synchronized audiobook/ebook experience - aligns audio timestamps to text positions. |
-| Subtitle Sync | audio | Corrects subtitle timing drift using Whisper-generated transcription as ground truth. |
-| Cross-Media Scene Mapping | text_quality | Maps equivalent scenes across book, film, and audiobook editions of the same work. |
-
-### Personalization (background / on-demand)
-
-| Feature | Model | What it does |
-|---|---|---|
-| Local Taste Profiling | text_quality | Builds a per-profile preference model from reading/watching history. Background service (Sunday 5 AM). |
-| "Why" Factor | text_fast | Explains in plain language why a specific item was recommended to a user. |
-
-### Discovery (user input)
-
-| Feature | Model | What it does |
-|---|---|---|
-| Intent Search | text_fast | Translates a natural language search query ("something scary set in space") into structured filter parameters for the library query engine. |
-
-### Advanced (manual)
-
-| Feature | Model | What it does |
-|---|---|---|
-| User-Assisted URL Paste | text_quality | Extracts structured metadata from a pasted URL (publisher page, Wikipedia article, Goodreads link) when automated providers fail. |
+Other services that use the same engine room: document text reading (Tesseract, which works with Local AI off), the hardware benchmark, and audio language detection with the optional audio pack. Ideas such as cross-media scene mapping, assisted URL extraction, intent search and audio-text sync are not built; the speech-sync placeholder and the image-AI placeholder plugin were removed until a feature needs them.
 
 ---
 
@@ -189,12 +149,12 @@ AI does not replace the Priority Cascade Engine. Wikidata remains the sole autho
 
 | AI feature | Cascade interaction |
 |---|---|
-| SmartLabeler | Cleans filenames before they are parsed into claims - better raw input for Tier D scoring |
-| MediaTypeAdvisor | Emits a high-confidence `media_type` claim that enters the cascade as any other claim |
-| QidDisambiguator | Accelerates Tier C resolution when multiple Wikidata candidates are returned |
-| BatchManifestBuilder | Reduces the number of API calls, but does not change claim weights or cascade logic |
+| Smart labelling | Cleans filenames before they are parsed into claims - better raw input for Tier D scoring |
+| Type helper | Emits a high-confidence `media_type` claim that enters the cascade as any other claim |
+| Series order | Fills in order only when Wikidata has no series position; it never overrides one |
+| Vibe tags, Description insights | Add labelled suggestions that rank below every provider |
 
-The cascade evaluates all claims - including those produced by AI features - using the same tier system.
+The cascade evaluates all claims - including those produced by AI features - using the same tier system, and an AI claim never outranks a provider's.
 
 ---
 
@@ -217,13 +177,13 @@ Genres and vibes serve different purposes and come from different sources. They 
 - Vibes are organised by dimension: **pacing** (page-turner, slow-burn), **mood** (dark, uplifting), **atmosphere** (atmospheric, gritty), **tone** (satirical, whimsical), **intensity** (epic, intimate).
 - Cross-media tags (atmospheric, dark, intimate, haunting, raw, gentle) appear across most media types because those vibes are universal. Media-specific tags stay where they make sense (visually-stunning for film, driving for music, noir for comics).
 - 25-30 tags per media type. The LLM selects 3-5 per work, so the larger vocabulary gives range without diluting results.
-- Vocabularies are editable by the user in Settings > Intelligence > Vibe Vocabulary.
+- The word list is a setting of the Vibe tags plugin (Settings > Plugins); an empty list falls back to the built-in words so tagging never runs without a vocabulary.
 
 ---
 
 ## API Endpoints
 
-Model/status/configuration routes live in `AiEndpoints.cs`. Enrichment actions below are a design inventory; confirm their mapped endpoint before using them as a client contract. Refer to [the endpoint reference](../reference/api-endpoints.md) for the current route surface.
+Model, status, configuration and usage routes live in `AiEndpoints.cs`. Refer to [the endpoint reference](../reference/api-endpoints.md) for the current route surface.
 
 | Method | Route | Purpose |
 |---|---|---|
@@ -232,11 +192,13 @@ Model/status/configuration routes live in `AiEndpoints.cs`. Enrichment actions b
 | POST | `/ai/models/{role}/download` | Trigger model download |
 | POST | `/ai/models/{role}/load` | Load a model into memory |
 | POST | `/ai/models/{role}/unload` | Unload a model |
-| GET | `/ai/config` | Current AI configuration |
-| POST | `/ai/enrich/tldr/{entityId}` | Generate TL;DR for a work |
-| POST | `/ai/enrich/vibes/{entityId}` | Generate vibe tags for a work |
-| POST | `/ai/enrich/search/intent` | Parse a natural language search query |
-| POST | `/ai/enrich/extract-url` | Extract metadata from a pasted URL |
+| GET / PUT | `/ai/config` | Read or change the AI settings, including the default plugin allowance |
+| GET | `/ai/profile`, `/ai/resources` | Hardware profile and current resource use |
+| POST | `/ai/benchmark` | Run the hardware benchmark |
+| GET | `/ai/usage` | Who used which ability in the last 7 days, and each AI plugin's standing this hour |
+| GET | `/ai/enrichment/progress` | Progress of AI-assisted enrichment |
+
+Plugins reach Local AI only through the plugin door (`PluginAiGateway`), which checks the plugin's declared AI permission and its allowance first.
 
 ---
 
@@ -244,23 +206,20 @@ Model/status/configuration routes live in `AiEndpoints.cs`. Enrichment actions b
 
 | Service | Schedule | Purpose |
 |---|---|---|
-| `ModelAutoDownloadService` | Startup | Downloads the selected text artifact only when a text feature is enabled; downloads Whisper only when the audio pack is enabled |
-| `VibeBatchService` | Daily at 4 AM | Processes vibe tag queue for all un-tagged works |
-| `SeriesAlignmentBackgroundService` | Daily at 3 AM | Resolves series order for works without Wikidata series position |
-| Taste-profile refresh (design target) | Proposed weekly schedule | No `TasteProfileBackgroundService` is registered in the current Engine |
+| `ModelAutoDownloadService` | Startup | Downloads the selected text artifact only when an AI plugin that needs it is on; downloads Whisper only when the audio pack is enabled |
+| Series order, Vibe tags and Description insights | Their own plugin schedules | Each plugin's scheduled job runs one pass of its runner; the schedule is a plugin setting and each run is recorded in the run history |
 
 ---
 
 ## Configuration
 
-All AI settings live in `config/ai.json`:
+Engine-room settings live in `config/ai.json`:
 
 - One selected text resource profile and an optional audio-pack flag; artifact definitions remain code-owned
-- Per-feature enable flags
-- Per-category vibe vocabularies (Books, Movies, Music, Comics)
-- Scheduling parameters for background services
-- Idle unload timeout
-- Plugin allowances (`plugin_budget`, `plugin_budget_overrides`)
+- Concurrency, timeout, CPU reservation, free-disk and idle-unload limits
+- The default hourly plugin allowance (`plugin_budget`) and per-plugin overrides
+
+Which features run, their schedules and the Vibe tags word list are not here: they are plugin settings, saved under `.data/plugin-config/{plugin id}.json` in the library root.
 
 ## Related
 

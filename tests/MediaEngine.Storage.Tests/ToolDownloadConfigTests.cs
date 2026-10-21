@@ -35,7 +35,7 @@ public sealed class ToolDownloadConfigTests : IDisposable
         var settings = new ConfigurationDirectoryLoader(Path.Combine(_root, "config")).LoadToolDownloads();
 
         Assert.NotNull(settings.Ffmpeg);
-        Assert.Equal("DEE63142094F79F6A50CDECE65384B7793181EAB3B6DB2EC907834981BB8AB10", settings.Ffmpeg.Sha256);
+        Assert.Equal("60F467265B1E312373DBCD92200C2618A74850F98D3D078E94296BB3FA2047BA", settings.Ffmpeg.Sha256);
         Assert.Equal(["ffmpeg.exe", "ffprobe.exe"], settings.Ffmpeg.Files.Select(file => file.Name));
         Assert.NotNull(settings.Tesseract);
         Assert.Equal(["eng.traineddata", "osd.traineddata"], settings.Tesseract.LanguageFiles.Select(file => file.Name));

@@ -57,4 +57,8 @@ public sealed class ActivityLogEntryDto
     /// <summary>A Dashboard address that opens the item the row is about, when it has one.</summary>
     [JsonPropertyName("route")]
     public string? Route { get; set; }
+
+    /// <summary>The cover of the added title as an Engine address (<c>/stream/entity/work/{id}/cover</c>), for rows that name one title; null otherwise.</summary>
+    [JsonPropertyName("cover_url")]
+    public string? CoverUrl { get; set; }
 }
