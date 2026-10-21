@@ -1209,6 +1209,34 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
+    public void CollectionsPeople_ShowsThePeopleWithoutWaitingForTheCollectionCatalog()
+    {
+        // Bug B31: People waited for the collection catalog, which takes seconds on a large library and is not shown there.
+        var catalog = new TaskCompletionSource<List<CollectionManagementCatalogViewModel>>();
+        Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetCollectionCatalogAsync), _ => catalog.Task)));
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<AppPopoverHost>(0);
+            builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1);
+            builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2);
+            builder.CloseComponent();
+            builder.OpenComponent<CollectionsPage>(3);
+            builder.AddAttribute(4, nameof(CollectionsPage.Section), "people");
+            builder.CloseComponent();
+        });
+
+        cut.WaitForAssertion(() => Assert.Contains("Octavia Butler", cut.Markup));
+        Assert.False(catalog.Task.IsCompleted);
+
+        catalog.SetResult([]);
+        cut.WaitForAssertion(() => Assert.Contains("Octavia Butler", cut.Markup));
+    }
+
+    [Fact]
     public void LibraryConfigurableTable_RendersNativeTableShellAndSharedActions()
     {
         var cut = Render<LibraryConfigurableTable>(parameters => parameters

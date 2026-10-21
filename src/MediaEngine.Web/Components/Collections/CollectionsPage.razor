@@ -43,7 +43,7 @@
     </LibrarySectionHeader>
 
     <CollectionsSectionLayout>
-        @if (_loading)
+        @if (_loading || !ActiveSectionReady)
         {
             <AppPageState Kind="AppPageStateKind.Loading"
                           Title="Loading collections"
@@ -387,6 +387,13 @@
     private bool _loadingMorePeople;
     private bool _loaded;
     private bool _loadFailed;
+    // Each half of the page (collections and shelves, people) is marked ready when its reads arrive; the open section
+    // shows "Loading" until its own half is in, so a section chosen early never flashes an empty state.
+    private bool _collectionsReady;
+    private bool _peopleReady;
+
+    private bool ActiveSectionReady => _loadFailed
+        || (_activeSection == CollectionsSectionConfiguration.People ? _peopleReady : _collectionsReady);
     private string? _loadError;
     private string? _loadedPeopleQueryKey;
 
@@ -699,41 +706,42 @@
         _loading = true;
         _loadFailed = false;
         _loadError = null;
+        _collectionsReady = false;
+        _peopleReady = false;
+        Task<List<CollectionManagementCatalogViewModel>>? catalogTask = null;
+        Task<List<ContentGroupViewModel>>? shelvesTask = null;
+        Task<Dictionary<string, int>>? peopleRolesTask = null;
+        Task<PagedResponse<PersonListItemResponse>?>? peopleTask = null;
+        var peopleFirst = _activeSection == CollectionsSectionConfiguration.People;
+        // A people request started after this load (a filter change, or opening People early) owns the list from then on.
+        var peopleRequest = _peopleCts;
         try
         {
             _activeProfile = await Orchestrator.GetActiveProfileAsync();
 
-            var catalogTask = ApiClient.GetCollectionCatalogAsync(_activeProfile?.Id, ct);
-            var shelvesTask = ApiClient.GetContentGroupsAsync(ct);
-            var peopleRolesTask = ApiClient.GetPersonRoleCountsAsync(ct);
-            var peopleTask = ApiClient.GetPersonsPageAsync(
-                search: _activeSection == CollectionsSectionConfiguration.People ? NullIfBlank(_searchText) : null,
-                role: _activeSection == CollectionsSectionConfiguration.People && _role != "all" ? _role : null,
+            catalogTask = ApiClient.GetCollectionCatalogAsync(_activeProfile?.Id, ct);
+            shelvesTask = ApiClient.GetContentGroupsAsync(ct);
+            peopleRolesTask = ApiClient.GetPersonRoleCountsAsync(ct);
+            peopleTask = ApiClient.GetPersonsPageAsync(
+                search: peopleFirst ? NullIfBlank(_searchText) : null,
+                role: peopleFirst && _role != "all" ? _role : null,
                 offset: 0,
                 limit: PeoplePageSize,
-                lane: _activeSection == CollectionsSectionConfiguration.People && _lane != "all" ? _lane : null,
-                sort: _activeSection == CollectionsSectionConfiguration.People ? _sortBy : null,
+                lane: peopleFirst && _lane != "all" ? _lane : null,
+                sort: peopleFirst ? _sortBy : null,
                 ct: ct);
 
-            await Task.WhenAll(
-                catalogTask,
-                shelvesTask,
-                peopleRolesTask,
-                peopleTask);
+            // The open section shows as soon as its own reads arrive (B31): People no longer waits for the collection
+            // catalog (seconds on a large library), and the collection sections no longer wait for the people reads.
+            if (peopleFirst)
+                await ApplyPeopleAsync(peopleRolesTask, peopleTask, peopleRequest, ct);
+            else
+                await ApplyCollectionsAsync(catalogTask, shelvesTask);
 
             // Cancelled calls come back empty; a newer load (or leaving the page) owns the state.
             if (ct.IsCancellationRequested)
                 return;
 
-            _collections.Clear();
-            _collections.AddRange(catalogTask.Result);
-            BuildShelves(shelvesTask.Result);
-            _peopleRoleCounts = peopleRolesTask.Result;
-
-            _people.Clear();
-            _peopleOffset = 0;
-            await AppendPeoplePageAsync(peopleTask.Result ?? EmptyPeoplePage(), ct);
-            _loadedPeopleQueryKey = CurrentPeopleQueryKey;
             _loaded = true;
         }
         catch (Exception ex)
@@ -748,6 +756,56 @@
             if (ReferenceEquals(_loadCts, cts))
                 _loading = false;
         }
+
+        if (_loadFailed || ct.IsCancellationRequested || catalogTask is null || shelvesTask is null || peopleRolesTask is null || peopleTask is null)
+            return;
+
+        // The other sections fill in behind the open one (their counts in the section menu, and their content when chosen).
+        StateHasChanged();
+        try
+        {
+            if (peopleFirst)
+                await ApplyCollectionsAsync(catalogTask, shelvesTask);
+            else
+                await ApplyPeopleAsync(peopleRolesTask, peopleTask, peopleRequest, ct);
+        }
+        catch (Exception ex)
+        {
+            // The open section is already showing. The other half shows as empty rather than loading for ever; People
+            // asks again when it is opened, because its list was never marked as loaded.
+            Logger.LogWarning(ex, "The other Collections sections could not be loaded.");
+            _collectionsReady = true;
+            _peopleReady = true;
+        }
+    }
+
+    private async Task ApplyCollectionsAsync(
+        Task<List<CollectionManagementCatalogViewModel>> catalogTask,
+        Task<List<ContentGroupViewModel>> shelvesTask)
+    {
+        await Task.WhenAll(catalogTask, shelvesTask);
+        _collections.Clear();
+        _collections.AddRange(catalogTask.Result);
+        BuildShelves(shelvesTask.Result);
+        _collectionsReady = true;
+    }
+
+    private async Task ApplyPeopleAsync(
+        Task<Dictionary<string, int>> peopleRolesTask,
+        Task<PagedResponse<PersonListItemResponse>?> peopleTask,
+        CancellationTokenSource? peopleRequest,
+        CancellationToken ct)
+    {
+        await Task.WhenAll(peopleRolesTask, peopleTask);
+        _peopleRoleCounts = peopleRolesTask.Result;
+        if (ct.IsCancellationRequested || !ReferenceEquals(_peopleCts, peopleRequest))
+            return;
+
+        _people.Clear();
+        _peopleOffset = 0;
+        await AppendPeoplePageAsync(peopleTask.Result ?? EmptyPeoplePage(), ct);
+        _loadedPeopleQueryKey = CurrentPeopleQueryKey;
+        _peopleReady = true;
     }
 
     private Task ReloadAsync()
@@ -1052,6 +1110,7 @@
                 return;
             await AppendPeoplePageAsync(page ?? EmptyPeoplePage(), ct);
             _loadedPeopleQueryKey = CurrentPeopleQueryKey;
+            _peopleReady = true;
         }
         finally
         {
