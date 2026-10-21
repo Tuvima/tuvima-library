@@ -5,6 +5,12 @@ namespace MediaEngine.Contracts.Playback;
 public sealed record PlaybackManifestDto
 {
     public Guid AssetId { get; init; }
+
+    /// <summary>
+    /// True when the file is in a Vault library. A player shows a generic title ("Video") for it in the browser tab, history and the
+    /// device's media controls, and keeps NSFW mode awake while it plays. False (the default) for every ordinary file.
+    /// </summary>
+    public bool IsVault { get; init; }
     public string Client { get; init; } = "web";
     public string MediaType { get; init; } = "Unknown";
     public string SourceExtension { get; init; } = string.Empty;

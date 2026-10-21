@@ -16,6 +16,12 @@ public sealed record VideoMediaSessionMetadata(
     /// </summary>
     public static VideoMediaSessionMetadata Create(ListenQueueItem item, string? showTitle, Uri baseUri)
     {
+        // A Vault video leaves nothing on the lock screen or in the media controls: no real title, show, year or artwork (Videos spec D33).
+        if (item.IsVault)
+        {
+            return new(VaultPrivacy.GenericTitle, string.Empty, string.Empty, []);
+        }
+
         var episode = VideoPresentationResolver.IsTvEpisode(item);
         var title = StringHelpers.FirstNonBlankOr("Video", episode ? item.EpisodeTitle : null, item.Title);
         var artist = episode ? StringHelpers.FirstNonBlankOr(string.Empty, showTitle, item.Album) : StringHelpers.FirstNonBlankOr(string.Empty, item.Year);

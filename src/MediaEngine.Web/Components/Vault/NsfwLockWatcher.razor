@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Vault
 @implements IAsyncDisposable
 @inject NsfwModeState Nsfw
+@inject PlaybackSessionController Playback
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ILogger<NsfwLockWatcher> Logger
@@ -48,9 +49,18 @@
         }
 
         await SyncWatchingAsync();
-        if (!Nsfw.Unlocked && InVault(Nav.ToBaseRelativePath(Nav.Uri)))
+        if (!Nsfw.Unlocked)
         {
-            VaultExit.Leave(Nav, VaultExit.Home);
+            // A Vault video never keeps playing once NSFW mode is off, wherever the person has navigated to (Videos spec D33, D36).
+            if (Playback.CurrentItem is { IsVault: true })
+            {
+                Playback.ClosePlayer();
+            }
+
+            if (InVault(Nav.ToBaseRelativePath(Nav.Uri)))
+            {
+                VaultExit.Leave(Nav, VaultExit.Home);
+            }
         }
     });
 

@@ -12,6 +12,7 @@
 @inject PlaybackTransientToolCoordinator Tools
 @inject IEngineApiClient ApiClient
 @inject ShellActivityState Activity
+@inject NsfwModeState Nsfw
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 @inject ILogger<VideoPlaybackHost> Logger
@@ -180,7 +181,7 @@
 @if (Playback.HasQueue && Playback.IsVideoMode && !Playback.IsVideoExpanded && !_isPictureInPicture && Playback.CurrentItem is not null)
 {
     <section class="video-playback-restore" aria-label="Video playback">
-        <span>@Playback.CurrentItem.Title</span>
+        <span>@Playback.CurrentItem.DeviceTitle</span>
         @if (!string.IsNullOrWhiteSpace(_continuationStatus))
         {
             <small role="status">@_continuationStatus</small>
@@ -704,9 +705,16 @@
         if (Playback.CurrentItem?.AssetId is Guid assetId)
         {
             _activeAssetId = assetId;
+            // The shell's notice never names a Vault video, and a Vault video that is playing keeps NSFW mode awake: the idle lock
+            // must not cut in on it (Videos spec D33). The keepalive is throttled inside NsfwModeState.
+            if (VaultPrivacy.ShouldKeepAwake(Playback.CurrentItem, isPlaying: !state.Paused))
+            {
+                await Nsfw.KeepAliveAsync();
+            }
+
             Activity.ReportVideoPlayback(
                 assetId,
-                Playback.CurrentItem.Title,
+                Playback.CurrentItem.DeviceTitle,
                 state.CurrentTime,
                 Playback.DurationSeconds,
                 isPlaying: !state.Paused,
@@ -771,7 +779,7 @@
         var item = Playback.CurrentItem;
         var shown = Playback.IsVideoMode && !Playback.IsDismissed && item is not null;
         var showTitle = _presentationContext?.ShowTitle;
-        var subject = shown ? $"{Playback.ActiveProfileId}:{item!.WorkId}:{item.AssetId}:{Playback.PlaybackRequestVersion}:{showTitle}" : null;
+        var subject = shown ? $"{Playback.ActiveProfileId}:{item!.WorkId}:{item.AssetId}:{Playback.PlaybackRequestVersion}:{showTitle}:{item.IsVault}" : null;
         if (_mediaSessionSubject == subject) return;
         _mediaSessionSubject = subject;
         await _mediaSessionModule.InvokeVoidAsync("videoMetadata", shown ? VideoMediaSessionMetadata.Create(item!, showTitle, new Uri(Nav.BaseUri)) : null);

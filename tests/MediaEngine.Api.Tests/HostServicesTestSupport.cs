@@ -252,6 +252,7 @@ internal sealed class HostServicesHarness : IDisposable
 
     public PluginHostLimits Limits { get; }
     public MutableClock Clock { get; }
+    public DatabaseConnection Database => _database;
     public HostServicesTestPlugin Plugin => _plugins[0];
     public ConfigurationDirectoryLoader Loader { get; private set; } = null!;
     public PluginCatalog Catalog { get; private set; } = null!;

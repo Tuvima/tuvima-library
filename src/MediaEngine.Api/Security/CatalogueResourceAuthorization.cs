@@ -25,6 +25,10 @@ internal sealed class CatalogueResourceAuthorizationService(
     private VaultAccessResolver VaultAccess => _vaultAccess ??=
         new(new VaultLibraryRepository(database), new NsfwAccessRepository(database), clock ?? TimeProvider.System);
 
+    private NsfwIdleKeeper? _idleKeeper;
+
+    private NsfwIdleKeeper IdleKeeper => _idleKeeper ??= new(new NsfwAccessRepository(database), clock ?? TimeProvider.System);
+
     private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database), VaultAccess, configuration);
 
     public async ValueTask<CatalogueResourceAccess> EvaluateArtworkLinkAsync(
@@ -192,6 +196,13 @@ internal sealed class CatalogueResourceAuthorizationService(
             || !await new VaultLibraryRepository(database).IsInVaultAsync(assetId, ct).ConfigureAwait(false))
         {
             return;
+        }
+
+        // Real use of a Vault file (a stream range, a playback heartbeat, a cover, a detail read) keeps the unlocked session awake, so
+        // the idle lock never interrupts a video that is playing (Videos spec D33). Only a cleared, unlocked session gets here.
+        if (vault.Unlocked && authority.SessionId is { } sessionId && authority.ActiveProfileId is { } profileId)
+        {
+            await IdleKeeper.KeepAwakeAsync(sessionId, profileId, ct).ConfigureAwait(false);
         }
 
         ApplyVaultCacheControl(context.Response);

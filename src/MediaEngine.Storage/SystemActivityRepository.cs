@@ -36,11 +36,13 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
     /// </summary>
     internal static void Write(System.Data.IDbConnection conn, System.Data.IDbTransaction? transaction, SystemActivityEntry entry)
     {
-        conn.Execute("""
+        // An entry about a Vault file or work is never kept (Videos spec D17, D33): the administrator's activity views, the profile
+        // overview and the Engine log view read this table and must find nothing about the Vault. Skipped here, at the one insert.
+        conn.Execute($"""
             INSERT INTO system_activity
                 (occurred_at, action_type, collection_name, entity_id, entity_type, profile_id, changes_json, detail)
-            VALUES
-                (@OccurredAt, @ActionType, @CollectionName, @EntityId, @EntityType, @ProfileId, @ChangesJson, @Detail);
+            SELECT @OccurredAt, @ActionType, @CollectionName, @EntityId, @EntityType, @ProfileId, @ChangesJson, @Detail
+            WHERE @EntityId IS NULL OR {VaultSql.NotVaultEntity("@EntityId")};
             """,
             new
             {

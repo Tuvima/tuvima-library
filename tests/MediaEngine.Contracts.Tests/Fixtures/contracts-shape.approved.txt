@@ -6105,6 +6105,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackGeneralSet
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackManifestDto
   AssetId: System.Guid | nullability=not-null | accessors=get,init
+  IsVault: System.Boolean | nullability=not-null | accessors=get,init
   Client: System.String | nullability=not-null | accessors=get,init
   MediaType: System.String | nullability=not-null | accessors=get,init
   SourceExtension: System.String | nullability=not-null | accessors=get,init

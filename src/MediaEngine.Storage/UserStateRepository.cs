@@ -135,13 +135,14 @@ public sealed class UserStateRepository : IUserStateStore
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
-        var rows = conn.Query<UserStateRow>("""
+        // Without an authorized asset list nothing says whether NSFW mode is on, so the Vault is absent (Videos spec D33).
+        var rows = conn.Query<UserStateRow>($"""
             SELECT user_id AS UserId, asset_id AS AssetId, content_hash AS ContentHash,
                    progress_pct AS ProgressPct, last_accessed AS LastAccessed,
                    extended_properties AS ExtendedProperties, revision AS Revision
             FROM   user_states
             WHERE  user_id = @userId
-              AND (@unrestricted=1 OR asset_id IN @allowedAssets)
+              AND (@unrestricted=1 AND {VaultSql.NotVaultAsset("asset_id")} OR asset_id IN @allowedAssets)
             ORDER BY last_accessed DESC
             LIMIT @limit
             """, new

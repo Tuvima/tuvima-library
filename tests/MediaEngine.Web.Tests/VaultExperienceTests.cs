@@ -9,6 +9,7 @@ using MediaEngine.Web.Components.Vault;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Navigation;
+using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Services.Vault;
 using MediaEngine.Web.Tests.Support;
@@ -124,6 +125,7 @@ public sealed class VaultExperienceTests : AsyncBunitContext
             });
         });
         Services.AddSingleton(api);
+        Services.AddSingleton(new PlaybackSessionController(null!, api));
         Services.AddSingleton<TimeProvider>(_time);
     }
 
@@ -325,6 +327,41 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         Assert.False(State.Unlocked);
         Assert.Equal(1, _lockCalls);
         Assert.Equal("/", new Uri(Navigation.Uri).AbsolutePath);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LockingNsfwMode_ClosesAPlayingVaultVideo_WhereverThePersonIs_ButLeavesAnOrdinaryVideoAlone(bool vault)
+    {
+        UseEngine();
+        _mode = "allowed";
+        await LoadAsync();
+        await State.UnlockAsync(null);
+        var playback = Services.GetRequiredService<PlaybackSessionController>();
+        await playback.PlayVideoAsync(new ListenQueueItem
+        {
+            WorkId = Guid.NewGuid(),
+            MediaType = "Movie",
+            Title = "A Very Private Title",
+            Manifest = new MediaEngine.Contracts.Playback.PlaybackManifestDto { IsVault = vault, DirectPlaySupported = true, DirectStreamUrl = "/stream/video" },
+        });
+        Navigation.NavigateTo("/library/movies");
+        var watcher = Render<NsfwLockWatcher>(parameters => parameters.Add(p => p.ActiveProfileId, Me).Add(p => p.IsKids, false));
+        Assert.NotNull(playback.CurrentItem);
+
+        await watcher.InvokeAsync(() => watcher.Instance.OnDoubleEscape());
+
+        Assert.False(State.Unlocked);
+        if (vault)
+        {
+            Assert.Null(playback.CurrentItem);
+            Assert.False(playback.HasQueue);
+        }
+        else
+        {
+            Assert.NotNull(playback.CurrentItem);
+        }
     }
 
     [Fact]

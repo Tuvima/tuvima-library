@@ -79,4 +79,45 @@ public sealed class RecycleBinServiceTests : IDisposable
         Assert.Equal(2, _store.Empty());
         Assert.Empty(_store.List());
     }
+
+    // The Vault's deleted files are visible only inside NSFW mode (Videos spec D34).
+
+    private static readonly IReadOnlySet<string> LockedView = new HashSet<string> { "vault-library" };
+
+    [Fact]
+    public void List_WhileLocked_HidesVaultEntries_ButShowsThemWhenUnlocked()
+    {
+        var vault = _store.MoveIn(NewFile("private.mp4"), "Private", "vault-library");
+        var ordinary = _store.MoveIn(NewFile("home.mp4"), "Home", "videos");
+
+        Assert.Equal([ordinary.Id], _store.List(LockedView).Select(entry => entry.Id));
+        Assert.Equal(2, _store.List().Count);
+        Assert.Contains(vault.Id, _store.List().Select(entry => entry.Id));
+    }
+
+    [Fact]
+    public void Restore_WhileLocked_AnswersNotFoundForAVaultEntry_AndLeavesTheFileInTheBin()
+    {
+        var path = NewFile("private.mp4");
+        var vault = _store.MoveIn(path, "Private", "vault-library");
+
+        Assert.Equal(RecycleBinRestoreResult.NotFound, _store.Restore(vault.Id, LockedView));
+        Assert.False(File.Exists(path));
+        Assert.Single(_store.List());
+
+        Assert.Equal(RecycleBinRestoreResult.Restored, _store.Restore(vault.Id));
+        Assert.True(File.Exists(path));
+    }
+
+    [Fact]
+    public void Empty_WhileLocked_NeitherRemovesNorCountsVaultEntries()
+    {
+        _store.MoveIn(NewFile("private.mp4"), "Private", "vault-library");
+        _store.MoveIn(NewFile("home.mp4"), "Home", "videos");
+
+        Assert.Equal(1, _store.Empty(LockedView));
+
+        var remaining = Assert.Single(_store.List());
+        Assert.Equal("vault-library", remaining.LibraryId);
+    }
 }

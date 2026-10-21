@@ -37,6 +37,17 @@ public sealed class PlaybackTelemetryRepository(
         {
             token.ThrowIfCancellationRequested();
             var transitions = new List<PlaybackTelemetryTransition>(2);
+
+            // Watching a Vault item leaves no trace outside NSFW mode (Videos spec D33): no session row, no event for apps,
+            // webhooks or plugins, nothing for an administrator's "who is watching" or analytics views. Prevented here, at the
+            // one place playback is recorded, so no caller can forget the rule.
+            if (connection.ExecuteScalar<long>(
+                    $"SELECT CASE WHEN {VaultSql.NotVaultAsset("@assetId")} THEN 0 ELSE 1 END;",
+                    new { assetId = observation.AssetId }, transaction) == 1)
+            {
+                return transitions;
+            }
+
             var active = ReadActive(connection, transaction, observation.PlayerSessionId);
 
             if (active is not null && IsDuplicateOrOutOfOrder(active, observation))
