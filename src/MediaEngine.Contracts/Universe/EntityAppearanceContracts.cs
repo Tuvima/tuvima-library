@@ -47,6 +47,13 @@ public sealed class EntityAppearancesDto
     /// <summary>Entities only: Works in this Universe whose character details have not been looked up yet. Always 0 for a person.</summary>
     [JsonPropertyName("works_not_yet_checked")]
     public int WorksNotYetChecked { get; init; }
+
+    /// <summary>
+    /// True when the character is held back to avoid spoilers (the profile has not reached it): the answer then names nothing
+    /// (no label, no QID, no Works). Always false for a person and at the spoiler level "Everything".
+    /// </summary>
+    [JsonPropertyName("hidden_for_spoilers")]
+    public bool HiddenForSpoilers { get; init; }
 }
 
 /// <summary>The values of <see cref="EntityAppearancesDto.SubjectKind"/>.</summary>

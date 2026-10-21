@@ -1,6 +1,6 @@
 # Spec: Universes (explore, series grouping, helper apps, clean-up)
 
-> **Status:** In progress (U-WP0 to U-WP3, U-WP5 to U-WP8, U-WP10 and U-WP12 built) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
+> **Status:** In progress (U-WP0 to U-WP8, U-WP9 part 1 and U-WP10 to U-WP12 built, awaiting Local checks; the rest is in the [2026-10-20 Universes handoff](../handoffs/2026-10-20-universe-remaining.md)) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
 
 ## 0. Where we are today (verified by reading the code, nothing was run)
 
@@ -207,6 +207,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Files likely touched:** `NarrativeRootResolver.cs`, `ReconciliationAdapter.ClaimMapping.cs`, `config/pipeline-priority-defaults.json`, storage schema + repositories.
 - **Depends on:** U-WP3, DT-WP9 (priority changes via DT-WP20 weights). **Size:** Complex.
 - **Done when:** a book, its audiobook and its TV adaptation land in one Universe with three correct Series.
+- **Status:** Built (2026-10-20, PR #322; data store upgrade step 0021). One Universe record per Wikidata ID (`narrative_roots`, referenced by `collections.universe_qid`) chosen by one rule for the Universe shelf, the graph and the item page; every (Series, position) pair stored; the audiobook fallback per Shy's decision (section 7); precedence rules in `.claude/rules/data-store.md`. **Waits for Developer tools WP20:** `config/pipeline-priority-defaults.json` still gives retail providers `series` / `series_position` priority (Audiobooks, Movies, TV, Comics) and puts Wikidata first for audiobook title and author; aligning those with the precedence rules is a priority change made through WP20's Library-set weights, not by editing that file. Existing libraries need a data store reset and re-ingest. Ingestion comparison: the generated-sample before/after replay showed only intended changes plus known noise; the real-media after replay and the real-library checks are on `engineering/validation/batch.md`.
 
 ### U-WP5 — Universe page
 - **What it does:** the page in 4.2, entry points in 4.1, empty and partly-ready states, the "Part of …" line on item pages.
@@ -250,6 +251,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Files likely touched:** `RelationshipPopulationService.cs`, `RecursiveFictionalEntityService.cs`, `config/providers/wikidata_reconciliation.json`, storage schema, tests.
 - **Depends on:** U-WP4. **Size:** Complex.
 - **Done when:** a test show hides characters first seen after the viewer's episode and labels unknown ones "no plot details".
+- **Status:** Built (2026-10-20; merges after U-WP4). Reads P3342 (significant person) and P7047 (enemy) for characters and P1344 as "participant in" an event (it was wrongly read as "opponent"); writes Works' "based on" (P144) and "derivative work" (P4969) links as adaptation edges, so Adaptations fill from evidence. "First seen at" is worked out from the owned episodes Wikidata links a character to (QIDs only, never names; no new storage); books and audiobooks have no chapter-level source, so they stay "no plot details". One spoiler rule (Shown, No plot details, Hidden) and a per-profile Spoilers preference ("Up to where I am" by default, or "Everything", on the profile's Playback preferences) apply everywhere a character name appears. A character met in any title is Shown; a finished title with no known position is Shown.
 
 ### U-WP12 — Companion session service
 - **What it does:** let a phone follow one chosen device of its own profile, allow several live states per profile, add manual position, expose it under `/api/v1`.
@@ -316,6 +318,10 @@ Before Claude Code starts the first packet, and again before each wave:
 **Answers (Shy, 2026-10-19): Q1 to Q15 all go with the recommendation (★); Q2 chose (b).** Q7 detail: delete the High-confidence items now; delete deep-enrich, candidate accept/reject, character portraits and the asset action; keep `/universes` one release then remove.
 
 **Further decisions (Shy, 2026-10-19, while building U-WP5 and U-WP10):** Edit Universe reuses the existing Universe editor, shown in-line beside the Universe page in the same side drawer Editing Mode uses (not a pop-up), desktop administrators only. "Also appears in" is a panel on the Universe page, not a character page.
+
+**Further decision (Shy, 2026-10-20, while building U-WP4):** the audiobook Wikidata fallback is option (a). When Apple has no match for an audiobook, it takes the Wikidata ID of an already-confirmed book in the Library with the same title and author. Nothing new is looked up outside the machine, and "no retail match = no Wikidata" stays true for everything else: an audiobook with no owned, confirmed book of the same title and author still goes to Needs Review.
+
+**Further decisions (Shy, 2026-10-20, while building U-WP11):** U-WP11 also reads Wikidata "based on" and "derivative work" links between owned Works, so the Adaptations lists fill from evidence. The spoiler rule applies wherever a character name appears: the Universe screens, title cast lists, person pages and people search; the actor still shows without the hidden character names. The administrator-only Universe editor stays unfiltered (it is a correction tool).
 
 **Landing alongside the locked Developer tools spec:** see section 6A. That spec (`engineering/specs/developer-tools.md`, Locked v2, 2026-10-19) owns the plugin platform and the shared state card, approval rule, health words and run records; this spec defines no plugin mechanics.
 

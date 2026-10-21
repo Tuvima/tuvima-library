@@ -54,6 +54,22 @@ public sealed class MusicTrackRelocationRepositoryTests
     }
 
     [Fact]
+    public async Task MoveToANewAlbumStoresTheAlbumArtistAsAListNotASingleValue()
+    {
+        using var fixture = new Fixture();
+        var result = await new MusicTrackRelocationRepository(fixture.Database).CommitAsync(fixture.Move);
+        Assert.Equal(MediaEditorCommitOutcome.Committed, result.Outcome);
+        var target = result.Items.Single().TargetWorkId;
+        using var verify = fixture.Database.CreateConnection();
+        var newAlbum = verify.QuerySingle<Guid>("SELECT parent_work_id FROM works WHERE id=@target", new { target });
+        Assert.NotEqual(fixture.Album, newAlbum);
+        var entries = verify.Query<(string Key, int Ordinal, string Value)>(
+            "SELECT key AS Key, ordinal AS Ordinal, value AS Value FROM canonical_value_arrays WHERE entity_id=@newAlbum", new { newAlbum }).ToList();
+        Assert.Equal(("album_artist", 0, "Artist"), Assert.Single(entries));
+        Assert.Equal(0, verify.ExecuteScalar<int>("SELECT COUNT(*) FROM canonical_values WHERE entity_id=@newAlbum AND key IN ('artist','album_artist')", new { newAlbum }));
+    }
+
+    [Fact]
     public async Task ExistingOwnedDestinationCannotBeOverwritten()
     {
         using var fixture = new Fixture();

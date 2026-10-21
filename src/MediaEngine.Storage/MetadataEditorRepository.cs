@@ -217,50 +217,6 @@ public sealed class MetadataEditorRepository(IDatabaseConnection db) : IMetadata
         }
     }
 
-    public Task<Guid?> ResolveArtistArtworkOwnerAsync(
-        Guid? representativeAssetId,
-        string? artistName,
-        CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var connection = db.CreateConnection();
-        if (representativeAssetId.HasValue)
-        {
-            var linkedId = connection.QueryFirstOrDefault<Guid?>(new CommandDefinition("""
-                SELECT p.id
-                FROM primary_person_media_credits primary_credit
-                INNER JOIN persons p ON p.id = primary_credit.person_id
-                WHERE primary_credit.media_asset_id = @assetId
-                  AND primary_credit.credit_key IN ('artist', 'performer')
-                ORDER BY CASE
-                    WHEN primary_credit.credit_key = 'artist' THEN 0
-                    WHEN primary_credit.credit_key = 'performer' THEN 1
-                    ELSE 2
-                END,
-                primary_credit.billing_order,
-                p.name
-                LIMIT 1;
-                """, new { assetId = representativeAssetId.Value }, cancellationToken: ct));
-            if (linkedId.HasValue)
-            {
-                return Task.FromResult(linkedId);
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(artistName))
-        {
-            return Task.FromResult<Guid?>(null);
-        }
-
-        return Task.FromResult(connection.QueryFirstOrDefault<Guid?>(new CommandDefinition("""
-            SELECT p.id
-            FROM persons p
-            WHERE p.name = @artistName COLLATE NOCASE
-            ORDER BY p.name
-            LIMIT 1;
-            """, new { artistName = artistName.Trim() }, cancellationToken: ct)));
-    }
-
     public Task<Guid?> ResolveRepresentativeAssetAsync(
         IReadOnlyCollection<Guid> candidateWorkIds,
         CancellationToken ct = default)

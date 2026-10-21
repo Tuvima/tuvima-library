@@ -7,6 +7,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Api.Services.ReadServices;
 
@@ -19,18 +20,44 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
     private readonly ICanonicalValueArrayRepository _canonicalArrayRepo;
     private readonly IPersonRepository _personRepo;
     private readonly IDatabaseConnection _db;
+    private readonly IHttpContextAccessor? _http;
 
     public PersonCreditReadService(
         ICanonicalValueArrayRepository canonicalArrayRepo,
         IPersonRepository personRepo,
-        IDatabaseConnection db)
+        IDatabaseConnection db,
+        IHttpContextAccessor? http = null)
     {
         _canonicalArrayRepo = canonicalArrayRepo;
         _personRepo = personRepo;
         _db = db;
+        _http = http;
     }
 
-    public async Task<List<CastCreditDto>> BuildForWorkAsync(
+    // Every "as Character" a request is shown goes through the one spoiler rule: the actor stays, a character the requesting
+    // profile has not reached is dropped. Work outside a request (no one to protect) is not filtered.
+    private CharacterCreditSpoilerFilter? RequestFilter =>
+        _http?.HttpContext?.RequestServices.GetService<CharacterCreditSpoilerFilter>();
+
+    public async Task<List<CastCreditDto>> BuildForWorkAsync(Guid workId, CancellationToken ct)
+    {
+        var credits = await BuildForWorkCoreAsync(workId, ct);
+        return RequestFilter is { } filter ? await filter.FilterAsync(credits, ct) : credits;
+    }
+
+    public async Task<List<CastCreditDto>> BuildForCollectionRootAsync(Guid rootWorkId, string? rootWorkQid, CancellationToken ct)
+    {
+        var credits = await BuildForCollectionRootCoreAsync(rootWorkId, rootWorkQid, ct);
+        return RequestFilter is { } filter ? await filter.FilterAsync(credits, ct) : credits;
+    }
+
+    public async Task<List<PersonLibraryCreditDto>> GetLibraryCreditsAsync(Guid personId, CancellationToken ct)
+    {
+        var credits = await GetLibraryCreditsCoreAsync(personId, ct);
+        return RequestFilter is { } filter ? await filter.FilterAsync(credits, ct) : credits;
+    }
+
+    private async Task<List<CastCreditDto>> BuildForWorkCoreAsync(
         Guid workId,
         CancellationToken ct)
     {
@@ -164,7 +191,7 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
         return credits.Take(MaxCastCredits).ToList();
     }
 
-    public async Task<List<CastCreditDto>> BuildForCollectionRootAsync(
+    private async Task<List<CastCreditDto>> BuildForCollectionRootCoreAsync(
         Guid rootWorkId,
         string? rootWorkQid,
         CancellationToken ct)
@@ -965,20 +992,34 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
             .ToList();
     }
 
-    public async Task<List<PersonLibraryCreditDto>> GetLibraryCreditsAsync(
+    private async Task<List<PersonLibraryCreditDto>> GetLibraryCreditsCoreAsync(
         Guid personId,
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
+        // The borrowed audiobook year is worked out once for the person's audiobooks, not once per row.
+        var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "credit_related_book_year",
+            """
+            -- readiness: candidates for the borrowed year only; the read's own rows carry the Ready filter
+            SELECT credit_work.id AS work_id, credit_asset.id AS asset_id
+            FROM effective_credit candidate_credit
+            INNER JOIN media_assets credit_asset ON credit_asset.id = candidate_credit.media_asset_id
+            INNER JOIN editions credit_edition ON credit_edition.id = credit_asset.edition_id
+            INNER JOIN works credit_work ON credit_work.id = credit_edition.work_id
+            WHERE LOWER(COALESCE(credit_work.media_type, '')) LIKE '%audio%'
+            """,
+            "rby_");
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
             "w.id",
             "COALESCE(gp.id, p.id, w.id)",
             "ma.id",
-            "w.media_type");
+            "w.media_type",
+            MediaDateSql.RelatedBookYearLookup("credit_related_book_year", "w.id", "ma.id"));
         var baseRows = (await conn.QueryAsync<PersonLibraryCreditRow>(
             $"""
-            WITH effective_credit AS (
+            WITH effective_credit AS MATERIALIZED (
                 SELECT direct_credit.media_asset_id,
                        direct_credit.person_id,
                        direct_credit.role,
@@ -1006,7 +1047,8 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
                 INNER JOIN persons group_person
                     ON group_person.id = membership.group_id
                 WHERE membership.member_id = @personId
-            )
+            ),
+            {relatedBookYearCte}
             SELECT w.id                                   AS WorkId,
                    COALESCE(gp.id, p.id, w.id)             AS RootWorkId,
                    w.collection_id                        AS CollectionId,

@@ -537,7 +537,7 @@ public static class CollectionEndpoints
             // Collection-level header canonical values come from the topmost Work row.
             // Phase 4 — parent-scoped fields (author, director, artist, genre, cover,
             // network) live on the root parent Work, not on individual child works.
-            string? collectionCreator = ParentCv("author") ?? ParentCv("artist");
+            string? collectionCreator = await ResolveGroupCreatorAsync(canonicalArrayRepo, rootParentWorkId, parentCvs, isMusic, ct);
             string? collectionDirector = isTv ? null : ParentCv("director");
             string? collectionWriter = ParentCv("writer");
             string? collectionGenre = ParentCv("genre");
@@ -684,6 +684,7 @@ public static class CollectionEndpoints
             ICollectionBrowseReadService browseReadService,
             IDisplayProjectionReadService display,
             AlbumTrackManifestService manifestService,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(collectionIdsParam))
@@ -840,7 +841,11 @@ public static class CollectionEndpoints
                         }
                     }
                 }
-                catch { /* best-effort lookup */ }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    loggerFactory.CreateLogger("CollectionArtistGroupDetail")
+                        .LogWarning(ex, "Could not look up the person for artist {ArtistName}", combinedCreator);
+                }
             }
 
             var response = new CollectionGroupDetailDto
@@ -875,6 +880,7 @@ public static class CollectionEndpoints
             IPersonRepository personRepo,
             IDisplayProjectionReadService display,
             AlbumTrackManifestService manifestService,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(artistName))
@@ -975,24 +981,26 @@ public static class CollectionEndpoints
                 };
             }).ToList();
 
-            // Resolve artist photo via the persons table.
+            // Resolve artist photo via the persons table. The panel is for artistName, so that
+            // person is looked up first; the picked track credit is only a fallback.
             string? artistPhotoUrl = null;
             Guid? artistPersonId = null;
-            if (!string.IsNullOrWhiteSpace(combinedCreator))
+            try
             {
-                try
+                var person = await FindArtistPersonAsync(personRepo, artistName, combinedCreator, ct);
+                if (person is not null)
                 {
-                    var person = await personRepo.FindByNameAsync(combinedCreator, ct);
-                    if (person is not null)
+                    artistPersonId = person.Id;
+                    if (!string.IsNullOrEmpty(person.LocalHeadshotPath) || !string.IsNullOrEmpty(person.HeadshotUrl))
                     {
-                        artistPersonId = person.Id;
-                        if (!string.IsNullOrEmpty(person.LocalHeadshotPath) || !string.IsNullOrEmpty(person.HeadshotUrl))
-                        {
-                            artistPhotoUrl = $"/persons/{person.Id}/headshot";
-                        }
+                        artistPhotoUrl = $"/persons/{person.Id}/headshot";
                     }
                 }
-                catch { /* best-effort lookup */ }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                loggerFactory.CreateLogger("CollectionArtistDetail")
+                    .LogWarning(ex, "Could not look up the person for artist {ArtistName}", artistName);
             }
 
             var response = new CollectionGroupDetailDto
@@ -2902,6 +2910,66 @@ public static class CollectionEndpoints
     // only reference Domain. See PreviewCollection ("/collections/preview").
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The person an artist panel shows: the artist the panel is for, or, when nobody has that name,
+    /// the credit picked from its tracks.
+    /// </summary>
+    internal static async Task<Person?> FindArtistPersonAsync(
+        IPersonRepository personRepo,
+        string artistName,
+        string? pickedName,
+        CancellationToken ct)
+    {
+        var person = await personRepo.FindByNameAsync(artistName, ct);
+        if (person is null
+            && !string.IsNullOrWhiteSpace(pickedName)
+            && !string.Equals(pickedName, artistName, StringComparison.OrdinalIgnoreCase))
+        {
+            person = await personRepo.FindByNameAsync(pickedName, ct);
+        }
+
+        return person;
+    }
+
+    /// <summary>
+    /// The credit a group's header names: an album's artist (album_artist, then artist) or, for any other
+    /// group, its first author. Those credits are multi-valued, so they live only in canonical_value_arrays on
+    /// the root Work, and within a key the first by ordinal wins. A group with no author falls back to its
+    /// creator, which the data store keeps as a single value in canonical_values.
+    /// </summary>
+    internal static async Task<string?> ResolveGroupCreatorAsync(
+        ICanonicalValueArrayRepository canonicalArrayRepo,
+        Guid? rootWorkId,
+        IReadOnlyList<CanonicalValue> rootValues,
+        bool isMusic,
+        CancellationToken ct)
+    {
+        if (rootWorkId is not { } workId)
+        {
+            return null;
+        }
+
+        string[] arrayKeys = isMusic ? ["album_artist", MetadataFieldConstants.Artist] : [MetadataFieldConstants.Author];
+        foreach (var key in arrayKeys)
+        {
+            var credit = (await canonicalArrayRepo.GetValuesAsync(workId, key, ct))
+                .OrderBy(entry => entry.Ordinal)
+                .Select(entry => entry.Value)
+                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+            if (credit is not null)
+            {
+                return credit.Trim();
+            }
+        }
+
+        return isMusic
+            ? null
+            : StringHelpers.FirstNonBlank(rootValues
+                .Where(value => string.Equals(value.Key, "creator", StringComparison.OrdinalIgnoreCase))
+                .Select(value => value.Value)
+                .ToArray())?.Trim();
+    }
 
     private static async Task<Profile?> ResolveActiveProfileAsync(
         Guid? profileId,

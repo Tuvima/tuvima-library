@@ -14,18 +14,19 @@ public static partial class MediaDateSql
         string rootWorkIdExpression,
         string assetIdExpression,
         string mediaTypeExpression,
-        string? relatedBookYearExpression = null)
+        string relatedBookYearExpression)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(relatedBookYearExpression);
+
         var workYear = OriginalYearValue(workIdExpression, mediaTypeExpression);
         var rootYear = OriginalYearValue(rootWorkIdExpression, mediaTypeExpression);
         var assetYear = OriginalYearValue(assetIdExpression, mediaTypeExpression);
         var explicitWorkYear = ExplicitOriginalYearValue(workIdExpression, mediaTypeExpression);
         var explicitRootYear = ExplicitOriginalYearValue(rootWorkIdExpression, mediaTypeExpression);
         var explicitAssetYear = ExplicitOriginalYearValue(assetIdExpression, mediaTypeExpression);
-        // A ready expression (RelatedBookYearLookup over RelatedBookOriginalYearCte, or NULL for a read that never
-        // returns audiobooks) replaces the per-row look-up, whose cost grows with the square of the library.
-        var relatedBookYear = relatedBookYearExpression
-            ?? RelatedBookOriginalYear(workIdExpression, assetIdExpression);
+        // The borrowed audiobook year: RelatedBookYearLookup over a RelatedBookOriginalYearCte built for the read's own
+        // audiobooks, or NULL for a read that never returns audiobooks.
+        var relatedBookYear = relatedBookYearExpression;
 
         return $"""
             CASE
@@ -231,54 +232,9 @@ public static partial class MediaDateSql
     private static string YearPrefix(string valueExpression) =>
         $"SUBSTR(LTRIM(TRIM({valueExpression}), '+'), 1, 4)";
 
-    public static string RelatedBookOriginalYear(
-        string audiobookWorkIdExpression,
-        string audiobookAssetIdExpression)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(audiobookWorkIdExpression);
-        ArgumentException.ThrowIfNullOrWhiteSpace(audiobookAssetIdExpression);
-
-        var bookWorkYear = OriginalYearValue("book_work.id", "book_work.media_type");
-        var bookAssetYear = OriginalYearValue("book_asset.id", "book_work.media_type");
-
-        return $"""
-            (SELECT COALESCE({bookWorkYear}, {bookAssetYear})
-             FROM primary_person_media_credits audiobook_author
-             INNER JOIN primary_person_media_credits book_author
-                 ON book_author.person_id = audiobook_author.person_id
-                AND book_author.credit_key = 'author'
-             INNER JOIN media_assets book_asset
-                 ON book_asset.id = book_author.media_asset_id
-             INNER JOIN editions book_edition
-                 ON book_edition.id = book_asset.edition_id
-             INNER JOIN works book_work
-                 ON book_work.id = book_edition.work_id
-             WHERE audiobook_author.media_asset_id = {audiobookAssetIdExpression}
-               AND audiobook_author.credit_key = 'author'
-               AND LOWER(book_work.media_type) LIKE '%book%'
-               AND LOWER(book_work.media_type) NOT LIKE '%audio%'
-               AND LOWER(TRIM(COALESCE(
-                   (SELECT value FROM canonical_values
-                    WHERE entity_id = book_asset.id AND key = 'title'
-                    ORDER BY last_scored_at DESC LIMIT 1),
-                   (SELECT value FROM canonical_values
-                    WHERE entity_id = book_work.id AND key = 'title'
-                    ORDER BY last_scored_at DESC LIMIT 1)))) =
-                   LOWER(TRIM(COALESCE(
-                       (SELECT value FROM canonical_values
-                        WHERE entity_id = {audiobookAssetIdExpression} AND key = 'title'
-                        ORDER BY last_scored_at DESC LIMIT 1),
-                       (SELECT value FROM canonical_values
-                        WHERE entity_id = {audiobookWorkIdExpression} AND key = 'title'
-                        ORDER BY last_scored_at DESC LIMIT 1))))
-             ORDER BY book_work.id, book_asset.id
-             LIMIT 1)
-            """;
-    }
-
     /// <summary>
-    /// Set-based form of <see cref="RelatedBookOriginalYear"/>: works out the borrowed year for every candidate
-    /// audiobook in one pass instead of one look-up per row. Returns a chain of CTE definitions (without the leading
+    /// The borrowed audiobook year: an audiobook without an original year of its own takes the year of the matching book,
+    /// worked out for every candidate audiobook in one pass. Returns a chain of CTE definitions (without the leading
     /// <c>WITH</c>) whose last CTE is named <paramref name="resultName"/> and has the columns
     /// <c>audiobook_work_id, audiobook_asset_id, year</c>: one row per candidate (work, file) pair that has a matching book.
     /// The pair is the key because one file can cover several works, and each work's own title picks its own book.
@@ -293,7 +249,7 @@ public static partial class MediaDateSql
     /// Letters, digits and underscores only.
     /// </param>
     /// <remarks>
-    /// Same rule as the per-row form: a book (not an audiobook) whose file or work title equals the audiobook's
+    /// The rule: a book (not an audiobook) whose file or work title equals the audiobook's
     /// (ignoring case and surrounding spaces) and that shares an author person; the lowest work id and then file id
     /// wins, and when that first match has no year the result has no borrowed year. Author credits come from
     /// <see cref="PersonCreditSql.ScopedCreditsCte"/> for just the candidates and the matching books.

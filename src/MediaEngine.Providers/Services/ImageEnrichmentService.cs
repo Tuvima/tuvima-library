@@ -399,9 +399,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
         var metadataLanguage = ResolveMetadataLanguage();
 
-        var endpoint = context.MediaType == MediaType.Movies
-            ? $"{TmdbApiBaseUrl}/movie/{Uri.EscapeDataString(tmdbId)}/images"
-            : $"{TmdbApiBaseUrl}/tv/{Uri.EscapeDataString(tmdbId)}/images";
+        var endpoint = $"{TmdbApiBaseUrl}/movie/{Uri.EscapeDataString(tmdbId)}/images";
         var rootAlreadyChecked = !forceRefresh && LastPassAnsweredFor(canonicals, tmdbId);
         var response = rootAlreadyChecked
             ? (Json: (JsonNode?)null, Status: "Completed", HttpStatusCode: (int?)null, SkippedReason: (string?)null, Message: (string?)null)
@@ -415,7 +413,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var held = 0;
         var preferredUpdates = 0;
-        var owner = context.MediaType == MediaType.TV ? context.RootWorkId : context.SelfWorkId;
+        var owner = context.SelfWorkId;
         var reidentified = !rootAlreadyChecked && HeldArtworkIsForAnotherIdentity(canonicals, TmdbProviderName, tmdbId);
         foreach (var mapping in RootMappings)
         {
@@ -463,83 +461,6 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             preferredUpdates += processed.UpdatedPreferredCount;
         }
 
-        if (context.MediaType == MediaType.TV)
-        {
-            foreach (var season in await ResolveRepresentedSeasonsAsync(context, ct).ConfigureAwait(false))
-            {
-                var seasonCanonicals = await _canonicalRepo.GetByEntityAsync(season.WorkId, ct).ConfigureAwait(false);
-                var seasonSource = seasonCanonicals.FirstOrDefault(value =>
-                    string.Equals(value.Key, MetadataFieldConstants.IdentityProvider, StringComparison.OrdinalIgnoreCase))?.Value;
-                var tvdbSeasonId = seasonCanonicals.FirstOrDefault(value =>
-                    string.Equals(value.Key, BridgeIdKeys.TvdbSeasonId, StringComparison.OrdinalIgnoreCase))?.Value;
-                if (string.Equals(seasonSource, "tvdb", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (_tvdb?.IsConfigured("tvdb") == true && !string.IsNullOrWhiteSpace(tvdbSeasonId))
-                    {
-                        var seasonResult = await RefreshTvdbScopeImagesAsync(season.WorkId, "season", tvdbSeasonId, ct)
-                            .ConfigureAwait(false);
-                        MergeCounts(counts, seasonResult.StoredVariantCounts);
-                        held += seasonResult.HeldCount;
-                        preferredUpdates += seasonResult.UpdatedPreferredCount;
-                    }
-                    continue;
-                }
-                if (!forceRefresh && seasonCanonicals.Any(value =>
-                        string.Equals(value.Key, "tmdb_season_artwork_last_checked_at", StringComparison.OrdinalIgnoreCase)))
-                {
-                    continue;
-                }
-
-                var seasonEndpoint = $"{TmdbApiBaseUrl}/tv/{Uri.EscapeDataString(tmdbId)}/season/{season.SeasonNumber}/images";
-                var seasonResponse = await GetImagesAsync(seasonEndpoint, apiKey, metadataLanguage, ct).ConfigureAwait(false);
-                if (seasonResponse.Json is null)
-                {
-                    continue;
-                }
-
-                foreach (var mapping in SeasonMappings)
-                {
-                    var processed = await ProcessRankedImagesAsync(
-                        seasonResponse.Json[mapping.JsonField]?.AsArray() ?? [],
-                        mapping.AssetType,
-                        season.WorkId,
-                        updatePreferred: true,
-                        metadataLanguage,
-                        ct).ConfigureAwait(false);
-                    AddCount(counts, mapping.AssetType, processed.StoredCount);
-                    held += processed.HeldCount;
-                    preferredUpdates += processed.UpdatedPreferredCount;
-                }
-
-                await _canonicalRepo.UpsertBatchAsync(
-                [
-                    new CanonicalValue
-                    {
-                        EntityId = season.WorkId,
-                        Key = "tmdb_season_artwork_last_checked_at",
-                        Value = checkedAt.ToString("O", CultureInfo.InvariantCulture),
-                        LastScoredAt = checkedAt,
-                        WinningProviderId = WellKnownProviders.Tmdb,
-                    },
-                ], ct).ConfigureAwait(false);
-            }
-
-            var ownCanonicals = await _canonicalRepo.GetByEntityAsync(context.SelfWorkId, ct).ConfigureAwait(false);
-            if (string.Equals(ownCanonicals.FirstOrDefault(value =>
-                    string.Equals(value.Key, MetadataFieldConstants.IdentityProvider, StringComparison.OrdinalIgnoreCase))?.Value,
-                    "tvdb", StringComparison.OrdinalIgnoreCase)
-                && ownCanonicals.FirstOrDefault(value =>
-                    string.Equals(value.Key, BridgeIdKeys.TvdbEpisodeId, StringComparison.OrdinalIgnoreCase))?.Value is { } tvdbEpisodeId
-                && _tvdb?.IsConfigured("tvdb") == true)
-            {
-                var episodeResult = await RefreshTvdbScopeImagesAsync(context.SelfWorkId, "episode", tvdbEpisodeId, ct)
-                    .ConfigureAwait(false);
-                MergeCounts(counts, episodeResult.StoredVariantCounts);
-                held += episodeResult.HeldCount;
-                preferredUpdates += episodeResult.UpdatedPreferredCount;
-            }
-        }
-
         var downloaded = counts.Values.Sum();
         return await PersistDiagnosticsAsync(context, CreateResult(held > 0 || preferredUpdates > 0 ? "Completed" : "NoImages",
             checkedAt, mediaType, BridgeIdKeys.TmdbId, tmdbId, endpoint, response.HttpStatusCode,
@@ -568,8 +489,6 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
     private static readonly ArtworkMapping[] RootMappings =
     [new("backdrops", AssetType.Background, true), new("logos", AssetType.Logo, true), new("posters", AssetType.CoverArt, true)];
-    private static readonly ArtworkMapping[] SeasonMappings =
-    [new("posters", AssetType.SeasonPoster, true), new("backdrops", AssetType.SeasonThumb, true)];
     private static readonly BrandArtworkMapping[] BrandMappings =
     [new("network_logo_url", AssetType.NetworkLogo), new("studio_logo_url", AssetType.StudioLogo)];
 

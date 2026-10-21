@@ -43,15 +43,60 @@ internal sealed partial class DetailCompositionOrchestrator
         }
 
         using var conn = _db.CreateConnection();
+        // Which works the page lists. Written once: the main query filters on it, and so does the list of audiobooks
+        // whose borrowed year is worked out (the year never depends on the other audiobooks, so a longer list is safe).
+        const string rowFilterSql = """
+            (w.collection_id = @collectionId
+               OR ci.collection_id = @collectionId
+               OR w.id IN @resolvedWorkIds
+               OR (
+                   @rootWorkId IS NOT NULL
+                   AND (
+                       p.parent_work_id = @rootWorkId
+                       OR (
+                           w.parent_work_id = @rootWorkId
+                           AND EXISTS (
+                               SELECT 1
+                               FROM canonical_values child_marker
+                               WHERE child_marker.entity_id = w.id
+                                 AND child_marker.key IN ('episode_number', 'track_number')
+                                 AND NULLIF(CAST(child_marker.value AS TEXT), '') IS NOT NULL
+                           )
+                       )
+                   )
+               ))
+            """;
+        // The borrowed audiobook year is worked out once for the page's audiobook works and all their usable files
+        // (the file a row shows, the most recently played, is always one of them), not from the whole library's credit list.
+        var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "related_book_year",
+            $"""
+            -- readiness: candidates for the borrowed year only; the read's own rows carry the Ready filter
+            SELECT w.id AS work_id, candidate_asset.id AS asset_id
+            FROM works w
+            LEFT JOIN works p ON p.id = w.parent_work_id
+            LEFT JOIN works gp ON gp.id = p.parent_work_id
+            LEFT JOIN collection_items ci ON ci.work_id = w.id AND ci.collection_id = @collectionId
+            JOIN work_owned_assets candidate_woa ON candidate_woa.work_id = w.id
+            JOIN media_assets candidate_asset ON candidate_asset.id = candidate_woa.asset_id
+            WHERE LOWER(COALESCE(w.media_type, '')) LIKE '%audio%'
+              AND candidate_asset.status = 'Normal'
+              AND candidate_asset.is_orphaned = 0
+              AND (@restrictAssets = 0 OR candidate_asset.id IN @authorizedAssetIds)
+              AND {rowFilterSql}
+            """,
+            "rby_");
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
             "w.id",
             "COALESCE(gp.id, p.id, w.id)",
             "ma.id",
-            "w.media_type");
+            "w.media_type",
+            MediaDateSql.RelatedBookYearLookup("related_book_year", "w.id", "ma.id"));
         ct.ThrowIfCancellationRequested();
         var rawRows = conn.Query<dynamic>(new CommandDefinition(
             $"""
             -- readiness: detail page of one item opened by id
+            WITH {relatedBookYearCte}
             SELECT w.id AS Id,
                    ma.id AS AssetId,
                    CAST(w.media_type AS TEXT) AS MediaType,
@@ -60,6 +105,9 @@ internal sealed partial class DetailCompositionOrchestrator
                    CAST(COALESCE(
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'series_position' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'series_position' LIMIT 1)) AS TEXT) AS SeriesPosition,
+                   CAST(COALESCE(
+                       (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = ma.id AND cva.key = 'series_placement' AND cva.value_qid = (SELECT c.wikidata_qid FROM collections c WHERE c.id = @collectionId) COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1),
+                       (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = w.id AND cva.key = 'series_placement' AND cva.value_qid = (SELECT c.wikidata_qid FROM collections c WHERE c.id = @collectionId) COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1)) AS TEXT) AS SeriesPlacementPosition,
                    CAST(w.display_overrides_json AS TEXT) AS WorkDisplayOverridesJson,
                    CAST(COALESCE(
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'issue_title' LIMIT 1),
@@ -172,25 +220,7 @@ internal sealed partial class DetailCompositionOrchestrator
             )
             LEFT JOIN user_states us ON us.asset_id = ma.id
                                     AND us.user_id = @defaultOwnerUserId
-            WHERE w.collection_id = @collectionId
-               OR ci.collection_id = @collectionId
-               OR w.id IN @resolvedWorkIds
-               OR (
-                   @rootWorkId IS NOT NULL
-                   AND (
-                       p.parent_work_id = @rootWorkId
-                       OR (
-                           w.parent_work_id = @rootWorkId
-                           AND EXISTS (
-                               SELECT 1
-                               FROM canonical_values child_marker
-                               WHERE child_marker.entity_id = w.id
-                                 AND child_marker.key IN ('episode_number', 'track_number')
-                                 AND NULLIF(CAST(child_marker.value AS TEXT), '') IS NOT NULL
-                           )
-                       )
-                   )
-               )
+            WHERE {rowFilterSql}
             GROUP BY w.id
             ORDER BY COALESCE(ci.sort_order, 9999), CAST(NULLIF(Season, '') AS INTEGER), CAST(NULLIF(Episode, '') AS INTEGER), CAST(NULLIF(TrackNumber, '') AS INTEGER), COALESCE(w.ordinal_sort, w.ordinal, 9999), Title;
             """,
@@ -242,8 +272,9 @@ internal sealed partial class DetailCompositionOrchestrator
             LastAccessed = StringValue(row.LastAccessed),
             PositionSeconds = SavedPlaybackTiming.Read((string?)StringValue(row.SavedPlaybackTiming)).PositionSeconds,
             DurationSeconds = SavedPlaybackTiming.Read((string?)StringValue(row.SavedPlaybackTiming)).DurationSeconds,
-            OrdinalSort = DoubleValue(row.OrdinalSort),
-            RetailSeriesPosition = StringValue(row.SeriesPosition),
+            // The Work's own number in this Series (its stored pair) first, then today's chain.
+            OrdinalSort = SeriesPositionPairs.SortValueOf(StringValue(row.SeriesPlacementPosition)) ?? DoubleValue(row.OrdinalSort),
+            RetailSeriesPosition = StringValue(row.SeriesPlacementPosition) ?? StringValue(row.SeriesPosition),
         }).ToList();
 
         // Dynamic collections can include an owned work before its edition and

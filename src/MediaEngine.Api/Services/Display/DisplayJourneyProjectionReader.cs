@@ -31,11 +31,27 @@ public sealed class DisplayJourneyProjectionReader
                 (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('content_rating', 'certification') LIMIT 1),
                 (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('content_rating', 'certification') LIMIT 1))
             """);
+        // The borrowed audiobook year is worked out once for the profile's played audiobook files, not once per row
+        // (and never from the whole library's credit list). Ignoring the progress and hide filters only makes the list longer.
+        var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "related_book_year",
+            """
+            -- readiness: candidates for the borrowed year only; the read's own rows carry the Ready filter
+            SELECT candidate_work.id AS work_id, candidate_state.asset_id AS asset_id
+            FROM user_states candidate_state
+            JOIN media_assets candidate_asset ON candidate_asset.id = candidate_state.asset_id
+            JOIN editions candidate_edition ON candidate_edition.id = candidate_asset.edition_id
+            JOIN works candidate_work ON candidate_work.id = candidate_edition.work_id
+            WHERE candidate_state.user_id = @ProfileId
+              AND LOWER(COALESCE(candidate_work.media_type, '')) LIKE '%audio%'
+            """,
+            "rby_");
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
             "w.id",
             "COALESCE(gpw.id, pw.id, w.id)",
             "ma.id",
-            "w.media_type");
+            "w.media_type",
+            MediaDateSql.RelatedBookYearLookup("related_book_year", "w.id", "ma.id"));
         // One cover row per entity, in the order written: the Engine's own copy before the provider's link
         // (engineering/reports/stored-name-order-2026-10.md). Joining every name would leave the choice to the GROUP BY.
         static string CoverJoin(string alias, string entityId) => $"""
@@ -46,6 +62,7 @@ public sealed class DisplayJourneyProjectionReader
                 LIMIT 1)
             """;
         var sql = $"""
+            WITH {relatedBookYearCte}
             SELECT
                 COALESCE((SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_still_url', 'still_url') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url', 'still_url') LIMIT 1)) AS EpisodeStillUrl,
                 COALESCE((SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_still_url_s', 'still_url_s') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url_s', 'still_url_s') LIMIT 1)) AS EpisodeStillSmallUrl,

@@ -57,6 +57,7 @@ public static class WikidataPropertyDefaults
         new("P921",  "main_subject",        "Stage 1: Story & Narrative", "Work", 0.8, false, true),
         new("P1434", "fictional_universe",  "Stage 1: Story & Narrative", "Work", 0.8, false, true),
         new("P144",  "based_on",            "Stage 1: Story & Narrative", "Work", 0.8, false, true),
+        new("P4969", "derivative_work",     "Stage 1: Story & Narrative", "Work", 0.8, false, true),
         new("P4584", "first_appearance",    "Stage 1: Story & Narrative", "Work", 0.8, false, true),
 
         // Stage 1: Bridges — Books
@@ -142,7 +143,9 @@ public static class WikidataPropertyDefaults
         new("P26",   "spouse",    "Universe: Character Relationships", "Character", 0.85, false, true, "Universe Graph"),
         new("P3373", "sibling",   "Universe: Character Relationships", "Character", 0.85, false, true, "Universe Graph"),
         new("P40",   "child",     "Universe: Character Relationships", "Character", 0.85, false, true, "Universe Graph"),
-        new("P1344", "opponent",  "Universe: Character Relationships", "Character", 0.8,  false, true, "Universe Graph"),
+        new("P1344", "participant_in", "Universe: Character Relationships", "Character", 0.8,  false, true, "Universe Graph"),
+        new("P3342", "significant_person", "Universe: Character Relationships", "Character", 0.8,  false, true, "Universe Graph"),
+        new("P7047", "enemy",     "Universe: Character Relationships", "Character", 0.8,  false, true, "Universe Graph"),
         new("P1066", "student_of","Universe: Character Relationships", "Character", 0.8,  false, true, "Universe Graph"),
         new("P463",  "member_of", "Universe: Character Relationships", "Character", 0.85, false, true, "Universe Graph"),
         new("P551",  "residence", "Universe: Character Relationships", "Character", 0.8,  false, true, "Universe Graph"),

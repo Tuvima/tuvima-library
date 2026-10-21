@@ -151,3 +151,92 @@ Not recommended now: deleting the names nothing writes (`poster`, `hero`, `certi
 - Whether a browser actually shows a stale cover after a cover change at the stable `/stream/{file}/cover` address (the Engine sends a one-day cache time) was not tested in the app.
 - The format of Wikidata's `duration` value was not checked.
 - Early in intake, before an item's place in its show or album is known, all of a file's values are stored on the file itself (`ScoringHelper`, no lineage). During that window `artist` and `album_artist` could sit on one record; this was not seen in practice.
+
+## Addendum: the "largest value wins" reads
+
+October 20, 2026. Investigation only, read on `main` at `02a8ef5fb` (after the cover fix above). No Engine was run. Covers the reads listed under "Related patterns" that pick among several stored names with `MAX(CASE WHEN key IN (…) THEN value END)`, which keeps the value that sorts last, whatever its name. The browse grid's cover was already fixed.
+
+Three facts from the writers decide most of the answers:
+
+- **People and publishers are lists.** `author`, `artist`, `album_artist`, `publisher` and the other credit names are multi-valued (`MetadataFieldConstants.MultiValuedKeys`). The Engine keeps them only in the list table (`canonical_value_arrays`); `CanonicalValueRepository.UpsertBatchAsync` drops them from the single-value table (`canonical_values`). A read that looks for them in the single-value table finds nothing, except on albums and series the editor itself created (see site 4).
+- **The colour names come in three sets** (`ArtworkCanonicalHelper.CreatePreferredAssetCanonicals`). Saving any preferred picture (cover, background, logo, episode still and so on) writes that picture's own set (`cover_*_hex`, `background_*_hex`, …) **and** overwrites the shared set `artwork_*_hex` plus `dominant_color` (the same value as `artwork_accent_hex`) on the same record. `primary_color`, `secondary_color` and `accent_color` are never written as stored values.
+- **Pictures and their colours sit on the picture's owner** (the show, movie, album, book or issue), not on the file. Only a cover saved before an item's place is known lands on the file, and then the shared and cover sets hold the same colours.
+
+### Each site
+
+| # | Site | Names | Can they sit on one record with different values? | What a person sees today | Recommendation |
+|---|---|---|---|---|---|
+| 1 | Browse colours, `CollectionBrowseReadService.cs:428–442` (the group pages reached from browse: a show, album or series by name) | `artwork_*_hex, cover_*_hex, primary_color` (+ `secondary`, `accent`, `dominant_color`) | **Yes** on the owner: the shared set and the cover set differ whenever the last picture saved was not the cover | The first part of each read takes the owner's values by name, alphabetically, so the shared set wins. The "largest value" part only reads the file, which normally holds none of these, or the same value under every name. So the larger-hex choice is not seen in practice; what is seen is whatever the shared set holds (finding A) | **Switch** the file part to a fixed order (shared, then cover, then the old names), the order `CollectionResponseFormatting.ResolvePalette` already uses. No visible change on its own. See recommendation 7 for what fixes the colours a person sees |
+| 2 | Artist panel, `CollectionBrowseReadService.cs:248` (Listen → Artists → an artist; built at `CollectionEndpoints.cs:886–1010`) | List names `album_artist, artist, performer` from the track, its file and its album | **Yes**: the album artist is on the album, the track artists on the track and Wikidata performers alongside, and a track can have several artists | The panel's photo and its "View artist page" button come from looking up a person by the first track's largest name. On a track with a guest whose name sorts later ("Daft Punk" with "Pharrell Williams"), or on a compilation filed under "Various Artists", the panel can show someone else's photo and link, or no photo at all. The panel's title is right (it is the name that was clicked) | **Switch**: look the person up by the artist the panel is for; keep the picked name only as a fallback, chosen in a fixed order (album artist, then artist, then performer, in list order). Also replace the silent `catch { }` around that lookup (`:995`) with a logged warning, per project rules |
+| 3 | Player, `PlayerService.cs:751–773` (year, content rating, quality of the item being played) | `year, release_year, premiere_year`; `content_rating, certification, rating_classification`; `quality, video_quality, resolution, video_resolution_label` | **No**: only `year` and `content_rating` are written. Wikidata's release date is stored as `original_release_year` or `edition_release_year`, not `release_year`; nothing writes the other names | Nothing | **Keep** |
+| 4 | Editor's Matching suggestions, `MediaEditorNavigationReadService.cs:365–368` (in Editing Mode, the album or series you can move an item into) | `album_artist, artist`; `author, creator, publisher`; `year, series_start_year` | **No**, but for a different reason: the artist, author and publisher names are lists, so these reads almost never find them (see above). `year` (a show or album) and `series_start_year` (a comic series) are written on different kinds of record | Series suggestions show only a year, never the author, except for series the editor created. Album suggestions show no artist; and because the editor filters albums by the track's artist (`:313–316`, the Dashboard always sends it), **albums that came in through ingestion are never offered as local suggestions**, only albums an earlier editor move created. Those editor-made albums and series are the only records with a single-value `artist` or `author`, because the move writes them there directly (`HierarchyAlignmentService.cs:749`, `:775`, `:952–953`; `MusicTrackRelocationRepository.cs:101`) | **Switch**: read the artist and the author from the list table in a fixed order (album artist before artist; author before creator; publisher no longer offered as an author), as the neighbouring read at `:454` already does. Make the editor's moves store these as lists under the names ingestion uses (`album_artist` on an album, `author` on a series). Year: a fixed order, `year` then `series_start_year` |
+| 5 | Audiobook chapters, `DetailCompositionOrchestrator.MediaGroups.cs:68–69` | `duration_seconds, duration_sec` | **No**: only `duration_sec` is stored (the audio and video processors). `duration_seconds` appears only inside track lists and in a lyrics lookup request, never as a stored value | Nothing | **Keep** |
+
+The browse reads' other multi-name `MAX` lines (`background`, `banner`, `hero`, `logo`, and the `duration_seconds, duration_sec` pair at `:254` and `:394`) are the same: identical values or never written. Keep.
+
+### Finding A: a title's colours follow whichever picture was saved last, and flip at every Engine start
+
+`artwork_*_hex` is read as "the title's colours" by Home and the library list (`DisplayWorkProjectionReader.cs:616–656`), the detail page hero (`DetailViewModelBuilder.cs:26–40`) and the browse group pages (site 1). Because every preferred picture overwrites it, it holds the colours of whichever picture was saved last. The images pass saves backdrops, then logos, then posters (`ImageEnrichmentService.cs:542`), so straight after ingestion it is usually the poster's colours. Two things change that:
+
+- Choosing a new background or logo in Editing Mode re-tints the whole title to that picture's colours.
+- At every start, `ArtworkRenditionRepairStartupService` walks every preferred picture, newest first (`EntityAssetRepository.cs:634`), and rewrites any record whose values differ from that picture's. A title with a poster and a background therefore gets the poster's colours, then the background's, and keeps the colours of whichever picture is oldest. That is usually the background, and every start rewrites the values twice.
+
+What a person sees: after an Engine restart, a show's or movie's tint on Home, in the library and on its detail hero comes from its backdrop or logo rather than its poster. Since the backdrop colours come from the image's left edge (`ArtworkVariantHelper.ExtractBackdropLeftEdgePalette`), this is often a dark, flat colour. Other code treats the shared set as the cover's: the cover pass clears it along with the cover (`CoverArtWorker.cs:856–864`). This was found by reading the code; it was not run.
+
+### Recommendations
+
+| # | Field | Recommendation | Product reason |
+|---|---|---|---|
+| 6 | Browse colours (site 1) | **Switch** the file part to a fixed order: shared set, cover set, old names | **Reliability**: one rule for choosing among names (recommendation 5) |
+| 7 | Title colours (finding A) | **Fix the writer**: only a record's main picture writes the shared set (`artwork_*_hex`, `dominant_color`): the cover, a season's poster, an episode's still, a person's headshot, a character's portrait. Backgrounds, logos, network and studio logos and season thumbnails keep only their own set. Existing libraries correct themselves at the next Engine start (the repair rewrites the main picture's colours and no longer flips them) | **Presentation**: a title keeps its poster's colours everywhere; **Reliability**: the same colours after every restart, and no rewrite on every start |
+| 8 | Artist panel (site 2) | **Switch**: find the person by the artist the panel is for; the picked name, in fixed order, is only a fallback; log instead of silently ignoring a failed lookup | **Presentation**: the right photo and the right "View artist page" link |
+| 9 | Editor Matching suggestions (site 4) | **Switch** to the list table in a fixed order, and make the editor's moves store artists and authors as lists | **Reliability**: ingested albums can be chosen when moving a track; series show their author; editor-made and ingested records are stored the same way |
+| 10 | Player, audiobook chapters, other browse names (sites 3 and 5) | **Keep** | No visible effect |
+
+Recommendation 7 has one product question in it. "The title's colours" could mean the poster's colours (as above) or, as today, the colours of the picture you last chose. The first keeps cards, rails and pages steady; the second lets a newly chosen background re-tint the title. The recommendation is the poster's, since the backdrop already has its own colours for the hero (`background_*_hex`).
+
+Not recommended now: the second silent `catch { }` in the same endpoints file (`CollectionEndpoints.cs:843`, album detail) and other reads that use the same "first person found" lookup (`:775`, `:1144`). They are outside these sites; worth a separate tidy-up.
+
+### What was not checked
+
+- Nothing was run. Which names coexist, and the colour flip at start-up, come from reading the writers, the scope rules and the startup repair.
+- Whether any existing test library already holds single-value `artist` or `author` rows from older data was not checked; pre-release resets make this moot.
+- The artist panel's behaviour depends on how multi-artist credits are split into the list (one entry per artist, or one joined entry); either way the picked name can be someone other than the artist the panel is for.
+
+### Outcome of the addendum
+
+Shy approved recommendations 6–9 on October 20, 2026, with titles always using their poster's colours. Built on branch `claude/competent-lichterman-531caa`:
+
+- Title colours: only a main picture (cover, season poster, episode still, headshot, character portrait) writes `artwork_*_hex` and `dominant_color` (`ArtworkCanonicalHelper`). Backgrounds and logos keep only their own set, so neither choosing one nor the start-up repair re-tints a title. Existing libraries correct themselves at the next Engine start.
+- Browse colours and the artist panel's picked name use a fixed order (`CollectionBrowseReadService`).
+- The artist panel looks the person up by the artist it is for, with the picked name as a fallback, and logs a failed lookup.
+- Matching suggestions read artists and authors from the list table (album artist before artist, author before creator, publisher no longer used as an author). The editor's moves and track relocation store album artists and series authors as lists. Renaming an album or series without changing its credit keeps the whole list and its Wikidata links.
+- Follow-up, built afterwards on branch `claude/epic-northcutt-1bc834`: three readers took an album's or series' credit from the single-value table, where the Engine never stores it, so they found nothing for ingested or editor-made records.
+  - The group detail's creator (`CollectionEndpoints.ResolveGroupCreatorAsync`) now reads an album's `album_artist`, then `artist`, and a series' `author` from the list table, first by ordinal. A series with no author falls back to its `creator`, which the data store classifies as a single value (`MetadataFieldConstants.IsMultiValued`), so it is read from `canonical_values`. Before this, the Listen album page showed no artist, and the missing-track fill searched Apple by album title alone.
+  - The editor's Album section names the album's artist from the library detail (which reads the list table) instead of falling back to the album or track title.
+  - The editor's artist-artwork owner lookup (`ResolveArtistArtworkOwnerAsync`) was computed and never used, so it was removed rather than fixed.
+  - The combined artist view's person lookup now logs a failure instead of swallowing it.
+  - Not changed: `creator` is single-valued in the data store although Wikidata can name several creators, so the editor navigator's `author`/`creator` list read can only ever find `author`. Whether `creator` should become a list is a separate decision.
+
+### Remediation to address later: the combined artist view
+
+Shy asked on October 20, 2026 for this to be recorded and fixed later, outside PR #356. Not started.
+
+**Where:** `GET /collections/artist-group-detail?collection_ids=…` in `src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs` (handler from about line 680). It builds one artist's albums as one view.
+
+**What is wrong:** it reads album-level facts from the first visible track's single stored values (`GetCanonical(firstWorkDto, …)`, around lines 776–782) instead of from the album's root Work:
+- Artist: `combinedCreator ??= GetCanonical(firstWorkDto, "artist") ?? GetCanonical(firstWorkDto, "author")`. Credits are list fields (`MetadataFieldConstants.IsMultiValued`) stored only in `canonical_value_arrays`, and on the album root, not the track. So this is always empty.
+- Genre: `combinedGenre ??= GetCanonical(firstWorkDto, "genre")`. Genre is also a list field, so it has the same problem.
+- Year (`release_year`, then `year`) and `child_entities_json` are also read from tracks. The single-album group detail reads them from the root Work (`ParentCv`), so those two reads should be checked too.
+
+**What a person would see:** the view's title falls back to "Unknown Artist", with no artist name, photo, person link or genre. The person lookup (`personRepo.FindByNameAsync`, now logged after PR #356) never runs, because there is no name to look up.
+
+**Who uses it today:** nothing found. No Dashboard page, native client, test or doc calls `artist-group-detail` (searched `src/`, `clients/`, `tests/`). Its only mention is the endpoint ledger (`engineering/plans/access-architecture-2026-09-08/execution/endpoint-registration-ledger.md`). The Dashboard's artist pages use `/collections/artist-detail-by-name`, which already reads credits correctly.
+
+**Options for when it is picked up:**
+1. **Fix it:** resolve each album's root Work (`ICollectionBrowseReadService.GetRootWorkIdAsync`) and take the artist from `CollectionEndpoints.ResolveGroupCreatorAsync(…, isMusic: true, …)`. Read genre from the root's `genre` list, and year and `child_entities_json` from the root's single values, as the group detail does. Add behaviour tests on a temporary data store, as in `tests/MediaEngine.Api.Tests/StoredCreditReadTests.cs`.
+2. **Remove it:** if no screen is meant to use it, delete the action and its ledger row. This is less code to keep correct.
+
+Recommendation: confirm whether any planned screen needs it, then choose. If nothing does, removing it is the long-term answer.
+
+**Related, also open:** `creator` is single-valued in the data store although Wikidata can name several creators (see the last bullet above).

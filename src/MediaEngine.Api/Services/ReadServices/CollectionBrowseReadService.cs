@@ -245,7 +245,17 @@ public sealed class CollectionBrowseReadService(
                     MIN(ma.id) AS AssetId,
                     MAX(CASE WHEN cv.key = 'title' THEN cv.value END) AS Title,
                     MAX(CASE WHEN cv.key = 'album' THEN cv.value END) AS Album,
-                    MAX(CASE WHEN cva.key IN ('album_artist', 'artist', 'performer') THEN cva.value END) AS Artist,
+                    (SELECT value
+                     FROM canonical_value_arrays
+                     -- Same names as the join below, but in a fixed order. Every asset of the work is listed rather
+                     -- than ma.id, which is ambiguous once the rows are grouped by work.
+                     WHERE (entity_id IN (aw.work_id, COALESCE(gp.id, p.id, aw.work_id))
+                            OR entity_id IN (SELECT ma_a.id FROM media_assets ma_a
+                                             INNER JOIN editions e_a ON e_a.id = ma_a.edition_id
+                                             WHERE e_a.work_id = aw.work_id))
+                       AND key IN ('album_artist', 'artist', 'performer')
+                     ORDER BY CASE key WHEN 'album_artist' THEN 0 WHEN 'artist' THEN 1 ELSE 2 END, ordinal
+                     LIMIT 1) AS Artist,
                     MAX(CASE WHEN cv.key = 'track_number' THEN cv.value END) AS TrackNumber,
                     MAX(CASE WHEN cv.key = 'disc_number' THEN cv.value END) AS DiscNumber,
                     MAX(CASE WHEN cv.key = 'apple_music_id' THEN cv.value END) AS AppleMusicId,
@@ -427,18 +437,28 @@ public sealed class CollectionBrowseReadService(
                     COALESCE(
                         (SELECT NULLIF(value, '') FROM canonical_values
                          WHERE entity_id = {hierarchyRootSql}
-                           AND key IN ('artwork_primary_hex', 'cover_primary_hex', 'primary_color') LIMIT 1),
-                        MAX(CASE WHEN cv.key IN ('artwork_primary_hex', 'cover_primary_hex', 'primary_color') THEN NULLIF(cv.value, '') END)) AS PrimaryColor,
+                           AND key IN ('artwork_primary_hex', 'cover_primary_hex', 'primary_color') ORDER BY CASE key WHEN 'artwork_primary_hex' THEN 0 WHEN 'cover_primary_hex' THEN 1 ELSE 2 END LIMIT 1),
+                        -- In the order written: one MAX across the names would pick whichever hex code sorts largest.
+                        MAX(CASE WHEN cv.key = 'artwork_primary_hex' THEN NULLIF(cv.value, '') END),
+                        MAX(CASE WHEN cv.key = 'cover_primary_hex' THEN NULLIF(cv.value, '') END),
+                        MAX(CASE WHEN cv.key = 'primary_color' THEN NULLIF(cv.value, '') END)) AS PrimaryColor,
                     COALESCE(
                         (SELECT NULLIF(value, '') FROM canonical_values
                          WHERE entity_id = {hierarchyRootSql}
-                           AND key IN ('artwork_secondary_hex', 'cover_secondary_hex', 'secondary_color') LIMIT 1),
-                        MAX(CASE WHEN cv.key IN ('artwork_secondary_hex', 'cover_secondary_hex', 'secondary_color') THEN NULLIF(cv.value, '') END)) AS SecondaryColor,
+                           AND key IN ('artwork_secondary_hex', 'cover_secondary_hex', 'secondary_color') ORDER BY CASE key WHEN 'artwork_secondary_hex' THEN 0 WHEN 'cover_secondary_hex' THEN 1 ELSE 2 END LIMIT 1),
+                        -- In the order written: one MAX across the names would pick whichever hex code sorts largest.
+                        MAX(CASE WHEN cv.key = 'artwork_secondary_hex' THEN NULLIF(cv.value, '') END),
+                        MAX(CASE WHEN cv.key = 'cover_secondary_hex' THEN NULLIF(cv.value, '') END),
+                        MAX(CASE WHEN cv.key = 'secondary_color' THEN NULLIF(cv.value, '') END)) AS SecondaryColor,
                     COALESCE(
                         (SELECT NULLIF(value, '') FROM canonical_values
                          WHERE entity_id = {hierarchyRootSql}
-                           AND key IN ('artwork_accent_hex', 'cover_accent_hex', 'accent_color', 'dominant_color') LIMIT 1),
-                        MAX(CASE WHEN cv.key IN ('artwork_accent_hex', 'cover_accent_hex', 'accent_color', 'dominant_color') THEN NULLIF(cv.value, '') END)) AS AccentColor,
+                           AND key IN ('artwork_accent_hex', 'cover_accent_hex', 'accent_color', 'dominant_color') ORDER BY CASE key WHEN 'artwork_accent_hex' THEN 0 WHEN 'cover_accent_hex' THEN 1 WHEN 'accent_color' THEN 2 ELSE 3 END LIMIT 1),
+                        -- In the order written: one MAX across the names would pick whichever hex code sorts largest.
+                        MAX(CASE WHEN cv.key = 'artwork_accent_hex' THEN NULLIF(cv.value, '') END),
+                        MAX(CASE WHEN cv.key = 'cover_accent_hex' THEN NULLIF(cv.value, '') END),
+                        MAX(CASE WHEN cv.key = 'accent_color' THEN NULLIF(cv.value, '') END),
+                        MAX(CASE WHEN cv.key = 'dominant_color' THEN NULLIF(cv.value, '') END)) AS AccentColor,
                     (SELECT group_concat(value, ';')
                      FROM (
                          SELECT cva_genre.value
