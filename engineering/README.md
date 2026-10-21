@@ -51,6 +51,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
 | [Handoff: finish the outstanding work, end to end (2026-10-19)](handoffs/2026-10-19-finish-outstanding-work.md) | Current |
+| [Handoff: library read speed follow-ups (2026-10-21)](handoffs/2026-10-21-library-read-speed-follow-ups.md) | Current — T1 to T7; T4 and T5 wait on Shy's decisions |
 | [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — Shy chose to stay on Dapper (2026-10-17) |
 
 ## Architecture decisions
@@ -83,7 +84,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — outcome recorded in ADR 0001 |
 | [Universe U-WP0: what really mixes up The Expanse](reports/universe-expanse-check-2026-10-19.md) | Current — feeds U-WP3 |
-| [Slow library and Home reads at 4,000 works](reports/slow-reads-2026-10.md) | Current — causes 1–2 fixed by the library list speed spec; causes 3–4 fixed by the Home and detail speed spec |
+| [Slow library and Home reads at 4,000 works](reports/slow-reads-2026-10.md) | Current — causes 1–2 fixed by the library list speed spec; causes 3–4 fixed by the Home and detail speed spec; follow-ups in the 2026-10-21 read speed handoff |
 | [Which stored name wins when a field accepts several](reports/stored-name-order-2026-10.md) | Current — recommendations 1–3 approved and built (stored-name-order-fix); addendum recommendations 6–9 approved and built |
 
 ## History (pre-2026-10-17 engineering records)
