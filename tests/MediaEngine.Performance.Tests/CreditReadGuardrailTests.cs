@@ -112,10 +112,10 @@ public sealed class CreditReadGuardrailTests : IClassFixture<LibraryListFixture>
             var text = File.ReadAllText(Path.Combine(root, file.Replace('/', Path.DirectorySeparatorChar)));
             if (file.EndsWith("PersonCreditReadService.cs", StringComparison.Ordinal))
             {
-                // Only GetLibraryCreditsAsync is covered; the file's other reads are the follow-up remediation R2.
-                var start = text.IndexOf("GetLibraryCreditsAsync(", StringComparison.Ordinal);
+                // Only the library credits read (GetLibraryCreditsCoreAsync) is covered; the file's other reads are the follow-up remediation R2.
+                var start = text.IndexOf("Task<List<PersonLibraryCreditDto>> GetLibraryCreditsCoreAsync(", StringComparison.Ordinal);
                 var end = text.IndexOf("NormalizeLibraryCreditRows(", start, StringComparison.Ordinal);
-                Assert.True(start >= 0 && end > start, "GetLibraryCreditsAsync was not found in PersonCreditReadService.cs.");
+                Assert.True(start >= 0 && end > start, "GetLibraryCreditsCoreAsync was not found in PersonCreditReadService.cs.");
                 text = text[start..end];
             }
 
