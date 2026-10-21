@@ -2004,10 +2004,20 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             _ => "image/jpeg",
         };
 
-    private string? ResolvePersonHeadshotUrl(Guid personId, bool hasLocalHeadshot, string? headshotUrl) =>
-        hasLocalHeadshot || !string.IsNullOrWhiteSpace(headshotUrl)
-            ? AbsoluteUrl($"/persons/{personId}/headshot")
-            : null;
+    private string? ResolvePersonHeadshotUrl(Guid personId, bool hasLocalHeadshot, string? headshotUrl)
+    {
+        if (!hasLocalHeadshot && string.IsNullOrWhiteSpace(headshotUrl))
+        {
+            return null;
+        }
+
+        // Keep the Engine's own face address when it sent one: it carries the picture's change marker (?v=),
+        // so an unchanged face stays in the browser's keep. Provider links are replaced by the Engine route.
+        var engineRoute = $"/persons/{personId}/headshot";
+        return AbsoluteUrl(headshotUrl is not null && headshotUrl.StartsWith(engineRoute, StringComparison.OrdinalIgnoreCase)
+            ? headshotUrl
+            : engineRoute);
+    }
 
     private static void AddQuery(ICollection<string> query, string name, string? value)
     {

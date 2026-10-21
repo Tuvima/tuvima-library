@@ -50,7 +50,22 @@ public sealed class AutomaticCollectionMembershipTests : BunitContext
     }
 
     [Fact]
-    public void Membership_LegacyArtworkUsesBoundedWorkCoverEndpoint()
+    public void Membership_AssetCoverArtworkAsksForASizedCopy()
+    {
+        var id = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var cut = Render<AutomaticCollectionMembership>(parameters => parameters.Add(component => component.Model,
+            new DetailPageViewModel
+            {
+                MediaGroups = [new MediaGroupingViewModel { Items = [
+                new MediaGroupingItemViewModel { Id = id.ToString(), EntityType = DetailEntityType.Book,
+                    Title = "Book", ArtworkUrl = $"/engine-image/stream/{assetId:D}/cover" } ] }]
+            }));
+        Assert.Equal($"/engine-image/stream/{assetId:D}/cover?size=s", cut.Find("img").GetAttribute("src"));
+    }
+
+    [Fact]
+    public void Membership_ArtworkWithoutCopiesUsesBoundedWorkCoverEndpoint()
     {
         var id = Guid.NewGuid();
         var cut = Render<AutomaticCollectionMembership>(parameters => parameters.Add(component => component.Model,
@@ -58,7 +73,7 @@ public sealed class AutomaticCollectionMembershipTests : BunitContext
             {
                 MediaGroups = [new MediaGroupingViewModel { Items = [
                 new MediaGroupingItemViewModel { Id = id.ToString(), EntityType = DetailEntityType.Book,
-                    Title = "Book", ArtworkUrl = $"/engine-image/stream/{Guid.NewGuid():D}/cover" } ] }]
+                    Title = "Book", ArtworkUrl = "https://images.example.test/original.jpg" } ] }]
             }));
         Assert.Equal($"/engine-image/stream/entity/work/{id:D}/cover?size=s", cut.Find("img").GetAttribute("src"));
     }
