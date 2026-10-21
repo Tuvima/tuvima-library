@@ -27,11 +27,11 @@ After a restore and a rescan, your own state finds its way back to the right tit
 
 ## The four kinds
 
-**Configuration** is settings and access, kept as rows: accounts, passkeys, profiles, households, grants, view policies and preferences, provider settings without secrets, notification settings, document types, fields and rules, backup settings, plugin approvals, and collections and playlists a person built. Password hashes, passkey public keys and two-step data stay, because they are what lets people sign in after a restore.
+**Configuration** is settings and access, kept as rows: accounts, passkeys, profiles, households, grants, view policies and preferences, provider settings without secrets, notification settings, document types, fields and rules, backup settings, plugin approvals, collections, playlists and View galleries a person built, values a person typed into document fields, and files a person chose to keep out of the Library. Rows that point at View items are re-attached by file fingerprint. Password hashes, passkey public keys and two-step data stay, because they are what lets people sign in after a restore.
 
 **Personal state** is a person's own state tied to a title: bookmarks, highlights, reading statistics, audiobook bookmarks and listening history, music play stats, consumption history, reactions, saved items, taste overrides, personal activity and playback positions. It is kept and re-attached to titles by recognition data. Each rule names an owner column (the profile or user the row belongs to), so one profile's state can be exported on its own.
 
-**Catalogue** is anything a rescan rebuilds: works, editions, media assets, canonical values, claims, artwork, fingerprints, subtitles, people, provider caches, search indexes, the Needs Review queue, and identity and enrichment jobs, plus View items and everything tied to them. It is never kept. The Vault's catalogue is in this group too.
+**Catalogue** is anything a rescan rebuilds: works, editions, media assets, canonical values, claims, artwork, fingerprints, subtitles, people, provider caches, search indexes, the Needs Review queue, and identity and enrichment jobs, and View items with what the Engine works out about them. It is never kept. The Vault's catalogue is in this group too.
 
 **Transient** is not kept and not rebuilt from files: sessions and tokens, one-time codes and challenges, run, operation and audit logs, telemetry, device pairing requests, notifications already sent, job queues, backup copy records and data store bookkeeping.
 
@@ -43,7 +43,7 @@ Secrets are never kept. Provider settings marked secret, webhook secrets and sim
 
 A backup's manifest will name its kind (`settings-and-personal-state`) and list what the backup leaves out: media files, folders, artwork, the catalogue, the Vault catalogue and secrets. The manifest and the export itself are built in a later step; this page defines only what is kept.
 
-## Configuration tables (53)
+## Configuration tables (58)
 
 | Table | Why | Points at the catalogue | Left out | Only rows where |
 |---|---|---|---|---|
@@ -73,8 +73,8 @@ A backup's manifest will name its kind (`settings-and-personal-state`) and list 
 | `application_credentials` | Hashed application credentials, which are access settings. | none | none | all rows |
 | `application_permission_grants` | Which permissions an application has been granted. | none | none | all rows |
 | `application_webhooks` | Webhook destinations an application has registered. | none | `secret_ciphertext` | all rows |
-| `approval_records` | Approvals an administrator has given, with the statement approved. | `item_id` (other) | none | all rows |
-| `plugin_lore_sources` | Lore sources a person approved or rejected; sources only discovered but never decided on are rebuilt. | `universe_qid` (other) | none | `approved_at IS NOT NULL OR rejected_at IS NOT NULL` |
+| `approval_records` | Approvals an administrator has given, with the statement approved. | none | none | all rows |
+| `plugin_lore_sources` | Lore sources a person approved or rejected; sources only discovered but never decided on are rebuilt. | none | none | `approved_at IS NOT NULL OR rejected_at IS NOT NULL` |
 | `metadata_providers` | The list of metadata providers and whether each is switched on. | none | none | all rows |
 | `provider_config` | Provider settings; rows marked secret are left out of a backup. | none | none | `is_secret = 0` |
 | `notification_settings` | Notification channels and rules. | none | none | all rows |
@@ -95,6 +95,11 @@ A backup's manifest will name its kind (`settings-and-personal-state`) and list 
 | `view_folder_timeline_policies` | Whether a folder appears in the View timeline. | none | none | all rows |
 | `view_storage_labels` | Names a person gave to View storage locations. | none | none | all rows |
 | `view_shared_library` | Which library a household shares in View. | none | none | all rows |
+| `view_galleries` | Galleries a person built in View. | `cover_item_id` (local item), `soundtrack_playlist_id` (collection) | none | all rows |
+| `view_gallery_items` | The View items in a person-built gallery. | `item_id` (local item) | none | all rows |
+| `view_gallery_shares` | Who a person-built View gallery is shared with. | none | none | all rows |
+| `doc_field_values` | Values a person entered in custom document fields. | `item_id` (local item) | none | all rows |
+| `excluded_source_files` | Files a person removed from the library and chose to keep out, so a rescan does not add them back. | none | none | all rows |
 | `collections` | Collections and playlists a person built; collections built from providers (universes and series) are rebuilt. | `universe_id` (other), `parent_collection_id` (collection), `universe_qid` (other) | `cover_artwork_path`, `background_artwork_path`, `banner_artwork_path`, `logo_artwork_path` | `collection_type IN ('Custom', 'Playlist')` |
 | `collection_items` | The titles in a person-built collection. | `work_id` (work) | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist'))` |
 | `collection_placements` | Where a person-built collection appears. | none | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist'))` |
@@ -122,7 +127,7 @@ A backup's manifest will name its kind (`settings-and-personal-state`) and list 
 | `profile_work_preferences` | A person's own tags and preferences for a title. | `profile_id` | `work_id` (work) |
 | `profile_person_preferences` | A person's own tags and preferences for a creator or performer. | `profile_id` | `person_id` (person) |
 
-## Catalogue tables (81)
+## Catalogue tables (76)
 
 None of these are kept. The search indexes (`search_index`, `local_item_search`, `artwork_asset_search`) are listed; their hidden storage tables are not.
 
@@ -196,14 +201,9 @@ None of these are kept. The search indexes (`search_index`, `local_item_search`,
 | `local_item_search` | Search index over View items. |
 | `local_item_search_keys` | Row numbers linking View items to their search index entries. |
 | `doc_item_details` | Filing details of documents (tied to View items, which have no stable id after a rescan). |
-| `doc_field_values` | Custom field values on documents (tied to View items). |
 | `doc_item_field_sources` | Where document field values came from (tied to View items). |
-| `view_galleries` | Galleries of View items (tied to View items, which have no stable id after a rescan). |
-| `view_gallery_items` | The items in a View gallery. |
-| `view_gallery_shares` | Who a View gallery is shared with. |
 | `view_shared_assets` | View items promoted to the shared library. |
 | `personal_activity_artwork` | Cached pictures for the activity feed. |
-| `excluded_source_files` | Files a person removed from the library; a rescan finds them again. |
 | `provider_response_cache` | Cached provider answers. |
 | `resolver_cache` | Cached identification answers. |
 | `search_results_cache` | Cached search answers. |

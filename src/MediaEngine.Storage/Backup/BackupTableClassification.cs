@@ -38,8 +38,8 @@ public static class BackupTableClassification
         Config("application_credentials", "Hashed application credentials, which are access settings."),
         Config("application_permission_grants", "Which permissions an application has been granted."),
         Config("application_webhooks", "Webhook destinations an application has registered.", excluded: ["secret_ciphertext"]),
-        Config("approval_records", "Approvals an administrator has given, with the statement approved.", refs: [Other("item_id")]),
-        Config("plugin_lore_sources", "Lore sources a person approved or rejected; sources only discovered but never decided on are rebuilt.", refs: [Other("universe_qid")], keepWhere: "approved_at IS NOT NULL OR rejected_at IS NOT NULL"),
+        Config("approval_records", "Approvals an administrator has given, with the statement approved."),
+        Config("plugin_lore_sources", "Lore sources a person approved or rejected; sources only discovered but never decided on are rebuilt.", keepWhere: "approved_at IS NOT NULL OR rejected_at IS NOT NULL"),
         Config("metadata_providers", "The list of metadata providers and whether each is switched on."),
         Config("provider_config", "Provider settings; rows marked secret are left out of a backup.", keepWhere: "is_secret = 0"),
         Config("notification_settings", "Notification channels and rules."),
@@ -60,6 +60,11 @@ public static class BackupTableClassification
         Config("view_folder_timeline_policies", "Whether a folder appears in the View timeline."),
         Config("view_storage_labels", "Names a person gave to View storage locations."),
         Config("view_shared_library", "Which library a household shares in View."),
+        Config("view_galleries", "Galleries a person built in View.", refs: [LocalItem("cover_item_id"), Coll("soundtrack_playlist_id")]),
+        Config("view_gallery_items", "The View items in a person-built gallery.", refs: [LocalItem("item_id")]),
+        Config("view_gallery_shares", "Who a person-built View gallery is shared with."),
+        Config("doc_field_values", "Values a person entered in custom document fields.", refs: [LocalItem("item_id")]),
+        Config("excluded_source_files", "Files a person removed from the library and chose to keep out, so a rescan does not add them back."),
         Config("collections", "Collections and playlists a person built; collections built from providers (universes and series) are rebuilt.", refs: [Other("universe_id"), Coll("parent_collection_id"), Other("universe_qid")], excluded: ["cover_artwork_path", "background_artwork_path", "banner_artwork_path", "logo_artwork_path"], keepWhere: PersonBuiltCollections),
         Config("collection_items", "The titles in a person-built collection.", refs: [Work("work_id")], keepWhere: InPersonBuiltCollection),
         Config("collection_placements", "Where a person-built collection appears.", keepWhere: InPersonBuiltCollection),
@@ -157,14 +162,9 @@ public static class BackupTableClassification
         Catalogue("local_item_search", "Search index over View items."),
         Catalogue("local_item_search_keys", "Row numbers linking View items to their search index entries."),
         Catalogue("doc_item_details", "Filing details of documents (tied to View items, which have no stable id after a rescan)."),
-        Catalogue("doc_field_values", "Custom field values on documents (tied to View items)."),
         Catalogue("doc_item_field_sources", "Where document field values came from (tied to View items)."),
-        Catalogue("view_galleries", "Galleries of View items (tied to View items, which have no stable id after a rescan)."),
-        Catalogue("view_gallery_items", "The items in a View gallery."),
-        Catalogue("view_gallery_shares", "Who a View gallery is shared with."),
         Catalogue("view_shared_assets", "View items promoted to the shared library."),
         Catalogue("personal_activity_artwork", "Cached pictures for the activity feed."),
-        Catalogue("excluded_source_files", "Files a person removed from the library; a rescan finds them again."),
         Catalogue("provider_response_cache", "Cached provider answers."),
         Catalogue("resolver_cache", "Cached identification answers."),
         Catalogue("search_results_cache", "Cached search answers."),
@@ -353,6 +353,8 @@ public static class BackupTableClassification
     private static CatalogueReference Coll(string column) => new(column, CatalogueTarget.Collection);
 
     private static CatalogueReference Person(string column) => new(column, CatalogueTarget.Person);
+
+    private static CatalogueReference LocalItem(string column) => new(column, CatalogueTarget.LocalItem);
 
     private static CatalogueReference Other(string column) => new(column, CatalogueTarget.Other);
 }
