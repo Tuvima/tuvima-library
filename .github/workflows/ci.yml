@@ -7,6 +7,9 @@ on:
     branches: [main]
   # Manual run on any branch behaves like a push to main: full format check, coverage collected and enforced.
   workflow_dispatch:
+  # Nightly full run (everything, with coverage) so problems that a lighter pull-request check misses show up within a day.
+  schedule:
+    - cron: '0 6 * * *'
 
 permissions:
   contents: read
