@@ -27,6 +27,34 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     private Func<string, PathTestResultDto> _pathProbe = _ => new() { Exists = true, HasRead = true, HasWrite = true };
     private IReadOnlyList<ViewSourceAdminDto> _viewSources = [];
 
+    // Libraries has pages below it (a group, then a type), so its menu row matches them; every other row stays exact.
+    [Fact]
+    public void SettingsMenu_LibrariesRow_StaysLitOnTheGroupAndTypePagesBelowIt()
+    {
+        var rows = Flatten(MediaEngine.Web.Services.Navigation.SettingsMenuBuilder.Build(
+            new MediaEngine.Web.Services.Navigation.SettingsMenuContext(true, false, IsMobile: false, 0, false))).ToList();
+
+        Assert.False(rows.Single(row => row.Route == "/settings/libraries").Exact);
+        Assert.All(rows.Where(row => row.Route != "/settings/libraries"), row => Assert.True(row.Exact));
+    }
+
+    private static IEnumerable<MediaSectionNavigationItem> Flatten(
+        IEnumerable<MediaSectionNavigationGroup> groups) =>
+        groups.SelectMany(group => FlattenItems(group.Items));
+
+    private static IEnumerable<MediaSectionNavigationItem> FlattenItems(
+        IEnumerable<MediaSectionNavigationItem> items)
+    {
+        foreach (var item in items)
+        {
+            yield return item;
+            foreach (var child in FlattenItems(item.Children ?? []))
+            {
+                yield return child;
+            }
+        }
+    }
+
     private static LibrariesConfigurationDto BuildConfiguration() => new()
     {
         StorageLocations = [new() { Id = "media", Label = "Media storage", Path = "C:\\media", AllowWrite = true }],
