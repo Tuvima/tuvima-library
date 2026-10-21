@@ -175,7 +175,7 @@ public static class MovePlacementNumbers
 {
     public const string AudiobookPartNumberKey = "audiobook_part_number";
 
-    /// <summary>The numbers a title (Work) holds in its album, season or series.</summary>
+    /// <summary>The numbers a title (Work) holds in its album, season or series (all of them are cleared when it is added anyway).</summary>
     public static readonly string[] WorkKeys =
     [
         MetadataFieldConstants.TrackNumber,
@@ -189,8 +189,11 @@ public static class MovePlacementNumbers
     /// <summary>The numbers an audiobook part (an Edition) holds in its audiobook.</summary>
     public static readonly string[] PartKeys = [AudiobookPartNumberKey];
 
-    /// <summary>What a title placed in <paramref name="mediaType"/>'s album, season or series is numbered.</summary>
-    public static List<(string Key, string Value)> For(string? mediaType, int? seasonNumber, int? ordinal, double? ordinalSort, int? disc)
+    /// <summary>
+    /// What a title placed in <paramref name="mediaType"/>'s album or season is numbered. A series position is never written by a move
+    /// (a Series is built from each title's match, Details overlay D20), so there is nothing for a book, comic or movie.
+    /// </summary>
+    public static List<(string Key, string Value)> For(string? mediaType, int? seasonNumber, int? ordinal, int? disc)
     {
         var numbers = new List<(string, string)>();
         if (string.Equals(mediaType, "Music", StringComparison.OrdinalIgnoreCase))
@@ -216,10 +219,6 @@ public static class MovePlacementNumbers
             {
                 numbers.Add((MetadataFieldConstants.SeasonNumber, season.ToString(System.Globalization.CultureInfo.InvariantCulture)));
             }
-        }
-        else if (ordinalSort is { } position)
-        {
-            numbers.Add((MetadataFieldConstants.SeriesPosition, position.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)));
         }
 
         return numbers;

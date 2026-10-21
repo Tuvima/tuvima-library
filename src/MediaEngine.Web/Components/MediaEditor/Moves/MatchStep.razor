@@ -237,17 +237,21 @@
         LibraryMoveListKinds.Tracks => "tracks",
         LibraryMoveListKinds.Episodes => "episodes",
         LibraryMoveListKinds.Parts => "parts",
-        _ => "positions",
+        _ => "entries",
     };
 
     private string ListHeading => $"{Destination}: {ListNoun}";
 
-    private string Heading => !Selection.HasList
+    private string Heading => Selection.AddAnywayOnly
+        ? $"Add to {Destination} without a number"
+        : !Selection.HasList
         ? $"Move to {Destination}"
         : Selection.IsWithinCurrentPlace && Selection.IsSingle ? $"Match {Selection.Rows[0].Title} in {Destination}"
         : Selection.IsSingle ? $"Match {Selection.Rows[0].Title} to {Destination}" : $"Match {Selection.Rows.Count} items to {Destination}";
 
-    private string Lead => !Selection.HasList
+    private string Lead => Selection.AddAnywayOnly
+        ? Selection.Preview.Note ?? $"{Destination} is built from each title's match. You can add {(Selection.IsSingle ? "this" : "these")} here without a number."
+        : !Selection.HasList
         ? $"{Destination} has no list to match against, so {(Selection.IsSingle ? "this goes" : "these go")} to the end, in your own order."
         : Selection.IsSingle
             ? $"Choose which {NumberWord} this is. It takes that {NumberWord}'s number and details."

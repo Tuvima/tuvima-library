@@ -416,6 +416,8 @@ public sealed class LibraryMoveService(
             })],
             Rows = rows,
             Warnings = [.. warnings.Distinct(StringComparer.Ordinal)],
+            AddAnywayOnly = provider.AddAnywayOnly,
+            Note = provider.Note,
         };
 
         var fileFingerprint = string.Concat(items.Select(item => fileLines.GetValueOrDefault(item.ItemId)?.FingerprintText + "\n"));
@@ -442,6 +444,8 @@ public sealed class LibraryMoveService(
             Entries = state.Preview.Entries,
             Rows = state.Preview.Rows,
             Warnings = state.Preview.Warnings,
+            AddAnywayOnly = state.Preview.AddAnywayOnly,
+            Note = state.Preview.Note,
             PreviewToken = token,
         };
     }
@@ -638,7 +642,16 @@ public sealed class LibraryMoveService(
             }
 
             var target = new LibraryMoveTarget();
-            if (!hasList)
+            if (state.Provider.AddAnywayOnly)
+            {
+                // D20: a Series is built from each title's match. The only way in by hand is forcing a title there without a number.
+                if (mode != LibraryMoveMode.AddAnyway || !string.IsNullOrEmpty(row.EntryKey))
+                {
+                    invalid = state.Provider.Note ?? "That can't be done here.";
+                    return null;
+                }
+            }
+            else if (!hasList)
             {
                 // D14: no list, no gate. Items simply join at the end.
                 if (mode != LibraryMoveMode.Match || !string.IsNullOrEmpty(row.EntryKey))
@@ -714,7 +727,6 @@ public sealed class LibraryMoveService(
         {
             LibraryMoveListKinds.Tracks => $"Track {entry.Number}",
             LibraryMoveListKinds.Parts => $"Part {entry.Number}",
-            LibraryMoveListKinds.Positions => $"Position {entry.Number}",
             _ => entry.Number,
         };
 

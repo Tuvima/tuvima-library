@@ -204,7 +204,7 @@
                 confirmation.PrimaryLabel,
                 confirmation.SecondaryLabel,
                 preview: ConfirmationPreview(confirmation));
-            if (answer == AppConfirmResult.Secondary && selection.HasAddAnyway)
+            if (answer == AppConfirmResult.Secondary && selection.HasAddAnyway && !selection.AddAnywayOnly)
             {
                 // "Match instead": the rows added anyway go back to the Match step to be matched.
                 foreach (var row in selection.Rows.Where(row => row.Choice == LibraryMoveRowChoice.AddAnyway).ToList())

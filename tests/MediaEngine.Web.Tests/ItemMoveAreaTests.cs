@@ -101,10 +101,10 @@ public sealed class ItemMoveAreaTests : AsyncBunitContext
     [Theory]
     [InlineData("Music", "track", "Move to another album")]
     [InlineData("TV", "episode", "Move to another season or show")]
-    [InlineData("Books", "book", "Move to another series")]
-    [InlineData("Comics", "issue", "Move to another series")]
+    [InlineData("Books", "book", "Add to a Series without a number")]
+    [InlineData("Comics", "issue", "Add to a Series without a number")]
     [InlineData("Audiobooks", "audiobook", "Move to another audiobook")]
-    [InlineData("Movies", "movie", "Move to a Series")]
+    [InlineData("Movies", "movie", "Add to a Series without a number")]
     public async Task OnADesktop_TheMoveEntryNamesTheKindOfPlace(string mediaType, string scopeId, string expected)
     {
         await UseDevice("desktop");
@@ -178,6 +178,62 @@ public sealed class ItemMoveAreaTests : AsyncBunitContext
         Assert.Equal(LibraryMoveModes.Match, row.Mode);
         Assert.Equal("t2", row.EntryKey);
         Assert.Equal("Moved Paranoid Android to OK Computer as Track 2.", _movedLine);
+    }
+
+    [Fact]
+    public async Task ABookIsAddedToASeriesOnlyAnywayWithoutANumber_AndTheStepSaysWhy()
+    {
+        await UseDevice("desktop");
+        _preview = LibraryMoveTestData.SeriesPreview();
+        var (host, area) = RenderArea("Books", "book");
+
+        Assert.Contains("Match and Identity", area.Find(".tl-item-move__copy span").TextContent, StringComparison.Ordinal);
+        ToMatchStep(area, "Add to a Series without a number");
+
+        Assert.Equal("none", area.Find(".tl-match-step").GetAttribute("data-list-kind"));
+        Assert.Contains("Series are built from each title's match.", area.Find(".tl-match-step__lead").TextContent, StringComparison.Ordinal);
+        Assert.Empty(area.FindAll("[data-entry-key]"));
+        Button(area, "Apply").Click();
+        host.WaitForElement(".app-confirm");
+
+        Assert.Contains("won't get a number", DialogText(host), StringComparison.Ordinal);
+        Assert.Equal(["Cancel", "Add anyway"], host.FindAll(".app-dialog-shell__footer button").Select(button => button.TextContent.Trim()));
+        DialogButton(host, "Add anyway").Click();
+        area.WaitForAssertion(() => Assert.NotNull(_movedLine));
+
+        var row = Assert.Single(Assert.Single(_commits).Rows);
+        Assert.Equal(LibraryMoveModes.AddAnyway, row.Mode);
+        Assert.Null(row.EntryKey);
+    }
+
+    [Fact]
+    public async Task CancellingTheSeriesConfirmationMovesNothing_AndNeverGoesBackToAMatchList()
+    {
+        await UseDevice("desktop");
+        _preview = LibraryMoveTestData.SeriesPreview();
+        var (host, area) = RenderArea("Movies", "movie");
+        ToMatchStep(area, "Add to a Series without a number");
+
+        Button(area, "Apply").Click();
+        host.WaitForElement(".app-confirm");
+        DialogButton(host, "Cancel").Click();
+
+        area.WaitForAssertion(() => Assert.Empty(host.FindAll(".app-confirm")));
+        Assert.Empty(_commits);
+        Assert.True(!Button(area, "Apply").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task ABookAddedAnywayEarlier_StillOnlyOffersAddingToASeries_NotMatchOrChangeNumber()
+    {
+        await UseDevice("desktop");
+        var (_, area) = RenderArea("Books", "book", unmatched: true);
+
+        var labels = area.FindAll("button").Select(button => button.TextContent.Trim()).ToList();
+
+        Assert.Equal(["Add to a Series without a number"], labels);
+        Assert.DoesNotContain("Match", labels);
+        Assert.DoesNotContain("Change number", labels);
     }
 
     [Fact]

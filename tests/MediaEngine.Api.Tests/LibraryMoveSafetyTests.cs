@@ -248,55 +248,6 @@ public sealed class LibraryMoveSafetyTests : IDisposable
 
     // ----- one definition of taken -------------------------------------------------------------------------------------------------
 
-    [Fact]
-    public async Task AnEntryOwnedElsewhereInTheSeriesList_IsTaken_ButCannotTakeAnotherVersion()
-    {
-        var elsewhere = _world.AddParent("Books", "Loose books");
-        var (ninth, _, _) = _world.AddChild(elsewhere, "Books", "Book Nine", 9);
-        var collection = _world.AddSeriesCollection("wd:Q9", [
-            ("q1", "wd:Q9", 1, "Book One", null),
-            ("q9", "wd:Q9", 9, "Book Nine", ninth)]);
-        var series = _world.AddParent("Books", "The Nine");
-        var (owned, _, _) = _world.AddChild(series, "Books", "Book Two", 2, collection: collection);
-        var third = _world.AddParent("Books", "Third place");
-        var (mover, _, _) = _world.AddChild(third, "Books", "Book Nine (second copy)", 5);
-
-        var preview = await Preview([mover], series);
-
-        var elsewhereEntry = preview.Entries.Single(entry => entry.Number == "9");
-        var ownedEntry = preview.Entries.Single(entry => entry.TakenByItemId == owned);
-        var free = preview.Entries.Single(entry => entry.Number == "1");
-        Assert.Equal(ninth, elsewhereEntry.TakenByItemId);
-        Assert.False(elsewhereEntry.CanAddVersion);
-        Assert.True(ownedEntry.CanAddVersion);
-        Assert.False(free.CanAddVersion);
-        var refused = await Commit(preview, AsVersion(mover, elsewhereEntry.EntryKey));
-        Assert.Equal(LibraryMoveRefusalKind.Invalid, refused.Refusal!.Kind);
-        Assert.Contains("can't take another version", refused.Refusal.Message, StringComparison.Ordinal);
-        Assert.True((await Commit(preview, AsVersion(mover, ownedEntry.EntryKey))).IsSuccess);
-    }
-
-    [Fact]
-    public async Task AnEntryCoveredByAnotherFile_IsTaken_SoItIsNeverMatchedOverSilently()
-    {
-        var series = _world.AddParent("Books", "The Nine");
-        var (host, _, hostAsset) = _world.AddChild(series, "Books", "Omnibus", 1);
-        var (covered, _, _) = _world.AddChild(series, "Books", "Part two of the omnibus", 2, hasFile: false);
-        _world.Execute(
-            "INSERT INTO media_asset_coverage (asset_id, work_id, position, source) VALUES (@asset, @covered, 1, 'filename');",
-            new { asset = hostAsset, covered });
-        var elsewhere = _world.AddParent("Books", "Loose books");
-        var (mover, _, _) = _world.AddChild(elsewhere, "Books", "Part two of the omnibus", 7);
-
-        var preview = await Preview([mover], series);
-        var entry = preview.Entries.Single(candidate => candidate.Title == "Part two of the omnibus");
-        var refused = await Commit(preview, Match(mover, entry.EntryKey));
-
-        Assert.Equal(covered, entry.TakenByItemId);
-        Assert.Equal(LibraryMoveRefusalKind.Invalid, refused.Refusal!.Kind);
-        Assert.NotEqual(host, covered);
-    }
-
     // ----- links -------------------------------------------------------------------------------------------------------------------
 
     [Fact]

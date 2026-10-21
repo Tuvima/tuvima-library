@@ -126,6 +126,32 @@ public sealed class LibraryMoveSelectionTests
     }
 
     [Fact]
+    public void ASeriesTakesOnlyAddAnyway_SoEveryRowIsAddedAnywayAndNothingIsLeftToChoose()
+    {
+        var selection = LibraryMoveSelection.From(LibraryMoveTestData.SeriesPreview());
+
+        Assert.True(selection.AddAnywayOnly);
+        Assert.False(selection.HasList);
+        Assert.True(selection.CanApply);
+        var row = Assert.Single(selection.ToCommitRequest().Rows);
+        Assert.Equal(LibraryMoveModes.AddAnyway, row.Mode);
+        Assert.Null(row.EntryKey);
+        Assert.Null(selection.ToPreviewRequest(LibraryMoveTestData.AlbumId).Choices);
+    }
+
+    [Fact]
+    public void TheConfirmationForASeriesSaysItGetsNoNumber_AndOffersCancelNotMatchInstead()
+    {
+        var confirmation = LibraryMoveText.Confirm(LibraryMoveSelection.From(LibraryMoveTestData.SeriesPreview()));
+
+        Assert.Equal("Add A Dune Novella to The Dune Chronicles anyway?", confirmation.Title);
+        Assert.Contains("won't get a number", confirmation.Message, StringComparison.Ordinal);
+        Assert.Contains("re-match it in Match and Identity", confirmation.Message, StringComparison.Ordinal);
+        Assert.Equal("Add anyway", confirmation.PrimaryLabel);
+        Assert.Equal("Cancel", confirmation.SecondaryLabel);
+    }
+
+    [Fact]
     public void ADestinationWithNoListNeedsNoChoices_AndSendsNoEntry()
     {
         var selection = LibraryMoveSelection.From(LibraryMoveTestData.NoListPreview());

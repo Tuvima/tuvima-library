@@ -475,10 +475,9 @@ public sealed class LibraryMoveServiceTests : IDisposable
         Assert.Equal(1, _world.Work(episode).Unmatched);
     }
 
-    // ----- series: positions, decimals allowed --------------------------------------------------------------------------------
+    // ----- series: no list, only Add anyway (Details overlay D20) ----------------------------------------------------------------
 
-    [Fact]
-    public async Task ASeriesPositionList_AllowsDecimals_AndAMatchToOnePointFiveKeepsTheDecimal()
+    private (Guid Series, Guid First, Guid Novella, Guid Collection) DuneSeriesWithAKnownNovella()
     {
         var series = _world.AddParent("Books", "The Dune Chronicles");
         var (first, _, _) = _world.AddChild(series, "Books", "Dune", 1);
@@ -489,23 +488,78 @@ public sealed class LibraryMoveServiceTests : IDisposable
         _world.Scalar<long>("UPDATE works SET collection_id = @collection WHERE id = @first; SELECT 0;", new { collection, first });
         var elsewhere = _world.AddParent("Books", "Loose books");
         var (novella, _, _) = _world.AddChild(elsewhere, "Books", "A Dune Novella", 7);
+        return (series, first, novella, collection);
+    }
+
+    [Fact]
+    public async Task ASeriesHasNoListToMatchAgainst_AndIsPreviewedAsAddAnywayOnlyWithAPlainLine()
+    {
+        var (series, _, novella, _) = DuneSeriesWithAKnownNovella();
 
         var preview = await PreviewAsync([novella], series);
 
-        Assert.Equal(LibraryMoveListKinds.Positions, preview.ListKind);
-        Assert.Equal(["1", "1.5", "2"], preview.Entries.Select(entry => entry.Number));
+        Assert.Equal(LibraryMoveListKinds.None, preview.ListKind);
+        Assert.True(preview.AddAnywayOnly);
+        Assert.Equal(SeriesAddAnywayOnlyMoveListProvider.SeriesNote, preview.Note);
+        Assert.Empty(preview.Entries);
+        Assert.False(preview.Destination.HasList);
         var row = Assert.Single(preview.Rows);
-        Assert.Equal(preview.Entries[1].EntryKey, row.SuggestedEntryKey);
+        Assert.Null(row.SuggestedEntryKey);
+    }
 
-        var result = await CommitAsync(preview, Match(novella, row.SuggestedEntryKey!));
+    [Fact]
+    public async Task APlaceWithAListOrAHandPickedCollection_IsNeverAddAnywayOnly()
+    {
+        var okComputer = AlbumWithAirbag();
+        var (song, _) = SongInOwnAlbum("Paranoid Android", "The Best Of");
+        var mine = _world.AddCollection("Road trip");
 
-        Assert.True(result.IsSuccess);
+        Assert.False((await PreviewAsync([song], okComputer)).AddAnywayOnly);
+        var free = await PreviewAsync([song], mine);
+        Assert.False(free.AddAnywayOnly);
+        Assert.Null(free.Note);
+    }
+
+    [Fact]
+    public async Task MatchingOrAddingAVersionIntoASeries_IsRefusedWithThePlainLine_AndNothingMoves()
+    {
+        var (series, _, novella, collection) = DuneSeriesWithAKnownNovella();
+        var elsewhere = _world.Work(novella).Parent;
+        var preview = await PreviewAsync([novella], series);
+
+        var matched = await CommitAsync(preview, Match(novella, "work:" + Guid.NewGuid().ToString("N")));
+        var version = await CommitAsync(preview, new LibraryMoveCommitRow { ItemId = novella, Mode = LibraryMoveModes.AddAsVersion });
+        var free = await CommitAsync(preview, new LibraryMoveCommitRow { ItemId = novella, Mode = LibraryMoveModes.Match });
+
+        foreach (var refused in new[] { matched, version, free })
+        {
+            Assert.False(refused.IsSuccess);
+            Assert.Equal(LibraryMoveRefusalKind.Invalid, refused.Refusal!.Kind);
+            Assert.Equal(SeriesAddAnywayOnlyMoveListProvider.SeriesNote, refused.Refusal.Message);
+        }
+
+        Assert.Equal(elsewhere, _world.Work(novella).Parent);
+        Assert.Equal(0L, _world.Scalar<long>("SELECT COUNT(*) FROM series_manifest_items WHERE item_qid = 'q15' AND linked_work_id IS NOT NULL;"));
+        Assert.NotEqual(Guid.Empty, collection);
+    }
+
+    [Fact]
+    public async Task AddAnywayIntoASeries_ForcesTheTitleInWithNoNumber_FlagsItNotMatched_AndLinksNothingInTheSeriesList()
+    {
+        var (series, _, novella, _) = DuneSeriesWithAKnownNovella();
+        var preview = await PreviewAsync([novella], series);
+
+        var result = await CommitAsync(preview, AddAnyway(novella));
+
+        Assert.True(result.IsSuccess, result.Refusal?.Message);
+        Assert.Equal(LibraryMoveOutcomes.AddedUnmatched, Assert.Single(result.Value!.Rows).Outcome);
         var state = _world.Work(novella);
         Assert.Equal(series, state.Parent);
-        Assert.Equal(1.5d, state.OrdinalSort);
         Assert.Null(state.Ordinal);
-        Assert.Equal("1.5", _world.Canonical(novella, "series_position"));
-        Assert.Equal(novella, _world.Scalar<Guid>("SELECT linked_work_id FROM series_manifest_items WHERE item_qid = 'q15';"));
+        Assert.Null(state.OrdinalSort);
+        Assert.Equal(1, state.Unmatched);
+        Assert.Null(_world.Canonical(novella, "series_position"));
+        Assert.Equal(0L, _world.Scalar<long>("SELECT COUNT(*) FROM series_manifest_items WHERE item_qid = 'q15' AND linked_work_id IS NOT NULL;"));
     }
 
     [Fact]

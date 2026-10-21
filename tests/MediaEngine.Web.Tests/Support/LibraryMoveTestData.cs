@@ -107,6 +107,25 @@ internal static class LibraryMoveTestData
         PreviewToken = token,
     };
 
+    /// <summary>A book, comic or movie Series: no list and no free move, only Add anyway (details overlay D20).</summary>
+    public static LibraryMovePreview SeriesPreview(string token = "token-series") => new()
+    {
+        Destination = new LibraryMoveDestination
+        {
+            Id = Guid.Parse("dddddddd-0000-0000-0000-000000000001"),
+            Kind = LibraryMoveDestinationKinds.Series,
+            Label = "The Dune Chronicles",
+            HasList = false,
+        },
+        ListKind = LibraryMoveListKinds.None,
+        Entries = [],
+        Rows = [Row(title: "A Dune Novella", suggested: null)],
+        Warnings = ["Leaves Loose books"],
+        AddAnywayOnly = true,
+        Note = "Series are built from each title's match. Use Match and Identity to re-match it, or add it here without a number.",
+        PreviewToken = token,
+    };
+
     /// <summary>A hand-picked collection or Videos series: no list, so the move is free.</summary>
     public static LibraryMovePreview NoListPreview(string token = "token-free") => new()
     {

@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace MediaEngine.Contracts.Library;
 
-// Moving items into another album, season, series, audiobook or hand-picked collection (Details overlay spec, WP5). Three Engine
+// Moving items into another album, season, audiobook or hand-picked collection, or adding a title to a series without a number (Details overlay spec, WP5, D20). Three Engine
 // actions: list the places an item can go, preview a move (the Engine works out the Match step and what will happen), and commit it.
 // Confirming sends back the preview's token; if anything changed since, the Engine refuses with a fresh preview (Delete D6 pattern).
 
@@ -15,7 +15,10 @@ public static class LibraryMoveDestinationKinds
     /// <summary>A TV season (Season 0 is the Specials): an episode is matched against its episode list.</summary>
     public const string Season = "season";
 
-    /// <summary>A book, comic or movie series: an item is matched against its positions (decimals such as 1.5 are allowed).</summary>
+    /// <summary>
+    /// A book, comic or movie series. It has no list to match against: a Series is built from each title's match, so the only way in by
+    /// hand is Add anyway (Details overlay D20).
+    /// </summary>
     public const string Series = "series";
 
     /// <summary>An audiobook: one of its files is matched against its parts list.</summary>
@@ -30,7 +33,6 @@ public static class LibraryMoveListKinds
 {
     public const string Tracks = "tracks";
     public const string Episodes = "episodes";
-    public const string Positions = "positions";
     public const string Parts = "parts";
 
     /// <summary>Nothing known to match against: the move is free and the item goes at the end (Details overlay D14).</summary>
@@ -92,7 +94,7 @@ public sealed class LibraryMoveDestinationsResponse
     [JsonPropertyName("destinations")] public List<LibraryMoveDestination> Destinations { get; init; } = [];
 
     /// <summary>
-    /// The place the item already sits in, when that place has its own list (the album, season, series or audiobook it is in). It is never
+    /// The place the item already sits in, when that place has its own list (the album, season or audiobook it is in; never a series). It is never
     /// among <see cref="Destinations"/> (those are places to move it to), so a screen opens the Match step on it directly to match an item
     /// that was added anyway, or to change an item's number. Null when the item sits in no such place, or the caller may not edit it.
     /// </summary>
@@ -223,6 +225,15 @@ public sealed class LibraryMovePreview
 
     /// <summary>Plain consequences: "Leaves The Best Of", "Season 2 will be empty and removed".</summary>
     [JsonPropertyName("warnings")] public List<string> Warnings { get; init; } = [];
+
+    /// <summary>
+    /// True when the destination has no list and takes no free move: the only way in is <c>add_anyway</c> (a Series, Details overlay D20).
+    /// <c>match</c> and <c>add_as_version</c> are refused there. False for a list and for a hand-picked collection (free order).
+    /// </summary>
+    [JsonPropertyName("add_anyway_only")] public bool AddAnywayOnly { get; init; }
+
+    /// <summary>A plain line to read before choosing, for a destination that takes only Add anyway. Null otherwise.</summary>
+    [JsonPropertyName("note")] public string? Note { get; init; }
 
     /// <summary>Confirming sends it back. It lasts 10 minutes and works only for the person who asked and this exact request.</summary>
     [JsonPropertyName("preview_token")] public string PreviewToken { get; init; } = string.Empty;

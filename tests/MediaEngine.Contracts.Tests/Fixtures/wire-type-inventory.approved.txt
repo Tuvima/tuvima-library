@@ -4112,8 +4112,10 @@
   Entries: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryMoveEntry> | json=entries | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Rows: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryMovePreviewRow> | json=rows | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Warnings: System.Collections.Generic.List<System.String> | json=warnings | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AddAnywayOnly: System.Boolean | json=add_anyway_only | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Note: System.String | json=note | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PreviewToken: System.String | json=preview_token | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"destination":null,"list_kind":"sample","entries":[],"rows":[],"warnings":[],"preview_token":"sample"}
+  sample={"destination":null,"list_kind":"sample","entries":[],"rows":[],"warnings":[],"add_anyway_only":true,"note":"sample","preview_token":"sample"}
 
 [contracts] MediaEngine.Contracts.Library.LibraryMovePreviewRequest
   kind=class | converter=default | number-handling=default | unmapped=default

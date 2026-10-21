@@ -656,6 +656,12 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
 
         foreach (var (row, item) in ordered)
         {
+            if (destination.Kind == LibraryMoveKinds.Series && row.Mode != LibraryMoveMode.AddAnyway)
+            {
+                // D20: a Series is built from each title's match, never by hand. Only forcing a title in (Add anyway) is allowed.
+                return LibraryMoveCommitOutcome.Refusal("Series are built from each title's match. Use Match and Identity to re-match it, or add it here without a number.");
+            }
+
             if (row.Mode == LibraryMoveMode.AddAnyway)
             {
                 if (item.ParentWorkId == destination.Id)
@@ -712,7 +718,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 }
 
                 Relocate(connection, transaction, destination, item, row.Target.Ordinal, sort, unmatched: false);
-                SetNumbers(connection, transaction, [item.WorkId, .. item.AssetIds], NumbersFor(destination, row.Target.Ordinal, sort, row.Target.DiscNumber), now);
+                SetNumbers(connection, transaction, [item.WorkId, .. item.AssetIds], NumbersFor(destination, row.Target.Ordinal, row.Target.DiscNumber), now);
                 UnlinkManifest(connection, transaction, item.WorkId);
                 if (row.Target.ManifestItemId is { } linked)
                 {
@@ -825,7 +831,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             """,
             new { entry = entryWork, taken = taken ? 1 : 0 },
             transaction);
-        SetNumbers(connection, transaction, item.AssetIds, NumbersFor(destination, entry.Ordinal, entry.OrdinalSort, entry.DiscNumber), now);
+        SetNumbers(connection, transaction, item.AssetIds, NumbersFor(destination, entry.Ordinal, entry.DiscNumber), now);
 
         // What people did with the title (hearts, plays, listening, bookmarks, queue places, hand-picked collections, tags) goes to the
         // entry; a move never throws it away.
@@ -848,8 +854,8 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
     }
 
     // One definition, shared with the preview that works out the file name these numbers give.
-    private static List<(string Key, string Value)> NumbersFor(LibraryMoveDestinationInfo destination, int? ordinal, double? ordinalSort, int? disc) =>
-        MovePlacementNumbers.For(destination.MediaType, destination.SeasonNumber, ordinal, ordinalSort, disc);
+    private static List<(string Key, string Value)> NumbersFor(LibraryMoveDestinationInfo destination, int? ordinal, int? disc) =>
+        MovePlacementNumbers.For(destination.MediaType, destination.SeasonNumber, ordinal, disc);
 
     /// <summary>
     /// Writes where the item sits in its list, on the title and on each of its files (readers look at the file first). Each value is

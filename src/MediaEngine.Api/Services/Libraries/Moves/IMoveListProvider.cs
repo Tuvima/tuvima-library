@@ -24,7 +24,8 @@ public sealed record MoveListEntry(
 
 /// <summary>
 /// What an item can be matched against in one kind of destination. Each media type's destination registers one, or declares it has
-/// no list (<see cref="NoListMoveProvider"/>): a list means the Match step (Details overlay D12), no list means free order (D14).
+/// no list (<see cref="NoListMoveProvider"/>): a list means the Match step (Details overlay D12), no list means free order (D14). A
+/// Series is the exception: it has no list to match against and takes only Add anyway (D20).
 /// No type needs its own move screen.
 /// </summary>
 public interface IMoveListProvider
@@ -37,6 +38,15 @@ public interface IMoveListProvider
 
     /// <summary>The destination's own list, owned and known-missing entries, in the order a person reads them.</summary>
     Task<IReadOnlyList<MoveListEntry>> GetEntriesAsync(LibraryMoveDestinationInfo destination, CancellationToken ct = default);
+
+    /// <summary>
+    /// True when the destination has no list and takes no free move either: the only way in is Add anyway (Details overlay D20). A
+    /// Series is built from each title's match, never by hand, so the person can only force a title into one, unnumbered.
+    /// </summary>
+    bool AddAnywayOnly => false;
+
+    /// <summary>A plain line for the person about a destination that takes only Add anyway. Null otherwise.</summary>
+    string? Note => null;
 }
 
 /// <summary>Finds the provider for a destination. A destination no provider names has no list: moving into it is free.</summary>

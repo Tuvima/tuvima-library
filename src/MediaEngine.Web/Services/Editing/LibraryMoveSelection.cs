@@ -116,6 +116,12 @@ public sealed class LibraryMoveSelection
     public bool IsSingle => _rows.Count == 1;
 
     /// <summary>
+    /// True when the destination takes a title only by Add anyway (a Series, D20): there is no list and no free move, so every row is
+    /// added anyway and nothing is left to choose.
+    /// </summary>
+    public bool AddAnywayOnly => Preview.AddAnywayOnly;
+
+    /// <summary>
     /// True when the Match step was opened on the place the item already sits in (matching an item that was added anyway, or changing a
     /// number). Adding anyway would change nothing there, so it is not offered, and the words say "match" rather than "move".
     /// </summary>
@@ -134,7 +140,7 @@ public sealed class LibraryMoveSelection
         {
             if (!selection.HasList)
             {
-                row.Choice = LibraryMoveRowChoice.Match;
+                row.Choice = selection.AddAnywayOnly ? LibraryMoveRowChoice.AddAnyway : LibraryMoveRowChoice.Match;
                 continue;
             }
 

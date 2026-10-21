@@ -63,7 +63,7 @@ public sealed class LibraryMoveContractTests
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
 
-        Assert.Equal(["destination", "list_kind", "entries", "rows", "warnings", "preview_token"], PropertyNames(json));
+        Assert.Equal(["destination", "list_kind", "entries", "rows", "warnings", "add_anyway_only", "note", "preview_token"], PropertyNames(json));
         Assert.Equal(["id", "kind", "label", "parent_label", "has_list"], root.GetProperty("destination").EnumerateObject().Select(property => property.Name));
         Assert.Equal(
             ["entry_key", "number", "title", "length_seconds", "taken_by_item_id", "taken_by_title", "can_add_version", "joins_existing_title"],
@@ -137,8 +137,8 @@ public sealed class LibraryMoveContractTests
     {
         Assert.Equal(["album", "season", "series", "audiobook", "collection"],
             [LibraryMoveDestinationKinds.Album, LibraryMoveDestinationKinds.Season, LibraryMoveDestinationKinds.Series, LibraryMoveDestinationKinds.Audiobook, LibraryMoveDestinationKinds.Collection]);
-        Assert.Equal(["tracks", "episodes", "positions", "parts", "none"],
-            [LibraryMoveListKinds.Tracks, LibraryMoveListKinds.Episodes, LibraryMoveListKinds.Positions, LibraryMoveListKinds.Parts, LibraryMoveListKinds.None]);
+        Assert.Equal(["tracks", "episodes", "parts", "none"],
+            [LibraryMoveListKinds.Tracks, LibraryMoveListKinds.Episodes, LibraryMoveListKinds.Parts, LibraryMoveListKinds.None]);
         Assert.Equal(["match", "add_anyway", "add_as_version"],
             [LibraryMoveModes.Match, LibraryMoveModes.AddAnyway, LibraryMoveModes.AddAsVersion]);
         Assert.Equal(["matched", "added_as_version", "added_unmatched", "moved"],

@@ -43,7 +43,7 @@ internal sealed class LibraryMoveTestWorld : IDisposable
             [
                 new AlbumTrackMoveListProvider(Repository),
                 new SeasonEpisodeMoveListProvider(Repository, manifests),
-                new SeriesPositionMoveListProvider(Repository, manifests),
+                new SeriesAddAnywayOnlyMoveListProvider(),
                 new AudiobookPartMoveListProvider(Repository),
             ]),
             new MoveOwnedFileCleaner(AssetPaths, NullLogger<MoveOwnedFileCleaner>.Instance),

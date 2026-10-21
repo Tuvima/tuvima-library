@@ -65,7 +65,7 @@ public sealed class LibraryMoveResult<T> where T : class
         new(null, new LibraryMoveRefusal(kind, message, ids ?? [], null));
 }
 
-/// <summary>Moves items into another album, season, series, audiobook or hand-picked collection through a Match step.</summary>
+/// <summary>Moves items into another album, season, audiobook or hand-picked collection through a Match step; a series only takes Add anyway (Details overlay D20).</summary>
 public interface ILibraryMoveService
 {
     /// <summary>The places this item can go. Only places that accept its kind are offered (Details overlay D15).</summary>

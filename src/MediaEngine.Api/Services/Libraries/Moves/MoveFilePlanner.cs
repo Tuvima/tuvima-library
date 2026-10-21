@@ -104,7 +104,7 @@ public sealed class MoveFilePlanner(IAutoOrganizeService organizer)
 
         var target = entry?.Target;
         foreach (var (key, value) in MovePlacementNumbers.For(
-                     destination.MediaType, destination.SeasonNumber, target?.Ordinal, target?.OrdinalSort, target?.DiscNumber))
+                     destination.MediaType, destination.SeasonNumber, target?.Ordinal, target?.DiscNumber))
         {
             numbers[key] = value;
         }

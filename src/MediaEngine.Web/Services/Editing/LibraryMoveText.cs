@@ -13,15 +13,26 @@ public static class LibraryMoveText
     public const string GenericRefusal = "This move could not be done.";
     public const string MatchEveryRowFirst = "Match every row first, or add the rest without numbers, then continue.";
 
-    /// <summary>The "Move" entry's label for this kind of item (Details overlay spec section 4).</summary>
+    /// <summary>The label for the Series entry of a book, comic or movie: a Series is built from the title's match, so by hand it only takes it without a number (D20).</summary>
+    public const string AddToSeriesLabel = "Add to a Series without a number";
+
+    /// <summary>True for the kinds a Series is built for from each title's match (books, comics and movies): their Move entry only adds anyway (D20).</summary>
+    public static bool IsSeriesKind(string? mediaType) => (mediaType ?? string.Empty).Trim().ToLowerInvariant()
+        is "books" or "book" or "comics" or "comic" or "movies" or "movie";
+
+    /// <summary>The "Move" entry's label for this kind of item (Details overlay spec section 4 and D20).</summary>
     public static string MoveLabel(string? mediaType) => (mediaType ?? string.Empty).Trim().ToLowerInvariant() switch
     {
         "music" => "Move to another album",
         "tv" => "Move to another season or show",
-        "books" or "book" or "comics" or "comic" => "Move to another series",
+        "books" or "book" or "comics" or "comic" or "movies" or "movie" => AddToSeriesLabel,
         "audiobooks" or "audiobook" => "Move to another audiobook",
-        _ => "Move to a Series",
+        _ => "Move to another place",
     };
+
+    /// <summary>What a book, comic or movie shows under its Series entry: Match and Identity is where it is placed properly.</summary>
+    public const string SeriesEntrySummary =
+        "A Series is built from the title's match. Use Match and Identity to re-match it, or add it to a Series here without a number.";
 
     /// <summary>The label for a Not matched item: it is placed through the same Match step.</summary>
     public const string MatchLabel = "Match";
@@ -50,7 +61,6 @@ public static class LibraryMoveText
     {
         LibraryMoveListKinds.Tracks => $"Track {entry.Number}",
         LibraryMoveListKinds.Parts => $"Part {entry.Number}",
-        LibraryMoveListKinds.Positions => $"Position {entry.Number}",
         _ => entry.Number,
     };
 
@@ -101,7 +111,16 @@ public static class LibraryMoveText
         string message;
         string primary;
         string secondary;
-        if (selection.HasAddAnyway)
+        if (selection.AddAnywayOnly)
+        {
+            // D20: a Series takes a title only without a number, and "Match instead" has no list here; matching is done by re-matching it.
+            var anyway = rows.Where(row => row.Choice == LibraryMoveRowChoice.AddAnyway).ToList();
+            title = anyway.Count == 1 ? $"Add {anyway[0].Title} to {destination} anyway?" : $"Add {anyway.Count} items to {destination} anyway?";
+            message = $"This won't get a number or details from {destination}. To place it properly, re-match it in Match and Identity.{leavesClause}";
+            primary = "Add anyway";
+            secondary = "Cancel";
+        }
+        else if (selection.HasAddAnyway)
         {
             var numberWord = NumberWord(preview.ListKind);
             var anyway = rows.Where(row => row.Choice == LibraryMoveRowChoice.AddAnyway).ToList();

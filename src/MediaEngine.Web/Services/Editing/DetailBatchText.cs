@@ -43,7 +43,11 @@ public static class DetailBatchRules
         var actions = new List<DetailAction>();
         if (canMove && CanMove(rows))
         {
-            actions.Add(new DetailAction { Key = MoveActionKey, Label = "Move…", Icon = "account_tree", IsDisabled = busy });
+            // A book, comic or movie only takes a Series without a number (spec D20), and the entry says so.
+            var label = rows.All(row => row.Kind is DetailEntityType.Book or DetailEntityType.ComicIssue or DetailEntityType.Movie)
+                ? LibraryMoveText.AddToSeriesLabel + "…"
+                : "Move…";
+            actions.Add(new DetailAction { Key = MoveActionKey, Label = label, Icon = "account_tree", IsDisabled = busy });
         }
 
         if (canDelete && AreDeletable(rows))

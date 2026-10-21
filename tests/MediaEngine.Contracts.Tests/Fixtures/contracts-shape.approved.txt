@@ -3421,6 +3421,8 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMovePreview
   Entries: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryMoveEntry> | nullability=not-null | accessors=get,init
   Rows: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryMovePreviewRow> | nullability=not-null | accessors=get,init
   Warnings: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  AddAnywayOnly: System.Boolean | nullability=not-null | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
   PreviewToken: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMovePreviewRequest

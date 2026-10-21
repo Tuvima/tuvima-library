@@ -30,7 +30,7 @@
                     <span>@Summary</span>
                 </div>
                 <div class="tl-item-move__actions">
-                    @if (IsUnmatched)
+                    @if (IsUnmatched && !SeriesKind)
                     {
                         @* A Not matched item is matched where it already sits; moving it elsewhere stays one click away. *@
                         <AppButton Label="@Label"
@@ -141,11 +141,17 @@
 
     private bool Visible => LibraryMoveRules.CanShowMove(Device, ScopeId, ItemId);
 
-    private string Label => IsUnmatched ? LibraryMoveText.MatchLabel : LibraryMoveText.MoveLabel(MediaType);
+    // A book, comic or movie is placed in a Series by its match (Match and Identity re-matches it), so here it only takes the
+    // Series without a number (D20). It has no place with a list, so "Match" and "Change number" are never offered for it.
+    private bool SeriesKind => LibraryMoveText.IsSeriesKind(MediaType);
 
-    private string Summary => IsUnmatched
-        ? "This was added without a number. Match it to its place, or move it somewhere else."
-        : "Choose where it goes and match it to that place. You check every step before anything changes.";
+    private string Label => IsUnmatched && !SeriesKind ? LibraryMoveText.MatchLabel : LibraryMoveText.MoveLabel(MediaType);
+
+    private string Summary => SeriesKind
+        ? LibraryMoveText.SeriesEntrySummary
+        : IsUnmatched
+            ? "This was added without a number. Match it to its place, or move it somewhere else."
+            : "Choose where it goes and match it to that place. You check every step before anything changes.";
 
     // Asks the Engine where the item sits now once per item, so "Change number" only shows for an item that has a list to be numbered in.
     protected override async Task OnParametersSetAsync()
@@ -309,7 +315,7 @@
                 confirmation.PrimaryLabel,
                 confirmation.SecondaryLabel,
                 preview: ConfirmationPreview(confirmation));
-            if (answer == AppConfirmResult.Secondary && selection.HasAddAnyway)
+            if (answer == AppConfirmResult.Secondary && selection.HasAddAnyway && !selection.AddAnywayOnly)
             {
                 // "Match instead": the items added anyway go back to the Match step to be matched.
                 foreach (var row in selection.Rows.Where(row => row.Choice == LibraryMoveRowChoice.AddAnyway).ToList())

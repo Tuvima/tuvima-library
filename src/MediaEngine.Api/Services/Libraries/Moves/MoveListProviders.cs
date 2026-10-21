@@ -203,67 +203,26 @@ public sealed class SeasonEpisodeMoveListProvider(ILibraryMoveRepository moves, 
             : $"S{season.ToString(CultureInfo.InvariantCulture)} E{episode.Value.ToString("0.####", CultureInfo.InvariantCulture)}";
 }
 
-/// <summary>A book, comic or movie series' positions (decimals such as 1.5 are allowed): its Works and the entries its series list knows.</summary>
-public sealed class SeriesPositionMoveListProvider(ILibraryMoveRepository moves, ISeriesManifestRepository manifests) : IMoveListProvider
+/// <summary>
+/// A book, comic or movie Series: no list to match against and no free move. A Series is built from each title's match (re-matching it
+/// in Match and Identity sets its parent), so nothing is placed in one by hand, with one exception: forcing a title where it does not
+/// belong, which is Add anyway (Details overlay D13 and D20).
+/// </summary>
+public sealed class SeriesAddAnywayOnlyMoveListProvider : IMoveListProvider
 {
-    public string ListKind => LibraryMoveListKinds.Positions;
+    public const string SeriesNote =
+        "Series are built from each title's match. Use Match and Identity to re-match it, or add it here without a number.";
+
+    public string ListKind => LibraryMoveListKinds.None;
+
+    public bool AddAnywayOnly => true;
+
+    public string? Note => SeriesNote;
 
     public bool Supports(LibraryMoveDestinationInfo destination) => destination.Kind == LibraryMoveKinds.Series;
 
-    public async Task<IReadOnlyList<MoveListEntry>> GetEntriesAsync(LibraryMoveDestinationInfo destination, CancellationToken ct = default)
-    {
-        var children = (await moves.GetChildrenAsync(destination.Id, ct).ConfigureAwait(false))
-            .Where(child => !child.IsUnmatched)
-            .ToList();
-        var entries = new List<(double Sort, MoveListEntry Entry)>();
-        foreach (var child in children)
-        {
-            var position = child.OrdinalSort ?? child.Ordinal;
-            entries.Add((position ?? double.MaxValue, new MoveListEntry(
-                $"work:{child.WorkId:N}",
-                position is null ? "-" : Format(position.Value),
-                child.Title,
-                child.DurationSeconds,
-                child.HasFile,
-                child.HasFile ? child.WorkId : null,
-                child.HasFile ? child.Title : null,
-                child.HasFile,
-                new LibraryMoveTarget(ExistingWorkId: child.WorkId, Ordinal: child.Ordinal, OrdinalSort: child.OrdinalSort, DiscNumber: child.DiscNumber))));
-        }
-
-        if (destination.CollectionId is { } collectionId
-            && await manifests.GetViewByCollectionIdAsync(collectionId, ct).ConfigureAwait(false) is { } view)
-        {
-            var childIds = children.Select(child => child.WorkId).ToHashSet();
-            foreach (var item in view.Items)
-            {
-                if (item.IsCollection
-                    || item.ParsedOrdinal is not { } position
-                    || !string.Equals(item.MembershipScope, SeriesMembershipScopeNames.MainSequence, StringComparison.OrdinalIgnoreCase)
-                    || (item.LinkedWorkId is { } linked && childIds.Contains(linked))
-                    || children.Any(child => (child.OrdinalSort ?? child.Ordinal) is { } at && Math.Abs(at - position) < 0.0001d))
-                {
-                    continue;
-                }
-
-                var owned = string.Equals(item.OwnershipState, "Owned", StringComparison.OrdinalIgnoreCase) && item.LinkedWorkId.HasValue;
-                entries.Add((position, new MoveListEntry(
-                    $"manifest:{item.Id:N}",
-                    Format(position),
-                    string.IsNullOrWhiteSpace(item.ItemLabel) ? item.ItemQid : item.ItemLabel.Trim(),
-                    null,
-                    owned,
-                    owned ? item.LinkedWorkId : null,
-                    owned ? item.ItemLabel : null,
-                    false,
-                    new LibraryMoveTarget(ManifestItemId: item.Id, Ordinal: OrdinalNormalizer.IntegerOrdinal(position), OrdinalSort: position))));
-            }
-        }
-
-        return [.. entries.OrderBy(entry => entry.Sort).ThenBy(entry => entry.Entry.Title, StringComparer.OrdinalIgnoreCase).Select(entry => entry.Entry)];
-    }
-
-    private static string Format(double position) => position.ToString("0.####", CultureInfo.InvariantCulture);
+    public Task<IReadOnlyList<MoveListEntry>> GetEntriesAsync(LibraryMoveDestinationInfo destination, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<MoveListEntry>>([]);
 }
 
 /// <summary>An audiobook's parts: each file it holds, and the part numbers its files say it should have that are missing.</summary>

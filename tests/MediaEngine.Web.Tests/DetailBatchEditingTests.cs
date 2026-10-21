@@ -1076,6 +1076,16 @@ public sealed class DetailBatchEditingTests : AsyncBunitContext
     }
 
     [Fact]
+    public void BarMenuActions_ForBooksComicsAndMovies_NameTheMoveAsAddingToASeriesWithoutANumber()
+    {
+        var books = new[] { new DetailBatchRow(Guid.NewGuid(), "Dune", DetailEntityType.Book), new DetailBatchRow(Guid.NewGuid(), "Dune Messiah", DetailEntityType.Book) };
+
+        var actions = DetailBatchRules.BarMenuActions(books, canMove: true, canDelete: false, busy: false);
+
+        Assert.Equal("Add to a Series without a number…", Assert.Single(actions).Label);
+    }
+
+    [Fact]
     public void BarMenuActions_PutDeleteLastInTheDestructiveToneAndOffAboveTwoHundredWithItsReason()
     {
         var few = Enumerable.Range(1, 3).Select(index => Episode(Guid.NewGuid(), $"Episode {index}")).ToList();
