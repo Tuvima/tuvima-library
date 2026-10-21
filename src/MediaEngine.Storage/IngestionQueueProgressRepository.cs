@@ -26,7 +26,8 @@ public sealed class IngestionQueueProgressRepository : IIngestionQueueProgressRe
     // waiting to retry is still in the queue only while its retry is due in the future or was due within the grace period.
     private const string OpenOperationStatuses = "'pending', 'queued', 'leased', 'running', 'paused'";
 
-    internal const string Sql = $"""
+    // A file in a Vault library is never counted or listed in the queue (Videos spec D17, D32).
+    internal static readonly string Sql = $"""
         WITH candidates AS (
             SELECT id
             FROM media_operations
@@ -110,7 +111,8 @@ public sealed class IngestionQueueProgressRepository : IIngestionQueueProgressRe
                           WHERE ma.id = mo.entity_id))) AS HasPendingReview
         FROM media_operations mo
         LEFT JOIN latest_job lj ON lj.entity_id = mo.entity_id
-        WHERE mo.id IN (SELECT id FROM candidates);
+        WHERE mo.id IN (SELECT id FROM candidates)
+          AND {VaultSql.NotVaultAsset("mo.entity_id")};
         """;
 
     private readonly IDatabaseConnection _db;

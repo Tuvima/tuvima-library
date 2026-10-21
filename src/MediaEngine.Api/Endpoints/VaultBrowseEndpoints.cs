@@ -23,6 +23,7 @@ public static class VaultBrowseEndpoints
     {
         var vault = app.MapGroup("/api/v1/vault").WithTags("Vault browsing").RequireAuthorization(AuthPolicies.Authenticated);
         vault.AddEndpointFilter(GateAsync);
+        vault.WithMetadata(VaultGatedRoute.Instance);
 
         vault.MapGet("/scenes", async (
             [FromServices] IVaultBrowseRepository browse,
@@ -136,7 +137,21 @@ public static class VaultBrowseEndpoints
     /// </summary>
     internal static async ValueTask<object?> GateAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
-        var http = context.HttpContext;
+        // The gate middleware already answered for this request before any query or body was read (see VaultGateMiddleware).
+        if (VaultGateMiddleware.HasPassed(context.HttpContext))
+        {
+            return await next(context);
+        }
+
+        return await PassesGateAsync(context.HttpContext) ? await next(context) : ApiErrors.NotFound("Not found.");
+    }
+
+    /// <summary>
+    /// The one Vault gate: private and uncacheable headers, then NSFW mode on for this device session plus the Watch grant. A request
+    /// that does not pass is answered "not found" by the caller. Passing restarts the idle timer.
+    /// </summary>
+    internal static async Task<bool> PassesGateAsync(HttpContext http)
+    {
         CatalogueResourceAuthorizationService.ApplyVaultCacheControl(http.Response);
         http.Response.OnStarting(static state =>
         {
@@ -152,7 +167,7 @@ public static class VaultBrowseEndpoints
             || authority.AccountId is not { } accountId
             || !await services.GetRequiredService<IAccountRepository>().HasFeatureGrantAsync(accountId, AccountFeatureId.Watch, ct))
         {
-            return ApiErrors.NotFound("Not found.");
+            return false;
         }
 
         if (authority.SessionId is { } sessionId && authority.ActiveProfileId is { } profileId)
@@ -161,7 +176,7 @@ public static class VaultBrowseEndpoints
                 .KeepAwakeAsync(sessionId, profileId, ct);
         }
 
-        return await next(context);
+        return true;
     }
 
     private static (string Order, bool Descending) NameOrder(string? sort, bool? desc)

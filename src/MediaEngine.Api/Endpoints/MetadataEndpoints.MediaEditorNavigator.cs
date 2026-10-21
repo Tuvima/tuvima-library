@@ -47,7 +47,8 @@ public static partial class MetadataEndpoints
         .WithSummary("Resolve series-aware editor navigation for a launch entity.")
         .Produces<MediaEditorNavigatorDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead);
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
 
         group.MapGet("/{entityId:guid}/owned-children", async (
             Guid entityId,
@@ -171,7 +172,8 @@ public static partial class MetadataEndpoints
         .WithSummary("Preview a hierarchy move or parent identity rename before applying it.")
         .Produces<MediaEditorMembershipPreviewDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead);
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
     }
 
     private static MediaEditorNavigatorDto ToContract(

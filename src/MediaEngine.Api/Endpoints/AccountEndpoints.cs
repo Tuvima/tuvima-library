@@ -624,8 +624,10 @@ public static class AccountEndpoints
     private static void MapManagedProfiles(RouteGroupBuilder access)
     {
         access.MapGet("/libraries", async (HttpContext http, IRequestAuthorityResolver resolver,
-            IAccountRepository accounts, IConfigurationLoader configuration, CancellationToken ct) =>
+            IAccountRepository accounts, IConfigurationLoader configuration, IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
+            // The Vault is in no library list, not even the one an administrator picks grants from (Videos spec D45).
+            var vaultIds = await vaultLibraries.GetIdsAsync(ct);
             // A household administrator can only hand out what the household already has.
             var household = await HouseholdOnlyScopeAsync(http, resolver, ct);
             IReadOnlySet<Guid>? allowed = null;
@@ -637,7 +639,7 @@ public static class AccountEndpoints
             }
 
             var values = configuration.LoadLibraries().Libraries
-                .Where(library => library.Kind == LibraryKinds.Catalogued &&
+                .Where(library => library.Kind == LibraryKinds.Catalogued && !vaultIds.Contains(library.Id) &&
                     Guid.TryParse(library.Id, out var id) && (allowed is null || allowed.Contains(id)))
                 .Select(library => new AccessLibraryOptionDto(Guid.Parse(library.Id),
                     library.Name, library.Category, library.Area))

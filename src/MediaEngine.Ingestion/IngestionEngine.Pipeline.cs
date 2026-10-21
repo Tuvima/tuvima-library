@@ -92,6 +92,23 @@ public sealed partial class IngestionEngine
         }
     }
 
+    /// <summary>
+    /// The library a file dropped in the Import folder belongs to by its type. A Vault library is also a Videos library, but a file that
+    /// was not placed in its folder is never attributed to it: the first library of the type that is not a Vault library is used.
+    /// </summary>
+    private async Task<LibraryFolderEntry?> ResolveImportLibraryAsync(MediaType mediaType, CancellationToken ct)
+    {
+        foreach (var library in _importFolders!.ResolveLibrariesForType(mediaType))
+        {
+            if (_vaultHook is null || !await _vaultHook.IsVaultLibraryAsync(library.Id, ct).ConfigureAwait(false))
+            {
+                return library;
+            }
+        }
+
+        return null;
+    }
+
     private async Task ProcessCandidateCoreAsync(IngestionCandidate candidate, CancellationToken ct)
     {
         var context = new IngestionPipelineContext(candidate);
@@ -102,7 +119,7 @@ public sealed partial class IngestionEngine
         // A file in one of the Import folder's per-type folders belongs to that type's library from the start.
         if (context.Library is null && _importFolders?.ResolveTypePrior(candidate.Path) is { } importType)
         {
-            context.Library = _importFolders.ResolveLibraryForType(importType);
+            context.Library = await ResolveImportLibraryAsync(importType, ct).ConfigureAwait(false);
         }
 
         if (candidate.Intake?.HasDestinationHint == true && context.Library is null)
@@ -671,7 +688,7 @@ public sealed partial class IngestionEngine
         {
             context.Library = resolvedMediaType == MediaType.Unknown
                 ? null
-                : _importFolders.ResolveLibraryForType(resolvedMediaType);
+                : await ResolveImportLibraryAsync(resolvedMediaType, ct).ConfigureAwait(false);
         }
 
         bool mediaTypeIsConflicted = mediaTypeResolution.IsConflicted;

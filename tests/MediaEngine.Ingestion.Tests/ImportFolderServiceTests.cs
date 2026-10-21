@@ -276,4 +276,19 @@ public sealed class ImportFolderServiceTests : IDisposable
         Assert.Null(service.GetImportPath());
         Assert.True(Directory.Exists(_h.ImportDir));
     }
+
+    // A Vault library is also a Videos library, so a file dropped in the Import folder must be able to see every Videos library, in
+    // settings order, and the pipeline picks the first that is not a Vault library (Videos spec D17, WP17).
+    [Fact]
+    public void Every_library_of_a_type_is_listed_in_settings_order()
+    {
+        var first = ImportFolderHarness.NewLibrary("aaaaaaaa-0000-4000-8000-0000000000f1", "Vault", "Videos", null);
+        var second = ImportFolderHarness.NewLibrary("aaaaaaaa-0000-4000-8000-0000000000f2", "Clips", "Videos", null);
+        _h.SetLibrary(first);
+        _h.SetLibrary(second);
+
+        var libraries = _h.Importer.ResolveLibrariesForType(MediaType.Videos);
+
+        Assert.Equal([first.Id, second.Id], libraries.Select(library => library.Id));
+    }
 }

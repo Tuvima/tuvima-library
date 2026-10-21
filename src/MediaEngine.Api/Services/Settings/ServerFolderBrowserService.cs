@@ -535,14 +535,20 @@ public sealed class ServerFolderBrowserService(
         }
     }
 
+    internal const string NeutralLibraryLabel = "another library";
+
+    private static bool IsVaultEntryName(string? name) =>
+        string.Equals(name?.Trim(), MediaEngine.Api.Services.Vault.VaultFolderAttachmentService.LibraryName, StringComparison.OrdinalIgnoreCase);
+
     private static void AddConfiguredPathIssues(
         LibrariesConfiguration configurationSnapshot,
         ResolvedSelection selected,
         string? currentSourceId,
         List<ServerFolderValidationIssueDto> issues)
     {
+        // The Vault's settings entry is never named in a folder message: it reads as "another library" (Videos spec D17, D45).
         var configured = configurationSnapshot.Libraries
-            .SelectMany(library => library.Sources.Select(source => (source.Id, source.Path, Label: library.Name)))
+            .SelectMany(library => library.Sources.Select(source => (source.Id, source.Path, Label: IsVaultEntryName(library.Name) ? NeutralLibraryLabel : library.Name)))
             .ToList();
 
         // The import folder is kept apart from every library folder, so it is never offered as one either.

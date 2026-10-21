@@ -584,6 +584,8 @@ if (realMediaRun is not null)
 app.UseOutputCache();
 app.UseMiddleware<IntercomTokenAuthenticationMiddleware>();
 app.UseMiddleware<InteractiveRequestTrackingMiddleware>();
+// Vault routes answer "not found" to a locked caller before any query value or body is read (Videos spec D17).
+app.UseMiddleware<VaultGateMiddleware>();
 
 app.MapHealthChecks("/health").RequireAuthorization(AuthPolicies.Administrator);
 app.MapHealthChecks("/health/live", new HealthCheckOptions

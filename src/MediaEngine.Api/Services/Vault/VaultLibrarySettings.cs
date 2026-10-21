@@ -1,3 +1,4 @@
+using MediaEngine.Api.Endpoints;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 
@@ -28,6 +29,27 @@ public static class VaultLibrarySettings
             FileHandling = settings.FileHandling,
             UnmappedProperties = settings.UnmappedProperties,
         };
+    }
+
+    /// <summary>
+    /// Drops a removed Vault library's entry (and so its folders) from <c>libraries.json</c>. Saving stops the watcher for those folders.
+    /// Does nothing when there is no such entry.
+    /// </summary>
+    public static async Task RemoveEntryAsync(IConfigurationLoader configuration, string libraryId, CancellationToken ct)
+    {
+        await LibraryMutationEndpoints.WriteGate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var settings = configuration.LoadLibraries();
+            if (settings.Libraries.RemoveAll(library => string.Equals(library.Id, libraryId, StringComparison.OrdinalIgnoreCase)) > 0)
+            {
+                configuration.SaveLibraries(settings);
+            }
+        }
+        finally
+        {
+            LibraryMutationEndpoints.WriteGate.Release();
+        }
     }
 
     /// <summary>

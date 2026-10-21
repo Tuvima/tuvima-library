@@ -243,7 +243,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         {
             typeof(IReviewQueueReadService), typeof(IMetadataClaimRepository), typeof(IHydrationPipelineService),
             typeof(ICanonicalValueRepository), typeof(IEventPublisher), typeof(ISystemActivityRepository),
-            typeof(ICollectionRepository),
+            typeof(ICollectionRepository), typeof(IConfigurationLoader),
         })
         {
             builder.Services.AddSingleton(service, _ => CreateTouchFailsProxy(service));

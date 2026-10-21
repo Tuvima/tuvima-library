@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
+using MediaEngine.Api.Realtime;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Application.Services;
@@ -21,6 +22,26 @@ namespace MediaEngine.Api.Endpoints;
 
 public static class IngestionEndpoints
 {
+    private const string MissingAssetMessage = "The library asset could not be found.";
+
+    /// <summary>The configured folders that are not part of a Vault library, in their configured order.</summary>
+    internal static async Task<IReadOnlyList<string>> NonVaultDirectoriesAsync(
+        IEnumerable<string> directories,
+        IVaultPathClassifier vaultPaths,
+        CancellationToken ct)
+    {
+        var kept = new List<string>();
+        foreach (var directory in directories)
+        {
+            if (!await vaultPaths.IsVaultPathAsync(directory, ct).ConfigureAwait(false))
+            {
+                kept.Add(directory);
+            }
+        }
+
+        return kept;
+    }
+
     public static IEndpointRouteBuilder MapIngestionEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/ingestion")
@@ -113,9 +134,13 @@ public static class IngestionEndpoints
         group.MapPost("/assets/{assetId:guid}/reread-metadata", async (
             Guid assetId,
             IIngestionEngine engine,
+            IVaultLibraryRepository vaultLibraries,
             CancellationToken ct) =>
         {
-            var result = await engine.RereadAssetMetadataAsync(assetId, ct);
+            // A Vault file answers exactly as a file that does not exist (Videos spec D17).
+            var result = await vaultLibraries.IsInVaultAsync(assetId, ct)
+                ? new FileMetadataRereadResult(assetId, "AssetMissing", false, false, MissingAssetMessage)
+                : await engine.RereadAssetMetadataAsync(assetId, ct);
             var response = new FileMetadataRereadResponse
             {
                 AssetId = result.AssetId,
@@ -138,10 +163,11 @@ public static class IngestionEndpoints
             ScanRequest? request,
             IIngestionEngine engine,
             IOptions<IngestionOptions> opts,
+            IVaultPathClassifier vaultPaths,
             CancellationToken ct) =>
         {
             var rootPath = request?.RootPath
-                ?? opts.Value.EffectiveWatchDirectories.FirstOrDefault();
+                ?? (await NonVaultDirectoriesAsync(opts.Value.EffectiveWatchDirectories, vaultPaths, ct)).FirstOrDefault();
 
             if (string.IsNullOrWhiteSpace(rootPath))
             {
@@ -149,7 +175,8 @@ public static class IngestionEndpoints
                     "No root_path provided and no library source path is configured.");
             }
 
-            if (!Directory.Exists(rootPath))
+            // A Vault folder answers exactly as a folder that does not exist (Videos spec D17).
+            if (!Directory.Exists(rootPath) || await vaultPaths.IsVaultPathAsync(rootPath, ct))
             {
                 return ApiErrors.BadRequest($"Directory does not exist: {rootPath}");
             }
@@ -219,14 +246,15 @@ public static class IngestionEndpoints
 
         // ── GET /ingestion/watch-folder ─────────────────────────────────────────
 
-        group.MapGet("/watch-folder", (
+        group.MapGet("/watch-folder", async (
             IOptions<IngestionOptions> opts,
+            IVaultPathClassifier vaultPaths,
             int? offset,
             int? limit,
             CancellationToken ct) =>
         {
             var page = PagedRequest.From(offset, limit, defaultLimit: 100, maxLimit: 500);
-            var watchDir = opts.Value.EffectiveWatchDirectories.FirstOrDefault();
+            var watchDir = (await NonVaultDirectoriesAsync(opts.Value.EffectiveWatchDirectories, vaultPaths, ct)).FirstOrDefault();
 
             if (string.IsNullOrWhiteSpace(watchDir))
             {
@@ -309,6 +337,7 @@ public static class IngestionEndpoints
             RescanRequest? request,
             IIngestionEngine engine,
             IOptions<IngestionOptions> opts,
+            IVaultPathClassifier vaultPaths,
             CancellationToken ct) =>
         {
             var includeSubdirectories = request?.IncludeSubdirectories ?? opts.Value.IncludeSubdirectories;
@@ -319,7 +348,8 @@ public static class IngestionEndpoints
 
             if (!string.IsNullOrWhiteSpace(requestedRoot))
             {
-                if (!Directory.Exists(requestedRoot))
+                // A Vault folder answers exactly as a folder that does not exist (Videos spec D17).
+                if (!Directory.Exists(requestedRoot) || await vaultPaths.IsVaultPathAsync(requestedRoot, ct))
                 {
                     return ApiErrors.BadRequest($"Watch directory does not exist: {requestedRoot}");
                 }
@@ -331,17 +361,20 @@ public static class IngestionEndpoints
                     1));
             }
 
-            var watchDirs = opts.Value.EffectiveWatchDirectories;
-            if (watchDirs.Count == 0)
+            var allWatchDirs = opts.Value.EffectiveWatchDirectories;
+            var watchDirs = await NonVaultDirectoriesAsync(allWatchDirs, vaultPaths, ct);
+            if (watchDirs.Count == 0 && allWatchDirs.Count == 0)
             {
                 return ApiErrors.BadRequest(
                     "No library source paths are configured.");
             }
 
-            var scanTargets = watchDirs
+            // Vault folders are scanned too, but they are neither counted nor named in the answer.
+            var scanTargets = allWatchDirs
                 .Where(Directory.Exists)
                 .Select(watchDir => new IngestionScanTarget(watchDir, includeSubdirectories))
                 .ToList();
+            var reportedTargets = watchDirs.Count(Directory.Exists);
 
             if (scanTargets.Count == 0)
             {
@@ -352,7 +385,7 @@ public static class IngestionEndpoints
 
             return Results.Accepted(value: new RescanAcceptedResponse(
                 "Rescan triggered. Files will be processed shortly.",
-                scanTargets.Count));
+                reportedTargets));
         })
         .WithName("TriggerRescan")
         .WithSummary(
@@ -408,7 +441,8 @@ public static class IngestionEndpoints
         IIngestionEngine engine,
         IOptions<IngestionOptions> opts,
         ISourceMutationPolicyGate mutationGate,
-        CancellationToken ct)
+        CancellationToken ct,
+        IVaultLibraryRepository? vaultLibraries = null)
     {
         var form = await request.ReadFormAsync(ct);
         var file = form.Files.GetFile("file");
@@ -430,7 +464,9 @@ public static class IngestionEndpoints
         var library = libraries.Libraries.FirstOrDefault(candidate =>
             string.Equals(candidate.Id, destinationLibraryId.Trim(), StringComparison.OrdinalIgnoreCase));
 
-        if (library is null)
+        // A Vault library answers exactly as a library that is not configured: the upload route never confirms it exists.
+        if (library is null
+            || (vaultLibraries is not null && await vaultLibraries.GetAsync(library.Id, ct) is not null))
         {
             return ApiErrors.BadRequest($"Destination library '{destinationLibraryId}' is not configured.");
         }

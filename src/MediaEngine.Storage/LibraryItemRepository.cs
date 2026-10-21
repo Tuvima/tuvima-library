@@ -858,7 +858,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
     public Task<Dictionary<string, int>> GetOwnedMediaTypeCountsAsync(CancellationToken ct = default)
     {
         using var conn = _db.CreateConnection();
-        var rows = conn.Query<(string MediaType, int Count)>("""
+        var rows = conn.Query<(string MediaType, int Count)>($"""
             -- readiness: administrator count of the files in the library
             SELECT w.media_type AS MediaType,
                    COUNT(DISTINCT CASE WHEN LOWER(w.media_type) IN ('audiobook', 'audiobooks')
@@ -869,6 +869,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             WHERE w.media_type IS NOT NULL
               AND w.media_type != ''
               AND w.media_type != 'Unknown'
+              AND {VaultSql.NotVaultAsset("ma.id")}
             GROUP BY w.media_type;
             """);
         return Task.FromResult(rows.ToDictionary(r => r.MediaType, r => r.Count));
@@ -1186,7 +1187,9 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 FROM works w
                 LEFT JOIN asset_cv acv ON acv.work_id = w.id
                 LEFT JOIN work_cv wcv ON wcv.work_id = w.id
+                -- A work with any file in a Vault library is not here for anyone (Videos spec D17): not as an item, not in any count.
                 WHERE w.work_kind != 'parent'
+                  AND {VaultSql.NotVaultEntity("w.id")}
                 GROUP BY w.id, w.media_type, w.wikidata_status, w.curator_state, w.ready_at, w.collection_id
             )
             """;

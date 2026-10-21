@@ -261,7 +261,7 @@ public static class VaultEndpoints
           .ProducesProblem(StatusCodes.Status409Conflict).ProducesProblem(StatusCodes.Status428PreconditionRequired)
           .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireEffectiveAdministratorInPerson();
 
-        libraries.MapPost("/{libraryId}/remove", async (string libraryId, RemoveVaultLibraryRequest request, HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault, VaultAccessResolver access, CancellationToken ct) =>
+        libraries.MapPost("/{libraryId}/remove", async (string libraryId, RemoveVaultLibraryRequest request, HttpContext http, IRequestAuthorityResolver resolver, VaultAdministrationService vault, VaultAccessResolver access, IConfigurationLoader configuration, CancellationToken ct) =>
         {
             var authority = await resolver.ResolveAsync(http, ct);
             if (!authority.IsEffectiveAdministrator || authority.ActiveProfileId is not { } adminProfileId || !await access.IsUnlockedAsync(authority, ct))
@@ -271,9 +271,15 @@ public static class VaultEndpoints
 
             try
             {
-                return await vault.RemoveLibraryAsync(adminProfileId, libraryId, request.AdminPin, ct)
-                    ? Results.NoContent()
-                    : ApiErrors.NotFound("Not found.");
+                if (!await vault.RemoveLibraryAsync(adminProfileId, libraryId, request.AdminPin, ct))
+                {
+                    return ApiErrors.NotFound("Not found.");
+                }
+
+                // The Vault mark is gone, so the settings entry goes with it. Left behind it would turn into an ordinary library
+                // that keeps being watched and scanned.
+                await VaultLibrarySettings.RemoveEntryAsync(configuration, libraryId, ct);
+                return Results.NoContent();
             }
             catch (InvalidOperationException ex) when (ex is not VaultAdminPinNotSetException)
             {

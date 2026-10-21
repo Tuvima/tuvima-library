@@ -20,6 +20,7 @@ public static class VaultImageEndpoints
     {
         var images = app.MapGroup("/api/v1/vault/images").WithTags("Vault images").RequireAuthorization(AuthPolicies.Authenticated);
         images.AddEndpointFilter(VaultBrowseEndpoints.GateAsync);
+        images.WithMetadata(VaultGatedRoute.Instance);
 
         images.MapGet("", async (
             [FromServices] VaultImageService service,

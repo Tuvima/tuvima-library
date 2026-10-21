@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Dapper;
 using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
@@ -172,7 +174,13 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
     {
         var sw = Stopwatch.StartNew();
         var startedAt = DateTimeOffset.UtcNow;
-        var assets = await _assetRepo.ListByStatusAsync(AssetStatus.Normal, ct);
+        var allAssets = await _assetRepo.ListByStatusAsync(AssetStatus.Normal, ct);
+        // A Vault file is never counted, listed or logged here (Videos spec D17, D32). Its missing-file cleanup runs quietly below.
+        var vaultAssetIds = ReadVaultAssetIds();
+        IReadOnlyList<MediaAsset> assets = vaultAssetIds.Count == 0
+            ? allAssets
+            : allAssets.Where(asset => !vaultAssetIds.Contains(asset.Id)).ToList();
+        await RemoveMissingVaultFilesQuietlyAsync(allAssets.Where(asset => vaultAssetIds.Contains(asset.Id)), ct).ConfigureAwait(false);
         int missingCount = 0;
 
         // Collect missing-file details for the completion summary.
@@ -413,6 +421,44 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
             sw.ElapsedMilliseconds,
             duplicateReadWorksMerged,
             audiobookAuthorsAligned);
+    }
+
+    private HashSet<Guid> ReadVaultAssetIds()
+    {
+        using var connection = _db.CreateConnection();
+        return connection.Query<Guid>(
+            """
+            SELECT ma.id
+            FROM media_assets ma
+            JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE;
+            """).ToHashSet();
+    }
+
+    /// <summary>
+    /// A Vault file whose source has gone is forgotten without a word: no log line, no activity entry, no count and no event,
+    /// so nothing about it reaches an administrator without an unlocked NSFW session.
+    /// </summary>
+    private async Task RemoveMissingVaultFilesQuietlyAsync(IEnumerable<MediaAsset> vaultAssets, CancellationToken ct)
+    {
+        foreach (var asset in vaultAssets)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (File.Exists(asset.FilePathRoot))
+            {
+                continue;
+            }
+
+            var configuredSource = _libraryFolderResolver.ResolveSourceForPath(asset.FilePathRoot);
+            if (configuredSource is not null && !IsConfiguredSourceAvailable(configuredSource.Source.Path))
+            {
+                continue;
+            }
+
+            await _claimRepo.DeleteByEntityAsync(asset.Id, ct).ConfigureAwait(false);
+            await _canonicalRepo.DeleteByEntityAsync(asset.Id, ct).ConfigureAwait(false);
+            await _assetRepo.DeleteAsync(asset.Id, ct).ConfigureAwait(false);
+            await _reviewRepo.DismissAllByEntityAsync(asset.Id, ct).ConfigureAwait(false);
+        }
     }
 
     internal static bool IsConfiguredSourceAvailable(string sourcePath)
