@@ -43,7 +43,7 @@ public sealed class DetailOpenMeasurementTests : IClassFixture<LibraryListFixtur
         _output = output;
     }
 
-    [Fact]
+    [MeasurementFact]
     [Trait("Category", "Measurement")]
     public async Task OpeningEachKindOfDetailPage_MeasuresEveryStage()
     {
@@ -58,6 +58,32 @@ public sealed class DetailOpenMeasurementTests : IClassFixture<LibraryListFixtur
         File.WriteAllText(path, table);
 
         Assert.All(results, result => Assert.NotNull(result.Page));
+    }
+
+    // Movie, episode and show pages once worked out every file's credits to list one title's actors: 51,220 thousand SQLite
+    // instructions for a movie at 4,000 works (B29). They now read only the title's own files.
+    [Fact]
+    [Trait("Category", "Performance")]
+    public async Task MovieEpisodeAndShowPages_ComposeWithinBudgetAtFourThousandWorks()
+    {
+        const long budgetKiloInstructions = 5_000;
+        var counter = new SqliteWorkCounter(_fixture.Small);
+        var pipeline = new Pipeline(counter, FindProfileId(_fixture.Small));
+        var targets = FindTargets(_fixture.Small)
+            .Where(target => target.Type is DetailEntityType.Movie or DetailEntityType.TvEpisode or DetailEntityType.TvShow)
+            .ToList();
+        Assert.Equal(3, targets.Count);
+
+        foreach (var target in targets)
+        {
+            var (stages, page) = await pipeline.RunOnceAsync(target);
+            Assert.NotNull(page);
+            var work = stages["composition"].Kilo;
+            _output.WriteLine($"{target.Name}: composition {work:N0} thousand SQLite instructions.");
+            Assert.True(work < budgetKiloInstructions,
+                $"Composing the {target.Name} page took {work:N0} thousand SQLite instructions at {LibraryListFixture.SmallLeafWorks:N0} works; the budget is {budgetKiloInstructions:N0}. "
+                + "Check that credits are worked out for the title's own files only (PersonCreditSql.ScopedCreditsCte), not through the whole-library credit view.");
+        }
     }
 
     private async Task<List<PageMeasurement>> MeasureLibraryAsync(int leafWorks, DatabaseConnection database)
@@ -246,7 +272,7 @@ public sealed class DetailOpenMeasurementTests : IClassFixture<LibraryListFixtur
             return new PageMeasurement(leafWorks, target.Name, page, bytes, medians);
         }
 
-        private async Task<(Dictionary<string, StageResult> Stages, DetailPageViewModel? Page)> RunOnceAsync(Target target)
+        public async Task<(Dictionary<string, StageResult> Stages, DetailPageViewModel? Page)> RunOnceAsync(Target target)
         {
             var ct = CancellationToken.None;
             var stages = new Dictionary<string, StageResult>();

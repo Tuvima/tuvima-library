@@ -1285,11 +1285,10 @@ public sealed class CollectionCatalogReadService(
             return [];
         }
 
+        // The ids go in as one JSON list. A detail page of a show, album or series passes every work the profile may see,
+        // and binding them one parameter each took about 0.4 s at 4,000 works (B29).
         using var conn = db.CreateConnection();
-        var rows = new List<CollectionDisplayWorkRow>();
-        foreach (var chunk in workIds.Chunk(MaxSqlIdsPerQuery))
-        {
-            rows.AddRange(await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
+        var rows = (await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
             """
             -- readiness: turns work ids into their display roots; the ids come from Ready-gated reads
             WITH RECURSIVE source_roots(SourceWorkId, RootWorkId, RootMediaType) AS (
@@ -1304,7 +1303,7 @@ public sealed class CollectionCatalogReadService(
                 FROM works w
                 LEFT JOIN works p ON p.id = w.parent_work_id
                 LEFT JOIN works gp ON gp.id = p.parent_work_id
-                WHERE w.id IN @WorkIds
+                WHERE w.id IN (SELECT unhex(value) FROM json_each(@WorkIds))
             ),
             work_tree(SourceWorkId, RootWorkId, RootMediaType, WorkId) AS (
                 SELECT SourceWorkId,
@@ -1339,9 +1338,8 @@ public sealed class CollectionCatalogReadService(
                    WHERE woa.work_id = work_tree.WorkId
                );
             """,
-            new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
-            cancellationToken: ct)).ConfigureAwait(false));
-        }
+            new { WorkIds = GuidSql.ToJsonHexArray(workIds) },
+            cancellationToken: ct)).ConfigureAwait(false)).ToList();
 
         var rowsBySource = rows
             .GroupBy(row => row.SourceWorkId ?? row.WorkId)
