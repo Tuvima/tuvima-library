@@ -362,10 +362,10 @@ public sealed class MediaEditorNavigationReadService(
                    MAX(CASE WHEN cv.key = 'title' THEN cv.value END) AS WorkTitle,
                    MAX(CASE WHEN cv.key = 'show_name' THEN cv.value END) AS WorkShowName,
                    MAX(CASE WHEN cv.key = 'album' THEN cv.value END) AS WorkAlbum,
-                   MAX(CASE WHEN cv.key IN ('album_artist', 'artist') THEN cv.value END) AS WorkArtist,
+                   (SELECT value FROM canonical_value_arrays WHERE entity_id = w.id AND key IN ('album_artist', 'artist') ORDER BY CASE key WHEN 'album_artist' THEN 0 ELSE 1 END, ordinal LIMIT 1) AS WorkArtist,
                    MAX(CASE WHEN cv.key = 'series' THEN cv.value END) AS WorkSeries,
-                   MAX(CASE WHEN cv.key IN ('author', 'creator', 'publisher') THEN cv.value END) AS WorkAuthor,
-                   MAX(CASE WHEN cv.key IN ('year', 'series_start_year') THEN cv.value END) AS WorkYear,
+                   (SELECT value FROM canonical_value_arrays WHERE entity_id = w.id AND key IN ('author', 'creator') ORDER BY CASE key WHEN 'author' THEN 0 ELSE 1 END, ordinal LIMIT 1) AS WorkAuthor,
+                   COALESCE(MAX(CASE WHEN cv.key = 'year' THEN cv.value END), MAX(CASE WHEN cv.key = 'series_start_year' THEN cv.value END)) AS WorkYear,
                    w.parent_key AS ParentKey
             FROM works w LEFT JOIN canonical_values cv ON cv.entity_id = w.id
             WHERE w.media_type = @mediaType AND w.work_kind = 'parent'

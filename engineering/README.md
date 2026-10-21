@@ -25,7 +25,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3; waves 1–2 and WP27 built 2026-10-20) |
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP5 to U-WP8, U-WP10, U-WP12 built 2026-10-20) |
-| [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | In progress (v2, started 2026-10-20) |
+| [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | Built, awaiting your Local checks (v2) |
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v29, 2026-10-20) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: The live ingestion page and when items appear](specs/archive/ingestion-and-readiness.md) | Built (v4, archived 2026-10-20; bug 13 still needs the log line from that moment) |
@@ -83,7 +83,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — outcome recorded in ADR 0001 |
 | [Universe U-WP0: what really mixes up The Expanse](reports/universe-expanse-check-2026-10-19.md) | Current — feeds U-WP3 |
 | [Slow library and Home reads at 4,000 works](reports/slow-reads-2026-10.md) | Current — causes 1–2 fixed by the library list speed spec; causes 3–4 fixed by the Home and detail speed spec |
-| [Which stored name wins when a field accepts several](reports/stored-name-order-2026-10.md) | Current — recommendations 1–3 approved and built (stored-name-order-fix) |
+| [Which stored name wins when a field accepts several](reports/stored-name-order-2026-10.md) | Current — recommendations 1–3 approved and built (stored-name-order-fix); addendum recommendations 6–9 approved and built |
 
 ## History (pre-2026-10-17 engineering records)
 

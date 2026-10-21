@@ -106,9 +106,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 SELECT * FROM (
                     SELECT w.id AS Id, 'album' AS Kind, w.media_type AS MediaType,
                            {ParentLabelSql("w")} AS Label,
-                           (SELECT cv.value FROM canonical_values cv
-                            WHERE cv.entity_id = w.id AND cv.key IN ('artist', 'album_artist') AND NULLIF(cv.value, '') IS NOT NULL
-                            ORDER BY CASE cv.key WHEN 'artist' THEN 0 ELSE 1 END LIMIT 1) AS ParentLabel,
+                           {ArtistSql("w")} AS ParentLabel,
                            NULL AS SeasonOrdinal
                     FROM works w
                     WHERE w.media_type = 'Music' AND w.work_kind = 'parent' AND (@exclude IS NULL OR w.id <> @exclude)
@@ -1149,9 +1147,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                    {WorkTitleSql("w")} AS RecordingLabel,
                    {ParentLabelSql("p")} AS ParentTitle,
                    {AuthorSql("w")} AS Author,
-                   (SELECT cv.value FROM canonical_values cv
-                    WHERE cv.entity_id = w.id AND cv.key IN ('artist', 'album_artist') AND NULLIF(cv.value, '') IS NOT NULL
-                    ORDER BY CASE cv.key WHEN 'artist' THEN 0 ELSE 1 END LIMIT 1) AS Artist,
+                   {ArtistSql("w")} AS Artist,
                    (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'child_entities_json' LIMIT 1) AS ManifestJson
             FROM works w
             LEFT JOIN works p ON p.id = w.parent_work_id
@@ -1346,11 +1342,30 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             {alias}.parent_key)
         """;
 
+    // Credits are lists: ingestion stores an author or an album's artist one name per row in canonical_value_arrays, so a label reads the
+    // first name of the list (album artist before track artist, author before creator) and only then a single value.
     private static string AuthorSql(string alias) => $"""
-        (SELECT cv.value FROM canonical_values cv
-         WHERE cv.entity_id = {alias}.id AND cv.key IN ('author', 'creator', 'director') AND NULLIF(cv.value, '') IS NOT NULL
-         ORDER BY CASE cv.key WHEN 'author' THEN 0 WHEN 'creator' THEN 1 ELSE 2 END
-         LIMIT 1)
+        COALESCE(
+            (SELECT a.value FROM canonical_value_arrays a
+             WHERE a.entity_id = {alias}.id AND a.key IN ('author', 'creator', 'director') AND NULLIF(a.value, '') IS NOT NULL
+             ORDER BY CASE a.key WHEN 'author' THEN 0 WHEN 'creator' THEN 1 ELSE 2 END, a.ordinal
+             LIMIT 1),
+            (SELECT cv.value FROM canonical_values cv
+             WHERE cv.entity_id = {alias}.id AND cv.key IN ('author', 'creator', 'director') AND NULLIF(cv.value, '') IS NOT NULL
+             ORDER BY CASE cv.key WHEN 'author' THEN 0 WHEN 'creator' THEN 1 ELSE 2 END
+             LIMIT 1))
+        """;
+
+    private static string ArtistSql(string alias) => $"""
+        COALESCE(
+            (SELECT a.value FROM canonical_value_arrays a
+             WHERE a.entity_id = {alias}.id AND a.key IN ('album_artist', 'artist') AND NULLIF(a.value, '') IS NOT NULL
+             ORDER BY CASE a.key WHEN 'album_artist' THEN 0 ELSE 1 END, a.ordinal
+             LIMIT 1),
+            (SELECT cv.value FROM canonical_values cv
+             WHERE cv.entity_id = {alias}.id AND cv.key IN ('album_artist', 'artist') AND NULLIF(cv.value, '') IS NOT NULL
+             ORDER BY CASE cv.key WHEN 'album_artist' THEN 0 ELSE 1 END
+             LIMIT 1))
         """;
 
     private static string DurationSql(string alias) => $"""

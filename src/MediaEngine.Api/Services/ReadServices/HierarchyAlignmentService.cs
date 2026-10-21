@@ -445,7 +445,7 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
         {
             if (string.Equals(workKind, "child", StringComparison.OrdinalIgnoreCase))
             {
-                var artist = StringHelpers.FirstNonBlankOr(string.Empty, GetRequestValue(fields, "artist"), GetRequestValue(fields, "album_artist"));
+                var artist = StringHelpers.FirstNonBlankOr(string.Empty, GetRequestValue(fields, "album_artist"), GetRequestValue(fields, "artist"));
                 var album = StringHelpers.FirstNonBlankOr(string.Empty, GetRequestValue(fields, "album"));
                 var trackNumber = ParseNavigatorOrdinal(GetRequestValue(fields, "track_number"), entityRow.Ordinal);
                 return new MembershipPlan(
@@ -464,7 +464,7 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                     SelectedSecondaryTargetId: null);
             }
 
-            var renamedArtist = StringHelpers.FirstNonBlankOr(string.Empty, GetRequestValue(fields, "artist"), GetRequestValue(fields, "album_artist"));
+            var renamedArtist = StringHelpers.FirstNonBlankOr(string.Empty, GetRequestValue(fields, "album_artist"), GetRequestValue(fields, "artist"));
             var renamedAlbum = StringHelpers.FirstNonBlankOr(string.Empty, GetRequestValue(fields, "album"));
             return new MembershipPlan(
                 Action: "rename_container",
@@ -763,7 +763,8 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                 }
 
                 targetParentId = InsertParentWork(conn, tx!, plan.MediaType, plan.RequestedParentKey!, null, null);
-                UpsertCanonicalValues(conn, tx!, targetParentId.Value, new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["album"] = plan.RequestedParentLabel, ["artist"] = plan.RequestedSecondaryLabel });
+                UpsertCanonicalValues(conn, tx!, targetParentId.Value, new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["album"] = plan.RequestedParentLabel });
+                ReplaceCanonicalList(conn, tx!, targetParentId.Value, "album_artist", plan.RequestedSecondaryLabel);
                 UpsertRetailIdentity(conn, tx!, targetParentId.Value, retailAlbumSuggestion);
                 stage2TargetId = targetParentId.Value;
             }
@@ -789,7 +790,8 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                 }
 
                 targetParentId = InsertParentWork(conn, tx!, plan.MediaType, plan.RequestedParentKey!, null, null);
-                UpsertCanonicalValues(conn, tx!, targetParentId.Value, new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["series"] = plan.RequestedParentLabel, ["author"] = plan.RequestedSecondaryLabel });
+                UpsertCanonicalValues(conn, tx!, targetParentId.Value, new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["series"] = plan.RequestedParentLabel });
+                ReplaceCanonicalList(conn, tx!, targetParentId.Value, "author", plan.RequestedSecondaryLabel);
                 if (retailSeriesSuggestion is not null)
                 {
                     UpsertRetailIdentity(conn, tx!, targetParentId.Value, retailSeriesSuggestion);
@@ -958,7 +960,8 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
         return workId;
     }
 
-    private static void UpsertContainerIdentity(SqliteConnection conn, SqliteTransaction tx, MembershipPlan plan) =>
+    private static void UpsertContainerIdentity(SqliteConnection conn, SqliteTransaction tx, MembershipPlan plan)
+    {
         UpsertCanonicalValues(
             conn,
             tx,
@@ -966,10 +969,70 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
             plan.MediaType switch
             {
                 "TV" => new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["show_name"] = plan.RequestedParentLabel },
-                "Music" => new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["album"] = plan.RequestedParentLabel, ["artist"] = plan.RequestedSecondaryLabel },
-                "Comics" or "Books" or "Audiobooks" => new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["series"] = plan.RequestedParentLabel, ["author"] = plan.RequestedSecondaryLabel },
+                "Music" => new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["album"] = plan.RequestedParentLabel },
+                "Comics" or "Books" or "Audiobooks" => new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["series"] = plan.RequestedParentLabel },
                 _ => new Dictionary<string, string?>(),
             });
+
+        // Artists and authors are credit lists; they live in canonical_value_arrays under the names ingestion uses.
+        switch (plan.MediaType)
+        {
+            case "Music":
+                ReplaceCanonicalList(conn, tx, plan.CurrentEntityId, "album_artist", plan.RequestedSecondaryLabel);
+                break;
+            case "Comics" or "Books" or "Audiobooks":
+                ReplaceCanonicalList(conn, tx, plan.CurrentEntityId, "author", plan.RequestedSecondaryLabel);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Replaces an entity's list for one key with the requested names. A blank value, or names the list
+    /// already holds, leave the list unchanged, so renaming a container without changing its credit keeps
+    /// co-credits and their Wikidata links; names kept across a replacement keep their links too.
+    /// </summary>
+    private static void ReplaceCanonicalList(SqliteConnection conn, SqliteTransaction tx, Guid entityId, string key, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        // The editor sends chip fields joined with "; "; the list table holds one name per row.
+        var requested = value
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (requested.Count == 0)
+        {
+            return;
+        }
+
+        var existing = conn.Query<(string Value, string? ValueQid)>(
+            "SELECT value AS Value, value_qid AS ValueQid FROM canonical_value_arrays WHERE entity_id = @entityId AND key = @key ORDER BY ordinal;",
+            new { entityId, key },
+            tx).ToList();
+        var existingQids = existing
+            .GroupBy(entry => entry.Value.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().ValueQid, StringComparer.OrdinalIgnoreCase);
+        if (requested.All(existingQids.ContainsKey))
+        {
+            return;
+        }
+
+        conn.Execute("DELETE FROM canonical_value_arrays WHERE entity_id = @entityId AND key = @key;", new { entityId, key }, tx);
+        conn.Execute(
+            "INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid) VALUES (@EntityId, @Key, @Ordinal, @Value, @ValueQid);",
+            requested.Select((name, ordinal) => new
+            {
+                EntityId = entityId,
+                Key = key,
+                Ordinal = ordinal,
+                Value = name,
+                ValueQid = existingQids.GetValueOrDefault(name),
+            }),
+            tx);
+    }
 
     private static void UpsertCanonicalValues(SqliteConnection conn, SqliteTransaction tx, Guid entityId, IReadOnlyDictionary<string, string?> values)
     {

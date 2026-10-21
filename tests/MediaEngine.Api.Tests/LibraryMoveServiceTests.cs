@@ -139,6 +139,27 @@ public sealed class LibraryMoveServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AnAlbumsArtistLabel_IsReadFromItsCreditList_AlbumArtistBeforeTrackArtist()
+    {
+        var (song, _) = SongInOwnAlbum("Airbag", "The Best Of");
+        var okComputer = AlbumWithAirbag();
+
+        // Credits are lists, one name per row (ingestion stores them this way): the album artist comes first, then the track artist.
+        _world.Execute(
+            """
+            INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid) VALUES
+                (@album, 'artist', 0, 'Some Track Artist', NULL),
+                (@album, 'album_artist', 0, 'Radiohead', NULL),
+                (@album, 'album_artist', 1, 'Thom Yorke', NULL);
+            """,
+            new { album = okComputer });
+
+        var destinations = (await _world.Service.GetDestinationsAsync(song, "ok comp", LibraryMoveTestWorld.Everything)).Value!.Destinations;
+
+        Assert.Equal("Radiohead", destinations.Single(destination => destination.Id == okComputer).ParentLabel);
+    }
+
+    [Fact]
     public async Task ATakenEntry_RefusesMatch_AndAddAsAVersionAttachesTheFileToItAndKeepsTheOriginal()
     {
         var (song, bestOf) = SongInOwnAlbum("Paranoid Android (Live)", "The Best Of");

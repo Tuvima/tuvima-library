@@ -364,6 +364,55 @@ public sealed class AccessRepositoryTests : IDisposable
             "DELETE FROM view_shared_library;"));
     }
 
+    [Fact]
+    public async Task RevokeAccountSessions_DeletesRevokedSessionsAdminUnlocks_AndKeepsTheExceptedOne()
+    {
+        var owner = NewAdministrator("owner@example.com");
+        await _accounts.CreateAccountAsync(
+            owner,
+            Grant(owner.Id, Profile.SeedProfileId, isDefault: true, administrator: true),
+            AccountFeatureId.All.ToHashSet(),
+            new HashSet<Guid>());
+        var identities = new IdentityRepository(_database);
+        var kept = Guid.NewGuid();
+        var revoked = Guid.NewGuid();
+        foreach (var sessionId in new[] { kept, revoked })
+        {
+            await identities.InsertSessionAsync(new AuthSession
+            {
+                Id = sessionId,
+                AccountId = owner.Id,
+                ActiveProfileId = Profile.SeedProfileId,
+                TokenHash = $"token-{sessionId:N}",
+                DeviceId = $"device-{sessionId:N}",
+                DeviceName = "Browser",
+                Client = "dashboard",
+                AuthenticationMethod = "password",
+                SecurityStamp = "owner-security-stamp",
+                CreatedAt = _now,
+                LastSeenAt = _now,
+                ExpiresAt = _now.AddHours(1),
+            });
+            await _accounts.SetAdminUnlockAsync(new GrantAdminUnlock
+            {
+                SessionId = sessionId,
+                AccountId = owner.Id,
+                ProfileId = Profile.SeedProfileId,
+                ProtectionVersion = 1,
+                Method = "pin",
+                GrantedAt = _now,
+                ExpiresAt = _now.AddMinutes(30),
+            });
+        }
+
+        var changed = await identities.RevokeAccountSessionsAsync(
+            owner.Id, _now.AddMinutes(1), "password-changed", exceptSessionId: kept);
+
+        Assert.Equal(1, changed);
+        Assert.Null(await _accounts.GetAdminUnlockAsync(revoked, owner.Id, Profile.SeedProfileId, _now.AddMinutes(2)));
+        Assert.NotNull(await _accounts.GetAdminUnlockAsync(kept, owner.Id, Profile.SeedProfileId, _now.AddMinutes(2)));
+    }
+
     private void InsertProfile(Profile profile)
     {
         using var connection = _database.CreateConnection();
