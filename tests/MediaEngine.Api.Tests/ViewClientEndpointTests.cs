@@ -479,12 +479,12 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
     {
         var space = (await _spaces.GetByOwnerAsync(_ana.ProfileId))!;
         var trip = await _galleries.CreateAsync(new CreateViewGalleryCommand(_ana.ProfileId, space.Id, "Trip", ViewGalleryKind.Manual));
-        await _galleries.AddItemsAsync(trip.Id, _anaTimeline.Take(5).ToList(), false);
+        await _galleries.AddItemsAsync(trip.Id, _anaTimeline.Take(5).ToList(), [ViewContentKinds.Documents]);
         var benSpace = (await _spaces.GetByOwnerAsync(_ben.ProfileId))!;
         var bens = await _galleries.CreateAsync(new CreateViewGalleryCommand(_ben.ProfileId, benSpace.Id, "Ben's private", ViewGalleryKind.Manual));
-        await _galleries.AddItemsAsync(bens.Id, _ben.Photos.Take(2).ToList(), false);
+        await _galleries.AddItemsAsync(bens.Id, _ben.Photos.Take(2).ToList(), [ViewContentKinds.Documents]);
         var shared = await _galleries.CreateAsync(new CreateViewGalleryCommand(_ben.ProfileId, benSpace.Id, "For Ana", ViewGalleryKind.Manual));
-        await _galleries.AddItemsAsync(shared.Id, [_ben.Photos[1]], false);
+        await _galleries.AddItemsAsync(shared.Id, [_ben.Photos[1]], [ViewContentKinds.Documents]);
         await _galleries.ReplaceSharesAsync(shared.Id, [(_ana.ProfileId, ViewGallerySharePermission.View)]);
 
         var list = (await _client.GetFromJsonAsync<ViewGalleryListResponse>("/api/v1/view/galleries"))!;
@@ -555,7 +555,7 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         var space = (await _spaces.GetByOwnerAsync(_noDocuments.ProfileId))!;
         var mixed = await _galleries.CreateAsync(new CreateViewGalleryCommand(
             _noDocuments.ProfileId, space.Id, "Mixed", ViewGalleryKind.Manual, CoverItemId: _noDocuments.Document));
-        await _galleries.AddItemsAsync(mixed.Id, [_noDocuments.Photos[0], _noDocuments.Document], true);
+        await _galleries.AddItemsAsync(mixed.Id, [_noDocuments.Photos[0], _noDocuments.Document], null);
         var savedView = await _galleries.CreateAsync(new CreateViewGalleryCommand(
             _noDocuments.ProfileId, space.Id, "Old saved view", ViewGalleryKind.Smart, SmartRuleJson: DocumentViewRule()));
         _actor.Current = _noDocuments.Authority;
@@ -691,7 +691,7 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         await _assets.ReplaceTagsAsync(benPhoto, ["Secret tag"]);
         var benSpace = (await _spaces.GetByOwnerAsync(_ben.ProfileId))!;
         var manual = await _galleries.CreateAsync(new CreateViewGalleryCommand(_ben.ProfileId, benSpace.Id, "Manual share", ViewGalleryKind.Manual));
-        await _galleries.AddItemsAsync(manual.Id, [benPhoto], false);
+        await _galleries.AddItemsAsync(manual.Id, [benPhoto], [ViewContentKinds.Documents]);
         await _galleries.ReplaceSharesAsync(manual.Id, [(_ana.ProfileId, ViewGallerySharePermission.View)]);
         var smart = await _galleries.CreateAsync(new CreateViewGalleryCommand(
             _ben.ProfileId, benSpace.Id, "Smart share", ViewGalleryKind.Smart, SmartRuleJson: ImageRule()));
@@ -876,7 +876,7 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         // Ben shares one of his photos with Ana through a Gallery, so Ana's reach includes a photo that is not hers.
         var benSpace = (await _spaces.GetByOwnerAsync(_ben.ProfileId))!;
         var shared = await _galleries.CreateAsync(new CreateViewGalleryCommand(_ben.ProfileId, benSpace.Id, "For Ana", ViewGalleryKind.Manual));
-        await _galleries.AddItemsAsync(shared.Id, [_ben.Photos[1]], false);
+        await _galleries.AddItemsAsync(shared.Id, [_ben.Photos[1]], [ViewContentKinds.Documents]);
         await _galleries.ReplaceSharesAsync(shared.Id, [(_ana.ProfileId, ViewGallerySharePermission.View)]);
 
         // The volume holding one of Ana's photos is unmounted for now.

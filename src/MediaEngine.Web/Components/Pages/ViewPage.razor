@@ -1,6 +1,7 @@
 @page "/view"
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
+@using MediaEngine.Web.Components.View
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
 @inject IAppToastService Snackbar
@@ -20,7 +21,7 @@
                  Subtitle="@ScopeDescription"
                  Class="@($"view-page view-density--{Workspace.Density.ToString().ToLowerInvariant()}")">
 <HeaderActions>
-    @if (!_initializing && Workspace.Scopes is not null)
+    @if (!_initializing && Workspace.Scopes is not null && Workspace.CanViewPhotoTimeline)
     {
         <label><span>Scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized photo scope"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>
         <label><span>Density</span><AppNativeSelect Value="@Workspace.Density.ToString()" OnChange="DensityChangedAsync" aria-label="Timeline density">@foreach (var density in Enum.GetValues<ViewTimelineDensity>()) { <option value="@density">@density</option> }</AppNativeSelect></label>
@@ -32,6 +33,7 @@
 <ChildContent>
 @if (_initializing) { <AppPageState Kind="AppPageStateKind.Loading" Title="Loading Photos" Message="Opening your personal space." /> }
 else if (Workspace.Scopes is null) { <AppErrorState Title="Photos could not be loaded" Message="The Dashboard could not resolve an authorized View scope." Retry="InitializeAsync" /> }
+else if (!Workspace.CanViewPhotoTimeline) { <AppPageState Kind="AppPageStateKind.Unavailable" Icon="@AppMaterialIcons.Outlined.Lock" Title="Photos are not available for this profile" Message="Ask an administrator of this server to turn on Photos for you." Class="view-photos-denied" /> }
 else
 {
     @if (_uploading) { <section class="view-upload-status" role="status" aria-live="polite"><span>Uploading @_uploadFileName…</span><AppProgressBar Color="AppColor.Primary" Indeterminate="true" /></section> }
@@ -44,7 +46,7 @@ else
                            SearchAriaLabel="Search Photos"
                            QuickFilterAriaLabel="Photos quick filters"
                            AdvancedFilterAriaLabel="More photo filters"
-                           HasActiveAdvancedFilters="@(_filter is "hidden" or "trash" or "documents")">
+                           HasActiveAdvancedFilters="@(_filter is "hidden" or "trash" or "documents" || _addedBy.Count > 0 || _tags.Count > 0)">
         <QuickFilters>
             @foreach (var filter in PrimaryFilters)
             {
@@ -54,7 +56,17 @@ else
         <AdvancedFilters>
             <AppNativeButton Type="button" Class="@FilterClass("hidden")" OnClick="@(_ => SetFilterAsync("hidden"))">Hidden</AppNativeButton>
             <AppNativeButton Type="button" Class="@FilterClass("trash")" OnClick="@(_ => SetFilterAsync("trash"))">Trash</AppNativeButton>
-            <AppNativeButton Type="button" Class="@FilterClass("documents")" OnClick="@(_ => SetFilterAsync("documents"))">Documents</AppNativeButton>
+            @if (Workspace.CanViewDocuments)
+            {
+                <AppNativeButton Type="button" Class="@FilterClass("documents")" OnClick="@(_ => SetFilterAsync("documents"))">Documents</AppNativeButton>
+            }
+            @* Who added the items: only in the Shared Library and only when two or more people did. The chips carry the bare name. *@
+            <ViewFilterChipRow Label="Added by" Choices="_addedByChoices" Selected="_addedBy" MinimumChoices="2" OnToggle="ToggleAddedByAsync" />
+            @* Photo and video tags only: they would match nothing while the Documents filter is on. *@
+            @if (_filter != "documents")
+            {
+                <ViewFilterChipRow Label="Tags" Choices="_tagChoices" Selected="_tags" OnToggle="ToggleTagAsync" />
+            }
         </AdvancedFilters>
     </AppDiscoveryFilterBar>
     @if (_filter == "trash") { <ViewTrashHeader IsMine="@(Workspace.ScopeKind == ViewScopeKind.Mine)" Version="@_trashVersion" OnChanged="@(() => LoadAsync())" /> }
@@ -82,7 +94,15 @@ else
 @if (_activeItem is not null) { <ViewImmersiveViewer Item="@_activeItem" HasPrevious="@HasPrevious" HasNext="@HasNext" PositionLabel="@ViewerPosition" ContentUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Preview)" OriginalUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Content)" MotionUrl="@MotionUrl(_activeItem)" ThumbnailUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Thumbnail)" OnClose="CloseItem" OnPrevious="PreviousItem" OnNext="NextItem" OnFavorite="ToggleFavoriteAsync" OnArchive="ArchiveActiveAsync" OnRestore="RestoreActiveAsync" OnTrash="TrashActiveAsync" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnAddToGallery="AddActiveToGalleryAsync" CanEdit="@(Workspace.ScopeKind == ViewScopeKind.Mine)" CanManage="@(ItemScope(_activeItem).Kind == ViewScopeKind.Mine)" OnItemUpdated="Replace" /> }
 
 @code {
-    private static readonly IReadOnlyDictionary<string, string> PrimaryFilters = new Dictionary<string, string> { ["all"] = "All", ["favorites"] = "Favorites", ["videos"] = "Videos", ["archive"] = "Archive" };
+    // Videos is offered only while personal videos are allowed for this profile.
+    private IReadOnlyDictionary<string, string> PrimaryFilters => Workspace.CanViewPersonalVideos
+        ? new Dictionary<string, string> { ["all"] = "All", ["favorites"] = "Favorites", ["videos"] = "Videos", ["archive"] = "Archive" }
+        : new Dictionary<string, string> { ["all"] = "All", ["favorites"] = "Favorites", ["archive"] = "Archive" };
+    // The Shared Library's "added by" chips and the tag chips; the choices come from the Engine, the chosen ids are sent as added_by and tag.
+    private readonly HashSet<Guid> _addedBy = [];
+    private readonly HashSet<Guid> _tags = [];
+    private IReadOnlyList<ViewFilterChoice> _addedByChoices = [];
+    private IReadOnlyList<ViewFilterChoice> _tagChoices = [];
     private ViewSectionShell? _viewSectionShell; private ViewAssetTimelinePageDto? _page; private ViewTimelineIndexDto? _timelineIndex; private LocalAssetDto? _activeItem; private readonly HashSet<Guid> _selected = []; private readonly Dictionary<(Guid, Guid, ViewMediaResourceKind, ViewMediaResourceRole, ViewScopeKind, Guid?), CachedMediaGrant> _grants = [];
     private CancellationTokenSource? _searchCts; private Guid? _profileId; private string _search = ""; private string _filter = "all"; private bool _initializing = true, _loading, _loadingMore, _uploading; private string? _uploadFileName, _uploadError;
     private DateTimeOffset? _anchorBefore; private Guid? _selectionAnchor; private int? _activeYear, _activeMonth; private ElementReference _timelineSentinel; private IJSObjectReference? _timelineModule; private DotNetObjectReference<ViewPage>? _timelineReference; private bool _observeTimeline, _focusAnchoredPeriod;
@@ -91,8 +111,26 @@ else
     private int _trashVersion;
     protected override async Task OnInitializedAsync() { Orchestrator.OnProfileChanged += OnProfileChanged; DeviceContext.OnChanged += DeviceChanged; await InitializeAsync(); }
     private void DeviceChanged() => _ = InvokeAsync(() => { if (!DeviceContext.IsTouch) { _selectMode = false; } StateHasChanged(); });
-    private async Task InitializeAsync() { _initializing = true; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; await LoadAsync(); }
-    private ViewAssetQueryOptions Query(string? cursor = null, DateTimeOffset? anchorBefore = null) => new(Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, _filter switch { "videos" => ["video"], "documents" => ["document"], _ => null }, _filter == "favorites", _filter == "hidden", _filter switch { "archive" => "archived", "trash" => "trashed", _ => "active" }, AnchorBefore: anchorBefore);
+    // A new profile starts with no chips and no filter: a chip or a kind filter left from the last profile could not be seen, so it could not be switched off.
+    private async Task InitializeAsync() { _initializing = true; _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; _filter = "all"; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; if (!Workspace.CanViewPhotoTimeline) { _loading = false; return; } await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); }
+    private ViewAssetQueryOptions Query(string? cursor = null, DateTimeOffset? anchorBefore = null) => new(Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, _filter switch { "videos" => ["video"], "documents" => ["document"], _ => null }, _filter == "favorites", _filter == "hidden", _filter switch { "archive" => "archived", "trash" => "trashed", _ => "active" }, AnchorBefore: anchorBefore,
+        Documents: _tags.Count > 0 ? new ViewDocumentFilterDto(TagIds: _tags.ToList()) : null, AddedBy: _addedBy.Count > 0 ? _addedBy.ToList() : null);
+    private async Task LoadFilterChoicesAsync()
+    {
+        var scope = Workspace.ScopeKind;
+        var scopeProfile = Workspace.ScopeProfileId;
+        var addedBy = scope == ViewScopeKind.Shared
+            ? await ApiClient.GetViewAssetsAddedByAsync(new ViewAssetQueryOptions(scope, scopeProfile))
+            : null;
+        var catalogue = await ApiClient.GetViewCatalogueAsync(scope, scopeProfile, ["image", "video"]);
+        // A chip the Engine no longer lists cannot be switched off, so a choice that has gone is dropped from the filter too.
+        _addedByChoices = (addedBy ?? []).Select(profile => new ViewFilterChoice(profile.ProfileId, profile.Name)).ToList();
+        _addedBy.IntersectWith(_addedByChoices.Select(choice => choice.Id));
+        _tagChoices = (catalogue?.Tags ?? []).Where(tag => tag.UsageCount > 0).Select(tag => new ViewFilterChoice(tag.Id, tag.Name)).ToList();
+        _tags.IntersectWith(_tagChoices.Select(choice => choice.Id));
+    }
+    private Task ToggleAddedByAsync(Guid profileId) { if (!_addedBy.Add(profileId)) _addedBy.Remove(profileId); return LoadAsync(); }
+    private Task ToggleTagAsync(Guid tagId) { if (!_tags.Add(tagId)) _tags.Remove(tagId); return LoadAsync(); }
     private int _loadVersion;
     private const int MaximumWindowItems = 600;
     private bool _olderWindow;
@@ -138,7 +176,7 @@ else
         _loadingMore = false;
         _observeTimeline = _page.Items.Count > 0;
     }
-    private async Task ScopeChangedAsync(ChangeEventArgs args) { var parts = args.Value?.ToString()?.Split(':', 2) ?? []; if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind)) return; Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null; if (await Workspace.SelectScopeAsync(kind, profile)) await LoadAsync(); }
+    private async Task ScopeChangedAsync(ChangeEventArgs args) { var parts = args.Value?.ToString()?.Split(':', 2) ?? []; if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind)) return; Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null; if (await Workspace.SelectScopeAsync(kind, profile)) { _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); } }
     private async Task DensityChangedAsync(ChangeEventArgs args) { if (Enum.TryParse<ViewTimelineDensity>(args.Value?.ToString(), out var density) && !await Workspace.SetDensityAsync(density)) Snackbar.Add("Timeline density could not be saved.", AppSeverity.Error); }
     private async Task SearchChanged(object? value)
     {

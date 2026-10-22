@@ -101,7 +101,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Assert.Equal("What do you have?", Text(cut.Find("h2")));
         Assert.Contains("Tick what you'd like Library to show. You can add more later in Settings.", cut.Markup, StringComparison.Ordinal);
         var cards = cut.FindAll(".setup-have__card");
-        Assert.Equal(["Watch Movies, TV Shows, Videos", "Listen Music, Audiobooks", "Read Books, Comics", "View Photos & personal videos"], cards.Select(Text).ToArray());
+        Assert.Equal(["Watch Movies, TV Shows, Videos", "Listen Music, Audiobooks", "Read Books, Comics", "View Photos, Personal videos, Documents"], cards.Select(Text).ToArray());
         Assert.All(cards, card =>
         {
             Assert.Equal("false", card.GetAttribute("aria-pressed"));

@@ -11,6 +11,12 @@ namespace MediaEngine.Web.Models.ViewDTOs;
 public sealed class ViewDocumentFilterState
 {
     public HashSet<Guid> TagIds { get; } = [];
+
+    /// <summary>
+    /// In the Shared Library, the profiles whose items to show. Empty means everyone. Not part of <see cref="ToDto"/>:
+    /// it travels as the list query's <c>added_by</c> values.
+    /// </summary>
+    public HashSet<Guid> AddedBy { get; } = [];
     public Guid? CorrespondentId { get; set; }
     public Guid? DocumentTypeId { get; set; }
     public DateOnly? DateFrom { get; set; }
@@ -43,7 +49,7 @@ public sealed class ViewDocumentFilterState
     public Dictionary<Guid, string> Fields { get; } = [];
 
     public int ActiveCount =>
-        TagIds.Count + (CorrespondentId.HasValue ? 1 : 0) + (DocumentTypeId.HasValue ? 1 : 0)
+        TagIds.Count + AddedBy.Count + (CorrespondentId.HasValue ? 1 : 0) + (DocumentTypeId.HasValue ? 1 : 0)
         + (DateFrom.HasValue || DateTo.HasValue || DatePreset is not null ? 1 : 0) + Fields.Count
         + (SavedViewId.HasValue ? 1 : 0);
 
@@ -52,6 +58,7 @@ public sealed class ViewDocumentFilterState
     public void Clear()
     {
         TagIds.Clear();
+        AddedBy.Clear();
         CorrespondentId = null;
         DocumentTypeId = null;
         DateFrom = null;

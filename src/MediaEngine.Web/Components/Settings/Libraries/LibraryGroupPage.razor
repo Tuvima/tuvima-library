@@ -60,7 +60,8 @@
     /// <summary>The Engine's list of library kinds; the rows are the available kinds of this group.</summary>
     [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
     [Parameter] public LibraryOverviewDto? Overview { get; set; }
-    [Parameter] public int? ViewFolders { get; set; }
+    /// <summary>View's folder count per kind (photos, personal_videos, documents); null while it is not known.</summary>
+    [Parameter] public IReadOnlyDictionary<string, int>? ViewFolders { get; set; }
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
     /// <summary>Raised after a folder was added through the wizard, so the page can refresh its counts.</summary>
