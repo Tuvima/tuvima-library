@@ -1184,12 +1184,22 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     {
         _configuration.Libraries.Add(new()
         {
-            Id = "55555555-5555-4555-8555-555555555555", Name = "Lectures", Kind = "catalogued", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"],
+            Id = "55555555-5555-4555-8555-555555555555",
+            Name = "Lectures",
+            Kind = "catalogued",
+            KindKey = "other_videos",
+            Area = "watch",
+            MediaTypes = ["Videos"],
             Sources = [new() { Id = "lec-1", Path = "C:\\media\\Lectures", ManagementMode = "existing_library", AccessMode = "read_only" }],
         });
         _configuration.Libraries.Add(new()
         {
-            Id = "66666666-6666-4666-8666-666666666666", Name = "Family recordings", Kind = "catalogued", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"],
+            Id = "66666666-6666-4666-8666-666666666666",
+            Name = "Family recordings",
+            Kind = "catalogued",
+            KindKey = "other_videos",
+            Area = "watch",
+            MediaTypes = ["Videos"],
             Sources = [new() { Id = "fam-1", Path = "C:\\media\\Family", ManagementMode = "existing_library", AccessMode = "read_only" }, new() { Id = "fam-2", Path = "C:\\media\\Birthdays", ManagementMode = "existing_library", AccessMode = "read_only" }],
         });
     }

@@ -91,7 +91,7 @@
                 @if (_libraryChoice == NewLibraryChoice)
                 {
                     <div class="add-wizard__options add-wizard__field">
-                        <AppTextField Label="Library name" Value="@_newLibraryName" ValueChanged="@((string? value) => _newLibraryName = value ?? string.Empty)" Required="true" />
+                        <AppTextField Label="Library name" Value="@_newLibraryName" ValueChanged="@((string? value) => _newLibraryName = value ?? string.Empty)" />
                     </div>
                 }
             }

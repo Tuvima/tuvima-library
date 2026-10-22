@@ -982,6 +982,11 @@ code,
    -------------------------------------------------------------------------- */
 
 :root {
+    /* One colour per area (Library setup D39): the Libraries screens and Add folder tiles read these. */
+    --area-colour-watch: #a16dff;
+    --area-colour-listen: #e76fce;
+    --area-colour-read: #61a8ff;
+    --area-colour-view: #2dd4bf;
     --app-font-sans: var(--font-ui);
     --app-font-brand: var(--font-brand);
     --app-bg: var(--tl-bg-root);
@@ -5478,7 +5483,6 @@ input[type="reset"],
 
 /* Library kinds (Library setup D22, D39): one colour per area. A kind that looks details up fills its icon tile with its area's colour, a plain
    kind has a quiet grey tile, so a kind a plugin adds needs no style of its own. The Metadata icons and the Unmatched count sit beside the tile. */
-:root { --area-colour-watch: #a16dff; --area-colour-listen: #e76fce; --area-colour-read: #61a8ff; --area-colour-view: #2dd4bf; }
 .lib-area--watch { --lib-area-colour: var(--area-colour-watch); }
 .lib-area--listen { --lib-area-colour: var(--area-colour-listen); }
 .lib-area--read { --lib-area-colour: var(--area-colour-read); }

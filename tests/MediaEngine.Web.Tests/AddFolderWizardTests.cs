@@ -215,7 +215,12 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         {
             _configuration.Libraries.Add(new()
             {
-                Id = Guid.NewGuid().ToString("D"), Name = name, Kind = "catalogued", KindKey = "other_audio", Area = "listen", MediaTypes = ["Music"],
+                Id = Guid.NewGuid().ToString("D"),
+                Name = name,
+                Kind = "catalogued",
+                KindKey = "other_audio",
+                Area = "listen",
+                MediaTypes = ["Music"],
                 Sources = [new() { Id = $"src-{name}", Path = $"C:\\media\\{name}", ManagementMode = "existing_library", AccessMode = "read_only" }],
             });
         }
