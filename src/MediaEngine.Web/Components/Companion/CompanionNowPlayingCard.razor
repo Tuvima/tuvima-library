@@ -18,7 +18,9 @@
         <span class="companion-now__cover" aria-hidden="true">
             @if (!string.IsNullOrWhiteSpace(device.Item?.CoverUrl))
             {
-                <img src="@ApiClient.ToAbsoluteEngineUrl(device.Item!.CoverUrl!)" alt="" loading="lazy" />
+                var cover = ApiClient.ToAbsoluteEngineUrl(device.Item!.CoverUrl!);
+                @* Drawn 56x80px (CompanionNowPlayingCard.razor.css). *@
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 80)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(cover, 80)" alt="" loading="lazy" decoding="async" />
             }
             else
             {

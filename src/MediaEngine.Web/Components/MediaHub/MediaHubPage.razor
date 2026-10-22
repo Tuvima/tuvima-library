@@ -133,11 +133,11 @@
         .ToList();
 
     // Each lane opens the Libraries screen on the matching type, so the first click is already on Add Folder.
-    private string AddLibraryHref => "/settings/libraries?type=" + SectionType switch
+    private string AddLibraryHref => SectionType switch
     {
-        MediaHubSectionType.Read => "books",
-        MediaHubSectionType.Watch => "movies",
-        _ => "music",
+        MediaHubSectionType.Read => "/settings/libraries/read/books",
+        MediaHubSectionType.Watch => "/settings/libraries/watch/movies",
+        _ => "/settings/libraries/listen/music",
     };
 
     private string EmptyTitle => $"{Title} is waiting for media";

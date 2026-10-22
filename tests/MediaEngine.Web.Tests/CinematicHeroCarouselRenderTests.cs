@@ -227,7 +227,7 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void UnknownNativeDimensionsKeepBoundedImageWithoutInventedWidthDescriptors()
+    public void UnknownNativeDimensionsOfferTheCopyLongSidesAsWidthsSoWideScreensTakeTheLargeCopy()
     {
         var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [new DiscoveryHeroViewModel
         {
@@ -235,7 +235,9 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         }]));
         var image = cut.Find(".tl-detail-media-stage__background");
         Assert.EndsWith("?size=m", image.GetAttribute("src"));
-        Assert.True(string.IsNullOrEmpty(image.GetAttribute("srcset")));
+        // The copies' long sides are their widths for a landscape backdrop, so the browser takes medium on a phone and large on a desktop or TV.
+        Assert.Equal("/stream/artwork/unknown?size=s 320w, /stream/artwork/unknown?size=m 960w, /stream/artwork/unknown?size=l 2160w", image.GetAttribute("srcset"));
+        Assert.Equal("100vw", image.GetAttribute("sizes"));
     }
 
     [Fact]

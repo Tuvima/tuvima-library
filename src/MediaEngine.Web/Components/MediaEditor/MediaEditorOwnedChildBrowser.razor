@@ -140,7 +140,7 @@
                             }
                             else if (_effectiveCover?.Variant is { } cover)
                             {
-                                <img src="@cover.ThumbnailUrl" alt="" loading="lazy" decoding="async" sizes="(max-width: 600px) 40vw, 160px" data-image-display="owned-file-effective-cover" />
+                                <img src="@MediaTileArtworkUrl.ForDrawnSize(cover.ThumbnailUrl, 160)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(cover.ThumbnailUrl, 160)" alt="" loading="lazy" decoding="async" data-image-display="owned-file-effective-cover" />
                                 <span><strong>@MediaEditorEffectiveCoverPresentation.OwnerLabel(_effectiveCover)</strong><small>Owner ID: @_effectiveCover.SourceEntityId</small></span>
                             }
                             else

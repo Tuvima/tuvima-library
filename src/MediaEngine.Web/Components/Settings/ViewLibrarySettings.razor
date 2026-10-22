@@ -103,6 +103,10 @@
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
     [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public EventCallback RootChanged { get; set; }
+    /// <summary>Opens with the add form shown (the Add folder wizard hands View over this way).</summary>
+    [Parameter] public bool StartAdding { get; set; }
+    /// <summary>A folder to pre-fill in the add form, when the wizard noticed phone or camera footage.</summary>
+    [Parameter] public string? InitialPath { get; set; }
     private List<ProfileViewModel> _profiles = [];
     private readonly Dictionary<Guid, ViewPersonalSpaceAdminReviewDto> _reviews = [];
     private bool _loading = true, _busy, _adding, _recursive = true, _timeline;
@@ -112,7 +116,20 @@
     private IReadOnlyList<AppSelectOption> OwnerOptions => _profiles.Select(p => new AppSelectOption(p.Id.ToString(), p.DisplayName)).ToList();
     private static readonly IReadOnlyList<AppSelectOption> ModeOptions = [new("linked", "Existing folder — read-only"), new("managed", "New managed folder")];
 
-    protected override async Task OnInitializedAsync() => await LoadSourcesAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        if (StartAdding && !ReadOnly)
+        {
+            _adding = true;
+            if (!string.IsNullOrWhiteSpace(InitialPath))
+            {
+                _path = InitialPath;
+                _name = Path.GetFileName(InitialPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            }
+        }
+
+        await LoadSourcesAsync();
+    }
     private async Task LoadSourcesAsync()
     {
         _loading = true;

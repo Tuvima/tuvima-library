@@ -695,30 +695,6 @@ public sealed class VaultExperienceTests : AsyncBunitContext
         Assert.Contains("aria-label=\"Open item\"", hidden.Markup);
     }
 
-    // -- Add folder: the third choice -------------------------------------------------------------------------------------
-
-    [Fact]
-    public async Task TheAddFolderQuestion_OffersTheVaultOnlyWhenAskedTo_AndTheAnswerSaysSo()
-    {
-        var dialogs = Render<AppDialogHost>();
-        var service = Services.GetRequiredService<IAppDialogService>();
-
-        async Task<IAppDialogReference> AskAsync(bool showVault) => await service.ShowAsync<AddFolderPlaceDialog>(string.Empty,
-            new AppDialogParameters<AddFolderPlaceDialog> { { component => component.ShowVault, showVault } }, new AppDialogOptions());
-
-        var without = await AskAsync(showVault: false);
-        dialogs.WaitForAssertion(() => Assert.Contains("Where does this folder belong?", dialogs.Markup));
-        AssertNothingDrawn(dialogs.Markup);
-        without.Close();
-
-        var with = await AskAsync(showVault: true);
-        dialogs.WaitForAssertion(() => Assert.Contains("Vault", dialogs.Markup));
-        dialogs.FindAll(".app-choice-card").Single(card => card.TextContent.Contains("Vault")).Click();
-        var answer = Assert.IsType<AddFolderPlaceDialog.AddFolderPlaceAnswer>((await with.Result)!.Data);
-        Assert.True(answer.Vault);
-        Assert.False(answer.Watch);
-    }
-
     private async Task<(IRenderedComponent<AppDialogHost> Dialogs, VaultLibraryOnboarding Onboarding)> OnboardingAsync()
     {
         UseEngine();

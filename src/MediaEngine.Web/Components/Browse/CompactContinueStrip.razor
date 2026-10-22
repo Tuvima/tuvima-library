@@ -21,7 +21,7 @@
                     <div class="compact-continue__art">
                         @if (!string.IsNullOrWhiteSpace(ArtworkUrl(item)))
                         {
-                            <img src="@ArtworkUrl(item)" srcset="@item.TileImageSrcSet" sizes="44px" data-artwork-purpose="continue-thumbnail" alt="" loading="lazy" decoding="async" />
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(ArtworkUrl(item), 58)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ArtworkUrl(item), 58)" data-artwork-purpose="continue-thumbnail" alt="" loading="lazy" decoding="async" />
                         }
                         <AppArtworkProgress State="@item.ContinuationState" Percent="@item.ProgressPct" MediaKind="@item.MediaKind" RemainingSeconds="@item.RemainingSeconds" />
                         else
@@ -54,8 +54,13 @@
             ? AppMaterialIcons.Outlined.Headphones
             : AppMaterialIcons.Outlined.PlayCircle;
 
-    private static string? ArtworkUrl(MediaTileViewModel item) =>
-        MediaTileArtworkUrl.Sized(item.TileImageUrl ?? item.CoverUrl ?? item.PreviewImageUrl, "s");
+    // Drawn 44x58px (CompactContinueStrip.razor.css); the picture is sized where it is drawn. Only Engine
+    // pictures are shown: a provider's web link never reaches the browser (local-first), the tile shows its fallback.
+    private static string? ArtworkUrl(MediaTileViewModel item)
+    {
+        var url = item.TileImageUrl ?? item.CoverUrl ?? item.PreviewImageUrl;
+        return url is not null && MediaTileArtworkUrl.SupportsRenditions(url) ? url : null;
+    }
 
     private static string Identity(MediaTileViewModel item) => item.EpisodeContext is { } episode
         ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : item.Title;

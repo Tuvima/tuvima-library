@@ -450,10 +450,11 @@ public sealed class ArtworkLibraryReadService(
             var canonicalHeadshot = ApiImageUrls.BuildPersonHeadshotUrl(
                 row.EntityId,
                 row.LocalHeadshotPath,
-                row.RemoteHeadshotUrl);
+                row.RemoteHeadshotUrl,
+                "s");
             if (!string.IsNullOrWhiteSpace(canonicalHeadshot))
             {
-                return $"{canonicalHeadshot}?size=s";
+                return canonicalHeadshot;
             }
         }
 
@@ -464,8 +465,7 @@ public sealed class ArtworkLibraryReadService(
 
         if (row.UsesLegacyPersonImage)
         {
-            var legacyHeadshot = ApiImageUrls.BuildPersonHeadshotUrl(row.EntityId, row.LocalHeadshotPath, row.RemoteHeadshotUrl);
-            return string.IsNullOrWhiteSpace(legacyHeadshot) ? null : $"{legacyHeadshot}?size=s";
+            return ApiImageUrls.BuildPersonHeadshotUrl(row.EntityId, row.LocalHeadshotPath, row.RemoteHeadshotUrl, "s");
         }
 
         return row.HasCanonicalPrimary

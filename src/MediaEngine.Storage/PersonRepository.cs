@@ -467,6 +467,26 @@ public sealed class PersonRepository : IPersonRepository
     }
 
     /// <inheritdoc/>
+    public Task<IReadOnlyList<Person>> GetWithLocalHeadshotWithoutManagedAssetAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        using var conn = _db.CreateConnection();
+        var rows = conn.Query<Person>($"""
+            SELECT {SelectColumns}
+            FROM   persons
+            WHERE  local_headshot_path IS NOT NULL
+              AND  TRIM(local_headshot_path) <> ''
+              AND  NOT EXISTS (
+                       SELECT 1 FROM entity_assets
+                       WHERE  entity_assets.entity_id = persons.id
+                         AND  entity_assets.asset_type = 'Headshot');
+            """).ToList();
+
+        return Task.FromResult<IReadOnlyList<Person>>(rows);
+    }
+
+    /// <inheritdoc/>
     public Task<Person?> FindByIdAsync(Guid id, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

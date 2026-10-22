@@ -1269,6 +1269,23 @@ Cached candidate lists from previous search/resolve operations.
 
 ## Content
 
+### entity_assets
+
+One row per picture kept for an entity (cover art, headshot, background, logo and the like). The Engine keeps the original and, for every type except logos, four smaller copies so a screen can ask for the size it draws. The long edge of each copy is: tiny 96 px (faces and small thumbnails), small 320, medium 960, large 2160.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | Primary key; also the picture's address (`/stream/artwork/{id}`) |
+| `entity_id`, `entity_type` | BLOB or TEXT, TEXT | Owner (a Work, Person, Universe or fictional entity) |
+| `asset_type` | TEXT | `CoverArt`, `Headshot`, `Background`, `Logo` and similar |
+| `local_image_path` | TEXT | The original file |
+| `local_image_path_t` | TEXT | Tiny copy (96 px long edge). Added by upgrade step `0029_entity_asset_tiny_rendition`; empty until the copy exists. |
+| `local_image_path_s`, `local_image_path_m`, `local_image_path_l` | TEXT | Small (320), medium (960) and large (2160) copies |
+| `width_px`, `height_px`, `aspect_class`, `primary_hex`, `secondary_hex`, `accent_hex` | | Measured size and palette |
+| `is_preferred`, `is_user_override` | INTEGER | The chosen picture for the slot, and whether the person chose it |
+
+A missing copy is made the first time it is asked for (or by the start-up catch-up) and recorded here; until then the next bigger copy is sent. People's faces are `Headshot` rows like any other picture; a face saved before this was so is registered by the start-up catch-up.
+
 ### image_cache
 
 Tracks managed entity artwork stored under `.data/assets`.
@@ -1358,13 +1375,13 @@ Saved playback positions in a video or an audiobook (the table keeps its audiobo
 | `label` | TEXT | Optional user-facing bookmark label |
 | `note` | TEXT | The short note (up to 200 characters); on a bookmark saved before the longer description existed, its text |
 | `description` | TEXT | Optional longer description (up to 4,000 characters) |
-| `is_global` | INTEGER | 1 when shared with everyone (upgrade step 0031); 0 for a personal bookmark |
-| `end_seconds` | REAL | Optional end of a bookmark that marks a part of the video (a scene), after `position_seconds` (upgrade step 0033); NULL for a plain bookmark |
+| `is_global` | INTEGER | 1 when shared with everyone (upgrade step 0032); 0 for a personal bookmark |
+| `end_seconds` | REAL | Optional end of a bookmark that marks a part of the video (a scene), after `position_seconds` (upgrade step 0034); NULL for a plain bookmark |
 | `created_at` | TEXT | Timestamp |
 
 ### bookmark_packs
 
-One imported bookmark pack on one title for one profile (Videos spec D46, upgrade step 0033). The pack's bookmarks are read-only and live in `bookmark_pack_items`. `asset_id` is the file the pack was imported on: a pack on a file the caller cannot see (a Vault file without an unlocked session) is not listed, counted or found. A pack is never exported from the Vault.
+One imported bookmark pack on one title for one profile (Videos spec D46, upgrade step 0034). The pack's bookmarks are read-only and live in `bookmark_pack_items`. `asset_id` is the file the pack was imported on: a pack on a file the caller cannot see (a Vault file without an unlocked session) is not listed, counted or found. A pack is never exported from the Vault.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1638,7 +1655,7 @@ What a person removed from, or added to, the taste the Library learned about the
 
 ## Vault
 
-Added by upgrade step `0027_vault_access` (Videos spec WP9). A **Vault library** is a library whose items are absent for anyone without an unlocked Vault mode session. An item is a Vault item because its `media_assets.library_id` appears in `vault_libraries`; that table is the single source of truth (there is no flag on the item). Rules that must hold whichever service writes are enforced by triggers, so a new code path cannot forget them.
+Added by upgrade step `0030_vault_access` (Videos spec WP9). A **Vault library** is a library whose items are absent for anyone without an unlocked Vault mode session. An item is a Vault item because its `media_assets.library_id` appears in `vault_libraries`; that table is the single source of truth (there is no flag on the item). Rules that must hold whichever service writes are enforced by triggers, so a new code path cannot forget them.
 
 | Table | Meaning |
 |---|---|
@@ -1649,7 +1666,7 @@ Added by upgrade step `0027_vault_access` (Videos spec WP9). A **Vault library**
 | `vault_asset_performers`, `vault_asset_studios`, `vault_asset_tags` | Links from a Vault file to those names. A name with no remaining link is removed (trigger). |
 | `vault_artwork` | Artwork for a Vault file, performer or studio, stored only here (never in the shared artwork tables) and removed with its owner (trigger). |
 
-**Lookup and Identify (upgrade step `0028_vault_lookup`, Videos spec WP12).** Four more tables hold what the Library knows about how each Vault video was matched. Each refuses a row for a file that is not in a Vault library (before-insert trigger) and goes with its file (cascade).
+**Lookup and Identify (upgrade step `0031_vault_lookup`, Videos spec WP12).** Four more tables hold what the Library knows about how each Vault video was matched. Each refuses a row for a file that is not in a Vault library (before-insert trigger) and goes with its file (cascade).
 
 | Table | Meaning |
 |---|---|
@@ -1658,7 +1675,7 @@ Added by upgrade step `0027_vault_access` (Videos spec WP9). A **Vault library**
 | `vault_file_fingerprints` | Fingerprints computed on this machine (`OSHASH`, `MD5`, `PHASH`) with the file size they were computed at, kept so a big file is not read twice. Computed and sent only while the administrator's separate fingerprint permission is on. |
 | `vault_activity` | The quiet Vault activity list: `kind` (`added`, `matched`, `unmatched`, `identified`, `failed`), the file's own name, a fixed plain-words detail (never a title or path) and the time. Shown only inside Vault mode to an administrator. |
 
-**Bookmarks waiting after a restore (upgrade step `0034_vault_pending_bookmarks`).** A backup never holds the Vault catalogue, so a person's Vault bookmarks travel in a backup as `vault_pending_bookmarks` and are re-linked after a rescan. The table is empty on a data store that was never restored.
+**Bookmarks waiting after a restore (upgrade step `0035_vault_pending_bookmarks`).** A backup never holds the Vault catalogue, so a person's Vault bookmarks travel in a backup as `vault_pending_bookmarks` and are re-linked after a rescan. The table is empty on a data store that was never restored.
 
 | Table | What it holds |
 |---|---|

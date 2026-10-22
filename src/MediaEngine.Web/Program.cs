@@ -89,6 +89,7 @@ builder.Services.AddScoped<AppDialogService>();
 builder.Services.AddScoped<IAppDialogService>(services => services.GetRequiredService<AppDialogService>());
 builder.Services.AddScoped<AppToastService>();
 builder.Services.AddScoped<IAppToastService>(services => services.GetRequiredService<AppToastService>());
+builder.Services.AddScoped<MediaEngine.Web.Components.Settings.LibraryFolderAddService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddResponseCompression(options =>
 {
@@ -686,32 +687,12 @@ static async Task ProxyEngineHlsAsync(
     }
 }
 
-static async Task ProxyEngineImageAsync(
+static Task ProxyEngineImageAsync(
     string enginePath,
     HttpContext ctx,
     IHttpClientFactory httpFactory,
-    CancellationToken ct)
-{
-    var upstreamPath = $"/{enginePath.TrimStart('/')}";
-    if (!EngineImageProxyPath.IsAllowedEnginePath(upstreamPath))
-    {
-        ctx.Response.StatusCode = StatusCodes.Status404NotFound;
-        return;
-    }
-
-    var client = httpFactory.CreateClient("EngineArtwork");
-    using var request = new HttpRequestMessage(
-        HttpMethods.IsHead(ctx.Request.Method) ? HttpMethod.Head : HttpMethod.Get,
-        $"{upstreamPath}{ctx.Request.QueryString}");
-    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-    ctx.Response.StatusCode = (int)response.StatusCode;
-    CopyResponseHeaders(response, ctx.Response);
-
-    if (!HttpMethods.IsHead(ctx.Request.Method))
-    {
-        await response.Content.CopyToAsync(ctx.Response.Body, ct);
-    }
-}
+    CancellationToken ct) =>
+    EngineImageProxyEndpoint.HandleAsync(enginePath, ctx, httpFactory.CreateClient("EngineArtwork"), ct);
 
 static void CopyRequestHeader(HttpContext ctx, HttpRequestMessage request, string headerName)
 {

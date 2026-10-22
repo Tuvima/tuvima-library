@@ -75,9 +75,9 @@
 
             <div class="listen-player__meta">
                 <AppNativeButton Type="button" Class="listen-player__thumb" @ref="_artButton" OnClick="OpenNowPlaying" AriaLabel="@(IsDesktopNowPlaying ? "Close Now Playing" : "Open Now Playing")">
-                    @if (PlaybackArtworkUrl.ForItem(Playback.CurrentItem, "s") is not null)
+                    @if (PlaybackArtworkUrl.ForDrawnSize(Playback.CurrentItem, 64) is not null)
                     {
-                        <img src="@(PlaybackArtworkUrl.ForItem(Playback.CurrentItem, "s"))" srcset="@MediaTileArtworkUrl.SrcSet(PlaybackArtworkUrl.ForItem(Playback.CurrentItem, "s"), PlaybackArtworkUrl.ForItem(Playback.CurrentItem, "m"))" sizes="64px" data-image-display="audio-dock-thumbnail" alt="@Playback.CurrentItem.Title" decoding="async" />
+                        <img src="@PlaybackArtworkUrl.ForDrawnSize(Playback.CurrentItem, 64)" srcset="@PlaybackArtworkUrl.SrcSetForDrawnSize(Playback.CurrentItem, 64)" data-image-display="audio-dock-thumbnail" alt="@Playback.CurrentItem.Title" decoding="async" />
                     }
                     else
                     {

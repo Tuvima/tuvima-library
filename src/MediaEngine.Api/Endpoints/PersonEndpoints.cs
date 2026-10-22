@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Artwork;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.Metadata;
 using MediaEngine.Api.Services.ReadServices;
@@ -10,11 +11,13 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Persons;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
+using MediaEngine.Providers.Helpers;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using SkiaSharp;
@@ -108,7 +111,7 @@ public static class PersonEndpoints
                     .Select(asset => new ArtworkVariantDto(
                         asset.Id,
                         assetType,
-                        $"/stream/artwork/{asset.Id}",
+                        ArtworkCanonicalHelper.StoredArtworkUrl(asset),
                         asset.IsPreferred,
                         asset.SourceProvider ?? "Stored",
                         asset.SourceProvider,
@@ -153,6 +156,7 @@ public static class PersonEndpoints
             IEntityAssetRepository assetRepo,
             ISystemActivityRepository activityRepo,
             ArtworkScopeService artworkScopeService,
+            AssetPathService assetPaths,
             HttpRequest httpRequest,
             CancellationToken ct) =>
         {
@@ -217,6 +221,7 @@ public static class PersonEndpoints
                 IsUserOverride = true,
                 CreatedAt = DateTimeOffset.UtcNow,
             };
+            ArtworkVariantHelper.StampMetadataAndRenditions(asset, assetPaths);
             await assetRepo.UpsertAsync(asset, ct);
             await assetRepo.SetPreferredAsync(asset.Id, ct);
             await activityRepo.LogAsync(new SystemActivityEntry
@@ -265,7 +270,7 @@ public static class PersonEndpoints
                 Name = displayName,
                 Roles = person.Roles,
                 WikidataQid = person.WikidataQid,
-                HeadshotUrl = preferredHeadshot is null ? ApiImageUrls.BuildPersonHeadshotUrl(person.Id, person.LocalHeadshotPath, person.HeadshotUrl) : $"/stream/artwork/{preferredHeadshot.Id}",
+                HeadshotUrl = preferredHeadshot is null ? ApiImageUrls.BuildPersonHeadshotUrl(person.Id, person.LocalHeadshotPath, person.HeadshotUrl) : ArtworkCanonicalHelper.StoredArtworkUrl(preferredHeadshot),
                 Biography = displayBiography,
                 Occupation = person.Occupation,
                 DateOfBirth = person.DateOfBirth,
@@ -285,8 +290,8 @@ public static class PersonEndpoints
                 GroupMembers = person.IsGroup ? groupMembers : [],
                 MemberOfGroups = person.IsGroup ? [] : memberOfGroups,
                 BannerUrl = null,
-                BackgroundUrl = preferredBackground is null ? null : $"/stream/artwork/{preferredBackground.Id}",
-                LogoUrl = preferredLogo is null ? null : $"/stream/artwork/{preferredLogo.Id}",
+                BackgroundUrl = preferredBackground is null ? null : ArtworkCanonicalHelper.StoredArtworkUrl(preferredBackground),
+                LogoUrl = preferredLogo is null ? null : ArtworkCanonicalHelper.StoredArtworkUrl(preferredLogo),
                 CreatedAt = person.CreatedAt,
                 EnrichedAt = person.EnrichedAt,
             });
@@ -312,14 +317,16 @@ public static class PersonEndpoints
         .RequireClientScope(ClientApiScopes.LibraryRead)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.LibraryRead, "Person", "id");
 
-        // GET /persons/{id}/headshot — serves the canonical person headshot asset.
-        // Local files resolve only from Person.LocalHeadshotPath or .data/assets/people/{personId}/headshot.*.
-        // Downloads and caches if no local file exists.
+        // GET /persons/{id}/headshot — serves the person's preferred Headshot asset at the size asked for.
+        // A face that only exists as a direct download (Person.LocalHeadshotPath, .data/assets/people/{personId}/headshot.*,
+        // or a download made on the spot) is first registered as a managed Headshot asset with all its copies,
+        // so every size, including the tiny one, comes from a copy and never from the raw original.
         group.MapGet("/{id:guid}/headshot", async (
             Guid id,
             string? size,
             IPersonRepository personRepo,
             IEntityAssetRepository assetRepo,
+            IArtworkRenditionService renditions,
             IHttpClientFactory httpFactory,
             AssetPathService assetPaths,
             ILoggerFactory loggerFactory,
@@ -332,19 +339,38 @@ public static class PersonEndpoints
                 return ApiErrors.NotFound($"Person '{id}' not found.");
             }
 
+            async Task<IResult?> ServeAsync(EntityAsset? headshot)
+            {
+                if (headshot is null)
+                {
+                    return null;
+                }
+
+                var resolved = await renditions.ResolveAsync(headshot, size, ct);
+                if (resolved is null || !IsLikelyImageFile(resolved.Path))
+                {
+                    return null;
+                }
+
+                // A face address is keyed by the person, not the picture, and its change marker comes from
+                // persons.local_headshot_path, which not every way of changing the preferred face updates (an upload
+                // or a pick in the editor adds a new picture). A year-long keep could then show an old face, so faces
+                // are always checked on each use: an unchanged face costs a 304 with no body.
+                return ArtworkFileResults.Local(resolved.Path, ArtworkCacheMode.Revalidate);
+            }
+
+            async Task<IResult?> AdoptAndServeAsync(string path)
+            {
+                var managed = await PersonHeadshotAssets.EnsureManagedAsync(
+                    id, path, "wikidata", person.HeadshotUrl, assetRepo, assetPaths, ct);
+                return await ServeAsync(managed);
+            }
+
             var preferredHeadshot = await assetRepo.GetPreferredAsync(id.ToString(), "Headshot", ct);
-            var preferredHeadshotPath = size?.Trim().ToLowerInvariant() switch
+            var managedResult = await ServeAsync(preferredHeadshot);
+            if (managedResult is not null)
             {
-                "s" => preferredHeadshot?.LocalImagePathSmall ?? preferredHeadshot?.LocalImagePathMedium ?? preferredHeadshot?.LocalImagePath,
-                "m" => preferredHeadshot?.LocalImagePathMedium ?? preferredHeadshot?.LocalImagePathLarge ?? preferredHeadshot?.LocalImagePath,
-                "l" => preferredHeadshot?.LocalImagePathLarge ?? preferredHeadshot?.LocalImagePath,
-                _ => preferredHeadshot?.LocalImagePath,
-            };
-            if (!string.IsNullOrWhiteSpace(preferredHeadshotPath)
-                && File.Exists(preferredHeadshotPath)
-                && IsLikelyImageFile(preferredHeadshotPath))
-            {
-                return Results.File(preferredHeadshotPath, GetImageMimeTypeOrJpeg(preferredHeadshotPath));
+                return managedResult;
             }
 
             // Try local headshot path first.
@@ -352,14 +378,22 @@ public static class PersonEndpoints
                 && File.Exists(person.LocalHeadshotPath)
                 && IsLikelyImageFile(person.LocalHeadshotPath))
             {
-                return Results.File(person.LocalHeadshotPath, GetImageMimeTypeOrJpeg(person.LocalHeadshotPath));
+                var adopted = await AdoptAndServeAsync(person.LocalHeadshotPath);
+                if (adopted is not null)
+                {
+                    return adopted;
+                }
             }
 
             var canonicalPath = assetPaths.GetPersonHeadshotPath(id);
             if (File.Exists(canonicalPath) && IsLikelyImageFile(canonicalPath))
             {
                 await personRepo.UpdateLocalHeadshotPathAsync(id, canonicalPath, ct);
-                return Results.File(canonicalPath, GetImageMimeTypeOrJpeg(canonicalPath));
+                var adopted = await AdoptAndServeAsync(canonicalPath);
+                if (adopted is not null)
+                {
+                    return adopted;
+                }
             }
 
             // No local file — download from Wikimedia and cache locally using AssetPathService.
@@ -381,12 +415,18 @@ public static class PersonEndpoints
                             AssetPathService.EnsureDirectory(localPath);
                             await BoundedHttpContent.WriteFileAtomicallyAsync(localPath, bytes, ct);
                             await personRepo.UpdateLocalHeadshotPathAsync(id, localPath, ct);
-                            return Results.File(bytes, contentType ?? GetImageMimeTypeOrJpeg(localPath), Path.GetFileName(localPath));
+                            var adopted = await AdoptAndServeAsync(localPath);
+                            if (adopted is not null)
+                            {
+                                return adopted;
+                            }
                         }
-
-                        logger.LogDebug(
-                            "Rejected person headshot for {PersonId} ({Name}) because response was not an image. ContentType={ContentType}, Bytes={ByteCount}",
-                            id, person.Name, contentType, bytes.Length);
+                        else
+                        {
+                            logger.LogDebug(
+                                "Rejected person headshot for {PersonId} ({Name}) because response was not an image. ContentType={ContentType}, Bytes={ByteCount}",
+                                id, person.Name, contentType, bytes.Length);
+                        }
                     }
                     else
                     {
@@ -395,9 +435,11 @@ public static class PersonEndpoints
                             id, person.Name, (int)response.StatusCode);
                     }
                 }
-                catch
+                catch (Exception ex) when (ex is HttpRequestException or IOException or UriFormatException or InvalidOperationException
+                                               || ex is TaskCanceledException && !ct.IsCancellationRequested)
                 {
-                    // Download failed — fall through to 404
+                    // The download is best effort; the picture is simply not available yet.
+                    logger.LogDebug(ex, "Person headshot download failed for {PersonId} ({Name}).", id, person.Name);
                 }
             }
 
@@ -671,17 +713,6 @@ public static class PersonEndpoints
             CreatedAt = collection.CreatedAt,
             Works = collection.Works.Where(work => visibleWorkIds.Contains(work.Id)).ToList(),
         };
-
-    /// <summary>
-    /// <see cref="MediaMimeTypes.GetImageMimeType"/> defaults unrecognized extensions to
-    /// <c>application/octet-stream</c>; this call site previously defaulted to
-    /// <c>image/jpeg</c>, so that fallback is preserved here explicitly.
-    /// </summary>
-    private static string GetImageMimeTypeOrJpeg(string path)
-    {
-        var mime = MediaMimeTypes.GetImageMimeType(path);
-        return mime == "application/octet-stream" ? "image/jpeg" : mime;
-    }
 
     private static bool IsLikelyImageFile(string path)
     {

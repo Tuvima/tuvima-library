@@ -16,6 +16,7 @@ public static class AssetFileReferences
     [
         """
         SELECT local_image_path FROM entity_assets WHERE local_image_path IS NOT NULL
+        UNION ALL SELECT local_image_path_t FROM entity_assets WHERE local_image_path_t IS NOT NULL
         UNION ALL SELECT local_image_path_s FROM entity_assets WHERE local_image_path_s IS NOT NULL
         UNION ALL SELECT local_image_path_m FROM entity_assets WHERE local_image_path_m IS NOT NULL
         UNION ALL SELECT local_image_path_l FROM entity_assets WHERE local_image_path_l IS NOT NULL

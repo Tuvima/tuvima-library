@@ -1,10 +1,102 @@
 @namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.Settings
 @using MediaEngine.Contracts.Setup
 @using MediaEngine.Web.Components.Settings
+@inject IEngineApiClient ApiClient
+@inject IAppDialogService DialogService
 
-<div class="setup-stage-content">
-    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">Your media</h2><p>Choose a type of media, then add the folders it lives in. You can skip this and add folders later.</p></div></div>
-    <LibraryFoldersPanel Embedded="true" SetupSession="@SetupSession" Changed="LibraryCreated" />
+@* "What do you have?": tick Watch, Listen, Read or View, then add folders for each ticked group with the same wizard Settings uses.
+   "Change folders" opens the full folder panel (removing, converting, the Import folder) exactly as before. The footer, the step key
+   and the deferral are unchanged. The Vault is never offered here. *@
+<div class="setup-stage-content setup-have">
+    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">What do you have?</h2><p>Tick what you'd like Library to show. You can add more later in Settings.</p></div></div>
+
+    <div class="setup-have__cards" role="group" aria-label="What do you have?">
+        @foreach (var group in Groups)
+        {
+            var ticked = _ticked.Contains(group.Key);
+            <AppNativeButton Type="button"
+                             Class="setup-have__card"
+                             data-group="@group.Key"
+                             aria-pressed="@(ticked ? "true" : "false")"
+                             OnClick="@(_ => Toggle(group))">
+                <span class="@($"setup-have__icon setup-have__icon--{group.Key}")"><AppMaterialIcon Icon="@group.Icon" /></span>
+                <strong>@group.Label</strong>
+                <small>@TypesText(group)</small>
+            </AppNativeButton>
+        }
+    </div>
+
+    @* Shown on phones only (see the stylesheet): folders are read-only there, so the Add folder buttons are hidden. *@
+    @if (!_showPanel)
+    {
+        @* The open folders panel shows its own phone note. *@
+        <p class="setup-have__phone-note">@PhoneNote</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <AppAlert Tone="AppUiTone.Error"><span>@_loadError</span></AppAlert>
+        <div><AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="RetryAsync" /></div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_notice))
+    {
+        <AppAlert Tone="AppUiTone.Warning"><span>@_notice</span></AppAlert>
+    }
+
+    @foreach (var group in Groups.Where(group => _ticked.Contains(group.Key)))
+    {
+        <section class="setup-have__section" data-section="@group.Key" aria-label="@($"{group.Label} folders")">
+            <h3>@group.Label</h3>
+            @if (group.Key == ViewKey)
+            {
+                @* View's folders belong to a profile, so they cannot be added before the first account exists. *@
+                <p class="setup-have__later">You can add photo and personal video folders after setup, in Settings &gt; Libraries &gt; View.</p>
+            }
+            else
+            {
+                @foreach (var type in TypesOf(group))
+                {
+                    var folders = FoldersOf(type);
+                    <div class="setup-have__type" data-type="@type.Key">
+                        <strong>@type.Label</strong>
+                        @if (folders.Count > 0)
+                        {
+                            <ul class="setup-have__folders" aria-label="@($"{type.Label} folders")">
+                                @foreach (var folder in folders)
+                                {
+                                    var managed = folder.ManagementMode == "managed_by_tuvima";
+                                    var handling = managed ? "Managed: Library has full access" : "Read-only: Library never changes these files";
+                                    <li>
+                                        <span class="setup-have__handling" role="img" aria-label="@handling" title="@handling"><AppMaterialIcon Icon="@(managed ? AppMaterialIcons.Filled.Folder : AppMaterialIcons.Filled.Lock)" /></span>
+                                        <span class="setup-have__path" title="@folder.Path">@folder.Path</span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                }
+                <div class="setup-have__add">
+                    <AppButton Label="+ Add folder"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               aria-label="@($"Add folder to {group.Label}")"
+                               Disabled="@(!CanAddFolders)"
+                               OnClick="@(() => AddFolderAsync(group))" />
+                </div>
+            }
+        </section>
+    }
+
+    <div class="setup-have__change">
+        <AppButton Label="@(_showPanel ? "Hide folder list" : "Change folders")" ButtonStyle="AppButtonStyle.Text" aria-expanded="@(_showPanel ? "true" : "false")" OnClick="@(() => _showPanel = !_showPanel)" />
+        @if (_showPanel)
+        {
+            @* Remounted after every wizard add: setup saves replace the whole list, so a panel still holding the old copy would drop the new folder. *@
+            <LibraryFoldersPanel Embedded="true" @key="_panelVersion" SetupSession="@SetupSession" Changed="PanelChangedAsync" />
+        }
+    </div>
+
     @if (HasLibraries && Media is not null)
     {
         <AppAlert Tone="@(Media.Passed ? AppUiTone.Success : AppUiTone.Warning)" Class="setup-media-notice"><span>@Media.Detail</span></AppAlert>
@@ -22,6 +114,8 @@
 </div>
 
 @code {
+    private const string ViewKey = "view";
+
     [Parameter] public bool HasLibraries { get; set; }
     [Parameter] public EventCallback DeferMedia { get; set; }
     [Parameter] public SetupMediaLocationsDto? Media { get; set; }
@@ -32,4 +126,104 @@
     [Parameter] public EventCallback Back { get; set; }
     [Parameter] public bool ShowReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
+
+    private readonly HashSet<string> _ticked = [];
+    private LibrariesConfigurationDto? _configuration;
+    private string? _loadError;
+    private string? _notice;
+    private bool _showPanel;
+    private bool _reloadFailed;
+    private int _panelVersion;
+
+    // Setup saves replace the whole list, so the wizard must never start from a copy that could not be refreshed.
+    private bool CanAddFolders => _configuration is not null && !_reloadFailed;
+
+    // The Vault is never offered in setup.
+    private static IReadOnlyList<LibraryGroup> Groups { get; } = LibraryGroupCatalog.Visible(showVault: false);
+
+    private string PhoneNote => HasLibraries
+        ? "Add folders on a computer or tablet. You can continue and set them up later."
+        : "Add folders on a computer or tablet. You can skip this step and set them up later.";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        var fresh = await ApiClient.GetSetupLibrariesAsync(SetupSession);
+        if (fresh is null)
+        {
+            _reloadFailed = true;
+            _loadError = ApiClient.LastError ?? "Your folders could not be loaded.";
+            return;
+        }
+
+        _configuration = fresh;
+        _loadError = null;
+        _reloadFailed = false;
+        // A group that already has folders (a resume or a reload) shows ticked.
+        foreach (var group in Groups.Where(group => TypesOf(group).Any(type => FoldersOf(type).Count > 0)))
+        {
+            _ticked.Add(group.Key);
+        }
+    }
+
+    private void Toggle(LibraryGroup group)
+    {
+        if (!_ticked.Remove(group.Key)) _ticked.Add(group.Key);
+    }
+
+    private static string TypesText(LibraryGroup group) =>
+        string.Join(", ", group.TypeKeys.Select(LibraryTypeCatalog.Find).OfType<LibraryTypeOption>().Select(type => type.Label));
+
+    // The group's standard types, then any older library in the same area, so none of its folders hides.
+    private IReadOnlyList<LibraryTypeOption> TypesOf(LibraryGroup group) =>
+    [
+        .. group.TypeKeys.Select(LibraryTypeCatalog.Find).OfType<LibraryTypeOption>().Where(type => type.Key != LibraryTypeCatalog.PhotosKey),
+        .. LibraryRollup.OthersIn(_configuration, group),
+    ];
+
+    private IReadOnlyList<LibrarySourceDto> FoldersOf(LibraryTypeOption type) =>
+        LibraryRollup.LibraryFor(_configuration, type)?.Sources ?? [];
+
+    // The wizard opens on the group's kinds in setup mode (the setup calls, no View, no merge), and reports each folder it adds.
+    private async Task AddFolderAsync(LibraryGroup group)
+    {
+        if (!CanAddFolders) return;
+        _notice = null;
+        var parameters = new AppDialogParameters<AddFolderWizard>
+        {
+            { component => component.StartGroupKey, group.Key },
+            { component => component.SetupSession, SetupSession },
+            { component => component.Embedded, true },
+            { component => component.Configuration, _configuration },
+            { component => component.OnFolderAdded, (Func<string?, Task>)FolderAddedAsync },
+        };
+        await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
+    }
+
+    private async Task FolderAddedAsync(string? notice)
+    {
+        await InvokeAsync(async () =>
+        {
+            if (!string.IsNullOrWhiteSpace(notice)) _notice = notice;
+            await LoadAsync();
+            _panelVersion++;
+            StateHasChanged();
+            await LibraryCreated.InvokeAsync();
+        });
+    }
+
+    private async Task RetryAsync()
+    {
+        await LoadAsync();
+        _panelVersion++;
+        await LibraryCreated.InvokeAsync();
+    }
+
+    // Anything changed in the full folder panel (removing, converting, the Import folder) refreshes this list and the footer.
+    private async Task PanelChangedAsync()
+    {
+        await LoadAsync();
+        await LibraryCreated.InvokeAsync();
+    }
 }

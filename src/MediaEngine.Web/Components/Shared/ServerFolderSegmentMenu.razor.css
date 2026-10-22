@@ -1,0 +1,4 @@
+.server-folder-segment-menu {
+    max-height: min(18rem, 40svh);
+    overflow-y: auto;
+}

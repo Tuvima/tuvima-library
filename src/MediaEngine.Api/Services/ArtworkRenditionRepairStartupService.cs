@@ -10,17 +10,20 @@ public sealed class ArtworkRenditionRepairStartupService : BackgroundService
 {
     private readonly IEntityAssetRepository _assetRepository;
     private readonly ICanonicalValueRepository _canonicalRepository;
+    private readonly IPersonRepository _personRepository;
     private readonly AssetPathService _assetPathService;
     private readonly ILogger<ArtworkRenditionRepairStartupService> _logger;
 
     public ArtworkRenditionRepairStartupService(
         IEntityAssetRepository assetRepository,
         ICanonicalValueRepository canonicalRepository,
+        IPersonRepository personRepository,
         AssetPathService assetPathService,
         ILogger<ArtworkRenditionRepairStartupService> logger)
     {
         _assetRepository = assetRepository;
         _canonicalRepository = canonicalRepository;
+        _personRepository = personRepository;
         _assetPathService = assetPathService;
         _logger = logger;
     }
@@ -43,6 +46,7 @@ public sealed class ArtworkRenditionRepairStartupService : BackgroundService
 
     private async Task RepairAsync(CancellationToken ct)
     {
+        var adoptedFaces = await AdoptLegacyFacesAsync(ct);
         var assets = await _assetRepository.GetPreferredArtworkAsync(ct);
         var repairedRenditions = 0;
         var repairedCanonicals = 0;
@@ -57,13 +61,19 @@ public sealed class ArtworkRenditionRepairStartupService : BackgroundService
             }
 
             var repairedAsset = false;
-            if (ArtworkVariantHelper.ShouldGenerateRenditions(asset.AssetTypeValue)
-                && NeedsRenditionRepair(asset)
+            if (NeedsRenditionRepair(asset)
                 && !string.IsNullOrWhiteSpace(asset.LocalImagePath)
-                && File.Exists(asset.LocalImagePath))
+                && File.Exists(asset.LocalImagePath)
+                && ArtworkVariantHelper.EnsureMissingRenditions(asset, _assetPathService))
             {
-                ArtworkVariantHelper.StampMetadataAndRenditions(asset, _assetPathService);
-                await _assetRepository.UpsertAsync(asset, ct);
+                await _assetRepository.UpdateRenditionPathsAsync(
+                    asset.Id,
+                    asset.LocalImagePath,
+                    asset.LocalImagePathTiny,
+                    asset.LocalImagePathSmall,
+                    asset.LocalImagePathMedium,
+                    asset.LocalImagePathLarge,
+                    ct);
                 repairedRenditions++;
                 repairedAsset = true;
             }
@@ -85,22 +95,52 @@ public sealed class ArtworkRenditionRepairStartupService : BackgroundService
             }
         }
 
-        if (repairedRenditions > 0 || repairedCanonicals > 0)
+        if (adoptedFaces > 0 || repairedRenditions > 0 || repairedCanonicals > 0)
         {
             _logger.LogInformation(
-                "Artwork rendition repair completed: {RenditionCount} assets repaired, {CanonicalCount} canonical sets refreshed.",
+                "Artwork rendition repair completed: {FaceCount} faces registered, {RenditionCount} assets repaired, {CanonicalCount} canonical sets refreshed.",
+                adoptedFaces,
                 repairedRenditions,
                 repairedCanonicals);
         }
     }
 
-    private static bool NeedsRenditionRepair(EntityAsset asset) =>
-        string.IsNullOrWhiteSpace(asset.LocalImagePathSmall)
-        || !File.Exists(asset.LocalImagePathSmall)
-        || string.IsNullOrWhiteSpace(asset.LocalImagePathMedium)
-        || !File.Exists(asset.LocalImagePathMedium)
-        || string.IsNullOrWhiteSpace(asset.LocalImagePathLarge)
-        || !File.Exists(asset.LocalImagePathLarge);
+    /// <summary>
+    /// Registers faces saved before faces were managed pictures (a face file with no Headshot asset) so they get
+    /// all their sized copies like any other artwork.
+    /// </summary>
+    private async Task<int> AdoptLegacyFacesAsync(CancellationToken ct)
+    {
+        var adopted = 0;
+        foreach (var person in await _personRepository.GetWithLocalHeadshotWithoutManagedAssetAsync(ct))
+        {
+            ct.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(person.LocalHeadshotPath))
+            {
+                continue;
+            }
+
+            try
+            {
+                var asset = await PersonHeadshotAssets.EnsureManagedAsync(
+                    person.Id, person.LocalHeadshotPath, "wikidata", person.HeadshotUrl, _assetRepository, _assetPathService, ct);
+                if (asset is not null)
+                {
+                    adopted++;
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Could not register the face of person {PersonId} as a managed picture.", person.Id);
+            }
+        }
+
+        return adopted;
+    }
+
+    /// <summary>True when the asset should have copies and at least one of the four (tiny, small, medium, large) is missing.</summary>
+    internal static bool NeedsRenditionRepair(EntityAsset asset) => ArtworkVariantHelper.HasMissingRenditions(asset);
 
     private async Task<bool> HasMissingOrStaleCanonicalAsync(
         Guid entityId,

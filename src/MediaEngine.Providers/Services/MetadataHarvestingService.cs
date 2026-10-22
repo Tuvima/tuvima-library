@@ -1282,6 +1282,8 @@ public sealed class MetadataHarvestingService : BackgroundService, IMetadataHarv
                 _logger.LogDebug("Person {Name}: headshot already exists at {Path} — skipping download", person.Name, headshotPath);
                 await _personRepo.UpdateLocalHeadshotPathAsync(personId, headshotPath, ct)
                     .ConfigureAwait(false);
+                await RegisterManagedHeadshotAsync(personId, headshotPath, headshotUrl, ct)
+                    .ConfigureAwait(false);
                 return;
             }
 
@@ -1329,6 +1331,8 @@ public sealed class MetadataHarvestingService : BackgroundService, IMetadataHarv
 
                     await _personRepo.UpdateLocalHeadshotPathAsync(personId, headshotPath, ct)
                         .ConfigureAwait(false);
+                    await RegisterManagedHeadshotAsync(personId, headshotPath, headshotUrl, ct)
+                        .ConfigureAwait(false);
 
                     _logger.LogInformation("Person {Name}: headshot downloaded to {Path}", person.Name, headshotPath);
                 }
@@ -1350,6 +1354,21 @@ public sealed class MetadataHarvestingService : BackgroundService, IMetadataHarv
                 "Person storage persistence failed for person {Id}; continuing",
                 personId);
         }
+    }
+
+    /// <summary>
+    /// Registers a saved face as a managed Headshot with all its copies, so it is served at the size a screen asks for.
+    /// </summary>
+    private async Task RegisterManagedHeadshotAsync(Guid personId, string headshotPath, string headshotUrl, CancellationToken ct)
+    {
+        if (_entityAssetRepo is null)
+        {
+            return;
+        }
+
+        await PersonHeadshotAssets.EnsureManagedAsync(
+            personId, headshotPath, "wikidata", headshotUrl, _entityAssetRepo, _assetPathService, ct)
+            .ConfigureAwait(false);
     }
 
     /// <summary>Returns the stored display string for optional multi-value presentation.</summary>

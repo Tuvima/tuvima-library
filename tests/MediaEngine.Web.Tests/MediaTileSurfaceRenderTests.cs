@@ -676,7 +676,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var cut = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, group));
 
         Assert.Contains("has-person", cut.Find("article.media-group-tile").ClassList);
-        Assert.Equal($"/persons/{personId:D}/headshot", cut.Find(".media-group-tile__person img").GetAttribute("src"));
+        Assert.Equal($"/persons/{personId:D}/headshot?size=s", cut.Find(".media-group-tile__person img").GetAttribute("src"));
         Assert.Equal("Director • Producer", cut.Find(".media-group-tile__person-context").TextContent.Trim());
         Assert.Equal("Open Person", cut.Find(".media-group-tile__open-cue").TextContent.Trim());
         Assert.Equal($"/details/person/{personId:D}", cut.Find("a.media-group-tile__surface").GetAttribute("href"));

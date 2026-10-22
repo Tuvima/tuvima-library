@@ -32,6 +32,7 @@ internal static class NativeUiTestServices
         services.TryAddScoped<MediaEngine.Web.Services.Vault.IVaultCatalogue, MediaEngine.Web.Services.Vault.PendingVaultCatalogue>();
         services.TryAddScoped<MediaEngine.Web.Services.Vault.IVaultFolderAttachment, MediaEngine.Web.Services.Vault.EngineVaultFolderAttachment>();
         services.TryAddScoped<MediaEngine.Web.Services.Integration.IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
+        services.TryAddScoped<MediaEngine.Web.Components.Settings.LibraryFolderAddService>();
         return services;
     }
 }

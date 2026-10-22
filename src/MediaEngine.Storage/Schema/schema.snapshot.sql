@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0035 one_profile_pin).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0036 one_profile_pin).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -926,7 +926,7 @@ CREATE TABLE entity_assets (
     is_preferred_exported INTEGER NOT NULL DEFAULT 0,
     created_at       TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at       TEXT
-);
+, local_image_path_t TEXT);
 
 CREATE TABLE entity_capability_states (
   id                  BLOB PRIMARY KEY,

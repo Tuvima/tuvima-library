@@ -1,0 +1,14 @@
+.lib-health {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    font-size: 1.35rem;
+}
+
+.lib-health--ok {
+    color: var(--tl-status-success);
+}
+
+.lib-health--warning {
+    color: var(--tl-status-warning);
+}

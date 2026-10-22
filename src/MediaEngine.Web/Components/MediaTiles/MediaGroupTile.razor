@@ -33,7 +33,7 @@
                 <div class="media-group-tile__person" aria-hidden="true">
                     @if (!string.IsNullOrWhiteSpace(Item.Person!.ImageUrl))
                     {
-                        <img src="@Item.Person.ImageUrl" alt="" loading="lazy" decoding="async" />
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(Item.Person.ImageUrl, 148)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Item.Person.ImageUrl, 148)" alt="" loading="lazy" decoding="async" />
                     }
                     else
                     {
@@ -169,9 +169,10 @@
                 Item.BackgroundUrl,
                 Item.HoverImageUrl,
                 Item.TileImageUrl);
+            // A blurred (13px), 28% opacity wash: the small copy is plenty, whatever the tile width.
             var imageVariable = string.IsNullOrWhiteSpace(atmosphere)
                 ? string.Empty
-                : $"--media-group-image: url(\"{EscapeCssString(atmosphere)}\");";
+                : $"--media-group-image: url(\"{EscapeCssString(MediaTileArtworkUrl.ForDrawnSize(atmosphere, 320) ?? atmosphere)}\");";
             return $"{Item.ArtworkPalette?.CssVariableStyle} --media-group-accent: {Item.AccentColor}; --media-group-secondary: {Item.SecondaryAccentColor}; {imageVariable}";
         }
     }

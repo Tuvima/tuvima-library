@@ -7,7 +7,7 @@
     {
         <img class="tl-detail-hero__artwork tl-detail-media-stage__background"
              src="@HeroImageUrl"
-             srcset="@HeroImageSrcSet"
+             srcset="@(HeroImageSrcSet ?? MediaTileArtworkUrl.SrcSetByLongSide(HeroImageCandidate))"
              sizes="100vw"
              alt=""
              aria-hidden="true"
@@ -60,7 +60,7 @@
         <div class="tl-detail-hero-brand">
             @if (!string.IsNullOrWhiteSpace(HeroBrand?.ImageUrl))
             {
-                <img src="@HeroBrand.ImageUrl" alt="@HeroBrand.Label" />
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(HeroBrand.ImageUrl, 200)" alt="@HeroBrand.Label" />
             }
             else
             {

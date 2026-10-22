@@ -778,6 +778,98 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Equal("http://localhost/settings/profiles", navigation.Uri);
     }
 
+    // The Libraries levels are real addresses: a type page (group and type) must not be redirected to the front door or /not-found.
+    [Theory]
+    [InlineData("/settings/libraries/watch/movies", "watch", "movies")]
+    [InlineData("/settings/libraries/watch", "watch", null)]
+    [InlineData("/settings/libraries/import", "import", null)]
+    [InlineData("/settings/libraries/view/photos", "view", "photos")]
+    public async Task SettingsPage_OnALibrariesLevelAddress_StaysOnThatAddress(string address, string subsection, string? detail)
+    {
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo(address);
+
+        var cut = Render<Settings>(parameters =>
+        {
+            parameters.Add(page => page.Section, "libraries").Add(page => page.Subsection, subsection);
+            if (detail is not null)
+            {
+                parameters.Add(page => page.Detail, detail);
+            }
+        });
+        await Task.Delay(1500);
+
+        Assert.Equal($"http://localhost{address}", navigation.Uri);
+        Assert.NotEmpty(cut.FindAll(".libraries"));
+    }
+
+    // The tab title names a Libraries group only when the page shows it: with the private group off, its address never reaches the title.
+    [Theory]
+    [InlineData("watch", null, "Watch - Library")]
+    [InlineData("watch", "movies", "Movies - Watch - Library")]
+    [InlineData("view", null, "View - Library")]
+    [InlineData("view", "photos", "Photos & personal videos - View - Library")]
+    [InlineData("import", null, "Import folder - Library")]
+    [InlineData("vault", null, "Libraries - Library")]
+    public void SettingsPage_OnALibrariesAddress_TitlesTheTabFromTheGroupsThatAreShown(string subsection, string? detail, string expectedTitle)
+    {
+        var cut = RenderLibraries(subsection, detail);
+
+        var title = (string)typeof(Settings).GetProperty("BrowserTitle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cut.Instance)!;
+        Assert.Equal(expectedTitle, title);
+    }
+
+    // The Settings frame carries each Libraries level: one breadcrumb, one title, and no second heading or breadcrumb in the page.
+    [Theory]
+    [InlineData(null, null, "Libraries", "Libraries", true)]
+    [InlineData("watch", null, "Watch", "Libraries|Watch", false)]
+    [InlineData("watch", "movies", "Movies", "Libraries|Watch|Movies", false)]
+    [InlineData("view", "photos", "Photos & personal videos", "Libraries|View|Photos & personal videos", false)]
+    [InlineData("import", null, "Import folder", "Libraries|Import folder", false)]
+    public void SettingsPage_OnALibrariesAddress_ShowsTheLevelInItsFrameBreadcrumbAndTitle(string? subsection, string? detail, string title, string trail, bool hasSubtitle)
+    {
+        var cut = RenderLibraries(subsection, detail);
+
+        var steps = cut.FindAll(".settings-breadcrumbs a, .settings-breadcrumbs span[aria-current]").Select(step => step.TextContent.Trim()).ToArray();
+        var expected = trail.Split('|');
+        Assert.Equal(expected, steps[^expected.Length..]);
+        Assert.Equal(title, cut.Find(".app-page-header__title").TextContent.Trim());
+        Assert.Equal(hasSubtitle, cut.FindAll(".app-page-header p").Count > 0);
+        if (subsection is not null)
+        {
+            Assert.Equal("/settings/libraries", cut.FindAll(".settings-breadcrumbs a").Last(link => link.TextContent.Trim() == "Libraries").GetAttribute("href"));
+        }
+
+        Assert.Empty(cut.FindAll(".libraries nav[aria-label=Breadcrumb]"));
+        // The Import folder panel and View's settings are unchanged panels with headings of their own; every other level has none.
+        if (subsection != "import" && detail != "photos")
+        {
+            Assert.Empty(cut.FindAll(".libraries h1, .libraries h2, .libraries h3"));
+        }
+    }
+
+    private IRenderedComponent<Settings> RenderLibraries(string? subsection, string? detail)
+    {
+        var address = "/settings/libraries" + (subsection is null ? string.Empty : "/" + subsection) + (detail is null ? string.Empty : "/" + detail);
+        Services.GetRequiredService<NavigationManager>().NavigateTo(address);
+
+        var cut = Render<Settings>(parameters =>
+        {
+            parameters.Add(page => page.Section, "libraries");
+            if (subsection is not null)
+            {
+                parameters.Add(page => page.Subsection, subsection);
+            }
+
+            if (detail is not null)
+            {
+                parameters.Add(page => page.Detail, detail);
+            }
+        });
+        cut.WaitForElement(".libraries");
+        return cut;
+    }
+
     [Theory]
     [InlineData("/settings", null)]
     [InlineData("/settings/overview", "overview")]

@@ -1,6 +1,6 @@
 # Spec: Right-sized pictures on every screen
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-21 · **Related docs:** [Product overview](../product/overview.md) · [Design system](../design/design-system.md) · Local check bugs B31, B32, B23
+> **Status:** Built (2026-10-22, awaiting Local checks L1-L4 in [the batch list](../../validation/batch.md)) · **Version:** 1 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../../product/overview.md) · [Design system: Pictures](../../design/design-system.md#pictures) · [Presentation rules: Picture sizes](../../../docs/product/presentation-rules.md#picture-sizes-right-sized-pictures-october-2026) · [Artwork architecture](../../../docs/architecture/artwork.md#picture-sizes-and-browser-keep) · Local check bugs B31, B32, B23
 
 ## 1. Goal
 
@@ -57,7 +57,7 @@ Not yet checked: exact on-screen sizes of each surface, and the actual file size
 | Editor artwork picker previews | 150-300 px | small / medium |
 | Artwork picker "full view" and downloads | full | original |
 
-Sizes are estimates; WP1 replaces them with measured values.
+Sizes are estimates; WP1 replaced them with measured values in section 11.
 
 ## 6. UI behaviour
 
@@ -116,7 +116,7 @@ Sizes are estimates; WP1 replaces them with measured values.
 - **Files likely touched:** `engineering/design/design-system.md`, `docs/product/presentation-rules.md`
 - **Depends on:** WP4
 - **Size:** Mechanical
-- **Done when:** the table is published and linked from the spec.
+- **Done when:** the table is published and linked from the spec (header links: Design system and Presentation rules).
 
 ## 9. Local checks
 
@@ -129,6 +129,61 @@ Sizes are estimates; WP1 replaces them with measured values.
 
 - **Risks:** a stale picture shown after an edit if the change marker is missed (caught by L3); extra disk use for a fourth copy (small: a 96 px file is a few KB per picture); a first-open delay while missing copies are made (D5 shows the next size meanwhile).
 - **Open questions:** none. Q1 to Q3 were settled as D7 to D9 when Shy locked the spec.
+
+## 11. Follow-up notes: WP1 measurements (2026-10-21)
+
+Measured in the cloud from the Dashboard CSS and the Engine code. Byte figures are estimates from generated photo-like test pictures saved the way the Engine saves them (JPEG quality 88), because the cloud cannot reach Shy's library or the provider picture servers; L1 checks real numbers. Shy's own report (B31: about 200 KB per face) matches the estimate for a face original.
+
+**Bytes per copy (estimated)**
+
+| Picture | Original | tiny 96 | small 320 | medium 960 | large 2160 |
+|---|---|---|---|---|---|
+| Face (Wikimedia-like, 1000x1250) | ~250 KB | ~3 KB | ~19 KB | ~118 KB | (original) |
+| Poster (2000x3000) | ~1.2 MB | ~3 KB | ~21 KB | ~130 KB | ~510 KB |
+| Backdrop (3840x2160) | ~1.7 MB | ~3 KB | ~19 KB | ~116 KB | ~480 KB |
+| Square cover (1400x1400) | ~400 KB | ~4 KB | ~24 KB | ~155 KB | (original) |
+
+**Per surface** (drawn size from the component CSS; "today" is what the Dashboard asks for now; the rule is the smallest copy at least the drawn size, at 1x and at 2x screen sharpness)
+
+| Surface | Drawn px | Today | Bytes today (est.) | Request (1x / 2x) | Bytes after (est.) |
+|---|---|---|---|---|---|
+| People list (Collections > People) | 48 (50 under 920 px) | original | ~250 KB | tiny / tiny | ~3 KB |
+| Universe cast list, cast comparison, family tree | 36-48 | original | ~250 KB | tiny / tiny | ~3 KB |
+| Search results faces and covers | ~48-64 | original | 250 KB-1.2 MB | tiny / small | 3-20 KB |
+| Credit card face and character picture (details People tab) | up to 140 square | original | ~250 KB | small / small | ~19 KB |
+| Person details portrait | up to 288 x 432 | original | ~250 KB | small / medium | 19-118 KB |
+| Recently Added / Events rows, Settings ingestion rows | 50 | small | ~20 KB | tiny / small | 3-20 KB |
+| Library table covers, song table, Listen rows and rails | 32-64 | original (raw address) | 0.4-1.2 MB | tiny / small | 3-20 KB |
+| Now playing bar, queue and history rows | 48-64 | small | ~20 KB | tiny / small | 3-20 KB |
+| Home, Watch, Listen, Read tiles and shelves | 128-228 wide | small, medium by browser choice when the size is known | ~20 KB | small / medium (browser choice) | 20-130 KB |
+| Tile hover panel | 320-440 | medium/large by browser choice | 130-500 KB | medium (browser choice) | ~130 KB |
+| Details overlay cover, album and phone hero cover | 250-400 | medium | ~130 KB | medium | ~130 KB |
+| Hero carousel and details backgrounds | full width | medium, large by browser choice when the size is known | 116-480 KB | medium on phone, large on desktop and TV (browser choice) | same, chosen per screen |
+| Full player (phone, popout, desktop) | 220-520 | medium | ~130 KB | medium | ~130 KB |
+| Editor artwork picker preview | up to 640 | large | ~500 KB | medium | ~130 KB |
+| Editor thumbnails (header, match, artwork lists) | 64-128 | small | ~20 KB | tiny / small | 3-20 KB |
+| Artwork picker "full view", downloads | full | original | as is | original (unchanged) | as is |
+
+**Biggest wins**
+
+1. Faces: People list, cast lists, search and credit cards download the full original (about 250 KB) for a 36-140 px circle. Tiny or small copies cut that by 90-99%, and the People list goes from about 50 MB to under 1 MB for 200 people.
+2. About 40 places on Listen, library tables, search, Universe and Settings put the Engine address on screen with no size at all, so they get the original too.
+3. Browser keep: the Engine sends "keep for 1 day, shared" on stored artwork and nothing on faces, character pictures and the editor's artwork; nothing tells the browser when a picture changed, so an edited cover can show the old picture for up to a day.
+4. Several surfaces already build a "pick the best size" list that the browser never sees, because it is only made when the picture's own size is known. Fixed-size places switch to "1x / 2x" lists, which need no picture size.
+
+## 12. Build notes: defaults picked where the spec left a choice (2026-10-21)
+
+Recorded by the building session. None changes what the person sees; each is the safer or simpler option.
+
+- **B1. Where the tiny copy lives.** Stored like the other three: one more file per picture and one more column on the artwork record (data store upgrade step 0029). Logos still get no copies, so they keep their exact shape.
+- **B2. A missing copy.** If a bigger copy exists, that one is sent at once and the missing one is made in the background (D5). If only the original exists (old faces, older libraries), the copies are made on the spot, a few pictures at a time, before answering, because sending the original is exactly what this work removes. Making a face's copies takes a fraction of a second, once.
+- **B3. Faces.** Every saved face becomes a normal managed picture with all four copies, wherever it came from (provider, Wikidata, the old direct download or an upload). Existing faces are adopted at the next Engine start (the D8 catch-up) or the first time they are shown.
+- **B4. Character pictures** (the picture next to an actor's role) get their copies made the first time each size is asked for and kept beside the managed files; they have no artwork record, so no data store change.
+- **B5. Keep rules.** Pictures are kept only by the viewer's own browser, never by a shared cache (they belong to signed-in people). A picture is kept for a year without asking only when its address carries the change marker that matches the picture now on disk and the exact size asked for was sent. Everything else is kept but checked on each use, which costs a tiny "not changed" answer and no picture bytes. Faces are always checked on each use (independent review, 2026-10-21): their address belongs to the person, and an uploaded or newly picked face does not always change it, so a year-long keep could show an old face. The "no picture" stand-in is never kept, so the real picture appears as soon as it exists. Before this work the Engine let any cache keep artwork for a day, so an edited cover could look unchanged for up to a day.
+- **B6. Change marker.** A short code made from the original file's size and last-changed time, not from the data store's clock, because some refresh paths overwrite a picture file in place. The plain address without a size keeps no marker, because other parts of the Engine compare it as the picture's identity; screens always draw a sized address.
+- **B7. Editor artwork library** (the administrator's picture store in the editor) answers a tiny request with its small copy; it has no tiny copy of its own.
+- **B8. Screens.** Fixed-size pictures (faces, rows, thumbnails) ask for one copy and offer the next copy up to sharper screens (a 1x/2x/3x list). Screen-wide pictures (heroes, backgrounds) let the browser choose between medium and large by screen width (D2).
+- **B9. Not yet marked.** About fifteen picture addresses are built by Engine lookups that know only the picture's id, not its file; they work and are re-checked on each use (no bytes when unchanged), but are not kept for a year. Adding the marker there means reading the file path in those lookups; listed as a follow-up.
 
 ## Plain English summary
 

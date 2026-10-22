@@ -174,7 +174,7 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("(\"TV\", \"season\")", code, StringComparison.Ordinal);
         Assert.Contains("\"SeasonPoster\"", scopeService, StringComparison.Ordinal);
         Assert.Contains("\"SeasonThumb\"", scopeService, StringComparison.Ordinal);
-        Assert.Contains("GetArtworkThumbnailUrl", shell, StringComparison.Ordinal);
+        Assert.Contains("MediaTileArtworkUrl.ForDrawnSize", shell, StringComparison.Ordinal);
         Assert.Contains("MediaTileArtworkUrl.Sized", code, StringComparison.Ordinal);
     }
 

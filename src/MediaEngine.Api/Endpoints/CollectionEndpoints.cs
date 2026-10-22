@@ -795,10 +795,10 @@ public static class CollectionEndpoints
                 if (person is not null)
                 {
                     artistPersonId = person.Id;
-                    if (!string.IsNullOrEmpty(person.LocalHeadshotPath) || !string.IsNullOrEmpty(person.HeadshotUrl))
-                    {
-                        artistPhotoUrl = $"/persons/{person.Id}/headshot";
-                    }
+                    artistPhotoUrl = ApiImageUrls.BuildPersonHeadshotUrl(
+                        person.Id,
+                        person.LocalHeadshotPath,
+                        person.HeadshotUrl);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

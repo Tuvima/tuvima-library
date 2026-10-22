@@ -27,12 +27,12 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP3b, U-WP4 to U-WP8, U-WP9 part 1, U-WP10 to U-WP12 built 2026-10-20, and U-WP9 part 2, U-WP13 (Dashboard) and U-WP14 built 2026-10-21, awaiting Local checks; rest in the [2026-10-20 Universes handoff](handoffs/2026-10-20-universe-remaining.md)) |
 | [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | In progress (v2): Waves 1–5 merged; WP8 left, see the 2026-10-21 handoff |
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | In progress (v30, 2026-10-21; Waves 1 and 2 built, the Vault is next; v30 adds D51 to D54: Vault mode wording, one profile PIN, library-setup effects, admin-managed access) |
-| [Spec: Right-sized pictures on every screen](specs/right-sized-pictures.md) | Locked (v1, 2026-10-21) |
 | [Spec: Delete a show, season, album or Series, and the Recycle bin](specs/delete-groups.md) | Locked (v7, 2026-10-21) |
 | [Spec: Safer deleting in View](specs/safer-deleting-in-view.md) | Locked (v2, 2026-10-21) |
-| [Spec: Simpler library setup (Watch, Listen, Read, View, Vault)](specs/library-setup-groups.md) | In progress (v21; WP11 large upload spike done 2026-10-21, awaiting its real-network Local check; WP1 to WP3 wait for the Libraries local-check fixes) |
+| [Spec: Simpler library setup (Watch, Listen, Read, View, Vault)](specs/library-setup-groups.md) | In progress (v21; WP11, WP1 to WP5 merged 2026-10-21/22; WP7 and WP8 wait on Shy's decisions, WP6 on the Videos Vault wave, WP9, WP12 and WP10 after them) |
 | [Spec: Encrypted plugin and integration keys](specs/encrypted-plugin-keys.md) | Locked (v1, 2026-10-21; EK1 and EK3 before plugin install WP19, EK2 with backup passphrase WP25) |
 | [Spec: Backup and restore (settings and personal state)](specs/backup-and-restore.md) | In progress (v2, 2026-10-21; [handoff](handoffs/2026-10-21-backup-and-restore.md); WP1 and WP2 building; WP3 waits for the bookmark pack matcher in Videos Wave 3, #374) |
+| [Spec: Right-sized pictures on every screen](specs/archive/right-sized-pictures.md) | Built (v1, archived 2026-10-22; awaiting Local checks L1-L4; follow-up in its section 12, B9) |
 | [Spec: Person credits and series search without the whole-library credit list](specs/archive/person-credits-and-series-search-speed.md) | Built (v2, archived 2026-10-21; follow-ups R1 and R2 in its section 8) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: The live ingestion page and when items appear](specs/archive/ingestion-and-readiness.md) | Built (v4, archived 2026-10-20; bug 13 still needs the log line from that moment) |

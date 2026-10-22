@@ -1142,6 +1142,7 @@ public sealed partial class RetailMatchWorker
         foreach (var path in new[]
                  {
                      asset.LocalImagePath,
+                     asset.LocalImagePathTiny,
                      asset.LocalImagePathSmall,
                      asset.LocalImagePathMedium,
                      asset.LocalImagePathLarge,

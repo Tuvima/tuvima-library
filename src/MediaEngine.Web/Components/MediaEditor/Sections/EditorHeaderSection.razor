@@ -20,7 +20,7 @@
                     }
                     else if (!string.IsNullOrWhiteSpace(StaticHeaderCoverUrl))
                     {
-                        <img src="@SmallEditorArtworkUrl(StaticHeaderCoverUrl)" srcset="@EditorArtworkSrcSet(StaticHeaderCoverUrl)" sizes="@StaticHeaderArtworkSizes" alt="" class="sme-cover-image" />
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(StaticHeaderCoverUrl, StaticHeaderArtworkPx)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(StaticHeaderCoverUrl, StaticHeaderArtworkPx)" alt="" class="sme-cover-image" />
                     }
                     else
                     {
@@ -173,8 +173,6 @@
             </div>
 
 @code {
-    [Parameter] public Func<string?, string?> SmallEditorArtworkUrl { get; set; } = default!;
-    [Parameter] public Func<string?, string?> EditorArtworkSrcSet { get; set; } = default!;
     [Parameter] public Func<MediaEngine.Contracts.Metadata.MediaEditorIdentitySummaryDto, string?> StaticHeaderProviderUrl { get; set; } = default!;
     [Parameter] public Func<string?, string> HeaderProviderDisplayName { get; set; } = default!;
     [Parameter] public Func<string?, string> HeaderProviderIcon { get; set; } = default!;
@@ -186,7 +184,7 @@
     [Parameter] public string? StaticHeaderSubtitle { get; set; } = default!;
     [Parameter] public string StaticHeaderArtworkShapeClass { get; set; } = default!;
     [Parameter] public string? StaticHeaderCoverUrl { get; set; } = default!;
-    [Parameter] public string StaticHeaderArtworkSizes { get; set; } = default!;
+    [Parameter] public int StaticHeaderArtworkPx { get; set; }
     [Parameter] public string StaticHeaderKind { get; set; } = default!;
     [Parameter] public string? StaticHeaderYear { get; set; } = default!;
     [Parameter] public string? StaticHeaderRuntime { get; set; } = default!;

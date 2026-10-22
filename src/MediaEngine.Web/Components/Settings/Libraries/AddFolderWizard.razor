@@ -1,0 +1,469 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Ui
+@inject LibraryFolderAddService AddService
+@inject NavigationManager Navigation
+
+@* Adding a folder, in up to three steps: what is it, which folder, how should Library treat it. Nothing is created until
+   "Add folder" on the last step. A level that already knows the type (its own page) starts at the folder step. *@
+<AppDialogShell Title="Add folder" Size="Large" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="add-wizard">
+            @if (_step != WizardStep.Done)
+            {
+                <div class="add-wizard__steps" role="list" aria-label="Steps">
+                    @foreach (var (label, index) in StepLabels.Select((label, index) => (label, index)))
+                    {
+                        if (index > 0)
+                        {
+                            <span class="add-wizard__sep" aria-hidden="true"> &middot; </span>
+                        }
+                        <span role="listitem" class="@(index == CurrentStepIndex ? "add-wizard__step is-current" : "add-wizard__step")" aria-current="@(index == CurrentStepIndex ? "step" : null)">@(index + 1) @label</span>
+                    }
+                </div>
+            }
+
+            @if (_step == WizardStep.Kind)
+            {
+                <div class="add-wizard__tiles" role="group" aria-label="What is it?">
+                    @foreach (var group in OfferedGroups)
+                    {
+                        <AppNativeButton Type="button"
+                                         Class="@($"add-wizard__tile add-wizard__tile--{group.Key}{(group.Key == _groupKey ? " is-selected" : string.Empty)}")"
+                                         data-group="@group.Key"
+                                         aria-pressed="@(group.Key == _groupKey ? "true" : "false")"
+                                         OnClick="@(_ => ChooseGroup(group))">
+                            <span class="add-wizard__tile-icon"><AppMaterialIcon Icon="@group.Icon" /></span>
+                            <strong>@group.Label</strong>
+                        </AppNativeButton>
+                    }
+                </div>
+
+                @if (CurrentGroup is { } shown)
+                {
+                    <div class="add-wizard__kinds" role="group" aria-label="@($"{shown.Label} kinds")">
+                        @foreach (var kind in KindsOf(shown))
+                        {
+                            <div class="add-wizard__kind">
+                                <AppNativeButton Type="button"
+                                                 Class="@($"add-wizard__kind-option{(kind.Key == _type?.Key ? " is-selected" : string.Empty)}")"
+                                                 data-type="@kind.Key"
+                                                 OnClick="@(_ => ChooseKind(kind))">
+                                    <AppMaterialIcon Icon="@kind.Icon" />
+                                    <strong>@kind.Label</strong>
+                                </AppNativeButton>
+                                <AppTooltip Text="@TipFor(kind)" Placement="AppPlacement.Top">
+                                    <span class="add-wizard__info" role="img" tabindex="0" aria-label="@($"About {kind.Label}: {TipFor(kind)}")" data-info-for="@kind.Key"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
+                                </AppTooltip>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+            else if (_step == WizardStep.Folder && _type is not null)
+            {
+                <p class="add-wizard__lead">Choose the folder on the Library server that holds your @_type.PluralLabel.</p>
+                <ServerFolderPicker Inline="true"
+                                    ConfirmLabel="Next"
+                                    SelectionMode="@ServerFolderSelectionModes.ExistingLibrary"
+                                    MediaType="@_type.MediaTypes.FirstOrDefault()"
+                                    SetupSession="@SetupSession"
+                                    InitialPath="@_initialPath"
+                                    OnConfirmed="OnFolderConfirmed" />
+                @if (_footagePending && LooksLikeFootage)
+                {
+                    <div class="add-wizard__hint" role="note">
+                        @* First-run setup never leaves setup for View's settings, so it only says where View is set up. *@
+                        <span>@(Embedded ? "This looks like phone or camera footage. Personal videos belong in View; you can set View up later in Settings > Libraries > View." : "This looks like phone or camera footage. Personal videos belong in View.")</span>
+                        <div class="add-wizard__hint-actions">
+                            @if (!Embedded)
+                            {
+                                <AppButton Label="Add to View instead" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => HandOffToView(_folder?.Path))" />
+                            }
+                            <AppButton Label="Continue anyway" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => GoTo(WizardStep.How))" />
+                        </div>
+                    </div>
+                }
+            }
+            else if (_step == WizardStep.How && _type is not null && _folder is not null)
+            {
+                <p class="add-wizard__lead"><code class="add-wizard__path" title="@_folder.Path">@_folder.Path</code></p>
+                @if (_folder.ContainsFiles)
+                {
+                    <h3 class="add-wizard__question" id="add-wizard-how">How should Library treat it?</h3>
+                    <div class="add-wizard__options" role="radiogroup" aria-labelledby="add-wizard-how">
+                        @Option(AddFolderHandling.ReadOnly, AppMaterialIcons.Outlined.Visibility, "Read-only (recommended)", ReadOnlyTip, false)
+                        @if (CanMerge)
+                        {
+                            @Option(AddFolderHandling.Merge, AppMaterialIcons.Outlined.Folder, $"Merge into your managed {_type.Label} folder", MergeTip, false)
+                        }
+                        @Option(AddFolderHandling.Managed, AppMaterialIcons.Outlined.Folder, "Let Library manage it", ManagedTip, true)
+                    </div>
+                }
+                else
+                {
+                    <h3 class="add-wizard__question" id="add-wizard-how">Should new media go here?</h3>
+                    <div class="add-wizard__options" role="radiogroup" aria-labelledby="add-wizard-how">
+                        @YesNoOption(true, "Yes", "New " + _type.PluralLabel + " that Library adds are filed in this folder.")
+                        @YesNoOption(false, "No", "This folder is managed, but new media keeps going where it goes now.")
+                    </div>
+                }
+
+                @if (IsVideos)
+                {
+                    <AppSwitchRow Label="Look up YouTube videos online"
+                                  Description="Only for videos named with a YouTube ID. This contacts YouTube and sends just that ID, never your files. You can change it later."
+                                  Value="_youtubeLookup"
+                                  Disabled="@_saving"
+                                  ValueChanged="@((bool value) => _youtubeLookup = value)" />
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+                }
+            }
+            else if (_step == WizardStep.Done && _type is not null)
+            {
+                <div class="add-wizard__done" role="status">
+                    <span class="add-wizard__done-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /></span>
+                    <h3>Folder added to @_type.Label</h3>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_notice))
+                {
+                    <AppAlert Tone="AppUiTone.Warning">@_notice</AppAlert>
+                }
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppActionBar Align="AppHorizontalAlignment.End">
+            @if (_step == WizardStep.Done)
+            {
+                <AppButton Label="Close" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+                <AppButton Label="Add another" ButtonStyle="AppButtonStyle.Outlined" OnClick="AddAnother" />
+                @if (!Embedded && GoToAddress is not null)
+                {
+                    <AppButton Label="@($"Go to {_type!.Label}")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="GoToType" />
+                }
+            }
+            else
+            {
+                <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="@(() => Dialog.Cancel())" />
+                @if (CanGoBack)
+                {
+                    <AppButton Label="Back" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="Back" />
+                }
+                @if (_step == WizardStep.How)
+                {
+                    <AppButton Label="Add folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@_saving" OnClick="AddAsync" />
+                }
+            }
+        </AppActionBar>
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    private enum WizardStep { Kind, Folder, How, Done }
+
+    private const string ReadOnlyTip = "Library reads the files and never changes them. Best for folders other apps also use.";
+    private const string MergeTip = "Library moves these files into your managed folder, renamed and tagged.";
+    private const string ManagedTip = "Library renames, moves and tags the files here. Other apps that use this folder may stop finding them.";
+
+    // What belongs in each kind (the (i) beside its card); no second line of text on the card itself.
+    private static readonly IReadOnlyDictionary<string, string> KindTips = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["movies"] = "Feature films, one file or folder per film.",
+        ["tv"] = "Series with seasons and episodes, one folder per show.",
+        ["videos"] = "Courses, talks and downloads. YouTube lookup can be switched on in the last step.",
+        ["music"] = "Albums and songs, tagged or in artist and album folders.",
+        ["audiobooks"] = "Spoken books, one file or folder per book.",
+        ["books"] = "EPUB and PDF books.",
+        ["comics"] = "CBZ and CBR comics and manga.",
+        [LibraryTypeCatalog.PhotosKey] = "Photos and phone or camera videos. View sorts them by date and place.",
+    };
+
+    /// <summary>The centred dialog every host opens the wizard with (a centred dialog on tablets too).</summary>
+    public static AppDialogOptions DialogOptions { get; } = new()
+    {
+        MaxWidth = AppMaxWidth.Medium,
+        FullWidth = true,
+        CloseButton = false,
+        NoHeader = true,
+        CloseOnEscapeKey = true,
+    };
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+    /// <summary>Opens with this group's tile chosen (a group page); null on the front door.</summary>
+    [Parameter] public string? StartGroupKey { get; set; }
+    /// <summary>Opens at the folder step for this type (a type page); step 1 is skipped.</summary>
+    [Parameter] public string? StartTypeKey { get; set; }
+    /// <summary>The first-run setup session; the setup calls are used instead of the signed-in ones.</summary>
+    [Parameter] public string? SetupSession { get; set; }
+    /// <summary>True in the first-run setup, which has no files to merge and no signed-in session.</summary>
+    [Parameter] public bool Embedded { get; set; }
+    /// <summary>Offers the Vault tile. False until Vault mode exists.</summary>
+    [Parameter] public bool ShowVault { get; set; }
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    /// <summary>Called after each folder is added (and its Convert or Merge question answered), with a notice to keep on screen or null.</summary>
+    [Parameter] public Func<string?, Task>? OnFolderAdded { get; set; }
+
+    private WizardStep _step = WizardStep.Kind;
+    private bool _typeKnown;
+    private string? _groupKey;
+    private LibraryTypeOption? _type;
+    private ServerFolderValidationResultDto? _folder;
+    private AddFolderHandling _handling = AddFolderHandling.ReadOnly;
+    private bool _markNewMediaHere = true;
+    private bool _youtubeLookup = true;
+    private bool _footagePending;
+    // Where the embedded picker opens: the folder already chosen when coming Back from step 3.
+    private string? _initialPath;
+    private bool _saving;
+    private string? _error;
+    private string? _notice;
+    private LibrariesConfigurationDto _configuration = default!;
+
+    // First-run setup has no way into View's settings, so View is not offered there.
+    private IEnumerable<LibraryGroup> OfferedGroups => LibraryGroupCatalog.Visible(ShowVault).Where(group => !Embedded || group.Key != "view");
+
+    private FolderAddScope Scope => new(Embedded, SetupSession);
+    private bool IsVideos => _type?.MediaTypes.Contains("Videos", StringComparer.OrdinalIgnoreCase) == true;
+    private LibraryGroup? CurrentGroup => OfferedGroups.FirstOrDefault(group => group.Key == _groupKey);
+    private bool InWatch => LibraryGroupCatalog.GroupFor(_type?.Key)?.Key == "watch";
+    private bool LooksLikeFootage => InWatch && _folder is { LooksLikePhoneFootage: true };
+    private bool CanGoBack => _step == WizardStep.How || (_step == WizardStep.Folder && !_typeKnown);
+    private LibraryFolderDto? TypeLibrary => _type is null ? null : LibraryRollup.LibraryFor(_configuration, _type);
+    private bool CanMerge => !Embedded && _folder?.ContainsFiles == true && TypeLibrary?.Sources.Any(source => source.ManagementMode == "managed_by_tuvima") == true;
+
+    // "1 What is it? · 2 Folder · 3 How", or "1 Folder · 2 How" when the type is already known.
+    private IReadOnlyList<string> StepLabels => _typeKnown ? ["Folder", "How"] : ["What is it?", "Folder", "How"];
+    private int CurrentStepIndex => (_step switch { WizardStep.Kind => 0, WizardStep.Folder => 1, _ => 2 }) - (_typeKnown ? 1 : 0);
+
+    protected override void OnInitialized()
+    {
+        _configuration = Configuration;
+        var known = LibraryFolderAddService.ResolveType(_configuration, StartTypeKey);
+        // View's folders cannot be added in setup, so a View type there starts at step 1 like no type at all.
+        if (Embedded && known is not null && LibraryGroupCatalog.GroupFor(known.Key)?.Key == "view") known = null;
+        if (known is not null)
+        {
+            _typeKnown = true;
+            _type = known;
+            _groupKey = LibraryGroupCatalog.GroupFor(known.Key)?.Key ?? LibraryGroupCatalog.ForArea(known.Area)?.Key;
+            _step = WizardStep.Folder;
+            ResetYoutubeDefault();
+        }
+        else
+        {
+            // Only a group the wizard offers can start it, so setup can never open on View (and so never hand off to it).
+            _groupKey = OfferedGroups.FirstOrDefault(group => string.Equals(group.Key, StartGroupKey?.Trim(), StringComparison.OrdinalIgnoreCase))?.Key;
+        }
+    }
+
+    private static IEnumerable<LibraryTypeOption> KindsOf(LibraryGroup group) =>
+        group.TypeKeys.Select(LibraryTypeCatalog.Find).OfType<LibraryTypeOption>();
+
+    private static string TipFor(LibraryTypeOption kind) => KindTips.TryGetValue(kind.Key, out var tip) ? tip : string.Empty;
+
+    private void ChooseGroup(LibraryGroup group)
+    {
+        if (_groupKey == group.Key) return;
+        _groupKey = group.Key;
+        _type = null;
+    }
+
+    private void ChooseKind(LibraryTypeOption kind)
+    {
+        // View keeps its folders in its own place, so choosing it hands over to View's add form; nothing is created here.
+        if (LibraryGroupCatalog.GroupFor(kind.Key)?.Key == "view")
+        {
+            HandOffToView(null);
+            return;
+        }
+
+        if (_type?.Key != kind.Key) _folder = null;
+        _type = kind;
+        ResetYoutubeDefault();
+        GoTo(WizardStep.Folder);
+    }
+
+    private void ResetYoutubeDefault() => _youtubeLookup = TypeLibrary?.YoutubeLookup ?? true;
+
+    private void GoTo(WizardStep step)
+    {
+        _error = null;
+        _footagePending = false;
+        _initialPath = step == WizardStep.Folder ? _folder?.Path : null;
+        if (step == WizardStep.How)
+        {
+            // A folder with files is read-only until the person says otherwise; an empty one is managed, and asks only about new media.
+            _handling = AddFolderHandling.ReadOnly;
+            _markNewMediaHere = true;
+        }
+
+        _step = step;
+    }
+
+    private void Back() => GoTo(_step == WizardStep.How ? WizardStep.Folder : WizardStep.Kind);
+
+    // Step 2 embeds the shared folder picker; its Next button confirms the folder. Phone or camera footage in a Watch kind
+    // pauses here with a hint before moving on.
+    private void OnFolderConfirmed(ServerFolderValidationResultDto selected)
+    {
+        _folder = selected;
+        _error = null;
+        if (InWatch && selected.LooksLikePhoneFootage)
+        {
+            _footagePending = true;
+            return;
+        }
+
+        GoTo(WizardStep.How);
+    }
+
+    // View's own add form takes over (its address reads ?add=folder); nothing has been saved by the wizard.
+    private void HandOffToView(string? path)
+    {
+        var address = $"{LibraryGroupCatalog.TypeAddress(LibraryGroupCatalog.TryGetGroup("view")!, LibraryTypeCatalog.PhotosKey)}?add=folder";
+        if (!string.IsNullOrWhiteSpace(path)) address += $"&path={Uri.EscapeDataString(path)}";
+        Dialog.Cancel();
+        Navigation.NavigateTo(address);
+    }
+
+    private async Task AddAsync()
+    {
+        if (_saving || _type is null || _folder is null) return;
+        _saving = true;
+        _error = null;
+        try
+        {
+            var withFiles = _folder.ContainsFiles;
+            var plan = new AddFolderPlan(
+                _type.Key,
+                _folder,
+                withFiles ? _handling : AddFolderHandling.Managed,
+                IsVideos ? _youtubeLookup : null,
+                MarkNewMediaHere: !withFiles && _markNewMediaHere);
+            var result = await AddService.AddAsync(plan, _configuration, Scope);
+            if (!result.Saved)
+            {
+                _error = result.Error;
+                return;
+            }
+
+            _configuration = result.Configuration!;
+            _notice = result.Notice;
+            await FollowUpAsync(plan, result);
+            _step = WizardStep.Done;
+            if (OnFolderAdded is not null) await OnFolderAdded(_notice);
+        }
+        finally { _saving = false; }
+    }
+
+    // The same questions the panel always asked after adding: organise a managed folder's existing files, or choose where a merged one goes.
+    private async Task FollowUpAsync(AddFolderPlan plan, AddFolderResult result)
+    {
+        var library = _type is null ? null : LibraryRollup.LibraryFor(_configuration, _type);
+        var added = library?.Sources.FirstOrDefault(item => item.Id == result.Source?.Id) ?? result.Source;
+        if (library is null || added is null) return;
+
+        FolderFollowUp? followUp = null;
+        if (result.Managed && plan.Folder.ContainsFiles)
+        {
+            // The files already in it are not touched until the person says so.
+            followUp = await AddService.OfferOrganiseAsync(Scope, added, alreadyManaged: true, quiet: true);
+        }
+        else if (plan.Handling == AddFolderHandling.Merge)
+        {
+            // The folder is now part of the library as read-only; the sheet asks where its files should go.
+            followUp = await AddService.MergeIntoAsync(Scope, library, added);
+        }
+
+        if (followUp?.Notice is not null) _notice = followUp.Notice;
+    }
+
+    private void AddAnother()
+    {
+        _folder = null;
+        _initialPath = null;
+        _footagePending = false;
+        _error = null;
+        _notice = null;
+        _handling = AddFolderHandling.ReadOnly;
+        _markNewMediaHere = true;
+        if (_typeKnown)
+        {
+            _step = WizardStep.Folder;
+            return;
+        }
+
+        _type = null;
+        _step = WizardStep.Kind;
+    }
+
+    private string? GoToAddress
+    {
+        get
+        {
+            if (_type is null) return null;
+            var group = LibraryGroupCatalog.GroupFor(_type.Key) ?? LibraryGroupCatalog.ForArea(_type.Area);
+            return group is not null
+                ? LibraryGroupCatalog.TypeAddress(group, _type.Key)
+                : $"/settings/libraries/other/{_type.Key}";
+        }
+    }
+
+    private void GoToType()
+    {
+        if (GoToAddress is not { } address) return;
+        Dialog.Cancel();
+        Navigation.NavigateTo(address);
+    }
+
+    // One radio card for a way of using a folder that has files: the choice, an (i) with what it does, and for Managed a warning icon that shows without hovering.
+    private RenderFragment Option(AddFolderHandling handling, string icon, string title, string tip, bool warning) => __builder =>
+    {
+        var selected = _handling == handling;
+        <div class="add-wizard__option">
+            <AppNativeButton Type="button"
+                             role="radio"
+                             Class="@(selected ? "add-wizard__choice is-selected" : "add-wizard__choice")"
+                             data-handling="@handling.ToString().ToLowerInvariant()"
+                             aria-checked="@(selected ? "true" : "false")"
+                             Disabled="@_saving"
+                             OnClick="@(_ => _handling = handling)">
+                <AppMaterialIcon Icon="@icon" />
+                <strong>@title</strong>
+                @if (warning)
+                {
+                    <span class="add-wizard__warning" role="img" aria-label="Warning"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" /></span>
+                }
+            </AppNativeButton>
+            <AppTooltip Text="@tip" Placement="AppPlacement.Top">
+                <span class="add-wizard__info" role="img" tabindex="0" aria-label="@($"About {title}: {tip}")"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
+            </AppTooltip>
+        </div>
+    };
+
+    // The empty-folder question: Yes files new media here, No keeps it managed without the marker.
+    private RenderFragment YesNoOption(bool yes, string title, string tip) => __builder =>
+    {
+        var selected = _markNewMediaHere == yes;
+        <div class="add-wizard__option">
+            <AppNativeButton Type="button"
+                             role="radio"
+                             Class="@(selected ? "add-wizard__choice is-selected" : "add-wizard__choice")"
+                             data-answer="@(yes ? "yes" : "no")"
+                             aria-checked="@(selected ? "true" : "false")"
+                             Disabled="@_saving"
+                             OnClick="@(_ => _markNewMediaHere = yes)">
+                <strong>@title</strong>
+            </AppNativeButton>
+            <AppTooltip Text="@tip" Placement="AppPlacement.Top">
+                <span class="add-wizard__info" role="img" tabindex="0" aria-label="@($"About {title}: {tip}")"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
+            </AppTooltip>
+        </div>
+    };
+}

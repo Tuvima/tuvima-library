@@ -77,7 +77,7 @@
                             <span class="tl-detail-primary-module__art">
                                 @if (!string.IsNullOrWhiteSpace(item.ArtworkUrl))
                                 {
-                                    <img src="@item.ArtworkUrl" alt="" loading="lazy" decoding="async" />
+                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(item.ArtworkUrl, RailDrawnPx(item))" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(item.ArtworkUrl, RailDrawnPx(item))" alt="" loading="lazy" decoding="async" />
                                 }
                                 else
                                 {
@@ -235,6 +235,10 @@
 
     private string RoleFilterClass(string key)
         => $"tl-detail-primary-module__role-filter{(string.Equals(_selectedRole, key, StringComparison.OrdinalIgnoreCase) ? " is-active" : string.Empty)}";
+
+    // Drawn up to 300px tall for a portrait or square item and 432px wide for an episode (DetailPrimaryModule.razor.css).
+    private int RailDrawnPx(MediaGroupingItemViewModel item)
+        => ArtworkShape(item.EntityType) == "wide" ? 432 : 300;
 
     private string ItemClass(MediaGroupingItemViewModel item)
         => $"tl-detail-primary-module__item tl-detail-primary-module__item--{ArtworkShape(item.EntityType)}";

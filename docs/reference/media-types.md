@@ -32,8 +32,8 @@ Provider stages are strict: Stage 1 provider metadata uses active configured pro
 ## Videos (home videos, clips and courses)
 
 **Library type:** Videos, in Watch. It is for files that are not films or TV shows: phone and camera footage, downloaded
-YouTube videos, lectures and courses. When you add a folder, Tuvima asks whether it is **Videos (Watch)** or **Photos and
-videos (View)**; a folder of untouched phone footage is suggested for View.
+YouTube videos, lectures and courses. You add it by choosing Watch and then Videos in the Add folder dialog;
+phone and home footage belongs under View, and a folder of untouched phone footage is offered a switch to View.
 
 ### Supported formats
 

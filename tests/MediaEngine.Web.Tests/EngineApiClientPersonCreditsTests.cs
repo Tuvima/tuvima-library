@@ -177,6 +177,52 @@ public sealed class EngineApiClientPersonCreditsTests
             alias.HeadshotUrl);
     }
 
+    [Fact]
+    public async Task GetPersonsAsync_KeepsTheEngineFaceAddressWithItsChangeMarker()
+    {
+        const string json = """
+            {
+              "items": [
+                {
+                  "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                  "name": "Kept Face",
+                  "roles": ["Actor"],
+                  "headshot_url": "/persons/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/headshot?v=0123456789",
+                  "has_local_headshot": true,
+                  "is_pseudonym": false,
+                  "is_group": false
+                },
+                {
+                  "id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+                  "name": "Provider Face",
+                  "roles": ["Actor"],
+                  "headshot_url": "https://upload.wikimedia.org/face.jpg",
+                  "has_local_headshot": false,
+                  "is_pseudonym": false,
+                  "is_group": false
+                }
+              ],
+              "offset": 0,
+              "limit": 200,
+              "has_more": false
+            }
+            """;
+
+        using var httpClient = CreateHttpClient(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json"),
+            });
+
+        var client = new EngineApiClient(httpClient, NullLogger<EngineApiClient>.Instance);
+
+        var people = await client.GetPersonsAsync();
+
+        Assert.NotNull(people);
+        Assert.Equal("/engine-image/persons/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/headshot?v=0123456789", people![0].headshot_url);
+        Assert.Equal("/engine-image/persons/cccccccc-cccc-cccc-cccc-cccccccccccc/headshot", people[1].headshot_url);
+    }
+
     private static HttpClient CreateHttpClient(Func<HttpRequestMessage, HttpResponseMessage> responder) =>
         new(new StubHttpMessageHandler(responder))
         {

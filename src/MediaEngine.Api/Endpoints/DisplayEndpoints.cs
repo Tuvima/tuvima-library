@@ -308,12 +308,7 @@ public static class DisplayEndpoints
                 return ApiErrors.NotFound("Artwork image not found.");
             }
 
-            var contentType = Path.GetExtension(path).Equals(".png", StringComparison.OrdinalIgnoreCase)
-                ? "image/png"
-                : Path.GetExtension(path).Equals(".webp", StringComparison.OrdinalIgnoreCase)
-                    ? "image/webp"
-                    : "image/jpeg";
-            return Results.File(path, contentType, enableRangeProcessing: true);
+            return ArtworkFileResults.Local(path) ?? ApiErrors.NotFound("Artwork image not found.");
         })
             .WithName("GetArtworkAssetContent")
             .WithSummary("Streams one canonical artwork asset rendition.")

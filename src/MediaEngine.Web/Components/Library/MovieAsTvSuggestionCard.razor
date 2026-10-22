@@ -5,7 +5,7 @@
 <section class="movie-as-tv-card" aria-label="Found as a TV title">
     @if (!string.IsNullOrWhiteSpace(Suggestion.PosterUrl))
     {
-        <img class="movie-as-tv-card__poster" src="@Suggestion.PosterUrl" alt="" loading="lazy" referrerpolicy="no-referrer" />
+        <img class="movie-as-tv-card__poster" src="@MediaTileArtworkUrl.ForDrawnSize(Suggestion.PosterUrl, 81)" alt="" loading="lazy" referrerpolicy="no-referrer" />
     }
     <div class="movie-as-tv-card__body">
         <p class="movie-as-tv-card__text">@MovieTvSuggestionReader.Describe(Suggestion)</p>

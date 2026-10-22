@@ -73,7 +73,7 @@ else
 @if (_hoverCover is not null)
 {
     <AppCssElement Tag="div" Class="vmt-hover-overlay" Css="@($"top: {_hoverY}px; left: {_hoverX}px;")">
-        <img src="@_hoverCover" alt="" class="vmt-hover-img" loading="lazy" decoding="async" />
+        <img src="@MediaTileArtworkUrl.ForDrawnSize(_hoverCover, 300)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(_hoverCover, 300)" alt="" class="vmt-hover-img" loading="lazy" decoding="async" />
     </AppCssElement>
 }
 
@@ -422,7 +422,7 @@ else
                                                      @onmouseleave="HideHover">
                                                     @if (!string.IsNullOrEmpty(item.CoverUrl))
                                                     {
-                                                        <img src="@(item.CoverThumbUrl ?? item.CoverUrl)" alt="@item.Title" class="vmt-thumb-img" loading="lazy" />
+                                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(item.CoverThumbUrl ?? item.CoverUrl, PosterSize)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(item.CoverThumbUrl ?? item.CoverUrl, PosterSize)" alt="@item.Title" class="vmt-thumb-img" loading="lazy" decoding="async" />
                                                     }
                                                     else
                                                     {
@@ -600,7 +600,7 @@ else
                                                 @if (!string.IsNullOrEmpty(item.ArtistPhotoUrl))
                                                 {
                                                     <AppCssElement Tag="div" Class="vmt-artist-photo" Css="@($"width: {PosterSize}px; height: {PosterSize}px;")">
-                                                        <img src="@item.ArtistPhotoUrl" alt="@item.Title" class="vmt-artist-photo-img" loading="lazy" />
+                                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(item.ArtistPhotoUrl, PosterSize)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(item.ArtistPhotoUrl, PosterSize)" alt="@item.Title" class="vmt-artist-photo-img" loading="lazy" decoding="async" />
                                                     </AppCssElement>
                                                 }
                                                 else
@@ -610,7 +610,7 @@ else
                                                          @onmouseleave="HideHover">
                                                         @if (!string.IsNullOrEmpty(item.CoverUrl))
                                                         {
-                                                            <img src="@(item.CoverThumbUrl ?? item.CoverUrl)" alt="@item.Title" class="vmt-thumb-img" loading="lazy" />
+                                                            <img src="@MediaTileArtworkUrl.ForDrawnSize(item.CoverThumbUrl ?? item.CoverUrl, PosterSize)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(item.CoverThumbUrl ?? item.CoverUrl, PosterSize)" alt="@item.Title" class="vmt-thumb-img" loading="lazy" decoding="async" />
                                                         }
                                                         else
                                                         {
@@ -676,7 +676,7 @@ else
                                              @onmouseleave="HideHover">
                                             @if (!string.IsNullOrEmpty(item.CoverUrl))
                                             {
-                                                <img src="@(item.CoverThumbUrl ?? item.CoverUrl)" alt="" class="vmt-cover-thumb-img" loading="lazy" />
+                                                <img src="@MediaTileArtworkUrl.ForDrawnSize(item.CoverThumbUrl ?? item.CoverUrl, 32)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(item.CoverThumbUrl ?? item.CoverUrl, 32)" alt="" class="vmt-cover-thumb-img" loading="lazy" decoding="async" />
                                             }
                                             else
                                             {

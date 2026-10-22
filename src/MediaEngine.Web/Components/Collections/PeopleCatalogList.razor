@@ -14,7 +14,8 @@
             <span class="people-catalog-row__portrait">
                 @if (!string.IsNullOrWhiteSpace(person.headshot_url))
                 {
-                    <img src="@person.headshot_url" alt="" loading="lazy" decoding="async" />
+                    @* Drawn 48px (PeopleCatalogList.razor.css): the tiny copy, a sharper one on 2x and 3x screens. *@
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(person.headshot_url, 48)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(person.headshot_url, 48)" alt="" loading="lazy" decoding="async" />
                 }
                 else
                 {
