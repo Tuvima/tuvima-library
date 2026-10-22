@@ -418,6 +418,7 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
             Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int> { ["dddddddd-0000-4000-8000-000000000001"] = 4, ["dddddddd-0000-4000-8000-000000000002"] = 9 });
 
         public Task MarkUnmatchedAsync(Guid assetId, string libraryId, string reason, DateTimeOffset now, DateTimeOffset nextRetryAt, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MediaEngine.Domain.Models.UnmatchedWorkFile>> ListOpenByWorksAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<MediaEngine.Domain.Models.UnmatchedAsset>> ListByAssetsAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<MediaEngine.Domain.Models.UnmatchedAsset?> GetAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> ClearAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();

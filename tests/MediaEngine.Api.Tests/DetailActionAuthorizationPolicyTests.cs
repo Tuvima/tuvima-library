@@ -106,6 +106,26 @@ public sealed class DetailActionAuthorizationPolicyTests
         Assert.False(default(DetailActionAuthorizationContext).Allows(key));
     }
 
+    [Theory]
+    [InlineData("unmatched-retry")]
+    [InlineData("unmatched-keep")]
+    [InlineData("unmatched-look-up-again")]
+    public async Task UnmatchedActionsAreRefusedToAServiceApplicationWithMetadataWrite_AndToADelegatedClient(string key)
+    {
+        var service = await DetailActionAuthorizationPolicy.ResolveAsync(
+            new RequestAuthority(PrincipalKind.ServiceApplication, true, ApplicationId: Guid.NewGuid(), ApplicationEnabled: true),
+            new AccountDecisions(AuthorizationDecision.Allow()), new AppEvaluator(true), default);
+        var delegated = await DetailActionAuthorizationPolicy.ResolveAsync(
+            new RequestAuthority(
+                PrincipalKind.DelegatedUserClient, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
+                ApplicationId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true),
+            new AccountDecisions(AuthorizationDecision.Allow()), new AppEvaluator(true), default);
+
+        Assert.True(service.Allows("edit"));
+        Assert.False(service.Allows(key));
+        Assert.False(delegated.Allows(key));
+    }
+
     private static RequestAuthority HumanAuthority() => new(
         PrincipalKind.Human,
         true,

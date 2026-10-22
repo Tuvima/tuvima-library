@@ -537,6 +537,12 @@ public sealed partial class CollectionClientEndpointsTests
 
         public Task<IReadOnlyList<DisplayHomeCollectionRow>> LoadHomeCollectionsAsync(Guid? profileId, CancellationToken ct) =>
             inner.LoadHomeCollectionsAsync(profileId, ct);
+
+        public Task<DisplayLibraryScope> LoadLibraryScopeAsync(CancellationToken ct) => inner.LoadLibraryScopeAsync(ct);
+
+        public Task<DisplayLibraryAccess> LoadLibraryAccessAsync(CancellationToken ct) => inner.LoadLibraryAccessAsync(ct);
+
+        public Task<IReadOnlyList<DisplayWorkRow>> LoadWorkLibraryRowsAsync(CancellationToken ct) => inner.LoadWorkLibraryRowsAsync(ct);
     }
 
     private static LibraryPreferencesSettings BooksShowMissing(string defaultVisibility, bool enabled = true) => new()

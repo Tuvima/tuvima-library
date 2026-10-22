@@ -296,6 +296,51 @@ public sealed class UnmatchedAssetRepositoryTests : IDisposable
         Assert.Empty(await _unmatched.ListByAssetsAsync([]));
     }
 
+    [Fact]
+    public async Task ListOpenByWorks_ReturnsEveryNotKeptUnmatchedFileOfTheAskedForWorks_WithTheLibraryEachIsIn()
+    {
+        var first = AddAsset("movies", "First.mkv");
+        var second = AddAsset("lectures", "Second.mkv");
+        var kept = AddAsset("movies", "Kept.mkv");
+        var elsewhere = AddAsset("movies", "Elsewhere.mkv");
+        var workOfFirst = WorkOf(first);
+        // One work holding a second file in another library, and a kept file of the same work.
+        MoveToWork(second, workOfFirst);
+        MoveToWork(kept, workOfFirst);
+        foreach (var (asset, library) in new[] { (first, "movies"), (second, "lectures"), (kept, "movies"), (elsewhere, "movies") })
+        {
+            await _unmatched.MarkUnmatchedAsync(asset, library, UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+        }
+
+        await _unmatched.KeepAsIsAsync(kept, Now);
+
+        var files = await _unmatched.ListOpenByWorksAsync([workOfFirst]);
+
+        Assert.Equal(new[] { first, second }.Order(), files.Select(file => file.AssetId).Order());
+        Assert.All(files, file => Assert.Equal(workOfFirst, file.WorkId));
+        Assert.Equal("lectures", files.Single(file => file.AssetId == second).LibraryId);
+        Assert.Empty(await _unmatched.ListOpenByWorksAsync([]));
+    }
+
+    private Guid WorkOf(Guid assetId)
+    {
+        using var conn = _db.CreateConnection();
+        return conn.ExecuteScalar<Guid>(
+            "SELECT e.work_id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE ma.id = @assetId;", new { assetId });
+    }
+
+    private void MoveToWork(Guid assetId, Guid workId)
+    {
+        var editionId = Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        conn.Execute(
+            """
+            INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
+            UPDATE media_assets SET edition_id = @editionId WHERE id = @assetId;
+            """,
+            new { editionId, workId, assetId });
+    }
+
     private Guid AddAsset(string libraryId, string fileName)
     {
         var workId = Guid.NewGuid();

@@ -20,6 +20,12 @@ public interface IUnmatchedAssetRepository
     /// <summary>The Unmatched rows of the given assets (kept ones included); an asset with no row is absent. Reads only the ids asked for.</summary>
     Task<IReadOnlyList<UnmatchedAsset>> ListByAssetsAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default);
 
+    /// <summary>
+    /// Every Unmatched file that is not kept, for the given works (all of a work's files, in whichever library each now is). Files that are
+    /// gone or orphaned are left out. Reads only the works asked for.
+    /// </summary>
+    Task<IReadOnlyList<UnmatchedWorkFile>> ListOpenByWorksAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default);
+
     /// <summary>Removes the row (the file matched). Returns true when a row was removed.</summary>
     Task<bool> ClearAsync(Guid assetId, CancellationToken ct = default);
 

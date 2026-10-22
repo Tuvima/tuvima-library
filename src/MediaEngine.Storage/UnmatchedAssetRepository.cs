@@ -84,6 +84,32 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
         return Task.FromResult<IReadOnlyList<UnmatchedAsset>>(rows.Select(row => row.ToModel()).ToList());
     }
 
+    public Task<IReadOnlyList<UnmatchedWorkFile>> ListOpenByWorksAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(workIds);
+        ct.ThrowIfCancellationRequested();
+        if (workIds.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyList<UnmatchedWorkFile>>([]);
+        }
+
+        using var connection = db.CreateConnection();
+        // Same file rule the browse projection uses (a normal, not orphaned file); the library is the file's own, as the projection reports it.
+        var rows = connection.Query<WorkFileRow>(
+            """
+            SELECT woa.work_id AS WorkId, u.asset_id AS AssetId, COALESCE(NULLIF(ma.library_id, ''), u.library_id) AS LibraryId
+            FROM unmatched_assets u
+            JOIN media_assets ma ON ma.id = u.asset_id
+            JOIN work_owned_assets woa ON woa.asset_id = u.asset_id
+            WHERE u.kept_as_is = 0
+              AND ma.status = 'Normal' AND ma.is_orphaned = 0
+              AND woa.work_id IN (SELECT unhex(value) FROM json_each(@workIds));
+            """,
+            new { workIds = GuidSql.ToJsonHexArray(workIds.Distinct()) });
+        return Task.FromResult<IReadOnlyList<UnmatchedWorkFile>>(
+            rows.Select(row => new UnmatchedWorkFile(row.WorkId, row.AssetId, row.LibraryId)).ToList());
+    }
+
     public Task<bool> ClearAsync(Guid assetId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -227,6 +253,13 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
 
     private static DateTimeOffset Parse(string value) =>
         DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+
+    private sealed class WorkFileRow
+    {
+        public Guid WorkId { get; set; }
+        public Guid AssetId { get; set; }
+        public string LibraryId { get; set; } = string.Empty;
+    }
 
     private sealed class CountRow
     {

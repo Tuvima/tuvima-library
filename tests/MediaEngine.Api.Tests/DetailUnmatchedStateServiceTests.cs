@@ -14,7 +14,7 @@ namespace MediaEngine.Api.Tests;
 public sealed class DetailUnmatchedStateServiceTests : IDisposable
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 22, 9, 0, 0, TimeSpan.Zero);
-    private static readonly DetailActionAuthorizationContext Administrator = new(true);
+    private static readonly DetailActionAuthorizationContext Administrator = new(true, true);
 
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_detail_unmatched_state_{Guid.NewGuid():N}.db");
     private readonly DatabaseConnection _database;
@@ -87,6 +87,18 @@ public sealed class DetailUnmatchedStateServiceTests : IDisposable
         var page = Page();
 
         await _service.ApplyAsync(page, [asset], new DetailActionAuthorizationContext(false), default);
+
+        Assert.Empty(page.UnmatchedAssets);
+        Assert.Equal(["edit"], page.OverflowActions.Select(action => action.Key).ToArray());
+    }
+
+    [Fact]
+    public async Task AServiceApplicationThatMayManageMetadata_SeesNoUnmatchedActions()
+    {
+        var asset = await AddUnmatchedAssetAsync("movies");
+        var page = Page();
+
+        await _service.ApplyAsync(page, [asset], new DetailActionAuthorizationContext(true, false), default);
 
         Assert.Empty(page.UnmatchedAssets);
         Assert.Equal(["edit"], page.OverflowActions.Select(action => action.Key).ToArray());

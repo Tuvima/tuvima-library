@@ -205,16 +205,13 @@ public sealed partial class DisplayComposerService
 
         var filtered = works.AsEnumerable();
 
-        // Both narrowings run on rows the read service has already authorized (grants, content limits, Vault), so a library the profile
-        // cannot see is simply an empty result and nothing says whether it exists.
-        if (libraryId is { } onlyLibrary)
+        // Both narrowings look only at (work, library) rows the read service has already authorized (grants, lane feature, content limits,
+        // Vault), so a library the profile cannot see is simply an empty result and nothing says whether it exists. The result stays one
+        // row per work: the works that qualify keep the row they always show.
+        if (narrowed)
         {
-            filtered = filtered.Where(work => Guid.TryParse(work.LibraryId, out var rowLibrary) && rowLibrary == onlyLibrary);
-        }
-
-        if (unmatchedOnly)
-        {
-            filtered = await KeepUnmatchedAsync(filtered.ToList(), ct);
+            var qualifying = await WorksInNarrowingAsync(libraryId, unmatchedOnly, ct);
+            filtered = filtered.Where(work => qualifying.Contains(work.WorkId));
         }
 
         if (!string.IsNullOrWhiteSpace(mediaType))
@@ -409,17 +406,30 @@ public sealed partial class DisplayComposerService
         };
     }
 
-    // Rows whose file has an Unmatched row that is not kept as it is. Only the ids of the rows already in view are looked up.
-    private async Task<IEnumerable<DisplayWorkRow>> KeepUnmatchedAsync(IReadOnlyList<DisplayWorkRow> rows, CancellationToken ct)
+    // The works that have a file the profile may see in the library asked for (any library when none is) and, when asked, a file that is
+    // Unmatched and not kept in that same library. Only the works in view are looked up.
+    private async Task<HashSet<Guid>> WorksInNarrowingAsync(Guid? libraryId, bool unmatchedOnly, CancellationToken ct)
     {
-        if (_unmatched is null || rows.Count == 0)
+        var library = libraryId?.ToString("D");
+        var pairs = (await _readService.LoadWorkLibraryRowsAsync(ct))
+            .Where(row => library is null || string.Equals(row.LibraryId, library, StringComparison.OrdinalIgnoreCase))
+            .Select(row => (row.WorkId, Library: (row.LibraryId ?? string.Empty).ToUpperInvariant()))
+            .Distinct()
+            .ToList();
+        if (!unmatchedOnly)
+        {
+            return pairs.Select(pair => pair.WorkId).ToHashSet();
+        }
+
+        if (_unmatched is null || pairs.Count == 0)
         {
             return [];
         }
 
-        var unmatched = await _unmatched.ListByAssetsAsync(rows.Select(row => row.AssetId).Distinct().ToList(), ct);
-        var open = unmatched.Where(item => !item.KeptAsIs).Select(item => item.AssetId).ToHashSet();
-        return rows.Where(row => open.Contains(row.AssetId));
+        var open = (await _unmatched.ListOpenByWorksAsync(pairs.Select(pair => pair.WorkId).Distinct().ToList(), ct))
+            .Select(file => (file.WorkId, Library: file.LibraryId.ToUpperInvariant()))
+            .ToHashSet();
+        return pairs.Where(open.Contains).Select(pair => pair.WorkId).ToHashSet();
     }
 
     public async Task<DisplayPageDto> BuildContinueAsync(
