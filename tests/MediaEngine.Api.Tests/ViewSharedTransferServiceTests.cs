@@ -259,6 +259,40 @@ public sealed class ViewSharedTransferServiceTests
     }
 
     [Fact]
+    public async Task AMoveIntoTheSharedLibrary_QueuesTheNewSharedRowForTheProfileNameWrite_AfterTheMoveIsDone()
+    {
+        using var fixture = new Fixture();
+        var original = fixture.WriteManaged("moved.jpg", [21, 22, 23]);
+        var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
+        fixture.WriteQueue.ViewItems.Clear();
+
+        var result = await fixture.Transfers.ExecuteAsync(indexed!.ItemId, fixture.ProfileId, "timeline", null);
+
+        Assert.Equal("completed", result.State);
+        var queued = Assert.Single(fixture.WriteQueue.ViewItems);
+        Assert.Equal(fixture.SharedItemId(indexed.ItemId), queued.ItemId);
+        Assert.Equal(MediaEngine.Domain.Constants.MediaFileWriteTriggers.ViewAddedBy, queued.Trigger);
+        Assert.False(File.Exists(original));
+        await fixture.Transfers.ExecuteAsync(indexed.ItemId, fixture.ProfileId, "timeline", null);
+        Assert.Single(fixture.WriteQueue.ViewItems);
+    }
+
+    [Fact]
+    public async Task ACopyIntoTheSharedLibrary_QueuesTheNewSharedRowToo_AndLeavesTheOriginalAlone()
+    {
+        using var fixture = new Fixture();
+        var original = fixture.WriteManaged("copied.jpg", [31, 32, 33]);
+        var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
+        fixture.WriteQueue.ViewItems.Clear();
+
+        var result = await fixture.Transfers.ExecuteAsync(indexed!.ItemId, fixture.ProfileId, "timeline", null, copyOnly: true);
+
+        Assert.Equal("completed", result.State);
+        Assert.Equal(fixture.SharedItemId(indexed.ItemId), Assert.Single(fixture.WriteQueue.ViewItems).ItemId);
+        Assert.True(File.Exists(original));
+    }
+
+    [Fact]
     public async Task ManagedItem_IsVerifiedMovedAndBrowsableUnderSharedRoot()
     {
         using var fixture = new Fixture();
@@ -995,8 +1029,8 @@ public sealed class ViewSharedTransferServiceTests
             Storage = new ViewStorageService(_configuration, _spaces, new ViewSharedLibraryRepository(_database));
             Space = Storage.EnsurePersonalSpaceAsync(ProfileId).GetAwaiter().GetResult();
             Library = new ViewLibraryService(_assets, _configuration, _spaces, Storage,
-                NullLogger<ViewLibraryService>.Instance);
-            Transfers = new ViewSharedTransferService(_database, _assets, Storage);
+                NullLogger<ViewLibraryService>.Instance, fileWrites: WriteQueue);
+            Transfers = new ViewSharedTransferService(_database, _assets, Storage, WriteQueue);
             Policies = new ViewProfileRepository(_database);
             Authorization = new TestAllowAuthorizationEvaluator();
             Decisions = new AdministratorDecisions();
@@ -1007,6 +1041,7 @@ public sealed class ViewSharedTransferServiceTests
         }
 
         public string Root { get; }
+        public RecordingFileWriteQueue WriteQueue { get; } = new();
         public Guid ProfileId { get; }
         public RequestAuthority Authority { get; }
         public ViewPersonalSpace Space { get; }

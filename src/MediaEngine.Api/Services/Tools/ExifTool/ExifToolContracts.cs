@@ -34,13 +34,34 @@ public sealed record ExifToolFileResult(ExifToolWriteOutcome Outcome, string? Re
 /// <param name="OutputPath">Write the changed copy here and leave the source file alone (ExifTool's <c>-o</c>); the path must not exist yet.</param>
 /// <param name="OverwriteOriginal">Change the file in place without a backup copy (ExifTool's <c>-overwrite_original</c>).</param>
 /// <param name="KeepFileTimes">Keep the file's modified time as it was (ExifTool's <c>-P</c>). Off by default: the file did change.</param>
-public sealed record ExifToolWriteOptions(string? OutputPath = null, bool OverwriteOriginal = false, bool KeepFileTimes = false)
+/// <param name="Timeout">How long this one write may take before ExifTool is treated as hung. Null uses the session's own limit; a longer
+/// value (for a large file) is honoured, a shorter one never lowers the session's limit.</param>
+public sealed record ExifToolWriteOptions(
+    string? OutputPath = null, bool OverwriteOriginal = false, bool KeepFileTimes = false, TimeSpan? Timeout = null)
 {
+    private const double SecondsPerGibibyte = 30;
+    private static readonly TimeSpan LongestTimeout = TimeSpan.FromMinutes(30);
+
+    /// <summary>
+    /// How long a write of a file this big may take: the usual limit plus 30 seconds for every GiB, never more than 30 minutes. A small
+    /// file keeps (very nearly) the usual limit, so a hung ExifTool is still noticed quickly.
+    /// </summary>
+    public static TimeSpan TimeoutFor(long fileBytes, TimeSpan usualLimit)
+    {
+        var extra = TimeSpan.FromSeconds(SecondsPerGibibyte * Math.Max(0, fileBytes) / (1024d * 1024d * 1024d));
+        var total = usualLimit + extra;
+        return total > LongestTimeout ? LongestTimeout : total;
+    }
+
     /// <summary>Change the file where it is.</summary>
     public static ExifToolWriteOptions InPlace(bool keepFileTimes = false) => new(null, true, keepFileTimes);
 
     /// <summary>Write the changed copy to <paramref name="outputPath"/>.</summary>
     public static ExifToolWriteOptions ToCopy(string outputPath, bool keepFileTimes = false) => new(outputPath, false, keepFileTimes);
+
+    /// <summary>Write the changed copy of a file of <paramref name="fileBytes"/> bytes to <paramref name="outputPath"/>, allowing time for its size.</summary>
+    public static ExifToolWriteOptions ToCopy(string outputPath, long fileBytes, bool keepFileTimes = false) =>
+        new(outputPath, false, keepFileTimes, TimeoutFor(fileBytes, ExifToolRunner.DefaultCommandTimeout));
 }
 
 /// <summary>

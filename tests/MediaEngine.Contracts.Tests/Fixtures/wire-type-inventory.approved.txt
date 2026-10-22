@@ -5310,6 +5310,7 @@
   SkippedFileCount: System.Int32 | json=skipped_file_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AddedByProfileId: System.Guid? | json=added_by_profile_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AcceptsPhotosAndVideos: System.Boolean | json=accepts_photos_and_videos | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  KeptInLibraryCount: System.Int32 | json=kept_in_library_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.ViewTagDto
   kind=class | converter=default | number-handling=default | unmapped=default

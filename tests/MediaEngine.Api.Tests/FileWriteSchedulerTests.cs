@@ -393,6 +393,50 @@ public sealed class FileWriteSchedulerTests : IDisposable
     }
 
     [Fact]
+    public async Task ARunStartsAndEndsTheWriterOnce_HoweverManyBatchesItTakes()
+    {
+        await Scheduler.AnchorScheduleAsync(CancellationToken.None);
+        for (var index = 0; index < 205; index++)
+        {
+            await Queue.EnqueueAssetAsync(AddAsset(), "auto_match");
+        }
+
+        _clock.Advance(TimeSpan.FromMinutes(60));
+        await Scheduler.TickAsync();
+
+        Assert.Equal(205, _writer.Written.Count);
+        Assert.Equal(1, _writer.Begins);
+        Assert.Equal(1, _writer.Ends);
+    }
+
+    [Fact]
+    public async Task ARunWithNothingWaitingForTheWriter_NeverStartsIt()
+    {
+        await Scheduler.AnchorScheduleAsync(CancellationToken.None);
+
+        _clock.Advance(TimeSpan.FromMinutes(60));
+        await Scheduler.TickAsync();
+
+        Assert.Equal(0, _writer.Begins);
+        Assert.Equal(0, _writer.Ends);
+    }
+
+    [Fact]
+    public async Task AWriterThatFailsMidRun_StillGetsTheEndOfTheRun_SoItsHelperProgramIsPutAway()
+    {
+        var asset = AddAsset();
+        await Scheduler.AnchorScheduleAsync(CancellationToken.None);
+        await Queue.EnqueueAssetAsync(asset, "auto_match");
+        _writer.Throw = true;
+
+        _clock.Advance(TimeSpan.FromMinutes(60));
+        await Scheduler.TickAsync();
+
+        Assert.Equal(1, _writer.Begins);
+        Assert.Equal(1, _writer.Ends);
+    }
+
+    [Fact]
     public async Task WriteNow_WhileWriteBackIsOff_IsRefusedWithAPlainMessage_AndStartsNoRun()
     {
         var asset = AddAsset();
@@ -852,6 +896,22 @@ public sealed class FileWriteSchedulerTests : IDisposable
         public bool Throw { get; set; }
 
         public string TargetKind => MediaFileWriteIntentRepository.MediaAssetKind;
+
+        public int Begins { get; private set; }
+
+        public int Ends { get; private set; }
+
+        public Task BeginRunAsync(CancellationToken ct)
+        {
+            Begins++;
+            return Task.CompletedTask;
+        }
+
+        public Task EndRunAsync(CancellationToken ct)
+        {
+            Ends++;
+            return Task.CompletedTask;
+        }
 
         public Task<IReadOnlyList<FileWriteResult>> WriteBatchAsync(IReadOnlyList<MediaFileWriteIntent> intents, CancellationToken ct)
         {

@@ -24,4 +24,10 @@ public static class MediaFileWriteTriggers
 
     /// <summary>The file was put back from the Recycle bin.</summary>
     public const string Restore = "restore";
+
+    /// <summary>
+    /// A View item became known with a profile that added it (a new file in a Managed folder, an upload, or a move into the shared library),
+    /// so the profile's name is written into the file when the format can hold it (batched write-back D7).
+    /// </summary>
+    public const string ViewAddedBy = "view_added_by";
 }

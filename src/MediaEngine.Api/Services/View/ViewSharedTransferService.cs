@@ -4,6 +4,8 @@ using System.Text.Json;
 using Dapper;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Contracts.LocalAssets;
+using MediaEngine.Domain.Constants;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
@@ -12,7 +14,9 @@ namespace MediaEngine.Api.Services.View;
 public sealed class ViewSharedTransferService(
     IDatabaseConnection database,
     ILocalAssetRepository assets,
-    ViewStorageService storage)
+    ViewStorageService storage,
+    IFileWriteQueue? fileWrites = null,
+    ILogger<ViewSharedTransferService>? logger = null)
 {
     private static readonly SemaphoreSlim TransferGate = new(1, 1);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -101,6 +105,7 @@ public sealed class ViewSharedTransferService(
                 now,
             }, transaction), ct);
 
+            Guid? sharedItemToWrite = null;
             try
             {
                 await SetStateAsync(itemId, "transferring", null, ct);
@@ -160,6 +165,7 @@ public sealed class ViewSharedTransferService(
                     // Who the copy is recorded as added by: whoever contributed the item (the contribution item's original
                     // profile, else the contribution's submitter), never the administrator who accepted it. Without a
                     // contribution it is the owner of the item, else the person who moved it in.
+                    sharedItemToWrite = sharedItemId;
                     var addedBy = (contributionItemId is { } contributionItem
                             ? connection.QuerySingleOrDefault<Guid?>("""
                                 SELECT COALESCE(ci.original_profile_id, c.submitted_by_profile_id)
@@ -257,11 +263,14 @@ public sealed class ViewSharedTransferService(
 
                 if (preview.Operation == "copy")
                 {
+                    await QueueProfileNameWriteAsync(sharedItemToWrite, ct);
                     return new ViewSharedTransferResultDto(itemId, "completed", "copy", planned.Count,
                         planned.Select(file => file.Destination).ToList(), false);
                 }
 
-                return await FinishCleanupAsync(item, GetExistingTransfer(itemId, ct)!, ct);
+                var finished = await FinishCleanupAsync(item, GetExistingTransfer(itemId, ct)!, ct);
+                await QueueProfileNameWriteAsync(sharedItemToWrite, ct);
+                return finished;
             }
             catch (Exception exception)
             {
@@ -273,6 +282,28 @@ public sealed class ViewSharedTransferService(
             }
         }
         finally { TransferGate.Release(); }
+    }
+
+    /// <summary>
+    /// The new Shared row goes on the write list once the transfer has finished, so the adder's name is put into the Shared file on the
+    /// next scheduled run (batched write-back D7). The Shared copy is always in a Managed folder. The transfer is already saved; a
+    /// failure to queue never fails it.
+    /// </summary>
+    private async Task QueueProfileNameWriteAsync(Guid? sharedItemId, CancellationToken ct)
+    {
+        if (fileWrites is null || sharedItemId is not { } id)
+        {
+            return;
+        }
+
+        try
+        {
+            await fileWrites.EnqueueViewItemAsync(id, MediaFileWriteTriggers.ViewAddedBy, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger?.LogWarning(ex, "The profile name of Shared item {ItemId} could not be put on the file write list.", id);
+        }
     }
 
     private async Task<ViewSharedTransferResultDto> FinishCleanupAsync(
