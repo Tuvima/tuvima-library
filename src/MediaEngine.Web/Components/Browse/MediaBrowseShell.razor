@@ -528,7 +528,7 @@
     private string SecondaryQuickFilterValue => CurrentTab.MediaType == "Music" ? "favorite" : "not-started";
     private string SecondaryQuickFilterLabel => CurrentTab.MediaType switch
     {
-        "Movies" or "TV" => "Unwatched",
+        "Movies" or "TV" or "Videos" => "Unwatched",
         "Music" => "Favorites",
         "Audiobooks" => "Not started",
         _ => "Unread",

@@ -470,6 +470,8 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         Assert.Null(request.ExpectedLibrary);
         Assert.Single(request.Library.Sources);
         Assert.Equal(2, _configuration.Libraries.Count(library => library.KindKey == "other_audio"));
+        // The confirmation names the library the folder joined, not the kind.
+        _dialogs.WaitForAssertion(() => Assert.Equal("Folder added to Lectures", Text(_dialogs.Find(".add-wizard__done h3"))));
     }
 
     [Fact]
