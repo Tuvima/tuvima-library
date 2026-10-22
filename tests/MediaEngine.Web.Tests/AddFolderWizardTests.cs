@@ -30,6 +30,9 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     private ServerFolderValidationResultDto _picked = new() { Path = "E:\\Incoming\\Films", StorageLocationId = "media", Exists = true, HasRead = true, HasWrite = true, CanSelect = true, ContainsFiles = true };
     private bool _writable = true;
     private IRenderedComponent<AppDialogHost> _dialogs = null!;
+    // The Engine refusing a library change with its own sentence (a duplicate name, the limit); null means it saves.
+    private string? _refuseSave;
+    private string? _lastError;
 
     private static LibrariesConfigurationDto BuildConfiguration() => new()
     {
@@ -64,10 +67,17 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
             stub.SetHandler(nameof(IEngineApiClient.GetSetupLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
+            stub.SetHandler("get_LastError", _ => _lastError);
             stub.SetHandler(nameof(IEngineApiClient.MutateLibraryAsync), args =>
             {
                 var request = (LibraryMutationRequest)args![0]!;
                 _mutations.Add(request);
+                if (_refuseSave is not null)
+                {
+                    _lastError = _refuseSave;
+                    return Task.FromResult<LibrariesConfigurationDto?>(null);
+                }
+
                 var library = request.Library!;
                 // Mimic the Engine's Normalize: keep a managed marker, else the earliest managed folder, else none.
                 var managed = library.Sources.Where(x => x.ManagementMode == "managed_by_tuvima").ToList();
@@ -189,6 +199,29 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     }
 
     private void GoToHow() => _dialogs.WaitForElement(".add-wizard__question");
+
+    // A kind that holds several named libraries asks which one first: a new custom library with a typed name, then on to the folder.
+    private void NameNewLibrary(string name)
+    {
+        _dialogs.WaitForElement("[data-library=new]").Click();
+        _dialogs.Find(".add-wizard__field input").Input(name);
+        Click("Next");
+        _dialogs.WaitForElement(".server-folder-picker");
+    }
+
+    private void AddOtherAudioLibraries(params string[] names)
+    {
+        foreach (var name in names)
+        {
+            _configuration.Libraries.Add(new()
+            {
+                Id = Guid.NewGuid().ToString("D"), Name = name, Kind = "catalogued", KindKey = "other_audio", Area = "listen", MediaTypes = ["Music"],
+                Sources = [new() { Id = $"src-{name}", Path = $"C:\\media\\{name}", ManagementMode = "existing_library", AccessMode = "read_only" }],
+            });
+        }
+    }
+
+    private static LibraryKindCatalog EveryKind() => new(LibraryKindsTestData.All());
 
     // Add folder, and wait for the confirmation (a folder whose files raise a follow-up question is clicked through by its test instead).
     private Task AddFolderAsync()
@@ -356,6 +389,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     public async Task AFolderAddedAsOtherVideosSavesLocalOnlyWithYoutubeOff_AndTheWizardAsksNothingAboutYoutube()
     {
         await OpenWizardAsync(type: "other_videos");
+        NameNewLibrary("Courses");
         PickFolder(path: "E:\\Courses");
         GoToHow();
         Assert.DoesNotContain("contacts YouTube", _dialogs.Markup);
@@ -367,6 +401,142 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         Assert.Equal("local_only", library.MetadataPolicy);
         Assert.Equal("other_videos", library.KindKey);
         Assert.True(library.RecycleBin);
+    }
+
+    // Named custom libraries (D51) and the colour of a kind's card (D39).
+    [Fact]
+    public async Task ALookupKindCardIsFilledWithItsAreasColourAndAPlainKindCardIsQuietGrey()
+    {
+        await OpenWizardAsync(group: "watch");
+
+        var movies = _dialogs.Find(".add-wizard__kind-option[data-type=movies] .lib-kind-tile");
+        Assert.Contains("lib-kind-tile--lookup", movies.ClassList);
+        Assert.Contains("lib-area--watch", movies.ClassList);
+        var plain = _dialogs.Find(".add-wizard__kind-option[data-type=other_videos] .lib-kind-tile");
+        Assert.DoesNotContain("lib-kind-tile--lookup", plain.ClassList);
+        Assert.DoesNotContain(plain.ClassList, name => name.StartsWith("lib-area--", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AKindSuppliedByAPluginGetsItsAreasColourOnItsCardWithNoCodeChange()
+    {
+        var podcasts = LibraryKindsTestData.Podcasts();
+        podcasts.LookupProviders = ["musicbrainz"];
+
+        await OpenWizardAsync(group: "listen", kinds: new LibraryKindCatalog(LibraryKindsTestData.BuiltIn(podcasts)));
+
+        var tile = _dialogs.Find(".add-wizard__kind-option[data-type=podcasts] .lib-kind-tile");
+        Assert.Contains("lib-kind-tile--lookup", tile.ClassList);
+        Assert.Contains("lib-area--listen", tile.ClassList);
+    }
+
+    [Fact]
+    public async Task OtherAudioOffersItsExistingLibrariesByNameAndANewCustomLibrary()
+    {
+        AddOtherAudioLibraries("Vinyl rips", "Voice notes");
+
+        await OpenWizardAsync(type: "other_audio", kinds: EveryKind());
+
+        Assert.Equal("1 Library · 2 Folder · 3 How", Steps);
+        Assert.Equal(["Vinyl rips", "Voice notes", "New custom library"], _dialogs.FindAll("[data-library]").Select(Text).ToArray());
+        Assert.Equal("true", _dialogs.Find("[data-library]").GetAttribute("aria-checked"));
+        Assert.Empty(_dialogs.FindAll("[data-library-limit]"));
+    }
+
+    [Fact]
+    public async Task ANewCustomLibraryNeedsANameAndIsSavedUnderTheTypedNameNotTheKindLabel()
+    {
+        AddOtherAudioLibraries("Vinyl rips");
+        await OpenWizardAsync(type: "other_audio", kinds: EveryKind());
+
+        _dialogs.Find("[data-library=new]").Click();
+        Assert.True(Button("Next").HasAttribute("disabled"));
+        _dialogs.Find(".add-wizard__field input").Input("Lectures");
+        Assert.False(Button("Next").HasAttribute("disabled"));
+        Click("Next");
+        _dialogs.WaitForElement(".server-folder-picker");
+        PickFolder(path: "E:\\Lectures");
+        GoToHow();
+        await AddFolderAsync();
+
+        var request = Assert.Single(_mutations);
+        Assert.Equal("Lectures", request.Library!.Name);
+        Assert.Equal("other_audio", request.Library.KindKey);
+        Assert.Null(request.ExpectedLibrary);
+        Assert.Single(request.Library.Sources);
+        Assert.Equal(2, _configuration.Libraries.Count(library => library.KindKey == "other_audio"));
+    }
+
+    [Fact]
+    public async Task ChoosingAnExistingLibraryAddsTheFolderToThatLibrary()
+    {
+        AddOtherAudioLibraries("Vinyl rips", "Voice notes");
+        var voice = _configuration.Libraries.Single(library => library.Name == "Voice notes");
+        await OpenWizardAsync(type: "other_audio", kinds: EveryKind());
+
+        _dialogs.Find($"[data-library='{voice.Id}']").Click();
+        Click("Next");
+        _dialogs.WaitForElement(".server-folder-picker");
+        PickFolder(path: "E:\\Memos");
+        GoToHow();
+        await AddFolderAsync();
+
+        var request = Assert.Single(_mutations);
+        Assert.Equal(voice.Id, request.Library!.Id);
+        Assert.Equal("Voice notes", request.Library.Name);
+        Assert.Equal(2, request.Library.Sources.Count);
+    }
+
+    [Fact]
+    public async Task AtTheLimitNewCustomLibraryIsHiddenAndOnePlainLineSaysSo()
+    {
+        AddOtherAudioLibraries("One", "Two", "Three", "Four", "Five");
+
+        await OpenWizardAsync(type: "other_audio", kinds: EveryKind());
+
+        Assert.Equal(["One", "Two", "Three", "Four", "Five"], _dialogs.FindAll("[data-library]").Select(Text).ToArray());
+        Assert.Empty(_dialogs.FindAll("[data-library=new]"));
+        Assert.Contains("5", Text(_dialogs.Find("[data-library-limit]")));
+    }
+
+    [Fact]
+    public async Task AMoviesFolderStillOffersNoLibraryChoice()
+    {
+        await OpenWizardAsync(type: "movies");
+
+        Assert.Equal("1 Folder · 2 How", Steps);
+        Assert.Empty(_dialogs.FindAll("[data-library]"));
+    }
+
+    [Fact]
+    public async Task TheEnginesRefusalOfADuplicateLibraryNameIsShownUnchanged()
+    {
+        AddOtherAudioLibraries("Lectures");
+        _refuseSave = "libraries[3].name \"Lectures\" is already used by another library in listen. Give each library its own name.";
+        await OpenWizardAsync(type: "other_audio", kinds: EveryKind());
+
+        NameNewLibrary("Lectures");
+        PickFolder(path: "E:\\Lectures2");
+        GoToHow();
+        Click("Add folder");
+
+        _dialogs.WaitForAssertion(() => Assert.Contains("is already used by another library in listen", _dialogs.Markup));
+        Assert.Empty(_dialogs.FindAll(".add-wizard__done"));
+    }
+
+    [Fact]
+    public async Task InFirstRunSetupTheSameLibraryChoiceAppliesAndSavesTheNameThroughTheSetupSession()
+    {
+        await OpenWizardAsync(type: "other_audio", setupSession: "setup-1", embedded: true, kinds: EveryKind());
+
+        Assert.Equal("1 Library · 2 Folder · 3 How", Steps);
+        NameNewLibrary("Podcast archive");
+        PickFolder(path: "E:\\Archive");
+        GoToHow();
+        await AddFolderAsync();
+
+        var update = Assert.Single(_setupUpdates);
+        Assert.Equal("Podcast archive", Assert.Single(update.Libraries, library => library.KindKey == "other_audio").Name);
     }
 
     [Fact]
@@ -390,6 +560,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     public async Task AFolderAddedAsAPlainKindSavesLocalOnlyWithYoutubeOff(string kind, string mediaType)
     {
         await OpenWizardAsync(type: kind, kinds: new LibraryKindCatalog(LibraryKindsTestData.All()));
+        NameNewLibrary("Loose");
         PickFolder(path: "E:\\Loose files");
         GoToHow();
         await AddFolderAsync();

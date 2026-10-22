@@ -1,0 +1,47 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+
+@* The Metadata cell of a library row (Library setup D22): the small icon of each provider the kind looks details up from, each with a
+   tooltip that names it and what it supplies (opens on hover and keyboard focus), or one muted "files as-is" icon for a plain kind.
+   No sentence of text sits in the row. *@
+<span class="lib-meta" data-lookup="@(LibraryKindLook.LooksUp(Type) ? "true" : "false")">
+    @if (LibraryKindLook.LooksUp(Type))
+    {
+        @foreach (var key in Type.LookupProviders!)
+        {
+            var entry = Find(key);
+            var text = entry is null ? key : LibraryKindLook.ProviderText(string.IsNullOrWhiteSpace(entry.DisplayName) ? key : entry.DisplayName, entry.Capabilities);
+            <AppTooltip Text="@text" Placement="AppPlacement.Top">
+                <span class="lib-meta__icon" role="img" tabindex="0" aria-label="@text" data-provider="@key">
+                    <AppProviderLogo ImageUrl="@LogoOf(entry)"
+                                     Icon="@(entry is null || !string.IsNullOrWhiteSpace(entry.IconPath) ? null : LibraryKindIcons.Resolve(entry.MaterialIcon))"
+                                     FallbackText="@Initials(key)"
+                                     Size="AppControlSize.Compact" />
+                </span>
+            </AppTooltip>
+        }
+    }
+    else
+    {
+        <AppTooltip Text="@LibraryKindLook.NoLookupText" Placement="AppPlacement.Top">
+            <span class="lib-meta__icon lib-meta__icon--plain" role="img" tabindex="0" aria-label="@LibraryKindLook.NoLookupText" data-provider="none">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
+            </span>
+        </AppTooltip>
+    }
+</span>
+
+@code {
+    [Parameter, EditorRequired] public LibraryTypeOption Type { get; set; } = default!;
+    /// <summary>The provider catalogue (read once by the page); null or short while it is not known, and a provider missing from it shows its name.</summary>
+    [Parameter] public IReadOnlyList<ProviderCatalogueDto>? Catalogue { get; set; }
+
+    private ProviderCatalogueDto? Find(string key) =>
+        Catalogue?.FirstOrDefault(entry => string.Equals(entry.Name, key, StringComparison.OrdinalIgnoreCase));
+
+    // The catalogue's icon path is relative to the site root ("images/providers/tmdb.svg").
+    private static string? LogoOf(ProviderCatalogueDto? entry) =>
+        string.IsNullOrWhiteSpace(entry?.IconPath) ? null : "/" + entry.IconPath.TrimStart('/');
+
+    private static string Initials(string key) => key.Length == 0 ? "?" : char.ToUpperInvariant(key[0]).ToString();
+}

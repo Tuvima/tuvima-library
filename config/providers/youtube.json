@@ -4,7 +4,7 @@
   "enabled": true,
   "weight": 0.6,
   "domain": "Video",
-  "icon": "images/providers/youtube.svg",
+  "icon": "images/streaming-services/youtube.png",
   "provider_id": "c0000011-0000-4000-8000-000000000019",
   "display_name": "YouTube",
   "requires_api_key": false,

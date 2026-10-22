@@ -22,7 +22,7 @@
             @if (_step != WizardStep.Done)
             {
                 <div class="add-wizard__steps" role="list" aria-label="Steps">
-                    @foreach (var (label, index) in StepLabels.Select((label, index) => (label, index)))
+                    @foreach (var (label, index) in Steps.Select((entry, index) => (entry.Label, index)))
                     {
                         if (index > 0)
                         {
@@ -59,7 +59,7 @@
                                                  Class="@($"add-wizard__kind-option{(kind.Key == _type?.Key ? " is-selected" : string.Empty)}")"
                                                  data-type="@kind.Key"
                                                  OnClick="@(_ => ChooseKind(kind))">
-                                    <AppMaterialIcon Icon="@kind.Icon" />
+                                    <span class="@LibraryKindLook.TileClass(kind)" data-lookup="@(LibraryKindLook.LooksUp(kind) ? "true" : "false")"><AppMaterialIcon Icon="@kind.Icon" /></span>
                                     <strong>@kind.Label</strong>
                                 </AppNativeButton>
                                 <AppTooltip Text="@TipFor(kind)" Placement="AppPlacement.Top">
@@ -67,6 +67,31 @@
                                 </AppTooltip>
                             </div>
                         }
+                    </div>
+                }
+            }
+            else if (_step == WizardStep.Library && _type is not null)
+            {
+                @* A kind that holds several named libraries asks which one the folder joins: an existing library by name, or a new custom one. *@
+                <h3 class="add-wizard__question" id="add-wizard-library">Which library?</h3>
+                <div class="add-wizard__options" role="radiogroup" aria-labelledby="add-wizard-library">
+                    @foreach (var library in ExistingLibraries)
+                    {
+                        @LibraryOption(library.Id, string.IsNullOrWhiteSpace(library.Name) ? _type.Label : library.Name)
+                    }
+                    @if (CanAddLibrary)
+                    {
+                        @LibraryOption(NewLibraryChoice, "New custom library")
+                    }
+                </div>
+                @if (!CanAddLibrary)
+                {
+                    <p class="add-wizard__lead" data-library-limit>@LibraryLimitText</p>
+                }
+                @if (_libraryChoice == NewLibraryChoice)
+                {
+                    <div class="add-wizard__options add-wizard__field">
+                        <AppTextField Label="Library name" Value="@_newLibraryName" ValueChanged="@((string? value) => _newLibraryName = value ?? string.Empty)" Required="true" />
                     </div>
                 }
             }
@@ -222,7 +247,11 @@
                 {
                     <AppButton Label="Back" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="Back" />
                 }
-                @if (_step == WizardStep.How)
+                @if (_step == WizardStep.Library)
+                {
+                    <AppButton Label="Next" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanLeaveLibraryStep)" OnClick="@(() => GoTo(WizardStep.Folder))" />
+                }
+                else if (_step == WizardStep.How)
                 {
                     <AppButton Label="Add folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@_saving" OnClick="@(() => IsViewFlow ? AddViewAsync() : AddAsync())" />
                 }
@@ -236,7 +265,10 @@
 </AppDialogShell>
 
 @code {
-    private enum WizardStep { Kind, Folder, How, Vault, Done }
+    private enum WizardStep { Kind, Library, Folder, How, Vault, Done }
+
+    // The library step's answer for a new custom library; an existing library's answer is its id.
+    private const string NewLibraryChoice = "new";
 
     private const string ReadOnlyTip = "Library reads the files and never changes them. Best for folders other apps also use.";
     private const string MergeTip = "Library moves these files into your managed folder, renamed and tagged.";
@@ -282,6 +314,9 @@
     private AddFolderHandling _handling = AddFolderHandling.ReadOnly;
     private bool _markNewMediaHere = true;
     private bool _footagePending;
+    // A kind that holds several named libraries: the library the folder joins (an existing library's id, or NewLibraryChoice with its name).
+    private string? _libraryChoice;
+    private string _newLibraryName = string.Empty;
     // Where the embedded picker opens: the folder already chosen when coming Back from step 3.
     private string? _initialPath;
     private bool _saving;
@@ -321,13 +356,36 @@
     // The phone-footage hint is for Watch kinds, so it follows the area of the chosen kind rather than a particular kind.
     private bool InWatch => string.Equals(_type?.Area, "watch", StringComparison.OrdinalIgnoreCase);
     private bool LooksLikeFootage => InWatch && _folder is { LooksLikePhoneFootage: true };
-    private bool CanGoBack => _step is WizardStep.How or WizardStep.Vault || (_step == WizardStep.Folder && !_typeKnown);
-    private LibraryFolderDto? TypeLibrary => _type is null ? null : LibraryRollup.LibraryFor(_configuration, _type);
+    private bool CanGoBack => _step is WizardStep.How or WizardStep.Vault || (_step == WizardStep.Library && !_typeKnown) || (_step == WizardStep.Folder && (!_typeKnown || HasLibraryStep));
+    private LibraryFolderDto? TypeLibrary => _type is null ? null : ChosenLibrary ?? LibraryRollup.LibraryFor(_configuration, _type);
+
+    // Several named libraries (D51): the plain kinds ask which library, up to the kind's limit; the other kinds hold one library.
+    private bool HasLibraryStep => _type is { AllowsMultiple: true } && !LibraryTypeCatalog.IsViewKind(_type);
+    private IReadOnlyList<LibraryFolderDto> ExistingLibraries => _type is null ? [] : LibraryRollup.LibrariesOf(_configuration, _type);
+    private bool CanAddLibrary => _type is not null && ExistingLibraries.Count < _type.MaxLibraries;
+    private string LibraryLimitText => _type is null ? string.Empty : $"{_type.MaxLibraries} is the most {_type.PluralLabel} libraries you can keep.";
+    private LibraryFolderDto? ChosenLibrary => _type is { AllowsMultiple: true } && _libraryChoice is { } id && id != NewLibraryChoice
+        ? ExistingLibraries.FirstOrDefault(library => library.Id == id)
+        : null;
+    private bool CanLeaveLibraryStep => _libraryChoice == NewLibraryChoice ? !string.IsNullOrWhiteSpace(_newLibraryName) : ChosenLibrary is not null;
     private bool CanMerge => !Embedded && _folder?.ContainsFiles == true && TypeLibrary?.Sources.Any(source => source.ManagementMode == "managed_by_tuvima") == true;
 
-    // "1 What is it? · 2 Folder · 3 How" ("3 Vault" for the Vault), or "1 Folder · 2 How" when the type is already known.
-    private IReadOnlyList<string> StepLabels => _typeKnown ? ["Folder", IsViewFlow ? "Who for" : "How"] : ["What is it?", "Folder", IsVault ? "Vault" : IsViewFlow ? "Who for" : "How"];
-    private int CurrentStepIndex => (_step switch { WizardStep.Kind => 0, WizardStep.Folder => 1, _ => 2 }) - (_typeKnown ? 1 : 0);
+    // "1 What is it? · 2 Folder · 3 How" ("3 Vault" for the Vault), or "1 Folder · 2 How" when the type is already known; a kind that
+    // holds several named libraries adds "Library" before Folder.
+    private IReadOnlyList<(WizardStep Step, string Label)> Steps
+    {
+        get
+        {
+            var steps = new List<(WizardStep, string)>();
+            if (!_typeKnown) steps.Add((WizardStep.Kind, "What is it?"));
+            if (HasLibraryStep) steps.Add((WizardStep.Library, "Library"));
+            steps.Add((WizardStep.Folder, "Folder"));
+            steps.Add((WizardStep.How, IsVault ? "Vault" : IsViewFlow ? "Who for" : "How"));
+            return steps;
+        }
+    }
+
+    private int CurrentStepIndex => Steps.ToList().FindIndex(entry => entry.Step == (_step == WizardStep.Vault ? WizardStep.How : _step));
 
     protected override void OnInitialized()
     {
@@ -341,7 +399,8 @@
             _typeKnown = true;
             _type = known;
             _groupKey = Kinds.GroupFor(known.Key)?.Key ?? Kinds.ForArea(known.Area)?.Key;
-            _step = WizardStep.Folder;
+            _step = HasLibraryStep ? WizardStep.Library : WizardStep.Folder;
+            if (_step == WizardStep.Library) PreselectLibrary();
         }
         else
         {
@@ -403,9 +462,30 @@
             return;
         }
 
-        if (_type?.Key != kind.Key) _folder = null;
+        if (_type?.Key != kind.Key)
+        {
+            _folder = null;
+            _libraryChoice = null;
+            _newLibraryName = string.Empty;
+        }
+
         _type = kind;
+        if (HasLibraryStep)
+        {
+            PreselectLibrary();
+            GoTo(WizardStep.Library);
+            return;
+        }
+
         GoTo(WizardStep.Folder);
+    }
+
+    // The library step opens on the first existing library, or on a new custom library when the kind has none yet.
+    private void PreselectLibrary()
+    {
+        if (_libraryChoice == NewLibraryChoice && CanAddLibrary) return;
+        if (ChosenLibrary is not null) return;
+        _libraryChoice = ExistingLibraries.FirstOrDefault()?.Id ?? (CanAddLibrary ? NewLibraryChoice : null);
     }
 
     private void GoTo(WizardStep step)
@@ -427,7 +507,12 @@
         _step = step;
     }
 
-    private void Back() => GoTo(_step is WizardStep.How or WizardStep.Vault ? WizardStep.Folder : WizardStep.Kind);
+    private void Back() => GoTo(_step switch
+    {
+        WizardStep.How or WizardStep.Vault => WizardStep.Folder,
+        WizardStep.Folder when HasLibraryStep => WizardStep.Library,
+        _ => WizardStep.Kind,
+    });
 
     // Step 2 embeds the shared folder picker; its Next button confirms the folder. Phone or camera footage in a Watch kind
     // pauses here with a hint before moving on.
@@ -562,7 +647,9 @@
                 _type.Key,
                 _folder,
                 withFiles ? _handling : AddFolderHandling.Managed,
-                MarkNewMediaHere: !withFiles && _markNewMediaHere);
+                MarkNewMediaHere: !withFiles && _markNewMediaHere,
+                LibraryId: _type.AllowsMultiple && _libraryChoice != NewLibraryChoice ? _libraryChoice : null,
+                NewLibraryName: _type.AllowsMultiple && _libraryChoice == NewLibraryChoice ? _newLibraryName.Trim() : null);
             var result = await AddService.AddAsync(plan, Kinds, _configuration, Scope);
             if (!result.Saved)
             {
@@ -571,6 +658,13 @@
             }
 
             _configuration = result.Configuration!;
+            // A new custom library now exists: adding another folder joins it instead of making a second one with the same name.
+            if (_type.AllowsMultiple && result.LibraryId is not null)
+            {
+                _libraryChoice = result.LibraryId;
+                _newLibraryName = string.Empty;
+            }
+
             _notice = result.Notice;
             await FollowUpAsync(plan, result);
             _step = WizardStep.Done;
@@ -582,7 +676,8 @@
     // The same questions the panel always asked after adding: organise a managed folder's existing files, or choose where a merged one goes.
     private async Task FollowUpAsync(AddFolderPlan plan, AddFolderResult result)
     {
-        var library = _type is null ? null : LibraryRollup.LibraryFor(_configuration, _type);
+        var library = _configuration.Libraries.FirstOrDefault(item => item.Id == result.LibraryId)
+            ?? (_type is null ? null : LibraryRollup.LibraryFor(_configuration, _type));
         var added = library?.Sources.FirstOrDefault(item => item.Id == result.Source?.Id) ?? result.Source;
         if (library is null || added is null) return;
 
@@ -614,7 +709,8 @@
         _adultsConfirmed = false;
         if (_typeKnown)
         {
-            _step = WizardStep.Folder;
+            _step = HasLibraryStep ? WizardStep.Library : WizardStep.Folder;
+            if (_step == WizardStep.Library) PreselectLibrary();
             return;
         }
 
@@ -664,6 +760,22 @@
             <AppTooltip Text="@tip" Placement="AppPlacement.Top">
                 <span class="add-wizard__info" role="img" tabindex="0" aria-label="@($"About {title}: {tip}")"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
             </AppTooltip>
+        </div>
+    };
+
+    // One radio card for a library the folder can join: an existing library by name, or a new custom one.
+    private RenderFragment LibraryOption(string choice, string title) => __builder =>
+    {
+        var selected = _libraryChoice == choice;
+        <div class="add-wizard__option">
+            <AppNativeButton Type="button"
+                             role="radio"
+                             Class="@(selected ? "add-wizard__choice is-selected" : "add-wizard__choice")"
+                             data-library="@choice"
+                             aria-checked="@(selected ? "true" : "false")"
+                             OnClick="@(_ => _libraryChoice = choice)">
+                <strong>@title</strong>
+            </AppNativeButton>
         </div>
     };
 

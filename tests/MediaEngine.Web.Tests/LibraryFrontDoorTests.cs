@@ -33,6 +33,13 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     // The Engine's list of library kinds; a test adds a kind here the way a plugin would.
     private List<LibraryKindDto> _kinds = LibraryKindsTestData.BuiltIn();
     private bool _viewSourcesUnavailable;
+    // The provider catalogue the Metadata column reads its icons and tooltips from.
+    private IReadOnlyList<ProviderCatalogueDto> _providerCatalogue =
+    [
+        new() { Name = "tmdb", DisplayName = "TMDB", IconPath = "images/providers/tmdb.svg", Capabilities = ["identity", "metadata", "artwork", "ratings", "people", "relationships"] },
+        new() { Name = "subdl", DisplayName = "SubDL", IconPath = "images/providers/subdl.png", Capabilities = ["subtitles"] },
+        new() { Name = "musicbrainz", DisplayName = "MusicBrainz", IconPath = "images/providers/musicbrainz.svg", Capabilities = ["identity", "metadata", "artwork", "mystery"] },
+    ];
     // The profile's Personal Space; the View kind pages list a profile's folders only once it has one.
     private ViewPersonalSpaceAdminDto? _personalSpace;
     private static readonly ViewPersonalSpaceAdminDto TestSpace = new(Guid.NewGuid(), "C:\\View\\Profiles\\Test", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
@@ -114,6 +121,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryOverviewAsync), _ => Task.FromResult(_overview));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryKindsAsync), _ => Task.FromResult<IReadOnlyList<LibraryKindDto>?>(_kinds));
+            stub.SetHandler(nameof(IEngineApiClient.GetProviderCatalogueAsync), _ => Task.FromResult(_providerCatalogue));
             stub.SetHandler(nameof(IEngineApiClient.TestPathAsync), args => ProbeAsync((string)args![0]!));
             stub.SetHandler(nameof(IEngineApiClient.GetViewProfileSourcesAsync), args =>
                 Task.FromResult<ViewPersonalSpaceAdminReviewDto?>(_viewSourcesUnavailable ? null : new((Guid)args![0]!, _personalSpace, _viewSources, [])));
@@ -453,7 +461,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         var cut = Open("watch");
 
         Assert.Equal(["Movies", "TV Shows", "Videos"], cut.FindAll(".lib-page__row strong").Select(Text).ToArray());
-        Assert.Equal("Name Folders Status", Text(cut.Find(".lib-page__head")));
+        Assert.Equal("Name Metadata Folders Status", Text(cut.Find(".lib-page__head")));
         // The Settings frame carries the breadcrumb and the group's name as the title; the page repeats neither.
         Assert.Empty(cut.FindAll(".libraries h1, .libraries h2, .libraries h3, .libraries nav[aria-label=Breadcrumb]"));
         Assert.Equal("/settings/libraries/watch/movies", cut.Find(".lib-page__row[data-type=movies]").GetAttribute("href"));
@@ -624,7 +632,111 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         var cut = Open("watch");
 
         Assert.Equal(["Movies", "TV Shows", "Lectures", "Family recordings"], cut.FindAll(".lib-page__row strong").Select(Text).ToArray());
-        Assert.Equal($"/settings/libraries/watch/other-{OtherId}", cut.Find($".lib-page__row[data-type=other-{OtherId}]").GetAttribute("href"));
+        // Each library is its own row (D51); both open the kind's one page, which lists them as sections.
+        Assert.Equal(["/settings/libraries/watch/other_videos", "/settings/libraries/watch/other_videos"],
+            cut.FindAll(".lib-page__row[data-type=other_videos]").Select(row => row.GetAttribute("href")!).ToArray());
+        Assert.Equal("1 folder", Text(cut.Find(".lib-page__row[data-library='55555555-5555-4555-8555-555555555555'] .lib-page__counts")));
+        Assert.Equal("1 folder", Text(cut.Find($".lib-page__row[data-library='{OtherId}'] .lib-page__counts")));
+    }
+
+    // The Metadata column (D22) and the lookup colour (D39).
+    [Fact]
+    public void AMoviesRowShowsTheProviderIconsWithTooltipsBuiltFromTheirCapabilities()
+    {
+        var cut = Open("watch");
+
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find(".lib-page__row[data-type=movies] .lib-meta__icon[data-provider=tmdb] img")));
+        var tmdb = cut.Find(".lib-page__row[data-type=movies] .lib-meta__icon[data-provider=tmdb]");
+        const string expected = "TMDB: matching, titles and descriptions, posters and covers, ratings, cast and people, series and links";
+        Assert.Equal(expected, tmdb.GetAttribute("aria-label"));
+        Assert.Equal(expected, tmdb.ParentElement!.GetAttribute("data-playback-tooltip"));
+        Assert.Equal("/images/providers/tmdb.svg", tmdb.QuerySelector("img")!.GetAttribute("src"));
+        Assert.Equal("0", tmdb.GetAttribute("tabindex"));
+        Assert.Equal("SubDL: subtitles", cut.Find(".lib-page__row[data-type=movies] .lib-meta__icon[data-provider=subdl]").GetAttribute("aria-label"));
+        // No sentence of text sits in the row.
+        Assert.DoesNotContain("TMDB", Text(cut.Find(".lib-page__row[data-type=movies]")).Replace("Movies", string.Empty));
+    }
+
+    [Fact]
+    public void AnOtherVideosRowShowsTheFilesAsIsIconAndSaysThereIsNoOnlineLookup()
+    {
+        var cut = Open("watch");
+
+        var icon = cut.Find(".lib-page__row[data-type=other_videos] .lib-meta__icon[data-provider=none]");
+        Assert.Equal("No online lookup. Files are added as they are.", icon.GetAttribute("aria-label"));
+        Assert.Equal("No online lookup. Files are added as they are.", icon.ParentElement!.GetAttribute("data-playback-tooltip"));
+        Assert.Empty(cut.FindAll(".lib-page__row[data-type=other_videos] .lib-meta__icon:not([data-provider=none])"));
+        Assert.DoesNotContain("No online lookup", Text(cut.Find(".lib-page__row[data-type=other_videos]")));
+    }
+
+    [Fact]
+    public void AProviderMissingFromTheCatalogueShowsItsNameInsteadOfAnIcon()
+    {
+        _providerCatalogue = [];
+
+        var cut = Open("watch");
+
+        var tmdb = cut.Find(".lib-page__row[data-type=movies] .lib-meta__icon[data-provider=tmdb]");
+        Assert.Equal("tmdb", tmdb.GetAttribute("aria-label"));
+        Assert.Empty(tmdb.QuerySelectorAll("img"));
+    }
+
+    [Fact]
+    public void ALookupKindTileCarriesItsAreasColourAndAPlainKindTheQuietGreyOne()
+    {
+        var cut = Open("watch");
+
+        var movies = cut.Find(".lib-page__row[data-type=movies] .lib-kind-tile");
+        Assert.Contains("lib-kind-tile--lookup", movies.ClassList);
+        Assert.Contains("lib-area--watch", movies.ClassList);
+        var plain = cut.Find(".lib-page__row[data-type=other_videos] .lib-kind-tile");
+        Assert.DoesNotContain("lib-kind-tile--lookup", plain.ClassList);
+        Assert.DoesNotContain(plain.ClassList, name => name.StartsWith("lib-area--", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AKindSuppliedByAPluginGetsItsAreasColourAndItsMetadataIconWithNoCodeChange()
+    {
+        var podcasts = LibraryKindsTestData.Podcasts();
+        podcasts.LookupProviders = ["musicbrainz"];
+        _kinds = LibraryKindsTestData.BuiltIn(podcasts);
+
+        var cut = Open("listen");
+
+        var row = cut.Find(".lib-page__row[data-type=podcasts]");
+        Assert.Contains("lib-kind-tile--lookup", row.QuerySelector(".lib-kind-tile")!.ClassList);
+        Assert.Contains("lib-area--listen", row.QuerySelector(".lib-kind-tile")!.ClassList);
+        Assert.Equal("MusicBrainz: matching, titles and descriptions, posters and covers", row.QuerySelector(".lib-meta__icon[data-provider=musicbrainz]")!.GetAttribute("aria-label"));
+    }
+
+    // The Unmatched count (D22, D34).
+    [Fact]
+    public void ALibraryWithUnmatchedFilesShowsTheAmberCountAndOneWithNoneShowsNothing()
+    {
+        _configuration.Libraries[0].UnmatchedCount = 3;
+
+        var cut = Open("watch");
+
+        var count = cut.Find(".lib-page__row[data-type=movies] .lib-unmatched");
+        Assert.Equal("3", Text(count));
+        Assert.Equal("3 files couldn't be matched. They stay where they are and are tried again.", count.ParentElement!.GetAttribute("data-playback-tooltip"));
+        Assert.Contains("3 files couldn't be matched", cut.Find(".lib-page__row[data-type=movies]").GetAttribute("aria-label"));
+
+        _configuration.Libraries[0].UnmatchedCount = 0;
+        var none = Open("watch");
+        Assert.Empty(none.FindAll(".lib-unmatched"));
+    }
+
+    [Fact]
+    public void AKindRowThatRollsUpSeveralLibrariesShowsTheSumOfTheirUnmatchedFiles()
+    {
+        _configuration.Libraries.Add(new() { Id = "a", Name = "Lectures", Kind = "catalogued", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"], UnmatchedCount = 3 });
+        _configuration.Libraries.Add(new() { Id = "b", Name = "Family recordings", Kind = "catalogued", KindKey = "other_videos", Area = "watch", MediaTypes = ["Videos"], UnmatchedCount = 4 });
+        var otherVideos = LibraryKindsTestData.Catalog.Find("other_videos")!;
+
+        Assert.Equal(7, LibraryRollup.UnmatchedFor(_configuration, otherVideos));
+        Assert.Equal([3, 4], LibraryRollup.RowsFor(LibraryKindsTestData.Catalog, LibraryKindsTestData.Catalog.TryGetGroup("watch")!, _configuration, _overview, null, null)
+            .Where(row => row.Type.Key == "other_videos").Select(row => row.Unmatched).ToArray());
     }
 
     [Fact]
