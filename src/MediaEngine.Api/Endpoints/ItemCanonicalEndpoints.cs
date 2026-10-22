@@ -1437,7 +1437,7 @@ public static class ItemCanonicalEndpoints
             AppleRetailClient apple,
             IEnumerable<IExternalMetadataProvider> externalProviders,
             ILoggerFactory loggerFactory,
-            IExternalLookupGuard lookupGuard,
+            [Microsoft.AspNetCore.Mvc.FromServices] IExternalLookupGuard lookupGuard,
             CancellationToken ct) =>
         {
             var context = await itemCanonicalData.ResolveWorkAssetContextAsync(entityId, ct);

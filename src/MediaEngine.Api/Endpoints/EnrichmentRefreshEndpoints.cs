@@ -51,7 +51,7 @@ public static class EnrichmentRefreshEndpoints
             string entityType,
             Guid entityId,
             EnrichmentRefreshScheduleService schedule,
-            IExternalLookupGuard lookupGuard,
+            [Microsoft.AspNetCore.Mvc.FromServices] IExternalLookupGuard lookupGuard,
             CancellationToken ct) =>
         {
             if (!entityType.Equals("Person", StringComparison.OrdinalIgnoreCase) && await lookupGuard.BlocksEntityAsync(entityId, ct))
