@@ -1,5 +1,7 @@
+using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Backups;
 using MediaEngine.Api.Services.ScheduledTasks;
+using MediaEngine.Storage.Backup;
 
 namespace MediaEngine.Api.DependencyInjection;
 
@@ -7,6 +9,9 @@ public static class TuvimaBackupServiceCollectionExtensions
 {
     public static IServiceCollection AddTuvimaBackupDestinations(this IServiceCollection services)
     {
+        // What a backup keeps of the data store, and the codec that makes the two-step secret readable on any computer.
+        services.AddSingleton<IBackupPortableValueCodec, DataProtectionBackupPortableValueCodec>();
+        services.AddSingleton<PersonalStateBackupRepository>();
         services.AddSingleton<BackupSettingsAccessor>();
         services.AddSingleton<IBackupDestination, LocalFolderBackupDestination>();
         services.AddSingleton<IBackupHttp, BackupHttp>();

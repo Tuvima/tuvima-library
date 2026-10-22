@@ -194,6 +194,15 @@ public interface IConfigurationLoader
     T? LoadConfig<T>(string subdirectory, string name) where T : class;
 
     /// <summary>
+    /// Load the library display preferences: this computer's <c>config/ui/library-preferences.json</c> when it has one,
+    /// otherwise the shipped <c>config/ui/library-preferences.defaults.json</c> (every media type offers "Show missing",
+    /// hidden until ticked). Returns <c>null</c> only when neither file exists.
+    /// </summary>
+    LibraryPreferencesSettings? LoadLibraryPreferences()
+        => LoadConfig<LibraryPreferencesSettings>("ui", "library-preferences")
+           ?? LoadConfig<LibraryPreferencesSettings>("ui", "library-preferences.defaults");
+
+    /// <summary>
     /// Persist a typed configuration to a named subdirectory.
     /// Creates the subdirectory if it does not exist.
     /// </summary>

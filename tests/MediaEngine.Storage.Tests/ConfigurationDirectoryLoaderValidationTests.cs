@@ -676,6 +676,50 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     }
 
     [Fact]
+    public void ShippedLibraryPreferenceDefaults_OfferShowMissingForEveryMediaType_HiddenUntilTicked()
+    {
+        using var temp = TempConfig.Create();
+        var uiDirectory = System.IO.Path.Combine(temp.Path, "ui");
+        Directory.CreateDirectory(uiDirectory);
+        File.Copy(
+            System.IO.Path.Combine(FindRepoRoot(), "config", "ui", "library-preferences.defaults.json"),
+            System.IO.Path.Combine(uiDirectory, "library-preferences.defaults.json"));
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+
+        // With no file of this computer's own, the shipped defaults are what every reader gets.
+        var preferences = ((MediaEngine.Domain.Contracts.IConfigurationLoader)loader).LoadLibraryPreferences();
+
+        Assert.NotNull(preferences);
+        foreach (var mediaType in Enum.GetValues<MediaEngine.Domain.Enums.MediaType>().Where(type => type != MediaEngine.Domain.Enums.MediaType.Unknown))
+        {
+            var policy = preferences.MissingItemDisplay[mediaType.ToString().ToLowerInvariant()];
+            Assert.True(policy.Enabled);
+            Assert.Equal("hidden", policy.DefaultVisibility);
+        }
+
+        Assert.Equal("series", preferences.LaneGroupDisplay["watch"].ShelfKey);
+    }
+
+    [Fact]
+    public void ThisComputersLibraryPreferences_WinOverTheShippedDefaults()
+    {
+        using var temp = TempConfig.Create();
+        var uiDirectory = System.IO.Path.Combine(temp.Path, "ui");
+        Directory.CreateDirectory(uiDirectory);
+        var defaults = System.IO.Path.Combine(FindRepoRoot(), "config", "ui", "library-preferences.defaults.json");
+        File.Copy(defaults, System.IO.Path.Combine(uiDirectory, "library-preferences.defaults.json"));
+        File.WriteAllText(
+            System.IO.Path.Combine(uiDirectory, "library-preferences.json"),
+            File.ReadAllText(defaults).Replace("\"hidden\"", "\"shown\"", StringComparison.Ordinal));
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+
+        var preferences = ((MediaEngine.Domain.Contracts.IConfigurationLoader)loader).LoadLibraryPreferences();
+
+        Assert.NotNull(preferences);
+        Assert.Equal("shown", preferences.MissingItemDisplay["movies"].DefaultVisibility);
+    }
+
+    [Fact]
     public void ProviderSequenceManifest_RejectsImageFields()
     {
         using var temp = TempConfig.Create();

@@ -1051,8 +1051,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("PrimaryRole = person.Subtitle", overview);
         Assert.Contains("NormalizePersonDetails(detail.PersonDetails)", apiClient);
         Assert.Contains("ImageUrl = NormalizeOptionalUrl(link.ImageUrl)", apiClient);
-        Assert.Contains(".tl-detail-primary-module__title", primaryModuleStyles);
-        Assert.Contains("gap: 1.05rem", primaryModuleStyles);
+        Assert.Contains("<AppCollapsibleRow Title=\"@RowTitle\"", ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor"));
+        Assert.Contains(".tl-detail-primary-module--works .tl-detail-primary-module__controls", primaryModuleStyles);
     }
 
     [Fact]
@@ -1076,7 +1076,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("\"read\" => AppMaterialIcons.Outlined.MenuBook", primaryModule);
         Assert.Contains("\"watch\" => AppMaterialIcons.Outlined.Tv", primaryModule);
         Assert.Contains("\"listen\" => AppMaterialIcons.Outlined.Headphones", primaryModule);
-        Assert.Contains(".tl-detail-primary-module__title", primaryModuleStyles);
+        Assert.Contains("Actions=\"@ModuleControls\"", primaryModule);
         Assert.Contains("min-width: max-content;", primaryModuleStyles);
         Assert.Contains(".tl-detail-primary-module__controls", primaryModuleStyles);
         Assert.Contains(".tl-detail-primary-module__filters", primaryModuleStyles);

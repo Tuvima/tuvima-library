@@ -1,3 +1,5 @@
+using MediaEngine.Domain;
+
 namespace MediaEngine.Storage.Backup;
 
 /// <summary>
@@ -16,7 +18,7 @@ public static partial class BackupTableClassification
         Config("account_credentials", "Password hashes, needed to sign in after a restore."),
         Config("account_external_logins", "Links between an account and an outside sign-in provider."),
         Config("account_passkeys", "Passkey public keys, needed to sign in after a restore."),
-        Config("account_two_step", "Two-step sign-in data, needed to sign in after a restore (the secret is protected with this machine's Data Protection keys)."),
+        Config("account_two_step", "Two-step sign-in data, needed to sign in after a restore; the secret is protected with this computer's Data Protection key, so the export writes it readable (or keeps it as it is when it cannot be read).", portable: ["secret_protected"]),
         Config("account_feature_grants", "Which features an account may use."),
         Config("account_library_grants", "Which libraries an account may use."),
         Config("account_profile_grants", "Which profiles an account may use."),
@@ -67,11 +69,13 @@ public static partial class BackupTableClassification
         Config("local_item_tag_links", "Which tags a person put on which View item.", refs: [LocalItem("item_id")]),
         Config("doc_item_details", "Filing details a person entered for a document (machine suggestions are rebuilt).", refs: [LocalItem("item_id")], excluded: ["suggestions_json"]),
         Config("excluded_source_files", "Files a person removed from the library and chose to keep out, so a rescan does not add them back.", excluded: ["title", "excluded_by_name"]),
-        Config("collections", "Collections and playlists a person built; collections built from providers (universes and series) are rebuilt.", refs: [Other("universe_id"), Coll("parent_collection_id")], excluded: ["cover_artwork_path", "background_artwork_path", "banner_artwork_path", "logo_artwork_path"], keepWhere: PersonBuiltCollections),
+        Config("collections", "Collections and playlists a person built; collections built from providers (universes and series) are rebuilt, but a person's switches on them (shown, featured, display changes) are kept.", refs: [Other("universe_id"), Coll("parent_collection_id")], excluded: ["cover_artwork_path", "background_artwork_path", "banner_artwork_path", "logo_artwork_path"], keepWhere: PersonBuiltCollections, choices: ["is_enabled", "is_featured", "display_overrides_json"]),
         Config("collection_items", "The titles in a person-built collection.", refs: [Work("work_id")], keepWhere: InPersonBuiltCollection),
         Config("collection_placements", "Where a person-built collection appears.", keepWhere: InPersonBuiltCollection),
         Config("collection_profile_audience", "Which profiles can see a person-built collection.", keepWhere: InPersonBuiltCollection),
         Config("collection_view_sources", "The gallery or rule feeding a person-built collection.", keepWhere: InPersonBuiltCollection),
+        Config("fictional_entity_user_overrides", "A person's name and description corrections for a fictional thing, found again by its Wikidata id.", refs: [Fictional("entity_id")]),
+        Config("narrative_root_user_overrides", "A person's name and description corrections for a universe (already keyed by its Wikidata id)."),
 
         // ---------------------------------------------------------------------------------------------------------
         // Personal state: a person's own state tied to a title. Kept, re-attached by recognition data after a rescan.
@@ -94,13 +98,13 @@ public static partial class BackupTableClassification
         Personal("profile_person_preferences", "profile_id", "A person's own tags and preferences for a creator or performer.", refs: [Person("person_id")]),
 
         // ---------------------------------------------------------------------------------------------------------
-        // Catalogue: anything a rescan rebuilds. Never kept.
+        // Catalogue: anything a rescan rebuilds. Not kept, except a person's own choices and corrections on its rows.
         // ---------------------------------------------------------------------------------------------------------
-        Catalogue("works", "Titles; rebuilt by a rescan."),
+        Catalogue("works", "Titles; rebuilt by a rescan, but display changes a person typed are kept. Matching and placement choices (locked or rejected matches, a locked series placement) are left to the rescan.", choices: ["display_overrides_json"]),
         Catalogue("editions", "Editions of a title; rebuilt by a rescan."),
         Catalogue("media_assets", "The files themselves; rebuilt by a rescan."),
         Catalogue("media_asset_chapters", "Chapters read from a file."),
-        Catalogue("media_asset_coverage", "Which part of a work a file covers."),
+        Catalogue("media_asset_coverage", "Which part of a work a file covers; rebuilt by a rescan, including coverage a person set by hand (moves are left to the rescan)."),
         Catalogue("media_artwork_writeback", "Artwork write-back state for files."),
         Catalogue("media_inspection_holds", "Inspection holds on files."),
         Catalogue("playback_inspection_cache", "Cached file inspection results."),
@@ -109,7 +113,7 @@ public static partial class BackupTableClassification
         Catalogue("file_hash_cache", "Cached file hashes."),
         Catalogue("canonical_values", "Winning metadata values, rebuilt from claims."),
         Catalogue("canonical_value_arrays", "Winning list-type metadata values, rebuilt from claims."),
-        Catalogue("metadata_claims", "What each provider said about a title; rebuilt by enrichment."),
+        Catalogue("metadata_claims", "What each provider said about a title; rebuilt by enrichment. Current claims a person made themselves (a locked field, a manual edit) are kept.", correctionWhere: PersonMadeClaims(), refs: [Other("entity_id")]),
         Catalogue("bridge_ids", "External ids found for a title."),
         Catalogue("entity_events", "Identity and enrichment history of a title."),
         Catalogue("entity_field_changes", "Field changes recorded in a title's history."),
@@ -127,18 +131,16 @@ public static partial class BackupTableClassification
         Catalogue("artwork_assets", "Artwork files known to the Library."),
         Catalogue("artwork_asset_context", "Where each artwork file is used."),
         Catalogue("artwork_asset_search", "Search index over artwork."),
-        Catalogue("entity_artwork_links", "Which artwork belongs to which title or person."),
-        Catalogue("entity_assets", "Images attached to titles and people."),
+        Catalogue("entity_artwork_links", "Which artwork belongs to which title or person. A cover a person picked from a provider is kept, found again by the artwork's provider and source address; uploads are not kept.", correctionWhere: "is_user_override = 1 AND artwork_asset_id IN (SELECT id FROM artwork_assets WHERE COALESCE(source_provider, '') <> 'user_upload' COLLATE NOCASE AND (NULLIF(TRIM(source_url), '') IS NOT NULL OR NULLIF(TRIM(provider_reference), '') IS NOT NULL))", refs: [Other("entity_id"), Artwork("artwork_asset_id")]),
+        Catalogue("entity_assets", "Images attached to titles and people. A cover a person chose from a provider is kept, found again by provider and image address; uploads are not kept.", correctionWhere: "is_user_override = 1 AND COALESCE(source_provider, '') <> 'user_upload' COLLATE NOCASE AND image_url LIKE 'http%'", refs: [Other("entity_id")], excluded: ["id", "local_image_path", "local_image_path_s", "local_image_path_m", "local_image_path_l", "local_image_path_t", "is_locally_exported", "is_preferred_exported"]),
         Catalogue("image_cache", "Cached downloaded images."),
         Catalogue("image_cache_sources", "Where cached images came from."),
         Catalogue("character_portraits", "Character portraits."),
         Catalogue("character_performer_links", "Which performer plays which character."),
         Catalogue("fictional_entities", "Characters, places and other fictional things from Wikidata."),
         Catalogue("fictional_entity_work_links", "Where a fictional thing appears."),
-        Catalogue("fictional_entity_user_overrides", "A person's name and description corrections for a fictional thing."),
         Catalogue("narrative_roots", "Universes and franchises from Wikidata."),
-        Catalogue("narrative_root_user_overrides", "A person's name and description corrections for a universe."),
-        Catalogue("persons", "Creators and performers; rebuilt from files and providers."),
+        Catalogue("persons", "Creators and performers; rebuilt from files and providers, but a person's display changes are kept.", choices: ["display_overrides_json"]),
         Catalogue("person_aliases", "Pseudonyms of people."),
         Catalogue("person_group_members", "Members of bands and groups."),
         Catalogue("person_media_links", "Which person worked on which file."),
@@ -148,18 +150,18 @@ public static partial class BackupTableClassification
         Catalogue("series_manifest_items", "The items of a series fetched from providers."),
         Catalogue("series_members", "Series membership fetched from providers."),
         Catalogue("tv_episode_credits", "Episode credits from providers."),
-        Catalogue("audiobook_chapter_title_overrides", "A person's chapter title corrections (no owner is recorded, so they are not kept)."),
+        Catalogue("audiobook_chapter_title_overrides", "Chapter titles; the ones a person renamed are kept, the ones read from the file are rebuilt.", correctionWhere: "title_source = 'Override'", refs: [Work("work_id"), Asset("asset_id")]),
         Catalogue("subtitle_index_assets", "Subtitle indexing state per file."),
         Catalogue("subtitle_index_tracks", "Subtitle tracks that were indexed."),
         Catalogue("subtitle_lines", "Indexed subtitle text."),
         Catalogue("subtitle_name_tags", "Characters found in subtitle text."),
         Catalogue("text_tracks", "Subtitle and lyric tracks found for files."),
-        Catalogue("local_items", "Photos, documents and other View items found on disk; a person's own choices on them (favourite, hidden, archived, trashed, capture date they set) are kept.", choices: ["favorite", "hidden", "archived_at", "trashed_at", "captured_at_user_override", "captured_at"]),
+        Catalogue("local_items", "Photos, documents and other View items found on disk; a person's own choices on them (favourite, hidden, archived, trashed, capture date they set) are kept.", choices: ["favorite", "hidden", "archived_at", "trashed_at", "captured_at_user_override", "captured_at"], gatedBy: [("captured_at", "captured_at_user_override")]),
         Catalogue("local_files", "Files behind View items."),
         Catalogue("local_file_sources", "Where View files were found."),
         Catalogue("local_item_files", "Which files belong to which View item."),
-        Catalogue("local_item_metadata", "Metadata read from View items."),
-        Catalogue("local_item_annotations", "Labels and detections found on View items."),
+        Catalogue("local_item_metadata", "Metadata read from View items; a place a person set on a photo and a description they wrote are kept as choices on the item (never the embedded coordinates, camera or lens details, or document text).", choices: ["description", "location_user_override", "latitude", "longitude", "location_name", "location_city", "location_region", "location_country", "location_country_code", "location_source"], gatedBy: [("latitude", "location_user_override"), ("longitude", "location_user_override"), ("location_name", "location_user_override"), ("location_city", "location_user_override"), ("location_region", "location_user_override"), ("location_country", "location_user_override"), ("location_country_code", "location_user_override"), ("location_source", "location_user_override")], choiceRow: LocalItem("item_id")),
+        Catalogue("local_item_annotations", "Labels and detections found on View items; a name a person gave, or a detection they reviewed, is kept (the machine's own details are not).", correctionWhere: "source = 'user_assignment' OR reviewed_at IS NOT NULL", refs: [LocalItem("item_id")], excluded: ["confidence", "model_name", "model_version", "provenance_json"]),
         Catalogue("local_item_search", "Search index over View items."),
         Catalogue("local_item_search_keys", "Row numbers linking View items to their search index entries."),
         Catalogue("doc_item_field_sources", "Where document field values came from (tied to View items)."),
@@ -302,23 +304,40 @@ public static partial class BackupTableClassification
 
     private const string InPersonBuiltCollection = "collection_id IN (SELECT id FROM collections WHERE " + PersonBuiltCollections + ")";
 
+    /// <summary>
+    /// The current claims a person made: ones they locked, or ones written by the manual-edit provider. The provider id
+    /// is written as the same 16-byte blob <see cref="GuidSql.ToBlob"/> stores, built from the constant rather than by hand.
+    /// </summary>
+    private static string PersonMadeClaims() =>
+        "is_current = 1 AND (is_user_locked = 1 OR provider_id = X'" + Convert.ToHexString(GuidSql.ToBlob(WellKnownProviders.UserManual)) + "')";
+
     private static BackupTableRule Config(
         string table,
         string reason,
         CatalogueReference[]? refs = null,
         string[]? excluded = null,
         string? keepWhere = null,
-        ExcludedJsonProperty[]? excludedJson = null) =>
-        new(table, BackupDataKind.Configuration, reason, refs ?? [], excluded ?? [], null, [], keepWhere, excludedJson ?? []);
+        ExcludedJsonProperty[]? excludedJson = null,
+        string[]? choices = null,
+        string[]? portable = null) =>
+        new(table, BackupDataKind.Configuration, reason, refs ?? [], excluded ?? [], null, choices ?? [], null, [], null, keepWhere, excludedJson ?? [], portable ?? []);
 
     private static BackupTableRule Personal(string table, string? owner, string reason, CatalogueReference[] refs, string[]? excluded = null) =>
-        new(table, BackupDataKind.PersonalState, reason, refs, excluded ?? [], owner, [], null, []);
+        new(table, BackupDataKind.PersonalState, reason, refs, excluded ?? [], owner, [], null, [], null, null, [], []);
 
-    private static BackupTableRule Catalogue(string table, string reason, string[]? choices = null) =>
-        new(table, BackupDataKind.Catalogue, reason, [], [], null, choices ?? [], null, []);
+    private static BackupTableRule Catalogue(
+        string table,
+        string reason,
+        string[]? choices = null,
+        (string Column, string Flag)[]? gatedBy = null,
+        string? correctionWhere = null,
+        CatalogueReference[]? refs = null,
+        string[]? excluded = null,
+        CatalogueReference? choiceRow = null) =>
+        new(table, BackupDataKind.Catalogue, reason, refs ?? [], excluded ?? [], null, choices ?? [], correctionWhere, gatedBy ?? [], choiceRow, null, [], []);
 
     private static BackupTableRule Transient(string table, string reason) =>
-        new(table, BackupDataKind.Transient, reason, [], [], null, [], null, []);
+        new(table, BackupDataKind.Transient, reason, [], [], null, [], null, [], null, null, [], []);
 
     private static CatalogueReference Work(string column) => new(column, CatalogueTarget.Work);
 
@@ -331,4 +350,8 @@ public static partial class BackupTableClassification
     private static CatalogueReference LocalItem(string column) => new(column, CatalogueTarget.LocalItem);
 
     private static CatalogueReference Other(string column) => new(column, CatalogueTarget.Other);
+
+    private static CatalogueReference Artwork(string column) => new(column, CatalogueTarget.ArtworkAsset);
+
+    private static CatalogueReference Fictional(string column) => new(column, CatalogueTarget.FictionalEntity);
 }

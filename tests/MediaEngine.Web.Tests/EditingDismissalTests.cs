@@ -122,7 +122,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     private static void TypeIntoTheTitle(IRenderedComponent<DetailPage> cut, string value)
     {
         cut.Find("button[aria-label='Edit title']").Click();
-        cut.Find("input[aria-label='Edit Title']").Input(value);
+        cut.WaitForElement("input[aria-label='Edit Title']").Input(value);
     }
 
     // Esc as the overlay delivers it: app-dialog.js reports it through RequestCancel, which offers it to the page first.
@@ -373,7 +373,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         overlay.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
         overlay.WaitForAssertion(() => Assert.NotEmpty(overlay.FindAll("button[aria-label='Edit title']")));
         overlay.Find("button[aria-label='Edit title']").Click();
-        overlay.Find("input[aria-label='Edit Title']").Input("Dune");
+        overlay.WaitForElement("input[aria-label='Edit Title']").Input("Dune");
 
         // app-dialog.js reports a click on the backdrop (and Esc outside a field, and the sheet's grip) through RequestCancel.
         var backdrop = overlay.InvokeAsync(() => overlay.Instance.RequestCancel());
@@ -471,7 +471,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         ChooseEdit(cut);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Edit title']")));
         cut.Find("button[aria-label='Edit title']").Click();
-        cut.Find("input[aria-label='Edit Title']").Input("Dune");
+        cut.WaitForElement("input[aria-label='Edit Title']").Input("Dune");
         var host = Render<AppDialogHost>();
         var asked = CanDismissAsync(cut);
         host.WaitForElement(".app-confirm");

@@ -141,6 +141,7 @@ public sealed class EngineCompositionValidationTests
         services.AddScoped<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AuthorizationEvaluator>();
         services.AddSingleton<IAuthorizationInvalidationService, AuthorizationInvalidationService>();
         services.AddSingleton<IAuthorizationAuditWriter, AuthorizationAuditWriter>();
+        services.AddSingleton<MediaEngine.Identity.Contracts.ITwoStepSecretProtector, DataProtectionTwoStepSecretProtector>();
         services.AddScoped<IAuthorizationHandler, EffectiveAdministratorHandler>();
         services.AddScoped<IAuthorizationHandler, HumanSelfServiceHandler>();
         services.AddScoped<IAuthorizationHandler, ApplicationPermissionHandler>();

@@ -1078,13 +1078,13 @@
     padding: 0;
 }
 
-.tl-detail-page .tl-series-detail__heading > div:first-child {
+.tl-detail-page .tl-series-detail__heading > .tl-series-detail__identity {
     display: flex;
     align-items: baseline;
     gap: 0.7rem;
 }
 
-.tl-detail-page .tl-series-detail__heading > div:first-child > span {
+.tl-detail-page .tl-series-detail__heading > .tl-series-detail__identity > span {
     color: rgba(248, 250, 252, 0.92);
     font-size: clamp(1rem, 1.2vw, 1.2rem);
     font-weight: 600;
@@ -1111,7 +1111,7 @@
 
 /* A Series' Jump to picker is as wide as its longest entry (AppSelect Sizing="options"), so entries do not wrap. */
 @media (min-width: 840px) {
-.tl-detail-page .tl-series-detail__heading .tl-series-detail__jump {
+.tl-detail-page .tl-series-detail__jump--fit {
         width: auto;
         min-width: 0;
         max-width: 100%;
