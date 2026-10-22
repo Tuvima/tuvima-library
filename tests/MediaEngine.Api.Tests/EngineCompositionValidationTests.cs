@@ -211,6 +211,47 @@ public sealed class EngineCompositionValidationTests
         Assert.Equal(1024 * 1024, subdl.MaxResponseContentBufferSize);
     }
 
+    [Fact]
+    public async Task EveryWorkerThatAsksAProviderIsGivenTheLookupGuard()
+    {
+        var services = BuildFullComposition();
+
+        await using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+
+        Assert.IsType<MediaEngine.Providers.Services.ConfiguredExternalLookupGuard>(provider.GetRequiredService<IExternalLookupGuard>());
+        // The one merged kinds list (plugins included) is what ingestion's folder list and the guard read.
+        Assert.IsType<MediaEngine.Api.Services.Settings.LibraryKindListService>(provider.GetRequiredService<ILibraryKindSource>());
+        Assert.NotNull(provider.GetRequiredService<IOptionsMonitor<MediaEngine.Ingestion.Models.IngestionOptions>>().CurrentValue);
+        var guardKinds = typeof(MediaEngine.Providers.Services.ConfiguredExternalLookupGuard)
+            .GetField("_kindSource", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(provider.GetRequiredService<IExternalLookupGuard>());
+        Assert.NotNull(guardKinds);
+        // These take the guard as an optional argument; a missing registration would leave them unguarded without any error.
+        object[] guarded =
+        [
+            provider.GetRequiredService<MediaEngine.Providers.Workers.RetailMatchWorker>(),
+            provider.GetRequiredService<MediaEngine.Providers.Workers.WikidataBridgeWorker>(),
+            provider.GetRequiredService<MediaEngine.Providers.Workers.QuickHydrationWorker>(),
+            provider.GetRequiredService<MediaEngine.Providers.Workers.CoverArtWorker>(),
+            provider.GetRequiredService<MediaEngine.Providers.Workers.PersonEnrichmentWorker>(),
+            provider.GetRequiredService<MediaEngine.Providers.Workers.FictionalEntityWorker>(),
+            provider.GetRequiredService<MediaEngine.Providers.Workers.DescriptionEnrichmentWorker>(),
+            provider.GetRequiredService<IHydrationPipelineService>(),
+            provider.GetServices<IHostedService>().OfType<MissingUniverseSweepService>().Single(),
+            provider.GetServices<IHostedService>().OfType<MusicBrainzEnrichmentHostedService>().Single(),
+            provider.GetServices<IHostedService>().OfType<MusicAlbumManifestHostedService>().Single(),
+        ];
+        foreach (var worker in guarded)
+        {
+            var field = worker.GetType()
+                .GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .SingleOrDefault(candidate => candidate.FieldType == typeof(IExternalLookupGuard));
+            Assert.True(field is not null, worker.GetType().Name);
+            Assert.NotNull(field.GetValue(worker));
+        }
+    }
+
     private static readonly string[] ExpectedMetadataProviderOrder =
         ["apple_api", "comicvine", "musicbrainz", "tmdb", "wikidata_reconciliation", "tvdb"];
     private static readonly string[] ExpectedTextTrackProviderOrder = ["lrclib", "subdl"];

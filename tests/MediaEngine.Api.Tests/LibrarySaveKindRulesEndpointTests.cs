@@ -130,6 +130,40 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
     [InlineData(SettingsSave)]
     [InlineData(SetupSave)]
     [InlineData(Mutation)]
+    public async Task AnOtherVideosLibrarySavedWithTheYoutubeLookupOnIsSaved_WithTheKindsValuesInTheFile(string door)
+    {
+        var lectures = Other("Lectures");
+        lectures.YoutubeLookup = true;
+        lectures.MetadataPolicy = LibraryMetadataPolicies.Enriched;
+
+        var saved = await SaveAsync(door, [], lectures);
+
+        Assert.Equal(200, saved.Status);
+        var library = Assert.Single(_loader.LoadLibraries().Libraries);
+        Assert.Equal("other_videos", library.KindKey);
+        Assert.False(library.YoutubeLookup);
+        Assert.Equal(LibraryMetadataPolicies.LocalOnly, library.MetadataPolicy);
+    }
+
+    [Theory]
+    [InlineData(SettingsSave)]
+    [InlineData(SetupSave)]
+    [InlineData(Mutation)]
+    public async Task AStaleOldVideosLibraryNeverBlocksASave_AndIsMadeConsistentByIt(string door)
+    {
+        var old = Other("Old videos");
+        old.YoutubeLookup = true;
+
+        var saved = await SaveAsync(door, [old], Other("Lectures"));
+
+        Assert.Equal(200, saved.Status);
+        Assert.All(_loader.LoadLibraries().Libraries, library => Assert.False(library.YoutubeLookup));
+    }
+
+    [Theory]
+    [InlineData(SettingsSave)]
+    [InlineData(SetupSave)]
+    [InlineData(Mutation)]
     public async Task ASecondMoviesLibraryIsRefusedBecauseALookupKindHoldsOne(string door)
     {
         var saved = await SaveAsync(door, [Standard("movies", "Movies", LibraryAreas.Watch, "Movies")], Standard("movies", "Films", LibraryAreas.Watch, "Movies"));
@@ -184,7 +218,10 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         Area = area,
         MediaTypes = [mediaType],
         // Videos libraries are always local only (see the libraries file check).
-        MetadataPolicy = mediaType == "Videos" ? LibraryMetadataPolicies.LocalOnly : LibraryMetadataPolicies.Enriched,
+        // Videos, and the plain kinds (Other videos, and the Podcasts kind a plugin adds with no lookup), are local only.
+        MetadataPolicy = mediaType == "Videos" || kindKey == "podcasts" ? LibraryMetadataPolicies.LocalOnly : LibraryMetadataPolicies.Enriched,
+        // A plain kind never asks YouTube, and the file check says so when it is left on.
+        YoutubeLookup = false,
     };
 
     private void AddPodcastsPlugin(bool enabled = true)

@@ -106,9 +106,30 @@ public sealed class VideosPipelineTests : IDisposable
         Assert.NotNull(await _h.Assets.FindByPathRootAsync(c));
     }
 
-    [Fact]
-    public async Task AVideoInAVaultLibrary_IsNeverLookedUpOnYoutube_EvenWithTheLibrarySwitchOn()
+    // The library's kind decides the YouTube lookup (Library setup D17, D18, D38): only a YouTube library asks, and a plain kind never does.
+    private const string KindlessLibraryId = "bbbbbbbb-0000-4000-8000-000000000001";
+
+    private void UseKind(string kindKey, bool youtubeLookupField)
     {
+        _h.SetLibrary(new LibraryFolderConfig
+        {
+            Id = KindlessLibraryId,
+            Name = "Videos",
+            Kind = LibraryKinds.Catalogued,
+            KindKey = kindKey,
+            Area = LibraryAreas.Watch,
+            MetadataPolicy = LibraryMetadataPolicies.LocalOnly,
+            YoutubeLookup = youtubeLookupField,
+            MediaTypes = ["Videos"],
+            Sources = [ImportFolderHarness.AsIs("videos-asis", _videos)],
+        });
+        _h.Options.LibraryFolders = _h.Config.Libraries.Libraries.Select(LibraryFolderEntryFactory.Create).ToList();
+    }
+
+    [Fact]
+    public async Task AVideoInAVaultLibrary_IsNeverLookedUpOnYoutube_EvenInAYoutubeLibraryWithTheSwitchOn()
+    {
+        UseKind("youtube", youtubeLookupField: true);
         Write("Holiday clip [dQw4w9WgXcQ].mp4");
         var lookup = new CountingLookup();
 
@@ -118,14 +139,63 @@ public sealed class VideosPipelineTests : IDisposable
     }
 
     [Fact]
-    public async Task AVideoInANormalLibrary_IsStillLookedUpOnYoutube_WhenTheGateAllows()
+    public async Task AVideoInAYoutubeLibrary_IsLookedUpOnYoutube_WhenTheGateAllows()
     {
+        UseKind("youtube", youtubeLookupField: true);
         Write("Holiday clip [dQw4w9WgXcQ].mp4");
         var lookup = new CountingLookup();
 
         await RunAsync(1, lookup, new FixedGate(allowed: true));
 
         Assert.Equal(1, lookup.Calls);
+    }
+
+    [Fact]
+    public async Task AVideoInAYoutubeLibrary_IsLookedUpOnYoutube_EvenWhenTheLibraryFieldSaysOff()
+    {
+        UseKind("youtube", youtubeLookupField: false);
+        Write("Holiday clip [dQw4w9WgXcQ].mp4");
+        var lookup = new CountingLookup();
+
+        await RunAsync(1, lookup, new FixedGate(allowed: true));
+
+        Assert.Equal(1, lookup.Calls);
+    }
+
+    [Fact]
+    public async Task AVideoInAnOtherVideosLibrary_IsNeverLookedUpOnYoutube_EvenWhenTheLibraryFieldSaysTrueAndTheGateAllows()
+    {
+        UseKind("other_videos", youtubeLookupField: true);
+        var path = Write("Holiday clip [dQw4w9WgXcQ].mp4");
+        var lookup = new CountingLookup();
+
+        await RunAsync(1, lookup, new FixedGate(allowed: true));
+
+        Assert.Equal(0, lookup.Calls);
+        // The ID in the name is still read locally; only the outside question is never asked.
+        var asset = await _h.Assets.FindByPathRootAsync(path);
+        var values = await _h.Canonicals.GetByEntityAsync(asset!.Id);
+        Assert.Equal("youtube_id", values.First(v => v.Key == "video_identified_by").Value);
+    }
+
+    [Fact]
+    public async Task AVideoInALibraryWithNoKind_FollowsItsOwnYoutubeSwitch_AsItAlwaysHas()
+    {
+        UseKind("", youtubeLookupField: true);
+        Write("Holiday clip [dQw4w9WgXcQ].mp4");
+        var on = new CountingLookup();
+        await RunAsync(1, on, new FixedGate(allowed: true));
+        Assert.Equal(1, on.Calls);
+    }
+
+    [Fact]
+    public async Task AVideoInALibraryWithNoKindAndTheSwitchOff_IsNotLookedUpOnYoutube()
+    {
+        UseKind("", youtubeLookupField: false);
+        Write("Holiday clip [dQw4w9WgXcQ].mp4");
+        var off = new CountingLookup();
+        await RunAsync(1, off, new FixedGate(allowed: true));
+        Assert.Equal(0, off.Calls);
     }
 
     // ── The Vault's part of ingestion (Videos spec WP12, D32) ───────────────────────────────────

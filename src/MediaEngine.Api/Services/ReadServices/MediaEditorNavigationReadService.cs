@@ -17,7 +17,8 @@ namespace MediaEngine.Api.Services.ReadServices;
 public sealed class MediaEditorNavigationReadService(
     IDatabaseConnection db,
     ISearchService searchService,
-    IHierarchyAlignmentService hierarchyAlignment) : IMediaEditorNavigationReadService, IMediaEditorMembershipReadService
+    IHierarchyAlignmentService hierarchyAlignment,
+    IExternalLookupGuard? lookupGuard = null) : IMediaEditorNavigationReadService, IMediaEditorMembershipReadService
 {
     public async Task<MediaEditorNavigatorEnvelope?> GetNavigatorAsync(Guid entityId, CancellationToken ct) =>
         await BuildMediaEditorNavigatorCoreAsync(entityId, db, ct);
@@ -30,7 +31,7 @@ public sealed class MediaEditorNavigationReadService(
         Guid? parentEntityId,
         string? parentValue,
         CancellationToken ct) =>
-        await BuildMembershipSuggestionsAsync(entityId, field, query, source, parentEntityId, parentValue, db, searchService, ct);
+        await BuildMembershipSuggestionsAsync(entityId, field, query, source, parentEntityId, parentValue, db, searchService, lookupGuard, ct);
 
     public async Task<MembershipPreviewEnvelope?> PreviewAsync(Guid entityId, MembershipPreviewRequest request, CancellationToken ct) =>
         await hierarchyAlignment.PreviewAsync(entityId, request, ct);
@@ -271,6 +272,7 @@ public sealed class MediaEditorNavigationReadService(
         string? parentValue,
         IDatabaseConnection db,
         ISearchService searchService,
+        IExternalLookupGuard? lookupGuard,
         CancellationToken ct)
     {
         var launch = await ResolveEditorLaunchContextAsync(entityId, db, ct);
@@ -283,6 +285,14 @@ public sealed class MediaEditorNavigationReadService(
         var normalizedField = (field ?? string.Empty).Trim().ToLowerInvariant();
         var normalizedSource = string.IsNullOrWhiteSpace(source) ? "local" : source.Trim().ToLowerInvariant();
         var normalizedQuery = (query ?? string.Empty).Trim();
+
+        // An item in a library that never looks anything up (a plain kind) is offered local suggestions only, never a provider search.
+        if (normalizedSource == "retail"
+            && lookupGuard is not null
+            && (await lookupGuard.BlocksEntityAsync(entityId, ct) || await lookupGuard.BlocksEntityAsync(launch.WorkId, ct)))
+        {
+            normalizedSource = "local";
+        }
 
         using var conn = db.CreateConnection();
         if (normalizedSource == "retail" && mediaType is "TV" or "Music" or "Comics")

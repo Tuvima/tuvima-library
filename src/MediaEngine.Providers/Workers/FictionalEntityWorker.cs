@@ -3,6 +3,7 @@ using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
+using MediaEngine.Providers.Services;
 using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Providers.Workers;
@@ -21,6 +22,7 @@ public sealed class FictionalEntityWorker
     private readonly ICanonicalValueArrayRepository _canonicalArrayRepo;
     private readonly IWorkRepository _workRepo;
     private readonly ILogger<FictionalEntityWorker> _logger;
+    private readonly IExternalLookupGuard? _lookupGuard;
 
     public FictionalEntityWorker(
         INarrativeRootResolver narrativeRootResolver,
@@ -28,8 +30,10 @@ public sealed class FictionalEntityWorker
         ICanonicalValueRepository canonicalRepo,
         ICanonicalValueArrayRepository canonicalArrayRepo,
         IWorkRepository workRepo,
-        ILogger<FictionalEntityWorker> logger)
+        ILogger<FictionalEntityWorker> logger,
+        IExternalLookupGuard? lookupGuard = null)
     {
+        _lookupGuard = lookupGuard;
         _narrativeRootResolver = narrativeRootResolver;
         _fictionalEntityService = fictionalEntityService;
         _canonicalRepo = canonicalRepo;
@@ -45,6 +49,11 @@ public sealed class FictionalEntityWorker
     /// </summary>
     public async Task EnrichAsync(Guid entityId, string workQid, CancellationToken ct)
     {
+        if (await _lookupGuard.RefusesAsync(entityId, _logger, "Fictional entity lookup", ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
         var canonicalEntityId = await ResolveCanonicalEntityIdAsync(entityId, ct);
         var canonicals = await _canonicalRepo.GetByEntityAsync(canonicalEntityId, ct);
         var canonicalArrays = await _canonicalArrayRepo.GetAllByEntityAsync(canonicalEntityId, ct);

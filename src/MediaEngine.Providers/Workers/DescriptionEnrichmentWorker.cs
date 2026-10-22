@@ -1,5 +1,7 @@
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Providers.Adapters;
 using MediaEngine.Providers.Contracts;
+using MediaEngine.Providers.Services;
 using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Providers.Workers;
@@ -18,11 +20,14 @@ public sealed class DescriptionEnrichmentWorker
 {
     private readonly IEnumerable<IExternalMetadataProvider> _providers;
     private readonly ILogger<DescriptionEnrichmentWorker> _logger;
+    private readonly IExternalLookupGuard? _lookupGuard;
 
     public DescriptionEnrichmentWorker(
         IEnumerable<IExternalMetadataProvider> providers,
-        ILogger<DescriptionEnrichmentWorker> logger)
+        ILogger<DescriptionEnrichmentWorker> logger,
+        IExternalLookupGuard? lookupGuard = null)
     {
+        _lookupGuard = lookupGuard;
         _providers = providers;
         _logger = logger;
     }
@@ -32,6 +37,11 @@ public sealed class DescriptionEnrichmentWorker
     /// </summary>
     public async Task EnrichAsync(Guid entityId, string qid, CancellationToken ct)
     {
+        if (await _lookupGuard.RefusesAsync(entityId, _logger, "Description lookup", ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
         var reconAdapter = _providers
             .OfType<ReconciliationAdapter>()
             .FirstOrDefault();

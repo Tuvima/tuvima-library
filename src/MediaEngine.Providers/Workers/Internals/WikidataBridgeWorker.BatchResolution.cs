@@ -24,16 +24,23 @@ public sealed partial class WikidataBridgeWorker
         // Strict retail gate: only RetailMatched or RetailMatchedNeedsReview.
         // RetailNoMatch is NEVER included — enforced at the SQL level.
 
-        var jobs = await _jobRepo.LeaseNextAsync(
+        var leased = await _jobRepo.LeaseNextAsync(
             "WikidataBridgeWorker",
             [IdentityJobState.RetailMatched, IdentityJobState.RetailMatchedNeedsReview],
             GetBatchSize(),
             LeaseDuration,
             ct: ct);
 
-        if (jobs.Count == 0)
+        if (leased.Count == 0)
         {
             return 0;
+        }
+
+        // A file in a library that never looks anything up is closed here, before Wikidata is asked (Library setup D38).
+        var jobs = await _lookupGuard.SettleBlockedJobsAsync(_jobRepo, leased, _logger, ct).ConfigureAwait(false);
+        if (jobs.Count == 0)
+        {
+            return leased.Count;
         }
 
         _logger.LogInformation("Wikidata: leased {JobCount} job(s) for bridge resolution", jobs.Count);

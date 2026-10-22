@@ -7,11 +7,20 @@ namespace MediaEngine.Web.Tests.Support;
 /// <summary>The Engine's list of library kinds as the Dashboard reads it, built from the kinds that ship with the Library.</summary>
 internal static class LibraryKindsTestData
 {
+    // The Engine now offers YouTube, Other audio and Other reading, but the Libraries screens do not draw them until the Dashboard part
+    // of Library setup (WP7c). Until then these tests keep the screens they have always drawn; All() is the full list.
+    private static readonly string[] NotDrawnYet = ["youtube", "other_audio", "other_reading"];
+
     /// <summary>The catalog the Libraries screens build from the built-in kinds.</summary>
     public static LibraryKindCatalog Catalog { get; } = new(BuiltIn());
 
-    /// <summary>The kinds that ship with the Library (the ones not offered yet are marked unavailable), in the Engine's order.</summary>
-    public static List<LibraryKindDto> BuiltIn(params LibraryKindDto[] extra) =>
+    /// <summary>The kinds that ship with the Library as the Libraries screens draw them today, in the Engine's order.</summary>
+    public static List<LibraryKindDto> BuiltIn(params LibraryKindDto[] extra) => Build(everyKindAvailable: false, extra);
+
+    /// <summary>Every kind the Engine offers, as the Engine lists them (YouTube, Other audio and Other reading included).</summary>
+    public static List<LibraryKindDto> All(params LibraryKindDto[] extra) => Build(everyKindAvailable: true, extra);
+
+    private static List<LibraryKindDto> Build(bool everyKindAvailable, LibraryKindDto[] extra) =>
     [
         .. LibraryKindsConfiguration.BuiltIn().Select(kind => new LibraryKindDto
         {
@@ -27,7 +36,7 @@ internal static class LibraryKindsTestData
             Tooltip = kind.Tooltip,
             Order = kind.Order,
             BuiltIn = kind.BuiltIn,
-            Available = kind.Available,
+            Available = kind.Available && (everyKindAvailable || !NotDrawnYet.Contains(kind.Key)),
             AllowsMultiple = kind.AllowsMultiple,
             MaxLibraries = kind.MaxLibraries,
         }),

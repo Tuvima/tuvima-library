@@ -42,14 +42,27 @@ public sealed class VideosLibraryValidationTests
     }
 
     [Fact]
-    public void AVideosLibraryThatAsksForOutsideLookupsIsRefused()
+    public void AVideosLibraryWithNoKindThatAsksForOutsideLookupsIsRefused()
+    {
+        var config = Shipped();
+        var videos = config.Libraries.Single(library => library.MediaTypes.Contains("Videos"));
+        videos.KindKey = string.Empty;
+        videos.MetadataPolicy = LibraryMetadataPolicies.Enriched;
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("videos libraries must use local_only metadata"));
+    }
+
+    [Fact]
+    public void AVideosLibraryOfAKindLoadsEvenIfItsPolicyFieldSaysEnriched_BecauseTheKindWins()
     {
         var config = Shipped();
         config.Libraries.Single(library => library.MediaTypes.Contains("Videos")).MetadataPolicy = LibraryMetadataPolicies.Enriched;
 
         var errors = JsonConfigValidator.Validate(config, "libraries.json");
 
-        Assert.Contains(errors, error => error.Contains("videos libraries must use local_only metadata"));
+        Assert.DoesNotContain(errors, error => error.Contains("videos libraries"));
     }
 
     [Fact]
