@@ -98,13 +98,14 @@ public sealed class LibraryKindsConfigurationTests : IDisposable
     }
 
     [Fact]
-    public void ALibraryWithNoKindOrTheWrongFormatIsRefusedByTheLibrariesValidator()
+    public void ALibraryOfTheWrongFormatIsRefusedByTheLibrariesValidator_ButOneWithNoKindLikeTheVaultEntriesIsLeftAlone()
     {
         var withNoKind = Libraries("", "Movies");
         var wrongFormat = Libraries("movies", "Books");
         var fine = Libraries("movies", "Movies");
 
-        Assert.Contains(JsonConfigValidator.Validate(withNoKind, "libraries.json"), error => error.Contains("kind_key", StringComparison.Ordinal));
+        // The Vault keeps its own entries in libraries.json with no kind (Videos spec D45); a save from Settings still needs one.
+        Assert.DoesNotContain(JsonConfigValidator.Validate(withNoKind, "libraries.json"), error => error.Contains("kind_key", StringComparison.Ordinal));
         Assert.Contains(JsonConfigValidator.Validate(wrongFormat, "libraries.json"), error => error.Contains("must include Movies", StringComparison.Ordinal));
         Assert.DoesNotContain(JsonConfigValidator.Validate(fine, "libraries.json"), error => error.Contains("kind_key", StringComparison.Ordinal) || error.Contains("must include", StringComparison.Ordinal));
     }

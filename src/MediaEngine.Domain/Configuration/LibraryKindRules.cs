@@ -171,7 +171,8 @@ public static partial class LibraryKindRules
     public static IReadOnlyList<string> LibraryProblems(
         LibrariesConfiguration libraries,
         IReadOnlyList<LibraryKindDefinition> kinds,
-        bool allowUnknownKeys = false)
+        bool allowUnknownKeys = false,
+        bool allowMissingKeys = false)
     {
         ArgumentNullException.ThrowIfNull(libraries);
         ArgumentNullException.ThrowIfNull(kinds);
@@ -180,6 +181,13 @@ public static partial class LibraryKindRules
         {
             var library = libraries.Libraries[index];
             if (!string.Equals(library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            // A library with no kind (the Vault's own entries, which no library list shows: Videos spec D45) is not one of
+            // the library kinds. The whole-file check leaves it alone; a save from Settings or setup must name its kind.
+            if (allowMissingKeys && string.IsNullOrEmpty(library.KindKey))
             {
                 continue;
             }
@@ -220,7 +228,8 @@ public static partial class LibraryKindRules
     {
         var catalogued = libraries.Libraries
             .Select((library, index) => (library, index))
-            .Where(entry => string.Equals(entry.library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase))
+            .Where(entry => string.Equals(entry.library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrEmpty(entry.library.KindKey))
             .ToList();
 
         foreach (var group in catalogued.Where(entry => IsValidKey(entry.library.KindKey)).GroupBy(entry => entry.library.KindKey, StringComparer.Ordinal))

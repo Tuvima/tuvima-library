@@ -184,6 +184,16 @@ public sealed class LibraryKindsTests
     }
 
     [Fact]
+    public void TheWholeFileCheckLeavesALibraryWithNoKindAlone_LikeTheVaultEntries_ButASaveStillNeedsOne()
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        var vaultEntries = Libraries(Library("", "Videos"), Library("", "Videos"), Library("movies", "Movies"));
+
+        Assert.Empty(LibraryKindRules.LibraryProblems(vaultEntries, kinds, allowUnknownKeys: true, allowMissingKeys: true));
+        Assert.Equal(2, LibraryKindRules.LibraryProblems(vaultEntries, kinds).Count(problem => problem.Contains("kind_key", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public void OnlyThePlainKindsAllowSeveralLibrariesAndUpToFive()
     {
         var kinds = LibraryKindsConfiguration.BuiltIn();

@@ -517,7 +517,8 @@ public static class JsonConfigValidator
 
         // A library's kind_key must name a kind in library_kinds.json. A key that is not in that file may belong to a plugin, which
         // this file cannot see; the Engine checks those against the full list where it saves a library.
-        errors.AddRange(LibraryKindRules.LibraryProblems(config, libraryKinds ?? LibraryKindsConfiguration.BuiltIn(), allowUnknownKeys: true));
+        // The file also holds the Vault's own entries, which have no kind (Videos spec D45).
+        errors.AddRange(LibraryKindRules.LibraryProblems(config, libraryKinds ?? LibraryKindsConfiguration.BuiltIn(), allowUnknownKeys: true, allowMissingKeys: true));
 
         for (var left = 0; left < normalizedPaths.Count; left++)
         {
