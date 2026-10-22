@@ -106,7 +106,7 @@ public sealed class TextTrackEnrichmentWorker
                 afterLocal.FirstOrDefault(track => track.IsPreferred)?.Id,
                 importedLocal
                     ? "Local text tracks were refreshed."
-                    : "This library uses local-only or manual metadata, so no external text-track provider was contacted.");
+                    : "This library never looks anything up, so no external text-track provider was contacted.");
         }
 
         var matchingProviders = _providers
@@ -260,7 +260,9 @@ public sealed class TextTrackEnrichmentWorker
         {
             var library = _configurationLoader.LoadLibraries().Libraries.FirstOrDefault(candidate =>
                 string.Equals(candidate.Id, asset.LibraryId, StringComparison.OrdinalIgnoreCase));
-            return library is not null && LibraryMetadataPolicies.BypassesExternalIdentity(library.MetadataPolicy);
+            // The library's kind decides first: a plain kind never contacts a subtitle or lyrics provider (Library setup D38).
+            return library is not null
+                && LibraryKindLookupPolicy.BypassesExternalIdentity(library, _configurationLoader.LoadLibraryKinds().Kinds);
         }
         catch (Exception ex)
         {

@@ -3,13 +3,16 @@ using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Services;
 
-/// <summary>Reads the libraries configuration, the same source the ingestion pipeline takes its policy from.</summary>
+/// <summary>Reads the libraries configuration and library kinds, the same sources the ingestion pipeline takes its policy from (a plain kind bypasses external identity whatever its policy field says).</summary>
 public sealed class ConfiguredIdentityBypassLibraries(IConfigurationLoader configuration) : IIdentityBypassLibraries
 {
-    public IReadOnlyCollection<string> GetLibraryIds() =>
-        configuration.LoadLibraries().Libraries
-            .Where(library => LibraryMetadataPolicies.BypassesExternalIdentity(library.MetadataPolicy)
+    public IReadOnlyCollection<string> GetLibraryIds()
+    {
+        var kinds = configuration.LoadLibraryKinds().Kinds;
+        return configuration.LoadLibraries().Libraries
+            .Where(library => LibraryKindLookupPolicy.BypassesExternalIdentity(library, kinds)
                 && !string.IsNullOrWhiteSpace(library.Id))
             .Select(library => library.Id)
             .ToArray();
+    }
 }

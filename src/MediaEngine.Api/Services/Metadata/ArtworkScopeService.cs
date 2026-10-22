@@ -173,10 +173,12 @@ internal sealed class ArtworkScopeService(
             && !string.IsNullOrWhiteSpace(representativeAsset.LibraryId))
         {
             LibraryFolderConfig? library;
+            IReadOnlyList<LibraryKindDefinition> kinds;
             try
             {
                 library = configurationLoader.LoadLibraries().Libraries.FirstOrDefault(candidate =>
                     string.Equals(candidate.Id, representativeAsset.LibraryId, StringComparison.OrdinalIgnoreCase));
+                kinds = configurationLoader.LoadLibraryKinds().Kinds;
             }
             catch
             {
@@ -186,12 +188,12 @@ internal sealed class ArtworkScopeService(
                     message: "The library metadata policy could not be read, so no external artwork provider was contacted.",
                     mediaType: scope.MediaType));
             }
-            if (library is not null && LibraryMetadataPolicies.BypassesExternalIdentity(library.MetadataPolicy))
+            if (library is not null && LibraryKindLookupPolicy.BypassesExternalIdentity(library, kinds))
             {
                 return ProviderArtworkRefreshTarget.Skip(CreateProviderArtworkRefreshEnvelope(
                     status: "Skipped",
                     skippedReason: "external_lookup_blocked",
-                    message: "This library uses local-only or manual metadata, so no external artwork provider was contacted.",
+                    message: "This library never looks anything up, so no external artwork provider was contacted.",
                     mediaType: scope.MediaType));
             }
         }

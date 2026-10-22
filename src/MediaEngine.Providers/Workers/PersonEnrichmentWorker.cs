@@ -38,6 +38,7 @@ public sealed class PersonEnrichmentWorker
     private readonly IPersonReconciliationService? _personReconciliation;
     private readonly PersonImageEnrichmentWorker? _personImages;
     private readonly ILogger<PersonEnrichmentWorker> _logger;
+    private readonly IExternalLookupGuard? _lookupGuard;
     private readonly IBridgeIdRepository? _bridgeIds;
     private readonly IConfigurationLoader? _configuration;
     private readonly TmdbRetailClient? _tmdbClient;
@@ -59,8 +60,10 @@ public sealed class PersonEnrichmentWorker
         IBridgeIdRepository? bridgeIds = null,
         IConfigurationLoader? configuration = null,
         TmdbRetailClient? tmdbClient = null,
-        ProviderApiClient? tvdbClient = null)
+        ProviderApiClient? tvdbClient = null,
+        IExternalLookupGuard? lookupGuard = null)
     {
+        _lookupGuard = lookupGuard;
         _claimRepo = claimRepo;
         _canonicalRepo = canonicalRepo;
         _identity = identity;
@@ -85,6 +88,11 @@ public sealed class PersonEnrichmentWorker
     /// </summary>
     public async Task EnrichFromClaimsAsync(Guid entityId, CancellationToken ct)
     {
+        if (await _lookupGuard.RefusesAsync(entityId, _logger, "Contributor lookup", ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
         var claims = (await _claimRepo.GetByEntityAsync(entityId, ct)).ToList();
         var canonicals = (await _canonicalRepo.GetByEntityAsync(entityId, ct)).ToList();
         var canonicalArrays = new Dictionary<string, List<CanonicalArrayEntry>>(StringComparer.OrdinalIgnoreCase);
