@@ -3,12 +3,16 @@
 @using MediaEngine.Web.Components.Browse
 @using MediaEngine.Web.Components.MediaHub
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.MediaTiles
 @inject MediaTileComposerService MediaTiles
+@inject IEngineApiClient ApiClient
 @inject ILogger<WatchPage> Logger
 
 @namespace MediaEngine.Web.Components.Pages
 
+@if (_tabsLoaded)
+{
 <MediaLanePage Title="Watch"
                RouteBase="/watch"
                Subtitle="Movies, shows and videos from your local library"
@@ -28,6 +32,7 @@
                EmptyTitle="No movies or shows yet"
                EmptyMessage="Add video to your library to populate this lane."
                Retry="LoadLandingAsync" />
+}
 
 @code {
     [Parameter] public string? Tab { get; set; }
@@ -37,15 +42,13 @@
     private bool _loadFailed;
     private Task? _landingLoadTask;
 
-    private string ActiveWatchMode => Tab?.Trim().ToLowerInvariant() switch
-    {
-        "movies" => "movies",
-        "tv" => "tv",
-        "videos" => "videos",
-        _ => "all",
-    };
+    // The tabs follow the Engine's library list (one per library with folders); the fixed tabs stand in when it cannot be read.
+    private LibraryBrowsePreset Preset = StaticPreset;
+    private bool _tabsLoaded;
 
-    private static IReadOnlyList<MediaSectionNavigationGroup> WatchNavigationGroups =>
+    private string ActiveWatchMode => BrowseQueryBuilder.FindTab(Preset, Tab)?.Id ?? "all";
+
+    private IReadOnlyList<MediaSectionNavigationGroup> WatchNavigationGroups =>
     [
         MediaLaneConfigurationBuilder.BuildLibraryGroup(Preset),
         new("Watch next",
@@ -57,12 +60,18 @@
         ]),
     ];
 
-    private static IReadOnlyList<MediaHubModeViewModel> WatchModes =>
+    private IReadOnlyList<MediaHubModeViewModel> WatchModes =>
         MediaLaneConfigurationBuilder.BuildModes(Preset);
 
     private IReadOnlyList<MediaHubShelfViewModel> WatchHubShelves => _landingPage?.Shelves
         .Select(shelf => MediaHubShelfViewModel.FromShelf(shelf))
         .ToList() ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Preset = await BrowseLibraryTabs.LoadAsync(ApiClient, StaticPreset, "watch");
+        _tabsLoaded = true;
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -106,7 +115,7 @@
         }
     }
 
-    private static readonly LibraryBrowsePreset Preset = new()
+    private static readonly LibraryBrowsePreset StaticPreset = new()
     {
         RouteBase = "/watch",
         Title = "Watch",

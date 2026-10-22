@@ -3,11 +3,15 @@
 @using MediaEngine.Web.Components.Browse
 @using MediaEngine.Web.Components.MediaHub
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.MediaTiles
 @inject MediaTileComposerService MediaTiles
+@inject IEngineApiClient ApiClient
 
 @namespace MediaEngine.Web.Components.Pages
 
+@if (_tabsLoaded)
+{
 <MediaLanePage Title="Read"
                RouteBase="/read"
                Subtitle="Books and comics from your local library"
@@ -27,6 +31,7 @@
                EmptyTitle="No books or comics yet"
                EmptyMessage="Add reading material to your library to populate this lane."
                Retry="LoadLandingAsync" />
+}
 
 @code {
     [Parameter] public string? Tab { get; set; }
@@ -35,14 +40,13 @@
     private bool _loading = true;
     private bool _loadFailed;
 
-    private string ActiveReadMode => Tab?.Trim().ToLowerInvariant() switch
-    {
-        "books" => "books",
-        "comics" => "comics",
-        _ => "all",
-    };
+    // The tabs follow the Engine's library list (one per library with folders); the fixed tabs stand in when it cannot be read.
+    private LibraryBrowsePreset Preset = StaticPreset;
+    private bool _tabsLoaded;
 
-    private static IReadOnlyList<MediaSectionNavigationGroup> ReadNavigationGroups =>
+    private string ActiveReadMode => BrowseQueryBuilder.FindTab(Preset, Tab)?.Id ?? "all";
+
+    private IReadOnlyList<MediaSectionNavigationGroup> ReadNavigationGroups =>
     [
         MediaLaneConfigurationBuilder.BuildLibraryGroup(Preset),
         new("Reading",
@@ -54,12 +58,18 @@
         ]),
     ];
 
-    private static IReadOnlyList<MediaHubModeViewModel> ReadModes =>
+    private IReadOnlyList<MediaHubModeViewModel> ReadModes =>
         MediaLaneConfigurationBuilder.BuildModes(Preset);
 
     private IReadOnlyList<MediaHubShelfViewModel> ReadHubShelves => _landingPage?.Shelves
         .Select(shelf => MediaHubShelfViewModel.FromShelf(shelf))
         .ToList() ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Preset = await BrowseLibraryTabs.LoadAsync(ApiClient, StaticPreset, "read");
+        _tabsLoaded = true;
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -91,7 +101,7 @@
         }
     }
 
-    private static readonly LibraryBrowsePreset Preset = new()
+    private static readonly LibraryBrowsePreset StaticPreset = new()
     {
         RouteBase = "/read",
         Title = "Read",
