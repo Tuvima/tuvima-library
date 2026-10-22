@@ -177,6 +177,47 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AFolderThatAlreadyHoldsOrdinaryFiles_IsRefused_AndNothingIsAdded()
+    {
+        var vault = await NewVaultLibraryAsync();
+        AddAsset(MoviesLibraryId, Path.Combine(_vaultFolder, "Holiday", "film.mkv"));
+
+        var outcome = await _service.AttachAsync(_admin, vault.LibraryId, _vaultFolder, AdminPin, default);
+
+        Assert.Equal(VaultFolderAttachmentStatus.NotAllowed, outcome.Status);
+        Assert.Equal(VaultFolderAttachmentService.FolderHoldsOrdinaryFilesMessage, outcome.Message);
+        Assert.DoesNotContain("Holiday", outcome.Message!, StringComparison.Ordinal);
+        Assert.Empty(_configuration.LoadLibraries().Libraries);
+    }
+
+    [Fact]
+    public async Task AFolderThatHoldsOnlyVaultFiles_OrNothingYet_IsStillAccepted()
+    {
+        var vault = await NewVaultLibraryAsync();
+        AddAsset(vault.LibraryId, Path.Combine(_vaultFolder, "clip.mkv"));
+        AddAsset(MoviesLibraryId, Path.Combine(_moviesFolder, "film.mkv"));
+
+        var outcome = await _service.AttachAsync(_admin, vault.LibraryId, _vaultFolder, AdminPin, default);
+
+        Assert.Equal(VaultFolderAttachmentStatus.Attached, outcome.Status);
+    }
+
+    private void AddAsset(string libraryId, string path)
+    {
+        var work = Guid.NewGuid();
+        var edition = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO works (id, media_type, work_kind, curator_state, ready_at) VALUES (@work, 'Videos', 'standalone', 'accepted', @now);
+            INSERT INTO editions (id, work_id) VALUES (@edition, @work);
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at, library_id, is_orphaned)
+                VALUES (@asset, @edition, @hash, @path, CURRENT_TIMESTAMP, @libraryId, 0);
+            """,
+            new { work, edition, asset = Guid.NewGuid(), hash = Guid.NewGuid().ToString("N"), path, libraryId, now = DateTimeOffset.UtcNow.ToString("O") });
+    }
+
+    [Fact]
     public async Task AFolderThatIsNotThere_AddsNothing_AndSaysSoWithoutNamingIt()
     {
         var vault = await NewVaultLibraryAsync();

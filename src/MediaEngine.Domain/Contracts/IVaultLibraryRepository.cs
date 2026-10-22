@@ -52,6 +52,12 @@ public interface IVaultLibraryRepository
     /// </summary>
     Task<bool> IsInVaultAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>
+    /// True when the Library already holds an ordinary (non-Vault) file inside <paramref name="folderPath"/>, so adding the folder to
+    /// a Vault would turn those files into Vault files. Vault and ordinary files are kept in separate folders on disk.
+    /// </summary>
+    Task<bool> HoldsOrdinaryFilesAsync(string folderPath, CancellationToken ct = default);
+
     /// <summary>Marks a library as a Vault library. Throws <see cref="InvalidOperationException"/> when it already is one.</summary>
     Task AddAsync(VaultLibrary library, CancellationToken ct = default);
 

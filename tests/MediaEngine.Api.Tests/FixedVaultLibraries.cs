@@ -18,6 +18,8 @@ internal sealed class FixedVaultLibraries(params string[] ids) : IVaultLibraryRe
 
     public Task<bool> AnyAsync(CancellationToken ct = default) => Task.FromResult(_ids.Count > 0);
 
+    public Task<bool> HoldsOrdinaryFilesAsync(string folderPath, CancellationToken ct = default) => Task.FromResult(false);
+
     public Task<bool> IsInVaultAsync(Guid id, CancellationToken ct = default) => Task.FromResult(false);
 
     public Task AddAsync(VaultLibrary library, CancellationToken ct = default) => throw new NotSupportedException();
