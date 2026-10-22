@@ -216,6 +216,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IFolderOrganiseLogRepository, FolderOrganiseLogRepository>();
         services.AddSingleton<IExcludedSourceFileRepository, ExcludedSourceFileRepository>();
         services.AddSingleton<IUnmatchedAssetRepository, UnmatchedAssetRepository>();
+        services.AddSingleton<MediaEngine.Ingestion.Services.UnmatchedFileMarker>();
         services.AddSingleton<MediaEditorCommitRepository>();
         services.AddSingleton<MediaFileWriteIntentRepository>();
         services.AddSingleton<ViewItemFileWriteRepository>();
