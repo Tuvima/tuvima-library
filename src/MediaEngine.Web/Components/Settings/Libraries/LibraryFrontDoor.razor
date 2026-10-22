@@ -79,8 +79,8 @@
     [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
     /// <summary>The Engine's overview counts; null when they could not be read (only folder counts show then).</summary>
     [Parameter] public LibraryOverviewDto? Overview { get; set; }
-    /// <summary>View's own folder count; null while it is not known (the card shows no count rather than a guess).</summary>
-    [Parameter] public int? ViewFolders { get; set; }
+    /// <summary>View's folder count per kind; null while it is not known (the card shows no count rather than a guess).</summary>
+    [Parameter] public IReadOnlyDictionary<string, int>? ViewFolders { get; set; }
     /// <summary>Folder path to issue, from <see cref="LibraryFolderHealth.CheckAsync"/>; null while the checks have not finished (no health icon is shown then).</summary>
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     /// <summary>
@@ -94,7 +94,7 @@
     [Parameter] public EventCallback FolderAdded { get; set; }
 
     // With no folder anywhere (View's included) the button is the one prominent primary action on the page.
-    private bool NoFolders => Configuration.Libraries.All(library => library.Sources.Count == 0) && (ViewFolders ?? 0) == 0;
+    private bool NoFolders => Configuration.Libraries.All(library => library.Sources.Count == 0) && (ViewFolders?.Values.Sum() ?? 0) == 0;
 
     private async Task AddFolderAsync()
     {

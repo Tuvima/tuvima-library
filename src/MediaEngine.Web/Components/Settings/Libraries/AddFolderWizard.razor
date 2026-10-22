@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Domain.PersonalMedia
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Ui
 @inject LibraryFolderAddService AddService
@@ -79,7 +80,7 @@
                         <div class="add-wizard__hint-actions">
                             @if (!Embedded)
                             {
-                                <AppButton Label="Add to View instead" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => HandOffToView(_folder?.Path))" />
+                                <AppButton Label="Add to View instead" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => HandOffToView(ViewContentKinds.PersonalVideos, _folder?.Path))" />
                             }
                             <AppButton Label="Continue anyway" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => GoTo(WizardStep.How))" />
                         </div>
@@ -267,10 +268,10 @@
 
     private void ChooseKind(LibraryTypeOption kind)
     {
-        // View keeps its folders in its own place, so choosing it hands over to View's add form; nothing is created here.
-        if (Kinds.GroupFor(kind.Key)?.Key == "view")
+        // View keeps its folders in its own place, so choosing one of its kinds hands over to that kind's add form; nothing is created here.
+        if (LibraryTypeCatalog.IsViewKind(kind))
         {
-            HandOffToView(null);
+            HandOffToView(kind.Key, null);
             return;
         }
 
@@ -314,10 +315,10 @@
         GoTo(WizardStep.How);
     }
 
-    // View's own add form takes over (its address reads ?add=folder); nothing has been saved by the wizard.
-    private void HandOffToView(string? path)
+    // View's own add form for the kind takes over (its address reads ?add=folder); nothing has been saved by the wizard.
+    private void HandOffToView(string kindKey, string? path)
     {
-        var address = $"{LibraryGroupCatalog.TypeAddress(Kinds.TryGetGroup("view")!, LibraryTypeCatalog.PhotosKey)}?add=folder";
+        var address = $"{LibraryGroupCatalog.TypeAddress(Kinds.TryGetGroup(LibraryTypeCatalog.ViewArea)!, kindKey)}?add=folder";
         if (!string.IsNullOrWhiteSpace(path)) address += $"&path={Uri.EscapeDataString(path)}";
         Dialog.Cancel();
         Navigation.NavigateTo(address);

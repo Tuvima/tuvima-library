@@ -1,12 +1,13 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Domain.PersonalMedia
 @using System.Text.Json
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
 @inject IAppToastService Snackbar
 
 <div class="library-detail">
-    <LibraryDetailHeader Title="View" Description="Personal photos, videos, documents, and recordings · Local files" Icon="@AppMaterialIcons.Outlined.PhotoLibrary">
+    <LibraryDetailHeader Title="@KindLabel" Description="@KindDescription" Icon="@AppMaterialIcons.Outlined.PhotoLibrary">
         <AppStatusBadge Text="View" Tone="AppUiTone.Primary" />
     </LibraryDetailHeader>
     <div class="libraries-card__heading"><div><h2>Library Settings</h2><p>Each profile has a private space. Accepted contributions appear in Shared Library.</p></div></div>
@@ -53,20 +54,33 @@
                 else
                 {
                     <code>@review.PersonalSpace.RootPath</code>
+                    var sources = review.Sources.Where(source => LibraryRollup.ViewFolderBelongsTo(source, Kind)).ToList();
+                    @if (sources.Count == 0) { <p>No @KindNoun folders yet.</p> }
+                    else
+                    {
                     <div class="view-source-table">
                     <div class="view-source-head" aria-hidden="true"><span>Folder</span><span>Management</span><span>Subfolders</span><span>Photos</span><span>Status</span><span>Actions</span></div>
-                    @foreach (var source in review.Sources)
+                    @foreach (var source in sources)
                     {
                         <div class="view-source-row" @key="source.Id">
-                            <span><strong>@source.Name</strong><code>@source.Location</code></span>
+                            <span>
+                                <strong>@source.Name</strong>
+                                @if (source.AcceptsPhotosAndVideos) { <AppStatusBadge Text="Photos and videos" Tone="AppUiTone.Neutral" /> }
+                                <code>@source.Location</code>
+                                @if (source.SkippedFileCount > 0)
+                                {
+                                    <AppTooltip Text="@SkippedTooltip"><small>@SkippedText(source.SkippedFileCount)</small></AppTooltip>
+                                }
+                            </span>
                             <span>@SourcePolicy(source)</span>
                             <span>@(source.IncludeSubdirectories ? "Includes subfolders" : "This folder only")</span>
                             <AppSwitchRow Label="Timeline" Value="@source.IncludeInTimeline" ValueChanged="@((bool value) => SetTimelineAsync(profile.Id, source, value))" Disabled="@(ReadOnly || _busy)" />
                             <AppStatusBadge Text="@(source.Enabled ? "Indexing enabled" : "Disabled")" Tone="AppUiTone.Neutral" />
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" AriaLabel="@($"Detach {source.Name}")" Tooltip="Detach folder; keep files" Disabled="@(ReadOnly || _busy || source.SourceType == "browser_upload")" OnClick="@(() => DetachAsync(profile.Id, source))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" AriaLabel="@($"Detach {source.Name}")" Tooltip="Detach folder; keep files" Disabled="@(ReadOnly || _busy || source.SourceType == "browser_upload" || source.AcceptsPhotosAndVideos)" OnClick="@(() => DetachAsync(profile.Id, source))" />
                         </div>
                     }
                     </div>
+                    }
                 }
             </div>
         }
@@ -85,7 +99,7 @@
         <div class="view-policy-row"><div><strong>Contribute to Shared Library</strong><small>Files transfer only after acceptance and destination verification.</small></div><span>Managed originals move · Linked originals copy</span></div>
     </SettingsSectionPanel>
     <DocumentTextSettings ReadOnly="@ReadOnly" />
-    <DocumentAccessSettings ReadOnly="@ReadOnly" Profiles="@_profiles" />
+    <ViewKindAccessSettings Kind="@Kind" KindNoun="@KindNoun" ReadOnly="@ReadOnly" Profiles="@_profiles" />
     <DocumentOrganisationSettings ReadOnly="@ReadOnly" />
     <DocumentRulesSettings ReadOnly="@ReadOnly" />
     <SettingsSectionPanel Title="Sharing &amp; Access" Description="Private files remain with their owning profile until shared through an allowed workflow.">
@@ -101,6 +115,10 @@
 
 @code {
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    /// <summary>Which View kind this page is for (photos, personal_videos or documents): it lists only that kind's folders and adds folders of that kind.</summary>
+    [Parameter] public string Kind { get; set; } = ViewContentKinds.Photos;
+    /// <summary>The Engine's list of library kinds, for the kind's name and description.</summary>
+    [Parameter] public LibraryKindCatalog Kinds { get; set; } = LibraryKindCatalog.Empty;
     [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public EventCallback RootChanged { get; set; }
     /// <summary>Opens with the add form shown (the Add folder wizard hands View over this way).</summary>
@@ -112,6 +130,13 @@
     private bool _loading = true, _busy, _adding, _recursive = true, _timeline;
     private string? _owner, _path, _error;
     private string _name = string.Empty, _mode = "linked";
+    private LibraryTypeOption? KindOption => Kinds.FindViewKind(Kind);
+    private string KindLabel => KindOption?.Label ?? Kind;
+    // The kind's name as it reads in a sentence: "photos", "personal videos", "documents".
+    private string KindNoun => KindLabel.ToLowerInvariant();
+    private string KindDescription => KindOption?.Tooltip is { Length: > 0 } tooltip ? tooltip : "Personal photos, videos, documents, and recordings · Local files";
+    private string SkippedTooltip => $"These files aren't {KindNoun}, so this folder leaves them out. They stay where they are.";
+    private static string SkippedText(int count) => count == 1 ? "1 file skipped" : $"{count:N0} files skipped";
     private string RootPath => Path.Combine(Configuration.StorageLocations.FirstOrDefault(x => x.Id == Configuration.ViewStorage.StorageLocationId)?.Path ?? "", Configuration.ViewStorage.RelativeRoot);
     private IReadOnlyList<AppSelectOption> OwnerOptions => _profiles.Select(p => new AppSelectOption(p.Id.ToString(), p.DisplayName)).ToList();
     private static readonly IReadOnlyList<AppSelectOption> ModeOptions = [new("linked", "Existing folder — read-only"), new("managed", "New managed folder")];
@@ -175,7 +200,7 @@
         _busy = true;
         try
         {
-            var result = await ApiClient.CreateViewProfileSourceAsync(owner, new CreateViewSourceRequest(_name, _mode, _path, _recursive, _timeline));
+            var result = await ApiClient.CreateViewProfileSourceAsync(owner, new CreateViewSourceRequest(_name, _mode, _path, _recursive, _timeline, Kind));
             if (result is null) _error = ApiClient.LastError ?? "Folder could not be added.";
             else { _adding = false; _error = null; _name = ""; _path = null; await LoadSourcesAsync(); Snackbar.Add("Folder saved. Indexing runs separately.", AppSeverity.Success); }
         }
