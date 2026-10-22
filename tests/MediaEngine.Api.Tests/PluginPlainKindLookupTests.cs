@@ -88,12 +88,13 @@ public sealed class PluginPlainKindLookupTests : IDisposable
     }
 
     [Fact]
-    public void APluginsPlainKind_IsBlockedByTheGuardAndListedAsBypassing_OnlyWhileThePluginIsOn()
+    public void APluginsPlainKind_IsBlockedByTheGuardAndListedAsBypassing_WhetherThePluginIsOnOrOff()
     {
+        // With the plugin off its kind is unknown, and an unknown kind fails closed: nothing is looked up for it.
         var guard = Guard(_kinds);
         var bypass = new ConfiguredIdentityBypassLibraries(_loader, _kinds);
-        Assert.False(guard.BlocksLibrary(LibraryId));
-        Assert.Empty(bypass.GetLibraryIds());
+        Assert.True(guard.BlocksLibrary(LibraryId));
+        Assert.Equal([LibraryId], bypass.GetLibraryIds().ToArray());
 
         AddPlugin(Lookup("\"none\""));
         _catalog.SetEnabled("json.podcasts", true);
@@ -104,12 +105,13 @@ public sealed class PluginPlainKindLookupTests : IDisposable
     }
 
     [Fact]
-    public void WithoutTheMergedList_TheLibrarysOwnFieldsDecide_SoTheListIsWhatMakesTheKindPlain()
+    public void WithoutTheMergedList_APluginKindIsUnknown_SoItFailsClosedAndLooksNothingUp()
     {
-        AddPlugin(Lookup("\"none\""));
+        AddPlugin(Lookup("{ \"providers\": [\"apple_api\"] }"));
         _catalog.SetEnabled("json.podcasts", true);
 
-        Assert.False(Guard(kindSource: null).BlocksLibrary(LibraryId));
+        Assert.True(Guard(kindSource: null).BlocksLibrary(LibraryId));
+        Assert.False(Guard(_kinds).BlocksLibrary(LibraryId));
     }
 
     [Fact]

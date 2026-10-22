@@ -359,7 +359,7 @@ public sealed class LibraryKindsTests
     }
 
     [Fact]
-    public void ALibraryWithNoKindOrAnUnknownKind_FollowsItsOwnFields()
+    public void ALibraryWithNoKindFollowsItsOwnFields_ButAnUnknownKindLooksNothingUp()
     {
         var kinds = LibraryKindsConfiguration.BuiltIn();
         var vault = Library("", "Videos");
@@ -372,7 +372,10 @@ public sealed class LibraryKindsTests
         Assert.Equal(LibraryLookupMode.FromFields, vaultLookup.Mode);
         Assert.True(vaultLookup.YoutubeLookup);
         Assert.True(vaultLookup.BypassesExternalIdentity);
-        Assert.False(LibraryKindLookupPolicy.BypassesExternalIdentity(unknown, kinds));
+        var unknownLookup = LibraryKindLookupPolicy.For(unknown, kinds);
+        Assert.Equal(LibraryLookupMode.Plain, unknownLookup.Mode);
+        Assert.True(unknownLookup.BypassesExternalIdentity);
+        Assert.False(unknownLookup.YoutubeLookup);
     }
 
     [Fact]
