@@ -9534,7 +9534,9 @@
   BuiltIn: System.Boolean | json=built_in | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PluginId: System.String | json=plugin_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Available: System.Boolean | json=available | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"key":"sample","area":"sample","label":"sample","icon":"sample","format":"sample","lookup_providers":[],"naming_template":"sample","misfit":"sample","default_handling":"sample","tooltip":"sample","order":7,"built_in":true,"plugin_id":"sample","available":true}
+  AllowsMultiple: System.Boolean | json=allows_multiple | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MaxLibraries: System.Int32 | json=max_libraries | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","area":"sample","label":"sample","icon":"sample","format":"sample","lookup_providers":[],"naming_template":"sample","misfit":"sample","default_handling":"sample","tooltip":"sample","order":7,"built_in":true,"plugin_id":"sample","available":true,"allows_multiple":true,"max_libraries":7}
 
 [contracts] MediaEngine.Contracts.Settings.LibraryLaneGroupDisplaySettings
   kind=class | converter=default | number-handling=default | unmapped=default

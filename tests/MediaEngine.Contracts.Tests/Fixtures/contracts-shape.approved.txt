@@ -8091,6 +8091,8 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryKindDto
   BuiltIn: System.Boolean | nullability=not-null | accessors=get,set
   PluginId: System.String | nullability=nullable | accessors=get,set
   Available: System.Boolean | nullability=not-null | accessors=get,set
+  AllowsMultiple: System.Boolean | nullability=not-null | accessors=get,set
+  MaxLibraries: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryLaneGroupDisplaySettings
   Enabled: System.Boolean? | nullability=nullable | accessors=get,set
