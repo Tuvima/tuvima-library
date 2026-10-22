@@ -91,7 +91,7 @@
                         <button type="button" class="activity-log__group-toggle" aria-expanded="@(open ? "true" : "false")" @onclick="@(() => ToggleGroup(row.Key))">
                             <AppMaterialIcon Icon="@(open ? AppMaterialIcons.Outlined.ExpandMore : AppMaterialIcons.Outlined.ChevronRight)" Size="AppSize.Small" />
                             <strong class="activity-log__title">@row.Title</strong>
-                            <span class="activity-log__group-count">@GroupSummary(row)</span>
+                            <span class="activity-log__time">@GroupSummary(row)</span>
                         </button>
                         @if (open)
                         {

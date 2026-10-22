@@ -163,8 +163,6 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     font-weight: 500;
 }
 
-.server-folder-picker__crumb--root { display: inline-flex; align-items: center; gap: 8px; }
-
 .server-folder-picker__search {
     display: flex;
     flex: 1 1 200px;
@@ -274,7 +272,6 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 .server-folder-picker__modified {
     color: var(--tl-text-muted);
     font-size: 0.8125rem;
-    font-variant-numeric: tabular-nums;
     text-align: left;
 }
 
@@ -377,7 +374,6 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 /* Under 600px the locations sit above the browser as a wrapping list, so nothing scrolls sideways. */
 @media (max-width: 600px) {
     .server-folder-picker__pathbar { padding: 12px 14px; }
-    .server-folder-picker__browser { padding: 14px; }
     .server-folder-picker__body { grid-template-columns: minmax(0, 1fr); }
 
     .server-folder-picker__locations {

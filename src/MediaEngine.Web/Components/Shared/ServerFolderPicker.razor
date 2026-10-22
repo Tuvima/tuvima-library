@@ -58,9 +58,9 @@ else
                             {
                                 <span class="server-folder-picker__segment">
                                     <button type="button"
-                                            class="@CrumbClass(crumb)"
+                                            class="server-folder-picker__crumb@(crumb.IsCurrent ? " is-current" : string.Empty)"
                                             aria-current="@(crumb.IsCurrent ? "location" : null)"
-                                            @onclick="@(() => OpenCrumbAsync(crumb.Relative))">@if (crumb.Relative.Length == 0) { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" /> }@crumb.Label</button>
+                                            @onclick="@(() => OpenCrumbAsync(crumb.Relative))">@crumb.Label</button>
                                     <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.ChevronRight"
                                                      Class="server-folder-picker__chevron"
                                                      AriaLabel="@($"Folders inside {crumb.Label}")"
@@ -890,9 +890,6 @@ else
         else DialogInstance.Close(AppDialogResult.Ok(_validation));
     }
     private void Cancel() => DialogInstance.Cancel();
-
-    private static string CrumbClass((string Label, string Relative, bool IsCurrent) crumb) =>
-        $"server-folder-picker__crumb{(crumb.Relative.Length == 0 ? " server-folder-picker__crumb--root" : string.Empty)}{(crumb.IsCurrent ? " is-current" : string.Empty)}";
 
     private string RootClass => DeviceContext.IsMobile ? "server-folder-picker server-folder-picker--phone" : "server-folder-picker";
     private string FolderId(int index) => $"server-folder-picker-folder-{index}";
