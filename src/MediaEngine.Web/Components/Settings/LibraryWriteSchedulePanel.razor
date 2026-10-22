@@ -1,0 +1,291 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Contracts.WriteBack
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Formatting
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject ILogger<LibraryWriteSchedulePanel> Logger
+
+@* When changed details are written into files. Library saves every change at once; the files catch up in one batch on this
+   schedule, or straight away with Write now. Phones see the status text only. *@
+<section class="write-schedule" aria-label="Writing changes into files">
+    @if (_loading)
+    {
+        <p class="write-schedule__status" role="status">Checking the file write schedule…</p>
+    }
+    else if (_schedule is null)
+    {
+        <AppAlert Tone="AppUiTone.Error">The Engine is unavailable, so the file write schedule can't be shown.</AppAlert>
+    }
+    else if (_schedule.Enabled)
+    {
+        @if (!ReadOnly)
+        {
+            <div class="write-schedule__interval">
+                <span>Write changes into files every</span>
+                <div class="write-schedule__minutes">
+                    <AppTextField Label="Minutes between file writes"
+                                  HideLabel="true"
+                                  Value="@_intervalText"
+                                  ValueChanged="SaveIntervalAsync"
+                                  Immediate="false"
+                                  InputMode="AppInputMode.numeric"
+                                  Error="@(_intervalError is not null)"
+                                  ErrorText="@_intervalError"
+                                  Disabled="@_savingInterval" />
+                </div>
+                <span>minutes</span>
+            </div>
+        }
+
+        <div class="write-schedule__summary">
+            <p class="write-schedule__status" role="status">@StatusText</p>
+            @if (!ReadOnly)
+            {
+                <AppButton Label="Write now"
+                           StartIcon="@AppMaterialIcons.Outlined.Sync"
+                           ButtonStyle="AppButtonStyle.Outlined"
+                           Tone="AppUiTone.Primary"
+                           Disabled="@(_schedule.IsRunning || _schedule.WaitingCount == 0 || _starting)"
+                           OnClick="WriteNowAsync" />
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_message))
+        {
+            <p class="write-schedule__message" role="status">@_message</p>
+        }
+
+        @if (_schedule.FailedCount > 0)
+        {
+            <div class="write-schedule__failed">
+                <p class="write-schedule__status">@FailedText</p>
+                @if (!ReadOnly)
+                {
+                    <AppButton Label="@(_showFailed ? "Hide the list" : "Show the files")"
+                               ButtonStyle="AppButtonStyle.Text"
+                               OnClick="ToggleFailedAsync" />
+                }
+            </div>
+            @if (_showFailed && !ReadOnly)
+            {
+                <ul class="write-schedule__failed-list" aria-label="Files that couldn't be written">
+                    @foreach (var file in _failed)
+                    {
+                        <li>
+                            <strong>@(string.IsNullOrWhiteSpace(file.Title) ? "Untitled" : file.Title)</strong>
+                            <code>@file.Path</code>
+                            <span>@(string.IsNullOrWhiteSpace(file.Reason) ? "No reason was recorded." : file.Reason)</span>
+                        </li>
+                    }
+                </ul>
+            }
+        }
+
+        @if (_exifToolMissing)
+        {
+            <p class="write-schedule__status">
+                Photos, videos and PDFs in View are waiting for ExifTool.
+                <AppLink Href="/settings/tools">Open Tools</AppLink>
+            </p>
+        }
+    }
+</section>
+
+@code {
+    private const int MinMinutes = 1;
+    private const int MaxMinutes = 1440;
+
+    /// <summary>On phones and while the Engine is unreachable the status shows, but nothing can be changed.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    /// <summary>How often the status is read again while a run is going.</summary>
+    [Parameter] public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(3);
+
+    private FileWriteScheduleDto? _schedule;
+    private IReadOnlyList<FailedFileWriteDto> _failed = [];
+    private bool _loading = true;
+    private bool _exifToolMissing;
+    private bool _toolsChecked;
+    private bool _showFailed;
+    private bool _savingInterval;
+    private bool _starting;
+    private string _intervalText = string.Empty;
+    private string? _intervalError;
+    private string? _message;
+    private CancellationTokenSource? _polling;
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _loading = false;
+        StartPollingIfNeeded(awaitingStart: false);
+    }
+
+    private async Task RefreshAsync()
+    {
+        _schedule = await ApiClient.GetFileWriteScheduleAsync();
+        if (_schedule is null) return;
+        if (!_savingInterval && _intervalError is null) _intervalText = _schedule.IntervalMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (_schedule.Enabled && !_toolsChecked)
+        {
+            // ExifTool's state changes only when someone installs it, so it is read once per visit rather than on every refresh.
+            _toolsChecked = true;
+            var tools = await ApiClient.GetToolRequirementsAsync();
+            var exifTool = tools?.Tools.FirstOrDefault(tool => string.Equals(tool.Id, ToolRequirementIds.ExifTool, StringComparison.Ordinal));
+            _exifToolMissing = exifTool is not null && !string.Equals(exifTool.State, ToolRequirementStates.Ready, StringComparison.Ordinal);
+        }
+        if (_showFailed) _failed = await ApiClient.GetFailedFileWritesAsync();
+    }
+
+    private string StatusText
+    {
+        get
+        {
+            var schedule = _schedule!;
+            if (schedule.IsRunning)
+            {
+                // The Engine hides the numbers when the caller can't see every library: no "0 of 0".
+                return schedule.RunTotal <= 0
+                    ? "Writing files…"
+                    : $"Writing {DisplayFormat.FormatCount(schedule.RunDone)} of {DisplayFormat.FormatCount(schedule.RunTotal)} files…";
+            }
+
+            var last = schedule.LastRunAt is { } lastRun ? $" · Last run {FileWriteStatusText.FormatTime(lastRun)}" : string.Empty;
+            if (schedule.WaitingCount == 0) return $"All files are up to date{last}";
+
+            var noun = schedule.WaitingCount == 1 ? "file" : "files";
+            var next = schedule.NextRunAt is { } nextRun ? $" · Next run {FileWriteStatusText.FormatTime(nextRun)}" : string.Empty;
+            return $"{DisplayFormat.FormatCount(schedule.WaitingCount)} {noun} waiting{last}{next}";
+        }
+    }
+
+    private string FailedText => _schedule!.FailedCount == 1
+        ? "1 file couldn't be written"
+        : $"{DisplayFormat.FormatCount(_schedule!.FailedCount)} files couldn't be written";
+
+    private async Task SaveIntervalAsync(string? text)
+    {
+        _intervalText = text ?? string.Empty;
+        if (!int.TryParse(_intervalText.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var minutes)
+            || minutes < MinMinutes || minutes > MaxMinutes)
+        {
+            _intervalError = $"Enter a whole number of minutes from {MinMinutes} to {MaxMinutes:N0}.";
+            return;
+        }
+
+        _intervalError = null;
+        if (_schedule is null || minutes == _schedule.IntervalMinutes) return;
+
+        _savingInterval = true;
+        try
+        {
+            var saved = await ApiClient.UpdateFileWriteScheduleAsync(minutes);
+            if (saved is null)
+            {
+                _intervalError = "That couldn't be saved. Try again in a moment.";
+                return;
+            }
+
+            _schedule = saved;
+            _intervalText = saved.IntervalMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        finally { _savingInterval = false; }
+    }
+
+    private async Task WriteNowAsync()
+    {
+        if (_starting) return;
+        _starting = true;
+        _message = null;
+        var started = false;
+        try
+        {
+            var result = await ApiClient.StartFileWriteRunAsync();
+            started = result.Started;
+            if (result.Started && result.Schedule is not null) _schedule = result.Schedule;
+            else
+            {
+                _message = result.Message ?? "Writing could not be started.";
+                await RefreshAsync();
+            }
+        }
+        finally { _starting = false; }
+
+        StartPollingIfNeeded(awaitingStart: started);
+    }
+
+    private async Task ToggleFailedAsync()
+    {
+        _showFailed = !_showFailed;
+        if (_showFailed) _failed = await ApiClient.GetFailedFileWritesAsync();
+    }
+
+    // Light polling: only while a run is going (or has just been asked for and not yet seen starting), and never after dispose.
+    private void StartPollingIfNeeded(bool awaitingStart)
+    {
+        if (_disposed || _polling is not null || _schedule is null) return;
+        if (!_schedule.IsRunning && !awaitingStart) return;
+
+        _polling = new CancellationTokenSource();
+        _ = PollAsync(_polling.Token, awaitingStart);
+    }
+
+    private async Task PollAsync(CancellationToken token, bool awaitingStart)
+    {
+        var waitedForStart = 0;
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await Task.Delay(PollInterval, token);
+                await InvokeAsync(async () =>
+                {
+                    await RefreshAsync();
+                    StateHasChanged();
+                });
+
+                if (_schedule is null) break;
+                if (_schedule.IsRunning) awaitingStart = false;
+                else if (!awaitingStart || ++waitedForStart >= 10) break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The panel was closed while a refresh was waiting: nothing more to do.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The browser tab closed during a run and took the page with it: there is nothing left to refresh.
+        }
+        catch (Exception ex)
+        {
+            // A refresh that fails stops the live progress only; the panel keeps its last numbers and the next visit reads them again.
+            Logger.LogWarning(ex, "Refreshing the file-write progress failed.");
+        }
+        finally
+        {
+            _polling?.Dispose();
+            _polling = null;
+            if (!_disposed)
+            {
+                try
+                {
+                    await InvokeAsync(StateHasChanged);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // The page went away between the last refresh and this redraw: there is nothing left to draw.
+                }
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _polling?.Cancel();
+    }
+}

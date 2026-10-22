@@ -192,6 +192,17 @@
     margin: 0;
 }
 
+.sme-details-file-note {
+    margin: 8px 0 0;
+    color: rgba(194, 207, 232, 0.68);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.sme-details-file-note--failed {
+    color: rgba(255, 180, 171, 0.92);
+}
+
 .sme-details-summary > div,
 .sme-details-file-facts > div {
     display: grid;

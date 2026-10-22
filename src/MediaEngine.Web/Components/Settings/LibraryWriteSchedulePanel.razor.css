@@ -1,0 +1,60 @@
+.write-schedule {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.write-schedule__interval,
+.write-schedule__summary,
+.write-schedule__failed {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+}
+
+.write-schedule__summary {
+    justify-content: space-between;
+}
+
+.write-schedule__status,
+.write-schedule__message {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.write-schedule__minutes {
+    width: 6rem;
+}
+
+.write-schedule__failed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.write-schedule__failed-list li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 8px 12px;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.write-schedule__failed-list code {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.write-schedule__failed-list span {
+    color: var(--tl-text-muted);
+}
