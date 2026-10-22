@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Services.Vault
 @using MediaEngine.Web.Services.Ui
 @inject IAppDialogService DialogService
 
@@ -36,7 +37,18 @@
                 <span>Lookup</span>
                 <span></span>
             </div>
-            @if (VaultLibraries is null)
+            @if (VaultReadFailed)
+            {
+                <AppPageState Kind="AppPageStateKind.Error"
+                              Icon="@AppMaterialIcons.Outlined.CloudOff"
+                              Title="The Vault library could not be read"
+                              Message="@VaultMessages.Unreachable">
+                    <Actions>
+                        <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => RetryVault.InvokeAsync())" />
+                    </Actions>
+                </AppPageState>
+            }
+            else if (VaultLibraries is null)
             {
                 <AppSkeleton Height="60px" />
             }
@@ -104,12 +116,16 @@
     [Parameter] public bool ReadOnly { get; set; }
     /// <summary>The Vault's libraries, for the Vault's own page; null while they are not known.</summary>
     [Parameter] public IReadOnlyList<VaultLibraryDto>? VaultLibraries { get; set; }
+    /// <summary>The Vault's libraries could not be read (so they are unknown, not none).</summary>
+    [Parameter] public bool VaultReadFailed { get; set; }
+    /// <summary>Reads the Vault's libraries again.</summary>
+    [Parameter] public EventCallback RetryVault { get; set; }
     /// <summary>Raised after a folder was added through the wizard, so the page can refresh its counts.</summary>
     [Parameter] public EventCallback FolderAdded { get; set; }
 
     private bool IsVault => Group.Key == LibraryGroupCatalog.VaultKey;
 
-    private static readonly string ManageAddress = MediaEngine.Web.Services.Vault.VaultViews.Route(MediaEngine.Web.Services.Vault.VaultViews.LibrarySettings);
+    private static readonly string ManageAddress = VaultViews.Route(VaultViews.LibrarySettings);
 
     private static string LookupLabel(VaultLibraryDto library) => library.LookupSource == "stash_box" ? "Stash-box" : "None";
 

@@ -38,6 +38,7 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
     private bool _unlocked;
     private bool _hasPin = true;
     private List<VaultLibraryDto> _libraries = [];
+    private bool _librariesUnreadable;
     private readonly List<CreateVaultLibraryRequest> _created = [];
     private readonly List<(string Library, AttachVaultFolderRequest Request)> _attached = [];
     private string _picked = NewFolder;
@@ -72,8 +73,9 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
                 _unlocked = false;
                 return Task.FromResult(VaultCall<bool>.Ok(true));
             });
-            stub.SetHandler(nameof(IEngineApiClient.GetVaultLibrariesAsync), _ =>
-                Task.FromResult(VaultCall<IReadOnlyList<VaultLibraryDto>>.Ok(_libraries)));
+            stub.SetHandler(nameof(IEngineApiClient.GetVaultLibrariesAsync), _ => Task.FromResult(_librariesUnreadable
+                ? VaultCall<IReadOnlyList<VaultLibraryDto>>.Of(VaultOutcome.Failed)
+                : VaultCall<IReadOnlyList<VaultLibraryDto>>.Ok(_libraries)));
             stub.SetHandler(nameof(IEngineApiClient.CreateVaultLibraryAsync), args =>
             {
                 var request = (CreateVaultLibraryRequest)args![0]!;
@@ -339,6 +341,7 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
         Assert.True(Button("Add folder").HasAttribute("disabled"));
 
         _dialogs.Find(".add-wizard__field select").Change("stash_box");
+        Assert.Contains("arrives with the Vault lookup update", Text(_dialogs.Find(".add-wizard__field")));
         _dialogs.Find("[data-vault-adults]").Change(true);
         _dialogs.WaitForAssertion(() => Assert.False(Button("Add folder").HasAttribute("disabled")));
         Button("Add folder").Click();
@@ -425,6 +428,61 @@ public sealed class LibraryVaultCardTests : AsyncBunitContext
         _dialogs.WaitForAssertion(() => Assert.Equal(VaultMessages.SetProfilePinFirst, Text(_dialogs.Find(".add-wizard .app-alert"))));
         Assert.True(Button("Add folder").HasAttribute("disabled"));
         Assert.Empty(_created);
+    }
+
+    [Fact]
+    public async Task TheVaultTileLeavesStepOneAtOnceWhenVaultModeIsSwitchedOffWhileTheWizardIsOpen()
+    {
+        await SetUpAsync();
+        Open().Find(".lib-door__add").Click();
+        _dialogs.WaitForElement(".add-wizard");
+        Assert.Contains("Vault", _dialogs.FindAll(".add-wizard__tile").Select(Text));
+
+        await State.LockAsync();
+
+        _dialogs.WaitForAssertion(() => Assert.Equal(["Watch", "Listen", "Read", "View"], _dialogs.FindAll(".add-wizard__tile").Select(Text).ToArray()));
+        Assert.DoesNotContain("vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AVaultLibraryThatCannotBeReadShowsAnErrorWithTryAgainOnTheVaultPageNotASkeletonForever()
+    {
+        await SetUpAsync();
+        _librariesUnreadable = true;
+        var cut = Open("vault");
+
+        cut.WaitForAssertion(() => Assert.Contains("The Vault library could not be read", cut.Markup));
+        Assert.Empty(cut.FindAll(".lib-page__empty, [data-vault-library]"));
+        _librariesUnreadable = false;
+        _libraries = [new VaultLibraryDto { Id = "vault-1", LookupSource = "none" }];
+        cut.FindAll("button").Single(button => Text(button) == "Try again").Click();
+
+        cut.WaitForElement("[data-vault-library=vault-1]");
+        Assert.DoesNotContain("could not be read", cut.Markup);
+    }
+
+    [Fact]
+    public async Task WhenTheVaultLibraryCannotBeReadStepThreeOffersNeitherCreationNorAddingUntilTryAgainWorks()
+    {
+        await SetUpAsync();
+        _librariesUnreadable = true;
+        Open().Find(".lib-door__add").Click();
+        _dialogs.WaitForElement(".add-wizard");
+        _dialogs.Find(".add-wizard__tile[data-group=vault]").Click();
+        PickFolder(NewFolder);
+
+        _dialogs.WaitForAssertion(() => Assert.Equal(VaultMessages.Unreachable, Text(_dialogs.Find(".add-wizard .app-alert"))));
+        Assert.Empty(_dialogs.FindAll("[data-vault-adults], .add-wizard__field"));
+        Assert.True(Button("Add folder").HasAttribute("disabled"));
+        Assert.Empty(_created);
+
+        _librariesUnreadable = false;
+        Button("Try again").Click();
+
+        _dialogs.WaitForElement("[data-vault-adults]");
+        Assert.Empty(_dialogs.FindAll(".add-wizard .app-alert"));
+        Assert.Empty(_created);
+        Assert.Empty(_attached);
     }
 
     [Fact]

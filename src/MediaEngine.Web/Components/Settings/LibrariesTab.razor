@@ -82,6 +82,8 @@
                                   ViewFolders="@_viewFolders"
                                   PathIssues="@_pathIssues"
                                   VaultLibraries="@_vaultLibraries"
+                                  VaultReadFailed="@_vaultReadFailed"
+                                  RetryVault="RetryVaultAsync"
                                   ReadOnly="@readOnly"
                                   FolderAdded="FolderAddedAsync" />
                 break;
@@ -145,6 +147,7 @@
 
     // The Vault's libraries for its group page; null until they are read (or when the Engine could not say).
     private IReadOnlyList<VaultLibraryDto>? _vaultLibraries;
+    private bool _vaultReadFailed;
     private bool _isKids;
 
     // The Vault card is drawn only for an administrator with Vault mode on, never on a Kids profile (Library setup D13).
@@ -287,7 +290,15 @@
     private async Task LoadVaultLibrariesAsync()
     {
         var call = await ApiClient.GetVaultLibrariesAsync();
+        _vaultReadFailed = !call.Succeeded;
         _vaultLibraries = call.Succeeded ? call.Value : null;
+    }
+
+    private async Task RetryVaultAsync()
+    {
+        _vaultReadFailed = false;
+        _vaultLibraries = null;
+        await LoadVaultLibrariesAsync();
     }
 
     // View keeps its folders per profile, outside the library list: the distinct folders of each View kind across every profile's

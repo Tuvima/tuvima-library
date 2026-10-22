@@ -134,6 +134,12 @@
                 {
                     <AppSkeleton Height="96px" />
                 }
+                else if (_vaultReadFailed)
+                {
+                    @* Without a clear answer the wizard neither creates a library (there may already be one) nor adds to one. *@
+                    <AppAlert Tone="AppUiTone.Error">@VaultMessages.Unreachable</AppAlert>
+                    <div><AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="RetryVaultReadAsync" /></div>
+                }
                 else if (_vaultLibrary is null)
                 {
                     @* The first Vault folder creates the library: where details come from, then the adults-only confirmation (D34). The PIN is asked on the number pad when Add folder is pressed. *@
@@ -146,6 +152,10 @@
                             <option value="none">Nowhere: file names only</option>
                             <option value="stash_box">A Stash-box server</option>
                         </AppNativeSelect>
+                        @if (_vaultLookup == "stash_box")
+                        {
+                            <small>Choosing a server and entering its key arrives with the Vault lookup update. Until then details stay file-name based.</small>
+                        }
                     </label>
                     <AppCheckbox Value="@_adultsConfirmed" ValueChanged="@(value => _adultsConfirmed = value)" Disabled="@_saving" data-vault-adults>
                         @VaultLibraryOnboarding.AdultsConfirmationText
@@ -252,13 +262,15 @@
     // The Vault step: the Vault's library if there already is one, else what a new one is created with.
     private VaultLibraryDto? _vaultLibrary;
     private bool _vaultLoading;
+    // The Vault library could not be read, so it is unknown: not "none". Only a successful, empty answer means there is no library.
+    private bool _vaultReadFailed;
     private string _vaultLookup = "none";
     private bool _adultsConfirmed;
 
     // The Vault is offered only while the host allows it and Vault mode is still on; setup never shows it.
     private bool VaultOffered => ShowVault && !Embedded && Nsfw.Unlocked;
     private bool IsVault => _groupKey == LibraryGroupCatalog.VaultKey && VaultOffered;
-    private bool CanAddToVault => Nsfw.HasPin && !_vaultLoading && (_vaultLibrary is not null || _adultsConfirmed);
+    private bool CanAddToVault => Nsfw.HasPin && !_vaultLoading && !_vaultReadFailed && (_vaultLibrary is not null || _adultsConfirmed);
 
     // The Vault has no kinds, so the wizard carries this stand-in where it carries a kind: its name, no media type, the lock icon.
     private static readonly LibraryTypeOption VaultType = new(
@@ -307,11 +319,17 @@
         }
     }
 
-    // Vault mode switching off while the wizard is open closes it: nothing about the Vault stays on screen.
-    private void OnVaultModeChanged()
+    // Vault mode switching off while the wizard is open takes the Vault tile off step 1 at once and closes the wizard if the Vault was picked.
+    private void OnVaultModeChanged() => _ = InvokeAsync(() =>
     {
-        if (!Nsfw.Unlocked && _groupKey == LibraryGroupCatalog.VaultKey) _ = InvokeAsync(() => Dialog.Cancel());
-    }
+        if (!Nsfw.Unlocked && _groupKey == LibraryGroupCatalog.VaultKey)
+        {
+            Dialog.Cancel();
+            return;
+        }
+
+        StateHasChanged();
+    });
 
     public void Dispose() => Nsfw.Changed -= OnVaultModeChanged;
 
@@ -371,7 +389,7 @@
 
     // Step 2 embeds the shared folder picker; its Next button confirms the folder. Phone or camera footage in a Watch kind
     // pauses here with a hint before moving on.
-    private void OnFolderConfirmed(ServerFolderValidationResultDto selected)
+    private async Task OnFolderConfirmed(ServerFolderValidationResultDto selected)
     {
         _folder = selected;
         _error = null;
@@ -383,7 +401,7 @@
 
         if (IsVault)
         {
-            _ = EnterVaultStepAsync();
+            await EnterVaultStepAsync();
             return;
         }
 
@@ -394,15 +412,28 @@
     private async Task EnterVaultStepAsync()
     {
         GoTo(WizardStep.Vault);
+        await RetryVaultReadAsync();
+    }
+
+    private async Task RetryVaultReadAsync()
+    {
         _vaultLoading = true;
-        await LoadVaultLibraryAsync();
-        _vaultLoading = false;
+        try
+        {
+            await LoadVaultLibraryAsync();
+        }
+        finally
+        {
+            _vaultLoading = false;
+        }
+
         await InvokeAsync(StateHasChanged);
     }
 
     private async Task LoadVaultLibraryAsync()
     {
         var call = await VaultApi.GetVaultLibrariesAsync();
+        _vaultReadFailed = !call.Succeeded;
         _vaultLibrary = call.Succeeded ? call.Value?.FirstOrDefault() : null;
     }
 
