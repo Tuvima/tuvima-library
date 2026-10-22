@@ -329,8 +329,9 @@ public sealed record CreateViewSourceRequest(
     [property: JsonPropertyName("content_kind")] string? ContentKind = null);
 
 /// <param name="ContentKind">
-/// A new kind for the folder; omitted keeps the current one. Files already indexed stay as they are; the next scan
-/// applies the new kind to what it finds.
+/// A new kind for the folder; omitted keeps the current one. Items already indexed from the folder are re-sorted at
+/// once: those the new kind accepts take it, the rest leave the index (their files on disk are never touched) and are
+/// counted in <c>skipped_file_count</c>; the next scan picks up files the new kind now accepts.
 /// </param>
 public sealed record UpdateViewSourceRequest(
     [property: JsonPropertyName("name")] string Name,

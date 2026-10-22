@@ -1144,7 +1144,8 @@ public static partial class ViewEndpoints
             await indexing.RefreshSourcesAsync(ct);
             if (kindChanged)
             {
-                // The next scan applies the new kind to what it finds; files already indexed stay as they are.
+                // Items already indexed were re-sorted by the update itself (accepted ones took the new kind, the rest left
+                // the index; files on disk are untouched). A scan picks up files the new kind now accepts.
                 indexing.RequestReconcile(space.LibraryId);
             }
 
