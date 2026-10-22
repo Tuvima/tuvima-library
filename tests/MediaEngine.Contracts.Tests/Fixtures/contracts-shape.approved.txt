@@ -1443,6 +1443,26 @@ MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UpdateBackupSettings
   KeepLast: System.Int32? | nullability=nullable | accessors=get,set
   EnabledDestinations: System.Collections.Generic.List<System.String> | nullability=nullable | accessors=get,set
 
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UserImportPreviewDto
+  OperationId: System.Guid | nullability=not-null | accessors=get,init
+  Email: System.String | nullability=not-null | accessors=get,init
+  HouseholdName: System.String | nullability=nullable | accessors=get,init
+  Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Backups.UserImportProfileDto> | nullability=not-null | accessors=get,init
+  PersonalItems: System.Int32 | nullability=not-null | accessors=get,init
+  BlockedReason: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UserImportProfileDto
+  Name: System.String | nullability=not-null | accessors=get,init
+  Role: System.String | nullability=not-null | accessors=get,init
+  ContentLimit: System.String | nullability=nullable | accessors=get,init
+  ContentLimitAllowUnrated: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UserImportResultDto
+  AccountId: System.Guid | nullability=not-null | accessors=get,init
+  DisplayName: System.String | nullability=not-null | accessors=get,init
+  Profiles: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  WaitingItems: System.Int32 | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.UniverseEnrichmentTriggerResponse
   triggered: System.Boolean | nullability=not-null | accessors=get,init
   message: System.String | nullability=not-null | accessors=get,init

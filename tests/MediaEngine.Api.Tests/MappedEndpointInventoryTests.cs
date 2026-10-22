@@ -302,6 +302,37 @@ public sealed class MappedEndpointInventoryTests
     }
 
     [Fact]
+    public async Task UserTransfer_IsSelfServiceForYourOwnData_AndInPersonAdministratorOnlyForEveryoneElse()
+    {
+        await using var app = BuildEndpointOnlyApplication();
+        var inventory = EndpointInventory.From(app);
+
+        // A person exports only themselves; the route takes no account from the request.
+        var mine = inventory.Require("/access/me/export", "POST");
+        Assert.Equal("ExportMyData", mine.Name);
+        mine.RequiresNamedPolicy(AuthPolicies.HumanSelfService);
+        Assert.DoesNotContain("{", mine.Pattern, StringComparison.Ordinal);
+
+        // Anyone else's sign-in material, and every import, is for an administrator signed in at the Dashboard: no paired app, no
+        // service application, no household administrator.
+        foreach (var (pattern, name) in new[]
+        {
+            ("/access/accounts/{accountId:guid}/export", "ExportAccount"),
+            ("/access/accounts/import/inspect", "InspectUserImport"),
+            ("/access/accounts/import/{operationId:guid}", "ImportUser"),
+        })
+        {
+            var route = inventory.Require(pattern, "POST");
+            Assert.Equal(name, route.Name);
+            Assert.False(route.AllowsAnonymousEndpoint);
+            var requirement = Assert.Single(Assert.Single(route.Policies).Requirements.OfType<EffectiveAdministratorRequirement>());
+            Assert.True(requirement.HumanOnly);
+            Assert.True(requirement.SurfaceUnlock);
+            Assert.False(requirement.AllowHouseholdAdministrator);
+        }
+    }
+
+    [Fact]
     public async Task LibraryItemMoves_AreAuthorisedLikeTheOtherStructuralEdits_AndTheOldRoutesAreGone()
     {
         await using var app = BuildEndpointOnlyApplication();

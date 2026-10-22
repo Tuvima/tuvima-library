@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Authentication
+@using MediaEngine.Contracts.Backups
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Ui
 @inject DashboardIdentityClient Identity
@@ -7,6 +8,7 @@
 @inject ConfirmedActionRunner Confirmed
 @inject IAppDialogService Dialogs
 @inject DeviceContextService DeviceContext
+@inject IJSRuntime JS
 @implements IDisposable
 
 <SettingsSectionPanel Title="Users" Description="Accounts, roles and invitations. An account's profile access decides which profiles it can open; the people themselves are looked after under Profiles." Icon="@AppMaterialIcons.Outlined.Group">
@@ -24,9 +26,14 @@
         {
             <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert>
         }
+        @if (!string.IsNullOrWhiteSpace(_exportError))
+        {
+            <AppAlert Severity="AppSeverity.Error" Class="access-notice" data-testid="access-export-error">@_exportError</AppAlert>
+        }
         <div class="access-toolbar" @ref="_returnFocus" tabindex="-1">
             @if (!DeviceContext.IsPhone)
             {
+                <AppButton Label="Import a user" StartIcon="@AppMaterialIcons.Outlined.UploadFile" OnClick="OpenImport" data-testid="access-import-user" />
                 <AppButton Label="Invite user" StartIcon="@AppMaterialIcons.Outlined.Mail" OnClick="OpenInvitation" />
                 <AppButton Label="Invite someone outside your household" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewUser" />
             }
@@ -112,6 +119,10 @@
                                     }
                                     <AppButton Label="Profile access" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenProfiles(account))" />
                                     <AppButton Label="Account details" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => EditAccount(account))" />
+                                    @if (!string.IsNullOrWhiteSpace(account.Email))
+                                    {
+                                        <AppButton Label="Export" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => ExportAccount(account))" />
+                                    }
                                     <AppButton Label="Set temporary password" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenTemporaryPassword(account))" />
                                     @if (account.HasTwoStep)
                                     {
@@ -142,7 +153,11 @@
         <div class="access-drawer__body">
             @if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Severity="AppSeverity.Error">@_error</AppAlert> }
             @if (!string.IsNullOrWhiteSpace(_drawerMessage)) { <AppAlert Severity="AppSeverity.Success">@_drawerMessage</AppAlert> }
-            @if (_mode == UserDrawerMode.Account && ShowingCreatedResult)
+            @if (_mode == UserDrawerMode.Import)
+            {
+                <ManagedAccessUserImport Imported="ImportedAsync" Cancelled="CancelImport" />
+            }
+            else if (_mode == UserDrawerMode.Account && ShowingCreatedResult)
             {
                 @if (_invitation is not null)
                 {
@@ -269,6 +284,8 @@
                 <p>This action cannot be undone from the Dashboard.</p>
             }
         </div>
+        @if (_mode != UserDrawerMode.Import)
+        {
         <footer class="access-drawer__footer">
             <AppButton Label="@(ShowingResult ? "Done" : "Cancel")" OnClick="Close" />
             @if (_mode == UserDrawerMode.Account && !ShowingCreatedResult) { <AppButton Label="@(_editing is null ? "Create user" : "Save account")" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || !CanSaveAccount)" OnClick="SaveAccount" /> }
@@ -277,6 +294,7 @@
             else if (_mode == UserDrawerMode.Invitation && _invitation is null) { <AppButton Label="Create invitation" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_email) || _invitationProfiles.Count == 0)" OnClick="CreateInvitation" /> }
             else if (_mode == UserDrawerMode.Delete) { <AppButton Label="Delete user" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="DeleteAccount" /> }
         </footer>
+        }
     </div>
     </AppFocusTrap>
 </AppDrawer>
@@ -308,6 +326,7 @@
     private string _error = string.Empty;
     private string _drawerMessage = string.Empty;
     private string _notice = string.Empty;
+    private string _exportError = string.Empty;
     private string _signInMethod = InvitationMethod;
     private string _temporaryPassword = string.Empty;
     private string _issuedTemporaryPassword = string.Empty;
@@ -339,6 +358,7 @@
         UserDrawerMode.Invitation => "Invite user",
         UserDrawerMode.TemporaryPassword => $"Temporary password · {EditingLabel}",
         UserDrawerMode.Delete => $"Delete · {EditingLabel}",
+        UserDrawerMode.Import => "Import a user",
         _ => _editing is null ? "Invite someone outside your household" : $"Account · {EditingLabel}",
     };
     private List<ManagedProfileResponse> GrantableProfiles => _editing is null
@@ -398,6 +418,64 @@
         ResetDrawer(UserDrawerMode.TemporaryPassword);
         LoadAccount(account);
         _open = true;
+    }
+
+    private void OpenImport()
+    {
+        ResetDrawer(UserDrawerMode.Import);
+        _editing = null;
+        _exportError = string.Empty;
+        _open = true;
+    }
+
+    private void CancelImport() => Close();
+
+    // The file is on this Library now: reload the list and go straight to the new person's access, which starts empty.
+    private async Task ImportedAsync(UserImportResultDto added)
+    {
+        await ReloadAll();
+        var account = _accounts.FirstOrDefault(candidate => candidate.Id == added.AccountId);
+        if (account is null)
+        {
+            Close();
+            _notice = $"{added.DisplayName} was added. Choose what they can see.";
+            return;
+        }
+
+        OpenPermissions(account);
+        _drawerMessage = $"{added.DisplayName} was added. Choose what they can see.";
+    }
+
+    // Anyone with the file can sign in as that person, so the Engine asks the administrator to confirm it is them first.
+    private async Task ExportAccount(AccountAccessResponse account)
+    {
+        _actionAccountId = null;
+        if (!TryBeginMutation(out var generation))
+            return;
+        try
+        {
+            _notice = _exportError = string.Empty;
+            var result = await Confirmed.RunAsync(() => Identity.ExportAccountResultAsync(account.Id));
+            if (!IsCurrentMutation(generation))
+                return;
+            if (result.Succeeded && result.Value is { } file)
+            {
+                await JS.SaveZipAsync(file);
+                _notice = $"A file for {AccountLabel(account)} was downloaded. Anyone with it can sign in as them, so keep it somewhere safe.";
+            }
+            else
+            {
+                _exportError = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou
+                    ? "Nothing was downloaded. Confirm it's you to continue."
+                    : !string.IsNullOrWhiteSpace(result.Message) ? result.Message
+                    : result.Failure == DashboardAccessMutationFailure.Transient ? "The Engine is unavailable. Try again."
+                    : "The file couldn't be made. Try again.";
+            }
+        }
+        finally
+        {
+            EndMutation(generation);
+        }
     }
 
     private void SetSignInMethod(string method) => _signInMethod = method == TemporaryPasswordMethod ? TemporaryPasswordMethod : InvitationMethod;
@@ -1001,5 +1079,6 @@
         Invitation,
         TemporaryPassword,
         Delete,
+        Import,
     }
 }

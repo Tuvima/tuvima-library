@@ -1,0 +1,56 @@
+.user-import {
+    display: grid;
+    gap: 1rem;
+}
+
+.user-import__lead,
+.user-import__preview p {
+    margin: 0;
+    color: var(--app-text-muted);
+}
+
+.user-import__preview {
+    display: grid;
+    gap: .6rem;
+    min-width: 0;
+}
+
+.user-import__email {
+    overflow-wrap: anywhere;
+}
+
+.user-import__household {
+    color: var(--app-text-muted);
+    font-size: .9rem;
+}
+
+.user-import__profiles {
+    display: grid;
+    gap: .35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.user-import__profiles li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .25rem .75rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.user-import__profiles small {
+    color: var(--app-text-muted);
+}
+
+.user-import__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .75rem;
+    padding-top: .5rem;
+    border-top: 1px solid var(--app-border);
+}
