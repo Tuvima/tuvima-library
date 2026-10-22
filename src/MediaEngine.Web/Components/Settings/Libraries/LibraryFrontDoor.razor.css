@@ -117,3 +117,9 @@
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+/* Add folder sits bottom right, under the cards. */
+.lib-door__actions {
+    display: flex;
+    justify-content: flex-end;
+}

@@ -5461,10 +5461,17 @@ input[type="reset"],
 .merge-folder__option:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .merge-folder__option:disabled { cursor: wait; opacity: .65; }
 
-/* Add Folder > "This folder already has files in it": the three choice cards are AppChoiceCard roots, so their styles live here. */
-.add-folder-choice__card { display: grid; gap: 4px; justify-items: start; min-height: 44px; padding: 14px 16px; color: var(--tl-text-primary); text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; font: inherit; cursor: pointer; }
-.add-folder-choice__card span { color: var(--tl-text-muted); font-size: 0.88rem; line-height: 1.4; }
-.add-folder-choice__card:hover, .add-folder-choice__card:focus-visible { border-color: var(--tl-accent-primary); outline: none; background: var(--tl-accent-primary-soft); }
+/* Add folder wizard: the group tiles, kind options and treatment choices are AppNativeButton roots, so their styles live here. */
+.add-wizard__tile { display: grid; align-content: center; justify-items: center; gap: 12px; min-height: 140px; padding: 16px 8px; font-size: 1.05rem; color: inherit; font: inherit; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
+.add-wizard__tile--watch { --add-wizard-colour: #a16dff; }
+.add-wizard__tile--listen { --add-wizard-colour: #e76fce; }
+.add-wizard__tile--read { --add-wizard-colour: #61a8ff; }
+.add-wizard__tile--view { --add-wizard-colour: #2dd4bf; }
+.add-wizard__tile--vault { --add-wizard-colour: var(--tl-status-danger); }
+.add-wizard__kind-option, .add-wizard__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
+.add-wizard__tile:hover, .add-wizard__tile:focus-visible, .add-wizard__tile.is-selected,
+.add-wizard__kind-option:hover, .add-wizard__kind-option:focus-visible, .add-wizard__kind-option.is-selected,
+.add-wizard__choice:hover, .add-wizard__choice:focus-visible, .add-wizard__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
 
 /* Phone search: the visible Cancel button next to the full-screen search field. */
 .universal-search-overlay__cancel {

@@ -9,6 +9,7 @@
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
 @inject IAppToastService Snackbar
+@inject LibraryFolderAddService AddService
 @inject NavigationManager Navigation
 @implements IDisposable
 
@@ -480,196 +481,57 @@
         await InvokeAsync(StateHasChanged);
     }
     private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
-    private Task<ServerFolderValidationResultDto?> ValidateAsync(string path, string mode, string? sourceId = null)
-    {
-        var request = new ValidateServerFolderRequest { ManualPath = path, SelectionMode = mode, CurrentSourceId = sourceId };
-        return Embedded ? ApiClient.ValidateSetupServerFolderAsync(request, SetupSession) : ApiClient.ValidateServerFolderAsync(request);
-    }
+    private Task<ServerFolderValidationResultDto?> ValidateAsync(string path, string mode, string? sourceId = null) =>
+        AddService.ValidateAsync(Scope, path, mode, sourceId);
 
+    // Add Folder opens the Add folder wizard at step 2 for this type (the type is already known); the wizard adds the folder
+    // through LibraryFolderAddService and tells this panel when one was added so it can show it.
     private async Task AddFolderAsync()
     {
         if (_configuration is null || _saving) return;
         _notice = null;
         _highlightAdd = false;
-        var parameters = new AppDialogParameters<ServerFolderPicker>
+        var parameters = new AppDialogParameters<AddFolderWizard>
         {
-            { component => component.SelectionMode, ServerFolderSelectionModes.ExistingLibrary },
-            { component => component.HelpText, $"Choose a folder on the Library server to add to {_selected.Label}." },
+            { component => component.StartTypeKey, _selected.Key },
             { component => component.SetupSession, SetupSession },
-            { component => component.MediaType, _selected.MediaTypes.FirstOrDefault() },
+            { component => component.Embedded, Embedded },
+            { component => component.Configuration, _configuration },
+            { component => component.OnFolderAdded, (Func<string?, Task>)FolderAddedAsync },
         };
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
+        await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
+    }
+
+    private async Task FolderAddedAsync(string? notice)
+    {
+        await InvokeAsync(async () =>
         {
-            MaxWidth = AppMaxWidth.ExtraExtraLarge,
-            FullWidth = false,
-            CloseButton = false,
-            CloseOnEscapeKey = true,
+            if (!string.IsNullOrWhiteSpace(notice)) _notice = notice;
+            await ReloadConfigurationAsync();
+            await Changed.InvokeAsync();
+            await RefreshPathIssuesAsync();
+            await RefreshWaitingAsync();
+            await RefreshJobsAsync();
         });
-        if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
-
-        // Real videos and phone memories are presented differently, so a Videos folder always asks which one it is.
-        if (IsVideosSelected)
-        {
-            var place = await AskAddFolderPlaceAsync(selected.LooksLikePhoneFootage);
-            if (place is null) return;
-            if (!place.Watch)
-            {
-                _notice = "Add this folder under Photos and personal videos (Settings > Libraries > Photos) so it gets a gallery and timeline.";
-                return;
-            }
-
-            _pendingYoutubeLookup = place.YoutubeLookup;
-        }
-
-        // An empty folder is ours to manage. A folder that already holds files is used read-only unless the person says otherwise,
-        // because managing it could rename or move files other apps depend on. Merging adds it as read-only first, then brings its
-        // files into a managed folder once.
-        var managed = true;
-        var mergeAfter = false;
-        if (selected.ContainsFiles)
-        {
-            var canMerge = !Embedded && (SelectedLibrary?.Sources.Any(IsManaged) ?? false);
-            var choice = await AskAddFolderChoiceAsync(canMerge);
-            if (choice is null) return;
-            managed = choice == AddFolderChoiceDialog.Managed;
-            mergeAfter = choice == AddFolderChoiceDialog.Merge;
-        }
-
-        if (managed)
-        {
-            var writable = await ValidateAsync(selected.Path, ServerFolderSelectionModes.ManagedLibrary);
-            if (writable?.CanSelect == true) selected = writable;
-            else
-            {
-                managed = false;
-                _notice = writable is null
-                    ? "Library couldn't check whether it can write to this folder, so it will be used as read-only."
-                    : "Library can't write to this folder, so it will be used as read-only.";
-            }
-        }
-
-        var library = Clone(SelectedLibrary) ?? NewLibrary(_selected);
-        if (IsVideosSelected && _pendingYoutubeLookup is { } youtubeLookup) library.YoutubeLookup = youtubeLookup;
-        _pendingYoutubeLookup = null;
-        // The Engine makes the first managed folder the library's destination when it saves.
-        var source = new LibrarySourceDto
-        {
-            Id = Guid.NewGuid().ToString("D"),
-            Path = selected.Path,
-            Notes = Path.GetFileName(selected.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
-            ManagementMode = managed ? "managed_by_tuvima" : "existing_library",
-            SourceType = "local_folder",
-            IncludeSubdirectories = true,
-            AccessMode = managed ? "writable" : "read_only",
-        };
-        if (string.IsNullOrWhiteSpace(source.Notes)) source.Notes = selected.Path;
-        library.Sources.Add(source);
-        var saved = await SaveAsync(library, mergeAfter ? "Folder added as read-only. Choose where its files should go." : "Folder added.");
-        if (saved && managed && selected.ContainsFiles)
-        {
-            // The files already in it are not touched until the person says so.
-            var added = SelectedLibrary?.Sources.FirstOrDefault(item => item.Id == source.Id);
-            if (added is not null) await OfferOrganiseAsync(added, alreadyManaged: true, quiet: true);
-        }
-        else if (saved && mergeAfter)
-        {
-            // The folder is now part of the library as read-only; the sheet asks where its files should go.
-            var added = SelectedLibrary?.Sources.FirstOrDefault(item => item.Id == source.Id);
-            if (added is not null) await MergeIntoAsync(added);
-        }
     }
 
     private bool IsVideosSelected => _selected.MediaTypes.Contains("Videos", StringComparer.OrdinalIgnoreCase);
 
-    private bool? _pendingYoutubeLookup;
-
-    // Videos (Watch) or Photos and personal videos (View). Returns the answer, or null when the person cancels.
-    private async Task<AddFolderPlaceDialog.AddFolderPlaceAnswer?> AskAddFolderPlaceAsync(bool looksLikePhoneFootage)
-    {
-        var parameters = new AppDialogParameters<AddFolderPlaceDialog>
-        {
-            { component => component.LooksLikePhoneFootage, looksLikePhoneFootage },
-            { component => component.YoutubeLookup, SelectedLibrary?.YoutubeLookup ?? true },
-        };
-        var dialog = await DialogService.ShowAsync<AddFolderPlaceDialog>(string.Empty, parameters, new AppDialogOptions
-        {
-            MaxWidth = AppMaxWidth.Medium,
-            FullWidth = true,
-            CloseButton = false,
-            NoHeader = true,
-            CloseOnEscapeKey = true,
-            Sheet = AppDialogSheetMode.PhoneAndTablet,
-        });
-        return await dialog.Result is { Canceled: false, Data: AddFolderPlaceDialog.AddFolderPlaceAnswer answer } ? answer : null;
-    }
-
-    // The three ways to use a folder that already has files. Returns the answer, or null when the person cancels.
-    private async Task<string?> AskAddFolderChoiceAsync(bool canMerge)
-    {
-        var parameters = new AppDialogParameters<AddFolderChoiceDialog>
-        {
-            { component => component.TypeLabel, Selected.Label },
-            { component => component.CanMerge, canMerge },
-        };
-        var dialog = await DialogService.ShowAsync<AddFolderChoiceDialog>(string.Empty, parameters, new AppDialogOptions
-        {
-            MaxWidth = AppMaxWidth.Medium,
-            FullWidth = true,
-            CloseButton = false,
-            NoHeader = true,
-            CloseOnEscapeKey = true,
-            Sheet = AppDialogSheetMode.PhoneAndTablet,
-        });
-        return await dialog.Result is { Canceled: false, Data: string answer } ? answer : null;
-    }
+    private FolderAddScope Scope => new(Embedded, SetupSession);
 
     // Row menu "Merge into": choose the managed folder and Copy or Move, look at a preview, then queue the merge job.
     private async Task MergeIntoAsync(LibrarySourceDto source)
     {
         var library = SelectedLibrary;
         if (library is null || _saving || Embedded) return;
-        var targets = LibraryFolderTable.MergeTargets(library, source);
-        if (targets.Count == 0)
-        {
-            _notice = "There is no managed folder to merge into yet. Add a managed folder to this library first.";
-            return;
-        }
+        await AfterFollowUpAsync(await AddService.MergeIntoAsync(Scope, library, source));
+    }
 
-        var destination = library.GetPrimaryDestination();
-        var options = targets
-            .Select(target => new MergeFolderDialog.MergeTargetOption(target.Id, target.DisplayName(), target.Path, ReferenceEquals(target, destination)))
-            .ToList();
-        var parameters = new AppDialogParameters<MergeFolderDialog>
-        {
-            { component => component.SourceId, source.Id },
-            { component => component.Path, source.Path },
-            { component => component.SourceName, source.DisplayName() },
-            { component => component.CanMove, IsManaged(source) && source.AccessMode == "writable" },
-            { component => component.Targets, options },
-        };
-        var dialog = await DialogService.ShowAsync<MergeFolderDialog>(string.Empty, parameters, new AppDialogOptions
-        {
-            MaxWidth = AppMaxWidth.Medium,
-            FullWidth = true,
-            CloseButton = false,
-            NoHeader = true,
-            CloseOnEscapeKey = true,
-            Sheet = AppDialogSheetMode.PhoneAndTablet,
-        });
-        if (await dialog.Result is not { Canceled: false, Data: FolderMergeRequest request }) return;
-
-        _saving = true;
-        FolderJobStatusDto? job;
-        try { job = await ApiClient.MergeFolderAsync(request); }
-        finally { _saving = false; }
-        if (job is null)
-        {
-            _notice = ApiClient.LastError ?? "Library could not start merging this folder.";
-            return;
-        }
-
-        var targetName = targets.FirstOrDefault(target => target.Id == request.TargetSourceId)?.DisplayName() ?? "the folder you chose";
-        Snackbar.Add($"Library is merging {source.DisplayName()} into {targetName}. You can keep using Library meanwhile.", AppSeverity.Success);
+    // A follow-up that queued a job reloads the folders and starts watching the job; anything it has to say stays on screen.
+    private async Task AfterFollowUpAsync(FolderFollowUp followUp)
+    {
+        if (followUp.Notice is not null) _notice = followUp.Notice;
+        if (!followUp.Started) return;
         await ReloadConfigurationAsync();
         await RefreshJobsAsync();
         await Changed.InvokeAsync();
@@ -753,45 +615,18 @@
         if (await AskToConvertAsync(target, quick, alreadyManaged: false)) await StartConversionAsync(target);
     }
 
-    private async Task<bool> AskToConvertAsync(LibrarySourceDto target, FolderConversionPreviewResponse quick, bool alreadyManaged)
-    {
-        var parameters = new AppDialogParameters<ConvertFolderDialog>
-        {
-            { component => component.SourceId, target.Id },
-            { component => component.Path, target.Path },
-            { component => component.AlreadyManaged, alreadyManaged },
-            { component => component.Initial, quick },
-        };
-        var dialog = await DialogService.ShowAsync<ConvertFolderDialog>(string.Empty, parameters, new AppDialogOptions
-        {
-            MaxWidth = AppMaxWidth.Medium,
-            FullWidth = true,
-            CloseButton = false,
-            NoHeader = true,
-            CloseOnEscapeKey = true,
-            Sheet = AppDialogSheetMode.PhoneAndTablet,
-        });
-        return await dialog.Result is { Canceled: false, Data: ConvertFolderDialog.Convert };
-    }
+    private Task<bool> AskToConvertAsync(LibrarySourceDto target, FolderConversionPreviewResponse quick, bool alreadyManaged) =>
+        AddService.AskToConvertAsync(target, quick, alreadyManaged);
 
     // Queues the organising job for a folder, makes it Managed in the same step, and starts watching its progress.
     private async Task StartConversionAsync(LibrarySourceDto source)
     {
         if (_saving) return;
         _saving = true;
-        FolderJobStatusDto? job;
-        try { job = await ApiClient.ConvertFolderAsync(source.Id); }
+        FolderFollowUp followUp;
+        try { followUp = await AddService.StartConversionAsync(source); }
         finally { _saving = false; }
-        if (job is null)
-        {
-            _notice = ApiClient.LastError ?? "Library could not start organising this folder.";
-            return;
-        }
-
-        Snackbar.Add($"Library is organising {source.DisplayName()}. You can keep using Library meanwhile.", AppSeverity.Success);
-        await ReloadConfigurationAsync();
-        await RefreshJobsAsync();
-        await Changed.InvokeAsync();
+        await AfterFollowUpAsync(followUp);
     }
 
     // Row menu "Organise files now", and the offer after adding a folder that already has files.
@@ -800,30 +635,16 @@
     private async Task OfferOrganiseAsync(LibrarySourceDto source, bool alreadyManaged, bool quiet)
     {
         if (_saving || Embedded) return;
-        var quick = await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = source.Id, Quick = true });
-        if (quick is null)
-        {
-            if (!quiet) _notice = ApiClient.LastError ?? "Library could not count the files in this folder.";
-            return;
-        }
-
-        if (quick.TotalFiles == 0)
-        {
-            if (!quiet) Snackbar.Add("There are no media files in this folder to organise.", AppSeverity.Normal);
-            return;
-        }
-
-        if (await AskToConvertAsync(source, quick, alreadyManaged)) await StartConversionAsync(source);
+        await AfterFollowUpAsync(await AddService.OfferOrganiseAsync(Scope, source, alreadyManaged, quiet));
     }
 
     // Tapping the New media radio on another managed folder moves the marker. It only affects future imports and uploads.
     private async Task SetDestinationAsync(LibrarySourceDto source)
     {
-        var library = Clone(SelectedLibrary);
-        var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
-        if (library is null || target is null || _saving || !IsManaged(target)) return;
-        library.PrimaryDestinationSourceId = target.Id;
-        await SaveAsync(library, $"New {Selected.PluralLabel} will go to {target.DisplayName()}.");
+        var current = SelectedLibrary;
+        var target = current?.Sources.FirstOrDefault(item => item.Id == source.Id);
+        if (current is null || target is null || _saving || !IsManaged(target)) return;
+        await SaveAsync(LibraryFolderAddService.WithDestination(current, target.Id), $"New {Selected.PluralLabel} will go to {target.DisplayName()}.");
     }
 
     private async Task LabelFolderAsync(LibrarySourceDto source)
@@ -1035,27 +856,7 @@
         try
         {
             var baseline = JsonSerializer.Deserialize<LibrariesConfigurationDto>(_baseline)!;
-            var existing = baseline.Libraries.FirstOrDefault(item => item.Id == library.Id);
-            LibrariesConfigurationDto? saved;
-            if (Embedded)
-            {
-                var libraries = baseline.Libraries.Where(item => item.Id != library.Id).ToList();
-                libraries.Add(library);
-                saved = await ApiClient.UpdateSetupLibrariesAsync(new UpdateLibrariesRequest
-                {
-                    SchemaVersion = baseline.SchemaVersion,
-                    StorageLocations = baseline.StorageLocations,
-                    ViewStorage = baseline.ViewStorage,
-                    Libraries = libraries,
-                    PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
-                    FileHandling = baseline.FileHandling,
-                }, SetupSession);
-            }
-            else
-            {
-                saved = await ApiClient.MutateLibraryAsync(new LibraryMutationRequest { Library = library, ExpectedLibrary = existing });
-            }
-
+            var saved = await AddService.SaveLibraryAsync(Scope, baseline, library);
             if (saved is null)
             {
                 _notice = ApiClient.LastError ?? "That change could not be saved. Check the folder and try again.";
@@ -1210,20 +1011,4 @@
     private static LibraryFolderDto? Clone(LibraryFolderDto? library) => library is null
         ? null
         : JsonSerializer.Deserialize<LibraryFolderDto>(JsonSerializer.Serialize(library));
-
-    private static LibraryFolderDto NewLibrary(LibraryTypeOption option) => new()
-    {
-        Id = Guid.NewGuid().ToString("D"),
-        Name = option.Label,
-        Category = option.Label,
-        Kind = "catalogued",
-        Area = option.Area,
-        Presentation = "catalogue",
-        MetadataPolicy = option.MediaTypes[0] == "Videos" ? "local_only" : "enriched",
-        RecycleBin = option.MediaTypes[0] == "Videos",
-        MediaTypes = [option.MediaTypes[0]],
-        Visibility = "household",
-        AcceptedIntakeModes = ["incoming_folder"],
-        OrganizationPolicy = new LibraryOrganizationPolicyDto { Mode = "tuvima_standard", WriteTags = true },
-    };
 }

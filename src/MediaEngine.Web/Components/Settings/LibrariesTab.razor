@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Web.Services.Navigation
+@using Microsoft.AspNetCore.WebUtilities
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject DeviceContextService DeviceContext
@@ -63,7 +64,8 @@
                                   ViewFolders="@_viewFolders"
                                   PathIssues="@_pathIssues"
                                   ShowVault="@VaultVisible"
-                                  ReadOnly="@readOnly" />
+                                  ReadOnly="@readOnly"
+                                  FolderAdded="FolderAddedAsync" />
                 break;
             case LevelKind.Group:
                 <LibraryGroupPage Group="@(level.Group!)"
@@ -71,10 +73,15 @@
                                   Overview="@_overview"
                                   ViewFolders="@_viewFolders"
                                   PathIssues="@_pathIssues"
-                                  ReadOnly="@readOnly" />
+                                  ReadOnly="@readOnly"
+                                  FolderAdded="FolderAddedAsync" />
                 break;
             case LevelKind.Photos:
-                <ViewLibrarySettings Configuration="@_configuration" ReadOnly="@readOnly" RootChanged="LoadAsync" />
+                <ViewLibrarySettings Configuration="@_configuration"
+                                     ReadOnly="@readOnly"
+                                     StartAdding="@StartAdding"
+                                     InitialPath="@StartPath"
+                                     RootChanged="LoadAsync" />
                 break;
             case LevelKind.Type:
                 <LibraryFoldersPanel @key="@level.TypeKey"
@@ -132,6 +139,20 @@
         await LoadAsync();
         await InvokeAsync(StateHasChanged);
         await LoadSummaryAsync();
+    }
+
+    // The hand-over to View's add form (?add=folder) is read once; the address then drops it, so a reload or Back does not reopen the form.
+    private bool _addAddressCleared;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (_addAddressCleared || _loading || _configuration is null || CurrentLevel.Kind != LevelKind.Photos || !StartAdding) return;
+        _addAddressCleared = true;
+        var uri = new Uri(Navigation.Uri);
+        var kept = QueryHelpers.ParseQuery(uri.Query)
+            .Where(pair => !string.Equals(pair.Key, "add", StringComparison.OrdinalIgnoreCase) && !string.Equals(pair.Key, "path", StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(pair => pair.Key, pair => (string?)pair.Value.ToString());
+        Navigation.NavigateTo(QueryHelpers.AddQueryString(uri.GetLeftPart(UriPartial.Path), kept), replace: true);
     }
 
     protected override async Task OnParametersSetAsync()
@@ -216,6 +237,18 @@
 
     // A jump from the Import folder's "Choose" arrives with ?highlight=add so Add Folder is pointed at on the type's page.
     private bool HighlightAdd => string.Equals(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("highlight"), "add", StringComparison.OrdinalIgnoreCase);
+
+    // The Add folder wizard hands View over with ?add=folder (and the folder it was shown, as ?path=); View's own add form opens.
+    private bool StartAdding => string.Equals(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("add"), "folder", StringComparison.OrdinalIgnoreCase);
+
+    private string? StartPath => StartAdding ? RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("path") : null;
+
+    // A folder was added from the front door or a group page: its counts and health are read again.
+    private async Task FolderAddedAsync()
+    {
+        await RefreshConfigurationAsync();
+        await LoadSummaryAsync();
+    }
 
     private Level CurrentLevel => ResolveLevel();
 

@@ -74,12 +74,16 @@ public sealed class ServerFolderPickerUiTests
     }
 
     [Fact]
-    public void LibraryFoldersPanel_PassesTheSelectedMediaTypeAndOnlyThatCallerDoes()
+    public void AddFolderWizard_PassesTheChosenMediaTypeAndOnlyThatCallerDoes()
     {
+        // The Add folder wizard opens the picker for a library folder; the panel only opens it for the Import folder.
+        var wizard = Read("src/MediaEngine.Web/Components/Settings/Libraries/AddFolderWizard.razor");
         var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
 
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(panel, @"component\.MediaType"));
-        Assert.Contains("_selected.MediaTypes.FirstOrDefault()", panel, StringComparison.Ordinal);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(wizard, @"MediaType=""@_type\.MediaTypes\.FirstOrDefault\(\)"""));
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(wizard, @"<ServerFolderPicker\b"));
+        Assert.Contains("Inline=\"true\"", wizard, StringComparison.Ordinal);
+        Assert.DoesNotContain("component.MediaType", panel, StringComparison.Ordinal);
         foreach (var untyped in new[]
                  {
                      "src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor",
@@ -93,11 +97,13 @@ public sealed class ServerFolderPickerUiTests
     [Fact]
     public void Picker_IsReusedAcrossLibraryAndPersonalSpaceFlows()
     {
-        var wizard = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
+        var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
+        var wizard = Read("src/MediaEngine.Web/Components/Settings/Libraries/AddFolderWizard.razor");
         var view = Read("src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor");
 
-        Assert.Contains("AppDialogParameters<ServerFolderPicker>", wizard, StringComparison.Ordinal);
-        Assert.Contains("ServerFolderSelectionModes.ManagedLibrary", wizard, StringComparison.Ordinal);
+        Assert.Contains("AppDialogParameters<ServerFolderPicker>", panel, StringComparison.Ordinal);
+        Assert.Contains("ServerFolderSelectionModes.ManagedLibrary", panel, StringComparison.Ordinal);
+        Assert.Contains("<ServerFolderPicker", wizard, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.ExistingLibrary", wizard, StringComparison.Ordinal);
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", view, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceManaged", Read("src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor"), StringComparison.Ordinal);
@@ -125,8 +131,13 @@ public sealed class ServerFolderPickerUiTests
         }
 
         Assert.DoesNotContain("AcceptsNewMedia", panel, StringComparison.Ordinal);
-        // The New media marker moves only through the explicit radio (SetDestinationAsync), never as a side effect.
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(panel, "PrimaryDestinationSourceId = "));
+        // The New media marker moves only on the person's say (the explicit radio, or Yes to "Should new media go here?"), never as a side effect.
+        // One method, LibraryFolderAddService.WithDestination, assigns it; neither the panel nor the wizard does.
+        var addService = Read("src/MediaEngine.Web/Components/Settings/Libraries/LibraryFolderAddService.cs");
+        var wizard = Read("src/MediaEngine.Web/Components/Settings/Libraries/AddFolderWizard.razor");
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(addService, "PrimaryDestinationSourceId = "));
+        Assert.DoesNotContain("PrimaryDestinationSourceId = ", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("PrimaryDestinationSourceId = ", wizard, StringComparison.Ordinal);
         Assert.Contains("ImportFolderStatus", panel, StringComparison.Ordinal);
     }
 
@@ -165,13 +176,16 @@ public sealed class ServerFolderPickerUiTests
     }
 
     [Fact]
-    public void Picker_LocationListIsATightTreeOnDesktopAndKeepsTouchTargetsElsewhere()
+    public void Picker_RowsAreRoomyAndNeverDropBelowTheTapTarget()
     {
         var css = Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor.css");
 
-        // Short rows with small gaps for a mouse and keyboard desktop only; the base row keeps the 44px tap target.
+        // D43: 48px location rows (44px only for a mouse and keyboard desktop) and 56px folder rows (60px under 840px).
         Assert.Contains("@media (hover: hover) and (pointer: fine) and (min-width: 1180px)", css, StringComparison.Ordinal);
-        Assert.Contains(".server-folder-picker__location { min-height: 36px; }", css, StringComparison.Ordinal);
+        Assert.Contains(".server-folder-picker__location { min-height: 44px; }", css, StringComparison.Ordinal);
+        Assert.Contains("min-height: 48px;", css, StringComparison.Ordinal);
+        Assert.Contains("min-height: 56px;", css, StringComparison.Ordinal);
+        Assert.Contains(".server-folder-picker__folder { grid-template-columns: minmax(0, 1fr); min-height: 60px; }", css, StringComparison.Ordinal);
         Assert.Contains("gap: 2px;", css, StringComparison.Ordinal);
     }
 

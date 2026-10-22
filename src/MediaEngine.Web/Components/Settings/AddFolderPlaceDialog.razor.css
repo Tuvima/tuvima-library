@@ -1,9 +1,0 @@
-.add-folder-place {
-    display: grid;
-    gap: 10px;
-}
-
-.add-folder-place__hint {
-    margin: 0;
-    color: var(--tl-text-muted);
-}

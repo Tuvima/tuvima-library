@@ -1,6 +1,8 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Ui
+@inject IAppDialogService DialogService
 
 @* One group's page (Watch, Listen, Read, View): a row per library type with its counts and health, then that area's other
    libraries. Each row opens the type's own page. Folders are added and changed on the type page, not here. The Settings frame
@@ -9,6 +11,18 @@
     @if (ReadOnly)
     {
         <p class="lib-page__note">Use a desktop or tablet to change folders.</p>
+    }
+
+    @if (!ReadOnly)
+    {
+        <div class="lib-page__actions">
+            <AppButton Label="Add folder"
+                       StartIcon="@AppMaterialIcons.Outlined.Add"
+                       ButtonStyle="AppButtonStyle.Outlined"
+                       Class="lib-page__add"
+                       aria-label="@($"Add folder to {Group.Label}")"
+                       OnClick="AddFolderAsync" />
+        </div>
     }
 
     <div class="lib-page__list" role="group" aria-label="@($"{Group.Label} libraries")">
@@ -47,6 +61,20 @@
     [Parameter] public int? ViewFolders { get; set; }
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Raised after a folder was added through the wizard, so the page can refresh its counts.</summary>
+    [Parameter] public EventCallback FolderAdded { get; set; }
+
+    // The wizard starts on this group's tile.
+    private async Task AddFolderAsync()
+    {
+        var parameters = new AppDialogParameters<AddFolderWizard>
+        {
+            { component => component.StartGroupKey, Group.Key },
+            { component => component.Configuration, Configuration },
+            { component => component.OnFolderAdded, (Func<string?, Task>)(_ => FolderAdded.InvokeAsync()) },
+        };
+        await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
+    }
 
     private IReadOnlyList<LibraryRowSummary> Rows => LibraryRollup.RowsFor(Group, Configuration, Overview, ViewFolders, PathIssues);
 

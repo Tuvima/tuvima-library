@@ -11,6 +11,11 @@
     font-size: 0.9rem;
 }
 
+.lib-page__actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
 .lib-page__list {
     display: flex;
     flex-direction: column;
