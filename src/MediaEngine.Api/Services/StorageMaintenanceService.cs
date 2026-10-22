@@ -282,6 +282,7 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
         string[] candidates =
         [
             "local_image_path",
+            "local_image_path_t",
             "local_image_path_s",
             "local_image_path_m",
             "local_image_path_l",

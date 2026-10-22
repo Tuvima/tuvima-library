@@ -182,6 +182,14 @@
                                     }
                                 </dl>
                             }
+                            @if (!string.IsNullOrWhiteSpace(FileWriteWaitingNote))
+                            {
+                                <p class="sme-details-file-note" role="status">@FileWriteWaitingNote</p>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(FileWriteFailureNote))
+                            {
+                                <p class="sme-details-file-note sme-details-file-note--failed" role="status">@FileWriteFailureNote</p>
+                            }
                     </section>
                 }
                 <section class="sme-details-inspector-card">
@@ -276,6 +284,12 @@ else
     [Parameter] public string DetailsImageWidthClass { get; set; } = default!;
     [Parameter] public IReadOnlyList<MediaEditorDetailsSummaryFact> DetailsLibrarySummary { get; set; } = [];
     [Parameter] public IReadOnlyList<MediaEditorDetailsFilePresentation> DetailsFiles { get; set; } = [];
+
+    /// <summary>"Changes waiting to be written to the file · next run 11:00"; null when nothing is waiting.</summary>
+    [Parameter] public string? FileWriteWaitingNote { get; set; }
+
+    /// <summary>Why the last attempt to write the file did not work; null when it did.</summary>
+    [Parameter] public string? FileWriteFailureNote { get; set; }
     [Parameter] public System.Nullable<int> DetailsOwnedArtworkCount { get; set; } = default!;
     [Parameter] public IReadOnlyList<(string Label, string Value)> DetailsTechnicalFacts { get; set; } = [];
     [Parameter] public IReadOnlyList<LibraryItemHistoryDto> DetailsRecentActivity { get; set; } = [];

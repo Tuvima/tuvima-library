@@ -1,6 +1,8 @@
 using Dapper;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
@@ -394,6 +396,205 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
         Assert.Null(await h.Assets.FindByPathRootAsync(deleted));
     }
 
+    // -- A library move owns the old and new place of its file (batched write-back D11) --------------------------------------
+
+    [Fact]
+    public async Task The_folder_watcher_ignores_events_on_a_file_Library_is_moving_and_still_ingests_a_new_one()
+    {
+        var h = NewHarness();
+        var watcher = new RecordingFileWatcher();
+        var options = BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir)));
+        var oldPlace = WriteFile(h.AsIsDir, "Dune.epub", "dune book");
+        var newPlace = Path.Combine(h.AsIsDir, "Frank Herbert", "Dune.epub");
+        var other = Path.Combine(h.AsIsDir, "Emma.epub");
+        var moves = new MovesInProgress();
+        var run = await StartAsync(h, watcher, BooksProcessor(oldPlace, newPlace, other), options, moveInProgress: moves);
+        Assert.NotNull(run);
+        await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(oldPlace) is not null);
+        var dune = (await h.Assets.FindByPathRootAsync(oldPlace))!;
+
+        // The move is under way: Library has marked both places, the file is gone from its old place and sits at the new one, but Library has not followed yet.
+        moves.Mark(oldPlace, newPlace);
+        Directory.CreateDirectory(Path.GetDirectoryName(newPlace)!);
+        File.Move(oldPlace, newPlace);
+        File.WriteAllText(other, "emma book");
+        watcher.RaiseForTest(new FileEvent { Path = oldPlace, EventType = FileEventType.Deleted, OccurredAt = DateTimeOffset.UtcNow });
+        watcher.RaiseForTest(new FileEvent { Path = newPlace, EventType = FileEventType.Created, OccurredAt = DateTimeOffset.UtcNow });
+        watcher.RaiseForTest(new FileEvent { Path = other, EventType = FileEventType.Created, OccurredAt = DateTimeOffset.UtcNow });
+
+        await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(other) is not null);
+        await Task.Delay(300);
+        var after = (await h.Assets.FindByIdAsync(dune.Id))!;
+        Assert.Equal(AssetStatus.Normal, after.Status);
+        Assert.Equal(oldPlace, after.FilePathRoot);
+        Assert.Null(await h.Assets.FindByPathRootAsync(newPlace));
+        Assert.Equal(2, await AssetCountAsync(h));
+    }
+
+    [Fact]
+    public async Task A_rescan_does_not_ingest_the_new_place_of_a_file_Library_is_moving()
+    {
+        var h = NewHarness();
+        var watcher = new RecordingFileWatcher();
+        var options = BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir)));
+        var moving = WriteFile(Path.Combine(h.AsIsDir, "Frank Herbert"), "Dune.epub", "dune book");
+        var kept = WriteFile(h.AsIsDir, "Emma.epub", "emma book");
+
+        var run = await StartAsync(
+            h, watcher, BooksProcessor(moving, kept), options, moveInProgress: new MovesInProgress(moving));
+        run.Monitor.Publish(BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir))));
+
+        await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(kept) is not null);
+        await Task.Delay(300);
+        Assert.Null(await h.Assets.FindByPathRootAsync(moving));
+    }
+
+    [Fact]
+    public async Task A_file_that_changed_in_place_is_read_again_and_keeps_the_value_a_person_locked()
+    {
+        var h = NewHarness();
+        var watcher = new RecordingFileWatcher();
+        var options = BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir)));
+        var book = WriteFile(h.AsIsDir, "Dune.epub", "dune book");
+        var processors = BooksProcessor(book);
+        var run = await StartAsync(h, watcher, processors, options);
+        await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(book) is not null);
+        var asset = (await h.Assets.FindByPathRootAsync(book))!;
+
+        // The person locked the title; then another program rewrote the file's own tags with a different one.
+        var claims = new MetadataClaimRepository(h.Db.Connection);
+        await claims.InsertBatchAsync([new MetadataClaim
+        {
+            Id = Guid.NewGuid(),
+            EntityId = asset.Id,
+            ProviderId = WellKnownProviders.UserManual,
+            ClaimKey = "title",
+            ClaimValue = "The Title I Chose",
+            Confidence = 1.0,
+            ClaimedAt = DateTimeOffset.UtcNow,
+            IsUserLocked = true,
+        }]);
+        processors.SetResultForPath(book, new ProcessorResult
+        {
+            FilePath = book,
+            DetectedType = MediaType.Books,
+            Claims = [new ExtractedClaim { Key = "title", Value = "Edited By Another Program", Confidence = 0.9 }],
+        });
+        File.WriteAllText(book, "dune book, edited elsewhere");
+
+        var reread = await run.Engine.RereadAssetMetadataAsync(asset.Id);
+
+        Assert.Equal("Updated", reread.Status);
+        Assert.Equal("The Title I Chose", (await h.Canonicals.GetByEntityAsync(asset.Id)).Single(value => value.Key == "title").Value);
+    }
+
+    [Fact]
+    public async Task Ingestion_puts_a_file_on_the_write_list_instead_of_writing_into_it()
+    {
+        var h = NewHarness();
+        var watcher = new RecordingFileWatcher();
+        var options = BuildOptions(h);
+        options.WriteBack = true;
+        var tagger = new RecordingTagger();
+        var queue = new RecordingFileWriteQueue();
+        var movie = Path.Combine(h.MoviesDir, "Dune (2021).mkv");
+        var processors = new TestProcessorLibraryItem();
+        processors.SetResultForPath(movie, new ProcessorResult
+        {
+            FilePath = movie,
+            DetectedType = MediaType.Movies,
+            Claims =
+            [
+                new ExtractedClaim { Key = "title", Value = "Dune", Confidence = 0.9 },
+                new ExtractedClaim { Key = "year", Value = "2021", Confidence = 0.9 },
+            ],
+        });
+        var run = await StartAsync(h, watcher, processors, options, taggers: [tagger], fileWrites: queue);
+        Assert.NotNull(run);
+
+        File.WriteAllText(movie, "the movie bytes");
+        watcher.RaiseForTest(new FileEvent { Path = movie, EventType = FileEventType.Created, OccurredAt = DateTimeOffset.UtcNow });
+
+        await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(movie) is not null || queue.Queued.Count > 0);
+        await WaitUntilAsync(() => Task.FromResult(queue.Queued.Count > 0));
+        Assert.Equal(0, tagger.Writes);
+        var queued = Assert.Single(queue.Queued);
+        Assert.Equal("auto_match", queued.Trigger);
+        Assert.NotNull(await h.Assets.FindByIdAsync(queued.AssetId));
+        Assert.Equal("the movie bytes", await File.ReadAllTextAsync(movie));
+    }
+
+    private sealed class MovesInProgress(params string[] paths) : IFileMoveInProgress
+    {
+        private readonly HashSet<string> _paths = new(paths.Select(Path.GetFullPath), StringComparer.OrdinalIgnoreCase);
+
+        public void Mark(params string[] more)
+        {
+            lock (_paths)
+            {
+                foreach (var path in more)
+                {
+                    _paths.Add(Path.GetFullPath(path));
+                }
+            }
+        }
+
+        public Task<IReadOnlySet<string>> GetPathsAsync(CancellationToken ct = default)
+        {
+            lock (_paths)
+            {
+                return Task.FromResult<IReadOnlySet<string>>(new HashSet<string>(_paths, StringComparer.OrdinalIgnoreCase));
+            }
+        }
+
+        public Task<bool> HasMoveForAssetAsync(Guid assetId, CancellationToken ct = default) => Task.FromResult(false);
+    }
+
+    private sealed class RecordingFileWriteQueue : IFileWriteQueue
+    {
+        public List<(Guid AssetId, string Trigger)> Queued { get; } = [];
+
+        public Task EnqueueAssetAsync(Guid assetId, string trigger, CancellationToken ct = default)
+        {
+            lock (Queued)
+            {
+                Queued.Add((assetId, trigger));
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task EnqueueAssetsAsync(IReadOnlyCollection<Guid> assetIds, string trigger, CancellationToken ct = default) =>
+            Task.WhenAll(assetIds.Select(id => EnqueueAssetAsync(id, trigger, ct)));
+
+        public Task EnqueueViewItemAsync(Guid localItemId, string trigger, CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    /// <summary>Handles every file and counts the writes it is asked to make; it must never be asked.</summary>
+    private sealed class RecordingTagger : IMetadataTagger
+    {
+        private int _writes;
+
+        public int Writes => Volatile.Read(ref _writes);
+
+        public bool CanHandle(string filePath) => true;
+
+        public MetadataTaggerCapabilities GetCapabilities(string filePath) =>
+            new("test", ["title"], canWriteArtwork: true, adapterVersion: 1);
+
+        public Task WriteTagsAsync(string filePath, IReadOnlyDictionary<string, string> tags, CancellationToken ct = default)
+        {
+            Interlocked.Increment(ref _writes);
+            return Task.CompletedTask;
+        }
+
+        public Task WriteCoverArtAsync(string filePath, byte[] imageData, CancellationToken ct = default)
+        {
+            Interlocked.Increment(ref _writes);
+            return Task.CompletedTask;
+        }
+    }
+
     // -- Harness -----------------------------------------------------------
 
     private static ExcludedSourceFileFilter NewFilter(
@@ -542,6 +743,8 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
 
         public ReloadableOptionsMonitor<IngestionOptions> Monitor { get; } = monitor;
 
+        public IngestionEngine Engine => engine;
+
         public void Stop()
         {
             if (_stopped)
@@ -575,7 +778,10 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
         ILogger<IngestionEngine>? logger = null,
         bool withHashCache = false,
         Action<ReloadableOptionsMonitor<IngestionOptions>>? beforeStart = null,
-        IExcludedSourceFileFilter? excludedFilter = null)
+        IExcludedSourceFileFilter? excludedFilter = null,
+        IFileMoveInProgress? moveInProgress = null,
+        IFileWriteQueue? fileWrites = null,
+        IEnumerable<IMetadataTagger>? taggers = null)
     {
         var db = h.Db.Connection;
         var publisher = new StubEventPublisher();
@@ -585,7 +791,7 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
             operationRepo,
             new MediaOperationEventRepository(db),
             publisher,
-            NullLogger<MediaOperationTracker>.Instance);
+            NullLogger<MediaOperationTracker>.Instance, new VaultLibraryRepository(db));
 
         var debounce = new DebounceQueue(new DebounceOptions
         {
@@ -603,7 +809,7 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
             processors,
             new PriorityCascadeEngine(new StubConfigurationLoader(), NullLogger<PriorityCascadeEngine>.Instance),
             new StubFileOrganizer(),
-            Enumerable.Empty<IMetadataTagger>(),
+            taggers ?? Enumerable.Empty<IMetadataTagger>(),
             h.Assets,
             new InlineBackgroundWorker(),
             publisher,
@@ -635,8 +841,9 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
             new HashDedupeStageDependencies(withHashCache ? new FileHashCacheRepository(db) : null),
             new ScoreIdentifyStageDependencies(null),
             new OrganizeStageDependencies(null),
-            new WriteBackStageDependencies(new EntityAssetRepository(db), new AssetPathService(h.LibraryRoot), workRepo, null),
+            new WriteBackStageDependencies(new EntityAssetRepository(db), new AssetPathService(h.LibraryRoot), workRepo, null, fileWrites),
             new IdentityJobStageDependencies(new IdentityPipelineSignal()),
+            new NoVaultIngestionHook(),
             operationTracker: tracker,
             operationRepository: operationRepo,
             libraryFolderResolver: new LibraryFolderResolver(monitor),
@@ -644,7 +851,8 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
             importFolders: h.Importer,
             importFiler: h.Filer,
             optionsMonitor: monitor,
-            excludedFileFilter: excludedFilter);
+            excludedFileFilter: excludedFilter,
+            moveInProgress: moveInProgress);
 
         var run = new RunningEngine(engine, debounce, monitor);
         _disposables.Add(run);

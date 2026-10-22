@@ -1,0 +1,30 @@
+/* The tick cards are AppNativeButton roots, so their own styles live in app.css. */
+.setup-have__cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.setup-have__icon { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 12px; font-size: 30px; color: var(--setup-have-colour, var(--tl-text-muted)); background: color-mix(in srgb, var(--setup-have-colour, var(--tl-text-muted)) 16%, transparent); }
+.setup-have__icon--watch { --setup-have-colour: #a16dff; }
+.setup-have__icon--listen { --setup-have-colour: #e76fce; }
+.setup-have__icon--read { --setup-have-colour: #61a8ff; }
+.setup-have__icon--view { --setup-have-colour: #2dd4bf; }
+
+.setup-have__section { display: grid; gap: 10px; min-width: 0; padding-top: 14px; border-top: 1px solid var(--tl-border-subtle); }
+.setup-have__section h3, .setup-have__later, .setup-have__phone-note { margin: 0; }
+.setup-have__later { color: var(--tl-text-muted); }
+.setup-have__type { display: grid; gap: 4px; min-width: 0; }
+.setup-have__folders { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.setup-have__folders li { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--tl-text-secondary); }
+.setup-have__handling { display: inline-flex; flex: 0 0 auto; color: var(--tl-text-muted); font-size: 1.1rem; }
+.setup-have__path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; }
+.setup-have__add { justify-self: start; }
+.setup-have__change { display: grid; justify-items: start; gap: 12px; }
+
+.setup-have__phone-note { display: none; padding: 10px 12px; border: 1px solid var(--tl-border-subtle); border-radius: var(--app-radius-md, 8px); color: var(--tl-text-secondary); font-size: .9rem; }
+
+@media (max-width: 600px) {
+    .setup-have__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Same breakpoint as the folders panel: folders are read-only under 840px, so the note shows and Add folder is display:none (not focusable). */
+@media (max-width: 840px) {
+    .setup-have__phone-note { display: block; }
+    .setup-have__add { display: none; }
+}

@@ -18,8 +18,13 @@ public enum ViewCatalogueKind
 /// <param name="IncludeDocuments">
 /// False for a profile that may not use Documents: names that only appear on documents are then invisible to it.
 /// </param>
+/// <param name="BlockedContentKinds">
+/// The View kinds (<c>photos</c>, <c>personal_videos</c>, <c>documents</c>) the profile may not use: names that only appear on
+/// items of those kinds are invisible to it.
+/// </param>
 public sealed record ViewCatalogueViewer(
-    Guid ProfileId, IReadOnlyCollection<Guid> AccessibleLibraryIds, bool IncludeDocuments = true);
+    Guid ProfileId, IReadOnlyCollection<Guid> AccessibleLibraryIds, bool IncludeDocuments = true,
+    IReadOnlyCollection<string>? BlockedContentKinds = null);
 
 /// <param name="UsageCount">Items the viewer can see that carry this entry (not the install-wide number).</param>
 /// <param name="FieldKind">Set for custom fields only.</param>

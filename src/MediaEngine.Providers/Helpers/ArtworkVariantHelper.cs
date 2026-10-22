@@ -13,9 +13,92 @@ namespace MediaEngine.Providers.Helpers;
 /// </summary>
 public static class ArtworkVariantHelper
 {
+    private const int TinyLongEdge = 96;
     private const int SmallLongEdge = 320;
     private const int MediumLongEdge = 960;
     private const int LargeLongEdge = 2160;
+
+    // Decoding a large original is memory-heavy, so copies made while a person waits are made a few at a time.
+    private static readonly SemaphoreSlim RenditionWorkGate = new(Math.Max(2, Environment.ProcessorCount / 2));
+
+    /// <summary>
+    /// Waits for one of the few slots for making copies on demand (at most <c>Math.Max(2, cores / 2)</c> at once, the whole
+    /// Engine over). Dispose the result to give the slot back.
+    /// </summary>
+    public static async Task<IDisposable> EnterRenditionWorkAsync(CancellationToken ct)
+    {
+        await RenditionWorkGate.WaitAsync(ct).ConfigureAwait(false);
+        return new RenditionWorkSlot();
+    }
+
+    private sealed class RenditionWorkSlot : IDisposable
+    {
+        private int _released;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _released, 1) == 0)
+            {
+                RenditionWorkGate.Release();
+            }
+        }
+    }
+
+    /// <summary>The size keys, smallest to largest. <c>t</c> is 96px, <c>s</c> 320, <c>m</c> 960 and <c>l</c> 2160 on the long edge.</summary>
+    public static IReadOnlyList<string> RenditionSizeKeys { get; } = ["t", "s", "m", "l"];
+
+    /// <summary>
+    /// Reads a size key (<c>t</c>, <c>s</c>, <c>m</c> or <c>l</c>, any case, surrounding spaces ignored).
+    /// Returns false for anything else, including an empty value.
+    /// </summary>
+    public static bool TryParseRenditionSize(string? size, out string key)
+    {
+        // The key is one of our own constants, never the request's text, so it is safe to log and to put in a path.
+        key = (size ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "t" => "t",
+            "s" => "s",
+            "m" => "m",
+            "l" => "l",
+            _ => string.Empty,
+        };
+        return key.Length > 0;
+    }
+
+    /// <summary>The long-edge pixel size of a copy, or 0 for an unknown key.</summary>
+    public static int LongEdgeFor(string sizeKey) => sizeKey switch
+    {
+        "t" => TinyLongEdge,
+        "s" => SmallLongEdge,
+        "m" => MediumLongEdge,
+        "l" => LargeLongEdge,
+        _ => 0,
+    };
+
+    /// <summary>The stored path of one copy, or null when the asset has none for that key.</summary>
+    public static string? GetRenditionPath(EntityAsset asset, string sizeKey)
+    {
+        ArgumentNullException.ThrowIfNull(asset);
+        return sizeKey switch
+        {
+            "t" => asset.LocalImagePathTiny,
+            "s" => asset.LocalImagePathSmall,
+            "m" => asset.LocalImagePathMedium,
+            "l" => asset.LocalImagePathLarge,
+            _ => null,
+        };
+    }
+
+    private static void SetRenditionPath(EntityAsset asset, string sizeKey, string? path)
+    {
+        switch (sizeKey)
+        {
+            case "t": asset.LocalImagePathTiny = path; break;
+            case "s": asset.LocalImagePathSmall = path; break;
+            case "m": asset.LocalImagePathMedium = path; break;
+            case "l": asset.LocalImagePathLarge = path; break;
+        }
+    }
 
     public static void StampMetadataAndRenditions(EntityAsset asset, AssetPathService assetPathService)
     {
@@ -46,6 +129,7 @@ public static class ArtworkVariantHelper
 
         if (!ShouldGenerateRenditions(asset.AssetTypeValue))
         {
+            asset.LocalImagePathTiny = null;
             asset.LocalImagePathSmall = null;
             asset.LocalImagePathMedium = null;
             asset.LocalImagePathLarge = null;
@@ -55,13 +139,106 @@ public static class ArtworkVariantHelper
         var extension = NormalizeExtension(asset.LocalImagePath);
         var longEdge = Math.Max(bitmap.Width, bitmap.Height);
 
+        asset.LocalImagePathTiny = BuildRenditionPath(assetPathService, asset, "t", extension);
         asset.LocalImagePathSmall = BuildRenditionPath(assetPathService, asset, "s", extension);
         asset.LocalImagePathMedium = BuildRenditionPath(assetPathService, asset, "m", extension);
         asset.LocalImagePathLarge = BuildRenditionPath(assetPathService, asset, "l", extension);
 
+        WriteRendition(bitmap, asset.LocalImagePathTiny, extension, TinyLongEdge, longEdge);
         WriteRendition(bitmap, asset.LocalImagePathSmall, extension, SmallLongEdge, longEdge);
         WriteRendition(bitmap, asset.LocalImagePathMedium, extension, MediumLongEdge, longEdge);
         WriteRendition(bitmap, asset.LocalImagePathLarge, extension, LargeLongEdge, longEdge);
+    }
+
+    /// <summary>
+    /// True when the asset should have copies and at least one of the four is not recorded or its file is missing.
+    /// An asset whose original is missing is never reported (nothing can be made).
+    /// </summary>
+    public static bool HasMissingRenditions(EntityAsset asset)
+    {
+        ArgumentNullException.ThrowIfNull(asset);
+
+        if (!ShouldGenerateRenditions(asset.AssetTypeValue)
+            || string.IsNullOrWhiteSpace(asset.LocalImagePath)
+            || !File.Exists(asset.LocalImagePath))
+        {
+            return false;
+        }
+
+        return RenditionSizeKeys.Any(key =>
+        {
+            var path = GetRenditionPath(asset, key);
+            return string.IsNullOrWhiteSpace(path) || !File.Exists(path);
+        });
+    }
+
+    /// <summary>
+    /// Creates only the copies the asset is missing, from its original, and records their paths on the asset
+    /// (the caller saves it). Copies that already exist are left alone. Returns true when anything was made.
+    /// A missing or unreadable original, or an asset type without copies, makes nothing.
+    /// </summary>
+    public static bool EnsureMissingRenditions(EntityAsset asset, AssetPathService assetPathService)
+    {
+        ArgumentNullException.ThrowIfNull(asset);
+        ArgumentNullException.ThrowIfNull(assetPathService);
+
+        if (!HasMissingRenditions(asset))
+        {
+            return false;
+        }
+
+        using var bitmap = SKBitmap.Decode(asset.LocalImagePath!);
+        if (bitmap is null || bitmap.Width <= 0 || bitmap.Height <= 0)
+        {
+            return false;
+        }
+
+        var extension = NormalizeExtension(asset.LocalImagePath!);
+        var longEdge = Math.Max(bitmap.Width, bitmap.Height);
+        var made = false;
+        foreach (var key in RenditionSizeKeys)
+        {
+            var existing = GetRenditionPath(asset, key);
+            if (!string.IsNullOrWhiteSpace(existing) && File.Exists(existing))
+            {
+                continue;
+            }
+
+            var path = BuildRenditionPath(assetPathService, asset, key, extension);
+            WriteRendition(bitmap, path, extension, LongEdgeFor(key), longEdge);
+            if (File.Exists(path))
+            {
+                SetRenditionPath(asset, key, path);
+                made = true;
+            }
+        }
+
+        return made;
+    }
+
+    /// <summary>
+    /// Writes one resized copy of a picture file to <paramref name="outputPath"/> (PNG when the output name ends in
+    /// <c>.png</c>, otherwise JPEG). A picture already at or under the long edge is re-encoded as is. Returns false when the
+    /// source cannot be read as a picture.
+    /// </summary>
+    public static bool WriteResizedCopy(string sourcePath, string outputPath, int targetLongEdge)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+
+        if (!File.Exists(sourcePath))
+        {
+            return false;
+        }
+
+        using var bitmap = SKBitmap.Decode(sourcePath);
+        if (bitmap is null || bitmap.Width <= 0 || bitmap.Height <= 0)
+        {
+            return false;
+        }
+
+        WriteRendition(bitmap, outputPath, NormalizeExtension(outputPath), targetLongEdge, Math.Max(bitmap.Width, bitmap.Height));
+        return File.Exists(outputPath);
     }
 
     internal static (string PrimaryHex, string SecondaryHex, string AccentHex) ExtractBackdropLeftEdgePalette(SKBitmap bitmap)

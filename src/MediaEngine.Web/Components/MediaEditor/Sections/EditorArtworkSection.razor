@@ -103,7 +103,7 @@
                                     <div class="sme-art-row-stage sme-art-row-stage--@focusedPreviewClass">
                                         @if (!string.IsNullOrWhiteSpace(focusedItem.ImageUrl))
                                         {
-                                            <img src="@GetArtworkThumbnailUrl(focusedItem)" srcset="@GetArtworkThumbnailSrcSet(focusedItem)" sizes="128px" alt="@slot.Label" class="sme-art-slot-image sme-art-slot-image--@slot.ImageClass" loading="lazy" decoding="async" />
+                                            <img src="@MediaTileArtworkUrl.ForDrawnSize(focusedItem.ImageUrl, 128)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(focusedItem.ImageUrl, 128)" alt="@slot.Label" class="sme-art-slot-image sme-art-slot-image--@slot.ImageClass" loading="lazy" decoding="async" />
                                         }
                                         else
                                         {
@@ -264,7 +264,7 @@
                                             <span class="sme-art-row-stage sme-art-row-stage--@itemPreviewClass">
                                                 @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
                                                 {
-                                                    <img src="@GetArtworkThumbnailUrl(item)" srcset="@GetArtworkThumbnailSrcSet(item)" sizes="128px" alt="" class="sme-art-slot-image sme-art-slot-image--@slot.ImageClass" loading="lazy" decoding="async" />
+                                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(item.ImageUrl, 128)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(item.ImageUrl, 128)" alt="" class="sme-art-slot-image sme-art-slot-image--@slot.ImageClass" loading="lazy" decoding="async" />
                                                 }
                                             </span>
                                         </AppNativeButton>
@@ -308,8 +308,6 @@
     [Parameter] public EventCallback<string> SetArtworkDragTargetRequested { get; set; }
     [Parameter] public EventCallback<string> ClearArtworkDragTargetRequested { get; set; }
     [Parameter] public Func<string, bool> IsArtworkDragTarget { get; set; } = default!;
-    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string?> GetArtworkThumbnailUrl { get; set; } = default!;
-    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string?> GetArtworkThumbnailSrcSet { get; set; } = default!;
     [Parameter] public Func<string, IReadOnlyList<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem>> GetArtworkRowItems { get; set; } = default!;
     [Parameter] public EventCallback<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem> DeleteArtworkVariantWithConfirmationAsyncRequested { get; set; }
     [Parameter] public EventCallback<string> RetryArtworkUploadAsyncRequested { get; set; }

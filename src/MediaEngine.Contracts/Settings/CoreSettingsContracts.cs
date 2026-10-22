@@ -140,6 +140,10 @@ public sealed class LibraryFolderDto
     [JsonPropertyName("kind")]
     public string Kind { get; set; } = "catalogued";
 
+    /// <summary>The library kind (see <see cref="LibraryKindDto"/>) this library holds, for example <c>movies</c> or <c>other_videos</c>.</summary>
+    [JsonPropertyName("kind_key")]
+    public string KindKey { get; set; } = string.Empty;
+
     [JsonPropertyName("area")]
     public string Area { get; set; } = "read";
 

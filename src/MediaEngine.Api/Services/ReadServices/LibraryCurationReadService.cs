@@ -55,12 +55,14 @@ public sealed class LibraryCurationReadService(IDatabaseConnection db) : ILibrar
                    w.media_type AS MediaType, w.work_kind AS WorkKind, w.parent_work_id AS ParentWorkId
             FROM requested r
             JOIN works w ON w.id = r.input_id
+            WHERE {VaultSql.NotVaultEntity("w.id")}
             UNION
             SELECT r.input_id, w.id, w.media_type, w.work_kind, w.parent_work_id
             FROM requested r
             JOIN media_assets ma ON ma.id = r.input_id
             JOIN editions e ON e.id = ma.edition_id
-            JOIN works w ON w.id = e.work_id;
+            JOIN works w ON w.id = e.work_id
+            WHERE {VaultSql.NotVaultEntity("w.id")};
             """, ct).ConfigureAwait(false);
         if (selected.Count == 0)
         {

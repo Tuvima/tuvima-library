@@ -837,6 +837,7 @@ public sealed class FolderMergeTests : IDisposable
         {
             Id = Guid.NewGuid().ToString("D"),
             Kind = LibraryKinds.Catalogued,
+            KindKey = "music",
             MediaTypes = ["Music"],
             Sources =
             [

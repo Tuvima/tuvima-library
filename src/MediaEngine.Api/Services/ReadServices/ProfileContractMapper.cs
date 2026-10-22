@@ -65,20 +65,26 @@ internal static class ProfileContractMapper
         SubmitToSharedLibrary = policy.SubmitToSharedLibrary,
         AllowGallerySharing = policy.ShareGalleries,
         AllowDocuments = policy.DocumentsEnabled,
+        AllowPhotos = policy.PhotosEnabled,
+        AllowPersonalVideos = policy.PersonalVideosEnabled,
         UpdatedAt = policy.UpdatedAt,
     };
 
     internal static ViewProfilePolicy ToDomain(
         Guid profileId,
         UpdateViewProfilePolicyRequest request,
-        bool currentDocumentsEnabled) => new(
+        bool currentDocumentsEnabled,
+        bool currentPhotosEnabled = true,
+        bool currentPersonalVideosEnabled = true) => new(
             profileId,
             request.ViewEnabled,
             request.AccessSharedLibrary,
             request.SubmitToSharedLibrary,
             request.AllowGallerySharing,
             null,
-            request.AllowDocuments ?? currentDocumentsEnabled);
+            request.AllowDocuments ?? currentDocumentsEnabled,
+            request.AllowPhotos ?? currentPhotosEnabled,
+            request.AllowPersonalVideos ?? currentPersonalVideosEnabled);
 
     internal static TasteProfileDto ToResponse(TasteProfile profile) => new()
     {

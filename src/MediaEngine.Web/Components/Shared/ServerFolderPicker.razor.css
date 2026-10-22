@@ -5,17 +5,44 @@
     min-height: min(620px, 68vh);
 }
 
-/* The path row spans the whole dialog above the location list and the browser. */
+/* The address bar spans the whole dialog above the location list and the browser. */
 .server-folder-picker__pathbar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-    gap: 12px;
+    gap: 6px;
     padding: 16px 20px;
     border-bottom: 1px solid var(--tl-border-subtle);
 }
 
-.server-folder-picker__pathbar ::deep .tl-input-adornment { min-width: 44px; min-height: 44px; }
+/* Like an Explorer address bar: clickable folder names with a chevron each, and an empty end that turns the bar into a text box. */
+.server-folder-picker__address {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 4px;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--app-radius-sm, 6px);
+    background: var(--app-glass-inner-bg);
+}
+
+.server-folder-picker__segment { display: inline-flex; align-items: center; }
+
+.server-folder-picker__address-field {
+    flex: 1 1 48px;
+    min-width: 0;
+    min-height: 44px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+button.server-folder-picker__address-field { cursor: text; }
+input.server-folder-picker__address-field { padding: 0 12px; }
+
+/* Embedded in another dialog: the host supplies the title, and the selected path sits under the list. */
+.server-folder-picker__inline-footer { padding: 16px 20px; border-top: 1px solid var(--tl-border-subtle); }
 
 .server-folder-picker__body {
     display: grid;
@@ -24,18 +51,20 @@
     min-height: 0;
 }
 
+/* The location list has small gaps between roomy rows, so a long list of drives and media folders is easy to scan. */
 .server-folder-picker__locations {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 20px 16px;
+    gap: 2px;
+    padding: 12px 10px;
     overflow-y: auto;
     border-right: 1px solid var(--tl-border-subtle);
     background: rgba(0, 0, 0, 0.12);
 }
 
 .server-folder-picker__locations h3 {
-    margin: 10px 0 4px;
+    margin: 8px 0 2px;
+    padding: 0 10px;
     color: var(--tl-text-muted);
     font-size: 0.75rem;
     letter-spacing: 0.04em;
@@ -48,10 +77,10 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    gap: 12px;
+    gap: 10px;
     width: 100%;
-    min-height: 56px;
-    padding: 10px 12px;
+    min-height: 48px;
+    padding: 4px 10px;
     border: 1px solid transparent;
     border-radius: var(--app-radius-sm, 6px);
     background: transparent;
@@ -73,8 +102,15 @@
     min-width: 0;
 }
 
+/* A mouse and keyboard desktop gets a slightly shorter row; touch and narrow windows keep 48px. */
+@media (hover: hover) and (pointer: fine) and (min-width: 1180px) {
+    .server-folder-picker__location { min-height: 44px; }
+}
+
 .server-folder-picker__location small {
     overflow: hidden;
+    font-size: 0.75rem;
+    line-height: 1.25;
     color: var(--tl-text-muted);
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -88,7 +124,7 @@
     padding: 20px;
 }
 
-/* Back, Forward and Up, then the folder trail, then the folder search. */
+/* Back, Forward and Up, then the folder search. */
 .server-folder-picker__toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -100,15 +136,6 @@
     display: flex;
     align-items: center;
     gap: 6px;
-}
-
-.server-folder-picker__crumbs {
-    display: flex;
-    flex: 1 1 220px;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 2px;
-    min-width: 0;
 }
 
 .server-folder-picker__crumb {
@@ -177,7 +204,7 @@
     align-items: center;
     gap: 8px;
     min-height: 44px;
-    padding: 0 56px 0 12px;
+    padding: 0 60px 0 16px;
     border-bottom: 1px solid var(--tl-border-subtle);
     position: sticky;
     z-index: 1;
@@ -203,8 +230,8 @@
     align-items: center;
     gap: 8px;
     width: 100%;
-    min-height: 52px;
-    padding: 0 12px;
+    min-height: 56px;
+    padding: 0 16px;
     border: 0;
     background: transparent;
     color: inherit;
@@ -340,7 +367,7 @@
 
     .server-folder-picker__list-header { grid-template-columns: minmax(0, 1fr); }
     .server-folder-picker__list-header span:nth-child(2) { display: none; }
-    .server-folder-picker__folder { grid-template-columns: minmax(0, 1fr); min-height: 56px; }
+    .server-folder-picker__folder { grid-template-columns: minmax(0, 1fr); min-height: 60px; }
     .server-folder-picker__modified { display: none; }
 }
 

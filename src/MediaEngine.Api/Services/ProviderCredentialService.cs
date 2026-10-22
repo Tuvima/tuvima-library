@@ -11,6 +11,7 @@ using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Providers.Contracts;
+using MediaEngine.Providers.Services.StashBox;
 
 namespace MediaEngine.Api.Services;
 
@@ -28,6 +29,8 @@ public sealed class ProviderCredentialService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IReadOnlyList<IProviderCredentialConsumer> _consumers;
     private readonly IProviderConnectionCheckRepository? _connectionChecks;
+    private readonly StashBoxClient? _stashBox;
+    private readonly IStashBoxSettings? _stashBoxSettings;
 
     public ProviderCredentialService(
         IConfigurationLoader configuration,
@@ -35,8 +38,12 @@ public sealed class ProviderCredentialService
         IHttpClientFactory httpClientFactory,
         IEnumerable<IExternalMetadataProvider> metadataProviders,
         IEnumerable<ITextTrackProvider> textTrackProviders,
-        IProviderConnectionCheckRepository? connectionChecks = null)
+        IProviderConnectionCheckRepository? connectionChecks = null,
+        StashBoxClient? stashBox = null,
+        IStashBoxSettings? stashBoxSettings = null)
     {
+        _stashBox = stashBox;
+        _stashBoxSettings = stashBoxSettings;
         _configuration = configuration;
         _secrets = secrets;
         _httpClientFactory = httpClientFactory;
@@ -104,6 +111,11 @@ public sealed class ProviderCredentialService
                 Message = "One or more credential fields are missing or have an invalid format.",
                 FieldErrors = fieldErrors,
             };
+        }
+
+        if (provider.AdultOnly && string.Equals(provider.Name, StashBoxSettings.ProviderName, StringComparison.OrdinalIgnoreCase))
+        {
+            return await TestStashBoxDefaultServerAsync(effectiveCredentials, saveState: submittedCredentials.Count == 0, ct).ConfigureAwait(false);
         }
 
         var probe = provider.Onboarding?.AuthenticationProbe;
@@ -280,6 +292,11 @@ public sealed class ProviderCredentialService
                 StringComparer.OrdinalIgnoreCase);
 
         await _secrets.ReplaceAsync(SecretOwner.Provider(provider.Name), normalized, ct).ConfigureAwait(false);
+        if (provider.AdultOnly && _stashBoxSettings is not null
+            && string.Equals(provider.Name, StashBoxSettings.ProviderName, StringComparison.OrdinalIgnoreCase))
+        {
+            await _stashBoxSettings.SetConnectionAsync(StashBoxSettings.DefaultServerId, StashBoxConnectionStates.Connected, ct).ConfigureAwait(false);
+        }
         ApplyRuntimeCredentials(provider.Name, normalized.ToDictionary(
             pair => pair.Key,
             pair => (string?)pair.Value,
@@ -653,6 +670,42 @@ public sealed class ProviderCredentialService
         return total > maxBytes
             ? null
             : JsonDocument.Parse(buffer.AsMemory(0, total), new JsonDocumentOptions { MaxDepth = 16 });
+    }
+
+    /// <summary>
+    /// Stash-box has no GET probe: "Test connection" asks the default server who the key belongs to (a read-only GraphQL question).
+    /// The key goes in an ApiKey header to that server's address only; the result never contains it.
+    /// </summary>
+    private async Task<ProviderCredentialOperationResultDto> TestStashBoxDefaultServerAsync(
+        IReadOnlyDictionary<string, string> effectiveCredentials, bool saveState, CancellationToken ct)
+    {
+        if (_stashBox is null || _stashBoxSettings is null)
+        {
+            return Failure("probe_unavailable", "The Stash-box connection check is not available.");
+        }
+
+        var snapshot = await _stashBoxSettings.GetAsync(ct).ConfigureAwait(false);
+        var server = snapshot.Servers.FirstOrDefault(s => s.Id == StashBoxSettings.DefaultServerId);
+        if (server is null || !StashBoxAddress.TryNormalize(server.Address, out var address)
+            || !effectiveCredentials.TryGetValue("api_key", out var key) || string.IsNullOrWhiteSpace(key))
+        {
+            return Failure("invalid_format", "Enter the account key from your stash-box account.");
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        var result = await _stashBox.TestAsync(address, key.Trim(), ct).ConfigureAwait(false);
+        if (saveState && result.Status != "unavailable")
+        {
+            await _stashBoxSettings.SetConnectionAsync(server.Id, result.Status, ct).ConfigureAwait(false);
+        }
+
+        return new ProviderCredentialOperationResultDto
+        {
+            Success = result.Connected,
+            Status = result.Connected ? "valid" : result.Status == "unavailable" ? "connectivity_failure" : "invalid_credential",
+            Message = result.Message,
+            ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds,
+        };
     }
 
     private static ProviderCredentialOperationResultDto Failure(

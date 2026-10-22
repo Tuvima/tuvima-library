@@ -1,0 +1,120 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Profiles
+@using MediaEngine.Domain.PersonalMedia
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+
+<AppCard Title="@($"Who can see {KindNoun}")" Description="@($"Only the people turned on here can see {KindNoun} and the files behind them.")">
+    @if (_loading)
+    {
+        <p role="status">Loading who can see @KindNoun…</p>
+    }
+    else if (Profiles.Count == 0)
+    {
+        <p class="view-kind-access__empty">There are no profiles yet.</p>
+    }
+    else
+    {
+        <ul class="view-kind-access__list" aria-label="@($"Access to {KindNoun} by profile")">
+            @foreach (var profile in Profiles)
+            {
+                <li @key="profile.Id">
+                    <AppSwitchRow Label="@profile.DisplayName"
+                                  Description="@(_policies.ContainsKey(profile.Id) ? null : "Could not be read")"
+                                  Value="@IsOn(profile.Id)"
+                                  ValueChanged="@(value => SetAsync(profile, value))"
+                                  Disabled="@(ReadOnly || _busy || !_policies.ContainsKey(profile.Id))" />
+                </li>
+            }
+        </ul>
+    }
+    @if (_error is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+    }
+</AppCard>
+
+@code {
+    /// <summary>The View kind this list switches: photos, personal_videos or documents.</summary>
+    [Parameter] public string Kind { get; set; } = ViewContentKinds.Photos;
+    /// <summary>The kind's name as it reads in a sentence ("photos", "personal videos", "documents").</summary>
+    [Parameter] public string KindNoun { get; set; } = "photos";
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public IReadOnlyList<ProfileViewModel> Profiles { get; set; } = [];
+
+    private readonly Dictionary<Guid, ViewProfilePolicyDto> _policies = [];
+    private bool _loading = true, _busy;
+    private string? _error;
+    private IReadOnlyList<ProfileViewModel>? _loadedFor;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ReferenceEquals(_loadedFor, Profiles))
+        {
+            return;
+        }
+
+        _loadedFor = Profiles;
+        _loading = true;
+        var results = await Task.WhenAll(Profiles.Select(async profile => (profile.Id, Policy: await ApiClient.GetViewProfilePolicyAsync(profile.Id))));
+        _policies.Clear();
+        foreach (var (id, policy) in results)
+        {
+            if (policy is not null)
+            {
+                _policies[id] = policy;
+            }
+        }
+
+        _loading = false;
+    }
+
+    private static string Sentence(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
+
+    private bool IsOn(Guid profileId) => _policies.TryGetValue(profileId, out var policy) && Allows(policy, Kind);
+
+    private static bool Allows(ViewProfilePolicyDto policy, string kind) => kind switch
+    {
+        ViewContentKinds.PersonalVideos => policy.AllowPersonalVideos,
+        ViewContentKinds.Documents => policy.AllowDocuments,
+        _ => policy.AllowPhotos,
+    };
+
+    private async Task SetAsync(ProfileViewModel profile, bool value)
+    {
+        if (_busy || !_policies.TryGetValue(profile.Id, out var current))
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var saved = await ApiClient.UpdateViewProfilePolicyAsync(profile.Id, new UpdateViewProfilePolicyRequest
+            {
+                ViewEnabled = current.ViewEnabled,
+                AccessSharedLibrary = current.AccessSharedLibrary,
+                SubmitToSharedLibrary = current.SubmitToSharedLibrary,
+                AllowGallerySharing = current.AllowGallerySharing,
+                // This kind's switch changes; the other two are sent back as they are saved.
+                AllowPhotos = Kind == ViewContentKinds.Photos ? value : current.AllowPhotos,
+                AllowPersonalVideos = Kind == ViewContentKinds.PersonalVideos ? value : current.AllowPersonalVideos,
+                AllowDocuments = Kind == ViewContentKinds.Documents ? value : current.AllowDocuments,
+            });
+            if (saved is null)
+            {
+                _error = ApiClient.LastError ?? $"The {KindNoun} setting could not be saved.";
+            }
+            else
+            {
+                _error = null;
+                _policies[profile.Id] = saved;
+                Snackbar.Add(value ? $"{profile.DisplayName} can now see {KindNoun}." : $"{Sentence(KindNoun)} are hidden from {profile.DisplayName}.", AppSeverity.Success);
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

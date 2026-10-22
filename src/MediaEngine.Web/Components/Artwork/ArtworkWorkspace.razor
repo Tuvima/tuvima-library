@@ -31,7 +31,7 @@
                 @foreach (var entity in FilteredHierarchyItems)
                 {
                     <AppNativeButton Type="button" Class="@(entity.EntityId == ActiveItem.EntityId ? "is-active" : string.Empty)" OnClick="@(() => SelectHierarchyEntityAsync(entity))">
-                        <span>@if (!string.IsNullOrWhiteSpace(entity.ImageUrl)) { <img src="@ThumbnailUrl(entity.ImageUrl)" alt="" loading="lazy" decoding="async" sizes="64px" data-image-display="artwork-hierarchy-thumbnail" /> } else { <AppMaterialIcon Icon="@HierarchyPlaceholderIcon(entity)" /> }</span>
+                        <span>@if (!string.IsNullOrWhiteSpace(entity.ImageUrl)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(entity.ImageUrl, 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(entity.ImageUrl, 64)" alt="" loading="lazy" decoding="async" data-image-display="artwork-hierarchy-thumbnail" /> } else { <AppMaterialIcon Icon="@HierarchyPlaceholderIcon(entity)" /> }</span>
                         <strong>@entity.DisplayTitle</strong>
                     </AppNativeButton>
                 }
@@ -48,15 +48,15 @@
                     <span class="artwork-workspace-core__role-preview">
                         @if (preferred is not null)
                         {
-                            <img src="@ThumbnailUrl(preferred.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="96px" data-image-display="artwork-role-card" />
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(preferred.ThumbnailUrl, 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(preferred.ThumbnailUrl, 64)" alt="" loading="lazy" decoding="async" data-image-display="artwork-role-card" />
                         }
                         else if (InheritedVariant(role) is { } inherited)
                         {
-                            <img src="@ThumbnailUrl(inherited.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="96px" data-image-display="artwork-role-card" />
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(inherited.ThumbnailUrl, 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(inherited.ThumbnailUrl, 64)" alt="" loading="lazy" decoding="async" data-image-display="artwork-role-card" />
                         }
                         else if (!string.IsNullOrWhiteSpace(LegacyRoleUrlFor(role)))
                         {
-                            <img src="@ThumbnailUrl(LegacyRoleUrlFor(role))" alt="" loading="lazy" decoding="async" sizes="96px" data-image-display="artwork-role-card" />
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(LegacyRoleUrlFor(role), 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(LegacyRoleUrlFor(role), 64)" alt="" loading="lazy" decoding="async" data-image-display="artwork-role-card" />
                         }
                         else if (role.SupportsAutomatic && ActiveItem.PreviewItems.Count > 0)
                         {
@@ -90,16 +90,16 @@
                 <div class="artwork-workspace-core__image">
                 @if (SelectedVariant is not null)
                 {
-                    <img src="@PreviewUrl(SelectedVariant.ContentUrl)" srcset="@PreviewSrcSet(SelectedVariant.ContentUrl)" sizes="(max-width: 600px) calc(100vw - 1.5rem), (max-width: 1200px) 48vw, 640px" alt="@($"{ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(SelectedVariant.ContentUrl, 640)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(SelectedVariant.ContentUrl, 640)" alt="@($"{ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
 
                 }
                 else if (InheritedVariant(ActiveRole) is { } inheritedVariant)
                 {
-                    <img src="@PreviewUrl(inheritedVariant.ContentUrl)" srcset="@PreviewSrcSet(inheritedVariant.ContentUrl)" sizes="(max-width: 600px) calc(100vw - 1.5rem), (max-width: 1200px) 48vw, 640px" alt="@($"Inherited {ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(inheritedVariant.ContentUrl, 640)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(inheritedVariant.ContentUrl, 640)" alt="@($"Inherited {ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
                 }
                 else if ((_role == "Primary" || _role == "Portrait") && ActiveItem.ResolutionMode == ArtworkResolutionMode.Explicit && !string.IsNullOrWhiteSpace(ActiveItem.ImageUrl))
                 {
-                    <img src="@PreviewUrl(ActiveItem.ImageUrl)" srcset="@PreviewSrcSet(ActiveItem.ImageUrl)" sizes="(max-width: 600px) calc(100vw - 1.5rem), (max-width: 1200px) 48vw, 640px" alt="@($"Primary artwork for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(ActiveItem.ImageUrl, 640)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ActiveItem.ImageUrl, 640)" alt="@($"Primary artwork for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
                 }
                 else if (_role == "Primary" && ActiveItem.PreviewItems.Count > 0)
                 {
@@ -107,7 +107,7 @@
                 }
                 else if (!string.IsNullOrWhiteSpace(LegacyRoleUrl))
                 {
-                    <img src="@PreviewUrl(LegacyRoleUrl)" srcset="@PreviewSrcSet(LegacyRoleUrl)" sizes="(max-width: 600px) calc(100vw - 1.5rem), (max-width: 1200px) 48vw, 640px" alt="@($"{ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(LegacyRoleUrl, 640)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(LegacyRoleUrl, 640)" alt="@($"{ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
                 }
                 else
                 {
@@ -158,7 +158,7 @@
                     {
                         <div class="@VariantTileClass(variant)">
                             <AppNativeButton Type="button" Class="artwork-workspace-core__variant-choice" Disabled="@_busy" aria-pressed="@(variant.IsPreferred ? "true" : "false")" OnClick="(() => SelectPreferredVariantAsync(variant))" AriaLabel="@VariantActionLabel(variant)">
-                                <img src="@ThumbnailUrl(variant.ThumbnailUrl)" srcset="@PreviewSrcSet(variant.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="(max-width: 900px) 42vw, 25vw" data-image-display="artwork-variant-thumbnail" />
+                                <img src="@MediaTileArtworkUrl.ForDrawnSize(variant.ThumbnailUrl, 320)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(variant.ThumbnailUrl, 320)" alt="" loading="lazy" decoding="async" data-image-display="artwork-variant-thumbnail" />
                                 @if (variant.IsPreferred) { <span>Preferred</span> }
                             </AppNativeButton>
                             @if (AllowEdit)
@@ -202,13 +202,7 @@
     private IReadOnlyList<ArtworkEntityVariantDto> RoleVariants => VariantsFor(ActiveRole);
     private ArtworkEntityVariantDto? SelectedVariant => RoleVariants.FirstOrDefault(variant => variant.ArtworkAssetId == _selectedAssetId) ?? RoleVariants.FirstOrDefault(variant => variant.IsPreferred) ?? RoleVariants.FirstOrDefault();
     private string? LegacyRoleUrl => LegacyRoleUrlFor(ActiveRole);
-    private static string ThumbnailUrl(string? url) => MediaTileArtworkUrl.Sized(url, "s") ?? url ?? string.Empty;
-    private static string PreviewUrl(string? url) => MediaTileArtworkUrl.Sized(url, "l") ?? url ?? string.Empty;
     private static string SourceLabel(string? source) => string.IsNullOrWhiteSpace(source) ? "Library" : LibraryHelpers.FormatSourceName(source);
-    private static string? PreviewSrcSet(string? url) => MediaTileArtworkUrl.SrcSet(
-        MediaTileArtworkUrl.Sized(url, "s"),
-        MediaTileArtworkUrl.Sized(url, "m"),
-        MediaTileArtworkUrl.Sized(url, "l"));
     private string Dimensions => (SelectedVariant ?? InheritedVariant(ActiveRole)) is { Width: not null, Height: not null } variant ? $"{variant.Width} × {variant.Height}" : "—";
     private string EmptyArtworkIcon => _role == "Portrait" && string.Equals(ActiveItem.GroupKind, "Character", StringComparison.OrdinalIgnoreCase)
         ? AppMaterialIcons.Outlined.PersonOutline

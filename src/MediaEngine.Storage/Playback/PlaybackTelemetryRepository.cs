@@ -37,6 +37,17 @@ public sealed class PlaybackTelemetryRepository(
         {
             token.ThrowIfCancellationRequested();
             var transitions = new List<PlaybackTelemetryTransition>(2);
+
+            // Watching a Vault item leaves no trace outside Vault mode (Videos spec D33): no session row, no event for apps,
+            // webhooks or plugins, nothing for an administrator's "who is watching" or analytics views. Prevented here, at the
+            // one place playback is recorded, so no caller can forget the rule.
+            if (connection.ExecuteScalar<long>(
+                    $"SELECT CASE WHEN {VaultSql.NotVaultAsset("@assetId")} THEN 0 ELSE 1 END;",
+                    new { assetId = observation.AssetId }, transaction) == 1)
+            {
+                return transitions;
+            }
+
             var active = ReadActive(connection, transaction, observation.PlayerSessionId);
 
             if (active is not null && IsDuplicateOrOutOfOrder(active, observation))
@@ -465,6 +476,7 @@ public sealed class PlaybackTelemetryRepository(
             (@allAccounts=1 OR account_id=@accountId)
             AND (@profileId IS NULL OR profile_id=@profileId)
             AND (@allLibraries=1 OR HEX(library_id) IN @libraryHex)
+            AND HEX(library_id) NOT IN (SELECT UPPER(REPLACE(library_id, '-', '')) FROM vault_libraries)
             AND feature_id IN @features
             AND (@from IS NULL OR started_at>=@from)
             AND (@to IS NULL OR started_at<@to)

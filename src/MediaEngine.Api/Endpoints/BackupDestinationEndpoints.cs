@@ -9,8 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
-/// Backup destinations (Developer tools spec WP25): the schedule and "keep the last N", the backup passphrase, where backups are
-/// copied, a backup run on demand, and restoring from a destination. The passphrase is only ever used within one request.
+/// Backup destinations (Developer tools spec WP25): the schedule and "keep the last N", where backups are copied, a backup run on
+/// demand, and restoring from a destination. Backups are plain files and are never encrypted (Backup and restore spec D15).
 /// </summary>
 public static class BackupDestinationEndpoints
 {
@@ -21,7 +21,7 @@ public static class BackupDestinationEndpoints
         group.MapGet("/settings", async ([FromServices] BackupSettingsManager manager, CancellationToken ct) =>
             Results.Ok(await manager.GetAsync(ct).ConfigureAwait(false)))
         .WithName("GetBackupSettings")
-        .WithSummary("The backup schedule, how many backups are kept, whether a passphrase is set, and each destination with its state and last checked copy.")
+        .WithSummary("The backup schedule, how many backups are kept, and each destination with its state and last checked copy.")
         .Produces<BackupSettingsResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.BackupRead);
 
@@ -38,17 +38,27 @@ public static class BackupDestinationEndpoints
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireEffectiveAdministrator();
 
-        group.MapPost("/passphrase", async (SetBackupPassphraseRequest request, [FromServices] BackupSettingsManager manager, CancellationToken ct) =>
+        group.MapPost("/destinations", async (SaveBackupDestinationRequest request, [FromServices] BackupSettingsManager manager, CancellationToken ct) =>
         {
-            var problem = await manager.SetPassphraseAsync(request, ct).ConfigureAwait(false);
+            var problem = await manager.SaveDestinationAsync(request, ct).ConfigureAwait(false);
             return problem is null
                 ? Results.Ok(await manager.GetAsync(ct).ConfigureAwait(false))
                 : ApiErrors.BadRequest(problem);
         })
-        .WithName("SetBackupPassphrase")
-        .WithSummary("Sets or changes the backup passphrase. The passphrase is never stored; losing it means encrypted backups cannot be restored. Changing it needs the current one.")
+        .WithName("SaveBackupDestination")
+        .WithSummary("Adds a backup destination (another folder, a network share, S3-compatible storage or WebDAV), or changes one when an id is given. A web destination needs the host to be confirmed; its login is stored encrypted and never returned.")
         .Produces<BackupSettingsResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireEffectiveAdministratorInPerson();
+
+        group.MapDelete("/destinations/{destinationId}", async (string destinationId, [FromServices] BackupSettingsManager manager, CancellationToken ct) =>
+            await manager.RemoveDestinationAsync(destinationId, ct).ConfigureAwait(false)
+                ? Results.Ok(await manager.GetAsync(ct).ConfigureAwait(false))
+                : ApiErrors.NotFound("That destination was not found."))
+        .WithName("RemoveBackupDestination")
+        .WithSummary("Stops using a destination that was added and forgets its login. Copies already there are left alone.")
+        .Produces<BackupSettingsResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireEffectiveAdministratorInPerson();
 
         group.MapPost("/run", async ([FromServices] BackupOrchestrator orchestrator, CancellationToken ct) =>
@@ -92,14 +102,13 @@ public static class BackupDestinationEndpoints
                 {
                     Items = [.. held
                         .Where(item => item.Name.StartsWith("tuvima-backup-", StringComparison.Ordinal)
-                            && (!destination.LeavesMachine || item.Name.EndsWith(BackupEncryption.FileExtension, StringComparison.OrdinalIgnoreCase)))
+                            && item.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                         .OrderByDescending(item => item.ModifiedAt)
                         .Select(item => new DestinationBackupDto
                         {
                             Name = item.Name,
                             SizeBytes = item.SizeBytes,
                             ModifiedAt = item.ModifiedAt,
-                            Encrypted = item.Name.EndsWith(BackupEncryption.FileExtension, StringComparison.OrdinalIgnoreCase),
                         })],
                 });
             }
@@ -109,7 +118,7 @@ public static class BackupDestinationEndpoints
             }
         })
         .WithName("ListBackupDestinationBackups")
-        .WithSummary("The backups a destination holds, newest first, marking which are encrypted.")
+        .WithSummary("The backups a destination holds, newest first.")
         .Produces<DestinationBackupsResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status502BadGateway)
@@ -124,15 +133,15 @@ public static class BackupDestinationEndpoints
 
             try
             {
-                return Results.Ok(await orchestrator.RestoreFromDestinationAsync(destination, request.Name, request.Passphrase, ct).ConfigureAwait(false));
+                return Results.Ok(await orchestrator.RestoreFromDestinationAsync(destination, request.Name, ct).ConfigureAwait(false));
             }
-            catch (Exception ex) when (ex is BackupPassphraseException or InvalidDataException or InvalidOperationException or BackupDestinationException or FileNotFoundException or ArgumentException)
+            catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or BackupDestinationException or FileNotFoundException or ArgumentException)
             {
                 return ApiErrors.BadRequest(ex is FileNotFoundException ? "That backup was not found at the destination." : ex.Message);
             }
         })
         .WithName("RestoreBackupFromDestination")
-        .WithSummary("Fetches a backup from a destination, opens it with the passphrase when it is encrypted, and stages it for restore at the next start. A wrong passphrase is refused with a clear message.")
+        .WithSummary("Fetches a backup from a destination and stages it for restore at the next start, with the same safety checks as an uploaded backup. A copy made by an older version (sealed) is refused with a clear message.")
         .Produces<ScheduleRestoreResultDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound)

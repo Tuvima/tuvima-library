@@ -1,7 +1,9 @@
 using System.ComponentModel;
+using System.Formats.Tar;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
+using MediaEngine.Api.Services.Tools.ExifTool;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -12,9 +14,9 @@ using Microsoft.Extensions.Hosting;
 namespace MediaEngine.Api.Services.Tools;
 
 /// <summary>
-/// Fetches FFmpeg and Tesseract when a person asks. Every download is a fixed https address on github.com from
+/// Fetches FFmpeg, Tesseract and ExifTool when a person asks. Every download is a fixed https address on github.com from
 /// <c>config/tool_downloads.json</c> and must match its recorded SHA-256 before anything is placed; a file that does
-/// not match is thrown away and the old copy is left alone. Nothing downloads by itself, no library data is sent, and
+/// not match is thrown away and the old copy is left alone. A download starts when a person asks, or when <see cref="ToolAutoInstaller"/> starts one for a missing Required tool (FFmpeg) or for ExifTool. No library data is sent, and
 /// every attempt is written to the system activity log in plain words.
 /// </summary>
 public sealed class ToolInstallerService : IToolInstallerService
@@ -24,6 +26,10 @@ public sealed class ToolInstallerService : IToolInstallerService
     private const long MaxLanguageFileBytes = 100L << 20;
     private const long MaxExtractedFileBytes = 600L << 20;
     private const long MaxLicenseBytes = 1L << 20;
+    private const long MaxExifToolArchiveBytes = 100L << 20;
+    private const long MaxExifToolFileBytes = 100L << 20;
+    private const long MaxExifToolTotalBytes = 400L << 20;
+    private const int MaxExifToolEntries = 20_000;
     private const string LicenseFileName = "LICENSE.txt";
 
     private readonly IConfigurationLoader _configuration;
@@ -38,6 +44,7 @@ public sealed class ToolInstallerService : IToolInstallerService
     // list is reached through a delegate instead of a constructor cycle.
     private readonly Func<IToolRequirementsService> _tools;
     private readonly ILogger<ToolInstallerService> _logger;
+    private readonly IExifToolLocator? _exifTool;
     private readonly object _gate = new();
     private readonly Dictionary<string, Job> _jobs = new(StringComparer.Ordinal);
 
@@ -51,7 +58,8 @@ public sealed class ToolInstallerService : IToolInstallerService
         IHostApplicationLifetime lifetime,
         ToolInstallPlatform platform,
         Func<IToolRequirementsService> tools,
-        ILogger<ToolInstallerService> logger)
+        ILogger<ToolInstallerService> logger,
+        IExifToolLocator? exifTool = null)
     {
         _configuration = configuration;
         _paths = paths;
@@ -63,6 +71,7 @@ public sealed class ToolInstallerService : IToolInstallerService
         _platform = platform;
         _tools = tools;
         _logger = logger;
+        _exifTool = exifTool;
     }
 
     private string ToolsRoot => Path.Combine(_paths.Root, "tools");
@@ -71,13 +80,24 @@ public sealed class ToolInstallerService : IToolInstallerService
 
     public ToolInstallOffer GetOffer(string toolId, string installKind)
     {
-        // Pinned builds exist for 64-bit Windows only, and a container never downloads into itself.
-        if (!_platform.WindowsX64 || installKind == ToolInstallKinds.Docker)
+        // A container never downloads into itself.
+        if (installKind == ToolInstallKinds.Docker)
         {
             return ToolInstallOffer.None;
         }
 
         var downloads = _configuration.LoadToolDownloads();
+        if (toolId == ToolRequirementIds.ExifTool)
+        {
+            return GetExifToolOffer(downloads);
+        }
+
+        // The other pinned builds exist for 64-bit Windows only.
+        if (!_platform.WindowsX64)
+        {
+            return ToolInstallOffer.None;
+        }
+
         if (toolId == ToolRequirementIds.Ffmpeg)
         {
             return new ToolInstallOffer(downloads.Ffmpeg is not null);
@@ -99,6 +119,22 @@ public sealed class ToolInstallerService : IToolInstallerService
         }
 
         return ToolInstallOffer.None;
+    }
+
+    /// <summary>
+    /// ExifTool has a pinned build for 64-bit Windows (it brings its own Perl) and for 64-bit Linux. The Linux build is a Perl
+    /// script, so no download is offered until Perl is on the machine; the fix wording then says to install it.
+    /// </summary>
+    private ToolInstallOffer GetExifToolOffer(ToolDownloadSettings downloads)
+    {
+        if (downloads.ExifTool?.FindBuild(_platform.ExifToolPlatform) is null)
+        {
+            return ToolInstallOffer.None;
+        }
+
+        return !_platform.WindowsX64 && _exifTool?.FindPerl() is null
+            ? new ToolInstallOffer(false, ToolRequirementsService.Copy.ExifToolPerlFix)
+            : new ToolInstallOffer(true);
     }
 
     public ToolInstallSnapshot GetSnapshot(string toolId)
@@ -179,9 +215,10 @@ public sealed class ToolInstallerService : IToolInstallerService
     {
         var ct = job.Cts.Token;
         var isFfmpeg = toolId == ToolRequirementIds.Ffmpeg;
+        var isExifTool = toolId == ToolRequirementIds.ExifTool;
         var downloads = _configuration.LoadToolDownloads();
-        var name = isFfmpeg ? "FFmpeg" : "Tesseract";
-        var version = isFfmpeg ? downloads.Ffmpeg?.Version : downloads.Tesseract?.Version;
+        var name = isFfmpeg ? "FFmpeg" : isExifTool ? "ExifTool" : "Tesseract";
+        var version = isFfmpeg ? downloads.Ffmpeg?.Version : isExifTool ? downloads.ExifTool?.Version : downloads.Tesseract?.Version;
         var host = ToolDownloadSettings.AllowedHost;
         var work = Path.Combine(ToolsRoot, ".downloads", toolId);
         // A background job must never take the Engine down, so anything unexpected ends as a plain failure.
@@ -195,6 +232,13 @@ public sealed class ToolInstallerService : IToolInstallerService
             if (isFfmpeg)
             {
                 await InstallFfmpegAsync(job, downloads.Ffmpeg ?? throw NotConfigured(), work, ct).ConfigureAwait(false);
+                await LogAsync(ToolDownloadActivity.Finished(name, version, host)).ConfigureAwait(false);
+                await CheckQuietlyAsync().ConfigureAwait(false);
+                (phase, reason) = (ToolInstallPhase.Idle, null);
+            }
+            else if (isExifTool)
+            {
+                await InstallExifToolAsync(job, downloads.ExifTool ?? throw NotConfigured(), work, ct).ConfigureAwait(false);
                 await LogAsync(ToolDownloadActivity.Finished(name, version, host)).ConfigureAwait(false);
                 await CheckQuietlyAsync().ConfigureAwait(false);
                 (phase, reason) = (ToolInstallPhase.Idle, null);
@@ -418,6 +462,174 @@ public sealed class ToolInstallerService : IToolInstallerService
         {
             DeleteQuietly(previous);
         }
+    }
+
+    // ── ExifTool ─────────────────────────────────────────────────────────────
+
+    private async Task InstallExifToolAsync(Job job, ExifToolDownload entry, string work, CancellationToken ct)
+    {
+        var build = entry.FindBuild(_platform.ExifToolPlatform) ?? throw NotConfigured();
+        var archive = Path.Combine(work, build.IsTarGz ? "exiftool.tar.gz" : "exiftool.zip");
+        await DownloadVerifiedAsync(build.Url, archive, build.Sha256, MaxExifToolArchiveBytes,
+            fraction => SetPercent(job, fraction * 85), ct).ConfigureAwait(false);
+
+        SetPercent(job, 88);
+        var staging = Path.Combine(work, "staged");
+        Directory.CreateDirectory(staging);
+        if (build.IsTarGz)
+        {
+            ExtractTarGzWhole(archive, staging, ct);
+        }
+        else
+        {
+            ExtractZipWhole(archive, staging, ct);
+        }
+
+        SetPercent(job, 94);
+        foreach (var file in build.Files)
+        {
+            var path = Path.Combine(staging, Path.Combine(file.Path.Split('/')));
+            if (!File.Exists(path))
+            {
+                throw new ToolInstallException(ToolRequirementsService.Copy.InstallArchiveUnexpected,
+                    $"The archive did not contain {file.Path}.");
+            }
+
+            if (!HashesMatch(await HashFileAsync(path, ct).ConfigureAwait(false), file.Sha256))
+            {
+                throw new ToolChecksumException($"{file.Path} inside the archive did not match its recorded checksum.");
+            }
+        }
+
+        ct.ThrowIfCancellationRequested();
+        ReplaceFolder(staging, Path.Combine(ToolsRoot, ExifToolLocator.ToolFolderName));
+        lock (_gate)
+        {
+            job.Committed = true;
+        }
+
+        SetPercent(job, 98);
+    }
+
+    /// <summary>
+    /// Takes out the whole archive, so its licence and readme files stay beside the program. The single top folder is dropped,
+    /// every path must stay inside <paramref name="staging"/>, and links are refused.
+    /// </summary>
+    private static void ExtractZipWhole(string archive, string staging, CancellationToken ct)
+    {
+        using var zip = ZipFile.OpenRead(archive);
+        var budget = new ExtractionBudget();
+        foreach (var item in zip.Entries)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (item.FullName.EndsWith('/') || item.FullName.EndsWith('\\'))
+            {
+                continue;
+            }
+
+            // The high half of the attributes holds the Unix file type on archives made on Linux; a link has no place here.
+            if (((item.ExternalAttributes >> 16) & 0xF000) == 0xA000)
+            {
+                throw new ToolInstallException(ToolRequirementsService.Copy.InstallArchiveUnexpected, "The archive held a link.");
+            }
+
+            var destination = PlaceInside(staging, item.FullName);
+            if (item.Length > MaxExifToolFileBytes)
+            {
+                throw new ToolInstallException(ToolRequirementsService.Copy.InstallArchiveUnexpected, $"{item.Name} is larger than expected.");
+            }
+
+            using var input = item.Open();
+            WriteBounded(input, destination, budget);
+        }
+    }
+
+    private static void ExtractTarGzWhole(string archive, string staging, CancellationToken ct)
+    {
+        using var file = new FileStream(archive, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var gzip = new GZipStream(file, CompressionMode.Decompress);
+        using var reader = new TarReader(gzip);
+        var budget = new ExtractionBudget();
+        TarEntry? entry;
+        while ((entry = reader.GetNextEntry(copyData: false)) is not null)
+        {
+            ct.ThrowIfCancellationRequested();
+            switch (entry.EntryType)
+            {
+                case TarEntryType.Directory:
+                case TarEntryType.GlobalExtendedAttributes:
+                    continue;
+                case TarEntryType.RegularFile:
+                case TarEntryType.V7RegularFile:
+                    break;
+                default:
+                    // Symbolic and hard links, devices and anything else are not part of a plain program folder.
+                    throw new ToolInstallException(ToolRequirementsService.Copy.InstallArchiveUnexpected,
+                        $"The archive held an entry of a kind that is not allowed ({entry.EntryType}).");
+            }
+
+            var destination = PlaceInside(staging, entry.Name);
+            if (entry.DataStream is null)
+            {
+                throw new ToolInstallException(ToolRequirementsService.Copy.InstallArchiveUnexpected, $"{entry.Name} had no content.");
+            }
+
+            WriteBounded(entry.DataStream, destination, budget);
+        }
+    }
+
+    /// <summary>
+    /// Works out where an archive entry lands: its top folder is dropped, each remaining part must be a plain file name, and the
+    /// result must sit inside <paramref name="staging"/>. Anything else (a path that climbs out, a drive, a stream name) is refused.
+    /// </summary>
+    private static string PlaceInside(string staging, string entryName)
+    {
+        var segments = entryName.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (entryName.StartsWith('/') || entryName.StartsWith('\\') || segments.Length < 2 || !segments.Skip(1).All(ToolDownloadSettings.IsPlainFileName))
+        {
+            throw new ToolInstallException(ToolRequirementsService.Copy.InstallArchiveUnexpected, "The archive held a path that is not allowed.");
+        }
+
+        var root = Path.GetFullPath(staging) + Path.DirectorySeparatorChar;
+        var destination = Path.GetFullPath(Path.Combine(staging, Path.Combine(segments.Skip(1).ToArray())));
+        if (!destination.StartsWith(root, StringComparison.Ordinal))
+        {
+            throw new ToolInstallException(ToolRequirementsService.Copy.InstallArchiveUnexpected, "The archive held a path that leaves its folder.");
+        }
+
+        return destination;
+    }
+
+    private static void WriteBounded(Stream input, string destination, ExtractionBudget budget)
+    {
+        if (++budget.Entries > MaxExifToolEntries)
+        {
+            throw new ToolInstallException(ToolRequirementsService.Copy.InstallArchiveUnexpected, "The archive held more files than expected.");
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        using var output = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None);
+        var buffer = new byte[81920];
+        long fileBytes = 0;
+        int read;
+        while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            fileBytes += read;
+            budget.Bytes += read;
+            if (fileBytes > MaxExifToolFileBytes || budget.Bytes > MaxExifToolTotalBytes)
+            {
+                throw new ToolInstallException(ToolRequirementsService.Copy.InstallArchiveUnexpected, "The archive is larger than expected.");
+            }
+
+            output.Write(buffer, 0, read);
+        }
+    }
+
+    private sealed class ExtractionBudget
+    {
+        public long Bytes { get; set; }
+
+        public int Entries { get; set; }
     }
 
     // ── Tesseract ────────────────────────────────────────────────────────────

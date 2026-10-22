@@ -59,7 +59,10 @@ public sealed record LocalAssetDto(
     [property: JsonPropertyName("people")] IReadOnlyList<string>? People = null,
     [property: JsonPropertyName("snippet")] string? Snippet = null,
     [property: JsonPropertyName("document_info")] LocalAssetDocumentInfoDto? DocumentInfo = null,
-    [property: JsonPropertyName("can_trash")] bool CanTrash = true);
+    [property: JsonPropertyName("can_trash")] bool CanTrash = true,
+    [property: JsonPropertyName("content_kind")] string? ContentKind = null,
+    [property: JsonPropertyName("added_by_profile_id")] Guid? AddedByProfileId = null,
+    [property: JsonPropertyName("added_by_name")] string? AddedByName = null);
 
 /// <summary>
 /// What is known about the words read from a document, and how it has been organised. <c>text_source</c> is
@@ -138,7 +141,9 @@ public sealed record ViewScopeResolutionDto(
     [property: JsonPropertyName("available_scopes")] IReadOnlyList<ViewScopeOptionDto> AvailableScopes,
     [property: JsonPropertyName("can_browse_other_people")] bool CanBrowseOtherPeople = false,
     [property: JsonPropertyName("can_view_documents")] bool CanViewDocuments = true,
-    [property: JsonPropertyName("can_file_shared_inbox")] bool CanFileSharedInbox = false);
+    [property: JsonPropertyName("can_file_shared_inbox")] bool CanFileSharedInbox = false,
+    [property: JsonPropertyName("can_view_photos")] bool CanViewPhotos = true,
+    [property: JsonPropertyName("can_view_personal_videos")] bool CanViewPersonalVideos = true);
 
 public sealed record ViewPreferencesDto(
     [property: JsonPropertyName("profile_id")] Guid ProfileId,
@@ -305,19 +310,41 @@ public sealed record ViewSourceAdminDto(
     [property: JsonPropertyName("last_activity_at")] DateTimeOffset? LastActivityAt,
     [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
     [property: JsonPropertyName("updated_at")] DateTimeOffset UpdatedAt,
-    [property: JsonPropertyName("include_in_timeline")] bool IncludeInTimeline = false);
+    [property: JsonPropertyName("include_in_timeline")] bool IncludeInTimeline = false,
+    [property: JsonPropertyName("content_kind")] string ContentKind = "photos",
+    [property: JsonPropertyName("skipped_file_count")] int SkippedFileCount = 0,
+    [property: JsonPropertyName("added_by_profile_id")] Guid? AddedByProfileId = null,
+    [property: JsonPropertyName("accepts_photos_and_videos")] bool AcceptsPhotosAndVideos = false,
+    [property: JsonPropertyName("kept_in_library_count")] int KeptInLibraryCount = 0);
 
+/// <param name="ContentKind">
+/// What the folder holds: <c>photos</c>, <c>personal_videos</c> or <c>documents</c>. Required; it decides which files
+/// the folder takes (Library setup D49).
+/// </param>
 public sealed record CreateViewSourceRequest(
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("storage_mode")] string StorageMode,
     [property: JsonPropertyName("path")] string? Path = null,
     [property: JsonPropertyName("include_subdirectories")] bool IncludeSubdirectories = true,
-    [property: JsonPropertyName("include_in_timeline")] bool IncludeInTimeline = false);
+    [property: JsonPropertyName("include_in_timeline")] bool IncludeInTimeline = false,
+    [property: JsonPropertyName("content_kind")] string? ContentKind = null);
 
+/// <param name="ContentKind">
+/// A new kind for the folder; omitted keeps the current one. Items already indexed from the folder are re-sorted at
+/// once: those the new kind accepts take it, the rest leave the index (their files on disk are never touched) and are
+/// counted in <c>skipped_file_count</c>; the next scan picks up files the new kind now accepts.
+/// </param>
 public sealed record UpdateViewSourceRequest(
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("enabled")] bool Enabled,
-    [property: JsonPropertyName("include_in_timeline")] bool IncludeInTimeline = false);
+    [property: JsonPropertyName("include_in_timeline")] bool IncludeInTimeline = false,
+    [property: JsonPropertyName("content_kind")] string? ContentKind = null);
+
+/// <summary>A profile that added items in a View scope, and how many (the "added by" filter chips).</summary>
+public sealed record ViewAddedByDto(
+    [property: JsonPropertyName("profile_id")] Guid ProfileId,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("item_count")] int ItemCount);
 
 public sealed record ViewDeviceAdminDto(
     [property: JsonPropertyName("id")] Guid Id,

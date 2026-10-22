@@ -114,8 +114,8 @@ public sealed class ViewTrashDeletionPlanner(
             return (status, null);
         }
 
-        var documents = (await profiles.GetPolicyAsync(space.OwnerProfileId, ct).ConfigureAwait(false)).DocumentsEnabled;
-        var totals = await trash.GetTotalsAsync(space.Id, space.OwnerProfileId, documents, ct).ConfigureAwait(false);
+        var blockedKinds = (await profiles.GetPolicyAsync(space.OwnerProfileId, ct).ConfigureAwait(false)).BlockedContentKinds;
+        var totals = await trash.GetTotalsAsync(space.Id, space.OwnerProfileId, blockedKinds, ct).ConfigureAwait(false);
         return (ViewTrashPlanStatus.Ok, new ViewTrashSummaryDto(
             totals.ItemCount, totals.ImageCount, totals.VideoCount, totals.DocumentCount, totals.OtherCount, totals.Bytes));
     }
@@ -130,10 +130,9 @@ public sealed class ViewTrashDeletionPlanner(
         }
 
         var ownerId = space.OwnerProfileId;
-        var documentsEnabled = (await profiles.GetPolicyAsync(ownerId, ct).ConfigureAwait(false)).DocumentsEnabled;
+        var blockedKinds = (await profiles.GetPolicyAsync(ownerId, ct).ConfigureAwait(false)).BlockedContentKinds;
         var listed = (await trash.GetTrashedItemsAsync(space.Id, ownerId, ct).ConfigureAwait(false))
-            .Where(item => documentsEnabled
-                || !string.Equals(item.MediaKind, LocalAssetMediaKinds.Document, StringComparison.Ordinal))
+            .Where(item => item.ContentKind is not { } kind || !blockedKinds.Contains(kind))
             .OrderBy(item => item.ItemId)
             .ToList();
 

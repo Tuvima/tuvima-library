@@ -21,6 +21,7 @@ using MediaEngine.Web.Services.Navigation;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
+using MediaEngine.Web.Services.Vault;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -88,6 +89,7 @@ builder.Services.AddScoped<AppDialogService>();
 builder.Services.AddScoped<IAppDialogService>(services => services.GetRequiredService<AppDialogService>());
 builder.Services.AddScoped<AppToastService>();
 builder.Services.AddScoped<IAppToastService>(services => services.GetRequiredService<AppToastService>());
+builder.Services.AddScoped<MediaEngine.Web.Components.Settings.LibraryFolderAddService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddResponseCompression(options =>
 {
@@ -285,6 +287,7 @@ builder.Services.AddScoped<AccountNoticeState>();
 builder.Services.AddScoped<SettingsAttentionState>();
 builder.Services.AddScoped<DevelopmentToolsState>();
 builder.Services.AddScoped<MediaEngine.Web.Services.Settings.ApprovalFlow>();
+builder.Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
 builder.Services.AddScoped<IItsYouConfirmer, DialogItsYouConfirmer>();
 builder.Services.AddScoped<ConfirmedActionRunner>();
 builder.Services.AddScoped<AdministratorSurfaceAccessService>();
@@ -344,6 +347,16 @@ builder.Services.AddHealthChecks()
 builder.Services.AddScoped<UniverseStateContainer>();
 builder.Services.AddScoped<ICompanionDeviceIdStore, BrowserCompanionDeviceIdStore>();
 builder.Services.AddScoped<CompanionState>();
+
+// Vault mode and the Vault (Videos spec D17 to D45). NsfwModeState is the one place that decides whether anything about it is drawn.
+builder.Services.AddScoped<IVaultPreferenceStore, BrowserVaultPreferenceStore>();
+builder.Services.AddScoped<NsfwModeState>();
+builder.Services.AddScoped<NsfwModeSwitching>();
+builder.Services.AddScoped<VaultLibraryOnboarding>();
+// The Vault's lists and search come from the Engine's Vault routes (Videos spec WP14); only a session with Vault mode on is answered.
+builder.Services.AddScoped<IVaultCatalogue, EngineVaultCatalogue>();
+// Seam until the Engine can put a folder into the Vault library (Videos spec WP11/WP12); makes no request.
+builder.Services.AddScoped<IVaultFolderAttachment, EngineVaultFolderAttachment>();
 builder.Services.AddScoped<ActiveProfileSessionService>();
 builder.Services.AddScoped<ViewWorkspaceService>();
 builder.Services.AddScoped<ViewAssetDragService>();
@@ -675,32 +688,12 @@ static async Task ProxyEngineHlsAsync(
     }
 }
 
-static async Task ProxyEngineImageAsync(
+static Task ProxyEngineImageAsync(
     string enginePath,
     HttpContext ctx,
     IHttpClientFactory httpFactory,
-    CancellationToken ct)
-{
-    var upstreamPath = $"/{enginePath.TrimStart('/')}";
-    if (!EngineImageProxyPath.IsAllowedEnginePath(upstreamPath))
-    {
-        ctx.Response.StatusCode = StatusCodes.Status404NotFound;
-        return;
-    }
-
-    var client = httpFactory.CreateClient("EngineArtwork");
-    using var request = new HttpRequestMessage(
-        HttpMethods.IsHead(ctx.Request.Method) ? HttpMethod.Head : HttpMethod.Get,
-        $"{upstreamPath}{ctx.Request.QueryString}");
-    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-    ctx.Response.StatusCode = (int)response.StatusCode;
-    CopyResponseHeaders(response, ctx.Response);
-
-    if (!HttpMethods.IsHead(ctx.Request.Method))
-    {
-        await response.Content.CopyToAsync(ctx.Response.Body, ct);
-    }
-}
+    CancellationToken ct) =>
+    EngineImageProxyEndpoint.HandleAsync(enginePath, ctx, httpFactory.CreateClient("EngineArtwork"), ct);
 
 static void CopyRequestHeader(HttpContext ctx, HttpRequestMessage request, string headerName)
 {

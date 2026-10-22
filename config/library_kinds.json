@@ -1,0 +1,251 @@
+{
+  "version": "1.0",
+  "kinds": [
+    {
+      "key": "movies",
+      "area": "watch",
+      "label": "Movies",
+      "icon": "Movie",
+      "format": "Movies",
+      "lookup": {
+        "providers": [
+          "tmdb",
+          "subdl"
+        ]
+      },
+      "grouping": "movie",
+      "naming_template": "Movies",
+      "misfit": "unmatched",
+      "default_handling": "read_only",
+      "tooltip": "Feature films, one file or folder per film.",
+      "order": 1,
+      "built_in": true,
+      "available": true
+    },
+    {
+      "key": "tv",
+      "area": "watch",
+      "label": "TV Shows",
+      "icon": "Tv",
+      "format": "TV",
+      "lookup": {
+        "providers": [
+          "tvdb",
+          "subdl"
+        ]
+      },
+      "grouping": "tv_show_season",
+      "naming_template": "TV",
+      "misfit": "unmatched",
+      "default_handling": "read_only",
+      "tooltip": "Series with seasons and episodes, one folder per show.",
+      "order": 2,
+      "built_in": true,
+      "available": true
+    },
+    {
+      "key": "youtube",
+      "area": "watch",
+      "label": "YouTube",
+      "icon": "PlayCircle",
+      "format": "Videos",
+      "lookup": {
+        "providers": [
+          "youtube"
+        ]
+      },
+      "grouping": "video_series_folder",
+      "naming_template": "Videos",
+      "misfit": "unmatched",
+      "default_handling": "read_only",
+      "tooltip": "Videos saved from YouTube, found by the video ID in the file name.",
+      "order": 3,
+      "built_in": true,
+      "available": true
+    },
+    {
+      "key": "other_videos",
+      "area": "watch",
+      "label": "Videos",
+      "icon": "VideoLibrary",
+      "format": "Videos",
+      "lookup": "none",
+      "grouping": "video_series_folder",
+      "naming_template": "Videos",
+      "misfit": "keep",
+      "default_handling": "read_only",
+      "tooltip": "Courses, talks and downloads. Nothing is looked up.",
+      "order": 4,
+      "built_in": true,
+      "available": true,
+      "allows_multiple": true,
+      "max_libraries": 5
+    },
+    {
+      "key": "music",
+      "area": "listen",
+      "label": "Music",
+      "icon": "MusicNote",
+      "format": "Music",
+      "lookup": {
+        "providers": [
+          "musicbrainz",
+          "apple_api",
+          "lrclib"
+        ]
+      },
+      "grouping": "music_album",
+      "naming_template": "Music",
+      "misfit": "unmatched",
+      "default_handling": "read_only",
+      "tooltip": "Albums and songs, tagged or in artist and album folders.",
+      "order": 1,
+      "built_in": true,
+      "available": true
+    },
+    {
+      "key": "audiobooks",
+      "area": "listen",
+      "label": "Audiobooks",
+      "icon": "Headphones",
+      "format": "Audiobooks",
+      "lookup": {
+        "providers": [
+          "apple_api"
+        ]
+      },
+      "grouping": "audiobook",
+      "naming_template": "Audiobooks",
+      "misfit": "unmatched",
+      "default_handling": "read_only",
+      "tooltip": "Spoken books, one file or folder per book.",
+      "order": 2,
+      "built_in": true,
+      "available": true
+    },
+    {
+      "key": "other_audio",
+      "area": "listen",
+      "label": "Other audio",
+      "icon": "AudioFile",
+      "format": "Music",
+      "lookup": "none",
+      "grouping": "folder_and_tags",
+      "naming_template": "default",
+      "misfit": "keep",
+      "default_handling": "read_only",
+      "tooltip": "Random audio files, recordings and lectures, shown by folder and the tags inside the files.",
+      "order": 3,
+      "built_in": true,
+      "available": true,
+      "allows_multiple": true,
+      "max_libraries": 5
+    },
+    {
+      "key": "books",
+      "area": "read",
+      "label": "Books",
+      "icon": "MenuBook",
+      "format": "Books",
+      "lookup": {
+        "providers": [
+          "apple_api"
+        ]
+      },
+      "grouping": "book_series",
+      "naming_template": "Books",
+      "misfit": "unmatched",
+      "default_handling": "read_only",
+      "tooltip": "EPUB and PDF books.",
+      "order": 1,
+      "built_in": true,
+      "available": true
+    },
+    {
+      "key": "comics",
+      "area": "read",
+      "label": "Comics",
+      "icon": "AutoStories",
+      "format": "Comics",
+      "lookup": {
+        "providers": [
+          "comicvine"
+        ]
+      },
+      "grouping": "comic_series",
+      "naming_template": "Comics",
+      "misfit": "unmatched",
+      "default_handling": "read_only",
+      "tooltip": "CBZ and CBR comics and manga.",
+      "order": 2,
+      "built_in": true,
+      "available": true
+    },
+    {
+      "key": "other_reading",
+      "area": "read",
+      "label": "Other reading",
+      "icon": "Description",
+      "format": "Books",
+      "lookup": "none",
+      "grouping": "folder_and_tags",
+      "naming_template": "default",
+      "misfit": "keep",
+      "default_handling": "read_only",
+      "tooltip": "Loose books and documents with no match, shown by folder and the details inside the files.",
+      "order": 3,
+      "built_in": true,
+      "available": true,
+      "allows_multiple": true,
+      "max_libraries": 5
+    },
+    {
+      "key": "photos",
+      "area": "view",
+      "label": "Photos",
+      "icon": "PhotoLibrary",
+      "format": null,
+      "lookup": "none",
+      "grouping": "view_gallery",
+      "naming_template": null,
+      "misfit": "keep",
+      "default_handling": "read_only",
+      "tooltip": "Pictures from phones and cameras. View sorts them by date and place.",
+      "order": 1,
+      "built_in": true,
+      "available": true
+    },
+    {
+      "key": "personal_videos",
+      "area": "view",
+      "label": "Personal videos",
+      "icon": "VideoLibrary",
+      "format": null,
+      "lookup": "none",
+      "grouping": "view_gallery",
+      "naming_template": null,
+      "misfit": "keep",
+      "default_handling": "read_only",
+      "tooltip": "Videos from phones and cameras, kept with the day they were taken.",
+      "order": 2,
+      "built_in": true,
+      "available": true
+    },
+    {
+      "key": "documents",
+      "area": "view",
+      "label": "Documents",
+      "icon": "Description",
+      "format": null,
+      "lookup": "none",
+      "grouping": "view_gallery",
+      "naming_template": null,
+      "misfit": "keep",
+      "default_handling": "read_only",
+      "tooltip": "PDFs, Office files and photos of paper. Text inside them can be searched.",
+      "order": 3,
+      "built_in": true,
+      "available": true
+    }
+  ]
+}

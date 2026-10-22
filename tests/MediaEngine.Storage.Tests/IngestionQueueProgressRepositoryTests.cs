@@ -239,6 +239,35 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
         Assert.Equal(old.Id, joined.OperationId);
     }
 
+    // A Vault file never counts toward, or shows in, the ingestion queue an administrator sees (Videos spec D17, WP17).
+    [Fact]
+    public async Task FileInAVaultLibrary_IsNeverInTheQueue_ButAnOrdinaryOneIs()
+    {
+        var libraryId = Guid.NewGuid().ToString("D");
+        var admin = Guid.NewGuid();
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute(
+                "INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@admin,'Admin','#7C4DFF','Administrator',NULL,@now);",
+                new { admin, now = Now.ToString("O") });
+            conn.Execute(
+                "INSERT INTO vault_libraries(library_id, lookup_source, lookup_server_id, adults_confirmed_at, created_by_profile_id, created_at, updated_at) VALUES(@libraryId,'none',NULL,@now,@admin,@now,@now);",
+                new { libraryId, admin, now = Now.ToString("O") });
+        }
+
+        var (_, vaultAsset) = BuildAsset("Videos", libraryId);
+        var (_, normalAsset) = BuildAsset("Videos");
+
+        var secret = await AddOperationAsync("/vault/a.mkv", MediaOperationStage.QueuedIdentity, MediaOperationStatus.Running, Now.AddMinutes(-1));
+        await _operations.AttachEntityAsync(secret.Id, vaultAsset, "MediaAsset");
+        var ordinary = await AddOperationAsync("/watch/b.mkv", MediaOperationStage.QueuedIdentity, MediaOperationStatus.Running, Now.AddMinutes(-1));
+        await _operations.AttachEntityAsync(ordinary.Id, normalAsset, "MediaAsset");
+
+        var row = Assert.Single(await ReadRowsAsync(Now.AddHours(-1), secret.Id));
+
+        Assert.Equal(ordinary.Id, row.OperationId);
+    }
+
     [Fact]
     public async Task TheQueryUsesIndexesInsteadOfScanningMediaOperations()
     {
@@ -313,7 +342,7 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
             new { id = Guid.NewGuid(), entityId, trigger, status });
     }
 
-    private (Guid WorkId, Guid AssetId) BuildAsset(string mediaType)
+    private (Guid WorkId, Guid AssetId) BuildAsset(string mediaType, string? libraryId = null)
     {
         using var conn = _db.CreateConnection();
         var collectionId = Guid.NewGuid();
@@ -325,8 +354,8 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
             INSERT INTO collections (id, created_at) VALUES (@collectionId, datetime('now'));
             INSERT INTO works (id, collection_id, media_type) VALUES (@workId, @collectionId, @mediaType);
             INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
-            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status)
-                VALUES (@assetId, @editionId, @hash, @filePath, 'Normal');
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status, library_id)
+                VALUES (@assetId, @editionId, @hash, @filePath, 'Normal', @libraryId);
             """,
             new
             {
@@ -335,6 +364,7 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
                 editionId,
                 assetId,
                 mediaType,
+                libraryId,
                 hash = $"hash_{assetId:N}",
                 filePath = $"/library/{assetId:N}.bin",
             });

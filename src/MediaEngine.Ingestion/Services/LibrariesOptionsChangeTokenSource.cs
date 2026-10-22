@@ -13,14 +13,22 @@ namespace MediaEngine.Ingestion.Services;
 public sealed class LibrariesOptionsChangeTokenSource : IOptionsChangeTokenSource<IngestionOptions>, IDisposable
 {
     private readonly IConfigurationLoader? _configuration;
+    private readonly ILibraryKindSource? _kindSource;
     private readonly object _gate = new();
     private CancellationTokenSource _source = new();
 
-    public LibrariesOptionsChangeTokenSource(IConfigurationLoader configuration)
+    public LibrariesOptionsChangeTokenSource(IConfigurationLoader configuration, ILibraryKindSource? kindSource = null)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         _configuration = configuration;
         _configuration.ConfigurationChanged += OnConfigurationChanged;
+
+        // The folder list is built against the merged kinds, so a plugin's kinds changing refreshes it too.
+        _kindSource = kindSource;
+        if (_kindSource is not null)
+        {
+            _kindSource.Changed += Notify;
+        }
     }
 
     public string? Name => Options.DefaultName;
@@ -52,6 +60,11 @@ public sealed class LibrariesOptionsChangeTokenSource : IOptionsChangeTokenSourc
         if (_configuration is not null)
         {
             _configuration.ConfigurationChanged -= OnConfigurationChanged;
+        }
+
+        if (_kindSource is not null)
+        {
+            _kindSource.Changed -= Notify;
         }
 
         lock (_gate)

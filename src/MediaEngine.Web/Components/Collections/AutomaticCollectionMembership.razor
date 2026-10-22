@@ -13,13 +13,13 @@
                 <div class="automatic-membership__grid">
                     @foreach (var item in items)
                     {
-                        var small = ImageUrl(item, "s");
+                        var art = ImageUrl(item);
                         <a class="automatic-membership__item" href="@RouteFor(item)" aria-label="@($"Open {item.Title}")">
                             <div class="automatic-membership__art @ShapeFor(item)">
-                                @if (small is not null)
+                                @if (art is not null)
                                 {
-                                    <img src="@small" srcset="@MediaTileArtworkUrl.SrcSet(small, ImageUrl(item, "m"))"
-                                         sizes="(max-width: 600px) 96px, 112px" alt="" loading="lazy" decoding="async" />
+                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(art, DrawnPx)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(art, DrawnPx)"
+                                         alt="" loading="lazy" decoding="async" />
                                 }
                                 else
                                 {
@@ -73,10 +73,12 @@
         DetailEntityType.TvEpisode => "is-wide",
         _ => "is-portrait",
     };
-    private static string? ImageUrl(MediaGroupingItemViewModel item, string size) =>
+    // Drawn 112px wide, up to 168px tall for a portrait cover (AutomaticCollectionMembership.razor.css).
+    private const int DrawnPx = 168;
+    private static string? ImageUrl(MediaGroupingItemViewModel item) =>
         string.IsNullOrWhiteSpace(item.ArtworkUrl) ? null :
-        MediaTileArtworkUrl.Sized(item.ArtworkUrl, size)
-        ?? (Guid.TryParse(item.Id, out var id) ? $"/engine-image/stream/entity/work/{id:D}/cover?size={size}" : null);
+        MediaTileArtworkUrl.SupportsRenditions(item.ArtworkUrl) ? item.ArtworkUrl
+        : Guid.TryParse(item.Id, out var id) ? $"/engine-image/stream/entity/work/{id:D}/cover" : null;
     private static string RouteFor(MediaGroupingItemViewModel item) =>
         item.Actions.FirstOrDefault(action => action.Key == "open" && !string.IsNullOrWhiteSpace(action.Route))?.Route
         ?? $"/details/{(item.EntityType == DetailEntityType.MusicAlbum ? "musicalbum" : "work")}/{item.Id}";

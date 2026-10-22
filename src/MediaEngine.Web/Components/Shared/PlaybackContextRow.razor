@@ -18,7 +18,7 @@
             }
             else if (!string.IsNullOrWhiteSpace(ArtworkUrl))
             {
-                <img src="@LeadingArtworkUrl" srcset="@LeadingArtworkSrcSet" sizes="@LeadingArtworkSizes" alt="" loading="lazy" data-image-display="playback-context-thumbnail" />
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(ArtworkUrl, LeadingArtworkPx)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ArtworkUrl, LeadingArtworkPx)" alt="" loading="lazy" decoding="async" data-image-display="playback-context-thumbnail" />
             }
             else if (!string.IsNullOrWhiteSpace(LeadingText))
             {
@@ -51,7 +51,7 @@ else
         }
         else if (!string.IsNullOrWhiteSpace(ArtworkUrl))
         {
-            <img src="@LeadingArtworkUrl" srcset="@LeadingArtworkSrcSet" sizes="@LeadingArtworkSizes" alt="" loading="lazy" data-image-display="playback-context-thumbnail" />
+            <img src="@MediaTileArtworkUrl.ForDrawnSize(ArtworkUrl, LeadingArtworkPx)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ArtworkUrl, LeadingArtworkPx)" alt="" loading="lazy" decoding="async" data-image-display="playback-context-thumbnail" />
         }
         else if (!string.IsNullOrWhiteSpace(LeadingText))
         {
@@ -100,7 +100,6 @@ else
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
     [Parameter] public string? Subtitle { get; set; }
     [Parameter] public string? ArtworkUrl { get; set; }
-    [Parameter] public string LeadingArtworkSizes { get; set; } = "56px";
     [Parameter] public string LeadingWidth { get; set; } = string.Empty;
     [Parameter] public string? LeadingText { get; set; }
     [Parameter] public string? Duration { get; set; }
@@ -119,8 +118,8 @@ else
     private string NormalizedVariant => Variant switch { "chapter" => "chapter", "history" => "history", "history-duration" => "history-duration", _ => "default" };
     private bool IsChapterVariant => NormalizedVariant == "chapter";
     private string LeadingStyle => $"--playback-context-leading-width:{(string.IsNullOrWhiteSpace(LeadingWidth) ? IsChapterVariant ? "20px" : NormalizedVariant.StartsWith("history", StringComparison.Ordinal) ? "80px" : "56px" : LeadingWidth)};";
-    private string LeadingArtworkUrl => MediaTileArtworkUrl.Sized(ArtworkUrl, "s") ?? ArtworkUrl ?? string.Empty;
-    private string? LeadingArtworkSrcSet => MediaTileArtworkUrl.SrcSet(MediaTileArtworkUrl.Sized(ArtworkUrl, "s"), MediaTileArtworkUrl.Sized(ArtworkUrl, "m"));
+    // The thumbnail is drawn 56px square (PlaybackContextRow.razor.css).
+    private const int LeadingArtworkPx = 56;
     private string ResolvedAriaLabel => string.IsNullOrWhiteSpace(AriaLabel) ? string.Join(" ", new[] { Title, Subtitle }.Where(value => !string.IsNullOrWhiteSpace(value))) : AriaLabel;
     private Task HandleClickAsync(MouseEventArgs _) => OnClick.InvokeAsync();
 }

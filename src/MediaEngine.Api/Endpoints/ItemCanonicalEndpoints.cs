@@ -64,7 +64,7 @@ public static class ItemCanonicalEndpoints
             IMetadataClaimRepository claimRepo,
             ICanonicalValueRepository canonicalRepo,
             ISystemActivityRepository activityRepo,
-            IWriteBackService writeBack,
+            IFileWriteQueue fileWrites,
             IEventPublisher publisher,
             IWorkRepository workRepo,
             IItemCanonicalRepository itemCanonicalData,
@@ -199,7 +199,7 @@ public static class ItemCanonicalEndpoints
             {
                 if (canonicalUpdatedKeys.Count > 0)
                 {
-                    await writeBack.WriteMetadataAsync(context.AssetId, "item_preferences", ct);
+                    await fileWrites.EnqueueAssetAsync(context.AssetId, "item_preferences", ct);
                 }
             }
             catch (Exception ex)
@@ -443,7 +443,7 @@ public static class ItemCanonicalEndpoints
             return Results.Ok(new VideoRenameResponse { Renamed = result.Renamed, Skipped = result.Skipped + result.Failed });
         })
         .WithName("RenameVideoFilesToOrder")
-        .WithSummary("Rename the files of a series to match its order. Managed folders only; refused for as-is or read-only folders.")
+        .WithSummary("Rename the files of a series to match its order. Managed folders only; refused for read-only folders.")
         .Produces<VideoRenameResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict)
@@ -627,6 +627,7 @@ public static class ItemCanonicalEndpoints
             IMediaAssetRepository assets,
             ILibraryFolderResolver libraries,
             IVideoOnlineLookup lookup,
+            IProviderAudienceGate audienceGate,
             IMetadataClaimRepository claimRepo,
             ICanonicalValueRepository canonicalRepo,
             ISystemActivityRepository activityRepo,
@@ -648,6 +649,12 @@ public static class ItemCanonicalEndpoints
             if (asset is null || libraries.ResolveForPath(asset.FilePathRoot)?.YoutubeLookup != true)
             {
                 return ApiErrors.Conflict("Online lookup is switched off for this library. Turn it on in Settings first.");
+            }
+
+            // YouTube is never asked about a Vault video, even if its library's switch says yes (Videos spec D21, D26).
+            if (!await audienceGate.MayAskAboutItemAsync("youtube", membership.AssetId, ct))
+            {
+                return ApiErrors.Conflict("Online lookup from YouTube is not available for this library.");
             }
 
             var info = await lookup.LookupAsync(videoId, ct);
@@ -802,12 +809,19 @@ public static class ItemCanonicalEndpoints
             IItemCanonicalRepository itemCanonicalData,
             IHttpClientFactory httpFactory,
             IMemoryCache cache,
+            [Microsoft.AspNetCore.Mvc.FromServices] IExternalLookupGuard lookupGuard,
             CancellationToken ct) =>
         {
             var context = await itemCanonicalData.ResolveWorkAssetContextAsync(entityId, ct);
             if (context is null)
             {
                 return ApiErrors.NotFound($"No current media asset or work target found for {entityId}.");
+            }
+
+            // The search asks retail providers and Wikidata, so it is refused where the library never looks anything up.
+            if (await RefuseInLibraryThatNeverLooksAnythingUpAsync(lookupGuard, context.AssetId, ct) is { } refused)
+            {
+                return refused;
             }
 
             var mediaType = ResolveMediaType(request.MediaType, context.MediaType);
@@ -945,7 +959,7 @@ public static class ItemCanonicalEndpoints
             ICanonicalValueRepository canonicalRepo,
             IBridgeIdRepository bridgeIdRepo,
             ISystemActivityRepository activityRepo,
-            IWriteBackService writeBack,
+            IFileWriteQueue fileWrites,
             IEventPublisher publisher,
             ICollectionRepository collectionRepo,
             IWorkRepository workRepo,
@@ -1153,7 +1167,7 @@ public static class ItemCanonicalEndpoints
 
             try
             {
-                await writeBack.WriteMetadataAsync(context.AssetId, "item_canonical_apply", ct);
+                await fileWrites.EnqueueAssetAsync(context.AssetId, "item_canonical_apply", ct);
             }
             catch (Exception ex)
             {
@@ -1324,12 +1338,19 @@ public static class ItemCanonicalEndpoints
             AppleRetailClient apple,
             ProviderApiClient tvdb,
             IEnumerable<IExternalMetadataProvider> externalProviders,
+            [Microsoft.AspNetCore.Mvc.FromServices] IExternalLookupGuard lookupGuard,
             CancellationToken ct) =>
         {
             var context = await itemCanonicalData.ResolveWorkAssetContextAsync(entityId, ct);
             if (context is null)
             {
                 return ApiErrors.NotFound($"No current media asset or work target found for {entityId}.");
+            }
+
+            // The preview verifies the candidate with the provider, so it is refused where the library never looks anything up.
+            if (await RefuseInLibraryThatNeverLooksAnythingUpAsync(lookupGuard, context.AssetId, ct) is { } refused)
+            {
+                return refused;
             }
             if (string.IsNullOrWhiteSpace(request.ProviderName) || string.IsNullOrWhiteSpace(request.ProviderItemId)
                 || !Guid.TryParse(request.ProviderId, out var providerId))
@@ -1430,12 +1451,20 @@ public static class ItemCanonicalEndpoints
             AppleRetailClient apple,
             IEnumerable<IExternalMetadataProvider> externalProviders,
             ILoggerFactory loggerFactory,
+            [Microsoft.AspNetCore.Mvc.FromServices] IExternalLookupGuard lookupGuard,
             CancellationToken ct) =>
         {
             var context = await itemCanonicalData.ResolveWorkAssetContextAsync(entityId, ct);
             if (context is null)
             {
                 return ApiErrors.NotFound($"No current media asset or work target found for {entityId}.");
+            }
+
+            // A library that never looks anything up (a plain kind such as Other audio) takes no retail match: nothing is sent to a
+            // provider and no provider claim is written. This is refused here, not left to the identity queue to ignore.
+            if (await RefuseInLibraryThatNeverLooksAnythingUpAsync(lookupGuard, context.AssetId, ct) is { } refused)
+            {
+                return refused;
             }
 
             if (string.IsNullOrWhiteSpace(request.ProviderName) || string.IsNullOrWhiteSpace(request.ProviderItemId))
@@ -2212,6 +2241,12 @@ public static class ItemCanonicalEndpoints
         !string.IsNullOrWhiteSpace(requestedMediaType)
             ? requestedMediaType
             : (string.IsNullOrWhiteSpace(fallbackMediaType) ? MediaType.Unknown.ToString() : fallbackMediaType);
+
+    /// <summary>The plain refusal for a retail match on an item whose library never looks anything up, or null when the item may be matched.</summary>
+    internal static async Task<IResult?> RefuseInLibraryThatNeverLooksAnythingUpAsync(IExternalLookupGuard lookupGuard, Guid assetId, CancellationToken ct) =>
+        await lookupGuard.BlocksEntityAsync(assetId, ct)
+            ? ApiErrors.Conflict("This item's library never looks anything up, so a retail match can't be applied. Change what this folder is to look it up.")
+            : null;
 
     internal static bool IsRetailProviderAllowed(string mediaType, string providerName, Guid providerId) =>
         MediaTypeParser.Parse(mediaType) != MediaType.TV

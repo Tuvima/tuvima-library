@@ -4,6 +4,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Api.Services.Settings;
+using MediaEngine.Api.Services.Tools;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Domain.Configuration;
@@ -114,7 +115,7 @@ public static class SetupEndpoints
             var network = configuration.LoadNetwork();
             network.Local.PreferredServerName = hostName;
             configuration.SaveNetwork(network);
-            await onboarding.SetStepAsync("server", "passed", $"Named \"{serverName}\" ({hostName}.local).", null, null, ct).ConfigureAwait(false);
+            await onboarding.SetStepAsync("server", "passed", $"This server is called \"{serverName}\" and shows up on your home network as {hostName}.local.", null, null, ct).ConfigureAwait(false);
             return Results.Ok(new SetupServerIdentityDto(serverName, hostName));
         }).Produces<SetupServerIdentityDto>();
 
@@ -150,6 +151,19 @@ public static class SetupEndpoints
                 result.Passed ? null : "/setup?step=preflight", null, ct).ConfigureAwait(false);
             return Results.Ok(result);
         }).Produces<SetupPreflightDto>();
+
+        // The server check's tools list on its own, so setup can follow a download's progress without repeating the path checks.
+        group.MapGet("/tools", async (
+            HttpContext context, ClaimsPrincipal user, SetupSessionService sessions,
+            [FromServices] IToolRequirementsService tools, CancellationToken ct) =>
+        {
+            if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
+            {
+                return Results.Unauthorized();
+            }
+
+            return Results.Ok(await tools.GetAsync(ct).ConfigureAwait(false));
+        }).Produces<ToolRequirementsDto>();
 
         group.MapPost("/administrator", async (
             SetupAdministratorRequest request, HttpContext context, ClaimsPrincipal user,
@@ -238,19 +252,34 @@ public static class SetupEndpoints
 
         group.MapGet("/libraries", async (
             HttpContext context, ClaimsPrincipal user, SetupSessionService sessions,
-            IConfigurationLoader configuration, CancellationToken ct) =>
+            IConfigurationLoader configuration, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
             if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
             {
                 return Results.Unauthorized();
             }
 
-            return Results.Ok(SettingsContractMapper.ToContract(configuration.LoadLibraries()));
+            // The Vault is in no library list, including the one setup shows (Videos spec D45).
+            return Results.Ok(SettingsContractMapper.ToContract(
+                MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(
+                    configuration.LoadLibraries(), await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false)), configuration));
         }).Produces<LibrariesConfigurationDto>();
+
+        group.MapGet("/library-kinds", async (
+            HttpContext context, ClaimsPrincipal user, SetupSessionService sessions,
+            [FromServices] LibraryKindListService kinds, CancellationToken ct) =>
+        {
+            if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
+            {
+                return Results.Unauthorized();
+            }
+
+            return Results.Ok(kinds.GetDtos());
+        }).Produces<IReadOnlyList<LibraryKindDto>>();
 
         group.MapPut("/libraries", async (
             UpdateLibrariesRequest request, HttpContext context, ClaimsPrincipal user,
-            SetupSessionService sessions, IConfigurationLoader configuration, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, CancellationToken ct) =>
+            SetupSessionService sessions, IConfigurationLoader configuration, [FromServices] LibraryKindListService libraryKinds, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, CancellationToken ct) =>
         {
             if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
             {
@@ -258,17 +287,18 @@ public static class SetupEndpoints
             }
 
             var config = SettingsContractMapper.ToStorage(request);
+            libraryKinds.NormaliseLookupFields(config);
             var error = SettingsEndpoints.ValidateViewStorage(config)
                 ?? SettingsEndpoints.ValidateViewRootChange(configuration.LoadLibraries(), config)
-                ?? LibraryTypeRules.ValidateOneLibraryPerType(configuration.LoadLibraries(), config)
                 ?? ImportFolderValidation.Validate(config)
+                ?? libraryKinds.ValidateLibraries(config)
                 ?? SettingsEndpoints.ValidateConfiguredPaths(config);
             if (error is not null)
             {
                 return ApiErrors.BadRequest(error);
             }
 
-            var validationErrors = JsonConfigValidator.Validate(config, "libraries.json");
+            var validationErrors = JsonConfigValidator.Validate(config, "libraries.json", configuration.LoadLibraryKinds().Kinds);
             if (validationErrors.Count > 0)
             {
                 return ApiErrors.BadRequest(string.Join(" ", validationErrors));
@@ -284,7 +314,7 @@ public static class SetupEndpoints
 
             // Setup only prepares the folders; the engine starts watching once first-run setup is complete.
             context.RequestServices.GetService<MediaEngine.Api.Services.Settings.ImportFolderApplier>()?.CreateFolders();
-            return Results.Ok(SettingsContractMapper.ToContract(config));
+            return Results.Ok(SettingsContractMapper.ToContract(config, configuration));
         }).Produces<LibrariesConfigurationDto>()
           .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -309,7 +339,7 @@ public static class SetupEndpoints
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(service.Browse(request)); }
+            try { return Results.Ok(service.Browse(request, await context.HiddenVaultFolderRootsAsync(ct).ConfigureAwait(false))); }
             catch (ServerFolderAccessException exception) { return ApiErrors.BadRequest(exception.Message); }
         }).Produces<BrowseServerFoldersResultDto>();
 
@@ -322,7 +352,7 @@ public static class SetupEndpoints
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(service.Validate(request)); }
+            try { return Results.Ok(service.Validate(request, await context.HiddenVaultFolderRootsAsync(ct).ConfigureAwait(false))); }
             catch (ServerFolderAccessException exception) { return ApiErrors.BadRequest(exception.Message); }
         }).Produces<ServerFolderValidationResultDto>();
 

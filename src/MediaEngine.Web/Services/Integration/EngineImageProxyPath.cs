@@ -99,6 +99,30 @@ public static class EngineImageProxyPath
             return true;
         }
 
+        // The Vault's own artwork (Videos spec D41). The Engine answers only a session with Vault mode on, and marks it uncacheable.
+        if (segments.Length == 5
+            && segments[0].Equals("api", StringComparison.OrdinalIgnoreCase)
+            && segments[1].Equals("v1", StringComparison.OrdinalIgnoreCase)
+            && segments[2].Equals("vault", StringComparison.OrdinalIgnoreCase)
+            && segments[3].Equals("artwork", StringComparison.OrdinalIgnoreCase)
+            && Guid.TryParse(segments[4], out _))
+        {
+            return true;
+        }
+
+        // A Vault image's thumbnail and preview (Videos spec D44). Same rule as the artwork above: only a session with Vault mode on is answered.
+        if (segments.Length == 6
+            && segments[0].Equals("api", StringComparison.OrdinalIgnoreCase)
+            && segments[1].Equals("v1", StringComparison.OrdinalIgnoreCase)
+            && segments[2].Equals("vault", StringComparison.OrdinalIgnoreCase)
+            && segments[3].Equals("images", StringComparison.OrdinalIgnoreCase)
+            && Guid.TryParse(segments[4], out _)
+            && (segments[5].Equals("thumbnail", StringComparison.OrdinalIgnoreCase)
+                || segments[5].Equals("preview", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
         return segments.Length == 3
             && segments[0].Equals("persons", StringComparison.OrdinalIgnoreCase)
             && Guid.TryParse(segments[1], out _)

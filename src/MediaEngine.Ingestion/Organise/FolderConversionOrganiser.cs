@@ -33,7 +33,7 @@ public sealed class FolderConversionOrganiser
     private readonly SidecarMover _sidecars;
     private readonly IOrganiseFileMover _mover;
     private readonly IOptionsMonitor<IngestionOptions> _options;
-    private readonly IWriteBackOutcomeService? _writeBack;
+    private readonly IFileWriteQueue? _fileWrites;
     private readonly IFileHashCacheRepository? _hashCache;
     private readonly ILogger<FolderConversionOrganiser> _logger;
 
@@ -52,7 +52,7 @@ public sealed class FolderConversionOrganiser
         IOrganiseFileMover mover,
         IOptionsMonitor<IngestionOptions> options,
         ILogger<FolderConversionOrganiser> logger,
-        IWriteBackOutcomeService? writeBack = null,
+        IFileWriteQueue? fileWrites = null,
         IFileHashCacheRepository? hashCache = null)
     {
         _auto = auto;
@@ -68,7 +68,7 @@ public sealed class FolderConversionOrganiser
         _sidecars = sidecars;
         _mover = mover;
         _options = options;
-        _writeBack = writeBack;
+        _fileWrites = fileWrites;
         _hashCache = hashCache;
         _logger = logger;
     }
@@ -472,7 +472,7 @@ public sealed class FolderConversionOrganiser
         await _ledger.UpsertAsync(
             new FolderOrganiseLogEntry(
                 entry.OperationId, entry.SourceId, entry.OldPath, entry.NewPath, FolderOrganiseOutcomes.Moved,
-                DateTimeOffset.UtcNow, "Finished after the folder was switched to As-is; nothing else was changed."),
+                DateTimeOffset.UtcNow, "Finished after the folder was switched to Read-only; nothing else was changed."),
             ct).ConfigureAwait(false);
     }
 
@@ -857,19 +857,20 @@ public sealed class FolderConversionOrganiser
 
     private async Task WriteTagsAsync(Guid assetId, FolderConversionContext context, CancellationToken ct)
     {
-        if (!context.WriteTags || _writeBack is null)
+        if (!context.WriteTags || _fileWrites is null)
         {
             return;
         }
 
         try
         {
-            await _writeBack.WriteMetadataWithOutcomeAsync(assetId, "auto_match", ct).ConfigureAwait(false);
+            // The tags wait on the file write list and are written on the schedule.
+            await _fileWrites.EnqueueAssetAsync(assetId, "auto_match", ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // A file whose tags could not be written keeps its new name; the re-tag sweep raises a Review item for it.
-            _logger.LogDebug(ex, "Tags could not be written for asset {AssetId} after it moved", assetId);
+            // A file whose tags could not be queued keeps its new name; the re-tag sweep raises a Review item for it.
+            _logger.LogDebug(ex, "Tags could not be queued for asset {AssetId} after it moved", assetId);
         }
     }
 

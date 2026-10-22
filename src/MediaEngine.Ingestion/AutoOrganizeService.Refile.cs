@@ -1,4 +1,5 @@
 using MediaEngine.Domain.Constants;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
@@ -40,7 +41,7 @@ public sealed partial class AutoOrganizeService
         // The folder decides before anything else: an As-is folder is only ever read, a read-only one is never written.
         if (!resolved.Source.IsManaged)
         {
-            return AssetRefilePlan.Of(AssetRefileDisposition.AsIs, current, "The file is in an As-is folder, so it is only ever read.");
+            return AssetRefilePlan.Of(AssetRefileDisposition.AsIs, current, "The file is in a Read-only folder, so it is only ever read.");
         }
 
         if (!resolved.Source.IsWritable)
@@ -98,7 +99,14 @@ public sealed partial class AutoOrganizeService
     }
 
     /// <inheritdoc/>
-    public async Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default)
+    public Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default) =>
+        RefileCoreAsync(assetId, null, ct);
+
+    /// <inheritdoc/>
+    public Task<AssetRefileOutcome> RefileAsync(Guid assetId, IRefileStepRecorder steps, CancellationToken ct = default) =>
+        RefileCoreAsync(assetId, steps, ct);
+
+    private async Task<AssetRefileOutcome> RefileCoreAsync(Guid assetId, IRefileStepRecorder? steps, CancellationToken ct)
     {
         // The plan is made again from the library as it is now, and the policy is asked again: whatever the preview said, a file that
         // became protected or whose new name was taken since is left alone.
@@ -120,7 +128,14 @@ public sealed partial class AutoOrganizeService
             return new AssetRefileOutcome(AssetRefileOutcomeKind.Kept, AssetRefileDisposition.Unavailable, plan.CurrentPath, "The file is no longer in the library.");
         }
 
-        var relocated = await MoveFiledAssetAsync(asset, assetId, null, plan.TargetPath!, "after a library move", ct).ConfigureAwait(false);
+        // The step is written down before the disk is touched, so a stop from here on can always be finished or undone.
+        if (steps is not null)
+        {
+            await steps.PlannedAsync(plan.CurrentPath, plan.TargetPath!, ct).ConfigureAwait(false);
+        }
+
+        var relocated = await MoveFiledAssetAsync(asset, assetId, null, plan.TargetPath!, "after a library move", ct, steps)
+            .ConfigureAwait(false);
         if (relocated is null)
         {
             const string failed = "The file could not be renamed and moved (it may be in use). It will be tried again.";
@@ -129,6 +144,18 @@ public sealed partial class AutoOrganizeService
         }
 
         return new AssetRefileOutcome(AssetRefileOutcomeKind.Moved, AssetRefileDisposition.Moves, relocated, null);
+    }
+
+    /// <inheritdoc/>
+    public async Task CompleteInterruptedMoveAsync(Guid assetId, string sourcePath, string targetPath, CancellationToken ct = default)
+    {
+        var asset = await _assetRepo.FindByIdAsync(assetId, ct).ConfigureAwait(false);
+        if (asset is null || !File.Exists(targetPath))
+        {
+            return;
+        }
+
+        await FinishMovedAssetAsync(assetId, null, sourcePath, targetPath, "after a library move was interrupted", ct).ConfigureAwait(false);
     }
 
     /// <summary>Says in the activity history and the logs why a file stayed where it is after a move. The library change stands.</summary>

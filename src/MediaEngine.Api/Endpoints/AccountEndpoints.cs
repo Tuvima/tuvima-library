@@ -592,7 +592,7 @@ public static class AccountEndpoints
 
             await mutations.SetAdminProtectionAsync(await resolver.ResolveAsync(http, ct), accountId,
                 profileId, new GrantAdminProtectionCommand(
-                    request.Enabled, request.Pin, mode, request.UnlockMinutes), ct);
+                    request.Enabled, mode, request.UnlockMinutes), ct);
             return Results.NoContent();
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("SetAccountProfileAdminProtection").Produces(StatusCodes.Status204NoContent);
@@ -624,8 +624,10 @@ public static class AccountEndpoints
     private static void MapManagedProfiles(RouteGroupBuilder access)
     {
         access.MapGet("/libraries", async (HttpContext http, IRequestAuthorityResolver resolver,
-            IAccountRepository accounts, IConfigurationLoader configuration, CancellationToken ct) =>
+            IAccountRepository accounts, IConfigurationLoader configuration, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
+            // The Vault is in no library list, not even the one an administrator picks grants from (Videos spec D45).
+            var vaultIds = await vaultLibraries.GetIdsAsync(ct);
             // A household administrator can only hand out what the household already has.
             var household = await HouseholdOnlyScopeAsync(http, resolver, ct);
             IReadOnlySet<Guid>? allowed = null;
@@ -637,7 +639,7 @@ public static class AccountEndpoints
             }
 
             var values = configuration.LoadLibraries().Libraries
-                .Where(library => library.Kind == LibraryKinds.Catalogued &&
+                .Where(library => library.Kind == LibraryKinds.Catalogued && !vaultIds.Contains(library.Id) &&
                     Guid.TryParse(library.Id, out var id) && (allowed is null || allowed.Contains(id)))
                 .Select(library => new AccessLibraryOptionDto(Guid.Parse(library.Id),
                     library.Name, library.Category, library.Area))
@@ -932,8 +934,7 @@ public static class AccountEndpoints
                 profile.AvatarImagePath, grant.IsDefault, grant.IsEnabled, grant.AdminEnabled,
                 new GrantAdminProtectionDto(protection?.IsEnabled == true,
                     protection?.UnlockMode ?? AdminUnlockMode.FixedDuration.ToString(),
-                    protection?.UnlockMinutes, protection?.ProtectionVersion ?? 0,
-                    protection?.LockedUntil > DateTimeOffset.UtcNow, protection?.LockedUntil),
+                    protection?.UnlockMinutes, protection?.ProtectionVersion ?? 0),
                 grant.AuthorizationVersion, grant.GrantedAt,
                 profile.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile));
         }

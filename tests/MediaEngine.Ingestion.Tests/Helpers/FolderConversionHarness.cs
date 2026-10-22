@@ -13,6 +13,23 @@ using Microsoft.Extensions.Options;
 
 namespace MediaEngine.Ingestion.Tests.Helpers;
 
+/// <summary>Remembers each file the organiser asks to have written; writes nothing.</summary>
+internal sealed class RecordingFileWrites : IFileWriteQueue
+{
+    public List<(Guid AssetId, string Trigger)> Queued { get; } = [];
+
+    public Task EnqueueAssetAsync(Guid assetId, string trigger, CancellationToken ct = default) =>
+        EnqueueAssetsAsync([assetId], trigger, ct);
+
+    public Task EnqueueAssetsAsync(IReadOnlyCollection<Guid> assetIds, string trigger, CancellationToken ct = default)
+    {
+        Queued.AddRange(assetIds.Select(id => (id, trigger)));
+        return Task.CompletedTask;
+    }
+
+    public Task EnqueueViewItemAsync(Guid localItemId, string trigger, CancellationToken ct = default) => Task.CompletedTask;
+}
+
 /// <summary>
 /// A real folder conversion setup on temp folders and a real data store: a Movies library with one folder, the real
 /// organiser, ledger, runner and previewer. Only the rename itself goes through a seam so a file in use, or a stop right
@@ -38,6 +55,7 @@ internal sealed class FolderConversionHarness : IDisposable
     public StubEventPublisher Publisher { get; } = new();
     public ScriptedMover Mover { get; }
     public RecordingIntake Intake { get; } = new();
+    public RecordingFileWrites FileWrites { get; } = new();
     public IngestionOptions Options { get; }
     public FolderConversionOrganiser Organiser { get; }
     public FolderOrganiseRunner Runner { get; }
@@ -62,6 +80,7 @@ internal sealed class FolderConversionHarness : IDisposable
                     Id = LibraryId,
                     Name = "Movies",
                     Kind = LibraryKinds.Catalogued,
+                    KindKey = "movies",
                     MediaTypes = ["Movies"],
                     Sources = [Source(managed)],
                     PrimaryDestinationSourceId = managed ? SourceId.ToString("D") : null,
@@ -119,7 +138,8 @@ internal sealed class FolderConversionHarness : IDisposable
             sidecars,
             Mover,
             monitor,
-            NullLogger<FolderConversionOrganiser>.Instance);
+            NullLogger<FolderConversionOrganiser>.Instance,
+            fileWrites: FileWrites);
         Runner = new FolderOrganiseRunner(
             Config,
             Assets,

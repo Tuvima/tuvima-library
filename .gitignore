@@ -169,3 +169,7 @@ website/external-links-report.json
 # webOS package build output
 clients/tv-web/platforms/webos/build/
 clients/tv-web/platforms/webos/dist/
+
+# Stash-box server list (addresses and order only; keys live in config/secrets)
+config/stashbox_servers.json
+config/stashbox_servers.json.tmp

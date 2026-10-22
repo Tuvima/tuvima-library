@@ -145,6 +145,12 @@ public interface IPersonRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Returns the people who have a saved face file (<c>local_headshot_path</c>) but no managed Headshot picture,
+    /// so the file can be registered with its sized copies. Roles are not loaded.
+    /// </summary>
+    Task<IReadOnlyList<Person>> GetWithLocalHeadshotWithoutManagedAssetAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Returns a single person by ID, or <c>null</c> if not found.
     /// </summary>
     Task<Person?> FindByIdAsync(

@@ -139,6 +139,10 @@ public sealed class LibraryFolderConfig
     [JsonPropertyName("kind")]
     public string Kind { get; set; } = LibraryKinds.Catalogued;
 
+    /// <summary>The library kind (<c>library_kinds.json</c>) this library holds, for example <c>movies</c> or <c>other_videos</c>. Required for catalogued libraries.</summary>
+    [JsonPropertyName("kind_key")]
+    public string KindKey { get; set; } = string.Empty;
+
     [JsonPropertyName("area")]
     public string Area { get; set; } = LibraryAreas.Read;
 
@@ -151,7 +155,7 @@ public sealed class LibraryFolderConfig
     [JsonPropertyName("media_types")]
     public List<string> MediaTypes { get; set; } = [];
 
-    /// <summary>Videos libraries only: ask YouTube about videos named by a YouTube ID (sends only the ID). On by default.</summary>
+    /// <summary>Videos libraries only: ask YouTube about videos named by a YouTube ID (sends only the ID). The library's kind decides it: the YouTube kind asks, a plain kind (Other videos) never does and must say false here, and a library with no kind follows this field.</summary>
     [JsonPropertyName("youtube_lookup")]
     public bool YoutubeLookup { get; set; } = true;
 

@@ -12,6 +12,7 @@ public static class ApplicationEventServiceCollectionExtensions
     {
         services.AddSingleton<ApplicationEventRegistry>();
         services.AddSingleton<IntercomAudienceRegistry>();
+        services.AddSingleton<IVaultPathClassifier, VaultPathClassifier>();
         services.AddSingleton<IIntercomAudienceAuthorizer, IntercomAudienceAuthorizer>();
         services.AddSingleton<IApplicationEventRepository, ApplicationEventRepository>();
         services.AddSingleton<IApplicationEventOutboxWriter, ApplicationEventOutboxWriter>();

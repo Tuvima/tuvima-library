@@ -190,7 +190,8 @@ public sealed class HouseholdAdministratorTests
     {
         await using var world = await World.CreateAsync();
         var ownerProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.A.Owner.Id))!.Value;
-        var command = new GrantAdminProtectionCommand(true, "123456", AdminUnlockMode.FixedDuration, 30);
+        await world.Mutations.SetProfilePinAsync(world.AdminOfA, ownerProfile, "123456");
+        var command = new GrantAdminProtectionCommand(true, AdminUnlockMode.FixedDuration, 30);
 
         await world.Mutations.SetAdminProtectionAsync(world.AdminOfA, world.A.Owner.Id, ownerProfile, command);
         var protection = await world.Accounts.GetAdminProtectionAsync(world.A.Owner.Id, ownerProfile);
@@ -202,6 +203,24 @@ public sealed class HouseholdAdministratorTests
             world.AdminOfA, world.B.Owner.Id, otherProfile, command));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.SetAdminProtectionAsync(
             world.MemberOfA, world.A.Owner.Id, ownerProfile, command));
+    }
+
+    [Fact]
+    public async Task AdminPagesPin_CannotBeTurnedOn_WithoutAProfilePin_ButCanAlwaysBeTurnedOff()
+    {
+        await using var world = await World.CreateAsync();
+        var ownerProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.A.Owner.Id))!.Value;
+
+        // No PIN on the profile: the switch cannot go on (there is nothing to ask for), and nothing is saved.
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.SetAdminProtectionAsync(
+            world.AdminOfA, world.A.Owner.Id, ownerProfile, new GrantAdminProtectionCommand(true, AdminUnlockMode.FixedDuration, 30)));
+        Assert.Contains("Set a PIN on this profile first", refused.Message, StringComparison.Ordinal);
+        Assert.False((await world.Accounts.GetAdminProtectionAsync(world.A.Owner.Id, ownerProfile))?.IsEnabled ?? false);
+
+        // Off needs no PIN at all, so administrator functions keep working for a profile that never set one.
+        await world.Mutations.SetAdminProtectionAsync(
+            world.AdminOfA, world.A.Owner.Id, ownerProfile, new GrantAdminProtectionCommand(false, AdminUnlockMode.FixedDuration, 30));
+        Assert.False((await world.Accounts.GetAdminProtectionAsync(world.A.Owner.Id, ownerProfile))!.IsEnabled);
     }
 
     [Fact]
@@ -373,7 +392,6 @@ public sealed class HouseholdAdministratorTests
                 world._configuration,
                 world.Decisions,
                 new AllowEvaluator(),
-                new PasswordHasher<GrantAdminProtection>(),
                 new NoOpInvalidation(),
                 new NoOpAudit(),
                 identity,

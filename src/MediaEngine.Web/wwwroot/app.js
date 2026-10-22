@@ -3474,6 +3474,22 @@ window.listenPlayback = (function () {
     };
 })();
 
+// Details page rows remember, per kind of row, whether the person last opened or collapsed one (AppCollapsibleRow).
+window.detailRowState = {
+    get: function (kind) {
+        try {
+            const value = localStorage.getItem('detail-row-open:' + kind);
+            return value === 'true' ? true : value === 'false' ? false : null;
+        } catch (_) {
+            return null; // Blocked storage (a private window): the row keeps its starting state.
+        }
+    },
+    set: function (kind, open) {
+        try { localStorage.setItem('detail-row-open:' + kind, open ? 'true' : 'false'); }
+        catch (_) { /* Blocked storage: the choice lasts for this visit only. */ }
+    },
+};
+
 window.listenUi = {
     getMode: function () {
         return localStorage.getItem('listen-ui-mode');
@@ -3729,7 +3745,7 @@ window.scrollSequenceItem = (id, index, align = 'nearest', behavior = 'smooth') 
     if (!rail || !item) return;
 
     const unclampedLeft = align === 'center'
-        ? item.offsetLeft - ((rail.clientWidth - item.clientWidth) / 2)
+        ? rail.scrollLeft + item.getBoundingClientRect().left - rail.getBoundingClientRect().left - ((rail.clientWidth - item.clientWidth) / 2)
         : index === 0 ? 0 : item.offsetLeft - rail.offsetLeft - 8;
     const maximumLeft = Math.max(0, rail.scrollWidth - rail.clientWidth);
     rail.scrollTo({ left: Math.max(0, Math.min(maximumLeft, unclampedLeft)), behavior });

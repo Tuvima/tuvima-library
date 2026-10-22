@@ -59,7 +59,7 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
         _mutations = new AccountAccessMutationService(
             _accounts, identities, profiles, _configuration,
             new AllowAdministratorDecisions(), new AllowEvaluator(),
-            new PasswordHasher<GrantAdminProtection>(), new NoOpInvalidation(), new NoOpAudit(),
+            new NoOpInvalidation(), new NoOpAudit(),
             identity, new NoProfilePhotos(), TimeProvider.System, _slowCheck, new AuthenticationPolicyMutationGate());
     }
 

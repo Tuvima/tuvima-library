@@ -169,6 +169,7 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
                 LEFT JOIN canonical_values cover_work ON cover_work.entity_id = w.id AND cover_work.key = 'cover'
                 LEFT JOIN canonical_values cover_url_work ON cover_url_work.entity_id = w.id AND cover_url_work.key = 'cover_url'
                 WHERE w.work_kind != 'parent'
+                  AND {VaultSql.NotVaultAsset("ma.id")}
                   AND {visibleWorkPredicate}
                   AND {visibleAssetPredicate}
                   AND w.id IN @workIds

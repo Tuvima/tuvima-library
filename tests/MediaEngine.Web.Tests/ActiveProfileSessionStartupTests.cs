@@ -287,7 +287,7 @@ public sealed class ActiveProfileSessionStartupTests
         return new DashboardAuthorityResponse(
             ownerAccountId, profileId, accountEnabled, grantEnabled, 1, 1, true, true, null, 1,
             [new AccountProfileGrantDto(ownerAccountId, profileId, "Profile", null, true, profileGrantEnabled, true,
-                new GrantAdminProtectionDto(false, "UntilProfileSwitch", 30, 1, false, null), 1, DateTimeOffset.UnixEpoch)],
+                new GrantAdminProtectionDto(false, "UntilProfileSwitch", 30, 1), 1, DateTimeOffset.UnixEpoch)],
             [], []);
     }
 

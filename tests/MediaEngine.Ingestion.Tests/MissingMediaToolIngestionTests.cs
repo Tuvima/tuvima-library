@@ -346,7 +346,7 @@ public sealed class MissingMediaToolIngestionTests : IDisposable
             operationRepo,
             new MediaOperationEventRepository(db),
             publisher,
-            NullLogger<MediaOperationTracker>.Instance);
+            NullLogger<MediaOperationTracker>.Instance, new VaultLibraryRepository(db));
         var debounce = new DebounceQueue(new DebounceOptions
         {
             SettleDelay = TimeSpan.FromMilliseconds(1),
@@ -398,6 +398,7 @@ public sealed class MissingMediaToolIngestionTests : IDisposable
             new OrganizeStageDependencies(null),
             new WriteBackStageDependencies(new EntityAssetRepository(db), new AssetPathService(h.LibraryRoot), workRepo, null),
             new IdentityJobStageDependencies(new IdentityPipelineSignal()),
+            new NoVaultIngestionHook(),
             operationTracker: tracker,
             operationRepository: operationRepo,
             libraryFolderResolver: new LibraryFolderResolver(monitor),

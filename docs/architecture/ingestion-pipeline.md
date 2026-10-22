@@ -78,7 +78,7 @@ for them (never user-owned tracks), leftover `.tuvima.bak` copies and the folder
 leave empty, then clears the regenerable folders in `.data` (assets, staging, generated,
 sidecars-cache, variants).
 It deletes only inside managed, writable source folders and the library folder, never in
-as-is folders, the Import folder, the photo space or the data store, and it lists the
+read-only folders, the Import folder, the photo space or the data store, and it lists the
 files it kept because the Library did not create them. The full wipe (`wipeScope=full`),
 which empties every managed source folder, refuses when one of them holds the Library's
 data folder, the photo space or the Import folder. Development resets are refused while
@@ -117,14 +117,14 @@ The Engine is configured with logical **Libraries**, each declaring:
 | `area` | Read, Watch, Listen, or View |
 | `metadata_policy` | Enriched, local-preferred, local-only, or manual |
 | `sources` | Stable per-folder source identities and safety policy |
-| `primary_destination_source_id` | The one managed folder new media goes into (null when there is none); an as-is folder is never one |
+| `primary_destination_source_id` | The one managed folder new media goes into (null when there is none); a read-only folder is never one |
 | `accepted_intake_modes` | The direct intake mechanisms accepted by this library |
 
 Configuration lives in `config/libraries.json`. Schema 7 is required (older files are refused, not converted); obsolete top-level watch folders, flat source paths, read-only flags, and the removed per-folder role, intake, write-back and "accepts new media" fields are rejected.
 
 File watching is source-folder aware. Watcher noise is buffered for `Ingestion:FswQuietPeriodSeconds` seconds, defaulting to 30 seconds, before the buffered files are released to the debounce queue; each file then has its own `ingestion.file` operation and identity job, and nothing groups files into a run.
 
-**Watched folders follow the saved library folders.** The watchers are not built once at startup. `IngestionEngine` subscribes to `IOptionsMonitor<IngestionOptions>`, which re-reads `libraries.json` whenever it is saved (`LibrariesOptionsChangeTokenSource`), and `IngestionEngine.WatchedFolders.cs` reconciles the running watchers against the new folder list under one lock, so rapid saves cannot race. A folder that was added starts being watched (log line `Watching:`) and gets an initial scan of just that folder with the same known-path pre-filter as the startup scan, so files already ingested are not queued again. A folder that was removed stops being watched (`Stopped watching:`) and its polling-fallback state is dropped. A folder whose path or `include_subdirectories` setting changed is stopped and started again and re-scanned. Unchanged folders keep their watcher untouched. A folder that already has a watcher the engine did not start is kept when its subfolder setting matches and restarted when it does not. `IFileWatcher.RemoveDirectory` stops one folder without disturbing the others, and an event already in flight for a removed folder is dropped. A watched folder is only read: a missing as-is or read-only folder (an offline drive, a mistyped path) is logged and left unwatched rather than created, and only a managed writable folder or the Import folder may be created when missing. The source-mutation gate is unchanged.
+**Watched folders follow the saved library folders.** The watchers are not built once at startup. `IngestionEngine` subscribes to `IOptionsMonitor<IngestionOptions>`, which re-reads `libraries.json` whenever it is saved (`LibrariesOptionsChangeTokenSource`), and `IngestionEngine.WatchedFolders.cs` reconciles the running watchers against the new folder list under one lock, so rapid saves cannot race. A folder that was added starts being watched (log line `Watching:`) and gets an initial scan of just that folder with the same known-path pre-filter as the startup scan, so files already ingested are not queued again. A folder that was removed stops being watched (`Stopped watching:`) and its polling-fallback state is dropped. A folder whose path or `include_subdirectories` setting changed is stopped and started again and re-scanned. Unchanged folders keep their watcher untouched. A folder that already has a watcher the engine did not start is kept when its subfolder setting matches and restarted when it does not. `IFileWatcher.RemoveDirectory` stops one folder without disturbing the others, and an event already in flight for a removed folder is dropped. A watched folder is only read: a missing read-only folder (an offline drive, a mistyped path) is logged and left unwatched rather than created, and only a managed writable folder or the Import folder may be created when missing. The source-mutation gate is unchanged.
 
 Only the folder list and the Import folder move live. The engine keeps a separate, replaceable copy of the folder settings for this; every other ingestion setting (duplicate policy, library root, auto-organise, write-back, lock-probe and poll timings) is still read once at startup by the engine, exactly as before, and changing them still needs a restart. (Other services that read options through `IOptionsMonitor`, such as the file-source policy and the media-type resolver, already followed saves.) If a save cannot be turned into options (for example two folders overlap), no change reaches the engine and the watchers keep the folders they had until a valid save arrives; if such a save was made before the engine began listening, startup logs a warning and keeps the folders it started with.
 
@@ -195,7 +195,7 @@ The `.staging/` directory within the library root is excluded from library sourc
 
 ### Import folder
 
-The optional Import folder (storage location `incoming`) is watched like a library source but is not one: it is never a destination and no library claims it. `ImportFolderService` answers every question about it from the current configuration, so a change applies without a restart: where the folder is, which media type a per-type folder implies (`Movies`, `TV`, `Music`, `Books`, `Audiobooks`, `Comics`), and the one managed folder marked New media for a type (checked right now for being reachable, writable and roomy enough; an as-is folder is never returned and there is no fallback).
+The optional Import folder (storage location `incoming`) is watched like a library source but is not one: it is never a destination and no library claims it. `ImportFolderService` answers every question about it from the current configuration, so a change applies without a restart: where the folder is, which media type a per-type folder implies (`Movies`, `TV`, `Music`, `Books`, `Audiobooks`, `Comics`), and the one managed folder marked New media for a type (checked right now for being reachable, writable and roomy enough; a read-only folder is never returned and there is no fallback).
 
 A file takes the same path as every other file (Settle, Lock, Fingerprint, Scan, Identify), with these differences:
 
@@ -481,7 +481,7 @@ After Stage 3 retail metadata returns 3 or more claims, the pipeline can auto-re
 
 ## Writeback & Auto Re-tag Sweep
 
-Once a file is identified and enriched, `WriteBackService` embeds the canonical metadata back into the file itself so external players, re-ingestion, and library rebuilds see it without consulting the database. The per-media-type field list lives in `config/writeback-fields.json` - the single source of truth shared by the taggers and the media detail editor.
+Once a file is identified and enriched, the canonical metadata is queued for the file itself, so external players, re-ingestion, and library rebuilds see it without consulting the database. Each change saves straight away in the data store and adds or refreshes one row on the durable file-write list (`media_file_write_intents`). A later change to the same file replaces the earlier row. The scheduled run (`FileWriteScheduler`, interval `run_interval_minutes` in `config/writeback.json`) works through the list and writes each file once with its final values. Moves are described in [libraries, sources, and intake](library-model-and-intake.md). The per-media-type field list lives in `config/writeback-fields.json` - the single source of truth shared by the taggers and the media detail editor.
 
 ### Per-media-type writeback hash
 
@@ -499,14 +499,14 @@ A file is considered stale when its stored hash differs from the currently-compu
 - **Apply** - commits the pending diff to `CurrentHashes` and signals the worker to start a sweep.
 - **Run Now** - re-runs the sweep against the current hashes without applying a new diff (useful if a tagger version was bumped).
 
-No files are touched until the user clicks Apply or Run Now.
+No files are touched until the user clicks Apply or Run Now, and even then the sweep only queues each file: the scheduled file-write run writes it (see the write-back paragraph above).
 
 ### RetagSweepWorker
 
 A `BackgroundService` that wakes on either a cron schedule (`config/maintenance.json` -> `schedules.retag_sweep`, default `0 3 * * *`) or the `PendingApplied` signal from `WritebackConfigState`. Each pass:
 
 1. Calls `IMediaAssetRepository.GetStaleForRetagAsync` to find identified assets whose `writeback_fields_hash` differs from the current hash (or is NULL).
-2. Processes in batches, calling `WriteBackService.WriteMetadataAsync(assetId, "config_change")` for each asset. On success, the service stamps the new hash on the row.
+2. Processes in batches, queuing each asset with `IFileWriteQueue.EnqueueAssetAsync(assetId, "config_change")` (files already waiting are skipped). The scheduled run writes the file through `WriteBackService`, which stamps the new hash on the row on success.
 3. Classifies failures via `RetagFailureClassifier`:
    - **Locked** / **IoFailed** -> `ScheduleRetagRetryAsync` with the next off-hours window start. The sweep picks these up on the next run.
    - **Corrupt** / **Unknown** (after retries exhausted) -> inserts a `ReviewQueueEntry` with trigger `WritebackFailed`, routing the file to the Review Queue.

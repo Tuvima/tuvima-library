@@ -32,8 +32,8 @@ Provider stages are strict: Stage 1 provider metadata uses active configured pro
 ## Videos (home videos, clips and courses)
 
 **Library type:** Videos, in Watch. It is for files that are not films or TV shows: phone and camera footage, downloaded
-YouTube videos, lectures and courses. When you add a folder, Tuvima asks whether it is **Videos (Watch)** or **Photos and
-videos (View)**; a folder of untouched phone footage is suggested for View.
+YouTube videos, lectures and courses. You add it by choosing Watch and then Videos in the Add folder dialog;
+phone and home footage belongs under View, and a folder of untouched phone footage is offered a switch to View.
 
 ### Supported formats
 
@@ -64,11 +64,11 @@ the video (never a black one).
 
 ### YouTube lookup and privacy
 
-Optional and on by default for a Videos library, and only for files where a YouTube ID is found. It contacts YouTube and
+Only for a library of the YouTube kind (the kind decides; there is no switch), and only for files where a YouTube ID is found. Other videos libraries never contact YouTube. It contacts YouTube and
 sends **only that 11-character ID**, never your file or its path. Without a key it fills the title, channel and thumbnail;
 with your own free YouTube Data API key (kept in the secrets store, never shown again) it also fills the description
-and upload date. It fills what is missing and never replaces something you edited. Turn it off per library in
-**Settings > Libraries**.
+and upload date. It fills what is missing and never replaces something you edited. To stop it, keep the folder in an
+Other videos library instead (**Settings > Libraries**, Add folder).
 
 ### Ratings and the Explicit mark
 
@@ -391,9 +391,9 @@ Comics/{Title} ({Qid})/{Title}.cbz
 
 ## View documents (text search)
 
-A file counts as a View document when its extension is `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.pptx`, `.odt`, `.ods`, `.odp`, `.rtf`, `.txt`, `.md`, `.csv`, `.json` or `.xml`. All of them can be listed, filed and downloaded. Their words are read for `.pdf`, `.docx`, `.xlsx`, `.pptx`, `.odt`, `.rtf` and the plain text types; the older `.doc`, `.xls` and `.ppt` formats and the OpenDocument `.ods` and `.odp` formats are listed but not read. The Documents page shows a PDF in a bundled PDF.js viewer and every other format as its extracted words with a Download original action; a PDF's thumbnail is its first page, drawn once in the background.
+A file counts as a View document when its extension is `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.pptx`, `.odt`, `.ods`, `.odp`, `.rtf`, `.txt`, `.md`, `.csv`, `.json` or `.xml`. All of them can be listed, filed and downloaded. Their words are read for `.pdf`, `.docx`, `.xlsx`, `.pptx`, `.odt`, `.ods`, `.odp`, `.rtf` and the plain text types; the older `.doc`, `.xls` and `.ppt` formats are listed but not read. The Documents page shows a PDF in a bundled PDF.js viewer and every other format as its extracted words with a Download original action; a PDF's thumbnail is its first page, drawn once in the background.
 
-Documents in a personal View library are searchable by their own text. Plain text files (`.txt`, `.md`, `.csv`, `.json`, `.xml`) are read during the scan (first 256K characters). PDFs (their own text layer), Word `.docx`, Excel `.xlsx`, PowerPoint `.pptx`, OpenDocument `.odt` and `.rtf` files are read by a throttled background job (`view.document_text_read`) after the scan, so folder scans stay fast. Text is capped per document, PDFs are capped by page count and by read time, and password-protected or corrupt files are marked as having no text. Original files are never changed, and document text never appears in Home, global Search or Recommendations. Limits are set under `personal_library_policy` in `config/libraries.json`.
+Documents in a personal View library are searchable by their own text. Plain text files (`.txt`, `.md`, `.csv`, `.json`, `.xml`) are read during the scan (first 256K characters). PDFs (their own text layer), Word `.docx`, Excel `.xlsx`, PowerPoint `.pptx`, OpenDocument `.odt`, `.ods` and `.odp`, and `.rtf` files are read by a throttled background job (`view.document_text_read`) after the scan, so folder scans stay fast. Text is capped per document, PDFs are capped by page count and by read time, and password-protected or corrupt files are marked as having no text. Original files are never changed, and document text never appears in Home, global Search or Recommendations. Limits are set under `personal_library_policy` in `config/libraries.json`.
 
 Scanned PDF pages and photos of paper (`.jpg`, `.jpeg`, `.png`, `.tif`, `.tiff`, `.webp`, `.bmp`, `.heic`, `.heif`) are read with text recognition by a second throttled job (`view.document_ocr`). For each PDF page whose own text layer holds fewer than 25 non-whitespace characters, the page is drawn at 300 DPI (longest side capped at 3500 px) and recognised; pages that already have a text layer are never re-read. `text_source` becomes `embedded`, `ocr` or `mixed`. The job waits while anyone is playing media, runs one file at a time, and keeps the previous text if a re-read fails. Originals are never changed and no searchable-PDF copy is written. Settings are in `config/ocr.json`; see [How documents are read](../explanation/how-documents-are-read.md).
 

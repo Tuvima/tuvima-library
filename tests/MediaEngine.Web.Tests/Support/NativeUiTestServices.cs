@@ -18,6 +18,21 @@ internal static class NativeUiTestServices
         services.TryAddScoped(_ => new DeviceContextService(EngineApiClientStub.CreateDefault()));
         services.TryAddScoped<IAppToastService>(provider => provider.GetRequiredService<AppToastService>());
         services.TryAddScoped<MediaEngine.Web.Services.Settings.ApprovalFlow>();
+        // Vault mode and the Vault. The state asks the page's own IEngineApiClient; a stub that does not know the route leaves it
+        // off, which is what every other profile gets.
+        services.AddLogging();
+        services.TryAddScoped<MediaEngine.Web.Services.Vault.IVaultPreferenceStore, InMemoryVaultPreferenceStore>();
+        services.TryAddScoped(provider => new MediaEngine.Web.Services.Vault.NsfwModeState(
+            provider.GetService<MediaEngine.Web.Services.Integration.IEngineApiClient>() ?? EngineApiClientStub.CreateDefault(),
+            provider.GetRequiredService<MediaEngine.Web.Services.Vault.IVaultPreferenceStore>(),
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MediaEngine.Web.Services.Vault.NsfwModeState>>(),
+            provider.GetService<TimeProvider>()));
+        services.TryAddScoped<MediaEngine.Web.Services.Vault.NsfwModeSwitching>();
+        services.TryAddScoped<MediaEngine.Web.Services.Vault.VaultLibraryOnboarding>();
+        services.TryAddScoped<MediaEngine.Web.Services.Vault.IVaultCatalogue, MediaEngine.Web.Services.Vault.PendingVaultCatalogue>();
+        services.TryAddScoped<MediaEngine.Web.Services.Vault.IVaultFolderAttachment, MediaEngine.Web.Services.Vault.EngineVaultFolderAttachment>();
+        services.TryAddScoped<MediaEngine.Web.Services.Integration.IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
+        services.TryAddScoped<MediaEngine.Web.Components.Settings.LibraryFolderAddService>();
         return services;
     }
 }

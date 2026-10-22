@@ -6,7 +6,7 @@ using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.Backups;
 
-/// <summary>The saved backup schedule, retention, destination choices and key halves.</summary>
+/// <summary>The saved backup schedule, retention and destination choices.</summary>
 internal sealed class BackupSettingsDocument
 {
     public bool ScheduleEnabled { get; set; }
@@ -22,23 +22,14 @@ internal sealed class BackupSettingsDocument
     /// <summary>Destination ids besides the local folder (which always receives the backup).</summary>
     public List<string> EnabledDestinations { get; set; } = [];
 
-    /// <summary>The backup key's public half, base64. Not secret.</summary>
-    public string? PublicKey { get; set; }
-
-    /// <summary>The private half locked with the passphrase, base64. Useless without the passphrase.</summary>
-    public string? EncryptedPrivateKey { get; set; }
+    /// <summary>Destinations an administrator added: another folder, a network share, S3-compatible storage or WebDAV (WP26).</summary>
+    public List<ConfiguredDestination> Destinations { get; set; } = [];
 
     public DateTimeOffset? LastScheduledRunAt { get; set; }
 
     public DateTimeOffset? LastRestoreCheckAt { get; set; }
 
     public string? LastRestoreCheckResult { get; set; }
-
-    public bool PassphraseSet => !string.IsNullOrEmpty(PublicKey) && !string.IsNullOrEmpty(EncryptedPrivateKey);
-
-    public BackupKeyMaterial? Keys => PassphraseSet
-        ? new BackupKeyMaterial(Convert.FromBase64String(PublicKey!), Convert.FromBase64String(EncryptedPrivateKey!))
-        : null;
 
     /// <summary>The schedule as a cron expression, or an empty string when it is off or the time is not valid.</summary>
     public string Cron()
@@ -58,7 +49,7 @@ internal sealed class BackupSettingsAccessor(IBackupDestinationRepository reposi
 {
     private const string Key = "settings";
 
-    /// <summary>Held while settings are changed, so two changes at once (a save, a schedule tick, a key change) never overwrite each other.</summary>
+    /// <summary>Held while settings are changed, so two changes at once (a save, a schedule tick, a destination change) never overwrite each other.</summary>
     public SemaphoreSlim Gate { get; } = new(1, 1);
 
     /// <summary>Loads, changes and saves the settings as one step.</summary>

@@ -15,4 +15,19 @@ public static class MediaFileWriteTriggers
     /// a row that was being worked on when the Engine stopped is picked up again, and doing the work twice changes nothing.
     /// </summary>
     public const string LibraryMove = "library_move";
+
+    /// <summary>Embedded artwork for a Music or Audiobooks file needs bringing up to date.</summary>
+    public const string Artwork = "artwork";
+
+    /// <summary>An administrator asked for a failed artwork embed to be tried again.</summary>
+    public const string ArtworkRetry = "artwork_retry";
+
+    /// <summary>The file was put back from the Recycle bin.</summary>
+    public const string Restore = "restore";
+
+    /// <summary>
+    /// A View item became known with a profile that added it (a new file in a Managed folder, an upload, or a move into the shared library),
+    /// so the profile's name is written into the file when the format can hold it (batched write-back D7).
+    /// </summary>
+    public const string ViewAddedBy = "view_added_by";
 }

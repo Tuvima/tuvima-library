@@ -12,7 +12,9 @@
         <span class="companion__cover" aria-hidden="true">
             @if (!string.IsNullOrWhiteSpace(Context.CoverUrl))
             {
-                <img src="@ApiClient.ToAbsoluteEngineUrl(Context.CoverUrl)" alt="" loading="lazy" />
+                var cover = ApiClient.ToAbsoluteEngineUrl(Context.CoverUrl);
+                @* Drawn 72x104px (CompanionScreen.razor.css). *@
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 104)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(cover, 104)" alt="" loading="lazy" decoding="async" />
             }
             else
             {

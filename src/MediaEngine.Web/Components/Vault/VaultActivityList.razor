@@ -1,0 +1,85 @@
+@namespace MediaEngine.Web.Components.Vault
+@using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Services.Integration
+@inject NsfwModeState Nsfw
+@inject IEngineApiClient ApiClient
+
+@* The quiet Vault activity list (Videos spec D32): the only place Vault ingestion shows. One plain line per file (added, matched,
+   unmatched, identified, failed). Nothing about a Vault file reaches Needs Review, notifications or the live ingestion page. It
+   draws only while Vault mode is on and only for an administrator: the Engine answers "not found" to anyone else, and then nothing is drawn. *@
+@if (Nsfw.Unlocked && !_hidden)
+{
+    <section class="vault-activity" data-vault-activity aria-label="Vault activity">
+        <header class="vault-activity__header">
+            <h2 class="vault-activity__title">Vault activity</h2>
+            <AppButton Label="Refresh" Size="AppControlSize.Compact" Disabled="@_loading" OnClick="LoadAsync" />
+        </header>
+        @if (_waitingMessage.Length > 0)
+        {
+            <div data-vault-waiting-bookmarks>
+                <AppAlert Tone="AppUiTone.Warning" Dense="true">@_waitingMessage</AppAlert>
+            </div>
+        }
+        @if (_loading)
+        {
+            <AppSkeleton Height="72px" />
+        }
+        else if (_lines.Count == 0)
+        {
+            <p class="vault-activity__empty">Nothing yet. Files added to the Vault show here, one quiet line each.</p>
+        }
+        else
+        {
+            <ul class="vault-activity__list">
+                @foreach (var line in _lines)
+                {
+                    <li class="vault-activity__line" @key="line.Id" data-kind="@line.Kind">
+                        <span class="vault-activity__kind">@KindWords(line.Kind)</span>
+                        <span class="vault-activity__file">@line.FileName</span>
+                        <span class="vault-activity__detail">@line.Detail</span>
+                        <time class="vault-activity__time" datetime="@line.At.ToString("O")">@line.At.ToLocalTime().ToString("g")</time>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+}
+
+@code {
+    private IReadOnlyList<VaultActivityItemDto> _lines = [];
+    private bool _loading = true;
+    private bool _hidden;
+    private string _waitingMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        var call = await ApiClient.GetVaultActivityAsync();
+        // "Not found" means this person may not see it: draw nothing at all rather than an error.
+        _hidden = call.Outcome == Services.Vault.VaultOutcome.NotAvailable;
+        _lines = call.Succeeded && call.Value is { } lines ? lines : [];
+        // Saved Vault bookmarks that came back with a restored backup and still wait for their video: a count in plain words, never a title.
+        _waitingMessage = string.Empty;
+        if (!_hidden)
+        {
+            var waiting = await ApiClient.GetVaultRestoredBookmarksAsync();
+            if (waiting.Succeeded && waiting.Value is { Waiting: > 0 } restored)
+            {
+                _waitingMessage = restored.Message;
+            }
+        }
+        _loading = false;
+    }
+
+    private static string KindWords(string kind) => kind switch
+    {
+        "added" => "Added",
+        "matched" => "Matched",
+        "unmatched" => "Unmatched",
+        "identified" => "Identified",
+        "failed" => "Failed",
+        _ => "Note",
+    };
+}

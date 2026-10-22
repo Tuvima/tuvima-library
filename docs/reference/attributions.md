@@ -49,7 +49,7 @@ The authoritative package version list is `Directory.Packages.props`; the projec
 
 | Project | Role |
 |---|---|
-| FFmpeg | Media probing, extraction, direct-play inspection, and adaptive HLS generation. Windows installers use the checksum-pinned BtbN GPLv3 build recorded in `tools/ffmpeg/README.md`; its license is shipped with the installer. |
+| FFmpeg | Media probing, extraction, direct-play inspection, and adaptive HLS generation. Windows installers use the checksum-pinned gyan.dev GPLv3 build recorded in `tools/ffmpeg/README.md`; its license is shipped with the installer. |
 | Xabe.FFmpeg | .NET wrapper around FFmpeg operations |
 | TagLibSharp | Audio and video tag reading/writing |
 | VersOne.Epub | EPUB metadata and content reading |
@@ -61,6 +61,7 @@ The authoritative package version list is `Directory.Packages.props`; the projec
 | PDFtoImage | Draws PDF pages as images for text recognition (MIT); uses PDFium (BSD-3-Clause) through the bblanchon.PDFium packages |
 | Tesseract OCR | Reads scanned pages and photos of paper on the Engine host (Apache-2.0). Windows installers use the checksum-pinned UB Mannheim build recorded in `tools/tesseract/README.md`; containers install the distribution package |
 | tessdata_fast | English and orientation language data for Tesseract (Apache-2.0), pinned to a commit; other languages are an opt-in download |
+| ExifTool | Writes the profile name that added a file into the embedded metadata (XMP) of photos, phone videos and PDFs in View, run as a separate program. Copyright Phil Harvey; free software under the same terms as Perl (Perl Artistic License or GNU General Public License, used here under the GPL, which is compatible with AGPLv3). Version 13.59; the Windows build also contains Strawberry Perl, with its licences in `Licenses_Strawberry_Perl.zip` beside it. The Engine fetches unmodified copies from the Library's own GitHub release `exiftool-13.59`; container images clone the official tag from <https://github.com/exiftool/exiftool>. Details in `THIRD-PARTY-NOTICES.md` |
 | DocumentFormat.OpenXml | Reads text from Word, Excel and PowerPoint files for View document search (MIT) |
 | QRCoder | Draws the QR code for invitation links (MIT) |
 

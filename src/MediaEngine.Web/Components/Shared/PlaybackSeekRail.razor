@@ -9,6 +9,37 @@
                              ShowTicks="@(ChapterTicks is { Count: > 0 })" TickValues="@ChapterTicks" ShowTickText="false" Surface="@Surface"
                              AriaLabel="Playback position" ValueFormatter="@(value => $"{Time(value)} of {Time(Duration)}")" ValueChanged="ValueChanged" disabled="@(Duration <= 0)" />
         <output class="playback-seek-rail__bubble" data-seek-time aria-hidden="true"></output>
+        @if (Bookmarks is { Count: > 0 } && Duration > 0)
+        {
+            <div class="playback-seek-rail__bookmarks" data-playback-bookmark-ticks>
+                @foreach (var bookmark in Bookmarks)
+                {
+                    var open = _quickLookId == bookmark.Id;
+                    <span class="playback-seek-rail__bookmark-wrap" style="left:@Percent(bookmark.Seconds)%"
+                          @onmouseenter="@(() => HoverBookmark(bookmark.Id))" @onmouseleave="@(() => LeaveBookmark(bookmark.Id))">
+                        <button type="button" class="playback-seek-rail__bookmark @(bookmark.IsGlobal ? "is-global" : bookmark.IsPack ? "is-pack" : null)"
+                                aria-label="@BookmarkLabel(bookmark)" aria-expanded="@(open ? "true" : "false")" data-bookmark-id="@bookmark.Id"
+                                @onclick="@(() => ToggleBookmark(bookmark.Id))" @onfocus="@(() => HoverBookmark(bookmark.Id))"></button>
+                        @if (open)
+                        {
+                            <div class="playback-seek-rail__quicklook" role="dialog" aria-label="Bookmark" style="@CardStyle(bookmark.Seconds)">
+                                <strong>@Time(bookmark.Seconds)@if (bookmark.IsGlobal) { <span> · Everyone</span> }@if (bookmark.IsPack) { <span> · @bookmark.PackLabel</span> }</strong>
+                                @if (!string.IsNullOrWhiteSpace(bookmark.Note)) { <p>@bookmark.Note</p> }
+                                @if (!string.IsNullOrWhiteSpace(bookmark.Description))
+                                {
+                                    @if (_moreId == bookmark.Id) { <p>@bookmark.Description</p> }
+                                    else { <button type="button" class="playback-seek-rail__more" @onclick="@(() => _moreId = bookmark.Id)">More</button> }
+                                }
+                                <span>
+                                    <button type="button" class="playback-seek-rail__more" @onclick="@(() => JumpAsync(bookmark))">Jump here</button>
+                                    @if (_pinnedId == bookmark.Id) { <button type="button" class="playback-seek-rail__more" @onclick="CloseQuickLook">Close</button> }
+                                </span>
+                            </div>
+                        }
+                    </span>
+                }
+            </div>
+        }
     </div>
     <AppNativeButton Type="button" Class="playback-seek-rail__end" Disabled="@(Duration <= 0)" OnClick="ToggleAsync"
                      AriaLabel="@($"{(Remaining ? "Remaining time" : "Total duration")} {EndTime}. Show {(Remaining ? "total duration" : "remaining time")}")">@EndTime</AppNativeButton>
@@ -19,6 +50,28 @@
     [Parameter] public EventCallback<double> ValueChanged { get; set; }
     [Parameter] public IReadOnlyList<double>? ChapterTicks { get; set; }
     [Parameter] public Func<double, string>? ChapterLabel { get; set; }
+    /// <summary>The title's saved bookmarks. Each gets a tick beside the chapters and a quick-look card (hover, or a tap on touch).</summary>
+    [Parameter] public IReadOnlyList<PlaybackRailBookmark>? Bookmarks { get; set; }
+    /// <summary>Raised when "Jump here" is chosen in a quick-look card.</summary>
+    [Parameter] public EventCallback<PlaybackRailBookmark> BookmarkJump { get; set; }
+    private Guid? _quickLookId, _pinnedId, _moreId;
+    private string Percent(double seconds) => (Math.Clamp(seconds / Math.Max(1, Duration), 0, 1) * 100).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+    private string CardStyle(double seconds)
+    {
+        var fraction = seconds / Math.Max(1, Duration);
+        return fraction < .25 ? "left:-6px;transform:none" : fraction > .75 ? "right:-6px;left:auto;transform:none" : string.Empty;
+    }
+    private string BookmarkLabel(PlaybackRailBookmark bookmark) =>
+        $"{(bookmark.IsPack ? $"Pack bookmark ({bookmark.PackLabel})" : bookmark.IsGlobal ? "Shared bookmark" : "Bookmark")} at {Time(bookmark.Seconds)}";
+    private void HoverBookmark(Guid id) { if (_pinnedId is null) { _quickLookId = id; _moreId = null; } }
+    private void LeaveBookmark(Guid id) { if (_pinnedId is null && _quickLookId == id) { _quickLookId = null; _moreId = null; } }
+    private void ToggleBookmark(Guid id)
+    {
+        if (_pinnedId == id) { CloseQuickLook(); return; }
+        _pinnedId = id; _quickLookId = id; _moreId = null;
+    }
+    private void CloseQuickLook() { _pinnedId = null; _quickLookId = null; _moreId = null; }
+    private async Task JumpAsync(PlaybackRailBookmark bookmark) { CloseQuickLook(); await BookmarkJump.InvokeAsync(bookmark); }
     [Parameter] public string Surface { get; set; } = "video";
     [Parameter] public bool? ShowRemaining { get; set; }
     [Parameter] public EventCallback<bool> ShowRemainingChanged { get; set; }

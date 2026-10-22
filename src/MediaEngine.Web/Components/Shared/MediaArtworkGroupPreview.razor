@@ -12,7 +12,8 @@
                 @if (!string.IsNullOrWhiteSpace(artwork.ImageUrl))
                 {
                     <img class="media-artwork-group-preview__artwork"
-                         src="@artwork.ImageUrl"
+                         src="@MediaTileArtworkUrl.ForDrawnSize(artwork.ImageUrl, DrawnPx)"
+                         srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(artwork.ImageUrl, DrawnPx)"
                          alt=""
                          loading="lazy"
                          decoding="async" />
@@ -29,7 +30,8 @@
         {
             <img @key="artwork.Id"
                  class="@ArtworkClass(artwork, index)"
-                 src="@artwork.ImageUrl"
+                 src="@MediaTileArtworkUrl.ForDrawnSize(artwork.ImageUrl, DrawnPx)"
+                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(artwork.ImageUrl, DrawnPx)"
                  alt=""
                  loading="lazy"
                  decoding="async" />
@@ -48,6 +50,9 @@
     [Parameter] public string AriaLabel { get; set; } = "Group artwork preview";
     [Parameter] public MediaArtworkGroupPreviewLayout Layout { get; set; } = MediaArtworkGroupPreviewLayout.Cluster;
     [Parameter] public bool ShowOverflowCount { get; set; } = true;
+
+    /// <summary>The long side one picture in the group is drawn at, in CSS pixels. Tiles and editor previews stay under 320; the large hero cluster passes more.</summary>
+    [Parameter] public int DrawnPx { get; set; } = ArtworkSize.SmallPx;
 
     private IReadOnlyList<ArtworkStackItem> VisibleItems => BuildVisibleItems();
 

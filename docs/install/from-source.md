@@ -38,7 +38,7 @@ Keep originals read-only when evaluating. Put provider keys in ignored `config/s
 
 ## Helper tools
 
-The Library uses two helper tools that come from outside the .NET build:
+The Library uses helper tools that come from outside the .NET build. ExifTool is fetched by the Library itself the first time it is missing, from Tuvima's own GitHub copy of the official release, and then shows **Ready** on **Settings > Tools and requirements**. The other two are:
 
 - **FFmpeg and FFprobe** are always required, as one set. They read every video and audio file (for example `.mkv`, `.mp4`, `.mp3`, `.m4b` and `.flac`), and they are needed for thumbnails, smooth (adaptive) streaming, casting and subtitle and audio syncing. Without them, those files show **Waiting for media tools** and finish by themselves once FFmpeg is found. Nothing fails.
 - **Tesseract** is optional. It needs its English and page-orientation data. Without it, scanned pages and photos of paper are not searchable. Documents that already contain text keep working. The OCR settings are in [configuration](../reference/configuration.md#configocrjson).

@@ -59,6 +59,7 @@ public static class ToolRequirementIds
     public const string Ffmpeg = "ffmpeg";
     public const string AdaptiveStreaming = "adaptive_streaming";
     public const string Tesseract = "tesseract";
+    public const string ExifTool = "exiftool";
     public const string ImageEngine = "image_engine";
     public const string AiRuntime = "ai_runtime";
 

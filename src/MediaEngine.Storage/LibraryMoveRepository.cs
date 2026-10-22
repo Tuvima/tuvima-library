@@ -933,9 +933,9 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             new { entityId, key = IdentityRevisionKey, value = Guid.NewGuid().ToString("N"), now },
             transaction);
 
-    // The durable file request a move makes, in the same transaction as the library change: the queue renames and moves each file
-    // that may be touched to fit where the item now sits, then brings its tags up to date. The trigger is kept by later editor saves
-    // until the queue has done its work (see MediaEditorCommitRepository), so a save made in between never drops the file move.
+    // The durable file request a move makes, in the same transaction as the library change: the move lane renames and moves each file
+    // that may be touched to fit where the item now sits, then the scheduled run brings its tags up to date. The recorded move step is
+    // kept by later editor saves until the move is done (see MediaEditorCommitRepository), so a save made in between never drops it.
     private static void MarkWritebackPending(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -955,14 +955,14 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 SET writeback_status = 'pending', writeback_fields_hash = @token, writeback_attempts = 0,
                     writeback_last_error = NULL, writeback_next_retry_at = NULL
                 WHERE id = @assetId;
-                INSERT INTO media_file_write_intents (asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at)
-                VALUES (@assetId, 1, @token, @trigger, 'pending', 0, @now, @now)
-                ON CONFLICT(asset_id) DO UPDATE SET generation = generation + 1, operation_token = excluded.operation_token,
-                    trigger = excluded.trigger, status = 'pending', attempts = 0, lease_expires_at = NULL, last_error = NULL,
-                    updated_at = excluded.updated_at;
                 """,
-                new { assetId, token, now, trigger = MediaFileWriteTriggers.LibraryMove },
+                new { assetId, token },
                 transaction);
+            // The move is recorded as requested on the durable list in the same transaction as the library change. It runs at once;
+            // only the tags it brings up to date wait for the scheduled run.
+            MediaFileWriteIntentRepository.UpsertAsset(
+                connection, transaction, assetId, MediaFileWriteTriggers.LibraryMove, token,
+                DateTimeOffset.Parse(now, CultureInfo.InvariantCulture), requestMove: true);
         }
     }
 

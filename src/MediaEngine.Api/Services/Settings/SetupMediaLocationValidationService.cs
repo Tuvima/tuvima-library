@@ -88,7 +88,7 @@ public sealed class SetupMediaLocationValidationService(
         {
             return string.IsNullOrWhiteSpace(library.PrimaryDestinationSourceId)
                 ? null
-                : "A library with only as-is folders cannot have a destination, because Library never adds files to an as-is folder.";
+                : "A library with only read-only folders cannot have a destination, because Library never adds files to a read-only folder.";
         }
 
         var destination = library.PrimaryDestination;

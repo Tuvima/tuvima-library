@@ -6,7 +6,7 @@ using Microsoft.Data.Sqlite;
 namespace MediaEngine.Storage.Tests;
 
 /// <summary>
-/// The pinned FFmpeg and Tesseract downloads (<c>config/tool_downloads.json</c>).
+/// The pinned FFmpeg, Tesseract and ExifTool downloads (<c>config/tool_downloads.json</c>).
 /// </summary>
 public sealed class ToolDownloadConfigTests : IDisposable
 {
@@ -35,10 +35,81 @@ public sealed class ToolDownloadConfigTests : IDisposable
         var settings = new ConfigurationDirectoryLoader(Path.Combine(_root, "config")).LoadToolDownloads();
 
         Assert.NotNull(settings.Ffmpeg);
-        Assert.Equal("DEE63142094F79F6A50CDECE65384B7793181EAB3B6DB2EC907834981BB8AB10", settings.Ffmpeg.Sha256);
+        Assert.Equal("60F467265B1E312373DBCD92200C2618A74850F98D3D078E94296BB3FA2047BA", settings.Ffmpeg.Sha256);
         Assert.Equal(["ffmpeg.exe", "ffprobe.exe"], settings.Ffmpeg.Files.Select(file => file.Name));
         Assert.NotNull(settings.Tesseract);
         Assert.Equal(["eng.traineddata", "osd.traineddata"], settings.Tesseract.LanguageFiles.Select(file => file.Name));
+        Assert.NotNull(settings.ExifTool);
+        Assert.True(settings.ExifTool.AutoInstall);
+        Assert.Equal("13.59", settings.ExifTool.Version);
+    }
+
+    [Fact]
+    public void TheExifToolEntry_HasAWindowsAndALinuxBuild_BothOnGithub()
+    {
+        var exiftool = new ConfigurationDirectoryLoader(Path.Combine(FindRepositoryRoot(), "config")).LoadToolDownloads().ExifTool;
+
+        Assert.NotNull(exiftool);
+        var windows = exiftool.FindBuild(ToolDownloadSettings.WindowsX64);
+        var linux = exiftool.FindBuild(ToolDownloadSettings.LinuxArm64);
+        Assert.NotNull(windows);
+        Assert.NotNull(linux);
+        Assert.Same(linux, exiftool.FindBuild(ToolDownloadSettings.LinuxX64));
+        Assert.False(windows.IsTarGz);
+        Assert.True(linux.IsTarGz);
+        Assert.All([windows.Url, linux.Url], url => Assert.True(ToolDownloadSettings.IsAllowedAddress(url)));
+        Assert.Contains("exiftool_files/perl.exe", windows.Files.Select(file => file.Path));
+        Assert.Contains("exiftool_files/exiftool.pl", windows.Files.Select(file => file.Path));
+        Assert.Equal(["exiftool"], linux.Files.Select(file => file.Path));
+        Assert.Null(exiftool.FindBuild("osx-arm64"));
+    }
+
+    [Theory]
+    [InlineData("http://github.com/Tuvima/tuvima-library/releases/download/exiftool-13.59/exiftool-13.59_64.zip")]
+    [InlineData("https://exiftool.org/exiftool-13.59_64.zip")]
+    [InlineData("https://sourceforge.net/projects/exiftool/files/exiftool-13.59_64.zip/download")]
+    [InlineData("https://github.com.example.com/exiftool-13.59_64.zip")]
+    [InlineData("https://user:secret@github.com/Tuvima/tuvima-library/releases/download/x/exiftool.zip")]
+    [InlineData("https://github.com/Tuvima/tuvima-library/releases/download/x/exiftool.exe")]
+    [InlineData("")]
+    public void AnExifToolAddressThatIsNotHttpsOnGithubOrNotAnArchive_IsRefusedWhenLoaded(string address)
+    {
+        var settings = LoadWith(exifToolUrl: address);
+
+        Assert.Null(settings.ExifTool);
+        Assert.NotNull(settings.Ffmpeg);
+        Assert.NotNull(settings.Tesseract);
+    }
+
+    [Theory]
+    [InlineData("not-a-checksum")]
+    [InlineData("44B512B25AF500724BA579D0A53C8FC5851628B692DD5E5D94AE4A15C2CBA9E")]
+    [InlineData("")]
+    public void AnExifToolArchiveWithAMalformedChecksum_IsRefusedWhenLoaded(string checksum)
+    {
+        Assert.Null(LoadWith(exifToolSha256: checksum).ExifTool);
+    }
+
+    [Theory]
+    [InlineData("../exiftool")]
+    [InlineData("exiftool_files/../../perl.exe")]
+    [InlineData("C:/perl.exe")]
+    [InlineData("")]
+    public void AnExifToolFilePathThatLeavesTheArchiveFolder_IsRefusedWhenLoaded(string path)
+    {
+        Assert.Null(LoadWith(exifToolFilePath: path).ExifTool);
+    }
+
+    [Fact]
+    public void AnExifToolPlatformListedTwice_OrUnknown_IsRefusedWhenLoaded()
+    {
+        var twice = new ToolDownloadSettings();
+        twice.ExifTool!.Builds[1].Platforms.Add(ToolDownloadSettings.WindowsX64);
+        var unknown = new ToolDownloadSettings();
+        unknown.ExifTool!.Builds[0].Platforms = ["plan9-mips"];
+
+        Assert.Null(Load(twice).ExifTool);
+        Assert.Null(Load(unknown).ExifTool);
     }
 
     [Fact]
@@ -125,7 +196,8 @@ public sealed class ToolDownloadConfigTests : IDisposable
     private ToolDownloadSettings LoadWith(
         string? ffmpegUrl = null, string? ffmpegSha256 = null, string? ffmpegFileName = null,
         string? tesseractInstallerUrl = null, string? tesseractLanguageUrl = null, string? tesseractLanguageName = null,
-        string? tesseractInstallerName = null)
+        string? tesseractInstallerName = null, string? exifToolUrl = null, string? exifToolSha256 = null,
+        string? exifToolFilePath = null)
     {
         var defaults = new ToolDownloadSettings();
         defaults.Ffmpeg!.Url = ffmpegUrl ?? defaults.Ffmpeg.Url;
@@ -135,10 +207,17 @@ public sealed class ToolDownloadConfigTests : IDisposable
         defaults.Tesseract.Installer.Name = tesseractInstallerName ?? defaults.Tesseract.Installer.Name;
         defaults.Tesseract.LanguageFiles[0].Url = tesseractLanguageUrl ?? defaults.Tesseract.LanguageFiles[0].Url;
         defaults.Tesseract.LanguageFiles[0].Name = tesseractLanguageName ?? defaults.Tesseract.LanguageFiles[0].Name;
+        defaults.ExifTool!.Builds[0].Url = exifToolUrl ?? defaults.ExifTool.Builds[0].Url;
+        defaults.ExifTool.Builds[0].Sha256 = exifToolSha256 ?? defaults.ExifTool.Builds[0].Sha256;
+        defaults.ExifTool.Builds[0].Files[0].Path = exifToolFilePath ?? defaults.ExifTool.Builds[0].Files[0].Path;
+        return Load(defaults);
+    }
 
+    private ToolDownloadSettings Load(ToolDownloadSettings written)
+    {
         var config = Path.Combine(_root, "config-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(config);
-        File.WriteAllText(Path.Combine(config, "tool_downloads.json"), JsonSerializer.Serialize(defaults));
+        File.WriteAllText(Path.Combine(config, "tool_downloads.json"), JsonSerializer.Serialize(written));
         return new ConfigurationDirectoryLoader(config).LoadToolDownloads();
     }
 

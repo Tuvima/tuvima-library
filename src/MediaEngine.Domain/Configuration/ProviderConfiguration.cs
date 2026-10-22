@@ -249,6 +249,21 @@ public sealed class ProviderConfiguration
     public bool RequiresApiKey { get; set; }
 
     /// <summary>
+    /// When <c>true</c>, the provider is asked ONLY about Vault items (Videos spec D21) and every other provider is never asked
+    /// about a Vault item. The Library enforces this in one place (<c>IProviderAudienceGate</c>), not each provider.
+    /// </summary>
+    [JsonPropertyName("adult_only")]
+    public bool AdultOnly { get; set; }
+
+    /// <summary>
+    /// When <c>true</c>, the provider can also match a file by a fingerprint of it. That sends a fingerprint of the file, so it
+    /// is a separate permission the administrator turns on; it is off by default and nothing about the file leaves the machine
+    /// without it (Videos spec D21, D35).
+    /// </summary>
+    [JsonPropertyName("file_fingerprint")]
+    public bool FileFingerprint { get; set; }
+
+    /// <summary>
     /// Optional Material icon name for the Dashboard UI (e.g. "MenuBook", "Headphones").
     /// When set, overrides the default accent icon from <c>ProviderAccentMap</c>.
     /// </summary>

@@ -20,6 +20,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Ingestion.DependencyInjection;
 
@@ -111,7 +112,8 @@ public static class MediaEngineIngestionServiceCollectionExtensions
             sp.GetService<IEntityAssetRepository>(),
             sp.GetService<AssetPathService>(),
             sp.GetService<IWorkRepository>(),
-            sp.GetService<IAssetExportService>()));
+            sp.GetService<IAssetExportService>(),
+            sp.GetService<IFileWriteQueue>()));
         services.TryAddSingleton(sp => new IdentityJobStageDependencies(
             sp.GetService<IIdentityPipelineSignal>()));
         services.TryAddSingleton<IEnrichmentConcurrencyLimiter>(sp =>
@@ -161,13 +163,14 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.Configure<IngestionOptions>(configuration.GetSection(IngestionOptions.SectionName));
 
         // Saving libraries.json refreshes the folder list the file-source policy reads, with no restart.
-        var libraryChanges = new LibrariesOptionsChangeTokenSource(configLoader);
-        services.AddSingleton(libraryChanges);
-        services.AddSingleton<Microsoft.Extensions.Options.IOptionsChangeTokenSource<IngestionOptions>>(libraryChanges);
+        services.AddSingleton(sp => new LibrariesOptionsChangeTokenSource(configLoader, sp.GetService<ILibraryKindSource>()));
+        services.AddSingleton<Microsoft.Extensions.Options.IOptionsChangeTokenSource<IngestionOptions>>(
+            sp => sp.GetRequiredService<LibrariesOptionsChangeTokenSource>());
 
-        services.PostConfigure<IngestionOptions>(opts =>
+        services.AddOptions<IngestionOptions>().PostConfigure<IServiceProvider>((opts, serviceProvider) =>
         {
             opts.WatchDirectories = [];
+            var logger = serviceProvider.GetService<ILoggerFactory>()?.CreateLogger(typeof(LibraryFolderEntryFactory).FullName!);
 
             try
             {
@@ -209,8 +212,8 @@ public static class MediaEngineIngestionServiceCollectionExtensions
             {
                 var libraries = configLoader.LoadLibraries();
                 opts.DuplicatePolicy = libraries.FileHandling.DuplicatePolicy;
-                opts.LibraryFolders = libraries.Libraries
-                    .Select(LibraryFolderEntryFactory.Create)
+                var kinds = LoadKindsOrBuiltIn(configLoader, serviceProvider.GetService<ILibraryKindSource>());
+                opts.LibraryFolders = LibraryFolderEntryFactory.CreateAll(libraries.Libraries, kinds, logger)
                     .Where(e => e.EffectiveSourcePaths.Count > 0)
                     .ToList();
 
@@ -244,6 +247,21 @@ public static class MediaEngineIngestionServiceCollectionExtensions
                 // No libraries.json or parse failure - library folder priors will not be applied.
             }
         });
+    }
+
+    // A kinds file that can't be read leaves the kinds that ship, so a plain kind still never looks anything up.
+    private static IReadOnlyList<LibraryKindDefinition> LoadKindsOrBuiltIn(IConfigurationLoader configLoader, ILibraryKindSource? kindSource)
+    {
+        try
+        {
+            // The merged list: the kinds that ship plus those of switched-on plugins, so a plugin's plain kind is plain here too.
+            return kindSource?.GetKinds() ?? configLoader.LoadLibraryKinds().Kinds;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Console.Error.WriteLine($"[WARN] Failed to load library kinds for ingestion options - using the kinds that ship: {ex.Message}");
+            return LibraryKindsConfiguration.BuiltIn();
+        }
     }
 
     private static void EnsureConfiguredDirectories(IConfigurationLoader configLoader)

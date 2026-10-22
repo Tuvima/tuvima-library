@@ -89,6 +89,7 @@ public sealed class CollectionBrowseReadService(
                     WHERE ma.file_path_root NOT LIKE '%/.data/staging/%'
                       AND ma.file_path_root NOT LIKE '%\.data\staging\%'
                       AND {WorkReadinessSql.ReadyWorkPredicate("w")}
+                      AND {VaultSql.NotVaultEntity("w.id")}
                     """;
                 using var reader = await cmd.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
@@ -144,13 +145,14 @@ public sealed class CollectionBrowseReadService(
     {
         using var conn = db.CreateConnection();
         var value = await conn.ExecuteScalarAsync<object?>(new CommandDefinition(
-            """
+            $"""
             -- readiness: root of one work, looked up by id
             SELECT COALESCE(gp.id, p.id, w.id)
             FROM works w
             LEFT JOIN works p ON p.id = w.parent_work_id
             LEFT JOIN works gp ON gp.id = p.parent_work_id
             WHERE w.id = @WorkId
+              AND {VaultSql.NotVaultEntity("w.id")}
             LIMIT 1
             """,
             new { WorkId = workId },
@@ -162,7 +164,7 @@ public sealed class CollectionBrowseReadService(
     {
         using var conn = db.CreateConnection();
         var value = await conn.ExecuteScalarAsync<object?>(new CommandDefinition(
-            """
+            $"""
             -- readiness: representative file of one work, looked up by id
             SELECT MIN(ma.id)
             FROM works w
@@ -171,6 +173,7 @@ public sealed class CollectionBrowseReadService(
             INNER JOIN work_owned_assets woa ON woa.work_id IN (w.id, child.id, grandchild.id)
             INNER JOIN media_assets ma ON ma.id = woa.asset_id
             WHERE w.id = @WorkId
+              AND {VaultSql.NotVaultAsset("ma.id")}
             """,
             new { WorkId = workId },
             cancellationToken: ct)).ConfigureAwait(false);
@@ -189,11 +192,12 @@ public sealed class CollectionBrowseReadService(
 
         using var conn = db.CreateConnection();
         var rows = await conn.QueryAsync<PrimaryAssetReadRow>(new CommandDefinition(
-            """
+            $"""
             SELECT woa.work_id AS WorkId, MIN(ma.id) AS AssetId
             FROM work_owned_assets woa
             INNER JOIN media_assets ma ON ma.id = woa.asset_id
             WHERE woa.work_id IN @WorkIds
+              AND {VaultSql.NotVaultAsset("ma.id")}
             GROUP BY woa.work_id
             """,
             new { WorkIds = ids.Select(GuidSql.ToBlob).ToArray() },
@@ -205,12 +209,13 @@ public sealed class CollectionBrowseReadService(
     {
         using var conn = db.CreateConnection();
         return await conn.QueryFirstOrDefaultAsync<CollectionPaletteReadModel>(new CommandDefinition(
-            """
+            $"""
             SELECT primary_hex AS PrimaryHex,
                    secondary_hex AS SecondaryHex,
                    accent_hex AS AccentHex
             FROM entity_assets
             WHERE entity_id = @EntityId
+              AND {VaultSql.NotVaultAnyEntity("entity_id")}
               AND primary_hex IS NOT NULL
             ORDER BY is_preferred DESC, created_at DESC
             LIMIT 1
@@ -238,6 +243,7 @@ public sealed class CollectionBrowseReadService(
                    AND cva.key IN ('album_artist', 'artist', 'performer')
                 WHERE cva.value = @ArtistName COLLATE NOCASE
                   AND {WorkReadinessSql.ReadyWorkPredicate("w")}
+                  AND {VaultSql.NotVaultEntity("w.id")}
             ),
             work_data AS (
                 SELECT
@@ -364,6 +370,7 @@ public sealed class CollectionBrowseReadService(
                       )
                   )
                   AND {WorkReadinessSql.ReadyWorkPredicate("w")}
+                  AND {VaultSql.NotVaultEntity("w.id")}
             ),
             work_data AS (
                 SELECT
@@ -516,25 +523,28 @@ public sealed class CollectionBrowseReadService(
         var take = Math.Clamp(limit, 1, 500);
         using var conn = db.CreateConnection();
         var sql = string.Equals(field, "media_type", StringComparison.OrdinalIgnoreCase)
-            ? """
+            ? $"""
               -- readiness: the media types that exist, for the rule editor's choices
               SELECT DISTINCT media_type
               FROM works
               WHERE NULLIF(media_type, '') IS NOT NULL
+              AND {VaultSql.NotVaultEntity("works.id")}
               AND (@Query IS NULL OR media_type LIKE @Query COLLATE NOCASE)
               ORDER BY media_type
               LIMIT @Limit
               """
-            : """
+            : $"""
               SELECT DISTINCT value
               FROM (
                   SELECT value
                   FROM canonical_values
                   WHERE key = @Field
+                    AND {VaultSql.NotVaultAnyEntity("canonical_values.entity_id")}
                   UNION ALL
                   SELECT value
                   FROM canonical_value_arrays
                   WHERE key = @Field
+                    AND {VaultSql.NotVaultAnyEntity("canonical_value_arrays.entity_id")}
               )
               WHERE NULLIF(value, '') IS NOT NULL
                 AND (@Query IS NULL OR value LIKE @Query COLLATE NOCASE)
@@ -558,12 +568,13 @@ public sealed class CollectionBrowseReadService(
         using var conn = db.CreateConnection();
         var sql = field.ToLowerInvariant() switch
         {
-            "person_qid" => """
+            "person_qid" => $"""
                 SELECT person_qid AS Value,
                        MIN(person_name) AS Label,
                        COUNT(DISTINCT media_asset_id) AS LocalCount
                 FROM primary_person_media_credits
                 WHERE NULLIF(person_qid, '') IS NOT NULL
+                  AND {VaultSql.NotVaultAsset("primary_person_media_credits.media_asset_id")}
                 GROUP BY person_qid
                 HAVING @Query IS NULL
                     OR MIN(person_name) LIKE @Query COLLATE NOCASE
@@ -584,12 +595,13 @@ public sealed class CollectionBrowseReadService(
                 ORDER BY LocalCount DESC, Label COLLATE NOCASE
                 LIMIT @Limit
                 """,
-            _ => """
+            _ => $"""
             SELECT value_qid AS Value,
                    MIN(value) AS Label,
                    COUNT(DISTINCT entity_id) AS LocalCount
             FROM canonical_value_arrays
             WHERE key = @Field
+              AND {VaultSql.NotVaultAnyEntity("canonical_value_arrays.entity_id")}
               AND NULLIF(value_qid, '') IS NOT NULL
               AND NULLIF(value, '') IS NOT NULL
             GROUP BY value_qid
@@ -685,6 +697,7 @@ public sealed class CollectionBrowseReadService(
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
                 WHERE w.media_type = 'Music'
                   AND {WorkReadinessSql.ReadyWorkPredicate("w")}
+                  AND {VaultSql.NotVaultEntity("w.id")}
                   AND {visibleAssetPredicate}
                 """,
                 cancellationToken: ct)).ConfigureAwait(false))
@@ -1184,11 +1197,10 @@ public sealed class CollectionBrowseReadService(
                         personRoles = BuildPersonRoles(
                             ResolvePersonDisplayRole(primaryMediaType, groupByField),
                             person.StoredRoles);
-                        if (!string.IsNullOrWhiteSpace(person.LocalHeadshotPath)
-                            || !string.IsNullOrWhiteSpace(person.HeadshotUrl))
-                        {
-                            personPhotoUrl = $"/persons/{person.Id}/headshot";
-                        }
+                        personPhotoUrl = ApiImageUrls.BuildPersonHeadshotUrl(
+                            person.Id,
+                            person.LocalHeadshotPath,
+                            person.HeadshotUrl);
                     }
                 }
                 catch (Exception ex)

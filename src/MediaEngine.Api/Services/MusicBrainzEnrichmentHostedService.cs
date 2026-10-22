@@ -39,6 +39,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
     private readonly CoverArtWorker _coverArtWorker;
     private readonly EnrichmentPipelineExecutionGate _executionGate;
     private readonly ILogger<MusicBrainzEnrichmentHostedService> _logger;
+    private readonly IExternalLookupGuard? _lookupGuard;
 
     public MusicBrainzEnrichmentHostedService(
         IDatabaseConnection db,
@@ -52,8 +53,10 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
         IScoringEngine scoringEngine,
         CoverArtWorker coverArtWorker,
         EnrichmentPipelineExecutionGate executionGate,
-        ILogger<MusicBrainzEnrichmentHostedService> logger)
+        ILogger<MusicBrainzEnrichmentHostedService> logger,
+        IExternalLookupGuard? lookupGuard = null)
     {
+        _lookupGuard = lookupGuard;
         _db = db;
         _providers = providers;
         _configLoader = configLoader;
@@ -152,6 +155,11 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
         {
             ct.ThrowIfCancellationRequested();
 
+            if (await _lookupGuard.RefusesAsync(candidate.AssetId, _logger, "MusicBrainz lookup", ct).ConfigureAwait(false))
+            {
+                continue;
+            }
+
             try
             {
                 await EnrichOneAsync(provider, candidate, ct).ConfigureAwait(false);
@@ -171,6 +179,9 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
 
     internal async Task<IReadOnlyList<MusicBrainzCandidate>> LoadCandidatesAsync(CancellationToken ct)
     {
+        // Files in a library that never looks anything up (a plain kind such as Other audio) are left out of the selection itself,
+        // so they cannot crowd the batch and nothing is asked of MusicBrainz about them (Library setup D38).
+        var blockedLibraryIds = _lookupGuard?.GetBlockedLibraryIds().Select(id => id.ToLowerInvariant()).ToArray() ?? [];
         using var conn = _db.CreateConnection();
         var rows = await conn.QueryAsync<MusicBrainzCandidate>(new CommandDefinition(
             """
@@ -208,6 +219,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
               AND a.presented_at IS NOT NULL
               AND COALESCE(w.curator_state, '') NOT IN ('rejected', 'provisional')
               AND COALESCE(w.is_catalog_only, 0) = 0
+              AND (a.library_id IS NULL OR lower(a.library_id) NOT IN @blockedLibraryIds)
               AND COALESCE(a.file_path_root, '') NOT LIKE '%/.data/staging/%'
               AND COALESCE(a.file_path_root, '') NOT LIKE '%\.data\staging\%'
               AND COALESCE(a.file_path_root, '') NOT LIKE '%/quarantine/%'
@@ -236,7 +248,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
             ORDER BY RootWorkId, CAST(COALESCE(TrackNumber, '9999') AS INTEGER), Title
             LIMIT @limit;
             """,
-            new { limit = BatchSize },
+            new { limit = BatchSize, blockedLibraryIds },
             cancellationToken: ct)).ConfigureAwait(false);
 
         return rows

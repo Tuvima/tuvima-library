@@ -21,6 +21,7 @@ namespace MediaEngine.Providers.Workers;
 public sealed class QuickHydrationWorker
 {
     private readonly IIdentityJobRepository _jobRepo;
+    private readonly IExternalLookupGuard? _lookupGuard;
     private readonly IEnrichmentService _enrichment;
     private readonly CollectionFinalizationService _collectionFinalization;
     private readonly ILogger<QuickHydrationWorker> _logger;
@@ -49,8 +50,10 @@ public sealed class QuickHydrationWorker
         IUniverseEnrichmentScheduler universeEnrichment,
         IConfigurationLoader configLoader,
         ILogger<QuickHydrationWorker> logger,
-        IPipelineExecutionSnapshotProvider? configurationSnapshots = null)
+        IPipelineExecutionSnapshotProvider? configurationSnapshots = null,
+        IExternalLookupGuard? lookupGuard = null)
     {
+        _lookupGuard = lookupGuard;
         _jobRepo = jobRepo;
         _enrichment = enrichment;
         _collectionFinalization = collectionFinalization;
@@ -70,12 +73,15 @@ public sealed class QuickHydrationWorker
     public async Task<int> PollAsync(CancellationToken ct)
     {
         var executionSnapshot = GetExecutionSnapshot();
-        var jobs = await _jobRepo.LeaseNextAsync(
+        var leased = await _jobRepo.LeaseNextAsync(
             "QuickHydrationWorker",
             [IdentityJobState.QidResolved],
             GetBatchSize(executionSnapshot),
             LeaseDuration,
             ct: ct);
+
+        // A file in a library that never looks anything up is closed here, before any provider is asked (Library setup D38).
+        var jobs = await _lookupGuard.SettleBlockedJobsAsync(_jobRepo, leased, _logger, ct).ConfigureAwait(false);
 
         await Parallel.ForEachAsync(
             jobs,
@@ -90,7 +96,7 @@ public sealed class QuickHydrationWorker
                 await ProcessLeasedJobAsync(job, executionSnapshot, jobCt).ConfigureAwait(false))
             .ConfigureAwait(false);
 
-        return jobs.Count;
+        return leased.Count;
     }
 
     private async Task ProcessLeasedJobAsync(

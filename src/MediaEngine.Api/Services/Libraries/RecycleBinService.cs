@@ -49,7 +49,11 @@ public sealed class RecycleBinService(string dataRoot, ILogger logger)
         return entry;
     }
 
-    public IReadOnlyList<RecycleBinEntry> List()
+    /// <summary>
+    /// What is waiting in the bin. <paramref name="hiddenLibraryIds"/> are the libraries the caller must not know about: the Vault's
+    /// entries are visible only inside Vault mode (Videos spec D34), so a locked caller passes the Vault libraries here.
+    /// </summary>
+    public IReadOnlyList<RecycleBinEntry> List(IReadOnlySet<string>? hiddenLibraryIds = null)
     {
         if (!Directory.Exists(Root))
         {
@@ -59,7 +63,7 @@ public sealed class RecycleBinService(string dataRoot, ILogger logger)
         var entries = new List<RecycleBinEntry>();
         foreach (var folder in Directory.EnumerateDirectories(Root))
         {
-            if (TryRead(folder) is { } entry)
+            if (TryRead(folder) is { } entry && !IsHidden(entry, hiddenLibraryIds))
             {
                 entries.Add(entry);
             }
@@ -68,10 +72,11 @@ public sealed class RecycleBinService(string dataRoot, ILogger logger)
         return entries.OrderByDescending(entry => entry.DeletedAt).ToList();
     }
 
-    public RecycleBinRestoreResult Restore(Guid id)
+    /// <summary>Puts a file back. An entry in a hidden library answers exactly like one that is not in the bin.</summary>
+    public RecycleBinRestoreResult Restore(Guid id, IReadOnlySet<string>? hiddenLibraryIds = null)
     {
         var folder = FolderOf(id);
-        if (TryRead(folder) is not { } entry || !File.Exists(Path.Combine(folder, entry.FileName)))
+        if (TryRead(folder) is not { } entry || IsHidden(entry, hiddenLibraryIds) || !File.Exists(Path.Combine(folder, entry.FileName)))
         {
             return RecycleBinRestoreResult.NotFound;
         }
@@ -95,8 +100,11 @@ public sealed class RecycleBinService(string dataRoot, ILogger logger)
         }
     }
 
-    /// <summary>Removes every file in the bin from the disk for good. Returns how many were removed.</summary>
-    public int Empty()
+    /// <summary>
+    /// Removes every file the caller can see in the bin from the disk for good. Returns how many were removed. Entries in a hidden
+    /// library stay: a locked caller can neither remove them nor learn from the count that they exist.
+    /// </summary>
+    public int Empty(IReadOnlySet<string>? hiddenLibraryIds = null)
     {
         if (!Directory.Exists(Root))
         {
@@ -106,6 +114,11 @@ public sealed class RecycleBinService(string dataRoot, ILogger logger)
         var removed = 0;
         foreach (var folder in Directory.EnumerateDirectories(Root))
         {
+            if (hiddenLibraryIds is { Count: > 0 } && TryRead(folder) is { } hidden && IsHidden(hidden, hiddenLibraryIds))
+            {
+                continue;
+            }
+
             try
             {
                 Directory.Delete(folder, recursive: true);
@@ -119,6 +132,41 @@ public sealed class RecycleBinService(string dataRoot, ILogger logger)
 
         return removed;
     }
+
+    /// <summary>True while the bin still holds the entry with this id.</summary>
+    public bool Contains(Guid id) => Directory.Exists(FolderOf(id));
+
+    /// <summary>
+    /// Removes the named entries from the disk for good (the Vault's image bin empties only its own images this way). An entry that is
+    /// already gone counts as removed. Returns false when any entry could not be removed; those stay in the bin.
+    /// </summary>
+    public bool Remove(IReadOnlyCollection<Guid> ids)
+    {
+        var allGone = true;
+        foreach (var id in ids)
+        {
+            var folder = FolderOf(id);
+            if (!Directory.Exists(folder))
+            {
+                continue;
+            }
+
+            try
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Could not empty one recycle bin entry; it stays in the bin");
+                allGone = false;
+            }
+        }
+
+        return allGone;
+    }
+
+    private static bool IsHidden(RecycleBinEntry entry, IReadOnlySet<string>? hiddenLibraryIds) =>
+        hiddenLibraryIds is { Count: > 0 } && entry.LibraryId is { } library && hiddenLibraryIds.Contains(library);
 
     private string FolderOf(Guid id) => Path.Combine(Root, id.ToString("N"));
 

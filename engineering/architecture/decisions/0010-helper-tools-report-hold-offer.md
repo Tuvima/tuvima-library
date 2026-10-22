@@ -14,5 +14,8 @@ Shy's first test run on a fresh install failed silently: FFmpeg was not on the c
 - **Only Windows x64 has a pinned build.** Linux and macOS keep the "install it yourself" instructions until a build is chosen and licence-checked.
 - **"Waiting" can hide a problem** if nobody looks; the setup list, the waiting label, the Settings page and an administrator banner all say the same thing.
 
+## Amendment 2026-10-21 (Shy, local check): fetch a missing Required tool by itself
+A first run still stopped at "Waiting for media tools" because nobody pressed **Install for me**. Q5 "Offer" is replaced for **Required** tools only: when FFmpeg is missing and the Library can fetch it here (pinned Windows x64 build, never in a container), `ToolAutoInstaller` starts the same checked download at first-run setup (the server check) and at Engine start-up. Setup shows its progress and, if it fails, the plain reason and a next step; Check again retries. The same fixed addresses, SHA-256 checks and activity-log entries apply, and `auto_install_required` in `config/tool_downloads.json` turns it off. Tesseract (optional, needs Windows approval) and every repair (**Download again**) stay on request. Licence: the pinned FFmpeg build is the GPLv3 build already recorded in the attributions, fetched not bundled. A development and test switch, `TUVIMA_FRESH_TOOLS=1`, makes the Engine ignore installed FFmpeg and remove its own fetched copy so a fresh start downloads it again.
+
 ## Revisit if
 A pinned Linux or macOS build is chosen, the Library starts shipping its own updater, or a tool stops publishing fingerprinted releases.

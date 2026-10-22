@@ -1,5 +1,6 @@
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Api.Services.Tools;
+using MediaEngine.Api.Services.Tools.ExifTool;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -12,8 +13,12 @@ public static class TuvimaToolRequirementsServiceCollectionExtensions
     {
         services.AddSingleton<IToolRuntimeProbe, ToolRuntimeProbe>();
         services.AddSingleton<IToolRequirementsService, ToolRequirementsService>();
+        // ExifTool writes the profile name into View files: found in tools/exiftool, TUVIMA_EXIFTOOL_PATH or on the search path,
+        // and run once per batch through a single long-lived process.
+        services.AddSingleton<IExifToolLocator, ExifToolLocator>();
+        services.AddSingleton<IExifToolRunner, ExifToolRunner>();
         services.AddSingleton<ToolLocationService>();
-        // Fetching FFmpeg and Tesseract on request: fixed addresses and checksums from config/tool_downloads.json.
+        // Fetching FFmpeg, Tesseract and ExifTool on request: fixed addresses and checksums from config/tool_downloads.json.
         // Redirects are followed by hand, to an allow-list of hosts, so the client itself must not follow them.
         services.AddTuvimaHttpClient(HttpToolDownloadSource.HttpClientName, TimeSpan.FromMinutes(30), addStandardResilience: false)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
@@ -30,7 +35,10 @@ public static class TuvimaToolRequirementsServiceCollectionExtensions
             provider.GetRequiredService<IHostApplicationLifetime>(),
             provider.GetRequiredService<ToolInstallPlatform>(),
             () => provider.GetRequiredService<IToolRequirementsService>(),
-            provider.GetRequiredService<ILogger<ToolInstallerService>>()));
+            provider.GetRequiredService<ILogger<ToolInstallerService>>(),
+            provider.GetRequiredService<IExifToolLocator>()));
+        // Starts the download of a missing Required tool (FFmpeg) at first-run setup and at Engine start-up.
+        services.AddSingleton<IToolAutoInstaller, ToolAutoInstaller>();
         // Nothing is held back until the work that holds files registers its own counter in place of this one.
         services.TryAddSingleton<IToolWaitingWorkCounter, NoToolWaitingWorkCounter>();
         services.AddHostedService<ToolRequirementsStartupService>();

@@ -11,8 +11,11 @@ public sealed partial class EngineApiClient
     public Task<BackupSettingsResponse?> UpdateBackupSettingsAsync(UpdateBackupSettingsRequest request, CancellationToken ct = default) =>
         PutAsync<UpdateBackupSettingsRequest, BackupSettingsResponse>("PUT /backup/settings", "/backup/settings", request, ct: ct);
 
-    public Task<BackupSettingsResponse?> SetBackupPassphraseAsync(SetBackupPassphraseRequest request, CancellationToken ct = default) =>
-        PostAsync<SetBackupPassphraseRequest, BackupSettingsResponse>("POST /backup/passphrase", "/backup/passphrase", request, ct: ct);
+    public Task<BackupSettingsResponse?> SaveBackupDestinationAsync(SaveBackupDestinationRequest request, CancellationToken ct = default) =>
+        PostAsync<SaveBackupDestinationRequest, BackupSettingsResponse>("POST /backup/destinations", "/backup/destinations", request, ct: ct);
+
+    public Task<bool> RemoveBackupDestinationAsync(string destinationId, CancellationToken ct = default) =>
+        DeleteAsync("DELETE /backup/destinations/{id}", $"/backup/destinations/{Uri.EscapeDataString(destinationId)}", ct: ct);
 
     public Task<BackupRunResponse?> RunBackupNowAsync(CancellationToken ct = default) =>
         PostAsync<object, BackupRunResponse>("POST /backup/run", "/backup/run", new { }, ct: ct);

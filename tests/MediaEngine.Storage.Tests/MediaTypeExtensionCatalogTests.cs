@@ -26,6 +26,33 @@ public sealed class MediaTypeExtensionCatalogTests
         Assert.Equal(MediaType.Comics, catalog.ResolveMediaTypeFromExtension(".cbz"));
     }
 
+    // The Videos definition used to map to Unknown, so nothing could ask which extensions belong to Videos.
+    [Fact]
+    public void Catalog_MapsTheVideosDefinitionToTheVideosMediaType()
+    {
+        using var loader = new ConfigurationDirectoryLoader(FindRepoDir("config"));
+        var catalog = new MediaTypeExtensionCatalog(loader);
+
+        var extensions = catalog.GetExtensionsFor(MediaType.Videos);
+
+        Assert.Contains(".mkv", extensions);
+        Assert.Contains(".mp4", extensions);
+        Assert.Contains(".webm", extensions);
+    }
+
+    // A bare video file is a movie by extension alone; only the library folder or the import sub-folder name makes it a Video.
+    [Theory]
+    [InlineData(".mp4")]
+    [InlineData(".mkv")]
+    [InlineData(".webm")]
+    public void Catalog_StillResolvesABareVideoExtensionToMovies(string extension)
+    {
+        using var loader = new ConfigurationDirectoryLoader(FindRepoDir("config"));
+        var catalog = new MediaTypeExtensionCatalog(loader);
+
+        Assert.Equal(MediaType.Movies, catalog.ResolveMediaTypeFromExtension(extension));
+    }
+
     /// <summary>
     /// Pins the extension superset the catalog was extended to cover: formats that other
     /// bypass sites across the Engine (AssetPathService, VideoMetadataTagger,

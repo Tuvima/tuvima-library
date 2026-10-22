@@ -125,7 +125,7 @@ public sealed class ArtworkLibraryReadService(
         string? search,
         CancellationToken ct)
     {
-        var rows = connection.Query<UniverseArtworkRow>(new CommandDefinition("""
+        var rows = connection.Query<UniverseArtworkRow>(new CommandDefinition($"""
             SELECT collection.id AS EntityId,
                    collection.display_name AS DisplayTitle,
                    collection.description AS Description,
@@ -141,6 +141,7 @@ public sealed class ArtworkLibraryReadService(
                    COUNT(DISTINCT item.work_id) AS OwnedWorkCount
             FROM collections collection
             LEFT JOIN collection_items item ON item.collection_id = collection.id
+                                           AND {VaultSql.NotVaultEntity("item.work_id")}
             WHERE collection.collection_type = 'Universe'
               AND (@Search IS NULL OR collection.display_name LIKE '%' || @Search || '%' COLLATE NOCASE)
             GROUP BY collection.id, collection.display_name, collection.description,
@@ -449,10 +450,11 @@ public sealed class ArtworkLibraryReadService(
             var canonicalHeadshot = ApiImageUrls.BuildPersonHeadshotUrl(
                 row.EntityId,
                 row.LocalHeadshotPath,
-                row.RemoteHeadshotUrl);
+                row.RemoteHeadshotUrl,
+                "s");
             if (!string.IsNullOrWhiteSpace(canonicalHeadshot))
             {
-                return $"{canonicalHeadshot}?size=s";
+                return canonicalHeadshot;
             }
         }
 
@@ -463,8 +465,7 @@ public sealed class ArtworkLibraryReadService(
 
         if (row.UsesLegacyPersonImage)
         {
-            var legacyHeadshot = ApiImageUrls.BuildPersonHeadshotUrl(row.EntityId, row.LocalHeadshotPath, row.RemoteHeadshotUrl);
-            return string.IsNullOrWhiteSpace(legacyHeadshot) ? null : $"{legacyHeadshot}?size=s";
+            return ApiImageUrls.BuildPersonHeadshotUrl(row.EntityId, row.LocalHeadshotPath, row.RemoteHeadshotUrl, "s");
         }
 
         return row.HasCanonicalPrimary
@@ -701,7 +702,7 @@ public sealed class ArtworkLibraryReadService(
                 .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-    private const string BaseSql = """
+    private static readonly string BaseSql = $"""
         WITH work_items AS (
             SELECT
                 w.id AS EntityId,
@@ -748,6 +749,7 @@ public sealed class ArtworkLibraryReadService(
             LEFT JOIN entity_assets ea ON ea.entity_id = w.id AND ea.entity_type = 'Work'
                                       AND (@ArtworkType IS NULL OR ea.asset_type = @ArtworkType)
             WHERE w.ownership = 'Owned' AND w.is_catalog_only = 0 AND w.work_kind != 'parent'
+              AND {VaultSql.NotVaultEntity("w.id")}
               AND (@EntityKind IS NULL OR @EntityKind = 'media')
             GROUP BY w.id, w.media_type, w.parent_key
             HAVING @ArtworkType IS NULL OR COUNT(ea.id) > 0 OR PrimaryAssetType IS NOT NULL
@@ -785,7 +787,8 @@ public sealed class ArtworkLibraryReadService(
                    INNER JOIN editions ON editions.id = assets.edition_id
                   WHERE links.person_id = p.id
                     AND assets.status = 'Normal'
-                    AND assets.is_orphaned = 0) AS OwnedWorkCount,
+                    AND assets.is_orphaned = 0
+                    AND {VaultSql.NotVaultAsset("assets.id")}) AS OwnedWorkCount,
                 CASE WHEN COUNT(ea.id) = 0 AND (@ArtworkType IS NULL OR @ArtworkType = 'Headshot')
                            AND (NULLIF(p.local_headshot_path, '') IS NOT NULL OR NULLIF(p.headshot_url, '') IS NOT NULL)
                      THEN 1 ELSE 0 END AS UsesLegacyPersonImage,
@@ -803,7 +806,8 @@ public sealed class ArtworkLibraryReadService(
                       INNER JOIN media_assets owned_asset ON owned_asset.id = primary_credit.media_asset_id
                      WHERE primary_credit.person_id = p.id
                        AND owned_asset.status = 'Normal'
-                       AND owned_asset.is_orphaned = 0)
+                       AND owned_asset.is_orphaned = 0
+                       AND {VaultSql.NotVaultAsset("owned_asset.id")})
             GROUP BY p.id, p.name, p.local_headshot_path, p.headshot_url
         )
         SELECT * FROM work_items

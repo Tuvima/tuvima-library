@@ -696,47 +696,105 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
     /// follow the path the file really ended up at. Returns that path, or null when the file did not move.
     /// </summary>
     private async Task<string?> MoveFiledAssetAsync(
-        Domain.Aggregates.MediaAsset asset, Guid assetId, MediaType? mediaType, string newDest, string reason, CancellationToken ct)
+        Domain.Aggregates.MediaAsset asset, Guid assetId, MediaType? mediaType, string newDest, string reason, CancellationToken ct,
+        IRefileStepRecorder? steps = null)
     {
         var oldPath = asset.FilePathRoot;
-        var oldFolder = Path.GetDirectoryName(oldPath) ?? string.Empty;
+        long sizeBefore = -1;
+        if (steps is not null)
+        {
+            // A file that cannot be seen (a drive that went away) is not measured; the move below then does not happen and the
+            // recorded plan is looked at again when the drive is back.
+            if (File.Exists(oldPath))
+            {
+                sizeBefore = new FileInfo(oldPath).Length;
+            }
+
+            // The plan named a free name; if something took it since, the move is dropped rather than renamed to "(2)", which the
+            // recorded plan would not know about after a stop.
+            if (!string.Equals(Path.GetFullPath(oldPath), Path.GetFullPath(newDest), StringComparison.OrdinalIgnoreCase)
+                && File.Exists(newDest))
+            {
+                _logger.LogInformation("Library move: {Dest} for {Id} was taken after the move was planned, so the move is tried again later", newDest, assetId);
+                await steps.NotMovedAsync(ct).ConfigureAwait(false);
+                return null;
+            }
+        }
 
         var relocatedPath = await _organizer.ExecuteMoveAsync(oldPath, newDest, ct)
             .ConfigureAwait(false);
 
-        if (relocatedPath is not null)
+        if (relocatedPath is null)
         {
-            // The data store and the files that travel with it follow the path the file really ended up at.
-            await _assetRepo.UpdateFilePathAsync(assetId, relocatedPath, ct).ConfigureAwait(false);
-            await MarkPresentedAsync(assetId, ct).ConfigureAwait(false);
+            return null;
+        }
 
-            var keptBehind = MoveSidecarFiles(oldPath, relocatedPath);
-            await LogKeptBehindAsync(assetId, mediaType, keptBehind, ct).ConfigureAwait(false);
+        // The file is at its new place and the old one is empty: written down before the data store follows.
+        if (steps is not null)
+        {
+            await steps.MovedAsync(relocatedPath, ct).ConfigureAwait(false);
+        }
 
-            var sourceRoot = _libraryResolver?.ResolveSourceForPath(oldPath)?.Source.Path;
-            CleanEmptyParents(oldFolder, sourceRoot ?? oldFolder);
+        await FinishMovedAssetAsync(assetId, mediaType, oldPath, relocatedPath, reason, ct).ConfigureAwait(false);
 
-            _logger.LogInformation(
-                "Re-organized asset {Id} {Reason}: {Old} → {New}",
-                assetId, reason, oldPath, relocatedPath);
-
-            try
+        if (steps is not null)
+        {
+            // Checked: the data store holds the path the file is really at, and the file is there with the size it had.
+            var after = await _assetRepo.FindByIdAsync(assetId, ct).ConfigureAwait(false);
+            var samePlace = string.Equals(oldPath, relocatedPath, StringComparison.OrdinalIgnoreCase);
+            if (after is null
+                || !string.Equals(after.FilePathRoot, relocatedPath, StringComparison.OrdinalIgnoreCase)
+                || !File.Exists(relocatedPath)
+                || new FileInfo(relocatedPath).Length != sizeBefore
+                || (!samePlace && File.Exists(oldPath)))
             {
-                await _activityRepo.LogAsync(new SystemActivityEntry
-                {
-                    ActionType = SystemActionType.PathUpdated,
-                    EntityId = assetId,
-                    EntityType = mediaType?.ToString() ?? "Unknown",
-                    Detail = $"Re-organized {reason}: {Path.GetFileName(relocatedPath)}",
-                }, ct).ConfigureAwait(false);
+                _logger.LogWarning("Library move: {Dest} for {Id} could not be checked after the move", relocatedPath, assetId);
+                return null;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _logger.LogDebug(ex, "Failed to log re-organization activity for {Id}", assetId);
-            }
+
+            await steps.CheckedAsync(ct).ConfigureAwait(false);
         }
 
         return relocatedPath;
+    }
+
+    /// <summary>
+    /// What follows a file reaching its new place: the stored path, the files that travel with it, the folders it left and the note in
+    /// the activity history. Safe to repeat, so a move that was cut short can be finished from what is on disk.
+    /// </summary>
+    private async Task FinishMovedAssetAsync(
+        Guid assetId, MediaType? mediaType, string oldPath, string relocatedPath, string reason, CancellationToken ct)
+    {
+        var oldFolder = Path.GetDirectoryName(oldPath) ?? string.Empty;
+
+        // The data store and the files that travel with it follow the path the file really ended up at.
+        await _assetRepo.UpdateFilePathAsync(assetId, relocatedPath, ct).ConfigureAwait(false);
+        await MarkPresentedAsync(assetId, ct).ConfigureAwait(false);
+
+        var keptBehind = MoveSidecarFiles(oldPath, relocatedPath);
+        await LogKeptBehindAsync(assetId, mediaType, keptBehind, ct).ConfigureAwait(false);
+
+        var sourceRoot = _libraryResolver?.ResolveSourceForPath(oldPath)?.Source.Path;
+        CleanEmptyParents(oldFolder, sourceRoot ?? oldFolder);
+
+        _logger.LogInformation(
+            "Re-organized asset {Id} {Reason}: {Old} → {New}",
+            assetId, reason, oldPath, relocatedPath);
+
+        try
+        {
+            await _activityRepo.LogAsync(new SystemActivityEntry
+            {
+                ActionType = SystemActionType.PathUpdated,
+                EntityId = assetId,
+                EntityType = mediaType?.ToString() ?? "Unknown",
+                Detail = $"Re-organized {reason}: {Path.GetFileName(relocatedPath)}",
+            }, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Failed to log re-organization activity for {Id}", assetId);
+        }
     }
 
     // -------------------------------------------------------------------------

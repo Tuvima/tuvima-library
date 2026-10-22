@@ -238,6 +238,59 @@ public sealed partial class EngineApiClient
             : AudiobookBookmarkOperationResult<T>.Unknown($"The bookmark {operation} outcome could not be confirmed (HTTP {(int)statusCode}). Reload Saved to check.", statusCode);
     }
 
+    public Task<IReadOnlyList<BookmarkPackDto>> GetBookmarkPacksAsync(Guid workId, Guid profileId, CancellationToken ct = default) =>
+        GetAsync<IReadOnlyList<BookmarkPackDto>>(
+            "GET /player/audiobooks/{workId}/bookmark-packs",
+            $"/api/v1/player/audiobooks/{workId:D}/bookmark-packs",
+            () => [],
+            new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") },
+            ct: ct);
+
+    public Task<BookmarkPackFileDto?> ExportBookmarkPackAsync(
+        Guid workId, Guid profileId, BookmarkPackExportRequestDto request, CancellationToken ct = default) =>
+        PostAsync<BookmarkPackExportRequestDto, BookmarkPackFileDto>(
+            "POST /player/audiobooks/{workId}/bookmark-packs/export",
+            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmark-packs/export",
+                new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
+            request,
+            logAsWarning: false,
+            ct: ct);
+
+    public Task<BookmarkPackPreviewDto?> InspectBookmarkPackAsync(
+        Guid workId, Guid profileId, BookmarkPackImportRequestDto request, CancellationToken ct = default) =>
+        PostAsync<BookmarkPackImportRequestDto, BookmarkPackPreviewDto>(
+            "POST /player/audiobooks/{workId}/bookmark-packs/inspect",
+            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmark-packs/inspect",
+                new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
+            request,
+            logAsWarning: false,
+            ct: ct);
+
+    public Task<BookmarkPackDto?> ImportBookmarkPackAsync(
+        Guid workId, Guid profileId, BookmarkPackImportRequestDto request, CancellationToken ct = default) =>
+        PostAsync<BookmarkPackImportRequestDto, BookmarkPackDto>(
+            "POST /player/audiobooks/{workId}/bookmark-packs/import",
+            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmark-packs/import",
+                new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
+            request,
+            logAsWarning: false,
+            ct: ct);
+
+    public Task<bool> SetBookmarkPackEnabledAsync(Guid packId, Guid profileId, bool isEnabled, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /player/bookmark-packs/{packId}/enabled",
+            BuildEndpointPath($"/api/v1/player/bookmark-packs/{packId:D}/enabled",
+                new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
+            new SetBookmarkPackEnabledRequestDto { ProfileId = profileId, IsEnabled = isEnabled },
+            ct: ct);
+
+    public Task<bool> DeleteBookmarkPackAsync(Guid packId, Guid profileId, CancellationToken ct = default) =>
+        DeleteAsync(
+            "DELETE /player/bookmark-packs/{packId}",
+            BuildEndpointPath($"/api/v1/player/bookmark-packs/{packId:D}",
+                new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
+            ct: ct);
+
     // Migrated to the shared GetAsync<T> fallback-overload helper (stage 5B wave 2).
     public Task<IReadOnlyList<AudiobookChapterTitleOverrideDto>> GetAudiobookChapterTitleOverridesAsync(Guid workId, Guid? assetId = null, CancellationToken ct = default) =>
         GetAsync<IReadOnlyList<AudiobookChapterTitleOverrideDto>>(

@@ -31,7 +31,8 @@
                     <div class="character-portrait">
                         @if (!string.IsNullOrWhiteSpace(character.image))
                         {
-                            <img src="@character.image" alt="@character.label" class="char-img" />
+                            @* Drawn 64px (CastComparison.razor.css). *@
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(character.image, 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(character.image, 64)" alt="@character.label" class="char-img" loading="lazy" decoding="async" />
                         }
                         else
                         {
@@ -67,7 +68,8 @@
                                 <div class="performer-chip" title="@PerformerTitle(performer)">
                                     @if (!string.IsNullOrWhiteSpace(performer.headshot_url))
                                     {
-                                        <AppAvatar Size="AppSize.Small"><img src="@performer.headshot_url" alt="@performerName" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" /></AppAvatar>
+                                        @* Drawn 36px, the compact avatar (tuvima.tokens.css). *@
+                                        <AppAvatar Size="AppSize.Small"><img src="@MediaTileArtworkUrl.ForDrawnSize(performer.headshot_url, 36)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(performer.headshot_url, 36)" alt="@performerName" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" loading="lazy" decoding="async" /></AppAvatar>
                                     }
                                     else
                                     {

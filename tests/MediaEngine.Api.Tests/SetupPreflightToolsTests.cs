@@ -30,7 +30,41 @@ public sealed class SetupPreflightToolsTests : IDisposable
         Assert.False(withTools.Tools.NeedsAttention);
     }
 
-    private async Task<MediaEngine.Contracts.Setup.SetupPreflightDto> RunAsync(IToolRequirementsService tools)
+    [Fact]
+    public async Task AMissingRequiredTool_StartsItsDownload_AndTheListShowsItDownloading()
+    {
+        var auto = new DownloadStartingAutoInstaller();
+
+        var result = await RunAsync(new FixedTools(Tools(ready: false)), auto);
+
+        Assert.Equal(1, auto.Calls);
+        Assert.True(result.Passed);
+        Assert.Equal(ToolRequirementStates.Downloading, Assert.Single(result.Tools.Tools).State);
+    }
+
+    [Fact]
+    public async Task EveryRequiredToolReady_StartsNoDownload()
+    {
+        var auto = new DownloadStartingAutoInstaller();
+
+        await RunAsync(new FixedTools(Tools(ready: true)), auto);
+
+        Assert.Equal(0, auto.Calls);
+    }
+
+    private sealed class DownloadStartingAutoInstaller : IToolAutoInstaller
+    {
+        public int Calls { get; private set; }
+
+        public Task<ToolRequirementsDto> StartMissingRequiredAsync(ToolRequirementsDto tools, CancellationToken ct)
+        {
+            Calls++;
+            var rows = tools.Tools.Select(tool => tool with { State = ToolRequirementStates.Downloading, DownloadPercent = 0 }).ToList();
+            return Task.FromResult(tools with { Tools = rows });
+        }
+    }
+
+    private async Task<MediaEngine.Contracts.Setup.SetupPreflightDto> RunAsync(IToolRequirementsService tools, IToolAutoInstaller? autoInstaller = null)
     {
         var configRoot = Path.Combine(_root, "config");
         var configuration = new ConfigurationDirectoryLoader(configRoot);
@@ -48,7 +82,7 @@ public sealed class SetupPreflightToolsTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(databasePath)!);
         await File.WriteAllBytesAsync(databasePath, []);
 
-        var service = new SetupPreflightService(configuration, new HealthyDatabase(), tools, NullLogger<SetupPreflightService>.Instance);
+        var service = new SetupPreflightService(configuration, new HealthyDatabase(), tools, NullLogger<SetupPreflightService>.Instance, autoInstaller);
         return await service.RunAsync(CancellationToken.None);
     }
 

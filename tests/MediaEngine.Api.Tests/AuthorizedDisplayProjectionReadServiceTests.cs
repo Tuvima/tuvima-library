@@ -1650,7 +1650,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var accessor = new HttpContextAccessor { HttpContext = context };
         var unlocks = new GrantAdminUnlockService(
             _accounts,
-            new PasswordHasher<GrantAdminProtection>(),
+            new StubProfilePins(),
             TimeProvider.System);
         var decisions = new AccountAccessDecisionService(_accounts, unlocks);
         var evaluator = new AuthorizationEvaluator(
@@ -1675,7 +1675,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             _accounts,
             new GrantAdminUnlockService(
                 _accounts,
-                new PasswordHasher<GrantAdminProtection>(),
+                new StubProfilePins(),
                 TimeProvider.System));
         return new CatalogueResourceAuthorizationService(
             _database,
@@ -1835,6 +1835,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
 
     public void Dispose()
     {
+        foreach (var app in _routeApps)
+        {
+            app.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+
         _database.Dispose();
         TestTemp.ReleaseSqlitePool(_databasePath);
         try { File.Delete(_databasePath); } catch { }

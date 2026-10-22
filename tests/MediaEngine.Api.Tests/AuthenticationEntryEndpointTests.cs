@@ -104,7 +104,7 @@ public sealed class AuthenticationEntryEndpointTests
         builder.Services.AddSingleton<IRequestAuthorityResolver, AnonymousAuthorityResolver>();
         builder.Services.AddSingleton<IPasskeyHandler<Account>>(_ => null!);
         builder.Services.AddSingleton<UserManager<Account>>(_ => null!);
-        builder.Services.AddSingleton(new DashboardAuthorityProjector(null!, null!, null!, TimeProvider.System));
+        builder.Services.AddSingleton(new DashboardAuthorityProjector(null!, null!, null!));
         builder.Services.AddSingleton(new ExternalIdentityTransactionService(TimeProvider.System));
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<AuthenticationPolicyMutationGate>();

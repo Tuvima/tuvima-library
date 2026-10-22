@@ -1,5 +1,6 @@
 @page "/setup"
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@implements IDisposable
 @layout MediaEngine.Web.Shared.SetupWizardLayout
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Contracts.Setup
@@ -52,7 +53,7 @@
                     <SetupServerStage ServerName="@_serverName" ServerNameChanged="@((string value) => _serverName = value)"
                                       HostName="@_hostName" HostNameChanged="@((string value) => _hostName = value)"
                                       Busy="@_busy" Save="SaveServerIdentityAsync"
-                                      Backup="@_backup" ShowRestore="@_showRestore" OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore"
+                                      Backup="@_backup" BackupError="@_backupError" ShowRestore="@_showRestore" OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore"
                                       UploadBackup="UploadBackupAsync" ConfirmRestore="ConfirmRestoreAsync"
                                       ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
@@ -82,7 +83,7 @@
                                         ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "providers":
-                    <SetupProvidersStage Catalogue="@_providerCatalogue" Libraries="@_setupLibraries" SetupSession="@_setupSession" Busy="@_busy"
+                    <SetupProvidersStage Catalogue="@_providerCatalogue" SetupSession="@_setupSession" Busy="@_busy"
                                          RefreshRequested="RefreshProvidersAsync" Continue="SaveProviderResultAsync" Defer="DeferProviderResultAsync"
                                          Back="@(() => { _languageConfirmed = false; return Task.CompletedTask; })" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
@@ -102,6 +103,7 @@
     private SetupPreflightDto? _preflight;
     private string? _preflightError;
     private SetupBackupInspectionDto? _backup;
+    private string? _backupError;
     private SetupMediaLocationsDto? _media;
     private LibrariesConfigurationDto? _setupLibraries;
     private SetupReadinessDto? _readiness;
@@ -388,6 +390,12 @@
             _preflightError = "Library could not finish getting ready. Try again.";
         }
         finally { _busy = false; }
+        // A missing Required tool the Library can fetch (FFmpeg) is already downloading; show its progress until it ends.
+        if (_preflight is { Passed: true } && SetupToolRules.IsDownloadingRequiredTool(_preflight.Tools))
+        {
+            StateHasChanged();
+            await FollowToolDownloadsAsync();
+        }
         // A missing tool never blocks setup, but the person sees the list first and moves on with Continue.
         if (_preflight is { Passed: true, Tools.NeedsAttention: false } && automaticallyAdvance && !_showRestore && _selectedStep is null)
         {
@@ -396,6 +404,47 @@
         }
     }
     private Task ContinuePastToolsAsync() => ReloadAsync();
+
+    private static readonly TimeSpan ToolPollInterval = TimeSpan.FromSeconds(1.5);
+    private readonly CancellationTokenSource _closed = new();
+
+    // Reads the tools list every moment or so while a download runs. It stops when the download ends, the Engine cannot be
+    // reached (Check again tries once more) or the person leaves the page.
+    private async Task FollowToolDownloadsAsync()
+    {
+        var token = _closed.Token;
+        try
+        {
+            while (true)
+            {
+                var current = _preflight;
+                if (current is null || !SetupToolRules.IsDownloadingRequiredTool(current.Tools))
+                {
+                    return;
+                }
+
+                await Task.Delay(ToolPollInterval, token);
+                var fresh = await ApiClient.GetSetupToolRequirementsAsync(_setupSession, token);
+                if (fresh is null)
+                {
+                    return;
+                }
+
+                _preflight = current with { Tools = fresh };
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // The person left the page; nothing is waiting on the result.
+        }
+    }
+
+    public void Dispose()
+    {
+        _closed.Cancel();
+        _closed.Dispose();
+    }
     private async Task RunPreflightManualAsync()
     {
         _preflightError = null;
@@ -404,8 +453,8 @@
         else
             await RunPreflightAsync(automaticallyAdvance: WorkflowStep == "preflight");
     }
-    private void CancelRestore() { _showRestore = false; _backup = null; }
-    private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) Snackbar.Add("The backup failed validation.", AppSeverity.Error); } finally { _busy = false; } }
+    private void CancelRestore() { _showRestore = false; _backup = null; _backupError = null; }
+    private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backupError = null; _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) { _backupError = ApiClient.LastError is { Length: > 0 } sentence ? sentence : "The backup failed validation."; Snackbar.Add(_backupError, AppSeverity.Error); } } finally { _busy = false; } }
     private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error); else Snackbar.Add("Restore scheduled. Library is restarting.", AppSeverity.Info); }
     // The no-password start is offered to a visitor on this computer or the home network, never to one a tunnel or
     // proxy may be relaying. The Engine checks all of this again.

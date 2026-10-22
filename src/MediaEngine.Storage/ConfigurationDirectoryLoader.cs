@@ -68,6 +68,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     private const string MaintenanceFileName = "maintenance.json";
     private const string HydrationFileName = "hydration.json";
     private const string MediaTypesFileName = "media_types.json";
+    private const string LibraryKindsFileName = "library_kinds.json";
     private const string DisambiguationFileName = "disambiguation.json";
     private const string TranscodingFileName = "transcoding.json";
     private const string OcrFileName = "ocr.json";
@@ -75,6 +76,9 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     private const string NetworkFileName = "network.json";
     private const string FieldPrioritiesFileName = "field_priorities.json";
     private const string PipelinesFileName = "pipelines.json";
+
+    // True when this loader had to create the config folder, so it holds only starter files.
+    private bool _createdDefaults;
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
@@ -277,6 +281,11 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     public MediaTypeConfiguration LoadMediaTypes() =>
         LoadFile<MediaTypeConfiguration>(MediaTypesFileName)
         ?? new MediaTypeConfiguration();
+
+    /// <inheritdoc/>
+    public LibraryKindsConfiguration LoadLibraryKinds() =>
+        LoadFile<LibraryKindsConfiguration>(LibraryKindsFileName)
+        ?? new LibraryKindsConfiguration();
 
     /// <inheritdoc/>
     public void SaveMediaTypes(MediaTypeConfiguration config)
@@ -522,7 +531,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     {
         var fullPath = Path.Combine(_configDir, relativePath);
         var backupPath = fullPath + ".bak";
-        var validationErrors = JsonConfigValidator.Validate(config, relativePath);
+        var validationErrors = ValidateFile(config, relativePath);
         if (validationErrors.Count > 0)
         {
             throw new ConfigValidationException(fullPath, ResolveSchemaName(relativePath), validationErrors);
@@ -560,7 +569,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     }
 
     /// <summary>Deserialize a file; returns <c>null</c> on any failure.</summary>
-    private static T? TryDeserializeFile<T>(string path, string relativePath, out IReadOnlyList<string> errors) where T : class
+    private T? TryDeserializeFile<T>(string path, string relativePath, out IReadOnlyList<string> errors) where T : class
     {
         errors = [];
         if (!File.Exists(path))
@@ -578,7 +587,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
                 return null;
             }
 
-            errors = JsonConfigValidator.Validate(result, relativePath);
+            errors = ValidateFile(result, relativePath);
             return errors.Count == 0 ? result : null;
         }
         catch (JsonException ex)
@@ -590,6 +599,40 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
         {
             errors = [$"The file could not be read: {ex.GetType().Name}."];
             return null;
+        }
+    }
+
+    // A libraries file is checked against the library kinds the same config folder holds (the kinds that ship when the file is missing).
+    private IReadOnlyList<string> ValidateFile<T>(T value, string relativePath) where T : class =>
+        value is LibrariesConfiguration
+            ? JsonConfigValidator.Validate(value, relativePath, LoadLibraryKinds().Kinds)
+            : JsonConfigValidator.Validate(value, relativePath);
+
+    /// <summary>
+    /// Checks the references in <c>library_kinds.json</c> that live in other files: every lookup provider must be a provider in
+    /// <c>providers/</c> and every naming template a key under <c>organization_templates</c> in <c>core.json</c>. Called at start-up
+    /// and when the kinds file is edited, so a typo is reported with the file and the entry (these checks are not made on every load,
+    /// which would tie reading the kinds to the other files being complete).
+    /// </summary>
+    /// <exception cref="ConfigValidationException">A kind refers to a provider or naming template that does not exist.</exception>
+    public void CheckLibraryKindReferences()
+    {
+        // A config folder this loader just created holds only starter files (no providers beyond a few), nothing the user edited.
+        if (!_createdDefaults)
+        {
+            CheckLibraryKindReferences(LoadLibraryKinds());
+        }
+    }
+
+    private void CheckLibraryKindReferences(LibraryKindsConfiguration kinds)
+    {
+        var knowledge = new LibraryKindKnowledge(
+            new HashSet<string>(LoadAllProviders().Where(provider => provider.PluginId is null).Select(provider => provider.Name), StringComparer.Ordinal),
+            new HashSet<string>(LoadCore().OrganizationTemplates.Keys, StringComparer.OrdinalIgnoreCase));
+        var problems = LibraryKindRules.Problems(kinds.Kinds, knowledge);
+        if (problems.Count > 0)
+        {
+            throw new ConfigValidationException(Path.Combine(_configDir, LibraryKindsFileName), ResolveSchemaName(LibraryKindsFileName), problems);
         }
     }
 
@@ -661,6 +704,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
                 MaintenanceFileName => ReloadFile<MaintenanceSettings>(relativePath),
                 HydrationFileName => ReloadFile<HydrationSettings>(relativePath),
                 MediaTypesFileName => ReloadFile<MediaTypeConfiguration>(relativePath),
+                LibraryKindsFileName => ReloadFile<LibraryKindsConfiguration>(relativePath),
                 PipelinesFileName => ReloadFile<Dictionary<string, MediaTypePipeline>>(relativePath),
                 NetworkFileName => ReloadFile<NetworkSettings>(relativePath),
                 "ui/palette.json" => ReloadFile<PaletteConfiguration>(relativePath),
@@ -686,6 +730,11 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
             throw new ConfigValidationException(fullPath, ResolveSchemaName(relativePath), errors);
         }
 
+        if (result is LibraryKindsConfiguration kinds)
+        {
+            CheckLibraryKindReferences(kinds);
+        }
+
         RememberLastKnownGood(relativePath, result);
         return result;
     }
@@ -708,10 +757,12 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
             "scoring.json" => "scoring.schema.json",
             "maintenance.json" => "maintenance.schema.json",
             "media_types.json" => "media_types.schema.json",
+            "library_kinds.json" => "library_kinds.schema.json",
             "pipelines.json" => "pipelines.schema.json",
             "network.json" => "network.schema.json",
             "ui/palette.json" => "ui/palette.schema.json",
             "ui/library-preferences.json" => "ui/library-preferences.schema.json",
+            "ui/library-preferences.defaults.json" => "ui/library-preferences.schema.json",
             _ => $"{Path.GetFileNameWithoutExtension(normalized)}.schema.json",
         };
     }
@@ -754,6 +805,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     /// </summary>
     private void CreateDefaultDirectory()
     {
+        _createdDefaults = true;
         Directory.CreateDirectory(_configDir);
         Directory.CreateDirectory(Path.Combine(_configDir, ProvidersSubdir));
         Directory.CreateDirectory(Path.Combine(_configDir, "ui"));
@@ -778,6 +830,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
             }
         });
         SaveMediaTypes(new MediaTypeConfiguration());
+        SaveFile(LibraryKindsFileName, new LibraryKindsConfiguration());
 
         // Default providers for a newly initialized configuration directory.
         SaveProvider(new ProviderConfiguration

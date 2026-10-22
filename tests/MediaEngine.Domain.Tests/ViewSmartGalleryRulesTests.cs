@@ -132,6 +132,49 @@ public sealed class ViewSmartGalleryRulesTests
         Assert.Equal(expected, ViewSmartGalleryRules.IsDocumentView(json));
     }
 
+    [Theory]
+    [InlineData("media_type", "eq", "image")]
+    [InlineData("file_type", "eq", "jpg")]
+    [InlineData("orientation", "eq", "landscape")]
+    [InlineData("captured_date", "gt", "2026-01-01")]
+    [InlineData("tags", "eq", "harbour")]
+    [InlineData("favorite", "eq", "true")]
+    public void AVaultGalleryRule_MayUseTheFieldsVaultImagesHave(string field, string op, string value)
+    {
+        ViewSmartGalleryRules.ValidateForVault(CollectionRuleDefinition.SingleGroup([Rule(field, op, value)]));
+
+        Assert.Contains(field, ViewSmartGalleryRules.VaultFields);
+    }
+
+    [Theory]
+    [InlineData("people", "eq", "Ana")]
+    [InlineData("place", "eq", "Oslo")]
+    [InlineData("device", "eq", "Pixel")]
+    [InlineData("owner", "eq", "Sam")]
+    [InlineData("source", "eq", "Camera")]
+    [InlineData("correspondent", "eq", "Bank")]
+    [InlineData("document_type", "eq", "Invoice")]
+    [InlineData("text_contains", "contains", "rent")]
+    public void AVaultGalleryRule_IsRefusedWhenItReachesIntoViewsPeopleDevicesSourcesOrDocuments(string field, string op, string value)
+    {
+        var rule = CollectionRuleDefinition.SingleGroup([Rule(field, op, value)]);
+
+        // The same rule is a perfectly good View rule; it is only the Vault that has narrower fields.
+        ViewSmartGalleryRules.Validate(rule);
+        Assert.Throws<ArgumentException>(() => ViewSmartGalleryRules.ValidateForVault(rule));
+    }
+
+    [Fact]
+    public void AVaultGalleryRule_RoundTripsThroughTheStoredDocument_AndStillObeysEveryViewCheck()
+    {
+        var json = ViewSmartGalleryRules.SerializeForVault(CollectionRuleDefinition.SingleGroup([Rule("favorite", "eq", "true")]));
+
+        Assert.Equal("favorite", Assert.Single(ViewSmartGalleryRules.ParseForVault(json).Groups[0].Conditions).Field);
+        Assert.Throws<ArgumentException>(() => ViewSmartGalleryRules.ParseForVault("{\"version\":2,\"groups\":[]}"));
+        Assert.Throws<ArgumentException>(() => ViewSmartGalleryRules.ParseForVault(
+            "{\"version\":1,\"groups\":[{\"match_mode\":\"all\",\"join_with_previous\":\"or\",\"conditions\":[{\"field\":\"media_type\",\"op\":\"like\",\"value\":\"%\"}]}]}"));
+    }
+
     private static CollectionRulePredicate Rule(string field, string op, string? value = null, string[]? values = null) =>
         new() { Field = field, Op = op, Value = value, Values = values };
 }

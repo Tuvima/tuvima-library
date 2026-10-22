@@ -201,7 +201,7 @@ Many-to-many cross-links between works and collections for works that span multi
 
 ### folder_organise_log
 
-The ledger of the organising job: one row for each file, and each sidecar, the job looked at while a folder was switched from as-is to managed (or organised again). A move is written as an intent (`moving`) before the file is renamed and as its final outcome after the library points at the new path, so an interrupted job resumes without losing, doubling or half-moving a file. It is also the audit trail and the source of the exportable log (`GET /settings/libraries/folders/jobs/{id}/log/export`); there is no automatic undo. The owning operation is a `media_operations` row (`operation_type = organise_folder`, `queue_name = folder_jobs`); the log keeps no foreign key so its history outlives that row.
+The ledger of the organising job: one row for each file, and each sidecar, the job looked at while a folder was switched from read-only to managed (or organised again). A move is written as an intent (`moving`) before the file is renamed and as its final outcome after the library points at the new path, so an interrupted job resumes without losing, doubling or half-moving a file. It is also the audit trail and the source of the exportable log (`GET /settings/libraries/folders/jobs/{id}/log/export`); there is no automatic undo. The owning operation is a `media_operations` row (`operation_type = organise_folder`, `queue_name = folder_jobs`); the log keeps no foreign key so its history outlives that row.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -217,7 +217,7 @@ Indexes: `idx_folder_organise_log_source (source_id, at)` and `idx_folder_organi
 
 ### excluded_source_files
 
-The media files that stayed on disk when their title was deleted from the library: a file in an as-is folder, a file a folder merge left in place, or a file Tuvima tried to delete and could not. Scans skip an excluded file so the deleted title does not come back; Settings lists them and **Add back** removes the row. The row outlives the title, so it has no foreign keys: the library and source folder are configured folders, identified by their ids.
+The media files that stayed on disk when their title was deleted from the library: a file in a read-only folder, a file a folder merge left in place, or a file Tuvima tried to delete and could not. Scans skip an excluded file so the deleted title does not come back; Settings lists them and **Add back** removes the row. The row outlives the title, so it has no foreign keys: the library and source folder are configured folders, identified by their ids.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -266,6 +266,19 @@ optional stable `source_key`, managed/linked storage mode, a managed relative
 path or external path, recursion and enabled flags, activity time, and timestamps.
 Managed paths resolve beneath the single View root; linked paths remain external
 and read-only.
+Every source also has a kind, set when it is added: `content_kind` (`photos`,
+`personal_videos` or `documents`, default `photos`) decides what the folder
+accepts (Photos take pictures, Personal videos take videos, Documents take
+documents and pictures of paper; audio and other files are never taken). A file
+the folder does not accept is skipped, never moved, deleted or changed, and
+`skipped_file_count` records how many the folder's last full scan skipped (reset
+by every full scan). `added_by_profile_id` (nullable FK to `profiles.id`, set to
+null if that profile is removed) is the profile that added the folder; the files
+found in it are tagged with that profile. The built-in upload/backup source of a
+personal space and the Shared Library's own intake folders (`shared:timeline`,
+`shared:folder:*`) take pictures, videos and documents whatever their stored
+kind says, and each item then takes the kind of its own type. Added by upgrade
+step `0037_view_kinds_and_added_by`.
 `view_devices` stores the Personal Space, optional source, stable client-device
 ID, display/device facts, last-backup time, and a modeled backup state. The
 mobile/device producer itself is not implemented merely because these rows
@@ -288,6 +301,8 @@ personal asset. Compound files share one item.
 | `owner_profile_id` | BLOB | Owning profile; indexed access boundary. |
 | `library_id` | BLOB | Internal intake/configuration bridge. |
 | `media_kind` | TEXT | `image`, `video`, `document`, `audio`, or `other`. |
+| `content_kind` | TEXT | The View kind: `photos`, `personal_videos` or `documents` (NULL only for audio and other files). A folder's items take the folder's kind (a picture of paper in a Documents folder is `documents`); uploads, backups and Shared Library intake items take the kind of their own type. Every permission check gates on this column, not on `media_kind`. A row written without one takes the kind that matches its file type (trigger `trg_local_items_content_kind_default`). Added by upgrade step `0037_view_kinds_and_added_by`. |
+| `added_by_profile_id` | BLOB | The profile that added the item, shown as that profile's current name (nullable FK to `profiles.id`, set to null if the profile is removed). Folder files take the profile that added the folder; uploads and backups take the profile that made the request; a copy in the Shared Library takes the profile whose space the item came from (else the contributor, else whoever moved it in). Indexed by `ix_local_items_added_by`. Added by upgrade step `0037_view_kinds_and_added_by`. |
 | `title`, `primary_file_name`, `primary_mime_type` | TEXT | Local display identity. |
 | `captured_at`, `created_at`, `updated_at` | TEXT | Timeline values and timestamps. |
 | `favorite`, `hidden` | INTEGER | Profile-owned logical flags. |
@@ -474,7 +489,11 @@ reapplies View authorization.
 
 `profile_view_policies` stores independent administrator-managed capabilities:
 View enabled, open the household's Shared Library, send items to it, share
-Galleries, and see Documents (`documents_enabled`). Opening and sending default
+Galleries, and see Documents (`documents_enabled`), Photos (`photos_enabled`) and
+Personal videos (`personal_videos_enabled`). The two newest switches default on
+for everyone; a kind that is off is simply not granted: its items, counts,
+folders, search text, places and people never reach that profile, and a single
+item answers "not found". Opening and sending default
 on (sending stays off for a child profile until a household administrator allows
 it). Documents default on for everyone except a child profile, which starts with
 it off; the Documents page, its Engine list and open actions, and the document
@@ -990,7 +1009,7 @@ The libraries an account may open: `account_id` and `library_id` (primary key to
 
 ### grant_admin_protections
 
-Administrator PIN protection on one account-profile grant, set under **Protect admin settings**. `account_id` and `profile_id` (primary key; references `account_profile_grants`), `is_enabled`, `unlock_mode` (`FixedDuration`, `UntilProfileSwitch` or `LockOnLeave`), `unlock_minutes`, `pin_hash` and `hash_scheme` (both set while enabled), `failed_attempt_count`, `locked_until`, `protection_version` and `updated_at`.
+The "Ask for my PIN on admin pages" switch on one account-profile grant (off unless turned on). `account_id` and `profile_id` (primary key; references `account_profile_grants`), `is_enabled`, `unlock_mode` (`FixedDuration`, `UntilProfileSwitch` or `LockOnLeave`), `unlock_minutes`, `protection_version` and `updated_at`. The PIN asked for is the profile's own PIN (no PIN is stored here), so wrong tries count toward the profile PIN's one pause.
 
 ### grant_admin_unlocks
 
@@ -1212,6 +1231,35 @@ The Engine's durable work queue. Each file noticed by ingestion has one row with
 
 **Indices:** `idx_media_operations_entity` on `(entity_id)`, and for the live count `idx_media_operations_type_created` on `(operation_type, created_at)` and `idx_media_operations_type_status` on `(operation_type, status)`, so each second's look finds the files since the active period began, and the files still being worked on, without reading every intake row the Library has ever had.
 
+### media_file_write_intents (the file write to-do list)
+
+The durable to-do list for every write into a file (added by upgrade step `0038_batched_writeback`). A change is saved in Library at once and only adds or refreshes one row here; a scheduler works through the list in one pass every `run_interval_minutes` (`config/writeback.json`, 60 by default) or when an administrator chooses Write now. What a run writes is always built from Library's values at the moment of writing.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | Primary key |
+| `target_kind` | TEXT | `media_asset` or `view_item` |
+| `asset_id` | BLOB | FK -> `media_assets.id` (cascade); set only for `media_asset`. Unique, so a file has at most one waiting row |
+| `local_item_id` | BLOB | FK -> `local_items.id` (cascade); set only for `view_item`. Unique |
+| `generation` | INTEGER | Goes up with every newer change, so a write that finishes for an older generation never marks the newer one done |
+| `operation_token` | TEXT | Identifies the change that last touched the row |
+| `trigger` | TEXT | Why it was queued (`auto_match`, `manual_override`, `library_move`, `artwork`, `restore`, ...) |
+| `status` | TEXT | `pending`, `writing`, `verified`, `blocked`, `unsupported` or `failed` |
+| `attempts` / `lease_expires_at` / `last_error` | INTEGER / TEXT / TEXT | Claim attempts, when a claimed row may be claimed again (a stopped Engine's rows come back after this), and the last reason |
+| `created_at` / `updated_at` / `completed_at` | TEXT | UTC; `completed_at` is when the last write finished |
+| `move_step` | TEXT | A library move in progress: `requested`, `planned`, `moved` or `checked` (NULL when none). Moves run at once, not on the schedule, and a row with a move in progress is not written until the move is done. Each step is written before and after it happens (`planned` before the disk is touched, `moved` once the file is at its new place, `checked` once the stored path matches and the file was verified there); a second move asked for meanwhile keeps the first step and is planned again from the data store when the first is checked |
+| `move_source_path` / `move_target_path` / `move_source_hash` | TEXT | What a move was about to do, so a stop part-way can be finished or undone from what is on disk. Cleared when the move is done. A move given up as failed keeps them for diagnosis, but no longer counts as a move in progress. The old and new place of every row with a move in progress is the waiting mark: the folder watcher, the rescan and the daily missing-file check leave those files alone |
+| `move_generation` | INTEGER | The generation of the row when the move was planned. Finishing the move after a stop completes with it, so a change that arrived since is seen and the move is planned again from the data store |
+| `recovery_attempts` | INTEGER | How many starts or passes found a part-way move that could not be settled (a drive that is offline does not count); the move is given up as failed at a cap |
+| `next_attempt_at` | TEXT | UTC; when a failed or unsettled move is tried again (a minute, five minutes, half an hour, two hours, then failed). NULL means now |
+| `claimed_run_id` | TEXT | The write run that last claimed the row; a run never takes a row it already took, however many chunks it needs |
+
+**Indices:** unique partial indexes on `asset_id` and `local_item_id`, `ix_media_file_write_intents_dispatch` on `(status, lease_expires_at, updated_at)` and a partial index on `move_step`.
+
+### file_write_runs
+
+One row (`id = 1`) that remembers the schedule: `anchor_at` (when the scheduler first started, so the first interval counts from there), `last_run_started_at`, `last_run_finished_at`, and how many files the last run wrote (`last_run_written`), failed (`last_run_failed`) and kept in Library only (`last_run_kept`).
+
 ### ingestion_log
 
 One row per file processed through the ingestion pipeline.
@@ -1268,6 +1316,23 @@ Cached candidate lists from previous search/resolve operations.
 ---
 
 ## Content
+
+### entity_assets
+
+One row per picture kept for an entity (cover art, headshot, background, logo and the like). The Engine keeps the original and, for every type except logos, four smaller copies so a screen can ask for the size it draws. The long edge of each copy is: tiny 96 px (faces and small thumbnails), small 320, medium 960, large 2160.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | Primary key; also the picture's address (`/stream/artwork/{id}`) |
+| `entity_id`, `entity_type` | BLOB or TEXT, TEXT | Owner (a Work, Person, Universe or fictional entity) |
+| `asset_type` | TEXT | `CoverArt`, `Headshot`, `Background`, `Logo` and similar |
+| `local_image_path` | TEXT | The original file |
+| `local_image_path_t` | TEXT | Tiny copy (96 px long edge). Added by upgrade step `0029_entity_asset_tiny_rendition`; empty until the copy exists. |
+| `local_image_path_s`, `local_image_path_m`, `local_image_path_l` | TEXT | Small (320), medium (960) and large (2160) copies |
+| `width_px`, `height_px`, `aspect_class`, `primary_hex`, `secondary_hex`, `accent_hex` | | Measured size and palette |
+| `is_preferred`, `is_user_override` | INTEGER | The chosen picture for the slot, and whether the person chose it |
+
+A missing copy is made the first time it is asked for (or by the start-up catch-up) and recorded here; until then the next bigger copy is sent. People's faces are `Headshot` rows like any other picture; a face saved before this was so is registered by the start-up catch-up.
 
 ### image_cache
 
@@ -1343,7 +1408,7 @@ Saved reading positions.
 
 ### audiobook_bookmarks
 
-Saved audiobook playback positions. These are separate from EPUB reader bookmarks because they use audio seconds, optional chapter metadata, and the owning audiobook work.
+Saved playback positions in a video or an audiobook (the table keeps its audiobook name; a row works for any playable file). These are separate from EPUB reader bookmarks because they use seconds, optional chapter metadata, and the owning work. A bookmark is personal to `profile_id`, or global (`is_global = 1`): global bookmarks are seen by every profile that can see the title and are made and deleted only by a server administrator, with `profile_id` recording who made it. A bookmark on a Vault file is never listed, counted or found while Vault mode is off.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1356,7 +1421,42 @@ Saved audiobook playback positions. These are separate from EPUB reader bookmark
 | `position_seconds` | REAL | Exact audio position |
 | `duration_seconds` | REAL | Optional asset duration |
 | `label` | TEXT | Optional user-facing bookmark label |
+| `note` | TEXT | The short note (up to 200 characters); on a bookmark saved before the longer description existed, its text |
+| `description` | TEXT | Optional longer description (up to 4,000 characters) |
+| `is_global` | INTEGER | 1 when shared with everyone (upgrade step 0032); 0 for a personal bookmark |
+| `end_seconds` | REAL | Optional end of a bookmark that marks a part of the video (a scene), after `position_seconds` (upgrade step 0034); NULL for a plain bookmark |
 | `created_at` | TEXT | Timestamp |
+
+### bookmark_packs
+
+One imported bookmark pack on one title for one profile (Videos spec D46, upgrade step 0034). The pack's bookmarks are read-only and live in `bookmark_pack_items`. `asset_id` is the file the pack was imported on: a pack on a file the caller cannot see (a Vault file without an unlocked session) is not listed, counted or found. A pack is never exported from the Vault.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | UUID, primary key |
+| `profile_id` | BLOB | FK -> `profiles.id`; the profile that imported the pack |
+| `work_id` | BLOB | FK -> `works.id` |
+| `asset_id` | BLOB | FK -> `media_assets.id` |
+| `name` | TEXT | The pack's name, shown on its bookmarks |
+| `author` | TEXT | Optional author typed by whoever exported the pack |
+| `content_hash` | TEXT | Fingerprint of the pack's content; unique per profile and title so the same pack is not added twice |
+| `source_running_time_seconds` | REAL | Running time of the copy the pack was made on |
+| `source_edition` | TEXT | Edition label of that copy |
+| `is_aligned` | INTEGER | 1 when the pack was for a different cut and was aligned by chapter on import |
+| `is_enabled` | INTEGER | 0 hides the pack's ticks and rows without removing it |
+| `imported_at` | TEXT | Timestamp |
+
+### bookmark_pack_items
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | UUID, primary key |
+| `pack_id` | BLOB | FK -> `bookmark_packs.id` (cascade) |
+| `position_seconds` | REAL | Time of the bookmark |
+| `end_seconds` | REAL | Optional end, after the time |
+| `chapter_title` | TEXT | Optional chapter name |
+| `note` | TEXT | Short note (up to 200 characters) |
+| `description` | TEXT | Longer description (up to 4,000 characters) |
 
 ### audiobook_chapter_title_overrides
 
@@ -1601,6 +1701,39 @@ The order a person last chose on each "View all" grid (Watch, Read, Listen, My l
 
 What a person removed from, or added to, the taste the Library learned about them (Settings > Personal > Overview > Taste). Added by upgrade step `0010_profile_taste_overrides`. The learned taste (the taste profiler's reading of their history) is never changed; these rows are applied on top whenever taste is shown, so a removed value is hidden and an added value is shown as "Added by you". One row per `profile_id` (cascades on profile deletion), `taste_group` (`genre`, `mood` or `era`) and `value` (trimmed and lower-cased, the way the profiler writes its keys), with `action` (`removed` or `added`) and `created_at` (UTC). Setting a value again replaces its row. Only the signed-in person writes their own rows.
 
+## Vault
+
+Added by upgrade step `0030_vault_access` (Videos spec WP9). A **Vault library** is a library whose items are absent for anyone without an unlocked Vault mode session. An item is a Vault item because its `media_assets.library_id` appears in `vault_libraries`; that table is the single source of truth (there is no flag on the item). Rules that must hold whichever service writes are enforced by triggers, so a new code path cannot forget them.
+
+| Table | Meaning |
+|---|---|
+| `vault_libraries` | One row per Vault library: `library_id` (primary key, text), `lookup_source` (`none` or `stash_box`; the only sources a Vault library may use), `lookup_server_id` (the chosen server), `adults_confirmed_at`, `created_by_profile_id`, `created_at`, `updated_at`. A library that already holds items cannot be marked, and a Vault library that holds items cannot be unmarked. |
+| `profile_nsfw_settings` | A profile's Vault mode: `access_mode` (`off`; `pin`, which asks for the profile PIN and can only be saved for a profile that has one; `allowed`, which needs no PIN) and `idle_lock_minutes` (5, 15, 30 or 60; 0 means never, for `allowed` only; the default is 60). There is no separate Vault PIN: the profile PIN in `profile_credentials` is the only PIN. No row means Off. A Kids profile or a profile with a content limit can never be given a mode other than `off` (trigger). |
+| `nsfw_session_unlocks` | One row per device session that has switched Vault mode on: `session_id`, `profile_id`, `method` (`pin` or `allowed`), `unlocked_at`, `last_activity_at`, `expires_at` (the sliding idle limit; NULL means never). Triggers delete the row when the session changes profile, or the profile's mode, PIN, role or content limit changes. |
+| `vault_performers`, `vault_studios`, `vault_tags` | Names that exist only inside the Vault, never shared with the People, Series or Tags of ordinary libraries. |
+| `vault_asset_performers`, `vault_asset_studios`, `vault_asset_tags` | Links from a Vault file to those names. A name with no remaining link is removed (trigger). |
+| `vault_artwork` | Artwork for a Vault file, performer or studio, stored only here (never in the shared artwork tables) and removed with its owner (trigger). |
+
+**Lookup and Identify (upgrade step `0031_vault_lookup`, Videos spec WP12).** Four more tables hold what the Library knows about how each Vault video was matched. Each refuses a row for a file that is not in a Vault library (before-insert trigger) and goes with its file (cascade).
+
+| Table | Meaning |
+|---|---|
+| `vault_matches` | One row per matched Vault video: `asset_id` (primary key), `server_id`, `record_id`, `matched_by` (`fingerprint`, `product_code`, `title` or `identify`), `applied_via` (`automatic` or `identify`), `matched_at`. A Vault video with no row is Unmatched; nothing is queued in Needs Review for it. |
+| `vault_field_sources` | Where each field came from: one row per `asset_id` and `field` (`title`, `description`, `release_date`, `cover`, `studio`, `performers`, `tags`) with the server, record, how it was matched, how it was applied, the language noted for the text, and when. An Identify replaces the rows of the fields that were ticked. |
+| `vault_file_fingerprints` | Fingerprints computed on this machine (`OSHASH`, `MD5`, `PHASH`) with the file size they were computed at, kept so a big file is not read twice. Computed and sent only while the administrator's separate fingerprint permission is on. |
+| `vault_activity` | The quiet Vault activity list: `kind` (`added`, `matched`, `unmatched`, `identified`, `failed`), the file's own name, a fixed plain-words detail (never a title or path) and the time. Shown only inside Vault mode to an administrator. |
+
+**Vault bookmarks after a restore.** Step `0035_vault_pending_bookmarks` added a Vault-only waiting table; step `0040_drop_vault_pending_bookmarks` drops it. A restored Vault bookmark now waits in `waiting_personal_state` (below) like every other bookmark, marked `is_withheld`, and the Vault settings count reads those rows.
+
+**State waiting for its title after a restore (upgrade step `0039_waiting_personal_state`).** A backup holds a person's own state against how to recognise the title, not against the title's row. A restore puts settings straight back and parks every row that points at a title here; the Engine writes a row back when all its titles are in the Library, and clears it when it has waited longer than the waiting period (`missing_file_retention_days`, 90 by default, read live so a change affects rows already waiting). The same step adds `idx_editions_wikidata_qid` on `editions(wikidata_qid)`, so a title can be looked up by the Wikidata id of its edition without reading every edition. Both tables are empty on a data store that was never restored, and both are Configuration in the backup classification, so a backup taken while items still wait keeps them.
+
+| Table | What it holds |
+|---|---|
+| `backup_restores` | One row per restore: `restored_at`, `backup_file_name`, `backup_created_at`, `applied_rows` (rows put straight into place), `waiting_rows` (rows that started waiting), and `attached_rows`, `yielded_rows` (rows removed because the person made the same row since the restore; theirs stays) and `purged_rows`, which grow as the waiting area empties. |
+| `waiting_personal_state` | One parked row: `restore_id` (cascade), `group_kind` (`configuration`, `personal`, `correction`, `choice`), `table_name`, `profile_id` (the owner, when the table has an owner column), `is_withheld` (a title it refers to is one a backup may not name), `row_json` (the row's columns and values in the backup's value encoding, each title reference replaced by the index of its title in `titles_json`, plus the rows that hang off it), `titles_json` (the recognition data of those titles), `created_at` (when it started waiting; the waiting period counts from here, and a row carried back by a later backup keeps it), `last_checked_at`. Indexed by `created_at` and `profile_id`. |
+
+**Skipped writes (triggers):** `trg_application_events_no_vault` stops an event about a Vault item from reaching `application_events` (and so apps and webhooks); `trg_personal_activity_no_vault` stops a Vault file from entering anyone's activity history. A skipped write is simply not stored. A file cannot move into or out of a Vault library once it exists (`trg_media_assets_vault_library_fixed`).
+
 ## Related
 
 - [Engine API Reference](api-endpoints.md)
@@ -1652,7 +1785,7 @@ Named factual entries in a Wikidata series manifest, including works the local l
 
 ### backup_settings
 
-The backup schedule, how many backups to keep, which destinations are switched on, and the two key halves for encrypted copies (JSON rows; currently the single key `settings`). The passphrase itself is never stored: the public key is not secret, and the private key is locked with the passphrase.
+The backup schedule, how many backups to keep, which destinations are switched on, the destinations an administrator added, and the last restore check (JSON rows; currently the single key `settings`). Backups are never encrypted, so no key is kept; a destination's own login is stored encrypted with the machine key.
 
 | Column | Type | Notes |
 |---|---|---|

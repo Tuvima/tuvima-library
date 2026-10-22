@@ -1,0 +1,3 @@
+.vault-settings { display: grid; gap: 12px; }
+.vault-settings small { color: var(--tl-text-muted); }
+.vault-settings__actions { display: flex; flex-wrap: wrap; gap: 8px; }

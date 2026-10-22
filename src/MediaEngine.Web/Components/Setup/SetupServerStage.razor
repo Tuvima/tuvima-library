@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Setup
 @using MediaEngine.Contracts.Setup
+@using MediaEngine.Web.Components.Settings
 
 <div class="setup-stage-content">
     <div class="setup-stage__heading">
@@ -24,10 +25,24 @@
             <h3>Restore a backup file</h3>
             <p>Choose a Library backup ZIP. It is inspected before anything is replaced.</p>
             <InputFile OnChange="UploadBackup" accept=".zip,application/zip" class="setup-file-input" />
+            @if (!string.IsNullOrWhiteSpace(BackupError))
+            {
+                <AppAlert Tone="AppUiTone.Error" data-testid="setup-restore-error">@BackupError</AppAlert>
+            }
             @if (Backup is not null)
             {
                 <dl class="setup-facts"><div><dt>File</dt><dd>@Backup.FileName</dd></div><div><dt>Created</dt><dd>@(Backup.CreatedAt?.ToString("g") ?? "Unknown")</dd></div><div><dt>Entries</dt><dd>@Backup.EntryCount</dd></div></dl>
-                <AppAlert Tone="AppUiTone.Warning">@Backup.Warning The application will restart after confirmation.</AppAlert>
+                <AppAlert Tone="AppUiTone.Warning" data-testid="setup-restore-first-look">
+                    @if (Backup.Contents is { } contents)
+                    {
+                        <BackupContentsSummary Contents="contents" />
+                        <div>The application will restart after confirmation.</div>
+                    }
+                    else
+                    {
+                        <div>@Backup.Warning</div><div>The application will restart after confirmation.</div>
+                    }
+                </AppAlert>
                 <div class="setup-actions"><AppButton Label="Cancel restore" OnClick="CancelRestore" /><AppButton Label="Restore and restart" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning" Loading="@Busy" OnClick="ConfirmRestore" /></div>
             }
             else
@@ -52,6 +67,8 @@
     [Parameter] public bool ShowReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
     [Parameter] public SetupBackupInspectionDto? Backup { get; set; }
+    /// <summary>The Engine's one sentence when it refused the chosen file (an older layout, a damaged file); shown as it is.</summary>
+    [Parameter] public string? BackupError { get; set; }
     [Parameter] public bool ShowRestore { get; set; }
     [Parameter] public EventCallback OpenRestore { get; set; }
     [Parameter] public EventCallback CancelRestore { get; set; }

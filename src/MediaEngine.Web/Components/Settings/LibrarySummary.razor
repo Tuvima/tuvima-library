@@ -164,16 +164,15 @@
         await LoadAsync();
     }
 
+    // The counts and the folder checks are asked for together, but the tiles never wait for the folder checks: they draw as
+    // soon as the counts arrive and any storage problem fills in after. Only the storage checks are asked for, because the
+    // full readiness report also scans the whole data store, which is slow on a large library and while media is being added.
     private async Task LoadAsync()
     {
+        var readinessTask = ApiClient.GetStorageReadinessAsync();
         try
         {
-            var overviewTask = ApiClient.GetLibraryOverviewAsync();
-            var readinessTask = ApiClient.GetStartupReadinessAsync();
-            await Task.WhenAll(overviewTask, readinessTask);
-
-            _overview = await overviewTask;
-            _readiness = await readinessTask;
+            _overview = await ApiClient.GetLibraryOverviewAsync();
             _error = _overview is null ? "The library summary is unavailable right now." : null;
         }
         catch (Exception ex)
@@ -183,6 +182,18 @@
             _error = _overview is null
                 ? "The library summary could not load. The live ingestion below is unaffected."
                 : "The library summary could not refresh, so the previous numbers are shown.";
+        }
+
+        StateHasChanged();
+
+        try
+        {
+            _readiness = await readinessTask;
+        }
+        catch (Exception ex)
+        {
+            // Storage problems are an extra line under the tiles; without them the counts are still right, so say nothing more.
+            Logger.LogWarning(ex, "The library storage checks could not be loaded.");
         }
     }
 

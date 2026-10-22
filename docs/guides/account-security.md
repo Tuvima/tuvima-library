@@ -62,10 +62,10 @@ Admin access requires both an eligible account and an active profile grant with 
 
 1. Under **Settings → Users and Sign-in → Users**, open the account's row menu, choose **Profile access**, and switch on **Allow admin dashboard** only for the intended profile.
 2. Open that person's page under **Settings → Profiles**. A **PIN protection** group appears there.
-3. Set a separate PIN for the account.
-4. Choose the unlock duration offered by the control and select **Enable protection**.
+3. Make sure the profile has a PIN (**Profile details**). There is one PIN per profile; admin pages and Vault mode ask for that same PIN.
+4. Turn on **Ask for my PIN on admin pages** (it is off until you do) and choose how long an unlock lasts.
 
-The PIN lock protects settings after sign-in. It is separate from the account password and profile-selection PIN. Switching profiles clears the active admin unlock.
+The PIN lock protects settings after sign-in. It is separate from the account password. Switching profiles clears the active admin unlock. With the switch off, admin pages open without a PIN.
 
 ## Manage your sign-in methods
 

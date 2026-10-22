@@ -479,12 +479,12 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
     {
         var space = (await _spaces.GetByOwnerAsync(_ana.ProfileId))!;
         var trip = await _galleries.CreateAsync(new CreateViewGalleryCommand(_ana.ProfileId, space.Id, "Trip", ViewGalleryKind.Manual));
-        await _galleries.AddItemsAsync(trip.Id, _anaTimeline.Take(5).ToList(), false);
+        await _galleries.AddItemsAsync(trip.Id, _anaTimeline.Take(5).ToList(), [ViewContentKinds.Documents]);
         var benSpace = (await _spaces.GetByOwnerAsync(_ben.ProfileId))!;
         var bens = await _galleries.CreateAsync(new CreateViewGalleryCommand(_ben.ProfileId, benSpace.Id, "Ben's private", ViewGalleryKind.Manual));
-        await _galleries.AddItemsAsync(bens.Id, _ben.Photos.Take(2).ToList(), false);
+        await _galleries.AddItemsAsync(bens.Id, _ben.Photos.Take(2).ToList(), [ViewContentKinds.Documents]);
         var shared = await _galleries.CreateAsync(new CreateViewGalleryCommand(_ben.ProfileId, benSpace.Id, "For Ana", ViewGalleryKind.Manual));
-        await _galleries.AddItemsAsync(shared.Id, [_ben.Photos[1]], false);
+        await _galleries.AddItemsAsync(shared.Id, [_ben.Photos[1]], [ViewContentKinds.Documents]);
         await _galleries.ReplaceSharesAsync(shared.Id, [(_ana.ProfileId, ViewGallerySharePermission.View)]);
 
         var list = (await _client.GetFromJsonAsync<ViewGalleryListResponse>("/api/v1/view/galleries"))!;
@@ -555,7 +555,7 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         var space = (await _spaces.GetByOwnerAsync(_noDocuments.ProfileId))!;
         var mixed = await _galleries.CreateAsync(new CreateViewGalleryCommand(
             _noDocuments.ProfileId, space.Id, "Mixed", ViewGalleryKind.Manual, CoverItemId: _noDocuments.Document));
-        await _galleries.AddItemsAsync(mixed.Id, [_noDocuments.Photos[0], _noDocuments.Document], true);
+        await _galleries.AddItemsAsync(mixed.Id, [_noDocuments.Photos[0], _noDocuments.Document], null);
         var savedView = await _galleries.CreateAsync(new CreateViewGalleryCommand(
             _noDocuments.ProfileId, space.Id, "Old saved view", ViewGalleryKind.Smart, SmartRuleJson: DocumentViewRule()));
         _actor.Current = _noDocuments.Authority;
@@ -602,6 +602,69 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         }
     }
 
+    // ------------------------------------------------------------------ per-kind permission (photos, videos, documents)
+
+    private static readonly string[] ItemRoutes = ["", "/thumbnail", "/preview", "/original"];
+
+    [Fact]
+    public async Task AProfileWithPhotosOffGetsNotFoundForAPhotosItemThumbnailPreviewOriginalAndDownload()
+    {
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(_noDocuments.ProfileId) with { PhotosEnabled = false });
+        _actor.Current = _noDocuments.Authority;
+        var photo = _noDocuments.Photos[0];
+
+        foreach (var route in ItemRoutes)
+        {
+            var asked = await Answer($"/api/v1/view/items/{photo:D}{route}");
+            var unknown = await Answer($"/api/v1/view/items/{Guid.NewGuid():D}{route}");
+            Assert.Equal(HttpStatusCode.NotFound, asked.Status);
+            Assert.Equal(unknown, asked);
+        }
+
+        using var scope = _app.Services.CreateScope();
+        var access = PhotoAccess(scope);
+        Assert.Equal(PhotoKeepAccess.NotFound, await access.EvaluateAsync(_noDocuments.Authority, photo));
+        Assert.DoesNotContain(photo, (await access.EvaluateManyAsync(_noDocuments.Authority, _noDocuments.Photos)).Visible);
+
+        // Someone whose Photos are still on is unaffected.
+        _actor.Current = _ana.Authority;
+        Assert.Equal(HttpStatusCode.OK, (await Answer($"/api/v1/view/items/{_anaTimeline[0]:D}")).Status);
+        Assert.Equal(PhotoKeepAccess.Allowed, await access.EvaluateAsync(_ana.Authority, _anaTimeline[0]));
+    }
+
+    [Fact]
+    public async Task AJpegInADocumentsFolderGetsNotFoundOnEveryRouteForAProfileWithDocumentsOff_AndStaysAvailableToOthers()
+    {
+        var receipt = await AddPhoto(_noDocuments, new DateTimeOffset(2026, 4, 1, 9, 0, 0, TimeSpan.Zero),
+            contentKind: ViewContentKinds.Documents);
+        var anasReceipt = await AddPhoto(_ana, new DateTimeOffset(2026, 4, 1, 9, 0, 0, TimeSpan.Zero),
+            contentKind: ViewContentKinds.Documents);
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(_noDocuments.ProfileId) with { DocumentsEnabled = false });
+
+        _actor.Current = _noDocuments.Authority;
+        foreach (var route in ItemRoutes)
+        {
+            var asked = await Answer($"/api/v1/view/items/{receipt:D}{route}");
+            var unknown = await Answer($"/api/v1/view/items/{Guid.NewGuid():D}{route}");
+            Assert.Equal(HttpStatusCode.NotFound, asked.Status);
+            Assert.Equal(unknown, asked);
+        }
+
+        using var scope = _app.Services.CreateScope();
+        var access = PhotoAccess(scope);
+        Assert.Equal(PhotoKeepAccess.NotFound, await access.EvaluateAsync(_noDocuments.Authority, receipt));
+        Assert.DoesNotContain(receipt, (await access.EvaluateManyAsync(_noDocuments.Authority, [receipt])).Visible);
+
+        // A profile with Documents on still reads the same kind of item.
+        _actor.Current = _ana.Authority;
+        foreach (var route in ItemRoutes)
+        {
+            Assert.Equal(HttpStatusCode.OK, (await Answer($"/api/v1/view/items/{anasReceipt:D}{route}")).Status);
+        }
+
+        Assert.Equal(PhotoKeepAccess.Allowed, await access.EvaluateAsync(_ana.Authority, anasReceipt));
+    }
+
     [Fact]
     public async Task ThePhotosSurfaceNeverShowsADocumentToAnyoneEvenAPersonWhoMayUseDocuments()
     {
@@ -628,7 +691,7 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         await _assets.ReplaceTagsAsync(benPhoto, ["Secret tag"]);
         var benSpace = (await _spaces.GetByOwnerAsync(_ben.ProfileId))!;
         var manual = await _galleries.CreateAsync(new CreateViewGalleryCommand(_ben.ProfileId, benSpace.Id, "Manual share", ViewGalleryKind.Manual));
-        await _galleries.AddItemsAsync(manual.Id, [benPhoto], false);
+        await _galleries.AddItemsAsync(manual.Id, [benPhoto], [ViewContentKinds.Documents]);
         await _galleries.ReplaceSharesAsync(manual.Id, [(_ana.ProfileId, ViewGallerySharePermission.View)]);
         var smart = await _galleries.CreateAsync(new CreateViewGalleryCommand(
             _ben.ProfileId, benSpace.Id, "Smart share", ViewGalleryKind.Smart, SmartRuleJson: ImageRule()));
@@ -763,7 +826,8 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         var access = new ViewPhotoDownloadAccess(
             scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
             scope.ServiceProvider.GetRequiredService<IViewResourceStore>(),
-            _assets);
+            _assets,
+            scope.ServiceProvider.GetRequiredService<IViewProfileRepository>());
 
         // Ana's own photos and video may be kept.
         Assert.Equal(PhotoKeepAccess.Allowed, await access.EvaluateAsync(_ana.Authority, _anaTimeline[0]));
@@ -790,7 +854,8 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         var access = new ViewPhotoDownloadAccess(
             scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
             scope.ServiceProvider.GetRequiredService<IViewResourceStore>(),
-            _assets);
+            _assets,
+            scope.ServiceProvider.GetRequiredService<IViewProfileRepository>());
 
         _actor.Consents = [ApplicationPermissionIds.LibraryRead.Value];
         foreach (var id in new[] { _anaTimeline[0], _ben.Photos[0], Guid.NewGuid() })
@@ -811,7 +876,7 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         // Ben shares one of his photos with Ana through a Gallery, so Ana's reach includes a photo that is not hers.
         var benSpace = (await _spaces.GetByOwnerAsync(_ben.ProfileId))!;
         var shared = await _galleries.CreateAsync(new CreateViewGalleryCommand(_ben.ProfileId, benSpace.Id, "For Ana", ViewGalleryKind.Manual));
-        await _galleries.AddItemsAsync(shared.Id, [_ben.Photos[1]], false);
+        await _galleries.AddItemsAsync(shared.Id, [_ben.Photos[1]], [ViewContentKinds.Documents]);
         await _galleries.ReplaceSharesAsync(shared.Id, [(_ana.ProfileId, ViewGallerySharePermission.View)]);
 
         // The volume holding one of Ana's photos is unmounted for now.
@@ -822,7 +887,8 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         var access = new ViewPhotoDownloadAccess(
             scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
             scope.ServiceProvider.GetRequiredService<IViewResourceStore>(),
-            _assets);
+            _assets,
+            scope.ServiceProvider.GetRequiredService<IViewProfileRepository>());
         var ids = _anaTimeline
             .Concat(_ben.Photos)
             .Concat(_noDocuments.Photos)
@@ -941,7 +1007,8 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
     private ViewPhotoDownloadAccess PhotoAccess(IServiceScope scope) => new(
         scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
         scope.ServiceProvider.GetRequiredService<IViewResourceStore>(),
-        _assets);
+        _assets,
+        scope.ServiceProvider.GetRequiredService<IViewProfileRepository>());
 
     [Fact]
     public async Task TheBulkPhotoCheck_NeedsThePersonalReadScopeAndAnAuthenticatedCaller()
@@ -950,7 +1017,8 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         var access = new ViewPhotoDownloadAccess(
             scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
             scope.ServiceProvider.GetRequiredService<IViewResourceStore>(),
-            _assets);
+            _assets,
+            scope.ServiceProvider.GetRequiredService<IViewProfileRepository>());
 
         _actor.Consents = [ApplicationPermissionIds.LibraryRead.Value];
         Assert.True((await access.EvaluateManyAsync(_ana.Authority, _anaTimeline)).ScopeMissing);
@@ -1079,7 +1147,7 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
     private static string Hash() => $"{Guid.NewGuid():N}{Guid.NewGuid():N}";
 
     private async Task<Guid> AddPhoto(Person person, DateTimeOffset takenAt, string? place = null,
-        double? latitude = null, double? longitude = null, string? personName = null)
+        double? latitude = null, double? longitude = null, string? personName = null, string? contentKind = null)
     {
         var space = (await _spaces.GetByOwnerAsync(person.ProfileId))!;
         var path = WriteFile(".jpg", Jpeg());
@@ -1088,7 +1156,7 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
             [new LocalAssetFileRegistration(path, Hash(), Path.GetFileName(path), "image/jpeg", new FileInfo(path).Length,
                 DateTimeOffset.UtcNow) with { SourceId = AddSource(person, space.Id) }],
             Width: 64, Height: 48, DeviceMake: "Pixel", DeviceModel: "9 Pro",
-            Latitude: latitude, Longitude: longitude, LocationName: place))).ItemId;
+            Latitude: latitude, Longitude: longitude, LocationName: place, ContentKind: contentKind))).ItemId;
         if (personName is not null)
         {
             await _assets.ReplacePeopleAsync(itemId, [personName]);

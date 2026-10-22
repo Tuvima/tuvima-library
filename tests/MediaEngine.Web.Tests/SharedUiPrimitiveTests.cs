@@ -429,4 +429,72 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".app-provider-logo__fallback"));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CollapsibleRowStartsWhereTheCallerSaysUntilThePersonChooses(bool startCollapsed)
+    {
+        var cut = Render<AppCollapsibleRow>(parameters => parameters
+            .Add(component => component.Title, "28 Days Later")
+            .Add(component => component.Summary, "1 movie owned")
+            .Add(component => component.RowKind, "series")
+            .Add(component => component.StartCollapsed, startCollapsed)
+            .AddChildContent("<div class=\"row-content\">Movies</div>"));
+
+        var toggle = cut.Find("h2 > button.app-collapsible-row__toggle");
+        Assert.Equal(startCollapsed ? "false" : "true", toggle.GetAttribute("aria-expanded"));
+        Assert.Equal(startCollapsed, cut.Find("section.app-collapsible-row").ClassList.Contains("is-collapsed"));
+        Assert.Equal(startCollapsed ? 0 : 1, cut.FindAll(".row-content").Count);
+        Assert.Contains("1 movie owned", toggle.TextContent);
+    }
+
+    [Fact]
+    public void CollapsibleRowTogglesAndRemembersTheChoiceForItsKindOfRow()
+    {
+        var cut = Render<AppCollapsibleRow>(parameters => parameters
+            .Add(component => component.Title, "Also in this world")
+            .Add(component => component.RowKind, "also-in-this-world")
+            .AddChildContent("<div class=\"row-content\">Items</div>"));
+
+        cut.Find("button.app-collapsible-row__toggle").Click();
+
+        Assert.Equal("false", cut.Find("button.app-collapsible-row__toggle").GetAttribute("aria-expanded"));
+        Assert.Empty(cut.FindAll(".row-content"));
+        var remembered = Assert.Single(JSInterop.Invocations, call => call.Identifier == "detailRowState.set");
+        Assert.Equal(["also-in-this-world", false], remembered.Arguments);
+    }
+
+    [Fact]
+    public void CollapsibleRowOpensToTheChoiceRememberedForItsKindOverItsStartingState()
+    {
+        JSInterop.Setup<bool?>("detailRowState.get", "series").SetResult(true);
+
+        var cut = Render<AppCollapsibleRow>(parameters => parameters
+            .Add(component => component.Title, "28 Days Later")
+            .Add(component => component.RowKind, "series")
+            .Add(component => component.StartCollapsed, true)
+            .AddChildContent("<div class=\"row-content\">Movies</div>"));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".row-content")));
+        Assert.Equal("true", cut.Find("button.app-collapsible-row__toggle").GetAttribute("aria-expanded"));
+    }
+
+    [Fact]
+    public void OptionsSizedSelectIsAsWideAsItsLongestOptionWhateverIsSelected()
+    {
+        Render<AppPopoverHost>();
+        var cut = Render<AppSelect>(parameters => parameters
+            .Add(component => component.AriaLabel, "Jump to movie by name")
+            .Add(component => component.Sizing, "options")
+            .Add(component => component.Value, "0")
+            .Add(component => component.Options, new[]
+            {
+                new AppSelectOption("0", "#1 — 28 Days Later"),
+                new AppSelectOption("1", "#3 — 28 Years Later: The Bone Temple"),
+            }));
+
+        Assert.Contains("app-select--intrinsic", cut.Find(".app-field").ClassList);
+        Assert.Equal("#3 — 28 Years Later: The Bone Temple", cut.Find(".app-select__width-label").TextContent);
+    }
+
 }

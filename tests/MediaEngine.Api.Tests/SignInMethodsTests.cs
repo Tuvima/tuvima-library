@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Entities;
 
 namespace MediaEngine.Api.Tests;
 
@@ -52,6 +53,53 @@ public sealed class SignInMethodsTests
         Assert.True(without.Password);
         Assert.True(with.Passkey);
     }
+
+    [Fact]
+    public void Password_IsOffWhenTheOnlyAccountIsTheThisComputerOwnerWithNoPassword()
+    {
+        var methods = AuthenticationEndpoints.BuildSignInMethods(Policy(), Network(), ClientIngressValues.ThisComputer, false);
+
+        var result = AuthenticationEndpoints.WithPasswordAvailability(methods, [ThisComputerOwner()]);
+
+        Assert.False(result.Password);
+        Assert.Equal(methods.Passkey, result.Passkey);
+        Assert.Equal(methods.InvitationCode, result.InvitationCode);
+    }
+
+    [Fact]
+    public void Password_StaysOnWhileSomeEnabledAccountHasAnEmailAndIsNotThisComputerOnly()
+    {
+        var methods = AuthenticationEndpoints.BuildSignInMethods(Policy(), Network(), ClientIngressValues.HomeNetwork, false);
+
+        Assert.True(AuthenticationEndpoints.WithPasswordAvailability(methods, [ThisComputerOwner(), PasswordAccount()]).Password);
+        Assert.False(AuthenticationEndpoints.WithPasswordAvailability(methods, [ThisComputerOwner(), PasswordAccount(enabled: false)]).Password);
+        Assert.False(AuthenticationEndpoints.WithPasswordAvailability(methods, []).Password);
+    }
+
+    [Fact]
+    public void Password_StaysOffWhenTheInstallTurnedItOff_EvenWithAPasswordAccount()
+    {
+        var policy = Policy();
+        policy.PasswordSignInEnabled = false;
+        var methods = AuthenticationEndpoints.BuildSignInMethods(policy, Network(), ClientIngressValues.HomeNetwork, false);
+
+        Assert.False(AuthenticationEndpoints.WithPasswordAvailability(methods, [PasswordAccount()]).Password);
+    }
+
+    private static Account ThisComputerOwner()
+    {
+        var account = new Account { Id = Guid.NewGuid(), IsEnabled = true };
+        account.MarkThisComputerOnly();
+        return account;
+    }
+
+    private static Account PasswordAccount(bool enabled = true) => new()
+    {
+        Id = Guid.NewGuid(),
+        Email = "sam@example.com",
+        NormalizedEmail = "SAM@EXAMPLE.COM",
+        IsEnabled = enabled,
+    };
 
     [Fact]
     public void Response_ContainsOnlyMethodFields_NeverAccountOrProfileDetails()

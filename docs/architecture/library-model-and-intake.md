@@ -78,15 +78,15 @@ not configure or browse them.
 
 A library owns policy and presentation. A source represents one concrete
 folder or intake endpoint. Every source has a stable ID and declares its path,
-management mode (managed or as-is), recursion behavior, filesystem access
+management mode (managed or read-only), recursion behavior, filesystem access
 (derived from the management mode), conversion state, health, and optional
 device or profile association.
 
 A catalogued library has at most one destination, the managed source new media is
 filed into. When none is chosen the first managed folder added becomes the
-destination; if it is removed or switched to as-is, the earliest-added remaining
+destination; if it is removed or switched to read-only, the earliest-added remaining
 managed folder takes over, and with none left there is no destination. Source order
-means nothing else, and an as-is source is never a destination.
+means nothing else, and a read-only source is never a destination.
 
 ## View root and profile sources
 
@@ -107,17 +107,17 @@ Tuvima does not move, rename, write back, overwrite, or delete their files.
 View source/device records live in the database so adding a phone, browser
 upload stream, or family archive never creates another user-facing library.
 
-### As-is source (existing library)
+### Read-only source (existing library)
 
-An as-is source may be scanned, identified, and indexed, but Tuvima
+A read-only source may be scanned, identified, and indexed, but Tuvima
 must not move, rename, tag, overwrite, or delete its files, and it is never
 a destination. Switching the source to managed is a separate conversion with its
 own progress (`conversion_state`): the Engine's organising job (below) renames and
 reorganises the files already there. The Engine owns `conversion_state` and
 `conversion_operation_id`: a settings save keeps whatever the Engine has for a folder it
-already knew, and saving a folder as As-is clears both.
+already knew, and saving a folder as Read-only clears both.
 
-Deleting a title whose file sits in an as-is folder removes the title from the library but never the file. The file stays where it is and becomes an **excluded file**: scans skip it, so the title does not come back, until someone adds it back in Settings > Libraries. If a different file later appears at the same place, it is a new file and is scanned.
+Deleting a title whose file sits in a read-only folder removes the title from the library but never the file. The file stays where it is and becomes an **excluded file**: scans skip it, so the title does not come back, until someone adds it back in Settings > Libraries. If a different file later appears at the same place, it is a new file and is scanned.
 
 ### Organising job (converting a folder to Managed)
 
@@ -139,7 +139,7 @@ media files in path order:
   title, is not renamed (`needs_review`).
 - **Shortcuts.** Symbolic links and Windows junctions inside the folder are never
   followed: the walk (`FolderMediaEnumerator`, `skipLinks`) leaves them out, so a link to
-  an As-is folder or another drive is not touched and a link that points back up the tree
+  a Read-only folder or another drive is not touched and a link that points back up the tree
   cannot loop. Anything still reached through one (a link made mid-run) is refused by the
   same check the merge uses (`IsReachedThroughLink`), so it is never moved, renamed or
   deleted. The preview counts the shortcuts it passed over (`skipped_links`) and says
@@ -167,7 +167,7 @@ media files in path order:
 - **Control.** Pause stops after the current file and keeps the place; Resume puts the
   job back in the queue; Cancel stops after the current file and leaves the folder
   Managed with the work done so far ("Stopped after 1,240 of 8,310; the rest will be
-  tidied gradually by normal scans"). Saving the folder as As-is cancels a running job
+  tidied gradually by normal scans"). Saving the folder as Read-only cancels a running job
   and changes nothing on disk. A file in use is skipped, retried at the end of the
   pass with a growing wait, and counted as failed only if it stays locked; the job
   continues past it.
@@ -197,7 +197,7 @@ exportable log, pause, resume, cancel, restart-resume).
   library (the same kind of media), not the source itself and not nested inside it. It
   does not have to be the New media folder, but that folder is preselected. The target is
   authorised through `FileSourceMutationPolicyFactory.Create(..., isMergeTarget: true)`,
-  so `AllowAsDestination` is true for a managed target only; an As-is or otherwise
+  so `AllowAsDestination` is true for a managed target only; a Read-only or otherwise
   non-managed target is refused by the source-mutation gate and by the request check.
   The folder that is the library's New media folder cannot itself be merged away.
 - **Copy (the default).** The source is never written: no rename, tag, sidecar move,
@@ -247,7 +247,7 @@ exportable log, pause, resume, cancel, restart-resume).
   another folder), and an original is never removed when it and its "copy" are the same
   file. A target that is itself being merged elsewhere, or was merged away, is refused.
   A Move reads the saved settings before every file and stops the moment its source is
-  switched to As-is.
+  switched to Read-only.
 - **Duplicate removal by normal ingestion.** While a folder is merging, or once merged, the
   ingestion pipeline's own "exact duplicate" removal never deletes from it, and never
   removes any duplicate whose kept copy is missing. A merged folder is dropped from the
@@ -297,9 +297,9 @@ selection alone.
 
 In a Managed folder a move always renames and moves the file to fit its new place; there is no option. The preview says exactly what will happen to each file (`file_change` with the full path before and after, or `file_note` with one plain line), and the Library changes first, in one transaction:
 
-1. **Preview.** For each file the preview asks the organiser's re-file what it would do for the item's new place: the item's own values with the new place above it and the new position numbers laid over them, run through the library's naming template and the shared policy gate. The answer is the same code the job runs later, so the two cannot disagree. A file name depends on the number the person gives the item, so the preview names the file for the entry the person chose: just before the confirm dialog the Match step asks again with its choices (`choices` on the preview request), so the dialog names the file the move will really make, not the Engine's guess; with no choice yet it names the file for the entry the Match step pre-selects, and an item with no suggestion only learns whether its file may be touched ("The file will be renamed and moved to fit its new place"). A choice to add anyway names the unnumbered file. The commit must send the choices the preview was made for; a different choice is a change (409 with a fresh preview). A file is left alone, with a plain line, when it sits in an As-is folder ("As-is folder: the file stays where it is"), in a read-only folder, or is protected (the original of a folder merge: "Protected original: the file is not touched"). A name that another file already holds is shown as a warning and the file stays where it is; nothing is overwritten. An item with several files gets one summary line ("2 files will be renamed and moved to OK Computer"). Moving into a hand-picked collection never touches a file. The file lines are part of the preview fingerprint, so a changed target at confirm gives a fresh preview and moves nothing.
-2. **Commit.** The Library change and one durable file-queue row per moved file (`media_file_write_intents`, trigger `library_move`) are saved in the same transaction.
-3. **Job.** The queue's dispatcher claims each row under a lease (so a row being worked on when the Engine stopped is claimed again), re-files the file, then writes its tags on the final file. The re-file makes its plan again from the Library as it is now and asks the shared policy gate again: a file that became protected, or whose new name was taken, since the preview stays where it is, the Library change stands, and the reason goes to the activity history and the logs. The file, the companion files that share its name (subtitles, lyrics, notes, cue sheets, artwork) and the stored path follow together through the same code that tidies a filed asset after hydration, so the file watcher recognises the moved file by its fingerprint instead of ingesting it again. A move that fails (a file in use) leaves the file where it was and is tried again, up to the queue's attempt limit. A later editor save does not drop a file move that is still waiting. An item added anyway has no number, so its file is named by its title alone (`Hidden Jam.flac` in the album folder, `Show - Pilot.mkv` in the season folder): the shipped templates write the number parts as optional tokens (`{TrackNumber?}`, `{EpisodeCode?}`), and a dash right after an optional token goes with it when it is empty.
+1. **Preview.** For each file the preview asks the organiser's re-file what it would do for the item's new place: the item's own values with the new place above it and the new position numbers laid over them, run through the library's naming template and the shared policy gate. The answer is the same code the job runs later, so the two cannot disagree. A file name depends on the number the person gives the item, so the preview names the file for the entry the person chose: just before the confirm dialog the Match step asks again with its choices (`choices` on the preview request), so the dialog names the file the move will really make, not the Engine's guess; with no choice yet it names the file for the entry the Match step pre-selects, and an item with no suggestion only learns whether its file may be touched ("The file will be renamed and moved to fit its new place"). A choice to add anyway names the unnumbered file. The commit must send the choices the preview was made for; a different choice is a change (409 with a fresh preview). A file is left alone, with a plain line, when it sits in a Read-only folder ("Read-only folder: the file stays where it is"), in a read-only folder, or is protected (the original of a folder merge: "Protected original: the file is not touched"). A name that another file already holds is shown as a warning and the file stays where it is; nothing is overwritten. An item with several files gets one summary line ("2 files will be renamed and moved to OK Computer"). Moving into a hand-picked collection never touches a file. The file lines are part of the preview fingerprint, so a changed target at confirm gives a fresh preview and moves nothing.
+2. **Commit.** The Library change and one durable file-queue row per moved file (`media_file_write_intents`, trigger `library_move`, `move_step = requested`) are saved in the same transaction.
+3. **Job.** The file write scheduler's move lane (it looks every couple of seconds, so a move never waits for the write interval) claims each row under a lease (so a row being worked on when the Engine stopped is claimed again) and re-files the file. The row then goes back to waiting, and its tags are written on the final file by the next scheduled write run (`run_interval_minutes` in `config/writeback.json`, or Write now). The re-file makes its plan again from the Library as it is now and asks the shared policy gate again: a file that became protected, or whose new name was taken, since the preview stays where it is, the Library change stands, and the reason goes to the activity history and the logs. The file, the companion files that share its name (subtitles, lyrics, notes, cue sheets, artwork) and the stored path follow together through the same code that tidies a filed asset after hydration, so the file watcher recognises the moved file by its fingerprint instead of ingesting it again. A move that fails (a file in use) leaves the file where it was and is tried again, up to the queue's attempt limit. The move is crash-safe: each step (`planned`, `moved`, `checked`) is written on the row before and after it happens, and when the Engine starts it looks at the disk for every move that had started. A file only at its new place is finished (the stored path follows), a file only at its old place is moved again, a file at both (an interrupted copy across drives) is kept at the new place only when it matches the recorded fingerprint, and a file at neither is marked failed with a plain reason, the item kept. While a move is in progress the folder watcher, the rescan and the daily missing-file check ignore both places, so the file is never marked missing or taken for a new file. A second move asked for meanwhile is planned again from the Library once the first is checked. With write-back off the move still happens (it is filing), and only its tag write is dropped. A later editor save does not drop a file move that is still waiting. An item added anyway has no number, so its file is named by its title alone (`Hidden Jam.flac` in the album folder, `Show - Pilot.mkv` in the season folder): the shipped templates write the number parts as optional tokens (`{TrackNumber?}`, `{EpisodeCode?}`), and a dash right after an optional token goes with it when it is empty.
 
 ## Reorganization
 

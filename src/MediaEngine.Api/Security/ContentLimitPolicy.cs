@@ -7,40 +7,79 @@ using MediaEngine.Domain.Contracts;
 namespace MediaEngine.Api.Security;
 
 /// <summary>
-/// What one request's profile may see: its content limit turned into a yes/no for a rating. A profile with no limit
-/// (and a service application, which acts for no person) gets <see cref="Unrestricted"/>, which never reads a rating.
-/// A person's request that has no usable profile gets the strictest limit instead (fail closed).
+/// What one request's profile may see: its content limit turned into a yes/no for a rating, and whether the Vault is open.
+/// A profile with no limit (and a service application, which acts for no person) gets <see cref="Unrestricted"/>, which never
+/// reads a rating. A person's request that has no usable profile gets the strictest limit instead (fail closed).
+/// The Vault is separate from the limit: a filter without an unlocked Vault mode session hides every Vault library, whoever asks.
 /// </summary>
-internal sealed class ContentLimitFilter(ProfileContentLimit limit, IReadOnlySet<string>? videoLibrariesOk = null)
+internal sealed class ContentLimitFilter(
+    ProfileContentLimit limit,
+    IReadOnlySet<string>? videoLibrariesOk = null,
+    VaultVisibility? vault = null)
 {
     public static readonly ContentLimitFilter Unrestricted = new(ProfileContentLimit.Unrestricted);
 
-    public bool IsUnrestricted => limit.IsUnrestricted;
+    private readonly ProfileContentLimit _limit = limit;
+    private readonly IReadOnlySet<string>? _videoLibrariesOk = videoLibrariesOk;
 
-    public bool Allows(string? rating) => ProfileContentLimits.Allows(limit.Limit, limit.AllowUnrated, rating);
+    /// <summary>What this request may know about the Vault. A filter built without it knows of no Vault library.</summary>
+    public VaultVisibility Vault { get; } = vault ?? VaultVisibility.NoVault;
+
+    public bool IsUnrestricted => _limit.IsUnrestricted;
+
+    /// <summary>True when nothing needs filtering at all: no content limit and no Vault library to keep out of view.</summary>
+    public bool NeedsNoFiltering => _limit.IsUnrestricted && !Vault.HasHiddenLibraries;
+
+    public bool Allows(string? rating) => ProfileContentLimits.Allows(_limit.Limit, _limit.AllowUnrated, rating);
 
     /// <summary>
     /// Saved videos have no ratings, so a limited profile sees Videos only from a library an administrator marked "OK for
     /// limited profiles". Anything that is not a video is not affected.
     /// </summary>
     public bool AllowsVideo(string? libraryId, string mediaType) =>
-        limit.IsUnrestricted
+        _limit.IsUnrestricted
         || DisplayMediaRules.NormalizeDisplayKind(mediaType) != "Video"
-        || (libraryId is not null && videoLibrariesOk?.Contains(libraryId) == true);
+        || (libraryId is not null && _videoLibrariesOk?.Contains(libraryId) == true);
+
+    /// <summary>True when an item in this library must be treated as absent for this request (a Vault library without an unlocked Vault mode session).</summary>
+    public bool HidesLibrary(string? libraryId) => Vault.HidesLibrary(libraryId);
+
+    /// <summary>True when the library is a Vault library, whether or not it is open to this request.</summary>
+    public bool IsVaultLibrary(string? libraryId) => Vault.IsVaultLibrary(libraryId);
+
+    /// <summary>The same limit with the Vault state of a request added.</summary>
+    public ContentLimitFilter WithVault(VaultVisibility vault) => new(_limit, _videoLibrariesOk, vault);
 }
 
 /// <summary>
-/// Resolves the content limit of the profile a request acts as. The limit is read live (one primary-key lookup per
-/// profile per request), so a parent's change applies on the child's very next call. It sits beside library and
-/// feature access: every list, search, detail page and player resolves its catalogue through the same checks.
+/// Resolves the content limit of the profile a request acts as, and what that request may know about the Vault. The limit is
+/// read live (one primary-key lookup per profile per request), so a parent's change applies on the child's very next call.
+/// It sits beside library and feature access: every list, search, detail page and player resolves its catalogue through the same checks.
 /// </summary>
-internal sealed class ContentLimitPolicy(IProfileContentLimitRepository limits, IConfigurationLoader? configuration = null)
+internal sealed class ContentLimitPolicy(
+    IProfileContentLimitRepository limits,
+    VaultAccessResolver vaultAccess,
+    IConfigurationLoader? configuration = null)
 {
-    private readonly ConcurrentDictionary<Guid, Task<ContentLimitFilter>> _byProfile = new();
+    private readonly ConcurrentDictionary<(Guid Profile, Guid Session), Task<ContentLimitFilter>> _byProfile = new();
 
     private static readonly ContentLimitFilter Strictest = new(ProfileContentLimit.Strictest);
 
-    public Task<ContentLimitFilter> ForAsync(RequestAuthority authority)
+    public Task<ContentLimitFilter> ForAsync(RequestAuthority authority) =>
+        _byProfile.GetOrAdd(
+            (authority.PrincipalKind is PrincipalKind.Human or PrincipalKind.DelegatedUserClient ? authority.ActiveProfileId ?? Guid.Empty : Guid.Empty, authority.SessionId ?? Guid.Empty),
+            _ => ResolveAsync(authority));
+
+    private async Task<ContentLimitFilter> ResolveAsync(RequestAuthority authority)
+    {
+        var limit = await LimitForAsync(authority).ConfigureAwait(false);
+
+        // Not tied to one caller's cancellation: the answer is cached for the rest of the request.
+        var vault = await vaultAccess.ResolveAsync(authority, CancellationToken.None).ConfigureAwait(false);
+        return limit.WithVault(vault);
+    }
+
+    private Task<ContentLimitFilter> LimitForAsync(RequestAuthority authority)
     {
         if (authority.PrincipalKind is not (PrincipalKind.Human or PrincipalKind.DelegatedUserClient))
         {
@@ -48,11 +87,10 @@ internal sealed class ContentLimitPolicy(IProfileContentLimitRepository limits, 
         }
 
         return authority.ActiveProfileId is { } profileId && profileId != Guid.Empty
-            ? _byProfile.GetOrAdd(profileId, id => LoadAsync(id))
+            ? LoadAsync(profileId)
             : Task.FromResult(Strictest);
     }
 
-    // Not tied to one caller's cancellation: the answer is cached for the rest of the request.
     private async Task<ContentLimitFilter> LoadAsync(Guid profileId)
     {
         var limit = await limits.GetAsync(profileId, CancellationToken.None).ConfigureAwait(false);

@@ -1385,7 +1385,10 @@ public sealed class DetailComposerServiceTests
         Assert.Contains("IsLikelyImageFile", source);
         Assert.Contains("IsLikelyImageBytes", source);
         Assert.Contains("MediaMimeTypes.InferImageExtension(contentType)", source);
-        Assert.Contains("return Results.File(bytes, contentType ?? GetImageMimeTypeOrJpeg(localPath), Path.GetFileName(localPath))", source);
+        // A downloaded face is registered as a managed Headshot and served at the size asked for, never as the raw bytes.
+        Assert.Contains("AdoptAndServeAsync(localPath)", source);
+        Assert.Contains("PersonHeadshotAssets.EnsureManagedAsync", source);
+        Assert.DoesNotContain("Results.File(bytes,", source);
         Assert.DoesNotContain("Results.Redirect(remoteUri.ToString())", source);
     }
 

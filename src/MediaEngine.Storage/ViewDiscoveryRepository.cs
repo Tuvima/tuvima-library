@@ -86,7 +86,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
         }
 
         ct.ThrowIfCancellationRequested();
-        var parameters = Parameters(libraries, query.Limit, query.Search, query.Cursor);
+        var parameters = Parameters(libraries, query.Limit, query.Search, query.Cursor, query.ExcludedContentKinds);
         var libraryPredicate = SharedAwareLibraryPredicate(query.IncludeSharedLibraryAssets, libraries.Length);
         using var connection = database.CreateConnection();
         var hasEligibleData = connection.QuerySingle<bool>(new CommandDefinition($$"""
@@ -99,6 +99,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                    AND li.archived_at IS NULL
                    AND li.trashed_at IS NULL
                    AND LOWER(li.media_kind) IN ('image', 'video')
+                   AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                    AND lm.latitude IS NOT NULL
                    AND lm.longitude IS NOT NULL);
             """, parameters, cancellationToken: ct));
@@ -123,6 +124,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                    AND li.archived_at IS NULL
                    AND li.trashed_at IS NULL
                    AND LOWER(li.media_kind) IN ('image', 'video')
+                   AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                    AND lm.latitude IS NOT NULL
                    AND lm.longitude IS NOT NULL
                    AND (@SearchPattern IS NULL
@@ -200,11 +202,13 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
             Resolution = query.TimelineResolution.Trim().ToLowerInvariant(),
             FavoritesOnly = query.FavoritesOnly ? 1 : 0,
         });
+        AddExcludedKinds(parameters, query.ExcludedContentKinds);
         AddLibraries(parameters, libraries);
         var libraryPredicate = SharedAwareLibraryPredicate(query.IncludeSharedLibraryAssets, libraries.Length);
         var facetPredicate = $$"""
             ({{libraryPredicate}})
             AND LOWER(li.media_kind) IN ('image', 'video')
+            AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
             AND (@SearchPattern IS NULL OR lm.location_name LIKE @SearchPattern ESCAPE '\'
                  OR printf('%.3f,%.3f', ROUND(lm.latitude, 3), ROUND(lm.longitude, 3)) LIKE @SearchPattern ESCAPE '\')
             AND li.hidden = 0
@@ -375,6 +379,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
             query.To,
             FavoritesOnly = query.FavoritesOnly ? 1 : 0,
         });
+        AddExcludedKinds(parameters, query.ExcludedContentKinds);
         AddLibraries(parameters, libraries);
         var libraryPredicate = SharedAwareLibraryPredicate(query.IncludeSharedLibraryAssets, libraries.Length);
         using var connection = database.CreateConnection();
@@ -391,6 +396,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                  WHERE ({{libraryPredicate}})
                    AND li.hidden = 0 AND li.archived_at IS NULL AND li.trashed_at IS NULL
                    AND LOWER(li.media_kind) IN ('image', 'video')
+                   AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                    AND lm.latitude BETWEEN -90 AND 90 AND lm.longitude BETWEEN -180 AND 180
                    AND (@Year IS NULL OR CAST(strftime('%Y', COALESCE(li.captured_at, li.created_at)) AS INTEGER) = @Year)
                    AND (@MediaKind IS NULL OR LOWER(li.media_kind) = @MediaKind)
@@ -429,7 +435,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
         }
 
         ct.ThrowIfCancellationRequested();
-        var parameters = Parameters(libraries, query.Limit, query.Search, query.Cursor);
+        var parameters = Parameters(libraries, query.Limit, query.Search, query.Cursor, query.ExcludedContentKinds);
         var libraryPredicate = SharedAwareLibraryPredicate(query.IncludeSharedLibraryAssets, libraries.Length);
         var evidencePredicate = """
             ((lia.annotation_kind IN ('person_name', 'named_person', 'face_name'))
@@ -447,6 +453,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                    AND li.archived_at IS NULL
                    AND li.trashed_at IS NULL
                    AND LOWER(li.media_kind) IN ('image', 'video')
+                   AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                    AND TRIM(lia.annotation_value) <> ''
                    AND {{evidencePredicate}});
             """, parameters, cancellationToken: ct));
@@ -467,6 +474,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                    AND li.archived_at IS NULL
                    AND li.trashed_at IS NULL
                    AND LOWER(li.media_kind) IN ('image', 'video')
+                   AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                    AND TRIM(lia.annotation_value) <> ''
                    AND {{evidencePredicate}}
                    AND (@SearchPattern IS NULL
@@ -600,7 +608,8 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
         IReadOnlyList<Guid> libraries,
         int limit,
         string? search,
-        ViewDiscoveryCursor? cursor)
+        ViewDiscoveryCursor? cursor,
+        IReadOnlyCollection<string>? excludedContentKinds)
     {
         var parameters = new DynamicParameters(new
         {
@@ -614,7 +623,17 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
             parameters.Add($"LibraryId{index}", GuidSql.ToBlob(libraries[index]), DbType.Binary);
         }
 
+        AddExcludedKinds(parameters, excludedContentKinds);
         return parameters;
+    }
+
+    /// <summary>The View kinds a profile may not use never reach places, the atlas or people.</summary>
+    private static void AddExcludedKinds(DynamicParameters parameters, IReadOnlyCollection<string>? excluded)
+    {
+        var any = excluded is { Count: > 0 };
+        parameters.Add("HasExcludedKinds", any ? 1 : 0);
+        // An empty list would make the SQL invalid, so a placeholder stands in while HasExcludedKinds is 0.
+        parameters.Add("ExcludedKinds", any ? excluded!.ToArray() : new[] { "photos" });
     }
 
     private static void AddLibraries(DynamicParameters parameters, IReadOnlyList<Guid> libraries)

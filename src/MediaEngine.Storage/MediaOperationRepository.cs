@@ -499,9 +499,11 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        var rows = conn.Query("""
+        // Work on a file in the Vault is never counted for the administrator's screens (Videos spec D17, D33).
+        var rows = conn.Query($"""
             SELECT status AS Status, COUNT(*) AS Count
             FROM media_operations
+            WHERE entity_id IS NULL OR {VaultSql.NotVaultEntity("entity_id")}
             GROUP BY status;
             """);
         IReadOnlyDictionary<string, int> summary = rows.ToDictionary(

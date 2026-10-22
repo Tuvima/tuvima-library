@@ -15,7 +15,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject PlaybackSessionController Playback
 
-<PageTitle>@((_detail?.Title ?? "Player")) - Library</PageTitle>
+<PageTitle>@PageTitleText - Library</PageTitle>
 
 @if (_loading)
 {
@@ -44,6 +44,11 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
     public Guid? CollectionId => Query.Guid("collectionId");
 
     private LibraryItemDetailViewModel? _detail;
+
+    // The browser tab and history never name a Vault video (Videos spec D33). The real title is used only once the playback manifest
+    // has said the file is not in the Vault; until then, and for a Vault file, the tab reads "Video".
+    private string PageTitleText => VaultPrivacy.PageTitle(Playback.CurrentItem, WorkId, _detail?.Title);
+
     private string? _loadError;
     private bool _loading = true;
     private CancellationTokenSource? _loadCancellation;

@@ -35,7 +35,7 @@ Choose a managed media folder and six application folders. Give the container's 
 
 All seven paths need persistent mounts. Replacing the container must reuse these same host folders.
 
-Keep user-owned originals separate from `/library` if Tuvima must not change them. Mount that folder read-only elsewhere, then add it as an **As-is** folder.
+Keep user-owned originals separate from `/library` if Tuvima must not change them. Mount that folder read-only elsewhere, then add it as a **Read-only** folder.
 
 ## Start Tuvima
 
@@ -113,7 +113,7 @@ First-run setup is open to any device that can reach the server until the first 
 
 ## Helper tools
 
-The image includes FFmpeg, FFprobe and Tesseract. The container never downloads tools at run time, so the Library normally shows them all as **Ready** on **Settings > Tools and requirements**. The Library checks the tools at first run, at every start-up, and when you choose **Check again** on that page.
+The image includes FFmpeg, FFprobe, Tesseract, ExifTool and Perl. ExifTool is the pinned official 13.59 release from `github.com/exiftool/exiftool`. The container never downloads tools at run time, so the Library normally shows them all as **Ready** on **Settings > Tools and requirements**. The Library checks the tools at first run, at every start-up, and when you choose **Check again** on that page.
 
 If a tool shows as missing or broken, update the image instead of changing files inside the container: run `docker compose pull`, then `docker compose up -d`. If you built the image yourself, rebuild it from the checkout. Your mounted folders and settings stay the same.
 

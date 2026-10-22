@@ -40,7 +40,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     private static AccountProfileGrantDto[] Grants(bool adminEnabled) =>
     [
         new(AccountId, ProfileId, "Test User", null, true, true, adminEnabled,
-            new GrantAdminProtectionDto(false, "None", null, 1, false, null), 1, DateTimeOffset.UtcNow),
+            new GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow),
     ];
 
     /// <summary>What the Engine tells the Dashboard about a server administrator.</summary>

@@ -101,4 +101,29 @@ public sealed class MediaTilePhoneRenderTests : AsyncBunitContext
         Assert.Contains("scroll-padding-inline: var(--media-shelf-gutter, 16px);", scroller);
         Assert.Contains("--phone-shelf-height: var(--home-shelf-height);", home);
     }
+    [Fact]
+    public async Task ATileWithoutAWidthList_StillOffersSharpScreensTheMediumCopy()
+    {
+        await Init("desktop", false);
+        var item = CinematicMovie();
+        item = new MediaTileViewModel
+        {
+            Id = item.Id,
+            WorkId = item.WorkId,
+            Title = item.Title,
+            MediaKind = item.MediaKind,
+            Shape = item.Shape,
+            SurfaceKind = item.SurfaceKind,
+            TileImageUrl = "/engine-image/stream/artwork/6f6b4d6e-0000-4000-8000-000000000003?size=s&v=abc",
+            DetailsNavigationUrl = item.DetailsNavigationUrl,
+            NavigationUrl = item.NavigationUrl,
+        };
+
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, item));
+
+        var image = cut.Find("img[srcset]");
+        Assert.EndsWith("size=s", image.GetAttribute("src"), StringComparison.Ordinal);
+        Assert.Contains("size=s 1x", image.GetAttribute("srcset"), StringComparison.Ordinal);
+        Assert.Contains("size=m 2x", image.GetAttribute("srcset"), StringComparison.Ordinal);
+    }
 }

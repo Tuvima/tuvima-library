@@ -34,8 +34,38 @@ public sealed record ViewProfilePolicy(
     bool SubmitToSharedLibrary,
     bool ShareGalleries,
     DateTimeOffset? UpdatedAt,
-    bool DocumentsEnabled = true)
+    bool DocumentsEnabled = true,
+    bool PhotosEnabled = true,
+    bool PersonalVideosEnabled = true)
 {
+    /// <summary>
+    /// The View kinds this profile may not use (<see cref="ViewContentKinds"/> values). Photos, Personal videos and
+    /// Documents each have their own switch; one that is off is simply not granted, and the profile never learns it exists.
+    /// </summary>
+    public IReadOnlyList<string> BlockedContentKinds
+    {
+        get
+        {
+            var blocked = new List<string>(3);
+            if (!PhotosEnabled)
+            {
+                blocked.Add(ViewContentKinds.Photos);
+            }
+
+            if (!PersonalVideosEnabled)
+            {
+                blocked.Add(ViewContentKinds.PersonalVideos);
+            }
+
+            if (!DocumentsEnabled)
+            {
+                blocked.Add(ViewContentKinds.Documents);
+            }
+
+            return blocked;
+        }
+    }
+
     /// <summary>
     /// What a profile gets before anyone changes it: everyone in a household can open and contribute to the
     /// household's Shared Library. A child (restricted) profile cannot send items until a household administrator
@@ -96,7 +126,11 @@ public sealed record ViewSource(
     string? ExternalPath = null,
     bool IncludeSubdirectories = true,
     bool Enabled = true,
-    bool IncludeInTimeline = false);
+    bool IncludeInTimeline = false,
+    string ContentKind = ViewContentKinds.Photos,
+    Guid? AddedByProfileId = null,
+    int SkippedFileCount = 0,
+    int KeptInLibraryCount = 0);
 
 public enum ViewDeviceBackupState
 {

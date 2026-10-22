@@ -102,12 +102,15 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
         ValidateId(personalSpaceId, nameof(personalSpaceId));
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
-        var rows = connection.Query<SourceRow>(new CommandDefinition("""
+        var rows = connection.Query<SourceRow>(new CommandDefinition($"""
             SELECT id AS Id, personal_space_id AS PersonalSpaceId, source_type AS SourceType,
                    name AS Name, source_key AS SourceKey, last_activity_at AS LastActivityAt,
                    storage_mode AS StorageMode, relative_path AS RelativePath,
                    external_path AS ExternalPath, include_subdirectories AS IncludeSubdirectories,
                    enabled AS Enabled,
+                   content_kind AS ContentKind, added_by_profile_id AS AddedByProfileId,
+                   skipped_file_count AS SkippedFileCount,
+                   {ViewItemFileWriteRepository.KeptInLibraryCountSql} AS KeptInLibraryCount,
                    COALESCE((SELECT include_in_timeline FROM view_source_policies
                               WHERE source_id = view_sources.id),
                             CASE WHEN source_type = 'browser_upload' THEN 1 ELSE 0 END) AS IncludeInTimeline,
@@ -142,20 +145,23 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
             var id = source.Id == Guid.Empty ? Guid.NewGuid() : source.Id;
             var now = DateTimeOffset.UtcNow;
             var createdAt = source.CreatedAt == default ? now : source.CreatedAt;
+            var previousKind = connection.ExecuteScalar<string?>(new CommandDefinition(
+                "SELECT content_kind FROM view_sources WHERE id = @id;", new { id }, transaction, cancellationToken: token));
             var changed = connection.Execute(new CommandDefinition("""
                 INSERT INTO view_sources
                     (id, scope_kind, personal_space_id, library_id, source_type, name, source_key, storage_mode,
                      relative_path, external_path, include_subdirectories, enabled,
-                     last_activity_at, created_at, updated_at)
+                     last_activity_at, content_kind, added_by_profile_id, created_at, updated_at)
                 VALUES (@id, 'personal', @PersonalSpaceId, @libraryId, @SourceType, @Name, @SourceKey, @StorageMode,
                         @RelativePath, @ExternalPath, @IncludeSubdirectories, @Enabled,
-                        @LastActivityAt, @createdAt, @now)
+                        @LastActivityAt, @ContentKind, @AddedByProfileId, @createdAt, @now)
                 ON CONFLICT(id) DO UPDATE SET
                     source_type = excluded.source_type, name = excluded.name,
                     source_key = excluded.source_key, storage_mode = excluded.storage_mode,
                     relative_path = excluded.relative_path, external_path = excluded.external_path,
                     include_subdirectories = excluded.include_subdirectories, enabled = excluded.enabled,
                     last_activity_at = excluded.last_activity_at,
+                    content_kind = excluded.content_kind,
                     updated_at = excluded.updated_at
                 WHERE view_sources.scope_kind='personal'
                   AND view_sources.personal_space_id = excluded.personal_space_id
@@ -174,6 +180,8 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
                 source.IncludeSubdirectories,
                 source.Enabled,
                 source.LastActivityAt,
+                source.ContentKind,
+                source.AddedByProfileId,
                 createdAt,
                 now,
             }, transaction, cancellationToken: token));
@@ -189,6 +197,12 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
                     include_in_timeline = excluded.include_in_timeline,
                     updated_at = excluded.updated_at;
                 """, new { id, source.IncludeInTimeline, now }, transaction, cancellationToken: token));
+            if (previousKind is not null && !string.Equals(previousKind, source.ContentKind, StringComparison.Ordinal))
+            {
+                // Changing what a folder holds re-applies it to what is already indexed, in this same transaction.
+                ViewSourceKindReapplication.Apply(connection, transaction, id, source.SourceKey, source.ContentKind, token);
+            }
+
             return source with { Id = id, Name = source.Name.Trim(), CreatedAt = createdAt, UpdatedAt = now };
         }, ct);
     }
@@ -202,6 +216,20 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
                 DELETE FROM view_sources
                  WHERE id = @sourceId AND personal_space_id = @personalSpaceId;
                 """, new { sourceId, personalSpaceId }, transaction, cancellationToken: token)) > 0, ct);
+    }
+
+    public Task SetSourceSkippedFileCountAsync(
+        Guid personalSpaceId, Guid sourceId, int skippedFileCount, CancellationToken ct = default)
+    {
+        ValidateId(personalSpaceId, nameof(personalSpaceId));
+        ValidateId(sourceId, nameof(sourceId));
+        ArgumentOutOfRangeException.ThrowIfNegative(skippedFileCount);
+        return database.ExecuteWriteAsync((connection, transaction, token) =>
+            connection.Execute(new CommandDefinition("""
+                UPDATE view_sources SET skipped_file_count = @skippedFileCount
+                 WHERE id = @sourceId AND personal_space_id = @personalSpaceId
+                   AND skipped_file_count <> @skippedFileCount;
+                """, new { sourceId, personalSpaceId, skippedFileCount }, transaction, cancellationToken: token)), ct);
     }
 
     public Task<IReadOnlyList<ViewDevice>> GetDevicesAsync(Guid personalSpaceId, CancellationToken ct = default)
@@ -320,7 +348,8 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
         row.Id, row.PersonalSpaceId, ParseSourceType(row.SourceType), row.Name, row.SourceKey,
         ParseNullableDate(row.LastActivityAt), ParseDate(row.CreatedAt), ParseDate(row.UpdatedAt),
         ParseStorageMode(row.StorageMode), row.RelativePath, row.ExternalPath,
-        row.IncludeSubdirectories, row.Enabled, row.IncludeInTimeline);
+        row.IncludeSubdirectories, row.Enabled, row.IncludeInTimeline,
+        row.ContentKind, row.AddedByProfileId, checked((int)row.SkippedFileCount), checked((int)row.KeptInLibraryCount));
 
     private static ViewDevice Map(DeviceRow row) => new(
         row.Id, row.PersonalSpaceId, row.SourceId, row.ClientDeviceId, row.Name, row.Make, row.Model,
@@ -415,6 +444,10 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
         public bool IncludeSubdirectories { get; init; }
         public bool Enabled { get; init; }
         public bool IncludeInTimeline { get; init; }
+        public string ContentKind { get; init; } = "photos";
+        public Guid? AddedByProfileId { get; init; }
+        public long SkippedFileCount { get; init; }
+        public long KeptInLibraryCount { get; init; }
         public string CreatedAt { get; init; } = string.Empty; public string UpdatedAt { get; init; } = string.Empty;
     }
     private sealed class DeviceRow

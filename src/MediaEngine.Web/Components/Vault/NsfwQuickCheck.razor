@@ -1,0 +1,37 @@
+@namespace MediaEngine.Web.Components.Vault
+@implements IDisposable
+@inject NsfwModeState Nsfw
+@inject NsfwModeSwitching Switching
+
+@* The optional Vault mode check in the top menu (Videos spec D23b). Drawn only when the Engine said this profile can use Vault
+   mode AND the person switched the check on in their profile page; for every other profile it renders nothing at all. *@
+@if (Nsfw.ShowQuickCheck)
+{
+    <div class="top-nav-account-menu__item" role="none" data-nsfw-quick-check>
+        <AppSwitchRow Label="Vault mode"
+                      Value="@Nsfw.Unlocked"
+                      ValueChanged="ChangedAsync"
+                      AriaLabel="Vault mode"
+                      StopClickPropagation="true" />
+    </div>
+}
+
+@code {
+    /// <summary>Raised after the person flipped the check, so the menu can close.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    protected override void OnInitialized() => Nsfw.Changed += OnStateChanged;
+
+    private void OnStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task ChangedAsync(bool on)
+    {
+        var inEffect = await Switching.SetAsync(on);
+        if (inEffect)
+        {
+            await OnChanged.InvokeAsync();
+        }
+    }
+
+    public void Dispose() => Nsfw.Changed -= OnStateChanged;
+}

@@ -25,6 +25,9 @@ public sealed class ViewSourceMutationPolicyTests
     private SourceMutationDecision Delete(FileSourceMutationPolicy policy, string path) =>
         _gate.Evaluate(new SourceMutationRequest { Source = policy, Mutation = SourceMutationKind.Delete, Path = path });
 
+    private SourceMutationDecision Write(FileSourceMutationPolicy policy, string path) =>
+        _gate.Evaluate(new SourceMutationRequest { Source = policy, Mutation = SourceMutationKind.MetadataWriteback, Path = path });
+
     [Fact]
     public void AManagedSourceFileInsideTheOwnersProfileFolder_MayBeDeleted()
     {
@@ -37,16 +40,52 @@ public sealed class ViewSourceMutationPolicyTests
     }
 
     [Fact]
-    public void AManagedSourcePolicy_OnlyEverAllowsDelete()
+    public void AManagedSourcePolicy_OnlyAllowsDeleteAndTheProfileNameWrite()
     {
         var policy = ViewSourceMutationPolicyFactory.Create(_space, Source(ViewSourceStorageMode.Managed), Root(), storageIsWritable: true);
 
         Assert.True(policy.AllowDelete);
+        Assert.True(policy.AllowMetadataWriteback);
         Assert.False(policy.AllowMove);
         Assert.False(policy.AllowRename);
-        Assert.False(policy.AllowMetadataWriteback);
         Assert.False(policy.AllowAsDestination);
         Assert.False(policy.IsMergeJob);
+    }
+
+    [Fact]
+    public void AManagedSourceFile_MayHaveItsProfileNameWritten_ButNotOnStorageThatCannotBeWritten()
+    {
+        var root = Root();
+        var path = Path.Combine(root, "Timeline", "beach.jpg");
+        var open = ViewSourceMutationPolicyFactory.Create(_space, Source(ViewSourceStorageMode.Managed), root, storageIsWritable: true);
+        var closed = ViewSourceMutationPolicyFactory.Create(_space, Source(ViewSourceStorageMode.Managed), root, storageIsWritable: false);
+
+        Assert.True(Write(open, path).Allowed);
+        Assert.False(Write(closed, path).Allowed);
+        Assert.False(Write(open, Path.Combine(Path.GetDirectoryName(root)!, "bob", "beach.jpg")).Allowed);
+    }
+
+    [Fact]
+    public void ALinkedSourceFile_NeverHasItsProfileNameWritten()
+    {
+        var root = Root();
+        var policy = ViewSourceMutationPolicyFactory.Create(_space, Source(ViewSourceStorageMode.Linked), root, storageIsWritable: true);
+
+        Assert.False(policy.AllowMetadataWriteback);
+        Assert.False(Write(policy, Path.Combine(root, "beach.jpg")).Allowed);
+    }
+
+    [Fact]
+    public void APolicyBuiltFromIdsAlone_FollowsTheSameRules_WithoutAPersonalSpace()
+    {
+        var root = Root();
+        var sharedLibrary = Guid.NewGuid();
+        var managed = ViewSourceMutationPolicyFactory.CreateForRoot(sharedLibrary, Guid.NewGuid(), managed: true, root, storageIsWritable: true);
+        var linked = ViewSourceMutationPolicyFactory.CreateForRoot(sharedLibrary, Guid.NewGuid(), managed: false, root, storageIsWritable: true);
+
+        Assert.Equal(sharedLibrary.ToString("D"), managed.LibraryId);
+        Assert.True(Write(managed, Path.Combine(root, "Timeline", "beach.jpg")).Allowed);
+        Assert.False(Write(linked, Path.Combine(root, "Timeline", "beach.jpg")).Allowed);
     }
 
     [Fact]
@@ -71,7 +110,7 @@ public sealed class ViewSourceMutationPolicyTests
         Assert.False(policy.AllowDelete);
         var verdict = Delete(policy, Path.Combine(root, "beach.jpg"));
         Assert.False(verdict.Allowed);
-        Assert.Contains("read-only", verdict.Reason, StringComparison.Ordinal);
+        Assert.Contains("read-only", verdict.Reason, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

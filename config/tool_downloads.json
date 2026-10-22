@@ -1,16 +1,18 @@
 {
-  "_comment": "The exact builds of FFmpeg and Tesseract the Library may fetch when a person presses Install for me or Download again in Settings. Nothing downloads by itself. Every address must be https on github.com and every file must match its sha256, or it is refused. The same builds as tools/Download-FFmpeg.ps1 and tools/Download-Tesseract.ps1.",
+  "_comment": "The exact builds of FFmpeg, Tesseract and ExifTool the Library may fetch. A missing Required tool (FFmpeg) is fetched by itself at first-run setup and at Engine start-up while auto_install_required is true, and so is ExifTool while its own auto_install is true; everything else (Tesseract, a repair, Download again) starts only when a person presses the button in Settings. Every address must be https on github.com and every file must match its sha256, or it is refused. ExifTool comes from a release of the Library's own GitHub project holding unmodified copies of the official files (mirror-exiftool workflow); the Linux build needs Perl on the machine, and Docker images bring their own copy. FFmpeg and Tesseract are the same builds as tools/Download-FFmpeg.ps1 and tools/Download-Tesseract.ps1.",
+
+  "auto_install_required": true,
 
   "ffmpeg": {
     "platform": "win-x64",
-    "version": "9.0.1",
-    "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-28-17-08/ffmpeg-n9.0.1-11-ge47273f4d9-win64-gpl-9.0.zip",
-    "sha256": "DEE63142094F79F6A50CDECE65384B7793181EAB3B6DB2EC907834981BB8AB10",
+    "version": "9.0.2",
+    "url": "https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip",
+    "sha256": "60F467265B1E312373DBCD92200C2618A74850F98D3D078E94296BB3FA2047BA",
     "files": [
-      { "name": "ffmpeg.exe", "sha256": "989A60089B9B1A98896A5BD99EE793AB6841724E1B2441D5EF3E5D17DB0B0938" },
-      { "name": "ffprobe.exe", "sha256": "001D80FDDF67BC303E91C6B8ECCDF53AF29A5F87ECF3837056B391CC3DD3F7B4" }
+      { "name": "ffmpeg.exe", "sha256": "3256173F3F8BFFD7DF12227C68ADF68025EDB1832273A9530688A7BB1ED8EDEC" },
+      { "name": "ffprobe.exe", "sha256": "F0D36ECBBDD3BCFAC3EFA078C96C7271C2E68B3810595552AC3B7F17E9A65C52" }
     ],
-    "license_names": [ "LICENSE.txt", "COPYING.GPLv3" ]
+    "license_names": [ "LICENSE.txt", "COPYING.GPLv3", "LICENSE" ]
   },
 
   "tesseract": {
@@ -32,6 +34,30 @@
         "name": "osd.traineddata",
         "url": "https://github.com/tesseract-ocr/tessdata_fast/raw/923915d4ced2a7235221788285785a29c4a42d4a/osd.traineddata",
         "sha256": "19E9B11EE4549A15BE965B74514745FBDA70EFA791B11CFBC5D53609F86EE60A"
+      }
+    ]
+  },
+
+  "exiftool": {
+    "version": "13.59",
+    "auto_install": true,
+    "builds": [
+      {
+        "platforms": [ "win-x64" ],
+        "url": "https://github.com/Tuvima/tuvima-library/releases/download/exiftool-13.59/exiftool-13.59_64.zip",
+        "sha256": "44B512B25AF500724BA579D0A53C8FC5851628B692DD5E5D94AE4A15C2CBA9EC",
+        "files": [
+          { "path": "exiftool_files/perl.exe", "sha256": "4D61EBE19311DBF7B9710AC2C6C402E3CBA3E23B63E8B82BE88E471343BED52D" },
+          { "path": "exiftool_files/exiftool.pl", "sha256": "9E8E817FAB9FDC2E37F7CD023AA34E76D1EF561834DFD791A48A7E327CC8F4B1" }
+        ]
+      },
+      {
+        "platforms": [ "linux-x64", "linux-arm64" ],
+        "url": "https://github.com/Tuvima/tuvima-library/releases/download/exiftool-13.59/Image-ExifTool-13.59.tar.gz",
+        "sha256": "668EA3ACECECB7235FBD0F4900E72D5F12C9B07E5C778FD36CB1E9B5828FD65A",
+        "files": [
+          { "path": "exiftool", "sha256": "A6B8018093845AC93011307BAC4AB630D6604B2365FC7F66BB88C88D7DEDB5ED" }
+        ]
       }
     ]
   }

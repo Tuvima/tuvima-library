@@ -90,7 +90,12 @@ public static partial class ViewEndpoints
 
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
+            }
+
+            if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
             }
 
             return assets.Find(id, ct) is { MediaKind: LocalAssetMediaKinds.Document, DocumentInfo: { } info }
@@ -151,7 +156,12 @@ public static partial class ViewEndpoints
 
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
+            }
+
+            if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
             }
 
             try
@@ -491,7 +501,8 @@ public static partial class ViewEndpoints
         }
 
         var includeDocuments = documentsOnly || await MayUseDocumentsAsync(authority, preferences, ct);
-        return (new CatalogueAccess(authority, new ViewCatalogueViewer(profileId, libraries, includeDocuments)), null);
+        return (new CatalogueAccess(authority, new ViewCatalogueViewer(profileId, libraries, includeDocuments,
+            await BlockedKindsAsync(authority, preferences, ct))), null);
     }
 
     private static async Task<IReadOnlyList<TDto>> MapEntriesAsync<TDto>(

@@ -74,6 +74,21 @@ public sealed class ImportFolderServiceTests : IDisposable
     }
 
     [Fact]
+    public void The_per_type_folders_and_type_priors_follow_the_loaded_kinds_list_not_the_built_in_one()
+    {
+        var magazines = LibraryKindsConfiguration.BuiltIn().Single(kind => kind.Key == "comics");
+        magazines.Label = "Manga";
+        _h.Config.LibraryKinds = new LibraryKindsConfiguration { Kinds = [.. LibraryKindsConfiguration.BuiltIn().Where(kind => kind.Key != "comics"), magazines] };
+
+        var created = _h.Importer.EnsureSubfolders();
+
+        Assert.True(Directory.Exists(Path.Combine(_h.ImportDir, "Manga")));
+        Assert.Equal(MediaType.Comics, _h.Importer.ResolveTypePrior(Path.Combine(_h.ImportDir, "Manga", "Akira", "v1.cbz")));
+        Assert.Null(_h.Importer.ResolveTypePrior(Path.Combine(_h.ImportDir, "Notes", "v1.cbz")));
+        Assert.Contains(Path.Combine(_h.ImportDir, "Manga"), created);
+    }
+
+    [Fact]
     public void The_Import_folder_itself_is_only_created_when_asked_so_an_offline_drive_is_never_replaced()
     {
         Directory.Delete(_h.ImportDir, recursive: true);
@@ -248,6 +263,7 @@ public sealed class ImportFolderServiceTests : IDisposable
                     Name = "Movies",
                     Category = "Movies",
                     Kind = LibraryKinds.Catalogued,
+                    KindKey = "movies",
                     MediaTypes = ["Movies"],
                     Sources =
                     [
@@ -275,5 +291,20 @@ public sealed class ImportFolderServiceTests : IDisposable
         loader.SaveLibraries(configuration);
         Assert.Null(service.GetImportPath());
         Assert.True(Directory.Exists(_h.ImportDir));
+    }
+
+    // A Vault library is also a Videos library, so a file dropped in the Import folder must be able to see every Videos library, in
+    // settings order, and the pipeline picks the first that is not a Vault library (Videos spec D17, WP17).
+    [Fact]
+    public void Every_library_of_a_type_is_listed_in_settings_order()
+    {
+        var first = ImportFolderHarness.NewLibrary("aaaaaaaa-0000-4000-8000-0000000000f1", "Vault", "Videos", null);
+        var second = ImportFolderHarness.NewLibrary("aaaaaaaa-0000-4000-8000-0000000000f2", "Clips", "Videos", null);
+        _h.SetLibrary(first);
+        _h.SetLibrary(second);
+
+        var libraries = _h.Importer.ResolveLibrariesForType(MediaType.Videos);
+
+        Assert.Equal([first.Id, second.Id], libraries.Select(library => library.Id));
     }
 }

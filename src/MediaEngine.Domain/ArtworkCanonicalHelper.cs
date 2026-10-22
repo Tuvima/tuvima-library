@@ -52,6 +52,21 @@ public static class ArtworkCanonicalHelper
     public const string StoredArtworkUrlPrefix = "/stream/artwork/";
 
     /// <summary>
+    /// Address of a stored artwork variant (<c>/stream/artwork/{id}</c>), optionally at a size
+    /// (<c>t</c>, <c>s</c>, <c>m</c>, <c>l</c>), carrying the picture's change marker so an edited
+    /// picture gets a new address and an unchanged one can be kept by the browser.
+    /// </summary>
+    public static string StoredArtworkUrl(EntityAsset asset, string? size = null)
+    {
+        ArgumentNullException.ThrowIfNull(asset);
+
+        var url = string.IsNullOrWhiteSpace(size)
+            ? $"{StoredArtworkUrlPrefix}{asset.Id}"
+            : $"{StoredArtworkUrlPrefix}{asset.Id}?size={size}";
+        return ArtworkVersionMarker.WithMarker(url, ArtworkVersionMarker.ForFile(asset.LocalImagePath));
+    }
+
+    /// <summary>
     /// Reads the variant id from a stored artwork address (<c>/stream/artwork/{id}</c>, with or without a
     /// size query). Provider URLs and other values return false.
     /// </summary>
@@ -131,11 +146,13 @@ public static class ArtworkCanonicalHelper
         ArgumentNullException.ThrowIfNull(asset);
 
         var values = new List<CanonicalValue>();
+        // The plain address stays marker-free: it is the stored identity other code compares against.
+        // Surfaces draw the sized addresses below, which carry the change marker.
         var baseUrl = $"{StoredArtworkUrlPrefix}{asset.Id}";
         var hasRenditions = ShouldGenerateRenditions(asset.AssetTypeValue);
-        var smallUrl = $"{baseUrl}?size=s";
-        var mediumUrl = $"{baseUrl}?size=m";
-        var largeUrl = $"{baseUrl}?size=l";
+        var smallUrl = StoredArtworkUrl(asset, "s");
+        var mediumUrl = StoredArtworkUrl(asset, "m");
+        var largeUrl = StoredArtworkUrl(asset, "l");
 
         foreach (var key in ResolvePrimaryUrlKeys(asset.AssetTypeValue))
         {

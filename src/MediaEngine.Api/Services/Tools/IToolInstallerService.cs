@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using MediaEngine.Domain.Configuration;
 
 namespace MediaEngine.Api.Services.Tools;
 
@@ -53,8 +54,8 @@ public enum ToolInstallOutcome
 public sealed record ToolInstallResult(ToolInstallOutcome Outcome, string? Message = null);
 
 /// <summary>
-/// Fetches FFmpeg and Tesseract on request, from the fixed addresses and with the checksums in
-/// <c>config/tool_downloads.json</c>. One job per tool at a time; nothing ever starts by itself.
+/// Fetches FFmpeg, Tesseract and ExifTool on request, from the fixed addresses and with the checksums in
+/// <c>config/tool_downloads.json</c>. One job per tool at a time; a job starts on request, or from <see cref="IToolAutoInstaller"/> for a missing Required tool (FFmpeg) or an Optional one marked to be fetched by itself (ExifTool).
 /// </summary>
 public interface IToolInstallerService
 {
@@ -116,9 +117,19 @@ public sealed class ToolDownloadRefusedException(string message) : Exception(mes
 /// <summary>What the machine running the Engine allows. A seam so tests can ask for any combination.</summary>
 /// <param name="WindowsX64">The pinned builds are for 64-bit Windows.</param>
 /// <param name="Interactive">The Engine runs in a signed-in desktop session (not as a Windows service), so a setup program can show its window.</param>
-public sealed record ToolInstallPlatform(bool WindowsX64, bool Interactive)
+/// <param name="LinuxRuntime">The Linux platform label (<c>linux-x64</c> or <c>linux-arm64</c>) ExifTool's Perl build is offered for, or <c>null</c> on any other system.</param>
+public sealed record ToolInstallPlatform(bool WindowsX64, bool Interactive, string? LinuxRuntime = null)
 {
+    /// <summary>The label ExifTool's build for this machine is listed under, or <c>null</c> when none is pinned for it.</summary>
+    public string? ExifToolPlatform => WindowsX64 ? ToolDownloadSettings.WindowsX64 : LinuxRuntime;
+
     public static ToolInstallPlatform Current => new(
         OperatingSystem.IsWindows() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
-        Environment.UserInteractive);
+        Environment.UserInteractive,
+        !OperatingSystem.IsLinux() ? null : RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.X64 => ToolDownloadSettings.LinuxX64,
+            Architecture.Arm64 => ToolDownloadSettings.LinuxArm64,
+            _ => null,
+        });
 }

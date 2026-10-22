@@ -54,10 +54,43 @@ public sealed partial class EngineApiClient
             new ScheduleRestoreRequest(fileName),
             ct: ct);
 
-    public Task<RestoreValidationResultDto?> ValidateRestoreAsync(string fileName, CancellationToken ct = default) =>
-        PostAsync<ScheduleRestoreRequest, RestoreValidationResultDto>(
-            "POST /system/backups/validate",
-            "/system/backups/validate",
-            new ScheduleRestoreRequest(fileName),
+    public async Task<RestoreValidationResultDto?> ValidateRestoreAsync(string fileName, CancellationToken ct = default)
+    {
+        const string endpoint = "POST /system/backups/validate";
+        try
+        {
+            using var response = await _http.PostAsJsonAsync("/system/backups/validate", new ScheduleRestoreRequest(fileName), ct);
+            if (response.IsSuccessStatusCode)
+            {
+                ClearFailure(endpoint);
+                return await response.Content.ReadFromJsonAsync<RestoreValidationResultDto>(cancellationToken: ct);
+            }
+
+            // A file the Engine refuses comes back as one plain sentence; it is shown as it is.
+            var sentence = await ReadProblemDetailAsync(response, ct);
+            if (response.StatusCode == System.Net.HttpStatusCode.BadRequest && !string.IsNullOrWhiteSpace(sentence))
+            {
+                return new RestoreValidationResultDto(false, fileName, DateTimeOffset.UtcNow, sentence);
+            }
+
+            await RecordHttpFailureAsync(endpoint, response, ct);
+            return null;
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            RecordExceptionFailure(endpoint, ex);
+            return null;
+        }
+    }
+
+    public Task<BackupStateDto?> GetBackupStateAsync(CancellationToken ct = default) =>
+        GetAsync<BackupStateDto>("GET /system/backups/state", "/system/backups/state", ct: ct);
+
+    public Task<BackupStateDto?> SetBackupWaitingPeriodAsync(int days, CancellationToken ct = default) =>
+        PutAsync<UpdateWaitingPeriodRequest, BackupStateDto>(
+            "PUT /system/backups/waiting-period",
+            "/system/backups/waiting-period",
+            new UpdateWaitingPeriodRequest(days),
             ct: ct);
 }

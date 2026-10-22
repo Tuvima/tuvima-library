@@ -59,7 +59,7 @@
                           aria-label="@HeroBrand.Label">
                         @if (!string.IsNullOrWhiteSpace(HeroBrand.ImageUrl))
                         {
-                            <img src="@HeroBrand.ImageUrl" alt="@HeroBrand.Label" />
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(HeroBrand.ImageUrl, 200)" alt="@HeroBrand.Label" />
                         }
                         else
                         {

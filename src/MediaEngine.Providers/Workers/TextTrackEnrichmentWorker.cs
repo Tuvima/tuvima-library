@@ -33,6 +33,7 @@ public sealed class TextTrackEnrichmentWorker
     private readonly ITextTrackExportService? _textTrackExportService;
     private readonly IConfigurationLoader? _configurationLoader;
     private readonly ITvEpisodeCrosswalk? _episodeCrosswalk;
+    private readonly ILibraryKindSource? _kindSource;
 
     public TextTrackEnrichmentWorker(
         IMediaAssetRepository assetRepo,
@@ -45,8 +46,10 @@ public sealed class TextTrackEnrichmentWorker
         ILogger<TextTrackEnrichmentWorker> logger,
         ITextTrackExportService? textTrackExportService = null,
         IConfigurationLoader? configurationLoader = null,
-        ITvEpisodeCrosswalk? episodeCrosswalk = null)
+        ITvEpisodeCrosswalk? episodeCrosswalk = null,
+        ILibraryKindSource? kindSource = null)
     {
+        _kindSource = kindSource;
         _assetRepo = assetRepo;
         _workRepo = workRepo;
         _canonicalRepo = canonicalRepo;
@@ -106,7 +109,7 @@ public sealed class TextTrackEnrichmentWorker
                 afterLocal.FirstOrDefault(track => track.IsPreferred)?.Id,
                 importedLocal
                     ? "Local text tracks were refreshed."
-                    : "This library uses local-only or manual metadata, so no external text-track provider was contacted.");
+                    : "This library never looks anything up, so no external text-track provider was contacted.");
         }
 
         var matchingProviders = _providers
@@ -260,7 +263,9 @@ public sealed class TextTrackEnrichmentWorker
         {
             var library = _configurationLoader.LoadLibraries().Libraries.FirstOrDefault(candidate =>
                 string.Equals(candidate.Id, asset.LibraryId, StringComparison.OrdinalIgnoreCase));
-            return library is not null && LibraryMetadataPolicies.BypassesExternalIdentity(library.MetadataPolicy);
+            // The library's kind decides first: a plain kind never contacts a subtitle or lyrics provider (Library setup D38).
+            return library is not null
+                && LibraryKindLookupPolicy.BypassesExternalIdentity(library, _kindSource?.GetKinds() ?? _configurationLoader.LoadLibraryKinds().Kinds);
         }
         catch (Exception ex)
         {

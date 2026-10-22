@@ -155,6 +155,9 @@
                                     SelectedResultChanged="OnSelectedChanged" />
         }
 
+        @* The separate Vault group: drawn only while Vault mode is on, never mixed into the results above. *@
+        <VaultSearchGroup Query="@_query" />
+
         @if (_loading)
         {
             <div class="search-page__loading" aria-label="Updating search results">

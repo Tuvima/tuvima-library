@@ -40,7 +40,7 @@ namespace MediaEngine.Api.Tests;
 /// The real View routes, wired to a real data store and a signed-in person who can be swapped between calls. These
 /// tests cover who may use the Documents routes and who may rename or delete a shared name.
 /// </summary>
-public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
+public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
 {
     private readonly string _path = Path.Combine(Path.GetTempPath(), $"tuvima-view-routes-{Guid.NewGuid():N}.db");
     private readonly string _thumbnailRoot = Path.Combine(Path.GetTempPath(), $"tuvima-view-thumbs-{Guid.NewGuid():N}");
@@ -95,7 +95,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         builder.Services.AddSingleton<IViewScopeStore, ViewScopePersistenceService>();
         builder.Services.AddSingleton<IViewScopeResolver, ViewScopeResolver>();
         builder.Services.AddSingleton<IViewResourceStore, ViewResourcePersistenceService>();
-        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AllowEvaluator>();
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator>(_ => new AllowEvaluator(() => DenyViewAccess));
         builder.Services.AddScoped<IViewResourceAuthorizationService, ViewResourceAuthorizationService>();
         builder.Services.AddSingleton<IViewAssetQueryBackend, ViewAssetQueryService>();
         builder.Services.AddSingleton<IViewSmartGalleryQueryService, ViewSmartGalleryQueryService>();
@@ -244,8 +244,14 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         {
             using var request = new HttpRequestMessage(method, route) { Content = content };
             using var response = await _client.SendAsync(request);
-            Assert.True(response.StatusCode == HttpStatusCode.Forbidden,
-                $"{method} {route} should be refused for a profile without Documents, but returned {(int)response.StatusCode}.");
+            // A single document is answered like an id nobody has (404) so its existence is never confirmed; everything
+            // that is not about one item (and the document-details save, which is refused as a whole feature) is 403.
+            var expected = route.StartsWith(itemRoute, StringComparison.Ordinal)
+                && !route.Contains("/inbox/", StringComparison.Ordinal)
+                && !(method == HttpMethod.Put && route.EndsWith("/document-details", StringComparison.Ordinal))
+                ? HttpStatusCode.NotFound : HttpStatusCode.Forbidden;
+            Assert.True(response.StatusCode == expected,
+                $"{method} {route} should be {(int)expected} for a profile without Documents, but returned {(int)response.StatusCode}.");
         }
 
         // Folders still opens, but never lists a document.
@@ -1157,10 +1163,11 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
 
         await _policies.SavePolicyAsync(ViewProfilePolicy.Default(owner.ProfileId) with { DocumentsEnabled = false });
 
-        // Without Documents: the document is refused as a whole request (nothing is half-added) ...
+        // Without Documents: the document is refused as a whole request (nothing is half-added), with the answer for an
+        // id that is not in the owner's space, even for the owner ...
         var other = await AddDocument(owner, 'e');
         using var refused = await _client.PostAsJsonAsync($"/view/galleries/{gallery.Id:D}/items", new ViewGalleryItemsRequest([photo, other]));
-        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
         Assert.DoesNotContain((await galleries.GetItemsAsync(gallery.Id)).Items, item => item.ItemId == other);
 
         // ... it is never counted as removed or moved, so the answer cannot reveal it is in the Gallery ...
@@ -1185,10 +1192,10 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, photoOnly.StatusCode);
         using var documentCover = await _client.PostAsJsonAsync("/view/galleries",
             new ViewGalleryRequest("Cover", ViewGalleryKind.Manual, CoverItemId: document));
-        Assert.Equal(HttpStatusCode.Forbidden, documentCover.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, documentCover.StatusCode);
         using var updateCover = await _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}",
             new ViewGalleryRequest("Trip", ViewGalleryKind.Manual, CoverItemId: document));
-        Assert.Equal(HttpStatusCode.Forbidden, updateCover.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, updateCover.StatusCode);
         var counted = await _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}", new ViewGalleryRequest("Trip", ViewGalleryKind.Manual));
         Assert.Equal(1, (await counted.Content.ReadFromJsonAsync<ViewGalleryDto>())!.ItemCount);
     }
@@ -1214,7 +1221,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         {
             using var request = new HttpRequestMessage(method, route) { Content = content };
             using var response = await _client.SendAsync(request);
-            Assert.True(response.StatusCode == HttpStatusCode.Forbidden, $"{method} {route} returned {(int)response.StatusCode}.");
+            Assert.True(response.StatusCode == HttpStatusCode.NotFound, $"{method} {route} returned {(int)response.StatusCode}.");
         }
 
         var unchanged = _assets.Find(document)!;
@@ -1435,7 +1442,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AGalleryContributorWithoutDocumentsCannotTellADocumentFromAnUnknownId()
+    public async Task AGalleryContributorOrOwnerWithoutDocumentsCannotTellADocumentFromAnUnknownId()
     {
         var household = Guid.NewGuid();
         var owner = await CreatePersonWithoutDocuments(household);
@@ -1460,8 +1467,10 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         Assert.Equal(unknown.Status, forDocument.Status);
         Assert.DoesNotContain("Documents", forDocument.Body, StringComparison.Ordinal);
 
-        // ... and only the owner, whose document it is, is told Documents is the reason.
-        Assert.Equal(HttpStatusCode.Forbidden, (await AddAsync(owner, document)).Status);
+        // ... and so does the owner, whose document it is: nobody is told Documents is the reason.
+        var ownerForDocument = await AddAsync(owner, document);
+        Assert.Equal(HttpStatusCode.BadRequest, ownerForDocument.Status);
+        Assert.Equal(unknown.Body, ownerForDocument.Body);
         Assert.Equal(HttpStatusCode.OK, (await AddAsync(owner, photo)).Status);
     }
 
@@ -1683,6 +1692,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["GET /view/admin/profiles/{profileId:guid}/sources"] = NoItems + "administrator source settings, no items",
         ["GET /view/admin/shared/sources"] = NoItems + "administrator source settings, no items",
         ["GET /view/assets"] = Refused,
+        ["GET /view/assets/added-by"] = Covers(AddedByCounts, "/view/assets/added-by"),
         ["GET /view/assets/timeline-index"] = Covers(TimelineIndex, "timeline-index"),
         ["GET /view/catalogue"] = Refused,
         ["GET /view/document-rules"] = Refused,
@@ -2002,11 +2012,17 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
             ValueTask.FromResult(actor.Current);
     }
 
-    private sealed class AllowEvaluator : MediaEngine.Domain.Contracts.IAuthorizationEvaluator
+    /// <summary>When set, the evaluator refuses every View request, as for a caller whose account may not use View.</summary>
+    private bool DenyViewAccess { get; set; }
+
+    private sealed class AllowEvaluator(Func<bool> denyView) : MediaEngine.Domain.Contracts.IAuthorizationEvaluator
     {
         public ValueTask<AuthorizationDecision> EvaluateAsync(RequestAuthority authority,
             AuthorizationRequirement requirement, ResourceAuthorizationContext? resource,
-            CancellationToken ct = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
+            CancellationToken ct = default) => ValueTask.FromResult(
+                denyView() && requirement.AccountFeature == AccountFeatureId.View
+                    ? AuthorizationDecision.Deny(AuthorizationDenialReason.ResourceDenied)
+                    : AuthorizationDecision.Allow());
     }
 
     private sealed class AllowHandler : AuthorizationHandler<AdministratorOrApplicationRequirement>

@@ -1,0 +1,19 @@
+{
+  "patterns": [
+    "[studio] - [date] - [title]",
+    "[studio] [date] [title]",
+    "[date] - [title]",
+    "[code] - [title]",
+    "[studio] - [title]"
+  ],
+  "ignored_words": ["2160p", "1440p", "1080p", "720p", "480p", "360p", "4k", "uhd", "hdr", "web-dl", "webdl", "webrip", "bluray", "bdrip", "dvdrip", "hdtv", "x264", "x265", "h264", "h265", "hevc", "avc", "aac", "ac3", "dts", "mp4", "mkv", "av1", "vp9", "opus", "xxx"],
+  "space_characters": [".", "_"],
+  "product_code": {
+    "pattern": "(?<![A-Za-z0-9])(?<letters>[A-Za-z]{2,6})[-_]?(?<digits>\\d{2,5})(?![A-Za-z0-9])",
+    "ignored_prefixes": ["hd", "sd", "mp", "cd", "dvd", "vol", "part", "ep", "fps", "hq", "fhd", "uhd", "dd", "ac", "aac", "dts", "avc", "hevc", "web", "bd", "scene", "disc", "cam", "mov", "mvi", "img", "vid", "dsc"]
+  },
+  "duration_tolerance": {
+    "seconds": 5,
+    "percent": 1.5
+  }
+}

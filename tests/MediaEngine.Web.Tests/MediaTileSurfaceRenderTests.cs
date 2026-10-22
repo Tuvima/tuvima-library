@@ -676,7 +676,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var cut = Render<MediaGroupTile>(parameters => parameters.Add(component => component.Item, group));
 
         Assert.Contains("has-person", cut.Find("article.media-group-tile").ClassList);
-        Assert.Equal($"/persons/{personId:D}/headshot", cut.Find(".media-group-tile__person img").GetAttribute("src"));
+        Assert.Equal($"/persons/{personId:D}/headshot?size=s", cut.Find(".media-group-tile__person img").GetAttribute("src"));
         Assert.Equal("Director • Producer", cut.Find(".media-group-tile__person-context").TextContent.Trim());
         Assert.Equal("Open Person", cut.Find(".media-group-tile__open-cue").TextContent.Trim());
         Assert.Equal($"/details/person/{personId:D}", cut.Find("a.media-group-tile__surface").GetAttribute("href"));
@@ -1093,8 +1093,10 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MediaTile_MovieWithoutCinematicArtUsesArtPopover()
+    public async Task MediaTile_MovieWithoutLandscapeBackgroundKeepsItsCoverOnHome()
     {
+        await Services.GetRequiredService<MediaEngine.Web.Services.Theming.DeviceContextService>()
+            .InitialiseAsync(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot("web", "desktop", false));
         var item = new MediaTileViewModel
         {
             Id = Guid.NewGuid(),
@@ -1112,9 +1114,12 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item).Add(component => component.IsHomeSurface, true));
 
-        var panel = cut.Find(".media-tile-hover-panel");
-        Assert.Contains("is-art-popover", panel.ClassList);
-        Assert.DoesNotContain("is-banner-popover", panel.ClassList);
+        var article = cut.Find("article.media-tile");
+        Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
+        Assert.DoesNotContain("is-cinematic-hover", article.ClassList);
+        Assert.Contains("is-static-cover-hover", article.ClassList);
+        Assert.Equal("/movies/portrait.jpg", cut.Find(".media-tile-image").GetAttribute("src"));
+        Assert.DoesNotContain(JSInterop.Invocations, c => c.Identifier == "registerMediaTileHover");
     }
 
     [Fact]
@@ -1436,6 +1441,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             Shape = MediaTileShape.Portrait,
             TileImageUrl = "/cover.jpg",
             HoverImageUrl = "/background.jpg",
+            HoverLayout = MediaTileHoverLayout.BannerPopover,
             HoverMode = MediaTileHoverMode.Expanded,
             DetailsNavigationUrl = "/details/work/title"
         };

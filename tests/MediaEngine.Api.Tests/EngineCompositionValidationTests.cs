@@ -104,6 +104,24 @@ public sealed class EngineCompositionValidationTests
             descriptor => descriptor.ServiceType == typeof(IHostedService));
     }
 
+    [Fact]
+    public void RestoreServices_AreInTheEngineGraph()
+    {
+        var services = BuildFullComposition();
+
+        using var provider = services.BuildServiceProvider();
+
+        // A restore puts settings back and parks a person's state; the worker puts it back on its title as the title arrives.
+        Assert.NotNull(provider.GetRequiredService<MediaEngine.Storage.Backup.BackupRestoreRepository>());
+        Assert.NotNull(provider.GetRequiredService<MediaEngine.Storage.Backup.WaitingPersonalStateRepository>());
+        Assert.NotNull(provider.GetRequiredService<MediaEngine.Api.Services.Backups.IPendingRestoreImportService>());
+        Assert.NotNull(provider.GetRequiredService<DatabaseBackupService>());
+        Assert.Contains(
+            services,
+            descriptor => descriptor.ServiceType == typeof(IHostedService)
+                && descriptor.ImplementationType == typeof(MediaEngine.Api.Services.Backups.WaitingStateReattachHostedService));
+    }
+
     private static ServiceCollection BuildFullComposition()
     {
         var repoRoot = FindRepoRoot();
@@ -141,6 +159,7 @@ public sealed class EngineCompositionValidationTests
         services.AddScoped<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AuthorizationEvaluator>();
         services.AddSingleton<IAuthorizationInvalidationService, AuthorizationInvalidationService>();
         services.AddSingleton<IAuthorizationAuditWriter, AuthorizationAuditWriter>();
+        services.AddSingleton<MediaEngine.Identity.Contracts.ITwoStepSecretProtector, DataProtectionTwoStepSecretProtector>();
         services.AddScoped<IAuthorizationHandler, EffectiveAdministratorHandler>();
         services.AddScoped<IAuthorizationHandler, HumanSelfServiceHandler>();
         services.AddScoped<IAuthorizationHandler, ApplicationPermissionHandler>();
@@ -161,8 +180,14 @@ public sealed class EngineCompositionValidationTests
         services.AddTuvimaHostedServices();
         services.AddTuvimaToolRequirements();
         services.AddTuvimaNotifications();
-        services.AddSingleton(sp => new DatabaseBackupService(sp.GetRequiredService<IDatabaseConnection>(), Path.GetTempPath()));
         services.AddTuvimaBackupDestinations();
+        services.AddSingleton(sp => new DatabaseBackupService(sp.GetRequiredService<MediaEngine.Storage.Backup.PersonalStateBackupRepository>(), Path.GetTempPath()));
+        services.AddSingleton<MediaEngine.Api.Services.Backups.IPendingRestoreImportService>(sp => new MediaEngine.Api.Services.Backups.PendingRestoreImportService(
+            sp.GetRequiredService<MediaEngine.Storage.Backup.BackupRestoreRepository>(),
+            sp.GetRequiredService<MediaEngine.Storage.Backup.IBackupPortableValueCodec>(),
+            Path.GetTempPath(),
+            sp.GetRequiredService<TimeProvider>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MediaEngine.Api.Services.Backups.PendingRestoreImportService>>()));
 
         return services;
     }
@@ -208,6 +233,47 @@ public sealed class EngineCompositionValidationTests
         }
 
         Assert.Equal(1024 * 1024, subdl.MaxResponseContentBufferSize);
+    }
+
+    [Fact]
+    public async Task EveryWorkerThatAsksAProviderIsGivenTheLookupGuard()
+    {
+        var services = BuildFullComposition();
+
+        await using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+
+        Assert.IsType<MediaEngine.Providers.Services.ConfiguredExternalLookupGuard>(provider.GetRequiredService<IExternalLookupGuard>());
+        // The one merged kinds list (plugins included) is what ingestion's folder list and the guard read.
+        Assert.IsType<MediaEngine.Api.Services.Settings.LibraryKindListService>(provider.GetRequiredService<ILibraryKindSource>());
+        Assert.NotNull(provider.GetRequiredService<IOptionsMonitor<MediaEngine.Ingestion.Models.IngestionOptions>>().CurrentValue);
+        var guardKinds = typeof(MediaEngine.Providers.Services.ConfiguredExternalLookupGuard)
+            .GetField("_kindSource", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(provider.GetRequiredService<IExternalLookupGuard>());
+        Assert.NotNull(guardKinds);
+        // These take the guard as an optional argument; a missing registration would leave them unguarded without any error.
+        object[] guarded =
+        [
+            provider.GetRequiredService<MediaEngine.Providers.Workers.RetailMatchWorker>(),
+            provider.GetRequiredService<MediaEngine.Providers.Workers.WikidataBridgeWorker>(),
+            provider.GetRequiredService<MediaEngine.Providers.Workers.QuickHydrationWorker>(),
+            provider.GetRequiredService<MediaEngine.Providers.Workers.CoverArtWorker>(),
+            provider.GetRequiredService<MediaEngine.Providers.Workers.PersonEnrichmentWorker>(),
+            provider.GetRequiredService<MediaEngine.Providers.Workers.FictionalEntityWorker>(),
+            provider.GetRequiredService<MediaEngine.Providers.Workers.DescriptionEnrichmentWorker>(),
+            provider.GetRequiredService<IHydrationPipelineService>(),
+            provider.GetServices<IHostedService>().OfType<MissingUniverseSweepService>().Single(),
+            provider.GetServices<IHostedService>().OfType<MusicBrainzEnrichmentHostedService>().Single(),
+            provider.GetServices<IHostedService>().OfType<MusicAlbumManifestHostedService>().Single(),
+        ];
+        foreach (var worker in guarded)
+        {
+            var field = worker.GetType()
+                .GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .SingleOrDefault(candidate => candidate.FieldType == typeof(IExternalLookupGuard));
+            Assert.True(field is not null, worker.GetType().Name);
+            Assert.NotNull(field.GetValue(worker));
+        }
     }
 
     private static readonly string[] ExpectedMetadataProviderOrder =

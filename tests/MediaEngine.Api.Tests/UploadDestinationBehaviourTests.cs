@@ -104,6 +104,7 @@ public sealed class UploadDestinationBehaviourTests : IDisposable
         Name = "Books",
         Category = "Books",
         Kind = LibraryKinds.Catalogued,
+        KindKey = "books",
         Area = LibraryAreas.Read,
         MediaTypes = ["Books"],
         AcceptedIntakeModes = [LibraryIntakeModes.BrowserUpload],
@@ -140,6 +141,7 @@ public sealed class UploadDestinationBehaviourTests : IDisposable
             engine ?? EngineProxy.Create(),
             Options.Create(new IngestionOptions()),
             new SourceMutationPolicyGate(),
+            new FixedVaultLibraries(),
             CancellationToken.None);
 
         return Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode ?? StatusCodes.Status200OK;

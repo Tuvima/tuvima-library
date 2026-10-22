@@ -533,6 +533,7 @@ public sealed class CollectionCatalogReadService(
                 INNER JOIN work_owned_assets woa ON woa.work_id = work_tree.WorkId
                 INNER JOIN media_assets ma ON ma.id = woa.asset_id
                 WHERE {visibleAssetPredicate}
+                  AND {VaultSql.NotVaultAsset("ma.id")}
                   AND {WorkReadinessSql.ReadyWorkPredicate("leaf_w")};
                 """,
                 new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
@@ -1285,12 +1286,11 @@ public sealed class CollectionCatalogReadService(
             return [];
         }
 
+        // The ids go in as one JSON list. A detail page of a show, album or series passes every work the profile may see,
+        // and binding them one parameter each took about 0.4 s at 4,000 works (B29).
         using var conn = db.CreateConnection();
-        var rows = new List<CollectionDisplayWorkRow>();
-        foreach (var chunk in workIds.Chunk(MaxSqlIdsPerQuery))
-        {
-            rows.AddRange(await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
-            """
+        var rows = (await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
+            $"""
             -- readiness: turns work ids into their display roots; the ids come from Ready-gated reads
             WITH RECURSIVE source_roots(SourceWorkId, RootWorkId, RootMediaType) AS (
                 SELECT DISTINCT
@@ -1304,7 +1304,7 @@ public sealed class CollectionCatalogReadService(
                 FROM works w
                 LEFT JOIN works p ON p.id = w.parent_work_id
                 LEFT JOIN works gp ON gp.id = p.parent_work_id
-                WHERE w.id IN @WorkIds
+                WHERE w.id IN (SELECT unhex(value) FROM json_each(@WorkIds))
             ),
             work_tree(SourceWorkId, RootWorkId, RootMediaType, WorkId) AS (
                 SELECT SourceWorkId,
@@ -1337,11 +1337,11 @@ public sealed class CollectionCatalogReadService(
                    SELECT 1
                    FROM work_owned_assets woa
                    WHERE woa.work_id = work_tree.WorkId
+                     AND {VaultSql.NotVaultAsset("woa.asset_id")}
                );
             """,
-            new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
-            cancellationToken: ct)).ConfigureAwait(false));
-        }
+            new { WorkIds = GuidSql.ToJsonHexArray(workIds) },
+            cancellationToken: ct)).ConfigureAwait(false)).ToList();
 
         var rowsBySource = rows
             .GroupBy(row => row.SourceWorkId ?? row.WorkId)
@@ -1416,6 +1416,7 @@ public sealed class CollectionCatalogReadService(
                 INNER JOIN editions e ON e.work_id = work_tree.WorkId
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
                 WHERE {visibleAssetPredicate}
+                  AND {VaultSql.NotVaultAsset("ma.id")}
                   {CollectionAssetAllowList.Clause("work_tree.WorkId", allowedMemberIds)}
                 GROUP BY work_tree.RootWorkId
             )
@@ -1686,6 +1687,7 @@ public sealed class CollectionCatalogReadService(
                 INNER JOIN editions e ON e.work_id = work_tree.WorkId
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
                 WHERE {visibleAssetPredicate}
+                  AND {VaultSql.NotVaultAsset("ma.id")}
                   {CollectionAssetAllowList.Clause("work_tree.WorkId", allowedMemberIds)}
                 GROUP BY work_tree.RootWorkId
             )

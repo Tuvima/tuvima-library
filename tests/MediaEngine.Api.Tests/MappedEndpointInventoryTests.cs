@@ -41,13 +41,13 @@ public sealed class MappedEndpointInventoryTests
             [ApplicationPermissionIds.ReviewRead] = ["GetPendingReviews", "GetReviewCount", "GetReviewItem"],
             [ApplicationPermissionIds.ReviewResolve] = ["ResolveReviewItem", "DismissReviewItem", "SkipUniverseMatch", "MoveReviewItemToTv"],
             [ApplicationPermissionIds.ProvidersStatusRead] = ["GetProviderHealth", "GetProviderIcon"],
-            [ApplicationPermissionIds.ProvidersConfigRead] = ["GetProviderStatus", "GetProviderCatalogue"],
-            [ApplicationPermissionIds.ProvidersConfigWrite] = ["UpdateProvider", "TestProviderCredentials", "SaveProviderCredentials", "RemoveProviderCredentials", "TestProvider", "SampleProvider", "UpdateProviderConfig", "DeleteProvider", "UploadProviderIcon"],
+            [ApplicationPermissionIds.ProvidersConfigRead] = ["GetProviderStatus", "GetProviderCatalogue", "GetStashBoxSettings"],
+            [ApplicationPermissionIds.ProvidersConfigWrite] = ["UpdateProvider", "TestProviderCredentials", "SaveProviderCredentials", "RemoveProviderCredentials", "TestProvider", "SampleProvider", "UpdateProviderConfig", "DeleteProvider", "UploadProviderIcon", "AddStashBoxServer", "RemoveStashBoxServer", "SetStashBoxServerOrder", "SaveStashBoxServerKey", "RemoveStashBoxServerKey", "TestStashBoxConnection", "SetStashBoxFingerprintPermission"],
             [ApplicationPermissionIds.AiStatusRead] = ["GetAiStatus", "GetAiModelStatuses", "GetAiHardwareProfile", "GetAiResourceSnapshot"],
             [ApplicationPermissionIds.AiManage] = ["StartAiModelDownload", "CancelAiModelDownload", "LoadAiModel", "UnloadAiModel", "GetAiConfig", "SaveAiConfig", "RunAiHardwareBenchmark", "InvalidateAiHardwareBenchmark"],
             [ApplicationPermissionIds.NetworkStatusRead] = ["GetNetworkSettings", "GetNetworkRuntimeStatus"],
             [ApplicationPermissionIds.NetworkConfigWrite] = ["UpdateNetworkSettings", "TestLocalNetworkConnection", "TestRemoteNetworkConnection", "TestNetworkUploadBandwidth", "CheckNetworkPortAvailability", "ApplyNetworkPortChange", "RenewNetworkRouterMapping", "ResetNetworkSettings"],
-            [ApplicationPermissionIds.StorageStatusRead] = ["GetLibraries", "GetOrganizationTemplate"],
+            [ApplicationPermissionIds.StorageStatusRead] = ["GetLibraries", "GetLibraryKinds", "GetOrganizationTemplate"],
             [ApplicationPermissionIds.StorageConfigWrite] = ["UpdateLibraries", "TestPath", "PreviewOrganizationTemplate", "UpdateOrganizationTemplate", "RunStorageMaintenance"],
             [ApplicationPermissionIds.MetadataEnrichmentRead] = ["GetHydrationSettings", "GetAiEnrichmentProgress", "GetAssetCapabilities", "GetCapabilitySummary", "GetRetagSweepState"],
             [ApplicationPermissionIds.MetadataWrite] = ["ApplyRetagSweepPending", "RunRetagSweepNow", "RetryRetagForAsset"],
@@ -128,7 +128,7 @@ public sealed class MappedEndpointInventoryTests
         var inventory = EndpointInventory.From(app);
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
-            [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetSeriesPlacement", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetArtworkWritebackStatus", "GetArtworkWritebackStatuses", "GetEditionRenditions", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorWorkVersions", "SearchMediaEditorOwnedChildren", "SnapshotMediaEditorOwnedChildSelection", "PreviewParentFirstMediaEditorPairing", "SearchReviewedTvPairingChildren", "GetMediaEditorFileCoverage", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies", "GetTvdbMatchPreview", "GetTvdbScopedMatchCandidates", "PreviewTvdbShowOrder"],
+            [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetSeriesPlacement", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetArtworkWritebackStatus", "GetArtworkWritebackStatuses", "GetAssetFileWriteStatus", "GetEditionRenditions", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorWorkVersions", "SearchMediaEditorOwnedChildren", "SnapshotMediaEditorOwnedChildSelection", "PreviewParentFirstMediaEditorPairing", "SearchReviewedTvPairingChildren", "GetMediaEditorFileCoverage", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies", "GetTvdbMatchPreview", "GetTvdbScopedMatchCandidates", "PreviewTvdbShowOrder"],
             [ApplicationPermissionIds.MetadataWrite] = ["LockClaim", "SetSeriesPlacement", "OverrideMetadata", "ReclassifyMediaType", "UploadCover", "UploadScopedArtwork", "UploadScopedArtworkFromUrl", "UploadEntityArtwork", "SetPreferredArtwork", "DeleteArtworkVariant", "CoverFromUrl", "ApplyTvdbScopedMatch", "ApplyTvdbShowOrder", "ImportSelectedProviderArtwork", "RetryArtworkWriteback", "UpdateAssetRendition", "PreviewEditionCoverPreference", "SaveEditionCoverPreference", "SaveMediaEditorFileCoverage", "PreviewReviewedTvEpisodeStill", "PreviewReviewedTvSharedArtwork"],
             [ApplicationPermissionIds.MetadataMatch] = ["SearchMetadata", "SearchMetadataFanOut", "PutSearchResultsCache", "WikidataTest", "SaveReviewedParentFirstTvPairing"],
             [ApplicationPermissionIds.MetadataEnrichmentRun] = ["HydrateEntity", "RefreshScopedProviderArtwork", "DiscoverScopedProviderArtwork", "TriggerPass2"],
@@ -394,6 +394,14 @@ public sealed class MappedEndpointInventoryTests
         });
         builder.Services.AddSingleton<IVideoOnlineLookup>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not contact an online video lookup."));
+        builder.Services.AddSingleton<IStashBoxSettings>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not read the Stash-box settings."));
+        builder.Services.AddSingleton<MediaEngine.Providers.Services.StashBox.StashBoxClient>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not contact a stash-box server."));
+        builder.Services.AddSingleton<MediaEngine.Providers.Services.Vault.VaultIdentifyService>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not run a Vault Identify lookup."));
+        builder.Services.AddSingleton<IProviderAudienceGate>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not ask the provider audience gate."));
         builder.Services.AddTuvimaDisplay();
         builder.Services.AddTuvimaIntelligence();
         builder.Services.AddSingleton<AiSettings>(_ => throw new InvalidOperationException(

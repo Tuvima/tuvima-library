@@ -1,5 +1,6 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.FileWrites;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.Libraries.Moves;
 using MediaEngine.Api.Services.Matching;
@@ -125,27 +126,41 @@ public static class LibraryItemEndpoints
 
         // The recycle bin of the library types that have it switched on. Same audience as deleting: effective administrators at
         // the Dashboard. Restoring never overwrites; emptying is the only step that removes files from the disk.
-        group.MapGet("/recycle-bin", ([FromServices] RecycleBinService bin) => Results.Ok(bin.List().Select(entry => new RecycleBinItemDto
-        {
-            Id = entry.Id,
-            FileName = entry.FileName,
-            Title = entry.Title,
-            SizeBytes = entry.SizeBytes,
-            DeletedAt = entry.DeletedAt,
-        }).ToList()))
+        group.MapGet("/recycle-bin", async (HttpContext http, [FromServices] IRequestAuthorityResolver authorities, [FromServices] VaultAccessResolver vaultAccess,
+            [FromServices] RecycleBinService bin, CancellationToken ct) => Results.Ok(bin.List(await HiddenLibrariesAsync(http, authorities, vaultAccess, ct)).Select(entry => new RecycleBinItemDto
+            {
+                Id = entry.Id,
+                FileName = entry.FileName,
+                Title = entry.Title,
+                SizeBytes = entry.SizeBytes,
+                DeletedAt = entry.DeletedAt,
+            }).ToList()))
         .WithName("ListRecycleBin")
         .WithSummary("The files waiting in the recycle bin.")
         .Produces<IReadOnlyList<RecycleBinItemDto>>(StatusCodes.Status200OK)
         .RequireEffectiveAdministratorInPerson();
 
-        group.MapPost("/recycle-bin/{id:guid}/restore", (Guid id, [FromServices] RecycleBinService bin) =>
-            bin.Restore(id) switch
+        group.MapPost("/recycle-bin/{id:guid}/restore", async (Guid id, HttpContext http, IRequestAuthorityResolver authorities,
+            [FromServices] VaultAccessResolver vaultAccess, [FromServices] RecycleBinService bin,
+            [FromServices] RestoredFileWriteQueuer restoredWrites, CancellationToken ct) =>
+        {
+            var hidden = await HiddenLibrariesAsync(http, authorities, vaultAccess, ct);
+            var originalPath = bin.List(hidden).FirstOrDefault(entry => entry.Id == id)?.OriginalPath;
+            var result = bin.Restore(id, hidden);
+            if (result == RecycleBinRestoreResult.Restored && originalPath is not null)
+            {
+                // A restored file whose item is still in the library gets a fresh entry on the file write list.
+                await restoredWrites.QueueAsync(originalPath, ct);
+            }
+
+            return result switch
             {
                 RecycleBinRestoreResult.Restored => Results.NoContent(),
                 RecycleBinRestoreResult.NotFound => ApiErrors.NotFound("That file is no longer in the recycle bin."),
                 RecycleBinRestoreResult.PlaceTaken => ApiErrors.Conflict("Something is already at that place, so nothing was put back."),
                 _ => ApiErrors.BadRequest("The file could not be put back. It is still in the recycle bin."),
-            })
+            };
+        })
         .WithName("RestoreFromRecycleBin")
         .WithSummary("Put a file from the recycle bin back where it was. Nothing is overwritten.")
         .Produces(StatusCodes.Status204NoContent)
@@ -154,7 +169,9 @@ public static class LibraryItemEndpoints
         .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireEffectiveAdministratorInPerson();
 
-        group.MapPost("/recycle-bin/empty", ([FromServices] RecycleBinService bin) => Results.Ok(new RecycleBinEmptiedDto { Removed = bin.Empty() }))
+        group.MapPost("/recycle-bin/empty", async (HttpContext http, [FromServices] IRequestAuthorityResolver authorities, [FromServices] VaultAccessResolver vaultAccess,
+            [FromServices] RecycleBinService bin, CancellationToken ct) =>
+            Results.Ok(new RecycleBinEmptiedDto { Removed = bin.Empty(await HiddenLibrariesAsync(http, authorities, vaultAccess, ct)) }))
         .WithName("EmptyRecycleBin")
         .WithSummary("Remove every file in the recycle bin from the disk for good.")
         .Produces<RecycleBinEmptiedDto>(StatusCodes.Status200OK)
@@ -163,6 +180,15 @@ public static class LibraryItemEndpoints
         MapMoveEndpoints(group);
 
         return app;
+    }
+
+    // The Vault's entries in the recycle bin are visible only inside Vault mode (Videos spec D34). Anyone else, administrators included,
+    // sees the bin as if those files were not there, and cannot restore or empty them.
+    internal static async Task<IReadOnlySet<string>> HiddenLibrariesAsync(
+        HttpContext http, IRequestAuthorityResolver authorities, VaultAccessResolver vaultAccess, CancellationToken ct)
+    {
+        var authority = await authorities.ResolveAsync(http, ct);
+        return (await vaultAccess.ResolveAsync(authority, ct)).HiddenLibraryIds;
     }
 
     // Moving items into another album, season, series, audiobook or hand-picked collection through the Match step. These change
@@ -187,7 +213,8 @@ public static class LibraryItemEndpoints
         .Produces<LibraryMoveDestinationsResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite);
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite, "id");
 
         group.MapPost("/move-preview", async (
             LibraryMovePreviewRequest request,

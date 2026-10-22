@@ -321,7 +321,7 @@ public sealed class ItemMoveAreaTests : AsyncBunitContext
         await UseDevice("desktop");
         _preview = LibraryMoveTestData.AlbumPreview(rows:
         [
-            LibraryMoveTestData.Row(fileNote: "As-is folder: the file stays where it is"),
+            LibraryMoveTestData.Row(fileNote: "Read-only folder: the file stays where it is"),
         ]);
         var (host, area) = RenderArea();
         ToMatchStep(area);
@@ -329,7 +329,7 @@ public sealed class ItemMoveAreaTests : AsyncBunitContext
         Button(area, "Apply").Click();
         host.WaitForElement(".app-confirm");
 
-        Assert.Contains("As-is folder: the file stays where it is.", DialogText(host), StringComparison.Ordinal);
+        Assert.Contains("Read-only folder: the file stays where it is.", DialogText(host), StringComparison.Ordinal);
     }
 
     [Fact]

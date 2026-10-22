@@ -650,15 +650,21 @@ public static class SettingsNav
             return false;
         }
 
+        var normalized = subsection?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        // Libraries has levels of its own (group and type pages); a phone reads them, it cannot change folders there.
+        if (section == SettingsSection.Libraries)
+        {
+            return string.IsNullOrWhiteSpace(normalized) ? string.IsNullOrWhiteSpace(detail) : IsLibraryRouteSegment(normalized);
+        }
+
         if (!string.IsNullOrWhiteSpace(detail))
         {
             return false;
         }
 
-        var normalized = subsection?.Trim().ToLowerInvariant() ?? string.Empty;
         return section switch
         {
-            SettingsSection.Libraries => string.IsNullOrWhiteSpace(normalized) || normalized == "view",
             SettingsSection.Profiles => string.IsNullOrWhiteSpace(normalized) || normalized == HouseholdsSubsection || Guid.TryParse(normalized, out _),
             SettingsSection.Providers => normalized is "" or "providers",
             SettingsSection.Network => normalized is "" or "overview",
@@ -669,6 +675,13 @@ public static class SettingsNav
             _ => true,
         };
     }
+
+    /// <summary>
+    /// The first address segment under /settings/libraries that names a level of the Libraries screen: a group (watch, listen,
+    /// read, view, vault), the Import folder, or "other" (a library with no known area). The Vault is only shown when the page allows it.
+    /// </summary>
+    public static bool IsLibraryRouteSegment(string? value) =>
+        value?.Trim().ToLowerInvariant() is "watch" or "listen" or "read" or "view" or "vault" or "import" or "other";
 
     public static bool IsMobileSubsectionAvailable(SettingsSection section, string subsection) =>
         IsMobileRouteAvailable(section, subsection);

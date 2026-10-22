@@ -32,6 +32,7 @@ namespace MediaEngine.Providers.Workers;
 public sealed partial class WikidataBridgeWorker
 {
     private readonly IIdentityJobRepository _jobRepo;
+    private readonly IExternalLookupGuard? _lookupGuard;
     private readonly IWikidataCandidateRepository _candidateRepo;
     private readonly StageOutcomeFactory _outcomeFactory;
     private readonly TimelineRecorder _timeline;
@@ -103,8 +104,10 @@ public sealed partial class WikidataBridgeWorker
         IWorkIdentityReconciliationService? workIdentityReconciliation = null,
         IPipelineExecutionSnapshotProvider? configurationSnapshots = null,
         IRetailMatchScoringService? retailMatchScoring = null,
-        IImageEnrichmentService? imageEnrichment = null)
+        IImageEnrichmentService? imageEnrichment = null,
+        IExternalLookupGuard? lookupGuard = null)
     {
+        _lookupGuard = lookupGuard;
         _jobRepo = jobRepo;
         _candidateRepo = candidateRepo;
         _outcomeFactory = outcomeFactory;

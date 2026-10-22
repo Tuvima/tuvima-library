@@ -31,6 +31,39 @@ public sealed class FolderJobServiceTests : IDisposable
 
     public void Dispose() => _f.Dispose();
 
+    // WP17 part C: a folder of a Vault library answers exactly like a folder that is not in the libraries, and nothing is started.
+    [Fact]
+    public async Task A_folder_of_a_Vault_library_is_refused_like_a_folder_that_is_not_in_the_libraries_and_nothing_is_started()
+    {
+        var folder = _f.AddAsIsFolder("Private clips", fileCount: 2);
+        var other = _f.AddManagedFolder("Managed target");
+        var vaultJobs = _f.CreateJobs(_f.Tracker, vaultLibraries: new FixedVaultLibraries(_f.Config.LoadLibraries().Libraries[0].Id));
+        var unknown = Guid.NewGuid().ToString("D");
+
+        var calls = new Func<string, Task>[]
+        {
+            id => vaultJobs.PreviewAsync(new() { SourceId = id }, default),
+            id => vaultJobs.PreviewAsync(new() { SourceId = id, Quick = true }, default),
+            id => vaultJobs.StartConversionAsync(id, default),
+            id => vaultJobs.PreviewMergeAsync(new() { SourceId = id, TargetSourceId = other.Id }, default),
+            id => vaultJobs.PreviewMergeAsync(new() { SourceId = other.Id, TargetSourceId = id }, default),
+            id => vaultJobs.StartMergeAsync(new() { SourceId = id, TargetSourceId = other.Id }, default),
+            id => vaultJobs.StartMergeAsync(new() { SourceId = other.Id, TargetSourceId = id }, default),
+        };
+        foreach (var call in calls)
+        {
+            var vault = await Assert.ThrowsAsync<FolderJobException>(() => call(folder.Id));
+            Assert.True(vault.NotFound);
+            Assert.Equal("This folder is not part of your libraries.", vault.Message);
+        }
+
+        // The same service answers an id that is nowhere in the libraries with the very same words.
+        var missing = await Assert.ThrowsAsync<FolderJobException>(() => vaultJobs.StartConversionAsync(unknown, default));
+        Assert.Equal("This folder is not part of your libraries.", missing.Message);
+        Assert.Empty(await _f.Operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 50));
+        Assert.Equal(LibrarySourceConversionStates.None, _f.Source(folder.Id).ConversionState);
+    }
+
     [Fact]
     public async Task Converting_a_folder_creates_one_durable_job_and_marks_the_folder_converting()
     {
@@ -228,7 +261,7 @@ public sealed class FolderJobServiceTests : IDisposable
 
         var stopped = await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default);
         Assert.Equal("cancelled", stopped!.State);
-        Assert.Contains("switched to As-is", stopped.Message);
+        Assert.Contains("switched to Read-only", stopped.Message);
         var saved = _f.Source(folder.Id);
         Assert.Equal(LibrarySourceConversionStates.None, saved.ConversionState);
         Assert.Null(saved.ConversionOperationId);
@@ -416,7 +449,7 @@ public sealed class FolderJobServiceTests : IDisposable
         var missing = await Assert.ThrowsAsync<FolderJobException>(
             () => _f.Jobs.StartMergeAsync(new FolderMergeRequest { SourceId = source.Id, TargetSourceId = Guid.NewGuid().ToString("D") }, default));
 
-        Assert.Contains("An As-is folder is never written to", intoAsIs.Message);
+        Assert.Contains("A Read-only folder is never written to", intoAsIs.Message);
         Assert.Contains("Move is only available", moveFromAsIs.Message);
         Assert.True(missing.NotFound);
         Assert.Equal(LibrarySourceMergeStates.None, _f.Source(source.Id).MergeState);
@@ -1000,6 +1033,7 @@ public sealed class FolderJobServiceTests : IDisposable
                         Name = "Movies",
                         Category = "Movies",
                         Kind = LibraryKinds.Catalogued,
+                        KindKey = "movies",
                         Area = LibraryAreas.Watch,
                         Presentation = LibraryPresentations.Catalogue,
                         MetadataPolicy = LibraryMetadataPolicies.Enriched,
@@ -1014,7 +1048,7 @@ public sealed class FolderJobServiceTests : IDisposable
             Operations = new MediaOperationRepository(_database);
             Ledger = new FolderOrganiseLogRepository(_database);
             var tracker = new MediaOperationTracker(
-                Operations, new MediaOperationEventRepository(_database), new NullPublisher(), NullLogger<MediaOperationTracker>.Instance);
+                Operations, new MediaOperationEventRepository(_database), new NullPublisher(), NullLogger<MediaOperationTracker>.Instance, new VaultLibraryRepository(_database));
             Tracker = tracker;
 
             var options = new IngestionOptions { PollIntervalSeconds = 0, IncludeSubdirectories = true };
@@ -1055,18 +1089,18 @@ public sealed class FolderJobServiceTests : IDisposable
             Jobs = new FolderJobService(
                 Config, Operations, tracker, Ledger, previewer, mergePreviewer,
                 new ServerFolderBrowserService(Config, NullLogger<ServerFolderBrowserService>.Instance),
-                NullLogger<FolderJobService>.Instance);
+                NullLogger<FolderJobService>.Instance, new FixedVaultLibraries());
             Worker = new FolderOrganiseJobWorker(Operations, tracker, _runner, mergeRunner, Jobs, NullLogger<FolderOrganiseJobWorker>.Instance);
         }
 
         private FolderOrganiseJobWorker Worker { get; }
 
         /// <summary>A second service over the same folders and data store, with its own tracker, configuration and logger.</summary>
-        public FolderJobService CreateJobs(IMediaOperationTracker tracker, IConfigurationLoader? configuration = null, ILogger<FolderJobService>? logger = null, IMediaOperationRepository? operations = null) =>
+        public FolderJobService CreateJobs(IMediaOperationTracker tracker, IConfigurationLoader? configuration = null, ILogger<FolderJobService>? logger = null, IMediaOperationRepository? operations = null, IVaultLibraryRepository? vaultLibraries = null) =>
             new(
                 configuration ?? Config, operations ?? Operations, tracker, Ledger, _previewer, _mergePreviewer,
                 new ServerFolderBrowserService(Config, NullLogger<ServerFolderBrowserService>.Instance),
-                logger ?? NullLogger<FolderJobService>.Instance);
+                logger ?? NullLogger<FolderJobService>.Instance, vaultLibraries ?? new FixedVaultLibraries());
 
         /// <summary>Adds an As-is folder to the Movies library with plain media files in it that the library does not know.</summary>
         public LibrarySourceConfig AddAsIsFolder(string name, int fileCount)

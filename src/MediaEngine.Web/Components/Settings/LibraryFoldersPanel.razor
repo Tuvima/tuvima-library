@@ -9,12 +9,14 @@
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
 @inject IAppToastService Snackbar
+@inject LibraryFolderAddService AddService
 @inject NavigationManager Navigation
 @implements IDisposable
 
 @* One screen for libraries: media types on the left, the selected type's folders on the right.
-   Used by the first-run setup step and by Settings > Libraries, so both behave identically. *@
-<div class="library-folders">
+   Used by the first-run setup step and by Settings > Libraries, so both behave identically. Settings > Libraries opens it on
+   one type's address instead (ShowTypeNav false, TypeKey set), so the type list is not drawn there. *@
+<div class="@(ShowTypeNav ? "library-folders" : "library-folders library-folders--single")">
     @if (_loading)
     {
         <AppPageState Kind="AppPageStateKind.Loading" Title="Loading libraries" />
@@ -30,6 +32,8 @@
     {
         @* Shown on phones only (see the stylesheet): folders are read-only there, so every control that adds, converts or merges is hidden. *@
         <p class="library-folders__phone-note">@PhoneNote</p>
+        @if (ShowTypeNav)
+        {
         <AppCard Class="library-folders__types">
         <nav class="library-folders__nav" aria-label="Library types">
             @foreach (var type in LibraryTypes)
@@ -73,14 +77,26 @@
             }
         </nav>
         </AppCard>
+        }
 
-        @if (ImportSelected)
+        @if (_unknownType)
+        {
+            <AppCard Class="library-folders__detail">
+                <div class="library-folders__empty">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
+                    <strong>This library type does not exist</strong>
+                    <span><a href="/settings/libraries">Back to Libraries</a></span>
+                </div>
+            </AppCard>
+        }
+        else if (ImportSelected)
         {
             <AppCard Class="library-folders__detail">
                 <header class="library-folders__detail-header">
                     <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
                     <div>
-                        <h3 id="library-import-title">Import folder</h3>
+                        @* On its own type page the Settings title already says "Import folder", so the heading is kept for screen readers only. *@
+                        <h3 id="library-import-title" class="@(ShowTypeNav ? null : "sr-only")">Import folder</h3>
                         <p>One folder where new media can be dropped. Apps like Sonarr and Radarr can save finished downloads here too, and Library files them into your libraries.</p>
                     </div>
                     @if (!ImportStatus.Configured)
@@ -173,12 +189,8 @@
         else
         {
             <AppCard Class="library-folders__detail">
+                @* The type's name is already the selected entry in the list on the left, so the pane starts with the folders. *@
                 <header class="library-folders__detail-header">
-                    <span class="@($"library-folders__icon library-folders__icon--{Selected.Key}")"><AppMaterialIcon Icon="@Selected.Icon" /></span>
-                    <div>
-                        <h3 id="library-folders-title">@Selected.Label</h3>
-                        <p>Folders that make up @(Selected.LibraryId is null ? $"your {Selected.PluralLabel} library" : Selected.Label).</p>
-                    </div>
                     <div class="library-folders__detail-actions">
                         <AppButton Label="Add Folder"
                                    Class="@(_highlightAdd ? "library-folders__add is-highlighted" : "library-folders__add")"
@@ -227,11 +239,6 @@
 
                 @if (IsVideosSelected && SelectedLibrary is not null)
                 {
-                    <AppSwitchRow Label="Look up YouTube videos online"
-                                  Description="Only for videos named with a YouTube ID. This contacts YouTube and sends just that ID, never your files. Your own edits always win."
-                                  Value="@SelectedLibrary.YoutubeLookup"
-                                  Disabled="@(_saving || ReadOnly)"
-                                  ValueChanged="@((bool value) => SetYoutubeLookupAsync(value))" />
                     <AppSwitchRow Label="OK for limited profiles"
                                   Description="Saved videos have no age ratings, so profiles with a content limit (G to R) don't see Videos until you turn this on. Profiles set to Everything always see them."
                                   Value="@SelectedLibrary.OkForLimitedProfiles"
@@ -239,23 +246,27 @@
                                   ValueChanged="@((bool value) => SetOkForLimitedProfilesAsync(value))" />
                 }
 
-                @if (SelectedLibrary is not null)
-                {
-                    <AppSwitchRow Label="Recycle bin"
-                                  Description="Deleted files wait in a recycle bin inside Library's data folder instead of being removed straight away. You can put them back, or empty the bin."
-                                  Value="@SelectedLibrary.RecycleBin"
-                                  Disabled="@(_saving || ReadOnly)"
-                                  ValueChanged="@((bool value) => SetRecycleBinAsync(value))" />
-                    @if (SelectedLibrary.RecycleBin && !Embedded)
-                    {
-                        <RecycleBinSection />
-                    }
-                }
-
                 @* Shown even when the last folder has been removed: files that stayed on disk can still be listed and added back. *@
                 @if (!Embedded && SelectedLibrary is not null)
                 {
                     <ExcludedFilesSection LibraryId="@SelectedLibrary.Id" ReadOnly="@ReadOnly" />
+                }
+
+                @* Pinned to the bottom of the pane, so the switch sits in the same place for every library. What is in the bin lists above it. *@
+                @if (SelectedLibrary is not null)
+                {
+                    <div class="library-folders__recycle">
+                        @if (SelectedLibrary.RecycleBin && !Embedded)
+                        {
+                            <RecycleBinSection />
+                        }
+                        <AppSwitchRow Label="Recycle bin"
+                                      Icon="@AppMaterialIcons.Outlined.DeleteOutline"
+                                      Description="Deleted files wait in a recycle bin inside Library's data folder instead of being removed straight away. You can put them back, or empty the bin."
+                                      Value="@SelectedLibrary.RecycleBin"
+                                      Disabled="@(_saving || ReadOnly)"
+                                      ValueChanged="@((bool value) => SetRecycleBinAsync(value))" />
+                    </div>
                 }
             </AppCard>
         }
@@ -279,18 +290,10 @@
     // The import folder is the storage location with this id (see ImportFolderRules in the Engine).
     private const string ImportLocationId = "incoming";
 
-    private sealed record LibraryTypeOption(string Key, string Label, string PluralLabel, string Area, string[] MediaTypes, string Icon, string? LibraryId = null);
+    private IReadOnlyList<LibraryTypeOption> LibraryTypes => Kinds.Types;
 
-    private static readonly LibraryTypeOption[] LibraryTypes =
-    [
-        new("books", "Books", "Books", "read", ["Books"], AppMediaPresentation.IconFor("Books", outlined: true)),
-        new("audiobooks", "Audiobooks", "Audiobooks", "listen", ["Audiobooks"], AppMediaPresentation.IconFor("Audiobooks", outlined: true)),
-        new("movies", "Movies", "Movies", "watch", ["Movies"], AppMediaPresentation.IconFor("Movies", outlined: true)),
-        new("tv", "TV Shows", "TV shows", "watch", ["TV", "TVShows"], AppMediaPresentation.IconFor("TV", outlined: true)),
-        new("music", "Music", "Music", "listen", ["Music"], AppMediaPresentation.IconFor("Music", outlined: true)),
-        new("comics", "Comics", "Comics", "read", ["Comics"], AppMediaPresentation.IconFor("Comics", outlined: true)),
-        new("videos", "Videos", "Videos", "watch", ["Videos"], AppMediaPresentation.IconFor("Videos", outlined: true)),
-    ];
+    /// <summary>The Engine's list of library kinds; the type list, the Advanced tabs and Add folder are drawn from it.</summary>
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
 
     /// <summary>True when the first-run setup session is in use instead of the signed-in Settings endpoints.</summary>
     [Parameter] public bool Embedded { get; set; }
@@ -298,6 +301,12 @@
     [Parameter] public bool ReadOnly { get; set; }
     /// <summary>Empty-state links open the screen on a given type, for example ?type=movies.</summary>
     [SupplyParameterFromQuery(Name = "type")] public string? PreselectedType { get; set; }
+    /// <summary>The type to show (a standard key, "import" or "other-{libraryId}") when the type list is not drawn.</summary>
+    [Parameter] public string? TypeKey { get; set; }
+    /// <summary>False when the host already chose the type (its own address): the list of types is not drawn and the selection follows <see cref="TypeKey"/>.</summary>
+    [Parameter] public bool ShowTypeNav { get; set; } = true;
+    /// <summary>Opens with Add Folder pointed at (a jump from an Import line's Choose arrives this way when the type list is not drawn).</summary>
+    [Parameter] public bool HighlightAddFolder { get; set; }
     /// <summary>Raised after any saved change so the host can refresh its own state.</summary>
     [Parameter] public EventCallback Changed { get; set; }
 
@@ -307,21 +316,14 @@
     private string? _notice;
     private bool _loading = true;
     private bool _saving;
-    private LibraryTypeOption _selected = LibraryTypes[0];
+    private LibraryTypeOption _selected = ImportEntry;
+    private bool _unknownType;
     private IReadOnlyDictionary<string, string> _pathIssues = new Dictionary<string, string>();
 
-    // Advanced tabs follow the order people think in; the template key is the type's entry in organization_templates.
-    private static readonly (string Key, string TemplateKey)[] AdvancedOrder =
-    [
-        ("movies", "Movies"), ("tv", "TV"), ("music", "Music"), ("books", "Books"), ("audiobooks", "Audiobooks"), ("comics", "Comics"), ("videos", "Videos"),
-    ];
-
-    private IReadOnlyList<LibraryAdvancedSettings.AdvancedType> AdvancedTypes => AdvancedOrder
-        .Select(entry =>
-        {
-            var type = LibraryTypes.First(item => item.Key == entry.Key);
-            return new LibraryAdvancedSettings.AdvancedType(type.Key, type.Label, entry.TemplateKey, PrimaryLibraryFor(type));
-        })
+    // Advanced tabs follow the order of the list of kinds; the template key is the kind's entry in organization_templates.
+    private IReadOnlyList<LibraryAdvancedSettings.AdvancedType> AdvancedTypes => LibraryTypes
+        .Where(type => !string.IsNullOrWhiteSpace(type.NamingTemplate))
+        .Select(type => new LibraryAdvancedSettings.AdvancedType(type.Key, type.Label, type.NamingTemplate!, PrimaryLibraryFor(type)))
         .ToList();
 
     // The seventh entry in the list is not a media type; it has its own panel.
@@ -348,10 +350,24 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _highlightAdd = HighlightAddFolder;
+        _selected = LibraryTypes.FirstOrDefault() ?? ImportEntry;
         await LoadAsync();
-        _selected = LibraryTypes.FirstOrDefault(type => string.Equals(type.Key, PreselectedType, StringComparison.OrdinalIgnoreCase))
-            ?? LibraryTypes.FirstOrDefault(type => FolderCount(type) > 0)
-            ?? LibraryTypes[0];
+        if (!ShowTypeNav)
+        {
+            // The host's address names the type; an unknown name shows a small state instead of a different type.
+            var chosen = ResolveTypeKey(TypeKey);
+            _unknownType = chosen is null;
+            if (chosen is not null) _selected = chosen;
+        }
+        else
+        {
+            _selected = LibraryTypes.FirstOrDefault(type => string.Equals(type.Key, PreselectedType, StringComparison.OrdinalIgnoreCase))
+                ?? LibraryTypes.FirstOrDefault(type => FolderCount(type) > 0)
+                ?? LibraryTypes.FirstOrDefault()
+                ?? ImportEntry;
+        }
+
         await InvokeAsync(StateHasChanged);
         await RefreshPathIssuesAsync();
         await RefreshWaitingAsync();
@@ -363,26 +379,7 @@
     private async Task RefreshPathIssuesAsync()
     {
         if (_configuration is null || Embedded) return;
-        var folders = _configuration.Libraries.SelectMany(library => library.Sources)
-            .Where(source => !string.IsNullOrWhiteSpace(source.Path))
-            .GroupBy(source => source.Path, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToList();
-        using var gate = new SemaphoreSlim(4);
-        var checks = folders.Select(async source =>
-        {
-            await gate.WaitAsync();
-            try { return (Source: source, Result: await Orchestrator.TestPathAsync(source.Path)); }
-            finally { gate.Release(); }
-        }).ToList();
-        var issues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (source, result) in await Task.WhenAll(checks))
-        {
-            if (result is null) continue;
-            if (!result.Exists) issues[source.Path] = "Folder unavailable";
-            else if (!result.HasRead || (IsManaged(source) && !result.HasWrite)) issues[source.Path] = "No access";
-        }
-        _pathIssues = issues;
+        _pathIssues = await LibraryFolderHealth.CheckAsync(_configuration, path => Orchestrator.TestPathAsync(path));
         await InvokeAsync(StateHasChanged);
     }
 
@@ -397,39 +394,21 @@
         _loading = false;
     }
 
-    private LibraryFolderDto? LibraryFor(LibraryTypeOption type) => type.LibraryId is not null
-        ? _configuration?.Libraries.FirstOrDefault(library => library.Id == type.LibraryId)
-        : PrimaryLibraryFor(type);
+    private LibraryFolderDto? LibraryFor(LibraryTypeOption type) => LibraryRollup.LibraryFor(_configuration, type);
 
-    private LibraryFolderDto? PrimaryLibraryFor(LibraryTypeOption type) => _configuration?.Libraries
-        .FirstOrDefault(library => IsCatalogued(library)
-            && library.MediaTypes.Any(token => type.MediaTypes.Contains(token, StringComparer.OrdinalIgnoreCase)));
-
-    private static bool IsCatalogued(LibraryFolderDto library) => string.Equals(library.Kind, "catalogued", StringComparison.OrdinalIgnoreCase);
+    private LibraryFolderDto? PrimaryLibraryFor(LibraryTypeOption type) => LibraryRollup.PrimaryLibraryFor(_configuration, type);
 
     // Libraries that are not the one library of a standard type (an older custom type, or a second library of a standard
     // type) still show here, so their folders can be seen and removed instead of silently hiding.
-    private IReadOnlyList<LibraryTypeOption> OtherLibraries => _configuration is null
-        ? []
-        : _configuration.Libraries
-            .Where(library => IsCatalogued(library) && !LibraryTypes.Any(type => ReferenceEquals(PrimaryLibraryFor(type), library)))
-            .Select(library => new LibraryTypeOption(
-                $"other-{library.Id}",
-                string.IsNullOrWhiteSpace(library.Name) ? "Other library" : library.Name,
-                string.IsNullOrWhiteSpace(library.Name) ? "other" : library.Name,
-                library.Area,
-                [.. library.MediaTypes],
-                OtherIcon(library.Area),
-                library.Id))
-            .ToList();
+    private IReadOnlyList<LibraryTypeOption> OtherLibraries => LibraryRollup.OtherLibraries(Kinds, _configuration);
 
-    private static string OtherIcon(string? area) => area?.ToLowerInvariant() switch
+    private LibraryTypeOption? ResolveTypeKey(string? key)
     {
-        "read" => AppMaterialIcons.Outlined.MenuBook,
-        "watch" => AppMaterialIcons.Outlined.Movie,
-        "listen" => AppMaterialIcons.Outlined.Headphones,
-        _ => AppMaterialIcons.Outlined.Folder,
-    };
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        if (string.Equals(key, ImportEntry.Key, StringComparison.OrdinalIgnoreCase)) return ImportEntry;
+        return LibraryTypes.FirstOrDefault(type => string.Equals(type.Key, key, StringComparison.OrdinalIgnoreCase))
+            ?? OtherLibraries.FirstOrDefault(type => string.Equals(type.Key, key, StringComparison.OrdinalIgnoreCase));
+    }
 
     private int FolderCount(LibraryTypeOption type) => LibraryFor(type)?.Sources.Count ?? 0;
     private static string FolderCountText(int count) => count == 1 ? "1 folder" : $"{count} folders";
@@ -438,8 +417,15 @@
     private void SelectImport() => Select(ImportEntry);
 
     // Choose on an Import line jumps to that type's folders and points at Add Folder.
+    // On its own address (no type list), the jump is a navigation to that type's address instead.
     private void ChooseDestinationType(LibraryTypeOption type)
     {
+        if (!ShowTypeNav && Kinds.GroupFor(type.Key) is { } group)
+        {
+            Navigation.NavigateTo(LibraryGroupCatalog.TypeAddress(group, type.Key) + "?highlight=add");
+            return;
+        }
+
         Select(type);
         _highlightAdd = true;
     }
@@ -487,203 +473,65 @@
         await InvokeAsync(StateHasChanged);
     }
     private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
-    private Task<ServerFolderValidationResultDto?> ValidateAsync(string path, string mode, string? sourceId = null)
-    {
-        var request = new ValidateServerFolderRequest { ManualPath = path, SelectionMode = mode, CurrentSourceId = sourceId };
-        return Embedded ? ApiClient.ValidateSetupServerFolderAsync(request, SetupSession) : ApiClient.ValidateServerFolderAsync(request);
-    }
+    private Task<ServerFolderValidationResultDto?> ValidateAsync(string path, string mode, string? sourceId = null) =>
+        AddService.ValidateAsync(Scope, path, mode, sourceId);
 
+    // Add Folder opens the Add folder wizard at step 2 for this type (the type is already known); the wizard adds the folder
+    // through LibraryFolderAddService and tells this panel when one was added so it can show it.
     private async Task AddFolderAsync()
     {
         if (_configuration is null || _saving) return;
         _notice = null;
         _highlightAdd = false;
-        var parameters = new AppDialogParameters<ServerFolderPicker>
+        var parameters = new AppDialogParameters<AddFolderWizard>
         {
-            { component => component.SelectionMode, ServerFolderSelectionModes.ExistingLibrary },
-            { component => component.HelpText, $"Choose a folder on the Library server to add to {_selected.Label}." },
+            { component => component.StartTypeKey, _selected.Key },
             { component => component.SetupSession, SetupSession },
-            { component => component.MediaType, _selected.MediaTypes.FirstOrDefault() },
+            { component => component.Embedded, Embedded },
+            { component => component.Configuration, _configuration },
+            { component => component.Kinds, Kinds },
+            { component => component.OnFolderAdded, (Func<string?, Task>)FolderAddedAsync },
         };
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
+        await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
+    }
+
+    private async Task FolderAddedAsync(string? notice)
+    {
+        await InvokeAsync(async () =>
         {
-            MaxWidth = AppMaxWidth.ExtraExtraLarge,
-            FullWidth = false,
-            CloseButton = false,
-            CloseOnEscapeKey = true,
+            if (!string.IsNullOrWhiteSpace(notice)) _notice = notice;
+            await ReloadConfigurationAsync();
+            await Changed.InvokeAsync();
+            await RefreshPathIssuesAsync();
+            await RefreshWaitingAsync();
+            await RefreshJobsAsync();
         });
-        if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
-
-        // Real videos and phone memories are presented differently, so a Videos folder always asks which one it is.
-        if (IsVideosSelected)
-        {
-            var place = await AskAddFolderPlaceAsync(selected.LooksLikePhoneFootage);
-            if (place is null) return;
-            if (!place.Watch)
-            {
-                _notice = "Add this folder under Photos and personal videos (Settings > Libraries > Photos) so it gets a gallery and timeline.";
-                return;
-            }
-
-            _pendingYoutubeLookup = place.YoutubeLookup;
-        }
-
-        // An empty folder is ours to manage. A folder that already holds files is used as-is unless the person says otherwise,
-        // because managing it could rename or move files other apps depend on. Merging adds it as-is first, then brings its
-        // files into a managed folder once.
-        var managed = true;
-        var mergeAfter = false;
-        if (selected.ContainsFiles)
-        {
-            var canMerge = !Embedded && (SelectedLibrary?.Sources.Any(IsManaged) ?? false);
-            var choice = await AskAddFolderChoiceAsync(canMerge);
-            if (choice is null) return;
-            managed = choice == AddFolderChoiceDialog.Managed;
-            mergeAfter = choice == AddFolderChoiceDialog.Merge;
-        }
-
-        if (managed)
-        {
-            var writable = await ValidateAsync(selected.Path, ServerFolderSelectionModes.ManagedLibrary);
-            if (writable?.CanSelect == true) selected = writable;
-            else
-            {
-                managed = false;
-                _notice = writable is null
-                    ? "Library couldn't check whether it can write to this folder, so it will be used as-is (read only)."
-                    : "Library can't write to this folder, so it will be used as-is (read only).";
-            }
-        }
-
-        var library = Clone(SelectedLibrary) ?? NewLibrary(_selected);
-        if (IsVideosSelected && _pendingYoutubeLookup is { } youtubeLookup) library.YoutubeLookup = youtubeLookup;
-        _pendingYoutubeLookup = null;
-        // The Engine makes the first managed folder the library's destination when it saves.
-        var source = new LibrarySourceDto
-        {
-            Id = Guid.NewGuid().ToString("D"),
-            Path = selected.Path,
-            Notes = Path.GetFileName(selected.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
-            ManagementMode = managed ? "managed_by_tuvima" : "existing_library",
-            SourceType = "local_folder",
-            IncludeSubdirectories = true,
-            AccessMode = managed ? "writable" : "read_only",
-        };
-        if (string.IsNullOrWhiteSpace(source.Notes)) source.Notes = selected.Path;
-        library.Sources.Add(source);
-        var saved = await SaveAsync(library, mergeAfter ? "Folder added as-is. Choose where its files should go." : "Folder added.");
-        if (saved && managed && selected.ContainsFiles)
-        {
-            // The files already in it are not touched until the person says so.
-            var added = SelectedLibrary?.Sources.FirstOrDefault(item => item.Id == source.Id);
-            if (added is not null) await OfferOrganiseAsync(added, alreadyManaged: true, quiet: true);
-        }
-        else if (saved && mergeAfter)
-        {
-            // The folder is now part of the library as-is; the sheet asks where its files should go.
-            var added = SelectedLibrary?.Sources.FirstOrDefault(item => item.Id == source.Id);
-            if (added is not null) await MergeIntoAsync(added);
-        }
     }
 
     private bool IsVideosSelected => _selected.MediaTypes.Contains("Videos", StringComparer.OrdinalIgnoreCase);
 
-    private bool? _pendingYoutubeLookup;
-
-    // Videos (Watch) or Photos and personal videos (View). Returns the answer, or null when the person cancels.
-    private async Task<AddFolderPlaceDialog.AddFolderPlaceAnswer?> AskAddFolderPlaceAsync(bool looksLikePhoneFootage)
-    {
-        var parameters = new AppDialogParameters<AddFolderPlaceDialog>
-        {
-            { component => component.LooksLikePhoneFootage, looksLikePhoneFootage },
-            { component => component.YoutubeLookup, SelectedLibrary?.YoutubeLookup ?? true },
-        };
-        var dialog = await DialogService.ShowAsync<AddFolderPlaceDialog>(string.Empty, parameters, new AppDialogOptions
-        {
-            MaxWidth = AppMaxWidth.Medium,
-            FullWidth = true,
-            CloseButton = false,
-            NoHeader = true,
-            CloseOnEscapeKey = true,
-            Sheet = AppDialogSheetMode.PhoneAndTablet,
-        });
-        return await dialog.Result is { Canceled: false, Data: AddFolderPlaceDialog.AddFolderPlaceAnswer answer } ? answer : null;
-    }
-
-    // The three ways to use a folder that already has files. Returns the answer, or null when the person cancels.
-    private async Task<string?> AskAddFolderChoiceAsync(bool canMerge)
-    {
-        var parameters = new AppDialogParameters<AddFolderChoiceDialog>
-        {
-            { component => component.TypeLabel, Selected.Label },
-            { component => component.CanMerge, canMerge },
-        };
-        var dialog = await DialogService.ShowAsync<AddFolderChoiceDialog>(string.Empty, parameters, new AppDialogOptions
-        {
-            MaxWidth = AppMaxWidth.Medium,
-            FullWidth = true,
-            CloseButton = false,
-            NoHeader = true,
-            CloseOnEscapeKey = true,
-            Sheet = AppDialogSheetMode.PhoneAndTablet,
-        });
-        return await dialog.Result is { Canceled: false, Data: string answer } ? answer : null;
-    }
+    private FolderAddScope Scope => new(Embedded, SetupSession);
 
     // Row menu "Merge into": choose the managed folder and Copy or Move, look at a preview, then queue the merge job.
     private async Task MergeIntoAsync(LibrarySourceDto source)
     {
         var library = SelectedLibrary;
         if (library is null || _saving || Embedded) return;
-        var targets = LibraryFolderTable.MergeTargets(library, source);
-        if (targets.Count == 0)
-        {
-            _notice = "There is no managed folder to merge into yet. Add a managed folder to this library first.";
-            return;
-        }
+        await AfterFollowUpAsync(await AddService.MergeIntoAsync(Scope, library, source));
+    }
 
-        var destination = library.GetPrimaryDestination();
-        var options = targets
-            .Select(target => new MergeFolderDialog.MergeTargetOption(target.Id, target.DisplayName(), target.Path, ReferenceEquals(target, destination)))
-            .ToList();
-        var parameters = new AppDialogParameters<MergeFolderDialog>
-        {
-            { component => component.SourceId, source.Id },
-            { component => component.Path, source.Path },
-            { component => component.SourceName, source.DisplayName() },
-            { component => component.CanMove, IsManaged(source) && source.AccessMode == "writable" },
-            { component => component.Targets, options },
-        };
-        var dialog = await DialogService.ShowAsync<MergeFolderDialog>(string.Empty, parameters, new AppDialogOptions
-        {
-            MaxWidth = AppMaxWidth.Medium,
-            FullWidth = true,
-            CloseButton = false,
-            NoHeader = true,
-            CloseOnEscapeKey = true,
-            Sheet = AppDialogSheetMode.PhoneAndTablet,
-        });
-        if (await dialog.Result is not { Canceled: false, Data: FolderMergeRequest request }) return;
-
-        _saving = true;
-        FolderJobStatusDto? job;
-        try { job = await ApiClient.MergeFolderAsync(request); }
-        finally { _saving = false; }
-        if (job is null)
-        {
-            _notice = ApiClient.LastError ?? "Library could not start merging this folder.";
-            return;
-        }
-
-        var targetName = targets.FirstOrDefault(target => target.Id == request.TargetSourceId)?.DisplayName() ?? "the folder you chose";
-        Snackbar.Add($"Library is merging {source.DisplayName()} into {targetName}. You can keep using Library meanwhile.", AppSeverity.Success);
+    // A follow-up that queued a job reloads the folders and starts watching the job; anything it has to say stays on screen.
+    private async Task AfterFollowUpAsync(FolderFollowUp followUp)
+    {
+        if (followUp.Notice is not null) _notice = followUp.Notice;
+        if (!followUp.Started) return;
         await ReloadConfigurationAsync();
         await RefreshJobsAsync();
         await Changed.InvokeAsync();
     }
 
-    // Tapping Handling. As-is to Managed asks honestly first and then queues the organising job (the setup wizard has no files to
-    // organise yet, so it keeps the plain switch); Managed to As-is also asks, and stops any job that is running.
+    // Tapping Handling. Read-only to Managed asks honestly first and then queues the organising job (the setup wizard has no files to
+    // organise yet, so it keeps the plain switch); Managed to Read-only also asks, and stops any job that is running.
     private async Task ChangeModeAsync(LibrarySourceDto source)
     {
         var library = Clone(SelectedLibrary);
@@ -700,11 +548,11 @@
             ? await DialogService.ShowMessageBoxAsync(
                 $"Let Library manage {target.Path}?",
                 "Library may rename and reorganise files in this folder, which could affect other applications that use it.",
-                yesText: "Let Library manage it", cancelText: "Keep as-is")
+                yesText: "Let Library manage it", cancelText: "Keep read-only")
             : await DialogService.ShowMessageBoxAsync(
-                $"Use {target.Path} as-is?",
+                $"Use {target.Path} as read-only?",
                 "Library will stop organising this folder, and any organising that is running stops. Files already renamed keep their new names; nothing is undone and nothing else on disk changes.",
-                yesText: "Use as-is", cancelText: "Keep managed");
+                yesText: "Use read-only", cancelText: "Keep managed");
         if (confirmed != true) return;
         await ApplyModeAsync(library, target, managed);
     }
@@ -727,10 +575,10 @@
             target.ConversionState = "none";
             target.ConversionOperationId = null;
         }
-        await SaveAsync(library, managed ? "Library will now manage this folder." : "This folder will be used as-is.");
+        await SaveAsync(library, managed ? "Library will now manage this folder." : "This folder will be used as read-only.");
     }
 
-    // As-is to Managed for a folder in the signed-in Settings: count what is there, ask, then let the Engine convert it.
+    // Read-only to Managed for a folder in the signed-in Settings: count what is there, ask, then let the Engine convert it.
     private async Task ConvertToManagedAsync(LibraryFolderDto library, LibrarySourceDto target)
     {
         var validation = await ValidateAsync(target.Path, ServerFolderSelectionModes.ManagedLibrary, target.Id);
@@ -752,7 +600,7 @@
             var plain = await DialogService.ShowMessageBoxAsync(
                 $"Let Library manage {target.Path}?",
                 "There are no media files in this folder yet. Library will name and organise the files it adds here from now on.",
-                yesText: "Let Library manage it", cancelText: "Keep as-is");
+                yesText: "Let Library manage it", cancelText: "Keep read-only");
             if (plain == true) await ApplyModeAsync(library, target, managed: true);
             return;
         }
@@ -760,45 +608,18 @@
         if (await AskToConvertAsync(target, quick, alreadyManaged: false)) await StartConversionAsync(target);
     }
 
-    private async Task<bool> AskToConvertAsync(LibrarySourceDto target, FolderConversionPreviewResponse quick, bool alreadyManaged)
-    {
-        var parameters = new AppDialogParameters<ConvertFolderDialog>
-        {
-            { component => component.SourceId, target.Id },
-            { component => component.Path, target.Path },
-            { component => component.AlreadyManaged, alreadyManaged },
-            { component => component.Initial, quick },
-        };
-        var dialog = await DialogService.ShowAsync<ConvertFolderDialog>(string.Empty, parameters, new AppDialogOptions
-        {
-            MaxWidth = AppMaxWidth.Medium,
-            FullWidth = true,
-            CloseButton = false,
-            NoHeader = true,
-            CloseOnEscapeKey = true,
-            Sheet = AppDialogSheetMode.PhoneAndTablet,
-        });
-        return await dialog.Result is { Canceled: false, Data: ConvertFolderDialog.Convert };
-    }
+    private Task<bool> AskToConvertAsync(LibrarySourceDto target, FolderConversionPreviewResponse quick, bool alreadyManaged) =>
+        AddService.AskToConvertAsync(target, quick, alreadyManaged);
 
     // Queues the organising job for a folder, makes it Managed in the same step, and starts watching its progress.
     private async Task StartConversionAsync(LibrarySourceDto source)
     {
         if (_saving) return;
         _saving = true;
-        FolderJobStatusDto? job;
-        try { job = await ApiClient.ConvertFolderAsync(source.Id); }
+        FolderFollowUp followUp;
+        try { followUp = await AddService.StartConversionAsync(source); }
         finally { _saving = false; }
-        if (job is null)
-        {
-            _notice = ApiClient.LastError ?? "Library could not start organising this folder.";
-            return;
-        }
-
-        Snackbar.Add($"Library is organising {source.DisplayName()}. You can keep using Library meanwhile.", AppSeverity.Success);
-        await ReloadConfigurationAsync();
-        await RefreshJobsAsync();
-        await Changed.InvokeAsync();
+        await AfterFollowUpAsync(followUp);
     }
 
     // Row menu "Organise files now", and the offer after adding a folder that already has files.
@@ -807,30 +628,16 @@
     private async Task OfferOrganiseAsync(LibrarySourceDto source, bool alreadyManaged, bool quiet)
     {
         if (_saving || Embedded) return;
-        var quick = await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = source.Id, Quick = true });
-        if (quick is null)
-        {
-            if (!quiet) _notice = ApiClient.LastError ?? "Library could not count the files in this folder.";
-            return;
-        }
-
-        if (quick.TotalFiles == 0)
-        {
-            if (!quiet) Snackbar.Add("There are no media files in this folder to organise.", AppSeverity.Normal);
-            return;
-        }
-
-        if (await AskToConvertAsync(source, quick, alreadyManaged)) await StartConversionAsync(source);
+        await AfterFollowUpAsync(await AddService.OfferOrganiseAsync(Scope, source, alreadyManaged, quiet));
     }
 
     // Tapping the New media radio on another managed folder moves the marker. It only affects future imports and uploads.
     private async Task SetDestinationAsync(LibrarySourceDto source)
     {
-        var library = Clone(SelectedLibrary);
-        var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
-        if (library is null || target is null || _saving || !IsManaged(target)) return;
-        library.PrimaryDestinationSourceId = target.Id;
-        await SaveAsync(library, $"New {Selected.PluralLabel} will go to {target.DisplayName()}.");
+        var current = SelectedLibrary;
+        var target = current?.Sources.FirstOrDefault(item => item.Id == source.Id);
+        if (current is null || target is null || _saving || !IsManaged(target)) return;
+        await SaveAsync(LibraryFolderAddService.WithDestination(current, target.Id), $"New {Selected.PluralLabel} will go to {target.DisplayName()}.");
     }
 
     private async Task LabelFolderAsync(LibrarySourceDto source)
@@ -1027,14 +834,6 @@
         await SaveAsync(library, value ? "Deleted files now go to the recycle bin." : "Deleted files are removed straight away.");
     }
 
-    private async Task SetYoutubeLookupAsync(bool value)
-    {
-        var library = Clone(SelectedLibrary);
-        if (library is null || _saving) return;
-        library.YoutubeLookup = value;
-        await SaveAsync(library, value ? "YouTube lookup is on." : "YouTube lookup is off.");
-    }
-
     private async Task<bool> SaveAsync(LibraryFolderDto library, string message)
     {
         if (_configuration is null || _saving) return false;
@@ -1042,27 +841,7 @@
         try
         {
             var baseline = JsonSerializer.Deserialize<LibrariesConfigurationDto>(_baseline)!;
-            var existing = baseline.Libraries.FirstOrDefault(item => item.Id == library.Id);
-            LibrariesConfigurationDto? saved;
-            if (Embedded)
-            {
-                var libraries = baseline.Libraries.Where(item => item.Id != library.Id).ToList();
-                libraries.Add(library);
-                saved = await ApiClient.UpdateSetupLibrariesAsync(new UpdateLibrariesRequest
-                {
-                    SchemaVersion = baseline.SchemaVersion,
-                    StorageLocations = baseline.StorageLocations,
-                    ViewStorage = baseline.ViewStorage,
-                    Libraries = libraries,
-                    PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
-                    FileHandling = baseline.FileHandling,
-                }, SetupSession);
-            }
-            else
-            {
-                saved = await ApiClient.MutateLibraryAsync(new LibraryMutationRequest { Library = library, ExpectedLibrary = existing });
-            }
-
+            var saved = await AddService.SaveLibraryAsync(Scope, baseline, library);
             if (saved is null)
             {
                 _notice = ApiClient.LastError ?? "That change could not be saved. Check the folder and try again.";
@@ -1217,20 +996,4 @@
     private static LibraryFolderDto? Clone(LibraryFolderDto? library) => library is null
         ? null
         : JsonSerializer.Deserialize<LibraryFolderDto>(JsonSerializer.Serialize(library));
-
-    private static LibraryFolderDto NewLibrary(LibraryTypeOption option) => new()
-    {
-        Id = Guid.NewGuid().ToString("D"),
-        Name = option.Label,
-        Category = option.Label,
-        Kind = "catalogued",
-        Area = option.Area,
-        Presentation = "catalogue",
-        MetadataPolicy = option.MediaTypes[0] == "Videos" ? "local_only" : "enriched",
-        RecycleBin = option.MediaTypes[0] == "Videos",
-        MediaTypes = [option.MediaTypes[0]],
-        Visibility = "household",
-        AcceptedIntakeModes = ["incoming_folder"],
-        OrganizationPolicy = new LibraryOrganizationPolicyDto { Mode = "tuvima_standard", WriteTags = true },
-    };
 }

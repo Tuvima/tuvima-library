@@ -4,6 +4,7 @@ using MediaEngine.Api.Services.LocalAssets.Filing;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -41,7 +42,7 @@ public sealed class DocumentFilingPipelineTests
     [Fact]
     public async Task ANewDocumentLandsInTheInboxWithSuggestionsAndRulesOnItsNameApplyAtOnce()
     {
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(withFiling: true);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(withFiling: true, contentKind: ViewContentKinds.Documents);
         var tag = (await fixture.Catalogue!.CreateEntryAsync(Viewer(fixture), ViewCatalogueKind.Tag, "Receipts", null)).Id;
         await AddRuleAsync(fixture, ViewDocumentRuleConditionKinds.FilenameContains, "receipt", false,
             new DocumentRuleAction(ViewDocumentRuleActionKinds.AddTag, tag, null));
@@ -65,7 +66,7 @@ public sealed class DocumentFilingPipelineTests
         {
             OnRecognize = (call, _) => Task.FromResult(new OcrRecognition($"zeppelin hangar rental page{call} amount due 450.00 EUR", 90, 5)),
         };
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, withFiling: true);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, withFiling: true, contentKind: ViewContentKinds.Documents);
         var viewer = Viewer(fixture);
         var tag = (await fixture.Catalogue!.CreateEntryAsync(viewer, ViewCatalogueKind.Tag, "Hangar", null)).Id;
         var correspondent = (await fixture.Catalogue.CreateEntryAsync(viewer, ViewCatalogueKind.Correspondent, "Skyport", null)).Id;
@@ -102,7 +103,7 @@ public sealed class DocumentFilingPipelineTests
         {
             OnRecognize = (_, _) => Task.FromResult(new OcrRecognition("Invoice date: 2026-02-10. Total due 99.90 EUR", 90, 5)),
         };
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, withFiling: true);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, withFiling: true, contentKind: ViewContentKinds.Documents);
         var viewer = Viewer(fixture);
         var field = await fixture.Catalogue!.CreateFieldAsync(viewer, "Amount", ViewDocumentFieldKinds.Money, null);
         fixture.WritePersonal("scan.pdf", OcrFixtures.Pdf(string.Empty));
@@ -128,7 +129,7 @@ public sealed class DocumentFilingPipelineTests
     [Fact]
     public async Task EachTextChangeQueuesTheRulesOnceAndRunningThemAgainChangesNothing()
     {
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(withFiling: true);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(withFiling: true, contentKind: ViewContentKinds.Documents);
         var itemId = Guid.NewGuid();
 
         await fixture.RulesQueue!.TryQueueAfterTextAsync(itemId, "same words", CancellationToken.None);
@@ -146,7 +147,7 @@ public sealed class DocumentFilingPipelineTests
     [Fact]
     public async Task RunningTheSameRulesAgainIsHarmlessAndNeverOverwritesWhatThePersonSet()
     {
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(withFiling: true);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(withFiling: true, contentKind: ViewContentKinds.Documents);
         var viewer = Viewer(fixture);
         var correspondent = (await fixture.Catalogue!.CreateEntryAsync(viewer, ViewCatalogueKind.Correspondent, "Rule Co", null)).Id;
         await AddRuleAsync(fixture, ViewDocumentRuleConditionKinds.FileKind, "pdf", false,
@@ -174,7 +175,7 @@ public sealed class DocumentFilingPipelineTests
     [Fact]
     public async Task ADocumentThatVanishedIsReportedMissingNotFailed()
     {
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(withFiling: true);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(withFiling: true, contentKind: ViewContentKinds.Documents);
         await fixture.RulesQueue!.QueueAsync(Guid.NewGuid(), "x", CancellationToken.None);
 
         Assert.Equal(1, await fixture.FilingWorker!.RunBatchAsync(CancellationToken.None));

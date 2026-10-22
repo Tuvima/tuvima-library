@@ -28,8 +28,8 @@
             {
                 @if (!string.IsNullOrWhiteSpace(CardImageUrl))
                 {
-                    <img src="@CardImageUrl"
-                         srcset="@Item.TileImageSrcSet"
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)"
+                         srcset="@TileSrcSet"
                          sizes="@Item.TileImageSizes"
                          alt=""
                          class="media-tile-collection-backdrop @TileImageFitClass"
@@ -54,7 +54,7 @@
                 <div class="media-tile-stack" aria-hidden="true">
                     @for (var index = 0; index < PreviewImages.Count; index++)
                     {
-                        <img src="@PreviewImages[index]"
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(PreviewImages[index], TileDrawnPx)"
                              alt=""
                              class="@GetStackImageClass(index)"
                              loading="lazy"
@@ -66,10 +66,10 @@
             {
                 @if (Item.TileImageFitMode == MediaTileImageFitMode.Contain)
                 {
-                    <img src="@CardImageUrl" alt="" aria-hidden="true" class="media-tile-contained-backdrop" loading="lazy" decoding="async" />
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)" alt="" aria-hidden="true" class="media-tile-contained-backdrop" loading="lazy" decoding="async" />
                 }
-                <img src="@CardImageUrl"
-                     srcset="@Item.TileImageSrcSet"
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)"
+                     srcset="@TileSrcSet"
                      sizes="@Item.TileImageSizes"
                      alt="@Item.Title"
                      class="media-tile-image @TileImageFitClass"
@@ -166,7 +166,7 @@
                                 <span class="media-tile-book-pages" aria-hidden="true"></span>
                                 <span class="media-tile-book-spine" aria-hidden="true"></span>
                             }
-                            <img src="@ActiveHoverImageUrl"
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(ActiveHoverImageUrl, HoverDrawnPx)"
                                  srcset="@Item.HoverImageSrcSet"
                                  sizes="@Item.HoverImageSizes"
                                  alt="@Item.Title"
@@ -345,7 +345,11 @@
         && !UsesGlowOnlyHover
         && EffectiveHoverMode != MediaTileHoverMode.Overlay
         && !Item.RenderAsLandscapeGroupTile
-        && MediaKindLabel is "Movie" or "TV";
+        && MediaKindLabel is "Movie" or "TV"
+        && HasLandscapeHoverArtwork;
+
+    // Without a landscape background the portrait-to-landscape expansion would only crop the cover, so the tile keeps its cover.
+    private bool HasLandscapeHoverArtwork => Item.HoverLayout == MediaTileHoverLayout.BannerPopover;
 
     private bool UsesStaticCoverHover => IsHoverEnabled && !UsesCinematicHover;
 
@@ -532,7 +536,7 @@
 
     private string HoverAtmosphereStyle => string.IsNullOrWhiteSpace(HoverAtmosphereImageUrl)
         ? string.Empty
-        : $"--media-tile-hover-image: url(\"{EscapeCssString(HoverAtmosphereImageUrl)}\");";
+        : $"--media-tile-hover-image: url(\"{EscapeCssString(MediaTileArtworkUrl.ForDrawnSize(HoverAtmosphereImageUrl, HoverDrawnPx) ?? HoverAtmosphereImageUrl)}\");";
 
     private string? HoverAtmosphereImageUrl => StringHelpers.FirstNonBlank(
         Item.HeroBackgroundImageUrl,
@@ -679,6 +683,17 @@
     private bool ShowSourceBadge => !HideSourceBadge && !ShowCollectionBanner && !string.IsNullOrWhiteSpace(Item.SourceBadgeLabel);
 
     private bool ShowPreviewStack => !ShowCollectionBanner && string.IsNullOrWhiteSpace(CardImageUrl) && PreviewImages.Count > 0;
+
+    // Tiles are 128-228px wide (the small copy covers them); the hover panel is 320-440px (the medium copy).
+    // The Engine addresses are sized here too, so a tile never fetches an original or a 2160px copy by accident.
+    private const int TileDrawnPx = 320;
+    private const int HoverDrawnPx = 440;
+
+    // Tiles are drawn up to 228px wide: when the Engine sent no width list (its size is unknown), a 1x/2x/3x list
+    // still gives sharp screens the medium copy.
+    private const int TileWidthPx = 228;
+
+    private string? TileSrcSet => Item.TileImageSrcSet ?? MediaTileArtworkUrl.SrcSetForDrawnSize(CardImageUrl, TileWidthPx);
 
     private string CardImageUrl => Item.TileImageUrl ?? string.Empty;
 

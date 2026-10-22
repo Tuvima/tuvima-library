@@ -72,7 +72,7 @@
                                 <span class="tl-season-toggle__art">
                                     @if (!string.IsNullOrWhiteSpace(ActiveGroup?.ArtworkSmallUrl))
                                     {
-                                        <img src="@ActiveGroup.ArtworkSmallUrl" alt="" width="40" height="60" decoding="async" />
+                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(ActiveGroup.ArtworkSmallUrl, 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ActiveGroup.ArtworkSmallUrl, 64)" alt="" width="40" height="60" decoding="async" />
                                     }
                                     else
                                     {
@@ -99,48 +99,28 @@
                     }
             </div>
 
-        @if (IsSeasonContainer && ShowJumpSelector && !_seasonBrowserOpen)
+        @* Under a shared row heading (no identity line), a Series' Jump to sits in this controls row, as a season's does. *@
+        @if ((IsSeasonContainer || !ShowIdentity) && ShowJumpSelector && !_seasonBrowserOpen)
         {
-            <div class="tl-series-detail__jump">
-                <span>Jump to @ItemNoun.ToLowerInvariant()</span>
-                <AppSelect Value="@JumpSelectionValue"
-                           ValueChanged="SelectJump"
-                           Options="@JumpSelectOptions"
-                           Size="AppControlSize.Large"
-                           Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
-                           PopoverClass="app-select__popover tl-series-select-popover"
-                           aria-label="@($"Jump to {ItemNoun.ToLowerInvariant()} by name")" />
-            </div>
+            @JumpPicker
         }
         </div>
     </header>
     }
 
-    @if (!IsSeasonContainer)
+    @if (!IsSeasonContainer && ShowIdentity)
     {
     <div class="tl-series-detail__heading">
-        @if (!IsSeasonContainer)
-        {
-            <div class="tl-series-detail__identity">
-                <AppMaterialIcon Icon="@ContainerIcon" Size="AppSize.Small" />
-                <div>
-                    <span>@ContainerTitleDisplay</span>
-                    <small>@Placement.ItemPluralLabel · @OwnedSummary</small>
-                </div>
+        <div class="tl-series-detail__identity">
+            <AppMaterialIcon Icon="@ContainerIcon" Size="AppSize.Small" />
+            <div>
+                <span>@ContainerTitleDisplay</span>
+                <small>@Placement.ItemPluralLabel · @OwnedSummary</small>
             </div>
-        }
-        @if (!IsSeasonContainer && ShowJumpSelector && !_seasonBrowserOpen)
+        </div>
+        @if (ShowJumpSelector && !_seasonBrowserOpen)
         {
-            <div class="tl-series-detail__jump">
-                <span>Jump to @ItemNoun.ToLowerInvariant()</span>
-                <AppSelect Value="@JumpSelectionValue"
-                           ValueChanged="SelectJump"
-                           Options="@JumpSelectOptions"
-                           Size="AppControlSize.Large"
-                           Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
-                           PopoverClass="app-select__popover tl-series-select-popover"
-                           aria-label="@($"Jump to {ItemNoun.ToLowerInvariant()} by name")" />
-            </div>
+            @JumpPicker
         }
     </div>
     }
@@ -174,7 +154,8 @@
                     <span class="tl-season-card__art">
                         @if (!string.IsNullOrWhiteSpace(season.ArtworkUrl))
                         {
-                            <img src="@season.ArtworkUrl"
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(season.ArtworkUrl, 340)"
+                                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(season.ArtworkUrl, 340)"
                                  alt=""
                                  width="280"
                                  height="420"
@@ -268,29 +249,24 @@
 
     @if (AlsoItems.Count > 0)
     {
-    <div class="tl-series-detail__heading">
-        <div class="tl-series-detail__identity">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppSize.Small" />
-            <div>
-                <span>Also in this world</span>
-                <small>@AlsoSummary</small>
-            </div>
+    <div class="tl-series-detail__also">
+    <AppCollapsibleRow Title="Also in this world" Summary="@AlsoSummary" RowKind="also-in-this-world" HeadingLevel="3">
+        @foreach (var row in AlsoRows)
+        {
+        <div class="tl-series-detail__carousel">
+            <AppCssElement Tag="div"
+                           Class="tl-series-detail__strip"
+                           Css="@AlsoGridStyle(row)"
+                           aria-label="Also in this world">
+                @foreach (var item in row)
+                {
+                    @AlsoItemFragment(item)
+                }
+            </AppCssElement>
         </div>
+        }
+    </AppCollapsibleRow>
     </div>
-    @foreach (var row in AlsoRows)
-    {
-    <div class="tl-series-detail__carousel">
-        <AppCssElement Tag="div"
-                       Class="tl-series-detail__strip"
-                       Css="@AlsoGridStyle(row)"
-                       aria-label="Also in this world">
-            @foreach (var item in row)
-            {
-                @AlsoItemFragment(item)
-            }
-        </AppCssElement>
-    </div>
-    }
     }
 
     @if (IsWindowedGroup || _loadingWindow || _windowFailed)
@@ -680,6 +656,9 @@ else
     [Parameter] public bool Compact { get; set; }
     [Parameter] public bool DetailSurface { get; set; }
 
+    /// <summary>False when a shared row heading above already names the Series and its count (the details page row).</summary>
+    [Parameter] public bool ShowIdentity { get; set; } = true;
+
     private const int LongSequenceThreshold = 6;
     private const int PortraitWindowSize = 6;
 
@@ -727,7 +706,7 @@ else
     }
 
     private string PanelClass => $"{MediaShapeClass}{(IsLongSequence ? " tl-series-placement--long" : string.Empty)}{(Compact ? " tl-series-placement--compact" : string.Empty)}";
-    private string DetailSurfaceClass => $"tl-series-detail {MediaShapeClass}{(IsSeasonContainer ? " is-season-container" : string.Empty)}";
+    private string DetailSurfaceClass => $"tl-series-detail {MediaShapeClass}{(IsSeasonContainer ? " is-season-container" : UsesScrollingRail ? " is-scrolling-rail" : string.Empty)}";
     private string MediaShapeClass => Placement.CurrentItem.EntityType switch
     {
         DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => "tl-series-panel--landscape",
@@ -815,9 +794,10 @@ else
             ? null
             : VisibleGroups.FirstOrDefault(group => group.Key == SelectedGroupKey);
     private string SeasonToggleClass => $"tl-season-toggle{(_seasonBrowserOpen ? " is-open" : string.Empty)}";
+    // A full-width wash at 28% opacity under dark overlays: the medium copy.
     private string? SeasonAtmosphereStyle => string.IsNullOrWhiteSpace(ActiveGroup?.BackgroundArtworkUrl)
         ? null
-        : $"--tl-season-atmosphere:url('{ActiveGroup.BackgroundArtworkUrl.Replace("'", "%27", StringComparison.Ordinal)}');";
+        : $"--tl-season-atmosphere:url('{MediaTileArtworkUrl.ForDrawnSize(ActiveGroup.BackgroundArtworkUrl, ArtworkSize.MediumPx)!.Replace("'", "%27", StringComparison.Ordinal)}');";
 
     private IReadOnlyList<SequenceItemViewModel> GroupItems
         => ShowGroupSelector
@@ -885,9 +865,8 @@ else
     private bool ShowJumpSelector => ActiveItems.Count > 10;
     private string? JumpSelectionValue => _jumpSelectionValue;
     private IReadOnlyList<AppSelectOption> JumpSelectOptions => ActiveItems
-        .Select((item, index) => new AppSelectOption(
-            index.ToString(CultureInfo.InvariantCulture),
-            $"#{SequenceNumber(item)} — {SequenceItemTitle(item)}"))
+        .Select((item, index) => $"#{SequenceNumber(item)} — {SequenceItemTitle(item)}")
+        .Select((label, index) => new AppSelectOption(index.ToString(CultureInfo.InvariantCulture), label, Title: label))
         .ToList();
     private int OwnedCount => IsWindowedGroup && ActiveGroup is { } windowedGroup
         ? windowedGroup.OwnedCount
@@ -937,9 +916,12 @@ else
     private int VisibleWindowSize => PortraitWindowSize;
     private int VisibleCount => Math.Min(ActiveItems.Count, VisibleWindowSize);
     private int WindowStart => Math.Clamp(_windowCenterIndex - (VisibleCount / 2), 0, Math.Max(0, ActiveItems.Count - VisibleCount));
-    private IReadOnlyList<SequenceItemViewModel> VisibleItems => IsSeasonContainer ? ActiveItems : ActiveItems.Skip(WindowStart).Take(VisibleCount).ToList();
-    private bool CanPageLeft => IsSeasonContainer ? !_episodeAtStart : WindowStart > 0;
-    private bool CanPageRight => IsSeasonContainer ? !_episodeAtEnd : WindowStart + VisibleCount < ActiveItems.Count;
+    // Episodes and a movie Series scroll as one full-width rail; other runs page through a window of six.
+    private bool UsesScrollingRail => IsSeasonContainer
+        || (DetailSurface && Placement.CurrentItem.EntityType is DetailEntityType.Movie or DetailEntityType.MovieSeries);
+    private IReadOnlyList<SequenceItemViewModel> VisibleItems => UsesScrollingRail ? ActiveItems : ActiveItems.Skip(WindowStart).Take(VisibleCount).ToList();
+    private bool CanPageLeft => UsesScrollingRail ? !_episodeAtStart : WindowStart > 0;
+    private bool CanPageRight => UsesScrollingRail ? !_episodeAtEnd : WindowStart + VisibleCount < ActiveItems.Count;
     private string LeftArrowClass => $"tl-series-carousel__arrow tl-series-carousel__arrow--left{(CanPageLeft ? string.Empty : " is-hidden")}";
     private string RightArrowClass => $"tl-series-carousel__arrow tl-series-carousel__arrow--right{(CanPageRight ? string.Empty : " is-hidden")}";
     private IReadOnlyList<SequenceContainerOptionViewModel> DistinctAvailableContainers => BuildDistinctContainerOptions(Placement.AvailableContainers);
@@ -949,7 +931,23 @@ else
     private IReadOnlyList<AppSelectOption> ContainerSelectOptions => DistinctAvailableContainers
         .Select(option => new AppSelectOption(option.ContainerId, option.ContainerTitle))
         .ToList();
-    private bool HasTopControls => CanChooseDistinctContainer || ShowGroupSelector || CanShowMissingToggle;
+    private bool HasTopControls => CanChooseDistinctContainer || ShowGroupSelector || CanShowMissingToggle
+        || (!IsSeasonContainer && !ShowIdentity && ShowJumpSelector && !_seasonBrowserOpen);
+
+    // A season's Jump to sizes to the chosen episode; a Series' sizes to its longest entry, so entries never wrap.
+    private RenderFragment JumpPicker => __builder =>
+    {
+        <div class="@(IsSeasonContainer ? "tl-series-detail__jump" : "tl-series-detail__jump tl-series-detail__jump--fit")">
+            <span>Jump to @ItemNoun.ToLowerInvariant()</span>
+            <AppSelect Value="@JumpSelectionValue"
+                       ValueChanged="SelectJump"
+                       Options="@JumpSelectOptions"
+                       Size="AppControlSize.Large"
+                       Class="tl-series-detail__select" Sizing="@(IsSeasonContainer ? "intrinsic" : "options")" FullWidth="false"
+                       PopoverClass="@(IsSeasonContainer ? "app-select__popover tl-series-select-popover" : "app-select__popover tl-series-select-popover tl-series-jump-popover")"
+                       aria-label="@($"Jump to {ItemNoun.ToLowerInvariant()} by name")" />
+        </div>
+    };
     private bool ShowSetDefault => _canCurateSequence && CanChooseDistinctContainer && Placement.CanSetDefaultContainer && !string.IsNullOrWhiteSpace(Placement.SelectedContainerId);
     private string CoverageVisualClass => $"tl-series-position-summary__donut{(ShowCoverageDonut ? string.Empty : " is-count-only")}";
     private string CoverageCenterClass => $"tl-series-position-summary__center{(!ShowCoverageDonut ? " is-stacked" : string.Empty)}{(IsComicSequence && HasCurrentPosition ? " is-comic-position" : string.Empty)}";
@@ -1144,7 +1142,7 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (IsSeasonContainer && !_seasonBrowserOpen && _episodeStrip is not null
+        if (UsesScrollingRail && !_seasonBrowserOpen && _episodeStrip is not null
             && !_observedEpisodeStrip.Equals(_episodeStrip.Element))
         {
             if (_episodeReference is not null) await Js.InvokeVoidAsync("unregisterMediaShelfBoundaries", _observedEpisodeStrip);
@@ -1155,7 +1153,8 @@ else
         if (_scrollToCurrentEpisode)
         {
             _scrollToCurrentEpisode = false;
-            await Js.InvokeVoidAsync("scrollSequenceItem", _episodeStripId, 0, "start", "auto");
+            // A season starts at its first episode; a movie Series opens with the open movie in view.
+            await Js.InvokeVoidAsync("scrollSequenceItem", _episodeStripId, IsSeasonContainer ? 0 : _windowCenterIndex, IsSeasonContainer ? "start" : "center", "auto");
         }
         if (_scrollToCurrentSeason)
         {
@@ -1477,7 +1476,7 @@ else
 
     private void ResetWindowToCurrentItem()
     {
-        _scrollToCurrentEpisode = IsSeasonContainer;
+        _scrollToCurrentEpisode = UsesScrollingRail;
         var currentIndex = ActiveItems.ToList().FindIndex(item => item.IsCurrent);
         _windowCenterIndex = Math.Max(0, currentIndex);
         _jumpSelectionValue = ShowJumpSelector && currentIndex >= 0
@@ -1496,13 +1495,13 @@ else
 
         _jumpSelectionValue = value;
         _windowCenterIndex = index;
-        if (IsSeasonContainer)
+        if (UsesScrollingRail)
             await Js.InvokeVoidAsync("scrollSequenceItem", _episodeStripId, index, "nearest", "smooth");
     }
 
     private async Task PageLeft()
     {
-        if (IsSeasonContainer)
+        if (UsesScrollingRail)
         {
             await Js.InvokeVoidAsync("scrollSequenceRail", _episodeStripId, -1);
             return;
@@ -1515,7 +1514,7 @@ else
 
     private async Task PageRight()
     {
-        if (IsSeasonContainer)
+        if (UsesScrollingRail)
         {
             await Js.InvokeVoidAsync("scrollSequenceRail", _episodeStripId, 1);
             return;

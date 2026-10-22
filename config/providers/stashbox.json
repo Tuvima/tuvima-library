@@ -1,0 +1,56 @@
+{
+  "name": "stashbox",
+  "version": "1.0",
+  "enabled": true,
+  "weight": 0.6,
+  "domain": "Video",
+  "icon": "images/providers/stashbox.svg",
+  "provider_id": "c0000012-0000-4000-8000-000000000020",
+  "display_name": "Stash-box",
+  "requires_api_key": true,
+  "adult_only": true,
+  "file_fingerprint": true,
+  "capability_tags": ["title", "description", "tags", "release_date", "cover", "performers", "studio"],
+  "provider_capabilities": ["metadata", "artwork"],
+  "available_fields": ["title", "description", "original_release_date", "cover"],
+  "field_weights": { "title": 0.9, "description": 0.85, "original_release_date": 0.85, "cover": 0.8 },
+  "endpoints": {
+    "api": "https://stashdb.org/graphql"
+  },
+  "rate_limit": { "requests_per_second": 3, "burst": 2, "max_concurrency": 1 },
+  "hydration_stages": [],
+  "cache_ttl_hours": 0,
+  "adapter_type": "coded",
+  "can_handle": { "media_types": ["Videos"], "entity_types": ["MediaAsset"] },
+  "onboarding": {
+    "classification": "optional",
+    "signup_url": "https://stashdb.org/register",
+    "help_url": "https://docs.stashapp.cc/",
+    "terms_url": "https://stashdb.org/",
+    "privacy_url": "https://stashdb.org/",
+    "supported_lanes": ["watch"],
+    "required_scopes": ["Look up a video by its title", "Look up a video by a fingerprint of its file (separate permission, off by default)"],
+    "intro": {
+      "title": "Stash-box lookup",
+      "summary": "This contacts a stash-box server and is only ever asked about items in the Vault. It sends the video's title. It sends a fingerprint of your file only if you turn on that separate permission. It needs your own account key from the server, which is kept on this machine and never shown again. Without a key it does nothing."
+    },
+    "skip_consequences": [
+      { "lane": "watch", "summary": "Vault videos keep the title from their file name and a still frame as the cover.", "unavailable_capabilities": ["title", "description", "tags", "cover"] }
+    ],
+    "credentials": [
+      {
+        "key": "api_key",
+        "label": "Stash-box account key",
+        "input_type": "password",
+        "required": true,
+        "ownership": "user_supplied",
+        "purpose": "api_key",
+        "format_hint": "The API key from your account on the stash-box server. It is sent in an ApiKey header to that server only.",
+        "minimum_length": 8,
+        "maximum_length": 512,
+        "validation_pattern": "^[^\\s]+$"
+      }
+    ],
+    "authentication_probe": null
+  }
+}

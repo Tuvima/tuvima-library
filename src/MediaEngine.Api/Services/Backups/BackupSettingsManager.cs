@@ -1,18 +1,20 @@
 using System.Globalization;
 using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Contracts.Backups;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.Backups;
 
 /// <summary>
-/// Backup schedule, retention, destination choices and the backup passphrase (Developer tools spec WP25). The passphrase is only
-/// ever used to make the key pair and to prove a change is allowed; it is never stored or logged.
+/// Backup schedule, retention and destination choices (Developer tools spec WP25). Backups are never encrypted (Backup and restore
+/// spec D15); a destination's own login is stored through the secret store.
 /// </summary>
 internal sealed class BackupSettingsManager(
     BackupSettingsAccessor accessor,
     BackupOrchestrator orchestrator,
     IBackupDestinationRepository repository,
+    ISecretStore secrets,
     TimeProvider clock)
 {
     public async Task<BackupSettingsResponse> GetAsync(CancellationToken ct)
@@ -29,7 +31,6 @@ internal sealed class BackupSettingsManager(
                 Weekday = settings.Weekday,
             },
             KeepLast = settings.KeepLast,
-            PassphraseSet = settings.PassphraseSet,
             NextRunAt = NextRun(settings),
             LastRestoreCheckAt = settings.LastRestoreCheckAt,
             LastRestoreCheckResult = settings.LastRestoreCheckResult,
@@ -37,6 +38,7 @@ internal sealed class BackupSettingsManager(
         foreach (var destination in orchestrator.Destinations)
         {
             var latest = copies.FirstOrDefault(copy => copy.DestinationId == destination.Id && copy.State != "deleted");
+            var added = settings.Destinations.FirstOrDefault(item => item.Id == destination.Id);
             var enabled = !destination.LeavesMachine || settings.EnabledDestinations.Contains(destination.Id, StringComparer.Ordinal);
             var dto = new BackupDestinationDto
             {
@@ -47,6 +49,9 @@ internal sealed class BackupSettingsManager(
                 Enabled = enabled,
                 LastCopyAt = latest?.CreatedAt,
                 LastCopyVerified = latest?.State == "verified",
+                Kind = added?.Kind ?? BackupDestinationIds.Local,
+                Location = added?.Location ?? string.Empty,
+                Removable = added is not null,
             };
             (dto.State, dto.StateLabel) = StateOf(destination, enabled, latest);
             response.Destinations.Add(dto);
@@ -130,27 +135,103 @@ internal sealed class BackupSettingsManager(
         }
     }
 
-    /// <summary>Sets or changes the passphrase. Returns a plain-words problem, or null on success.</summary>
-    public async Task<string?> SetPassphraseAsync(SetBackupPassphraseRequest request, CancellationToken ct)
+    /// <summary>
+    /// Adds a destination, or changes one. A web destination is only saved when the host the person confirmed matches its address,
+    /// so the address was in front of them first. Returns a plain-words problem, or null when it was saved.
+    /// </summary>
+    public async Task<string?> SaveDestinationAsync(SaveBackupDestinationRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(request.Passphrase) || request.Passphrase.Length < BackupEncryption.MinimumPassphraseLength)
+        if (!BackupDestinationKinds.IsKnown(request.Kind))
         {
-            return $"The passphrase needs at least {BackupEncryption.MinimumPassphraseLength} characters.";
+            return "Choose what kind of destination this is.";
+        }
+
+        var name = request.Name?.Trim() ?? string.Empty;
+        if (name.Length is 0 or > BackupDestinationRules.MaxNameLength || name.Any(char.IsControl))
+        {
+            return $"Give it a name of up to {BackupDestinationRules.MaxNameLength} characters.";
+        }
+
+        var location = request.Location?.Trim() ?? string.Empty;
+        string? problem;
+        if (BackupDestinationKinds.IsWeb(request.Kind))
+        {
+            var uri = BackupDestinationRules.ParseWebAddress(location, out problem);
+            if (uri is null)
+            {
+                return problem;
+            }
+
+            if (!string.Equals(request.ConfirmedHost?.Trim(), uri.Host, StringComparison.OrdinalIgnoreCase))
+            {
+                return $"Confirm that backups may be sent to {uri.Host}.";
+            }
+
+            if (request.Kind == BackupDestinationKinds.S3 && string.IsNullOrWhiteSpace(request.Bucket))
+            {
+                return "Enter the bucket name.";
+            }
+
+            if (request.Prefix?.Split('/').Any(part => part is ".." or ".") == true || request.Prefix?.Contains("//", StringComparison.Ordinal) == true)
+            {
+                return "The folder inside the bucket cannot contain \"..\", \".\" or empty parts.";
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Username))
+            {
+                return request.Kind == BackupDestinationKinds.S3 ? "Enter the access key." : "Enter the user name.";
+            }
+        }
+        else if ((problem = BackupDestinationRules.FolderProblem(location)) is not null)
+        {
+            return problem;
         }
 
         await accessor.Gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             var settings = await accessor.LoadAsync(ct).ConfigureAwait(false);
-            if (settings.Keys is { } existing
-                && (string.IsNullOrEmpty(request.CurrentPassphrase) || !BackupEncryption.CheckPassphrase(request.CurrentPassphrase, existing.EncryptedPrivateKey)))
+            var existing = request.Id is null ? null : settings.Destinations.FirstOrDefault(item => item.Id == request.Id);
+            if (request.Id is not null && existing is null)
             {
-                return "The current passphrase is not right. Enter it to change the passphrase.";
+                return "That destination was not found.";
             }
 
-            var material = await Task.Run(() => BackupEncryption.CreateKeyMaterial(request.Passphrase), ct).ConfigureAwait(false);
-            settings.PublicKey = Convert.ToBase64String(material.PublicKey);
-            settings.EncryptedPrivateKey = Convert.ToBase64String(material.EncryptedPrivateKey);
+            if (BackupDestinationKinds.IsWeb(request.Kind) && string.IsNullOrEmpty(request.Secret) && string.IsNullOrEmpty(existing?.EncryptedSecret))
+            {
+                return request.Kind == BackupDestinationKinds.S3 ? "Enter the secret key." : "Enter the password.";
+            }
+
+            if (existing is null)
+            {
+                existing = new ConfiguredDestination { Id = $"{request.Kind}-{Guid.NewGuid():N}"[..(request.Kind.Length + 9)], Kind = request.Kind };
+                settings.Destinations.Add(existing);
+                settings.EnabledDestinations.Add(existing.Id);
+            }
+            else if (existing.Kind != request.Kind)
+            {
+                return "A destination's kind cannot be changed. Add a new one instead.";
+            }
+            else if (BackupDestinationKinds.IsWeb(request.Kind) && string.IsNullOrEmpty(request.Secret)
+                && (!SameServer(existing.Location, location) || !string.Equals(existing.Username, request.Username?.Trim(), StringComparison.Ordinal)))
+            {
+                // A saved login only ever goes to the server and user it was entered for.
+                return request.Kind == BackupDestinationKinds.S3
+                    ? "Enter the secret key again to change the address or access key."
+                    : "Enter the password again to change the address or user name.";
+            }
+
+            existing.Name = name;
+            existing.Location = location;
+            existing.Bucket = request.Bucket?.Trim();
+            existing.Region = request.Region?.Trim();
+            existing.Prefix = request.Prefix?.Trim();
+            existing.Username = request.Username?.Trim();
+            if (!string.IsNullOrEmpty(request.Secret))
+            {
+                existing.EncryptedSecret = secrets.Encrypt(request.Secret);
+            }
+
             await accessor.SaveAsync(settings, ct).ConfigureAwait(false);
             return null;
         }
@@ -158,6 +239,23 @@ internal sealed class BackupSettingsManager(
         {
             accessor.Gate.Release();
         }
+    }
+
+    private static bool SameServer(string saved, string wanted) =>
+        Uri.TryCreate(saved, UriKind.Absolute, out var a) && Uri.TryCreate(wanted, UriKind.Absolute, out var b)
+        && string.Equals(a.Scheme, b.Scheme, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(a.Host, b.Host, StringComparison.OrdinalIgnoreCase) && a.Port == b.Port;
+
+    /// <summary>Removes a destination the administrator added. Copies already there are left alone. Returns false when it does not exist.</summary>
+    public async Task<bool> RemoveDestinationAsync(string id, CancellationToken ct)
+    {
+        var removed = false;
+        await accessor.UpdateAsync(settings =>
+        {
+            removed = settings.Destinations.RemoveAll(item => item.Id == id) > 0;
+            settings.EnabledDestinations.RemoveAll(item => item == id);
+        }, ct).ConfigureAwait(false);
+        return removed;
     }
 
     private DateTimeOffset? NextRun(BackupSettingsDocument settings)

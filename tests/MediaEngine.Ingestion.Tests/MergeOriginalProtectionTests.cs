@@ -140,7 +140,7 @@ public sealed class MergeOriginalProtectionTests : IDisposable
         var decision = new SourceMutationPolicyGate(_ledger).Evaluate(Request(policy, SourceMutationKind.Delete, Path.Combine(_root, "x.mkv")));
 
         Assert.False(decision.Allowed);
-        Assert.Contains("As-is", decision.Reason);
+        Assert.Contains("Read-only", decision.Reason);
     }
 
     [Fact]

@@ -136,12 +136,15 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
     {
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
-        var rows = connection.Query<SourceRow>(new CommandDefinition("""
+        var rows = connection.Query<SourceRow>(new CommandDefinition($"""
             SELECT id AS Id, library_id AS LibraryId, source_type AS SourceType,
                    name AS Name, source_key AS SourceKey, last_activity_at AS LastActivityAt,
                    storage_mode AS StorageMode, relative_path AS RelativePath,
                    external_path AS ExternalPath, include_subdirectories AS IncludeSubdirectories,
                    enabled AS Enabled,
+                   content_kind AS ContentKind, added_by_profile_id AS AddedByProfileId,
+                   skipped_file_count AS SkippedFileCount,
+                   {ViewItemFileWriteRepository.KeptInLibraryCountSql} AS KeptInLibraryCount,
                    COALESCE((SELECT include_in_timeline FROM view_source_policies
                               WHERE source_id = view_sources.id), 0) AS IncludeInTimeline,
                    created_at AS CreatedAt, updated_at AS UpdatedAt
@@ -182,20 +185,23 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
             var id = source.Id == Guid.Empty ? Guid.NewGuid() : source.Id;
             var now = DateTimeOffset.UtcNow;
             var createdAt = source.CreatedAt == default ? now : source.CreatedAt;
+            var previousKind = connection.ExecuteScalar<string?>(new CommandDefinition(
+                "SELECT content_kind FROM view_sources WHERE id = @id;", new { id }, transaction, cancellationToken: token));
             var changed = connection.Execute(new CommandDefinition("""
                 INSERT INTO view_sources
                     (id, scope_kind, personal_space_id, library_id, source_type, name, source_key,
                      storage_mode, relative_path, external_path, include_subdirectories, enabled,
-                     last_activity_at, created_at, updated_at)
+                     last_activity_at, content_kind, added_by_profile_id, created_at, updated_at)
                 VALUES (@id, 'shared', NULL, @LibraryId, @SourceType, @Name, @SourceKey,
                         @StorageMode, @RelativePath, @ExternalPath, @IncludeSubdirectories, @Enabled,
-                        @LastActivityAt, @createdAt, @now)
+                        @LastActivityAt, @ContentKind, @AddedByProfileId, @createdAt, @now)
                 ON CONFLICT(id) DO UPDATE SET
                     source_type = excluded.source_type, name = excluded.name,
                     source_key = excluded.source_key, storage_mode = excluded.storage_mode,
                     relative_path = excluded.relative_path, external_path = excluded.external_path,
                     include_subdirectories = excluded.include_subdirectories, enabled = excluded.enabled,
-                    last_activity_at = excluded.last_activity_at, updated_at = excluded.updated_at
+                    last_activity_at = excluded.last_activity_at, content_kind = excluded.content_kind,
+                    updated_at = excluded.updated_at
                 WHERE view_sources.scope_kind = 'shared'
                   AND view_sources.personal_space_id IS NULL
                   AND view_sources.library_id = excluded.library_id;
@@ -212,6 +218,8 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
                 source.IncludeSubdirectories,
                 source.Enabled,
                 source.LastActivityAt,
+                source.ContentKind,
+                source.AddedByProfileId,
                 createdAt,
                 now,
             }, transaction, cancellationToken: token));
@@ -227,6 +235,12 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
                     include_in_timeline = excluded.include_in_timeline,
                     updated_at = excluded.updated_at;
                 """, new { id, source.IncludeInTimeline, now }, transaction, cancellationToken: token));
+            if (previousKind is not null && !string.Equals(previousKind, source.ContentKind, StringComparison.Ordinal))
+            {
+                // Changing what a folder holds re-applies it to what is already indexed, in this same transaction.
+                ViewSourceKindReapplication.Apply(connection, transaction, id, source.SourceKey, source.ContentKind, token);
+            }
+
             return source with { Id = id, Name = source.Name.Trim(), CreatedAt = createdAt, UpdatedAt = now };
         }, ct);
     }
@@ -246,7 +260,8 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
         row.Id, row.LibraryId, ParseSourceType(row.SourceType), row.Name, row.SourceKey,
         ParseNullableDate(row.LastActivityAt), ParseDate(row.CreatedAt), ParseDate(row.UpdatedAt),
         ParseStorageMode(row.StorageMode), row.RelativePath, row.ExternalPath,
-        row.IncludeSubdirectories, row.Enabled, row.IncludeInTimeline);
+        row.IncludeSubdirectories, row.Enabled, row.IncludeInTimeline,
+        row.ContentKind, row.AddedByProfileId, checked((int)row.SkippedFileCount), checked((int)row.KeptInLibraryCount));
 
     private static string ToStorage(ViewSourceType value) => value switch
     {
@@ -321,6 +336,10 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
         public bool IncludeSubdirectories { get; init; }
         public bool Enabled { get; init; }
         public bool IncludeInTimeline { get; init; }
+        public string ContentKind { get; init; } = "photos";
+        public Guid? AddedByProfileId { get; init; }
+        public long SkippedFileCount { get; init; }
+        public long KeptInLibraryCount { get; init; }
         public string CreatedAt { get; init; } = string.Empty;
         public string UpdatedAt { get; init; } = string.Empty;
     }

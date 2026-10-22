@@ -53,4 +53,37 @@ public sealed class ViewProfilePolicyContractTests
         Assert.Equal(saved, ProfileContractMapper.ToDomain(Guid.NewGuid(), request, saved).DocumentsEnabled);
         Assert.Null(new UpdateViewProfilePolicyRequest().AllowDocuments);
     }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void PhotosAndPersonalVideosSwitchesRoundTripWhenTheRequestSetsThem(bool photos, bool videos)
+    {
+        var policy = ProfileContractMapper.ToDomain(Guid.NewGuid(), new UpdateViewProfilePolicyRequest
+        {
+            ViewEnabled = true,
+            AllowPhotos = photos,
+            AllowPersonalVideos = videos,
+        }, currentDocumentsEnabled: true, currentPhotosEnabled: !photos, currentPersonalVideosEnabled: !videos);
+
+        var contract = ProfileContractMapper.ToResponse(policy);
+
+        Assert.Equal(photos, policy.PhotosEnabled);
+        Assert.Equal(videos, policy.PersonalVideosEnabled);
+        Assert.Equal(photos, contract.AllowPhotos);
+        Assert.Equal(videos, contract.AllowPersonalVideos);
+    }
+
+    [Fact]
+    public void ARequestThatOmitsAKindSwitchKeepsTheSavedValue()
+    {
+        var request = System.Text.Json.JsonSerializer.Deserialize<UpdateViewProfilePolicyRequest>(
+            """{"view_enabled":true}""")!;
+
+        var policy = ProfileContractMapper.ToDomain(Guid.NewGuid(), request, true, currentPhotosEnabled: false, currentPersonalVideosEnabled: false);
+
+        Assert.False(policy.PhotosEnabled);
+        Assert.False(policy.PersonalVideosEnabled);
+        Assert.Equal(["photos", "personal_videos"], policy.BlockedContentKinds);
+    }
 }

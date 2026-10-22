@@ -6,14 +6,16 @@ using MediaEngine.Storage.Contracts;
 namespace MediaEngine.Api.Services.Backups;
 
 /// <summary>
-/// Makes a backup and gets it to every destination (Developer tools spec WP25, decision D-P): the archive is made on this computer
-/// first, then for each switched-on destination that leaves the computer it is encrypted with the backup key, sent, and read
-/// back to check it arrived intact; finally the oldest copies beyond "keep the last N" are removed. A destination that fails
-/// does not stop the others, shows Needs attention, and sends a notification.
+/// Makes a backup and gets it to every destination (Developer tools spec WP25, Backup and restore spec D15): the archive is made on
+/// this computer first, then for each switched-on destination that leaves the computer the same plain archive is sent and read
+/// back to check it arrived intact; finally the oldest copies beyond "keep the last N" are removed. Backups are never encrypted,
+/// so keeping the copies safe is the person's job. A destination that fails does not stop the others, shows Needs attention,
+/// and sends a notification.
 /// </summary>
 internal sealed class BackupOrchestrator(
     DatabaseBackupService backups,
     IEnumerable<IBackupDestination> destinations,
+    ConfiguredBackupDestinations configured,
     BackupSettingsAccessor settingsAccessor,
     IBackupDestinationRepository repository,
     INotificationPublisher notifications,
@@ -21,13 +23,19 @@ internal sealed class BackupOrchestrator(
     ILogger<BackupOrchestrator> logger)
 {
     private const string NamePrefix = "tuvima-backup-";
+
+    /// <summary>The file ending of the sealed copies older versions made. They can no longer be opened.</summary>
+    internal const string OlderSealedExtension = ".tvbk";
+
+    internal const string OlderSealedCopyMessage = "This copy was made by an older version and can't be restored.";
     private readonly IReadOnlyList<IBackupDestination> _destinations = destinations.ToList();
     private readonly SemaphoreSlim _runGate = new(1, 1);
 
-    public IReadOnlyList<IBackupDestination> Destinations => _destinations;
+    /// <summary>The Library's own folder first, then every destination an administrator added. Read again each time so a change takes effect at once.</summary>
+    public IReadOnlyList<IBackupDestination> Destinations => [.. _destinations, .. configured.Current()];
 
     public IBackupDestination? Find(string id) =>
-        _destinations.FirstOrDefault(destination => string.Equals(destination.Id, id, StringComparison.Ordinal));
+        Destinations.FirstOrDefault(destination => string.Equals(destination.Id, id, StringComparison.Ordinal));
 
     /// <summary>Makes a backup now and copies it everywhere it should go. Only one runs at a time.</summary>
     public async Task<BackupRunResponse> RunAsync(CancellationToken ct)
@@ -43,65 +51,48 @@ internal sealed class BackupOrchestrator(
             var archivePath = await backups.CreateAsync(ct).ConfigureAwait(false);
             var archiveName = Path.GetFileName(archivePath);
             var response = new BackupRunResponse { ArchiveName = archiveName };
-            string? encryptedPath = null;
-            try
+            foreach (var destination in Destinations)
             {
-                foreach (var destination in _destinations)
+                ct.ThrowIfCancellationRequested();
+                var local = !destination.LeavesMachine;
+                if (!local && !settings.EnabledDestinations.Contains(destination.Id, StringComparer.Ordinal))
                 {
-                    ct.ThrowIfCancellationRequested();
-                    var local = !destination.LeavesMachine;
-                    if (!local && !settings.EnabledDestinations.Contains(destination.Id, StringComparer.Ordinal))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    var outcome = new BackupDestinationOutcomeDto { Id = destination.Id, Name = destination.Name };
-                    response.Destinations.Add(outcome);
-                    try
+                var outcome = new BackupDestinationOutcomeDto { Id = destination.Id, Name = destination.Name };
+                response.Destinations.Add(outcome);
+                try
+                {
+                    if (local)
                     {
-                        if (local)
-                        {
-                            outcome.Outcome = "copied";
-                            outcome.Message = "Saved on this computer.";
-                        }
-                        else if (!destination.IsConfigured)
-                        {
-                            outcome.Outcome = "skipped";
-                            outcome.Message = "Not set up yet.";
-                        }
-                        else if (settings.Keys is not { } keys)
-                        {
-                            outcome.Outcome = "failed";
-                            outcome.Message = "Set a backup passphrase first. Backups are encrypted before they leave this computer.";
-                        }
-                        else
-                        {
-                            encryptedPath ??= await EncryptAsync(archivePath, keys, ct).ConfigureAwait(false);
-                            await SendAndVerifyAsync(destination, encryptedPath, Path.GetFileNameWithoutExtension(archiveName) + BackupEncryption.FileExtension, ct).ConfigureAwait(false);
-                            outcome.Outcome = "copied";
-                            outcome.Message = "Copied and checked.";
-                        }
+                        outcome.Outcome = "copied";
+                        outcome.Message = "Saved on this computer.";
                     }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    else if (!destination.IsConfigured)
                     {
-                        logger.LogWarning(ex, "Backup copy to {Destination} failed.", destination.Id);
-                        outcome.Outcome = "failed";
-                        outcome.Message = ex is BackupDestinationException or InvalidDataException ? ex.Message : "The copy could not be completed.";
-                        await repository.AddCopyAsync(new StoredBackupCopy(
-                            Guid.NewGuid(), destination.Id, archiveName, 0, string.Empty, "failed", null, outcome.Message, clock.GetUtcNow()), ct).ConfigureAwait(false);
+                        outcome.Outcome = "skipped";
+                        outcome.Message = "Not set up yet.";
                     }
-
-                    if (outcome.Outcome != "failed")
+                    else
                     {
-                        await ApplyRetentionAsync(destination, settings.KeepLast, ct).ConfigureAwait(false);
+                        await SendAndVerifyAsync(destination, archivePath, archiveName, ct).ConfigureAwait(false);
+                        outcome.Outcome = "copied";
+                        outcome.Message = "Copied and checked.";
                     }
                 }
-            }
-            finally
-            {
-                if (encryptedPath is not null && File.Exists(encryptedPath))
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    File.Delete(encryptedPath);
+                    logger.LogWarning(ex, "Backup copy to {Destination} failed.", destination.Id);
+                    outcome.Outcome = "failed";
+                    outcome.Message = ex is BackupDestinationException or InvalidDataException ? ex.Message : "The copy could not be completed.";
+                    await repository.AddCopyAsync(new StoredBackupCopy(
+                        Guid.NewGuid(), destination.Id, archiveName, 0, string.Empty, "failed", null, outcome.Message, clock.GetUtcNow()), ct).ConfigureAwait(false);
+                }
+
+                if (outcome.Outcome != "failed")
+                {
+                    await ApplyRetentionAsync(destination, settings.KeepLast, ct).ConfigureAwait(false);
                 }
             }
 
@@ -139,26 +130,21 @@ internal sealed class BackupOrchestrator(
     }
 
     /// <summary>
-    /// Fetches a backup from a destination, opens it with the passphrase when it is encrypted, and stages it with the existing
-    /// safe restore (applied at the next start; the current data is kept as a pre-restore copy).
+    /// Fetches a backup from a destination and stages it with the existing safe restore, which refuses unsafe entries, secrets and
+    /// zip bombs exactly as for an uploaded backup (applied at the next start; the current data is kept as a pre-restore copy).
     /// </summary>
-    public async Task<MediaEngine.Contracts.System.ScheduleRestoreResultDto> RestoreFromDestinationAsync(IBackupDestination destination, string name, string? passphrase, CancellationToken ct)
+    public async Task<MediaEngine.Contracts.System.ScheduleRestoreResultDto> RestoreFromDestinationAsync(IBackupDestination destination, string name, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(name) || !string.Equals(name, Path.GetFileName(name), StringComparison.Ordinal) || !name.StartsWith(NamePrefix, StringComparison.Ordinal))
         {
             throw new BackupDestinationException("That backup name is not valid.");
         }
 
-        var encrypted = name.EndsWith(BackupEncryption.FileExtension, StringComparison.OrdinalIgnoreCase);
-        if (destination.LeavesMachine && !encrypted)
+        if (!name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
         {
-            // Only sealed files are trusted from a place other people can write to; a plain zip dropped there is not a backup we made.
-            throw new BackupDestinationException("That file is not an encrypted Library backup, so it will not be restored from here.");
-        }
-
-        if (encrypted && string.IsNullOrEmpty(passphrase))
-        {
-            throw new BackupPassphraseException("This backup is encrypted. Enter the backup passphrase to restore it.");
+            throw new BackupDestinationException(name.EndsWith(OlderSealedExtension, StringComparison.OrdinalIgnoreCase)
+                ? OlderSealedCopyMessage
+                : "That file is not a Library backup.");
         }
 
         var restoredName = $"{NamePrefix}restored-{clock.GetUtcNow():yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..8]}.zip";
@@ -169,14 +155,7 @@ internal sealed class BackupOrchestrator(
             await using (var source = await destination.FetchAsync(name, ct).ConfigureAwait(false))
             await using (var target = new FileStream(restoredPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 128 * 1024, useAsync: true))
             {
-                if (encrypted)
-                {
-                    await BackupEncryption.DecryptAsync(source, target, passphrase!, ct).ConfigureAwait(false);
-                }
-                else
-                {
-                    await source.CopyToAsync(target, ct).ConfigureAwait(false);
-                }
+                await source.CopyToAsync(target, ct).ConfigureAwait(false);
             }
 
             return backups.ScheduleRestore(restoredName);
@@ -229,27 +208,6 @@ internal sealed class BackupOrchestrator(
         }
     }
 
-    private async Task<string> EncryptAsync(string archivePath, BackupKeyMaterial keys, CancellationToken ct)
-    {
-        var path = Path.Combine(backups.BackupDirectory, $".encrypting-{Guid.NewGuid():N}.tmp");
-        try
-        {
-            await using var source = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024, useAsync: true);
-            await using var target = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 128 * 1024, useAsync: true);
-            await BackupEncryption.EncryptAsync(source, target, keys, ct).ConfigureAwait(false);
-            return path;
-        }
-        catch
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-
-            throw;
-        }
-    }
-
     private async Task SendAndVerifyAsync(IBackupDestination destination, string filePath, string remoteName, CancellationToken ct)
     {
         var info = new FileInfo(filePath);
@@ -292,7 +250,7 @@ internal sealed class BackupOrchestrator(
             var ours = (await destination.ListAsync(ct).ConfigureAwait(false))
                 .Where(item => item.Name.StartsWith(NamePrefix, StringComparison.Ordinal)
                     && !item.Name.StartsWith(NamePrefix + "restored-", StringComparison.Ordinal)
-                    && (!destination.LeavesMachine || item.Name.EndsWith(BackupEncryption.FileExtension, StringComparison.OrdinalIgnoreCase)))
+                    && item.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(item => item.ModifiedAt)
                 .ThenByDescending(item => item.Name, StringComparer.Ordinal)
                 .Skip(Math.Max(1, keep))

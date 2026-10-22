@@ -716,7 +716,8 @@
 
     private void ExpandActiveTreePath()
     {
-        var path = FindTreePath(candidate => IsOwnRouteActive(candidate, forceExact: true));
+        // A row marked non-exact (Settings > Libraries, which has pages below it) also opens its branch from those pages.
+        var path = FindTreePath(candidate => IsOwnRouteActive(candidate, forceExact: candidate.Exact));
         if (path is null)
         {
             return;

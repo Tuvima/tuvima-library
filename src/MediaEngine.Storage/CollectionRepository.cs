@@ -851,9 +851,11 @@ public sealed class CollectionRepository : ICollectionRepository
             foreach (var item in items)
             {
                 innerCt.ThrowIfCancellationRequested();
-                conn.Execute("""
+                // A Vault work is never a member of a shared collection (Videos spec D27).
+                conn.Execute($"""
                     INSERT INTO collection_items (id, collection_id, work_id, sort_order, progress_state, progress_position, added_at)
-                    VALUES (@Id, @CollectionId, @WorkId, @SortOrder, @ProgressState, @ProgressPosition, @AddedAt)
+                    SELECT @Id, @CollectionId, @WorkId, @SortOrder, @ProgressState, @ProgressPosition, @AddedAt
+                    WHERE {VaultSql.NotVaultEntity("@WorkId")}
                     """,
                     new
                     {
@@ -923,9 +925,11 @@ public sealed class CollectionRepository : ICollectionRepository
             foreach (var item in additions)
             {
                 innerCt.ThrowIfCancellationRequested();
-                conn.Execute("""
+                // A Vault work is never a member of a shared collection (Videos spec D27).
+                conn.Execute($"""
                     INSERT INTO collection_items (id, collection_id, work_id, sort_order, progress_state, progress_position, added_at)
-                    VALUES (@Id, @CollectionId, @WorkId, @SortOrder, @ProgressState, @ProgressPosition, @AddedAt)
+                    SELECT @Id, @CollectionId, @WorkId, @SortOrder, @ProgressState, @ProgressPosition, @AddedAt
+                    WHERE {VaultSql.NotVaultEntity("@WorkId")}
                     """,
                     new
                     {
@@ -1664,11 +1668,12 @@ public sealed class CollectionRepository : ICollectionRepository
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
         var items = conn.Query<CollectionItem>(
-            """
+            $"""
             SELECT id AS Id, collection_id AS CollectionId, work_id AS WorkId,
                    sort_order AS SortOrder, progress_state AS ProgressState,
                    progress_position AS ProgressPosition, added_at AS AddedAt
             FROM collection_items WHERE collection_id = @CollectionId
+              AND {VaultSql.NotVaultEntity("collection_items.work_id")}
             ORDER BY sort_order LIMIT @Limit
             """,
             new { CollectionId = collectionId, Limit = limit });
@@ -1681,7 +1686,7 @@ public sealed class CollectionRepository : ICollectionRepository
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
         var count = conn.ExecuteScalar<int>(
-            "SELECT COUNT(*) FROM collection_items WHERE collection_id = @CollectionId",
+            $"SELECT COUNT(*) FROM collection_items WHERE collection_id = @CollectionId AND {VaultSql.NotVaultEntity("collection_items.work_id")}",
             new { CollectionId = collectionId });
         return Task.FromResult(count);
     }
@@ -1707,6 +1712,7 @@ public sealed class CollectionRepository : ICollectionRepository
                 SELECT collection_id AS CollectionId, COUNT(*) AS Count
                 FROM collection_items
                 WHERE collection_id IN ({string.Join(", ", parameters)})
+                  AND {VaultSql.NotVaultEntity("collection_items.work_id")}
                 GROUP BY collection_id;
                 """;
 
@@ -1788,10 +1794,12 @@ public sealed class CollectionRepository : ICollectionRepository
         return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
             innerCt.ThrowIfCancellationRequested();
+            // A Vault work is never a member of a shared collection (Videos spec D27): the insert quietly adds nothing for one.
             conn.Execute(
-                """
+                $"""
                 INSERT INTO collection_items (id, collection_id, work_id, sort_order, progress_state, progress_position, added_at)
-                VALUES (@Id, @CollectionId, @WorkId, @SortOrder, @ProgressState, @ProgressPosition, @AddedAt)
+                SELECT @Id, @CollectionId, @WorkId, @SortOrder, @ProgressState, @ProgressPosition, @AddedAt
+                WHERE {VaultSql.NotVaultEntity("@WorkId")}
                 """,
                 new
                 {
@@ -1904,6 +1912,7 @@ public sealed class CollectionRepository : ICollectionRepository
                 FROM   collections h
                 INNER JOIN works w ON w.collection_id = h.id
                                AND {visibleWorkPredicate}
+                               AND {VaultSql.NotVaultEntity("w.id")}
                 WHERE  h.collection_type IN ('ContentGroup', 'Series', 'Universe')
                 ORDER  BY h.display_name, h.created_at, COALESCE(w.ordinal_sort, w.ordinal), w.id;
                 """;

@@ -717,7 +717,7 @@ public sealed class PermissionsGroundworkTests
             var audit = new AuthorizationAuditWriter(world.Accounts);
             world.Mutations = new AccountAccessMutationService(
                 world.Accounts, identities, profiles, world._configuration, world.Decisions, new AllowEvaluator(),
-                new PasswordHasher<GrantAdminProtection>(), new NoOpInvalidation(), new NoOpAudit(), world.Identity,
+                new NoOpInvalidation(), new NoOpAudit(), world.Identity,
                 new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
             world.Management = new HouseholdManagementService(
                 world.Households, world.Decisions, new AllowEvaluator(), audit, world.Clock);

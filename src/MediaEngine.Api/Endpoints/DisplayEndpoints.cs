@@ -254,7 +254,8 @@ public static class DisplayEndpoints
             .WithName("GetEntityArtworkWorkspace")
             .WithSummary("Returns lazy-loaded artwork variants for one entity workspace.")
             .Produces<ArtworkEntityWorkspaceDto>(StatusCodes.Status200OK)
-            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead);
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead)
+            .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.ArtworkRead);
 
         group.MapGet("/artwork/works/{workId:guid}/effective", async (
             Guid workId,
@@ -270,7 +271,8 @@ public static class DisplayEndpoints
             .WithSummary("Returns preferred artwork and its verified owner through a work's canonical parent chain.")
             .Produces<EffectiveArtworkSelection>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead);
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead)
+            .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.ArtworkRead, "workId");
 
         group.MapGet("/artwork/media-assets/{assetId:guid}/effective-cover", async (
             Guid assetId,
@@ -306,12 +308,7 @@ public static class DisplayEndpoints
                 return ApiErrors.NotFound("Artwork image not found.");
             }
 
-            var contentType = Path.GetExtension(path).Equals(".png", StringComparison.OrdinalIgnoreCase)
-                ? "image/png"
-                : Path.GetExtension(path).Equals(".webp", StringComparison.OrdinalIgnoreCase)
-                    ? "image/webp"
-                    : "image/jpeg";
-            return Results.File(path, contentType, enableRangeProcessing: true);
+            return ArtworkFileResults.Local(path) ?? ApiErrors.NotFound("Artwork image not found.");
         })
             .WithName("GetArtworkAssetContent")
             .WithSummary("Streams one canonical artwork asset rendition.")

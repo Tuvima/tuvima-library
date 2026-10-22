@@ -12,6 +12,7 @@
 @inject NavigationManager Nav
 @inject DeviceContextService DeviceContext
 @inject UIOrchestratorService Orchestrator
+@inject MediaEngine.Web.Services.Settings.LibraryKindsState LibraryKinds
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
 @inject AccountNoticeState Notices
@@ -197,7 +198,7 @@ else
                                                      TargetNameChanged="OnPlaybackTargetNameChanged" />
                                 break;
                             case SettingsSection.Libraries:
-                                <LibrariesTab Subsection="@_activeSubsection" />
+                                <LibrariesTab Subsection="@_activeSubsection" Detail="@Detail" />
                                 break;
                             case SettingsSection.Ingestion:
                                 <IngestionTasksTab View="@IngestionView" />
@@ -354,10 +355,17 @@ else
     private string BrowserTitle => IsProfileDetailRoute
         ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Library"
         : _activeSection == SettingsSection.Libraries
-        ? $"{(_activeSubsection == "view" ? "View" : "Libraries")} - Library"
+        ? LibrariesBrowserTitle
         : CurrentLocation?.Parent is { } parent
         ? $"{GetHeroTitle()} - {parent.Label} - Library"
         : $"{GetHeroTitle()} - Library";
+    // Vault mode does not exist yet, so the Vault is never shown (the same rule the Libraries page uses).
+    private LibraryLevelDescription LibrariesLevel => LibraryAddress.Describe(LibraryKinds.Catalog, _activeSubsection, Detail, showVault: false);
+    // "Movies - Watch - Library", "Watch - Library" or "Libraries - Library".
+    private string LibrariesBrowserTitle =>
+        LibrariesLevel.Crumbs.Count >= 3
+            ? $"{LibrariesLevel.Title} - {LibrariesLevel.Crumbs[^2].Label} - Library"
+            : $"{LibrariesLevel.Title} - Library";
     private bool ShouldDeferForRoleResolution =>
         SettingsNav.GetItem(_activeSection).AdminOnly
         && !_profileRoleLoaded;
@@ -440,6 +448,7 @@ else
         await developmentTools;
 
         Attention.Changed += OnAttentionChanged;
+        LibraryKinds.Changed += OnAttentionChanged;
         Notices.Changed += OnNoticesChanged;
         Orchestrator.OnProfileChanged += OnProfileChanged;
         DeviceContext.OnChanged += OnDeviceContextChanged;
@@ -465,6 +474,12 @@ else
         }
 
         _scrollToTopPending = true;
+
+        // The title and breadcrumb of a Libraries page name its group and kind, which come from the Engine's list of library kinds.
+        if (_activeSection == SettingsSection.Libraries && !LibraryKinds.Loaded)
+        {
+            await LibraryKinds.EnsureLoadedAsync();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -482,6 +497,7 @@ else
     {
         Notices.Changed -= OnNoticesChanged;
         Attention.Changed -= OnAttentionChanged;
+        LibraryKinds.Changed -= OnAttentionChanged;
         Attention.Stop();
         Orchestrator.OnProfileChanged -= OnProfileChanged;
         DeviceContext.OnChanged -= OnDeviceContextChanged;
@@ -598,6 +614,15 @@ else
             return;
         }
 
+        // A profile or authority change can reach this while the router has already moved to another settings page (or another tab of the same page) but has not
+        // handed this component the new Section, Subsection and Detail yet. Redirecting from that stale Section sends the page to the old address, and the
+        // same mistake then sends it back, flipping between two pages as fast as ingestion events arrive. The router's own parameter
+        // update runs this again with matching ones.
+        if (!RoutedSectionMatchesAddress())
+        {
+            return;
+        }
+
         if (!_legacyRedirectIssued
             && Section is not null
             && (Section.Equals("activity", StringComparison.OrdinalIgnoreCase)
@@ -677,7 +702,7 @@ else
 
         var currentPath = NormalizePath(Nav.ToBaseRelativePath(RoutedPageAddress.AbsoluteFor(Nav, Overlay)));
         var targetRoute = _activeSection == SettingsSection.Libraries && IsLibraryRouteSegment(Subsection)
-            ? $"/settings/libraries/{_activeSubsection}"
+            ? $"/settings/libraries/{_activeSubsection}{(string.IsNullOrWhiteSpace(Detail) ? string.Empty : "/" + Detail.Trim().ToLowerInvariant())}"
             : IsProfileDetailRoute
             ? $"/settings/profiles/{_activeSubsection}"
             : _activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail)
@@ -693,6 +718,23 @@ else
         }
     }
 
+    private bool RoutedSectionMatchesAddress()
+    {
+        var segments = NormalizePath(Nav.ToBaseRelativePath(RoutedPageAddress.AbsoluteFor(Nav, Overlay)))
+            .Trim('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0 || !string.Equals(segments[0], "settings", StringComparison.OrdinalIgnoreCase))
+        {
+            // The address is not a Settings address at all, so there is no newer page to wait for.
+            return true;
+        }
+
+        string? SegmentAt(int index) => segments.Length > index ? segments[index] : null;
+        return string.Equals(SegmentAt(1), Section, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(SegmentAt(2), Subsection, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(SegmentAt(3), Detail, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string NormalizePath(string path)
     {
         var relative = path.Split('?', '#')[0].Trim();
@@ -704,12 +746,13 @@ else
         return "/" + relative.Trim('/').TrimEnd('/');
     }
 
-    private static bool IsLibraryRouteSegment(string? value) =>
-        string.Equals(value, "view", StringComparison.OrdinalIgnoreCase);
+    // Libraries has its own levels: /settings/libraries/{group}, /settings/libraries/{group}/{type} and /settings/libraries/import.
+    private static bool IsLibraryRouteSegment(string? value) => SettingsNav.IsLibraryRouteSegment(value);
 
     private static bool IsValidDetailRoute(SettingsSection section, string subsection, string? detail)
     {
         if (string.IsNullOrWhiteSpace(detail)) return true;
+        if (section == SettingsSection.Libraries) return SettingsNav.IsLibraryRouteSegment(subsection) && IsProviderRouteKey(detail);
         if (section != SettingsSection.Providers) return false;
         return subsection == "providers" && IsProviderRouteKey(detail);
     }
@@ -828,10 +871,11 @@ else
 
         if (_activeSection == SettingsSection.Libraries)
         {
-            var hasView = !string.IsNullOrWhiteSpace(_activeSubsection);
-            breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, hasView ? pageRoute : null));
-            if (hasView)
-                breadcrumbs.Add(new SettingsBreadcrumb(_activeSubsection == "view" ? "View" : "Library", null));
+            // Libraries > Watch > Movies: the frame carries the level, so Libraries is a link once the page is deeper.
+            var steps = LibrariesLevel.Crumbs;
+            breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, steps.Count > 0 ? pageRoute : null));
+            foreach (var step in steps.Skip(1))
+                breadcrumbs.Add(new SettingsBreadcrumb(step.Label, step.Href));
             return breadcrumbs;
         }
 
@@ -866,10 +910,12 @@ else
     {
         if (_activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail))
             return "Provider Configuration";
+        if (_activeSection == SettingsSection.Libraries)
+            return LibrariesLevel.Title;
         return CurrentLocation?.Node.Label ?? SettingsNav.GetItem(_activeSection).Label;
     }
 
-    private string GetSectionDescription(SettingsSection section) => section switch
+    private string? GetSectionDescription(SettingsSection section) => section switch
     {
         SettingsSection.Overview => _activeSubsection == SettingsNav.AppsSubsection
             ? "Install the Library app on your phone or TV and connect it to this server."
@@ -891,7 +937,8 @@ else
         SettingsSection.AdminOverview => _activeSubsection == SettingsNav.LogsSubsection
             ? "What the Library did, the Engine's technical log, and how long logs are kept."
             : "How this server is doing: its version, processor, memory and storage.",
-        SettingsSection.Libraries => "Manage structured libraries and storage roots.",
+        // Only the front door has a subtitle; the pages below it are named by their title and breadcrumb.
+        SettingsSection.Libraries => LibrariesLevel.Crumbs.Count == 0 ? "Your media, grouped the way you browse it." : null,
         SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",
         SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",
         SettingsSection.Network => "Manage how devices reach Library at home and away without exposing unnecessary technical detail.",

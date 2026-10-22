@@ -13,7 +13,8 @@ public static class LibraryAreas
     public const string Watch = "watch";
     public const string Listen = "listen";
     public const string View = "view";
-    public static bool IsValid(string? value) => value is Read or Watch or Listen or View;
+    public const string Vault = "vault";
+    public static bool IsValid(string? value) => value is Read or Watch or Listen or View or Vault;
 }
 
 public static class LibraryPresentations

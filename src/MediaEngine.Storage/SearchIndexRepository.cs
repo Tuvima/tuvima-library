@@ -61,6 +61,21 @@ public sealed class SearchIndexRepository : ISearchIndexRepository
             return Task.CompletedTask;
         }
 
+        // A work with a file in a Vault library is never indexed for the shared search (Videos spec D27); a row it had is dropped.
+        using (var vaultCheck = conn.CreateCommand())
+        {
+            vaultCheck.CommandText = $"SELECT NOT ({VaultSql.NotVaultEntity("@workId")});";
+            vaultCheck.Parameters.Add("@workId", SqliteType.Blob).Value = GuidSql.ToBlob(workId.Value);
+            if (Convert.ToInt64(vaultCheck.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) != 0)
+            {
+                using var drop = conn.CreateCommand();
+                drop.CommandText = "DELETE FROM search_index WHERE entity_id = @workId;";
+                drop.Parameters.Add("@workId", SqliteType.Blob).Value = GuidSql.ToBlob(workId.Value);
+                drop.ExecuteNonQuery();
+                return Task.CompletedTask;
+            }
+        }
+
         // Self-scope reads (asset row).
         string? title = null, originalTitle = null;
         if (assetId is not null)
@@ -191,7 +206,7 @@ public sealed class SearchIndexRepository : ISearchIndexRepository
             // Phase 4 — title/original_title are Self (asset row), author is Parent
             // (topmost Work row). Search both targets via UNION.
             using var likeCmd = conn.CreateCommand();
-            likeCmd.CommandText = """
+            likeCmd.CommandText = $"""
                 SELECT DISTINCT w.id
                 FROM works w
                 JOIN editions e ON e.work_id = w.id
@@ -199,6 +214,7 @@ public sealed class SearchIndexRepository : ISearchIndexRepository
                 JOIN canonical_values cv ON cv.entity_id = ma.id
                 WHERE cv.key IN ('title', 'original_title')
                   AND cv.value LIKE @pattern
+                  AND {VaultSql.NotVaultEntity("w.id")}
                 UNION
                 SELECT DISTINCT w.id
                 FROM works w
@@ -208,6 +224,7 @@ public sealed class SearchIndexRepository : ISearchIndexRepository
                   ON cv.entity_id = COALESCE(gp.id, p.id, w.id)
                 WHERE cv.key IN ('author', 'creator')
                   AND cv.value LIKE @pattern
+                  AND {VaultSql.NotVaultEntity("w.id")}
                 LIMIT @limit
                 """;
             likeCmd.Parameters.AddWithValue("@pattern", $"%{trimmed}%");
@@ -227,9 +244,10 @@ public sealed class SearchIndexRepository : ISearchIndexRepository
         // omit the trailing * and ORDER BY rank clause.
         var escaped = trimmed.Replace("\"", "\"\"");
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
+        cmd.CommandText = $"""
             SELECT entity_id FROM search_index
             WHERE search_index MATCH @ftsQuery
+              AND {VaultSql.NotVaultEntity("search_index.entity_id")}
             LIMIT @limit
             """;
         cmd.Parameters.AddWithValue("@ftsQuery", $"\"{escaped}\"");
@@ -258,7 +276,7 @@ public sealed class SearchIndexRepository : ISearchIndexRepository
         //   • title, original_title, alternate_titles → SELF (asset row)
         //   • author, description                     → PARENT (topmost Work)
         using var populate = conn.CreateCommand();
-        populate.CommandText = """
+        populate.CommandText = $"""
             INSERT INTO search_index (entity_id, title, original_title, alternate_titles, author, description)
             SELECT
                 w.id,
@@ -291,12 +309,13 @@ public sealed class SearchIndexRepository : ISearchIndexRepository
             FROM works w
             LEFT JOIN works p  ON p.id  = w.parent_work_id
             LEFT JOIN works gp ON gp.id = p.parent_work_id
-            -- Only index leaf works that have at least one media asset.
+            -- Only index leaf works that have at least one media asset, and never a work with a file in a Vault library.
             WHERE EXISTS (
                 SELECT 1 FROM editions ex
                 JOIN media_assets max ON max.edition_id = ex.id
                 WHERE ex.work_id = w.id
-            );
+            )
+            AND {VaultSql.NotVaultEntity("w.id")};
             """;
         populate.ExecuteNonQuery();
         return Task.CompletedTask;

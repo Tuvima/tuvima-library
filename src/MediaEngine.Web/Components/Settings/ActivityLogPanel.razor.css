@@ -6,6 +6,11 @@
     margin-bottom: var(--tl-space-3);
 }
 
+.activity-log__sort {
+    flex: 0 0 auto;
+    min-width: 10rem;
+}
+
 .activity-log__search {
     flex: 1 1 16rem;
     min-width: 0;
@@ -21,7 +26,7 @@
 
 .activity-log__row {
     display: grid;
-    grid-template-columns: 7.5rem 1.5rem minmax(0, 1fr);
+    grid-template-columns: 7.5rem 1.5rem 2.5rem minmax(0, 1fr);
     gap: var(--tl-space-3);
     align-items: start;
     padding: var(--tl-space-3) 0;
@@ -41,6 +46,13 @@
     justify-content: center;
     height: 1.5rem;
     color: var(--tl-text-muted);
+}
+
+/* A small square cover, or the type's icon where there is none; the artwork component draws its own frame. */
+.activity-log__art {
+    display: block;
+    width: 2.5rem;
+    overflow: hidden;
 }
 
 .activity-log__row--added .activity-log__symbol {
@@ -87,13 +99,12 @@
     text-decoration: underline;
 }
 
+/* The media type is a bare icon (name in its tooltip), not a pill. */
 .activity-log__media-type {
-    padding: 0 var(--tl-space-2);
-    border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-pill);
-    color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-caption);
-    line-height: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    align-self: center;
+    color: var(--tl-text-muted);
 }
 
 .activity-log__detail {
@@ -159,11 +170,19 @@
     }
 
     .activity-log__row {
-        grid-template-columns: 1.5rem minmax(0, 1fr);
+        grid-template-columns: 1.5rem 2.5rem minmax(0, 1fr);
         grid-template-areas:
-            "symbol time"
-            "body body";
+            "symbol time time"
+            "art body body";
         gap: var(--tl-space-1) var(--tl-space-2);
+    }
+
+    .activity-log__sort {
+        min-width: 0;
+    }
+
+    .activity-log__art {
+        grid-area: art;
     }
 
     .activity-log__time {

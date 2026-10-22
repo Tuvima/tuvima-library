@@ -110,6 +110,10 @@ public sealed class AccountLibraryGrant
     public DateTimeOffset GrantedAt { get; set; }
 }
 
+/// <summary>
+/// "Ask for my PIN on admin pages" for one sign-in's use of one profile. The PIN asked for is the profile's own PIN (one PIN per
+/// profile); this row only records that the question is switched on and how long the answer lasts.
+/// </summary>
 public sealed class GrantAdminProtection
 {
     public Guid AccountId { get; set; }
@@ -117,10 +121,6 @@ public sealed class GrantAdminProtection
     public bool IsEnabled { get; set; }
     public string UnlockMode { get; set; } = "FixedDuration";
     public int? UnlockMinutes { get; set; }
-    public string? PinHash { get; set; }
-    public string? HashScheme { get; set; }
-    public int FailedAttemptCount { get; set; }
-    public DateTimeOffset? LockedUntil { get; set; }
     public long ProtectionVersion { get; set; } = 1;
     public DateTimeOffset UpdatedAt { get; set; }
 }

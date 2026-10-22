@@ -9,6 +9,7 @@ using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -80,7 +81,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         [
             new()
             {
-                Id = MoviesId, Name = "Movies", Area = "watch", MediaTypes = ["Movies"],
+                Id = MoviesId, Name = "Movies", KindKey = "movies", Area = "watch", MediaTypes = ["Movies"],
                 PrimaryDestinationSourceId = "movies-main",
                 Sources =
                 [
@@ -91,14 +92,14 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             },
             new()
             {
-                Id = TvId, Name = "TV Shows", Area = "watch", MediaTypes = ["TV"],
+                Id = TvId, Name = "TV Shows", KindKey = "tv", Area = "watch", MediaTypes = ["TV"],
                 OrganizationPolicy = new() { Mode = "tuvima_standard", WriteTags = false },
                 PrimaryDestinationSourceId = "tv-main",
                 Sources = [new() { Id = "tv-main", Path = "E:\\Library\\TV", ManagementMode = "managed_by_tuvima", AccessMode = "writable" }],
             },
             new()
             {
-                Id = AudiobooksId, Name = "Audiobooks", Area = "listen", MediaTypes = ["Audiobooks"],
+                Id = AudiobooksId, Name = "Audiobooks", KindKey = "audiobooks", Area = "listen", MediaTypes = ["Audiobooks"],
                 Sources = [new() { Id = "audio-old", Path = "C:\\media\\Audiobooks", ManagementMode = "existing_library", AccessMode = "read_only" }],
             },
         ],
@@ -194,30 +195,50 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
         _popovers = Render<AppPopoverHost>();
     }
 
+    // Each type has its own page (/settings/libraries/{group}/{type}); this opens the one for a type's label.
+    private static readonly Dictionary<string, (string Group, string Type)> TypePages = new()
+    {
+        ["Movies"] = ("watch", "movies"),
+        ["TV Shows"] = ("watch", "tv"),
+        ["Videos"] = ("watch", "other_videos"),
+        ["Music"] = ("listen", "music"),
+        ["Audiobooks"] = ("listen", "audiobooks"),
+        ["Books"] = ("read", "books"),
+        ["Comics"] = ("read", "comics"),
+    };
+
     private IRenderedComponent<LibrariesTab> Open(string typeLabel)
     {
-        var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".library-folders__type");
-        cut.FindAll(".library-folders__type").Single(x => x.TextContent.Contains(typeLabel)).Click();
+        var (group, type) = TypePages[typeLabel];
+        var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, group).Add(x => x.Detail, type));
         cut.WaitForElement(".folder-table, .library-folders__empty");
+        return cut;
+    }
+
+    private IRenderedComponent<LibrariesTab> OpenImport()
+    {
+        var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, "import"));
+        cut.WaitForElement("#library-import-title");
         return cut;
     }
 
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
+    // The front door lists the groups (Watch, Listen, Read, View) with their types and folder counts; the Import folder is one row under them.
     [Fact]
-    public void OverviewListsEveryLibraryTypeWithItsFolderCount()
+    public void OverviewListsEveryGroupWithItsTypesAndFolderCount()
     {
         var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".library-folders__type");
-        Assert.Equal(8, cut.FindAll(".library-folders__type").Count);
-        Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Audiobooks") && x.TextContent.Contains("1 folder"));
-        Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Movies") && x.TextContent.Contains("3 folders"));
-        Assert.Contains("Add Folder", cut.Markup);
+        cut.WaitForElement(".lib-door__group");
+        Assert.Equal(4, cut.FindAll(".lib-door__group").Count);
+        Assert.Contains(cut.FindAll(".lib-door__group"), x => x.TextContent.Contains("Listen") && x.TextContent.Contains("Audiobooks") && x.TextContent.Contains("1 folder"));
+        Assert.Contains(cut.FindAll(".lib-door__group"), x => x.TextContent.Contains("Watch") && x.TextContent.Contains("Movies") && x.TextContent.Contains("4 folders"));
         Assert.Contains("/settings/libraries/view", cut.Markup);
+        Assert.Contains("Import folder", Text(cut.Find(".lib-door__import")));
     }
 
     private static ImportFolderStatusDto ConfiguredImport() => new()
@@ -232,16 +253,16 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         ],
     };
 
-    // I1 to I3: the Import folder is the eighth entry (after the seven media types), reads Not set, and shows only the Set button with no type lines.
+    // I1 to I3: the front door has one Import folder row that reads Not set; its page shows only the Set button with no type lines.
     [Fact]
-    public void ImportFolderIsTheEighthEntryAndShowsOnlySetWhenNotSet()
+    public void ImportFolderIsOneRowOnTheFrontDoorAndShowsOnlySetWhenNotSet()
     {
-        var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".library-folders__type");
-        var entries = cut.FindAll(".library-folders__type");
-        Assert.Equal("Import folder", Text(entries[7].QuerySelector("strong")!));
-        Assert.Equal("Not set", Text(entries[7].QuerySelector("small")!));
-        entries[7].Click();
+        var front = Render<LibrariesTab>();
+        front.WaitForElement(".lib-door__import");
+        Assert.Equal("Import folder", Text(front.Find(".lib-door__import strong")));
+        Assert.Equal("Not set", Text(front.Find(".lib-door__import .lib-door__counts")));
+        Assert.Equal("/settings/libraries/import", front.Find(".lib-door__import").GetAttribute("href"));
+        var cut = OpenImport();
         cut.WaitForAssertion(() => Assert.Contains("Set import folder", cut.Markup));
         Assert.Empty(cut.FindAll(".library-folders__destination"));
         Assert.DoesNotContain("Where imported files go", cut.Markup);
@@ -256,11 +277,10 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public void ImportPanelShowsTheFolderRowAndOneLinePerType()
     {
         _configuration.ImportFolderStatus = ConfiguredImport();
-        var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".library-folders__type");
-        var entries = cut.FindAll(".library-folders__type");
-        Assert.Equal("Set", Text(entries[7].QuerySelector("small")!));
-        entries[7].Click();
+        var front = Render<LibrariesTab>();
+        front.WaitForElement(".lib-door__import");
+        Assert.Equal("Set", Text(front.Find(".lib-door__import .lib-door__counts")));
+        var cut = OpenImport();
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".library-folders__destination").Count));
         Assert.Contains("C:\\media\\Import", cut.Find(".library-folders__table-row").TextContent);
         Assert.Contains("Where imported files go", cut.Markup);
@@ -272,21 +292,45 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Contains("To bring in a whole existing folder once, use Merge into on a managed folder.", cut.Markup);
     }
 
-    // Choose jumps to that type's folders and points at Add Folder.
+    // With the type list (the default), Choose jumps to that type's folders and points at Add Folder.
     [Fact]
     public void ChooseOnAnImportLineOpensThatTypeAndHighlightsAddFolder()
     {
         _configuration.ImportFolderStatus = ConfiguredImport();
-        var cut = Render<LibrariesTab>();
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog));
         cut.WaitForElement(".library-folders__type");
         cut.FindAll(".library-folders__type")[7].Click();
         cut.WaitForElement(".library-folders__destination");
         cut.FindAll(".library-folders__destination").Single(x => x.TextContent.Contains("Audiobooks")).QuerySelector("button")!.Click();
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("Audiobooks", Text(cut.Find("#library-folders-title")));
+            Assert.Contains("Audiobooks", Text(cut.Find(".library-folders__type[aria-current=true]")));
             Assert.NotEmpty(cut.FindAll(".library-folders__add.is-highlighted"));
         });
+    }
+
+    // On the Import folder's own address there is no type list, so Choose opens that type's page instead.
+    [Fact]
+    public void ChooseOnAnImportLineOnItsOwnPageOpensThatTypesAddress()
+    {
+        _configuration.ImportFolderStatus = ConfiguredImport();
+        var cut = OpenImport();
+        cut.WaitForElement(".library-folders__destination");
+        cut.FindAll(".library-folders__destination").Single(x => x.TextContent.Contains("Audiobooks")).QuerySelector("button")!.Click();
+        Assert.EndsWith("/settings/libraries/listen/audiobooks?highlight=add", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+    }
+
+    // The jump keeps pointing at Add Folder: the type's page opened that way highlights it, and opened any other way does not.
+    [Fact]
+    public void ATypePageOpenedFromAnImportChooseHighlightsAddFolder()
+    {
+        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/libraries/listen/audiobooks?highlight=add");
+        var highlighted = Open("Audiobooks");
+        Assert.NotEmpty(highlighted.FindAll(".library-folders__add.is-highlighted"));
+
+        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/libraries/listen/audiobooks");
+        var plain = Open("Audiobooks");
+        Assert.Empty(plain.FindAll(".library-folders__add.is-highlighted"));
     }
 
     // A type whose files cannot be filed shows the Engine's own sentence under its line.
@@ -302,9 +346,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
                 new() { MediaType = "TV Shows", Folder = "TV", FileCount = 2, Reason = "folder_unavailable", Message = "TV Shows are staying in the Import folder because the New media folder is offline." },
             ],
         };
-        var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".library-folders__type");
-        cut.FindAll(".library-folders__type")[7].Click();
+        var cut = OpenImport();
         cut.WaitForAssertion(() =>
         {
             var tv = cut.FindAll(".library-folders__destination").Single(x => x.TextContent.StartsWith("TV Shows"));
@@ -357,12 +399,12 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public void FolderTableHasFourColumnsAndAMenuPerFolder()
     {
         var cut = Open("Movies");
-        Assert.Equal(["Folder", "Handling", "New media", "Files", "Actions"], cut.FindAll(".folder-table__head [role=columnheader]").Select(Text));
+        Assert.Equal(["Folder", "New media", "Files", "Actions"], cut.FindAll(".folder-table__head [role=columnheader]").Select(Text));
         var rows = cut.FindAll(".folder-table__row");
         Assert.Equal(3, rows.Count);
         Assert.All(rows, row =>
         {
-            Assert.NotNull(row.QuerySelector(".folder-table__handling"));
+            Assert.NotNull(row.QuerySelector(".folder-table__icon"));
             Assert.NotNull(row.QuerySelector(".folder-table__marker"));
             Assert.NotNull(row.QuerySelector(".folder-table__files"));
             Assert.NotNull(row.QuerySelector(".folder-table__actions"));
@@ -372,7 +414,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Contains("E:\\Library\\Movies", Text(rows[0]));
     }
 
-    // A3: exactly one managed folder holds the marker; tapping another managed folder moves it and saves; as-is folders have no radio.
+    // A3: exactly one managed folder holds the marker; tapping another managed folder moves it and saves; read-only folders have no radio.
     [Fact]
     public void NewMediaMarkerSitsOnOneManagedFolderAndMovesOnTap()
     {
@@ -401,13 +443,13 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.DoesNotContain("Add a managed folder to import or upload", Open("Movies").Markup);
     }
 
-    // Switching an as-is folder that has files to Managed asks honestly first, then queues one organising job.
+    // Switching a read-only folder that has files to Managed asks honestly first, then queues one organising job.
     [Fact]
-    public async Task TappingAsIsHandlingExplainsThenConvertsTheFolder()
+    public async Task SwitchingReadOnlyToManagedExplainsThenConvertsTheFolder()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        await ClickHandlingChipAsync(cut, 2);
+        await SwitchHandlingAsync(cut, 2);
         dialogs.WaitForAssertion(() => Assert.Contains("Let Library manage F:\\Movies?", dialogs.Markup));
         Assert.Equal(0, _saves);
         Assert.Empty(_converted);
@@ -415,16 +457,16 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(["movies-old"], _converted));
         // The Engine makes the folder Managed itself, in the same step: the Dashboard never saves the mode first.
         Assert.Equal(0, _saves);
-        cut.WaitForAssertion(() => Assert.Contains("Converting…", Text(cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__handling")!)));
+        cut.WaitForAssertion(() => Assert.Contains("Converting", IconLabel(cut.FindAll(".folder-table__row")[2])));
     }
 
     // The confirmation says what the plan promises: renames, hours, other apps, no automatic undo, and the duplicate rule.
     [Fact]
-    public void TheConfirmationIsHonestAboutRenamingTimeOtherAppsAndUndo()
+    public async Task TheConfirmationIsHonestAboutRenamingTimeOtherAppsAndUndo()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__chip")!.Click();
+        await SwitchHandlingAsync(cut, 2);
         dialogs.WaitForAssertion(() => Assert.Contains("2,140 files", dialogs.Markup));
         var text = Text(dialogs.Find(".convert-folder"));
         Assert.Contains("rename and reorganise the 2,140 files", text);
@@ -441,16 +483,16 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var buttons = dialogs.FindAll("button").Select(Text).ToList();
         Assert.Contains("Preview first", buttons);
         Assert.Contains("Convert", buttons);
-        Assert.Contains("Keep as-is", buttons);
+        Assert.Contains("Keep read-only", buttons);
     }
 
-    // Preview first shows the counts and examples, changes nothing, and still offers Convert and Keep as-is.
+    // Preview first shows the counts and examples, changes nothing, and still offers Convert and Keep read-only.
     [Fact]
-    public void PreviewFirstShowsWhatWouldChangeWithoutChangingAnything()
+    public async Task PreviewFirstShowsWhatWouldChangeWithoutChangingAnything()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__chip")!.Click();
+        await SwitchHandlingAsync(cut, 2);
         dialogs.WaitForElement(".convert-folder");
         dialogs.FindAll("button").Single(x => Text(x) == "Preview first").Click();
         dialogs.WaitForAssertion(() => Assert.Contains("Nothing has changed yet", dialogs.Markup));
@@ -465,7 +507,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Contains("Convert", dialogs.FindAll("button").Select(Text));
         Assert.Equal(0, _saves);
         Assert.Empty(_converted);
-        dialogs.FindAll("button").Single(x => Text(x) == "Keep as-is").Click();
+        dialogs.FindAll("button").Single(x => Text(x) == "Keep read-only").Click();
         Assert.Empty(_converted);
     }
 
@@ -476,14 +518,14 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         _quick = new() { TotalFiles = 0, DuplicatePolicy = "keep_one" };
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        await ClickHandlingChipAsync(cut, 2);
+        await SwitchHandlingAsync(cut, 2);
         dialogs.WaitForAssertion(() => Assert.Contains("no media files in this folder yet", dialogs.Markup));
         await ClickButtonAsync(dialogs, "Let Library manage it");
         cut.WaitForAssertion(() => Assert.Equal("managed_by_tuvima", _lastLibrary?.Sources.Single(x => x.Id == "movies-old").ManagementMode));
         Assert.Empty(_converted);
     }
 
-    // The folder row shows the job: Handling says Converting, one progress line with a time left, and Pause and Cancel.
+    // The folder row shows the job: the folder icon says Converting, one progress line with a time left, and Pause and Cancel.
     [Fact]
     public void ARunningJobShowsProgressOnTheFolderRowWithPauseAndCancel()
     {
@@ -494,7 +536,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var row = cut.FindAll(".folder-table__row")[1];
         cut.WaitForAssertion(() => Assert.Contains("Organising 1,240 of 8,310", Text(row.QuerySelector(".folder-job")!)));
         Assert.Contains("about 2.5 h left", Text(row.QuerySelector(".folder-job")!));
-        Assert.Contains("Converting…", Text(row.QuerySelector(".folder-table__handling")!));
+        Assert.Contains("Converting", IconLabel(row));
         Assert.NotNull(row.QuerySelector(".folder-job [role=progressbar]"));
         var buttons = row.QuerySelectorAll(".folder-job button").Select(Text).ToList();
         Assert.Equal(["Pause", "Cancel"], buttons);
@@ -552,7 +594,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("8,290 organised, 20 could not be moved", Text(row.QuerySelector(".folder-job")!)));
         Assert.Equal("/engine-folder-log/job-9", row.QuerySelector(".folder-job a")!.GetAttribute("href"));
         Assert.Empty(row.QuerySelectorAll(".folder-job button"));
-        Assert.Contains("Managed", Text(row.QuerySelector(".folder-table__handling")!));
+        Assert.Contains("Managed", IconLabel(row));
     }
 
     // A managed folder can be organised on request, with the same honest question.
@@ -630,16 +672,16 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Equal("false", targets[1].GetAttribute("aria-checked"));
         Assert.Equal("true", dialogs.FindAll("[role=radiogroup][aria-label='Copy or move'] [role=radio]")[0].GetAttribute("aria-checked"));
 
-        // A folder used as-is can only be copied.
+        // A read-only folder can only be copied.
         Assert.DoesNotContain("Move instead of copy", dialogs.Markup);
-        Assert.Contains("Move is not offered because Library uses this folder as-is", dialogs.Markup);
+        Assert.Contains("Move is not offered because this folder is read-only", dialogs.Markup);
         Assert.Contains("Your folder is never changed", dialogs.Markup);
         Assert.Empty(_merges);
 
         dialogs.FindAll("button").Single(x => Text(x) == "Merge").Click();
         cut.WaitForAssertion(() => Assert.Single(_merges));
         Assert.Equal(("movies-old", "movies-main", "copy"), (_merges[0].SourceId, _merges[0].TargetSourceId, _merges[0].Mode));
-        cut.WaitForAssertion(() => Assert.Contains("Merging…", Text(cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__handling")!)));
+        cut.WaitForAssertion(() => Assert.Contains("Merging", IconLabel(cut.FindAll(".folder-table__row")[2])));
     }
 
     [Fact]
@@ -729,7 +771,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("Merging 4 of 12", Text(row.QuerySelector(".folder-job")!)));
         Assert.Contains("about 25 min left", Text(row.QuerySelector(".folder-job")!));
-        Assert.Contains("Merging…", Text(row.QuerySelector(".folder-table__handling")!));
+        Assert.Contains("Merging", IconLabel(row));
         Assert.Equal(["Pause", "Cancel"], row.QuerySelectorAll(".folder-job button").Select(Text));
 
         cut.Find(".folder-job button[aria-label='Cancel merging Plex Movies']").Click();
@@ -739,71 +781,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal([("merge-1", "cancel")], _controls));
     }
 
-    [Fact]
-    public async Task AddingAFolderThatHasFilesOffersThreeChoicesAndMergeOnlyWhenAManagedFolderExists()
-    {
-        var dialogs = Render<AppDialogHost>();
-        var service = Services.GetRequiredService<IAppDialogService>();
-
-        async Task<(string[] Labels, object? Data)> AskAsync(bool canMerge, string pick)
-        {
-            var parameters = new AppDialogParameters<AddFolderChoiceDialog>
-            {
-                { component => component.TypeLabel, "Movies" },
-                { component => component.CanMerge, canMerge },
-            };
-            var reference = await service.ShowAsync<AddFolderChoiceDialog>(string.Empty, parameters, new AppDialogOptions());
-            dialogs.WaitForAssertion(() => Assert.Contains("This folder already has files in it", dialogs.Markup));
-            var labels = dialogs.FindAll(".add-folder-choice button").Select(x => Text(x.QuerySelector("strong")!)).ToArray();
-            dialogs.FindAll(".add-folder-choice button").Single(x => Text(x.QuerySelector("strong")!) == pick).Click();
-            var result = await reference.Result;
-            return (labels, result?.Data);
-        }
-
-        var with = await AskAsync(canMerge: true, pick: "Merge into Movies");
-        Assert.Equal(["Use as-is (recommended)", "Merge into Movies", "Let Library manage it"], with.Labels);
-        Assert.Equal(AddFolderChoiceDialog.Merge, with.Data);
-
-        var without = await AskAsync(canMerge: false, pick: "Use as-is (recommended)");
-        Assert.Equal(["Use as-is (recommended)", "Let Library manage it"], without.Labels);
-        Assert.Equal(AddFolderChoiceDialog.AsIs, without.Data);
-
-        var managed = await AskAsync(canMerge: true, pick: "Let Library manage it");
-        Assert.Equal(AddFolderChoiceDialog.Managed, managed.Data);
-    }
-
-    [Fact]
-    public async Task AddingAVideosFolderAlwaysAsksWatchOrViewAndOnlySuggestsViewForPhoneFootage()
-    {
-        var dialogs = Render<AppDialogHost>();
-        var service = Services.GetRequiredService<IAppDialogService>();
-
-        async Task<(bool Hint, AddFolderPlaceDialog.AddFolderPlaceAnswer? Answer)> AskAsync(bool phone, string pick, bool lookup = true)
-        {
-            var parameters = new AppDialogParameters<AddFolderPlaceDialog>
-            {
-                { component => component.LooksLikePhoneFootage, phone },
-                { component => component.YoutubeLookup, lookup },
-            };
-            var reference = await service.ShowAsync<AddFolderPlaceDialog>(string.Empty, parameters, new AppDialogOptions());
-            dialogs.WaitForAssertion(() => Assert.Contains("Where does this folder belong?", dialogs.Markup));
-            var hint = dialogs.FindAll(".add-folder-place__hint").Count > 0;
-            Assert.Contains("contacts YouTube", dialogs.Markup);
-            dialogs.FindAll(".add-folder-place button").Single(x => Text(x.QuerySelector("strong")!) == pick).Click();
-            var result = await reference.Result;
-            return (hint, result?.Data as AddFolderPlaceDialog.AddFolderPlaceAnswer);
-        }
-
-        var ordinary = await AskAsync(phone: false, pick: "Videos (Watch)");
-        Assert.False(ordinary.Hint);
-        Assert.True(ordinary.Answer!.Watch);
-        Assert.True(ordinary.Answer.YoutubeLookup);
-
-        var phoneFolder = await AskAsync(phone: true, pick: "Photos and personal videos (View)", lookup: false);
-        Assert.True(phoneFolder.Hint);
-        Assert.False(phoneFolder.Answer!.Watch);
-        Assert.False(phoneFolder.Answer.YoutubeLookup);
-    }
+    // Adding a folder (read-only, merge and managed, the Videos YouTube switch and the phone-footage hint) is tested in AddFolderWizardTests.
 
     // Changing a naming preset asks before touching existing files; Only new files keeps today's behaviour.
     [Fact]
@@ -845,24 +823,24 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SwitchingBackToAsIsWarnsThatRenamedFilesKeepTheirNames()
+    public async Task SwitchingBackToReadOnlyWarnsThatRenamedFilesKeepTheirNames()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        cut.FindAll(".folder-table__row")[1].QuerySelector(".folder-table__chip")!.Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Use D:\\Plex\\Movies as-is?", dialogs.Markup));
+        await SwitchHandlingAsync(cut, 1);
+        dialogs.WaitForAssertion(() => Assert.Contains("Use D:\\Plex\\Movies as read-only?", dialogs.Markup));
         Assert.Contains("Library will stop organising this folder", dialogs.Markup);
         Assert.Contains("Files already renamed keep their new names", dialogs.Markup);
     }
 
     [Fact]
-    public void KeepAsIsChangesNothing()
+    public async Task KeepReadOnlyChangesNothing()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__chip")!.Click();
+        await SwitchHandlingAsync(cut, 2);
         dialogs.WaitForAssertion(() => Assert.Contains("Let Library manage F:\\Movies?", dialogs.Markup));
-        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Keep as-is").Click();
+        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Keep read-only").Click();
         Assert.Equal(0, _saves);
         Assert.Empty(_converted);
     }
@@ -894,7 +872,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public void SetupPanelDoesNotPointAtAnAdvancedSectionItDoesNotHave()
     {
         _configuration.Libraries[0].Sources.RemoveAll(x => x.Id != "movies-main");
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
         cut.WaitForElement(".library-folders__type");
         cut.FindAll(".library-folders__type").Single(x => x.TextContent.Contains("Movies")).Click();
         cut.WaitForElement(".folder-table");
@@ -909,7 +887,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public void SetupPhoneNoteOffersSkipWhileThereAreNoFolders()
     {
         _configuration.Libraries.ForEach(library => library.Sources.Clear());
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
         cut.WaitForElement(".library-folders__type");
         Assert.Equal(
             "Add or change folders on a computer or tablet. You can skip this step and set up folders later.",
@@ -938,18 +916,49 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.All(cut.FindAll(".folder-table__none"), none => Assert.Equal("img", none.GetAttribute("role")));
     }
 
-    // Each Handling cell also holds a plain label that phones show instead of the button (the stylesheet swaps them).
+    // The type's name is the Settings frame's title and last breadcrumb step; the page starts with the folders instead of repeating it as a heading, and has no type list.
     [Fact]
-    public void EachHandlingCellHoldsAPlainLabelBesideTheButton()
+    public void ThePaneDoesNotRepeatTheSelectedLibrariesNameAsAHeading()
     {
         var cut = Open("Movies");
-        Assert.All(cut.FindAll(".folder-table__handling"), cell =>
+        Assert.Empty(cut.FindAll(".libraries nav[aria-label=Breadcrumb], .libraries h1, .libraries h2, .libraries h3"));
+        Assert.Empty(cut.FindAll(".library-folders__type"));
+        Assert.Empty(cut.FindAll(".library-folders__detail h3"));
+        Assert.DoesNotContain("Folders that make up", cut.Markup);
+        Assert.NotEmpty(cut.FindAll(".library-folders__detail .folder-table"));
+    }
+
+    // The Recycle bin switch is the last thing in the pane (the stylesheet pins that block to the pane's bottom) and carries a bin icon.
+    [Fact]
+    public void TheRecycleBinSwitchSitsInAPinnedFooterWithABinIcon()
+    {
+        var cut = Open("Movies");
+        var footer = cut.Find(".library-folders__recycle");
+        Assert.Contains("Recycle bin", Text(footer));
+        Assert.NotNull(footer.QuerySelector(".app-switch-row__icon"));
+        Assert.Equal(footer.OuterHtml, cut.Find(".library-folders__detail .app-card__body").LastElementChild!.OuterHtml);
+    }
+
+    // A folder's icon is its state: a lock on the folder reads as read-only, and every icon carries the words as an accessible label and tooltip.
+    [Fact]
+    public void EachFolderIconSaysInWordsWhetherLibraryManagesOrOnlyReadsTheFolder()
+    {
+        var cut = Open("Movies");
+        var rows = cut.FindAll(".folder-table__row");
+        Assert.Empty(cut.FindAll(".folder-table__chip, .folder-table__tag, .folder-table__handling"));
+        Assert.All(rows, row =>
         {
-            var button = cell.QuerySelector("button.folder-table__chip")!;
-            var tag = cell.QuerySelector(".folder-table__tag")!;
-            Assert.Equal(Text(button), Text(tag));
-            Assert.Empty(cell.QuerySelectorAll(".folder-table__tag button"));
+            var icon = row.QuerySelector(".folder-table__icon")!;
+            Assert.Equal("img", icon.GetAttribute("role"));
+            Assert.False(string.IsNullOrWhiteSpace(icon.GetAttribute("aria-label")));
+            Assert.Equal(icon.GetAttribute("aria-label"), icon.GetAttribute("title"));
         });
+
+        Assert.Contains("is-managed", rows[0].QuerySelector(".folder-table__icon")!.ClassList);
+        Assert.Empty(rows[0].QuerySelectorAll(".folder-table__lock"));
+        Assert.Contains("is-readonly", rows[2].QuerySelector(".folder-table__icon")!.ClassList);
+        Assert.Contains("Read-only", IconLabel(rows[2]));
+        Assert.NotEmpty(rows[2].QuerySelectorAll(".folder-table__lock"));
     }
 
     // A7: tags are on by default and a type can opt out.
@@ -1000,7 +1009,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     [Fact]
     public void SetupWizardPanelHidesAdvanced()
     {
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
         cut.WaitForElement(".library-folders__type");
         Assert.Empty(cut.FindAll(".library-folders__advanced"));
     }
@@ -1012,32 +1021,41 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         await cut.ClickAsync(page => page.FindAll("[role=menuitem]").First(x => Text(x) == label));
     }
 
-    // The Handling chip and a dialog button are found and clicked in one step on the renderer thread (see RendererThreadExtensions).
-    private static Task ClickHandlingChipAsync(IRenderedComponent<LibrariesTab> cut, int row) =>
-        cut.ClickAsync(page => page.FindAll(".folder-table__row")[row].QuerySelector(".folder-table__chip")!);
+    // Switching a folder's handling is the row menu's "Switch to Read-only" or "Switch to Managed" item (the folder's icon only shows the state).
+    private async Task SwitchHandlingAsync(IRenderedComponent<LibrariesTab> cut, int row)
+    {
+        await cut.ClickAsync(page => page.FindAll(".folder-table__row")[row].QuerySelector(".folder-table__menu-trigger")!);
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role=menuitem]"), x => Text(x).StartsWith("Switch to", StringComparison.Ordinal)));
+        await cut.ClickAsync(page => page.FindAll("[role=menuitem]").First(x => Text(x).StartsWith("Switch to", StringComparison.Ordinal)));
+    }
+
+    // The words behind a folder's state icon (full access, read-only or busy); the icon alone is never the only signal.
+    private static string? IconLabel(AngleSharp.Dom.IElement row) => row.QuerySelector(".folder-table__icon")!.GetAttribute("aria-label");
+
+    // A dialog button is found and clicked in one step on the renderer thread (see RendererThreadExtensions).
 
     private static Task ClickButtonAsync(IRenderedComponent<AppDialogHost> dialogs, string label) =>
         dialogs.ClickAsync(host => host.FindAll("button").Single(x => Text(x) == label));
 
     [Fact]
-    public void KeepManagedCancelsTheSwitchToAsIs()
+    public async Task KeepManagedCancelsTheSwitchToReadOnly()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        cut.FindAll(".folder-table__row")[1].QuerySelector(".folder-table__chip")!.Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Use D:\\Plex\\Movies as-is?", dialogs.Markup));
+        await SwitchHandlingAsync(cut, 1);
+        dialogs.WaitForAssertion(() => Assert.Contains("Use D:\\Plex\\Movies as read-only?", dialogs.Markup));
         dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Keep managed").Click();
         Assert.Equal(0, _saves);
     }
 
     [Fact]
-    public void UseAsIsConfirmsThenSwitchesTheFolderToReadOnly()
+    public async Task UseReadOnlyConfirmsThenSwitchesTheFolderToReadOnly()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        cut.FindAll(".folder-table__row")[1].QuerySelector(".folder-table__chip")!.Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Use D:\\Plex\\Movies as-is?", dialogs.Markup));
-        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Use as-is").Click();
+        await SwitchHandlingAsync(cut, 1);
+        dialogs.WaitForAssertion(() => Assert.Contains("Use D:\\Plex\\Movies as read-only?", dialogs.Markup));
+        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Use read-only").Click();
         cut.WaitForAssertion(() => Assert.Equal("existing_library", _lastLibrary?.Sources.Single(x => x.Id == "movies-plex").ManagementMode));
         Assert.Equal("read_only", _lastLibrary!.Sources.Single(x => x.Id == "movies-plex").AccessMode);
     }
@@ -1075,13 +1093,13 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var row = cut.FindAll(".folder-table__row")[1];
         Assert.Contains("is-marked", row.ClassList);
         Assert.Contains("Organising…", row.TextContent);
-        Assert.Contains("Converting…", Text(row.QuerySelector(".folder-table__handling")!));
+        Assert.Contains("Converting", IconLabel(row));
         Assert.Empty(row.QuerySelectorAll(".folder-job"));
         Assert.Single(cut.FindAll(".folder-table__marker.is-marked"));
     }
 
     [Fact]
-    public async Task MarkerMovesWhenItsFolderIsRemovedOrSwitchedToAsIs()
+    public async Task MarkerMovesWhenItsFolderIsRemovedOrSwitchedToReadOnly()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
@@ -1092,12 +1110,12 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Equal("movies-plex", _lastLibrary?.PrimaryDestinationSourceId);
         Assert.Contains("is-marked", cut.FindAll(".folder-table__row")[0].ClassList);
 
-        // Switching the marked folder to As-is hands the marker to the next managed folder; with none left it is cleared.
+        // Switching the marked folder to Read-only hands the marker to the next managed folder; with none left it is cleared.
         _configuration.Libraries[1].Sources.Add(new() { Id = "tv-second", Path = "E:\\Library\\TV2", ManagementMode = "managed_by_tuvima", AccessMode = "writable" });
         var tv = Open("TV Shows");
-        tv.FindAll(".folder-table__row")[0].QuerySelector(".folder-table__chip")!.Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("as-is?", dialogs.Markup));
-        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Use as-is").Click();
+        await SwitchHandlingAsync(tv, 0);
+        dialogs.WaitForAssertion(() => Assert.Contains("read-only?", dialogs.Markup));
+        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Use read-only").Click();
         tv.WaitForAssertion(() => Assert.Equal("tv-second", _lastLibrary?.PrimaryDestinationSourceId));
         Assert.Single(tv.FindAll(".folder-table__marker.is-marked"));
     }
@@ -1155,8 +1173,8 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             Assert.Contains(hidden, phone);
         }
 
-        Assert.Contains(".folder-table__handling .folder-table__chip, .folder-table__menu { display: none; }", app);
-        Assert.Contains(".folder-table__tag { display: inline-flex; }", app);
+        Assert.Contains(".folder-table__menu { display: none; }", app);
+        Assert.DoesNotContain(".folder-table__chip", app);
     }
 
     [Fact]
@@ -1165,7 +1183,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync("mobile");
         var cut = Open("Movies");
         Assert.Empty(cut.FindAll(".folder-table__menu-trigger"));
-        Assert.All(cut.FindAll(".folder-table__chip, .folder-table__radio"), button => Assert.True(button.HasAttribute("disabled")));
+        Assert.All(cut.FindAll(".folder-table__radio"), button => Assert.True(button.HasAttribute("disabled")));
     }
 
     [Fact]
@@ -1174,9 +1192,11 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var cut = Render<AppDialogHost>();
         await cut.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(""));
         cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled")));
-        cut.Find(".server-folder-picker__pathbar input").Input("C:\\media\\changed");
+        cut.Find(".server-folder-picker__address-end").Click();
+        var input = cut.Find(".server-folder-picker__address-input");
+        input.Input("C:\\media\\changed");
         Assert.True(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled"));
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Go").Click();
+        input.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
         cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled")));
     }
 }
