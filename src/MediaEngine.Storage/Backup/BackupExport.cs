@@ -29,6 +29,9 @@ public abstract record BackupValue
     /// <summary>A reference to an exported title. <paramref name="wasText"/> is true when the original value was a TEXT id.</summary>
     public static BackupValue FromTitleRef(string key, bool wasText = false) => new TitleRef(key, wasText);
 
+    /// <summary>A TEXT that was protected with this computer's key and has been written readable so any computer can use it.</summary>
+    public static BackupValue FromPortable(string value) => new Portable(value);
+
     /// <summary>SQL NULL.</summary>
     public sealed record NullValue : BackupValue;
 
@@ -46,6 +49,13 @@ public abstract record BackupValue
     /// that the original value was a TEXT id rather than a 16-byte BLOB, so a restore writes back the same storage class.
     /// </summary>
     public sealed record TitleRef(string Key, bool WasText) : BackupValue;
+
+    /// <summary>
+    /// A TEXT that is machine-protected in the data store and was made readable for the backup (see
+    /// <see cref="IBackupPortableValueCodec"/>). A restore protects it again with the new computer's key. It appears
+    /// only in a column the table's rule lists as portable.
+    /// </summary>
+    public sealed record Portable(string Value) : BackupValue;
 
     /// <summary>A BLOB. Equality compares the bytes.</summary>
     public sealed record Blob(byte[] Value) : BackupValue
@@ -123,6 +133,11 @@ public sealed record BackupTitle(
 /// <param name="TitlesRecognisedByFileOnly">Titles with no external id, matched by exact file only on restore.</param>
 /// <param name="Profiles">Profiles in scope.</param>
 /// <param name="DroppedRows">Rows left out because the catalogue row they pointed at no longer exists.</param>
+/// <param name="CorrectionRows">Rows of a person's own corrections on catalogue rows (a locked title field, a renamed chapter).</param>
+/// <param name="PortableValuesKeptMachineBound">
+/// Portable values that could not be read with this computer's key (for example the key is gone), so they were kept as
+/// they are and only work on this computer.
+/// </param>
 public sealed record BackupExportContents(
     BackupScope Scope,
     int ConfigurationTables,
@@ -132,15 +147,20 @@ public sealed record BackupExportContents(
     int Titles,
     int TitlesRecognisedByFileOnly,
     int Profiles,
-    int DroppedRows);
+    int DroppedRows,
+    int CorrectionRows = 0,
+    int PortableValuesKeptMachineBound = 0);
 
 /// <summary>
 /// An export of configuration and personal state, with personal state keyed by recognition data.
 /// <see cref="Choices"/> hold a person's own choices on catalogue rows: each table's first column is <c>ref</c>, a
 /// title reference to the row itself, followed by the choice columns (their kind is <see cref="BackupDataKind.Catalogue"/>).
+/// <see cref="Corrections"/> hold rows a person made on catalogue tables, written like personal rows (every kept column,
+/// catalogue references as title references).
 /// </summary>
 public sealed record BackupExport(
     IReadOnlyList<BackupExportTable> Tables,
     IReadOnlyList<BackupExportTable> Choices,
     IReadOnlyList<BackupTitle> Titles,
-    BackupExportContents Contents);
+    BackupExportContents Contents,
+    IReadOnlyList<BackupExportTable> Corrections);

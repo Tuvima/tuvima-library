@@ -10,7 +10,8 @@ namespace MediaEngine.Storage.Backup;
 /// Reads the part of the data store a backup keeps: Configuration tables and PersonalState tables, as listed by
 /// <see cref="BackupTableClassification"/>. Every column that points at a catalogue row is replaced by a reference to
 /// a <see cref="BackupTitle"/> holding the recognition data for that title, so personal state can find its title again
-/// after a rescan. The catalogue itself (titles, descriptions, artwork, file paths) is never read.
+/// after a rescan. The catalogue itself (titles, descriptions, artwork, file paths) is never read, except a person's own
+/// choices and corrections on catalogue rows (a locked title field, a renamed chapter), which are kept the same way.
 /// </summary>
 public sealed class PersonalStateBackupRepository
 {
@@ -18,10 +19,16 @@ public sealed class PersonalStateBackupRepository
     private const string EntityKindColumn = "entity_kind";
 
     private readonly IDatabaseConnection _db;
+    private readonly IBackupPortableValueCodec? _portableValues;
 
-    public PersonalStateBackupRepository(IDatabaseConnection db)
+    /// <param name="db">The data store.</param>
+    /// <param name="portableValues">
+    /// Makes machine-protected values readable for the backup. With none, portable columns are exported unchanged.
+    /// </param>
+    public PersonalStateBackupRepository(IDatabaseConnection db, IBackupPortableValueCodec? portableValues = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
+        _portableValues = portableValues;
     }
 
     /// <summary>
@@ -40,7 +47,7 @@ public sealed class PersonalStateBackupRepository
         ArgumentNullException.ThrowIfNull(scope);
         using var connection = _db.CreateConnection();
         using var transaction = connection.BeginTransaction(deferred: true);
-        var export = Build(connection, transaction, scope, includeConfiguration: !scope.IsProfile, afterSnapshotStarted, ct);
+        var export = Build(connection, transaction, scope, includeConfiguration: !scope.IsProfile, _portableValues, afterSnapshotStarted, ct);
         transaction.Commit();
         return export;
     }
@@ -100,6 +107,7 @@ public sealed class PersonalStateBackupRepository
         SqliteTransaction transaction,
         BackupScope scope,
         bool includeConfiguration,
+        IBackupPortableValueCodec? portableValues,
         Action? afterSnapshotStarted,
         CancellationToken ct)
     {
@@ -108,6 +116,7 @@ public sealed class PersonalStateBackupRepository
         var book = new TitleBook(new TitleRecognitionReader(connection, transaction));
         var tables = new List<BackupExportTable>();
         var dropped = 0;
+        var keptMachineBound = 0;
 
         var rules = (includeConfiguration ? BackupTableClassification.OfKind(BackupDataKind.Configuration) : [])
             .Concat(BackupTableClassification.OfKind(BackupDataKind.PersonalState));
@@ -125,17 +134,42 @@ public sealed class PersonalStateBackupRepository
                 continue;
             }
 
-            tables.Add(ExportTable(connection, transaction, rule, liveColumns, scope, book, ref dropped, ct));
+            tables.Add(ExportTable(connection, transaction, rule, liveColumns, scope, book, rule.KeepWhere, portableValues, ref dropped, ref keptMachineBound, ct));
         }
 
+        // A person's own choices: on catalogue rows, and on the rows of a configuration table that a keep condition leaves
+        // out (collections the Library built).
         var choices = new List<BackupExportTable>();
-        foreach (var rule in BackupTableClassification.OfKind(BackupDataKind.Catalogue).Where(rule => rule.ChoiceColumns.Count > 0))
+        var choiceRules = BackupTableClassification.OfKind(BackupDataKind.Catalogue)
+            .Concat(BackupTableClassification.OfKind(BackupDataKind.Configuration).Where(rule => rule.KeepWhere is not null))
+            .Where(rule => rule.ChoiceColumns.Count > 0);
+        foreach (var rule in choiceRules)
         {
             ct.ThrowIfCancellationRequested();
             if (live.TryGetValue(rule.Table, out var liveColumns)
-                && ExportChoices(connection, transaction, rule, liveColumns, scope, book, ct) is { } choiceTable)
+                && ExportChoices(connection, transaction, rule, liveColumns, scope, book, ref dropped, ct) is { } choiceTable)
             {
                 choices.Add(choiceTable);
+            }
+        }
+
+        // A person's own rows on catalogue tables belong to the Library, so a profile export holds none.
+        var corrections = new List<BackupExportTable>();
+        if (!scope.IsProfile)
+        {
+            foreach (var rule in BackupTableClassification.OfKind(BackupDataKind.Catalogue).Where(rule => rule.CorrectionWhere is not null))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (!live.TryGetValue(rule.Table, out var liveColumns))
+                {
+                    continue;
+                }
+
+                var table = ExportTable(connection, transaction, rule, liveColumns, scope, book, rule.CorrectionWhere, null, ref dropped, ref keptMachineBound, ct);
+                if (table.Rows.Count > 0)
+                {
+                    corrections.Add(table);
+                }
             }
         }
 
@@ -149,8 +183,10 @@ public sealed class PersonalStateBackupRepository
             book.Titles.Count,
             book.Titles.Count(title => title.IsRecognisedByFileOnly),
             CountProfiles(connection, transaction, scope),
-            dropped);
-        return new BackupExport(tables, choices, book.Titles, contents);
+            dropped,
+            corrections.Sum(table => table.Rows.Count),
+            keptMachineBound);
+        return new BackupExport(tables, choices, book.Titles, contents, corrections);
     }
 
     private static BackupExportTable ExportTable(
@@ -160,7 +196,10 @@ public sealed class PersonalStateBackupRepository
         IReadOnlyList<LiveColumn> liveColumns,
         BackupScope scope,
         TitleBook book,
+        string? predicate,
+        IBackupPortableValueCodec? portableValues,
         ref int dropped,
+        ref int keptMachineBound,
         CancellationToken ct)
     {
         var excluded = new HashSet<string>(rule.ExcludedColumns, StringComparer.OrdinalIgnoreCase);
@@ -191,6 +230,14 @@ public sealed class PersonalStateBackupRepository
             references[index] = reference.Target;
         }
 
+        var portableIndexes = rule.PortableColumns
+            .Select(portable => columns.FindIndex(column => string.Equals(column, portable, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        if (portableIndexes.Any(index => index < 0))
+        {
+            throw new InvalidOperationException($"Backup rule for '{rule.Table}' names a portable column that is not a kept column of that table.");
+        }
+
         // A reference that may be NULL is written as NULL when its catalogue row is gone (an activity entry outlives the
         // title it names); a row whose NOT NULL reference is gone is dropped.
         var nullableReferences = references.Keys
@@ -202,9 +249,9 @@ public sealed class PersonalStateBackupRepository
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
 
-        if (!string.IsNullOrWhiteSpace(rule.KeepWhere))
+        if (!string.IsNullOrWhiteSpace(predicate))
         {
-            where.Add("(" + rule.KeepWhere + ")");
+            where.Add("(" + predicate + ")");
         }
 
         if (scope.ProfileId is { } profileId)
@@ -242,11 +289,32 @@ public sealed class PersonalStateBackupRepository
                 if (row is null)
                 {
                     dropped++;
+                    continue;
                 }
-                else
+
+                if (portableValues is not null)
                 {
-                    rows.Add(row);
+                    foreach (var index in portableIndexes)
+                    {
+                        if (row[index] is not BackupValue.Text protectedValue)
+                        {
+                            continue;
+                        }
+
+                        // Null means this computer's key cannot read it: keep it as it is, usable on this computer only.
+                        var readable = portableValues.Export(rule.Table, columns[index], protectedValue.Value);
+                        if (readable is null)
+                        {
+                            keptMachineBound++;
+                        }
+                        else
+                        {
+                            row[index] = BackupValue.FromPortable(readable);
+                        }
+                    }
                 }
+
+                rows.Add(row);
             }
         }
 
@@ -407,10 +475,12 @@ public sealed class PersonalStateBackupRepository
     }
 
     /// <summary>
-    /// Reads the person's own choices that sit on a Catalogue table (a favourite flag on a View item). Only rows where a
-    /// choice differs from the column's default are written, each as a reference to the row plus the choice values. A
-    /// column with a sibling <c>&lt;name&gt;_user_override</c> flag (a capture date) counts, and is kept, only while that
-    /// flag is set, so a date read from the file never enters the backup.
+    /// Reads the person's own choices that sit on a catalogue row (a favourite flag on a View item, a locked match on a
+    /// title) or, for a configuration table with a keep condition, on the rows that condition does not keep (a switch on a
+    /// collection the Library built). Only rows where a choice differs from the column's default are written, each as a
+    /// reference to the row plus the choice values. A column listed in the rule's <c>ChoiceGatedBy</c> counts, and is
+    /// kept, only while its flag column is set (a capture date read from the file never enters the backup). A choice
+    /// column that points at a catalogue row is written as a title reference. Returns null when there is nothing to write.
     /// </summary>
     private static BackupExportTable? ExportChoices(
         SqliteConnection connection,
@@ -419,6 +489,7 @@ public sealed class PersonalStateBackupRepository
         IReadOnlyList<LiveColumn> liveColumns,
         BackupScope scope,
         TitleBook book,
+        ref int dropped,
         CancellationToken ct)
     {
         var target = ChoiceTarget(rule.Table);
@@ -433,9 +504,47 @@ public sealed class PersonalStateBackupRepository
             throw new InvalidOperationException($"Backup rule for '{rule.Table}' names choice column '{column}', which is not a column of that table.");
         }
 
+        var choiceColumns = rule.ChoiceColumns.ToList();
+
+        // The flag that says a value was set by the person, when the column has one.
+        var gateIndex = choiceColumns
+            .Select(column =>
+            {
+                var gate = rule.ChoiceGatedBy.Where(entry => string.Equals(entry.Column, column, StringComparison.OrdinalIgnoreCase)).ToList();
+                if (gate.Count == 0)
+                {
+                    return -1;
+                }
+
+                var flag = choiceColumns.FindIndex(other => string.Equals(other, gate[0].Flag, StringComparison.OrdinalIgnoreCase));
+                return flag >= 0
+                    ? flag
+                    : throw new InvalidOperationException($"Backup rule for '{rule.Table}' gates '{column}' by '{gate[0].Flag}', which is not one of its choice columns.");
+            })
+            .ToList();
+
+        // Choice columns that point at a catalogue row become title references, like any other reference.
+        var references = new Dictionary<int, CatalogueTarget>();
+        foreach (var reference in rule.CatalogueReferences)
+        {
+            var index = choiceColumns.FindIndex(column => string.Equals(column, reference.Column, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0)
+            {
+                references[index] = reference.Target;
+            }
+        }
+
+        var nullableReferences = references.Keys.Where(index => !byName[choiceColumns[index]].NotNull).ToHashSet();
+
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        var where = string.Empty;
+        var where = new List<string>();
+        if (rule.Kind == BackupDataKind.Configuration)
+        {
+            // The rows the keep condition does not keep. A NULL answer counts as not kept.
+            where.Add("NOT COALESCE((" + rule.KeepWhere + "), 0)");
+        }
+
         if (scope.ProfileId is { } profileId)
         {
             // A profile export holds that profile's own items only; a table with no owner has none to give.
@@ -444,18 +553,13 @@ public sealed class PersonalStateBackupRepository
                 return null;
             }
 
-            where = " WHERE owner_profile_id = $owner";
+            where.Add("owner_profile_id = $owner");
             command.Parameters.AddWithValue("$owner", GuidSql.ToBlob(profileId));
         }
 
-        var choiceColumns = rule.ChoiceColumns.ToList();
         command.CommandText =
-            $"SELECT {string.Join(", ", new[] { "id" }.Concat(choiceColumns).Select(Quote))} FROM {Quote(rule.Table)}{where}";
-
-        // The flag that says a value was set by the person, when the column has one.
-        var overrideIndex = choiceColumns
-            .Select(column => choiceColumns.FindIndex(other => string.Equals(other, column + "_user_override", StringComparison.OrdinalIgnoreCase)))
-            .ToList();
+            $"SELECT {string.Join(", ", new[] { "id" }.Concat(choiceColumns).Select(Quote))} FROM {Quote(rule.Table)}" +
+            (where.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", where));
 
         var rows = new List<IReadOnlyList<BackupValue>>();
         using var reader = command.ExecuteReader();
@@ -476,7 +580,7 @@ public sealed class PersonalStateBackupRepository
             var differs = false;
             for (var i = 0; i < values.Length; i++)
             {
-                if (overrideIndex[i] >= 0 && !IsSet(values[overrideIndex[i]]))
+                if (gateIndex[i] >= 0 && !IsSet(values[gateIndex[i]]))
                 {
                     values[i] = null;
                     continue;
@@ -496,17 +600,27 @@ public sealed class PersonalStateBackupRepository
                 continue;
             }
 
+            var converted = ConvertRow(rule.Table, values, references, nullableReferences, -1, [], book);
+            if (converted is null)
+            {
+                dropped++;
+                continue;
+            }
+
             var row = new List<BackupValue>(values.Length + 1) { BackupValue.FromTitleRef(key) };
-            row.AddRange(values.Select(ToValue));
+            row.AddRange(converted);
             rows.Add(row);
         }
 
-        return new BackupExportTable(rule.Table, BackupDataKind.Catalogue, ["ref", .. choiceColumns], rows);
+        return rows.Count == 0 ? null : new BackupExportTable(rule.Table, BackupDataKind.Catalogue, ["ref", .. choiceColumns], rows);
     }
 
     private static CatalogueTarget ChoiceTarget(string table) => table.ToLowerInvariant() switch
     {
         "local_items" => CatalogueTarget.LocalItem,
+        "works" => CatalogueTarget.Work,
+        "persons" => CatalogueTarget.Person,
+        "collections" => CatalogueTarget.Collection,
         _ => throw new InvalidOperationException($"Backup rule for '{table}' has choices but no catalogue target is known for that table."),
     };
 

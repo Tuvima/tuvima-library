@@ -39,6 +39,7 @@ internal sealed class TitleRecognitionReader
             CatalogueTarget.Collection => ReadCollection(id),
             CatalogueTarget.Person => ReadPerson(id),
             CatalogueTarget.LocalItem => ReadLocalItem(id),
+            CatalogueTarget.FictionalEntity => ReadFictionalEntity(id),
             CatalogueTarget.Other => BackupTitle.Empty(string.Empty, nameof(CatalogueTarget.Other)),
             _ => throw new ArgumentOutOfRangeException(nameof(target), target, "Unknown catalogue target."),
         };
@@ -48,8 +49,8 @@ internal sealed class TitleRecognitionReader
 
     /// <summary>
     /// Finds what a polymorphic catalogue id points at. When the row says what kind it is (a saved item's entity
-    /// kind), that decides; otherwise the id is probed against works, collections, persons, editions, media assets and
-    /// local items, in that order. Returns null when nothing has that id.
+    /// kind), that decides; otherwise the id is probed against works, collections, persons, editions, media assets,
+    /// local items and fictional things, in that order. Returns null when nothing has that id.
     /// </summary>
     public CatalogueTarget? ResolveOther(string? kind, byte[] id)
     {
@@ -77,6 +78,7 @@ internal sealed class TitleRecognitionReader
             ("editions", CatalogueTarget.Edition),
             ("media_assets", CatalogueTarget.MediaAsset),
             ("local_items", CatalogueTarget.LocalItem),
+            ("fictional_entities", CatalogueTarget.FictionalEntity),
         ];
         foreach (var (table, target) in probes)
         {
@@ -387,6 +389,30 @@ internal sealed class TitleRecognitionReader
             Name = NullIfBlank(Text(rows[0][0])),
             MediaType = NullIfBlank(Text(rows[0][1])),
             FileHashes = HashesOf(files, 0),
+        };
+    }
+
+    private BackupTitle? ReadFictionalEntity(byte[] id)
+    {
+        var rows = Query(
+            "SELECT wikidata_qid, label FROM fictional_entities WHERE id = $id",
+            ("$id", id));
+        if (rows.Count == 0)
+        {
+            return null;
+        }
+
+        var ids = new Dictionary<string, string>(StringComparer.Ordinal);
+        var qid = Text(rows[0][0]);
+        if (!string.IsNullOrWhiteSpace(qid))
+        {
+            ids["wikidata_qid"] = qid;
+        }
+
+        return BackupTitle.Empty(string.Empty, nameof(CatalogueTarget.FictionalEntity)) with
+        {
+            Ids = ids,
+            Name = NullIfBlank(Text(rows[0][1])),
         };
     }
 

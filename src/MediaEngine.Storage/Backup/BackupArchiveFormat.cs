@@ -8,10 +8,11 @@ namespace MediaEngine.Storage.Backup;
 /// <summary>
 /// Writes and reads a <see cref="BackupExport"/> as the <c>data/</c> part of a backup archive:
 /// <c>data/configuration/&lt;table&gt;.json</c>, <c>data/personal/&lt;table&gt;.json</c>,
-/// <c>data/choices/&lt;table&gt;.json</c>, <c>data/titles.json</c> and <c>data/contents.json</c>. Values keep their
-/// SQLite storage class: JSON null, number (an integer has no fraction or exponent, a real always does),
-/// string, <c>{"b64": "..."}</c> for a BLOB and <c>{"title": "t1"}</c> for a reference to a title (with
-/// <c>"text": true</c> when the original id was TEXT rather than a BLOB).
+/// <c>data/choices/&lt;table&gt;.json</c>, <c>data/corrections/&lt;table&gt;.json</c>, <c>data/titles.json</c> and
+/// <c>data/contents.json</c>. Values keep their SQLite storage class: JSON null, number (an integer has no fraction or
+/// exponent, a real always does), string, <c>{"b64": "..."}</c> for a BLOB, <c>{"title": "t1"}</c> for a reference to a
+/// title (with <c>"text": true</c> when the original id was TEXT rather than a BLOB) and <c>{"portable": "..."}</c> for
+/// a value that was protected with one computer's key and is written readable so any computer can use it.
 /// </summary>
 public static class BackupArchiveFormat
 {
@@ -23,6 +24,9 @@ public static class BackupArchiveFormat
 
     /// <summary>Folder of a person's own choices on catalogue rows.</summary>
     public const string ChoicesFolder = "data/choices/";
+
+    /// <summary>Folder of a person's own rows on catalogue tables (a locked title field, a renamed chapter).</summary>
+    public const string CorrectionsFolder = "data/corrections/";
 
     /// <summary>The recognition data of every title the rows refer to.</summary>
     public const string TitlesEntry = "data/titles.json";
@@ -45,6 +49,7 @@ public static class BackupArchiveFormat
     private const string ConfigurationKind = "configuration";
     private const string PersonalKind = "personal_state";
     private const string ChoicesKind = "choices";
+    private const string CorrectionsKind = "corrections";
 
     private static readonly JsonWriterOptions WriterOptions = new() { Indented = false };
 
@@ -71,6 +76,11 @@ public static class BackupArchiveFormat
         {
             WriteEntry(archive, ChoicesFolder + table.Table + ".json", writer => WriteTable(writer, table, ChoicesKind));
         }
+
+        foreach (var table in export.Corrections)
+        {
+            WriteEntry(archive, CorrectionsFolder + table.Table + ".json", writer => WriteTable(writer, table, CorrectionsKind));
+        }
     }
 
     /// <summary>
@@ -88,6 +98,7 @@ public static class BackupArchiveFormat
 
         var tables = new List<BackupExportTable>();
         var choices = new List<BackupExportTable>();
+        var corrections = new List<BackupExportTable>();
         JsonDocument? titlesDocument = null;
         JsonDocument? contentsDocument = null;
         try
@@ -142,11 +153,12 @@ public static class BackupArchiveFormat
                 {
                     var rule = RuleFor(folder, table);
                     using var document = ParseEntry(entry, budget);
-                    var (parsed, kind) = ReadTable(document.RootElement, table, rule, folder == ChoicesFolder);
+                    var (parsed, kind) = ReadTable(document.RootElement, table, rule, folder);
                     var expected = folder switch
                     {
                         ConfigurationFolder => ConfigurationKind,
                         PersonalFolder => PersonalKind,
+                        CorrectionsFolder => CorrectionsKind,
                         _ => ChoicesKind,
                     };
                     if (kind != expected)
@@ -154,7 +166,12 @@ public static class BackupArchiveFormat
                         throw new InvalidDataException($"Table '{table}' is in the wrong folder for its kind.");
                     }
 
-                    (folder == ChoicesFolder ? choices : tables).Add(parsed);
+                    (folder switch
+                    {
+                        ChoicesFolder => choices,
+                        CorrectionsFolder => corrections,
+                        _ => tables,
+                    }).Add(parsed);
                 }
                 else
                 {
@@ -169,7 +186,7 @@ public static class BackupArchiveFormat
 
             var titles = ReadTitles(titlesDocument.RootElement);
             var known = titles.Select(title => title.Key).ToHashSet(StringComparer.Ordinal);
-            foreach (var table in tables.Concat(choices))
+            foreach (var table in tables.Concat(choices).Concat(corrections))
             {
                 foreach (var value in table.Rows.SelectMany(row => row))
                 {
@@ -180,7 +197,7 @@ public static class BackupArchiveFormat
                 }
             }
 
-            return new BackupExport(tables, choices, titles, ReadContents(contentsDocument.RootElement));
+            return new BackupExport(tables, choices, titles, ReadContents(contentsDocument.RootElement), corrections);
         }
         catch (Exception ex) when (ex is FormatException or OverflowException or InvalidOperationException)
         {
@@ -226,6 +243,8 @@ public static class BackupArchiveFormat
         writer.WriteNumber("titles_recognised_by_file_only", contents.TitlesRecognisedByFileOnly);
         writer.WriteNumber("profiles", contents.Profiles);
         writer.WriteNumber("dropped_rows", contents.DroppedRows);
+        writer.WriteNumber("correction_rows", contents.CorrectionRows);
+        writer.WriteNumber("portable_values_kept_machine_bound", contents.PortableValuesKeptMachineBound);
         writer.WriteEndObject();
     }
 
@@ -357,6 +376,11 @@ public static class BackupArchiveFormat
                 writer.WriteString("b64", Convert.ToBase64String(blob.Value));
                 writer.WriteEndObject();
                 break;
+            case BackupValue.Portable portable:
+                writer.WriteStartObject();
+                writer.WriteString("portable", portable.Value);
+                writer.WriteEndObject();
+                break;
             case BackupValue.TitleRef reference:
                 writer.WriteStartObject();
                 writer.WriteString("title", reference.Key);
@@ -449,8 +473,10 @@ public static class BackupArchiveFormat
 
     /// <summary>
     /// The rule for a table file, or a refusal. The table must be classified under exactly that name; a file in the
-    /// configuration folder must be for a Configuration table, in the personal folder a PersonalState table, and in the
-    /// choices folder a Catalogue table that has choice columns. A file for any other table is never read.
+    /// configuration folder must be for a Configuration table, in the personal folder a PersonalState table, in the
+    /// choices folder a table that has choice columns (a Catalogue table, or a Configuration table with a keep condition)
+    /// and in the corrections folder a Catalogue table that has a correction condition. A file for any other table is
+    /// never read.
     /// </summary>
     private static BackupTableRule RuleFor(string folder, string table)
     {
@@ -464,14 +490,16 @@ public static class BackupArchiveFormat
         {
             ConfigurationFolder => rule.Kind == BackupDataKind.Configuration,
             PersonalFolder => rule.Kind == BackupDataKind.PersonalState,
-            _ => rule.Kind == BackupDataKind.Catalogue && rule.ChoiceColumns.Count > 0,
+            CorrectionsFolder => rule.Kind == BackupDataKind.Catalogue && rule.CorrectionWhere is not null,
+            _ => rule.ChoiceColumns.Count > 0
+                && (rule.Kind == BackupDataKind.Catalogue || (rule.Kind == BackupDataKind.Configuration && rule.KeepWhere is not null)),
         };
         return allowed ? rule : throw new InvalidDataException($"Table '{table}' is not one a backup holds in that folder.");
     }
 
     private static bool TryTableEntry(string name, out string folder, out string table)
     {
-        foreach (var candidate in new[] { ConfigurationFolder, PersonalFolder, ChoicesFolder })
+        foreach (var candidate in new[] { ConfigurationFolder, PersonalFolder, ChoicesFolder, CorrectionsFolder })
         {
             if (name.StartsWith(candidate, StringComparison.Ordinal)
                 && name.EndsWith(".json", StringComparison.Ordinal)
@@ -492,7 +520,7 @@ public static class BackupArchiveFormat
         return false;
     }
 
-    private static (BackupExportTable Table, string Kind) ReadTable(JsonElement root, string expectedTable, BackupTableRule rule, bool isChoices)
+    private static (BackupExportTable Table, string Kind) ReadTable(JsonElement root, string expectedTable, BackupTableRule rule, string folder)
     {
         if (root.ValueKind != JsonValueKind.Object)
         {
@@ -511,6 +539,7 @@ public static class BackupArchiveFormat
             ConfigurationKind => BackupDataKind.Configuration,
             PersonalKind => BackupDataKind.PersonalState,
             ChoicesKind => BackupDataKind.Catalogue,
+            CorrectionsKind => BackupDataKind.Catalogue,
             _ => throw new InvalidDataException($"Table '{table}' has an unknown kind."),
         };
 
@@ -522,7 +551,7 @@ public static class BackupArchiveFormat
                 : throw new InvalidDataException($"Table '{table}' has a column name that is not text."));
         }
 
-        CheckColumns(table, columns, rule, isChoices);
+        CheckColumns(table, columns, rule, folder == ChoicesFolder);
 
         var rows = new List<IReadOnlyList<BackupValue>>();
         foreach (var rowElement in RequiredArray(root, "rows").EnumerateArray())
@@ -532,7 +561,18 @@ public static class BackupArchiveFormat
                 throw new InvalidDataException($"A row of '{table}' does not have one value per column.");
             }
 
-            rows.Add(rowElement.EnumerateArray().Select(ReadValue).ToList());
+            var values = rowElement.EnumerateArray().Select(ReadValue).ToList();
+            for (var i = 0; i < values.Count; i++)
+            {
+                // A portable value is a protected secret made readable; it is accepted only where the rule says so.
+                if (values[i] is BackupValue.Portable
+                    && (folder != ConfigurationFolder || !rule.PortableColumns.Contains(columns[i], StringComparer.OrdinalIgnoreCase)))
+                {
+                    throw new InvalidDataException($"Table '{table}' holds a portable value in a column that is not portable.");
+                }
+            }
+
+            rows.Add(values);
         }
 
         return (new BackupExportTable(table, dataKind, columns, rows), kind);
@@ -623,6 +663,8 @@ public static class BackupArchiveFormat
                             return BackupValue.FromBlob(DecodeBase64(text));
                         case "title":
                             return BackupValue.FromTitleRef(text);
+                        case "portable":
+                            return BackupValue.FromPortable(text);
                         case "real" when text == "inf":
                             return BackupValue.FromReal(double.PositiveInfinity);
                         case "real" when text == "-inf":
@@ -715,7 +757,9 @@ public static class BackupArchiveFormat
             RequiredInt(root, "titles"),
             RequiredInt(root, "titles_recognised_by_file_only"),
             RequiredInt(root, "profiles"),
-            RequiredInt(root, "dropped_rows"));
+            RequiredInt(root, "dropped_rows"),
+            RequiredInt(root, "correction_rows"),
+            RequiredInt(root, "portable_values_kept_machine_bound"));
     }
 
     private static string RequiredString(JsonElement element, string name) =>
