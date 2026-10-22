@@ -56,5 +56,6 @@ public sealed class DisplayRecentViewAuthorizationTests
         public ViewAssetQueryPlan? LastPlan { get; private set; }
         public Task<ViewAssetTimelinePageDto> QueryAsync(ViewAssetQueryPlan plan, CancellationToken ct = default) { LastPlan = plan; return Task.FromResult(new ViewAssetTimelinePageDto(rows.Where(r => plan.Scope.LibraryIds.Contains(r.LibraryId) && (plan.MediaKinds is not { Count: > 0 } kinds || kinds.Contains(r.MediaKind))).ToList(), null, false)); }
         public Task<ViewTimelineIndexDto> IndexAsync(ViewAssetQueryPlan plan, CancellationToken ct = default) => Task.FromResult(new ViewTimelineIndexDto([]));
+        public Task<IReadOnlyList<ViewAddedByDto>> AddedByAsync(ViewAssetQueryPlan plan, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ViewAddedByDto>>([]);
     }
 }

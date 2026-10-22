@@ -52,6 +52,8 @@ public sealed class EngineApiClientViewPolicyTests
             SubmitToSharedLibrary = true,
             AllowGallerySharing = true,
             AllowDocuments = true,
+            AllowPhotos = true,
+            AllowPersonalVideos = true,
         });
 
         Assert.NotNull(saved);

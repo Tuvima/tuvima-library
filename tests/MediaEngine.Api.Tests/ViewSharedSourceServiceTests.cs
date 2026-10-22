@@ -51,9 +51,9 @@ public sealed class ViewSharedSourceServiceTests : IDisposable
     public async Task MultipleManagedSourcesUseStableSharedIdentityWithoutPersonalOwner()
     {
         var first = await _service.CreateAsync(new CreateViewSourceRequest(
-            "Family archive", "managed", IncludeInTimeline: true));
+            "Family archive", "managed", IncludeInTimeline: true, ContentKind: ViewContentKinds.Photos));
         var second = await _service.CreateAsync(new CreateViewSourceRequest(
-            "Scanned albums", "managed"));
+            "Scanned albums", "managed", ContentKind: ViewContentKinds.Photos));
         var shared = await _shared.GetAsync();
 
         Assert.NotEqual(first.Id, second.Id);
@@ -113,7 +113,7 @@ public sealed class ViewSharedSourceServiceTests : IDisposable
         await _storage.AddLinkedSourceAsync(space, "Private phone", linked.FullName, true);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.CreateAsync(
-            new CreateViewSourceRequest("Shared phone", "linked", linked.FullName)));
+            new CreateViewSourceRequest("Shared phone", "linked", linked.FullName, ContentKind: ViewContentKinds.Photos)));
 
         Assert.Empty(await _shared.GetSourcesAsync());
     }
@@ -146,7 +146,7 @@ public sealed class ViewSharedSourceServiceTests : IDisposable
         };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.CreateAsync(
-            new CreateViewSourceRequest("Unsafe import", "managed", importPath)));
+            new CreateViewSourceRequest("Unsafe import", "managed", importPath, ContentKind: ViewContentKinds.Photos)));
 
         Assert.Empty(await _shared.GetSourcesAsync());
         Assert.False(Directory.Exists(_storage.GetSharedRoot()));
@@ -156,7 +156,7 @@ public sealed class ViewSharedSourceServiceTests : IDisposable
     [Fact]
     public async Task EmptySourceCanBeRenamedAndDetachedWithoutTouchingFolders()
     {
-        var created = await _service.CreateAsync(new CreateViewSourceRequest("Archive", "managed"));
+        var created = await _service.CreateAsync(new CreateViewSourceRequest("Archive", "managed", ContentKind: ViewContentKinds.Photos));
         var updated = await _service.UpdateAsync(created.Id,
             new UpdateViewSourceRequest("Renamed archive", false, true));
 
@@ -174,7 +174,7 @@ public sealed class ViewSharedSourceServiceTests : IDisposable
     {
         var linked = Directory.CreateDirectory(Path.Combine(_root, "shared-linked"));
         var source = await _service.CreateAsync(new CreateViewSourceRequest(
-            "Shared NAS", "linked", linked.FullName, IncludeSubdirectories: false));
+            "Shared NAS", "linked", linked.FullName, IncludeSubdirectories: false, ContentKind: ViewContentKinds.Photos));
         var library = await _shared.GetAsync();
         var folders = new ViewFolderService(
             _database,

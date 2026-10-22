@@ -11,10 +11,11 @@ public interface IViewTrashRepository
 {
     /// <summary>
     /// Counts by kind and the size of the files used by the owner's trashed personal items, with no file listing. Documents are
-    /// left out when <paramref name="includeDocuments"/> is false (a profile without the Documents permission).
+    /// left out when <paramref name="blockedKinds"/> names their View kind (a profile without that permission): items
+    /// of a blocked kind (<c>photos</c>, <c>personal_videos</c> or <c>documents</c>) are not counted.
     /// </summary>
     Task<ViewTrashTotals> GetTotalsAsync(
-        Guid personalSpaceId, Guid ownerProfileId, bool includeDocuments, CancellationToken ct = default);
+        Guid personalSpaceId, Guid ownerProfileId, IReadOnlyCollection<string> blockedKinds, CancellationToken ct = default);
 
     /// <summary>
     /// The owner's trashed personal items (<c>trashed_at</c> set) with all of their files, in every role. Each file lists

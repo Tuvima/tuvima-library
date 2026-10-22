@@ -3,6 +3,7 @@ using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -80,7 +81,7 @@ public sealed class DocumentOcrTests
     public async Task TextJob_QueuesRecognitionOnlyForPdfsWithUnreadPages()
     {
         var ocr = new FakeOcrService();
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("scan.pdf", OcrFixtures.Pdf(string.Empty, string.Empty));
         fixture.WritePersonal("typed.pdf", OcrFixtures.Pdf("This typed page has well over twenty five characters of text"));
 
@@ -97,7 +98,7 @@ public sealed class DocumentOcrTests
     public async Task Photos_AreQueuedStraightAwayAndOnlyOnce()
     {
         var ocr = new FakeOcrService();
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("receipt.png", OcrFixtures.Png());
         fixture.WritePersonal("raw.cr2", [1, 2, 3]);
 
@@ -111,7 +112,7 @@ public sealed class DocumentOcrTests
     public async Task NothingIsQueued_WhenTheHelperIsMissingOrSwitchedOff()
     {
         var ocr = new FakeOcrService { Capability = OcrCapability.Unavailable("Text recognition is not installed.") };
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("receipt.png", OcrFixtures.Png());
         fixture.WritePersonal("scan.pdf", OcrFixtures.Pdf(string.Empty));
 
@@ -128,7 +129,7 @@ public sealed class DocumentOcrTests
     public async Task QueueingTheSameFileTwiceMakesOneJobButAnEditedFileMakesAnother()
     {
         var ocr = new FakeOcrService();
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         var itemId = Guid.NewGuid();
 
         await fixture.OcrQueue!.TryQueueAsync(itemId, "hash-one", "scan.pdf", CancellationToken.None);
@@ -148,7 +149,7 @@ public sealed class DocumentOcrTests
         {
             OnRecognize = (call, _) => Task.FromResult(new OcrRecognition($"zeppelin hangar rental page{call}", 88, 4)),
         };
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("lease.pdf", OcrFixtures.Pdf(string.Empty, string.Empty));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
         await fixture.DrainTextQueueAsync();
@@ -171,7 +172,7 @@ public sealed class DocumentOcrTests
     public async Task EveryPageRead_LeavesOneLibraryBackgroundUsageRecord_ForTheTextReader()
     {
         var ocr = new FakeOcrService();
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("lease.pdf", OcrFixtures.Pdf(string.Empty, string.Empty));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
         await fixture.DrainTextQueueAsync();
@@ -196,7 +197,7 @@ public sealed class DocumentOcrTests
         {
             OnRecognize = (_, _) => Task.FromResult(new OcrRecognition("handwritten marginalia gazebo", 70, 3)),
         };
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("mixed.pdf", OcrFixtures.Pdf("Embedded paragraph about lighthouse keepers and more", string.Empty));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
         await fixture.DrainTextQueueAsync();
@@ -218,7 +219,7 @@ public sealed class DocumentOcrTests
         {
             OnRecognize = (_, _) => Task.FromResult(new OcrRecognition("marmalade invoice number 4471", 93.2, 5)),
         };
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("invoice.png", OcrFixtures.Png());
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
 
@@ -234,7 +235,7 @@ public sealed class DocumentOcrTests
     public async Task TinyImages_AreSkippedWithoutReading()
     {
         var ocr = new FakeOcrService();
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("icon.png", OcrFixtures.Png(64, 64));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
 
@@ -247,7 +248,7 @@ public sealed class DocumentOcrTests
     public async Task FailedReRead_KeepsThePreviousGoodText()
     {
         var ocr = new FakeOcrService { OnRecognize = (_, _) => throw new InvalidOperationException("engine crashed") };
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("scan.pdf", OcrFixtures.Pdf(string.Empty));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
         await fixture.DrainTextQueueAsync();
@@ -273,7 +274,7 @@ public sealed class DocumentOcrTests
                 ? throw new InvalidOperationException("first file is broken")
                 : Task.FromResult(new OcrRecognition("sundial calibration notes", 80, 3)),
         };
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("a.png", OcrFixtures.Png());
         fixture.WritePersonal("b.png", OcrFixtures.Png(640, 480));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
@@ -305,7 +306,7 @@ public sealed class DocumentOcrTests
                 return new OcrRecognition(string.Empty, null, 0);
             },
         };
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.Configuration.SaveOcr(new OcrSettings { PerFileTimeoutSeconds = 1 });
         fixture.WritePersonal("long.pdf", OcrFixtures.Pdf(string.Empty, string.Empty, string.Empty));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
@@ -324,7 +325,7 @@ public sealed class DocumentOcrTests
     public async Task PagesBeyondTheCap_AreNotReadAndTheFileIsMarkedPartial()
     {
         var ocr = new FakeOcrService();
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.Configuration.SaveOcr(new OcrSettings { MaxPagesPerFile = 2 });
         fixture.WritePersonal("big.pdf", OcrFixtures.Pdf(string.Empty, string.Empty, string.Empty, string.Empty));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
@@ -346,7 +347,7 @@ public sealed class DocumentOcrTests
                 ? throw new InvalidOperationException("page one crashed the helper")
                 : Task.FromResult(new OcrRecognition("harbour pilot logbook", 85, 3)),
         };
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("two.pdf", OcrFixtures.Pdf(string.Empty, string.Empty));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
         await fixture.DrainTextQueueAsync();
@@ -365,7 +366,7 @@ public sealed class DocumentOcrTests
         {
             OnRecognize = (_, _) => Task.FromResult(new OcrRecognition("a | ~", 22, 2)),
         };
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("beach.png", OcrFixtures.Png());
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
 
@@ -381,7 +382,7 @@ public sealed class DocumentOcrTests
     public async Task Worker_WaitsWhileSomeoneIsPlayingMedia_ThenResumes()
     {
         var ocr = new FakeOcrService();
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("receipt.png", OcrFixtures.Png());
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
         var probe = new ManualPlaybackProbe { Playing = true };
@@ -404,7 +405,7 @@ public sealed class DocumentOcrTests
     public async Task Worker_LeavesQueuedFilesAlone_WhenTheHelperIsNotAvailable()
     {
         var ocr = new FakeOcrService();
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("receipt.png", OcrFixtures.Png());
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
         ocr.Capability = OcrCapability.Unavailable("Text recognition is not installed.");
@@ -420,7 +421,7 @@ public sealed class DocumentOcrTests
     {
         // The first pass finds nothing readable, so both files are still "unread" when the person asks again.
         var ocr = new FakeOcrService { OnRecognize = (_, _) => Task.FromResult(new OcrRecognition(string.Empty, null, 0)) };
-        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr, contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("a.png", OcrFixtures.Png());
         fixture.WritePersonal("b.pdf", OcrFixtures.Pdf(string.Empty));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);

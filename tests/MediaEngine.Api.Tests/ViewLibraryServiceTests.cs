@@ -36,7 +36,7 @@ public sealed class ViewLibraryServiceTests
     }
 
     [Fact]
-    public async Task Scan_IndexesMixedPersonalMediaInPlaceAndSkipsCatalogueLibraries()
+    public async Task Scan_IndexesWhatFitsThePhotosFolderInPlaceAndSkipsCatalogueLibraries()
     {
         using var fixture = new ViewFixture();
         var imagePath = fixture.WritePersonal("lake.jpg", [1, 2, 3, 4]);
@@ -51,22 +51,20 @@ public sealed class ViewLibraryServiceTests
             await fixture.Service.ScanAsync(fixture.PersonalLibraryId));
 
         Assert.Equal(4, result.FilesSeen);
-        Assert.Equal(4, result.ItemsAdded);
-        Assert.Equal(4, result.FilesAdded);
-        Assert.Equal(4, result.SourcesAdded);
+        Assert.Equal(1, result.ItemsAdded);
+        Assert.Equal(1, result.FilesAdded);
+        Assert.Equal(1, result.SourcesAdded);
         Assert.Equal(0, result.Errors);
         Assert.Equal(originalImage, System.IO.File.ReadAllBytes(imagePath));
+        Assert.True(System.IO.File.Exists(Path.Combine(fixture.PersonalRoot, "concert.mp4")));
 
         var page = fixture.Repository.Query(new LocalAssetQuery(
             fixture.PersonalLibraryId,
             Limit: 20,
             IncludeHidden: true));
-        Assert.Equal(4, page.Total);
-        Assert.Contains(page.Items, item => item.MediaKind == LocalAssetMediaKinds.Image);
-        Assert.Contains(page.Items, item => item.MediaKind == LocalAssetMediaKinds.Video);
-        Assert.Contains(page.Items, item => item.MediaKind == LocalAssetMediaKinds.Document);
-        Assert.Contains(page.Items, item => item.MediaKind == LocalAssetMediaKinds.Audio);
-        Assert.Single(fixture.Repository.Query(new LocalAssetQuery(
+        Assert.Equal(1, page.Total);
+        Assert.Equal(LocalAssetMediaKinds.Image, Assert.Single(page.Items).MediaKind);
+        Assert.Empty(fixture.Repository.Query(new LocalAssetQuery(
             fixture.PersonalLibraryId,
             Search: "Yellowstone packing")).Items);
         Assert.Empty(fixture.Repository.Query(new LocalAssetQuery(
@@ -79,7 +77,7 @@ public sealed class ViewLibraryServiceTests
         Assert.Equal(0, repeat.ItemsAdded);
         Assert.Equal(0, repeat.FilesAdded);
         Assert.Equal(0, repeat.SourcesAdded);
-        Assert.Equal(4, fixture.Repository.Query(new LocalAssetQuery(
+        Assert.Equal(1, fixture.Repository.Query(new LocalAssetQuery(
             fixture.PersonalLibraryId,
             Limit: 20,
             IncludeHidden: true)).Total);
@@ -196,7 +194,7 @@ public sealed class ViewLibraryServiceTests
     [Fact]
     public async Task Scan_ReadsPdfAndOfficeTextInTheBackgroundAndSearchFindsIt()
     {
-        using var fixture = new ViewFixture();
+        using var fixture = new ViewFixture(contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("lease.pdf", DocumentFixtures.Pdf("zeppelin hangar rental"));
         fixture.WritePersonal("minutes.docx", DocumentFixtures.Docx("quarterly gazebo budget"));
         fixture.WritePersonal("ledger.xlsx", DocumentFixtures.Xlsx("marmalade invoices"));
@@ -221,7 +219,7 @@ public sealed class ViewLibraryServiceTests
     [Fact]
     public async Task TextRead_IsIdempotentAndRescanDoesNotQueueTwice()
     {
-        using var fixture = new ViewFixture();
+        using var fixture = new ViewFixture(contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("lease.pdf", DocumentFixtures.Pdf("zeppelin hangar"));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
         await fixture.DrainTextQueueAsync();
@@ -237,7 +235,7 @@ public sealed class ViewLibraryServiceTests
     [Fact]
     public async Task EditedDocumentAtTheSamePathUpdatesTheSameItemAndReplacesOldWords()
     {
-        using var fixture = new ViewFixture();
+        using var fixture = new ViewFixture(contentKind: ViewContentKinds.Documents);
         var path = fixture.WritePersonal("plan.pdf", DocumentFixtures.Pdf("zeppelin hangar"));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
         await fixture.DrainTextQueueAsync();
@@ -266,7 +264,7 @@ public sealed class ViewLibraryServiceTests
     [Fact]
     public async Task CorruptEncryptedAndEmptyDocumentsRecordNoneWithoutStoppingTheBatch()
     {
-        using var fixture = new ViewFixture();
+        using var fixture = new ViewFixture(contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("broken.pdf", "%PDF-1.4 this is not really a pdf"u8.ToArray());
         fixture.WritePersonal("locked.docx", [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 1, 2, 3]);
         fixture.WritePersonal("blank.pdf", DocumentFixtures.Pdf(string.Empty));
@@ -315,7 +313,7 @@ public sealed class ViewLibraryServiceTests
     [Fact]
     public async Task DocumentTimeline_SearchHighlightsWordsInSnippetsAndPagesByCursor()
     {
-        using var fixture = new ViewFixture();
+        using var fixture = new ViewFixture(contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("one.pdf", DocumentFixtures.Pdf("the zeppelin hangar rental agreement for spring"));
         fixture.WritePersonal("two.docx", DocumentFixtures.Docx("another zeppelin schedule for the summer"));
         fixture.WritePersonal("three.txt", "a zeppelin note without a table");
@@ -353,7 +351,7 @@ public sealed class ViewLibraryServiceTests
     [Fact]
     public async Task DocumentTimeline_WithoutSearchHasNoSnippetsAndReportsTextFlags()
     {
-        using var fixture = new ViewFixture();
+        using var fixture = new ViewFixture(contentKind: ViewContentKinds.Documents);
         fixture.WritePersonal("memo.pdf", DocumentFixtures.Pdf("quarterly gazebo budget"));
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
         await fixture.DrainTextQueueAsync();
@@ -370,7 +368,7 @@ public sealed class ViewLibraryServiceTests
     [Fact]
     public async Task DocumentText_IsReturnedBoundedAndOnlyForDocuments()
     {
-        using var fixture = new ViewFixture();
+        using var fixture = new ViewFixture(contentKind: ViewContentKinds.Documents);
         var path = fixture.WritePersonal("memo.txt", string.Join(' ', Enumerable.Repeat("filler", 100)) + " needleword");
         await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
         await fixture.DrainTextQueueAsync();
@@ -400,7 +398,11 @@ public sealed class ViewLibraryServiceTests
         private readonly ConfigurationDirectoryLoader _configuration;
         private readonly DatabaseConnection _database;
 
-        public ViewFixture(MediaEngine.Api.Services.LocalAssets.Ocr.IOcrService? ocr = null, bool withFiling = false)
+        public ViewFixture(
+            MediaEngine.Api.Services.LocalAssets.Ocr.IOcrService? ocr = null,
+            bool withFiling = false,
+            string contentKind = ViewContentKinds.Photos,
+            bool addedByAdministrator = false)
         {
             PersonalRoot = Path.Combine(_root, "personal");
             CatalogueRoot = Path.Combine(_root, "catalogue");
@@ -455,10 +457,18 @@ public sealed class ViewLibraryServiceTests
             var space = spaces.CreateAsync(OwnerProfileId, PersonalLibraryId).GetAwaiter().GetResult();
             PersonalSpaceId = space.Id;
             var now = DateTimeOffset.UtcNow;
+            AdministratorProfileId = Guid.NewGuid();
+            ProfileTestData.InsertAsync(_database, new Profile
+            {
+                Id = AdministratorProfileId,
+                DisplayName = "Folder administrator",
+                Role = ProfileRole.Administrator,
+            }).GetAwaiter().GetResult();
             spaces.UpsertSourceAsync(new ViewSource(
                 Guid.NewGuid(), space.Id, ViewSourceType.Folder, "Existing personal files", "test:personal",
                 null, now, now, ViewSourceStorageMode.Linked, ExternalPath: PersonalRoot,
-                IncludeSubdirectories: true, Enabled: true)).GetAwaiter().GetResult();
+                IncludeSubdirectories: true, Enabled: true, ContentKind: contentKind,
+                AddedByProfileId: addedByAdministrator ? AdministratorProfileId : null)).GetAwaiter().GetResult();
             var storage = new ViewStorageService(_configuration, spaces, new ViewSharedLibraryRepository(_database));
             Operations = new MediaOperationRepository(_database);
             if (ocr is not null)
@@ -556,6 +566,8 @@ public sealed class ViewLibraryServiceTests
         public Guid PersonalLibraryId { get; }
         public Guid CatalogueLibraryId { get; }
         public Guid OwnerProfileId { get; }
+        /// <summary>A second profile, who is the one that "added" the folder when the fixture is built for it.</summary>
+        public Guid AdministratorProfileId { get; }
         public string PersonalRoot { get; }
         public string CatalogueRoot { get; }
         public LocalAssetRepository Repository { get; }

@@ -65,7 +65,7 @@ public static class ViewClientEndpoints
 
         group.MapGet("/galleries", async (IViewRequestProfileContext identity,
             IViewResourceAuthorizationService authorization, IViewGalleryRepository galleries,
-            ILocalAssetRepository assets, CancellationToken ct) =>
+            IViewProfileRepository policies, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var (authority, refusal) = await ResolvePairedAppAsync(identity, ct);
             if (refusal is not null)
@@ -82,11 +82,12 @@ public static class ViewClientEndpoints
 
             // Documents are never part of this surface: counts leave them out and a saved Documents view is not listed.
             var profileId = authority!.ActiveProfileId!.Value;
+            var blocked = (await policies.GetPolicyAsync(profileId, ct)).BlockedContentKinds;
             return Results.Ok(new ViewGalleryListResponse(
-                (await galleries.GetOwnedAsync(profileId, false, ct))
+                (await galleries.GetOwnedAsync(profileId, false, ct, blocked))
                     .Where(gallery => !ViewEndpoints.IsDocumentView(gallery))
                     .Select(gallery => ToClient(gallery, profileId, assets)).ToList(),
-                (await galleries.GetSharedWithAsync(profileId, false, ct))
+                (await galleries.GetSharedWithAsync(profileId, false, ct, blocked))
                     .Where(gallery => !ViewEndpoints.IsDocumentView(gallery))
                     .Select(gallery => ToClient(gallery, profileId, assets)).ToList()));
         })

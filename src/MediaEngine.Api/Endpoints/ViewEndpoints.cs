@@ -114,6 +114,8 @@ public static partial class ViewEndpoints
                 CanBrowseOtherPeople = authority.PrincipalKind == PrincipalKind.Human && authority.IsEffectiveAdministrator,
                 CanViewDocuments = await MayUseDocumentsAsync(authority, preferences, ct),
                 CanFileSharedInbox = ViewSharedInboxAccess.CanFile(authority) && await MayUseDocumentsAsync(authority, preferences, ct),
+                CanViewPhotos = !(await BlockedKindsAsync(authority, preferences, ct)).Contains(ViewContentKinds.Photos),
+                CanViewPersonalVideos = !(await BlockedKindsAsync(authority, preferences, ct)).Contains(ViewContentKinds.PersonalVideos),
             });
         }).WithName("GetViewScopes").Produces<ViewScopeResolutionDto>();
 
@@ -186,6 +188,7 @@ public static partial class ViewEndpoints
             bool? withoutLocation, string? personKey, DateTimeOffset? from, DateTimeOffset? to,
             Guid[]? tag, Guid? correspondent, Guid? docType, DateOnly? docFrom, DateOnly? docTo,
             string? filing, string[]? field, string? docSort,
+            [FromQuery(Name = "added_by")] Guid[]? addedBy,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization,
             IViewQueryOrchestrator queries, CancellationToken ct) =>
@@ -221,7 +224,8 @@ public static partial class ViewEndpoints
                     ParseLifecycle(lifecycle),
                     AllowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope),
                     AnchorBefore: anchorBefore, WithoutLocation: withoutLocation == true,
-                    PersonKey: personKey, From: from, To: to, DocumentFilter: documentFilter), ct);
+                    PersonKey: personKey, From: from, To: to, DocumentFilter: documentFilter,
+                    AddedByProfileIds: addedBy is { Length: > 0 } ? addedBy : null), ct);
                 return Access(result.Outcome, result.Page is { } timelinePage
                     ? timelinePage with { Items = ViewItemCapabilities.ForViewer(timelinePage.Items, authority.ActiveProfileId) }
                     : null);
@@ -232,6 +236,7 @@ public static partial class ViewEndpoints
 
         group.MapGet("/assets/timeline-index", async (string? scope, Guid? scopeProfileId,
             string? q, string[]? kind, bool? favorite, bool? hidden, Guid? galleryId, string? lifecycle,
+            [FromQuery(Name = "added_by")] Guid[]? addedBy, Guid[]? tag,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization,
             IViewQueryOrchestrator queries, CancellationToken ct) =>
@@ -269,12 +274,54 @@ public static partial class ViewEndpoints
                     HiddenOnly: hidden == true,
                     GalleryId: galleryId,
                     Lifecycle: ParseLifecycle(lifecycle),
-                    AllowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope)), ct);
+                    AllowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope),
+                    DocumentFilter: BuildDocumentFilter(tag, null, null, null, null, null, null),
+                    AddedByProfileIds: addedBy is { Length: > 0 } ? addedBy : null), ct);
                 return Access(result.Outcome, result.Index);
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
             catch (InvalidOperationException exception) { return ApiErrors.Unprocessable(exception.Message); }
         }).WithName("GetViewTimelineIndex").Produces<ViewTimelineIndexDto>();
+
+        // The profiles that added items in a scope, with counts: the chips that filter a shared gallery by who added it.
+        group.MapGet("/assets/added-by", async (string? scope, Guid? scopeProfileId, string[]? kind,
+            IViewRequestProfileContext identity, IViewProfileRepository preferences,
+            IViewResourceAuthorizationService authorization,
+            IViewQueryOrchestrator queries, CancellationToken ct) =>
+        {
+            var authority = await identity.ResolveAuthorityAsync(ct);
+            if (!authority.IsAuthenticated)
+            {
+                return Unauthenticated();
+            }
+
+            try
+            {
+                var preferenceAccess = await AuthorizeDefaultScopePreferenceAsync(
+                    authority, scope, authorization, ct);
+                if (preferenceAccess is not null)
+                {
+                    return Access(preferenceAccess.Outcome);
+                }
+
+                var requested = authority.ActiveProfileId is { } profileId
+                    ? await GetScopeAsync(profileId, scope, scopeProfileId, preferences, ct)
+                    : ParseScope(scope, scopeProfileId);
+                // The counts read the same rows the list reads, so a kind the caller may not use never adds to a count.
+                var allowedKinds = await KindsWithoutBlockedDocumentsAsync(authority, kind, preferences, ct);
+                if (allowedKinds is null)
+                {
+                    return DocumentsNotAllowed();
+                }
+
+                var result = await queries.AddedByAsync(new ViewAssetQueryRequest(
+                    requested, 120, MediaKinds: allowedKinds,
+                    AllowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope)), ct);
+                return Access(result.Outcome, result.Profiles);
+            }
+            catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
+            catch (InvalidOperationException exception) { return ApiErrors.Unprocessable(exception.Message); }
+        }).WithName("GetViewAssetsAddedBy").Produces<IReadOnlyList<ViewAddedByDto>>();
 
         group.MapGet("/folders", async (string? scope, Guid? scopeProfileId,
             Guid? sourceId, string? path, bool? recursive, string? q, int? offset, int? limit,
@@ -314,7 +361,8 @@ public static partial class ViewEndpoints
                 var folderPage = await folders.QueryAsync(authority.ActiveProfileId ?? Guid.Empty,
                     decision.Scope, sourceId, path,
                     recursive == true, q, page.Offset, page.Limit,
-                    await MayUseDocumentsAsync(authority, preferences, ct), ct);
+                    await MayUseDocumentsAsync(authority, preferences, ct), ct,
+                    await BlockedKindsAsync(authority, preferences, ct));
                 return Results.Ok(folderPage);
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
@@ -407,6 +455,7 @@ public static partial class ViewEndpoints
 
             // A paired phone can browse as anyone in the household, so its backups always go to the one person
             // chosen for it, never to whoever it is browsing as. Browser uploads keep using the signed-in person.
+            var requesterProfileId = profileId;
             var target = await backup.ResolveUploadTargetAsync(authority, profileId, ct);
             if (target.ProfileId is not { } targetProfileId)
             {
@@ -428,6 +477,18 @@ public static partial class ViewEndpoints
                 return DocumentsNotAllowed();
             }
 
+            // Photos and personal videos have a permission of their own, checked the same way for the person uploading and
+            // for the person whose space it would land in.
+            if (ViewLibraryService.OwnKindOfFileName(file.FileName) is ViewContentKinds.Photos or ViewContentKinds.PersonalVideos)
+            {
+                var uploadKind = ViewLibraryService.OwnKindOfFileName(file.FileName)!;
+                if ((await policies.GetPolicyAsync(requesterProfileId, ct)).BlockedContentKinds.Contains(uploadKind)
+                    || (await policies.GetPolicyAsync(targetProfileId, ct)).BlockedContentKinds.Contains(uploadKind))
+                {
+                    return KindNotAllowed(uploadKind);
+                }
+            }
+
             profileId = targetProfileId;
 
             await storage.EnsurePersonalSpaceAsync(profileId, ct);
@@ -440,7 +501,9 @@ public static partial class ViewEndpoints
             try
             {
                 await using var input = file.OpenReadStream();
-                var result = await service.UploadAsync(profileId, file.FileName, input, ct);
+                // The item is recorded as added by the profile making the request, even when a paired phone's backup lands in
+                // someone else's space.
+                var result = await service.UploadAsync(profileId, file.FileName, input, ct, requesterProfileId);
                 return Results.Ok(new ViewUploadResponseDto(
                     result.ItemId, result.ItemAdded, result.FilesAdded, result.SourcesAdded));
             }
@@ -460,6 +523,11 @@ public static partial class ViewEndpoints
             if (decision.IsAllowed && await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
                 return DocumentsNotAllowed();
+            }
+
+            if (decision.IsAllowed && await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
             }
 
             return decision.IsAllowed && assets.Find(id, ct) is { } item
@@ -482,6 +550,11 @@ public static partial class ViewEndpoints
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
                 return DocumentsNotAllowed();
+            }
+
+            if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
             }
 
             if (assets.Find(id, ct) is not { } item)
@@ -512,6 +585,11 @@ public static partial class ViewEndpoints
                 return DocumentsNotAllowed();
             }
 
+            if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
+            }
+
             try
             {
                 var file = decision.Scope is null ? null : await resources.ResolveContentAsync(id,
@@ -540,6 +618,11 @@ public static partial class ViewEndpoints
                 return DocumentsNotAllowed();
             }
 
+            if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
+            }
+
             var file = decision.Scope is null ? null : await resources.ResolveContentAsync(
                 id, LocalAssetFileRoles.Primary, decision.Scope, ct);
             if (file is null || !File.Exists(file.FilePath))
@@ -566,6 +649,11 @@ public static partial class ViewEndpoints
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
                 return DocumentsNotAllowed();
+            }
+
+            if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
             }
             var file = decision.Scope is null ? null : await resources.ResolveContentAsync(
                 id, LocalAssetFileRoles.Primary, decision.Scope, ct);
@@ -597,6 +685,11 @@ public static partial class ViewEndpoints
             {
                 return DocumentsNotAllowed();
             }
+
+            if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
+            }
             try
             {
                 if (!await assets.UpdateDescriptionAsync(id, request.Description, ct))
@@ -621,6 +714,11 @@ public static partial class ViewEndpoints
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
                 return DocumentsNotAllowed();
+            }
+
+            if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
             }
             try
             {
@@ -652,6 +750,11 @@ public static partial class ViewEndpoints
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
                 return DocumentsNotAllowed();
+            }
+
+            if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
             }
             try
             {
@@ -687,6 +790,11 @@ public static partial class ViewEndpoints
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
                 return DocumentsNotAllowed();
+            }
+
+            if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
             }
             try
             {
@@ -929,7 +1037,8 @@ public static partial class ViewEndpoints
         group.MapPost("/admin/profiles/{profileId:guid}/sources", async (
             Guid profileId, CreateViewSourceRequest request, IProfileService profiles,
             ViewStorageService storage, ViewSourceIndexingHostedService indexing,
-            ViewLibraryService viewLibrary, IViewProfileRepository policies, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, CancellationToken ct) =>
+            ViewLibraryService viewLibrary, IViewProfileRepository policies, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders,
+            IViewRequestProfileContext identity, CancellationToken ct) =>
         {
             if (await profiles.GetProfileAsync(profileId, ct) is null)
             {
@@ -951,6 +1060,13 @@ public static partial class ViewEndpoints
                 return ApiErrors.BadRequest("Choose managed or linked storage.");
             }
 
+            if (!ViewContentKinds.IsValid(request.ContentKind))
+            {
+                return ApiErrors.BadRequest("Choose what the folder holds: photos, personal_videos or documents.");
+            }
+
+            // The folder records who added it; every file found in it is tagged with that profile.
+            var addedBy = (await identity.ResolveAuthorityAsync(ct)).ActiveProfileId;
             try
             {
                 if (!string.IsNullOrWhiteSpace(request.Path))
@@ -968,11 +1084,11 @@ public static partial class ViewEndpoints
                 var space = await storage.EnsurePersonalSpaceAsync(profileId, ct);
                 var source = string.Equals(request.StorageMode, "linked", StringComparison.OrdinalIgnoreCase)
                     ? await storage.AddLinkedSourceAsync(space, request.Name, request.Path ?? string.Empty,
-                        request.IncludeSubdirectories, ct)
+                        request.IncludeSubdirectories, ct, request.ContentKind!, addedBy)
                         : string.IsNullOrWhiteSpace(request.Path)
                         ? await storage.EnsureManagedSourceAsync(space, request.Name, ViewSourceType.Folder,
-                            $"managed:{Guid.NewGuid():N}", ct)
-                        : await storage.ImportFolderAsync(space, request.Name, request.Path, ct);
+                            $"managed:{Guid.NewGuid():N}", ct, request.ContentKind!, addedBy)
+                        : await storage.ImportFolderAsync(space, request.Name, request.Path, ct, request.ContentKind!, addedBy);
                 if (source.IncludeInTimeline != request.IncludeInTimeline)
                 {
                     source = await storage.UpdateSourceAsync(space, source with { IncludeInTimeline = request.IncludeInTimeline }, ct);
@@ -1008,9 +1124,30 @@ public static partial class ViewEndpoints
                 return ApiErrors.BadRequest("A source name is required.");
             }
 
+            if (request.ContentKind is not null && !ViewContentKinds.IsValid(request.ContentKind))
+            {
+                return ApiErrors.BadRequest("Choose what the folder holds: photos, personal_videos or documents.");
+            }
+
+            // The built-in upload source takes pictures and videos whatever its stored kind says, so its kind stays put.
+            var contentKind = request.ContentKind is null || ViewKindAcceptance.IsIntakeSource(source.SourceKey)
+                ? source.ContentKind
+                : request.ContentKind;
+            var kindChanged = !string.Equals(contentKind, source.ContentKind, StringComparison.Ordinal);
             source = await spaces.UpsertSourceAsync(source with
-            { Name = request.Name.Trim(), Enabled = request.Enabled, IncludeInTimeline = request.IncludeInTimeline }, ct);
+            {
+                Name = request.Name.Trim(),
+                Enabled = request.Enabled,
+                IncludeInTimeline = request.IncludeInTimeline,
+                ContentKind = contentKind,
+            }, ct);
             await indexing.RefreshSourcesAsync(ct);
+            if (kindChanged)
+            {
+                // The next scan applies the new kind to what it finds; files already indexed stay as they are.
+                indexing.RequestReconcile(space.LibraryId);
+            }
+
             return Results.Ok(ToAdminSource(space, source, storage));
         }).WithName("UpdateViewProfileSource").Produces<ViewSourceAdminDto>().RequireEffectiveAdministrator();
 
@@ -1068,7 +1205,7 @@ public static partial class ViewEndpoints
             CreateViewSourceRequest request, ViewSharedSourceService sources,
             ViewStorageService storage, ViewSourceIndexingHostedService indexing,
             MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders,
-            CancellationToken ct) =>
+            IViewRequestProfileContext identity, CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.Name))
             {
@@ -1078,6 +1215,11 @@ public static partial class ViewEndpoints
             if (request.StorageMode is not ("linked" or "managed"))
             {
                 return ApiErrors.BadRequest("Choose managed or linked storage.");
+            }
+
+            if (!ViewContentKinds.IsValid(request.ContentKind))
+            {
+                return ApiErrors.BadRequest("Choose what the folder holds: photos, personal_videos or documents.");
             }
 
             try
@@ -1094,7 +1236,8 @@ public static partial class ViewEndpoints
                         return ApiErrors.BadRequest(validation.Issues.First(issue => issue.Severity == "error").Message);
                     }
                 }
-                var source = await sources.CreateAsync(request, ct);
+                var source = await sources.CreateAsync(request, ct,
+                    (await identity.ResolveAuthorityAsync(ct)).ActiveProfileId);
                 await indexing.RefreshSourcesAsync(ct);
                 indexing.RequestReconcile(source.LibraryId);
                 return Results.Ok(ToAdminSource(source, storage));
@@ -1220,9 +1363,10 @@ public static partial class ViewEndpoints
             // A saved Documents view is a shelf of documents, so a profile that may not use Documents never sees one.
             // Every other Gallery counts only the items that profile may see, and never names a document as its cover.
             var documents = await MayUseDocumentsAsync(authority, preferences, ct);
+            var blocked = await BlockedKindsAsync(authority, preferences, ct);
             return Results.Ok(new ViewGalleryListResponse(
-                (await repository.GetOwnedAsync(profileId, documents, ct)).Where(gallery => documents || !IsDocumentView(gallery)).Select(gallery => ToContract(gallery, documents, assets)).ToList(),
-                (await repository.GetSharedWithAsync(profileId, documents, ct)).Where(gallery => documents || !IsDocumentView(gallery)).Select(gallery => ToContract(gallery, documents, assets)).ToList()));
+                (await repository.GetOwnedAsync(profileId, documents, ct, blocked)).Where(gallery => documents || !IsDocumentView(gallery)).Select(gallery => ToContract(gallery, documents, assets)).ToList(),
+                (await repository.GetSharedWithAsync(profileId, documents, ct, blocked)).Where(gallery => documents || !IsDocumentView(gallery)).Select(gallery => ToContract(gallery, documents, assets)).ToList()));
         }).WithName("GetViewGalleries").Produces<ViewGalleryListResponse>();
 
         group.MapPost("/galleries", async (ViewGalleryRequest request,
@@ -1283,8 +1427,9 @@ public static partial class ViewEndpoints
             var decision = await GalleryAccessAsync(id, ViewResourceAction.Read, identity, authorization, ct);
             if (decision.IsAllowed)
             {
-                var documents = await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct);
-                if (await repository.GetAsync(id, documents, ct) is { } gallery)
+                var galleryAuthority = await identity.ResolveAuthorityAsync(ct);
+                var documents = await MayUseDocumentsAsync(galleryAuthority, preferences, ct);
+                if (await repository.GetAsync(id, documents, ct, await BlockedKindsAsync(galleryAuthority, preferences, ct)) is { } gallery)
                 {
                     return IsDocumentView(gallery) && !documents
                         ? DocumentsNotAllowed()
@@ -1371,9 +1516,11 @@ public static partial class ViewEndpoints
                 return Access(decision.Outcome);
             }
 
-            var documents = await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct);
+            var itemsAuthority = await identity.ResolveAuthorityAsync(ct);
+            var documents = await MayUseDocumentsAsync(itemsAuthority, preferences, ct);
             return Results.Ok(ToContract(await repository.GetItemsAsync(id, afterPosition, afterItemId,
-                PagedRequest.From(0, limit, 100, 500).Limit, documents, ct)));
+                PagedRequest.From(0, limit, 100, 500).Limit, documents, ct,
+                await BlockedKindsAsync(itemsAuthority, preferences, ct))));
         }).WithName("GetViewGalleryItems").Produces<ViewGalleryItemPageDto>();
 
         group.MapPost("/galleries/{id:guid}/items", async (Guid id, ViewGalleryItemsRequest request,
@@ -1556,6 +1703,11 @@ public static partial class ViewEndpoints
                 return DocumentsNotAllowed();
             }
 
+            if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
+            }
+
             return await operation(assets, id, request.Value, ct) ? Results.NoContent() : Missing();
         }).WithName($"SetViewItem{char.ToUpperInvariant(name[0])}{name[1..]}")
             .Produces<Microsoft.AspNetCore.Http.HttpResults.NoContent>(StatusCodes.Status204NoContent);
@@ -1575,6 +1727,11 @@ public static partial class ViewEndpoints
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
                 return DocumentsNotAllowed();
+            }
+
+            if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return Missing();
             }
 
             // An item with a file in a linked (read-only) folder cannot go to Trash. Restoring one that is already
@@ -1603,10 +1760,38 @@ public static partial class ViewEndpoints
         authority.ActiveProfileId is not { } profileId
         || (await preferences.GetPolicyAsync(profileId, ct)).DocumentsEnabled;
 
+    /// <summary>The View kinds (photos, personal_videos, documents) the signed-in profile may not use.</summary>
+    private static async Task<IReadOnlyList<string>> BlockedKindsAsync(
+        RequestAuthority authority, IViewProfileRepository preferences, CancellationToken ct) =>
+        authority.ActiveProfileId is not { } profileId
+            ? []
+            : (await preferences.GetPolicyAsync(profileId, ct)).BlockedContentKinds;
+
+    /// <summary>
+    /// True for a Documents item the profile may not use. Gated by the item's View kind, so a picture of paper kept in a
+    /// Documents folder is hidden from a profile without Documents.
+    /// </summary>
     private static async Task<bool> DocumentsBlockedAsync(Guid id, ILocalAssetRepository assets,
         IViewRequestProfileContext identity, IViewProfileRepository preferences, CancellationToken ct) =>
-        assets.IsDocument(id)
+        string.Equals(assets.GetContentKind(id), ViewContentKinds.Documents, StringComparison.Ordinal)
         && !await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct);
+
+    /// <summary>
+    /// True for a Photos or Personal videos item the profile may not use. The answer for it is "not found": a profile
+    /// without a kind never learns that an item of that kind exists.
+    /// </summary>
+    private static async Task<bool> OtherKindBlockedAsync(Guid id, ILocalAssetRepository assets,
+        IViewRequestProfileContext identity, IViewProfileRepository preferences, CancellationToken ct) =>
+        assets.GetContentKind(id) is { } kind
+        && kind is ViewContentKinds.Photos or ViewContentKinds.PersonalVideos
+        && (await BlockedKindsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct)).Contains(kind);
+
+    private static IResult KindNotAllowed(string kind) => kind switch
+    {
+        ViewContentKinds.Documents => DocumentsNotAllowed(),
+        ViewContentKinds.PersonalVideos => ApiErrors.Forbidden("Personal videos are not available for this profile."),
+        _ => ApiErrors.Forbidden("Photos are not available for this profile."),
+    };
 
     private static IResult DocumentsNotAllowed() =>
         ApiErrors.Forbidden("Documents are not available for this profile.");
@@ -1828,7 +2013,11 @@ public static partial class ViewEndpoints
         source.LastActivityAt,
         source.CreatedAt,
             source.UpdatedAt,
-            source.IncludeInTimeline);
+            source.IncludeInTimeline,
+            source.ContentKind,
+            source.SkippedFileCount,
+            source.AddedByProfileId,
+            ViewKindAcceptance.IsIntakeSource(source.SourceKey));
 
     private static ViewSourceAdminDto ToAdminSource(
         ViewSharedSource source,
@@ -1844,7 +2033,11 @@ public static partial class ViewEndpoints
             source.LastActivityAt,
             source.CreatedAt,
             source.UpdatedAt,
-            source.IncludeInTimeline);
+            source.IncludeInTimeline,
+            source.ContentKind,
+            source.SkippedFileCount,
+            source.AddedByProfileId,
+            ViewKindAcceptance.IsIntakeSource(source.SourceKey));
 
     private static string SourceTypeValue(ViewSourceType value) => value switch
     {

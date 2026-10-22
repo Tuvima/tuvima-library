@@ -169,6 +169,7 @@ public sealed partial class EngineApiClient
         }
 
         AddDocumentFilterQuery(query, options.Documents);
+        AddAddedByQuery(query, options.AddedBy);
 
         AddQuery(query, "favorite", options.FavoritesOnly ? "true" : null);
         AddQuery(query, "hidden", options.HiddenOnly ? "true" : null);
@@ -176,6 +177,14 @@ public sealed partial class EngineApiClient
         AddQuery(query, "galleryId", options.GalleryId?.ToString("D"));
         AddQuery(query, "limit", Math.Clamp(options.Limit, 1, 500).ToString(System.Globalization.CultureInfo.InvariantCulture));
         return GetAsync<ViewAssetTimelinePageDto>("GET /view/assets", $"/view/assets?{string.Join('&', query)}", ct: ct);
+    }
+
+    private static void AddAddedByQuery(List<string> query, IReadOnlyList<Guid>? addedBy)
+    {
+        foreach (var profileId in addedBy ?? [])
+        {
+            AddQuery(query, "added_by", profileId.ToString("D"));
+        }
     }
 
     /// <summary>The Documents page's filters as the query values <c>GET /view/assets</c> and the export both read.</summary>
@@ -218,7 +227,27 @@ public sealed partial class EngineApiClient
         AddQuery(query, "hidden", options.HiddenOnly ? "true" : null);
         AddQuery(query, "lifecycle", options.Lifecycle);
         AddQuery(query, "galleryId", options.GalleryId?.ToString("D"));
+        AddAddedByQuery(query, options.AddedBy);
+        foreach (var tag in options.Documents?.TagIds ?? [])
+        {
+            AddQuery(query, "tag", tag.ToString("D"));
+        }
+
         return GetAsync<ViewTimelineIndexDto>("GET /view/assets/timeline-index", $"/view/assets/timeline-index?{string.Join('&', query)}", ct: ct);
+    }
+
+    public Task<IReadOnlyList<ViewAddedByDto>?> GetViewAssetsAddedByAsync(ViewAssetQueryOptions options, CancellationToken ct = default)
+    {
+        var query = new List<string>();
+        AddQuery(query, "scope", ScopeValue(options.Scope));
+        AddQuery(query, "scopeProfileId", options.Scope.CarriesProfileId()
+            ? options.ScopeProfileId?.ToString("D") : null);
+        foreach (var kind in options.Kinds ?? [])
+        {
+            AddQuery(query, "kind", kind);
+        }
+
+        return GetAsync<IReadOnlyList<ViewAddedByDto>>("GET /view/assets/added-by", $"/view/assets/added-by?{string.Join('&', query)}", ct: ct);
     }
 
     public Task<LocalAssetDto?> GetViewItemAsync(Guid itemId, ViewScopeKind scope, Guid? scopeProfileId = null, CancellationToken ct = default) =>
