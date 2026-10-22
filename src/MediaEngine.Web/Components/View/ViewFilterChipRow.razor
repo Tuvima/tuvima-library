@@ -4,7 +4,6 @@
 @if (Choices.Count >= MinimumChoices)
 {
     <div class="view-filter-chips" role="group" aria-label="@Label">
-        <span class="sr-only">@Label</span>
         @foreach (var choice in Choices)
         {
             var chosen = Selected.Contains(choice.Id);

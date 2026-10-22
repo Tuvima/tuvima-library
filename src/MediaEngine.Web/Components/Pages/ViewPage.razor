@@ -62,7 +62,11 @@ else
             }
             @* Who added the items: only in the Shared Library and only when two or more people did. The chips carry the bare name. *@
             <ViewFilterChipRow Label="Added by" Choices="_addedByChoices" Selected="_addedBy" MinimumChoices="2" OnToggle="ToggleAddedByAsync" />
-            <ViewFilterChipRow Label="Tags" Choices="_tagChoices" Selected="_tags" OnToggle="ToggleTagAsync" />
+            @* Photo and video tags only: they would match nothing while the Documents filter is on. *@
+            @if (_filter != "documents")
+            {
+                <ViewFilterChipRow Label="Tags" Choices="_tagChoices" Selected="_tags" OnToggle="ToggleTagAsync" />
+            }
         </AdvancedFilters>
     </AppDiscoveryFilterBar>
     @if (_filter == "trash") { <ViewTrashHeader IsMine="@(Workspace.ScopeKind == ViewScopeKind.Mine)" Version="@_trashVersion" OnChanged="@(() => LoadAsync())" /> }
@@ -107,7 +111,8 @@ else
     private int _trashVersion;
     protected override async Task OnInitializedAsync() { Orchestrator.OnProfileChanged += OnProfileChanged; DeviceContext.OnChanged += DeviceChanged; await InitializeAsync(); }
     private void DeviceChanged() => _ = InvokeAsync(() => { if (!DeviceContext.IsTouch) { _selectMode = false; } StateHasChanged(); });
-    private async Task InitializeAsync() { _initializing = true; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; if (!Workspace.CanViewPhotoTimeline) { _loading = false; return; } await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); }
+    // A new profile starts with no chips and no filter: a chip or a kind filter left from the last profile could not be seen, so it could not be switched off.
+    private async Task InitializeAsync() { _initializing = true; _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; _filter = "all"; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; if (!Workspace.CanViewPhotoTimeline) { _loading = false; return; } await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); }
     private ViewAssetQueryOptions Query(string? cursor = null, DateTimeOffset? anchorBefore = null) => new(Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, _filter switch { "videos" => ["video"], "documents" => ["document"], _ => null }, _filter == "favorites", _filter == "hidden", _filter switch { "archive" => "archived", "trash" => "trashed", _ => "active" }, AnchorBefore: anchorBefore,
         Documents: _tags.Count > 0 ? new ViewDocumentFilterDto(TagIds: _tags.ToList()) : null, AddedBy: _addedBy.Count > 0 ? _addedBy.ToList() : null);
     private async Task LoadFilterChoicesAsync()

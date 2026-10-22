@@ -216,6 +216,21 @@ public sealed class ViewBrowseKindVisibilityTests : AsyncBunitContext
     }
 
     [Fact]
+    public void PhotoTagsAreNotOfferedWhileTheDocumentsFilterIsOn()
+    {
+        _handler.Catalogue = "{\"tags\":[{\"id\":\"" + Tax + "\",\"name\":\"Holiday\",\"colour\":null,\"usage_count\":4,\"can_manage\":true}],"
+            + "\"correspondents\":[],\"document_types\":[],\"fields\":[]}";
+        var cut = Render<ViewPage>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(QuickFilters(cut)));
+        OpenFilters(cut);
+        cut.WaitForAssertion(() => Assert.Equal(["Holiday"], ChipTexts(cut, "Tags")));
+
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Documents").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(ChipTexts(cut, "Tags")));
+    }
+
+    [Fact]
     public void TheDocumentsPageInTheSharedLibraryAlsoOffersTheNameChipsAndSendsTheChosenOnes()
     {
         _handler.ScopeKind = 0;
