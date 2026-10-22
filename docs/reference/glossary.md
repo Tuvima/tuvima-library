@@ -320,7 +320,11 @@ The underlying title independent of file, edition, or format.
 
 ### Writeback
 
-Writing resolved metadata back into supported file tags after enrichment or user correction.
+Writing Library's metadata (tags, embedded artwork, and the profile name in View files) back into the files themselves. Changes are saved in Library at once; the files are written together on a schedule (every 60 minutes by default) or when an administrator presses **Write now**.
+
+### Kept in Library only
+
+A file whose format cannot hold a field, or that Library must not change (a signed or encrypted file, a read-only file, anything in a Read-only folder). Its details live in Library's data store only, and the file is never written. View folder rows show how many files are kept this way.
 
 
 ## Personal and shared experiences

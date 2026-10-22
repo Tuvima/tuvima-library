@@ -39,7 +39,7 @@ The words of every document, whether read from the file or recognised from a sca
 
 ## Know what can be downloaded when you ask
 
-Tuvima downloads a model only when you ask. It downloads two helper tools by itself: ExifTool (which writes the profile name into photos, videos and PDFs in View) whenever it is missing outside a container, and FFmpeg, and only while it is missing on a run from source or after a repair (never in the Windows installer or a container, which include it). It starts at first-run setup or when the Engine starts, shows its progress, and can be turned off with `auto_install_required` in `config/tool_downloads.json`. Every other download below starts when an administrator presses a button under **Settings > Tools and requirements** (or **Install for me** on the banner that appears above every Settings page when a Required tool is missing). The banner's **X** does not download anything: it hides that line, and Tuvima remembers the choice for that profile (on any browser) until a different tool goes missing.
+Tuvima downloads a model only when you ask. It downloads two helper tools by itself: ExifTool (which writes the profile name into photos, videos and PDFs in View) whenever it is missing outside a container, and FFmpeg, and only while it is missing on a run from source or after a repair (never in the Windows installer or a container, which include it). It starts at first-run setup or when the Engine starts, shows its progress, and can be turned off with `auto_install_required` in `config/tool_downloads.json` (ExifTool also has its own `exiftool.auto_install` switch there). Every other download below starts when an administrator presses a button under **Settings > Tools and requirements** (or **Install for me** on the banner that appears above every Settings page when a Required tool is missing). The banner's **X** does not download anything: it hides that line, and Tuvima remembers the choice for that profile (on any browser) until a different tool goes missing.
 
 | What | Where from | When |
 |---|---|---|
@@ -53,7 +53,7 @@ The address and checksum of every FFmpeg, ExifTool and Tesseract download (the s
 
 GitHub hands release and raw files on to its own storage, so a download from `github.com` may be redirected. The Library follows a redirect only over `https`, only to `github.com`, `objects.githubusercontent.com`, `release-assets.githubusercontent.com` or `raw.githubusercontent.com`, and for at most five hops; a redirect anywhere else is refused and nothing is saved.
 
-**No library data is sent.** A download is a plain request for one file. The only thing the host can learn from it is that someone fetched that file from that internet address; no titles, file names, folders, profile or account details leave your host. Containers never download tools into themselves.
+**No library data is sent.** A download is a plain request for one file. The only thing the host can learn from it is that someone fetched that file from that internet address; no titles, file names, folders, profile or account details leave your host. Containers never download tools into themselves. The profile name that Library writes into your View files stays in those files and is never sent anywhere. ExifTool, like FFmpeg and Tesseract, runs only on your own computer: it reads and writes your files where they are, and none of them is uploaded.
 
 ## Understand Places map requests
 

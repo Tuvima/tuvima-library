@@ -45,6 +45,32 @@ Keep music album folders intact. Tuvima uses tags or fingerprints to identify mu
 
 Each type has an **Advanced** section with its naming template (**Naming template**, **Apply template**) and **Update tags inside files** (only affects managed folders). The section **File handling for every type** holds the library-wide rules **When the same file arrives twice** (**Keep one copy** or **Keep both**) and **Embed artwork in files**.
 
+### When changes reach your files
+
+Library saves every change straight away, so what you see in Library is always up to date. Writing those changes into the files themselves (tags in music, books, comics and videos, embedded artwork, and the profile name in View files) waits for one to-do list. Library works through that list in one pass on a schedule: every **60 minutes** by default. You can change the interval in **Settings > Libraries > Advanced** ("Write changes into files every [60] minutes", from 1 to 1,440 minutes).
+
+A later change to the same file replaces the earlier one, so each file is written once per run with its final values.
+
+The panel shows:
+
+- **N files waiting · Last run 10:00 · Next run 11:00**, or **All files are up to date** when the list is empty.
+- **Writing 240 of 1,200 files…** while a run is going.
+- **3 files couldn't be written**, with the list of files and the reason for each.
+- **Write now** (administrators, on a desktop) starts a run at once. Phones show the status only.
+
+If ExifTool is missing, the panel says **Photos, videos and PDFs in View are waiting for ExifTool**, with a link to **Settings > Tools and requirements**. With **Update tags inside files** (or write-back) turned off, nothing is queued and the schedule is hidden.
+
+- A file that is busy, on an unplugged drive or read-only stays on the list for the next run.
+- A file that can't hold tags is **kept in Library only** and is not retried.
+- Restarting the Engine loses nothing. The list is kept.
+- A file you copy out of Library before the next run may not carry the latest tags yet. This is the accepted cost of batching.
+
+**Moving a title** to another library moves its file straight away, so folders always match Library. Only its tags wait for the run. A move interrupted by a crash or power cut is finished or undone at the next start, so the file is never in two places or in none. If the drive is unplugged, the move waits until the drive is back. See [how libraries and intake work](../architecture/library-model-and-intake.md).
+
+If a file was edited in another app after its write was queued, Library reads it again first. Your own locked fields still win.
+
+The editor's **Files** card shows **Changes waiting to be written to the file · next run 11:00**, or the reason the last write failed.
+
 ## Convert a folder to Managed
 
 Switching a Read-only folder to Managed asks for confirmation and shows a preview of the proposed moves and renames. Confirming starts a background organising job.
