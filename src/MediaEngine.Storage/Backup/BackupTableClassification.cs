@@ -100,11 +100,11 @@ public static partial class BackupTableClassification
         // ---------------------------------------------------------------------------------------------------------
         // Catalogue: anything a rescan rebuilds. Not kept, except a person's own choices and corrections on its rows.
         // ---------------------------------------------------------------------------------------------------------
-        Catalogue("works", "Titles; rebuilt by a rescan, but a person's own matching and placement choices (locked match, rejected matches, locked series placement, display changes) are kept.", choices: ["wikidata_match_locked", "wikidata_rejected_qids_json", "wikidata_match_source", "series_placement_locked", "collection_id", "display_overrides_json"], gatedBy: [("wikidata_match_source", "wikidata_match_locked"), ("collection_id", "series_placement_locked")], refs: [Coll("collection_id")]),
+        Catalogue("works", "Titles; rebuilt by a rescan, but display changes a person typed are kept. Matching and placement choices (locked or rejected matches, a locked series placement) are left to the rescan.", choices: ["display_overrides_json"]),
         Catalogue("editions", "Editions of a title; rebuilt by a rescan."),
         Catalogue("media_assets", "The files themselves; rebuilt by a rescan."),
         Catalogue("media_asset_chapters", "Chapters read from a file."),
-        Catalogue("media_asset_coverage", "Which part of a work a file covers; rows a person set by hand (which episodes a file covers) are kept as corrections, the ones worked out from the file name or chapters are rebuilt.", correctionWhere: "source = 'manual'", refs: [Asset("asset_id"), Work("work_id")]),
+        Catalogue("media_asset_coverage", "Which part of a work a file covers; rebuilt by a rescan, including coverage a person set by hand (moves are left to the rescan)."),
         Catalogue("media_artwork_writeback", "Artwork write-back state for files."),
         Catalogue("media_inspection_holds", "Inspection holds on files."),
         Catalogue("playback_inspection_cache", "Cached file inspection results."),

@@ -47,8 +47,10 @@ Secrets are never kept. Provider settings marked secret, webhook secrets and sim
 
 A rescan rebuilds the catalogue, so anything a person changed on a catalogue row would be lost. Two kinds of rule keep it:
 
-- **Choices** are single columns on a row that a rescan recreates: a favourite flag on a View item, a locked match on a title, a switch on a collection the Library built. The rule names the choice columns (and, when they sit on a side table such as a View item's metadata row, the column that says whose choice the row is, otherwise the row's own id); the exporter writes them to `data/choices/<table>.json` as a reference to the row (recognised by its external ids, or its file fingerprint) plus the values, and only for rows where a choice differs from its default. A choice column that points at another catalogue row (the series a title was placed in) is written as a reference too. A column can be gated by a sibling flag: it counts only while the flag is set, so a value the Engine read itself (a capture date from the file, a match source the person never locked) is never written. A Configuration table that keeps only some of its rows (collections) can name choice columns as well; they apply to the rows its keep condition leaves out.
+- **Choices** are single columns on a row that a rescan recreates: a favourite flag on a View item, a display change typed on a title, a switch on a collection the Library built. The rule names the choice columns (and, when they sit on a side table such as a View item's metadata row, the column that says whose choice the row is, otherwise the row's own id); the exporter writes them to `data/choices/<table>.json` as a reference to the row (recognised by its external ids, or its file fingerprint) plus the values, and only for rows where a choice differs from its default. A choice column that points at another catalogue row (the series a title was placed in) is written as a reference too. A column can be gated by a sibling flag: it counts only while the flag is set, so a value the Engine read itself (a capture date from the file, a match source the person never locked) is never written. A Configuration table that keeps only some of its rows (collections) can name choice columns as well; they apply to the rows its keep condition leaves out.
 - **Corrections** are whole rows a person made on a Catalogue table: a title field they locked or edited, a renamed audiobook chapter, a name they gave to a face in a photo, a cover they chose from a provider. The rule carries a correction condition; matching rows are written to `data/corrections/<table>.json` like personal rows, with every catalogue reference turned into a reference to a title and machine-only columns left out. A row whose required reference no longer exists is dropped and counted. A correction or choice on a withheld title (one a backup may not name, which today is none) is left out and counted separately, and the title is not written for it. A profile backup holds no corrections or Library choices, because they belong to the Library.
+
+Structural moves are not kept: a locked or rejected match, a locked series placement, which episodes a file covers, or an edition moved to another title. A rescan sorts these out, and it usually fixes what the move was for. Only what a person typed or picked stays.
 
 The reader accepts a choices or corrections file only for a table whose rule allows it. Restoring them (re-applying each correction to the rescanned title) is part of restore, not of the export.
 
@@ -156,11 +158,11 @@ The rows a rescan rebuilds are not kept; the tables below say where a person's o
 
 | Table | Why |
 |---|---|
-| `works` | Titles; rebuilt by a rescan, but a person's own matching and placement choices (locked match, rejected matches, locked series placement, display changes) are kept: choice columns `wikidata_match_locked`, `wikidata_rejected_qids_json`, `wikidata_match_source` (only while the match is locked), `series_placement_locked`, `collection_id` (a reference, only while the placement is locked), `display_overrides_json`. |
+| `works` | Titles; rebuilt by a rescan, but display changes a person typed are kept: choice column `display_overrides_json`. Matching and placement choices (locked or rejected matches, a locked series placement) are left to the rescan. |
 | `editions` | Editions of a title; rebuilt by a rescan. |
 | `media_assets` | The files themselves; rebuilt by a rescan. |
 | `media_asset_chapters` | Chapters read from a file. |
-| `media_asset_coverage` | Which part of a work a file covers; rows a person set by hand (which episodes a file covers, `source = 'manual'`, with `asset_id` and `work_id` as references) are kept as corrections, the ones worked out from the file name or chapters are rebuilt. |
+| `media_asset_coverage` | Which part of a work a file covers; rebuilt by a rescan, including coverage a person set by hand (moves are left to the rescan). |
 | `media_artwork_writeback` | Artwork write-back state for files. |
 | `media_inspection_holds` | Inspection holds on files. |
 | `playback_inspection_cache` | Cached file inspection results. |
