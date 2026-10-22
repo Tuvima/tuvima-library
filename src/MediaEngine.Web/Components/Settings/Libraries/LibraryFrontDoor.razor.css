@@ -1,0 +1,119 @@
+.lib-door {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.lib-door__note {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: 0.9rem;
+}
+
+.lib-door__groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+/* The group colours reuse the hues the folder panel already gives these types; the Vault border is the danger colour. */
+.lib-door__group--watch { --lib-door-colour: #a16dff; }
+.lib-door__group--listen { --lib-door-colour: #e76fce; }
+.lib-door__group--read { --lib-door-colour: #61a8ff; }
+.lib-door__group--view { --lib-door-colour: #2dd4bf; }
+.lib-door__group--vault { --lib-door-colour: var(--tl-status-danger); }
+
+.lib-door__group,
+.lib-door__import {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--app-radius-md, 8px);
+    background: var(--tl-bg-surface-raised, var(--tl-bg-surface));
+    color: inherit;
+    text-decoration: none;
+}
+
+.lib-door__group:is(:hover, :focus-visible),
+.lib-door__import:is(:hover, :focus-visible) {
+    border-color: var(--tl-accent-primary-border);
+    background: var(--tl-accent-primary-soft);
+}
+
+/* The Vault is a thinner strip across both columns with a thin red border, so it reads as a different kind of place. */
+.lib-door__group--strip {
+    grid-column: 1 / -1;
+    padding-block: 8px;
+    border-color: var(--tl-status-danger-border);
+}
+
+/* The tooltip wrapper adds no box of its own; the link inside stays the grid item. */
+.lib-door__tip {
+    display: contents;
+}
+
+.lib-door__tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    font-size: 1.6rem;
+    color: var(--lib-door-colour, var(--tl-text-muted));
+    background: color-mix(in srgb, var(--lib-door-colour, var(--tl-text-muted)) 16%, transparent);
+}
+
+.lib-door__group--strip .lib-door__tile {
+    width: 32px;
+    height: 32px;
+    font-size: 1.25rem;
+}
+
+.lib-door__text {
+    display: grid;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.lib-door__name {
+    font-size: 1.05rem;
+}
+
+.lib-door__types {
+    color: var(--tl-text-muted);
+    font-size: 0.8rem;
+}
+
+.lib-door__counts {
+    color: var(--tl-text-secondary, var(--tl-text-muted));
+    font-size: 0.85rem;
+}
+
+.lib-door__import > .lib-door__counts {
+    flex: 0 1 auto;
+}
+
+.lib-door__group--strip .lib-door__text {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+}
+
+.lib-door__chevron {
+    display: inline-flex;
+    flex: 0 0 auto;
+    color: var(--tl-text-muted);
+    font-size: 1.4rem;
+}
+
+@media (max-width: 600px) {
+    .lib-door__groups {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

@@ -52,7 +52,7 @@ public sealed class SettingsNavTests
         Assert.False(File.Exists(legacyPath));
 
         var settingsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
-        Assert.Contains("<LibrariesTab Subsection=\"@_activeSubsection\" />", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("<LibrariesTab Subsection=\"@_activeSubsection\" Detail=\"@Detail\" />", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("FoldersTab", settingsSource, StringComparison.Ordinal);
     }
 

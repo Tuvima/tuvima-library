@@ -1,0 +1,105 @@
+.lib-page {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.lib-page__note {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: 0.9rem;
+}
+
+.lib-page__list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--app-radius-md, 8px);
+    overflow: hidden;
+}
+
+.lib-page__head,
+.lib-page__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.4fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+}
+
+.lib-page__head {
+    min-height: 36px;
+    color: var(--tl-text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.lib-page__row {
+    min-height: 60px;
+    border-top: 1px solid var(--tl-border-subtle);
+    color: inherit;
+    text-decoration: none;
+}
+
+.lib-page__row:is(:hover, :focus-visible) {
+    background: var(--tl-accent-primary-soft);
+}
+
+/* The tooltip wrapper adds no box of its own; the link inside stays the list row. */
+.lib-page__tip {
+    display: contents;
+}
+
+.lib-page__name {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.lib-page__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 1.6rem;
+}
+
+.lib-page__icon--books { color: #61a8ff; }
+.lib-page__icon--audiobooks { color: #f1b95b; }
+.lib-page__icon--movies { color: #a16dff; }
+.lib-page__icon--tv { color: #49a7ff; }
+.lib-page__icon--music { color: #e76fce; }
+.lib-page__icon--comics { color: #7de568; }
+.lib-page__icon--photos { color: #2dd4bf; }
+.lib-page__icon--other { color: var(--tl-text-muted); }
+
+.lib-page__counts {
+    color: var(--tl-text-secondary, var(--tl-text-muted));
+    font-size: 0.9rem;
+}
+
+.lib-page__status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    color: var(--tl-text-muted);
+    font-size: 1.4rem;
+}
+
+@media (max-width: 600px) {
+    .lib-page__head,
+    .lib-page__row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .lib-page__head span:nth-child(2) {
+        display: none;
+    }
+
+    .lib-page__counts {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+}
