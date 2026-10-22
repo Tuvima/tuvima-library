@@ -131,8 +131,17 @@ public sealed class LibraryKindsConfigurationTests : IDisposable
         var kinds = JsonSerializer.Deserialize<LibraryKindsConfiguration>(File.ReadAllText(Path.Combine(_directory, "library_kinds.json")))!;
         kinds.Kinds.Add(new LibraryKindDefinition
         {
-            Key = "podcasts", Area = LibraryAreas.Listen, Label = "Podcasts", Icon = "Podcasts", Format = "Music", Lookup = LibraryKindLookup.None,
-            Grouping = LibraryKindGroupings.FolderAndTags, NamingTemplate = "default", Misfit = LibraryKindMisfits.Keep, Tooltip = "Shows you follow.", Order = 9,
+            Key = "podcasts",
+            Area = LibraryAreas.Listen,
+            Label = "Podcasts",
+            Icon = "Podcasts",
+            Format = "Music",
+            Lookup = LibraryKindLookup.None,
+            Grouping = LibraryKindGroupings.FolderAndTags,
+            NamingTemplate = "default",
+            Misfit = LibraryKindMisfits.Keep,
+            Tooltip = "Shows you follow.",
+            Order = 9,
         });
         File.WriteAllText(Path.Combine(_directory, "library_kinds.json"), JsonSerializer.Serialize(kinds));
 

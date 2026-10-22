@@ -197,21 +197,26 @@
     // Saved links to /settings/libraries?type=movies still work: they land on that type's own address.
     private bool RedirectSavedLink()
     {
-        if (RenamedTypeAddress() is { } renamed)
-        {
-            Navigation.NavigateTo(renamed, replace: true);
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(Subsection)
-            || Kinds.Find(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("type")) is not { } type
-            || Kinds.GroupFor(type.Key) is not { } group)
+        var address = RenamedTypeAddress() ?? TypeQueryAddress();
+        if (address is null)
         {
             return false;
         }
 
-        Navigation.NavigateTo(LibraryGroupCatalog.TypeAddress(group, type.Key), replace: true);
+        Navigation.NavigateTo(address, replace: true);
         return true;
+    }
+
+    private string? TypeQueryAddress()
+    {
+        if (!string.IsNullOrWhiteSpace(Subsection)
+            || Kinds.Find(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("type")) is not { } type
+            || Kinds.GroupFor(type.Key) is not { } group)
+        {
+            return null;
+        }
+
+        return LibraryGroupCatalog.TypeAddress(group, type.Key);
     }
 
     private async Task LoadAsync()
