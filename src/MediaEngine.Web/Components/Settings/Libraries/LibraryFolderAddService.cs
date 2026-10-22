@@ -17,10 +17,10 @@ public enum AddFolderHandling
 }
 
 /// <summary>
-/// Everything needed to add one folder: the library type, the validated folder, how it is handled, the Videos YouTube switch
-/// (null leaves the library's setting alone) and whether new media should go to this folder (only an empty, managed folder asks).
+/// Everything needed to add one folder: the library type, the validated folder, how it is handled and whether new media should go
+/// to this folder (only an empty, managed folder asks). What the library may look up is decided by its kind, not asked here.
 /// </summary>
-public sealed record AddFolderPlan(string TypeKey, ServerFolderValidationResultDto Folder, AddFolderHandling Handling, bool? YoutubeLookup, bool MarkNewMediaHere);
+public sealed record AddFolderPlan(string TypeKey, ServerFolderValidationResultDto Folder, AddFolderHandling Handling, bool MarkNewMediaHere);
 
 /// <summary>Which Engine calls to use: the signed-in Settings ones, or the first-run setup ones (which carry the setup session).</summary>
 public sealed record FolderAddScope(bool Embedded, string? SetupSession)
@@ -94,10 +94,7 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
 
         var baseline = Clone(current)!;
         var library = Clone(LibraryRollup.LibraryFor(baseline, type)) ?? NewLibrary(type);
-        if (IsVideos(type) && plan.YoutubeLookup is { } youtubeLookup)
-        {
-            library.YoutubeLookup = youtubeLookup;
-        }
+        ApplyKindLookup(library, type);
         // The Engine makes the first managed folder the library's destination when it saves.
         var source = new LibrarySourceDto
         {
@@ -281,7 +278,26 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         Sheet = AppDialogSheetMode.PhoneAndTablet,
     };
 
-    private static bool IsVideos(LibraryTypeOption type) => type.MediaTypes.Contains("Videos", StringComparer.OrdinalIgnoreCase);
+    private const string YouTubeKindKey = "youtube";
+
+    /// <summary>
+    /// What a library may look up follows its kind (Library setup D17, D38): a plain kind (no lookup provider) is local only with the
+    /// YouTube lookup off, the YouTube kind is local identity plus the YouTube lookup, and a kind that looks details up keeps the
+    /// library's own settings.
+    /// </summary>
+    private static void ApplyKindLookup(LibraryFolderDto library, LibraryTypeOption type)
+    {
+        if (string.Equals(type.Key, YouTubeKindKey, StringComparison.Ordinal))
+        {
+            library.MetadataPolicy = "local_only";
+            library.YoutubeLookup = true;
+        }
+        else if (type.LookupProviders is { Count: 0 })
+        {
+            library.MetadataPolicy = "local_only";
+            library.YoutubeLookup = false;
+        }
+    }
 
     private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
 
@@ -296,7 +312,7 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         KindKey = option.Key,
         Area = option.Area,
         Presentation = "catalogue",
-        MetadataPolicy = option.MediaTypes[0] == "Videos" ? "local_only" : "enriched",
+        MetadataPolicy = "enriched",
         RecycleBin = option.MediaTypes[0] == "Videos",
         MediaTypes = [option.MediaTypes[0]],
         Visibility = "household",

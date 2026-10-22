@@ -39,6 +39,7 @@ public sealed class CoverArtWorker
     private readonly IEventPublisher? _eventPublisher;
     private readonly ImageDownloadCoordinator _imageDownloadCoordinator;
     private readonly ILogger<CoverArtWorker> _logger;
+    private readonly IExternalLookupGuard? _lookupGuard;
 
     public CoverArtWorker(
         IMediaAssetRepository assetRepo,
@@ -52,8 +53,10 @@ public sealed class CoverArtWorker
         ICoverArtHashService? coverArtHash = null,
         IEntityAssetRepository? entityAssetRepo = null,
         IEventPublisher? eventPublisher = null,
-        ImageDownloadCoordinator? imageDownloadCoordinator = null)
+        ImageDownloadCoordinator? imageDownloadCoordinator = null,
+        IExternalLookupGuard? lookupGuard = null)
     {
+        _lookupGuard = lookupGuard;
         _assetRepo = assetRepo;
         _entityAssetRepo = entityAssetRepo;
         _canonicalRepo = canonicalRepo;
@@ -66,6 +69,19 @@ public sealed class CoverArtWorker
         _coverArtHash = coverArtHash;
         _eventPublisher = eventPublisher;
         _imageDownloadCoordinator = imageDownloadCoordinator ?? ImageDownloadCoordinator.Shared;
+    }
+
+    // A file in a library that never looks anything up (a plain kind such as Other audio) never has artwork downloaded for it
+    // (Library setup D38), whoever asks.
+    private async Task<bool> IsInNoLookupLibraryAsync(Guid entityId, CancellationToken ct)
+    {
+        if (_lookupGuard is null || !await _lookupGuard.BlocksEntityAsync(entityId, ct).ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        _logger.LogInformation("Cover art for {EntityId} was not downloaded: its library never looks anything up.", entityId);
+        return true;
     }
 
     /// <summary>
@@ -81,6 +97,17 @@ public sealed class CoverArtWorker
         Guid providerId,
         CancellationToken ct)
     {
+        if (await IsInNoLookupLibraryAsync(entityId, ct).ConfigureAwait(false))
+        {
+            return new RetailArtworkReplacementResult(
+                false,
+                false,
+                entityId,
+                null,
+                0,
+                "This library never looks anything up, so no artwork was downloaded.");
+        }
+
         if (_entityAssetRepo is null)
         {
             return new RetailArtworkReplacementResult(
@@ -267,6 +294,11 @@ public sealed class CoverArtWorker
         CancellationToken ct,
         string? explicitCoverUrl = null)
     {
+        if (await IsInNoLookupLibraryAsync(entityId, ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
         var canonicals = await _canonicalRepo.GetByEntityAsync(entityId, ct);
         var lineage = await _workRepo.GetLineageByAssetAsync(entityId, ct);
         var ownerEntityId = ResolveCoverOwnerEntityId(entityId, lineage);

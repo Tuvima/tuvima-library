@@ -292,6 +292,12 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
         ResolvedServices services,
         CancellationToken ct)
     {
+        // A work in a library that never looks anything up (a plain kind) is never enriched from Wikidata, by inline batch or sweep (Library setup D38).
+        if (await services.LookupGuard.RefusesAsync(request.EntityId, _logger, "Universe enrichment", ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
         try
         {
             var stage3Scope = await ResolveStage3ScopeAsync(
@@ -689,7 +695,8 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
             services.GetRequiredService<IWorkAdaptationEdgeService>(),
             services.GetRequiredService<IIdentityJobRepository>(),
             services.GetRequiredService<IEventPublisher>(),
-            services.GetRequiredService<PluginUniverseLoreService>());
+            services.GetRequiredService<PluginUniverseLoreService>(),
+            services.GetService<IExternalLookupGuard>());
 
     private sealed class InlineUniverseBatch
     {
@@ -728,7 +735,8 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
         IWorkAdaptationEdgeService WorkAdaptationEdges,
         IIdentityJobRepository JobRepository,
         IEventPublisher EventPublisher,
-        PluginUniverseLoreService PluginUniverseLore);
+        PluginUniverseLoreService PluginUniverseLore,
+        IExternalLookupGuard? LookupGuard);
 
     private sealed record Stage3Scope(
         Guid CanonicalEntityId,

@@ -24,6 +24,7 @@ public sealed class EnrichmentRefreshScheduleService
     private readonly IMetadataHarvestingService _harvesting;
     private readonly IHydrationPipelineService _hydration;
     private readonly ISystemActivityRepository _activity;
+    private readonly IExternalLookupGuard? _lookupGuard;
 
     public EnrichmentRefreshScheduleService(
         IDatabaseConnection db,
@@ -32,8 +33,10 @@ public sealed class EnrichmentRefreshScheduleService
         ICanonicalValueRepository canonicals,
         IMetadataHarvestingService harvesting,
         IHydrationPipelineService hydration,
-        ISystemActivityRepository activity)
+        ISystemActivityRepository activity,
+        IExternalLookupGuard? lookupGuard = null)
     {
+        _lookupGuard = lookupGuard;
         _db = db;
         _configuration = configuration;
         _persons = persons;
@@ -183,6 +186,13 @@ public sealed class EnrichmentRefreshScheduleService
 
             normalizedType = "Work";
             entityId = refreshTarget.EntityId;
+
+            // A work in a library that never looks anything up (a plain kind) is never refreshed from outside: it is skipped here,
+            // not queued and marked every cycle.
+            if (_lookupGuard is not null && await _lookupGuard.BlocksEntityAsync(entityId, ct).ConfigureAwait(false))
+            {
+                return null;
+            }
         }
         await EnsureEntityScheduledAsync(normalizedType, entityId, ct).ConfigureAwait(false);
         var now = DateTimeOffset.UtcNow;

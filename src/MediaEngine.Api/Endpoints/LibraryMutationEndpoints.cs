@@ -59,6 +59,7 @@ internal static class LibraryMutationEndpoints
                 });
                 // Whether a folder is mid-conversion belongs to the Engine, never to what a settings screen last read.
                 FolderJobService.KeepEngineOwnedConversionState(current, proposed);
+                libraryKinds.NormaliseLookupFields(proposed);
                 var error = SettingsEndpoints.ValidateViewStorage(proposed)
                     ?? SettingsEndpoints.ValidateViewRootChange(current, proposed)
                     ?? ImportFolderValidation.Validate(proposed)

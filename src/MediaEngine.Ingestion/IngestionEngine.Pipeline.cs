@@ -537,9 +537,10 @@ public sealed partial class IngestionEngine
         if (ResolveVideosRoot(context.Library, candidate.Path) is { } videosRoot)
         {
             result = context.ProcessorResult = _videoReader!.Apply(result, videosRoot);
-            // Stage 1 lookup (D7): only the YouTube ID leaves the machine, only when this library's switch is on.
+            // Stage 1 lookup (D7): only the YouTube ID leaves the machine, and only in a YouTube library (or a library with no kind
+            // whose own switch is on). A plain kind (Other videos) never asks, whatever its youtube_lookup field says (Library setup D38).
             if (_videoLookup is not null
-                && context.Library?.YoutubeLookup == true
+                && context.Library?.AsksYoutube == true
                 // YouTube is never asked about a Vault file, whatever the library's own switch says (Videos spec D21, D26).
                 && (_audienceGate is null || await _audienceGate.MayAskAboutLibraryAsync("youtube", context.Library.Id, ct).ConfigureAwait(false))
                 && result.Claims.FirstOrDefault(claim => claim.Key == MetadataFieldConstants.YoutubeVideoId)?.Value is { } youtubeId

@@ -61,7 +61,7 @@
       "tooltip": "Videos saved from YouTube, found by the video ID in the file name.",
       "order": 3,
       "built_in": true,
-      "available": false
+      "available": true
     },
     {
       "key": "other_videos",
@@ -74,7 +74,7 @@
       "naming_template": "Videos",
       "misfit": "keep",
       "default_handling": "read_only",
-      "tooltip": "Courses, talks and downloads. YouTube lookup can be switched on in the last step.",
+      "tooltip": "Courses, talks and downloads. Nothing is looked up.",
       "order": 4,
       "built_in": true,
       "available": true,
@@ -137,7 +137,7 @@
       "tooltip": "Random audio files, recordings and lectures, shown by folder and the tags inside the files.",
       "order": 3,
       "built_in": true,
-      "available": false,
+      "available": true,
       "allows_multiple": true,
       "max_libraries": 5
     },
@@ -195,7 +195,7 @@
       "tooltip": "Loose books and documents with no match, shown by folder and the details inside the files.",
       "order": 3,
       "built_in": true,
-      "available": false,
+      "available": true,
       "allows_multiple": true,
       "max_libraries": 5
     },

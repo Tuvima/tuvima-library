@@ -725,11 +725,54 @@ public sealed partial class DisplayComposerService
         works
             .Where(work => !string.IsNullOrWhiteSpace(work.Album))
             .GroupBy(work => AlbumGroupKey(work), StringComparer.OrdinalIgnoreCase)
-            .Select(group => ToMusicAlbumCard(group.ToList()))
+            .Select(group => group.ToList())
+            .Aggregate(new List<List<DisplayWorkRow>>(), MergeAlbumGroup)
+            .Select(group => ToMusicAlbumCard(group))
             .Where(card => card is not null)
             .Cast<DisplayCardDto>()
             .OrderByDescending(card => card.SortTimestamp)
             .ToList();
+
+    // Songs of one album can arrive under different keys (some matched to the album work, some not yet, or credited
+    // to a featured artist). Groups that name the same album by the same lead artist are one album: one card.
+    private static List<List<DisplayWorkRow>> MergeAlbumGroup(List<List<DisplayWorkRow>> groups, List<DisplayWorkRow> next)
+    {
+        var identity = AlbumIdentity(next[0]);
+        var existing = groups.FirstOrDefault(group => string.Equals(AlbumIdentity(group[0]), identity, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+        {
+            groups.Add(next);
+        }
+        else
+        {
+            existing.AddRange(next);
+        }
+
+        return groups;
+    }
+
+    private static string AlbumIdentity(DisplayWorkRow work) =>
+        $"{work.Album?.Trim()}|{LeadArtist(StringHelpers.FirstNonBlank(work.Artist, work.Author))}";
+
+    private static string LeadArtist(string? artist)
+    {
+        if (string.IsNullOrWhiteSpace(artist))
+        {
+            return string.Empty;
+        }
+
+        var end = artist.Length;
+        foreach (var separator in new[] { ";", ",", " feat.", " feat ", " ft.", " ft ", " featuring ", " & ", " x ", " with " })
+        {
+            var index = artist.IndexOf(separator, StringComparison.OrdinalIgnoreCase);
+            if (index > 0 && index < end)
+            {
+                end = index;
+            }
+        }
+
+        return artist[..end].Trim();
+    }
 
     private IReadOnlyList<DisplayCardDto> BuildMusicJourneyAlbumCards(
         IReadOnlyList<DisplayWorkRow> works,
@@ -1197,7 +1240,7 @@ public sealed partial class DisplayComposerService
     private static string AlbumGroupKey(Guid workId, Guid rootWorkId, string? album, string? artist) =>
         rootWorkId != Guid.Empty && rootWorkId != workId
             ? $"root:{rootWorkId:N}"
-            : $"local:{album?.Trim()}|{artist?.Trim()}";
+            : $"local:{album?.Trim()}|{LeadArtist(artist)}";
 
     private static DisplayArtworkDto ArtworkFor(IDisplayArtworkRow row, Guid? assetId = null)
     {

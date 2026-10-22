@@ -19,7 +19,8 @@ public sealed class MusicAlbumManifestHostedService(
     AlbumTrackManifestService manifestService,
     CoverArtWorker coverArtWorker,
     EnrichmentPipelineExecutionGate executionGate,
-    ILogger<MusicAlbumManifestHostedService> logger) : BackgroundService
+    ILogger<MusicAlbumManifestHostedService> logger,
+    IExternalLookupGuard? lookupGuard = null) : BackgroundService
 {
     private static readonly TimeSpan InitialDelay = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan SweepInterval = TimeSpan.FromHours(6);
@@ -95,6 +96,11 @@ public sealed class MusicAlbumManifestHostedService(
 
             try
             {
+                if (await lookupGuard.RefusesAsync(candidate.AssetId, logger, "Album track list lookup", ct).ConfigureAwait(false))
+                {
+                    continue;
+                }
+
                 var canonicalValues = await canonicalRepo.GetByEntityAsync(candidate.RootWorkId, ct)
                     .ConfigureAwait(false);
                 var manifest = await manifestService.EnsureAlbumTrackManifestAsync(
@@ -135,6 +141,9 @@ public sealed class MusicAlbumManifestHostedService(
     internal IReadOnlyList<MusicAlbumManifestCandidate> LoadCandidates(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        // Albums whose files sit in a library that never looks anything up (Other audio) are left out of the selection itself:
+        // no track list is asked of MusicBrainz and no cover is downloaded for them (Library setup D38).
+        var blockedLibraryIds = lookupGuard?.GetBlockedLibraryIds().Select(id => id.ToLowerInvariant()).ToArray() ?? [];
         using var connection = db.CreateConnection();
         return connection.Query<MusicAlbumManifestCandidate>(new CommandDefinition(
             """
@@ -159,6 +168,7 @@ public sealed class MusicAlbumManifestHostedService(
               AND COALESCE(parent.curator_state, '') NOT IN ('rejected', 'provisional')
               AND COALESCE(parent.is_catalog_only, 0) = 0
               AND asset.presented_at IS NOT NULL
+              AND (asset.library_id IS NULL OR lower(asset.library_id) NOT IN @blockedLibraryIds)
               -- An album whose tracks are still being identified belongs to that work: repairing it now
               -- would download whichever cover the first finished track left, not the album's settled one.
               AND NOT EXISTS (
@@ -173,7 +183,7 @@ public sealed class MusicAlbumManifestHostedService(
             ORDER BY parent.id
             LIMIT @BatchSize
             """,
-            new { BatchSize },
+            new { BatchSize, blockedLibraryIds },
             cancellationToken: ct)).AsList();
     }
 

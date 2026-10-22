@@ -19,14 +19,16 @@ public sealed class ImportFolderService : IImportFolderService
 
     private readonly IConfigurationLoader _configLoader;
     private readonly ILogger<ImportFolderService> _logger;
+    private readonly ILibraryKindSource? _kindSource;
     private readonly object _cacheLock = new();
     private LibrariesConfiguration? _cached;
     private (DateTime LastWriteUtc, long Length)? _cachedStamp;
     private IReadOnlyList<(string Label, string[] MediaTypes)>? _cachedTypes;
     private (DateTime LastWriteUtc, long Length)? _cachedTypesStamp;
 
-    public ImportFolderService(IConfigurationLoader configLoader, ILogger<ImportFolderService> logger)
+    public ImportFolderService(IConfigurationLoader configLoader, ILogger<ImportFolderService> logger, ILibraryKindSource? kindSource = null)
     {
+        _kindSource = kindSource;
         ArgumentNullException.ThrowIfNull(configLoader);
         ArgumentNullException.ThrowIfNull(logger);
         _configLoader = configLoader;
@@ -93,7 +95,7 @@ public sealed class ImportFolderService : IImportFolderService
     {
         var configuration = Load();
         return configuration is null ? null : FindLibrary(configuration, mediaType) is { } library
-            ? LibraryFolderEntryFactory.Create(library)
+            ? LibraryFolderEntryFactory.Create(library, LoadKinds())
             : null;
     }
 
@@ -106,10 +108,12 @@ public sealed class ImportFolderService : IImportFolderService
             return [];
         }
 
+        var kinds = LoadKinds();
+
         return configuration.Libraries
             .Where(library => string.Equals(library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase)
                 && library.MediaTypes.Any(token => type.Value.MediaTypes.Contains(token, StringComparer.OrdinalIgnoreCase)))
-            .Select(LibraryFolderEntryFactory.Create)
+            .Select(library => LibraryFolderEntryFactory.Create(library, kinds))
             .ToList();
     }
 
@@ -135,7 +139,7 @@ public sealed class ImportFolderService : IImportFolderService
             return new ImportDestination(label, ImportDestinationState.NoManagedFolder);
         }
 
-        var entry = LibraryFolderEntryFactory.Create(library);
+        var entry = LibraryFolderEntryFactory.Create(library, LoadKinds());
         var source = entry.PrimaryDestination;
         if (source is null)
         {
@@ -291,7 +295,7 @@ public sealed class ImportFolderService : IImportFolderService
     {
         try
         {
-            return _configLoader.LoadLibraryKinds().Kinds;
+            return _kindSource?.GetKinds() ?? _configLoader.LoadLibraryKinds().Kinds;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
