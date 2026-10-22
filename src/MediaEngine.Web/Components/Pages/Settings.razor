@@ -354,10 +354,17 @@ else
     private string BrowserTitle => IsProfileDetailRoute
         ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Library"
         : _activeSection == SettingsSection.Libraries
-        ? $"{LibraryGroupCatalog.TryGetVisibleGroup(_activeSubsection, showVault: false)?.Label ?? "Libraries"} - Library"
+        ? LibrariesBrowserTitle
         : CurrentLocation?.Parent is { } parent
         ? $"{GetHeroTitle()} - {parent.Label} - Library"
         : $"{GetHeroTitle()} - Library";
+    // Vault mode does not exist yet, so the Vault is never shown (the same rule the Libraries page uses).
+    private LibraryLevelDescription LibrariesLevel => LibraryAddress.Describe(_activeSubsection, Detail, showVault: false);
+    // "Movies - Watch - Library", "Watch - Library" or "Libraries - Library".
+    private string LibrariesBrowserTitle =>
+        LibrariesLevel.Crumbs.Count >= 3
+            ? $"{LibrariesLevel.Title} - {LibrariesLevel.Crumbs[^2].Label} - Library"
+            : $"{LibrariesLevel.Title} - Library";
     private bool ShouldDeferForRoleResolution =>
         SettingsNav.GetItem(_activeSection).AdminOnly
         && !_profileRoleLoaded;
@@ -855,8 +862,11 @@ else
 
         if (_activeSection == SettingsSection.Libraries)
         {
-            // The group and type pages draw their own breadcrumb (Libraries > Watch > Movies) above their content.
-            breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, null));
+            // Libraries > Watch > Movies: the frame carries the level, so Libraries is a link once the page is deeper.
+            var steps = LibrariesLevel.Crumbs;
+            breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, steps.Count > 0 ? pageRoute : null));
+            foreach (var step in steps.Skip(1))
+                breadcrumbs.Add(new SettingsBreadcrumb(step.Label, step.Href));
             return breadcrumbs;
         }
 
@@ -891,10 +901,12 @@ else
     {
         if (_activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail))
             return "Provider Configuration";
+        if (_activeSection == SettingsSection.Libraries)
+            return LibrariesLevel.Title;
         return CurrentLocation?.Node.Label ?? SettingsNav.GetItem(_activeSection).Label;
     }
 
-    private string GetSectionDescription(SettingsSection section) => section switch
+    private string? GetSectionDescription(SettingsSection section) => section switch
     {
         SettingsSection.Overview => _activeSubsection == SettingsNav.AppsSubsection
             ? "Install the Library app on your phone or TV and connect it to this server."
@@ -916,7 +928,8 @@ else
         SettingsSection.AdminOverview => _activeSubsection == SettingsNav.LogsSubsection
             ? "What the Library did, the Engine's technical log, and how long logs are kept."
             : "How this server is doing: its version, processor, memory and storage.",
-        SettingsSection.Libraries => "Your media, grouped the way you browse it.",
+        // Only the front door has a subtitle; the pages below it are named by their title and breadcrumb.
+        SettingsSection.Libraries => LibrariesLevel.Crumbs.Count == 0 ? "Your media, grouped the way you browse it." : null,
         SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",
         SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",
         SettingsSection.Network => "Manage how devices reach Library at home and away without exposing unnecessary technical detail.",

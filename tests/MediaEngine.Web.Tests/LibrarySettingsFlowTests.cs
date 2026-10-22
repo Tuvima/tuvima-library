@@ -979,12 +979,12 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.All(cut.FindAll(".folder-table__none"), none => Assert.Equal("img", none.GetAttribute("role")));
     }
 
-    // The type's name is the last step of the breadcrumb; the page starts with the folders instead of repeating it as a heading, and has no type list.
+    // The type's name is the Settings frame's title and last breadcrumb step; the page starts with the folders instead of repeating it as a heading, and has no type list.
     [Fact]
     public void ThePaneDoesNotRepeatTheSelectedLibrariesNameAsAHeading()
     {
         var cut = Open("Movies");
-        Assert.Equal("Movies", Text(cut.Find(".lib-crumbs [aria-current=page]")));
+        Assert.Empty(cut.FindAll(".libraries nav[aria-label=Breadcrumb], .libraries h1, .libraries h2, .libraries h3"));
         Assert.Empty(cut.FindAll(".library-folders__type"));
         Assert.Empty(cut.FindAll(".library-folders__detail h3"));
         Assert.DoesNotContain("Folders that make up", cut.Markup);

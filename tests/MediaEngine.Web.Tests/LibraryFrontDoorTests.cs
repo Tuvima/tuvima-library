@@ -334,15 +334,14 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
 
     // 5. The three levels, each from its own parameters (a reload is the same parameters again).
     [Fact]
-    public void WatchOpensTheGroupPageWithItsTypeRowsAndBreadcrumb()
+    public void WatchOpensTheGroupPageWithItsTypeRows()
     {
         var cut = Open("watch");
 
         Assert.Equal(["Movies", "TV Shows", "Videos"], cut.FindAll(".lib-page__row strong").Select(Text).ToArray());
         Assert.Equal("Name Folders Status", Text(cut.Find(".lib-page__head")));
-        Assert.Equal("Watch", Text(cut.Find(".lib-page__title")));
-        Assert.Equal("/settings/libraries", cut.Find(".lib-crumbs a").GetAttribute("href"));
-        Assert.Equal("Watch", Text(cut.Find(".lib-crumbs [aria-current=page]")));
+        // The Settings frame carries the breadcrumb and the group's name as the title; the page repeats neither.
+        Assert.Empty(cut.FindAll(".libraries h1, .libraries h2, .libraries h3, .libraries nav[aria-label=Breadcrumb]"));
         Assert.Equal("/settings/libraries/watch/movies", cut.Find(".lib-page__row[data-type=movies]").GetAttribute("href"));
         cut.WaitForAssertion(() => Assert.Equal("2 folders · 1,284 titles", Text(cut.Find(".lib-page__row[data-type=movies] .lib-page__counts"))));
         Assert.Equal("Nothing added yet", Text(cut.Find(".lib-page__row[data-type=tv] .lib-page__counts")));
@@ -355,8 +354,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         var cut = Open("watch", "movies");
         cut.WaitForElement(".folder-table");
 
-        Assert.Equal(["Libraries", "Watch"], cut.FindAll(".lib-crumbs a").Select(Text).ToArray());
-        Assert.Equal("Movies", Text(cut.Find(".lib-crumbs [aria-current=page]")));
+        Assert.Empty(cut.FindAll(".libraries nav[aria-label=Breadcrumb]"));
         Assert.Equal(2, cut.FindAll(".folder-table__row").Count);
         Assert.Empty(cut.FindAll(".library-folders__type"));
         Assert.Empty(cut.FindAll(".library-folders__types"));
@@ -373,7 +371,6 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         var second = Open("watch", "movies");
         second.WaitForElement(".folder-table");
 
-        Assert.Equal(first.Find(".lib-crumbs").TextContent, second.Find(".lib-crumbs").TextContent);
         Assert.Equal(first.FindAll(".folder-table__row").Count, second.FindAll(".folder-table__row").Count);
         Assert.Equal(Text(first.Find(".folder-table__head")), Text(second.Find(".folder-table__head")));
     }
@@ -387,7 +384,8 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         cut.Render(parameters => parameters.Add(x => x.Subsection, "watch").Add(x => x.Detail, (string?)null));
 
         cut.WaitForElement(".lib-page__row");
-        Assert.Equal("Watch", Text(cut.Find(".lib-page__title")));
+        Assert.Equal(["Movies", "TV Shows", "Videos"], cut.FindAll(".lib-page__row strong").Select(Text).ToArray());
+        Assert.Empty(cut.FindAll(".folder-table"));
     }
 
     // 6. Saved links.
@@ -425,18 +423,15 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
 
         var photos = Open("view", "photos");
         photos.WaitForElement(".library-detail");
-        Assert.Equal(["Libraries", "View"], photos.FindAll(".lib-crumbs a").Select(Text).ToArray());
-        Assert.Equal("Photos & personal videos", Text(photos.Find(".lib-crumbs [aria-current=page]")));
+        Assert.Empty(photos.FindAll(".libraries nav[aria-label=Breadcrumb]"));
     }
 
     [Fact]
-    public void ImportOpensTheImportFolderPanelUnderTheLibrariesBreadcrumb()
+    public void ImportOpensTheImportFolderPanelWithoutATypeList()
     {
         var cut = Open("import");
         cut.WaitForElement("#library-import-title");
 
-        Assert.Equal("Import folder", Text(cut.Find(".lib-crumbs [aria-current=page]")));
-        Assert.Equal("Libraries", Text(cut.Find(".lib-crumbs a")));
         Assert.Empty(cut.FindAll(".library-folders__type"));
     }
 
@@ -461,7 +456,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
 
         var page = Open("listen", $"other-{OtherId}");
         page.WaitForElement(".folder-table");
-        Assert.Equal("Podcasts", Text(page.Find(".lib-crumbs [aria-current=page]")));
+        Assert.Empty(page.FindAll(".libraries nav[aria-label=Breadcrumb]"));
     }
 
     [Fact]
@@ -483,7 +478,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
 
         var page = Open("other", $"other-{OtherId}");
         page.WaitForElement(".folder-table");
-        Assert.Equal("Archive", Text(page.Find(".lib-crumbs [aria-current=page]")));
+        Assert.Empty(page.FindAll(".libraries nav[aria-label=Breadcrumb]"));
     }
 
     // Addresses that name nothing.
@@ -541,6 +536,38 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Libraries, "watch", "movies"));
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Libraries));
         Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Libraries, "nowhere"));
+    }
+
+    // The Settings frame shows each level's title and breadcrumb; this is the one rule for both.
+    [Theory]
+    [InlineData(null, null, "Libraries", "")]
+    [InlineData("watch", null, "Watch", "Libraries>/settings/libraries|Watch")]
+    [InlineData("WATCH", "Movies", "Movies", "Libraries>/settings/libraries|Watch>/settings/libraries/watch|Movies")]
+    [InlineData("listen", "audiobooks", "Audiobooks", "Libraries>/settings/libraries|Listen>/settings/libraries/listen|Audiobooks")]
+    [InlineData("view", null, "View", "Libraries>/settings/libraries|View")]
+    [InlineData("view", "photos", "Photos & personal videos", "Libraries>/settings/libraries|View>/settings/libraries/view|Photos & personal videos")]
+    [InlineData("import", null, "Import folder", "Libraries>/settings/libraries|Import folder")]
+    [InlineData("other", "other-abc", "Other library", "Libraries>/settings/libraries|Other library")]
+    [InlineData("listen", "other-abc", "Other library", "Libraries>/settings/libraries|Listen>/settings/libraries/listen|Other library")]
+    [InlineData("watch", "podcasts", "Libraries", "")]
+    [InlineData("view", "movies", "Libraries", "")]
+    [InlineData("import", "movies", "Libraries", "")]
+    [InlineData("nowhere", null, "Libraries", "")]
+    [InlineData("vault", null, "Libraries", "")]
+    public void AnAddressDescribesItsTitleAndBreadcrumbForTheSettingsFrame(string? subsection, string? detail, string title, string crumbs)
+    {
+        var level = LibraryAddress.Describe(subsection, detail, showVault: false);
+
+        Assert.Equal(title, level.Title);
+        Assert.Equal(crumbs, string.Join("|", level.Crumbs.Select(crumb => crumb.Href is null ? crumb.Label : $"{crumb.Label}>{crumb.Href}")));
+    }
+
+    [Fact]
+    public void TheVaultAddressHasATitleAndBreadcrumbOnlyWhenTheVaultMayBeShown()
+    {
+        Assert.Equal("Vault", LibraryAddress.Describe("vault", null, showVault: true).Title);
+        Assert.Equal("Libraries", LibraryAddress.Describe("vault", null, showVault: false).Title);
+        Assert.Empty(LibraryAddress.Describe("vault", null, showVault: false).Crumbs);
     }
 
     [Fact]

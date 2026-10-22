@@ -5,11 +5,6 @@
     min-width: 0;
 }
 
-.lib-page__title {
-    margin: 0;
-    font-size: 1.4rem;
-}
-
 .lib-page__note {
     margin: 0;
     color: var(--tl-text-muted);

@@ -74,11 +74,9 @@
                                   ReadOnly="@readOnly" />
                 break;
             case LevelKind.Photos:
-                <LibraryBreadcrumb Crumbs="@PhotosCrumbs" />
                 <ViewLibrarySettings Configuration="@_configuration" ReadOnly="@readOnly" RootChanged="LoadAsync" />
                 break;
             case LevelKind.Type:
-                <LibraryBreadcrumb Crumbs="@TypeCrumbs(level)" />
                 <LibraryFoldersPanel @key="@level.TypeKey"
                                      ShowTypeNav="false"
                                      TypeKey="@level.TypeKey"
@@ -256,22 +254,4 @@
         var other = LibraryRollup.OthersIn(_configuration, group).FirstOrDefault(item => string.Equals(item.Key, detail, StringComparison.OrdinalIgnoreCase));
         return other is null ? new Level(LevelKind.NotFound) : new Level(LevelKind.Type, group, other.Key);
     }
-
-    private IReadOnlyList<LibraryCrumb> PhotosCrumbs =>
-        [new("Libraries", "/settings/libraries"), new("View", "/settings/libraries/view"), new(LibraryTypeCatalog.Photos.Label)];
-
-    // "Libraries > Watch > Movies"; the Import folder and an area-less library have no group in between.
-    private IReadOnlyList<LibraryCrumb> TypeCrumbs(Level level)
-    {
-        var crumbs = new List<LibraryCrumb> { new("Libraries", "/settings/libraries") };
-        if (level.Group is { } group) crumbs.Add(new(group.Label, LibraryGroupCatalog.GroupAddress(group)));
-        crumbs.Add(new(TypeLabel(level.TypeKey)));
-        return crumbs;
-    }
-
-    private string TypeLabel(string? typeKey) => typeKey == LibraryTypeCatalog.ImportKey
-        ? "Import folder"
-        : LibraryTypeCatalog.Find(typeKey)?.Label
-            ?? LibraryRollup.OtherLibraries(_configuration).FirstOrDefault(other => other.Key == typeKey)?.Label
-            ?? "Library";
 }

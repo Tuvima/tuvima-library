@@ -36,6 +36,72 @@ public static class LibraryTypeCatalog
 /// <summary>One step of the breadcrumb on the group and type pages; no <paramref name="Href"/> means the current page.</summary>
 public sealed record LibraryCrumb(string Label, string? Href = null);
 
+/// <summary>What the Settings frame shows for one Libraries address: its title and the breadcrumb steps from "Libraries" down (none on the front door).</summary>
+public sealed record LibraryLevelDescription(string Title, IReadOnlyList<LibraryCrumb> Crumbs);
+
+/// <summary>
+/// Reads a Libraries address (/settings/libraries/{subsection}/{detail}) and says what the Settings frame should show above the
+/// content: the frame owns the breadcrumb and the title, so the pages draw neither. An address that names nothing (or the Vault
+/// while it is hidden) reads as the front door; the page itself shows its "does not exist" state.
+/// </summary>
+public static class LibraryAddress
+{
+    public const string FrontDoorTitle = "Libraries";
+    private const string OtherLibraryTitle = "Other library";
+    private const string LibrariesAddress = "/settings/libraries";
+
+    public static LibraryLevelDescription Describe(string? subsection, string? detail, bool showVault)
+    {
+        var front = new LibraryLevelDescription(FrontDoorTitle, []);
+        var sub = subsection?.Trim();
+        var det = detail?.Trim();
+        var libraries = new LibraryCrumb(FrontDoorTitle, LibrariesAddress);
+        if (string.IsNullOrEmpty(sub))
+        {
+            return front;
+        }
+
+        if (string.Equals(sub, LibraryTypeCatalog.ImportKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return string.IsNullOrEmpty(det) ? Level("Import folder", libraries) : front;
+        }
+
+        if (string.Equals(sub, "other", StringComparison.OrdinalIgnoreCase))
+        {
+            return det is not null && det.StartsWith("other-", StringComparison.OrdinalIgnoreCase) ? Level(OtherLibraryTitle, libraries) : front;
+        }
+
+        if (LibraryGroupCatalog.TryGetVisibleGroup(sub, showVault) is not { } group)
+        {
+            return front;
+        }
+
+        var groupCrumb = new LibraryCrumb(group.Label, LibraryGroupCatalog.GroupAddress(group));
+        if (string.IsNullOrEmpty(det))
+        {
+            return Level(group.Label, libraries);
+        }
+
+        if (group.Key == "view")
+        {
+            return string.Equals(det, LibraryTypeCatalog.PhotosKey, StringComparison.OrdinalIgnoreCase)
+                ? Level(LibraryTypeCatalog.Photos.Label, libraries, groupCrumb)
+                : front;
+        }
+
+        if (group.TypeKeys.FirstOrDefault(key => string.Equals(key, det, StringComparison.OrdinalIgnoreCase)) is { } typeKey)
+        {
+            return Level(LibraryTypeCatalog.Find(typeKey)!.Label, libraries, groupCrumb);
+        }
+
+        return det.StartsWith("other-", StringComparison.OrdinalIgnoreCase) ? Level(OtherLibraryTitle, libraries, groupCrumb) : front;
+    }
+
+    // The last step is the page itself, so it has no link.
+    private static LibraryLevelDescription Level(string title, params LibraryCrumb[] ancestors) =>
+        new(title, [.. ancestors, new LibraryCrumb(title)]);
+}
+
 /// <summary>A way of presenting library types: Watch, Listen, Read, View, Vault. A group has no folders of its own.</summary>
 public sealed record LibraryGroup(string Key, string Label, string Icon, IReadOnlyList<string> TypeKeys);
 
