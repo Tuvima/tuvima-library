@@ -658,7 +658,7 @@ public sealed class PersonalStateBackupRepository
         _ => throw new InvalidOperationException($"Backup rule for '{table}' has choices but no catalogue target is known for that table."),
     };
 
-    private static bool IsSet(object? value) => value switch
+    internal static bool IsSet(object? value) => value switch
     {
         long integer => integer != 0,
         double real => real != 0,
@@ -667,7 +667,7 @@ public sealed class PersonalStateBackupRepository
     };
 
     /// <summary>Whether a stored value equals the column default (<c>dflt_value</c> as SQLite reports it; null means no default, so NULL).</summary>
-    private static bool MatchesDefault(object? value, string? defaultSql)
+    internal static bool MatchesDefault(object? value, string? defaultSql)
     {
         if (defaultSql is null || string.Equals(defaultSql, "NULL", StringComparison.OrdinalIgnoreCase))
         {

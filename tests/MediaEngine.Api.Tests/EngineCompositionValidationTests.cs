@@ -104,6 +104,22 @@ public sealed class EngineCompositionValidationTests
             descriptor => descriptor.ServiceType == typeof(IHostedService));
     }
 
+    [Fact]
+    public void RestoreServices_AreInTheEngineGraph()
+    {
+        var services = BuildFullComposition();
+
+        using var provider = services.BuildServiceProvider();
+
+        // A restore puts settings back and parks a person's state; the worker puts it back on its title as the title arrives.
+        Assert.NotNull(provider.GetRequiredService<MediaEngine.Storage.Backup.BackupRestoreRepository>());
+        Assert.NotNull(provider.GetRequiredService<MediaEngine.Storage.Backup.WaitingPersonalStateRepository>());
+        Assert.Contains(
+            services,
+            descriptor => descriptor.ServiceType == typeof(IHostedService)
+                && descriptor.ImplementationType == typeof(MediaEngine.Api.Services.Backups.WaitingStateReattachHostedService));
+    }
+
     private static ServiceCollection BuildFullComposition()
     {
         var repoRoot = FindRepoRoot();

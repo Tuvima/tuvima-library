@@ -55,6 +55,14 @@ public sealed class MaintenanceSettings
     [JsonPropertyName("rejected_retention_days")]
     public int RejectedRetentionDays { get; set; } = 30;
 
+    /// <summary>
+    /// How many days state waits for a missing file before it is cleared: a person's progress and bookmarks restored from a backup
+    /// while their file is not in the library yet (backup and restore spec D5, D13). Safer deleting reuses this one setting for how
+    /// long a Missing file is kept, so the Library has a single waiting period rather than two.
+    /// </summary>
+    [JsonPropertyName("missing_file_retention_days")]
+    public int MissingFileRetentionDays { get; set; } = MissingFileRetentionLimits.DefaultDays;
+
     /// <summary>Auto re-tag sweep parameters.</summary>
     [JsonPropertyName("retag_sweep")]
     public RetagSweepSettings RetagSweep { get; set; } = new();
@@ -78,6 +86,19 @@ public sealed class MaintenanceSettings
         ["storage_maintenance"] = "0 2 * * *",
         ["plugin_segment_detection"] = "0 2 * * *",
     };
+}
+
+/// <summary>The limits of <see cref="MaintenanceSettings.MissingFileRetentionDays"/>.</summary>
+public static class MissingFileRetentionLimits
+{
+    /// <summary>The waiting period when nothing is configured.</summary>
+    public const int DefaultDays = 90;
+
+    /// <summary>The shortest waiting period.</summary>
+    public const int MinDays = 7;
+
+    /// <summary>The longest waiting period.</summary>
+    public const int MaxDays = 3650;
 }
 
 public sealed class StorageMaintenanceSettings

@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0037 view_kinds_and_added_by).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0038 waiting_personal_state).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -428,6 +428,17 @@ CREATE TABLE backup_copies (
     verified_at     TEXT,                           -- ISO 8601 UTC; set when the copy was read back and matched
     last_error      TEXT,                           -- plain words, never a secret
     created_at      TEXT    NOT NULL                -- ISO 8601 UTC
+);
+
+CREATE TABLE backup_restores (
+    id                BLOB NOT NULL PRIMARY KEY,
+    restored_at       TEXT NOT NULL,
+    backup_file_name  TEXT NOT NULL,
+    backup_created_at TEXT,
+    applied_rows      INTEGER NOT NULL,
+    waiting_rows      INTEGER NOT NULL,
+    attached_rows     INTEGER NOT NULL DEFAULT 0,
+    purged_rows       INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE backup_settings (
@@ -2936,6 +2947,19 @@ CREATE TABLE view_storage_labels (
     label TEXT NOT NULL UNIQUE COLLATE NOCASE
 );
 
+CREATE TABLE waiting_personal_state (
+    id              BLOB NOT NULL PRIMARY KEY,
+    restore_id      BLOB NOT NULL REFERENCES backup_restores(id) ON DELETE CASCADE,
+    group_kind      TEXT NOT NULL CHECK (group_kind IN ('configuration', 'personal', 'correction', 'choice')),
+    table_name      TEXT NOT NULL,
+    profile_id      BLOB,
+    is_withheld     INTEGER NOT NULL DEFAULT 0 CHECK (is_withheld IN (0, 1)),
+    row_json        TEXT NOT NULL CHECK (json_valid(row_json)),
+    titles_json     TEXT NOT NULL CHECK (json_valid(titles_json)),
+    created_at      TEXT NOT NULL,
+    last_checked_at TEXT
+);
+
 CREATE TABLE wikidata_bridge_candidates (
     id                    BLOB PRIMARY KEY,
     job_id                BLOB NOT NULL REFERENCES identity_jobs(id) ON DELETE CASCADE,
@@ -3500,6 +3524,10 @@ CREATE INDEX idx_view_shared_contributions_review
 
 CREATE INDEX idx_view_shared_contributions_submitter
     ON view_shared_contributions(submitted_by_profile_id, submitted_at DESC);
+
+CREATE INDEX idx_waiting_personal_state_created ON waiting_personal_state(created_at);
+
+CREATE INDEX idx_waiting_personal_state_profile ON waiting_personal_state(profile_id);
 
 CREATE INDEX idx_wikidata_candidates_job_id ON wikidata_bridge_candidates (job_id);
 

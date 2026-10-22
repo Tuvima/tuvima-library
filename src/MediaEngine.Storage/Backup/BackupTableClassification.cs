@@ -76,6 +76,8 @@ public static partial class BackupTableClassification
         Config("collection_view_sources", "The gallery or rule feeding a person-built collection.", keepWhere: InPersonBuiltCollection),
         Config("fictional_entity_user_overrides", "A person's name and description corrections for a fictional thing, found again by its Wikidata id.", refs: [Fictional("entity_id")]),
         Config("narrative_root_user_overrides", "A person's name and description corrections for a universe (already keyed by its Wikidata id)."),
+        Config("backup_restores", "Which backups were restored and when, with counts of what was put back and what is still waiting."),
+        Config("waiting_personal_state", "State from a restored backup that is still waiting for its title, kept with the time it started waiting, so a backup taken before it attaches does not lose it or restart its waiting period."),
 
         // ---------------------------------------------------------------------------------------------------------
         // Personal state: a person's own state tied to a title. Kept, re-attached by recognition data after a rescan.
