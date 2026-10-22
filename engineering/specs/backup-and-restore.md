@@ -1,8 +1,8 @@
 # Spec: Backup and restore (settings and personal state)
 
-> **Status:** In progress · **Version:** 5 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../product/overview.md) · [Videos spec](videos.md) D43, D46 (bookmark packs) · [Developer tools spec](developer-tools.md) D-P, WP25, WP26 (destinations, schedule, passphrase) · [Encrypted plugin keys](encrypted-plugin-keys.md) EK2 · [Delete groups](delete-groups.md) · [Safer deleting in View](safer-deleting-in-view.md)
+> **Status:** In progress · **Version:** 6 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../product/overview.md) · [Videos spec](videos.md) D43, D46 (bookmark packs) · [Developer tools spec](developer-tools.md) D-P, WP25, WP26 (destinations, schedule, passphrase) · [Encrypted plugin keys](encrypted-plugin-keys.md) EK2 · [Delete groups](delete-groups.md) · [Safer deleting in View](safer-deleting-in-view.md)
 
-> **Build note (2026-10-22):** WP1, WP2 (#397), WP2b (#405), WP3 (#421) and WP4 (#424) are built and merged: backups hold settings, personal state and typed corrections against recognition data, with no encryption; restore loads a fresh Library and re-attaches state automatically; the screens in section 4 are in place. Not yet built, waiting on Shy: a warning when restoring a destination copy this Library did not record making, the "File missing" search result for waiting items (D5a, D5b; the Safer deleting Missing filter does not exist yet), and "Export my data" for one profile (D10) with a way for another Library to take it in. Local checks L1 to L4 (plus the waiting-period check) are in `engineering/validation/batch.md`.
+> **Build note (2026-10-22):** WP1, WP2 (#397), WP2b (#405), WP3 (#421) and WP4 (#424) are built and merged: backups hold settings, personal state and typed corrections against recognition data, with no encryption; restore loads a fresh Library and re-attaches state automatically; the screens in section 4 are in place. Since then Shy decided: no warning for destination copies (D17); the "File missing" search result is built here (D18, WP5); "Export my data" becomes an export of one user (their sign-in and every profile under it), whose contents are being agreed. Local checks L1 to L4 (plus the waiting-period check) are in `engineering/validation/batch.md`.
 
 ## 1. Goal
 
@@ -41,6 +41,8 @@ A backup should hold what is hard to recreate: your settings, preferences and yo
 - **D14. Your own typed corrections are kept; moves are not (Shy, 2026-10-22).** Fixes a person typed or picked are kept as well as their progress: field edits and locks made in Editing Mode, renamed chapters, corrected universe and character names, face names they gave, a photo's place and description, covers picked from a provider, and the on/off, featured and display choices on collections the Library built. They are stored against the title the same way as personal state, re-applied when the title returns, and still win over provider data. Structural moves are not kept: a locked or rejected match, a locked series placement, which episodes a file covers, an edition moved to another title. The rescan sorts these out, and usually fixes what the move was for.
 - **D15. Backups are never encrypted (Shy, 2026-10-22; replaces the optional password recorded earlier the same day).** There is no backup password or passphrase anywhere, including copies sent to another folder, a network share, S3 or WebDAV: nothing in a backup is secret enough to justify the extra step, and it raises the barrier to using backups. The file holds what is needed to sign in on any computer, two-step sign-in included, and keeping it safe is the person's job (the Backup screen says so). The sealed-copy encryption built for backup destinations (Developer tools WP25) is removed. Provider and plugin keys stay out of backups; how Encrypted keys EK2 changes is asked separately.
 - **D16. Keys travel only when asked, behind a 4-digit PIN (Shy, 2026-10-22).** A backup has an optional "Include keys" choice, off by default. Turning it on asks for a 4-digit PIN; provider and plugin keys are locked with it inside the backup, and nothing else is. Restoring asks for the PIN only if the backup holds keys: the right PIN puts the keys back, no PIN or a wrong one skips just the keys and everything else restores. The PIN is a convenience lock, not strong protection (Shy, 2026-10-22): each guess is made deliberately slow, and the switch says in one line that the PIN only stops casual snooping, so keep the backup safe; providers let keys be reset if a backup is lost. Built as Encrypted keys EK2 with this PIN in place of the backup passphrase.
+- **D17. No warning on copies from a destination (Shy, 2026-10-22).** Restoring a backup found at another folder, network share, S3 or WebDAV works like any other restore, whether or not this Library recorded making it; only administrators can restore, and the usual safety checks apply.
+- **D18. "File missing" in search is built here (Shy, 2026-10-22).** Because the Safer deleting Missing filter does not exist yet, this spec adds a small search result for a person's own items that are waiting for their file after a restore, with a plain "File missing" note and no link; never for adult-video titles. Safer deleting builds its Missing filter on top of it.
 
 ## 4. UI behaviour
 
@@ -95,6 +97,12 @@ A backup should hold what is hard to recreate: your settings, preferences and yo
 - **Depends on:** WP3
 - **Size:** Standard
 - **Done when:** phone and desktop widths checked; copy matches section 4.
+
+### WP5 — "File missing" in search (D18)
+- **What it does:** Global search also lists the searching profile's own items that wait for their file after a restore: the title, its year and a plain "File missing" note, with no link and no play. Never adult-video titles; never other people's items.
+- **Depends on:** WP3
+- **Size:** Standard
+- **Done when:** after a restore, searching a title whose file has not come back shows it once with "File missing"; once the file returns and the state re-attaches, the note is gone and the normal result shows; a withheld title never appears.
 
 ## 7. Local checks
 
