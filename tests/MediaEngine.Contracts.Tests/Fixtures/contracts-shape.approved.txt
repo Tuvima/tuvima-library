@@ -1450,6 +1450,7 @@ MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UserImportPreviewDto
   Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Backups.UserImportProfileDto> | nullability=not-null | accessors=get,init
   PersonalItems: System.Int32 | nullability=not-null | accessors=get,init
   BlockedReason: System.String | nullability=nullable | accessors=get,init
+  TwoStepToSetUp: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UserImportProfileDto
   Name: System.String | nullability=not-null | accessors=get,init

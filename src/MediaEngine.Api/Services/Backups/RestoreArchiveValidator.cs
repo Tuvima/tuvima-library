@@ -33,7 +33,8 @@ internal sealed record RestoreArchiveInfo(
 /// <param name="Export">What the file holds.</param>
 /// <param name="Summary">The one user it holds.</param>
 /// <param name="CreatedAt">When the manifest says it was made.</param>
-internal sealed record ValidatedUserExport(BackupExport Export, UserExportSummary Summary, DateTimeOffset? CreatedAt);
+/// <param name="TwoStepLeftOut">True when the manifest says an administrator made the file and left the two-step secret out, so the person sets two-step up again.</param>
+internal sealed record ValidatedUserExport(BackupExport Export, UserExportSummary Summary, DateTimeOffset? CreatedAt, bool TwoStepLeftOut = false);
 
 /// <summary>
 /// The one check every route into a restore uses (scheduling it, the monthly restore check, the test restore, a setup upload and a
@@ -181,11 +182,19 @@ internal static class RestoreArchiveValidator
                 throw new InvalidDataException(UserExportDamagedMessage, ex);
             }
 
-            var createdAt = ReadUserManifest(archive);
+            var (createdAt, twoStepLeftOut) = ReadUserManifest(archive);
             try
             {
                 var export = BackupArchiveFormat.ReadUserExport(archive);
-                return new ValidatedUserExport(export, UserExportReader.Read(export), createdAt);
+                var summary = UserExportReader.Read(export);
+
+                // The manifest is a claim, not proof: a file that says the secret was left out yet holds one is not a user export.
+                if (twoStepLeftOut && summary.HasTwoStep)
+                {
+                    throw new InvalidDataException(NotAUserExportMessage);
+                }
+
+                return new ValidatedUserExport(export, summary, createdAt, twoStepLeftOut);
             }
             catch (InvalidDataException ex)
             {
@@ -198,7 +207,7 @@ internal static class RestoreArchiveValidator
         }
     }
 
-    private static DateTimeOffset? ReadUserManifest(ZipArchive archive)
+    private static (DateTimeOffset? CreatedAt, bool TwoStepLeftOut) ReadUserManifest(ZipArchive archive)
     {
         var manifestEntry = archive.GetEntry("manifest.json");
         if (manifestEntry is null || manifestEntry.Length > MaxManifestBytes || archive.GetEntry("database/library.db") is not null)
@@ -226,9 +235,21 @@ internal static class RestoreArchiveValidator
                 throw new InvalidDataException(NotAUserExportMessage);
             }
 
-            return root.TryGetProperty("created_at", out var created) && created.ValueKind == JsonValueKind.String && created.TryGetDateTimeOffset(out var parsed)
+            var twoStepLeftOut = false;
+            if (root.TryGetProperty("two_step_left_out", out var left))
+            {
+                twoStepLeftOut = left.ValueKind switch
+                {
+                    JsonValueKind.True => true,
+                    JsonValueKind.False => false,
+                    _ => throw new InvalidDataException(NotAUserExportMessage),
+                };
+            }
+
+            var createdAt = root.TryGetProperty("created_at", out var created) && created.ValueKind == JsonValueKind.String && created.TryGetDateTimeOffset(out var parsed)
                 ? parsed
-                : null;
+                : (DateTimeOffset?)null;
+            return (createdAt, twoStepLeftOut);
         }
     }
 

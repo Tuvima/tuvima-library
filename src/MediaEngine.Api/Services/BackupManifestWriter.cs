@@ -11,9 +11,10 @@ internal static class BackupManifestWriter
 
     /// <summary>
     /// The manifest of a user export: kind and scope <c>user</c>, the person's email and how many profiles they have (for the import
-    /// preview), and the export counts. The file carries what is needed to sign in, so the manifest says so.
+    /// preview), and the export counts. The file carries what is needed to sign in, so the manifest says so. <c>two_step_left_out</c> is
+    /// true when an administrator made the file for someone else, so it holds no two-step secret and the person sets two-step up again.
     /// </summary>
-    public static void WriteUser(ZipArchiveEntry entry, BackupExportContents contents, string email)
+    public static void WriteUser(ZipArchiveEntry entry, BackupExportContents contents, string email, bool twoStepLeftOut)
     {
         using var stream = entry.Open();
         JsonSerializer.Serialize(stream, new
@@ -29,6 +30,7 @@ internal static class BackupManifestWriter
             leaves_out = new[] { "other users", "access rights", "devices", "sessions", "server settings", "media files", "folders", "artwork", "catalogue" },
             user_email = email,
             profile_count = contents.Profiles,
+            two_step_left_out = twoStepLeftOut,
             configuration_rows = contents.ConfigurationRows,
             personal_rows = contents.PersonalRows,
             titles = contents.Titles,

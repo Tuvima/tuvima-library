@@ -8,10 +8,11 @@ using MediaEngine.Storage.Backup;
 namespace MediaEngine.Api.Services.Backups;
 
 /// <summary>
-/// Export and import of one user (backup and restore spec D19). The file carries what is needed to sign in as that person (their email,
-/// password hash and two-step secret), so a person may export only themselves, only an effective administrator may export or import anyone
-/// else, application and service callers are refused, and the routes that call this ask the person to confirm it is them first. Access
-/// rights are never carried; the receiving administrator chooses them afterwards. Nothing here logs an email, a profile name or any secret.
+/// Export and import of one user (backup and restore spec D19). The file carries what is needed to sign in as that person (their email and
+/// password hash, and their two-step secret when they export themselves; an administrator's file for someone else leaves it out), so a
+/// person may export only themselves, only an effective administrator may export or import anyone else, application and service callers
+/// are refused, and the routes that call this ask the person to confirm it is them first. Access rights are never carried; the
+/// receiving administrator chooses them afterwards. Nothing here logs an email, a profile name or any secret.
 /// </summary>
 public sealed class UserTransferService(
     PersonalStateBackupRepository export,
@@ -93,11 +94,11 @@ public sealed class UserTransferService(
             {
                 // A file that cannot be imported is not kept.
                 staging.DeleteFile(path);
-                return Preview(operationId, checkedFile.Summary, SentenceFor(refusal, checkedFile.Summary.Email));
+                return Preview(operationId, checkedFile, SentenceFor(refusal, checkedFile.Summary.Email));
             }
 
             staging.Keep(operationId, administrator, path, originalFileName);
-            return Preview(operationId, checkedFile.Summary, null);
+            return Preview(operationId, checkedFile, null);
         }
         catch
         {
@@ -153,13 +154,17 @@ public sealed class UserTransferService(
             throw new UserTransferRefusedException(NoEmailMessage);
         }
 
+        // An administrator exporting someone else's account never carries that person's two-step secret; a person's own file does.
+        // Decided by whose account is exported, not by which route was used.
+        var leaveOutTwoStep = actor.AccountId != accountId;
+
         // The export reads one consistent snapshot of its own, so nothing is locked and the Library keeps working.
-        var content = await Task.Run(() => export.Export(BackupScope.ForAccount(accountId), ct), ct).ConfigureAwait(false);
+        var content = await Task.Run(() => export.Export(BackupScope.ForAccount(accountId, leaveOutTwoStep), ct), ct).ConfigureAwait(false);
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
             BackupArchiveFormat.Write(archive, content);
-            BackupManifestWriter.WriteUser(archive.CreateEntry("manifest.json", CompressionLevel.SmallestSize), content.Contents, account.Email.Trim());
+            BackupManifestWriter.WriteUser(archive.CreateEntry("manifest.json", CompressionLevel.SmallestSize), content.Contents, account.Email.Trim(), leaveOutTwoStep);
         }
 
         await audit.WriteAsync(
@@ -221,12 +226,13 @@ public sealed class UserTransferService(
     /// The preview. The household named is the one the person will join: the one already here when the file's household exists in this
     /// Library, otherwise the file's own household (created for them), otherwise none.
     /// </summary>
-    private UserImportPreviewDto Preview(Guid operationId, UserExportSummary summary, string? blockedReason)
+    private UserImportPreviewDto Preview(Guid operationId, ValidatedUserExport checkedFile, string? blockedReason)
     {
+        var summary = checkedFile.Summary;
         var household = summary.HouseholdId is { } householdId ? import.FindHouseholdName(householdId) ?? summary.HouseholdName : null;
         var profiles = summary.Profiles
             .Select(profile => new UserImportProfileDto(profile.Name, profile.Role, profile.ContentLimit, profile.AllowsUnrated))
             .ToList();
-        return new UserImportPreviewDto(operationId, summary.Email, household, profiles, summary.PersonalItems, blockedReason);
+        return new UserImportPreviewDto(operationId, summary.Email, household, profiles, summary.PersonalItems, blockedReason, checkedFile.TwoStepLeftOut);
     }
 }

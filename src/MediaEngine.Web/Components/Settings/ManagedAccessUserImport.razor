@@ -50,6 +50,10 @@
                     </li>
                 }
             </ul>
+            @if (_preview.TwoStepToSetUp)
+            {
+                <p data-testid="user-import-two-step">They'll need to set up two-step sign-in again after they sign in.</p>
+            }
             <p>@ItemsSentence(_preview.PersonalItems)</p>
             @if (string.IsNullOrWhiteSpace(_preview.BlockedReason))
             {

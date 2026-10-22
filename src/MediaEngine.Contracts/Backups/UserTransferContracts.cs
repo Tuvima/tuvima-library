@@ -26,13 +26,15 @@ public sealed record UserImportProfileDto(
 /// <param name="Profiles">The profiles under the account, with the role and content limit the file states.</param>
 /// <param name="PersonalItems">How many items of progress, bookmarks, favourites and collection items they carry.</param>
 /// <param name="BlockedReason">One plain sentence when the import cannot go ahead; null when it can.</param>
+/// <param name="TwoStepToSetUp">True when an administrator made the file and left the two-step secret out, so the person sets two-step sign-in up again after they sign in.</param>
 public sealed record UserImportPreviewDto(
     [property: JsonPropertyName("operation_id")] Guid OperationId,
     [property: JsonPropertyName("email")] string Email,
     [property: JsonPropertyName("household_name")] string? HouseholdName,
     [property: JsonPropertyName("profiles")] IReadOnlyList<UserImportProfileDto> Profiles,
     [property: JsonPropertyName("personal_items")] int PersonalItems,
-    [property: JsonPropertyName("blocked_reason")] string? BlockedReason);
+    [property: JsonPropertyName("blocked_reason")] string? BlockedReason,
+    [property: JsonPropertyName("two_step_to_set_up")] bool TwoStepToSetUp = false);
 
 /// <summary>What a user import did. The person can sign in but sees nothing until an administrator gives them access.</summary>
 /// <param name="AccountId">The new account.</param>

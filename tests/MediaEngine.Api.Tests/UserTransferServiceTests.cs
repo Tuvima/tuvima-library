@@ -56,6 +56,7 @@ public sealed class UserTransferServiceTests : IDisposable
             Assert.Equal("user", manifest.RootElement.GetProperty("scope").GetString());
             Assert.Equal("maya@example.com", manifest.RootElement.GetProperty("user_email").GetString());
             Assert.Equal(1, manifest.RootElement.GetProperty("profile_count").GetInt32());
+            Assert.False(manifest.RootElement.GetProperty("two_step_left_out").GetBoolean());
         }
 
         var audited = Assert.Single(audit.Events);
@@ -106,9 +107,99 @@ public sealed class UserTransferServiceTests : IDisposable
         Assert.Equal("That user isn't in this Library.", missing.Message);
     }
 
+    [Fact]
+    public async Task Export_ByAnAdministratorOfAnotherPerson_LeavesOutTheTwoStepSecret_AndSaysSoInTheManifest()
+    {
+        var old = Computer.New(this, "old");
+        var maya = old.AddUser("maya@example.com", ["Maya"]);
+        var admin = old.AddUser("admin@example.com", ["Admin"]);
+
+        var download = await old.Service(administrator: admin.Account).ExportAsync(Human(admin.Account), maya.Account, CancellationToken.None);
+
+        using (var archive = new ZipArchive(new MemoryStream(download.Content), ZipArchiveMode.Read))
+        {
+            Assert.DoesNotContain(archive.Entries, entry => entry.FullName.Contains("account_two_step", StringComparison.Ordinal));
+            using var manifest = JsonDocument.Parse(new StreamReader(archive.GetEntry("manifest.json")!.Open()).ReadToEnd());
+            Assert.True(manifest.RootElement.GetProperty("two_step_left_out").GetBoolean());
+        }
+
+        Assert.DoesNotContain(TwoStepSecret, ZipText(download.Content), StringComparison.Ordinal);
+        Assert.DoesNotContain(TwoStepSecret, Encoding.Latin1.GetString(download.Content), StringComparison.Ordinal);
+        Assert.Contains("maya@example.com", ZipText(download.Content), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Export_ByAnAdministratorOfThemselvesThroughTheAdminRoute_KeepsTheTwoStepSecret()
+    {
+        var old = Computer.New(this, "old");
+        var admin = old.AddUser("admin@example.com", ["Admin"]);
+
+        var download = await old.Service(administrator: admin.Account).ExportAsync(Human(admin.Account), admin.Account, CancellationToken.None);
+
+        Assert.Equal(TwoStepSecret, ReadPortableTwoStep(download.Content));
+        using var archive = new ZipArchive(new MemoryStream(download.Content), ZipArchiveMode.Read);
+        using var manifest = JsonDocument.Parse(new StreamReader(archive.GetEntry("manifest.json")!.Open()).ReadToEnd());
+        Assert.False(manifest.RootElement.GetProperty("two_step_left_out").GetBoolean());
+    }
+
     // ---------------------------------------------------------------------------------------------------------
     // Import
     // ---------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ImportingAFileAnAdministratorMadeForSomeoneElse_SucceedsWithTwoStepOff_AndThePreviewSaysTheyWillSetItUpAgain()
+    {
+        var old = Computer.New(this, "old");
+        var fresh = Computer.New(this, "new");
+        var maya = old.AddUser("maya@example.com", ["Maya"]);
+        var oldAdmin = old.AddUser("old-admin@example.com", ["Old admin"]);
+        var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var download = await old.Service(administrator: oldAdmin.Account).ExportAsync(Human(oldAdmin.Account), maya.Account, CancellationToken.None);
+        var service = fresh.Service(administrator: admin.Account);
+
+        var preview = await InspectAsync(service, admin.Account, download.Content);
+
+        Assert.Null(preview.BlockedReason);
+        Assert.True(preview.TwoStepToSetUp);
+
+        var result = await service.ImportAsync(Human(admin.Account), preview.OperationId, CancellationToken.None);
+
+        Assert.Equal(maya.Account, result.AccountId);
+        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM account_two_step WHERE account_id = " + Blob(maya.Account)));
+        Assert.Equal(1, fresh.Scalar("SELECT COUNT(*) FROM account_credentials WHERE account_id = " + Blob(maya.Account)));
+    }
+
+    [Fact]
+    public async Task Inspect_OfAPersonsOwnFile_DoesNotSayTheyWillSetTwoStepUpAgain()
+    {
+        var old = Computer.New(this, "old");
+        var fresh = Computer.New(this, "new");
+        var maya = old.AddUser("maya@example.com", ["Maya"]);
+        var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var download = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
+
+        var preview = await InspectAsync(fresh.Service(administrator: admin.Account), admin.Account, download.Content);
+
+        Assert.False(preview.TwoStepToSetUp);
+    }
+
+    [Fact]
+    public async Task Inspect_RefusesAFileThatSaysTheTwoStepSecretWasLeftOut_YetHoldsOne_AndKeepsNothing()
+    {
+        var old = Computer.New(this, "old");
+        var fresh = Computer.New(this, "new");
+        var maya = old.AddUser("maya@example.com", ["Maya"]);
+        var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var own = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
+        var crafted = SetManifestFlag(own.Content, "two_step_left_out", true);
+        var service = fresh.Service(administrator: admin.Account);
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => InspectAsync(service, admin.Account, crafted));
+
+        Assert.Equal("This file isn't a user export.", error.Message);
+        Assert.Empty(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
+        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM accounts WHERE email = 'maya@example.com'"));
+    }
 
     [Fact]
     public async Task ImportingAnExport_MakesANewUserWhoCanSignInWithTheSameDetailsButSeesNothing_AndKeepsNoFile()
@@ -446,6 +537,30 @@ public sealed class UserTransferServiceTests : IDisposable
             var name = entry.FullName;
             entry.Delete();
             using var writer = new StreamWriter(archive.CreateEntry(name).Open(), new UTF8Encoding(false));
+            writer.Write(node.ToJsonString());
+        }
+
+        return stream.ToArray();
+    }
+
+    /// <summary>The archive with one true-or-false property of its manifest set, as a crafted file would carry it.</summary>
+    private static byte[] SetManifestFlag(byte[] archiveBytes, string property, bool value)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(archiveBytes);
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            var entry = archive.GetEntry("manifest.json")!;
+            string json;
+            using (var reader = new StreamReader(entry.Open()))
+            {
+                json = reader.ReadToEnd();
+            }
+
+            var node = System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject();
+            node[property] = value;
+            entry.Delete();
+            using var writer = new StreamWriter(archive.CreateEntry("manifest.json").Open(), new UTF8Encoding(false));
             writer.Write(node.ToJsonString());
         }
 

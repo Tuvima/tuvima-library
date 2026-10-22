@@ -370,6 +370,30 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ImportAUser_WhenTheFileLeftTwoStepOut_SaysThePersonSetsItUpAgain()
+    {
+        _handler.Preview = Preview(twoStepToSetUp: true);
+        var cut = RenderUsers();
+
+        ChooseFile(cut);
+
+        var line = cut.WaitForElement("[data-testid='user-import-two-step']");
+        Assert.Equal("They'll need to set up two-step sign-in again after they sign in.", line.TextContent.Trim());
+    }
+
+    [Fact]
+    public void ImportAUser_WhenTheFileKeptTwoStep_SaysNothingAboutSettingItUp()
+    {
+        var cut = RenderUsers();
+
+        ChooseFile(cut);
+
+        cut.WaitForElement("[data-testid='user-import-preview']");
+        Assert.Empty(cut.FindAll("[data-testid='user-import-two-step']"));
+        Assert.DoesNotContain("two-step", cut.Find("[data-testid='user-import']").TextContent, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void ImportAUser_ShowsAnAdministratorRoleInTheFileAsAStandardProfile()
     {
         _handler.Preview = Preview(profiles: [new("Pat", "Administrator", null, false)]);
@@ -482,10 +506,10 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
     // ----- helpers -----
 
     private static UserImportPreviewDto Preview(
-        IReadOnlyList<UserImportProfileDto>? profiles = null, string? blockedReason = null) =>
+        IReadOnlyList<UserImportProfileDto>? profiles = null, string? blockedReason = null, bool twoStepToSetUp = false) =>
         new(TransferHandler.DefaultOperationId, "sam@example.test", "Finch family",
             profiles ?? [new("Sam", "RestrictedProfile", "PG", false), new("Sam (grown-up)", "StandardUser", null, false)],
-            12, blockedReason);
+            12, blockedReason, twoStepToSetUp);
 
     private IRenderedComponent<ManagedAccessUsers> RenderUsers(string expectedText = "owner@example.test")
     {

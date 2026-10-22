@@ -52,6 +52,9 @@ public static class UserExportScope
     /// <summary>The manifest and contents kind of a user export.</summary>
     public const string Kind = "user";
 
+    /// <summary>The table holding an account's two-step secret, which an administrator's export of someone else leaves out.</summary>
+    public const string TwoStepTable = "account_two_step";
+
     private const string InProfiles = "{profiles}";
 
     private const string BuiltByTheseProfiles =
@@ -144,7 +147,7 @@ public static class UserExportScope
             // The account and how it signs in.
             new("accounts", "id = {account}", ["grants_inherit_from_account_id"], [new UserRowCheck.AccountColumn("id")]),
             new("account_credentials", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
-            new("account_two_step", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
+            new(TwoStepTable, "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
             new("account_passkeys", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
             new("account_external_logins", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),
             new("account_notice_dismissals", "account_id = {account}", [], [new UserRowCheck.AccountColumn("account_id")]),

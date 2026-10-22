@@ -244,6 +244,12 @@ public sealed class PersonalStateBackupRepository
                 continue;
             }
 
+            // An administrator exporting someone else never carries that person's two-step secret.
+            if (scope.LeaveOutTwoStep && string.Equals(entry.Table, UserExportScope.TwoStepTable, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             var filter = UserExportScope.FilterFor(entry, accountId, profiles);
             var predicate = string.IsNullOrWhiteSpace(rule.KeepWhere) ? filter : "(" + rule.KeepWhere + ") AND (" + filter + ")";
             tables.Add(ExportTable(connection, transaction, rule, liveColumns, scope, book, predicate, portableValues, ref dropped, ref withheld, ref keptMachineBound, ct, entry.ExcludedColumns));

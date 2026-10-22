@@ -30,6 +30,7 @@ public sealed record UserExportProfile(string Name, string Role, string? Content
 /// <param name="CollectionIds">The collections the profiles built.</param>
 /// <param name="PasskeyIds">The passkeys' credential ids.</param>
 /// <param name="ExternalLogins">The outside sign-in links.</param>
+/// <param name="HasTwoStep">True when the file holds a two-step row.</param>
 /// <param name="TwoStepSecretIsPortable">True when there is no two-step secret, or it was made readable for any computer.</param>
 /// <param name="PersonalItems">Rows of the person's own state and what they built (progress, bookmarks, favourites, collection items).</param>
 public sealed record UserExportSummary(
@@ -44,6 +45,7 @@ public sealed record UserExportSummary(
     IReadOnlyList<Guid> CollectionIds,
     IReadOnlyList<byte[]> PasskeyIds,
     IReadOnlyList<UserExportExternalLogin> ExternalLogins,
+    bool HasTwoStep,
     bool TwoStepSecretIsPortable,
     int PersonalItems);
 
@@ -169,8 +171,10 @@ public static class UserExportReader
         }
 
         var twoStepPortable = true;
-        if (tables.TryGetValue("account_two_step", out var twoStep))
+        var hasTwoStep = false;
+        if (tables.TryGetValue(UserExportScope.TwoStepTable, out var twoStep))
         {
+            hasTwoStep = twoStep.Rows.Count > 0;
             twoStepPortable = twoStep.Rows.All(row => Value(twoStep, row, "secret_protected") is BackupValue.Portable);
         }
 
@@ -219,6 +223,7 @@ public static class UserExportReader
             collections,
             passkeys,
             logins,
+            hasTwoStep,
             twoStepPortable,
             personalItems);
     }

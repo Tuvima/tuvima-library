@@ -50,6 +50,36 @@ public sealed class UserExportImportTests : IDisposable
     }
 
     [Fact]
+    public void Export_WithTheTwoStepSecretLeftOut_HoldsNoTwoStepRow_AndNoPartOfTheSecret_ButKeepsTheRestOfTheSignIn()
+    {
+        var source = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false, twoStepSecret: "SECRET-MARKER");
+
+        var export = new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForAccount(maya.Account, leaveOutTwoStep: true));
+
+        Assert.DoesNotContain(export.Tables, table => string.Equals(table.Table, "account_two_step", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain("SECRET-MARKER", ArchiveText(export), StringComparison.Ordinal);
+        Assert.Single(Table(export, "account_credentials").Rows);
+        Assert.Single(Table(export, "accounts").Rows);
+    }
+
+    [Fact]
+    public void Import_OfAFileWithNoTwoStepRow_Succeeds_AndTwoStepIsOffForThePerson()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false, twoStepSecret: "SECRET-MARKER");
+        var export = new PersonalStateBackupRepository(source.Database, new FakeCodec()).Export(BackupScope.ForAccount(maya.Account, leaveOutTwoStep: true));
+
+        var result = ImportInto(target, export);
+
+        Assert.Equal(maya.Account, result.AccountId);
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_two_step"));
+        Assert.Equal(source.Text("SELECT secret_hash FROM account_credentials"), target.Text("SELECT secret_hash FROM account_credentials"));
+        Assert.Equal(UserImportRefusal.None, new UserImportRepository(NewStore().Database).Check(UserExportReader.Read(export)));
+    }
+
+    [Fact]
     public void Export_NeverHoldsAccessRights_Devices_Sessions_OrInvitations()
     {
         var source = NewStore();
