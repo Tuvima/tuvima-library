@@ -24,7 +24,8 @@ public sealed record EffectiveLibraryLookup(LibraryLookupMode Mode, string Metad
 /// <summary>
 /// The one place that turns a library's kind into its lookup behaviour (Library setup spec D17, D18, D38). A plain kind never
 /// contacts anything and has the YouTube lookup off whatever its <c>youtube_lookup</c> and <c>metadata_policy</c> fields say; the
-/// YouTube kind looks up on YouTube only; every other kind, and a library with no kind, behaves from its own fields.
+/// YouTube kind looks up on YouTube only; a lookup kind, and a library with no kind, behaves from its own fields. A kind this list
+/// does not know (a plugin's kind while its plugin is off) looks nothing up: an unknown kind fails closed.
 /// </summary>
 public static class LibraryKindLookupPolicy
 {
@@ -43,7 +44,8 @@ public static class LibraryKindLookupPolicy
             .FirstOrDefault(candidate => string.Equals(candidate.Key, kindKey, StringComparison.Ordinal));
         if (kind is null)
         {
-            return LibraryLookupMode.FromFields;
+            // Fail closed: a kind we cannot see (a plugin's, with the plugin off) may be a plain one, so nothing is looked up for it.
+            return LibraryLookupMode.Plain;
         }
 
         if (string.Equals(kind.Key, YouTubeKindKey, StringComparison.Ordinal))
@@ -70,7 +72,7 @@ public static class LibraryKindLookupPolicy
     /// <summary>
     /// Sets every library's <c>metadata_policy</c> and <c>youtube_lookup</c> to what its kind implies, so a library saved from an older
     /// file or screen can never disagree with its kind and the saved file is consistent. A library with no deciding kind (the Vault's
-    /// own entries, a lookup kind, a kind this list does not know) is left exactly as it is. Returns how many libraries changed.
+    /// own entries, a lookup kind) is left exactly as it is; a kind this list does not know is treated as plain. Returns how many libraries changed.
     /// </summary>
     public static int Normalise(LibrariesConfiguration libraries, IReadOnlyList<LibraryKindDefinition>? kinds)
     {

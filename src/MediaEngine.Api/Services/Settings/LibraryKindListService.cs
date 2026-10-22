@@ -75,16 +75,16 @@ public sealed class LibraryKindListService : ILibraryKindSource
     public IReadOnlyList<LibraryKindDto> GetDtos() => [.. GetAll().Select(ToDto)];
 
     /// <summary>
-    /// The first problem with how libraries link to kinds, checked against the full list (plugins included), or null. A
-    /// library must name a kind that exists and whose format is one of the library's media types, and the kind's library count and
-    /// names must hold. Its own lookup settings are not refused here: see <see cref="NormaliseLookupFields"/>.
-    /// </summary>
-    /// <summary>
     /// Sets each library's <c>metadata_policy</c> and <c>youtube_lookup</c> to what its kind implies (plugin kinds included) before a
     /// save is validated, so a stale library can never block a save and the saved file is consistent. The kind wins.
     /// </summary>
     public int NormaliseLookupFields(LibrariesConfiguration proposed) => LibraryKindLookupPolicy.Normalise(proposed, GetKinds());
 
+    /// <summary>
+    /// The first problem with how libraries link to kinds, checked against the full list (plugins included), or null. A
+    /// library must name a kind that exists and whose format is one of the library's media types, and the kind's library count and
+    /// names must hold. Its own lookup settings are not refused here: see <see cref="NormaliseLookupFields"/>.
+    /// </summary>
     public string? ValidateLibraries(LibrariesConfiguration proposed)
     {
         ArgumentNullException.ThrowIfNull(proposed);
