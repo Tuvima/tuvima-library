@@ -5,6 +5,7 @@
 @using MediaEngine.Web.Services.Formatting
 @implements IDisposable
 @inject IEngineApiClient ApiClient
+@inject ILogger<LibraryWriteSchedulePanel> Logger
 
 @* When changed details are written into files. Library saves every change at once; the files catch up in one batch on this
    schedule, or straight away with Write now. Phones see the status text only. *@
@@ -106,6 +107,7 @@
     private IReadOnlyList<FailedFileWriteDto> _failed = [];
     private bool _loading = true;
     private bool _exifToolMissing;
+    private bool _toolsChecked;
     private bool _showFailed;
     private bool _savingInterval;
     private bool _starting;
@@ -127,8 +129,10 @@
         _schedule = await ApiClient.GetFileWriteScheduleAsync();
         if (_schedule is null) return;
         if (!_savingInterval && _intervalError is null) _intervalText = _schedule.IntervalMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if (_schedule.Enabled)
+        if (_schedule.Enabled && !_toolsChecked)
         {
+            // ExifTool's state changes only when someone installs it, so it is read once per visit rather than on every refresh.
+            _toolsChecked = true;
             var tools = await ApiClient.GetToolRequirementsAsync();
             var exifTool = tools?.Tools.FirstOrDefault(tool => string.Equals(tool.Id, ToolRequirementIds.ExifTool, StringComparison.Ordinal));
             _exifToolMissing = exifTool is not null && !string.Equals(exifTool.State, ToolRequirementStates.Ready, StringComparison.Ordinal);
@@ -252,11 +256,30 @@
         {
             // The panel was closed while a refresh was waiting: nothing more to do.
         }
+        catch (ObjectDisposedException)
+        {
+            // The browser tab closed during a run and took the page with it: there is nothing left to refresh.
+        }
+        catch (Exception ex)
+        {
+            // A refresh that fails stops the live progress only; the panel keeps its last numbers and the next visit reads them again.
+            Logger.LogWarning(ex, "Refreshing the file-write progress failed.");
+        }
         finally
         {
             _polling?.Dispose();
             _polling = null;
-            if (!_disposed) await InvokeAsync(StateHasChanged);
+            if (!_disposed)
+            {
+                try
+                {
+                    await InvokeAsync(StateHasChanged);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // The page went away between the last refresh and this redraw: there is nothing left to draw.
+                }
+            }
         }
     }
 
