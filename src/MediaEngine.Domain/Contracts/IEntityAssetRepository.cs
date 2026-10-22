@@ -69,10 +69,13 @@ public interface IEntityAssetRepository
 
     /// <summary>
     /// Records the paths of a variant's tiny, small, medium and large copies and nothing else on the row, so a copy made
-    /// in the background cannot overwrite a choice (preferred, user override) made in the meantime.
+    /// in the background cannot overwrite a choice (preferred, user override) made in the meantime. Nothing is written
+    /// when the row's original is no longer <paramref name="originalPath"/> (the picture was replaced while the copies
+    /// were being made), so copies of an old picture never sit beside a new original.
     /// </summary>
     Task UpdateRenditionPathsAsync(
         Guid assetId,
+        string? originalPath,
         string? tinyPath,
         string? smallPath,
         string? mediumPath,

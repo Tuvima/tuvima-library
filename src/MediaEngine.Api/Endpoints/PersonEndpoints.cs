@@ -324,7 +324,6 @@ public static class PersonEndpoints
         group.MapGet("/{id:guid}/headshot", async (
             Guid id,
             string? size,
-            HttpContext httpContext,
             IPersonRepository personRepo,
             IEntityAssetRepository assetRepo,
             IArtworkRenditionService renditions,
@@ -353,12 +352,11 @@ public static class PersonEndpoints
                     return null;
                 }
 
-                return ArtworkFileResults.Local(
-                    resolved.Path,
-                    ArtworkFileResults.ModeFor(
-                        httpContext.Request,
-                        ArtworkVersionMarker.ForFile(headshot.LocalImagePath),
-                        resolved.IsRequestedSize));
+                // A face address is keyed by the person, not the picture, and its change marker comes from
+                // persons.local_headshot_path, which not every way of changing the preferred face updates (an upload
+                // or a pick in the editor adds a new picture). A year-long keep could then show an old face, so faces
+                // are always checked on each use: an unchanged face costs a 304 with no body.
+                return ArtworkFileResults.Local(resolved.Path, ArtworkCacheMode.Revalidate);
             }
 
             async Task<IResult?> AdoptAndServeAsync(string path)

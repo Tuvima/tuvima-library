@@ -120,6 +120,7 @@ public sealed class ArtworkRenditionService(
 
             await assets.UpdateRenditionPathsAsync(
                 asset.Id,
+                asset.LocalImagePath,
                 asset.LocalImagePathTiny,
                 asset.LocalImagePathSmall,
                 asset.LocalImagePathMedium,
@@ -129,7 +130,7 @@ public sealed class ArtworkRenditionService(
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Could not make the missing copies of artwork {AssetId}.", asset.Id);
+            logger.LogWarning(ex, "Could not make the missing copies of artwork {AssetId}.", asset.Id);
             return null;
         }
         finally

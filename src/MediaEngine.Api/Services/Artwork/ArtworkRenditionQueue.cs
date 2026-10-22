@@ -13,7 +13,9 @@ public sealed class ArtworkRenditionQueue
 
     private readonly Channel<Guid> _channel = Channel.CreateBounded<Guid>(new BoundedChannelOptions(Capacity)
     {
-        FullMode = BoundedChannelFullMode.DropWrite,
+        // Wait (not DropWrite): a full queue makes TryWrite return false, so the picture is not left marked as
+        // waiting forever and the next request for it can queue it again.
+        FullMode = BoundedChannelFullMode.Wait,
         SingleReader = true,
     });
 

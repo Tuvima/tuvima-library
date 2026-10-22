@@ -4466,7 +4466,7 @@ public sealed class WorkerPipelineTests
             return Task.FromResult<IReadOnlyList<EntityAsset>>(assets);
         }
 
-        public Task UpdateRenditionPathsAsync(Guid assetId, string? tinyPath, string? smallPath, string? mediumPath, string? largePath, CancellationToken ct = default)
+        public Task UpdateRenditionPathsAsync(Guid assetId, string? originalPath, string? tinyPath, string? smallPath, string? mediumPath, string? largePath, CancellationToken ct = default)
         {
             var asset = Assets.FirstOrDefault(candidate => candidate.Id == assetId);
             if (asset is not null)

@@ -68,6 +68,7 @@ public sealed class ArtworkRenditionRepairStartupService : BackgroundService
             {
                 await _assetRepository.UpdateRenditionPathsAsync(
                     asset.Id,
+                    asset.LocalImagePath,
                     asset.LocalImagePathTiny,
                     asset.LocalImagePathSmall,
                     asset.LocalImagePathMedium,

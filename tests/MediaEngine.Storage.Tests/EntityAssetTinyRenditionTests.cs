@@ -46,7 +46,7 @@ public sealed class EntityAssetTinyRenditionTests : IDisposable
         asset.IsPreferred = true;
         await _assets.UpsertAsync(asset);
 
-        await _assets.UpdateRenditionPathsAsync(asset.Id, "/assets/t.jpg", "/assets/s.jpg", "/assets/m.jpg", "/assets/l.jpg");
+        await _assets.UpdateRenditionPathsAsync(asset.Id, asset.LocalImagePath, "/assets/t.jpg", "/assets/s.jpg", "/assets/m.jpg", "/assets/l.jpg");
         var stored = await _assets.FindByIdAsync(asset.Id);
 
         Assert.NotNull(stored);
@@ -56,6 +56,21 @@ public sealed class EntityAssetTinyRenditionTests : IDisposable
         Assert.Equal("/assets/l.jpg", stored.LocalImagePathLarge);
         Assert.Equal("/assets/face.jpg", stored.LocalImagePath);
         Assert.Equal(asset.Id, (await _assets.GetPreferredAsync(asset.EntityId, "Headshot"))!.Id);
+    }
+
+    [Fact]
+    public async Task UpdateRenditionPaths_WritesNothing_WhenThePictureWasReplacedMeanwhile()
+    {
+        var asset = NewAsset();
+        asset.LocalImagePathSmall = "/assets/new-s.jpg";
+        await _assets.UpsertAsync(asset);
+
+        await _assets.UpdateRenditionPathsAsync(asset.Id, "/assets/old-original.jpg", "/assets/old-t.jpg", "/assets/old-s.jpg", "/assets/old-m.jpg", "/assets/old-l.jpg");
+        var stored = await _assets.FindByIdAsync(asset.Id);
+
+        Assert.NotNull(stored);
+        Assert.Null(stored.LocalImagePathTiny);
+        Assert.Equal("/assets/new-s.jpg", stored.LocalImagePathSmall);
     }
 
     [Fact]

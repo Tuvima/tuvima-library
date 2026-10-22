@@ -96,6 +96,25 @@ public sealed class RightSizedPictureEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task Headshot_IsCheckedOnEachUse_EvenWithAMatchingChangeMarker()
+    {
+        // A face address is keyed by the person; an upload adds a new preferred face without changing that address,
+        // so a year-long keep could show the old face (review must-fix). Faces are always re-checked (cheap 304s).
+        var personId = await SeedCreditedPersonAsync();
+        var asset = await SeedManagedHeadshotAsync(personId);
+        await SetLocalHeadshotAsync(personId, asset.LocalImagePath!);
+        var marker = ArtworkVersionMarker.ForFile(asset.LocalImagePath);
+
+        await using var app = await StartAsync();
+        using var client = new HttpClient { BaseAddress = app.Address };
+        using var response = await client.GetAsync($"/persons/{personId:D}/headshot?size=s&v={marker}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("private, no-cache", response.Headers.CacheControl?.ToString());
+        Assert.NotNull(response.Headers.ETag);
+    }
+
+    [Fact]
     public async Task StoredArtworkAtTiny_WithTheCurrentChangeMarker_IsKeptForAYear()
     {
         var personId = await SeedCreditedPersonAsync();

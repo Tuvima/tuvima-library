@@ -669,6 +669,7 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
     /// <inheritdoc/>
     public Task UpdateRenditionPathsAsync(
         Guid assetId,
+        string? originalPath,
         string? tinyPath,
         string? smallPath,
         string? mediumPath,
@@ -685,8 +686,9 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
                    local_image_path_m = @mediumPath,
                    local_image_path_l = @largePath,
                    updated_at = datetime('now')
-            WHERE  id = @assetId;
-            """, new { assetId, tinyPath, smallPath, mediumPath, largePath });
+            WHERE  id = @assetId
+              AND  local_image_path IS @originalPath;
+            """, new { assetId, originalPath, tinyPath, smallPath, mediumPath, largePath });
 
         return Task.CompletedTask;
     }

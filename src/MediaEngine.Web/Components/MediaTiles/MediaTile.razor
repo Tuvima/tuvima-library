@@ -29,7 +29,7 @@
                 @if (!string.IsNullOrWhiteSpace(CardImageUrl))
                 {
                     <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)"
-                         srcset="@Item.TileImageSrcSet"
+                         srcset="@TileSrcSet"
                          sizes="@Item.TileImageSizes"
                          alt=""
                          class="media-tile-collection-backdrop @TileImageFitClass"
@@ -69,7 +69,7 @@
                     <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)" alt="" aria-hidden="true" class="media-tile-contained-backdrop" loading="lazy" decoding="async" />
                 }
                 <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)"
-                     srcset="@Item.TileImageSrcSet"
+                     srcset="@TileSrcSet"
                      sizes="@Item.TileImageSizes"
                      alt="@Item.Title"
                      class="media-tile-image @TileImageFitClass"
@@ -688,6 +688,12 @@
     // The Engine addresses are sized here too, so a tile never fetches an original or a 2160px copy by accident.
     private const int TileDrawnPx = 320;
     private const int HoverDrawnPx = 440;
+
+    // Tiles are drawn up to 228px wide: when the Engine sent no width list (its size is unknown), a 1x/2x/3x list
+    // still gives sharp screens the medium copy.
+    private const int TileWidthPx = 228;
+
+    private string? TileSrcSet => Item.TileImageSrcSet ?? MediaTileArtworkUrl.SrcSetForDrawnSize(CardImageUrl, TileWidthPx);
 
     private string CardImageUrl => Item.TileImageUrl ?? string.Empty;
 

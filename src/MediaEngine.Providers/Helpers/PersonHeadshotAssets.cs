@@ -56,6 +56,7 @@ public static class PersonHeadshotAssets
                     {
                         await repo.UpdateRenditionPathsAsync(
                             match.Id,
+                            match.LocalImagePath,
                             match.LocalImagePathTiny,
                             match.LocalImagePathSmall,
                             match.LocalImagePathMedium,

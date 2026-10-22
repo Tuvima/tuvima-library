@@ -59,7 +59,7 @@ public static class CharacterPortraitRenditions
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Could not make the {Size} copy of character picture {Path}.", key, originalPath);
+            logger.LogWarning(ex, "Could not make the {Size} copy of character picture {Path}.", key, originalPath);
             return false;
         }
         finally
