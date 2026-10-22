@@ -21,7 +21,7 @@ public sealed class ViewQueryOrchestratorTests
             new ViewScopeResolverTests.ScopeStore(caller, included, excluded));
         var authorization = new ViewResourceAuthorizationService(resolver, new EmptyResourceStore(), new TestAllowAuthorizationEvaluator());
         var backend = new CapturingBackend();
-        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend);
+        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend, new TestViewProfileRepository());
 
         var result = await orchestrator.QueryAsync(new ViewAssetQueryRequest(
             ViewScopeRequest.Shared,
@@ -46,7 +46,7 @@ public sealed class ViewQueryOrchestratorTests
         var resolver = new ViewScopeResolver(new ViewScopeResolverTests.ScopeStore(caller));
         var authorization = new ViewResourceAuthorizationService(resolver, new EmptyResourceStore(), new TestAllowAuthorizationEvaluator());
         var backend = new CapturingBackend();
-        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend);
+        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend, new TestViewProfileRepository());
 
         var result = await orchestrator.QueryAsync(new ViewAssetQueryRequest(ViewScopeRequest.Mine, MediaKinds: [kind]));
 
@@ -64,7 +64,7 @@ public sealed class ViewQueryOrchestratorTests
         var resolver = new ViewScopeResolver(new ViewScopeResolverTests.ScopeStore());
         var authorization = new ViewResourceAuthorizationService(resolver, new EmptyResourceStore(), new TestAllowAuthorizationEvaluator());
         var backend = new CapturingBackend();
-        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend);
+        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend, new TestViewProfileRepository());
 
         var result = await orchestrator.QueryAsync(new ViewAssetQueryRequest(ViewScopeRequest.Mine));
 
@@ -84,14 +84,14 @@ public sealed class ViewQueryOrchestratorTests
         var authorization = new ViewResourceAuthorizationService(resolver, new EmptyResourceStore(), new TestAllowAuthorizationEvaluator());
 
         var explicitBackend = new CapturingBackend();
-        var explicitQuery = new ViewQueryOrchestrator(context, authorization, explicitBackend);
+        var explicitQuery = new ViewQueryOrchestrator(context, authorization, explicitBackend, new TestViewProfileRepository());
         var explicitResult = await explicitQuery.QueryAsync(new ViewAssetQueryRequest(
             ViewScopeRequest.ForProfile(staleProfileId)));
         Assert.Equal(ViewAccessOutcome.NotFound, explicitResult.Outcome);
         Assert.Null(explicitBackend.Plan);
 
         var persistedBackend = new CapturingBackend();
-        var persistedQuery = new ViewQueryOrchestrator(context, authorization, persistedBackend);
+        var persistedQuery = new ViewQueryOrchestrator(context, authorization, persistedBackend, new TestViewProfileRepository());
         var persistedResult = await persistedQuery.QueryAsync(new ViewAssetQueryRequest(
             ViewScopeRequest.ForProfile(staleProfileId), AllowStaleSelectionFallback: true));
         Assert.Equal(ViewAccessOutcome.Allowed, persistedResult.Outcome);
@@ -109,7 +109,7 @@ public sealed class ViewQueryOrchestratorTests
         var resolver = new ViewScopeResolver(new ViewScopeResolverTests.ScopeStore(caller));
         var authorization = new ViewResourceAuthorizationService(resolver, new EmptyResourceStore(), new TestAllowAuthorizationEvaluator());
         var backend = new CapturingBackend();
-        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend);
+        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend, new TestViewProfileRepository());
 
         var result = await orchestrator.QueryAsync(new ViewAssetQueryRequest(
             ViewScopeRequest.Mine,
@@ -134,7 +134,7 @@ public sealed class ViewQueryOrchestratorTests
             new HashSet<Guid> { caller.Policy.ProfileId });
         var authorization = new ViewResourceAuthorizationService(resolver, new EmptyResourceStore(resource), new TestAllowAuthorizationEvaluator());
         var backend = new CapturingBackend();
-        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend, new StubSmartGalleryService());
+        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend, new TestViewProfileRepository(), new StubSmartGalleryService());
 
         var result = await orchestrator.QueryAsync(new ViewAssetQueryRequest(
             ViewScopeRequest.Mine, GalleryId: galleryId));
@@ -160,7 +160,7 @@ public sealed class ViewQueryOrchestratorTests
         var rule = CollectionRuleDefinition.SingleGroup(
             [new CollectionRulePredicate { Field = "favorite", Op = "eq", Value = "true" }]);
         var smart = new StubSmartGalleryService(rule);
-        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend, smart);
+        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend, new TestViewProfileRepository(), smart);
 
         var result = await orchestrator.QueryAsync(new ViewAssetQueryRequest(
             ViewScopeRequest.Mine, GalleryId: galleryId));
@@ -183,7 +183,7 @@ public sealed class ViewQueryOrchestratorTests
         var backend = new CapturingBackend();
         var smart = new StubSmartGalleryService(CollectionRuleDefinition.SingleGroup(
             [new CollectionRulePredicate { Field = "favorite", Value = "true" }]));
-        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend, smart);
+        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend, new TestViewProfileRepository(), smart);
 
         var result = await orchestrator.QueryAsync(new ViewAssetQueryRequest(
             ViewScopeRequest.Mine, GalleryId: Guid.NewGuid()));
@@ -226,7 +226,7 @@ public sealed class ViewQueryOrchestratorTests
         var caller = State(access: true, include: true); var other = State(access: true, include: true);
         var context = new HttpViewRequestProfileContext(new HttpContextAccessor { HttpContext = new DefaultHttpContext() }, TestViewAuthorityResolver.Human(caller.Policy.ProfileId));
         var authorization = new ViewResourceAuthorizationService(new ViewScopeResolver(new ViewScopeResolverTests.ScopeStore(caller, other)), new EmptyResourceStore(), new TestAllowAuthorizationEvaluator());
-        var backend = new CapturingBackend(); var orchestrator = new ViewQueryOrchestrator(context, authorization, backend);
+        var backend = new CapturingBackend(); var orchestrator = new ViewQueryOrchestrator(context, authorization, backend, new TestViewProfileRepository());
         var boundary = DateTimeOffset.UtcNow;
         await orchestrator.QueryAsync(new ViewAssetQueryRequest(ViewScopeRequest.Mine, SortByAddedAt: true, AddedBefore: boundary, AddedAfterKey: "catalogue:00000000000000000000000000000001"));
         var plan = Assert.IsType<ViewAssetQueryPlan>(backend.Plan);

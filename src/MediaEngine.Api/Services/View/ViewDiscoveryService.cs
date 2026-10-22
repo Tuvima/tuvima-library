@@ -41,13 +41,12 @@ public sealed class ViewDiscoveryService(
     IViewRequestProfileContext profileContext,
     IViewResourceAuthorizationService authorization,
     IViewDiscoveryRepository repository,
-    ILocalAssetRepository? assets = null,
-    IViewProfileRepository? profiles = null)
+    IViewProfileRepository profiles,
+    ILocalAssetRepository? assets = null)
 {
     /// <summary>The View kinds the signed-in profile may not use: places, the atlas and people leave them out.</summary>
     private async Task<IReadOnlyList<string>> BlockedKindsAsync(CancellationToken ct) =>
-        profiles is not null
-        && (await profileContext.ResolveAuthorityAsync(ct).ConfigureAwait(false)).ActiveProfileId is { } profileId
+        (await profileContext.ResolveAuthorityAsync(ct).ConfigureAwait(false)).ActiveProfileId is { } profileId
             ? (await profiles.GetPolicyAsync(profileId, ct).ConfigureAwait(false)).BlockedContentKinds
             : [];
 

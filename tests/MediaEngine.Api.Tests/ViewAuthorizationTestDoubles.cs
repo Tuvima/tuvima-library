@@ -2,6 +2,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.View;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.PersonalMedia;
 using Microsoft.AspNetCore.Http;
 
 namespace MediaEngine.Api.Tests;
@@ -18,6 +19,28 @@ internal sealed class TestViewAuthorityResolver(RequestAuthority authority) : IR
     public static TestViewAuthorityResolver Human(Guid profileId) =>
         new(new RequestAuthority(PrincipalKind.Human, true, Guid.NewGuid(), profileId,
             AccountEnabled: true, GrantEnabled: true));
+}
+
+/// <summary>
+/// A profile repository for tests that do not exercise per-kind permission: every profile has the default policy
+/// (Photos, Personal videos and Documents all on), or the one given.
+/// </summary>
+internal sealed class TestViewProfileRepository(ViewProfilePolicy? policy = null) : IViewProfileRepository
+{
+    public Task<ViewProfilePolicy> GetPolicyAsync(Guid profileId, CancellationToken ct = default) =>
+        Task.FromResult(policy ?? ViewProfilePolicy.Default(profileId));
+
+    public Task<bool> SavePolicyAsync(ViewProfilePolicy value, CancellationToken ct = default) =>
+        throw new NotSupportedException();
+
+    public Task<ViewProfilePreferences> GetPreferencesAsync(Guid profileId, CancellationToken ct = default) =>
+        throw new NotSupportedException();
+
+    public Task<bool> SavePreferencesAsync(ViewProfilePreferences preferences, CancellationToken ct = default) =>
+        throw new NotSupportedException();
+
+    public Task<bool> SaveDocumentsSortAsync(Guid profileId, string? sort, CancellationToken ct = default) =>
+        throw new NotSupportedException();
 }
 
 internal sealed class TestAllowAuthorizationEvaluator : IAuthorizationEvaluator

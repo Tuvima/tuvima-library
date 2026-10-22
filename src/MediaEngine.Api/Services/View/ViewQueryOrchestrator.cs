@@ -81,8 +81,8 @@ public sealed class ViewQueryOrchestrator(
     IViewRequestProfileContext profileContext,
     IViewResourceAuthorizationService authorization,
     IViewAssetQueryBackend backend,
-    IViewSmartGalleryQueryService? smartGalleries = null,
-    IViewProfileRepository? profiles = null) : IViewQueryOrchestrator
+    IViewProfileRepository profiles,
+    IViewSmartGalleryQueryService? smartGalleries = null) : IViewQueryOrchestrator
 {
     /// <summary>
     /// The View kinds the signed-in profile may not use. Every listing, search and count goes through this
@@ -90,8 +90,7 @@ public sealed class ViewQueryOrchestrator(
     /// </summary>
     private async Task<IReadOnlyList<string>> BlockedKindsAsync(CancellationToken ct)
     {
-        if (profiles is null
-            || (await profileContext.ResolveAuthorityAsync(ct).ConfigureAwait(false)).ActiveProfileId is not { } profileId)
+        if ((await profileContext.ResolveAuthorityAsync(ct).ConfigureAwait(false)).ActiveProfileId is not { } profileId)
         {
             return [];
         }

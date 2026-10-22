@@ -19,7 +19,7 @@ public sealed class DisplayRecentViewAuthorizationTests
         async Task<MediaEngine.Contracts.Display.DisplayRecentPageDto> Load(ViewScopeStoreEntry profile)
         {
             var context = new HttpViewRequestProfileContext(new HttpContextAccessor { HttpContext = new DefaultHttpContext() }, TestViewAuthorityResolver.Human(profile.Policy.ProfileId));
-            var view = new ViewQueryOrchestrator(context, authorization, backend);
+            var view = new ViewQueryOrchestrator(context, authorization, backend, new TestViewProfileRepository());
             return await new DisplayRecentComposerService(null!, view).LoadAsync("view", null, 18, profile.Policy.ProfileId, default);
         }
         var page = await Load(first);
@@ -40,7 +40,7 @@ public sealed class DisplayRecentViewAuthorizationTests
         var resolver = new ViewScopeResolver(new ViewScopeResolverTests.ScopeStore(first, second));
         var authorization = new ViewResourceAuthorizationService(resolver, new EmptyStore(), new TestAllowAuthorizationEvaluator());
         var context = new HttpViewRequestProfileContext(new HttpContextAccessor { HttpContext = new DefaultHttpContext() }, TestViewAuthorityResolver.Human(first.Policy.ProfileId));
-        var view = new ViewQueryOrchestrator(context, authorization, backend);
+        var view = new ViewQueryOrchestrator(context, authorization, backend, new TestViewProfileRepository());
 
         var page = await new DisplayRecentComposerService(null!, view).LoadAsync("view", null, 18, first.Policy.ProfileId, default);
 
