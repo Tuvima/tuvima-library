@@ -210,8 +210,9 @@ public static class MediaEngineIngestionServiceCollectionExtensions
             {
                 var libraries = configLoader.LoadLibraries();
                 opts.DuplicatePolicy = libraries.FileHandling.DuplicatePolicy;
+                var kinds = LoadKindsOrBuiltIn(configLoader);
                 opts.LibraryFolders = libraries.Libraries
-                    .Select(LibraryFolderEntryFactory.Create)
+                    .Select(library => LibraryFolderEntryFactory.Create(library, kinds))
                     .Where(e => e.EffectiveSourcePaths.Count > 0)
                     .ToList();
 
@@ -245,6 +246,20 @@ public static class MediaEngineIngestionServiceCollectionExtensions
                 // No libraries.json or parse failure - library folder priors will not be applied.
             }
         });
+    }
+
+    // A kinds file that can't be read leaves the kinds that ship, so a plain kind still never looks anything up.
+    private static IReadOnlyList<LibraryKindDefinition> LoadKindsOrBuiltIn(IConfigurationLoader configLoader)
+    {
+        try
+        {
+            return configLoader.LoadLibraryKinds().Kinds;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Console.Error.WriteLine($"[WARN] Failed to load library kinds for ingestion options - using the kinds that ship: {ex.Message}");
+            return LibraryKindsConfiguration.BuiltIn();
+        }
     }
 
     private static void EnsureConfiguredDirectories(IConfigurationLoader configLoader)

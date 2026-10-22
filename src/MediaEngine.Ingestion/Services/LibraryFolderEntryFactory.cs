@@ -8,9 +8,17 @@ namespace MediaEngine.Ingestion.Services;
 /// <summary>Projects a configured library into the runtime entry the ingestion pipeline works with.</summary>
 public static class LibraryFolderEntryFactory
 {
-    public static LibraryFolderEntry Create(LibraryFolderConfig library)
+    /// <summary>Builds the runtime entry against the library kinds that ship (see the overload that takes a kinds list).</summary>
+    public static LibraryFolderEntry Create(LibraryFolderConfig library) => Create(library, null);
+
+    /// <summary>
+    /// Builds the runtime entry. <paramref name="kinds"/> is the library kinds list the library's <c>kind_key</c> is read against
+    /// (the kinds that ship when left out): the kind decides the entry's lookup, whatever the library's own fields say.
+    /// </summary>
+    public static LibraryFolderEntry Create(LibraryFolderConfig library, IReadOnlyList<LibraryKindDefinition>? kinds)
     {
         ArgumentNullException.ThrowIfNull(library);
+        var lookup = LibraryKindLookupPolicy.For(library, kinds);
 
         return new LibraryFolderEntry
         {
@@ -22,8 +30,10 @@ public static class LibraryFolderEntryFactory
             Kind = library.Kind,
             Area = library.Area,
             Presentation = library.Presentation,
-            MetadataPolicy = library.MetadataPolicy,
-            YoutubeLookup = library.YoutubeLookup,
+            KindKey = library.KindKey,
+            LookupMode = lookup.Mode,
+            MetadataPolicy = lookup.MetadataPolicy,
+            YoutubeLookup = lookup.YoutubeLookup,
             RecycleBin = library.RecycleBin,
             Sources = library.Sources.Select(source => new LibrarySourceEntry
             {

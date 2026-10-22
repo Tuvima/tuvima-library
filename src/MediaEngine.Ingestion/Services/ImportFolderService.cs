@@ -93,7 +93,7 @@ public sealed class ImportFolderService : IImportFolderService
     {
         var configuration = Load();
         return configuration is null ? null : FindLibrary(configuration, mediaType) is { } library
-            ? LibraryFolderEntryFactory.Create(library)
+            ? LibraryFolderEntryFactory.Create(library, LoadKinds())
             : null;
     }
 
@@ -106,10 +106,12 @@ public sealed class ImportFolderService : IImportFolderService
             return [];
         }
 
+        var kinds = LoadKinds();
+
         return configuration.Libraries
             .Where(library => string.Equals(library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase)
                 && library.MediaTypes.Any(token => type.Value.MediaTypes.Contains(token, StringComparer.OrdinalIgnoreCase)))
-            .Select(LibraryFolderEntryFactory.Create)
+            .Select(library => LibraryFolderEntryFactory.Create(library, kinds))
             .ToList();
     }
 
@@ -135,7 +137,7 @@ public sealed class ImportFolderService : IImportFolderService
             return new ImportDestination(label, ImportDestinationState.NoManagedFolder);
         }
 
-        var entry = LibraryFolderEntryFactory.Create(library);
+        var entry = LibraryFolderEntryFactory.Create(library, LoadKinds());
         var source = entry.PrimaryDestination;
         if (source is null)
         {
