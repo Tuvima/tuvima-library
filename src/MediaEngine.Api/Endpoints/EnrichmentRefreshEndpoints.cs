@@ -4,6 +4,7 @@ using MediaEngine.Api.Services;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -50,8 +51,14 @@ public static class EnrichmentRefreshEndpoints
             string entityType,
             Guid entityId,
             EnrichmentRefreshScheduleService schedule,
+            IExternalLookupGuard lookupGuard,
             CancellationToken ct) =>
         {
+            if (!entityType.Equals("Person", StringComparison.OrdinalIgnoreCase) && await lookupGuard.BlocksEntityAsync(entityId, ct))
+            {
+                return ApiErrors.Conflict("This item's library never looks anything up, so it is not refreshed from outside.");
+            }
+
             var queued = await schedule.QueueNowAsync(entityType, entityId, "Manual", ct);
             return queued is null
                 ? ApiErrors.NotFound($"Refresh target '{entityType}/{entityId}' was not found.")

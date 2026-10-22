@@ -10,7 +10,8 @@ namespace MediaEngine.Ingestion.Services;
 /// <summary>Projects a configured library into the runtime entry the ingestion pipeline works with.</summary>
 public static class LibraryFolderEntryFactory
 {
-    // One warning per library and override, however often the libraries file is read again.
+    // One warning per library and override, however often the libraries file is read again. The keys are a library id plus its fixed
+    // sentence (two fields at most), so the set can only grow with the number of libraries ever configured: it is naturally bounded.
     private static readonly ConcurrentDictionary<string, byte> WarnedOverrides = new(StringComparer.Ordinal);
 
     /// <summary>
