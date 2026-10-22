@@ -3,6 +3,7 @@ using MediaEngine.Contracts.Setup;
 using MediaEngine.Contracts.System;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Setup;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
@@ -245,9 +246,12 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
         var cut = Render<BackupRecoveryPanel>();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='waiting-period']")));
 
+        var before = cut.FindComponent<AppSelect>().Instance;
         cut.Find("[data-testid='waiting-period']").Change("30");
 
         cut.WaitForAssertion(() => Assert.Equal(30, _savedDays));
+        // The field is built again, so the browser cannot keep showing the choice that was not saved.
+        cut.WaitForAssertion(() => Assert.NotSame(before, cut.FindComponent<AppSelect>().Instance));
         Assert.Equal("90", cut.Find("[data-testid='waiting-period']").GetAttribute("value"));
     }
 

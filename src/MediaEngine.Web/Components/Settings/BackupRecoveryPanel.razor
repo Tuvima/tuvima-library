@@ -112,7 +112,7 @@
         @if (_state is { } state)
         {
             <AppCard Title="Restored progress" Class="backup-action-card">
-                <AppSelect Native="true" Label="Keep restored progress waiting for" Value="@state.WaitingPeriodDays.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                <AppSelect @key="_waitingPeriodRenderKey" Native="true" Label="Keep restored progress waiting for" Value="@state.WaitingPeriodDays.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                            Options="@WaitingPeriodOptions(state.WaitingPeriodDays)" Disabled="@_busy" ValueChanged="SetWaitingPeriodAsync" data-testid="waiting-period" />
             </AppCard>
         }
@@ -352,6 +352,8 @@
             count.ToString(System.Globalization.CultureInfo.InvariantCulture), $"{count} days"))];
     }
 
+    private int _waitingPeriodRenderKey;
+
     private async Task SetWaitingPeriodAsync(string? value)
     {
         if (_state is null || !int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var days))
@@ -364,6 +366,8 @@
         if (updated is null)
         {
             Snackbar.Add("The waiting period could not be saved.", AppSeverity.Error);
+            // The browser kept the choice that was not saved; a new key redraws the field with the stored value.
+            _waitingPeriodRenderKey++;
         }
         else
         {
