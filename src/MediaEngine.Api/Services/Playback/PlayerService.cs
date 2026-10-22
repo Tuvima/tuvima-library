@@ -1107,6 +1107,11 @@ public sealed class PlayerService
 
         var normalizedProfile = await _scope.RequireProfileAsync(profileId ?? request.ProfileId, ct);
         await _scope.RequireAssetAsync(normalizedRequest!.AssetId, ct, workId);
+        if (normalizedRequest.IsGlobal && !await _scope.IsServerAdministratorAsync(ct))
+        {
+            throw new PlayerBookmarkSharingDeniedException();
+        }
+
         return await _bookmarks.CreateAsync(normalizedProfile, workId, normalizedRequest, ct);
     }
 
@@ -1119,7 +1124,7 @@ public sealed class PlayerService
         validationError = null;
         if (request.AssetId == Guid.Empty)
         {
-            validationError = "An asset id is required for an audiobook bookmark.";
+            validationError = "An asset id is required for a bookmark.";
             return false;
         }
 
@@ -1142,13 +1147,27 @@ public sealed class PlayerService
             return false;
         }
 
+        if (request.EndSeconds is double endSeconds
+            && (!double.IsFinite(endSeconds) || endSeconds <= request.PositionSeconds
+                || request.DurationSeconds is double total && endSeconds > total))
+        {
+            validationError = "A bookmark end must be finite, after its position, and inside the file.";
+            return false;
+        }
+
         if (!AudiobookBookmarkNotePolicy.TryNormalize(request.Note, out var note))
         {
             validationError = $"A bookmark note cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.";
             return false;
         }
 
-        normalizedRequest = request with { Note = note };
+        if (!AudiobookBookmarkNotePolicy.TryNormalizeDescription(request.Description, out var description))
+        {
+            validationError = $"A bookmark description cannot exceed {AudiobookBookmarkNotePolicy.MaximumDescriptionLength} characters.";
+            return false;
+        }
+
+        normalizedRequest = request with { Note = note, Description = description };
         return true;
     }
 
@@ -1158,7 +1177,8 @@ public sealed class PlayerService
         CancellationToken ct = default)
     {
         var normalizedProfile = await _scope.RequireProfileAsync(profileId, ct);
-        return await _bookmarks.DeleteAsync(normalizedProfile, bookmarkId, ct, await _scope.AssetIdsAsync(ct));
+        return await _bookmarks.DeleteAsync(normalizedProfile, bookmarkId, ct, await _scope.AssetIdsAsync(ct),
+            canChangeGlobal: await _scope.IsServerAdministratorAsync(ct));
     }
 
     private static string NormalizeDeviceId(string? deviceId) =>

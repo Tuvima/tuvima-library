@@ -5,20 +5,7 @@
     background: #090c12;
 }
 
-.tl-music-album-series-rail > header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-}
-
-.tl-music-album-series-rail h2 {
-    margin: 0;
-    color: var(--tl-accent-primary, #8852FC);
-    font-size: clamp(1.2rem, 1.35vw, 1.65rem);
-}
-
-.tl-music-album-series-rail header a {
+.tl-music-album-series-rail__profile {
     color: #c8b5f4;
     font-weight: 700;
     text-decoration: none;

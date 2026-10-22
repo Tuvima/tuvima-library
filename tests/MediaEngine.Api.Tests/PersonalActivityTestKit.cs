@@ -27,6 +27,7 @@ internal static class PersonalActivityTestKit
         ILogger<PersonalActivityRecorder>? logger = null,
         TimeProvider? clock = null) => new(
         repository ?? new PersonalActivityRepository(database),
+        new VaultLibraryRepository(database),
         CreateArtwork(database),
         clock ?? TimeProvider.System,
         logger ?? NullLogger<PersonalActivityRecorder>.Instance);

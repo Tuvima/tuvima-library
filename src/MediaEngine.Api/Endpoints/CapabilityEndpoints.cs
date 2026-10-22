@@ -13,8 +13,15 @@ public static class CapabilityEndpoints
         app.MapGet("/assets/{id:guid}/capabilities", async (
             Guid id,
             IEntityCapabilityStateRepository repository,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaults,
             CancellationToken ct) =>
         {
+            // A Vault asset (or a work with a file in one) reports no capability state, exactly like an id that does not exist.
+            if (await vaults.IsInVaultAsync(id, ct))
+            {
+                return Results.Ok(new List<CapabilityStateDto>());
+            }
+
             var states = await repository.GetByEntityAsync(id, ct);
             return Results.Ok(states.Select(MapCapabilityState).ToList());
         })

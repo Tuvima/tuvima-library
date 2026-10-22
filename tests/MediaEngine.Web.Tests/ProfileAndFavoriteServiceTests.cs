@@ -66,7 +66,7 @@ public sealed class ProfileAndSavedItemServiceTests : AsyncBunitContext
         var authority = new DashboardAuthorityResponse(account, ProfileId, true, true, 1, 1,
             true, true, null, 1,
             [new AccountProfileGrantDto(Guid.NewGuid(), ProfileId, "Current", null, true, true, true,
-                new GrantAdminProtectionDto(false, "UntilProfileSwitch", 30, 1, false, null), 1, DateTimeOffset.UtcNow)],
+                new GrantAdminProtectionDto(false, "UntilProfileSwitch", 30, 1), 1, DateTimeOffset.UtcNow)],
             ["settings.administration"], ["access.manage"]);
         var dashboard = new DashboardSessionAccessor();
         dashboard.Set("current-session", account, ProfileId, Guid.NewGuid(), authority);

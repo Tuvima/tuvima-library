@@ -13,6 +13,7 @@ namespace MediaEngine.Api.Services.Activity;
 /// </summary>
 public sealed class PersonalActivityRecorder(
     IPersonalActivityRepository repository,
+    IVaultLibraryRepository vaultLibraries,
     PersonalActivityArtworkService artwork,
     TimeProvider clock,
     ILogger<PersonalActivityRecorder> logger)
@@ -74,7 +75,15 @@ public sealed class PersonalActivityRecorder(
     {
         try
         {
-            var snapshot = PersonalActivitySnapshotFactory.FromMyList(entityKind, entityId, await loadWorks(ct).ConfigureAwait(false));
+            var works = await loadWorks(ct).ConfigureAwait(false);
+            var snapshot = PersonalActivitySnapshotFactory.FromMyList(entityKind, entityId, works);
+            if (snapshot is not null
+                && works.FirstOrDefault(row => row.AssetId == snapshot.AssetId) is { } source
+                && await IsVaultAsync(source, ct).ConfigureAwait(false))
+            {
+                return;
+            }
+
             if (snapshot is null)
             {
                 logger.LogWarning("Could not find {Kind} {EntityId} to record it as added to My list.", entityKind, entityId);
@@ -89,6 +98,10 @@ public sealed class PersonalActivityRecorder(
             logger.LogWarning(exception, "Could not record {Kind} {EntityId} as added to My list.", entityKind, entityId);
         }
     }
+
+    private async Task<bool> IsVaultAsync(DisplayWorkRow asset, CancellationToken ct) =>
+        !string.IsNullOrWhiteSpace(asset.LibraryId)
+        && (await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false)).Contains(asset.LibraryId);
 
     internal static PersonalActivityProgress ProgressOf(PlaybackTelemetrySession session)
     {
@@ -118,6 +131,12 @@ public sealed class PersonalActivityRecorder(
             : session.Feature == AccountFeatureId.Read ? PersonalActivityKinds.Read
             : null;
         if (kind is null)
+        {
+            return;
+        }
+
+        // Nothing about the Vault is ever written to anyone's activity history (Videos spec D17): no title, no cover, no row.
+        if (await IsVaultAsync(asset, ct).ConfigureAwait(false))
         {
             return;
         }

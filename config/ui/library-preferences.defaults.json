@@ -1,0 +1,79 @@
+{
+  "missing_item_display": {
+    "movies": {
+      "enabled": true,
+      "default_visibility": "hidden",
+      "presentation": "all",
+      "page_size": 50,
+      "detail_hydration": "owned_only"
+    },
+    "tv": {
+      "enabled": true,
+      "default_visibility": "hidden",
+      "presentation": "all",
+      "page_size": 50,
+      "detail_hydration": "owned_only"
+    },
+    "books": {
+      "enabled": true,
+      "default_visibility": "hidden",
+      "presentation": "all",
+      "page_size": 50,
+      "detail_hydration": "owned_only"
+    },
+    "audiobooks": {
+      "enabled": true,
+      "default_visibility": "hidden",
+      "presentation": "all",
+      "page_size": 50,
+      "detail_hydration": "owned_only"
+    },
+    "comics": {
+      "enabled": true,
+      "default_visibility": "hidden",
+      "presentation": "paged",
+      "page_size": 50,
+      "detail_hydration": "owned_only"
+    },
+    "music": {
+      "enabled": true,
+      "default_visibility": "hidden",
+      "presentation": "all",
+      "page_size": 50,
+      "detail_hydration": "owned_only"
+    },
+    "videos": {
+      "enabled": true,
+      "default_visibility": "hidden",
+      "presentation": "all",
+      "page_size": 50,
+      "detail_hydration": "owned_only"
+    }
+  },
+  "view_modes": {
+    "movies": "all",
+    "tv": "shows",
+    "music": "artists",
+    "books": "all",
+    "audiobooks": "all",
+    "comics": "series"
+  },
+  "lane_group_display": {
+    "watch": {
+      "enabled": true,
+      "shelf_key": "series",
+      "title": "Series",
+      "subtitle": "Movies dynamically aligned into series from your library metadata",
+      "see_all_route": "/watch/movies?grouping=series",
+      "minimum_series_items": 2
+    },
+    "read": {
+      "enabled": true,
+      "shelf_key": "series-and-reading-lists",
+      "title": "Series & Reading Lists",
+      "subtitle": "Book series, comic runs, and grouped reading",
+      "see_all_route": "/read/books?grouping=series",
+      "minimum_series_items": 2
+    }
+  }
+}

@@ -158,6 +158,33 @@ public sealed class CastSessionServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TheManifestSaysWhetherTheFileIsInTheVault_SoTheDashboardCanKeepItsTitleOutOfTheTabAndMediaControls()
+    {
+        var ordinary = await SeedVideoAsync("home.mp4", "h264", "aac", 1080, durationSeconds: 60);
+        var vault = await SeedVideoAsync("private.mp4", "h264", "aac", 1080, durationSeconds: 60);
+        var vaultLibrary = Guid.NewGuid().ToString("D");
+        var now = DateTimeOffset.UtcNow;
+        await new VaultLibraryRepository(_database).AddAsync(
+            new MediaEngine.Domain.Contracts.VaultLibrary(vaultLibrary, MediaEngine.Domain.Contracts.VaultLookupSources.None, null, now, null, now, now));
+        using (var connection = _database.CreateConnection())
+        {
+            // The data store refuses to move an existing file into a Vault, so the same file is entered again as a Vault file.
+            connection.Execute(
+                """
+                CREATE TEMP TABLE vault_copy AS SELECT id, edition_id, content_hash, file_path_root FROM media_assets WHERE id = @vault;
+                DELETE FROM media_assets WHERE id = @vault;
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status, library_id)
+                SELECT id, edition_id, content_hash, file_path_root, 'Normal', @vaultLibrary FROM vault_copy;
+                DROP TABLE vault_copy;
+                """,
+                new { vault, vaultLibrary });
+        }
+
+        Assert.False((await _playback.BuildManifestAsync(ordinary, "web"))!.IsVault);
+        Assert.True((await _playback.BuildManifestAsync(vault, "web"))!.IsVault);
+    }
+
+    [Fact]
     public async Task EachProfileResumesFromItsOwnPositionOnASharedTitle()
     {
         var assetId = await SeedVideoAsync("shared.mp4", "h264", "aac", 1080, durationSeconds: 7200);

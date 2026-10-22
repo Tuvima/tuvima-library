@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Dapper;
 using MediaEngine.Domain.Services;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.ReadServices;
@@ -35,29 +36,35 @@ public sealed class EditorSuggestionReadService
 
     private static IEnumerable<string> ReadGenres(System.Data.IDbConnection connection, CancellationToken ct)
     {
+        // Genres of anything in a Vault library are never offered as suggestions (Videos spec D17).
         var canonical = connection.Query<string>(new CommandDefinition(
-            """
+            $"""
             SELECT value FROM canonical_value_arrays WHERE key = 'genre' AND NULLIF(TRIM(value), '') IS NOT NULL
+              AND {VaultSql.NotVaultAnyEntity("canonical_value_arrays.entity_id")}
             UNION ALL
-            SELECT value FROM canonical_values WHERE key = 'genre' AND NULLIF(TRIM(value), '') IS NOT NULL;
+            SELECT value FROM canonical_values WHERE key = 'genre' AND NULLIF(TRIM(value), '') IS NOT NULL
+              AND {VaultSql.NotVaultAnyEntity("canonical_values.entity_id")};
             """,
             cancellationToken: ct));
         var overrides = connection.Query<string?>(new CommandDefinition(
-            "SELECT json_extract(display_overrides_json, '$.genre') FROM works WHERE json_valid(display_overrides_json);",
+            $"SELECT json_extract(display_overrides_json, '$.genre') FROM works WHERE json_valid(display_overrides_json) AND {VaultSql.NotVaultEntity("works.id")};",
             cancellationToken: ct));
         return canonical.Concat(overrides.OfType<string>().Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 
     private static IEnumerable<string> ReadTags(System.Data.IDbConnection connection, CancellationToken ct)
     {
+        // Tags of anything in a Vault library are never offered as suggestions (Videos spec D17).
         return connection.Query<string?>(new CommandDefinition(
-                """
+                $"""
                 WITH canonical_tag_values AS (
                     SELECT entity_id, value FROM canonical_value_arrays
                     WHERE key='custom_tags' AND NULLIF(TRIM(value), '') IS NOT NULL
+                      AND {VaultSql.NotVaultAnyEntity("canonical_value_arrays.entity_id")}
                     UNION ALL
                     SELECT entity_id, value FROM canonical_values
                     WHERE key='custom_tags' AND NULLIF(TRIM(value), '') IS NOT NULL
+                      AND {VaultSql.NotVaultAnyEntity("canonical_values.entity_id")}
                 )
                 SELECT tags.value
                   FROM canonical_tag_values tags
@@ -81,6 +88,7 @@ public sealed class EditorSuggestionReadService
                   FROM works
                  WHERE json_valid(display_overrides_json)
                    AND NULLIF(TRIM(json_extract(display_overrides_json, '$.custom_tags')), '') IS NOT NULL
+                   AND {VaultSql.NotVaultEntity("works.id")}
                 UNION ALL
                 SELECT json_extract(display_overrides_json, '$.custom_tags')
                   FROM persons

@@ -282,6 +282,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **What it does:** try off-peak recaps and speaker identification on three real titles; report quality, time per title and hardware needed. No shipped feature. Would run as an Official plugin asking for abilities (section 6A); speaker identification needs a new ability first.
 - **Depends on:** U-WP14, DT-WP15, DT-WP27, DT-WP28. **Size:** Standard.
 - **Done when:** a written report with samples and a go / no-go per feature, reviewed by Shy.
+- **Status:** Unblocked 2026-10-22 (the Developer tools packets it waited on are on main). Local-only: it needs a local AI model and real titles, so it is listed in `engineering/validation/batch.md` with the other Local checks (Shy, 2026-10-22) and is not built in the cloud.
 
 ## 6A. Landing alongside the Developer tools spec (v3, status In progress) and the other Locked specs
 

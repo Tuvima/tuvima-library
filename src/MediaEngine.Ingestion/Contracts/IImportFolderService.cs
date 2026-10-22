@@ -32,6 +32,13 @@ public interface IImportFolderService
     LibraryFolderEntry? ResolveLibraryForType(MediaType mediaType);
 
     /// <summary>
+    /// Every catalogued library that holds a media type, in settings order. The Vault's entry is also a Videos library, so a caller
+    /// that attributes a file to "the" library of a type picks the first one that is not a Vault library.
+    /// </summary>
+    IReadOnlyList<LibraryFolderEntry> ResolveLibrariesForType(MediaType mediaType) =>
+        ResolveLibraryForType(mediaType) is { } library ? [library] : [];
+
+    /// <summary>
     /// The single managed folder marked New media for a type, checked right now for being reachable, writable and
     /// roomy enough for <paramref name="requiredBytes"/>. As-is folders are never returned, and there is no fallback.
     /// </summary>

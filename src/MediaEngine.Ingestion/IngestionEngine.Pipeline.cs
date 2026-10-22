@@ -71,6 +71,12 @@ public sealed partial class IngestionEngine
             return;
         }
 
+        if (await IsVaultEntityAsync(asset.Id, ct).ConfigureAwait(false))
+        {
+            // A Vault file that cannot be read stays as it is; nothing is queued for it (Videos spec D32).
+            return;
+        }
+
         if (_inspectionReviews is not null)
         {
             await _inspectionReviews.RecordFailureAsync(asset.Id, ct).ConfigureAwait(false);
@@ -96,7 +102,7 @@ public sealed partial class IngestionEngine
         // A file in one of the Import folder's per-type folders belongs to that type's library from the start.
         if (context.Library is null && _importFolders?.ResolveTypePrior(candidate.Path) is { } importType)
         {
-            context.Library = _importFolders.ResolveLibraryForType(importType);
+            context.Library = await ResolveImportLibraryAsync(importType, ct).ConfigureAwait(false);
         }
 
         if (candidate.Intake?.HasDestinationHint == true && context.Library is null)
@@ -104,6 +110,20 @@ public sealed partial class IngestionEngine
             throw new InvalidOperationException(
                 $"Direct intake destination library '{candidate.Intake.DestinationLibraryId}' is not configured.");
         }
+
+        // A file in a Vault library announces nothing while it is processed (Videos spec D17, D32).
+        context.IsVault = _vaultHook is not null
+            && await _vaultHook.IsVaultLibraryAsync(context.Library?.Id, ct).ConfigureAwait(false);
+        if (context.IsVault)
+        {
+            _vaultCandidatePaths[candidate.Path] = 0;
+        }
+
+        // Everything logged while a Vault file is processed carries a marker the log writers drop (Videos spec D17, D33), so a log
+        // call that names the file (even by its bare name) in any stage never reaches the console or the technical log.
+        using var vaultLogScope = context.IsVault
+            ? _logger.BeginScope(new Dictionary<string, object> { [VaultLocationGuard.LogScopeProperty] = true })
+            : null;
 
         try
         {
@@ -118,6 +138,7 @@ public sealed partial class IngestionEngine
         }
         finally
         {
+            _vaultCandidatePaths.TryRemove(candidate.Path, out _);
             if (context.HashLock is not null && context.Hash is not null)
             {
                 context.HashLock.Release();
@@ -185,7 +206,8 @@ public sealed partial class IngestionEngine
                 candidate,
                 "missing",
                 reason,
-                ct).ConfigureAwait(false);
+                ct,
+                quiet: await IsVaultPathAsync(candidate, ct).ConfigureAwait(false)).ConfigureAwait(false);
             await NoResultOperationAsync(durableOperation, reason, ct).ConfigureAwait(false);
 
             // The job opened when the file was first noticed has a different key (it includes the file's size and time,
@@ -201,7 +223,7 @@ public sealed partial class IngestionEngine
             candidate.Path, DateTimeOffset.UtcNow), ct).ConfigureAwait(false);
 
         // Lifecycle log: create entry at detection.
-        var logEntryId = context.LogEntryId = await _ingestionLogScribe.InsertDetectedAsync(candidate, ct)
+        var logEntryId = context.LogEntryId = await _ingestionLogScribe.InsertDetectedAsync(candidate, ct, quiet: context.IsVault)
             .ConfigureAwait(false);
 
         context.PipelineStopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -254,7 +276,8 @@ public sealed partial class IngestionEngine
             15,
             false,
             ct,
-            contentHash: hash.Hex).ConfigureAwait(false);
+            contentHash: hash.Hex,
+            quiet: context.IsVault).ConfigureAwait(false);
 
         // Step 5: duplicate check.
         // If the file is already ingested but still sitting in the Watch Folder
@@ -507,6 +530,8 @@ public sealed partial class IngestionEngine
             // Stage 1 lookup (D7): only the YouTube ID leaves the machine, only when this library's switch is on.
             if (_videoLookup is not null
                 && context.Library?.YoutubeLookup == true
+                // YouTube is never asked about a Vault file, whatever the library's own switch says (Videos spec D21, D26).
+                && (_audienceGate is null || await _audienceGate.MayAskAboutLibraryAsync("youtube", context.Library.Id, ct).ConfigureAwait(false))
                 && result.Claims.FirstOrDefault(claim => claim.Key == MetadataFieldConstants.YoutubeVideoId)?.Value is { } youtubeId
                 && await _videoLookup.LookupAsync(youtubeId, ct).ConfigureAwait(false) is { } online)
             {
@@ -652,7 +677,7 @@ public sealed partial class IngestionEngine
         {
             context.Library = resolvedMediaType == MediaType.Unknown
                 ? null
-                : _importFolders.ResolveLibraryForType(resolvedMediaType);
+                : await ResolveImportLibraryAsync(resolvedMediaType, ct).ConfigureAwait(false);
         }
 
         bool mediaTypeIsConflicted = mediaTypeResolution.IsConflicted;
@@ -673,6 +698,10 @@ public sealed partial class IngestionEngine
             LastScoredAt = scored.ScoredAt,
             IsConflicted = mediaTypeIsConflicted,
         });
+
+        // A file in a Vault library: its picture is kept with the Vault's own artwork and never in the shared artwork tables (WP12).
+        context.IsVault = _vaultHook is not null
+            && await _vaultHook.IsVaultLibraryAsync(context.Library?.Id, ct).ConfigureAwait(false);
 
         // Embedded art always wins; the sibling folder image (cover.jpg, folder.jpg, ...) is only a
         // fallback for Books, Audiobooks and Music files that carry no embedded picture.
@@ -697,7 +726,14 @@ public sealed partial class IngestionEngine
             context.FolderCover = await _videoFrames.GetOrCreateAsync(candidate.Path, ct).ConfigureAwait(false);
         }
 
-        if (hasEmbeddedCover || context.FolderCover is not null)
+        if (context.IsVault)
+        {
+            context.VaultStill = hasEmbeddedCover && result.CoverImage is { } embedded
+                ? new FolderCoverImage(embedded, result.CoverImageMimeType ?? "image/jpeg", candidate.Path)
+                : context.FolderCover;
+            context.FolderCover = null;
+        }
+        else if (hasEmbeddedCover || context.FolderCover is not null)
         {
             canonicals.Add(new CanonicalValue
             {
@@ -736,7 +772,7 @@ public sealed partial class IngestionEngine
             .Select(c => c.Key)
             .ToList();
 
-        if (conflictedFields.Count > 0)
+        if (conflictedFields.Count > 0 && !context.IsVault)
         {
             await CreateMetadataConflictReviewItemAsync(
                 assetId,
@@ -746,7 +782,7 @@ public sealed partial class IngestionEngine
         }
 
         // Create AmbiguousMediaType review item when media type confidence is below threshold.
-        if (mediaTypeNeedsReview && candidateList.Count > 0)
+        if (mediaTypeNeedsReview && candidateList.Count > 0 && !context.IsVault)
         {
             var candidatesJson = JsonSerializer.Serialize(
                 candidateList.Select(c => new
@@ -767,7 +803,7 @@ public sealed partial class IngestionEngine
 
         // Create RootWatchFolder review item when a file was dropped directly into any
         // configured source root with an ambiguous extension.
-        if (mediaTypeResolution.RootWatchFolderReview)
+        if (mediaTypeResolution.RootWatchFolderReview && !context.IsVault)
         {
             await CreateIngestionReviewItemAsync(
                 assetId,
@@ -846,6 +882,22 @@ public sealed partial class IngestionEngine
         if (resolvedMediaType == MediaType.Videos && _videoReader is not null)
         {
             await _videoReader.RecordPlacementAsync(assetId, candidate.Metadata, ct).ConfigureAwait(false);
+        }
+
+        if (context.IsVault && _vaultHook is not null && context.Library?.Id is { } vaultLibraryId)
+        {
+            // The Vault's own path (WP12): the still frame, the lookup and a quiet activity line. It raises no review item, no event and
+            // no notification, and a lookup that fails never fails ingestion.
+            try
+            {
+                await _vaultHook.OnFileRegisteredAsync(
+                    new VaultRegisteredFile(assetId, vaultLibraryId, candidate.Path, context.VaultStill?.Bytes, context.VaultStill?.MimeType), ct)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning("The Vault step for a newly registered file failed ({Type}); the file stays registered", ex.GetType().Name);
+            }
         }
 
         var resolvedTitle = context.ResolvedTitle = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Title, "Unknown") ?? "Unknown";
@@ -959,7 +1011,7 @@ public sealed partial class IngestionEngine
         // AutoOrganizeService moves them directly to the library after Stage 1 produces
         // a resolved title. Review items are still created when the gate signals them.
         context.CurrentPath = candidate.Path;
-        if (gateResult.ReviewTrigger is not null && context.Library?.BypassesExternalIdentity != true
+        if (gateResult.ReviewTrigger is not null && !context.IsVault && context.Library?.BypassesExternalIdentity != true
             && !(gateResult.ReviewTrigger == ReviewTrigger.LowConfidence && !mediaTypeNeedsReview
                 && (candidateCanonicals.ContainsKey("audiobook_recording_key")
                     || _libraryFolderResolver?.ResolveSourceForPath(candidate.Path)?.Source.ManagementMode
@@ -989,7 +1041,8 @@ public sealed partial class IngestionEngine
         var coverBytes = hasEmbeddedCover ? result.CoverImage : context.FolderCover?.Bytes;
         var coverMimeType = hasEmbeddedCover ? result.CoverImageMimeType : context.FolderCover?.MimeType;
         var coverSource = hasEmbeddedCover ? CoverSourceEmbedded : CoverSourceFolder;
-        if (_writeBackStageDependencies.EntityAssetRepository is not null
+        if (!context.IsVault
+            && _writeBackStageDependencies.EntityAssetRepository is not null
             && _writeBackStageDependencies.AssetPathService is not null
             && coverBytes is { Length: > 0 })
         {

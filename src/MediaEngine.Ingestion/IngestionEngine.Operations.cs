@@ -106,6 +106,13 @@ public sealed partial class IngestionEngine
 
         try
         {
+            // No work row is made for a file in a Vault library: such rows feed the live ingestion numbers and the activity strip,
+            // which would otherwise show that a private file was found (Videos spec D17, D32).
+            if (await IsVaultFilePathAsync(evt.Path, ct).ConfigureAwait(false))
+            {
+                return null;
+            }
+
             return await _operationTracker.EnsureQueuedAsync(new MediaOperation
             {
                 OperationType = MediaOperationType.IngestionFile,
@@ -136,6 +143,11 @@ public sealed partial class IngestionEngine
 
         try
         {
+            if (await IsVaultPathAsync(candidate, ct).ConfigureAwait(false))
+            {
+                return null;
+            }
+
             return await _operationTracker.EnsureQueuedAsync(new MediaOperation
             {
                 OperationType = MediaOperationType.IngestionFile,
@@ -276,7 +288,8 @@ public sealed partial class IngestionEngine
             candidate,
             "missing",
             VanishedFileReason,
-            ct).ConfigureAwait(false);
+            ct,
+            quiet: await IsVaultPathAsync(candidate, ct).ConfigureAwait(false)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -554,6 +567,16 @@ public sealed partial class IngestionEngine
         Exception exception,
         CancellationToken ct)
     {
+        if (await IsVaultPathAsync(candidate, ct).ConfigureAwait(false))
+        {
+            // A Vault file's failure is kept quiet (Videos spec D32): no file name in the log text, the Activity log or an event.
+            const string vaultReason = "Ingestion failed for a file in the Vault.";
+            _logger.LogError("Ingestion failed for a file in the Vault ({Type})", exception.GetType().Name);
+            await _ingestionLogScribe.RecordTerminalAsync(candidate, "failed", vaultReason, ct, quiet: true).ConfigureAwait(false);
+            await CloseFailedOperationAsync(candidate, vaultReason, ct).ConfigureAwait(false);
+            return;
+        }
+
         var reason = $"Ingestion failed while processing {Path.GetFileName(candidate.Path)}: {exception.Message}";
         _logger.LogError(exception, "Ingestion failed for {Path}", candidate.Path);
 

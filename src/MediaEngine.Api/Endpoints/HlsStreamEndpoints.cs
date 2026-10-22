@@ -42,15 +42,23 @@ public static class HlsStreamEndpoints
         context.User = new ClaimsPrincipal(new ClaimsIdentity(
             validation.Scopes.Select(scope => new Claim(TuvimaClaimTypes.Scope, scope)),
             "hls-grant"));
-        if (await authorization.EvaluateAssetAsync(
-                validation.Authority,
-                validation.AssetId,
-                ApplicationPermissionIds.PlaybackRead,
-                ct).ConfigureAwait(false) != CatalogueResourceAccess.Allowed)
+        var access = await authorization.EvaluateAssetAsync(
+            validation.Authority,
+            validation.AssetId,
+            ApplicationPermissionIds.PlaybackRead,
+            ct).ConfigureAwait(false);
+        if (access != CatalogueResourceAccess.Allowed)
         {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            // A file the caller cannot know about (for example a Vault file once Vault mode is off) is not found, never forbidden.
+            context.Response.StatusCode = access == CatalogueResourceAccess.NotFound
+                ? StatusCodes.Status404NotFound
+                : StatusCodes.Status403Forbidden;
             return;
         }
+
+        // A segment fetched for a Vault video keeps the unlocked session awake like any other request for the file (Videos spec D33),
+        // so the idle lock cannot interrupt a video that is playing between two ordinary stream requests.
+        await authorization.KeepVaultSessionAwakeAsync(validation.Authority, validation.AssetId, ct).ConfigureAwait(false);
 
         await using var resource = await hls.OpenResourceAsync(
             packageId,

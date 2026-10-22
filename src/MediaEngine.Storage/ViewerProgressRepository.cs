@@ -22,6 +22,10 @@ public sealed class ViewerProgressRepository(IDatabaseConnection db) : IViewerPr
             JOIN work_owned_assets woa ON woa.asset_id = us.asset_id
             WHERE us.user_id = @profileId
               AND us.progress_pct > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM media_assets vault_ma
+                  JOIN vault_libraries vault_vl ON vault_vl.library_id = vault_ma.library_id COLLATE NOCASE
+                  WHERE vault_ma.id = us.asset_id)
             GROUP BY woa.work_id;
             """,
             new { profileId },

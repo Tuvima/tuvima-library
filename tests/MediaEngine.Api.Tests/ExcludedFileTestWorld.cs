@@ -39,7 +39,7 @@ internal sealed class ExcludedFileTestWorld : IDisposable
         RealFilter = new ExcludedSourceFileFilter(Resolver, Excluded, new AssetHasher(), NullLogger<ExcludedSourceFileFilter>.Instance);
         Filter = new CountingFilter(RealFilter);
         Intake = new SpyIntake();
-        Service = new ExcludedFileService(Excluded, Resolver, Filter, Intake, NullLogger<ExcludedFileService>.Instance);
+        Service = new ExcludedFileService(Excluded, Resolver, Filter, Intake, NullLogger<ExcludedFileService>.Instance, new FixedVaultLibraries());
     }
 
     public string Root { get; }

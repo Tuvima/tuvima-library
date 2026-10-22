@@ -50,7 +50,8 @@ public sealed class LibraryItemDeletionRepository(
         var ids = ToBlobs(workIds);
 
         // The title is the canonical one the other read paths show: the work's own value first, then its files'.
-        var works = connection.Query<WorkRow>(new CommandDefinition("""
+        // A work with any file in a Vault library is not a title here (Videos spec D17): asking about one answers "unknown id".
+        var works = connection.Query<WorkRow>(new CommandDefinition($"""
             -- readiness: lookup of the requested works by id; a title that is not ready can still be deleted
             SELECT w.id AS WorkId,
                    w.work_kind AS WorkKind,
@@ -94,13 +95,14 @@ public sealed class LibraryItemDeletionRepository(
                        )
                    ) AS Title
             FROM works w
-            WHERE w.id IN @ids;
+            WHERE w.id IN @ids
+              AND {VaultSql.NotVaultEntity("w.id")};
             """,
             new { ids },
             cancellationToken: ct)).ToList();
 
         // LEFT joins: a title with no edition or no file must still come back, with an empty file list.
-        var assetRows = connection.Query<AssetRow>(new CommandDefinition("""
+        var assetRows = connection.Query<AssetRow>(new CommandDefinition($"""
             -- readiness: lookup of the requested works by id; a title that is not ready can still be deleted
             SELECT w.id AS WorkId,
                    ma.id AS AssetId,
@@ -110,6 +112,7 @@ public sealed class LibraryItemDeletionRepository(
             LEFT JOIN editions e ON e.work_id = w.id
             LEFT JOIN media_assets ma ON ma.edition_id = e.id
             WHERE w.id IN @ids
+              AND {VaultSql.NotVaultEntity("w.id")}
             ORDER BY w.id, ma.file_path_root;
             """,
             new { ids },
@@ -216,6 +219,9 @@ public sealed class LibraryItemDeletionRepository(
                     WHERE work_id IN @ids OR asset_id IN (SELECT id FROM scoped_assets)
                 UNION
                 SELECT lower(hex(profile_id)) FROM audiobook_bookmarks
+                    WHERE work_id IN @ids OR asset_id IN (SELECT id FROM scoped_assets)
+                UNION
+                SELECT lower(hex(profile_id)) FROM bookmark_packs
                     WHERE work_id IN @ids OR asset_id IN (SELECT id FROM scoped_assets)
                 UNION
                 SELECT lower(hex(profile_id)) FROM music_play_stats WHERE work_id IN @ids

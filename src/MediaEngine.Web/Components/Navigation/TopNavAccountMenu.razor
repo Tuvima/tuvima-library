@@ -108,6 +108,11 @@
                     </a>
                 }
 
+                @if (!IsKids)
+                {
+                    <MediaEngine.Web.Components.Vault.NsfwQuickCheck OnChanged="CloseMenu" />
+                }
+
                 <AppDivider Class="top-nav-account-menu__divider" />
 
                 @if (CanViewReview)

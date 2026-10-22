@@ -3474,6 +3474,22 @@ window.listenPlayback = (function () {
     };
 })();
 
+// Details page rows remember, per kind of row, whether the person last opened or collapsed one (AppCollapsibleRow).
+window.detailRowState = {
+    get: function (kind) {
+        try {
+            const value = localStorage.getItem('detail-row-open:' + kind);
+            return value === 'true' ? true : value === 'false' ? false : null;
+        } catch (_) {
+            return null; // Blocked storage (a private window): the row keeps its starting state.
+        }
+    },
+    set: function (kind, open) {
+        try { localStorage.setItem('detail-row-open:' + kind, open ? 'true' : 'false'); }
+        catch (_) { /* Blocked storage: the choice lasts for this visit only. */ }
+    },
+};
+
 window.listenUi = {
     getMode: function () {
         return localStorage.getItem('listen-ui-mode');

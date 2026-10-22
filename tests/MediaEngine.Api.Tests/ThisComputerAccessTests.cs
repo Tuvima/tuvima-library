@@ -442,8 +442,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddSingleton(new DashboardAuthorityProjector(
             _accounts,
             new ProfileRepository(_database),
-            new GrantAdminUnlockService(_accounts, new PasswordHasher<GrantAdminProtection>(), TimeProvider.System),
-            TimeProvider.System));
+            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System)));
         builder.Services.AddSingleton(new ExternalIdentityTransactionService(TimeProvider.System));
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<AuthenticationPolicyMutationGate>();

@@ -763,9 +763,15 @@ The action itself enforces the rule, so an application (a non-Dashboard caller h
 | POST | `/player/command` | Apply transport commands such as play, pause, seek, volume, or speed | Required |
 | POST | `/player/heartbeat` | Persist current playback timing and resume progress. Optional `offline` and `client_timestamp` mark a replayed offline heartbeat; one older than the server's record for the asset is ignored | Required |
 | GET | `/player/audiobooks/{workId}/history` | Recent audiobook listening checkpoints | Required |
-| GET | `/player/audiobooks/{workId}/bookmarks` | Saved audiobook playback bookmarks | Required |
-| POST | `/player/audiobooks/{workId}/bookmarks` | Save an audiobook playback bookmark at a position in seconds | Required |
-| DELETE | `/player/audiobooks/bookmarks/{bookmarkId}` | Delete an audiobook playback bookmark | Required |
+| GET | `/player/audiobooks/{workId}/bookmarks` | Saved bookmarks of a video or audiobook: the profile's own plus those shared with everyone, newest first. A Vault title is not found unless Vault mode is on | Required |
+| POST | `/player/audiobooks/{workId}/bookmarks` | Save a bookmark at a position in seconds, with a short `note` (200 characters) and an optional `description` (4,000). `isGlobal: true` shares it with everyone and is refused with 403 unless the caller is a server administrator | Required |
+| DELETE | `/player/audiobooks/bookmarks/{bookmarkId}` | Delete the profile's own bookmark, or a shared one when the caller is a server administrator; anyone else gets 404 | Required |
+| GET | `/player/audiobooks/{workId}/bookmark-packs` | The bookmark packs the profile imported on a title, each with its read-only pack bookmarks. A Vault title is not found unless Vault mode is on | Required |
+| POST | `/player/audiobooks/{workId}/bookmark-packs/export` | Build a pack file (`BookmarkPackFileDto`, the ZIP base64 encoded) from the profile's own personal bookmarks (`assetId`, `bookmarkIds`, `name`, optional `author`, `runningTimeSeconds`, `chapters`). `400` for a bad request or a title with no ID to recognise it by; `404` for a Vault title, locked or not | Required |
+| POST | `/player/audiobooks/{workId}/bookmark-packs/inspect` | Read a pack file (`contentBase64`) and say whether it is for this title: `Match`, `DifferentCut` (with `canAlignByChapter`) or `WrongTitle`; adds nothing | Required |
+| POST | `/player/audiobooks/{workId}/bookmark-packs/import` | Add the pack's bookmarks as read-only pack bookmarks for the profile. `mode` is `AsIs` (a matching pack) or `AlignByChapter` (a different cut, with the copy's `chapters`); a pack for another title, a different cut without alignment, or one already on the title is `400` | Required |
+| PUT | `/player/bookmark-packs/{packId}/enabled` | Switch one of the profile's packs on or off (`{ isEnabled }`); `204`, or `404` for anyone else's | Required |
+| DELETE | `/player/bookmark-packs/{packId}` | Remove one of the profile's packs; `204`, or `404` for anyone else's | Required |
 | POST | `/player/audiobooks/{workId}/chapters/suggest-names` | Suggest display-only audiobook chapter names using local AI | Required |
 | GET | `/player/audiobooks/{workId}/chapter-overrides` | List saved display-only audiobook chapter title overrides | Required |
 | POST | `/player/audiobooks/{workId}/chapter-overrides` | Save one display-only audiobook chapter title override | Required |
@@ -843,6 +849,23 @@ Available in development environments only. These endpoints are removed in produ
 | POST | `/dev/reingest-library` | Pause file watching, reset generated database/cache/artwork state, scan every configured library source path, and leave watching paused until restart or explicit resume. |
 | POST | `/dev/integration-test` | Run the integration test suite and return an HTML report |
 
+## Vault
+
+Every Vault route answers exactly like a missing item (404) to anyone without an unlocked Vault mode session, and every answer is `Cache-Control: private, no-store`. Search text and chosen records travel in request bodies, never in addresses, and are never logged.
+
+Vault mode itself is switched on the `/api/v1/nsfw` routes (the name is internal): `status`, `unlock` (the profile PIN in the body, only when the profile asks for it), `lock`, `keepalive` and `PUT idle` (body `idle_lock_minutes`: 5, 15, 30 or 60, or 0 for Never where no PIN is asked). There is no separate Vault PIN and no route to set or reset one; the profile PIN is the only PIN, and wrong tries share its five-try, fifteen-minute pause.
+
+| Method | Path | Description | Auth |
+|---|---|---|---|
+| POST | `/api/v1/vault/items/{assetId}/identify/search` | Records that might be this Vault video, found by the typed text (body `text`), or, when empty, by the name patterns' title and the product code in the file name. Each candidate says whether its length agrees with the file. Status `not_connected` or `lookup_off` when nothing was asked. | Unlocked Vault mode session plus effective administrator or `metadata.write` |
+| POST | `/api/v1/vault/items/{assetId}/identify/preview` | The video's current values beside what a chosen record (`server_id`, `record_id`) would put there, one row per field with a tick. Rows holding a person's own edit cannot be ticked. | Same |
+| POST | `/api/v1/vault/items/{assetId}/identify/apply` | Applies exactly the fields ticked (`fields`) from the chosen record, read again from the server by id; records where each field came from. Title, description, release date, cover, studio, performers and tags. | Same |
+| GET | `/api/v1/vault/items/{assetId}/match` | How a Vault video was matched, if it was: server, record, signal, how it was applied, and where each field came from. `matched: false` is Unmatched. | Unlocked Vault mode session plus effective administrator or `metadata.read` |
+| GET | `/api/v1/vault/restored-bookmarks` | `{ waiting, message }`: how many saved Vault bookmarks from a restored backup still wait for a matching video (a count only, never a title). | Effective administrator with Vault mode unlocked |
+| GET | `/api/v1/vault/activity` | The quiet Vault activity list (added, matched, unmatched, identified, failed), newest first. The only place Vault ingestion shows. | Effective administrator with Vault mode unlocked |
+
+---
+
 ## Related
 
 - [How to Build, Test, and Verify Changes](../guides/running-tests.md)
@@ -918,7 +941,7 @@ These routes belong to the Access replacement under final integration. Inbound c
 | PUT | `/access/accounts/{accountId}/access` | Administrator or household administrator, recent sign-in required. Replaces an account's Read, Watch, Listen and View features and library access in one save. |
 | PUT | `/access/accounts/{accountId}/grants/{profileId}` | Administrator or household administrator. Adds a profile grant to an account. |
 | DELETE | `/access/accounts/{accountId}/grants/{profileId}` | Administrator or household administrator. Removes a profile grant from an account. |
-| PUT | `/access/accounts/{accountId}/grants/{profileId}/admin-protection` | Administrator or household administrator. Turns a grant's administrator protection on or off, with its PIN and unlock rule. |
+| PUT | `/access/accounts/{accountId}/grants/{profileId}/admin-protection` | Administrator or household administrator. Turns "Ask for my PIN on admin pages" on or off for a grant, with its unlock rule. The PIN asked for is the profile's own; turning it on needs the profile to have one. |
 | DELETE | `/access/devices/{deviceId}` | Revokes the device and all its tokens, then sends `ApplicationEventRevoked` to its live connection so the app signs out at once. `204` on success, `403` unless the device belongs to the caller's own account, to a sign-in in the household of the caller (a household administrator with their PIN unlocked), or the caller is a server administrator with their administrator PIN unlocked (or none set), `404` when the device is unknown or already revoked. |
 | GET/POST/PUT/DELETE | `/access/applications` and `/{applicationId}` | Application identity and registered permissions. `PUT /access/applications/{applicationId}` (enabled state, type, administrator flag) needs `approval_hash` in the body when it switches a disabled application back on while it holds a live key, or gives its keys more permissions (for example by making it an administrator); otherwise `409 Conflict` `approval_required` and nothing changes. Disabling, renaming and narrowing need nothing. |
 | PUT | `/access/applications/{applicationId}/permissions` | Replace an application's permission grants. Needs `approval_hash` in the body when the change adds permissions (`409 Conflict` `approval_required` otherwise, nothing saved); the statement is kind `application` ("Its keys can: ...", "Applies to N existing keys"), recorded under the application's id. Taking permissions away needs nothing. |

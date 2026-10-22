@@ -145,7 +145,7 @@ public sealed class DashboardCircuitHttpClientFactoryTests : IDisposable
         IReadOnlyList<string>? capabilities = null) =>
         new(accountId, profileId, true, true, 1, grantVersion, false, false, null, 1,
             [new AccountProfileGrantDto(accountId, profileId, "Profile", null, true, profileEnabled, false,
-                new GrantAdminProtectionDto(false, "UntilProfileSwitch", 30, 1, false, null), grantVersion,
+                new GrantAdminProtectionDto(false, "UntilProfileSwitch", 30, 1), grantVersion,
                 DateTimeOffset.UnixEpoch)], ["listen"], capabilities ?? ["playback.control"]);
 
     public void Dispose()

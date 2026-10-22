@@ -585,7 +585,7 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
             operationRepo,
             new MediaOperationEventRepository(db),
             publisher,
-            NullLogger<MediaOperationTracker>.Instance);
+            NullLogger<MediaOperationTracker>.Instance, new VaultLibraryRepository(db));
 
         var debounce = new DebounceQueue(new DebounceOptions
         {
@@ -637,6 +637,7 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
             new OrganizeStageDependencies(null),
             new WriteBackStageDependencies(new EntityAssetRepository(db), new AssetPathService(h.LibraryRoot), workRepo, null),
             new IdentityJobStageDependencies(new IdentityPipelineSignal()),
+            new NoVaultIngestionHook(),
             operationTracker: tracker,
             operationRepository: operationRepo,
             libraryFolderResolver: new LibraryFolderResolver(monitor),

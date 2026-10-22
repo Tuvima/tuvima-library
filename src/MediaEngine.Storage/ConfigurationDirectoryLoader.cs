@@ -762,6 +762,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
             "network.json" => "network.schema.json",
             "ui/palette.json" => "ui/palette.schema.json",
             "ui/library-preferences.json" => "ui/library-preferences.schema.json",
+            "ui/library-preferences.defaults.json" => "ui/library-preferences.schema.json",
             _ => $"{Path.GetFileNameWithoutExtension(normalized)}.schema.json",
         };
     }

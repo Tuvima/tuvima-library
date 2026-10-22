@@ -46,9 +46,18 @@ public sealed class ServerFolderBrowserService(
         return result;
     }
 
-    public BrowseServerFoldersResultDto Browse(BrowseServerFoldersRequest request)
+    public BrowseServerFoldersResultDto Browse(BrowseServerFoldersRequest request) => Browse(request, NoHiddenRoots);
+
+    /// <summary>
+    /// Browses one approved root. <paramref name="hiddenRoots"/> are folders the caller may not know about (the Vault's folders while
+    /// Vault mode is off): they and everything under them are left out of listings and answer exactly as a folder that does not exist
+    /// (Videos spec D17).
+    /// </summary>
+    public BrowseServerFoldersResultDto Browse(BrowseServerFoldersRequest request, IReadOnlyCollection<string> hiddenRoots)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(hiddenRoots);
+        var hidden = NormalizeHiddenRoots(hiddenRoots);
         var configurationSnapshot = configuration.LoadLibraries();
         var location = FindLocation(configurationSnapshot, request.StorageLocationId);
         // Tuvima's own folders are never browsed, even when they are still reachable by id for validation.
@@ -58,6 +67,11 @@ public sealed class ServerFolderBrowserService(
         }
 
         var resolved = ResolveSelection(location, request.RelativePath);
+        if (IsHidden(hidden, resolved.Path))
+        {
+            throw new ServerFolderAccessException(MissingFolderMessage);
+        }
+
         // Browsing also hides Tuvima's own locations (its library, import and View folders) when they are reached
         // through a drive or the server root; they stay resolvable by id for validation only.
         var ownFolders = OwnFolderPaths();
@@ -76,7 +90,8 @@ public sealed class ServerFolderBrowserService(
                 .Select(path => new DirectoryInfo(path))
                 .Where(directory => !directory.Name.StartsWith('.')
                     && (directory.Attributes & (FileAttributes.Hidden | FileAttributes.System)) == 0
-                    && !IsInsideOwnFolder(ownFolders, PhysicalOrFull(directory.FullName)))
+                    && !IsInsideOwnFolder(ownFolders, PhysicalOrFull(directory.FullName))
+                    && !IsHidden(hidden, PhysicalOrFull(directory.FullName)))
                 .Where(directory => string.IsNullOrWhiteSpace(search)
                     || directory.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
                 .Select(directory => CreateEntry(resolved, directory))
@@ -101,11 +116,26 @@ public sealed class ServerFolderBrowserService(
         };
     }
 
+    private static readonly IReadOnlyCollection<string> NoHiddenRoots = [];
+
+    private const string MissingFolderMessage = "Library cannot access this folder from the server.";
+    private const string MissingTypedFolderMessage = "Library cannot access this folder inside an approved server storage location.";
+
     public ServerFolderValidationResultDto Validate(ValidateServerFolderRequest request) => Validate(request, configuration.LoadLibraries());
 
-    public ServerFolderValidationResultDto Validate(ValidateServerFolderRequest request, LibrariesConfiguration configurationSnapshot)
+    /// <summary>Validates a folder for a caller who may not know about <paramref name="hiddenRoots"/> (see the browse overload).</summary>
+    public ServerFolderValidationResultDto Validate(ValidateServerFolderRequest request, IReadOnlyCollection<string> hiddenRoots) =>
+        Validate(request, configuration.LoadLibraries(), hiddenRoots);
+
+    public ServerFolderValidationResultDto Validate(ValidateServerFolderRequest request, LibrariesConfiguration configurationSnapshot) =>
+        Validate(request, configurationSnapshot, NoHiddenRoots);
+
+    public ServerFolderValidationResultDto Validate(
+        ValidateServerFolderRequest request, LibrariesConfiguration configurationSnapshot, IReadOnlyCollection<string> hiddenRoots)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(hiddenRoots);
+        var hidden = NormalizeHiddenRoots(hiddenRoots);
         if (!ServerFolderSelectionModes.IsValid(request.SelectionMode))
         {
             throw new ServerFolderAccessException("The requested folder selection mode is not supported.");
@@ -121,11 +151,18 @@ public sealed class ServerFolderBrowserService(
             resolved = string.IsNullOrWhiteSpace(request.ManualPath)
                 ? ResolveSelection(location, request.RelativePath, request.SelectionMode == ServerFolderSelectionModes.PersonalSpaceManaged)
                 : ResolveManualSelection(location, request.ManualPath, request.SelectionMode == ServerFolderSelectionModes.PersonalSpaceManaged);
+            if (IsHidden(hidden, resolved.Path))
+            {
+                // A hidden (Vault) folder answers exactly as a folder that is not there.
+                resolved = null;
+                throw new ServerFolderAccessException(string.IsNullOrWhiteSpace(request.ManualPath) ? MissingFolderMessage : MissingTypedFolderMessage);
+            }
         }
         catch (ServerFolderAccessException exception)
         {
             // A typed path that is simply not there gets its own code, so the picker can say so in plain words.
-            var missing = !string.IsNullOrWhiteSpace(request.ManualPath) && !TypedFolderExists(request.ManualPath);
+            var missing = !string.IsNullOrWhiteSpace(request.ManualPath)
+                && (!TypedFolderExists(request.ManualPath) || IsHidden(hidden, PhysicalOrFull(request.ManualPath.Trim())));
             issues.Add(Issue(missing ? "not_found" : "invalid_path", exception.Message));
         }
 
@@ -535,14 +572,20 @@ public sealed class ServerFolderBrowserService(
         }
     }
 
+    internal const string NeutralLibraryLabel = "another library";
+
+    private static bool IsVaultEntryName(string? name) =>
+        string.Equals(name?.Trim(), MediaEngine.Api.Services.Vault.VaultFolderAttachmentService.LibraryName, StringComparison.OrdinalIgnoreCase);
+
     private static void AddConfiguredPathIssues(
         LibrariesConfiguration configurationSnapshot,
         ResolvedSelection selected,
         string? currentSourceId,
         List<ServerFolderValidationIssueDto> issues)
     {
+        // The Vault's settings entry is never named in a folder message: it reads as "another library" (Videos spec D17, D45).
         var configured = configurationSnapshot.Libraries
-            .SelectMany(library => library.Sources.Select(source => (source.Id, source.Path, Label: library.Name)))
+            .SelectMany(library => library.Sources.Select(source => (source.Id, source.Path, Label: IsVaultEntryName(library.Name) ? NeutralLibraryLabel : library.Name)))
             .ToList();
 
         // The import folder is kept apart from every library folder, so it is never offered as one either.
@@ -707,6 +750,14 @@ public sealed class ServerFolderBrowserService(
             .Select(location => TryResolveLocationRoot(location, out var root, out _) ? root : null)
             .Where(root => root is not null)
             .Select(root => root!);
+
+    private static List<string> NormalizeHiddenRoots(IReadOnlyCollection<string> roots) =>
+        roots.Where(root => !string.IsNullOrWhiteSpace(root) && Path.IsPathFullyQualified(root.Trim()))
+            .Select(root => PhysicalOrFull(root.Trim()))
+            .ToList();
+
+    private static bool IsHidden(IEnumerable<string> hiddenRoots, string path) =>
+        hiddenRoots.Any(root => IsWithin(root, Path.TrimEndingDirectorySeparator(Path.GetFullPath(path))));
 
     private static bool IsInsideOwnFolder(IEnumerable<string> ownFolders, string path) =>
         ownFolders.Any(own => IsWithin(own, path));

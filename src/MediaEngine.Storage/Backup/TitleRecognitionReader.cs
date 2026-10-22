@@ -16,11 +16,19 @@ internal sealed class TitleRecognitionReader
 
     private readonly SqliteConnection _connection;
     private readonly SqliteTransaction? _transaction;
+    private readonly Func<CatalogueTarget, byte[], bool>? _isWithheld;
 
     public TitleRecognitionReader(SqliteConnection connection, SqliteTransaction? transaction)
+        : this(connection, transaction, null)
+    {
+    }
+
+    /// <summary>A test seam: <paramref name="isWithheld"/> marks titles as withheld, as the adult-video libraries will be.</summary>
+    internal TitleRecognitionReader(SqliteConnection connection, SqliteTransaction? transaction, Func<CatalogueTarget, byte[], bool>? isWithheld)
     {
         _connection = connection ?? throw new ArgumentNullException(nameof(connection));
         _transaction = transaction;
+        _isWithheld = isWithheld;
     }
 
     /// <summary>
@@ -39,17 +47,19 @@ internal sealed class TitleRecognitionReader
             CatalogueTarget.Collection => ReadCollection(id),
             CatalogueTarget.Person => ReadPerson(id),
             CatalogueTarget.LocalItem => ReadLocalItem(id),
+            CatalogueTarget.FictionalEntity => ReadFictionalEntity(id),
+            CatalogueTarget.ArtworkAsset => ReadArtworkAsset(id),
             CatalogueTarget.Other => BackupTitle.Empty(string.Empty, nameof(CatalogueTarget.Other)),
             _ => throw new ArgumentOutOfRangeException(nameof(target), target, "Unknown catalogue target."),
         };
 
-        return title is null ? null : IsWithheldTitle(target, id) ? Withhold(title) : title;
+        return title is null ? null : IsWithheld(target, id) ? Withhold(title) : title;
     }
 
     /// <summary>
     /// Finds what a polymorphic catalogue id points at. When the row says what kind it is (a saved item's entity
-    /// kind), that decides; otherwise the id is probed against works, collections, persons, editions, media assets and
-    /// local items, in that order. Returns null when nothing has that id.
+    /// kind), that decides; otherwise the id is probed against works, collections, persons, editions, media assets,
+    /// local items and fictional things, in that order. Returns null when nothing has that id.
     /// </summary>
     public CatalogueTarget? ResolveOther(string? kind, byte[] id)
     {
@@ -77,6 +87,7 @@ internal sealed class TitleRecognitionReader
             ("editions", CatalogueTarget.Edition),
             ("media_assets", CatalogueTarget.MediaAsset),
             ("local_items", CatalogueTarget.LocalItem),
+            ("fictional_entities", CatalogueTarget.FictionalEntity),
         ];
         foreach (var (table, target) in probes)
         {
@@ -92,14 +103,9 @@ internal sealed class TitleRecognitionReader
     /// <summary>
     /// Whether a title must not carry a name, parent name or year in a backup. Today nothing is withheld; this is
     /// wired to the adult-video libraries when Videos Wave 3 merges, so such a title appears only as ids and
-    /// fingerprints.
+    /// fingerprints, and a person's corrections and choices on it are not kept.
     /// </summary>
-    private static bool IsWithheldTitle(CatalogueTarget target, byte[] id)
-    {
-        _ = target;
-        _ = id;
-        return false;
-    }
+    public bool IsWithheld(CatalogueTarget target, byte[] id) => _isWithheld?.Invoke(target, id) ?? false;
 
     private static BackupTitle Withhold(BackupTitle title) =>
         title with { Name = null, ParentName = null, Year = null };
@@ -388,6 +394,71 @@ internal sealed class TitleRecognitionReader
             MediaType = NullIfBlank(Text(rows[0][1])),
             FileHashes = HashesOf(files, 0),
         };
+    }
+
+    private BackupTitle? ReadFictionalEntity(byte[] id)
+    {
+        var rows = Query(
+            "SELECT wikidata_qid, label FROM fictional_entities WHERE id = $id",
+            ("$id", id));
+        if (rows.Count == 0)
+        {
+            return null;
+        }
+
+        var ids = new Dictionary<string, string>(StringComparer.Ordinal);
+        var qid = Text(rows[0][0]);
+        if (!string.IsNullOrWhiteSpace(qid))
+        {
+            ids["wikidata_qid"] = qid;
+        }
+
+        return BackupTitle.Empty(string.Empty, nameof(CatalogueTarget.FictionalEntity)) with
+        {
+            Ids = ids,
+            Name = NullIfBlank(Text(rows[0][1])),
+        };
+    }
+
+    /// <summary>
+    /// An artwork asset by its outside identity only. The content hash is not used, because artwork files are never in a
+    /// backup. Null when the asset is gone, was uploaded by a person, or has neither a source address nor a provider reference.
+    /// </summary>
+    private BackupTitle? ReadArtworkAsset(byte[] id)
+    {
+        var rows = Query(
+            "SELECT source_provider, source_url, provider_reference FROM artwork_assets WHERE id = $id",
+            ("$id", id));
+        if (rows.Count == 0)
+        {
+            return null;
+        }
+
+        var provider = NullIfBlank(Text(rows[0][0]));
+        var url = NullIfBlank(Text(rows[0][1]));
+        var reference = NullIfBlank(Text(rows[0][2]));
+        if (string.Equals(provider, "user_upload", StringComparison.OrdinalIgnoreCase) || (url is null && reference is null))
+        {
+            return null;
+        }
+
+        var ids = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (provider is not null)
+        {
+            ids["source_provider"] = provider;
+        }
+
+        if (url is not null)
+        {
+            ids["source_url"] = url;
+        }
+
+        if (reference is not null)
+        {
+            ids["provider_reference"] = reference;
+        }
+
+        return BackupTitle.Empty(string.Empty, nameof(CatalogueTarget.ArtworkAsset)) with { Ids = ids };
     }
 
     private string? ReadCanonical(byte[] entityId, string key)

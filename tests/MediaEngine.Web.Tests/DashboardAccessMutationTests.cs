@@ -105,7 +105,7 @@ public sealed class DashboardAccessMutationTests
 
         var access = await client.ReplaceManagedAccountAccessResultAsync(accountId, new ReplaceAccountAccessRequest(["read"], []));
         var grant = await client.SetManagedProfileGrantResultAsync(accountId, profileId, new SetAccountProfileGrantAccessRequest(true, true));
-        var protection = await client.SetGrantProtectionResultAsync(accountId, profileId, new SetGrantAdminProtectionRequest(true, "pin", "FixedDuration", 30));
+        var protection = await client.SetGrantProtectionResultAsync(accountId, profileId, new SetGrantAdminProtectionRequest(true, "FixedDuration", 30));
 
         Assert.True(access.Succeeded);
         Assert.True(grant.Succeeded);

@@ -563,6 +563,12 @@ public sealed class DatabaseStartupSafetyTests
             ("audiobook_listen_history", "profile_id"),
             ("audiobook_listen_history", "work_id"),
             ("audiobook_listen_history", "asset_id"),
+            ("bookmark_packs", "id"),
+            ("bookmark_packs", "profile_id"),
+            ("bookmark_packs", "work_id"),
+            ("bookmark_packs", "asset_id"),
+            ("bookmark_pack_items", "id"),
+            ("bookmark_pack_items", "pack_id"),
             ("accounts", "id"),
             ("accounts", "household_id"),
             ("accounts", "grants_inherit_from_account_id"),
@@ -696,6 +702,43 @@ public sealed class DatabaseStartupSafetyTests
             ("user_taste_profiles", "user_id"),
             ("works", "collection_id"),
             ("works", "parent_work_id"),
+            ("vault_libraries", "created_by_profile_id"),
+            ("profile_nsfw_settings", "profile_id"),
+            ("profile_nsfw_settings", "changed_by_profile_id"),
+            ("nsfw_session_unlocks", "session_id"),
+            ("nsfw_session_unlocks", "profile_id"),
+            ("vault_performers", "id"),
+            ("vault_studios", "id"),
+            ("vault_tags", "id"),
+            ("vault_asset_performers", "asset_id"),
+            ("vault_asset_performers", "performer_id"),
+            ("vault_asset_studios", "asset_id"),
+            ("vault_asset_studios", "studio_id"),
+            ("vault_asset_tags", "asset_id"),
+            ("vault_asset_tags", "tag_id"),
+            ("vault_artwork", "id"),
+            ("vault_artwork", "owner_id"),
+            ("vault_matches", "asset_id"),
+            ("vault_pending_bookmarks", "id"),
+            ("vault_pending_bookmarks", "profile_id"),
+            ("vault_field_sources", "asset_id"),
+            ("vault_file_fingerprints", "asset_id"),
+            ("vault_activity", "id"),
+            ("vault_activity", "asset_id"),
+            ("vault_image_libraries", "library_id"),
+            ("vault_image_folders", "id"),
+            ("vault_image_folders", "library_id"),
+            ("vault_image_items", "item_id"),
+            ("vault_image_items", "library_id"),
+            ("vault_image_items", "folder_id"),
+            ("vault_image_tags", "item_id"),
+            ("vault_image_tags", "tag_id"),
+            ("vault_galleries", "id"),
+            ("vault_galleries", "library_id"),
+            ("vault_galleries", "created_by_profile_id"),
+            ("vault_galleries", "cover_item_id"),
+            ("vault_gallery_items", "gallery_id"),
+            ("vault_gallery_items", "item_id"),
         ];
 
         foreach (var (table, column) in internalGuidColumns)
@@ -1355,7 +1398,7 @@ public sealed class DatabaseStartupSafetyTests
         Assert.Empty(fixture.Database.StartupNotes);
         using var after = fixture.Database.CreateConnection();
         Assert.Equal("1", Scalar(after, "SELECT COUNT(*) FROM metadata_providers WHERE name = 'tvdb';"));
-        Assert.Equal("16", Scalar(after, "SELECT COUNT(*) FROM metadata_providers;"));
+        Assert.Equal("17", Scalar(after, "SELECT COUNT(*) FROM metadata_providers;"));
         Assert.Equal("user-edited", Scalar(after, "SELECT version FROM metadata_providers WHERE name = 'tmdb';"));
         Assert.Equal("0", Scalar(after, "SELECT is_enabled FROM metadata_providers WHERE name = 'tmdb';"));
         Assert.Equal("Renamed", Scalar(after, "SELECT display_name FROM profiles;"));

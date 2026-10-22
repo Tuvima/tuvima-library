@@ -408,30 +408,32 @@ public sealed class PersonalActivityRepository(IDatabaseConnection database) : I
     {
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
-        var totals = connection.QuerySingle<SummaryRow>("""
+        var totals = connection.QuerySingle<SummaryRow>($"""
             SELECT COALESCE(SUM(CASE WHEN kind = 'watch' THEN played_seconds END), 0) AS WatchSeconds,
                    COALESCE(SUM(CASE WHEN kind = 'read' THEN played_seconds END), 0) AS ReadSeconds,
                    COALESCE(SUM(CASE WHEN kind = 'listen' AND media_type = 'Music' THEN played_seconds END), 0) AS MusicSeconds,
                    COALESCE(SUM(CASE WHEN kind = 'listen' AND media_type <> 'Music' THEN played_seconds END), 0) AS AudiobookSeconds,
                    MIN(started_at) AS FirstActivityAt
-            FROM personal_activity WHERE profile_id = @profileId;
+            FROM personal_activity WHERE profile_id = @profileId AND {VaultSql.NotVaultAsset("asset_id")};
             """, new { profileId });
 
         // Titles, not songs or My list adds: a title is finished when any attempt finished, and in progress when its
         // latest attempt did not.
-        var titles = connection.QuerySingle<TitleCounts>("""
+        var titles = connection.QuerySingle<TitleCounts>($"""
             SELECT COALESCE(SUM(CASE WHEN any_finished = 1 THEN 1 ELSE 0 END), 0) AS Finished,
                    COALESCE(SUM(CASE WHEN latest_finished = 0 THEN 1 ELSE 0 END), 0) AS InProgress
             FROM (
                 SELECT MAX(finished) AS any_finished,
                        (SELECT b.finished FROM personal_activity b
                         WHERE b.profile_id = @profileId AND b.kind IN ('watch', 'read', 'listen') AND b.media_type <> 'Music'
+                          AND {VaultSql.NotVaultAsset("b.asset_id")}
                           AND COALESCE(HEX(b.work_id), 'T' || LOWER(b.title)) = title_key
                         ORDER BY b.started_at DESC, b.id DESC LIMIT 1) AS latest_finished
                 FROM (
                     SELECT finished, COALESCE(HEX(work_id), 'T' || LOWER(title)) AS title_key
                     FROM personal_activity
                     WHERE profile_id = @profileId AND kind IN ('watch', 'read', 'listen') AND media_type <> 'Music'
+                      AND {VaultSql.NotVaultAsset("asset_id")}
                 )
                 GROUP BY title_key
             );
@@ -494,6 +496,9 @@ public sealed class PersonalActivityRepository(IDatabaseConnection database) : I
     {
         var parameters = new DynamicParameters();
         var clauses = new List<string> { ProfileClause(filter.ProfileIds, parameters, "a") };
+
+        // The Vault never shows up in anyone's activity history, whatever was recorded (Videos spec D17).
+        clauses.Add("NOT EXISTS (SELECT 1 FROM media_assets va JOIN vault_libraries vl ON vl.library_id = va.library_id WHERE va.id = a.asset_id)");
 
         if (filter.Kinds is { Count: > 0 } kinds)
         {

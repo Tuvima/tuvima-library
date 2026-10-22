@@ -111,6 +111,23 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IHouseholdRepository, HouseholdRepository>();
         services.AddSingleton<IApplicationRepository, ApplicationRepository>();
         services.AddSingleton<IIdentityRepository, IdentityRepository>();
+        // The Vault (Videos spec WP9): the list of Vault libraries, per-profile Vault access and device-session unlocks (Vault mode uses the profile PIN),
+        // and the Vault's own name and artwork records. VaultAccessResolver is what every catalogue check asks first.
+        services.AddSingleton<IVaultLibraryRepository, VaultLibraryRepository>();
+        services.AddSingleton<INsfwAccessRepository, NsfwAccessRepository>();
+        services.AddSingleton<IVaultNameRepository, VaultNameRepository>();
+        services.AddSingleton<IVaultArtworkRepository, VaultArtworkRepository>();
+        // How each Vault video was matched, where its fields came from, its fingerprints and the quiet Vault activity list (WP12).
+        services.AddSingleton<IVaultMatchRepository, VaultMatchRepository>();
+        services.AddSingleton<IVaultActivityRepository, VaultActivityRepository>();
+        // The Vault's own lists for browsing: scenes, folders, performers, studios and tags (WP14).
+        services.AddSingleton<IVaultBrowseRepository, VaultBrowseRepository>();
+        // The Vault's images and galleries, built on View's photo system with the Vault scope on (WP16).
+        services.AddSingleton<IVaultImageRepository, VaultImageRepository>();
+        services.AddSingleton<IVaultGalleryRepository, VaultGalleryRepository>();
+        services.AddSingleton<IVaultImageIndexer>(sp => sp.GetRequiredService<ViewLibraryService>());
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultImageService>();
+        services.AddSingleton<VaultAccessResolver>();
         services.AddSingleton<IAccountSignInMethodRepository, AccountSignInMethodRepository>();
         services.AddSingleton<IClientAuthorizationRepository, ClientAuthorizationRepository>();
         services.AddSingleton<OnboardingRepository>();
@@ -118,7 +135,6 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<OnboardingActivationGate>();
         services.AddSingleton<IPasswordHasher<ProfileCredential>, PasswordHasher<ProfileCredential>>();
         services.AddSingleton<IPasswordHasher<AccountCredential>, PasswordHasher<AccountCredential>>();
-        services.AddSingleton<IPasswordHasher<GrantAdminProtection>, PasswordHasher<GrantAdminProtection>>();
         services.AddIdentityCore<Account>().AddUserStore<AccountPasskeyStore>();
         // Passkey relying-party settings come from the public address, re-read for every scope so a
         // changed address applies without a restart. PasskeyHandler takes IOptions, which is cached for
@@ -133,6 +149,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ExternalIdentityTransactionService>();
         services.AddSingleton<IFirstPartyIdentityService, FirstPartyIdentityService>();
         services.AddSingleton<IProfilePinVerifier>(sp => (FirstPartyIdentityService)sp.GetRequiredService<IFirstPartyIdentityService>());
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultAdministrationService>();
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultOperationGate>();
+        services.AddSingleton<MediaEngine.Api.Services.Vault.VaultFolderAttachmentService>();
         services.AddTuvimaSecurity();
         services.AddSingleton<SetupSessionService>();
         services.AddSingleton<SetupPreflightService>();

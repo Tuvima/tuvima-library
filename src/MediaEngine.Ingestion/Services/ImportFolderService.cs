@@ -97,6 +97,22 @@ public sealed class ImportFolderService : IImportFolderService
             : null;
     }
 
+    public IReadOnlyList<LibraryFolderEntry> ResolveLibrariesForType(MediaType mediaType)
+    {
+        var configuration = Load();
+        var type = ImportFolderRules.TypeForMediaType(mediaType.ToString());
+        if (configuration is null || type is null)
+        {
+            return [];
+        }
+
+        return configuration.Libraries
+            .Where(library => string.Equals(library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase)
+                && library.MediaTypes.Any(token => type.Value.MediaTypes.Contains(token, StringComparer.OrdinalIgnoreCase)))
+            .Select(LibraryFolderEntryFactory.Create)
+            .ToList();
+    }
+
     public ImportDestination ResolveDestination(MediaType mediaType, long requiredBytes = 0)
     {
         var type = ImportFolderRules.TypeForMediaType(mediaType.ToString(), ImportTypes());

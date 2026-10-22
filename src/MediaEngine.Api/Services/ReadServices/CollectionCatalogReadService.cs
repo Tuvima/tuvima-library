@@ -533,6 +533,7 @@ public sealed class CollectionCatalogReadService(
                 INNER JOIN work_owned_assets woa ON woa.work_id = work_tree.WorkId
                 INNER JOIN media_assets ma ON ma.id = woa.asset_id
                 WHERE {visibleAssetPredicate}
+                  AND {VaultSql.NotVaultAsset("ma.id")}
                   AND {WorkReadinessSql.ReadyWorkPredicate("leaf_w")};
                 """,
                 new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
@@ -1289,7 +1290,7 @@ public sealed class CollectionCatalogReadService(
         // and binding them one parameter each took about 0.4 s at 4,000 works (B29).
         using var conn = db.CreateConnection();
         var rows = (await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
-            """
+            $"""
             -- readiness: turns work ids into their display roots; the ids come from Ready-gated reads
             WITH RECURSIVE source_roots(SourceWorkId, RootWorkId, RootMediaType) AS (
                 SELECT DISTINCT
@@ -1336,6 +1337,7 @@ public sealed class CollectionCatalogReadService(
                    SELECT 1
                    FROM work_owned_assets woa
                    WHERE woa.work_id = work_tree.WorkId
+                     AND {VaultSql.NotVaultAsset("woa.asset_id")}
                );
             """,
             new { WorkIds = GuidSql.ToJsonHexArray(workIds) },
@@ -1414,6 +1416,7 @@ public sealed class CollectionCatalogReadService(
                 INNER JOIN editions e ON e.work_id = work_tree.WorkId
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
                 WHERE {visibleAssetPredicate}
+                  AND {VaultSql.NotVaultAsset("ma.id")}
                   {CollectionAssetAllowList.Clause("work_tree.WorkId", allowedMemberIds)}
                 GROUP BY work_tree.RootWorkId
             )
@@ -1684,6 +1687,7 @@ public sealed class CollectionCatalogReadService(
                 INNER JOIN editions e ON e.work_id = work_tree.WorkId
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
                 WHERE {visibleAssetPredicate}
+                  AND {VaultSql.NotVaultAsset("ma.id")}
                   {CollectionAssetAllowList.Clause("work_tree.WorkId", allowedMemberIds)}
                 GROUP BY work_tree.RootWorkId
             )

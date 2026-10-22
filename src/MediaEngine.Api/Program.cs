@@ -12,6 +12,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.EngineLogs;
 using MediaEngine.Api.Services.HealthChecks;
+using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Startup;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
@@ -166,6 +167,8 @@ builder.Host.UseSerilog((context, services, loggerConfig) => loggerConfig
     .Enrich.FromLogContext()
     // A cast grant is a secret that sits in the URL path: no log event that spells a cast address is ever written anywhere.
     .Filter.ByExcluding(logEvent => logEvent.RenderMessage().Contains("/cast/v1/", StringComparison.Ordinal))
+    // Nothing that spells the name or place of a file in the Vault is ever written to the console or the log files (Videos spec D17, D33).
+    .Filter.ByExcluding(VaultLogLineFilter.NamesVaultLocation)
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
         path: Path.Combine(logDirectory, EngineLogLocation.SinkFileName),
@@ -546,6 +549,9 @@ catch (DataStoreUpgradeException exception)
     return;
 }
 
+// The Vault's folders are known before anything is served, scanned or logged.
+await app.Services.GetRequiredService<VaultLocationGuardRefreshService>().RefreshAsync().ConfigureAwait(false);
+
 // -- Middleware pipeline -------------------------------------------------------
 app.UseExceptionHandler(errorApp =>
 {
@@ -553,7 +559,12 @@ app.UseExceptionHandler(errorApp =>
     {
         var feature = context.Features.Get<IExceptionHandlerFeature>();
         var traceId = context.TraceIdentifier;
-        var isDevelopment = app.Environment.IsDevelopment();
+        // Even in development an error never echoes its text for the Vault mode and Vault routes or when it spells a Vault location
+        // (Videos spec D17, D33); the trace id leads to the technical log, which leaves such lines out too.
+        var isDevelopment = app.Environment.IsDevelopment()
+            && !context.Request.Path.StartsWithSegments("/api/v1/nsfw", StringComparison.OrdinalIgnoreCase)
+            && !context.Request.Path.StartsWithSegments("/api/v1/vault", StringComparison.OrdinalIgnoreCase)
+            && !VaultLocationGuard.NamesVaultLocation(feature?.Error.ToString());
         var problem = new Microsoft.AspNetCore.Mvc.ProblemDetails
         {
             Status = StatusCodes.Status500InternalServerError,
@@ -590,6 +601,8 @@ if (realMediaRun is not null)
 app.UseOutputCache();
 app.UseMiddleware<IntercomTokenAuthenticationMiddleware>();
 app.UseMiddleware<InteractiveRequestTrackingMiddleware>();
+// Vault routes answer "not found" to a locked caller before any query value or body is read (Videos spec D17).
+app.UseMiddleware<VaultGateMiddleware>();
 
 app.MapHealthChecks("/health").RequireAuthorization(AuthPolicies.Administrator);
 app.MapHealthChecks("/health/live", new HealthCheckOptions

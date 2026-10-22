@@ -3,43 +3,49 @@
 
 @if (Model.MusicAlbumCompanion is { MoreByAlbums.Count: > 0 } companion)
 {
-    <section class="tl-music-album-series-rail" aria-labelledby="music-album-series-heading">
-        <header>
-            <h2 id="music-album-series-heading">@MoreByTitle(companion)</h2>
-            @if (!string.IsNullOrWhiteSpace(companion.PrimaryArtistRoute))
-            {
-                <a href="@companion.PrimaryArtistRoute">View profile</a>
-            }
-        </header>
-
-        <div class="tl-music-album-series-rail__items">
-            @foreach (var album in companion.MoreByAlbums)
-            {
-                <a class="tl-music-album-series-rail__album" href="@album.Route">
-                    <span class="tl-music-album-series-rail__art">
-                        @if (!string.IsNullOrWhiteSpace(album.ArtworkUrl))
-                        {
-                            @* Drawn up to 240px square (MusicAlbumSeriesRail.razor.css). *@
-                            <img src="@MediaTileArtworkUrl.ForDrawnSize(album.ArtworkUrl, 240)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(album.ArtworkUrl, 240)" alt="" loading="lazy" decoding="async" />
-                        }
-                        else
-                        {
-                            <GeneratedIdentity Name="@album.Title" />
-                        }
-                    </span>
-                    <strong>@album.Title</strong>
-                    @if (!string.IsNullOrWhiteSpace(album.Year))
+    <div class="tl-music-album-series-rail">
+        <AppCollapsibleRow Title="@MoreByTitle(companion)"
+                           Summary="@AlbumCount(companion.MoreByAlbums.Count)"
+                           RowKind="more-by">
+            <Actions>
+                @if (!string.IsNullOrWhiteSpace(companion.PrimaryArtistRoute))
+                {
+                    <a class="tl-music-album-series-rail__profile" href="@companion.PrimaryArtistRoute">View profile</a>
+                }
+            </Actions>
+            <ChildContent>
+                <div class="tl-music-album-series-rail__items">
+                    @foreach (var album in companion.MoreByAlbums)
                     {
-                        <small>@album.Year</small>
+                        <a class="tl-music-album-series-rail__album" href="@album.Route">
+                            <span class="tl-music-album-series-rail__art">
+                                @if (!string.IsNullOrWhiteSpace(album.ArtworkUrl))
+                                {
+                                    @* Drawn up to 240px square (MusicAlbumSeriesRail.razor.css). *@
+                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(album.ArtworkUrl, 240)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(album.ArtworkUrl, 240)" alt="" loading="lazy" decoding="async" />
+                                }
+                                else
+                                {
+                                    <GeneratedIdentity Name="@album.Title" />
+                                }
+                            </span>
+                            <strong>@album.Title</strong>
+                            @if (!string.IsNullOrWhiteSpace(album.Year))
+                            {
+                                <small>@album.Year</small>
+                            }
+                        </a>
                     }
-                </a>
-            }
-        </div>
-    </section>
+                </div>
+            </ChildContent>
+        </AppCollapsibleRow>
+    </div>
 }
 
 @code {
     [Parameter, EditorRequired] public DetailPageViewModel Model { get; set; } = default!;
+
+    private static string AlbumCount(int count) => count == 1 ? "1 album" : $"{count} albums";
 
     private static string MoreByTitle(MusicAlbumCompanionViewModel companion)
         => string.IsNullOrWhiteSpace(companion.PrimaryArtistName)

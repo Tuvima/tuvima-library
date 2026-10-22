@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Services.EngineLogs;
 
@@ -325,6 +326,13 @@ public sealed partial class TechnicalLogService : ITechnicalLogService
     private static bool Passes(Pending entry, TechnicalLogQuery query, int minimumRank, string? area)
     {
         if (entry.Rank < minimumRank)
+        {
+            return false;
+        }
+
+        // A line that spells a place in a Vault folder is never shown or exported, even one written before the writers learned the
+        // folder (Videos spec D17, D33).
+        if (VaultLocationGuard.HasVaultFolders && VaultLocationGuard.NamesVaultLocation(entry.Message()))
         {
             return false;
         }

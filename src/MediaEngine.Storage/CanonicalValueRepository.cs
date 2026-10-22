@@ -337,10 +337,12 @@ public sealed class CanonicalValueRepository : ICanonicalValueRepository, IAiFea
         ArgumentException.ThrowIfNullOrWhiteSpace(missingField);
 
         using var conn = _db.CreateConnection();
-        var ids = conn.Query<Guid>("""
+        // Anything in a Vault library is never offered to the batch jobs that read it (Local AI, enrichment): Videos spec D33.
+        var ids = conn.Query<Guid>($"""
             SELECT DISTINCT cv1.entity_id
             FROM   canonical_values cv1
             WHERE  cv1.key IN (@HasField1, @HasField2)
+              AND  {VaultSql.NotVaultAnyEntity("cv1.entity_id")}
               AND  NOT EXISTS (
                        SELECT 1
                        FROM canonical_values existing_scalar

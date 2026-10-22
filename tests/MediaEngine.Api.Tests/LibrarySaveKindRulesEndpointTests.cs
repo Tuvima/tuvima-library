@@ -274,6 +274,8 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         builder.Services.AddRateLimiter(_ => { });
         builder.Services.AddSingleton<IConfigurationLoader>(_loader);
         builder.Services.AddSingleton(_kinds);
+        // No Vault libraries: the saves under test hold ordinary libraries only.
+        builder.Services.AddSingleton<IVaultLibraryRepository>(new FixedVaultLibraries());
         builder.Services.AddSingleton(new ServerFolderBrowserService(_loader, NullLogger<ServerFolderBrowserService>.Instance));
         builder.Services.AddSingleton(sp => new FolderJobService(
             _loader,
@@ -283,7 +285,8 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
             null!,
             null!,
             sp.GetRequiredService<ServerFolderBrowserService>(),
-            NullLogger<FolderJobService>.Instance));
+            NullLogger<FolderJobService>.Instance,
+            sp.GetRequiredService<IVaultLibraryRepository>()));
         builder.Services.AddSingleton(new ImportFolderApplier(NothingThere.Create<IImportFolderService>(), NothingThere.Create<IIngestionEngine>()));
         builder.Services.AddSingleton(NothingThere.Create<IProfileRepository>());
         // Only used for the profiles a save would set up a personal space for, and there are none.

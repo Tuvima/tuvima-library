@@ -1,0 +1,79 @@
+@namespace MediaEngine.Web.Components.Vault
+
+@* Asks for one PIN on a number pad. The caller's Verify callback does the real check with the Engine and answers with a plain
+   message when the PIN is not accepted (or nothing when it is), so the dialog stays open for another try and closes itself on
+   success. The digits are never put on the page and never leave this component except through Verify. *@
+<AppDialogShell Title="@Title" Subtitle="@Hint" Size="Small" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="vault-pin-dialog" data-vault-pin-dialog>
+            <PinPad @bind-Value="_pin"
+                    Disabled="@_busy"
+                    MaxLength="12"
+                    Label="@PadLabel"
+                    ShakeCount="@_shake"
+                    OnSubmit="SubmitAsync"
+                    OnCancel="@(() => Dialog.Cancel())" />
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined" Dense="true">@_error</AppAlert>
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="@(_busy ? "Checking…" : SubmitLabel)"
+                   ButtonStyle="AppButtonStyle.Filled"
+                   Tone="AppUiTone.Primary"
+                   Disabled="@(_busy || _pin.Length < MinimumLength)"
+                   OnClick="SubmitAsync" />
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    [Parameter] public string Title { get; set; } = "Enter your PIN";
+    [Parameter] public string? Hint { get; set; }
+    [Parameter] public string SubmitLabel { get; set; } = "Continue";
+    [Parameter] public string PadLabel { get; set; } = "PIN";
+
+    /// <summary>The fewest digits worth sending (a profile PIN is 4 to 12 digits).</summary>
+    [Parameter] public int MinimumLength { get; set; } = 4;
+
+    /// <summary>Checks the PIN with the Engine. Returns a plain message when it is not accepted, or null when it is.</summary>
+    [Parameter, EditorRequired] public Func<string, Task<string?>> Verify { get; set; } = _ => Task.FromResult<string?>(null);
+
+    private string _pin = string.Empty;
+    private string? _error;
+    private bool _busy;
+    private int _shake;
+
+    private async Task SubmitAsync()
+    {
+        if (_busy || _pin.Length < MinimumLength)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        var pin = _pin;
+        try
+        {
+            _error = await Verify(pin);
+        }
+        finally
+        {
+            _busy = false;
+            _pin = string.Empty;
+        }
+
+        if (_error is null)
+        {
+            Dialog.Close(AppDialogResult.Ok(true));
+            return;
+        }
+
+        _shake++;
+    }
+}

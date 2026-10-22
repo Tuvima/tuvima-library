@@ -29,6 +29,18 @@ public static class ShellNavigation
         ? [.. ShellDock.SwitcherRows(isKids: true).Select(ToLink)]
         : [.. AdultTopBarPaths.Select(path => ToLink(ShellDock.LibrarySurfaces.First(surface => surface.Path == path)))];
 
+    /// <summary>The Vault area (Videos spec D45). Listed only through <see cref="WithVault"/>, which the shell calls while Vault mode is on.</summary>
+    public static readonly ShellNavLink Vault = new("Vault", VaultPath, "Nav_Vault", AppMaterialIcons.Outlined.Lock);
+
+    public const string VaultPath = "/vault";
+
+    /// <summary>
+    /// The fourth top-level area joins the end of a list of destinations only while <paramref name="showVault"/> is true, which the
+    /// shell sets only for an adult whose Engine-reported Vault mode is on for this device session. Otherwise the list comes back untouched.
+    /// </summary>
+    public static IReadOnlyList<ShellNavLink> WithVault(IReadOnlyList<ShellNavLink> links, bool showVault) =>
+        showVault ? [.. links, Vault] : links;
+
     /// <summary>My Library, the phone menu's link to the personal page (the same page as the dock's My Library tab).</summary>
     public static readonly ShellNavLink MyLibrary = new("MyLibrary", ShellDock.MyLibraryPath, "Nav_MyLibrary", AppMaterialIcons.Outlined.LibraryBooks);
 

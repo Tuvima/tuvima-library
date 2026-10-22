@@ -108,6 +108,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
             LEFT JOIN works gp ON gp.id = p.parent_work_id
             LEFT JOIN representative_assets ra ON ra.WorkId = w.id
             WHERE w.id IN @WorkIds
+              AND {VaultSql.NotVaultEntity("w.id")}
             """,
             new { WorkIds = workIds.Select(GuidSql.ToBlob).ToArray() },
             cancellationToken: ct)).ConfigureAwait(false);
@@ -143,7 +144,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
 
         using var conn = db.CreateConnection();
         var rows = await conn.QueryAsync<MediaTypeCountRow>(new CommandDefinition(
-            """
+            $"""
             -- readiness: metadata for works the caller named by id, in the collection editor
             WITH requested(WorkHex) AS (
                 SELECT UPPER(CAST(value AS TEXT))
@@ -153,6 +154,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
                    COUNT(*) AS ItemCount
             FROM works w
             INNER JOIN requested ON hex(w.id) = requested.WorkHex
+            WHERE {VaultSql.NotVaultEntity("w.id")}
             GROUP BY w.media_type
             ORDER BY w.media_type COLLATE NOCASE;
             """,
@@ -285,6 +287,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
               AND ra.AssetId IS NOT NULL
               AND {visibleWorkPredicate}
               AND w.id IN (SELECT work_id FROM allowed_works)
+              AND {VaultSql.NotVaultEntity("w.id")}
               AND (@mediaTypeCount = 0 OR w.media_type IN @mediaTypes)
               AND (
                     @searchLike IS NULL
@@ -439,6 +442,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
             LEFT JOIN canonical_values cover_work ON cover_work.entity_id = w.id AND cover_work.key IN ('cover_url', 'cover', 'poster_url', 'poster')
             LEFT JOIN series_manifest_items series_item ON series_item.linked_work_id = w.id AND series_item.collection_id = @CollectionId
             WHERE ({visibleWorkPredicate} OR ra.AssetId IS NOT NULL)
+              AND {VaultSql.NotVaultEntity("w.id")}
             ORDER BY display_work.SortOrder, Title COLLATE NOCASE, w.id
             """,
             new

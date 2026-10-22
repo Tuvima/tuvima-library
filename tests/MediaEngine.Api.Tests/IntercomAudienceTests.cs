@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Events;
 using MediaEngine.Storage;
@@ -44,7 +45,8 @@ public sealed class IntercomAudienceTests : IDisposable
         await SeedHumanAsync();
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System);
+            new ProfileRepository(_database), TimeProvider.System,
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var media = new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Visible", _assetId);
 
@@ -78,8 +80,6 @@ public sealed class IntercomAudienceTests : IDisposable
             IsEnabled = true,
             UnlockMode = AdminUnlockMode.FixedDuration.ToString(),
             UnlockMinutes = 30,
-            PinHash = "test",
-            HashScheme = "test",
             ProtectionVersion = 2,
             UpdatedAt = DateTimeOffset.UtcNow,
         });
@@ -114,7 +114,8 @@ public sealed class IntercomAudienceTests : IDisposable
 
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System);
+            new ProfileRepository(_database), TimeProvider.System,
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
 
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.ReviewItemCreated,
@@ -132,7 +133,8 @@ public sealed class IntercomAudienceTests : IDisposable
         await SeedHumanAsync();
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System);
+            new ProfileRepository(_database), TimeProvider.System,
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var removed = new LibraryItemsRemovedEvent([Guid.NewGuid()], [Guid.NewGuid()]);
 
@@ -144,13 +146,65 @@ public sealed class IntercomAudienceTests : IDisposable
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.LibraryItemsRemoved, removed));
     }
 
+    // The Vault reaches nobody who has not switched Vault mode on in this very session, administrators included (Videos spec D17).
+    [Fact]
+    public async Task LiveAudience_VaultEvents_ReachOnlyAnUnlockedSession_AdministratorsIncluded()
+    {
+        await SeedHumanAsync();
+        var now = DateTimeOffset.UtcNow;
+        using (var database = _database.CreateConnection())
+        {
+            database.Execute("""
+                INSERT INTO works(id,media_type,work_kind,is_catalog_only,ownership) VALUES(@work,'Movie','standalone',0,'Owned');
+                INSERT INTO editions(id,work_id) VALUES(@edition,@work);
+                INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,library_id) VALUES(@asset,@edition,'h','C:/v/a.mkv',@library);
+                INSERT INTO vault_libraries(library_id,lookup_source,adults_confirmed_at,created_at,updated_at) VALUES(@library,'none',@now,@now,@now);
+                """, new
+            {
+                work = GuidSql.ToBlob(Guid.NewGuid()),
+                edition = GuidSql.ToBlob(Guid.NewGuid()),
+                asset = GuidSql.ToBlob(_assetId),
+                library = _libraryId.ToString("D"),
+                now = now.ToString("O"),
+            });
+        }
+
+        var authorizer = new IntercomAudienceAuthorizer(
+            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            new ProfileRepository(_database), TimeProvider.System,
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
+        var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
+        var media = new MediaAddedEvent(Guid.NewGuid(), null, "Videos", "Secret", _assetId);
+
+        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
+
+        using (var database = _database.CreateConnection())
+        {
+            database.Execute("UPDATE accounts SET is_administrator=1 WHERE id=@accountId;", new { accountId = _accountId });
+        }
+
+        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
+
+        using (var database = _database.CreateConnection())
+        {
+            database.Execute(
+                "INSERT INTO profile_nsfw_settings(profile_id,access_mode,updated_at) VALUES(@profile,'allowed',@now);",
+                new { profile = GuidSql.ToBlob(Profile.SeedProfileId), now = now.ToString("O") });
+        }
+
+        await new NsfwAccessRepository(_database).UnlockAsync(_sessionId, Profile.SeedProfileId, NsfwUnlockMethod.Allowed, 15, now);
+
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
+    }
+
     [Fact]
     public async Task LiveAudience_StopsAfterSessionRevocation()
     {
         await SeedHumanAsync();
         var authorizer = new IntercomAudienceAuthorizer(
             _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System);
+            new ProfileRepository(_database), TimeProvider.System,
+            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         await _identities.RevokeSessionAsync(_sessionId, DateTimeOffset.UtcNow, "test");
 

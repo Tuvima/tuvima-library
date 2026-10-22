@@ -18,7 +18,7 @@ public sealed class ApplicationEventAcceptanceTests
     {
         var producer = new CaptureProducer();
         var projection = new ApplicationEventProjectionPublisher(producer,
-            new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance);
+            new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance, new NoVaultPaths());
         var audiences = new IntercomAudienceRegistry();
         audiences.Add(new("failed", Guid.NewGuid(), Guid.NewGuid()));
         audiences.Add(new("healthy", Guid.NewGuid(), Guid.NewGuid()));
@@ -61,7 +61,7 @@ public sealed class ApplicationEventAcceptanceTests
         var libraryId = Guid.NewGuid();
         var assetId = Guid.NewGuid();
         var projection = new ApplicationEventProjectionPublisher(
-            producer, new FixedResourceResolver(libraryId), NullLogger<ApplicationEventProjectionPublisher>.Instance);
+            producer, new FixedResourceResolver(libraryId), NullLogger<ApplicationEventProjectionPublisher>.Instance, new NoVaultPaths());
 
         await projection.ProjectAsync(SignalREvents.IngestionStarted, new IngestionStartedEvent("C:/secret/file.mkv", DateTimeOffset.UtcNow), default);
         await projection.ProjectAsync(SignalREvents.IngestionCompleted, new IngestionCompletedEvent("C:/secret/file.mkv", "Movies", DateTimeOffset.UtcNow), default);
@@ -97,7 +97,7 @@ public sealed class ApplicationEventAcceptanceTests
     {
         var producer = new CaptureProducer();
         var projection = new ApplicationEventProjectionPublisher(
-            producer, new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance);
+            producer, new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance, new NoVaultPaths());
 
         await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("idle"), default);
         await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("working", found: 4, done: 1, progress: 0.25), default);
@@ -129,7 +129,7 @@ public sealed class ApplicationEventAcceptanceTests
     {
         var producer = new CaptureProducer();
         var projection = new ApplicationEventProjectionPublisher(
-            producer, new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance);
+            producer, new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance, new NoVaultPaths());
 
         await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("idle"), default);
         await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("waiting", found: 2, done: 0), default);
@@ -143,7 +143,7 @@ public sealed class ApplicationEventAcceptanceTests
     {
         var producer = new CaptureProducer();
         var projection = new ApplicationEventProjectionPublisher(
-            producer, new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance);
+            producer, new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance, new NoVaultPaths());
 
         await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("working", found: 3, done: 1), default);
         await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("waiting", found: 3, done: 1), default);
@@ -172,7 +172,7 @@ public sealed class ApplicationEventAcceptanceTests
         var workId = Guid.NewGuid();
         var resources = new RecordingResourceResolver(Guid.NewGuid());
         var projection = new ApplicationEventProjectionPublisher(
-            producer, resources, NullLogger<ApplicationEventProjectionPublisher>.Instance);
+            producer, resources, NullLogger<ApplicationEventProjectionPublisher>.Instance, new NoVaultPaths());
 
         await projection.ProjectAsync(SignalREvents.MediaAdded,
             new MediaAddedEvent(workId, null, "Movies", "Title", assetId), default);
@@ -190,7 +190,7 @@ public sealed class ApplicationEventAcceptanceTests
         var assetId = Guid.NewGuid();
         var libraryId = Guid.NewGuid();
         var projection = new ApplicationEventProjectionPublisher(
-            producer, new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance);
+            producer, new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance, new NoVaultPaths());
 
         await projection.ProjectAsync(SignalREvents.MediaRemoved,
             new MediaRemovedEvent(assetId, "C:/removed.mkv", "Deleted", libraryId, AccountFeatureId.Watch.Value), default);

@@ -142,10 +142,19 @@ public sealed record LocalAssetTimelineQuery(
     string? AddedAfterKey = null,
     LocalAssetDocumentFilter? DocumentFilter = null,
     IReadOnlyCollection<string>? ExcludedContentKinds = null,
-    IReadOnlyCollection<Guid>? AddedByProfileIds = null);
+    IReadOnlyCollection<Guid>? AddedByProfileIds = null,
+    LocalAssetVaultScope? Vault = null);
 
 /// <summary>One profile that added items, and how many (the filter chips on the shared galleries).</summary>
 public sealed record LocalAssetAddedByCount(Guid ProfileId, string Name, int ItemCount);
+
+/// <summary>
+/// Turns a timeline query into a Vault image query (Videos spec D44). Without it, a query never returns a Vault image, whatever
+/// libraries it is given; with it, the query returns only Vault images, so the two worlds cannot mix. <see cref="FolderId"/> and
+/// <see cref="GalleryId"/> narrow it to one folder gallery or one hand-made Vault gallery; a Smart Gallery rule on the query is
+/// compiled with the Vault's own rule limits and tags.
+/// </summary>
+public sealed record LocalAssetVaultScope(Guid? FolderId = null, Guid? GalleryId = null);
 
 /// <summary>
 /// Organising conditions for document listings. Every listed tag must be present. The date range covers the
@@ -264,6 +273,12 @@ public static class LocalAssetScopeKinds
 {
     public const string Personal = "personal";
     public const string Shared = "shared";
+
+    /// <summary>
+    /// An image of a Vault image library (Videos spec D44). Only a registration uses this name; the item is stored with the
+    /// shared kind and no Personal Space, owner or View source, and only in a library listed in <c>vault_image_libraries</c>.
+    /// </summary>
+    public const string Vault = "vault";
 }
 
 public sealed record LocalAssetFileRegistration(

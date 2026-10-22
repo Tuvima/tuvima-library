@@ -23,7 +23,7 @@ public sealed class GalleryEditorLauncherService(
         }
 
         var dialog = await dialogService.ShowAsync<GalleryEditorShell>(
-            request.EditingGallery is null ? "New Gallery" : "Edit Gallery",
+            request.EditingGallery is null && request.EditingVaultGallery is null ? "New Gallery" : "Edit Gallery",
             new AppDialogParameters { { nameof(GalleryEditorShell.Request), request } },
             new AppDialogOptions
             {

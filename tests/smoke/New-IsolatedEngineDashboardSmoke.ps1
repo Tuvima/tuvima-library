@@ -225,15 +225,13 @@ foreach ($name in $templateFiles) {
     Copy-Item -LiteralPath (Join-Path $repoRoot (Join-Path 'config' $name)) -Destination (Join-Path $paths.Config $name)
 }
 New-Item -ItemType Directory -Force -Path (Join-Path $paths.Config 'ui') | Out-Null
-# library-preferences.json is gitignored (per-machine), so a clean checkout or worktree may not have it; write defaults when absent.
-foreach ($name in 'global.json', 'palette.json', 'library-preferences.json', 'playback-client.json') {
+# library-preferences.json is gitignored (per-machine), so a clean checkout or worktree may not have it; the Engine then
+# reads the shipped library-preferences.defaults.json instead.
+foreach ($name in 'global.json', 'palette.json', 'library-preferences.json', 'library-preferences.defaults.json', 'playback-client.json') {
     $source = Join-Path $repoRoot (Join-Path 'config\ui' $name)
     $target = Join-Path $paths.Config (Join-Path 'ui' $name)
     if (Test-Path -LiteralPath $source) {
         Copy-Item -LiteralPath $source -Destination $target
-    } elseif ($name -eq 'library-preferences.json') {
-        # An empty object loads as the built-in defaults; the settings endpoint requires the file to exist.
-        Set-Content -NoNewline -LiteralPath $target -Value '{}'
     }
 }
 New-Item -ItemType Directory -Force -Path (Join-Path $paths.Config 'providers') | Out-Null

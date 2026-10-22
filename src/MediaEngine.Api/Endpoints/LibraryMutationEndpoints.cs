@@ -4,6 +4,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.Settings;
+using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Ingestion.Contracts;
@@ -24,13 +25,21 @@ internal static class LibraryMutationEndpoints
         }).WithName("GetViewStorageSummary").Produces<ViewStorageSummaryDto>().RequireAdmin();
 
         group.MapPost("/libraries/mutations", async (LibraryMutationRequest request,
-            IConfigurationLoader configuration, ServerFolderBrowserService folders, [Microsoft.AspNetCore.Mvc.FromServices] LibraryKindListService libraryKinds,
+            IConfigurationLoader configuration, ServerFolderBrowserService folders, [Microsoft.AspNetCore.Mvc.FromServices] LibraryKindListService libraryKinds, HttpContext http,
             IFileOrganizer organizer, ViewStorageService storage, IProfileRepository profiles,
-            IViewProfileRepository policies, ImportFolderApplier importFolder, FolderJobService folderJobs, CancellationToken ct) =>
+            IViewProfileRepository policies, ImportFolderApplier importFolder, FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
             await WriteGate.WaitAsync(ct);
             try
             {
+                var vaultIds = await vaultLibraries.GetIdsAsync(ct);
+                var hiddenVaultRoots = await http.HiddenVaultFolderRootsAsync(ct);
+                // A Vault library is not edited from the library settings (Videos spec D45); it answers as a library that does not exist.
+                if (request.Library is { } requested && vaultIds.Contains(requested.Id))
+                {
+                    return ApiErrors.NotFound("Not found.");
+                }
+
                 var current = configuration.LoadLibraries();
                 var dto = SettingsContractMapper.ToContract(current, configuration);
                 var conflict = ApplyEdit(dto, request);
@@ -53,7 +62,7 @@ internal static class LibraryMutationEndpoints
                 var error = SettingsEndpoints.ValidateViewStorage(proposed)
                     ?? SettingsEndpoints.ValidateViewRootChange(current, proposed)
                     ?? ImportFolderValidation.Validate(proposed)
-                    ?? libraryKinds.ValidateLibraries(proposed);
+                    ?? libraryKinds.ValidateLibraries(VaultLibrarySettings.WithoutVault(proposed, vaultIds));
                 if (error is not null)
                 {
                     return ApiErrors.BadRequest(error);
@@ -84,7 +93,7 @@ internal static class LibraryMutationEndpoints
                             CurrentSourceId = source.Id,
                             SelectionMode = source.ManagementMode == "managed_by_tuvima"
                                 ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary,
-                        }, proposed);
+                        }, proposed, hiddenVaultRoots);
                         if (!result.CanSelect)
                         {
                             return ApiErrors.BadRequest(result.Issues.First(x => x.Severity == "error").Message);
@@ -98,7 +107,7 @@ internal static class LibraryMutationEndpoints
                         StorageLocationId = proposed.ViewStorage.StorageLocationId,
                         RelativePath = proposed.ViewStorage.RelativeRoot,
                         SelectionMode = ServerFolderSelectionModes.PersonalSpaceManaged,
-                    }, proposed);
+                    }, proposed, hiddenVaultRoots);
                     if (!result.CanSelect)
                     {
                         return ApiErrors.BadRequest(result.Issues.First(x => x.Severity == "error").Message);
@@ -118,7 +127,7 @@ internal static class LibraryMutationEndpoints
                     }
                 }
 
-                return Results.Ok(SettingsContractMapper.ToContract(proposed, configuration));
+                return Results.Ok(SettingsContractMapper.ToContract(VaultLibrarySettings.WithoutVault(proposed, vaultIds), configuration));
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException or ServerFolderAccessException)
             {

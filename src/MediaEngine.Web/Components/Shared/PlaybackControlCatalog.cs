@@ -87,7 +87,8 @@ public sealed record PlaybackControlState(
     int SkipBackSeconds = 15,
     int SkipForwardSeconds = 15,
     int HistoryCount = 0,
-    string? RepeatMode = null);
+    string? RepeatMode = null,
+    bool CanBookmark = false);
 
 public sealed record PlaybackControlDefinition(
     PlaybackControlKey Key,
@@ -331,6 +332,10 @@ public static class PlaybackControlCatalog
                 if (state.HasAudioTracks)
                 {
                     controls.Add(Tool(PlaybackControlKey.AudioTrack, "Audio", "audio-track", state));
+                }
+                if (state.CanBookmark)
+                {
+                    controls.Add(Tool(PlaybackControlKey.Bookmarks, "Bookmarks", "bookmark-dialog", state));
                 }
                 if (state.HasQualityOptions)
                 {

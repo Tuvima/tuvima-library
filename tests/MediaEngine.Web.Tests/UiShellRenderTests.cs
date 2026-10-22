@@ -87,7 +87,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             profileId, profileId, true, true, 1, 1, true, true, null, 1,
             [new MediaEngine.Contracts.Authentication.AccountProfileGrantDto(profileId, profileId, "Test User", null,
                 true, true, true, new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(
-                    false, "None", null, 1, false, null), 1, DateTimeOffset.UtcNow)],
+                    false, "None", null, 1), 1, DateTimeOffset.UtcNow)],
             ["settings.administration"], ["access.manage"]);
         var session = new DashboardSessionAccessor();
         session.Set("test-session-token", profileId, profileId, Guid.NewGuid(), authority);
@@ -629,7 +629,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
             profile, profile, true, true, 1, 1, true, true, null, 1,
             [new MediaEngine.Contracts.Authentication.AccountProfileGrantDto(profile, profile, "Profile", null, true, true, true,
-                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(true, "LockOnLeave", 30, 1, false, null), 1, DateTimeOffset.UtcNow)],
+                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(true, "LockOnLeave", 30, 1), 1, DateTimeOffset.UtcNow)],
             ["settings.administration"], ["access.manage", "administrator.lock"]);
         var session = new DashboardSessionAccessor();
         session.Set("session", profile, profile, Guid.NewGuid(), authority);
@@ -667,7 +667,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
             profile, profile, true, true, 1, 1, true, false, null, 1,
             [new MediaEngine.Contracts.Authentication.AccountProfileGrantDto(profile, profile, "Profile", null, true, true, true,
-                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(false, "None", null, 1, false, null), 1, DateTimeOffset.UtcNow)],
+                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow)],
             ["settings.administration"], []);
         var session = new DashboardSessionAccessor();
         var handler = new DelayedLockHandler(authority, session);
@@ -705,7 +705,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
             profile, profile, true, true, 1, 1, true, false, null, 1,
             [new MediaEngine.Contracts.Authentication.AccountProfileGrantDto(profile, profile, "Profile", null, true, true, true,
-                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(false, "None", null, 1, false, null), 1, DateTimeOffset.UtcNow)],
+                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow)],
             ["settings.administration"], []);
         var session = new DashboardSessionAccessor();
         var handler = new DelayedLockHandler(authority, session);

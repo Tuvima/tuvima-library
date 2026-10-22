@@ -61,7 +61,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
-        var rows = (await conn.QueryAsync<ReviewDisplayRow>("""
+        var rows = (await conn.QueryAsync<ReviewDisplayRow>($$"""
             WITH pending AS (
                 SELECT
                     rq.id,
@@ -107,6 +107,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                 FROM review_queue rq
                 WHERE rq.status = @status
                   AND rq.review_ready_at IS NOT NULL
+                  AND {{VaultSql.NotVaultEntity("rq.entity_id")}}
             )
             SELECT
                 p.id AS Id,
@@ -176,7 +177,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
-        var row = await conn.QueryFirstOrDefaultAsync<ReviewDisplayRow>("""
+        var row = await conn.QueryFirstOrDefaultAsync<ReviewDisplayRow>($$"""
             WITH item AS (
                 SELECT
                     rq.id,
@@ -221,6 +222,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                     END AS work_id
                 FROM review_queue rq
                 WHERE rq.id = @id
+                  AND {{VaultSql.NotVaultEntity("rq.entity_id")}}
             )
             SELECT
                 i.id AS Id,
@@ -285,7 +287,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
-        return await conn.ExecuteScalarAsync<int>("""
+        return await conn.ExecuteScalarAsync<int>($$"""
             SELECT COUNT(DISTINCT rq.id)
             FROM review_queue rq
             WHERE rq.status = @status
@@ -298,7 +300,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                         SELECT 1 FROM works w WHERE w.id = rq.entity_id
                     ))
                  OR (rq.entity_type NOT IN ('MediaAsset', 'Work'))
-              );
+              )
+              AND {{VaultSql.NotVaultEntity("rq.entity_id")}};
             """, new { status = ReviewStatus.Pending });
     }
 
@@ -307,7 +310,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
-        var rows = await conn.QueryAsync<ReviewReasonCountRow>("""
+        var rows = await conn.QueryAsync<ReviewReasonCountRow>($$"""
             SELECT rq.trigger AS Trigger, rq.detail AS Detail, COUNT(DISTINCT rq.id) AS Count
             FROM review_queue rq
             WHERE rq.status = @status
@@ -321,6 +324,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                     ))
                  OR (rq.entity_type NOT IN ('MediaAsset', 'Work'))
               )
+              AND {{VaultSql.NotVaultEntity("rq.entity_id")}}
             GROUP BY rq.trigger, rq.detail;
             """, new { status = ReviewStatus.Pending });
 

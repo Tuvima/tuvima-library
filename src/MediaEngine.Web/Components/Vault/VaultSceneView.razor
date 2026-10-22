@@ -1,0 +1,144 @@
+@namespace MediaEngine.Web.Components.Vault
+@using MediaEngine.Web.Models.ViewDTOs
+@implements IDisposable
+@inject NsfwModeState Nsfw
+@inject NavigationManager Nav
+@inject IVaultCatalogue Catalogue
+@inject DashboardSessionAccessor Session
+
+@* One Vault video's own page (Videos spec D38, D40, D41): the picture on its card shape (Blur and Hide follow the person's cover mode),
+   Play, what is stored about it, the performers, studio and tags it links to (each opens the scenes the person owns), and, for an
+   unmatched video, Identify. The page draws only while Vault mode is on. *@
+@if (Nsfw.Unlocked)
+{
+    <div class="vault-scene" data-vault-scene>
+        <a class="vault-scene__back" href="@VaultViews.Route(VaultViews.RecentlyAdded)">‹ Vault</a>
+        @if (_loading)
+        {
+            <AppSkeleton Height="200px" />
+        }
+        else if (_detail is null)
+        {
+            <AppEmptyState Title="This video isn't here" Message="It may have been removed from the Vault folder." />
+        }
+        else
+        {
+            var scene = _detail.Scene;
+            <div class="vault-scene__top">
+                <div class="vault-scene__art">
+                    <VaultCover Title="@scene.Title" CoverUrl="@scene.CoverUrl" CoverUrl2x="@scene.CoverUrl2x" Route="@PlayRoute"
+                                Mode="@Nsfw.EffectiveCovers" Unmatched="@scene.Unmatched" />
+                </div>
+                <div class="vault-scene__facts">
+                    <h1 class="vault-scene__title">@scene.Title</h1>
+                    <AppButton Label="Play" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="PlayAsync" />
+                    <dl class="vault-scene__list">
+                        @Fact("File", scene.FileName)
+                        @Fact("Folder", scene.Folder)
+                        @Fact("Length", VaultFormat.Duration(scene.DurationSeconds))
+                        @Fact("Size", VaultFormat.Size(scene.SizeBytes))
+                        @Fact("Added", VaultFormat.Date(scene.AddedAt))
+                        @Fact("Released", scene.ReleaseDate)
+                    </dl>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_detail.Description))
+            {
+                <p class="vault-scene__description">@_detail.Description</p>
+            }
+
+            @Names("Performers", "performers", _detail.Performers)
+            @Names("Studio", "studios", _detail.Studios)
+            @Names("Tags", "tags", _detail.Tags)
+
+            @if (scene.Unmatched)
+            {
+                <p class="vault-scene__note">This video isn't matched to a record yet. Nothing is queued for it; you can look it up by hand.</p>
+                @if (scene.AssetId is { } assetId && IsAdministrator)
+                {
+                    <VaultIdentifyPanel AssetId="@assetId" OnApplied="LoadAsync" />
+                }
+            }
+        }
+    </div>
+}
+
+@code {
+    private VaultSceneDetail? _detail;
+    private bool _loading = true;
+    private Guid _loadedFor;
+
+    [Parameter, EditorRequired] public Guid AssetId { get; set; }
+
+    private bool IsAdministrator => Session.Authority?.EffectiveAdministrator == true;
+
+    private string PlayRoute => _detail is null ? "#" : $"/watch/player/{_detail.WorkId:D}";
+
+    protected override void OnInitialized() => Nsfw.Changed += OnChanged;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == AssetId || !Nsfw.Unlocked)
+        {
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loadedFor = AssetId;
+        _loading = true;
+        _detail = await Catalogue.GetSceneAsync(AssetId);
+        _loading = false;
+    }
+
+    private Task PlayAsync()
+    {
+        if (_detail is not null)
+        {
+            Nav.NavigateTo(PlayRoute);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(() =>
+    {
+        if (!Nsfw.Unlocked)
+        {
+            // Locked: the details leave memory with the screen.
+            _detail = null;
+            _loadedFor = Guid.Empty;
+        }
+
+        StateHasChanged();
+    });
+
+    private static RenderFragment Fact(string label, string? value) => @<text>
+        @if (!string.IsNullOrWhiteSpace(value))
+        {
+            <dt>@label</dt>
+            <dd>@value</dd>
+        }
+    </text>;
+
+    private static RenderFragment Names(string label, string view, IReadOnlyList<VaultLinkedName> names) => @<text>
+        @if (names.Count > 0)
+        {
+            <section class="vault-scene__names">
+                <h2>@label</h2>
+                <p>
+                    @foreach (var name in names)
+                    {
+                        <a @key="name.Id" class="vault-scene__name" href="@VaultViews.TileRoute(view, name.Id.ToString("D"))">@name.Name</a>
+                    }
+                </p>
+            </section>
+        }
+    </text>;
+
+    public void Dispose() => Nsfw.Changed -= OnChanged;
+}

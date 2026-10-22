@@ -354,9 +354,11 @@ public static class SettingsEndpoints
         .RequireEffectiveAdministrator();
 
         // ── GET/PUT /settings/libraries ───────────────────────────────────────
-        grp.MapGet("/libraries", (IConfigurationLoader configLoader) =>
+        grp.MapGet("/libraries", async (IConfigurationLoader configLoader, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
-            return Results.Ok(SettingsContractMapper.ToContract(configLoader.LoadLibraries(), configLoader));
+            // Vault libraries are in no Libraries list (Videos spec D45).
+            return Results.Ok(SettingsContractMapper.ToContract(
+                MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(configLoader.LoadLibraries(), await vaultLibraries.GetIdsAsync(ct)), configLoader));
         })
         .WithName("GetLibraries")
         .WithSummary("Returns schema 7 catalogued libraries, the single View root, and approved storage.")
@@ -373,17 +375,19 @@ public static class SettingsEndpoints
         .Produces<IReadOnlyList<MediaEngine.Contracts.Settings.LibraryKindDto>>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageStatusRead);
 
-        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, [FromServices] MediaEngine.Api.Services.Settings.LibraryKindListService libraryKinds, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, CancellationToken ct) =>
+        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, [FromServices] MediaEngine.Api.Services.Settings.LibraryKindListService libraryKinds, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
             await LibraryMutationEndpoints.WriteGate.WaitAsync(ct);
             try
             {
                 var config = SettingsContractMapper.ToStorage(request);
+                var vaultIds = await vaultLibraries.GetIdsAsync(ct);
+                MediaEngine.Api.Services.Vault.VaultLibrarySettings.KeepVault(configLoader.LoadLibraries(), config, vaultIds);
                 MediaEngine.Api.Services.Libraries.FolderJobService.KeepEngineOwnedConversionState(configLoader.LoadLibraries(), config);
                 var viewError = ValidateViewStorage(config)
                     ?? ValidateViewRootChange(configLoader.LoadLibraries(), config)
                     ?? MediaEngine.Api.Services.Settings.ImportFolderValidation.Validate(config)
-                    ?? libraryKinds.ValidateLibraries(config);
+                    ?? libraryKinds.ValidateLibraries(MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(config, vaultIds));
                 if (viewError is not null)
                 {
                     return ApiErrors.BadRequest(viewError);
@@ -417,7 +421,7 @@ public static class SettingsEndpoints
                     }
                 }
 
-                return Results.Ok(SettingsContractMapper.ToContract(config, configLoader));
+                return Results.Ok(SettingsContractMapper.ToContract(MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(config, vaultIds), configLoader));
             }
             finally { LibraryMutationEndpoints.WriteGate.Release(); }
         })
@@ -910,6 +914,12 @@ public static class SettingsEndpoints
                 && !TryNormalizeLanguageStrategy(request.LanguageStrategy, out normalizedLanguageStrategy))
             {
                 return ApiErrors.BadRequest("language_strategy must be one of: source, localized, both.");
+            }
+
+            // The default Stash-box server's key goes to the address its endpoint names, so that address stays what the key was saved for.
+            if (MediaEngine.Api.Services.Settings.ProviderEndpointPinning.ChangesPinnedEndpoint(name, existing.Endpoints, request.Endpoints))
+            {
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.Settings.ProviderEndpointPinning.StashBoxAddressMessage);
             }
 
             // Update mutable fields.
