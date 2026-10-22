@@ -21,11 +21,15 @@ public sealed record LibraryTypeOption(
     bool AllowsMultiple = false,
     int MaxLibraries = 1);
 
-/// <summary>Keys the Libraries addresses and the Dashboard know by name: the Import folder row and View's photo settings.</summary>
+/// <summary>Keys the Libraries addresses and the Dashboard know by name: the Import folder row and the View group.</summary>
 public static class LibraryTypeCatalog
 {
     public const string ImportKey = "import";
-    public const string PhotosKey = "photos";
+    public const string ViewArea = "view";
+
+    /// <summary>True for a View kind (Photos, Personal videos, Documents): its folders live in View, not in a library.</summary>
+    public static bool IsViewKind(LibraryTypeOption? type) =>
+        type is not null && string.Equals(type.Area, ViewArea, StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>
@@ -57,7 +61,7 @@ public sealed class LibraryKindCatalog
                 definition.Icon,
                 [.. _all.Where(option => string.Equals(option.Area, definition.Key, StringComparison.OrdinalIgnoreCase)).Select(option => option.Key)])),
         ];
-        Types = [.. _all.Where(option => !string.Equals(option.Area, "view", StringComparison.OrdinalIgnoreCase))];
+        Types = [.. _all.Where(option => !LibraryTypeCatalog.IsViewKind(option))];
     }
 
     /// <summary>The kinds with a library behind them (every available kind outside View), in the list's order.</summary>
@@ -66,10 +70,16 @@ public sealed class LibraryKindCatalog
     /// <summary>The five groups in the order the front door shows them, each with its available kinds.</summary>
     public IReadOnlyList<LibraryGroup> Groups { get; }
 
-    /// <summary>View's own folder store. It is not a library kind in the Work/Edition graph, so it is not in <see cref="Types"/>.</summary>
-    public LibraryTypeOption? Photos => Find(LibraryTypeCatalog.PhotosKey);
+    /// <summary>
+    /// The View kinds (Photos, Personal videos, Documents). View keeps its folders in its own store, not in a library of the
+    /// Work/Edition graph, so they are not in <see cref="Types"/>.
+    /// </summary>
+    public IReadOnlyList<LibraryTypeOption> ViewKinds => [.. _all.Where(LibraryTypeCatalog.IsViewKind)];
 
-    /// <summary>An available kind (or Photos) by key, or null.</summary>
+    /// <summary>An available View kind by key, or null (a kind of another group is not a View kind).</summary>
+    public LibraryTypeOption? FindViewKind(string? key) => Find(key) is { } kind && LibraryTypeCatalog.IsViewKind(kind) ? kind : null;
+
+    /// <summary>An available kind (including the View kinds) by key, or null.</summary>
     public LibraryTypeOption? Find(string? key) =>
         _all.FirstOrDefault(option => string.Equals(option.Key, key?.Trim(), StringComparison.OrdinalIgnoreCase));
 
@@ -177,11 +187,9 @@ public static class LibraryAddress
             return Level(group.Label, libraries);
         }
 
-        if (group.Key == "view")
+        if (group.Key == LibraryTypeCatalog.ViewArea)
         {
-            return string.Equals(det, LibraryTypeCatalog.PhotosKey, StringComparison.OrdinalIgnoreCase) && kinds.Photos is { } photos
-                ? Level(photos.Label, libraries, groupCrumb)
-                : front;
+            return kinds.FindViewKind(det) is { } viewKind ? Level(viewKind.Label, libraries, groupCrumb) : front;
         }
 
         if (group.TypeKeys.FirstOrDefault(key => string.Equals(key, det, StringComparison.OrdinalIgnoreCase)) is { } typeKey)

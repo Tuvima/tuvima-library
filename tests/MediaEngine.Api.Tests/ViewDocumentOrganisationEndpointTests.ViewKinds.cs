@@ -248,4 +248,111 @@ public sealed partial class ViewDocumentOrganisationEndpointTests
         Assert.Equal(video, Assert.Single(page!.Items).ItemId);
         Assert.DoesNotContain(await ListAsync($"/view/assets?scope=shared&galleryId={gallery.Id:D}"), item => item.Id == photo);
     }
+
+    [Fact]
+    public async Task AProfileWithoutPhotosCannotAddAPhotoToAGalleryOrUseOneAsACover_AndGetsTheAnswerForAnUnknownIdEvenAsTheOwner()
+    {
+        var owner = await CreatePersonWithout(null, ViewContentKinds.Photos);
+        var photo = await AddKindedItem(owner, 'p', LocalAssetMediaKinds.Image, ViewContentKinds.Photos, "Gallery photo");
+        var video = await AddKindedItem(owner, 'v', LocalAssetMediaKinds.Video, ViewContentKinds.PersonalVideos, "Gallery video");
+        var gallery = await CreateManualGallery(owner, "Trip");
+        _actor.Current = owner.Authority;
+
+        async Task<(HttpStatusCode Status, string Body)> AddAsync(Guid itemId)
+        {
+            using var response = await _client.PostAsJsonAsync($"/view/galleries/{gallery.Id:D}/items", new ViewGalleryItemsRequest([itemId]));
+            return (response.StatusCode, await response.Content.ReadAsStringAsync());
+        }
+
+        var unknown = await AddAsync(Guid.NewGuid());
+        var forPhoto = await AddAsync(photo);
+        Assert.Equal(HttpStatusCode.BadRequest, unknown.Status);
+        Assert.Equal(unknown, forPhoto);
+        Assert.Empty((await new ViewGalleryRepository(_database).GetItemsAsync(gallery.Id)).Items);
+
+        // The kind the profile may still use goes in, and a request that mixes both is refused whole.
+        Assert.Equal(HttpStatusCode.OK, (await AddAsync(video)).Status);
+        using var mixed = await _client.PostAsJsonAsync($"/view/galleries/{gallery.Id:D}/items", new ViewGalleryItemsRequest([video, photo]));
+        Assert.Equal(HttpStatusCode.BadRequest, mixed.StatusCode);
+        Assert.DoesNotContain((await new ViewGalleryRepository(_database).GetItemsAsync(gallery.Id)).Items, item => item.ItemId == photo);
+
+        // As a cover, on create and on save, the photo gets the answer for an id outside the owner's space.
+        async Task<(HttpStatusCode Status, string Body)> CoverAsync(Func<Task<HttpResponseMessage>> send, Guid cover)
+        {
+            using var response = await send();
+            return (response.StatusCode, await response.Content.ReadAsStringAsync());
+        }
+
+        foreach (var send in new Func<Guid, Task<HttpResponseMessage>>[]
+        {
+            cover => _client.PostAsJsonAsync("/view/galleries", new ViewGalleryRequest("Cover", ViewGalleryKind.Manual, CoverItemId: cover)),
+            cover => _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}", new ViewGalleryRequest("Trip", ViewGalleryKind.Manual, CoverItemId: cover)),
+        })
+        {
+            var unknownCover = await CoverAsync(() => send(Guid.NewGuid()), Guid.Empty);
+            var photoCover = await CoverAsync(() => send(photo), photo);
+            Assert.Equal(HttpStatusCode.BadRequest, unknownCover.Status);
+            Assert.Equal(unknownCover, photoCover);
+        }
+
+        using var videoCover = await _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}",
+            new ViewGalleryRequest("Trip", ViewGalleryKind.Manual, CoverItemId: video));
+        Assert.Equal(HttpStatusCode.OK, videoCover.StatusCode);
+    }
+
+    [Fact]
+    public async Task AGalleryWhoseCoverIsAKindTheProfileMayNotUseListsNoCoverAndKeepsItWhenSavedWithoutOne()
+    {
+        var household = Guid.NewGuid();
+        var owner = await CreatePerson("StandardUser", household);
+        var guest = await CreatePersonWithout(household, ViewContentKinds.Photos);
+        var photo = await AddKindedItem(owner, 'p', LocalAssetMediaKinds.Image, ViewContentKinds.Photos, "Cover photo");
+        var video = await AddKindedItem(owner, 'v', LocalAssetMediaKinds.Video, ViewContentKinds.PersonalVideos, "Gallery video");
+        var galleries = new ViewGalleryRepository(_database);
+        var gallery = await CreateManualGallery(owner, "Trip", photo);
+        await galleries.AddItemsAsync(gallery.Id, [photo, video]);
+        await galleries.ReplaceSharesAsync(gallery.Id, [(guest.ProfileId, ViewGallerySharePermission.View)]);
+
+        _actor.Current = owner.Authority;
+        Assert.Equal(photo, (await _client.GetFromJsonAsync<ViewGalleryDto>($"/view/galleries/{gallery.Id:D}"))!.CoverItemId);
+
+        _actor.Current = guest.Authority;
+        var single = await _client.GetFromJsonAsync<ViewGalleryDto>($"/view/galleries/{gallery.Id:D}");
+        Assert.Null(single!.CoverItemId);
+        var list = await _client.GetFromJsonAsync<ViewGalleryListResponse>("/view/galleries");
+        Assert.Null(list!.SharedWithYou.Single(entry => entry.Id == gallery.Id).CoverItemId);
+
+        // Once the owner's own Photos switch goes off the cover reads as none for them too, and saving the Gallery
+        // without a cover is not a way to wipe the one that was chosen.
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(owner.ProfileId) with { PhotosEnabled = false });
+        _actor.Current = owner.Authority;
+        Assert.Null((await _client.GetFromJsonAsync<ViewGalleryDto>($"/view/galleries/{gallery.Id:D}"))!.CoverItemId);
+        using var saved = await _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}", new ViewGalleryRequest("Trip", ViewGalleryKind.Manual));
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.Null((await saved.Content.ReadFromJsonAsync<ViewGalleryDto>())!.CoverItemId);
+        Assert.Equal(photo, (await galleries.GetAsync(gallery.Id))!.CoverItemId);
+    }
+
+    [Fact]
+    public async Task AProfileThatMayNotManageGalleriesGetsTheSameAnswerForAPhotoCoverAsForAnyOtherId()
+    {
+        var household = Guid.NewGuid();
+        var owner = await CreatePerson("StandardUser", household);
+        var photo = await AddKindedItem(owner, 'p', LocalAssetMediaKinds.Image, ViewContentKinds.Photos, "Cover photo");
+        var restricted = await CreatePerson("RestrictedProfile", household);
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(restricted.ProfileId) with { PhotosEnabled = false });
+        _actor.Current = restricted.Authority;
+        DenyViewAccess = true;
+
+        async Task<(HttpStatusCode Status, string Body)> CreateWithCoverAsync(Guid cover)
+        {
+            using var response = await _client.PostAsJsonAsync("/view/galleries", new ViewGalleryRequest("Cover", ViewGalleryKind.Manual, CoverItemId: cover));
+            return (response.StatusCode, await response.Content.ReadAsStringAsync());
+        }
+
+        var unknown = await CreateWithCoverAsync(Guid.NewGuid());
+        var forPhoto = await CreateWithCoverAsync(photo);
+        Assert.Equal(HttpStatusCode.Forbidden, unknown.Status);
+        Assert.Equal(unknown, forPhoto);
+    }
 }

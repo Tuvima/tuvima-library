@@ -427,7 +427,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         Click("Add to View instead");
 
         var navigation = Services.GetRequiredService<NavigationManager>();
-        Assert.EndsWith("/settings/libraries/view/photos?add=folder&path=" + Uri.EscapeDataString("F:\\Phone"), navigation.Uri, StringComparison.Ordinal);
+        Assert.EndsWith("/settings/libraries/view/personal_videos?add=folder&path=" + Uri.EscapeDataString("F:\\Phone"), navigation.Uri, StringComparison.Ordinal);
         Assert.Empty(_mutations);
         Assert.Empty(_setupUpdates);
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".add-wizard")));
@@ -552,9 +552,22 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     {
         var reference = await OpenWizardAsync();
         _dialogs.Find(".add-wizard__tile[data-group=view]").Click();
-        _dialogs.FindAll(".add-wizard__kind-option").Single(x => Text(x) == "Photos & personal videos").Click();
+        Assert.Equal(["Photos", "Personal videos", "Documents"], _dialogs.FindAll(".add-wizard__kind-option").Select(Text).ToArray());
+        _dialogs.FindAll(".add-wizard__kind-option").Single(x => Text(x) == "Photos").Click();
 
         Assert.EndsWith("/settings/libraries/view/photos?add=folder", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+        Assert.True((await reference.Result)!.Canceled);
+        Assert.Empty(_mutations);
+    }
+
+    [Fact]
+    public async Task ChoosingDocumentsInStepOneHandsOverToTheDocumentsAddFormAndSavesNothing()
+    {
+        var reference = await OpenWizardAsync();
+        _dialogs.Find(".add-wizard__tile[data-group=view]").Click();
+        _dialogs.FindAll(".add-wizard__kind-option").Single(x => Text(x) == "Documents").Click();
+
+        Assert.EndsWith("/settings/libraries/view/documents?add=folder", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
         Assert.True((await reference.Result)!.Canceled);
         Assert.Empty(_mutations);
     }
@@ -692,7 +705,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
             ["watch"] = "Feature films, one file or folder per film.|Series with seasons and episodes, one folder per show.|Courses, talks and downloads. YouTube lookup can be switched on in the last step.",
             ["listen"] = "Albums and songs, tagged or in artist and album folders.|Spoken books, one file or folder per book.",
             ["read"] = "EPUB and PDF books.|CBZ and CBR comics and manga.",
-            ["view"] = "Photos and phone or camera videos. View sorts them by date and place.",
+            ["view"] = "Pictures from phones and cameras. View sorts them by date and place.|Videos from phones and cameras, kept with the day they were taken.|PDFs, Office files and photos of paper. Text inside them can be searched.",
         };
         foreach (var (group, tips) in expected)
         {
