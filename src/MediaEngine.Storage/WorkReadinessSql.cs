@@ -117,13 +117,24 @@ public static class WorkReadinessSql
         ), '')
         """;
 
+    // A Work that needs no identity to be shown: its file is in a library that never looks anything up, or the Engine could not match
+    // it (Unmatched, kept or not). An Unmatched file stays in the library and browses like any title using its file name and tags
+    // (Library setup spec D34, D40); it is looked up again later and its Unmatched row goes if that matches.
     private static string InBypassLibrary(string workAlias) => $"""
-        EXISTS (
-            SELECT 1
-            FROM work_owned_assets woa_b
-            INNER JOIN media_assets ma_b ON ma_b.id = woa_b.asset_id
-            WHERE woa_b.work_id = {workAlias}.id
-              AND ma_b.library_id COLLATE NOCASE IN @{BypassIdentityLibraryIdsParameter}
+        (
+            EXISTS (
+                SELECT 1
+                FROM work_owned_assets woa_b
+                INNER JOIN media_assets ma_b ON ma_b.id = woa_b.asset_id
+                WHERE woa_b.work_id = {workAlias}.id
+                  AND ma_b.library_id COLLATE NOCASE IN @{BypassIdentityLibraryIdsParameter}
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM work_owned_assets woa_u
+                INNER JOIN unmatched_assets ua ON ua.asset_id = woa_u.asset_id
+                WHERE woa_u.work_id = {workAlias}.id
+            )
         )
         """;
 

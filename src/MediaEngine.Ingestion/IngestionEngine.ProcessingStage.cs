@@ -138,6 +138,8 @@ public sealed partial class IngestionEngine
             if (ResolveVideosRoot(_libraryFolderResolver?.ResolveForPath(filePath), filePath) is { } videosRoot)
             {
                 result = _videoReader!.Apply(result, videosRoot);
+                // A file read again that has a YouTube ID is looked up on YouTube like a newly added one, under the same gates.
+                result = await MergeYoutubeLookupAsync(result, _libraryFolderResolver?.ResolveForPath(filePath), ct).ConfigureAwait(false);
             }
             if (result.IsCorrupt)
             {

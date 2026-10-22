@@ -85,6 +85,10 @@ public sealed class IngestionQueueOutcomesDto
 
     [JsonPropertyName("skipped")]
     public int Skipped { get; set; }
+
+    /// <summary>Files the Engine could not match. They stay in the Library and are looked up again later; they are not Needs Review items.</summary>
+    [JsonPropertyName("unmatched")]
+    public int Unmatched { get; set; }
 }
 
 /// <summary>How many files of one media type are in the queue.</summary>

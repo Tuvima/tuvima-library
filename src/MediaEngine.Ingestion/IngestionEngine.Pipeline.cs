@@ -3,6 +3,7 @@ using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Capabilities;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -1301,6 +1302,7 @@ public sealed partial class IngestionEngine
         else
         {
             await _assetRepo.MarkPresentedAsync(assetId, DateTimeOffset.UtcNow, ct).ConfigureAwait(false);
+            await MarkYoutubeFileWithoutIdUnmatchedAsync(context, ct).ConfigureAwait(false);
 
             try
             {

@@ -65,6 +65,15 @@ public static class ScheduledTaskCatalog
             () => $"every {Math.Clamp(configLoader.LoadTranscoding().AdaptiveHls.CleanupIntervalMinutes, 1, 1440)} minutes",
             "Transcoding settings");
         Continuous(ScheduledTaskKeys.EnrichmentRefreshSchedule, "Scheduled metadata refresh", "every hour");
+        ContinuousAt(
+            ScheduledTaskKeys.UnmatchedRetry,
+            "Unmatched file retry",
+            () =>
+            {
+                var days = Math.Clamp(configLoader.LoadMaintenance().UnmatchedRetryDays, UnmatchedRetryLimits.MinDays, UnmatchedRetryLimits.MaxDays);
+                return days == 1 ? "every day" : $"every {days} days";
+            },
+            "Library maintenance settings");
 
         void Continuous(string key, string name, string schedule) =>
             ContinuousAt(key, name, () => schedule, "Not adjustable");

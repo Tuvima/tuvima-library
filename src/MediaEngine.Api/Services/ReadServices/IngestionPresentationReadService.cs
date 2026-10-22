@@ -571,6 +571,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 CASE WHEN {WorkReadinessSql.ReadyMarkPredicate("w")} OR {WorkReadinessSql.ArtworkPresentOrSettledPredicate("w")} THEN 1 ELSE 0 END AS HasSettledArtwork,
                 (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
                  ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1) AS IdentityState,
+                CASE WHEN EXISTS (SELECT 1 FROM unmatched_assets ua WHERE ua.asset_id = ll.media_asset_id) THEN 1 ELSE 0 END AS IsUnmatched,
                 ll.status AS LogStatus,
                 lfo.status AS OperationStatus,
                 lfo.stage AS OperationStage,
@@ -673,7 +674,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             .Distinct()
             .Count();
         var cover = rows.OrderByDescending(row => row.UpdatedAt).FirstOrDefault(row => row.CoverAssetId.HasValue)?.CoverAssetId;
-        var needsReview = rows.Any(row => row.ReviewCount > 0 || row.IdentityState is "RetailNoMatch" or "QidNoMatch" or "QidNeedsReview" or "RetailMatchedNeedsReview");
+        var needsReview = rows.Any(row => row.ReviewCount > 0 || row.IdentityState is "QidNoMatch" or "QidNeedsReview" or "RetailMatchedNeedsReview");
         // A file's own intake failure always counts. Any other failure counts only when it is no older than the group's
         // newest file: a group spans every intake (there are no runs), so a newer episode supersedes an old failure on
         // another one, while a movie whose last step failed still shows it.
@@ -685,9 +686,13 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         var intakeComplete = rows.All(row => row.IsReady);
         // A missing media tool is a wait, not a failure: it outranks adding/finishing/ready but never hides review or failed.
         var waitingForTools = rows.Any(row => row.InspectionHoldCount > 0);
+        var unmatched = rows.Any(row => row.IsUnmatched) && rows.All(row => row.IsUnmatched || row.IsReady);
         var availability = needsReview ? "review"
             : terminalFailure ? "failed"
             : waitingForTools ? "waiting_for_tools"
+            // A file the Engine could not match is a finished state of its own (Library setup spec D34): it stays in place, plays and
+            // browses, and is looked up again later. It is not a review, and it does not sit in "adding" waiting for a match that may take weeks.
+            : unmatched ? "unmatched"
             : intakeComplete ? hasBackgroundWork ? "finishing" : "ready" : "adding";
 
         // Only a row that is still being added says what it waits for; review, failed, waiting-for-tools and Ready rows do not.
@@ -814,7 +819,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         gates.Add(Gate(
             "ready",
             "Ready in library",
-            availability == "ready" ? "complete"
+            availability is "ready" or "unmatched" ? "complete"
                 : availability is "review" or "failed" ? "blocked"
                 : "pending",
             "Organized and available in the library."));
@@ -1064,6 +1069,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         if (availability == "waiting_for_tools")
         {
             return "Waiting for media tools";
+        }
+
+        if (availability == "unmatched")
+        {
+            return "Unmatched";
         }
 
         var active = operations.Where(operation => IsActive(operation.Status)).OrderByDescending(operation => operation.UpdatedAt).FirstOrDefault();
@@ -1537,7 +1547,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                                            AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL)
                                  OR (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
                                      ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1)
-                                    IN ('RetailNoMatch','QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
+                                    IN ('QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
                             THEN 1 ELSE 0 END AS NeedsReview,
                        CASE WHEN EXISTS (SELECT 1 FROM media_inspection_holds mih WHERE mih.asset_id = ll.media_asset_id)
                             THEN 1 ELSE 0 END AS RowHold,
@@ -1604,7 +1614,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                                            AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL)
                                  OR (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
                                      ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1)
-                                    IN ('RetailNoMatch','QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
+                                    IN ('QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
                                  OR lfo.status IN ('failed_terminal','dead_lettered')
                             THEN 1 ELSE 0 END) = 1
                 -- A failure other than the file's own intake counts only when no older than the group's newest file.
@@ -1649,6 +1659,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         public bool IsPlaced { get; set; }
         public bool HasSettledArtwork { get; set; }
         public string? IdentityState { get; set; }
+        public bool IsUnmatched { get; set; }
         public string? LogStatus { get; set; }
         public string? OperationStatus { get; set; }
         public string? OperationStage { get; set; }

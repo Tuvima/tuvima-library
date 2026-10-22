@@ -123,6 +123,7 @@ public static partial class BackupTableClassification
         Catalogue("entity_relationship_qualifiers", "Details of those relationships."),
         Catalogue("entity_capability_states", "What enrichment has done for each title."),
         Catalogue("identity_jobs", "Identification and enrichment jobs."),
+        Catalogue("unmatched_assets", "Files the Engine could not match, with when each is tried again and whether it was kept as it is; rebuilt by a rescan and the next lookup."),
         Catalogue("retail_match_candidates", "Retail match candidates for an identification job."),
         Catalogue("wikidata_bridge_candidates", "Wikidata candidates for an identification job."),
         Catalogue("deferred_enrichment_queue", "Titles waiting for enrichment."),

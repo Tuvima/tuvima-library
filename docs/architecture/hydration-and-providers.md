@@ -706,7 +706,7 @@ QidResolved -> Hydrating -> Completed
 Failed (terminal - from any state after max retries)
 ```
 
-`RetailNoMatch` is terminal for the automatic pipeline. Only user Fix Match can advance it.
+`RetailNoMatch` is terminal for one run of the pipeline. The file is marked **Unmatched** (the `unmatched_assets` table; no Needs Review item is created) and stays exactly where it is. A new identity job looks it up again on a schedule (`unmatched_retry_days` in `config/maintenance.json`, weekly by default), straight away after a provider or plugin is switched on or updated, and on **Retry now** (one file or a whole library); a person's Fix Match also advances it. A job that leaves `RetailNoMatch` for any state past the retail lookup removes the Unmatched mark. **Keep as is** stops a file's retries and takes it out of the Unmatched count; **Look up again** brings it back. A file in a YouTube library with no YouTube ID is Unmatched with reason `no_youtube_id` (never looked up; a retry re-reads the file for an ID). Plain kinds never produce Unmatched files. An Unmatched file stays in the library and browses like any title using its file name and tags: the display rule (`WorkReadinessSql`) counts an Unmatched file, kept or not, as needing no identity, the same way it treats a file in a library that never looks anything up, and the Engine settles the file's artwork search when it marks it. The ingestion page shows such a group as **Unmatched**, a finished state of its own, and an item reports `lookup_state`. The Engine actions are under `/library/unmatched`.
 
 ### Pipeline Workers
 

@@ -42,6 +42,23 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
         WHERE ij.updated_at > @since AND ij.updated_at <= @max;
         """;
 
+    // A file marked Unmatched (or tried again) counts as new work even when it has no identity job (a YouTube file with no ID is never
+    // looked up), so it is shown at once instead of waiting for the full sweep.
+    public const string NewestUnmatchedTimeSql = "SELECT MAX(last_tried_at) FROM unmatched_assets;";
+
+    public const string TouchedByUnmatchedSql = """
+        SELECT e.work_id
+        FROM unmatched_assets ua
+        INNER JOIN media_assets ma ON ma.id = ua.asset_id
+        INNER JOIN editions e ON e.id = ma.edition_id
+        WHERE ua.last_tried_at > @since AND ua.last_tried_at <= @max
+        UNION
+        SELECT c.work_id
+        FROM unmatched_assets ua
+        INNER JOIN media_asset_coverage c ON c.asset_id = ua.asset_id
+        WHERE ua.last_tried_at > @since AND ua.last_tried_at <= @max;
+        """;
+
     // An artwork value may sit on a file, on the Work, or on its parent or root; the parent's and
     // root's values count for every Work below them.
     public const string TouchedByArtworkSql = $"""
@@ -131,6 +148,7 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
         var maxReviews = conn.ExecuteScalar<string?>(
             "SELECT MAX(COALESCE(resolved_at, created_at)) FROM review_queue;") ?? string.Empty;
         var maxArtwork = conn.ExecuteScalar<string?>(NewestArtworkTimeSql) ?? string.Empty;
+        var maxUnmatched = conn.ExecuteScalar<string?>(NewestUnmatchedTimeSql) ?? string.Empty;
 
         // A table that has not been seen yet only establishes its watermark; the full sweep covers history.
         var touched = new HashSet<Guid>();
@@ -171,10 +189,16 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
             touched.UnionWith(conn.Query<Guid>(TouchedByArtworkSql, new { since = Overlap(since.Artwork), max = maxArtwork }));
         }
 
+        if (since.Unmatched is not null)
+        {
+            touched.UnionWith(conn.Query<Guid>(TouchedByUnmatchedSql, new { since = Overlap(since.Unmatched), max = maxUnmatched }));
+        }
+
         var next = new WorkReadinessWatermark(
             Newest(since.Jobs, maxJobs),
             Newest(since.Reviews, maxReviews),
-            Newest(since.Artwork, maxArtwork));
+            Newest(since.Artwork, maxArtwork),
+            Newest(since.Unmatched, maxUnmatched));
 
         return Task.FromResult<(IReadOnlyList<Guid>, WorkReadinessWatermark)>((touched.ToList(), next));
     }

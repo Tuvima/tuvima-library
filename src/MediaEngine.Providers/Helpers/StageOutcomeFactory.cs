@@ -2,10 +2,12 @@ using System.Text.Json;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Contracts.Review;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using Microsoft.Extensions.Logging;
 
@@ -24,6 +26,7 @@ public sealed class StageOutcomeFactory
     private readonly IEventPublisher _eventPublisher;
     private readonly ICanonicalValueRepository _canonicalRepo;
     private readonly ILogger<StageOutcomeFactory> _logger;
+    private readonly IUnmatchedAssetRepository? _unmatched;
 
     public StageOutcomeFactory(
         IReviewQueueRepository reviewRepo,
@@ -32,8 +35,10 @@ public sealed class StageOutcomeFactory
         ICanonicalValueRepository canonicalRepo,
         ILogger<StageOutcomeFactory> logger,
         IMediaAssetRepository? assets = null,
-        IConfigurationLoader? configuration = null)
+        IConfigurationLoader? configuration = null,
+        IUnmatchedAssetRepository? unmatched = null)
     {
+        _unmatched = unmatched;
         _assets = assets;
         _configuration = configuration;
         _reviewRepo = reviewRepo;
@@ -41,6 +46,84 @@ public sealed class StageOutcomeFactory
         _eventPublisher = eventPublisher;
         _canonicalRepo = canonicalRepo;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// What happens when no retail provider matched a file: it is marked Unmatched (it stays exactly where it is, keeps playing and
+    /// browsing with its file name and tags, and is looked up again later) and no Needs Review item is created, because Needs Review is
+    /// for a match the Engine found but is unsure about (Library setup spec D34). A file that cannot be marked (no Unmatched list is
+    /// wired, or the file has no library) still gets the review item <see cref="CreateRetailFailedAsync"/> creates.
+    /// </summary>
+    /// <param name="entityId">The media asset (or the work whose first file it is) that had no retail match.</param>
+    /// <param name="mediaType">The media type label used in the review detail message when there is no library to list it under.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The review entry ID when one was created; <c>null</c> when the file was marked Unmatched or a duplicate review exists.</returns>
+    public async Task<Guid?> RecordRetailNoMatchAsync(
+        Guid entityId,
+        string mediaType,
+        CancellationToken ct = default)
+    {
+        if (_unmatched is not null && _assets is not null)
+        {
+            var asset = await _assets.FindByIdAsync(entityId, ct).ConfigureAwait(false)
+                ?? await _assets.FindFirstByWorkIdAsync(entityId, ct).ConfigureAwait(false);
+            if (asset is not null && !string.IsNullOrWhiteSpace(asset.LibraryId))
+            {
+                var now = DateTimeOffset.UtcNow;
+                var days = _configuration?.LoadMaintenance().UnmatchedRetryDays ?? UnmatchedRetryLimits.DefaultDays;
+                await _unmatched.MarkUnmatchedAsync(
+                    asset.Id,
+                    asset.LibraryId,
+                    UnmatchedReasons.NoMatch,
+                    now,
+                    UnmatchedRetryLimits.NextRetryAt(now, days),
+                    ct).ConfigureAwait(false);
+                await SettleArtworkSearchAsync(asset.Id, now, ct).ConfigureAwait(false);
+                _logger.LogInformation(
+                    "No retail match for asset {AssetId} in library {LibraryId}: marked Unmatched, left in place, no review item created",
+                    asset.Id,
+                    asset.LibraryId);
+                return null;
+            }
+        }
+
+        return await CreateRetailFailedAsync(entityId, mediaType, ct).ConfigureAwait(false);
+    }
+
+    // A file that now has a review item (a placeholder title, or a film TMDB lists as TV) is an unsure case, which belongs to Needs Review, so
+    // a row left by an earlier no-match (a retried file) goes: a file is never Unmatched and in Needs Review at once.
+    private async Task ClearUnmatchedAsync(Guid entityId, CancellationToken ct)
+    {
+        if (_unmatched is null)
+        {
+            return;
+        }
+
+        var assetId = entityId;
+        if (_assets is not null && await _assets.FindByIdAsync(entityId, ct).ConfigureAwait(false) is null
+            && await _assets.FindFirstByWorkIdAsync(entityId, ct).ConfigureAwait(false) is { } first)
+        {
+            assetId = first.Id;
+        }
+
+        await _unmatched.ClearAsync(assetId, ct).ConfigureAwait(false);
+    }
+
+    // An Unmatched file is shown in the library (it browses with its file name and tags), and the display rule wants the artwork search to
+    // be settled. No provider will supply a picture for a file nothing matched, so a file with no picture of its own is settled as it is.
+    private async Task SettleArtworkSearchAsync(Guid assetId, DateTimeOffset now, CancellationToken ct)
+    {
+        var values = await _canonicalRepo.GetByEntityAsync(assetId, ct).ConfigureAwait(false);
+        var hasPictureOrSettled = values.Any(value =>
+            !string.IsNullOrWhiteSpace(value.Value)
+            && (value.Key is MetadataFieldConstants.CoverUrl or MetadataFieldConstants.ArtworkSettledAt
+                || (value.Key == MetadataFieldConstants.CoverState && value.Value == "present")));
+        if (!hasPictureOrSettled)
+        {
+            await _canonicalRepo.UpsertBatchAsync(
+                [ArtworkCanonicalHelper.Create(assetId, MetadataFieldConstants.ArtworkSettledAt, now.ToString("o"), now)],
+                ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -111,13 +194,15 @@ public sealed class StageOutcomeFactory
             return null;
         }
 
-        return await CreateCoreAsync(
+        var created = await CreateCoreAsync(
             entityId,
             ReviewTrigger.MovieMatchedAsTv,
             0.0,
             DescribeMovieTvSuggestion(suggestion),
             ct,
             candidatesJson: JsonSerializer.Serialize(new[] { suggestion })).ConfigureAwait(false);
+        await ClearUnmatchedAsync(entityId, ct).ConfigureAwait(false);
+        return created;
     }
 
     /// <summary>
@@ -240,17 +325,19 @@ public sealed class StageOutcomeFactory
     /// the file's title looks like a placeholder ("Unknown", "Untitled", "Track 01")
     /// and there are no bridge IDs to fall back on.
     /// </summary>
-    public Task<Guid?> CreatePlaceholderTitleAsync(
+    public async Task<Guid?> CreatePlaceholderTitleAsync(
         Guid entityId,
         string? title,
         CancellationToken ct = default)
     {
-        return CreateCoreAsync(
+        var created = await CreateCoreAsync(
             entityId,
             ReviewTrigger.PlaceholderTitle,
             0.0,
             $"Title \"{title ?? "(blank)"}\" appears to be a placeholder with no ISBN, ASIN, or QID",
-            ct);
+            ct).ConfigureAwait(false);
+        await ClearUnmatchedAsync(entityId, ct).ConfigureAwait(false);
+        return created;
     }
 
     /// <summary>

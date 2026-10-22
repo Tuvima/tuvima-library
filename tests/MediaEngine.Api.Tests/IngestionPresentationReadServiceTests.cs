@@ -720,18 +720,24 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UnmatchedWorkIsInReviewAndNotACompletedAddition_UntilItBecomesReady()
+    public async Task UnmatchedWorkShowsAsUnmatchedAndNotACompletedAddition_UntilItBecomesReady()
     {
         var work = AddStandalone("Audiobooks", "A forty-file book", presented: true, ready: false);
         AddIdentityJob(work, "RetailNoMatch", "Audiobooks");
+        AddUnmatched(work);
         var presentation = new IngestionPresentationReadService(_db);
 
-        Assert.Equal("review", Assert.Single((await presentation.GetCurrentMediaAsync(0, 50)).Items).Availability);
+        // A no-match file is Unmatched: a finished state of its own, labelled so, not a review and not stuck "adding".
+        var item = Assert.Single((await presentation.GetCurrentMediaAsync(0, 50)).Items);
+        Assert.Equal("unmatched", item.Availability);
+        Assert.Equal("Unmatched", item.StatusLabel);
+        Assert.Empty(item.WaitingFor);
         Assert.Empty((await presentation.GetSnapshotAsync()).RecentDays);
 
         using (var conn = _db.CreateConnection())
         {
             conn.Execute("UPDATE identity_jobs SET state='ReadyWithoutUniverse';");
+            conn.Execute("DELETE FROM unmatched_assets;");
         }
 
         MarkReady(work);
@@ -833,7 +839,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     public async Task ReviewRow_SendsNoWaitingReasons()
     {
         var work = AddStandalone("Movies", "Needs A Look", ready: false);
-        AddIdentityJob(work, "RetailNoMatch", "Movies");
+        AddIdentityJob(work, "RetailMatchedNeedsReview", "Movies");
 
         var item = await CurrentItemAsync(work);
 
@@ -1069,6 +1075,19 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
             INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,state,pass,created_at,updated_at)
             VALUES (@id,@asset,'MediaAsset',@mediaType,@state,'Quick',@now,@now);
             """, new { id = Guid.NewGuid(), asset, state, mediaType, now = DateTimeOffset.UtcNow.ToString("O") });
+    }
+
+    private void AddUnmatched(Guid workId, string libraryId = "movies-library")
+    {
+        using var conn = _db.CreateConnection();
+        var asset = conn.QuerySingle<Guid>(
+            "SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @workId;",
+            new { workId });
+        var now = DateTimeOffset.UtcNow.ToString("o");
+        conn.Execute("""
+            INSERT INTO unmatched_assets (asset_id, library_id, reason, first_unmatched_at, last_tried_at, next_retry_at, kept_as_is)
+            VALUES (@asset, @libraryId, 'no_match', @now, @now, @now, 0);
+            """, new { asset, libraryId, now });
     }
 
     // Artwork counts as present when the Work carries a stored cover state, the same value the Ready rule reads.

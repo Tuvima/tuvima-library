@@ -136,6 +136,8 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
             innerCt.ThrowIfCancellationRequested();
+            // A person choosing the match ends the file's Unmatched state.
+            conn.Execute("DELETE FROM unmatched_assets WHERE asset_id = @EntityId;", new { job.EntityId }, tx);
             var activeJobId = conn.QueryFirstOrDefault<Guid?>("""
                 SELECT id
                 FROM identity_jobs
@@ -340,8 +342,28 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                 attemptIncrement = preserveLease ? 1 : 0,
                 now = DateTimeOffset.UtcNow.ToString("O"),
             });
+
+        // A job that moves past the retail lookup without ending in no-match found its file a match (or sent it to a person to confirm),
+        // so the file is no longer Unmatched. Queued and RetailSearching are a retry in progress, and Failed is not a match.
+        if (newState is not (IdentityJobState.Queued or IdentityJobState.RetailSearching or IdentityJobState.RetailNoMatch or IdentityJobState.Failed))
+        {
+            ClearUnmatchedForJob(conn, jobId);
+        }
+
         return Task.CompletedTask;
     }
+
+    /// <summary>Removes the Unmatched mark of the job's file (the job's entity is the asset, or the work whose files it covers).</summary>
+    private static void ClearUnmatchedForJob(Microsoft.Data.Sqlite.SqliteConnection conn, Guid jobId) =>
+        conn.Execute("""
+            DELETE FROM unmatched_assets
+            WHERE asset_id = (SELECT entity_id FROM identity_jobs WHERE id = @jobId)
+               OR asset_id IN (SELECT ma.id
+                               FROM   media_assets ma
+                               JOIN   editions e ON e.id = ma.edition_id
+                               WHERE  e.work_id = (SELECT entity_id FROM identity_jobs WHERE id = @jobId));
+            """,
+            new { jobId });
 
     public Task ScheduleRetryAsync(Guid jobId, IdentityJobState retryState, DateTimeOffset nextRetryAt, string error, CancellationToken ct = default)
         => ScheduleRetryForOutcomeAsync(

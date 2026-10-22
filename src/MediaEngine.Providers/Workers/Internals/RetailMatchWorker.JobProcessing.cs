@@ -671,7 +671,7 @@ public sealed partial class RetailMatchWorker
 
         // A request the provider keeps rejecting will never succeed on its own. Once this attempt
         // would exhaust the poison budget, stop retrying and let the job end in the normal
-        // RetailNoMatch / RetailMatchFailed review path instead of waiting forever.
+        // RetailNoMatch path (the file is marked Unmatched and tried again later) instead of waiting forever.
         var maxPoisonAttempts = hydrationConfig.IdentityRetryMaxAttempts > 0
             ? hydrationConfig.IdentityRetryMaxAttempts
             : IdentityJobRetryPolicy.MaxAttempts;
@@ -820,7 +820,7 @@ public sealed partial class RetailMatchWorker
             }
             else
             {
-                await _outcomeFactory.CreateRetailFailedAsync(
+                await _outcomeFactory.RecordRetailNoMatchAsync(
                     job.EntityId, job.MediaType, ct);
             }
 

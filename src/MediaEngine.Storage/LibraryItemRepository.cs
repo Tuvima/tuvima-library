@@ -1394,6 +1394,8 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                     COALESCE(ul.has_locks, 0) AS has_user_locks,
                     ij.job_state,
                     ij.job_updated_at,
+                    -- NULL: not Unmatched. 0: Unmatched and looked up again from time to time. 1: Unmatched and kept as it is.
+                    (SELECT ua.kept_as_is FROM unmatched_assets ua WHERE ua.asset_id = pad.asset_id) AS unmatched_kept,
                     idd.first_claimed_at AS created_at,
                     COALESCE(NULLIF(wd.self_cover_state, ''), NULLIF(wd.parent_cover_state, ''), CASE
                         WHEN COALESCE(NULLIF(wd.self_cover_url, ''), NULLIF(wd.parent_cover_url, '')) IS NOT NULL THEN 'present'
@@ -1505,7 +1507,8 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                         WHEN rd.curator_state IN ('rejected', 'provisional')
                              OR rd.job_state = 'QidNeedsReview'
                              OR rd.job_state = 'RetailMatchedNeedsReview'
-                             OR rd.job_state = 'RetailNoMatch'
+                             -- A no-match file is Unmatched, not a review: it stays in the library and browses like any title (D34, D40).
+                             OR (rd.job_state = 'RetailNoMatch' AND rd.unmatched_kept IS NULL)
                              OR rd.job_state = 'Failed'
                              OR (
                                  rd.review_id IS NOT NULL

@@ -87,6 +87,11 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<ArtworkWritebackService>();
         services.AddHostedService<ArtworkWritebackWorker>();
         services.AddHostedService<MissingUniverseSweepService>();
+        services.AddSingleton<MediaEngine.Api.Services.Unmatched.UnmatchedRetryWake>();
+        services.AddSingleton<MediaEngine.Api.Services.Unmatched.UnmatchedAssetService>();
+        services.AddSingleton<MediaEngine.Api.Services.Unmatched.UnmatchedCountService>();
+        services.AddSingleton<MediaEngine.Api.Services.Unmatched.ItemLookupStateService>();
+        services.AddHostedService<MediaEngine.Api.Services.Unmatched.UnmatchedRetryHostedService>();
         services.AddSingleton<SubtitleIndexer>();
         services.AddHostedService<SubtitleIndexHostedService>();
 

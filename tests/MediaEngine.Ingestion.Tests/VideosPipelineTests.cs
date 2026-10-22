@@ -198,6 +198,102 @@ public sealed class VideosPipelineTests : IDisposable
         Assert.Equal(0, off.Calls);
     }
 
+    // ── Unmatched: a YouTube library file with no YouTube ID (Library setup D18, D34) ──────────────────
+
+    [Fact]
+    public async Task AFileInAYoutubeLibraryWithAnIdInItsName_IsLookedUp_AndIsNotMarkedUnmatched()
+    {
+        UseKind("youtube", youtubeLookupField: true);
+        var path = Write("Holiday clip [dQw4w9WgXcQ].mp4");
+        var lookup = new CountingLookup();
+
+        await RunAsync(1, lookup, new FixedGate(allowed: true), marker: NewMarker());
+
+        Assert.Equal(1, lookup.Calls);
+        var asset = await _h.Assets.FindByPathRootAsync(path);
+        Assert.Null(await new UnmatchedAssetRepository(_h.Db.Connection).GetAsync(asset!.Id));
+    }
+
+    [Fact]
+    public async Task AFileInAYoutubeLibraryWithAnIdInItsInfoJson_IsNotMarkedUnmatched()
+    {
+        UseKind("youtube", youtubeLookupField: true);
+        var path = Write("Holiday clip.mp4");
+        File.WriteAllText(Path.ChangeExtension(path, ".info.json"), "{\"id\":\"dQw4w9WgXcQ\",\"title\":\"Holiday clip\"}");
+        var lookup = new CountingLookup();
+
+        await RunAsync(1, lookup, new FixedGate(allowed: true), marker: NewMarker());
+
+        Assert.Equal(1, lookup.Calls);
+        var asset = await _h.Assets.FindByPathRootAsync(path);
+        Assert.Null(await new UnmatchedAssetRepository(_h.Db.Connection).GetAsync(asset!.Id));
+    }
+
+    [Fact]
+    public async Task AFileInAYoutubeLibraryWithNoId_IsMarkedUnmatched_StaysInPlace_AndIsNeverLookedUp()
+    {
+        UseKind("youtube", youtubeLookupField: true);
+        var path = Write("Birthday party.mp4");
+        var lookup = new CountingLookup();
+
+        await RunAsync(1, lookup, new FixedGate(allowed: true), marker: NewMarker());
+
+        Assert.Equal(0, lookup.Calls);
+        Assert.True(File.Exists(path), "the file is not moved or renamed");
+        var asset = await _h.Assets.FindByPathRootAsync(path);
+        Assert.NotNull(asset);
+        var row = await new UnmatchedAssetRepository(_h.Db.Connection).GetAsync(asset.Id);
+        Assert.NotNull(row);
+        Assert.Equal(UnmatchedReasons.NoYoutubeId, row.Reason);
+        Assert.Equal(KindlessLibraryId, row.LibraryId);
+        Assert.False(row.KeptAsIs);
+        Assert.Empty(await _h.Reviews.GetPendingByEntityAsync(asset.Id));
+        Assert.Null(await _h.Jobs.GetByEntityAsync(asset.Id));
+    }
+
+    [Theory]
+    [InlineData("other_videos")]
+    [InlineData("")]
+    public async Task AFileWithNoYoutubeIdInOtherVideosOrAKindlessLibrary_IsNeverMarkedUnmatched(string kindKey)
+    {
+        UseKind(kindKey, youtubeLookupField: true);
+        var path = Write("Birthday party.mp4");
+
+        await RunAsync(1, new CountingLookup(), new FixedGate(allowed: true), marker: NewMarker());
+
+        var asset = await _h.Assets.FindByPathRootAsync(path);
+        Assert.NotNull(asset);
+        Assert.Null(await new UnmatchedAssetRepository(_h.Db.Connection).GetAsync(asset.Id));
+    }
+
+    [Theory]
+    [InlineData(true, 1, "youtube")]
+    [InlineData(false, 0, null)]
+    public async Task ReadingAYoutubeFileAgainOnceItHasAnId_RunsTheYoutubeLookup_OnlyWhenTheGateAllows(bool gateAllows, int expectedCalls, string? expectedSource)
+    {
+        UseKind("youtube", youtubeLookupField: true);
+        var path = Write("Holiday clip.mp4");
+        var lookup = new CountingLookup(new VideoOnlineInfo("Holiday clip online", "A channel", null, null, null, null));
+        var gate = new FixedGate(allowed: gateAllows);
+        Guid assetId = Guid.Empty;
+
+        await RunAsync(1, lookup, gate, marker: NewMarker(), probe: async engine =>
+        {
+            assetId = (await _h.Assets.FindByPathRootAsync(path))!.Id;
+            // The ID arrives later, in a new .info.json beside the file.
+            File.WriteAllText(Path.ChangeExtension(path, ".info.json"), "{\"id\":\"dQw4w9WgXcQ\",\"title\":\"Holiday clip\"}");
+            await engine.RereadAssetMetadataAsync(assetId);
+        });
+
+        Assert.Equal(expectedCalls, lookup.Calls);
+        var values = await _h.Canonicals.GetByEntityAsync(assetId);
+        Assert.Equal("dQw4w9WgXcQ", values.First(v => v.Key == "youtube_video_id").Value);
+        Assert.Equal(expectedSource, values.FirstOrDefault(v => v.Key == "video_lookup_source")?.Value);
+    }
+
+    private UnmatchedFileMarker NewMarker() =>
+        new(new UnmatchedAssetRepository(_h.Db.Connection), _h.Config, NullLogger<UnmatchedFileMarker>.Instance);
+
     // ── The Vault's part of ingestion (Videos spec WP12, D32) ───────────────────────────────────
 
     private const string VaultLibraryId = "bbbbbbbb-0000-4000-8000-000000000001";
@@ -290,14 +386,14 @@ public sealed class VideosPipelineTests : IDisposable
         }
     }
 
-    private sealed class CountingLookup : IVideoOnlineLookup
+    private sealed class CountingLookup(VideoOnlineInfo? answer = null) : IVideoOnlineLookup
     {
         public int Calls { get; private set; }
 
         public Task<VideoOnlineInfo?> LookupAsync(string youtubeVideoId, CancellationToken ct = default)
         {
             Calls++;
-            return Task.FromResult<VideoOnlineInfo?>(null);
+            return Task.FromResult(answer);
         }
     }
 
@@ -310,7 +406,7 @@ public sealed class VideosPipelineTests : IDisposable
 
     private async Task RunAsync(
         int expectedAssets, IVideoOnlineLookup? lookup = null, IProviderAudienceGate? gate = null, IVaultIngestionHook? vaultHook = null,
-        Func<IIngestionEngine, Task>? probe = null)
+        Func<IIngestionEngine, Task>? probe = null, UnmatchedFileMarker? marker = null)
     {
         var db = _h.Db.Connection;
         var publisher = _publisher;
@@ -362,7 +458,8 @@ public sealed class VideosPipelineTests : IDisposable
             sourceMutationPolicyGate: new SourceMutationPolicyGate(),
             videoReader: reader,
             videoLookup: lookup,
-            audienceGate: gate);
+            audienceGate: gate,
+            unmatchedMarker: marker);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         try
