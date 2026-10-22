@@ -151,7 +151,7 @@ All settings live in `config/` as individual JSON files grouped by concern. Prov
 | `pipelines.json` | Ranked Stage 1 provider pipelines per media type (Waterfall / Cascade / Sequential) |
 | `scoring.json`, `field_priorities.json` | Metadata priority |
 | `ui/palette.json`, `ui/global.json`, `ui/devices/*`, `ui/profiles/*` | UI theming and device profiles |
-| `writeback.json`, `writeback-fields.json` | Tag write-back rules |
+| `writeback.json`, `writeback-fields.json` | Tag write-back rules and the scheduled file-write run (`run_interval_minutes`, ADR 0014) |
 | `transcoding.json`, `media_types.json`, `narration/phrases.json` | Additional runtime settings |
 
 Before changing C# for behaviour that looks configurable, check `config/` first.

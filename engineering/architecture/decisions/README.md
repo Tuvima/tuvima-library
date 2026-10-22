@@ -17,5 +17,6 @@ One short record per major decision: what, why, when, and when to revisit. New d
 | [0011](0011-personal-activity-record-and-scopes.md) | Personal activity is its own lasting record; one scope check decides who sees whose | 2026-10-19 | Accepted |
 | [0012](0012-live-tv-stays-possible.md) | Live TV is not built, and nothing in the plugin platform closes the door | 2026-10-21 | Accepted |
 | [0013](0013-four-kinds-of-plugin.md) | Plugins come in four kinds, and nothing runs until it is approved | 2026-10-21 | Accepted |
+| [0014](0014-one-scheduled-list-for-every-file-write.md) | Every write into a file goes through one scheduled list | 2026-10-22 | Accepted |
 
 Also see the published [hybrid asset storage decision](../../../docs/architecture/storage-policy-adr.md).

@@ -34,12 +34,12 @@ Tuvima is two programs that run on the person's computer or server:
 | `Intelligence` | Priority Cascade, identity strategies, collection/universe resolution, fuzzy matching. |
 | `Processors` | Embedded-metadata readers (EPUB, audio, video, comic, PDF). |
 | `Providers` | Config-driven provider adapters and enrichment workers. |
-| `Ingestion` | Folder watchers, hashing, dedup, organisation, write-back. |
+| `Ingestion` | Folder watchers, hashing, dedup, organisation, the tag writers (only the scheduled file-write run calls them, ADR 0014). |
 | `AI` | Local LLM/Whisper lifecycle. |
 | `Identity` | Accounts, profiles, authentication. |
 | `Admin` | Host-side admin console (password reset, recovery). |
 | `Plugins` + `Plugin.*` | Plugin contracts and in-process plugins (segment detection, Fandom lore). |
-| `Api` | The Engine: composition root, endpoints, SignalR hubs. |
+| `Api` | The Engine: composition root, endpoints, SignalR hubs, the scheduled file-write run (`Services/FileWrites/`, View writer in `Services/LocalAssets/FileWrites/`) and helper tools (`Services/Tools/`, including the ExifTool runner). |
 | `Web` | The Dashboard (Blazor Server). Code map: `src/MediaEngine.Web/CLAUDE.md`. |
 
 Tests: one `tests/MediaEngine.<X>.Tests` project per source project, plus `Performance.Tests`. Native clients: `clients/` (outside the solution).

@@ -1,6 +1,6 @@
 # Spec: Batched write-back (all files, on a schedule, with ExifTool for photos, videos and PDFs)
 
-> **Status:** In progress · **Version:** 2 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../product/overview.md) · [Simpler library setup](library-setup-groups.md) (D48, D55) · [Privacy and local-first](../../docs/explanation/privacy-local-first.md)
+> **Status:** Built (awaiting Local checks) · **Version:** 2 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../product/overview.md) · [Simpler library setup](library-setup-groups.md) (D48, D55) · [Privacy and local-first](../../docs/explanation/privacy-local-first.md)
 
 > Written 2026-10-22 from Shy's decisions while planning D48 (the profile name written into View files): use ExifTool for photos, videos and PDFs, download it from a copy Tuvima keeps on GitHub, and batch every write into files, not only View's, "so it's only built one way", running every hour by default and configurable. Changes are saved in Library's data store straight away; files catch up on the schedule. Version 2 (same day) records Shy's answers: ExifTool is fetched automatically (D5), library moves happen straight away while their tags wait (D10), and waiting work survives a crash and is respected by anything else that touches the file (D11). Locked by Shy 2026-10-22 ("all recommended").
 
