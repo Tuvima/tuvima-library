@@ -53,6 +53,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /api/v1/vault/activity - the quiet Vault activity list, for an unlocked administrator.</summary>
     Task<VaultCall<IReadOnlyList<VaultActivityItemDto>>> GetVaultActivityAsync(CancellationToken ct = default);
 
+    /// <summary>GET /api/v1/vault/restored-bookmarks - how many saved Vault bookmarks from a restored backup still wait for their video. A count only, never a title.</summary>
+    Task<VaultCall<VaultRestoredBookmarksDto>> GetVaultRestoredBookmarksAsync(CancellationToken ct = default);
+
     /// <summary>GET /api/v1/vault/scenes - Vault scenes (recently added, scenes, unmatched, or those of a performer, studio, tag or folder). <see cref="VaultOutcome.NotAvailable"/> for a locked session.</summary>
     Task<VaultCall<VaultSceneListDto>> GetVaultScenesAsync(
         string? match, string? sort, bool? descending, Guid? performerId, Guid? studioId, Guid? tagId, string? folderId,
