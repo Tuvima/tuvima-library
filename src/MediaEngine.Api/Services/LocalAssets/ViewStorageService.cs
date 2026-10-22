@@ -23,8 +23,15 @@ public sealed class ViewStorageService(
     public const string StagingFolderName = ".tuvima-staging";
 
     /// <summary>
-    /// True when the path is inside the staging folder of a profile folder (<c>Profiles/{label}/.tuvima-staging</c>), so scans and
-    /// watchers can skip it. A folder that merely has the same name somewhere else is an ordinary folder.
+    /// What the hidden temporary copy of a file starts with while Library writes the profile name into it (batched write-back D9). The
+    /// copy sits beside the file so it can replace the file in one step; scans and watchers never index a file named like this.
+    /// </summary>
+    public const string WriteCopyPrefix = ".tuvima-write-";
+
+    /// <summary>
+    /// True when the path is inside the staging folder of a profile folder (<c>Profiles/{label}/.tuvima-staging</c>), or is the hidden
+    /// temporary copy of a file being written (<see cref="WriteCopyPrefix"/>), so scans and watchers can skip it. A folder that merely
+    /// has the same name somewhere else is an ordinary folder.
     /// </summary>
     /// <remarks>
     /// This reads the path as written and does not follow links, on purpose (it runs for every file of every scan). A managed source
@@ -40,6 +47,11 @@ public sealed class ViewStorageService(
         }
 
         var segments = path.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length > 0 && segments[^1].StartsWith(WriteCopyPrefix, PathComparison))
+        {
+            return true;
+        }
+
         for (var index = 2; index < segments.Length; index++)
         {
             if (string.Equals(segments[index], StagingFolderName, PathComparison)

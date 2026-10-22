@@ -102,7 +102,7 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
         ValidateId(personalSpaceId, nameof(personalSpaceId));
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
-        var rows = connection.Query<SourceRow>(new CommandDefinition("""
+        var rows = connection.Query<SourceRow>(new CommandDefinition($"""
             SELECT id AS Id, personal_space_id AS PersonalSpaceId, source_type AS SourceType,
                    name AS Name, source_key AS SourceKey, last_activity_at AS LastActivityAt,
                    storage_mode AS StorageMode, relative_path AS RelativePath,
@@ -110,6 +110,7 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
                    enabled AS Enabled,
                    content_kind AS ContentKind, added_by_profile_id AS AddedByProfileId,
                    skipped_file_count AS SkippedFileCount,
+                   {ViewItemFileWriteRepository.KeptInLibraryCountSql} AS KeptInLibraryCount,
                    COALESCE((SELECT include_in_timeline FROM view_source_policies
                               WHERE source_id = view_sources.id),
                             CASE WHEN source_type = 'browser_upload' THEN 1 ELSE 0 END) AS IncludeInTimeline,
@@ -348,7 +349,7 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
         ParseNullableDate(row.LastActivityAt), ParseDate(row.CreatedAt), ParseDate(row.UpdatedAt),
         ParseStorageMode(row.StorageMode), row.RelativePath, row.ExternalPath,
         row.IncludeSubdirectories, row.Enabled, row.IncludeInTimeline,
-        row.ContentKind, row.AddedByProfileId, checked((int)row.SkippedFileCount));
+        row.ContentKind, row.AddedByProfileId, checked((int)row.SkippedFileCount), checked((int)row.KeptInLibraryCount));
 
     private static ViewDevice Map(DeviceRow row) => new(
         row.Id, row.PersonalSpaceId, row.SourceId, row.ClientDeviceId, row.Name, row.Make, row.Model,
@@ -446,6 +447,7 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
         public string ContentKind { get; init; } = "photos";
         public Guid? AddedByProfileId { get; init; }
         public long SkippedFileCount { get; init; }
+        public long KeptInLibraryCount { get; init; }
         public string CreatedAt { get; init; } = string.Empty; public string UpdatedAt { get; init; } = string.Empty;
     }
     private sealed class DeviceRow
