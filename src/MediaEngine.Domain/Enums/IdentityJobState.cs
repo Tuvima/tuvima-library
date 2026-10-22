@@ -13,8 +13,9 @@ namespace MediaEngine.Domain.Enums;
 ///   <item><see cref="Failed"/> — terminal, reachable from any state after max retries</item>
 /// </list>
 ///
-/// <see cref="RetailNoMatch"/> is terminal for the automatic pipeline.
-/// Only user action (Fix Match or Provisional) can advance it.
+/// <see cref="RetailNoMatch"/> is terminal for one run of the pipeline. The file is marked Unmatched (<c>unmatched_assets</c>) and is
+/// looked up again by a new job on a schedule, after a provider or plugin change, or on "Retry now"; a person can also advance it
+/// (Fix Match or Provisional).
 /// </summary>
 public enum IdentityJobState
 {
@@ -30,7 +31,7 @@ public enum IdentityJobState
     /// <summary>A retail candidate scored in the ambiguous band (0.50–0.85). Review open, but Stage 2 proceeds.</summary>
     RetailMatchedNeedsReview = 3,
 
-    /// <summary>No retail candidate reached the ambiguous threshold. Pipeline stops. Review created.</summary>
+    /// <summary>No retail candidate reached the ambiguous threshold. Pipeline stops. The file is marked Unmatched; no review item is created.</summary>
     RetailNoMatch = 4,
 
     /// <summary>WikidataBridgeWorker has leased this job and is resolving bridge IDs → QID.</summary>

@@ -127,13 +127,13 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
             new { libraryId, now = Format(now) }));
     }
 
-    public Task<IReadOnlyList<UnmatchedAsset>> ListDueAsync(DateTimeOffset now, int limit, CancellationToken ct = default)
+    public Task<IReadOnlyList<UnmatchedAsset>> ListDueAsync(DateTimeOffset now, int limit, string? libraryId = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
         var rows = connection.Query<Row>(
-            $"{SelectSql} WHERE kept_as_is = 0 AND next_retry_at IS NOT NULL AND next_retry_at <= @now ORDER BY next_retry_at, asset_id LIMIT @limit;",
-            new { now = Format(now), limit = Math.Max(1, limit) });
+            $"{SelectSql} WHERE kept_as_is = 0 AND next_retry_at IS NOT NULL AND next_retry_at <= @now AND (@libraryId IS NULL OR library_id = @libraryId) ORDER BY next_retry_at, asset_id LIMIT @limit;",
+            new { now = Format(now), limit = Math.Max(1, limit), libraryId });
         return Task.FromResult<IReadOnlyList<UnmatchedAsset>>(rows.Select(row => row.ToModel()).ToList());
     }
 

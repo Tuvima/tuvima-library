@@ -3,6 +3,7 @@ using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Capabilities;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -1221,6 +1222,47 @@ public sealed partial class IngestionEngine
         context.CoverWritten = coverWritten;
 
     }
+    /// <summary>
+    /// A file in a YouTube library with no YouTube ID, in its name or its <c>.info.json</c>, cannot be matched (Library setup spec D18, D34):
+    /// it stays exactly where it is, is marked Unmatched with reason <c>no_youtube_id</c>, and is never looked up. A file that has an ID is
+    /// not marked here. A library that is not the YouTube kind never marks anything: a plain kind is never Unmatched (D38).
+    /// </summary>
+    private async Task MarkYoutubeFileWithoutIdUnmatchedAsync(IngestionPipelineContext context, CancellationToken ct)
+    {
+        if (_unmatchedAssets is null
+            || context.IsVault
+            || context.ResolvedMediaType != MediaType.Videos
+            || context.Library is not { LookupMode: LibraryLookupMode.YouTube, Id: { Length: > 0 } libraryId }
+            || context.ProcessorResult is not { } result
+            || ResolveVideosRoot(context.Library, context.Candidate.Path) is null
+            || result.Claims.Any(claim => claim.Key == MetadataFieldConstants.YoutubeVideoId && !string.IsNullOrWhiteSpace(claim.Value)))
+        {
+            return;
+        }
+
+        try
+        {
+            var now = DateTimeOffset.UtcNow;
+            var days = _configurationLoader?.LoadMaintenance().UnmatchedRetryDays ?? UnmatchedRetryLimits.DefaultDays;
+            await _unmatchedAssets.MarkUnmatchedAsync(
+                context.AssetId,
+                libraryId,
+                UnmatchedReasons.NoYoutubeId,
+                now,
+                UnmatchedRetryLimits.NextRetryAt(now, days),
+                ct).ConfigureAwait(false);
+            _logger.LogInformation(
+                "{Path} is in a YouTube library but has no YouTube ID: marked Unmatched and left in place ({AssetId12})",
+                context.Candidate.Path,
+                context.AssetId.ToString("N")[..12]);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Marking is best effort: the file is already registered and plays, and the failure must not fail its ingestion.
+            _logger.LogWarning(ex, "Could not mark {Path} Unmatched; it stays registered without the mark", context.Candidate.Path);
+        }
+    }
+
     private async Task RunIdentityJobStageAsync(IngestionPipelineContext context, CancellationToken ct)
     {
         var candidate = context.Candidate;
@@ -1301,6 +1343,7 @@ public sealed partial class IngestionEngine
         else
         {
             await _assetRepo.MarkPresentedAsync(assetId, DateTimeOffset.UtcNow, ct).ConfigureAwait(false);
+            await MarkYoutubeFileWithoutIdUnmatchedAsync(context, ct).ConfigureAwait(false);
 
             try
             {

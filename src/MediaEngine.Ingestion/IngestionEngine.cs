@@ -100,6 +100,8 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     private readonly VideoStillFrameService? _videoFrames;
     private readonly IVideoOnlineLookup? _videoLookup;
     private readonly IProviderAudienceGate? _audienceGate;
+    private readonly IUnmatchedAssetRepository? _unmatchedAssets;
+    private readonly IConfigurationLoader? _configurationLoader;
 
     // The waiting mark of a library move: events on the old or new place of a file being moved belong to the move (batched write-back D11).
     private readonly IFileMoveInProgress? _moveInProgress;
@@ -227,8 +229,12 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         VideoStillFrameService? videoFrames = null,
         IVideoOnlineLookup? videoLookup = null,
         IProviderAudienceGate? audienceGate = null,
-        IFileMoveInProgress? moveInProgress = null)
+        IFileMoveInProgress? moveInProgress = null,
+        IUnmatchedAssetRepository? unmatchedAssets = null,
+        IConfigurationLoader? configurationLoader = null)
     {
+        _unmatchedAssets = unmatchedAssets;
+        _configurationLoader = configurationLoader;
         _moveInProgress = moveInProgress;
         _vaultHook = vaultHook;
         _audienceGate = audienceGate;

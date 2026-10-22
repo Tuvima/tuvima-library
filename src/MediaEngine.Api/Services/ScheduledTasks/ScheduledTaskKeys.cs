@@ -23,4 +23,5 @@ public static class ScheduledTaskKeys
     public const string AdaptiveStreamingCleanup = "adaptive_streaming_cleanup";
     public const string EnrichmentRefreshSchedule = "enrichment_refresh_schedule";
     public const string ScheduledBackup = "scheduled_backup";
+    public const string UnmatchedRetry = "unmatched_retry";
 }

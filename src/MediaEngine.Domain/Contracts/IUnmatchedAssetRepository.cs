@@ -35,8 +35,8 @@ public interface IUnmatchedAssetRepository
     /// <summary>Makes every item that is not kept due now: one library's, or all libraries' when <paramref name="libraryId"/> is null. Returns how many.</summary>
     Task<int> MakeAllDueAsync(string? libraryId, DateTimeOffset now, CancellationToken ct = default);
 
-    /// <summary>Items that are not kept and are due at or before <paramref name="now"/>, oldest due first.</summary>
-    Task<IReadOnlyList<UnmatchedAsset>> ListDueAsync(DateTimeOffset now, int limit, CancellationToken ct = default);
+    /// <summary>Items that are not kept and are due at or before <paramref name="now"/>, oldest due first; one library's when <paramref name="libraryId"/> is given.</summary>
+    Task<IReadOnlyList<UnmatchedAsset>> ListDueAsync(DateTimeOffset now, int limit, string? libraryId = null, CancellationToken ct = default);
 
     /// <summary>Records that a retry ran: sets the last-tried time and the next retry (not for a kept item).</summary>
     Task RecordTriedAsync(Guid assetId, DateTimeOffset now, DateTimeOffset nextRetryAt, CancellationToken ct = default);
