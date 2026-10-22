@@ -164,6 +164,87 @@ public sealed class EngineApiClientViewPolicyTests
         Assert.Empty(review.Devices);
     }
 
+    [Fact]
+    public async Task GetViewSharedSourcesAsync_UsesTheAdministratorSharedSourcesRoute()
+    {
+        using var http = CreateHttpClient(request =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("/view/admin/shared/sources", request.RequestUri!.AbsolutePath);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""
+                    [{
+                      "id": "13fb5fea-eaf6-4f89-8bc5-bb7ec379da94",
+                      "source_type": "folder",
+                      "name": "Holidays",
+                      "storage_mode": "linked",
+                      "location": "E:\\Photos",
+                      "include_subdirectories": true,
+                      "enabled": true,
+                      "created_at": "2026-08-20T08:00:00Z",
+                      "updated_at": "2026-08-23T08:30:00Z",
+                      "content_kind": "photos"
+                    }]
+                    """, Encoding.UTF8, "application/json"),
+            });
+        });
+        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+
+        var sources = await client.GetViewSharedSourcesAsync();
+
+        var source = Assert.Single(sources!);
+        Assert.Equal("Holidays", source.Name);
+        Assert.Equal("photos", source.ContentKind);
+    }
+
+    [Fact]
+    public async Task CreateViewSharedSourceAsync_PostsTheKindToTheSharedSourcesRouteAndKeepsARefusalsMessage()
+    {
+        string? requestJson = null;
+        var refuse = false;
+        using var http = CreateHttpClient(async request =>
+        {
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal("/view/admin/shared/sources", request.RequestUri!.AbsolutePath);
+            requestJson = await request.Content!.ReadAsStringAsync();
+            return refuse
+                ? new HttpResponseMessage(HttpStatusCode.UnprocessableEntity)
+                {
+                    Content = new StringContent("""{"title":"That folder is not allowed."}""", Encoding.UTF8, "application/problem+json"),
+                }
+                : new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""
+                        {
+                          "id": "13fb5fea-eaf6-4f89-8bc5-bb7ec379da94",
+                          "source_type": "folder",
+                          "name": "Holidays",
+                          "storage_mode": "linked",
+                          "location": "E:\\Photos",
+                          "include_subdirectories": true,
+                          "enabled": true,
+                          "created_at": "2026-08-20T08:00:00Z",
+                          "updated_at": "2026-08-23T08:30:00Z",
+                          "content_kind": "photos"
+                        }
+                        """, Encoding.UTF8, "application/json"),
+                };
+        });
+        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+        var request = new MediaEngine.Contracts.LocalAssets.CreateViewSourceRequest("Holidays", "linked", "E:\\Photos", true, false, "photos");
+
+        var created = await client.CreateViewSharedSourceAsync(request);
+
+        Assert.Equal("Holidays", created!.Name);
+        Assert.Contains("\"content_kind\":\"photos\"", requestJson, StringComparison.Ordinal);
+        Assert.Contains("\"storage_mode\":\"linked\"", requestJson, StringComparison.Ordinal);
+
+        refuse = true;
+        Assert.Null(await client.CreateViewSharedSourceAsync(request));
+        Assert.Contains("That folder is not allowed.", client.LastError, StringComparison.Ordinal);
+    }
+
     private static HttpClient CreateHttpClient(Func<HttpRequestMessage, Task<HttpResponseMessage>> responder) =>
         new(new StubHttpMessageHandler(responder))
         {

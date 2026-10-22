@@ -1,13 +1,17 @@
 @namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Contracts.Setup
 @using MediaEngine.Web.Components.Settings
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
+@inject DashboardSessionAccessor Session
+@implements IDisposable
 
 @* "What do you have?": tick Watch, Listen, Read or View, then add folders for each ticked group with the same wizard Settings uses.
    "Change folders" opens the full folder panel (removing, converting, the Import folder) exactly as before. The footer, the step key
-   and the deferral are unchanged. The Vault is never offered here. *@
+   and the deferral are unchanged. The Vault is never offered here. View folders are added only once setup's own session is gone and
+   the signed-in person is an administrator (D46, D58); until then View shows the "add after setup" line. *@
 <div class="setup-stage-content setup-have">
     <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">What do you have?</h2><p>Tick what you'd like Library to show. You can add more later in Settings.</p></div></div>
 
@@ -49,13 +53,17 @@
     {
         <section class="setup-have__section" data-section="@group.Key" aria-label="@($"{group.Label} folders")">
             <h3>@group.Label</h3>
-            @if (group.Key == ViewKey)
+            @if (group.Key == ViewKey && !CanAddView)
             {
-                @* View's folders belong to a profile, so they cannot be added before the first account exists. *@
+                @* Until setup's own session is gone and an administrator is signed in, View's folders wait for Settings. *@
                 <p class="setup-have__later">You can add photo and personal video folders after setup, in Settings &gt; Libraries &gt; View.</p>
             }
             else
             {
+                @if (group.Key == ViewKey && !string.IsNullOrWhiteSpace(_viewError))
+                {
+                    <AppAlert Tone="AppUiTone.Error"><span>@_viewError</span></AppAlert>
+                }
                 @foreach (var type in TypesOf(group))
                 {
                     var folders = FoldersOf(type);
@@ -66,11 +74,14 @@
                             <ul class="setup-have__folders" aria-label="@($"{type.Label} folders")">
                                 @foreach (var folder in folders)
                                 {
-                                    var managed = folder.ManagementMode == "managed_by_tuvima";
-                                    var handling = managed ? "Managed: Library has full access" : "Read-only: Library never changes these files";
+                                    var handling = folder.Managed ? "Managed: Library has full access" : "Read-only: Library never changes these files";
                                     <li>
-                                        <span class="setup-have__handling" role="img" aria-label="@handling" title="@handling"><AppMaterialIcon Icon="@(managed ? AppMaterialIcons.Filled.Folder : AppMaterialIcons.Filled.Lock)" /></span>
+                                        <span class="setup-have__handling" role="img" aria-label="@handling" title="@handling"><AppMaterialIcon Icon="@(folder.Managed ? AppMaterialIcons.Filled.Folder : AppMaterialIcons.Filled.Lock)" /></span>
                                         <span class="setup-have__path" title="@folder.Path">@folder.Path</span>
+                                        @if (folder.Audience is not null)
+                                        {
+                                            <small data-audience>@folder.Audience</small>
+                                        }
                                     </li>
                                 }
                             </ul>
@@ -102,7 +113,12 @@
         <AppAlert Tone="@(Media.Passed ? AppUiTone.Success : AppUiTone.Warning)" Class="setup-media-notice"><span>@Media.Detail</span></AppAlert>
     }
     <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-        @if (!HasLibraries)
+        @if (!HasLibraries && HasViewFolders)
+        {
+            @* Only View folders so far: they are already saved, and the Watch, Listen and Read check has nothing to check, so this moves on like Skip. *@
+            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="ContinueWithViewOnly" />
+        }
+        else if (!HasLibraries)
         {
             <AppButton Label="Skip for now" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DeferMedia" />
         }
@@ -118,6 +134,8 @@
 
     [Parameter] public bool HasLibraries { get; set; }
     [Parameter] public EventCallback DeferMedia { get; set; }
+    // Only View folders were added: the step is still recorded as later (the Engine checks Watch, Listen and Read folders), with a note that says what was added.
+    [Parameter] public EventCallback ContinueWithViewOnly { get; set; }
     [Parameter] public SetupMediaLocationsDto? Media { get; set; }
     [Parameter] public string? SetupSession { get; set; }
     [Parameter] public bool Busy { get; set; }
@@ -141,6 +159,22 @@
     // The list of library kinds the setup session can read; the groups, their types and the wizard are drawn from it.
     private LibraryKindCatalog _kinds = LibraryKindCatalog.Empty;
 
+    // The View folders already added, read through the signed-in administrator's own actions: the household's shared library and their own space.
+    private IReadOnlyList<ViewSourceAdminDto> _viewShared = [];
+    private IReadOnlyList<ViewSourceAdminDto> _viewMine = [];
+    private string? _viewError;
+
+    private const string HouseholdLabel = "Everyone in the household";
+    private const string OnlyMeLabel = "Only me";
+
+    // A folder row on a card: the path, how Library treats it and, for View, who it is for.
+    private sealed record FolderRow(string Path, bool Managed, string? Audience);
+
+    // The signed-in administrator's profile id while setup may add View folders; null while a setup session exists or nobody is signed in as one.
+    private Guid? ViewOwner => SetupViewAccess.OwnerProfileId(SetupSession, Session);
+    private bool CanAddView => ViewOwner is not null;
+    private bool HasViewFolders => _viewShared.Count + _viewMine.Count > 0;
+
     // The Vault is never offered in setup.
     private IReadOnlyList<LibraryGroup> Groups => _kinds.Visible(showVault: false);
 
@@ -148,7 +182,41 @@
         ? "Add folders on a computer or tablet. You can continue and set them up later."
         : "Add folders on a computer or tablet. You can skip this step and set them up later.";
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        Session.OnAuthorityChanged += OnAuthorityChanged;
+        await LoadAsync();
+    }
+
+    public void Dispose() => Session.OnAuthorityChanged -= OnAuthorityChanged;
+
+    // The signed-in session can finish loading after this stage first draws, so View's rows are read again when it does.
+    private void OnAuthorityChanged() => _ = InvokeAsync(async () =>
+    {
+        await LoadViewFoldersAsync();
+        StateHasChanged();
+    });
+
+    private async Task LoadViewFoldersAsync()
+    {
+        if (ViewOwner is not { } owner)
+        {
+            _viewShared = [];
+            _viewMine = [];
+            _viewError = null;
+            return;
+        }
+
+        var shared = await ApiClient.GetViewSharedSourcesAsync();
+        var mine = await ApiClient.GetViewProfileSourcesAsync(owner);
+        _viewError = shared is null || mine is null ? ApiClient.LastError ?? "Your View folders could not be loaded." : null;
+        _viewShared = shared ?? [];
+        _viewMine = mine?.Sources ?? [];
+        if (_viewShared.Count + _viewMine.Count > 0 && Groups.FirstOrDefault(group => group.Key == ViewKey) is { } view)
+        {
+            _ticked.Add(view.Key);
+        }
+    }
 
     private async Task LoadAsync()
     {
@@ -173,6 +241,7 @@
         _configuration = fresh;
         _loadError = null;
         _reloadFailed = false;
+        await LoadViewFoldersAsync();
         // A group that already has folders (a resume or a reload) shows ticked.
         foreach (var group in Groups.Where(group => TypesOf(group).Any(type => FoldersOf(type).Count > 0)))
         {
@@ -191,12 +260,21 @@
     // The group's standard types, then any older library in the same area, so none of its folders hides.
     private IReadOnlyList<LibraryTypeOption> TypesOf(LibraryGroup group) =>
     [
-        .. group.TypeKeys.Select(_kinds.Find).OfType<LibraryTypeOption>().Where(type => !LibraryTypeCatalog.IsViewKind(type)),
+        .. group.TypeKeys.Select(_kinds.Find).OfType<LibraryTypeOption>().Where(type => CanAddView || !LibraryTypeCatalog.IsViewKind(type)),
         .. LibraryRollup.OthersIn(_kinds, _configuration, group),
     ];
 
-    private IReadOnlyList<LibrarySourceDto> FoldersOf(LibraryTypeOption type) =>
-        LibraryRollup.LibraryFor(_configuration, type)?.Sources ?? [];
+    private IReadOnlyList<FolderRow> FoldersOf(LibraryTypeOption type) => LibraryTypeCatalog.IsViewKind(type)
+        ?
+        [
+            .. AddedViewFolders(_viewShared, type.Key).Select(source => new FolderRow(source.Location, false, HouseholdLabel)),
+            .. AddedViewFolders(_viewMine, type.Key).Select(source => new FolderRow(source.Location, false, OnlyMeLabel)),
+        ]
+        : [.. (LibraryRollup.LibraryFor(_configuration, type)?.Sources ?? []).Select(source => new FolderRow(source.Path, source.ManagementMode == "managed_by_tuvima", null))];
+
+    // The folders a person added for this kind; the built-in upload and phone-backup folders are not part of setup.
+    private static IEnumerable<ViewSourceAdminDto> AddedViewFolders(IReadOnlyList<ViewSourceAdminDto> sources, string kind) =>
+        sources.Where(source => source.SourceType != "browser_upload" && !source.AcceptsPhotosAndVideos && LibraryRollup.ViewFolderBelongsTo(source, kind));
 
     // The wizard opens on the group's kinds in setup mode (the setup calls, no View, no merge), and reports each folder it adds.
     private async Task AddFolderAsync(LibraryGroup group)
@@ -208,6 +286,7 @@
             { component => component.StartGroupKey, group.Key },
             { component => component.SetupSession, SetupSession },
             { component => component.Embedded, true },
+            { component => component.ViewOwnerProfileId, ViewOwner },
             { component => component.Configuration, _configuration },
             { component => component.Kinds, _kinds },
             { component => component.OnFolderAdded, (Func<string?, Task>)FolderAddedAsync },

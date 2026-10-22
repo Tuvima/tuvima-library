@@ -1,6 +1,8 @@
 using System.Text.RegularExpressions;
 using Bunit;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Ingestion;
+using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Web.Components.Settings;
@@ -35,11 +37,19 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     private bool _failLoads;
     private bool _failKinds;
     private List<LibraryKindDto> _kinds = LibraryKindsTestData.BuiltIn();
-    private readonly ServerFolderValidationResultDto _picked = new() { Path = "E:\\Setup\\Films", StorageLocationId = "media", Exists = true, HasRead = true, HasWrite = true, CanSelect = true, ContainsFiles = true };
+    private ServerFolderValidationResultDto _picked = new() { Path = "E:\\Setup\\Films", StorageLocationId = "media", Exists = true, HasRead = true, HasWrite = true, CanSelect = true, ContainsFiles = true };
     private IRenderedComponent<AppDialogHost> _dialogs = null!;
     private int _deferred;
+    private int _viewOnlyContinued;
     private int _validated;
     private int _created;
+    private static readonly Guid Me = Guid.Parse("a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1");
+    private EngineApiClientStub _stub = null!;
+    private readonly List<ViewSourceAdminDto> _sharedSources = [];
+    private readonly List<ViewSourceAdminDto> _mySources = [];
+    private readonly List<CreateViewSourceRequest> _sharedCreates = [];
+    private readonly List<(Guid Profile, CreateViewSourceRequest Request)> _profileCreates = [];
+    private string? _refusal;
 
     public SetupMediaStageTests()
     {
@@ -49,6 +59,36 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
+            _stub = stub;
+            stub.SetHandler("get_LastError", _ => _refusal);
+            stub.SetHandler(nameof(IEngineApiClient.GetViewSharedSourcesAsync), _ => Task.FromResult<IReadOnlyList<ViewSourceAdminDto>?>([.. _sharedSources]));
+            stub.SetHandler(nameof(IEngineApiClient.GetViewProfileSourcesAsync), args =>
+                Task.FromResult<ViewPersonalSpaceAdminReviewDto?>(new((Guid)args![0]!, null, [.. _mySources], [])));
+            stub.SetHandler(nameof(IEngineApiClient.CreateViewSharedSourceAsync), args =>
+            {
+                var request = (CreateViewSourceRequest)args![0]!;
+                if (_refusal is not null)
+                {
+                    return Task.FromResult<ViewSourceAdminDto?>(null);
+                }
+
+                _sharedCreates.Add(request);
+                return Task.FromResult<ViewSourceAdminDto?>(Remember(_sharedSources, request));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.CreateViewProfileSourceAsync), args =>
+            {
+                var request = (CreateViewSourceRequest)args![1]!;
+                if (_refusal is not null)
+                {
+                    return Task.FromResult<ViewSourceAdminDto?>(null);
+                }
+
+                _profileCreates.Add(((Guid)args[0]!, request));
+                return Task.FromResult<ViewSourceAdminDto?>(Remember(_mySources, request));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.GetServerFolderRootsAsync), _ => Task.FromResult<IReadOnlyList<ServerStorageLocationDto>>(_configuration.StorageLocations));
+            stub.SetHandler(nameof(IEngineApiClient.BrowseServerFoldersAsync), _ => Task.FromResult<BrowseServerFoldersResultDto?>(new() { DisplayPath = _picked.Path }));
+            stub.SetHandler(nameof(IEngineApiClient.ValidateServerFolderAsync), _ => Task.FromResult<ServerFolderValidationResultDto?>(_picked));
             stub.SetHandler(nameof(IEngineApiClient.GetSetupLibrariesAsync), args =>
             {
                 _setupSessions.Add((string?)args![0]);
@@ -68,6 +108,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.BrowseSetupServerFoldersAsync), _ => Task.FromResult<BrowseServerFoldersResultDto?>(new() { DisplayPath = _picked.Path }));
             stub.SetHandler(nameof(IEngineApiClient.ValidateSetupServerFolderAsync), _ => Task.FromResult<ServerFolderValidationResultDto?>(_picked));
         }));
+        Services.AddScoped<DashboardSessionAccessor>();
         Services.AddScoped<DeviceContextService>();
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
@@ -77,10 +118,22 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
 
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
-    private IRenderedComponent<SetupMediaStage> RenderStage(bool hasLibraries = false) => Render<SetupMediaStage>(parameters => parameters
-        .Add(x => x.SetupSession, Session)
+    private static ViewSourceAdminDto Remember(List<ViewSourceAdminDto> list, CreateViewSourceRequest request)
+    {
+        var source = new ViewSourceAdminDto(Guid.NewGuid(), "folder", request.Name, request.StorageMode, request.Path ?? string.Empty, request.IncludeSubdirectories, true, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, request.IncludeInTimeline, request.ContentKind ?? "photos");
+        list.Add(source);
+        return source;
+    }
+
+    // Setup's own session is cleared once the administrator exists, and by the media step that person is signed in.
+    private void SignIn(bool administrator = true) => Services.GetRequiredService<DashboardSessionAccessor>().Set("token", Me, Me, Guid.NewGuid(),
+        new DashboardAuthorityResponse(Me, Me, true, true, 1, 1, administrator, true, null, 1, [], [], []));
+
+    private IRenderedComponent<SetupMediaStage> RenderStage(bool hasLibraries = false, string? session = Session) => Render<SetupMediaStage>(parameters => parameters
+        .Add(x => x.SetupSession, session)
         .Add(x => x.HasLibraries, hasLibraries)
         .Add(x => x.DeferMedia, EventCallback.Factory.Create(this, () => _deferred++))
+        .Add(x => x.ContinueWithViewOnly, EventCallback.Factory.Create(this, () => _viewOnlyContinued++))
         .Add(x => x.ValidateMedia, EventCallback.Factory.Create(this, () => _validated++))
         .Add(x => x.LibraryCreated, EventCallback.Factory.Create(this, () => _created++)));
 
@@ -91,6 +144,9 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     private AngleSharp.Dom.IElement DialogButton(string text) => _dialogs.FindAll("button").Single(x => Text(x) == text);
 
     private void WaitForLoaded(IRenderedComponent<SetupMediaStage> cut) => cut.WaitForAssertion(() => Assert.Contains(Session, _setupSessions));
+
+    // With no setup session the stage reads through the signed-in calls, so "loaded" is the folder list showing.
+    private static void WaitForSignedInLoad(IRenderedComponent<SetupMediaStage> cut) => cut.WaitForAssertion(() => Assert.Contains(cut.FindAll(".setup-have__card"), card => card.GetAttribute("data-group") == "view"));
 
     // 1. The cards.
     [Fact]
@@ -343,8 +399,9 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
 
     // 5. View.
     [Fact]
-    public void TickingViewShowsTheAfterSetupLineAndNoAddFolder()
+    public void WhileASetupSessionStillExistsTickingViewShowsTheAfterSetupLineAndNoAddFolderAndMakesNoViewCall()
     {
+        SignIn();
         var cut = RenderStage();
         WaitForLoaded(cut);
 
@@ -352,10 +409,166 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
 
         Assert.Contains("You can add photo and personal video folders after setup, in Settings > Libraries > View.", Text(cut.Find("[data-section=view]")), StringComparison.Ordinal);
         Assert.DoesNotContain(cut.FindAll("button"), x => Text(x) == "+ Add folder");
+        Assert.Empty(cut.FindAll("[data-section=view] .setup-have__type"));
+        Assert.DoesNotContain(_stub.Calls, call => call.Contains("View", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task TheWizardOpenedOnViewDuringSetupStaysOnTheGroupsSetupOffersAndNeverNavigates()
+    public void SignedInAsSomeoneWhoIsNotAnAdministratorViewStillShowsTheAfterSetupLine()
+    {
+        SignIn(administrator: false);
+        var cut = RenderStage(session: null);
+        WaitForSignedInLoad(cut);
+
+        Tick(cut, "view");
+
+        Assert.Contains("after setup", Text(cut.Find("[data-section=view]")), StringComparison.Ordinal);
+        Assert.DoesNotContain(cut.FindAll("button"), x => Text(x) == "+ Add folder");
+        Assert.DoesNotContain(_stub.Calls, call => call.Contains("View", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SignedInAsTheAdministratorAfterTheSetupSessionIsGoneTickingViewListsItsThreeKindsAndOffersAddFolder()
+    {
+        SignIn();
+        var cut = RenderStage(session: null);
+        WaitForSignedInLoad(cut);
+
+        Tick(cut, "view");
+
+        var section = cut.Find("[data-section=view]");
+        Assert.DoesNotContain("after setup", Text(section), StringComparison.Ordinal);
+        Assert.Equal(["Photos", "Personal videos", "Documents"], section.QuerySelectorAll(".setup-have__type").Select(x => Text(x.QuerySelector("strong")!)).ToArray());
+        Assert.Contains(cut.FindAll("button"), x => Text(x) == "+ Add folder");
+    }
+
+    private void PickViewFolder(string path)
+    {
+        _picked = new ServerFolderValidationResultDto { Path = path, StorageLocationId = "media", Exists = true, HasRead = true, HasWrite = true, CanSelect = true, ContainsFiles = true };
+        _dialogs.WaitForElement(".server-folder-picker");
+        _dialogs.WaitForAssertion(() => Assert.False(DialogButton("Next").HasAttribute("disabled")));
+        DialogButton("Next").Click();
+        _dialogs.WaitForElement("#add-wizard-who");
+    }
+
+    [Fact]
+    public async Task SignedInAsTheAdministratorSetupAddsAPhotosFolderToTheHouseholdAndADocumentsFolderToOnlyMeShowsBothAndContinues()
+    {
+        SignIn();
+        var cut = RenderStage(session: null);
+        WaitForSignedInLoad(cut);
+        Tick(cut, "view");
+        Button(cut, "+ Add folder").Click();
+        _dialogs.WaitForElement(".add-wizard");
+
+        // Step 1 keeps to setup: View is offered with its three kinds, and the steps end in who it is for.
+        Assert.Equal(["Watch", "Listen", "Read", "View"], _dialogs.FindAll(".add-wizard__tile").Select(Text).ToArray());
+        Assert.Equal("true", _dialogs.Find(".add-wizard__tile[data-group=view]").GetAttribute("aria-pressed"));
+        Assert.Equal(["Photos", "Personal videos", "Documents"], _dialogs.FindAll(".add-wizard__kind-option").Select(Text).ToArray());
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        var before = navigation.Uri;
+
+        _picked = new ServerFolderValidationResultDto { Path = "E:\\Family\\Photos", StorageLocationId = "media", Exists = true, HasRead = true, HasWrite = true, CanSelect = true, ContainsFiles = true };
+        _dialogs.FindAll(".add-wizard__kind-option").Single(x => Text(x) == "Photos").Click();
+        PickViewFolder("E:\\Family\\Photos");
+        Assert.Equal("1 What is it? · 2 Folder · 3 Who for", Text(_dialogs.Find(".add-wizard__steps")));
+        // The household is preselected.
+        Assert.Equal("true", _dialogs.Find("[data-audience=household]").GetAttribute("aria-checked"));
+        Assert.Equal("false", _dialogs.Find("[data-audience=me]").GetAttribute("aria-checked"));
+        DialogButton("Add folder").Click();
+        _dialogs.WaitForElement(".add-wizard__done");
+
+        var shared = Assert.Single(_sharedCreates);
+        Assert.Equal("photos", shared.ContentKind);
+        Assert.Equal("linked", shared.StorageMode);
+        Assert.Equal("E:\\Family\\Photos", shared.Path);
+        Assert.Empty(_profileCreates);
+
+        DialogButton("Add another").Click();
+        _picked = new ServerFolderValidationResultDto { Path = "E:\\Papers", StorageLocationId = "media", Exists = true, HasRead = true, HasWrite = true, CanSelect = true, ContainsFiles = true };
+        _dialogs.FindAll(".add-wizard__kind-option").Single(x => Text(x) == "Documents").Click();
+        PickViewFolder("E:\\Papers");
+        _dialogs.Find("[data-audience=me]").Click();
+        DialogButton("Add folder").Click();
+        _dialogs.WaitForElement(".add-wizard__done");
+
+        var mine = Assert.Single(_profileCreates);
+        Assert.Equal(Me, mine.Profile);
+        Assert.Equal("documents", mine.Request.ContentKind);
+        Assert.Single(_sharedCreates);
+        Assert.Equal(before, navigation.Uri);
+
+        cut.WaitForAssertion(() =>
+        {
+            var photos = Text(cut.Find(".setup-have__type[data-type=photos]"));
+            Assert.Contains("E:\\Family\\Photos", photos, StringComparison.Ordinal);
+            Assert.Contains("Everyone in the household", photos, StringComparison.Ordinal);
+            var documents = Text(cut.Find(".setup-have__type[data-type=documents]"));
+            Assert.Contains("E:\\Papers", documents, StringComparison.Ordinal);
+            Assert.Contains("Only me", documents, StringComparison.Ordinal);
+        });
+        Assert.Empty(cut.FindAll(".setup-have__type[data-type=personal_videos] li"));
+        Assert.True(_created > 0);
+
+        // Another folder somewhere makes Continue the footer, and it moves on.
+        cut.Render(parameters => parameters.Add(x => x.HasLibraries, true));
+        await cut.InvokeAsync(() => Button(cut, "Continue").Click());
+        Assert.Equal(1, _validated);
+        Assert.Equal(0, _deferred);
+        Assert.DoesNotContain(_setupSessions, session => session is not null);
+    }
+
+    [Fact]
+    public async Task WithOnlyAViewFolderAddedTheFooterSaysContinueAndRecordsTheStepAsLaterWithAViewNote()
+    {
+        SignIn();
+        var cut = RenderStage(session: null);
+        WaitForSignedInLoad(cut);
+        Tick(cut, "view");
+        Button(cut, "+ Add folder").Click();
+        _dialogs.WaitForElement(".add-wizard");
+        _picked = new ServerFolderValidationResultDto { Path = "E:\\Family\\Photos", StorageLocationId = "media", Exists = true, HasRead = true, HasWrite = true, CanSelect = true, ContainsFiles = true };
+        _dialogs.FindAll(".add-wizard__kind-option").Single(x => Text(x) == "Photos").Click();
+        PickViewFolder("E:\\Family\\Photos");
+        DialogButton("Add folder").Click();
+        _dialogs.WaitForElement(".add-wizard__done");
+
+        cut.WaitForAssertion(() => Assert.DoesNotContain(cut.FindAll("button"), x => Text(x) == "Skip for now"));
+        await cut.InvokeAsync(() => Button(cut, "Continue").Click());
+
+        // The Watch, Listen and Read check has nothing to check, so the step is recorded as later with its own note; the View folder is already saved.
+        Assert.Equal(1, _viewOnlyContinued);
+        Assert.Equal(0, _deferred);
+        Assert.Equal(0, _validated);
+        Assert.Single(_sharedCreates);
+    }
+
+    [Fact]
+    public void AnEngineRefusalOfAViewFolderShowsUnchangedAndNothingIsListed()
+    {
+        SignIn();
+        _refusal = "HTTP 422: That folder is not somewhere View may read.";
+        var cut = RenderStage(session: null);
+        WaitForSignedInLoad(cut);
+        Tick(cut, "view");
+        Button(cut, "+ Add folder").Click();
+        _dialogs.WaitForElement(".add-wizard");
+        _dialogs.FindAll(".add-wizard__kind-option").Single(x => Text(x) == "Photos").Click();
+        PickViewFolder("E:\\Refused");
+
+        DialogButton("Add folder").Click();
+
+        _dialogs.WaitForAssertion(() => Assert.Contains(_refusal, Text(_dialogs.Find(".add-wizard")), StringComparison.Ordinal));
+        Assert.Empty(_dialogs.FindAll(".add-wizard__done"));
+        Assert.Empty(_sharedCreates);
+        Assert.Equal(0, _created);
+        Assert.Empty(cut.FindAll("[data-section=view] li"));
+        // Setup stays usable: the same footer is still there.
+        Assert.Contains(cut.FindAll("button"), x => Text(x) == "Skip for now");
+    }
+
+    [Fact]
+    public async Task WithASetupSessionTheWizardOpenedOnViewStaysOnTheGroupsSetupOffersAndNeverNavigates()
     {
         var navigation = Services.GetRequiredService<NavigationManager>();
         var before = navigation.Uri;
@@ -364,6 +577,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
             { component => component.StartGroupKey, "view" },
             { component => component.SetupSession, Session },
             { component => component.Embedded, true },
+            { component => component.ViewOwnerProfileId, Me },
             { component => component.Configuration, _configuration },
             { component => component.Kinds, LibraryKindsTestData.Catalog },
         };

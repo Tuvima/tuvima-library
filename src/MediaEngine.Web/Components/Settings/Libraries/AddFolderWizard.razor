@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Contracts.Vault
 @using MediaEngine.Domain.PersonalMedia
@@ -10,7 +11,7 @@
 @inject NavigationManager Navigation
 @inject NsfwModeState Nsfw
 @inject VaultLibraryOnboarding VaultOnboarding
-@inject IEngineApiClient VaultApi
+@inject IEngineApiClient Api
 
 @* Adding a folder, in up to three steps: what is it, which folder, how should Library treat it. Nothing is created until
    "Add folder" on the last step. A level that already knows the type (its own page) starts at the folder step. The Vault tile
@@ -74,7 +75,7 @@
                 <p class="add-wizard__lead">Choose the folder on the Library server that holds your @_type.PluralLabel.</p>
                 <ServerFolderPicker Inline="true"
                                     ConfirmLabel="Next"
-                                    SelectionMode="@ServerFolderSelectionModes.ExistingLibrary"
+                                    SelectionMode="@(IsViewFlow ? ServerFolderSelectionModes.PersonalSpaceExisting : ServerFolderSelectionModes.ExistingLibrary)"
                                     MediaType="@_type.MediaTypes.FirstOrDefault()"
                                     SetupSession="@SetupSession"
                                     InitialPath="@_initialPath"
@@ -92,6 +93,29 @@
                             <AppButton Label="Continue anyway" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => GoTo(WizardStep.How))" />
                         </div>
                     </div>
+                }
+            }
+            else if (_step == WizardStep.How && IsViewFlow && _type is not null && _folder is not null)
+            {
+                @* View in first-run setup: who the folder is for, then the same few fields View's own add form asks. *@
+                <p class="add-wizard__lead"><code class="add-wizard__path" title="@_folder.Path">@_folder.Path</code></p>
+                <h3 class="add-wizard__question" id="add-wizard-who">Who is it for?</h3>
+                <div class="add-wizard__options" role="radiogroup" aria-labelledby="add-wizard-who">
+                    @AudienceOption(true, "Everyone in the household", "The household's shared View library: everyone with access to it can see these files.")
+                    @AudienceOption(false, "Only me", "Your own space in View. Nobody else sees these files unless you share them.")
+                </div>
+                <div class="add-wizard__options add-wizard__field">
+                    <AppTextField Label="Folder name" Value="@_viewName" ValueChanged="@((string? value) => _viewName = value ?? string.Empty)" ReadOnly="@_saving" />
+                    <AppSwitchRow Label="Include subfolders" Value="@_viewSubfolders" ValueChanged="@((bool value) => _viewSubfolders = value)" Disabled="@_saving" />
+                    @if (_type.Key != ViewContentKinds.Documents)
+                    {
+                        <AppSwitchRow Label="Show in Photos timeline" Value="@_viewTimeline" ValueChanged="@((bool value) => _viewTimeline = value)" Disabled="@_saving" />
+                    }
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
                 }
             }
             else if (_step == WizardStep.How && _type is not null && _folder is not null)
@@ -200,7 +224,7 @@
                 }
                 @if (_step == WizardStep.How)
                 {
-                    <AppButton Label="Add folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@_saving" OnClick="AddAsync" />
+                    <AppButton Label="Add folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@_saving" OnClick="@(() => IsViewFlow ? AddViewAsync() : AddAsync())" />
                 }
                 else if (_step == WizardStep.Vault)
                 {
@@ -237,6 +261,11 @@
     [Parameter] public string? SetupSession { get; set; }
     /// <summary>True in the first-run setup, which has no files to merge and no signed-in session.</summary>
     [Parameter] public bool Embedded { get; set; }
+    /// <summary>
+    /// The signed-in administrator's profile id, set by first-run setup only once its own session is gone (see <see cref="SetupViewAccess"/>).
+    /// It lets the embedded wizard offer View; null keeps View out of setup.
+    /// </summary>
+    [Parameter] public Guid? ViewOwnerProfileId { get; set; }
     /// <summary>Offers the Vault tile. The host sets it only while the Vault may be shown (see <see cref="LibraryVaultAccess"/>); setup never does.</summary>
     [Parameter] public bool ShowVault { get; set; }
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
@@ -276,8 +305,16 @@
     private static readonly LibraryTypeOption VaultType = new(
         LibraryGroupCatalog.VaultKey, "Vault", "Vault videos and images", LibraryGroupCatalog.VaultKey, [], AppMaterialIcons.Outlined.Lock);
 
-    // First-run setup has no way into View's settings, so View is not offered there.
-    private IEnumerable<LibraryGroup> OfferedGroups => Kinds.Visible(VaultOffered).Where(group => !Embedded || group.Key != "view");
+    // View is offered in setup only for the signed-in administrator (never with a setup session); it is saved here, never handed off.
+    private bool ViewInSetup => Embedded && string.IsNullOrWhiteSpace(SetupSession) && ViewOwnerProfileId is not null;
+    private bool IsViewFlow => ViewInSetup && LibraryTypeCatalog.IsViewKind(_type);
+    // Setup adds a View folder as a read-only linked folder; the defaults are the ones View's own add form starts with.
+    private bool _forHousehold = true;
+    private bool _viewSubfolders = true;
+    private bool _viewTimeline;
+    private string _viewName = string.Empty;
+
+    private IEnumerable<LibraryGroup> OfferedGroups => Kinds.Visible(VaultOffered).Where(group => !Embedded || ViewInSetup || group.Key != "view");
 
     private FolderAddScope Scope => new(Embedded, SetupSession);
     private LibraryGroup? CurrentGroup => OfferedGroups.FirstOrDefault(group => group.Key == _groupKey);
@@ -289,7 +326,7 @@
     private bool CanMerge => !Embedded && _folder?.ContainsFiles == true && TypeLibrary?.Sources.Any(source => source.ManagementMode == "managed_by_tuvima") == true;
 
     // "1 What is it? · 2 Folder · 3 How" ("3 Vault" for the Vault), or "1 Folder · 2 How" when the type is already known.
-    private IReadOnlyList<string> StepLabels => _typeKnown ? ["Folder", "How"] : ["What is it?", "Folder", IsVault ? "Vault" : "How"];
+    private IReadOnlyList<string> StepLabels => _typeKnown ? ["Folder", IsViewFlow ? "Who for" : "How"] : ["What is it?", "Folder", IsVault ? "Vault" : IsViewFlow ? "Who for" : "How"];
     private int CurrentStepIndex => (_step switch { WizardStep.Kind => 0, WizardStep.Folder => 1, _ => 2 }) - (_typeKnown ? 1 : 0);
 
     protected override void OnInitialized()
@@ -297,8 +334,8 @@
         Nsfw.Changed += OnVaultModeChanged;
         _configuration = Configuration;
         var known = LibraryFolderAddService.ResolveType(Kinds, _configuration, StartTypeKey);
-        // View's folders cannot be added in setup, so a View type there starts at step 1 like no type at all.
-        if (Embedded && known is not null && Kinds.GroupFor(known.Key)?.Key == "view") known = null;
+        // View's folders cannot be added in setup without the signed-in administrator, so a View type there starts at step 1 like no type at all.
+        if (Embedded && !ViewInSetup && known is not null && Kinds.GroupFor(known.Key)?.Key == "view") known = null;
         if (known is not null)
         {
             _typeKnown = true;
@@ -308,7 +345,7 @@
         }
         else
         {
-            // Only a group the wizard offers can start it, so setup can never open on View (and so never hand off to it).
+            // Only a group the wizard offers can start it, so setup opens on View only for the signed-in administrator (and never hands off to it).
             _groupKey = OfferedGroups.FirstOrDefault(group => string.Equals(group.Key, StartGroupKey?.Trim(), StringComparison.OrdinalIgnoreCase))?.Key;
             // The Vault has no kinds to choose, so its own page opens the wizard on the folder step.
             if (IsVault)
@@ -359,7 +396,8 @@
     private void ChooseKind(LibraryTypeOption kind)
     {
         // View keeps its folders in its own place, so choosing one of its kinds hands over to that kind's add form; nothing is created here.
-        if (LibraryTypeCatalog.IsViewKind(kind))
+        // First-run setup stays in setup: the wizard saves the View folder itself (AddViewAsync).
+        if (LibraryTypeCatalog.IsViewKind(kind) && !ViewInSetup)
         {
             HandOffToView(kind.Key, null);
             return;
@@ -377,6 +415,10 @@
         _initialPath = step == WizardStep.Folder ? _folder?.Path : null;
         if (step == WizardStep.How)
         {
+            _forHousehold = true;
+            _viewSubfolders = true;
+            _viewTimeline = false;
+            _viewName = _folder is null ? string.Empty : Path.GetFileName(_folder.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             // A folder with files is read-only until the person says otherwise; an empty one is managed, and asks only about new media.
             _handling = AddFolderHandling.ReadOnly;
             _markNewMediaHere = true;
@@ -432,7 +474,7 @@
 
     private async Task LoadVaultLibraryAsync()
     {
-        var call = await VaultApi.GetVaultLibrariesAsync();
+        var call = await Api.GetVaultLibrariesAsync();
         _vaultReadFailed = !call.Succeeded;
         _vaultLibrary = call.Succeeded ? call.Value?.FirstOrDefault() : null;
     }
@@ -474,6 +516,38 @@
         if (!string.IsNullOrWhiteSpace(path)) address += $"&path={Uri.EscapeDataString(path)}";
         Dialog.Cancel();
         Navigation.NavigateTo(address);
+    }
+
+    // Setup's View save: the shared household library (the default) or the administrator's own space, through the same Engine actions
+    // View settings uses. The Engine's refusal is shown as it comes and nothing is added.
+    private async Task AddViewAsync()
+    {
+        if (_saving || _type is null || _folder is null || ViewOwnerProfileId is not { } owner) return;
+        if (string.IsNullOrWhiteSpace(_viewName))
+        {
+            _error = "Give the folder a name.";
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            var request = new CreateViewSourceRequest(_viewName.Trim(), "linked", _folder.Path, _viewSubfolders, _viewTimeline && _type.Key != ViewContentKinds.Documents, _type.Key);
+            var created = _forHousehold
+                ? await Api.CreateViewSharedSourceAsync(request)
+                : await Api.CreateViewProfileSourceAsync(owner, request);
+            if (created is null)
+            {
+                _error = Api.LastError is { Length: > 0 } refusal ? refusal : "Folder could not be added.";
+                return;
+            }
+
+            _notice = null;
+            _step = WizardStep.Done;
+            if (OnFolderAdded is not null) await OnFolderAdded(null);
+        }
+        finally { _saving = false; }
     }
 
     private async Task AddAsync()
@@ -586,6 +660,26 @@
                 {
                     <span class="add-wizard__warning" role="img" aria-label="Warning"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" /></span>
                 }
+            </AppNativeButton>
+            <AppTooltip Text="@tip" Placement="AppPlacement.Top">
+                <span class="add-wizard__info" role="img" tabindex="0" aria-label="@($"About {title}: {tip}")"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
+            </AppTooltip>
+        </div>
+    };
+
+    // One radio card for who a View folder is for.
+    private RenderFragment AudienceOption(bool household, string title, string tip) => __builder =>
+    {
+        var selected = _forHousehold == household;
+        <div class="add-wizard__option">
+            <AppNativeButton Type="button"
+                             role="radio"
+                             Class="@(selected ? "add-wizard__choice is-selected" : "add-wizard__choice")"
+                             data-audience="@(household ? "household" : "me")"
+                             aria-checked="@(selected ? "true" : "false")"
+                             Disabled="@_saving"
+                             OnClick="@(_ => _forHousehold = household)">
+                <strong>@title</strong>
             </AppNativeButton>
             <AppTooltip Text="@tip" Placement="AppPlacement.Top">
                 <span class="add-wizard__info" role="img" tabindex="0" aria-label="@($"About {title}: {tip}")"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
