@@ -5,35 +5,84 @@
 @using Microsoft.JSInterop
 @implements IDisposable
 
-<AppHostedDialog Title="@Title"
-                 Subtitle="@HelpText"
-                 Icon="@AppMediaPresentation.IconFor(MediaType, outlined: true)"
-                 Size="FullscreenEditor"
-                 Class="server-folder-picker-host"
-                 OnClose="Cancel">
-    <ChildContent>
+
+@if (Inline)
+{
+    <div class="server-folder-picker__inline">
+        @BodyContent
+        <div class="server-folder-picker__inline-footer">@FooterContent</div>
+    </div>
+}
+else
+{
+    <AppHostedDialog Title="@Title"
+                     Subtitle="@HelpText"
+                     Icon="@AppMediaPresentation.IconFor(MediaType, outlined: true)"
+                     Size="FullscreenEditor"
+                     Class="server-folder-picker-host"
+                     OnClose="Cancel">
+        <ChildContent>@BodyContent</ChildContent>
+        <FooterContent>@FooterContent</FooterContent>
+    </AppHostedDialog>
+}
+
+@code {
+    // The picker body and footer are shared by the dialog and the inline (embedded) form.
+    private RenderFragment BodyContent => @<text>
         <div class="@RootClass">
             @if (ShowBrowser)
             {
                 <div class="server-folder-picker__pathbar">
-                    <AppTextField Label="Folder path"
-                                  HideLabel="true"
-                                  Class="server-folder-picker__path"
-                                  Value="@_pathText"
-                                  ValueChanged="PathChanged"
-                                  OnKeyDown="PathKeyDownAsync"
-                                  Adornment="@(string.IsNullOrEmpty(_pathText) ? AppAdornment.None : AppAdornment.End)"
-                                  AdornmentIcon="@AppMaterialIcons.Outlined.Close"
-                                  AdornmentAriaLabel="Clear the path"
-                                  OnAdornmentClick="ClearPath"
-                                  Error="@(_pathMessage is not null)"
-                                  ErrorText="@_pathMessage"
-                                  Placeholder="Type or paste a folder path (for example /media/movies) and press Enter" />
-                    <AppButton Label="Go"
-                               ButtonStyle="AppButtonStyle.Filled"
-                               Tone="AppUiTone.Primary"
-                               Disabled="@(string.IsNullOrWhiteSpace(_pathText) || _loadingBrowse)"
-                               OnClick="GoToTypedPathAsync" />
+                    @if (_editingPath)
+                    {
+                        <div class="server-folder-picker__address is-editing" data-app-escape-owner="field">
+                            <input @ref="_pathInput"
+                                   type="text"
+                                   class="server-folder-picker__address-field server-folder-picker__address-input"
+                                   aria-label="Folder path"
+                                   autocomplete="off"
+                                   spellcheck="false"
+                                   value="@_pathText"
+                                   placeholder="Type or paste a folder path (for example /media/movies) and press Enter"
+                                   @oninput="PathInput"
+                                   @onkeydown="PathKeyDownAsync"
+                                   @onblur="CancelPathEditAsync" />
+                        </div>
+                    }
+                    else
+                    {
+                        <nav class="server-folder-picker__address" aria-label="Folder path">
+                            @foreach (var crumb in Crumbs)
+                            {
+                                <span class="server-folder-picker__segment">
+                                    <button type="button"
+                                            class="server-folder-picker__crumb@(crumb.IsCurrent ? " is-current" : string.Empty)"
+                                            aria-current="@(crumb.IsCurrent ? "location" : null)"
+                                            @onclick="@(() => OpenCrumbAsync(crumb.Relative))">@crumb.Label</button>
+                                    <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.ChevronRight"
+                                                     Class="server-folder-picker__chevron"
+                                                     AriaLabel="@($"Folders inside {crumb.Label}")"
+                                                     AnchorOrigin="AppOrigin.BottomLeft"
+                                                     TransformOrigin="AppOrigin.TopLeft">
+                                        <ServerFolderSegmentMenu StorageLocationId="@_activeLocation?.Id"
+                                                                 RelativePath="@crumb.Relative"
+                                                                 SetupSession="@SetupSession"
+                                                                 OnChosen="OpenCrumbAsync" />
+                                    </AppOverflowMenu>
+                                </span>
+                            }
+                            <button type="button"
+                                    @ref="_addressEnd"
+                                    class="server-folder-picker__address-field server-folder-picker__address-end"
+                                    aria-label="Type a path"
+                                    title="Type a path"
+                                    @onclick="BeginPathEdit"></button>
+                        </nav>
+                    }
+                    @if (_pathMessage is not null)
+                    {
+                        <div class="app-field__help tl-field-error" role="alert">@_pathMessage</div>
+                    }
                 </div>
             }
 
@@ -55,7 +104,7 @@
                                         aria-label="@($"Browse {DisplayName(location)}")"
                                         @onclick="@(() => SelectLocationAsync(location))">
                                     <AppMaterialIcon Icon="@(IsMachineLocation(location) ? AppMaterialIcons.Outlined.Storage : AppMaterialIcons.Outlined.FolderOpen)" />
-                                    <span><strong>@DisplayName(location)</strong><small>@location.Path</small></span>
+                                    <span><strong>@DisplayName(location)</strong>@if (ShowLocationPath(location)) { <small>@location.Path</small> }</span>
                                 </button>
                             }
                         }
@@ -101,20 +150,6 @@
                                                Disabled="@_loadingBrowse"
                                                OnClick="RefreshAsync" />
                             </div>
-                            <nav class="server-folder-picker__crumbs" aria-label="Folder trail">
-                                @foreach (var crumb in Crumbs)
-                                {
-                                    @if (crumb.IsCurrent)
-                                    {
-                                        <span class="server-folder-picker__crumb is-current" aria-current="location">@crumb.Label</span>
-                                    }
-                                    else
-                                    {
-                                        <button type="button" class="server-folder-picker__crumb" @onclick="@(() => OpenCrumbAsync(crumb.Relative))">@crumb.Label</button>
-                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppSize.Small" />
-                                    }
-                                }
-                            </nav>
                             <label class="server-folder-picker__search">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
                                 <AppNativeInput Type="search"
@@ -213,8 +248,9 @@
                 </section>
             </div>
         </div>
-    </ChildContent>
-    <FooterContent>
+    </text>;
+
+    private RenderFragment FooterContent => @<text>
         <div class="server-folder-picker__footer">
             <div class="server-folder-picker__selected">
                 <span class="server-folder-picker__selected-label">Selected path</span>
@@ -232,7 +268,10 @@
                 <span class="server-folder-picker__copied" aria-live="polite">@_copyMessage</span>
             </div>
             <AppActionBar Align="AppHorizontalAlignment.End">
-                <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
+                @if (!Inline)
+                {
+                    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
+                }
                 <AppButton Label="@ConfirmLabel"
                            ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"
@@ -240,10 +279,8 @@
                            OnClick="Confirm" />
             </AppActionBar>
         </div>
-    </FooterContent>
-</AppHostedDialog>
+    </text>;
 
-@code {
     [Parameter] public string? SetupSession { get; set; }
     [CascadingParameter] private IAppDialogContext DialogInstance { get; set; } = null!;
     [Parameter] public string Title { get; set; } = "Choose a folder";
@@ -255,6 +292,10 @@
     [Parameter] public IReadOnlyCollection<string>? AllowedStorageLocationIds { get; set; }
     /// <summary>The media type being added to (for example Movies); the title-bar icon follows it. Empty means the generic folder icon.</summary>
     [Parameter] public string? MediaType { get; set; }
+    /// <summary>Render only the body (address bar, locations, folder list and the selected-path footer) with no dialog title or Cancel, so a host dialog can embed the picker.</summary>
+    [Parameter] public bool Inline { get; set; }
+    /// <summary>Called with the validated folder when the person confirms while <see cref="Inline"/> is true; the dialog form closes with the same result instead.</summary>
+    [Parameter] public EventCallback<ServerFolderValidationResultDto> OnConfirmed { get; set; }
 
     private const string CantOpenMessage = "The Library can't open that folder.";
     private const string NotFoundMessage = "That folder doesn't exist.";
@@ -282,6 +323,16 @@
     private string? _copyMessage;
     private string _search = string.Empty;
     private string _pathText = string.Empty;
+    // The address bar shows clickable folder names; clicking its empty end swaps it for a text box holding the full path.
+    private bool _editingPath;
+    private bool _pathEdited;
+    private bool _focusPathInput;
+    private bool _focusAddressEnd;
+    private ElementReference _pathInput;
+    private ElementReference _addressEnd;
+    private IJSObjectReference? _fields;
+    // What was selected when path editing began, so Esc (or leaving the box) puts it back without another call.
+    private (string? Folder, string RelativePath, string PathText, ServerFolderValidationResultDto? Validation)? _beforeEdit;
     private int _highlight;
     private bool _focusList;
     private ElementReference _listElement;
@@ -312,6 +363,10 @@
     }
 
     private static string DisplayName(ServerStorageLocationDto location) => location.Label;
+
+    // A drive reports the same text as its label and its path ("C:" and "C:\"); show it once.
+    private static bool ShowLocationPath(ServerStorageLocationDto location) =>
+        !string.Equals(location.Label.TrimEnd('\\', '/'), location.Path.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
 
     private IReadOnlyList<ServerStorageLocationDto> VisibleLocations => _locations
         .Where(location => AllowedStorageLocationIds is null
@@ -580,6 +635,7 @@
     private async Task GoToTypedPathAsync()
     {
         if (string.IsNullOrWhiteSpace(_pathText)) return;
+        _pathEdited = true;
         InvalidateValidation();
         var generation = _validationGeneration;
         _validationRequest = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
@@ -619,6 +675,10 @@
         _selectedFolder = null;
         _selectedRelativePath = validation.RelativePath;
         _validation = validation;
+        _editingPath = false;
+        _pathEdited = false;
+        _beforeEdit = null;
+        _focusAddressEnd = true;
         if (!string.IsNullOrWhiteSpace(validation.Path))
         {
             _pathText = validation.Path;
@@ -641,13 +701,44 @@
     private async Task PathKeyDownAsync(KeyboardEventArgs args)
     {
         if (args.Key == "Enter") await GoToTypedPathAsync();
+        else if (args.Key == "Escape") await CancelPathEditAsync();
     }
 
-    private void ClearPath()
+    // Clicking the empty end of the address bar (or its "Type a path" button) turns it into a text box with the full path selected.
+    private void BeginPathEdit()
     {
-        _pathText = string.Empty;
+        if (_editingPath) return;
+        _beforeEdit = (_selectedFolder, _selectedRelativePath, _selectedPathText, _validation);
+        _pathText = _browse?.DisplayPath ?? _pathText;
         _pathMessage = null;
+        _editingPath = true;
+        _focusPathInput = true;
+    }
+
+    // Esc or leaving the box goes back to the folder names; nothing is browsed and the earlier selection returns.
+    private async Task CancelPathEditAsync()
+    {
+        if (!_editingPath) return;
+        _editingPath = false;
+        _pathMessage = null;
+        _focusAddressEnd = true;
+        var edited = _pathEdited;
+        var before = _beforeEdit;
+        _pathEdited = false;
+        _beforeEdit = null;
+        _pathText = _browse?.DisplayPath ?? _pathText;
+        // Typing or Enter dropped the selection; opening the box and leaving it untouched changed nothing.
+        if (!edited) return;
         InvalidateValidation();
+        if (before is { } saved)
+        {
+            _selectedFolder = saved.Folder;
+            _selectedRelativePath = saved.RelativePath;
+            _selectedPathText = saved.PathText;
+            _validation = saved.Validation;
+        }
+
+        if (_validation is null && _activeLocation is not null) await ValidateSelectedAsync();
     }
 
     private async Task ListKeyDownAsync(KeyboardEventArgs args)
@@ -720,9 +811,24 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!_focusList || _loadingBrowse) return;
-        _focusList = false;
-        try { await _listElement.FocusAsync(); }
+        try
+        {
+            if (_focusPathInput && _editingPath)
+            {
+                _focusPathInput = false;
+                _fields ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-fields.js");
+                await _fields.InvokeVoidAsync("selectText", _pathInput);
+            }
+            else if (_focusAddressEnd && !_editingPath)
+            {
+                _focusAddressEnd = false;
+                if (!_focusList && _addressEnd.Id is not null) await _addressEnd.FocusAsync();
+            }
+
+            if (!_focusList || _loadingBrowse) return;
+            _focusList = false;
+            await _listElement.FocusAsync();
+        }
         catch (JSDisconnectedException) { /* The circuit closed while focus was moving; nothing to restore. */ }
     }
 
@@ -735,7 +841,7 @@
         _validation = null;
         _validating = false;
     }
-    private void PathChanged(string? value) { _pathText = value ?? string.Empty; _pathMessage = null; InvalidateValidation(); }
+    private void PathInput(ChangeEventArgs args) { _pathText = args.Value?.ToString() ?? string.Empty; _pathMessage = null; _pathEdited = true; InvalidateValidation(); }
     private void CancelSearchDebounce()
     {
         _searchDebounce?.Cancel();
@@ -746,7 +852,9 @@
     {
         if (_validating || _loadingBrowse || _validation?.CanSelect != true) return;
         await ValidateSelectedAsync();
-        if (_validation?.CanSelect == true) DialogInstance.Close(AppDialogResult.Ok(_validation));
+        if (_validation?.CanSelect != true) return;
+        if (Inline) await OnConfirmed.InvokeAsync(_validation);
+        else DialogInstance.Close(AppDialogResult.Ok(_validation));
     }
     private void Cancel() => DialogInstance.Cancel();
 

@@ -1,0 +1,60 @@
+@namespace MediaEngine.Web.Components.Shared
+@inject IEngineApiClient ApiClient
+@implements IDisposable
+
+@* The folders inside one segment of the picker's address bar. It sits in the segment's menu, so it is created (and loads) only when that menu opens. *@
+<div class="server-folder-segment-menu" style="max-height: min(18rem, 40svh); overflow-y: auto;">
+    @if (_loading)
+    {
+        <div class="app-menu-item" aria-live="polite">Loading folders...</div>
+    }
+    else if (_folders.Count == 0)
+    {
+        <div class="app-menu-item" aria-live="polite">@(_failed ? "The Library can't open that folder." : "No folders in here.")</div>
+    }
+    else
+    {
+        @foreach (var folder in _folders)
+        {
+            var relative = folder.RelativePath;
+            <AppMenuItem Icon="@AppMaterialIcons.Outlined.FolderOpen" Label="@folder.Name" OnClick="@(() => OnChosen.InvokeAsync(relative))" />
+        }
+    }
+</div>
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<ServerFolderEntryDto> _folders = [];
+    private bool _loading = true;
+    private bool _failed;
+
+    [Parameter] public string? StorageLocationId { get; set; }
+    [Parameter] public string RelativePath { get; set; } = string.Empty;
+    [Parameter] public string? SetupSession { get; set; }
+    [Parameter] public EventCallback<string> OnChosen { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var request = new BrowseServerFoldersRequest { StorageLocationId = StorageLocationId ?? string.Empty, RelativePath = RelativePath };
+            var browse = string.IsNullOrWhiteSpace(SetupSession)
+                ? await ApiClient.BrowseServerFoldersAsync(request, _lifetime.Token)
+                : await ApiClient.BrowseSetupServerFoldersAsync(request, SetupSession, _lifetime.Token);
+            _failed = browse is null;
+            _folders = browse?.Directories ?? [];
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The menu closed before the list arrived.
+        }
+
+        _loading = false;
+    }
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

@@ -6,6 +6,7 @@ using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,8 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
 {
     private static readonly ServerStorageLocationDto WindowsDrive = new() { Id = "drive-c", Label = "C:", Path = "C:\\srv", AllowWrite = true };
     private static readonly ServerStorageLocationDto ContainerRoot = new() { Id = "server-root", Label = "This server", Path = "/media", AllowWrite = true };
+    private static readonly ServerStorageLocationDto WholeDrive = new() { Id = "drive-c", Label = "C:", Path = "C:\\", AllowWrite = true };
+    private static readonly ServerStorageLocationDto SlashRoot = new() { Id = "server-root", Label = "This server", Path = "/", AllowWrite = true };
     private static readonly ServerStorageLocationDto ConfiguredMovies = new() { Id = "media-movies", Label = "Movies library", Path = "C:\\srv\\Movies", AllowWrite = true };
 
     private ServerStorageLocationDto _root = WindowsDrive;
@@ -87,8 +90,9 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
                     }
                 }
 
+                var rootPrefix = _root.Path.TrimEnd(_separator);
                 var relative = request.ManualPath is { } manual
-                    ? manual.Replace(_root.Path, string.Empty, StringComparison.OrdinalIgnoreCase).Trim(_separator)
+                    ? (manual.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase) ? manual[rootPrefix.Length..] : manual).Trim(_separator)
                     : request.RelativePath ?? string.Empty;
                 return Task.FromResult<ServerFolderValidationResultDto?>(new()
                 {
@@ -108,7 +112,7 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
         Render<AppPopoverHost>();
     }
 
-    private string PathOf(string relative) => relative.Length == 0 ? _root.Path : $"{_root.Path}{_separator}{relative}";
+    private string PathOf(string relative) => relative.Length == 0 ? _root.Path : $"{_root.Path.TrimEnd(_separator)}{_separator}{relative}";
 
     private BrowseServerFoldersResultDto Browse(string relative)
     {
@@ -123,6 +127,8 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
             {
                 "" => [new() { Name = "Movies", RelativePath = "Movies" }, new() { Name = "TV", RelativePath = "TV" }],
                 "Movies" => [new() { Name = "Action", RelativePath = Child("Action") }],
+                "media" => [new() { Name = "movies", RelativePath = Child("movies") }, new() { Name = "tv", RelativePath = Child("tv") }],
+                "media/movies" => [new() { Name = "2024", RelativePath = Child("2024") }],
                 _ => [],
             },
         };
@@ -143,8 +149,23 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
         return host;
     }
 
-    private static string PathBarValue(IRenderedComponent<AppDialogHost> host) =>
-        host.Find(".server-folder-picker__pathbar input").GetAttribute("value") ?? string.Empty;
+    // The address bar shows folder names; its full path is what the text box holds, so open the box, read it and press Esc.
+    private static string PathBarValue(IRenderedComponent<AppDialogHost> host)
+    {
+        var value = OpenPathBox(host).GetAttribute("value") ?? string.Empty;
+        host.Find(".server-folder-picker__address-input").KeyDown(Key("Escape"));
+        host.WaitForElement(".server-folder-picker__address-end");
+        return value;
+    }
+
+    private static IElement OpenPathBox(IRenderedComponent<AppDialogHost> host)
+    {
+        host.Find(".server-folder-picker__address-end").Click();
+        return host.Find(".server-folder-picker__address-input");
+    }
+
+    private static string[] Segments(IRenderedComponent<AppDialogHost> host) =>
+        host.FindAll(".server-folder-picker__crumb").Select(crumb => crumb.TextContent.Trim()).ToArray();
 
     private static string SelectedPathValue(IRenderedComponent<AppDialogHost> host) =>
         host.Find("input[aria-label='Selected path']").GetAttribute("value") ?? string.Empty;
@@ -261,7 +282,7 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     {
         var host = await OpenPickerAsync();
 
-        var input = host.Find(".server-folder-picker__pathbar input");
+        var input = OpenPathBox(host);
         input.Input("C:\\srv\\Movies");
         Assert.True(ConfirmButton(host).HasAttribute("disabled"));
         input.KeyDown(Key("Enter"));
@@ -273,23 +294,12 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task PressingGoNavigatesToTheTypedPath()
-    {
-        var host = await OpenPickerAsync();
-
-        host.Find(".server-folder-picker__pathbar input").Input("C:\\srv\\Movies");
-        host.FindAll("button").Single(button => button.TextContent.Trim() == "Go").Click();
-
-        host.WaitForAssertion(() => Assert.Contains("Action", host.Find(".server-folder-picker__list").TextContent));
-    }
-
-    [Fact]
     public async Task APathThatDoesNotExistSaysSoBesideThePathBoxAndSelectsNothing()
     {
         var host = await OpenPickerAsync();
         host.WaitForAssertion(() => Assert.False(ConfirmButton(host).HasAttribute("disabled")));
 
-        var input = host.Find(".server-folder-picker__pathbar input");
+        var input = OpenPathBox(host);
         input.Input("C:\\srv\\missing");
         input.KeyDown(Key("Enter"));
 
@@ -307,7 +317,7 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
         var host = await OpenPickerAsync();
         host.WaitForAssertion(() => Assert.False(ConfirmButton(host).HasAttribute("disabled")));
 
-        var input = host.Find(".server-folder-picker__pathbar input");
+        var input = OpenPathBox(host);
         input.Input(typed);
         input.KeyDown(Key("Enter"));
 
@@ -321,12 +331,12 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     public async Task EditingThePathAfterAMessageClearsTheMessage()
     {
         var host = await OpenPickerAsync();
-        var input = host.Find(".server-folder-picker__pathbar input");
+        var input = OpenPathBox(host);
         input.Input("C:\\srv\\missing");
         input.KeyDown(Key("Enter"));
         host.WaitForAssertion(() => Assert.Contains("That folder doesn't exist.", host.Markup, StringComparison.Ordinal));
 
-        host.Find(".server-folder-picker__pathbar input").Input("C:\\srv\\Mov");
+        host.Find(".server-folder-picker__address-input").Input("C:\\srv\\Mov");
 
         Assert.DoesNotContain("That folder doesn't exist.", host.Markup, StringComparison.Ordinal);
     }
@@ -362,8 +372,7 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
         Row(host, "Action").DoubleClick();
         host.WaitForAssertion(() => Assert.Equal("C:\\srv\\Movies\\Action", PathBarValue(host)));
 
-        var crumbs = host.FindAll(".server-folder-picker__crumb").Select(crumb => crumb.TextContent.Trim()).ToArray();
-        Assert.Equal(["C:", "Movies", "Action"], crumbs);
+        Assert.Equal(["C:", "Movies", "Action"], Segments(host));
         Assert.Contains("is-current", host.FindAll(".server-folder-picker__crumb").Last().ClassName);
 
         host.Find("button[aria-label='Up one level']").Click();
@@ -431,8 +440,9 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
 
         // No host-side translation: nothing in the picker or the Dashboard's folder calls rewrites a path.
         Assert.DoesNotContain("C:", host.Find(".server-folder-picker").TextContent, StringComparison.Ordinal);
-        host.Find(".server-folder-picker__pathbar input").Input("/media/Movies");
-        host.Find(".server-folder-picker__pathbar input").KeyDown(Key("Enter"));
+        var typed = OpenPathBox(host);
+        typed.Input("/media/Movies");
+        typed.KeyDown(Key("Enter"));
         host.WaitForAssertion(() => Assert.Equal("/media/Movies", SelectedPathValue(host)));
     }
 
@@ -506,6 +516,130 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
         var host = await OpenPickerAsync(ServerFolderSelectionModes.ManagedLibrary);
 
         host.WaitForAssertion(() => Assert.Contains("can't write to this folder", host.Find(".server-folder-picker__notices").TextContent, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ADriveIsShownOnceInTheLocationListAndOnceInTheAddressBar()
+    {
+        _root = WholeDrive;
+        var host = await OpenPickerAsync();
+
+        var location = host.Find(".server-folder-picker__location");
+        Assert.Equal("C:", location.TextContent.Trim());
+        Assert.Empty(location.QuerySelectorAll("small"));
+        Assert.Equal(["C:"], Segments(host));
+    }
+
+    [Fact]
+    public async Task TheAddressBarShowsOneClickableSegmentPerFolderAndClickingOneOpensIt()
+    {
+        _root = SlashRoot;
+        _separator = '/';
+        var host = await OpenPickerAsync();
+        var input = OpenPathBox(host);
+        input.Input("/media/movies/2024");
+        input.KeyDown(Key("Enter"));
+
+        host.WaitForAssertion(() => Assert.Equal(["/", "media", "movies", "2024"], Segments(host)));
+        Assert.Equal("location", host.FindAll(".server-folder-picker__crumb").Last().GetAttribute("aria-current"));
+        _browsed.Clear();
+
+        host.FindAll(".server-folder-picker__crumb").Single(crumb => crumb.TextContent.Trim() == "media").Click();
+
+        host.WaitForAssertion(() => Assert.Equal(["/", "media"], Segments(host)));
+        Assert.Equal(["media"], _browsed);
+    }
+
+    [Fact]
+    public async Task ClickingTheEndOfTheAddressBarShowsTheFullPathAndEnterGoesThere()
+    {
+        var host = await OpenPickerAsync();
+        host.WaitForAssertion(() => Assert.Equal("C:\\srv", SelectedPathValue(host)));
+
+        var input = OpenPathBox(host);
+
+        Assert.Equal("C:\\srv", input.GetAttribute("value"));
+        Assert.Empty(host.FindAll(".server-folder-picker__crumb"));
+        input.Input("C:\\srv\\Movies");
+        input.KeyDown(Key("Enter"));
+
+        host.WaitForAssertion(() => Assert.Equal(["C:", "Movies"], Segments(host)));
+        Assert.Empty(host.FindAll(".server-folder-picker__address-input"));
+        Assert.Contains("Movies", _browsed);
+    }
+
+    [Fact]
+    public async Task EscapeInTheAddressBarTextBoxGoesBackToTheSegmentsWithoutBrowsing()
+    {
+        var host = await OpenPickerAsync();
+        host.WaitForAssertion(() => Assert.False(ConfirmButton(host).HasAttribute("disabled")));
+        _browsed.Clear();
+
+        var input = OpenPathBox(host);
+        input.Input("C:\\srv\\TV");
+        Assert.True(ConfirmButton(host).HasAttribute("disabled"));
+        input.KeyDown(Key("Escape"));
+
+        host.WaitForAssertion(() => Assert.Equal(["C:"], Segments(host)));
+        Assert.Empty(host.FindAll(".server-folder-picker__address-input"));
+        Assert.Empty(_browsed);
+        host.WaitForAssertion(() => Assert.False(ConfirmButton(host).HasAttribute("disabled")));
+        Assert.Equal("C:\\srv", SelectedPathValue(host));
+    }
+
+    [Fact]
+    public async Task ASegmentChevronListsTheFoldersInsideItAndChoosingOneOpensIt()
+    {
+        var host = await OpenPickerAsync();
+        host.WaitForAssertion(() => Assert.Equal("C:\\srv", SelectedPathValue(host)));
+
+        host.Find("button[aria-label='Folders inside C:']").Click();
+
+        host.WaitForAssertion(() => Assert.Equal(["Movies", "TV"], host.FindAll(".server-folder-segment-menu [role='menuitem']").Select(item => item.TextContent.Trim()).ToArray()));
+        host.FindAll(".server-folder-segment-menu [role='menuitem']").Single(item => item.TextContent.Trim() == "Movies").Click();
+
+        host.WaitForAssertion(() => Assert.Equal(["C:", "Movies"], Segments(host)));
+        Assert.Contains("Action", host.Find(".server-folder-picker__list").TextContent);
+        Assert.Contains("Movies", _browsed);
+    }
+
+    [Fact]
+    public void InlineRendersNoDialogChromeAndConfirmingCallsOnConfirmedInsteadOfClosingADialog()
+    {
+        ServerFolderValidationResultDto? confirmed = null;
+        var cut = Render<ServerFolderPicker>(parameters => parameters
+            .Add(picker => picker.Inline, true)
+            .Add(picker => picker.ConfirmLabel, "Next")
+            .Add(picker => picker.OnConfirmed, EventCallback.Factory.Create<ServerFolderValidationResultDto>(this, result => confirmed = result)));
+        cut.WaitForElement(".server-folder-picker__folder");
+
+        Assert.Empty(cut.FindAll(".app-dialog-shell"));
+        Assert.Empty(cut.FindAll("dialog"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Cancel");
+        Assert.NotNull(cut.Find(".server-folder-picker__address"));
+        Assert.NotNull(cut.Find("input[aria-label='Selected path']"));
+        cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").HasAttribute("disabled")));
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").Click();
+
+        cut.WaitForAssertion(() => Assert.NotNull(confirmed));
+        Assert.Equal("C:\\srv", confirmed!.Path);
+    }
+
+    [Fact]
+    public async Task NotInlineConfirmingClosesTheDialogWithTheValidationResult()
+    {
+        var host = Render<AppDialogHost>();
+        var reference = await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(string.Empty));
+        host.WaitForElement(".server-folder-picker__folder");
+        host.WaitForAssertion(() => Assert.False(ConfirmButton(host).HasAttribute("disabled")));
+
+        ConfirmButton(host).Click();
+
+        var result = await reference.Result.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.NotNull(result);
+        Assert.False(result.Canceled);
+        Assert.Equal("C:\\srv", Assert.IsType<ServerFolderValidationResultDto>(result.Data).Path);
     }
 
     [Fact]
