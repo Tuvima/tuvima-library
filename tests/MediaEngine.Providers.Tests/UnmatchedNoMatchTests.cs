@@ -1,7 +1,7 @@
 using Dapper;
-using MediaEngine.Domain.Constants;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
