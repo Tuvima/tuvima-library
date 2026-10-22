@@ -166,6 +166,172 @@ public sealed class LibraryMoveCrashSafetyTests : IDisposable
         Assert.DoesNotContain(await Files.Intents.GetPathsWithMoveInProgressAsync(), path => path.EndsWith(".flac", StringComparison.Ordinal));
     }
 
+    // ----- a drive that cannot be seen is not a file that is gone ------------------------------------------------------------------
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AMoveWhoseFolderCannotBeSeen_IsLeftAsItIs_NotMarkedLost_AndFinishesOnceItIsBack(bool lookedAtByTheMoveLane)
+    {
+        var move = await RequestMoveAsync();
+        var claimed = await ClaimAsync(move.Asset);
+        await Files.Intents.RecordMovePlannedAsync(claimed.Id, move.OldPath, move.NewPath, await HashOfAsync(move.OldPath));
+        var away = Files.Managed + "_away";
+        Directory.Move(Files.Managed, away);
+        try
+        {
+            await RestartAsync();
+
+            Assert.Equal("planned", MoveStep(move.Asset));
+            Assert.Equal("pending", Files.Intent(move.Asset).Status);
+            Assert.Equal(move.OldPath, Files.Scalar<string>("SELECT move_source_path FROM media_file_write_intents WHERE asset_id = @asset;", new { asset = move.Asset }));
+            Assert.Equal(move.NewPath, Files.Scalar<string>("SELECT move_target_path FROM media_file_write_intents WHERE asset_id = @asset;", new { asset = move.Asset }));
+            Assert.Equal(0, (await Files.Intents.GetCountsAsync()).Failed);
+            Assert.Contains(await Files.Intents.GetPathsWithMoveInProgressAsync(), path => string.Equals(path, move.OldPath, StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            Directory.Move(away, Files.Managed);
+        }
+
+        if (lookedAtByTheMoveLane)
+        {
+            // The wait before the next look passes, and the move lane looks again on its next pass.
+            Files.Execute("UPDATE media_file_write_intents SET next_attempt_at = NULL;");
+            await Files.DrainQueueAsync();
+        }
+        else
+        {
+            await RestartAsync();
+            await Files.DrainQueueAsync();
+        }
+
+        AssertFileOnlyAt(move.NewPath, move.OldPath);
+        Assert.Equal(move.NewPath, Files.StoredPath(move.Asset));
+        Assert.Null(MoveStep(move.Asset));
+        Assert.Equal("verified", Files.Intent(move.Asset).Status);
+    }
+
+    [Fact]
+    public async Task AFileThatVanishedFromBothPlaces_WhileTheirFoldersCanBeSeen_IsKeptOnTheFailedListWithItsPaths()
+    {
+        var move = await RequestMoveAsync();
+        var claimed = await ClaimAsync(move.Asset);
+        await Files.Intents.RecordMovePlannedAsync(claimed.Id, move.OldPath, move.NewPath, await HashOfAsync(move.OldPath));
+        File.Delete(move.OldPath);
+
+        await RestartAsync();
+
+        Assert.Equal("failed", Files.Intent(move.Asset).Status);
+        Assert.Equal(move.OldPath, Files.Scalar<string>("SELECT move_source_path FROM media_file_write_intents WHERE asset_id = @asset;", new { asset = move.Asset }));
+        Assert.Equal(move.NewPath, Files.Scalar<string>("SELECT move_target_path FROM media_file_write_intents WHERE asset_id = @asset;", new { asset = move.Asset }));
+        Assert.Empty(await Files.Intents.GetPathsWithMoveInProgressAsync());
+    }
+
+    // ----- a move that cannot be settled does not hide real deletions forever ----------------------------------------------------------
+
+    [Fact]
+    public async Task AMoveThatCannotBeSettledAfterSeveralTries_IsGivenUpWithItsPathsKept_AndNoLongerCountsAsMoving()
+    {
+        var move = await RequestMoveAsync();
+        var claimed = await ClaimAsync(move.Asset);
+        await Files.Intents.RecordMovePlannedAsync(claimed.Id, move.OldPath, move.NewPath, await HashOfAsync(move.OldPath));
+        Directory.CreateDirectory(Path.GetDirectoryName(move.NewPath)!);
+        File.Move(move.OldPath, move.NewPath);
+        await Files.Intents.RecordMoveMovedAsync(claimed.Id, move.NewPath);
+        var mover = Files.CreateMover(new NeverFollowsOrganizer(Files.Organizer));
+
+        for (var start = 1; start < LibraryMoveRunner.MaxRecoveryAttempts; start++)
+        {
+            await mover.RecoverInterruptedAsync(CancellationToken.None);
+            Assert.Equal("moved", MoveStep(move.Asset));
+            Assert.Contains(await Files.Intents.GetPathsWithMoveInProgressAsync(), path => string.Equals(path, move.NewPath, StringComparison.OrdinalIgnoreCase));
+        }
+
+        await mover.RecoverInterruptedAsync(CancellationToken.None);
+
+        var intent = Files.Intent(move.Asset);
+        Assert.Equal("failed", intent.Status);
+        Assert.Null(MoveStep(move.Asset));
+        Assert.StartsWith(LibraryMoveRunner.GaveUpReason, intent.Error, StringComparison.Ordinal);
+        Assert.Equal(move.NewPath, Files.Scalar<string>("SELECT move_target_path FROM media_file_write_intents WHERE asset_id = @asset;", new { asset = move.Asset }));
+        Assert.Empty(await Files.Intents.GetPathsWithMoveInProgressAsync());
+        Assert.True(File.Exists(move.NewPath));
+    }
+
+    // ----- an old place that is not Library's -----------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task AFileFoundAtTheOldPlaceAfterTheMoveFinished_IsNotLibrarysAndIsLeftAlone()
+    {
+        var move = await RequestMoveAsync();
+        var claimed = await ClaimAsync(move.Asset);
+        await Files.Intents.RecordMovePlannedAsync(claimed.Id, move.OldPath, move.NewPath, await HashOfAsync(move.OldPath));
+        Directory.CreateDirectory(Path.GetDirectoryName(move.NewPath)!);
+        File.Move(move.OldPath, move.NewPath);
+        await Files.Intents.RecordMoveMovedAsync(claimed.Id, move.NewPath);
+        File.WriteAllText(move.OldPath, "someone else put this here");
+
+        await RestartAsync();
+
+        Assert.Equal(move.NewPath, Files.StoredPath(move.Asset));
+        Assert.Null(MoveStep(move.Asset));
+        Assert.Equal("someone else put this here", File.ReadAllText(move.OldPath));
+        Assert.True(File.Exists(move.NewPath));
+    }
+
+    [Fact]
+    public async Task AnOldCopyThatChangedAfterTheMoveWasPlanned_IsNotDeleted_EvenWhenTheNewCopyIsComplete()
+    {
+        var move = await RequestMoveAsync();
+        var claimed = await ClaimAsync(move.Asset);
+        await Files.Intents.RecordMovePlannedAsync(claimed.Id, move.OldPath, move.NewPath, await HashOfAsync(move.OldPath));
+        Directory.CreateDirectory(Path.GetDirectoryName(move.NewPath)!);
+        File.Copy(move.OldPath, move.NewPath);
+        File.AppendAllText(move.OldPath, " edited since");
+
+        await RestartAsync();
+
+        Assert.True(File.Exists(move.OldPath));
+        Assert.True(File.Exists(move.NewPath));
+        Assert.Equal("planned", MoveStep(move.Asset));
+        Assert.Equal(1, Files.Scalar<int>("SELECT recovery_attempts FROM media_file_write_intents WHERE asset_id = @asset;", new { asset = move.Asset }));
+    }
+
+    [Fact]
+    public async Task ANewNameTakenAfterThePlanWasMade_DropsTheMove_LeavesTheOtherFileAlone_AndTheMoveIsTriedAgain()
+    {
+        var move = await RequestMoveAsync();
+        await ClaimAsync(move.Asset);
+        var recorder = new NameTakingRecorder(move.NewPath);
+
+        var outcome = await Files.Organizer.RefileAsync(move.Asset, recorder);
+
+        Assert.Equal(MediaEngine.Domain.Models.AssetRefileOutcomeKind.Failed, outcome.Kind);
+        Assert.True(recorder.NotMoved);
+        Assert.Equal("someone else's file", File.ReadAllText(move.NewPath));
+        Assert.True(File.Exists(move.OldPath));
+        Assert.Equal(move.OldPath, Files.StoredPath(move.Asset));
+        Assert.Equal("requested", MoveStep(move.Asset));
+    }
+
+    [Fact]
+    public async Task AMoveSettledOnTheSpotAfterAStop_IsCompletedOnce()
+    {
+        var move = await RequestMoveAsync();
+        var claimed = await ClaimAsync(move.Asset);
+        var stopsAfterMoving = new MoveThenFailOrganizer(new FileOrganizer(NullLogger<FileOrganizer>.Instance));
+        var mover = Files.CreateMover(Files.CreateOrganizer(stopsAfterMoving));
+
+        var result = await mover.MoveAsync(claimed, CancellationToken.None);
+
+        Assert.Equal(LibraryMoveRunner.MoveResultKind.Done, result.Kind);
+        Assert.True(result.Completed);
+        AssertFileOnlyAt(move.NewPath, move.OldPath);
+        Assert.Equal(move.NewPath, Files.StoredPath(move.Asset));
+        Assert.Null(MoveStep(move.Asset));
+    }
+
     // ----- the record while the move runs ---------------------------------------------------------------------------------------
 
     [Fact]
@@ -234,6 +400,44 @@ public sealed class LibraryMoveCrashSafetyTests : IDisposable
         Assert.False(await Files.Intents.CompleteMoveAsync(claimed.Id, claimed.Generation));
         Assert.Equal("requested", MoveStep(first.Asset));
 
+        await Files.DrainQueueAsync();
+
+        var stored = Files.StoredPath(first.Asset);
+        Assert.Equal("Kid A (2000)", Path.GetFileName(Path.GetDirectoryName(stored)));
+        Assert.True(File.Exists(stored));
+        Assert.False(File.Exists(first.NewPath));
+        Assert.False(File.Exists(first.OldPath));
+        Assert.Null(MoveStep(first.Asset));
+        Assert.Equal("verified", Files.Intent(first.Asset).Status);
+    }
+
+    [Theory]
+    [InlineData("planned")]
+    [InlineData("moved")]
+    public async Task ASecondMoveAskedForWhileTheFirstWasPartWayAndTheEngineStopped_EndsWithTheFileInTheSecondAlbum(string recordedStep)
+    {
+        var first = await RequestMoveAsync();
+        var claimed = await ClaimAsync(first.Asset);
+        await Files.Intents.RecordMovePlannedAsync(claimed.Id, first.OldPath, first.NewPath, await HashOfAsync(first.OldPath), claimed.Generation);
+
+        // The person moves the same song again while the first move is part-way; then the Engine stops.
+        var kidA = _world.AddParent("Music", "Kid A", manifestJson: KidAManifest);
+        _world.Put(kidA, "year", "2000");
+        var preview = await PreviewAsync([first.Song], kidA);
+        var second = await CommitAsync(preview, Match(first.Song, preview.Entries.Single(entry => entry.Title == "Kid A").EntryKey));
+        Assert.True(second.IsSuccess, second.Refusal?.Message);
+        Assert.Equal("planned", MoveStep(first.Asset));
+
+        Directory.CreateDirectory(Path.GetDirectoryName(first.NewPath)!);
+        File.Move(first.OldPath, first.NewPath);
+        if (recordedStep == "moved")
+        {
+            await Files.Intents.RecordMoveMovedAsync(claimed.Id, first.NewPath);
+        }
+
+        await RestartAsync();
+
+        Assert.Equal("requested", MoveStep(first.Asset));
         await Files.DrainQueueAsync();
 
         var stored = Files.StoredPath(first.Asset);
@@ -315,6 +519,60 @@ public sealed class LibraryMoveCrashSafetyTests : IDisposable
 
     private static LibraryMoveCommitRow Match(Guid item, string entryKey) =>
         new() { ItemId = item, Mode = LibraryMoveModes.Match, EntryKey = entryKey };
+
+    /// <summary>An organiser whose data store never follows an interrupted move (the asset went away, say).</summary>
+    private sealed class NeverFollowsOrganizer(MediaEngine.Domain.Contracts.IAutoOrganizeService inner) : MediaEngine.Domain.Contracts.IAutoOrganizeService
+    {
+        public Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default) => inner.TryAutoOrganizeAsync(assetId, ct);
+
+        public Task<MediaEngine.Domain.Models.AssetRefilePlan> PlanRefileAsync(
+            Guid assetId, MediaEngine.Domain.Models.AssetRefilePlacement? placement, CancellationToken ct = default) =>
+            inner.PlanRefileAsync(assetId, placement, ct);
+
+        public Task<MediaEngine.Domain.Models.AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default) =>
+            inner.RefileAsync(assetId, ct);
+
+        public Task CompleteInterruptedMoveAsync(Guid assetId, string sourcePath, string targetPath, CancellationToken ct = default) =>
+            Task.CompletedTask;
+    }
+
+    /// <summary>Takes the new name between the plan and the move, as another program could.</summary>
+    private sealed class NameTakingRecorder(string targetPath) : MediaEngine.Domain.Contracts.IRefileStepRecorder
+    {
+        public bool NotMoved { get; private set; }
+
+        public Task PlannedAsync(string sourcePath, string targetPath1, CancellationToken ct)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+            File.WriteAllText(targetPath, "someone else's file");
+            return Task.CompletedTask;
+        }
+
+        public Task NotMovedAsync(CancellationToken ct)
+        {
+            NotMoved = true;
+            return Task.CompletedTask;
+        }
+
+        public Task MovedAsync(string actualPath, CancellationToken ct) => Task.CompletedTask;
+
+        public Task CheckedAsync(CancellationToken ct) => Task.CompletedTask;
+    }
+
+    /// <summary>Moves the file for real and then fails, as a stop right after the move would.</summary>
+    private sealed class MoveThenFailOrganizer(IFileOrganizer inner) : IFileOrganizer
+    {
+        public string CalculatePath(MediaEngine.Ingestion.Models.IngestionCandidate candidate, string template) =>
+            inner.CalculatePath(candidate, template);
+
+        public string? ValidateTemplate(string template, out string? error) => inner.ValidateTemplate(template, out error);
+
+        public async Task<string?> ExecuteMoveAsync(string sourcePath, string destinationPath, CancellationToken ct = default)
+        {
+            await inner.ExecuteMoveAsync(sourcePath, destinationPath, ct);
+            throw new IOException("The Engine stopped right after the file moved.");
+        }
+    }
 
     /// <summary>Lets a test look at the data store at the moment the file is about to be moved, then moves it for real.</summary>
     private sealed class ObservingFileOrganizer(IFileOrganizer inner, Action beforeMove) : IFileOrganizer

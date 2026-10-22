@@ -78,7 +78,8 @@ internal sealed class MoveFileWorld : IDisposable
 
     /// <summary>The crash-safe mover of the move lane over the given organiser.</summary>
     public LibraryMoveRunner CreateMover(IAutoOrganizeService organizer) => new(
-        Intents, organizer, new MediaAssetRepository(Database), new AssetHasher(), Configuration, NullLogger<LibraryMoveRunner>.Instance);
+        Intents, organizer, new MediaAssetRepository(Database), new AssetHasher(), Configuration, NullLogger<LibraryMoveRunner>.Instance,
+        new LibraryFolderResolver(new StaticMonitor(Options)));
 
     /// <summary>The real organiser over a file organiser of the test's choosing (one that fails a move, say).</summary>
     public AutoOrganizeService CreateOrganizer(IFileOrganizer fileOrganizer) => new(

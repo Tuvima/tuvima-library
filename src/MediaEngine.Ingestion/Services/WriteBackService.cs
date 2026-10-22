@@ -208,10 +208,12 @@ public sealed class WriteBackService : IWriteBackOutcomeService
             await tagger.WriteTagsAsync(asset.FilePathRoot, tags, ct);
             var readback = await tagger.VerifyTagsAsync(asset.FilePathRoot, tags, ct);
 
-            // A verified physical mutation changes the asset's reconciliation
-            // fingerprint. Refresh both durable identity and the watcher cache
-            // before reporting success so our own file event keeps this asset ID.
-            if (readback.IsVerified && _assetHasher is not null)
+            // A physical mutation changes the asset's reconciliation fingerprint,
+            // whether or not the read-back could prove it. Refresh both durable
+            // identity and the watcher cache before reporting the outcome so our
+            // own file event keeps this asset ID and the next run does not take
+            // Library's own write for a change made outside Library.
+            if (_assetHasher is not null)
             {
                 var fingerprint = await _assetHasher.ComputeAsync(asset.FilePathRoot, ct);
                 if (!await _assetRepo.UpdateContentHashAsync(assetId, fingerprint.Hex, ct))

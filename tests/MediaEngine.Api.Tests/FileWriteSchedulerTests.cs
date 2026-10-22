@@ -79,6 +79,15 @@ public sealed class FileWriteSchedulerTests : IDisposable
             "SELECT status, generation, attempts, move_step FROM media_file_write_intents WHERE asset_id=@asset;", new { asset });
     }
 
+    private void RequestMove(Guid asset)
+    {
+        using var connection = _database.CreateConnection();
+        using var transaction = connection.BeginTransaction();
+        MediaFileWriteIntentRepository.UpsertAsset(
+            connection, transaction, asset, "library_move", "move:" + Guid.NewGuid().ToString("N"), _clock.GetUtcNow(), requestMove: true);
+        transaction.Commit();
+    }
+
     private void PutTitle(Guid asset, string title)
     {
         using var connection = _database.CreateConnection();
@@ -650,13 +659,109 @@ public sealed class FileWriteSchedulerTests : IDisposable
         Assert.Equal("pending", Row(asset).Status);
         Assert.Equal("requested", Row(asset).MoveStep);
 
+        // The wait grows after each failure: a minute, five minutes, half an hour, two hours; then the move is given up.
+        TimeSpan[] waits = [TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(30), TimeSpan.FromHours(2)];
         for (var pass = 1; pass < FileWriteScheduler.MaxAttempts; pass++)
         {
+            var wait = waits[pass - 1];
+            _clock.Advance(wait - TimeSpan.FromSeconds(1));
             await Scheduler.RunMoveLaneAsync(CancellationToken.None);
+            Assert.Equal(pass, _organizer.Refiled.Count);
+
+            _clock.Advance(TimeSpan.FromSeconds(1));
+            await Scheduler.RunMoveLaneAsync(CancellationToken.None);
+            Assert.Equal(pass + 1, _organizer.Refiled.Count);
         }
 
         Assert.Equal(FileWriteScheduler.MaxAttempts, _organizer.Refiled.Count);
         Assert.Equal("failed", Row(asset).Status);
+        Assert.Null(Row(asset).MoveStep);
+    }
+
+    [Fact]
+    public async Task AMoveThatFailed_IsNotTriedAgainWithinSeconds_SoAFileBrieflyInUseIsNotGivenUp()
+    {
+        var asset = AddAsset();
+        _organizer.Failure = "The file is in use.";
+        RequestMove(asset);
+
+        for (var pass = 0; pass < 20; pass++)
+        {
+            await Scheduler.RunMoveLaneAsync(CancellationToken.None);
+            _clock.Advance(FileWriteScheduler.TickInterval);
+        }
+
+        Assert.Single(_organizer.Refiled);
+        Assert.Equal("pending", Row(asset).Status);
+        Assert.Equal("requested", Row(asset).MoveStep);
+    }
+
+    [Fact]
+    public async Task AMoveAskedForDuringALongRun_HappensBetweenChunks_NotAfterTheWholeRun()
+    {
+        var assets = Enumerable.Range(0, FileWriteScheduler.ChunkSize + 50).Select(_ => AddAsset()).ToList();
+        var moving = AddAsset();
+        await Scheduler.AnchorScheduleAsync(CancellationToken.None);
+        await Queue.EnqueueAssetsAsync(assets, "auto_match");
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        var refiledWhenTheSecondChunkStarted = -1;
+        _writer.WhileWriting = () =>
+        {
+            if (_writer.Written.Count == 1)
+            {
+                // The person moves a file while the first chunk is being written.
+                _clock.Advance(TimeSpan.FromSeconds(1));
+                RequestMove(moving);
+            }
+
+            if (_writer.Written.Count == FileWriteScheduler.ChunkSize + 1)
+            {
+                refiledWhenTheSecondChunkStarted = _organizer.Refiled.Count;
+            }
+        };
+
+        await Scheduler.RunBatchAsync();
+
+        Assert.Equal(1, refiledWhenTheSecondChunkStarted);
+        Assert.Equal([moving], _organizer.Refiled);
+        Assert.Equal(assets.Count, _writer.Written.Count(write => assets.Contains(write.AssetId)));
+    }
+
+    // ----- a run that has nothing to take ---------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task AFileStuckMidMove_DoesNotStartARunEveryPass_AndTheNextRunStaysInTheFuture()
+    {
+        var asset = AddAsset();
+        await Scheduler.AnchorScheduleAsync(CancellationToken.None);
+        RequestMove(asset);
+        var claimed = await Intents.ClaimNextMoveAsync(FileWriteScheduler.LeaseDuration);
+        await Intents.RecordMovePlannedAsync(claimed!.Id, "C:/old.flac", "C:/new.flac", "hash");
+        Assert.Equal(1, (await Scheduler.GetScheduleAsync()).WaitingCount);
+
+        _clock.Advance(TimeSpan.FromMinutes(61));
+        for (var pass = 0; pass < 10; pass++)
+        {
+            await Scheduler.TickAsync();
+            _clock.Advance(FileWriteScheduler.TickInterval);
+        }
+
+        Assert.Empty(_writer.Written);
+        Assert.Null((await Intents.GetRunStateAsync())!.LastRunFinishedAt);
+        Assert.True(await Scheduler.GetNextRunAtAsync() > _clock.GetUtcNow());
+        Assert.Equal(1, (await Scheduler.GetScheduleAsync()).WaitingCount);
+    }
+
+    [Fact]
+    public async Task ARunThatFoundNothingToWrite_StillMovesTheScheduleOn()
+    {
+        await Scheduler.AnchorScheduleAsync(CancellationToken.None);
+        _clock.Advance(TimeSpan.FromMinutes(5));
+
+        var wrote = await Scheduler.RunBatchAsync();
+
+        Assert.False(wrote);
+        Assert.Equal(_clock.GetUtcNow() + TimeSpan.FromMinutes(60), await Scheduler.GetNextRunAtAsync());
     }
 
     // ----- deleting and restoring -------------------------------------------------------------------------------------------

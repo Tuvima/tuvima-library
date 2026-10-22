@@ -189,14 +189,17 @@ public sealed class MediaFileWriteIntentRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task ClaimNextMove_SkipsRowsAlreadyHandledInThisPass()
+    public async Task ClaimNextMove_SkipsAFailedMoveUntilItsNextAttemptIsDue()
     {
         var repository = Repository;
         UpsertWithMove(_asset);
         var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
-        Assert.True(await repository.FailMoveAsync(move.Id, "pending", "in use"));
+        Assert.True(await repository.FailMoveAsync(move.Id, "pending", "in use", TimeSpan.FromMinutes(5)));
 
-        Assert.Null(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5), [move.Id]));
+        Assert.Null(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)));
+        _clock.Advance(TimeSpan.FromMinutes(4));
+        Assert.Null(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)));
+        _clock.Advance(TimeSpan.FromMinutes(2));
         Assert.NotNull(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)));
     }
 
@@ -441,6 +444,122 @@ public sealed class MediaFileWriteIntentRepositoryTests : IDisposable
     }
 
     private static string Normalise(string path) => Path.GetFullPath(path);
+
+    [Fact]
+    public async Task ARunOverMoreRowsThanOneChunk_TakesEachRowOnce_AndLeavesRowsChangedMidRunForTheNextRun()
+    {
+        var repository = Repository;
+        var assets = Enumerable.Range(0, 250).Select(_ => AddAsset()).ToList();
+        await repository.EnqueueAssetsAsync(assets, "auto_match");
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        var runStarted = _clock.GetUtcNow();
+
+        var taken = new List<MediaFileWriteIntent>();
+        var firstChunk = await repository.ClaimBatchAsync("media_asset", 100, TimeSpan.FromMinutes(5), runStarted, "run-1");
+        taken.AddRange(firstChunk);
+
+        // Mid-run: a row the run took is put back to pending (a retry), and a row it has not reached is changed again.
+        Assert.True(await repository.CompleteByIdAsync(firstChunk[0].Id, firstChunk[0].Generation, "pending", "try again"));
+        var notReached = assets.Except(taken.Select(row => row.AssetId)).First();
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        await repository.EnqueueAssetsAsync([notReached], "manual_override");
+
+        while (await repository.ClaimBatchAsync("media_asset", 100, TimeSpan.FromMinutes(5), runStarted, "run-1") is { Count: > 0 } chunk)
+        {
+            taken.AddRange(chunk);
+        }
+
+        Assert.Equal(249, taken.Count);
+        Assert.Equal(249, taken.Select(row => row.AssetId).Distinct().Count());
+        Assert.DoesNotContain(notReached, taken.Select(row => row.AssetId));
+
+        var nextRun = await repository.ClaimBatchAsync("media_asset", 500, TimeSpan.FromMinutes(5), _clock.GetUtcNow(), "run-2");
+        Assert.Equivalent(new[] { firstChunk[0].AssetId, notReached }, nextRun.Select(row => row.AssetId));
+    }
+
+    [Fact]
+    public async Task ADeferredMove_KeepsItsStepsAndPaths_CountsOnlyWhenAsked_AndWaitsForItsNextAttempt()
+    {
+        var repository = Repository;
+        UpsertWithMove(_asset);
+        var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+        await repository.RecordMovePlannedAsync(move.Id, "C:/a/old.mp4", "C:/b/new.mp4", "hash-1", move.Generation);
+
+        Assert.Equal(0, await repository.DeferMoveAsync(move.Id, TimeSpan.FromMinutes(5), countAttempt: false, "drive away"));
+        Assert.Equal(1, await repository.DeferMoveAsync(move.Id, TimeSpan.FromMinutes(5), countAttempt: true, "could not settle"));
+
+        var row = (await repository.GetByIdAsync(move.Id))!;
+        Assert.Equal(("planned", "pending", "C:/a/old.mp4", "C:/b/new.mp4"), (row.MoveStep, row.Status, row.MoveSourcePath, row.MoveTargetPath));
+        Assert.Equal(move.Generation, row.MoveGeneration);
+        Assert.Empty(await repository.GetStartedMovesAsync(onlyDue: true));
+        Assert.Single(await repository.GetStartedMovesAsync(onlyDue: false));
+
+        _clock.Advance(TimeSpan.FromMinutes(6));
+        Assert.Single(await repository.GetStartedMovesAsync(onlyDue: true));
+    }
+
+    [Fact]
+    public async Task AMoveGivenUp_KeepsItsPathsForDiagnosis_ButNoLongerCountsAsMoving_AndANewAskStartsClean()
+    {
+        var repository = Repository;
+        UpsertWithMove(_asset);
+        var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+        await repository.RecordMovePlannedAsync(move.Id, "C:/a/old.mp4", "C:/b/new.mp4", "hash-1");
+
+        Assert.True(await repository.FailMoveAsync(move.Id, "failed", "gone"));
+
+        var failed = (await repository.GetByIdAsync(move.Id))!;
+        Assert.Null(failed.MoveStep);
+        Assert.Equal(("C:/a/old.mp4", "C:/b/new.mp4"), (failed.MoveSourcePath, failed.MoveTargetPath));
+        Assert.Empty(await repository.GetPathsWithMoveInProgressAsync());
+
+        UpsertWithMove(_asset);
+        var again = (await repository.GetByIdAsync(move.Id))!;
+        Assert.Equal("requested", again.MoveStep);
+        Assert.Null(again.MoveSourcePath);
+        Assert.Null(again.MoveTargetPath);
+    }
+
+    [Fact]
+    public async Task OnlyRowsARunCouldTakeCountAsClaimable_WhileWaitingStillCountsEverything()
+    {
+        var repository = Repository;
+        var other = AddAsset();
+        await repository.EnqueueAssetsAsync([other], "auto_match");
+        UpsertWithMove(_asset);
+        var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+        await repository.RecordMovePlannedAsync(move.Id, "C:/a/old.mp4", "C:/b/new.mp4", "hash-1");
+
+        var counts = await repository.GetCountsAsync();
+
+        Assert.Equal(2, counts.Waiting);
+        Assert.Equal(1, counts.Claimable);
+    }
+
+    [Fact]
+    public async Task TheFailedListAndCounts_LeaveOutFilesInHiddenLibraries_WhateverTheCase()
+    {
+        var repository = Repository;
+        var hiddenAsset = AddAsset("C:/vault/secret.mp4");
+        var shownAsset = AddAsset("C:/shown/film.mp4");
+        var hiddenLibrary = Guid.NewGuid().ToString();
+        Execute("UPDATE media_assets SET library_id = @library WHERE id = @asset;", new { library = hiddenLibrary.ToLowerInvariant(), asset = hiddenAsset });
+        Execute("UPDATE media_assets SET library_id = 'open-library' WHERE id = @asset;", new { asset = shownAsset });
+        await repository.EnqueueAssetsAsync([hiddenAsset, shownAsset], "auto_match");
+        Execute("UPDATE media_file_write_intents SET status = 'failed', last_error = 'no' WHERE asset_id IN (@a, @b);", new { a = hiddenAsset, b = shownAsset });
+        var hidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { hiddenLibrary.ToUpperInvariant() };
+
+        Assert.Equal(2, (await repository.GetFailedAsync()).Count);
+        Assert.Equal(shownAsset, Assert.Single(await repository.GetFailedAsync(hiddenLibraryIds: hidden)).AssetId);
+        Assert.Equal(2, (await repository.GetCountsAsync()).Failed);
+        Assert.Equal(1, (await repository.GetCountsAsync(hidden)).Failed);
+    }
+
+    private void Execute(string sql, object? args = null)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(sql, args);
+    }
 
     private void UpsertWithMove(Guid asset)
     {

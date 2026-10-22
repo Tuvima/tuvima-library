@@ -10,6 +10,9 @@ public interface IRefileStepRecorder
     /// <summary>Called before the disk is touched: the file is at <paramref name="sourcePath"/> and is about to go to <paramref name="targetPath"/>.</summary>
     Task PlannedAsync(string sourcePath, string targetPath, CancellationToken ct);
 
+    /// <summary>Called when the move was dropped before the disk was touched (the new name was taken after the plan was made): the file is still at its old place.</summary>
+    Task NotMovedAsync(CancellationToken ct);
+
     /// <summary>Called once the file is at <paramref name="actualPath"/> and the old place is empty, before the data store follows.</summary>
     Task MovedAsync(string actualPath, CancellationToken ct);
 

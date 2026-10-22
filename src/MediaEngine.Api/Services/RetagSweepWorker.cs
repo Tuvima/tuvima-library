@@ -7,6 +7,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Ingestion.Services;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services;
@@ -34,6 +35,7 @@ public sealed class RetagSweepWorker : BackgroundService
 {
     private readonly IMediaAssetRepository _assetRepo;
     private readonly IFileWriteQueue _fileWrites;
+    private readonly MediaFileWriteIntentRepository _intents;
     private readonly IReviewQueueRepository _reviewRepo;
     private readonly IConfigurationLoader _configLoader;
     private readonly IEventPublisher _eventPublisher;
@@ -50,6 +52,7 @@ public sealed class RetagSweepWorker : BackgroundService
     public RetagSweepWorker(
         IMediaAssetRepository assetRepo,
         IFileWriteQueue fileWrites,
+        MediaFileWriteIntentRepository intents,
         IReviewQueueRepository reviewRepo,
         IConfigurationLoader configLoader,
         IEventPublisher eventPublisher,
@@ -60,6 +63,7 @@ public sealed class RetagSweepWorker : BackgroundService
         ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(assetRepo);
         ArgumentNullException.ThrowIfNull(fileWrites);
+        ArgumentNullException.ThrowIfNull(intents);
         ArgumentNullException.ThrowIfNull(reviewRepo);
         ArgumentNullException.ThrowIfNull(configLoader);
         ArgumentNullException.ThrowIfNull(eventPublisher);
@@ -69,6 +73,7 @@ public sealed class RetagSweepWorker : BackgroundService
         _runner = runner;
         _assetRepo = assetRepo;
         _fileWrites = fileWrites;
+        _intents = intents;
         _reviewRepo = reviewRepo;
         _configLoader = configLoader;
         _eventPublisher = eventPublisher;
@@ -124,7 +129,7 @@ public sealed class RetagSweepWorker : BackgroundService
 
     // ── Internals ──────────────────────────────────────────────────────────
 
-    private async Task<TaskRunResult> RunSweepAsync(CancellationToken ct)
+    internal async Task<TaskRunResult> RunSweepAsync(CancellationToken ct)
     {
         var settings = LoadSettings();
 
@@ -165,6 +170,10 @@ public sealed class RetagSweepWorker : BackgroundService
 
             _logger.LogInformation("RetagSweepWorker: processing batch of {Count} stale asset(s)", batch.Count);
 
+            // A file already waiting on the write list is left alone, so the sweep does not bump the same entry again and push it past
+            // the run that is about to write it (it will be written with the current tag settings anyway).
+            var waiting = await _intents.GetWaitingAssetIdsAsync([.. batch.Select(item => item.AssetId)], ct);
+
             foreach (var stale in batch)
             {
                 ct.ThrowIfCancellationRequested();
@@ -179,6 +188,12 @@ public sealed class RetagSweepWorker : BackgroundService
                     || stale.FilePathRoot?.Contains(".data\\staging", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     _logger.LogDebug("RetagSweepWorker: skipping staged asset {Id} at {Path}", stale.AssetId, stale.FilePathRoot);
+                    continue;
+                }
+
+                if (waiting.Contains(stale.AssetId))
+                {
+                    _logger.LogDebug("RetagSweepWorker: asset {Id} is already waiting on the write list; left alone", stale.AssetId);
                     continue;
                 }
 

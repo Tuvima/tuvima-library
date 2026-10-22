@@ -484,6 +484,8 @@ public sealed class LibraryMoveFileTests : IDisposable
         Assert.Equal("pending", afterFirst.Status);
         Assert.Contains("could not be renamed and moved", afterFirst.Error, StringComparison.Ordinal);
 
+        // The wait before the next try passes.
+        Files.Execute("UPDATE media_file_write_intents SET next_attempt_at = NULL;");
         await Files.DrainQueueAsync(scheduler);
 
         Assert.False(File.Exists(oldPath));
