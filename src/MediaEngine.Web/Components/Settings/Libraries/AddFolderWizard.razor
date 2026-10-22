@@ -111,15 +111,6 @@
                     </div>
                 }
 
-                @if (IsVideos)
-                {
-                    <AppSwitchRow Label="Look up YouTube videos online"
-                                  Description="Only for videos named with a YouTube ID. This contacts YouTube and sends just that ID, never your files. You can change it later."
-                                  Value="_youtubeLookup"
-                                  Disabled="@_saving"
-                                  ValueChanged="@((bool value) => _youtubeLookup = value)" />
-                }
-
                 @if (!string.IsNullOrWhiteSpace(_error))
                 {
                     <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
@@ -206,7 +197,6 @@
     private ServerFolderValidationResultDto? _folder;
     private AddFolderHandling _handling = AddFolderHandling.ReadOnly;
     private bool _markNewMediaHere = true;
-    private bool _youtubeLookup = true;
     private bool _footagePending;
     // Where the embedded picker opens: the folder already chosen when coming Back from step 3.
     private string? _initialPath;
@@ -219,7 +209,6 @@
     private IEnumerable<LibraryGroup> OfferedGroups => Kinds.Visible(ShowVault).Where(group => !Embedded || group.Key != "view");
 
     private FolderAddScope Scope => new(Embedded, SetupSession);
-    private bool IsVideos => _type?.MediaTypes.Contains("Videos", StringComparer.OrdinalIgnoreCase) == true;
     private LibraryGroup? CurrentGroup => OfferedGroups.FirstOrDefault(group => group.Key == _groupKey);
     // The phone-footage hint is for Watch kinds, so it follows the area of the chosen kind rather than a particular kind.
     private bool InWatch => string.Equals(_type?.Area, "watch", StringComparison.OrdinalIgnoreCase);
@@ -244,7 +233,6 @@
             _type = known;
             _groupKey = Kinds.GroupFor(known.Key)?.Key ?? Kinds.ForArea(known.Area)?.Key;
             _step = WizardStep.Folder;
-            ResetYoutubeDefault();
         }
         else
         {
@@ -277,11 +265,8 @@
 
         if (_type?.Key != kind.Key) _folder = null;
         _type = kind;
-        ResetYoutubeDefault();
         GoTo(WizardStep.Folder);
     }
-
-    private void ResetYoutubeDefault() => _youtubeLookup = TypeLibrary?.YoutubeLookup ?? true;
 
     private void GoTo(WizardStep step)
     {
@@ -336,7 +321,6 @@
                 _type.Key,
                 _folder,
                 withFiles ? _handling : AddFolderHandling.Managed,
-                IsVideos ? _youtubeLookup : null,
                 MarkNewMediaHere: !withFiles && _markNewMediaHere);
             var result = await AddService.AddAsync(plan, Kinds, _configuration, Scope);
             if (!result.Saved)

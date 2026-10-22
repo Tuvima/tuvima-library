@@ -247,7 +247,9 @@ public sealed partial class DevHarnessResetServiceTests
             MediaTypes = ["Books"],
             Area = LibraryAreas.Read,
             Presentation = LibraryPresentations.Catalogue,
-            MetadataPolicy = LibraryMetadataPolicies.Enriched,
+            // A plain reading library never looks anything up, so it is local only with the YouTube lookup off.
+            MetadataPolicy = kindKey == "other_reading" ? LibraryMetadataPolicies.LocalOnly : LibraryMetadataPolicies.Enriched,
+            YoutubeLookup = false,
             OrganizationPolicy = new LibraryOrganizationPolicyConfig(),
             PrimaryDestinationSourceId = managementMode == LibrarySourceManagementModes.ManagedByTuvima ? sourceId : null,
             Sources =

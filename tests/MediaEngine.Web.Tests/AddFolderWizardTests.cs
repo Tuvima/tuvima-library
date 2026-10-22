@@ -352,19 +352,65 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task VideosKeepTheYoutubeSwitchOnByDefaultAndTheAnswerIsSavedWithTheFolder()
+    public async Task AFolderAddedAsOtherVideosSavesLocalOnlyWithYoutubeOff_AndTheWizardAsksNothingAboutYoutube()
     {
         await OpenWizardAsync(type: "other_videos");
         PickFolder(path: "E:\\Courses");
         GoToHow();
-        Assert.Contains("contacts YouTube", _dialogs.Markup);
-        _dialogs.Find("input[role=switch]").Change(false);
+        Assert.DoesNotContain("contacts YouTube", _dialogs.Markup);
+        Assert.Empty(_dialogs.FindAll("input[role=switch]"));
         await AddFolderAsync();
 
         var library = Assert.Single(_mutations).Library!;
         Assert.False(library.YoutubeLookup);
         Assert.Equal("local_only", library.MetadataPolicy);
+        Assert.Equal("other_videos", library.KindKey);
         Assert.True(library.RecycleBin);
+    }
+
+    [Fact]
+    public async Task AFolderAddedAsYoutubeSavesLocalIdentityWithTheYoutubeLookupOn()
+    {
+        await OpenWizardAsync(type: "youtube", kinds: new LibraryKindCatalog(LibraryKindsTestData.All()));
+        PickFolder(path: "E:\\Saved from YouTube");
+        GoToHow();
+        await AddFolderAsync();
+
+        var library = Assert.Single(_mutations).Library!;
+        Assert.True(library.YoutubeLookup);
+        Assert.Equal("local_only", library.MetadataPolicy);
+        Assert.Equal("youtube", library.KindKey);
+        Assert.Equal(["Videos"], library.MediaTypes);
+    }
+
+    [Theory]
+    [InlineData("other_audio", "Music")]
+    [InlineData("other_reading", "Books")]
+    public async Task AFolderAddedAsAPlainKindSavesLocalOnlyWithYoutubeOff(string kind, string mediaType)
+    {
+        await OpenWizardAsync(type: kind, kinds: new LibraryKindCatalog(LibraryKindsTestData.All()));
+        PickFolder(path: "E:\\Loose files");
+        GoToHow();
+        await AddFolderAsync();
+
+        var library = Assert.Single(_mutations).Library!;
+        Assert.Equal(kind, library.KindKey);
+        Assert.Equal("local_only", library.MetadataPolicy);
+        Assert.False(library.YoutubeLookup);
+        Assert.Equal([mediaType], library.MediaTypes);
+    }
+
+    [Fact]
+    public async Task AFolderAddedAsALookupKindKeepsItsEnrichedPolicy()
+    {
+        await OpenWizardAsync(type: "movies");
+        PickFolder(path: "E:\\Films");
+        GoToHow();
+        await AddFolderAsync();
+
+        var library = Assert.Single(_mutations).Library!;
+        Assert.Equal("enriched", library.MetadataPolicy);
+        Assert.Equal("movies", library.KindKey);
     }
 
     // 3. An empty folder asks one question.
@@ -702,7 +748,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         await OpenWizardAsync();
         var expected = new Dictionary<string, string>
         {
-            ["watch"] = "Feature films, one file or folder per film.|Series with seasons and episodes, one folder per show.|Courses, talks and downloads. YouTube lookup can be switched on in the last step.",
+            ["watch"] = "Feature films, one file or folder per film.|Series with seasons and episodes, one folder per show.|Courses, talks and downloads. Nothing is looked up.",
             ["listen"] = "Albums and songs, tagged or in artist and album folders.|Spoken books, one file or folder per book.",
             ["read"] = "EPUB and PDF books.|CBZ and CBR comics and manga.",
             ["view"] = "Pictures from phones and cameras. View sorts them by date and place.|Videos from phones and cameras, kept with the day they were taken.|PDFs, Office files and photos of paper. Text inside them can be searched.",

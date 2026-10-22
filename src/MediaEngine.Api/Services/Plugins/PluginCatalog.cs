@@ -54,6 +54,9 @@ public sealed class PluginCatalog
     /// </summary>
     public event Action<string>? EnabledChanged;
 
+    /// <summary>Raised after the catalog is read again (a plugin switched on or off, installed, removed or changed), so what is drawn from the plugins' kinds can refresh.</summary>
+    public event Action? Changed;
+
     public PluginCatalog(
         IEnumerable<ITuvimaPlugin> builtInPlugins,
         PluginSettingsService settingsService,
@@ -289,6 +292,7 @@ public sealed class PluginCatalog
 
         // Metadata sources supplied by switched-on JSON plugins live in the providers folder; keep it in step.
         _sourceFiles?.Reconcile(List());
+        Changed?.Invoke();
     }
 
     private void EnsureLoaded()

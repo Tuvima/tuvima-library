@@ -5,6 +5,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
+using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
@@ -48,6 +49,7 @@ public sealed class MissingUniverseSweepService : BackgroundService
     private readonly IMetadataClaimRepository _claimRepo;
     private readonly ICollectionRepository _collectionRepo;
     private readonly IHydrationPipelineService _pipeline;
+    private readonly IExternalLookupGuard? _lookupGuard;
     private readonly ISystemActivityRepository _activityRepo;
     private readonly IConfigurationLoader _configLoader;
     private readonly ScheduledTaskRunner _runner;
@@ -62,8 +64,10 @@ public sealed class MissingUniverseSweepService : BackgroundService
         ISystemActivityRepository activityRepo,
         IConfigurationLoader configLoader,
         ScheduledTaskRunner runner,
-        ILogger<MissingUniverseSweepService> logger)
+        ILogger<MissingUniverseSweepService> logger,
+        IExternalLookupGuard? lookupGuard = null)
     {
+        _lookupGuard = lookupGuard;
         ArgumentNullException.ThrowIfNull(db);
         ArgumentNullException.ThrowIfNull(search);
         ArgumentNullException.ThrowIfNull(claimRepo);
@@ -194,6 +198,12 @@ public sealed class MissingUniverseSweepService : BackgroundService
         string mediaType,
         CancellationToken ct)
     {
+        // A work in a library that never looks anything up is not searched for on Wikidata (Library setup D38).
+        if (await _lookupGuard.RefusesAsync(workId, _logger, "Missing Universe search", ct).ConfigureAwait(false))
+        {
+            return 0;
+        }
+
         // Search Wikidata for candidates.
         var searchResult = await _search.SearchUniverseAsync(
             new SearchUniverseRequest(title, mediaType, MaxCandidates: 5),

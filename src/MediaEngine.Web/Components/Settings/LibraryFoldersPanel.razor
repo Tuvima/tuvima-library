@@ -239,11 +239,6 @@
 
                 @if (IsVideosSelected && SelectedLibrary is not null)
                 {
-                    <AppSwitchRow Label="Look up YouTube videos online"
-                                  Description="Only for videos named with a YouTube ID. This contacts YouTube and sends just that ID, never your files. Your own edits always win."
-                                  Value="@SelectedLibrary.YoutubeLookup"
-                                  Disabled="@(_saving || ReadOnly)"
-                                  ValueChanged="@((bool value) => SetYoutubeLookupAsync(value))" />
                     <AppSwitchRow Label="OK for limited profiles"
                                   Description="Saved videos have no age ratings, so profiles with a content limit (G to R) don't see Videos until you turn this on. Profiles set to Everything always see them."
                                   Value="@SelectedLibrary.OkForLimitedProfiles"
@@ -837,14 +832,6 @@
         if (library is null || _saving) return;
         library.RecycleBin = value;
         await SaveAsync(library, value ? "Deleted files now go to the recycle bin." : "Deleted files are removed straight away.");
-    }
-
-    private async Task SetYoutubeLookupAsync(bool value)
-    {
-        var library = Clone(SelectedLibrary);
-        if (library is null || _saving) return;
-        library.YoutubeLookup = value;
-        await SaveAsync(library, value ? "YouTube lookup is on." : "YouTube lookup is off.");
     }
 
     private async Task<bool> SaveAsync(LibraryFolderDto library, string message)

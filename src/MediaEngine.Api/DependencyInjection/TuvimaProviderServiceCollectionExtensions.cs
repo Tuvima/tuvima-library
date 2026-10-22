@@ -59,6 +59,8 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<BridgeIdHelper>();
         services.AddSingleton<StageOutcomeFactory>();
         services.AddSingleton<TimelineRecorder>();
+        // The explicit "no outside contact" check every worker and sweep makes for a library that never looks anything up (Library setup D38).
+        services.AddSingleton<IExternalLookupGuard, ConfiguredExternalLookupGuard>();
         services.AddSingleton<CoverArtWorker>();
         services.AddSingleton<PersonImageEnrichmentWorker>();
         services.AddSingleton<PersonEnrichmentWorker>();

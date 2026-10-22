@@ -214,12 +214,67 @@ public static partial class LibraryKindRules
             {
                 problems.Add($"{prefix}.media_types must include {kind.Format ?? "a format"}, the format of the library kind \"{kind.Key}\".");
             }
+
         }
 
         AddCountAndNameProblems(libraries, kinds, problems);
 
         return problems;
     }
+
+    /// <summary>
+    /// What a library's own <c>metadata_policy</c> and <c>youtube_lookup</c> say that its kind overrides (see
+    /// <see cref="LibraryKindLookupPolicy"/>), each in one plain sentence beginning with <paramref name="prefix"/>. Empty when the
+    /// library agrees with its kind, or names no known kind.
+    /// </summary>
+    public static IReadOnlyList<string> LookupContradictions(LibraryFolderConfig library, IReadOnlyList<LibraryKindDefinition> kinds, string prefix)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        ArgumentNullException.ThrowIfNull(kinds);
+        var kind = kinds.FirstOrDefault(candidate => string.Equals(candidate.Key, library.KindKey, StringComparison.Ordinal));
+        return kind is null ? [] : LookupContradictions(library, kind, prefix);
+    }
+
+    private static List<string> LookupContradictions(LibraryFolderConfig library, LibraryKindDefinition kind, string prefix)
+    {
+        var problems = new List<string>();
+        AddLookupContradiction(library, kind, prefix, problems);
+        return problems;
+    }
+
+    private static void AddLookupContradiction(LibraryFolderConfig library, LibraryKindDefinition kind, string prefix, List<string> problems)
+    {
+        var mode = LibraryKindLookupPolicy.ModeOf(kind.Key, [kind]);
+        if (mode == LibraryLookupMode.Plain)
+        {
+            var never = $"{prefix} is {Article(kind.Label)} {kind.Label} library, which never looks anything up";
+            if (!LibraryMetadataPolicies.BypassesExternalIdentity(library.MetadataPolicy))
+            {
+                problems.Add($"{never}, but metadata_policy is \"{library.MetadataPolicy}\". Use local_only.");
+            }
+
+            if (library.YoutubeLookup)
+            {
+                problems.Add($"{never}, but youtube_lookup is true. Set youtube_lookup to false.");
+            }
+        }
+        else if (mode == LibraryLookupMode.YouTube)
+        {
+            var youtube = $"{prefix} is {Article(kind.Label)} {kind.Label} library, which looks videos up on YouTube by their ID and nowhere else";
+            if (!LibraryMetadataPolicies.BypassesExternalIdentity(library.MetadataPolicy))
+            {
+                problems.Add($"{youtube}, but metadata_policy is \"{library.MetadataPolicy}\". Use local_only.");
+            }
+
+            if (!library.YoutubeLookup)
+            {
+                problems.Add($"{youtube}, but youtube_lookup is false. Set youtube_lookup to true.");
+            }
+        }
+    }
+
+    private static string Article(string label) =>
+        label.Length > 0 && "AEIOUaeiou".Contains(label[0]) ? "an" : "a";
 
     // A kind without allows_multiple holds one library; a plain kind holds up to max_libraries, each with its own name. Names are unique
     // (ignoring case) among the catalogued libraries of an area and never read as another kind's label (a library may keep its own

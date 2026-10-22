@@ -177,7 +177,7 @@ Default strategies:
 - **Cascade:** Books
 - **Sequential:** Audiobooks, Music
 
-The catalogued media types (Books, Audiobooks, Movies, TV, Music, Comics) must have at least one provider entry. Videos needs none: it is identified from local files, and its optional YouTube lookup is the `youtube` provider.
+The catalogued media types (Books, Audiobooks, Movies, TV, Music, Comics) must have at least one provider entry. Videos needs none: it is identified from local files, and the YouTube lookup (the `youtube` provider) runs only for a library of the YouTube kind. Plain kinds (Other videos, Other audio, Other reading) never contact any outside service: no retail search, Wikidata, artwork, lyrics, subtitle or YouTube request is made for their files.
 
 Music is configured as a sequential Stage 1 chain: MusicBrainz has `purpose: "identity"` and Apple API has `purpose: "enrichment"`. That means MusicBrainz owns track, album, artist, release, and recording identity fields when available, while Apple can still win configured enrichment fields such as cover art, genre, storefront IDs, year, and retail metadata. This is a configuration rule, not a music-specific provider-order branch in orchestration code.
 
@@ -236,7 +236,8 @@ Defines the clean schema 7 library model used by **Settings > Libraries**. The r
 | `kind_key` | string | The library kind (an entry in `config/library_kinds.json`, for example `movies` or `other_videos`) this library holds. Required for catalogued libraries; it must name a kind that exists, and `media_types` must include that kind's `format`. Kinds a plugin supplies are checked by the Engine against the full list (plugin kinds included) where a library is saved. |
 | `area` | string | `read`, `watch`, `listen`, `view`, or `vault`. |
 | `presentation` | string | Catalogue, gallery, mixed gallery, timeline, video, documents, audio, or mixed presentation. |
-| `metadata_policy` | string | `enriched`, `local_preferred`, `local_only`, or `manual`. The last two bypass external identity/provider work. |
+| `metadata_policy` | string | `enriched`, `local_preferred`, `local_only`, or `manual`. The last two bypass external identity/provider work. **The library's kind decides what it looks up**: a lookup kind (Movies, TV Shows, Music, Audiobooks, Books, Comics) follows this field as it always has, a plain kind (Other videos, Other audio, Other reading, or a plugin kind whose `lookup` is `"none"`) and the YouTube kind are always local identity only, whatever this field says. The field only decides for a library with no `kind_key`, such as the Vault's own entries. The kind always wins: a save writes the kind's value into the file, and a file already on disk that says otherwise loads with the kind winning and one warning in the Engine log naming the library. |
+| `youtube_lookup` | boolean | Ask YouTube (by video ID only) about videos named with a YouTube ID. **The kind decides**: the YouTube kind always asks, and a plain kind such as Other videos never does and must say `false` here. The field only decides for a library with no `kind_key`, such as the Vault's own entries (which say `false`). A save writes the kind's value into the file; a file already on disk that says otherwise loads with the kind winning and one warning is logged. There is no on/off switch in Add folder or Settings; choose the kind instead. |
 | `media_types` | string[] | Structured media types expected by catalogued libraries. A View Personal Space may index mixed local media through its backing personal library. How many catalogued libraries may hold the same media type is decided by their kinds, not by the media type: a kind that looks details up holds one library, a plain kind holds up to its `max_libraries`, and kinds that share a format (for example a plugin's Podcasts and Music, both `Music`) each have their own libraries. The Engine rejects a change that breaks a kind's limit (see `config/library_kinds.json`). |
 | `sources` | object[] | Stable source objects; see below. Array order has no meaning. |
 | `primary_destination_source_id` | GUID string? | The one folder new media is filed into: a managed source of this library, or `null` when there is none. A read-only folder is never a destination. On save the first managed folder added becomes the destination; if it is removed or switched to read-only, the earliest-added remaining managed folder takes over, and with none left it is `null`. If the destination is unavailable, files wait in Import; there is no fallback to another folder. |
@@ -306,7 +307,7 @@ The one list of **library kinds** ("recipes"): every type of library the Library
 | `kinds[].label` | string | What a person sees. |
 | `kinds[].icon` | string | An `AppMaterialIcons` name the Dashboard draws (`MenuBook`, `Tv`); an unknown name draws the folder icon. |
 | `kinds[].format` | string? | The Engine media type the kind's files are filed under: `Movies`, `TV`, `Videos`, `Music`, `Audiobooks`, `Books` or `Comics`. `null` only for View kinds. |
-| `kinds[].lookup` | `"none"` or `{ "providers": [...] }` | Where details come from. Recorded for display; it does not change which provider is used. |
+| `kinds[].lookup` | `"none"` or `{ "providers": [...] }` | Where details come from. A kind with `"none"` is a **plain kind**: its libraries are local identity only and never contact any outside service, whatever their own `metadata_policy` or `youtube_lookup` say. For a kind with providers the list is recorded for display; it does not change which provider is used. The `youtube` kind lists the YouTube provider and looks videos up on YouTube by their ID and nowhere else. |
 | `kinds[].grouping` | string | One of the grouping rules already in code: `movie`, `tv_show_season`, `music_album`, `audiobook`, `book_series`, `comic_series`, `video_series_folder`, `folder_and_tags`, `view_gallery`. A new way of grouping files needs a Library release. |
 | `kinds[].naming_template` | string? | The `organization_templates` key in `config/core.json` that names the kind's files and folders. |
 | `kinds[].misfit` | string | `unmatched` (a file that does not fit goes to Needs Review; needs a `lookup`) or `keep` (it stays as it is). |
@@ -314,7 +315,7 @@ The one list of **library kinds** ("recipes"): every type of library the Library
 | `kinds[].tooltip` | string | The (i) text beside the kind in Add folder. |
 | `kinds[].order` | integer | Position among the kinds of its area. |
 | `kinds[].built_in` | boolean | True for the kinds that ship with the Library. |
-| `kinds[].available` | boolean | False while a kind is defined but not offered on any screen (YouTube, Other audio and Other reading, until they work). Defaults to true. |
+| `kinds[].available` | boolean | False while a kind is defined but not offered on any screen. Every kind that ships is available. Defaults to true. |
 | `kinds[].allows_multiple` | boolean | True when a person may keep several named libraries of this kind (for example "Lectures" and "Family recordings" under Other videos). Defaults to false, which means one library. |
 | `kinds[].max_libraries` | integer | The most libraries of this kind (1 to 20). Defaults to 1; above 1 only when `allows_multiple` is true. The kinds that ship with `allows_multiple` allow 5. |
 

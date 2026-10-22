@@ -488,7 +488,7 @@ public static class JsonConfigValidator
                 ValidateOrganizationPolicy(library.OrganizationPolicy, $"{prefix}.organization_policy", errors);
             }
 
-            ValidateLibrarySemantics(library, prefix, errors);
+            ValidateLibrarySemantics(library, prefix, errors, libraryKinds ?? LibraryKindsConfiguration.BuiltIn());
             ValidateProfileIds(library, prefix, errors);
             var intakeModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var intakeMode in library.AcceptedIntakeModes)
@@ -535,7 +535,11 @@ public static class JsonConfigValidator
         }
     }
 
-    private static void ValidateLibrarySemantics(LibraryFolderConfig library, string prefix, List<string> errors)
+    private static bool IsKindOnlyAPluginCouldSupply(string? kindKey, IReadOnlyList<LibraryKindDefinition> libraryKinds) =>
+        LibraryKindRules.IsValidKey(kindKey)
+        && !libraryKinds.Any(kind => string.Equals(kind.Key, kindKey, StringComparison.Ordinal));
+
+    private static void ValidateLibrarySemantics(LibraryFolderConfig library, string prefix, List<string> errors, IReadOnlyList<LibraryKindDefinition> libraryKinds)
     {
         if (library.Kind == LibraryKinds.Catalogued)
         {
@@ -560,7 +564,10 @@ public static class JsonConfigValidator
                     errors.Add($"{prefix}.videos libraries must use the watch area.");
                 }
 
-                if (library.MetadataPolicy != LibraryMetadataPolicies.LocalOnly)
+                // A Videos library of a kind (Other videos, YouTube) is local only because its kind says so, whatever the file says;
+                // a person's save is refused for disagreeing (LibraryKindRules.LibraryProblems), a file already on disk loads.
+                if (library.MetadataPolicy != LibraryMetadataPolicies.LocalOnly
+                    && LibraryKindLookupPolicy.ModeOf(library.KindKey, libraryKinds) == LibraryLookupMode.FromFields)
                 {
                     errors.Add($"{prefix}.videos libraries must use local_only metadata.");
                 }
@@ -569,7 +576,12 @@ public static class JsonConfigValidator
             {
                 errors.Add($"{prefix}.Videos must be a library of its own, with no other media type.");
             }
-            else if (library.MetadataPolicy != LibraryMetadataPolicies.Enriched)
+            // A plain kind (Other audio, Other reading) never looks anything up, so it is local_only rather than enriched. The link between
+            // the library and its kind (LibraryKindRules.LibraryProblems) says so when a library's own fields disagree. A kind this file
+            // does not list may belong to a plugin, so its policy is left to the Engine's check against the full list of kinds.
+            else if (library.MetadataPolicy != LibraryMetadataPolicies.Enriched
+                && LibraryKindLookupPolicy.ModeOf(library.KindKey, libraryKinds) != LibraryLookupMode.Plain
+                && !IsKindOnlyAPluginCouldSupply(library.KindKey, libraryKinds))
             {
                 errors.Add($"{prefix}.catalogued libraries must use enriched metadata.");
             }

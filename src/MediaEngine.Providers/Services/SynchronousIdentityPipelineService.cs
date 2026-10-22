@@ -25,6 +25,7 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
     private readonly QuickHydrationWorker _hydrationWorker;
     private readonly IEnrichmentConcurrencyLimiter _concurrency;
     private readonly ILogger<SynchronousIdentityPipelineService> _logger;
+    private readonly IExternalLookupGuard? _lookupGuard;
 
     public SynchronousIdentityPipelineService(
         IIdentityJobRepository jobRepo,
@@ -33,8 +34,10 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
         WikidataBridgeWorker bridgeWorker,
         QuickHydrationWorker hydrationWorker,
         ILogger<SynchronousIdentityPipelineService> logger,
-        IEnrichmentConcurrencyLimiter? concurrencyLimiter = null)
+        IEnrichmentConcurrencyLimiter? concurrencyLimiter = null,
+        IExternalLookupGuard? lookupGuard = null)
     {
+        _lookupGuard = lookupGuard;
         _jobRepo = jobRepo;
         _canonicalRepo = canonicalRepo;
         _retailWorker = retailWorker;
@@ -50,6 +53,11 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
     /// </summary>
     public async ValueTask<Guid> EnqueueAsync(HarvestRequest request, CancellationToken ct = default)
     {
+        if (await IsInNoLookupLibraryAsync(request, ct))
+        {
+            return Guid.Empty;
+        }
+
         var job = new IdentityJob
         {
             EntityId = request.EntityId,
@@ -101,6 +109,11 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
     public async Task<HydrationResult> RunSynchronousAsync(
         HarvestRequest request, CancellationToken ct = default)
     {
+        if (await IsInNoLookupLibraryAsync(request, ct))
+        {
+            return new HydrationResult();
+        }
+
         var job = new IdentityJob
         {
             EntityId = request.EntityId,
@@ -207,6 +220,24 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
             job.EntityId, job.State, job.ResolvedQid);
 
         return BuildResult(job);
+    }
+
+    // A file in a library that never looks anything up (a plain kind such as Other audio) is not identified, matched, bridged or
+    // hydrated by anything that asks a provider, whoever asks (Library setup D38). Nothing is queued and nothing is sent.
+    private async Task<bool> IsInNoLookupLibraryAsync(HarvestRequest request, CancellationToken ct)
+    {
+        if (_lookupGuard is null
+            || request.EntityType is not (EntityType.MediaAsset or EntityType.Work)
+            || !await _lookupGuard.BlocksEntityAsync(request.EntityId, ct).ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        _logger.LogInformation(
+            "Identity work for {EntityType} {EntityId} was not started: its library never looks anything up.",
+            request.EntityType,
+            request.EntityId);
+        return true;
     }
 
     private async Task PersistInitialJobAsync(

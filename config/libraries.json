@@ -250,6 +250,7 @@
       "area": "watch",
       "presentation": "catalogue",
       "metadata_policy": "local_only",
+      "youtube_lookup": false,
       "recycle_bin": true,
       "media_types": [
         "Videos"
