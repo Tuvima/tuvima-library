@@ -48,10 +48,10 @@ public sealed record FolderFollowUp(bool Started, string? Notice);
 /// </summary>
 public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDialogService dialogs, IAppToastService toasts)
 {
-    /// <summary>A standard type, or an "other-{libraryId}" library, by key; null when the configuration has no such type.</summary>
-    public static LibraryTypeOption? ResolveType(LibrariesConfigurationDto? configuration, string? key) =>
-        LibraryTypeCatalog.Find(key)
-        ?? LibraryRollup.OtherLibraries(configuration).FirstOrDefault(type => string.Equals(type.Key, key, StringComparison.OrdinalIgnoreCase));
+    /// <summary>An available kind, or an "other-{libraryId}" library, by key; null when there is no such type.</summary>
+    public static LibraryTypeOption? ResolveType(LibraryKindCatalog kinds, LibrariesConfigurationDto? configuration, string? key) =>
+        kinds.Find(key)
+        ?? LibraryRollup.OtherLibraries(kinds, configuration).FirstOrDefault(type => string.Equals(type.Key, key, StringComparison.OrdinalIgnoreCase));
 
     public Task<ServerFolderValidationResultDto?> ValidateAsync(FolderAddScope scope, string path, string mode, string? sourceId = null)
     {
@@ -64,9 +64,9 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
     /// cannot be written. Nothing is asked of the person here; follow-ups are <see cref="OfferOrganiseAsync"/> and
     /// <see cref="MergeIntoAsync"/>, which the caller runs next.
     /// </summary>
-    public async Task<AddFolderResult> AddAsync(AddFolderPlan plan, LibrariesConfigurationDto current, FolderAddScope scope)
+    public async Task<AddFolderResult> AddAsync(AddFolderPlan plan, LibraryKindCatalog kinds, LibrariesConfigurationDto current, FolderAddScope scope)
     {
-        var type = ResolveType(current, plan.TypeKey);
+        var type = ResolveType(kinds, current, plan.TypeKey);
         if (type is null)
         {
             return new AddFolderResult(null, null, null, false, null, "That library type does not exist.");
@@ -293,6 +293,7 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         Name = option.Label,
         Category = option.Label,
         Kind = "catalogued",
+        KindKey = option.Key,
         Area = option.Area,
         Presentation = "catalogue",
         MetadataPolicy = option.MediaTypes[0] == "Videos" ? "local_only" : "enriched",

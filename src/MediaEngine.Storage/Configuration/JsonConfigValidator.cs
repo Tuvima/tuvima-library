@@ -52,6 +52,9 @@ public static class JsonConfigValidator
             case MediaTypeConfiguration mediaTypes:
                 ValidateMediaTypes(mediaTypes, errors);
                 break;
+            case LibraryKindsConfiguration kinds:
+                ValidateLibraryKinds(kinds, errors);
+                break;
             case Dictionary<string, MediaTypePipeline> pipelines:
                 ValidatePipelines(pipelines, errors);
                 break;
@@ -451,7 +454,7 @@ public static class JsonConfigValidator
 
             if (!LibraryAreas.IsValid(library.Area))
             {
-                errors.Add($"{prefix}.area must be one of read, watch, listen, view.");
+                errors.Add($"{prefix}.area must be one of read, watch, listen, view, vault.");
             }
 
             if (!LibraryPresentations.IsValid(library.Presentation))
@@ -505,6 +508,10 @@ public static class JsonConfigValidator
 
             ValidatePrimaryDestination(library, prefix, errors);
         }
+
+        // A library's kind_key must name a kind. A key that is not one of the kinds that ship with the Library may belong to a
+        // plugin, which this file cannot see; the Engine checks those against the full list where it saves a library.
+        errors.AddRange(LibraryKindRules.LibraryProblems(config, LibraryKindsConfiguration.BuiltIn(), allowUnknownKeys: true));
 
         for (var left = 0; left < normalizedPaths.Count; left++)
         {
@@ -1072,12 +1079,23 @@ public static class JsonConfigValidator
         {
             AddRequired(errors, type.Key, "types[].key");
             AddRequired(errors, type.DisplayName, "types[].display_name");
-            AddRequired(errors, type.CategoryFolder, "types[].category_folder");
             if (type.Extensions.Any(extension => !extension.StartsWith('.')))
             {
                 errors.Add("types[].extensions values must start with '.'.");
             }
         }
+    }
+
+    private static void ValidateLibraryKinds(LibraryKindsConfiguration config, List<string> errors)
+    {
+        AddRequired(errors, config.Version, "version");
+        if (config.Kinds.Count == 0)
+        {
+            errors.Add("kinds must contain at least one library kind.");
+        }
+
+        // Whether a provider or naming template exists lives in other files; those two checks are made where the kinds are served.
+        errors.AddRange(LibraryKindRules.Problems(config.Kinds));
     }
 
     private static void ValidatePipelines(Dictionary<string, MediaTypePipeline> pipelines, List<string> errors)

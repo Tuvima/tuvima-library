@@ -38,7 +38,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         [
             new()
             {
-                Id = MoviesId, Name = "Movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"],
+                Id = MoviesId, Name = "Movies", KindKey = "movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"],
                 PrimaryDestinationSourceId = "movies-main",
                 Sources =
                 [
@@ -48,7 +48,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
             },
             new()
             {
-                Id = AudiobooksId, Name = "Audiobooks", Area = "listen", Kind = "catalogued", MediaTypes = ["Audiobooks"],
+                Id = AudiobooksId, Name = "Audiobooks", KindKey = "audiobooks", Area = "listen", Kind = "catalogued", MediaTypes = ["Audiobooks"],
                 Sources = [new() { Id = "audio-old", Path = "C:\\media\\Audiobooks", ManagementMode = "existing_library", AccessMode = "read_only" }],
             },
         ],
@@ -120,6 +120,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
         _dialogs = Render<AppDialogHost>();
     }
 
@@ -143,7 +144,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
 
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
-    private async Task<IAppDialogReference> OpenWizardAsync(string? group = null, string? type = null, string? setupSession = null, bool embedded = false, Func<string?, Task>? onAdded = null)
+    private async Task<IAppDialogReference> OpenWizardAsync(string? group = null, string? type = null, string? setupSession = null, bool embedded = false, Func<string?, Task>? onAdded = null, LibraryKindCatalog? kinds = null)
     {
         var parameters = new AppDialogParameters<AddFolderWizard>
         {
@@ -152,6 +153,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
             { component => component.SetupSession, setupSession },
             { component => component.Embedded, embedded },
             { component => component.Configuration, _configuration },
+            { component => component.Kinds, kinds ?? LibraryKindsTestData.Catalog },
             { component => component.OnFolderAdded, onAdded },
         };
         var reference = await Services.GetRequiredService<IAppDialogService>().ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
@@ -352,7 +354,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     [Fact]
     public async Task VideosKeepTheYoutubeSwitchOnByDefaultAndTheAnswerIsSavedWithTheFolder()
     {
-        await OpenWizardAsync(type: "videos");
+        await OpenWizardAsync(type: "other_videos");
         PickFolder(path: "E:\\Courses");
         GoToHow();
         Assert.Contains("contacts YouTube", _dialogs.Markup);
@@ -589,12 +591,13 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync("mobile");
 
-        var door = Render<LibraryFrontDoor>(parameters => parameters.Add(x => x.Configuration, _configuration).Add(x => x.ReadOnly, true));
+        var door = Render<LibraryFrontDoor>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.ReadOnly, true));
         Assert.Empty(door.FindAll("button"));
         Assert.DoesNotContain("Add folder", door.Markup);
 
         var group = Render<LibraryGroupPage>(parameters => parameters
-            .Add(x => x.Group, LibraryGroupCatalog.TryGetGroup("watch")!)
+            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
+            .Add(x => x.Group, LibraryKindsTestData.Catalog.TryGetGroup("watch")!)
             .Add(x => x.Configuration, _configuration)
             .Add(x => x.ReadOnly, true));
         Assert.Empty(group.FindAll("button"));
@@ -607,31 +610,31 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     [Fact]
     public void OnDesktopTheFrontDoorAndGroupPageOfferAddFolderAndTheFrontDoorMakesItPrimaryOnlyWhenNothingExists()
     {
-        var door = Render<LibraryFrontDoor>(parameters => parameters.Add(x => x.Configuration, _configuration));
+        var door = Render<LibraryFrontDoor>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration));
         var button = door.FindAll("button").Single(x => Text(x) == "Add folder");
         Assert.DoesNotContain("primary", button.ClassName, StringComparison.OrdinalIgnoreCase);
 
         var empty = BuildConfiguration();
         empty.Libraries.ForEach(library => library.Sources.Clear());
-        var emptyDoor = Render<LibraryFrontDoor>(parameters => parameters.Add(x => x.Configuration, empty));
+        var emptyDoor = Render<LibraryFrontDoor>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, empty));
         var primary = emptyDoor.FindAll("button").Single(x => Text(x) == "Add folder");
         Assert.Contains("primary", primary.ClassName, StringComparison.OrdinalIgnoreCase);
 
-        var group = Render<LibraryGroupPage>(parameters => parameters.Add(x => x.Group, LibraryGroupCatalog.TryGetGroup("read")!).Add(x => x.Configuration, _configuration));
+        var group = Render<LibraryGroupPage>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Group, LibraryKindsTestData.Catalog.TryGetGroup("read")!).Add(x => x.Configuration, _configuration));
         Assert.Single(group.FindAll("button"), x => Text(x) == "Add folder");
     }
 
     [Fact]
     public async Task AddFolderOnTheFrontDoorAndAGroupPageOpensTheWizardOnTheRightStep()
     {
-        var door = Render<LibraryFrontDoor>(parameters => parameters.Add(x => x.Configuration, _configuration));
+        var door = Render<LibraryFrontDoor>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration));
         door.FindAll("button").Single(x => Text(x) == "Add folder").Click();
         _dialogs.WaitForElement(".add-wizard");
         Assert.Equal("1 What is it? · 2 Folder · 3 How", Steps);
         Click("Cancel");
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".add-wizard")));
 
-        var group = Render<LibraryGroupPage>(parameters => parameters.Add(x => x.Group, LibraryGroupCatalog.TryGetGroup("read")!).Add(x => x.Configuration, _configuration));
+        var group = Render<LibraryGroupPage>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Group, LibraryKindsTestData.Catalog.TryGetGroup("read")!).Add(x => x.Configuration, _configuration));
         group.FindAll("button").Single(x => Text(x) == "Add folder").Click();
         _dialogs.WaitForElement(".add-wizard");
         Assert.Equal("true", _dialogs.Find(".add-wizard__tile[data-group=read]").GetAttribute("aria-pressed"));
@@ -658,7 +661,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     [Fact]
     public async Task SetupAddsAFolderThroughTheWizardWithTheSetupCalls()
     {
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
         cut.WaitForElement(".library-folders__type");
         cut.FindAll(".library-folders__type").Single(x => x.TextContent.Contains("Movies")).Click();
         cut.WaitForElement(".folder-table");
@@ -704,6 +707,22 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
                 Assert.DoesNotContain(kind.QuerySelector(".add-wizard__kind-option")!.QuerySelectorAll("span:not(.tl-icon-root)"), x => !string.IsNullOrWhiteSpace(x.TextContent));
             });
         }
+    }
+
+    // A kind a plugin adds is another entry in the list, so step 1 offers it under its group with its own (i) text.
+    [Fact]
+    public async Task AKindFromAPluginIsOfferedInStepOneUnderItsGroupWithItsOwnText()
+    {
+        var kinds = new LibraryKindCatalog(LibraryKindsTestData.BuiltIn(LibraryKindsTestData.Podcasts()));
+        await OpenWizardAsync(group: "listen", kinds: kinds);
+
+        var offered = _dialogs.FindAll(".add-wizard__kind");
+        Assert.Equal(["Music", "Audiobooks", "Podcasts"], offered.Select(kind => Text(kind.QuerySelector("strong")!)).ToArray());
+        Assert.Equal("Episodes of shows you follow, one folder per show.", offered[2].QuerySelector("[data-playback-tooltip]")!.GetAttribute("data-playback-tooltip"));
+
+        _dialogs.Find(".add-wizard__kind-option[data-type=podcasts]").Click();
+        _dialogs.WaitForElement(".server-folder-picker");
+        Assert.Contains("holds your Podcasts", _dialogs.Find(".add-wizard__lead").TextContent);
     }
 
     [Fact]

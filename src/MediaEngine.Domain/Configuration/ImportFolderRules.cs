@@ -22,26 +22,37 @@ public sealed record ImportFolderStatus(string? Path, IReadOnlyList<string> Miss
 
 /// <summary>
 /// The import folder is optional (other apps such as Sonarr and Radarr can drop finished downloads in it).
-/// It is the storage location with id <see cref="LocationId"/>. When it is set, each of the seven media types needs a
-/// destination: the folder Tuvima manages and files that type into. An as-is folder is never a destination.
+/// It is the storage location with id <see cref="LocationId"/>. When it is set, each media type needs a destination: the folder
+/// Tuvima manages and files that type into. An as-is folder is never a destination. The media types are the available kinds
+/// in <c>config/library_kinds.json</c> that have a format, one per format (see <see cref="TypesFrom"/>).
 /// </summary>
 public static class ImportFolderRules
 {
     public const string LocationId = "incoming";
 
-    public static readonly IReadOnlyList<(string Label, string[] MediaTypes)> Types =
-    [
-        ("Books", ["Books"]),
-        ("Audiobooks", ["Audiobooks"]),
-        ("Movies", ["Movies"]),
-        ("TV Shows", ["TV", "TVShows"]),
-        ("Music", ["Music"]),
-        ("Comics", ["Comics"]),
-        ("Videos", ["Videos"]),
-    ];
+    /// <summary>The media types an import folder needs a destination for: the kinds that ship with the Library (see <see cref="TypesFrom"/>).</summary>
+    public static readonly IReadOnlyList<(string Label, string[] MediaTypes)> Types = TypesFrom(LibraryKindsConfiguration.BuiltIn());
 
     /// <summary>The folders created inside the import folder when it is set, one per media type. Programs such as Sonarr and Radarr are pointed at them.</summary>
-    public static readonly IReadOnlyList<string> Subfolders = ["Movies", "TV", "Music", "Books", "Audiobooks", "Comics", "Videos"];
+    public static readonly IReadOnlyList<string> Subfolders = [.. Types.Select(type => SubfolderFor(type.Label))];
+
+    /// <summary>
+    /// The import folder's media types for a list of kinds: each available kind that has a format, the first one of each format, in
+    /// the list's order. The label is the kind's label; the tokens are the format (TV also answers to its older spelling TVShows).
+    /// </summary>
+    public static IReadOnlyList<(string Label, string[] MediaTypes)> TypesFrom(IEnumerable<LibraryKindDefinition> kinds)
+    {
+        ArgumentNullException.ThrowIfNull(kinds);
+        return
+        [
+            .. kinds
+                .Where(kind => kind.Available && kind.Format is not null)
+                .DistinctBy(kind => kind.Format, StringComparer.OrdinalIgnoreCase)
+                .Select(kind => (kind.Label, string.Equals(kind.Format, nameof(Enums.MediaType.TV), StringComparison.OrdinalIgnoreCase)
+                    ? new[] { kind.Format!, "TVShows" }
+                    : new[] { kind.Format! })),
+        ];
+    }
 
     /// <summary>Name of the folder, inside the import folder, that Tuvima uses for its own working files. It is never scanned for media.</summary>
     public const string WorkingFolderName = ".data";

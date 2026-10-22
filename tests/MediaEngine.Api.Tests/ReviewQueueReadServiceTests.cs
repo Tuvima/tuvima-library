@@ -262,6 +262,7 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
                         Id = Guid.NewGuid().ToString("D"),
                         Name = "Movies",
                         Category = "Movies",
+                        KindKey = "movies",
                         MediaTypes = ["Movies"],
                         PrimaryDestinationSourceId = TargetId,
                         Sources =

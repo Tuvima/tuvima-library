@@ -171,19 +171,6 @@
     private const string MergeTip = "Library moves these files into your managed folder, renamed and tagged.";
     private const string ManagedTip = "Library renames, moves and tags the files here. Other apps that use this folder may stop finding them.";
 
-    // What belongs in each kind (the (i) beside its card); no second line of text on the card itself.
-    private static readonly IReadOnlyDictionary<string, string> KindTips = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["movies"] = "Feature films, one file or folder per film.",
-        ["tv"] = "Series with seasons and episodes, one folder per show.",
-        ["videos"] = "Courses, talks and downloads. YouTube lookup can be switched on in the last step.",
-        ["music"] = "Albums and songs, tagged or in artist and album folders.",
-        ["audiobooks"] = "Spoken books, one file or folder per book.",
-        ["books"] = "EPUB and PDF books.",
-        ["comics"] = "CBZ and CBR comics and manga.",
-        [LibraryTypeCatalog.PhotosKey] = "Photos and phone or camera videos. View sorts them by date and place.",
-    };
-
     /// <summary>The centred dialog every host opens the wizard with (a centred dialog on tablets too).</summary>
     public static AppDialogOptions DialogOptions { get; } = new()
     {
@@ -206,6 +193,8 @@
     /// <summary>Offers the Vault tile. False until Vault mode exists.</summary>
     [Parameter] public bool ShowVault { get; set; }
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    /// <summary>The Engine's list of library kinds; step 1 offers each group's available kinds from it.</summary>
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
     /// <summary>Called after each folder is added (and its Convert or Merge question answered), with a notice to keep on screen or null.</summary>
     [Parameter] public Func<string?, Task>? OnFolderAdded { get; set; }
 
@@ -226,12 +215,13 @@
     private LibrariesConfigurationDto _configuration = default!;
 
     // First-run setup has no way into View's settings, so View is not offered there.
-    private IEnumerable<LibraryGroup> OfferedGroups => LibraryGroupCatalog.Visible(ShowVault).Where(group => !Embedded || group.Key != "view");
+    private IEnumerable<LibraryGroup> OfferedGroups => Kinds.Visible(ShowVault).Where(group => !Embedded || group.Key != "view");
 
     private FolderAddScope Scope => new(Embedded, SetupSession);
     private bool IsVideos => _type?.MediaTypes.Contains("Videos", StringComparer.OrdinalIgnoreCase) == true;
     private LibraryGroup? CurrentGroup => OfferedGroups.FirstOrDefault(group => group.Key == _groupKey);
-    private bool InWatch => LibraryGroupCatalog.GroupFor(_type?.Key)?.Key == "watch";
+    // The phone-footage hint is for Watch kinds, so it follows the area of the chosen kind rather than a particular kind.
+    private bool InWatch => string.Equals(_type?.Area, "watch", StringComparison.OrdinalIgnoreCase);
     private bool LooksLikeFootage => InWatch && _folder is { LooksLikePhoneFootage: true };
     private bool CanGoBack => _step == WizardStep.How || (_step == WizardStep.Folder && !_typeKnown);
     private LibraryFolderDto? TypeLibrary => _type is null ? null : LibraryRollup.LibraryFor(_configuration, _type);
@@ -244,14 +234,14 @@
     protected override void OnInitialized()
     {
         _configuration = Configuration;
-        var known = LibraryFolderAddService.ResolveType(_configuration, StartTypeKey);
+        var known = LibraryFolderAddService.ResolveType(Kinds, _configuration, StartTypeKey);
         // View's folders cannot be added in setup, so a View type there starts at step 1 like no type at all.
-        if (Embedded && known is not null && LibraryGroupCatalog.GroupFor(known.Key)?.Key == "view") known = null;
+        if (Embedded && known is not null && Kinds.GroupFor(known.Key)?.Key == "view") known = null;
         if (known is not null)
         {
             _typeKnown = true;
             _type = known;
-            _groupKey = LibraryGroupCatalog.GroupFor(known.Key)?.Key ?? LibraryGroupCatalog.ForArea(known.Area)?.Key;
+            _groupKey = Kinds.GroupFor(known.Key)?.Key ?? Kinds.ForArea(known.Area)?.Key;
             _step = WizardStep.Folder;
             ResetYoutubeDefault();
         }
@@ -262,10 +252,11 @@
         }
     }
 
-    private static IEnumerable<LibraryTypeOption> KindsOf(LibraryGroup group) =>
-        group.TypeKeys.Select(LibraryTypeCatalog.Find).OfType<LibraryTypeOption>();
+    private IEnumerable<LibraryTypeOption> KindsOf(LibraryGroup group) =>
+        group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>();
 
-    private static string TipFor(LibraryTypeOption kind) => KindTips.TryGetValue(kind.Key, out var tip) ? tip : string.Empty;
+    // What belongs in each kind (the (i) beside its card) is part of the kind's own entry.
+    private static string TipFor(LibraryTypeOption kind) => kind.Tooltip;
 
     private void ChooseGroup(LibraryGroup group)
     {
@@ -277,7 +268,7 @@
     private void ChooseKind(LibraryTypeOption kind)
     {
         // View keeps its folders in its own place, so choosing it hands over to View's add form; nothing is created here.
-        if (LibraryGroupCatalog.GroupFor(kind.Key)?.Key == "view")
+        if (Kinds.GroupFor(kind.Key)?.Key == "view")
         {
             HandOffToView(null);
             return;
@@ -326,7 +317,7 @@
     // View's own add form takes over (its address reads ?add=folder); nothing has been saved by the wizard.
     private void HandOffToView(string? path)
     {
-        var address = $"{LibraryGroupCatalog.TypeAddress(LibraryGroupCatalog.TryGetGroup("view")!, LibraryTypeCatalog.PhotosKey)}?add=folder";
+        var address = $"{LibraryGroupCatalog.TypeAddress(Kinds.TryGetGroup("view")!, LibraryTypeCatalog.PhotosKey)}?add=folder";
         if (!string.IsNullOrWhiteSpace(path)) address += $"&path={Uri.EscapeDataString(path)}";
         Dialog.Cancel();
         Navigation.NavigateTo(address);
@@ -346,7 +337,7 @@
                 withFiles ? _handling : AddFolderHandling.Managed,
                 IsVideos ? _youtubeLookup : null,
                 MarkNewMediaHere: !withFiles && _markNewMediaHere);
-            var result = await AddService.AddAsync(plan, _configuration, Scope);
+            var result = await AddService.AddAsync(plan, Kinds, _configuration, Scope);
             if (!result.Saved)
             {
                 _error = result.Error;
@@ -408,7 +399,7 @@
         get
         {
             if (_type is null) return null;
-            var group = LibraryGroupCatalog.GroupFor(_type.Key) ?? LibraryGroupCatalog.ForArea(_type.Area);
+            var group = Kinds.GroupFor(_type.Key) ?? Kinds.ForArea(_type.Area);
             return group is not null
                 ? LibraryGroupCatalog.TypeAddress(group, _type.Key)
                 : $"/settings/libraries/other/{_type.Key}";

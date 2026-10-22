@@ -200,7 +200,7 @@ The trust level shown in Settings > Plugins is decided by the Library, never by 
 
 ## JSON-only plugins
 
-A plugin of kind `declarative` has no code at all: a `plugin.json` in its own folder under the plugins folder, with a `declarative` section. The Library does the work, so what the plugin can do is exactly what its manifest says and the administrator approved. The section may hold any of three lists, and a file that breaks a rule is refused with a sentence saying what to change (it shows on the plugin's card as the problem).
+A plugin of kind `declarative` has no code at all: a `plugin.json` in its own folder under the plugins folder, with a `declarative` section. The Library does the work, so what the plugin can do is exactly what its manifest says and the administrator approved. The section may hold any of the lists below, and a file that breaks a rule is refused with a sentence saying what to change (it shows on the plugin's card as the problem).
 
 ```json
 {
@@ -225,7 +225,18 @@ A plugin of kind `declarative` has no code at all: a `plugin.json` in its own fo
 - **`ai_steps`** send a prompt to Local AI as the plugin. `{name}` placeholders are filled from the inputs given when the step is run (`POST /plugins/{pluginId}/ai-steps/{stepKey}/run` with `{ "inputs": { "text": "..." } }`). The plugin must ask for `ai.infer` and list the step's `role` under `ai_permissions`; the answer comes back as `status` (`succeeded`, `refused`, `ai_unavailable`, `busy`, `over_allowance`, `timed_out`, `invalid_answer` or `failed`) so a caller can carry on without AI. Add `json_grammar` to require a JSON answer.
 - **`notification_channels`** deliver the Library's notifications (backup failed, a tool is missing and so on) through one web request to an address you declare. Each needs a `key`, a `name` and an `https://` `url` listed under `network` (the plugin must ask for `network.http`). `headers` (at most eight) and `body` may use `{title}`, `{body}` and `{event}`; a header may also use `{secret:name}` for a secret listed under `secrets` (the plugin must ask for `secrets.plugin`), so a login is never written into the file. `content_type` is `application/json` (the default), `text/plain` or `application/x-www-form-urlencoded`, and each value is escaped for it. The channel appears in Settings > Notifications beside email while the plugin is switched on, and follows the same quiet hours, one-a-minute limit and switch-off after five failures. A working example is in [`samples/plugins/webhook-channel`](https://github.com/Tuvima/tuvima-library/tree/main/samples/plugins/webhook-channel).
 
-- **`metadata_sources`** hold a provider in the same format as the files in `config/providers/` (it needs a `name`, a JSON `adapter_type` such as `config_driven` or `text_track`, and `https://` endpoints). They are checked and listed now; the Library starts using them when providers move under Plugins.
+- **`metadata_sources`** hold a provider in the same format as the files in `config/providers/` (it needs a `name`, a JSON `adapter_type` such as `config_driven` or `text_track`, and `https://` endpoints). They are checked, and while the plugin is switched on the Library takes each one in as a source of its own: it sets the weight, the order and the identity, and every address must be declared under `network`. Sources are read when the Engine starts, so switching a plugin on or off applies after a restart.
+- **`library_kinds`** add a type of library (for example Podcasts under Listen) as settings, not code. A kind has the same fields as an entry in `config/library_kinds.json` (see the [configuration reference](../reference/configuration.md#configlibrary_kindsjson)) except `built_in`, which a plugin cannot set. Required: `key` (lower_snake, such as `podcasts`), `area` (`watch`, `listen`, `read`, `view` or `vault`), `label`, `icon` (an `AppMaterialIcons` name), `format` (`Movies`, `TV`, `Videos`, `Music`, `Audiobooks`, `Books` or `Comics`), `lookup` (`"none"`, or `{ "providers": [...] }` naming metadata sources of the Library or of this same plugin's `metadata_sources`), `grouping` (one of the built-in rules: `movie`, `tv_show_season`, `music_album`, `audiobook`, `book_series`, `comic_series`, `video_series_folder`, `folder_and_tags`), `naming_template` (a key under `organization_templates` in `config/core.json`) and `misfit` (`unmatched`, which needs a lookup, or `keep`). Optional: `default_handling` (`read_only` by default, or `managed`), `tooltip` (the (i) text in Add folder), `order` (after the kinds that ship by default) and `available` (true by default). A kind cannot run code or invent a new way of grouping files; that needs a Library release. A kind with a wrong value, or a `key` already used by a kind that ships with the Library or by another switched-on plugin, is refused with a sentence on the plugin's card. The kind appears on the Libraries front door, its group page, Add folder and first-run setup while the plugin is switched on, and goes when it is switched off. The approval statement lists each kind in plain words ("Adds the library type 'Podcasts' under Listen, with no lookup"), so changing a kind's name, group or lookup asks for approval again.
+
+```json
+"declarative": {
+  "library_kinds": [
+    { "key": "podcasts", "area": "listen", "label": "Podcasts", "icon": "Podcasts", "format": "Music",
+      "lookup": "none", "grouping": "folder_and_tags", "naming_template": "default", "misfit": "keep",
+      "tooltip": "Episodes of shows you follow, one folder per show." }
+  ]
+}
+```
 
 ## Expose settings clearly
 

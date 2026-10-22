@@ -81,7 +81,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         [
             new()
             {
-                Id = MoviesId, Name = "Movies", Area = "watch", MediaTypes = ["Movies"],
+                Id = MoviesId, Name = "Movies", KindKey = "movies", Area = "watch", MediaTypes = ["Movies"],
                 PrimaryDestinationSourceId = "movies-main",
                 Sources =
                 [
@@ -92,14 +92,14 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             },
             new()
             {
-                Id = TvId, Name = "TV Shows", Area = "watch", MediaTypes = ["TV"],
+                Id = TvId, Name = "TV Shows", KindKey = "tv", Area = "watch", MediaTypes = ["TV"],
                 OrganizationPolicy = new() { Mode = "tuvima_standard", WriteTags = false },
                 PrimaryDestinationSourceId = "tv-main",
                 Sources = [new() { Id = "tv-main", Path = "E:\\Library\\TV", ManagementMode = "managed_by_tuvima", AccessMode = "writable" }],
             },
             new()
             {
-                Id = AudiobooksId, Name = "Audiobooks", Area = "listen", MediaTypes = ["Audiobooks"],
+                Id = AudiobooksId, Name = "Audiobooks", KindKey = "audiobooks", Area = "listen", MediaTypes = ["Audiobooks"],
                 Sources = [new() { Id = "audio-old", Path = "C:\\media\\Audiobooks", ManagementMode = "existing_library", AccessMode = "read_only" }],
             },
         ],
@@ -195,6 +195,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
         _popovers = Render<AppPopoverHost>();
     }
 
@@ -203,7 +204,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     {
         ["Movies"] = ("watch", "movies"),
         ["TV Shows"] = ("watch", "tv"),
-        ["Videos"] = ("watch", "videos"),
+        ["Videos"] = ("watch", "other_videos"),
         ["Music"] = ("listen", "music"),
         ["Audiobooks"] = ("listen", "audiobooks"),
         ["Books"] = ("read", "books"),
@@ -296,7 +297,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public void ChooseOnAnImportLineOpensThatTypeAndHighlightsAddFolder()
     {
         _configuration.ImportFolderStatus = ConfiguredImport();
-        var cut = Render<LibraryFoldersPanel>();
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog));
         cut.WaitForElement(".library-folders__type");
         cut.FindAll(".library-folders__type")[7].Click();
         cut.WaitForElement(".library-folders__destination");
@@ -871,7 +872,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public void SetupPanelDoesNotPointAtAnAdvancedSectionItDoesNotHave()
     {
         _configuration.Libraries[0].Sources.RemoveAll(x => x.Id != "movies-main");
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
         cut.WaitForElement(".library-folders__type");
         cut.FindAll(".library-folders__type").Single(x => x.TextContent.Contains("Movies")).Click();
         cut.WaitForElement(".folder-table");
@@ -886,7 +887,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public void SetupPhoneNoteOffersSkipWhileThereAreNoFolders()
     {
         _configuration.Libraries.ForEach(library => library.Sources.Clear());
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
         cut.WaitForElement(".library-folders__type");
         Assert.Equal(
             "Add or change folders on a computer or tablet. You can skip this step and set up folders later.",
@@ -1008,7 +1009,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     [Fact]
     public void SetupWizardPanelHidesAdvanced()
     {
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
         cut.WaitForElement(".library-folders__type");
         Assert.Empty(cut.FindAll(".library-folders__advanced"));
     }

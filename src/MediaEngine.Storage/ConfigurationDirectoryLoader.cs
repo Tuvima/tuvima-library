@@ -68,6 +68,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     private const string MaintenanceFileName = "maintenance.json";
     private const string HydrationFileName = "hydration.json";
     private const string MediaTypesFileName = "media_types.json";
+    private const string LibraryKindsFileName = "library_kinds.json";
     private const string DisambiguationFileName = "disambiguation.json";
     private const string TranscodingFileName = "transcoding.json";
     private const string OcrFileName = "ocr.json";
@@ -277,6 +278,11 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     public MediaTypeConfiguration LoadMediaTypes() =>
         LoadFile<MediaTypeConfiguration>(MediaTypesFileName)
         ?? new MediaTypeConfiguration();
+
+    /// <inheritdoc/>
+    public LibraryKindsConfiguration LoadLibraryKinds() =>
+        LoadFile<LibraryKindsConfiguration>(LibraryKindsFileName)
+        ?? new LibraryKindsConfiguration();
 
     /// <inheritdoc/>
     public void SaveMediaTypes(MediaTypeConfiguration config)
@@ -661,6 +667,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
                 MaintenanceFileName => ReloadFile<MaintenanceSettings>(relativePath),
                 HydrationFileName => ReloadFile<HydrationSettings>(relativePath),
                 MediaTypesFileName => ReloadFile<MediaTypeConfiguration>(relativePath),
+                LibraryKindsFileName => ReloadFile<LibraryKindsConfiguration>(relativePath),
                 PipelinesFileName => ReloadFile<Dictionary<string, MediaTypePipeline>>(relativePath),
                 NetworkFileName => ReloadFile<NetworkSettings>(relativePath),
                 "ui/palette.json" => ReloadFile<PaletteConfiguration>(relativePath),
@@ -708,6 +715,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
             "scoring.json" => "scoring.schema.json",
             "maintenance.json" => "maintenance.schema.json",
             "media_types.json" => "media_types.schema.json",
+            "library_kinds.json" => "library_kinds.schema.json",
             "pipelines.json" => "pipelines.schema.json",
             "network.json" => "network.schema.json",
             "ui/palette.json" => "ui/palette.schema.json",
@@ -778,6 +786,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
             }
         });
         SaveMediaTypes(new MediaTypeConfiguration());
+        SaveFile(LibraryKindsFileName, new LibraryKindsConfiguration());
 
         // Default providers for a newly initialized configuration directory.
         SaveProvider(new ProviderConfiguration

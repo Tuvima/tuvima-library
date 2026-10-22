@@ -102,6 +102,9 @@ public sealed partial class EngineApiClient
     public Task<LibrariesConfigurationDto?> GetSetupLibrariesAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<LibrariesConfigurationDto>(HttpMethod.Get, "/setup/v1/libraries", null, setupSession, ct);
 
+    public async Task<IReadOnlyList<LibraryKindDto>?> GetSetupLibraryKindsAsync(string? setupSession, CancellationToken ct = default) =>
+        await SetupSendAsync<List<LibraryKindDto>>(HttpMethod.Get, "/setup/v1/library-kinds", null, setupSession, ct);
+
     public Task<LibrariesConfigurationDto?> UpdateSetupLibrariesAsync(UpdateLibrariesRequest request, string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<LibrariesConfigurationDto>(HttpMethod.Put, "/setup/v1/libraries", JsonContent.Create(request), setupSession, ct);
 

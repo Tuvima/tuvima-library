@@ -33,6 +33,8 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     private readonly List<string?> _setupSessions = [];
     private readonly List<string?> _updateSessions = [];
     private bool _failLoads;
+    private bool _failKinds;
+    private List<LibraryKindDto> _kinds = LibraryKindsTestData.BuiltIn();
     private readonly ServerFolderValidationResultDto _picked = new() { Path = "E:\\Setup\\Films", StorageLocationId = "media", Exists = true, HasRead = true, HasWrite = true, CanSelect = true, ContainsFiles = true };
     private IRenderedComponent<AppDialogHost> _dialogs = null!;
     private int _deferred;
@@ -52,6 +54,8 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
                 _setupSessions.Add((string?)args![0]);
                 return Task.FromResult<LibrariesConfigurationDto?>(_failLoads ? null : _configuration);
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetSetupLibraryKindsAsync), _ =>
+                Task.FromResult<IReadOnlyList<LibraryKindDto>?>(_failKinds ? null : _kinds));
             stub.SetHandler(nameof(IEngineApiClient.UpdateSetupLibrariesAsync), args =>
             {
                 var request = (UpdateLibrariesRequest)args![0]!;
@@ -105,6 +109,34 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         });
         Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(cut.FindAll(".setup-have__section"));
+    }
+
+    // The cards and the wizard are drawn from the list of library kinds the setup session can read.
+    [Fact]
+    public async Task AKindFromAPluginAppearsOnItsCardAndInTheWizardDuringSetup()
+    {
+        _kinds = LibraryKindsTestData.BuiltIn(LibraryKindsTestData.Podcasts());
+        var cut = RenderStage();
+        WaitForLoaded(cut);
+
+        Assert.Contains("Listen Music, Audiobooks, Podcasts", cut.FindAll(".setup-have__card").Select(Text).ToArray());
+        Tick(cut, "listen");
+        Assert.Equal(["Music", "Audiobooks", "Podcasts"], cut.FindAll(".setup-have__type").Select(x => Text(x.QuerySelector("strong")!)).ToArray());
+        Button(cut, "+ Add folder").Click();
+        _dialogs.WaitForElement(".add-wizard");
+        Assert.Equal(["Music", "Audiobooks", "Podcasts"], _dialogs.FindAll(".add-wizard__kind-option").Select(Text).ToArray());
+        await Task.CompletedTask;
+    }
+
+    [Fact]
+    public void WhenTheListOfKindsCannotBeReadSetupSaysSoAndOffersNoAddFolder()
+    {
+        _failKinds = true;
+        var cut = RenderStage();
+        WaitForLoaded(cut);
+
+        cut.WaitForAssertion(() => Assert.Contains("could not be loaded", cut.Markup));
+        Assert.Empty(cut.FindAll(".setup-have__add"));
     }
 
     // 2. Watch: the wizard, one folder, Continue.
@@ -163,7 +195,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         [
             new()
             {
-                Id = "11111111-1111-4111-8111-111111111111", Name = "Movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"],
+                Id = "11111111-1111-4111-8111-111111111111", Name = "Movies", KindKey = "movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"],
                 PrimaryDestinationSourceId = "movies-main",
                 Sources =
                 [
@@ -244,6 +276,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
             { component => component.SetupSession, Session },
             { component => component.Embedded, true },
             { component => component.Configuration, _configuration },
+            { component => component.Kinds, LibraryKindsTestData.Catalog },
         };
         await Services.GetRequiredService<IAppDialogService>().ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
         _dialogs.WaitForElement(".add-wizard");
@@ -292,7 +325,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
             [
                 new()
                 {
-                    Id = MusicId, Name = "Music", Area = "listen", Kind = "catalogued", MediaTypes = ["Music"],
+                    Id = MusicId, Name = "Music", KindKey = "music", Area = "listen", Kind = "catalogued", MediaTypes = ["Music"],
                     Sources = [new() { Id = "music-1", Path = "E:\\Music", ManagementMode = "managed_by_tuvima", AccessMode = "writable" }],
                 },
             ],
@@ -332,6 +365,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
             { component => component.SetupSession, Session },
             { component => component.Embedded, true },
             { component => component.Configuration, _configuration },
+            { component => component.Kinds, LibraryKindsTestData.Catalog },
         };
         await Services.GetRequiredService<IAppDialogService>().ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
         _dialogs.WaitForElement(".add-wizard");

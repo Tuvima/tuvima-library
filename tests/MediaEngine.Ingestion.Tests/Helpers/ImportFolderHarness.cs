@@ -171,6 +171,7 @@ internal sealed class ImportFolderHarness : IDisposable
             Id = id,
             Name = name,
             Kind = LibraryKinds.Catalogued,
+            KindKey = LibraryKindsConfiguration.BuiltIn().First(kind => kind.Available && LibraryKindRules.TokenMatchesFormat(mediaType, kind.Format)).Key,
             MediaTypes = [mediaType],
             Sources = [.. sources],
             PrimaryDestinationSourceId = destinationId,

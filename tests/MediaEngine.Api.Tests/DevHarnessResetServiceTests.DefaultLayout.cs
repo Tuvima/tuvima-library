@@ -242,6 +242,8 @@ public sealed partial class DevHarnessResetServiceTests
             Name = name,
             Category = "Books",
             Kind = LibraryKinds.Catalogued,
+            KindKey = "books",
+            MediaTypes = ["Books"],
             Area = LibraryAreas.Read,
             Presentation = LibraryPresentations.Catalogue,
             MetadataPolicy = LibraryMetadataPolicies.Enriched,

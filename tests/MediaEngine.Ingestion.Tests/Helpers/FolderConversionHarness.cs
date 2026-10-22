@@ -62,6 +62,7 @@ internal sealed class FolderConversionHarness : IDisposable
                     Id = LibraryId,
                     Name = "Movies",
                     Kind = LibraryKinds.Catalogued,
+                    KindKey = "movies",
                     MediaTypes = ["Movies"],
                     Sources = [Source(managed)],
                     PrimaryDestinationSourceId = managed ? SourceId.ToString("D") : null,

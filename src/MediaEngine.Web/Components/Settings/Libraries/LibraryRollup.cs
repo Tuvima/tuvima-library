@@ -19,21 +19,20 @@ public sealed record LibraryGroupSummary(LibraryGroup Group, IReadOnlyList<Libra
 /// </summary>
 public static class LibraryRollup
 {
-    /// <summary>The one library of a standard type: the catalogued library carrying one of its media types.</summary>
+    /// <summary>The one library of a kind: the catalogued library that names the kind.</summary>
     public static LibraryFolderDto? PrimaryLibraryFor(LibrariesConfigurationDto? configuration, LibraryTypeOption type) => configuration?.Libraries
-        .FirstOrDefault(library => IsCatalogued(library)
-            && library.MediaTypes.Any(token => type.MediaTypes.Contains(token, StringComparer.OrdinalIgnoreCase)));
+        .FirstOrDefault(library => IsCatalogued(library) && string.Equals(library.KindKey, type.Key, StringComparison.OrdinalIgnoreCase));
 
     public static bool IsCatalogued(LibraryFolderDto library) => string.Equals(library.Kind, "catalogued", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Libraries that are not the one library of a standard type (an older custom type, or a second library of a standard
-    /// type), so their folders can be seen and removed instead of silently hiding. Their key is "other-{libraryId}".
+    /// Libraries that are not the one library of a kind (one that names no available kind, or a second library of a kind), so
+    /// their folders can be seen and removed instead of silently hiding. Their key is "other-{libraryId}".
     /// </summary>
-    public static IReadOnlyList<LibraryTypeOption> OtherLibraries(LibrariesConfigurationDto? configuration) => configuration is null
+    public static IReadOnlyList<LibraryTypeOption> OtherLibraries(LibraryKindCatalog kinds, LibrariesConfigurationDto? configuration) => configuration is null
         ? []
         : configuration.Libraries
-            .Where(library => IsCatalogued(library) && !LibraryTypeCatalog.Types.Any(type => ReferenceEquals(PrimaryLibraryFor(configuration, type), library)))
+            .Where(library => IsCatalogued(library) && !kinds.Types.Any(type => ReferenceEquals(PrimaryLibraryFor(configuration, type), library)))
             .Select(library => new LibraryTypeOption(
                 OtherKey(library.Id),
                 string.IsNullOrWhiteSpace(library.Name) ? "Other library" : library.Name,
@@ -55,12 +54,12 @@ public static class LibraryRollup
     };
 
     /// <summary>Other libraries whose area belongs to <paramref name="group"/>.</summary>
-    public static IReadOnlyList<LibraryTypeOption> OthersIn(LibrariesConfigurationDto? configuration, LibraryGroup group) =>
-        [.. OtherLibraries(configuration).Where(other => LibraryGroupCatalog.ForArea(other.Area)?.Key == group.Key)];
+    public static IReadOnlyList<LibraryTypeOption> OthersIn(LibraryKindCatalog kinds, LibrariesConfigurationDto? configuration, LibraryGroup group) =>
+        [.. OtherLibraries(kinds, configuration).Where(other => kinds.ForArea(other.Area)?.Key == group.Key)];
 
     /// <summary>Other libraries with no known area; the front door lists them under the Import folder row.</summary>
-    public static IReadOnlyList<LibraryTypeOption> OthersWithoutGroup(LibrariesConfigurationDto? configuration) =>
-        [.. OtherLibraries(configuration).Where(other => LibraryGroupCatalog.ForArea(other.Area) is null)];
+    public static IReadOnlyList<LibraryTypeOption> OthersWithoutGroup(LibraryKindCatalog kinds, LibrariesConfigurationDto? configuration) =>
+        [.. OtherLibraries(kinds, configuration).Where(other => kinds.ForArea(other.Area) is null)];
 
     public static LibraryFolderDto? LibraryFor(LibrariesConfigurationDto? configuration, LibraryTypeOption type) => type.LibraryId is not null
         ? configuration?.Libraries.FirstOrDefault(library => library.Id == type.LibraryId)
@@ -87,25 +86,27 @@ public static class LibraryRollup
 
     /// <summary>The rows of a group page: its types in order, then that area's other libraries.</summary>
     public static IReadOnlyList<LibraryRowSummary> RowsFor(
+        LibraryKindCatalog kinds,
         LibraryGroup group,
         LibrariesConfigurationDto configuration,
         LibraryOverviewDto? overview,
         int? viewFolders,
         IReadOnlyDictionary<string, string>? issues) =>
         [.. group.TypeKeys
-            .Select(LibraryTypeCatalog.Find)
+            .Select(kinds.Find)
             .OfType<LibraryTypeOption>()
-            .Concat(OthersIn(configuration, group))
+            .Concat(OthersIn(kinds, configuration, group))
             .Select(type => RowFor(type, configuration, overview, viewFolders, issues))];
 
     public static LibraryGroupSummary SummaryFor(
+        LibraryKindCatalog kinds,
         LibraryGroup group,
         LibrariesConfigurationDto configuration,
         LibraryOverviewDto? overview,
         int? viewFolders,
         IReadOnlyDictionary<string, string>? issues)
     {
-        var rows = RowsFor(group, configuration, overview, viewFolders, issues);
+        var rows = RowsFor(kinds, group, configuration, overview, viewFolders, issues);
         int? folders = rows.Any(row => row.Folders is null) ? null : rows.Sum(row => row.Folders!.Value);
         int? titles = overview is null || rows.All(row => row.Titles is null) ? null : rows.Sum(row => row.Titles ?? 0);
         var sources = rows.Where(row => row.Type.Key != LibraryTypeCatalog.PhotosKey)

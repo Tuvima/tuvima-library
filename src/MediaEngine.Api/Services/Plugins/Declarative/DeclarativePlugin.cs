@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Plugins;
 
 namespace MediaEngine.Api.Services.Plugins.Declarative;
@@ -19,12 +20,16 @@ internal sealed class DeclarativePlugin(PluginManifest manifest, DeclarativeDefi
         .. Definition.ChannelSources.Select(source => new DeclarativeChannelSourceJob(source)),
         .. Definition.MetadataSources.Select(source => new DeclarativeMetadataSourceCapability(source)),
         .. Definition.NotificationChannels.Select(channel => new DeclarativeNotificationChannelCapability(channel)),
+        .. Definition.LibraryKinds.Select(kind => new DeclarativeLibraryKindCapability(kind)),
     ];
 
-    /// <summary>Builds the plugin for a manifest, or returns the plain reason it cannot be built.</summary>
-    public static (ITuvimaPlugin? Plugin, string? Error) TryCreate(PluginManifest manifest)
+    /// <summary>
+    /// Builds the plugin for a manifest, or returns the plain reason it cannot be built. <paramref name="knowledge"/> is what the
+    /// plugin's library kinds may refer to outside the plugin (the Library's metadata sources and naming templates).
+    /// </summary>
+    public static (ITuvimaPlugin? Plugin, string? Error) TryCreate(PluginManifest manifest, LibraryKindKnowledge? knowledge = null)
     {
-        var parsed = DeclarativePluginParser.Parse(manifest);
+        var parsed = DeclarativePluginParser.Parse(manifest, knowledge);
         return parsed.Definition is null
             ? (null, parsed.Error)
             : (new DeclarativePlugin(manifest, parsed.Definition), null);
@@ -36,6 +41,7 @@ internal static class DeclarativeCapabilityKinds
     public const string AiStep = "declarative-ai-step";
     public const string MetadataSource = "declarative-metadata-source";
     public const string NotificationChannel = "declarative-notification-channel";
+    public const string LibraryKind = "declarative-library-kind";
 
     /// <summary>The collection a channel source keeps its latest fetch in, one record per source key.</summary>
     public const string ChannelRecords = "channels";
@@ -53,6 +59,13 @@ internal sealed class DeclarativeNotificationChannelCapability(DeclarativeNotifi
     public string Kind => DeclarativeCapabilityKinds.NotificationChannel;
 
     public DeclarativeNotificationChannel Channel { get; } = channel;
+}
+
+internal sealed class DeclarativeLibraryKindCapability(DeclarativeLibraryKind kind) : IPluginCapability
+{
+    public string Kind => DeclarativeCapabilityKinds.LibraryKind;
+
+    public DeclarativeLibraryKind LibraryKind { get; } = kind;
 }
 
 internal sealed class DeclarativeMetadataSourceCapability(DeclarativeMetadataSource source) : IPluginCapability

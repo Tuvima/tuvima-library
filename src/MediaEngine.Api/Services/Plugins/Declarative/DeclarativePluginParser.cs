@@ -18,7 +18,11 @@ internal static partial class DeclarativePluginParser
 
     private static readonly JsonSerializerOptions ProviderJson = new() { AllowTrailingCommas = true };
 
-    public static DeclarativeParseResult Parse(PluginManifest manifest)
+    /// <summary>
+    /// Reads the declarative part of a manifest. <paramref name="knowledge"/> says which metadata sources and naming templates the
+    /// Library itself has, so a library kind can be checked against them; without it those two checks are skipped.
+    /// </summary>
+    public static DeclarativeParseResult Parse(PluginManifest manifest, LibraryKindKnowledge? knowledge = null)
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
@@ -29,18 +33,19 @@ internal static partial class DeclarativePluginParser
 
         var unknown = root.EnumerateObject()
             .Select(property => property.Name)
-            .FirstOrDefault(name => name is not ("ai_steps" or "channel_sources" or "metadata_sources" or "notification_channels"));
+            .FirstOrDefault(name => name is not ("ai_steps" or "channel_sources" or "metadata_sources" or "notification_channels" or "library_kinds"));
         if (unknown is not null)
         {
-            return DeclarativeParseResult.Fail($"The \"declarative\" section has an unknown part \"{unknown}\". Use ai_steps, channel_sources, metadata_sources or notification_channels.");
+            return DeclarativeParseResult.Fail($"The \"declarative\" section has an unknown part \"{unknown}\". Use ai_steps, channel_sources, metadata_sources, notification_channels or library_kinds.");
         }
 
         var aiSteps = new List<DeclarativeAiStep>();
         var channelSources = new List<DeclarativeChannelSource>();
         var metadataSources = new List<DeclarativeMetadataSource>();
         var notificationChannels = new List<DeclarativeNotificationChannel>();
+        var libraryKinds = new List<DeclarativeLibraryKind>();
 
-        foreach (var (name, list) in new[] { ("ai_steps", root), ("channel_sources", root), ("metadata_sources", root), ("notification_channels", root) }
+        foreach (var (name, list) in new[] { ("ai_steps", root), ("channel_sources", root), ("metadata_sources", root), ("notification_channels", root), ("library_kinds", root) }
                      .Select(pair => (pair.Item1, root.TryGetProperty(pair.Item1, out var element) ? element : default)))
         {
             if (list.ValueKind == JsonValueKind.Undefined)
@@ -68,6 +73,7 @@ internal static partial class DeclarativePluginParser
                     "ai_steps" => ParseAiStep(manifest, item, label, aiSteps),
                     "channel_sources" => ParseChannelSource(manifest, item, label, channelSources),
                     "notification_channels" => ParseNotificationChannel(manifest, item, label, notificationChannels),
+                    "library_kinds" => ParseLibraryKind(item, label, libraryKinds, metadataSources, knowledge),
                     _ => ParseMetadataSource(item, label, metadataSources),
                 };
                 if (problem is not null)
@@ -77,9 +83,9 @@ internal static partial class DeclarativePluginParser
             }
         }
 
-        if (aiSteps.Count + channelSources.Count + metadataSources.Count + notificationChannels.Count == 0)
+        if (aiSteps.Count + channelSources.Count + metadataSources.Count + notificationChannels.Count + libraryKinds.Count == 0)
         {
-            return DeclarativeParseResult.Fail("The \"declarative\" section is empty. Add at least one of ai_steps, channel_sources, metadata_sources or notification_channels.");
+            return DeclarativeParseResult.Fail("The \"declarative\" section is empty. Add at least one of ai_steps, channel_sources, metadata_sources, notification_channels or library_kinds.");
         }
 
         var duplicate = aiSteps.Select(step => step.Key).GroupBy(key => key).FirstOrDefault(group => group.Count() > 1)?.Key;
@@ -110,7 +116,7 @@ internal static partial class DeclarativePluginParser
             return DeclarativeParseResult.Fail($"The notification channel key \"{duplicate}\" is used more than once.");
         }
 
-        return DeclarativeParseResult.Ok(new DeclarativeDefinition(aiSteps, channelSources, metadataSources, notificationChannels));
+        return DeclarativeParseResult.Ok(new DeclarativeDefinition(aiSteps, channelSources, metadataSources, notificationChannels, libraryKinds));
     }
 
     private static string? ParseAiStep(PluginManifest manifest, JsonElement item, string label, List<DeclarativeAiStep> into)
@@ -418,6 +424,80 @@ internal static partial class DeclarativePluginParser
         }
 
         into.Add(new DeclarativeMetadataSource(configuration.Name, item.Clone()));
+        return null;
+    }
+
+    private static readonly string[] LibraryKindRequired =
+        ["key", "area", "label", "icon", "format", "lookup", "grouping", "naming_template", "misfit"];
+
+    private static readonly string[] LibraryKindOptional = ["default_handling", "tooltip", "order", "available"];
+
+    /// <summary>Where a plugin's kind sits in its area when it gives no order: after every kind that ships with the Library.</summary>
+    private const int DefaultLibraryKindOrder = 100;
+
+    private static string? ParseLibraryKind(
+        JsonElement item,
+        string label,
+        List<DeclarativeLibraryKind> into,
+        IReadOnlyList<DeclarativeMetadataSource> ownSources,
+        LibraryKindKnowledge? knowledge)
+    {
+        if (item.ValueKind != JsonValueKind.Object)
+        {
+            return $"{label} must be an object.";
+        }
+
+        var unknown = item.EnumerateObject()
+            .Select(property => property.Name)
+            .FirstOrDefault(name => !LibraryKindRequired.Contains(name) && !LibraryKindOptional.Contains(name));
+        if (unknown is not null)
+        {
+            return $"{label} has an unknown field \"{unknown}\". A library kind uses {string.Join(", ", LibraryKindRequired.Concat(LibraryKindOptional))}.";
+        }
+
+        var missing = LibraryKindRequired.FirstOrDefault(name => !item.TryGetProperty(name, out _));
+        if (missing is not null)
+        {
+            return $"{label} needs \"{missing}\".";
+        }
+
+        LibraryKindDefinition? kind;
+        try
+        {
+            kind = item.Deserialize<LibraryKindDefinition>(ProviderJson);
+        }
+        catch (JsonException ex)
+        {
+            return $"{label} is not a valid library kind: {ex.Message}";
+        }
+
+        if (kind is null)
+        {
+            return $"{label} is not a valid library kind.";
+        }
+
+        // A plugin never marks its own kind as built in, and gives no order of its own unless it says so.
+        kind.BuiltIn = false;
+        if (!item.TryGetProperty("order", out _))
+        {
+            kind.Order = DefaultLibraryKindOrder;
+        }
+
+        // The plugin names its own sources as it wrote them; the Library's names for them are only known once they are taken in.
+        var providers = knowledge is null
+            ? null
+            : knowledge with { Providers = new HashSet<string>(knowledge.Providers.Concat(ownSources.Select(source => source.Name)), StringComparer.Ordinal) };
+        if (LibraryKindRules.Problem(kind, label, providers) is { } problem)
+        {
+            return problem;
+        }
+
+        if (into.Any(existing => string.Equals(existing.Kind.Key, kind.Key, StringComparison.Ordinal)))
+        {
+            return $"The library kind \"{kind.Key}\" is used more than once.";
+        }
+
+        into.Add(new DeclarativeLibraryKind(kind));
         return null;
     }
 

@@ -38,6 +38,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginPageService>();
         services.AddSingleton<PluginMetadataSourceFiles>();
         services.AddSingleton<PluginCatalog>();
+        services.AddSingleton<MediaEngine.Api.Services.Settings.LibraryKindListService>();
         services.AddSingleton<ProviderCapabilityCatalogue>();
         services.AddSingleton<PluginDirectoryService>();
         services.AddSingleton<PluginSignatureVerifier>();

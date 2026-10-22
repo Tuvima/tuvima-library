@@ -1000,6 +1000,7 @@ public sealed class FolderJobServiceTests : IDisposable
                         Name = "Movies",
                         Category = "Movies",
                         Kind = LibraryKinds.Catalogued,
+                        KindKey = "movies",
                         Area = LibraryAreas.Watch,
                         Presentation = LibraryPresentations.Catalogue,
                         MetadataPolicy = LibraryMetadataPolicies.Enriched,

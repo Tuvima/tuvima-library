@@ -12,6 +12,7 @@
 @inject NavigationManager Nav
 @inject DeviceContextService DeviceContext
 @inject UIOrchestratorService Orchestrator
+@inject MediaEngine.Web.Services.Settings.LibraryKindsState LibraryKinds
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
 @inject AccountNoticeState Notices
@@ -359,7 +360,7 @@ else
         ? $"{GetHeroTitle()} - {parent.Label} - Library"
         : $"{GetHeroTitle()} - Library";
     // Vault mode does not exist yet, so the Vault is never shown (the same rule the Libraries page uses).
-    private LibraryLevelDescription LibrariesLevel => LibraryAddress.Describe(_activeSubsection, Detail, showVault: false);
+    private LibraryLevelDescription LibrariesLevel => LibraryAddress.Describe(LibraryKinds.Catalog, _activeSubsection, Detail, showVault: false);
     // "Movies - Watch - Library", "Watch - Library" or "Libraries - Library".
     private string LibrariesBrowserTitle =>
         LibrariesLevel.Crumbs.Count >= 3
@@ -447,6 +448,7 @@ else
         await developmentTools;
 
         Attention.Changed += OnAttentionChanged;
+        LibraryKinds.Changed += OnAttentionChanged;
         Notices.Changed += OnNoticesChanged;
         Orchestrator.OnProfileChanged += OnProfileChanged;
         DeviceContext.OnChanged += OnDeviceContextChanged;
@@ -472,6 +474,12 @@ else
         }
 
         _scrollToTopPending = true;
+
+        // The title and breadcrumb of a Libraries page name its group and kind, which come from the Engine's list of library kinds.
+        if (_activeSection == SettingsSection.Libraries && !LibraryKinds.Loaded)
+        {
+            await LibraryKinds.EnsureLoadedAsync();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -489,6 +497,7 @@ else
     {
         Notices.Changed -= OnNoticesChanged;
         Attention.Changed -= OnAttentionChanged;
+        LibraryKinds.Changed -= OnAttentionChanged;
         Attention.Stop();
         Orchestrator.OnProfileChanged -= OnProfileChanged;
         DeviceContext.OnChanged -= OnDeviceContextChanged;

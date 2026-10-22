@@ -248,6 +248,7 @@ public sealed class ImportFolderServiceTests : IDisposable
                     Name = "Movies",
                     Category = "Movies",
                     Kind = LibraryKinds.Catalogued,
+                    KindKey = "movies",
                     MediaTypes = ["Movies"],
                     Sources =
                     [

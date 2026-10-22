@@ -295,7 +295,10 @@
     // The import folder is the storage location with this id (see ImportFolderRules in the Engine).
     private const string ImportLocationId = "incoming";
 
-    private static IReadOnlyList<LibraryTypeOption> LibraryTypes => LibraryTypeCatalog.Types;
+    private IReadOnlyList<LibraryTypeOption> LibraryTypes => Kinds.Types;
+
+    /// <summary>The Engine's list of library kinds; the type list, the Advanced tabs and Add folder are drawn from it.</summary>
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
 
     /// <summary>True when the first-run setup session is in use instead of the signed-in Settings endpoints.</summary>
     [Parameter] public bool Embedded { get; set; }
@@ -318,22 +321,14 @@
     private string? _notice;
     private bool _loading = true;
     private bool _saving;
-    private LibraryTypeOption _selected = LibraryTypes[0];
+    private LibraryTypeOption _selected = ImportEntry;
     private bool _unknownType;
     private IReadOnlyDictionary<string, string> _pathIssues = new Dictionary<string, string>();
 
-    // Advanced tabs follow the order people think in; the template key is the type's entry in organization_templates.
-    private static readonly (string Key, string TemplateKey)[] AdvancedOrder =
-    [
-        ("movies", "Movies"), ("tv", "TV"), ("music", "Music"), ("books", "Books"), ("audiobooks", "Audiobooks"), ("comics", "Comics"), ("videos", "Videos"),
-    ];
-
-    private IReadOnlyList<LibraryAdvancedSettings.AdvancedType> AdvancedTypes => AdvancedOrder
-        .Select(entry =>
-        {
-            var type = LibraryTypes.First(item => item.Key == entry.Key);
-            return new LibraryAdvancedSettings.AdvancedType(type.Key, type.Label, entry.TemplateKey, PrimaryLibraryFor(type));
-        })
+    // Advanced tabs follow the order of the list of kinds; the template key is the kind's entry in organization_templates.
+    private IReadOnlyList<LibraryAdvancedSettings.AdvancedType> AdvancedTypes => LibraryTypes
+        .Where(type => !string.IsNullOrWhiteSpace(type.NamingTemplate))
+        .Select(type => new LibraryAdvancedSettings.AdvancedType(type.Key, type.Label, type.NamingTemplate!, PrimaryLibraryFor(type)))
         .ToList();
 
     // The seventh entry in the list is not a media type; it has its own panel.
@@ -361,6 +356,7 @@
     protected override async Task OnInitializedAsync()
     {
         _highlightAdd = HighlightAddFolder;
+        _selected = LibraryTypes.FirstOrDefault() ?? ImportEntry;
         await LoadAsync();
         if (!ShowTypeNav)
         {
@@ -373,7 +369,8 @@
         {
             _selected = LibraryTypes.FirstOrDefault(type => string.Equals(type.Key, PreselectedType, StringComparison.OrdinalIgnoreCase))
                 ?? LibraryTypes.FirstOrDefault(type => FolderCount(type) > 0)
-                ?? LibraryTypes[0];
+                ?? LibraryTypes.FirstOrDefault()
+                ?? ImportEntry;
         }
 
         await InvokeAsync(StateHasChanged);
@@ -408,7 +405,7 @@
 
     // Libraries that are not the one library of a standard type (an older custom type, or a second library of a standard
     // type) still show here, so their folders can be seen and removed instead of silently hiding.
-    private IReadOnlyList<LibraryTypeOption> OtherLibraries => LibraryRollup.OtherLibraries(_configuration);
+    private IReadOnlyList<LibraryTypeOption> OtherLibraries => LibraryRollup.OtherLibraries(Kinds, _configuration);
 
     private LibraryTypeOption? ResolveTypeKey(string? key)
     {
@@ -428,7 +425,7 @@
     // On its own address (no type list), the jump is a navigation to that type's address instead.
     private void ChooseDestinationType(LibraryTypeOption type)
     {
-        if (!ShowTypeNav && LibraryGroupCatalog.GroupFor(type.Key) is { } group)
+        if (!ShowTypeNav && Kinds.GroupFor(type.Key) is { } group)
         {
             Navigation.NavigateTo(LibraryGroupCatalog.TypeAddress(group, type.Key) + "?highlight=add");
             return;
@@ -497,6 +494,7 @@
             { component => component.SetupSession, SetupSession },
             { component => component.Embedded, Embedded },
             { component => component.Configuration, _configuration },
+            { component => component.Kinds, Kinds },
             { component => component.OnFolderAdded, (Func<string?, Task>)FolderAddedAsync },
         };
         await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);

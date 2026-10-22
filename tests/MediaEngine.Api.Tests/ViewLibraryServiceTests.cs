@@ -619,6 +619,7 @@ public sealed class ViewLibraryServiceTests
             Name = "Books",
             Category = "Books",
             Kind = LibraryKinds.Catalogued,
+            KindKey = "books",
             Area = LibraryAreas.Read,
             Presentation = LibraryPresentations.Catalogue,
             MetadataPolicy = LibraryMetadataPolicies.Enriched,

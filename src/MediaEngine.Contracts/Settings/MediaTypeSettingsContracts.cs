@@ -12,12 +12,12 @@ public sealed class MediaTypeConfigurationDto
 
     public static List<MediaTypeDefinitionDto> Defaults() =>
     [
-        new() { Key = "books", DisplayName = "Books", Icon = "MenuBook", Extensions = [".epub", ".pdf"], CategoryFolder = "Books", BuiltIn = true },
-        new() { Key = "audiobooks", DisplayName = "Audiobooks", Icon = "Headphones", Extensions = [".m4b", ".mp3", ".m4a"], CategoryFolder = "Audio", BuiltIn = true },
-        new() { Key = "comics", DisplayName = "Comics", Icon = "AutoStories", Extensions = [".cbz", ".cbr", ".cb7"], CategoryFolder = "Comics", BuiltIn = true },
-        new() { Key = "movies", DisplayName = "Movies", Icon = "Movie", Extensions = [".mp4", ".mkv", ".webm", ".avi", ".m4v", ".mov", ".wmv", ".ts", ".mpeg", ".mpg", ".m2ts"], CategoryFolder = "Videos", BuiltIn = true },
-        new() { Key = "tv_shows", DisplayName = "TV Shows", Icon = "Tv", Extensions = [".mp4", ".mkv", ".webm", ".avi", ".m4v", ".mov", ".wmv", ".ts", ".mpeg", ".mpg", ".m2ts"], CategoryFolder = "TV Shows", BuiltIn = true },
-        new() { Key = "music", DisplayName = "Music", Icon = "MusicNote", Extensions = [".mp3", ".flac", ".ogg", ".m4a", ".aac", ".wav", ".opus", ".wma"], CategoryFolder = "Music", BuiltIn = true },
+        new() { Key = "books", DisplayName = "Books", Icon = "MenuBook", Extensions = [".epub", ".pdf"], BuiltIn = true },
+        new() { Key = "audiobooks", DisplayName = "Audiobooks", Icon = "Headphones", Extensions = [".m4b", ".mp3", ".m4a"], BuiltIn = true },
+        new() { Key = "comics", DisplayName = "Comics", Icon = "AutoStories", Extensions = [".cbz", ".cbr", ".cb7"], BuiltIn = true },
+        new() { Key = "movies", DisplayName = "Movies", Icon = "Movie", Extensions = [".mp4", ".mkv", ".webm", ".avi", ".m4v", ".mov", ".wmv", ".ts", ".mpeg", ".mpg", ".m2ts"], BuiltIn = true },
+        new() { Key = "tv_shows", DisplayName = "TV Shows", Icon = "Tv", Extensions = [".mp4", ".mkv", ".webm", ".avi", ".m4v", ".mov", ".wmv", ".ts", ".mpeg", ".mpg", ".m2ts"], BuiltIn = true },
+        new() { Key = "music", DisplayName = "Music", Icon = "MusicNote", Extensions = [".mp3", ".flac", ".ogg", ".m4a", ".aac", ".wav", ".opus", ".wma"], BuiltIn = true },
     ];
 }
 
@@ -34,9 +34,6 @@ public sealed class MediaTypeDefinitionDto
 
     [JsonPropertyName("extensions")]
     public List<string> Extensions { get; set; } = [];
-
-    [JsonPropertyName("category_folder")]
-    public string CategoryFolder { get; set; } = "Other";
 
     [JsonPropertyName("built_in")]
     public bool BuiltIn { get; set; }
