@@ -76,14 +76,19 @@ public sealed class LibraryKindListService : ILibraryKindSource
 
     /// <summary>
     /// The first problem with how libraries link to kinds, checked against the full list (plugins included), or null. A
-    /// library must name a kind that exists and whose format is one of the library's media types, and its own lookup settings must
-    /// agree with the kind (a plain kind is local only with the YouTube lookup off). Only a save is refused for that; a file already on
-    /// disk loads with the kind winning.
+    /// library must name a kind that exists and whose format is one of the library's media types, and the kind's library count and
+    /// names must hold. Its own lookup settings are not refused here: see <see cref="NormaliseLookupFields"/>.
     /// </summary>
+    /// <summary>
+    /// Sets each library's <c>metadata_policy</c> and <c>youtube_lookup</c> to what its kind implies (plugin kinds included) before a
+    /// save is validated, so a stale library can never block a save and the saved file is consistent. The kind wins.
+    /// </summary>
+    public int NormaliseLookupFields(LibrariesConfiguration proposed) => LibraryKindLookupPolicy.Normalise(proposed, GetKinds());
+
     public string? ValidateLibraries(LibrariesConfiguration proposed)
     {
         ArgumentNullException.ThrowIfNull(proposed);
-        var problems = LibraryKindRules.LibraryProblems(proposed, [.. GetAll().Select(entry => entry.Kind)], checkLookupFields: true);
+        var problems = LibraryKindRules.LibraryProblems(proposed, [.. GetAll().Select(entry => entry.Kind)]);
         return problems.Count == 0 ? null : string.Join(" ", problems);
     }
 

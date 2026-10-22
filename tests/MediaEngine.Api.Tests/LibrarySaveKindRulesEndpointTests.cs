@@ -130,16 +130,34 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
     [InlineData(SettingsSave)]
     [InlineData(SetupSave)]
     [InlineData(Mutation)]
-    public async Task AnOtherVideosLibrarySavedWithTheYoutubeLookupOnIsRefusedInPlainWords(string door)
+    public async Task AnOtherVideosLibrarySavedWithTheYoutubeLookupOnIsSaved_WithTheKindsValuesInTheFile(string door)
     {
         var lectures = Other("Lectures");
         lectures.YoutubeLookup = true;
+        lectures.MetadataPolicy = LibraryMetadataPolicies.Enriched;
 
         var saved = await SaveAsync(door, [], lectures);
 
-        Assert.Equal(400, saved.Status);
-        Assert.Contains("is a Videos library, which never looks anything up, but youtube_lookup is true. Set youtube_lookup to false.", saved.Text, StringComparison.Ordinal);
-        Assert.Empty(_loader.LoadLibraries().Libraries);
+        Assert.Equal(200, saved.Status);
+        var library = Assert.Single(_loader.LoadLibraries().Libraries);
+        Assert.Equal("other_videos", library.KindKey);
+        Assert.False(library.YoutubeLookup);
+        Assert.Equal(LibraryMetadataPolicies.LocalOnly, library.MetadataPolicy);
+    }
+
+    [Theory]
+    [InlineData(SettingsSave)]
+    [InlineData(SetupSave)]
+    [InlineData(Mutation)]
+    public async Task AStaleOldVideosLibraryNeverBlocksASave_AndIsMadeConsistentByIt(string door)
+    {
+        var old = Other("Old videos");
+        old.YoutubeLookup = true;
+
+        var saved = await SaveAsync(door, [old], Other("Lectures"));
+
+        Assert.Equal(200, saved.Status);
+        Assert.All(_loader.LoadLibraries().Libraries, library => Assert.False(library.YoutubeLookup));
     }
 
     [Theory]

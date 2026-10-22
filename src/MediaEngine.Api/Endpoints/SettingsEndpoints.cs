@@ -400,6 +400,7 @@ public static class SettingsEndpoints
             try
             {
                 var config = SettingsContractMapper.ToStorage(request);
+                libraryKinds.NormaliseLookupFields(config);
                 var vaultIds = await vaultLibraries.GetIdsAsync(ct);
                 MediaEngine.Api.Services.Vault.VaultLibrarySettings.KeepVault(configLoader.LoadLibraries(), config, vaultIds);
                 MediaEngine.Api.Services.Libraries.FolderJobService.KeepEngineOwnedConversionState(configLoader.LoadLibraries(), config);

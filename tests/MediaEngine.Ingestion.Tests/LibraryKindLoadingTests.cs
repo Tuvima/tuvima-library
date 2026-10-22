@@ -72,13 +72,16 @@ public sealed class LibraryKindLoadingTests
     }
 
     [Fact]
-    public void ASaveThatContradictsItsKindIsRefusedWithTheSamePlainSentence()
+    public void ASaveThatContradictsItsKindIsNotRefused_TheKindsValuesAreWrittenInstead()
     {
-        var config = ShippedWithOtherVideosSaying(LibraryMetadataPolicies.LocalOnly, youtubeLookup: true);
+        var config = ShippedWithOtherVideosSaying(LibraryMetadataPolicies.Enriched, youtubeLookup: true);
 
-        var problems = LibraryKindRules.LibraryProblems(config, LibraryKindsConfiguration.BuiltIn(), checkLookupFields: true);
+        Assert.Empty(LibraryKindRules.LibraryProblems(config, LibraryKindsConfiguration.BuiltIn()));
+        LibraryKindLookupPolicy.Normalise(config, LibraryKindsConfiguration.BuiltIn());
 
-        Assert.Contains("youtube_lookup is true. Set youtube_lookup to false.", Assert.Single(problems), StringComparison.Ordinal);
+        var videos = config.Libraries.Single(library => library.KindKey == "other_videos");
+        Assert.Equal(LibraryMetadataPolicies.LocalOnly, videos.MetadataPolicy);
+        Assert.False(videos.YoutubeLookup);
     }
 
     private sealed class CapturingLogger : ILogger

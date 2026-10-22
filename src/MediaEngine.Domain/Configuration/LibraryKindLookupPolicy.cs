@@ -67,6 +67,34 @@ public static class LibraryKindLookupPolicy
         };
     }
 
+    /// <summary>
+    /// Sets every library's <c>metadata_policy</c> and <c>youtube_lookup</c> to what its kind implies, so a library saved from an older
+    /// file or screen can never disagree with its kind and the saved file is consistent. A library with no deciding kind (the Vault's
+    /// own entries, a lookup kind, a kind this list does not know) is left exactly as it is. Returns how many libraries changed.
+    /// </summary>
+    public static int Normalise(LibrariesConfiguration libraries, IReadOnlyList<LibraryKindDefinition>? kinds)
+    {
+        ArgumentNullException.ThrowIfNull(libraries);
+        var changed = 0;
+        foreach (var library in libraries.Libraries)
+        {
+            var effective = For(library, kinds);
+            if (effective.Mode == LibraryLookupMode.FromFields)
+            {
+                continue;
+            }
+
+            if (!string.Equals(library.MetadataPolicy, effective.MetadataPolicy, StringComparison.Ordinal) || library.YoutubeLookup != effective.YoutubeLookup)
+            {
+                library.MetadataPolicy = effective.MetadataPolicy;
+                library.YoutubeLookup = effective.YoutubeLookup;
+                changed++;
+            }
+        }
+
+        return changed;
+    }
+
     /// <summary>True when nothing may be asked of any outside provider for this library's files.</summary>
     public static bool BypassesExternalIdentity(LibraryFolderConfig library, IReadOnlyList<LibraryKindDefinition>? kinds) =>
         For(library, kinds).BypassesExternalIdentity;

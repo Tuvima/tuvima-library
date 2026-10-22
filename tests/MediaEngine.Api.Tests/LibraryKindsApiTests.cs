@@ -254,7 +254,7 @@ public sealed class LibraryKindsApiTests : IDisposable
     }
 
     [Fact]
-    public void ASaveThatGivesAPlainKindLibraryALookupIsRefusedInPlainWords_EvenForAPluginsKind()
+    public void ASaveThatGivesAPlainKindLibraryALookupIsNormalisedNotRefused_EvenForAPluginsKind()
     {
         Add("json.podcasts", PodcastsPlugin());
         _catalog.SetEnabled("json.podcasts", true);
@@ -275,9 +275,9 @@ public sealed class LibraryKindsApiTests : IDisposable
         podcasts.MetadataPolicy = LibraryMetadataPolicies.Enriched;
         podcasts.YoutubeLookup = true;
 
-        var problem = _kinds.ValidateLibraries(configuration);
-        Assert.Contains("libraries[0] is a Podcasts library, which never looks anything up, but metadata_policy is \"enriched\". Use local_only.", problem, StringComparison.Ordinal);
-        Assert.Contains("but youtube_lookup is true. Set youtube_lookup to false.", problem, StringComparison.Ordinal);
+        Assert.Null(_kinds.ValidateLibraries(configuration));
+        Assert.Equal(1, _kinds.NormaliseLookupFields(configuration));
+        Assert.Equal((LibraryMetadataPolicies.LocalOnly, false), (podcasts.MetadataPolicy, podcasts.YoutubeLookup));
     }
 
     private static string PodcastsKind() => """

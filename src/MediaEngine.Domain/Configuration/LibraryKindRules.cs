@@ -172,8 +172,7 @@ public static partial class LibraryKindRules
         LibrariesConfiguration libraries,
         IReadOnlyList<LibraryKindDefinition> kinds,
         bool allowUnknownKeys = false,
-        bool allowMissingKeys = false,
-        bool checkLookupFields = false)
+        bool allowMissingKeys = false)
     {
         ArgumentNullException.ThrowIfNull(libraries);
         ArgumentNullException.ThrowIfNull(kinds);
@@ -216,12 +215,6 @@ public static partial class LibraryKindRules
                 problems.Add($"{prefix}.media_types must include {kind.Format ?? "a format"}, the format of the library kind \"{kind.Key}\".");
             }
 
-            // Only a person's save is refused for this. A file already on disk loads with the kind winning (LibraryKindLookupPolicy),
-            // so an older or hand-edited file never stops the Engine.
-            if (checkLookupFields)
-            {
-                problems.AddRange(LookupContradictions(library, kind, prefix));
-            }
         }
 
         AddCountAndNameProblems(libraries, kinds, problems);

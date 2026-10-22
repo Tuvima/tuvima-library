@@ -287,6 +287,7 @@ public static class SetupEndpoints
             }
 
             var config = SettingsContractMapper.ToStorage(request);
+            libraryKinds.NormaliseLookupFields(config);
             var error = SettingsEndpoints.ValidateViewStorage(config)
                 ?? SettingsEndpoints.ValidateViewRootChange(configuration.LoadLibraries(), config)
                 ?? ImportFolderValidation.Validate(config)

@@ -391,34 +391,51 @@ public sealed class LibraryKindsTests
     }
 
     [Fact]
-    public void APlainKindWhoseFieldsAgreeIsAccepted_AndOneWithEnrichedOrYoutubeOnIsExplainedInPlainWords()
+    public void ALibraryThatDisagreesWithItsKind_IsDescribedInPlainWords_ForTheLoadTimeWarning()
     {
         var kinds = LibraryKindsConfiguration.BuiltIn();
-        Assert.Empty(LibraryKindRules.LibraryProblems(Libraries(Library("other_audio", "Music", "Recordings", LibraryAreas.Listen)), kinds, checkLookupFields: true));
+        Assert.Empty(LibraryKindRules.LookupContradictions(Library("other_audio", "Music", "Recordings", LibraryAreas.Listen), kinds, "libraries[0]"));
 
         var enriched = Library("other_audio", "Music", "Recordings", LibraryAreas.Listen);
         enriched.MetadataPolicy = LibraryMetadataPolicies.Enriched;
-        var youtube = Library("other_videos", "Videos", "Lectures", LibraryAreas.Watch);
-        youtube.YoutubeLookup = true;
-
-        var enrichedProblem = Assert.Single(LibraryKindRules.LibraryProblems(Libraries(enriched), kinds, checkLookupFields: true));
-        var youtubeProblem = Assert.Single(LibraryKindRules.LibraryProblems(Libraries(Library("other_audio", "Music", "Recordings", LibraryAreas.Listen), Library("other_reading", "Books", "Loose books", LibraryAreas.Read), youtube), kinds, checkLookupFields: true));
-
-        Assert.Equal("libraries[0] is an Other audio library, which never looks anything up, but metadata_policy is \"enriched\". Use local_only.", enrichedProblem);
-        Assert.Equal("libraries[2] is a Videos library, which never looks anything up, but youtube_lookup is true. Set youtube_lookup to false.", youtubeProblem);
-    }
-
-    [Fact]
-    public void TheYoutubeKindMustKeepTheYoutubeLookupOn()
-    {
-        var kinds = LibraryKindsConfiguration.BuiltIn();
-        Assert.Empty(LibraryKindRules.LibraryProblems(Libraries(Library("youtube", "Videos")), kinds));
-
+        var lectures = Library("other_videos", "Videos", "Lectures", LibraryAreas.Watch);
+        lectures.YoutubeLookup = true;
         var off = Library("youtube", "Videos");
         off.YoutubeLookup = false;
 
-        Assert.Contains("youtube_lookup is false", Assert.Single(LibraryKindRules.LibraryProblems(Libraries(off), kinds, checkLookupFields: true)), StringComparison.Ordinal);
-        // A file already on disk is not refused for it; only a person's save is.
-        Assert.Empty(LibraryKindRules.LibraryProblems(Libraries(off), kinds));
+        Assert.Equal(
+            "libraries[0] is an Other audio library, which never looks anything up, but metadata_policy is \"enriched\". Use local_only.",
+            Assert.Single(LibraryKindRules.LookupContradictions(enriched, kinds, "libraries[0]")));
+        Assert.Equal(
+            "libraries[2] is a Videos library, which never looks anything up, but youtube_lookup is true. Set youtube_lookup to false.",
+            Assert.Single(LibraryKindRules.LookupContradictions(lectures, kinds, "libraries[2]")));
+        Assert.Contains("youtube_lookup is false", Assert.Single(LibraryKindRules.LookupContradictions(off, kinds, "libraries[3]")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AContradictionWithTheKindIsNotAProblemForALibrariesCheck_ItIsNormalisedAwayInstead()
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        var enriched = Library("other_audio", "Music", "Recordings", LibraryAreas.Listen);
+        enriched.MetadataPolicy = LibraryMetadataPolicies.Enriched;
+        enriched.YoutubeLookup = true;
+        var youtubeOff = Library("youtube", "Videos");
+        youtubeOff.YoutubeLookup = false;
+        youtubeOff.MetadataPolicy = LibraryMetadataPolicies.Enriched;
+        var movies = Library("movies", "Movies");
+        var vault = Library("", "Videos");
+        vault.MetadataPolicy = LibraryMetadataPolicies.LocalOnly;
+        vault.YoutubeLookup = true;
+        var libraries = Libraries(enriched, youtubeOff, movies, vault);
+
+        Assert.Empty(LibraryKindRules.LibraryProblems(libraries, kinds, allowMissingKeys: true));
+        var changed = LibraryKindLookupPolicy.Normalise(libraries, kinds);
+
+        Assert.Equal(2, changed);
+        Assert.Equal((LibraryMetadataPolicies.LocalOnly, false), (enriched.MetadataPolicy, enriched.YoutubeLookup));
+        Assert.Equal((LibraryMetadataPolicies.LocalOnly, true), (youtubeOff.MetadataPolicy, youtubeOff.YoutubeLookup));
+        Assert.Equal(LibraryMetadataPolicies.Enriched, movies.MetadataPolicy);
+        Assert.Equal((LibraryMetadataPolicies.LocalOnly, true), (vault.MetadataPolicy, vault.YoutubeLookup));
+        Assert.Equal(0, LibraryKindLookupPolicy.Normalise(libraries, kinds));
     }
 }
