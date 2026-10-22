@@ -129,7 +129,8 @@ public sealed record ViewSource(
     bool IncludeInTimeline = false,
     string ContentKind = ViewContentKinds.Photos,
     Guid? AddedByProfileId = null,
-    int SkippedFileCount = 0);
+    int SkippedFileCount = 0,
+    int KeptInLibraryCount = 0);
 
 public enum ViewDeviceBackupState
 {

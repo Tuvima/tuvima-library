@@ -12,6 +12,15 @@ public interface IFileWriteTargetWriter
     /// <summary>The <c>target_kind</c> of the rows this writer handles (<c>media_asset</c> or <c>view_item</c>).</summary>
     string TargetKind { get; }
 
+    /// <summary>
+    /// Called once at the start of a run, before the first batch of this writer's rows, so a writer can start a helper program once for
+    /// the whole run (batched write-back D6). Not called for a run in which this writer has nothing to write.
+    /// </summary>
+    Task BeginRunAsync(CancellationToken ct) => Task.CompletedTask;
+
+    /// <summary>Called once when the run has finished with this writer's rows, also when the run was stopped or failed part-way.</summary>
+    Task EndRunAsync(CancellationToken ct) => Task.CompletedTask;
+
     /// <summary>Writes every row and answers with one result per row. A row that cannot be written is reported, never thrown.</summary>
     Task<IReadOnlyList<FileWriteResult>> WriteBatchAsync(IReadOnlyList<MediaFileWriteIntent> intents, CancellationToken ct);
 }

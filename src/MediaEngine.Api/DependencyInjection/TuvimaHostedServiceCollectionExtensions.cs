@@ -55,6 +55,8 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<OutsideChangeGuard>();
         services.AddSingleton<IAssetRereader, IngestionAssetRereader>();
         services.AddSingleton<IFileWriteTargetWriter, MediaAssetFileWriter>();
+        // The profile name written into View files (batched write-back D7 to D9).
+        services.AddSingleton<IFileWriteTargetWriter, MediaEngine.Api.Services.LocalAssets.FileWrites.ViewItemFileWriter>();
         services.AddSingleton<LibraryMoveRunner>();
         services.AddSingleton<FileWriteScheduler>();
         services.AddHostedService(sp => sp.GetRequiredService<FileWriteScheduler>());

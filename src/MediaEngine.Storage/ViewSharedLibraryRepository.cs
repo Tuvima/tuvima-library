@@ -136,7 +136,7 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
     {
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
-        var rows = connection.Query<SourceRow>(new CommandDefinition("""
+        var rows = connection.Query<SourceRow>(new CommandDefinition($"""
             SELECT id AS Id, library_id AS LibraryId, source_type AS SourceType,
                    name AS Name, source_key AS SourceKey, last_activity_at AS LastActivityAt,
                    storage_mode AS StorageMode, relative_path AS RelativePath,
@@ -144,6 +144,7 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
                    enabled AS Enabled,
                    content_kind AS ContentKind, added_by_profile_id AS AddedByProfileId,
                    skipped_file_count AS SkippedFileCount,
+                   {ViewItemFileWriteRepository.KeptInLibraryCountSql} AS KeptInLibraryCount,
                    COALESCE((SELECT include_in_timeline FROM view_source_policies
                               WHERE source_id = view_sources.id), 0) AS IncludeInTimeline,
                    created_at AS CreatedAt, updated_at AS UpdatedAt
@@ -260,7 +261,7 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
         ParseNullableDate(row.LastActivityAt), ParseDate(row.CreatedAt), ParseDate(row.UpdatedAt),
         ParseStorageMode(row.StorageMode), row.RelativePath, row.ExternalPath,
         row.IncludeSubdirectories, row.Enabled, row.IncludeInTimeline,
-        row.ContentKind, row.AddedByProfileId, checked((int)row.SkippedFileCount));
+        row.ContentKind, row.AddedByProfileId, checked((int)row.SkippedFileCount), checked((int)row.KeptInLibraryCount));
 
     private static string ToStorage(ViewSourceType value) => value switch
     {
@@ -338,6 +339,7 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
         public string ContentKind { get; init; } = "photos";
         public Guid? AddedByProfileId { get; init; }
         public long SkippedFileCount { get; init; }
+        public long KeptInLibraryCount { get; init; }
         public string CreatedAt { get; init; } = string.Empty;
         public string UpdatedAt { get; init; } = string.Empty;
     }

@@ -46,6 +46,7 @@ public sealed partial class AppNameGuardrailTests
         new("src/MediaEngine.Identity/FirstPartyIdentityService.cs", "TwoStepIssuer = \"Tuvima Library\"", "Brand shown in authenticator apps beside the code, so the account is recognisable among others."),
         new("src/MediaEngine.Ingestion/AudioMetadataTagger.cs", "Tuvima identifier tag", "The name of the tag family Tuvima writes into audio files."),
         new("src/MediaEngine.Web/Components/Profiles/ProfileAvatarPalette.cs", "\"Tuvima purple\"", "Brand colour name."),
+        new("src/MediaEngine.Api/Services/LocalAssets/FileWrites/ViewProfileNameFormats.cs", "\"Tuvima Added By\"", "Name of the custom property Library writes into Word, Excel and PowerPoint files (batched write-back D7); a technical name that other tools read, so it stays as the spec fixes it."),
         new("src/MediaEngine.Api/DependencyInjection/TuvimaHttpClientRegistration.cs", "\"Tuvima Library/1.0", "User-Agent sent to metadata providers, who ask for a stable product name."),
         new("src/MediaEngine.Web/Services/Integration/ExternalAuthenticationRegistration.cs", "\"Tuvima-Library/1.0\"", "User-Agent sent to sign-in providers."),
         new("src/MediaEngine.Api/Services/Webhooks/WebhookTransport.cs", "request.Headers.Add(\"Tuvima-", "Webhook header names that receivers verify."),
