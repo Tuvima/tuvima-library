@@ -38,7 +38,10 @@
                     <code>@(_path ?? "No folder selected")</code>
                     <AppSwitchRow Label="Include subfolders" Value="@_recursive" ValueChanged="@((bool value) => _recursive = value)" Disabled="@_busy" />
                 }
-                <AppSwitchRow Label="Show in Photos timeline" Description="Folders remain browsable even when excluded from the timeline." Value="@_timeline" ValueChanged="@((bool value) => _timeline = value)" Disabled="@_busy" />
+                @if (ShowsTimeline)
+                {
+                    <AppSwitchRow Label="Show in Photos timeline" Description="Folders remain browsable even when excluded from the timeline." Value="@_timeline" ValueChanged="@((bool value) => _timeline = value)" Disabled="@_busy" />
+                }
             </div>
             <p>@(_mode == "linked" ? "Files remain where they are and are indexed read-only." : "Create an empty managed folder in this profile’s Personal Space. Existing files are not moved.")</p>
             <AppActionBar><AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => _adding = false)" /><AppButton Label="Add folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(_busy || string.IsNullOrWhiteSpace(_owner) || string.IsNullOrWhiteSpace(_name) || (_mode == "linked" && _path is null))" OnClick="AddAsync" /></AppActionBar>
@@ -74,7 +77,8 @@
                             </span>
                             <span>@SourcePolicy(source)</span>
                             <span>@(source.IncludeSubdirectories ? "Includes subfolders" : "This folder only")</span>
-                            <AppSwitchRow Label="Timeline" Value="@source.IncludeInTimeline" ValueChanged="@((bool value) => SetTimelineAsync(profile.Id, source, value))" Disabled="@(ReadOnly || _busy)" />
+                            @if (ShowsTimeline) { <AppSwitchRow Label="Timeline" Value="@source.IncludeInTimeline" ValueChanged="@((bool value) => SetTimelineAsync(profile.Id, source, value))" Disabled="@(ReadOnly || _busy)" /> }
+                            else { <span></span> }
                             <AppStatusBadge Text="@(source.Enabled ? "Indexing enabled" : "Disabled")" Tone="AppUiTone.Neutral" />
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" AriaLabel="@($"Detach {source.Name}")" Tooltip="Detach folder; keep files" Disabled="@(ReadOnly || _busy || source.SourceType == "browser_upload" || source.AcceptsPhotosAndVideos)" OnClick="@(() => DetachAsync(profile.Id, source))" />
                         </div>
@@ -98,10 +102,16 @@
         <div class="view-policy-row"><div><strong>Detach a folder</strong><small>Remove its connection to View.</small></div><span>Keep all original files</span></div>
         <div class="view-policy-row"><div><strong>Contribute to Shared Library</strong><small>Files transfer only after acceptance and destination verification.</small></div><span>Managed originals move · Linked originals copy</span></div>
     </SettingsSectionPanel>
-    <DocumentTextSettings ReadOnly="@ReadOnly" />
+    @if (Kind == ViewContentKinds.Documents)
+    {
+        <DocumentTextSettings ReadOnly="@ReadOnly" />
+    }
     <ViewKindAccessSettings Kind="@Kind" KindNoun="@KindNoun" ReadOnly="@ReadOnly" Profiles="@_profiles" />
-    <DocumentOrganisationSettings ReadOnly="@ReadOnly" />
-    <DocumentRulesSettings ReadOnly="@ReadOnly" />
+    @if (Kind == ViewContentKinds.Documents)
+    {
+        <DocumentOrganisationSettings ReadOnly="@ReadOnly" />
+        <DocumentRulesSettings ReadOnly="@ReadOnly" />
+    }
     <SettingsSectionPanel Title="Sharing &amp; Access" Description="Private files remain with their owning profile until shared through an allowed workflow.">
         <Actions>
             <AppButton Href="/settings/access" Label="Manage access" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ChevronRight" />
@@ -130,6 +140,8 @@
     private bool _loading = true, _busy, _adding, _recursive = true, _timeline;
     private string? _owner, _path, _error;
     private string _name = string.Empty, _mode = "linked";
+    // Documents never join the Photos timeline, and the text, organisation and rules panels are about documents only.
+    private bool ShowsTimeline => Kind != ViewContentKinds.Documents;
     private LibraryTypeOption? KindOption => Kinds.FindViewKind(Kind);
     private string KindLabel => KindOption?.Label ?? Kind;
     // The kind's name as it reads in a sentence: "photos", "personal videos", "documents".

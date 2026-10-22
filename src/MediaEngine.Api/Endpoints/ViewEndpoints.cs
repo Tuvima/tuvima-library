@@ -1405,18 +1405,19 @@ public static partial class ViewEndpoints
                 return DocumentsNotAllowed();
             }
 
-            var blocked = await BlockedKindsAsync(authority, preferences, ct);
-            if (BlockedCoverRefusal(assets, request.CoverItemId, blocked) is { } coverRefusal)
-            {
-                return coverRefusal;
-            }
-
             var access = await authorization.AuthorizeAsync(authority,
                 new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Gallery, null,
                     ViewResourceAction.Manage), ct);
             if (!access.IsAllowed)
             {
                 return Access(access.Outcome);
+            }
+
+            // After the access check, so a profile that may not manage Galleries cannot tell kinds of id apart.
+            var blocked = await BlockedKindsAsync(authority, preferences, ct);
+            if (BlockedCoverRefusal(assets, request.CoverItemId, blocked) is { } coverRefusal)
+            {
+                return coverRefusal;
             }
 
             var space = await spaces.GetByOwnerAsync(profileId, ct);

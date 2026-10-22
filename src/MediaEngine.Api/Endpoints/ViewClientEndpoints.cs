@@ -469,7 +469,7 @@ public static class ViewClientEndpoints
         ILocalAssetRepository assets)
     {
         // Documents are never part of this surface, so a document cover is hidden whatever the person's own switches say.
-        var dto = ViewEndpoints.ToContract(gallery, [.. blocked, ViewContentKinds.Documents], assets);
+        var dto = ViewEndpoints.ToContract(gallery, [.. blocked.Append(ViewContentKinds.Documents).Distinct()], assets);
         return gallery.OwnerProfileId == profileId
             ? dto
             : dto with { OwnerProfileId = Guid.Empty, PersonalSpaceId = Guid.Empty, SmartRuleJson = null };

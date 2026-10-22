@@ -917,4 +917,28 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.Contains("This library page does not exist", page.Markup, StringComparison.Ordinal);
         Assert.Empty(page.FindAll(".library-detail"));
     }
+
+    [Fact]
+    public void TheDocumentsPageHasTheDocumentPanelsAndNoTimelineSwitch()
+    {
+        _personalSpace = TestSpace;
+        _viewSources = [ViewSource("C:\\Paperwork", "Paperwork", "documents")];
+        var page = Open("view", "documents");
+
+        page.WaitForAssertion(() => Assert.Single(page.FindAll(".view-source-row")));
+        Assert.Contains("Auto-filing rules", page.Markup, StringComparison.Ordinal);
+        Assert.Empty(page.FindAll("input[role=switch][aria-label=Timeline]"));
+    }
+
+    [Fact]
+    public void ThePhotosPageHasTheTimelineSwitchAndNoDocumentPanels()
+    {
+        _personalSpace = TestSpace;
+        _viewSources = [ViewSource("D:\\Pictures", "Pictures", "photos")];
+        var page = Open("view", "photos");
+
+        page.WaitForAssertion(() => Assert.Single(page.FindAll(".view-source-row")));
+        Assert.Single(page.FindAll("input[role=switch][aria-label=Timeline]"));
+        Assert.DoesNotContain("Auto-filing rules", page.Markup, StringComparison.Ordinal);
+    }
 }

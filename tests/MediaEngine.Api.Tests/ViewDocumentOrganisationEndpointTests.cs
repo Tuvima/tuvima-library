@@ -95,7 +95,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         builder.Services.AddSingleton<IViewScopeStore, ViewScopePersistenceService>();
         builder.Services.AddSingleton<IViewScopeResolver, ViewScopeResolver>();
         builder.Services.AddSingleton<IViewResourceStore, ViewResourcePersistenceService>();
-        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AllowEvaluator>();
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator>(_ => new AllowEvaluator(() => DenyViewAccess));
         builder.Services.AddScoped<IViewResourceAuthorizationService, ViewResourceAuthorizationService>();
         builder.Services.AddSingleton<IViewAssetQueryBackend, ViewAssetQueryService>();
         builder.Services.AddSingleton<IViewSmartGalleryQueryService, ViewSmartGalleryQueryService>();
@@ -2012,11 +2012,17 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
             ValueTask.FromResult(actor.Current);
     }
 
-    private sealed class AllowEvaluator : MediaEngine.Domain.Contracts.IAuthorizationEvaluator
+    /// <summary>When set, the evaluator refuses every View request, as for a caller whose account may not use View.</summary>
+    private bool DenyViewAccess { get; set; }
+
+    private sealed class AllowEvaluator(Func<bool> denyView) : MediaEngine.Domain.Contracts.IAuthorizationEvaluator
     {
         public ValueTask<AuthorizationDecision> EvaluateAsync(RequestAuthority authority,
             AuthorizationRequirement requirement, ResourceAuthorizationContext? resource,
-            CancellationToken ct = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
+            CancellationToken ct = default) => ValueTask.FromResult(
+                denyView() && requirement.AccountFeature == AccountFeatureId.View
+                    ? AuthorizationDecision.Deny(AuthorizationDenialReason.ResourceDenied)
+                    : AuthorizationDecision.Allow());
     }
 
     private sealed class AllowHandler : AuthorizationHandler<AdministratorOrApplicationRequirement>

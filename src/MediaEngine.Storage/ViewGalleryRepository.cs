@@ -261,8 +261,12 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                      WHERE id = @itemId
                        AND (content_kind IN @blockedKinds
                             OR (content_kind IS NULL AND media_kind = 'document' AND @documentsBlocked = 1));
-                    """, new DynamicParameters(new { itemId, documentsBlocked = blockedKinds.Contains(ViewContentKinds.Documents) ? 1 : 0 })
-                        .AddBlockedKinds(blockedKinds), transaction, cancellationToken: token)) != 0))
+                    """, new
+            {
+                itemId,
+                blockedKinds = blockedKinds.ToArray(),
+                documentsBlocked = blockedKinds.Contains(ViewContentKinds.Documents) ? 1 : 0,
+            }, transaction, cancellationToken: token)) != 0))
             {
                 throw new UnauthorizedAccessException("An item of a kind this profile may not use cannot be added.");
             }

@@ -332,4 +332,27 @@ public sealed partial class ViewDocumentOrganisationEndpointTests
         Assert.Null((await saved.Content.ReadFromJsonAsync<ViewGalleryDto>())!.CoverItemId);
         Assert.Equal(photo, (await galleries.GetAsync(gallery.Id))!.CoverItemId);
     }
+
+    [Fact]
+    public async Task AProfileThatMayNotManageGalleriesGetsTheSameAnswerForAPhotoCoverAsForAnyOtherId()
+    {
+        var household = Guid.NewGuid();
+        var owner = await CreatePerson("StandardUser", household);
+        var photo = await AddKindedItem(owner, 'p', LocalAssetMediaKinds.Image, ViewContentKinds.Photos, "Cover photo");
+        var restricted = await CreatePerson("RestrictedProfile", household);
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(restricted.ProfileId) with { PhotosEnabled = false });
+        _actor.Current = restricted.Authority;
+        DenyViewAccess = true;
+
+        async Task<(HttpStatusCode Status, string Body)> CreateWithCoverAsync(Guid cover)
+        {
+            using var response = await _client.PostAsJsonAsync("/view/galleries", new ViewGalleryRequest("Cover", ViewGalleryKind.Manual, CoverItemId: cover));
+            return (response.StatusCode, await response.Content.ReadAsStringAsync());
+        }
+
+        var unknown = await CreateWithCoverAsync(Guid.NewGuid());
+        var forPhoto = await CreateWithCoverAsync(photo);
+        Assert.Equal(HttpStatusCode.Forbidden, unknown.Status);
+        Assert.Equal(unknown, forPhoto);
+    }
 }
