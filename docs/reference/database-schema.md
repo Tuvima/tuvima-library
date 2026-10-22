@@ -1270,14 +1270,14 @@ The durable to-do list for every write into a file (added by upgrade step `0038_
 | `move_source_path` / `move_target_path` / `move_source_hash` | TEXT | What a move was about to do, so a stop part-way can be finished or undone from what is on disk. Cleared when the move is done. A move given up as failed keeps them for diagnosis, but no longer counts as a move in progress. The old and new place of every row with a move in progress is the waiting mark: the folder watcher, the rescan and the daily missing-file check leave those files alone |
 | `move_generation` | INTEGER | The generation of the row when the move was planned. Finishing the move after a stop completes with it, so a change that arrived since is seen and the move is planned again from the data store |
 | `recovery_attempts` | INTEGER | How many starts or passes found a part-way move that could not be settled (a drive that is offline does not count); the move is given up as failed at a cap |
-| `next_attempt_at` | TEXT | UTC; when a failed or unsettled move is tried again (a minute, five minutes, half an hour, two hours, then failed). NULL means now |
+| `next_attempt_at` | TEXT | UTC; when a failed or unsettled person's move is tried again (a minute, five minutes, half an hour, two hours, then failed). NULL means now |
 | `claimed_run_id` | TEXT | The write run that last claimed the row; a run never takes a row it already took, however many chunks it needs |
 
 **Indices:** unique partial indexes on `asset_id` and `local_item_id`, `ix_media_file_write_intents_dispatch` on `(status, lease_expires_at, updated_at)` and a partial index on `move_step`.
 
 ### file_write_runs
 
-One row (`id = 1`) that remembers the schedule: `anchor_at` (when the scheduler first started, so the first interval counts from there), `last_run_started_at`, `last_run_finished_at`, and how many files the last run wrote (`last_run_written`), failed (`last_run_failed`) and kept in Library only (`last_run_kept`).
+One row (`id = 1`) that remembers the schedule: `anchor_at` (when the scheduler first started, so the first interval counts from there), `last_run_started_at`, `last_run_finished_at`, and how many files the last run wrote (`last_run_written`), failed (`last_run_failed`) and kept in Library only (`last_run_kept`), and how many files it filed (moved) on their own (`last_run_filed`, added by upgrade step `0042_filing_moves_wait_for_the_batch`; counted apart from the tag writes).
 
 ### ingestion_log
 

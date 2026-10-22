@@ -29,6 +29,8 @@ public sealed class LibraryMoveRunner(
 
     internal const string OfflineReason = "A drive or folder holding this file is not available, so its move waits until it is back.";
 
+    internal const string TookOverReason = "A person's own move took this file's row over, so it runs next, straight away.";
+
     /// <summary>How many starts or passes may find a part-way move unsettled (with its drives reachable) before it is given up.</summary>
     internal const int MaxRecoveryAttempts = 5;
 
@@ -82,8 +84,7 @@ public sealed class LibraryMoveRunner(
         var filing = intent.MoveOrigin == MediaFileWriteIntentRepository.MoveOriginFiling;
         if (filing && current is not null && FileInUseProbe.IsInUse(current.FilePathRoot))
         {
-            await intents.DeferFilingAsync(intent.Id, MediaFileWriteIntentRepository.InUseReason, ct);
-            return new MoveResult(MoveResultKind.InUse, MediaFileWriteIntentRepository.InUseReason);
+            return await SetAsideAsync(intent, ct);
         }
 
         string failure;
@@ -132,12 +133,24 @@ public sealed class LibraryMoveRunner(
             var after = await assets.FindByIdAsync(intent.AssetId, ct);
             if (after is not null && FileInUseProbe.IsInUse(after.FilePathRoot))
             {
-                await intents.DeferFilingAsync(intent.Id, MediaFileWriteIntentRepository.InUseReason, ct);
-                return new MoveResult(MoveResultKind.InUse, MediaFileWriteIntentRepository.InUseReason);
+                return await SetAsideAsync(intent, ct);
             }
         }
 
         return new MoveResult(MoveResultKind.Retry, failure);
+    }
+
+    // The file was in use: the filing goes back to waiting for the next run. If a person's own move took the row over meanwhile, the
+    // claim is handed over to that move instead, so the row is not left "writing" until its claim runs out.
+    private async Task<MoveResult> SetAsideAsync(MediaFileWriteIntent intent, CancellationToken ct)
+    {
+        if (await intents.DeferFilingAsync(intent.Id, MediaFileWriteIntentRepository.InUseReason, ct))
+        {
+            return new MoveResult(MoveResultKind.InUse, MediaFileWriteIntentRepository.InUseReason);
+        }
+
+        await intents.ReleaseClaimAsync(intent.Id, ct);
+        return new MoveResult(MoveResultKind.Interrupted, TookOverReason);
     }
 
     // ----- recovery -----------------------------------------------------------------------------------------------------------

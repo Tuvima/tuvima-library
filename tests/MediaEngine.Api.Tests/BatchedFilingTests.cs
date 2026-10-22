@@ -4,6 +4,7 @@ using MediaEngine.Api.Services.FileWrites;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
+using MediaEngine.Ingestion;
 using MediaEngine.Storage;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -56,6 +57,10 @@ public sealed class BatchedFilingTests : IDisposable
         Assert.Equal("auto_match", call.Trigger);
         Assert.Equal("verified", Files.Intent(song.Asset).Status);
         Assert.Null(MoveState(song.Asset).Step);
+
+        // The run's history counts the filing apart from the tag write.
+        var history = (await Files.Intents.GetRunStateAsync())!;
+        Assert.Equal((1, 1), (history.LastRunFiled, history.LastRunWritten));
     }
 
     [Fact]
@@ -149,8 +154,7 @@ public sealed class BatchedFilingTests : IDisposable
         Assert.False(await Files.Intents.HasMoveForAssetAsync(song.Asset));
         Assert.Empty(await Files.Intents.GetPathsWithMoveInProgressAsync());
 
-        // Anything that respects the waiting mark still sees pending work on it.
-        Assert.Contains(song.Asset, await Files.Intents.GetWaitingAssetIdsAsync([song.Asset]));
+        // The item's own waiting line sees the pending work on it.
         Assert.True((await Files.Intents.GetAssetStateAsync(song.Asset)).Waiting);
     }
 
@@ -185,6 +189,68 @@ public sealed class BatchedFilingTests : IDisposable
         Assert.Equal(expected, Files.StoredPath(song.Asset));
         Assert.Equal(expected, Assert.Single(Files.WriteBack.Calls).PathAtTheTime);
         Assert.Equal("verified", Files.Intent(song.Asset).Status);
+    }
+
+    // ----- a filing that fails is retried at the next run, not in between ------------------------------------------------------
+
+    [Fact]
+    public async Task AFilingThatFailsForAnyReasonButUse_IsRetriedOnlyAtTheNextRun_AndFailsAfterTheLimitIntoTheFailedList()
+    {
+        var song = SongOutsideItsPattern("Paranoid Android", 4);
+        await Files.FilingOrganizer.TryAutoOrganizeAsync(song.Asset);
+        var flaky = new MoveFileWorld.FlakyFileOrganizer(new FileOrganizer(NullLogger<FileOrganizer>.Instance, Files.HashCache), failures: 100);
+        var scheduler = Files.CreateScheduler(Files.CreateOrganizer(flaky));
+
+        for (var run = 1; run < FileWriteScheduler.MaxAttempts; run++)
+        {
+            await scheduler.RunBatchAsync();
+
+            var row = Files.Row(song.Asset);
+            Assert.Equal(("waiting", "pending", (long)run), (row.MoveStep, row.Status, row.Attempts));
+            Assert.False(string.IsNullOrWhiteSpace(row.LastError));
+            Assert.NotEqual(MediaFileWriteIntentRepository.InUseReason, row.LastError);
+            Assert.True(File.Exists(song.OldPath));
+
+            // Between runs the move lane leaves it alone: it never retries outside a run.
+            var attempts = flaky.Attempts;
+            await scheduler.RunMoveLaneAsync(CancellationToken.None);
+            await scheduler.RunMoveLaneAsync(CancellationToken.None);
+            Assert.Equal(attempts, flaky.Attempts);
+        }
+
+        await scheduler.RunBatchAsync();
+
+        var failed = Files.Row(song.Asset);
+        Assert.Equal((null, "failed"), (failed.MoveStep, failed.Status));
+        Assert.Equal(song.Asset, Assert.Single(await Files.Intents.GetFailedAsync()).AssetId);
+        Assert.True(File.Exists(song.OldPath));
+    }
+
+    [Fact]
+    public async Task APersonsMoveThatTakesTheRowOverMidClaim_GetsTheClaimHandedOver_NotLeftWritingUntilItsLeaseRunsOut()
+    {
+        var song = SongOutsideItsPattern("Paranoid Android", 4);
+        var expected = await ExpectedPathAsync(song.Asset);
+        await Files.FilingOrganizer.TryAutoOrganizeAsync(song.Asset);
+        await Files.Intents.PromoteWaitingFilingsAsync();
+        var claimed = (await Files.Intents.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+        Assert.Equal("writing", Files.Row(song.Asset).Status);
+
+        RequestAPersonsMove(song.Asset);
+        using (new FileStream(song.OldPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var result = await Files.CreateMover(Files.Organizer).MoveAsync(claimed, CancellationToken.None);
+
+            Assert.Equal(LibraryMoveRunner.MoveResultKind.Interrupted, result.Kind);
+            Assert.Equal(LibraryMoveRunner.TookOverReason, result.Reason);
+        }
+
+        var row = Files.Row(song.Asset);
+        Assert.Equal(("requested", "pending"), (row.MoveStep, row.Status));
+        Assert.Equal(("requested", "person"), MoveState(song.Asset));
+
+        await Files.Scheduler.RunMoveLaneAsync(CancellationToken.None);
+        Assert.True(File.Exists(expected));
     }
 
     // ----- filing ignores the tag-writing switch ------------------------------------------------------------------------------
@@ -241,6 +307,30 @@ public sealed class BatchedFilingTests : IDisposable
         await Files.Scheduler.TickAsync();
         Assert.True(File.Exists(expected));
         Assert.Empty(Files.WriteBack.Calls);
+    }
+
+    [Fact]
+    public async Task AFilingWithTagsPending_KeepsThemPending_WhenWriteBackIsSwitchedOffBeforeTheRun_AndWritesThemWhenItIsBackOn()
+    {
+        var song = SongOutsideItsPattern("Paranoid Android", 4);
+        Files.WriteBack.PathOf = Files.StoredPath;
+        var expected = await ExpectedPathAsync(song.Asset);
+        await Files.FilingOrganizer.TryAutoOrganizeAsync(song.Asset);
+        await Files.Intents.EnqueueAssetsAsync([song.Asset], "auto_match");
+        SaveWriteBack(settings => settings.Enabled = false);
+
+        await Files.Scheduler.RunBatchAsync();
+
+        Assert.True(File.Exists(expected));
+        Assert.Empty(Files.WriteBack.Calls);
+        var row = Files.Row(song.Asset);
+        Assert.Equal((null, "pending", null), (row.MoveStep, row.Status, row.LastError));
+
+        SaveWriteBack(settings => settings.Enabled = true);
+        await Files.Scheduler.RunBatchAsync();
+
+        Assert.Equal(expected, Assert.Single(Files.WriteBack.Calls).PathAtTheTime);
+        Assert.Equal("verified", Files.Intent(song.Asset).Status);
     }
 
     // ----- held for the first check -------------------------------------------------------------------------------------------

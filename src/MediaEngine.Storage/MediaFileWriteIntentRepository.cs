@@ -340,6 +340,9 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 connection.Execute("DELETE FROM media_file_write_intents WHERE id = @id AND move_step IS NOT NULL;", new { id }, transaction);
                 return true;
             }
+            // With write-back off the move still happened (it is filing, not tag writing) and a person's move drops its tag write. A
+            // filing that already carries tags keeps them pending, as a plain tag row would, until write-back is turned back on.
+            var keepTags = writeTags || newerArrived || row.Origin == MoveOriginFiling;
             connection.Execute("""
                 UPDATE media_file_write_intents
                 SET move_step = @nextStep, move_origin = CASE WHEN @nextStep IS NULL THEN NULL ELSE move_origin END,
@@ -352,9 +355,8 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
             {
                 id,
                 nextStep = newerArrived ? "requested" : null,
-                // With write-back off the move still happened (it is filing, not tag writing), but its tag write is dropped.
-                status = writeTags || newerArrived ? "pending" : "blocked",
-                error = writeTags || newerArrived ? null : MoveTagsBlockedReason,
+                status = keepTags ? "pending" : "blocked",
+                error = keepTags ? null : MoveTagsBlockedReason,
                 now = Iso(_clock.GetUtcNow()),
             }, transaction);
             return !newerArrived;
@@ -395,6 +397,47 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
             }, transaction) == 1;
         }, ct);
     }
+
+    /// <summary>
+    /// An automatic filing move did not work this time (not "in use": that is <see cref="DeferFilingAsync"/>). The attempt stays
+    /// counted and the reason is recorded; the move goes back to waiting for the next scheduled run, never to be retried outside a run.
+    /// After <paramref name="maxAttempts"/> attempts it is given up as failed, like a tag write, and appears in the failed list (it keeps
+    /// the paths it was planned with, for diagnosis, and no longer counts as a move in progress). Returns false when the row is no
+    /// longer a filing move (a person's move took it over).
+    /// </summary>
+    public Task<bool> FailFilingAttemptAsync(Guid id, string? error, int maxAttempts, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            return connection.Execute("""
+                UPDATE media_file_write_intents
+                SET status = CASE WHEN attempts >= @maxAttempts THEN 'failed' ELSE 'pending' END,
+                    move_step = CASE WHEN attempts >= @maxAttempts THEN NULL ELSE 'waiting' END,
+                    move_origin = CASE WHEN attempts >= @maxAttempts THEN NULL ELSE 'filing' END,
+                    move_source_path = CASE WHEN attempts >= @maxAttempts THEN move_source_path ELSE NULL END,
+                    move_target_path = CASE WHEN attempts >= @maxAttempts THEN move_target_path ELSE NULL END,
+                    move_source_hash = CASE WHEN attempts >= @maxAttempts THEN move_source_hash ELSE NULL END,
+                    completed_at = CASE WHEN attempts >= @maxAttempts THEN @now ELSE completed_at END,
+                    move_generation = NULL, recovery_attempts = 0, next_attempt_at = NULL, lease_expires_at = NULL,
+                    last_error = @error, updated_at = @now
+                WHERE id = @id AND move_origin = 'filing' AND move_step IN ('requested', 'planned', 'moved', 'checked', 'waiting');
+                """, new { id, error, maxAttempts, now = Iso(_clock.GetUtcNow()) }, transaction) == 1;
+        }, ct);
+
+    /// <summary>
+    /// Lets go of a row this caller claimed for a move but must not work on after all (a person's move took it over mid-claim): it is
+    /// pending again with the try not counted, so the move lane takes it at once instead of waiting for the claim to run out.
+    /// </summary>
+    public Task ReleaseClaimAsync(Guid id, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            connection.Execute("""
+                UPDATE media_file_write_intents
+                SET status = 'pending', lease_expires_at = NULL, attempts = MAX(attempts - 1, 0)
+                WHERE id = @id AND status = 'writing' AND move_step IS NOT NULL;
+                """, new { id }, transaction);
+        }, ct);
 
     /// <summary>
     /// A move that is part-way could not be settled yet (a drive is offline, or the data store could not follow): its steps and paths
@@ -619,7 +662,10 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 """, new { id, generation, reason, now = Iso(_clock.GetUtcNow()) }, transaction) == 1;
         }, ct);
 
-    /// <summary>Of the given media assets, the ones that have a write waiting (pending or being written).</summary>
+    /// <summary>
+    /// Of the given media assets, the ones that have a tag write waiting (pending or being written). A row that is only waiting to file
+    /// the file (trigger <c>filing</c>) is left out, so a sweep that asks for the file's tags is not held back by it.
+    /// </summary>
     public Task<ISet<Guid>> GetWaitingAssetIdsAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -630,7 +676,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
         using var connection = database.CreateConnection();
         var found = connection.Query<Guid>("""
             SELECT asset_id FROM media_file_write_intents
-            WHERE asset_id IN @ids AND status IN ('pending', 'writing');
+            WHERE asset_id IN @ids AND status IN ('pending', 'writing') AND trigger <> 'filing';
             """, new { ids = assetIds.Select(GuidSql.ToBlob).ToArray() });
         return Task.FromResult<ISet<Guid>>(found.ToHashSet());
     }
@@ -716,7 +762,8 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
         using var connection = database.CreateConnection();
         return Task.FromResult(connection.QueryFirstOrDefault<FileWriteRunState>("""
             SELECT anchor_at AS AnchorAt, last_run_started_at AS LastRunStartedAt, last_run_finished_at AS LastRunFinishedAt,
-                   last_run_written AS LastRunWritten, last_run_failed AS LastRunFailed, last_run_kept AS LastRunKept
+                   last_run_written AS LastRunWritten, last_run_failed AS LastRunFailed, last_run_kept AS LastRunKept,
+                   last_run_filed AS LastRunFiled
             FROM file_write_runs WHERE id = 1;
             """));
     }
@@ -741,21 +788,24 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 new { anchor = Iso(anchor) }, transaction);
         }, ct);
 
-    /// <summary>Records a finished run: when it started and finished, and how many files were written, failed or kept in Library only.</summary>
+    /// <summary>
+    /// Records a finished run: when it started and finished, and how many files were written, failed or kept in Library only, and how
+    /// many were filed (moved) on their own, counted apart from the tag writes.
+    /// </summary>
     public Task RecordRunAsync(
-        DateTimeOffset startedAt, DateTimeOffset finishedAt, int written, int failed, int kept, CancellationToken ct = default) =>
+        DateTimeOffset startedAt, DateTimeOffset finishedAt, int written, int failed, int kept, int filed = 0, CancellationToken ct = default) =>
         database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
             connection.Execute("""
                 INSERT INTO file_write_runs
-                    (id, anchor_at, last_run_started_at, last_run_finished_at, last_run_written, last_run_failed, last_run_kept)
-                VALUES (1, @finished, @started, @finished, @written, @failed, @kept)
+                    (id, anchor_at, last_run_started_at, last_run_finished_at, last_run_written, last_run_failed, last_run_kept, last_run_filed)
+                VALUES (1, @finished, @started, @finished, @written, @failed, @kept, @filed)
                 ON CONFLICT(id) DO UPDATE SET
                     last_run_started_at = excluded.last_run_started_at, last_run_finished_at = excluded.last_run_finished_at,
                     last_run_written = excluded.last_run_written, last_run_failed = excluded.last_run_failed,
-                    last_run_kept = excluded.last_run_kept;
-                """, new { started = Iso(startedAt), finished = Iso(finishedAt), written, failed, kept }, transaction);
+                    last_run_kept = excluded.last_run_kept, last_run_filed = excluded.last_run_filed;
+                """, new { started = Iso(startedAt), finished = Iso(finishedAt), written, failed, kept, filed }, transaction);
         }, ct);
 
     private sealed record MoveRowState(long Generation, string? Origin, string Trigger);
@@ -834,4 +884,7 @@ public sealed record FileWriteRunState
     public int? LastRunWritten { get; init; }
     public int? LastRunFailed { get; init; }
     public int? LastRunKept { get; init; }
+
+    /// <summary>How many files the last run filed (moved) on their own, apart from the tag writes in <see cref="LastRunWritten"/>.</summary>
+    public int? LastRunFiled { get; init; }
 }

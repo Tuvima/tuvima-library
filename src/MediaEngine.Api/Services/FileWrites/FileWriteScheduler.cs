@@ -333,6 +333,18 @@ public sealed class FileWriteScheduler(
                         intent.AssetId, done ? string.Empty : " (a newer change arrived while it ran, so the move is planned again)");
                     break;
                 case LibraryMoveRunner.MoveResultKind.Retry:
+                    if (intent.MoveOrigin == MediaFileWriteIntentRepository.MoveOriginFiling)
+                    {
+                        // Library's own filing is retried at the next scheduled run, never in a tight loop outside a run; after the
+                        // attempt limit it is given up and listed as failed, like a tag write.
+                        if (!await intents.FailFilingAttemptAsync(intent.Id, result.Reason, MaxAttempts, ct))
+                        {
+                            await intents.ReleaseClaimAsync(intent.Id, ct);
+                        }
+
+                        break;
+                    }
+
                     var wait = FileWriteBackoff.After(intent.Attempts);
                     await intents.FailMoveAsync(intent.Id, wait is null ? "failed" : "pending", result.Reason, wait, ct);
                     break;
@@ -342,7 +354,7 @@ public sealed class FileWriteScheduler(
                 default:
                     // Not settled yet: the row keeps its steps (or its request) and is looked at again later. An unplugged drive can hold
                     // thousands of files, so waiting for one is logged quietly.
-                    if (result.Reason == LibraryMoveRunner.OfflineReason)
+                    if (result.Reason is LibraryMoveRunner.OfflineReason or LibraryMoveRunner.TookOverReason)
                     {
                         logger.LogDebug("Library move for asset {AssetId} waits: {Reason}", intent.AssetId, result.Reason);
                     }
@@ -373,7 +385,7 @@ public sealed class FileWriteScheduler(
         }
 
         var startedAt = clock.GetUtcNow();
-        int written = 0, failed = 0, kept = 0, handledCount = 0;
+        int written = 0, failed = 0, kept = 0, filed = 0, handledCount = 0;
         try
         {
             var counts = await intents.GetCountsAsync(ct: ct);
@@ -388,7 +400,7 @@ public sealed class FileWriteScheduler(
             {
                 var tally = new MoveLaneTally();
                 await RunMoveLaneAsync(ct, tally);
-                written += tally.Filed;
+                filed += tally.Filed;
                 handledCount += tally.Filed + tally.SetAside;
             }
 
@@ -512,7 +524,7 @@ public sealed class FileWriteScheduler(
                 {
                     // A run stopped part-way is recorded for the files it did handle (the rest come back by lease and the next run
                     // counts them again).
-                    await intents.RecordRunAsync(startedAt, clock.GetUtcNow(), written, failed, kept, CancellationToken.None);
+                    await intents.RecordRunAsync(startedAt, clock.GetUtcNow(), written, failed, kept, filed, CancellationToken.None);
                 }
                 else if (!ct.IsCancellationRequested)
                 {

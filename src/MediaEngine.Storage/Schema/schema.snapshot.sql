@@ -1110,7 +1110,7 @@ CREATE TABLE file_write_runs (
     last_run_written INTEGER,
     last_run_failed INTEGER,
     last_run_kept INTEGER
-);
+, last_run_filed INTEGER);
 
 CREATE TABLE folder_organise_log (
   operation_id BLOB NOT NULL,

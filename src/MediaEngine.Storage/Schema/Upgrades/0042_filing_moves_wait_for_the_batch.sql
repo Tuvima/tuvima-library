@@ -55,3 +55,6 @@ CREATE UNIQUE INDEX ux_media_file_write_intents_asset ON media_file_write_intent
 CREATE UNIQUE INDEX ux_media_file_write_intents_local_item ON media_file_write_intents (local_item_id) WHERE local_item_id IS NOT NULL;
 CREATE INDEX ix_media_file_write_intents_dispatch ON media_file_write_intents (status, lease_expires_at, updated_at);
 CREATE INDEX ix_media_file_write_intents_move ON media_file_write_intents (move_step) WHERE move_step IS NOT NULL;
+
+-- A run's history counts the files it filed on their own apart from the files whose tags it wrote.
+ALTER TABLE file_write_runs ADD COLUMN last_run_filed INTEGER;

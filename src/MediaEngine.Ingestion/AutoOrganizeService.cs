@@ -597,11 +597,17 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
         var held = _filingHold.IsHeld(libraryId, sourceId, path);
         var recorded = await _filingQueue!.RequestFilingAsync(assetId, held, ct).ConfigureAwait(false);
         await MarkPresentedAsync(assetId, ct).ConfigureAwait(false);
-        _logger.LogInformation(
-            recorded
-                ? "Filing for asset {Id} is {State}: {Path} stays where it is until the next run"
-                : "Filing for asset {Id} was not queued ({State}): it is already waiting, or a person's own move is asked for: {Path}",
-            assetId, held ? "held" : "waiting", path);
+        if (recorded)
+        {
+            _logger.LogInformation(
+                "Filing for asset {Id} is {State}: {Path} stays where it is until the next run", assetId, held ? "held" : "waiting", path);
+        }
+        else
+        {
+            // Asked again by a sweep while it already waits (or a person's own move is asked for): nothing changes.
+            _logger.LogDebug(
+                "Filing for asset {Id} was not queued again: it is already waiting, or a person's own move is asked for: {Path}", assetId, path);
+        }
     }
 
     // -------------------------------------------------------------------------
