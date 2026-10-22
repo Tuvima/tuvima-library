@@ -117,6 +117,116 @@ public sealed class LibraryKindsConfigurationTests : IDisposable
         Assert.DoesNotContain(JsonConfigValidator.Validate(pluginKind, "libraries.json"), error => error.Contains("kind_key", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void ALibraryIsCheckedAgainstTheKindsInTheLoadedKindsFileNotOnlyTheOnesThatShip()
+    {
+        CopyShippedConfig();
+        var libraries = File.ReadAllText(Path.Combine(_directory, "libraries.json")).Replace("\"kind_key\": \"books\"", "\"kind_key\": \"podcasts\"", StringComparison.Ordinal);
+        File.WriteAllText(Path.Combine(_directory, "libraries.json"), libraries);
+
+        // The kinds file does not know "podcasts", so the library may belong to a plugin and is left to the Engine to check.
+        Assert.NotEmpty(new ConfigurationDirectoryLoader(_directory).LoadLibraries().Libraries);
+
+        // A kinds file that adds Podcasts (format Music) is honoured: the Books library does not hold that format.
+        var kinds = JsonSerializer.Deserialize<LibraryKindsConfiguration>(File.ReadAllText(Path.Combine(_directory, "library_kinds.json")))!;
+        kinds.Kinds.Add(new LibraryKindDefinition
+        {
+            Key = "podcasts", Area = LibraryAreas.Listen, Label = "Podcasts", Icon = "Podcasts", Format = "Music", Lookup = LibraryKindLookup.None,
+            Grouping = LibraryKindGroupings.FolderAndTags, NamingTemplate = "default", Misfit = LibraryKindMisfits.Keep, Tooltip = "Shows you follow.", Order = 9,
+        });
+        File.WriteAllText(Path.Combine(_directory, "library_kinds.json"), JsonSerializer.Serialize(kinds));
+
+        var ex = Assert.Throws<ConfigValidationException>(() => new ConfigurationDirectoryLoader(_directory).LoadLibraries());
+
+        Assert.Contains("must include Music", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("podcasts", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheShippedKindsPassTheStartUpCheckOfTheirProvidersAndNamingTemplates()
+    {
+        CopyShippedConfig();
+
+        new ConfigurationDirectoryLoader(_directory).CheckLibraryKindReferences();
+    }
+
+    [Fact]
+    public void ALookupProviderThatDoesNotExistIsReportedAtStartUpNamingTheKindAndTheFile()
+    {
+        CopyShippedConfig();
+        EditMovies(movies => movies.Lookup = new LibraryKindLookup { Providers = ["tmbd", "subdl"] });
+
+        var ex = Assert.Throws<ConfigValidationException>(() => new ConfigurationDirectoryLoader(_directory).CheckLibraryKindReferences());
+
+        Assert.Contains("looks details up from \"tmbd\"", ex.Message, StringComparison.Ordinal);
+        AssertNamesTheKindsFile(ex);
+    }
+
+    [Fact]
+    public void ANamingTemplateThatDoesNotExistIsReportedAtStartUpNamingTheKindAndTheFile()
+    {
+        CopyShippedConfig();
+        EditMovies(movies => movies.NamingTemplate = "Moveis");
+
+        var ex = Assert.Throws<ConfigValidationException>(() => new ConfigurationDirectoryLoader(_directory).CheckLibraryKindReferences());
+
+        Assert.Contains("\"naming_template\" of \"Moveis\"", ex.Message, StringComparison.Ordinal);
+        AssertNamesTheKindsFile(ex);
+    }
+
+    private void EditMovies(Action<LibraryKindDefinition> edit)
+    {
+        var path = Path.Combine(_directory, "library_kinds.json");
+        var kinds = JsonSerializer.Deserialize<LibraryKindsConfiguration>(File.ReadAllText(path))!;
+        edit(kinds.Kinds.Single(kind => kind.Key == "movies"));
+        File.WriteAllText(path, JsonSerializer.Serialize(kinds));
+    }
+
+    private static void AssertNamesTheKindsFile(ConfigValidationException ex)
+    {
+        Assert.Contains("\"movies\"", ex.Message, StringComparison.Ordinal);
+        Assert.EndsWith("library_kinds.json", ex.FilePath, StringComparison.Ordinal);
+        Assert.Equal("library_kinds.schema.json", ex.SchemaName);
+    }
+
+    [Fact]
+    public void AConfigFolderTheLoaderJustCreatedIsNotHeldToTheProvidersThatShip()
+    {
+        var fresh = Path.Combine(_directory, "fresh-check");
+
+        new ConfigurationDirectoryLoader(fresh).CheckLibraryKindReferences();
+    }
+
+    [Fact]
+    public void TheKindsSchemaFileExistsAndTheShippedKindsFileNamesOnlyFieldsItAllows()
+    {
+        var schema = JsonDocument.Parse(File.ReadAllText(Path.Combine(FindRepoRoot(), "config", "schemas", "library_kinds.schema.json"))).RootElement;
+        var allowed = schema.GetProperty("$defs").GetProperty("kind").GetProperty("properties").EnumerateObject().Select(property => property.Name).ToHashSet(StringComparer.Ordinal);
+        var kinds = JsonDocument.Parse(File.ReadAllText(Path.Combine(FindRepoRoot(), "config", "library_kinds.json"))).RootElement.GetProperty("kinds");
+
+        Assert.Contains("allows_multiple", allowed);
+        Assert.Contains("max_libraries", allowed);
+        foreach (var kind in kinds.EnumerateArray())
+        {
+            Assert.All(kind.EnumerateObject().Select(property => property.Name), name => Assert.Contains(name, allowed));
+        }
+    }
+
+    private void CopyShippedConfig()
+    {
+        var config = Path.Combine(FindRepoRoot(), "config");
+        foreach (var file in new[] { "core.json", "libraries.json", "library_kinds.json" })
+        {
+            File.Copy(Path.Combine(config, file), Path.Combine(_directory, file));
+        }
+
+        Directory.CreateDirectory(Path.Combine(_directory, "providers"));
+        foreach (var provider in Directory.EnumerateFiles(Path.Combine(config, "providers"), "*.json"))
+        {
+            File.Copy(provider, Path.Combine(_directory, "providers", Path.GetFileName(provider)));
+        }
+    }
+
     private static LibrariesConfiguration Libraries(string kindKey, string mediaType) => new()
     {
         Libraries =
