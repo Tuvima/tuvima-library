@@ -84,13 +84,6 @@
     font-size: 1rem;
 }
 
-.add-wizard__folder {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px;
-}
-
 .add-wizard__path {
     min-width: 0;
     overflow-wrap: anywhere;
@@ -106,6 +99,12 @@
     border: 1px solid var(--tl-status-warning-border, var(--tl-border-subtle));
     border-radius: var(--tl-radius-md, 10px);
     color: var(--tl-text-muted);
+}
+
+.add-wizard__hint-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .add-wizard__done {

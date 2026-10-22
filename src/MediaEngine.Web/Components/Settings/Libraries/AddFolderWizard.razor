@@ -3,7 +3,6 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Ui
 @inject LibraryFolderAddService AddService
-@inject IAppDialogService DialogService
 @inject NavigationManager Navigation
 
 @* Adding a folder, in up to three steps: what is it, which folder, how should Library treat it. Nothing is created until
@@ -65,21 +64,21 @@
             else if (_step == WizardStep.Folder && _type is not null)
             {
                 <p class="add-wizard__lead">Choose the folder on the Library server that holds your @_type.PluralLabel.</p>
-                <div class="add-wizard__folder">
-                    <AppButton Label="@(_folder is null ? "Choose folder" : "Choose another folder")"
-                               StartIcon="@AppMaterialIcons.Outlined.FolderOpen"
-                               ButtonStyle="AppButtonStyle.Outlined"
-                               OnClick="PickFolderAsync" />
-                    @if (_folder is not null)
-                    {
-                        <code class="add-wizard__path" title="@_folder.Path">@_folder.Path</code>
-                    }
-                </div>
-                @if (LooksLikeFootage)
+                <ServerFolderPicker Inline="true"
+                                    ConfirmLabel="Next"
+                                    SelectionMode="@ServerFolderSelectionModes.ExistingLibrary"
+                                    MediaType="@_type.MediaTypes.FirstOrDefault()"
+                                    SetupSession="@SetupSession"
+                                    InitialPath="@_initialPath"
+                                    OnConfirmed="OnFolderConfirmed" />
+                @if (_footagePending && LooksLikeFootage)
                 {
                     <div class="add-wizard__hint" role="note">
                         <span>This looks like phone or camera footage. Personal videos belong in View.</span>
-                        <AppButton Label="Add to View instead" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => HandOffToView(_folder?.Path))" />
+                        <div class="add-wizard__hint-actions">
+                            <AppButton Label="Add to View instead" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => HandOffToView(_folder?.Path))" />
+                            <AppButton Label="Continue anyway" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => GoTo(WizardStep.How))" />
+                        </div>
                     </div>
                 }
             }
@@ -152,11 +151,7 @@
                 {
                     <AppButton Label="Back" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="Back" />
                 }
-                @if (_step == WizardStep.Folder)
-                {
-                    <AppButton Label="Next" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_folder is null)" OnClick="@(() => GoTo(WizardStep.How))" />
-                }
-                else if (_step == WizardStep.How)
+                @if (_step == WizardStep.How)
                 {
                     <AppButton Label="Add folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@_saving" OnClick="AddAsync" />
                 }
@@ -218,6 +213,9 @@
     private AddFolderHandling _handling = AddFolderHandling.ReadOnly;
     private bool _markNewMediaHere = true;
     private bool _youtubeLookup = true;
+    private bool _footagePending;
+    // Where the embedded picker opens: the folder already chosen when coming Back from step 3.
+    private string? _initialPath;
     private bool _saving;
     private string? _error;
     private string? _notice;
@@ -285,6 +283,8 @@
     private void GoTo(WizardStep step)
     {
         _error = null;
+        _footagePending = false;
+        _initialPath = step == WizardStep.Folder ? _folder?.Path : null;
         if (step == WizardStep.How)
         {
             // A folder with files is read-only until the person says otherwise; an empty one is managed, and asks only about new media.
@@ -295,33 +295,21 @@
         _step = step;
     }
 
-    private void Back() => _step = _step == WizardStep.How ? WizardStep.Folder : WizardStep.Kind;
+    private void Back() => GoTo(_step == WizardStep.How ? WizardStep.Folder : WizardStep.Kind);
 
-    // Step 2 picks the folder through the shared folder picker, opened over the wizard. A later change shows the picker inline
-    // in this step instead; only this method and the step's markup change.
-    private async Task PickFolderAsync()
+    // Step 2 embeds the shared folder picker; its Next button confirms the folder. Phone or camera footage in a Watch kind
+    // pauses here with a hint before moving on.
+    private void OnFolderConfirmed(ServerFolderValidationResultDto selected)
     {
-        if (_type is null) return;
-        var parameters = new AppDialogParameters<ServerFolderPicker>
+        _folder = selected;
+        _error = null;
+        if (InWatch && selected.LooksLikePhoneFootage)
         {
-            { component => component.SelectionMode, ServerFolderSelectionModes.ExistingLibrary },
-            { component => component.HelpText, $"Choose a folder on the Library server to add to {_type.Label}." },
-            { component => component.SetupSession, SetupSession },
-            { component => component.MediaType, _type.MediaTypes.FirstOrDefault() },
-            { component => component.ConfirmLabel, "Choose" },
-        };
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
-        {
-            MaxWidth = AppMaxWidth.ExtraExtraLarge,
-            FullWidth = false,
-            CloseButton = false,
-            CloseOnEscapeKey = true,
-        });
-        if (await dialog.Result is { Canceled: false, Data: ServerFolderValidationResultDto selected })
-        {
-            _folder = selected;
-            _error = null;
+            _footagePending = true;
+            return;
         }
+
+        GoTo(WizardStep.How);
     }
 
     // View's own add form takes over (its address reads ?add=folder); nothing has been saved by the wizard.
@@ -388,6 +376,8 @@
     private void AddAnother()
     {
         _folder = null;
+        _initialPath = null;
+        _footagePending = false;
         _error = null;
         _notice = null;
         _handling = AddFolderHandling.ReadOnly;

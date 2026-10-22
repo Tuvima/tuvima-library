@@ -80,8 +80,9 @@ public sealed class ServerFolderPickerUiTests
         var wizard = Read("src/MediaEngine.Web/Components/Settings/Libraries/AddFolderWizard.razor");
         var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
 
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(wizard, @"component\.MediaType"));
-        Assert.Contains("_type.MediaTypes.FirstOrDefault()", wizard, StringComparison.Ordinal);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(wizard, @"MediaType=""@_type\.MediaTypes\.FirstOrDefault\(\)"""));
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(wizard, @"<ServerFolderPicker\b"));
+        Assert.Contains("Inline=\"true\"", wizard, StringComparison.Ordinal);
         Assert.DoesNotContain("component.MediaType", panel, StringComparison.Ordinal);
         foreach (var untyped in new[]
                  {
@@ -102,7 +103,7 @@ public sealed class ServerFolderPickerUiTests
 
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", panel, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.ManagedLibrary", panel, StringComparison.Ordinal);
-        Assert.Contains("AppDialogParameters<ServerFolderPicker>", wizard, StringComparison.Ordinal);
+        Assert.Contains("<ServerFolderPicker", wizard, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.ExistingLibrary", wizard, StringComparison.Ordinal);
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", view, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceManaged", Read("src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor"), StringComparison.Ordinal);
