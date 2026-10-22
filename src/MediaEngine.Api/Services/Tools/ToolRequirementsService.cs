@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using MediaEngine.AI.Configuration;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
+using MediaEngine.Api.Services.Tools.ExifTool;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
@@ -13,7 +14,7 @@ using Microsoft.Extensions.Hosting;
 namespace MediaEngine.Api.Services.Tools;
 
 /// <summary>
-/// Builds the tools catalogue: FFmpeg and its streaming features, Tesseract, the image engine, the local AI
+/// Builds the tools catalogue: FFmpeg and its streaming features, Tesseract, ExifTool, the image engine, the local AI
 /// runtime and one row per AI model. Every check is plain data in, plain wording out; technical detail goes to the
 /// log and never into the result.
 /// </summary>
@@ -35,6 +36,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
     private readonly TimeProvider _time;
     private readonly IToolInstallerService? _installer;
     private readonly ISystemActivityRepository? _activity;
+    private readonly IExifToolRunner? _exifTool;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ToolRequirementsDto? _last;
 
@@ -51,7 +53,8 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         Func<string, string?>? readEnvironment = null,
         TimeProvider? time = null,
         IToolInstallerService? installer = null,
-        ISystemActivityRepository? activity = null)
+        ISystemActivityRepository? activity = null,
+        IExifToolRunner? exifTool = null)
     {
         _ffmpeg = ffmpeg;
         _ocr = ocr;
@@ -66,6 +69,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         _time = time ?? TimeProvider.System;
         _installer = installer;
         _activity = activity;
+        _exifTool = exifTool;
     }
 
     /// <summary>
@@ -194,7 +198,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
 
     private ToolRequirementDto OverlayRow(ToolRequirementDto row, string installKind)
     {
-        if (_installer is null || row.Id is not (ToolRequirementIds.Ffmpeg or ToolRequirementIds.Tesseract)
+        if (_installer is null || row.Id is not (ToolRequirementIds.Ffmpeg or ToolRequirementIds.Tesseract or ToolRequirementIds.ExifTool)
             || row.State == ToolRequirementStates.Ready)
         {
             return row;
@@ -283,6 +287,18 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
             Copy.ToolFix(installKind, "Tesseract", Copy.TesseractPackages),
             tesseractState == ToolRequirementStates.Ready ? capability.Version : null,
             canLocate: true));
+
+        // ── ExifTool ─────────────────────────────────────────────────────────
+        var exifTool = _exifTool is null
+            ? new ExifToolStatus(ToolRequirementStates.Missing, null, PerlMissing: false)
+            : await _exifTool.CheckAsync(ct).ConfigureAwait(false);
+        rows.Add(Row(
+            ToolRequirementIds.ExifTool, "ExifTool", "tool", ToolRequirementLevels.Optional,
+            exifTool.State, Copy.ExifToolEffect,
+            exifTool.State == ToolRequirementStates.Problem ? Copy.FoundButNotWorking("ExifTool") : null,
+            exifTool.PerlMissing ? Copy.ExifToolPerlFix : Copy.ExifToolFix(installKind),
+            exifTool.State == ToolRequirementStates.Ready ? exifTool.Version : null,
+            canLocate: false));
 
         // ── Image engine and local AI runtime ────────────────────────────────
         rows.Add(Row(
@@ -498,6 +514,8 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         public const string FfmpegRequiredEffect = "Videos, music and audiobooks wait until FFmpeg is available.";
         public const string AdaptiveStreamingEffect = "Smooth streaming to phones and TVs is off; files still play directly.";
         public const string TesseractEffect = "Scanned pages and photos of paper won't be searchable.";
+        public const string ExifToolEffect = "Photos, videos and PDFs in View keep the profile name in Library only until ExifTool is ready.";
+        public const string ExifToolPerlFix = "Install Perl (for example `apt install perl`), then press Check again.";
         public const string ImageEngineEffect = "Covers and thumbnails can't be created.";
         public const string AiRuntimeEffect = "Local AI features are off.";
 
@@ -535,6 +553,13 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
 
         public static readonly (string Windows, string Linux, string Mac) TesseractPackages =
             ("winget install UB-Mannheim.TesseractOCR", "sudo apt install tesseract-ocr", "brew install tesseract");
+
+        public static readonly (string Windows, string Linux, string Mac) ExifToolPackages =
+            ("winget install OliverBetz.ExifTool", "sudo apt install libimage-exiftool-perl", "brew install exiftool");
+
+        // The Windows installer does not carry ExifTool (the Library fetches it by itself), so only a container is told it is included.
+        public static string ExifToolFix(string installKind) => ToolFix(
+            installKind == ToolInstallKinds.Docker ? ToolInstallKinds.Docker : ToolInstallKinds.Source, "ExifTool", ExifToolPackages);
 
         public static string ChosenLocationGone(string tool) => $"The location you chose for {tool} no longer has it.";
 

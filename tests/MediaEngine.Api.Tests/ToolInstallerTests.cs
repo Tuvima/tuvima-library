@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Formats.Tar;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
@@ -9,6 +10,7 @@ using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Api.Services.Settings;
 using MediaEngine.Api.Services.Tools;
+using MediaEngine.Api.Services.Tools.ExifTool;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
@@ -30,7 +32,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// Fetching FFmpeg and Tesseract on request: a fake download source stands in for the network, so no test downloads
+/// Fetching FFmpeg, Tesseract and ExifTool on request: a fake download source stands in for the network, so no test downloads
 /// anything. A correct archive installs; a wrong checksum installs nothing; a failed download leaves files waiting;
 /// every attempt is written to the activity log.
 /// </summary>
@@ -40,6 +42,8 @@ public sealed class ToolInstallerTests : IDisposable
     private const string InstallerUrl = "https://github.com/test/tesseract-setup.exe";
     private const string EnglishUrl = "https://github.com/test/eng.traineddata";
     private const string OrientationUrl = "https://github.com/test/osd.traineddata";
+    private const string ExifToolZipUrl = "https://github.com/test/exiftool-win64.zip";
+    private const string ExifToolTarUrl = "https://github.com/test/exiftool-perl.tar.gz";
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "tuvima-tool-installer-tests", Guid.NewGuid().ToString("N"));
     private readonly string _dataRoot;
@@ -50,6 +54,8 @@ public sealed class ToolInstallerTests : IDisposable
     private readonly FolderFfmpeg _ffmpeg;
     private readonly FolderOcr _ocr;
     private readonly ConfigurationDirectoryLoader _configuration;
+    private readonly FakeExifToolLocator _exifLocator = new();
+    private readonly FakeExifToolRunner _exifRunner = new();
     private ToolInstallerService _installer = null!;
     private ToolRequirementsService _tools = null!;
     private ToolDownloadSettings _settings = null!;
@@ -668,6 +674,208 @@ public sealed class ToolInstallerTests : IDisposable
         Assert.Contains(SystemActionType.ToolDownloadCancelled, _activity.ActionTypes);
     }
 
+    // ── ExifTool ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ACorrectExifToolArchive_InstallsTheWholeFolder_WithItsLicenceAndReadmeBesideTheProgram()
+    {
+        UseExifTool(ExifToolWindowsArchive());
+
+        var started = await _installer.StartAsync(ToolRequirementIds.ExifTool, CancellationToken.None);
+        await WaitUntilIdleAsync(ToolRequirementIds.ExifTool);
+
+        Assert.Equal(ToolInstallOutcome.Accepted, started.Outcome);
+        var folder = Path.Combine(_dataRoot, "tools", "exiftool");
+        Assert.Equal("fake perl", File.ReadAllText(Path.Combine(folder, "exiftool_files", "perl.exe")));
+        Assert.Equal("fake script", File.ReadAllText(Path.Combine(folder, "exiftool_files", "exiftool.pl")));
+        Assert.Equal("GPL v3 text", File.ReadAllText(Path.Combine(folder, "exiftool_files", "LICENSE")));
+        Assert.Equal("a module", File.ReadAllText(Path.Combine(folder, "exiftool_files", "lib", "Image", "ExifTool.pm")));
+        Assert.True(File.Exists(Path.Combine(folder, "windows_exiftool.txt")));
+        Assert.False(Directory.Exists(Path.Combine(folder, "exiftool-13.59_64")));
+        Assert.False(Directory.Exists(Path.Combine(_dataRoot, "tools", ".downloads", "exiftool")));
+        Assert.Equal([SystemActionType.ToolDownloadStarted, SystemActionType.ToolDownloadFinished], _activity.ActionTypes);
+    }
+
+    [Fact]
+    public async Task AWrongExifToolArchiveChecksum_InstallsNothing_AndLogsTheRefusal()
+    {
+        UseExifTool(ExifToolWindowsArchive(), archiveSha256: new string('0', 64));
+
+        await _installer.StartAsync(ToolRequirementIds.ExifTool, CancellationToken.None);
+        await WaitUntilIdleAsync(ToolRequirementIds.ExifTool);
+
+        Assert.False(Directory.Exists(Path.Combine(_dataRoot, "tools", "exiftool")));
+        var row = await Row(ToolRequirementIds.ExifTool);
+        Assert.Equal(ToolRequirementStates.Missing, row.State);
+        Assert.Contains("didn't match", row.StateReason, StringComparison.Ordinal);
+        Assert.Contains(SystemActionType.ToolDownloadChecksumRefused, _activity.ActionTypes);
+        Assert.DoesNotContain(SystemActionType.ToolDownloadFinished, _activity.ActionTypes);
+    }
+
+    [Fact]
+    public async Task AWrongExifToolProgramChecksum_InstallsNothing_AndLeavesTheOldCopyAlone()
+    {
+        var folder = Path.Combine(_dataRoot, "tools", "exiftool");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "old-marker.txt"), "the previous copy");
+        UseExifTool(ExifToolWindowsArchive(), programSha256: new string('1', 64));
+
+        await _installer.StartAsync(ToolRequirementIds.ExifTool, CancellationToken.None);
+        await WaitUntilIdleAsync(ToolRequirementIds.ExifTool);
+
+        Assert.Equal("the previous copy", File.ReadAllText(Path.Combine(folder, "old-marker.txt")));
+        Assert.False(Directory.Exists(Path.Combine(folder, "exiftool_files")));
+        Assert.Contains(SystemActionType.ToolDownloadChecksumRefused, _activity.ActionTypes);
+    }
+
+    [Fact]
+    public async Task AnExifToolArchiveMissingAProgramItShouldHold_InstallsNothing()
+    {
+        var archive = Zip(("exiftool-13.59_64/exiftool_files/exiftool.pl", "fake script"));
+        UseExifTool(archive);
+
+        await _installer.StartAsync(ToolRequirementIds.ExifTool, CancellationToken.None);
+        await WaitUntilIdleAsync(ToolRequirementIds.ExifTool);
+
+        Assert.False(Directory.Exists(Path.Combine(_dataRoot, "tools", "exiftool")));
+        Assert.Equal(ToolInstallPhase.Failed, _installer.GetSnapshot(ToolRequirementIds.ExifTool).Phase);
+    }
+
+    [Theory]
+    [InlineData("exiftool-13.59_64/../../outside.txt")]
+    [InlineData("exiftool-13.59_64/exiftool_files/../../../outside.txt")]
+    [InlineData("/etc/outside.txt")]
+    [InlineData("exiftool-13.59_64/C:/outside.txt")]
+    public async Task AnExifToolArchiveEntryThatClimbsOutOfItsFolder_RefusesTheWholeInstall(string badEntry)
+    {
+        var archive = Zip(
+            ("exiftool-13.59_64/exiftool_files/perl.exe", "fake perl"),
+            ("exiftool-13.59_64/exiftool_files/exiftool.pl", "fake script"),
+            (badEntry, "evil"));
+        UseExifTool(archive);
+
+        await _installer.StartAsync(ToolRequirementIds.ExifTool, CancellationToken.None);
+        await WaitUntilIdleAsync(ToolRequirementIds.ExifTool);
+
+        Assert.False(Directory.Exists(Path.Combine(_dataRoot, "tools", "exiftool")));
+        Assert.False(File.Exists(Path.Combine(_dataRoot, "tools", "outside.txt")));
+        Assert.False(File.Exists(Path.Combine(_dataRoot, "outside.txt")));
+        Assert.Equal(ToolInstallPhase.Failed, _installer.GetSnapshot(ToolRequirementIds.ExifTool).Phase);
+    }
+
+    [Fact]
+    public async Task ALinuxExifToolArchive_InstallsWhenPerlIsPresent_WithItsReadmeBesideTheScript()
+    {
+        _exifLocator.Perl = "/usr/bin/perl";
+        Build(new ToolInstallPlatform(false, true, ToolDownloadSettings.LinuxX64));
+        UseExifTool(ExifToolLinuxArchive(), linux: true);
+
+        Assert.True(_installer.GetOffer(ToolRequirementIds.ExifTool, ToolInstallKinds.Source).Offered);
+        await _installer.StartAsync(ToolRequirementIds.ExifTool, CancellationToken.None);
+        await WaitUntilIdleAsync(ToolRequirementIds.ExifTool);
+
+        var folder = Path.Combine(_dataRoot, "tools", "exiftool");
+        Assert.Equal("#!/usr/bin/perl\nfake exiftool", File.ReadAllText(Path.Combine(folder, "exiftool")));
+        Assert.Equal("copyright and licence", File.ReadAllText(Path.Combine(folder, "README")));
+        Assert.Equal("a module", File.ReadAllText(Path.Combine(folder, "lib", "Image", "ExifTool.pm")));
+        Assert.Equal(ToolInstallPhase.Idle, _installer.GetSnapshot(ToolRequirementIds.ExifTool).Phase);
+    }
+
+    [Fact]
+    public async Task ALinuxExifToolArchiveHoldingASymbolicLink_RefusesTheWholeInstall()
+    {
+        _exifLocator.Perl = "/usr/bin/perl";
+        Build(new ToolInstallPlatform(false, true, ToolDownloadSettings.LinuxX64));
+        UseExifTool(ExifToolLinuxArchive(withSymbolicLink: true), linux: true);
+
+        await _installer.StartAsync(ToolRequirementIds.ExifTool, CancellationToken.None);
+        await WaitUntilIdleAsync(ToolRequirementIds.ExifTool);
+
+        Assert.False(Directory.Exists(Path.Combine(_dataRoot, "tools", "exiftool")));
+        Assert.Equal(ToolInstallPhase.Failed, _installer.GetSnapshot(ToolRequirementIds.ExifTool).Phase);
+    }
+
+    [Fact]
+    public void OnLinuxWithoutPerl_NoExifToolDownloadIsOffered_AndTheFixSaysToInstallPerl()
+    {
+        _exifLocator.Perl = null;
+        Build(new ToolInstallPlatform(false, true, ToolDownloadSettings.LinuxArm64));
+
+        var offer = _installer.GetOffer(ToolRequirementIds.ExifTool, ToolInstallKinds.Source);
+
+        Assert.False(offer.Offered);
+        Assert.Contains("Install Perl", offer.FixText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OnLinuxWithoutPerl_StartingTheDownloadIsNotOffered()
+    {
+        _exifLocator.Perl = null;
+        Build(new ToolInstallPlatform(false, true, ToolDownloadSettings.LinuxX64));
+
+        var row = await Row(ToolRequirementIds.ExifTool);
+        var result = await _installer.StartAsync(ToolRequirementIds.ExifTool, CancellationToken.None);
+
+        Assert.False(row.CanInstall);
+        Assert.Contains("Install Perl", row.Fix, StringComparison.Ordinal);
+        Assert.Equal(ToolInstallOutcome.NotOffered, result.Outcome);
+        Assert.Empty(_source.Requests);
+    }
+
+    [Fact]
+    public void OnAnotherSystem_OrInsideAContainer_NoExifToolDownloadIsOffered()
+    {
+        Build(new ToolInstallPlatform(false, true));
+        Assert.False(_installer.GetOffer(ToolRequirementIds.ExifTool, ToolInstallKinds.Source).Offered);
+
+        Build(new ToolInstallPlatform(true, true));
+        Assert.False(_installer.GetOffer(ToolRequirementIds.ExifTool, ToolInstallKinds.Docker).Offered);
+        Assert.True(_installer.GetOffer(ToolRequirementIds.ExifTool, ToolInstallKinds.Source).Offered);
+        Assert.True(_installer.GetOffer(ToolRequirementIds.ExifTool, ToolInstallKinds.WindowsInstaller).Offered);
+    }
+
+    [Fact]
+    public async Task AnExifToolEntryOnAnotherHost_IsNeverOfferedOrFetched()
+    {
+        UseExifTool(ExifToolWindowsArchive(), url: "https://example.com/exiftool.zip");
+
+        var row = await Row(ToolRequirementIds.ExifTool);
+        var result = await _installer.StartAsync(ToolRequirementIds.ExifTool, CancellationToken.None);
+
+        Assert.False(row.CanInstall);
+        Assert.Equal(ToolInstallOutcome.NotOffered, result.Outcome);
+        Assert.Empty(_source.Requests);
+    }
+
+    [Fact]
+    public async Task TheToolsList_HasAnOptionalExifToolRow_ThatIsOfferedForInstallWhileMissing()
+    {
+        var row = await Row(ToolRequirementIds.ExifTool);
+
+        Assert.Equal("exiftool", row.Id);
+        Assert.Equal("ExifTool", row.Name);
+        Assert.Equal(ToolRequirementLevels.Optional, row.Requirement);
+        Assert.Equal(ToolRequirementStates.Missing, row.State);
+        Assert.True(row.CanInstall);
+        Assert.False(row.CanLocate);
+        Assert.Equal(
+            "Photos, videos and PDFs in View keep the profile name in Library only until ExifTool is ready.",
+            row.Effect);
+    }
+
+    [Fact]
+    public async Task TheExifToolRow_IsReady_OnceTheRunnerFindsAWorkingExifTool()
+    {
+        _exifRunner.Status = new ExifToolStatus(ToolRequirementStates.Ready, "13.59", false);
+
+        var row = await _tools.CheckAsync(CancellationToken.None);
+
+        var exiftool = row.Tools.Single(tool => tool.Id == ToolRequirementIds.ExifTool);
+        Assert.Equal(ToolRequirementStates.Ready, exiftool.State);
+        Assert.Equal("13.59", exiftool.Version);
+        Assert.False(exiftool.CanInstall);
+    }
+
     // ── Wiring ───────────────────────────────────────────────────────────────
 
     private void Build(ToolInstallPlatform? platform = null, string installKind = ToolInstallKinds.Source)
@@ -680,11 +888,11 @@ public sealed class ToolInstallerTests : IDisposable
 
         _installer = new ToolInstallerService(
             _configuration, paths, _ocr, _source, _launcher, _activity, new RunningLifetime(),
-            platform ?? new ToolInstallPlatform(true, true), () => _tools, NullLogger<ToolInstallerService>.Instance);
+            platform ?? new ToolInstallPlatform(true, true), () => _tools, NullLogger<ToolInstallerService>.Instance, _exifLocator);
         _tools = new ToolRequirementsService(
             _ffmpeg, _ocr, new NoModels(), new WorkingProbe(), new NoToolWaitingWorkCounter(),
             [], new RunningLifetime(), new NotAContainer(), NullLogger<ToolRequirementsService>.Instance,
-            name => name == "TUVIMA_INSTALL_KIND" ? installKind : null, null, _installer);
+            name => name == "TUVIMA_INSTALL_KIND" ? installKind : null, null, _installer, exifTool: _exifRunner);
     }
 
     private async Task<ToolRequirementDto> Row(string id) =>
@@ -708,6 +916,73 @@ public sealed class ToolInstallerTests : IDisposable
         Save();
         _source.Files[FfmpegUrl] = archive;
         _source.Files["https://example.com/ffmpeg.zip"] = archive;
+    }
+
+    private void UseExifTool(
+        byte[] archive, string? archiveSha256 = null, string? programSha256 = null, string? url = null, bool linux = false)
+    {
+        _settings = LoadSettings();
+        var address = url ?? (linux ? ExifToolTarUrl : ExifToolZipUrl);
+        _settings.ExifTool = new ExifToolDownload
+        {
+            Builds =
+            [
+                linux
+                    ? new ExifToolBuild
+                    {
+                        Platforms = [ToolDownloadSettings.LinuxX64, ToolDownloadSettings.LinuxArm64],
+                        Url = address,
+                        Sha256 = archiveSha256 ?? Hash(archive),
+                        Files = [new ArchiveFile { Path = "exiftool", Sha256 = programSha256 ?? Hash(Encoding.UTF8.GetBytes("#!/usr/bin/perl\nfake exiftool")) }],
+                    }
+                    : new ExifToolBuild
+                    {
+                        Platforms = [ToolDownloadSettings.WindowsX64],
+                        Url = address,
+                        Sha256 = archiveSha256 ?? Hash(archive),
+                        Files =
+                        [
+                            new ArchiveFile { Path = "exiftool_files/perl.exe", Sha256 = programSha256 ?? Hash(Encoding.UTF8.GetBytes("fake perl")) },
+                            new ArchiveFile { Path = "exiftool_files/exiftool.pl", Sha256 = Hash(Encoding.UTF8.GetBytes("fake script")) },
+                        ],
+                    },
+            ],
+        };
+        Save();
+        _source.Files[address] = archive;
+    }
+
+    private static byte[] ExifToolWindowsArchive() => Zip(
+        ("exiftool-13.59_64/exiftool(-k).exe", "launcher"),
+        ("exiftool-13.59_64/exiftool_files/perl.exe", "fake perl"),
+        ("exiftool-13.59_64/exiftool_files/exiftool.pl", "fake script"),
+        ("exiftool-13.59_64/exiftool_files/LICENSE", "GPL v3 text"),
+        ("exiftool-13.59_64/exiftool_files/lib/Image/ExifTool.pm", "a module"),
+        ("exiftool-13.59_64/windows_exiftool.txt", "how the Windows build works"));
+
+    private static byte[] ExifToolLinuxArchive(bool withSymbolicLink = false)
+    {
+        using var bytes = new MemoryStream();
+        using (var gzip = new GZipStream(bytes, CompressionLevel.Fastest, leaveOpen: true))
+        using (var tar = new TarWriter(gzip, TarEntryFormat.Pax, leaveOpen: false))
+        {
+            foreach (var (name, content) in new[]
+            {
+                ("Image-ExifTool-13.59/exiftool", "#!/usr/bin/perl\nfake exiftool"),
+                ("Image-ExifTool-13.59/README", "copyright and licence"),
+                ("Image-ExifTool-13.59/lib/Image/ExifTool.pm", "a module"),
+            })
+            {
+                tar.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, name) { DataStream = new MemoryStream(Encoding.UTF8.GetBytes(content)) });
+            }
+
+            if (withSymbolicLink)
+            {
+                tar.WriteEntry(new PaxTarEntry(TarEntryType.SymbolicLink, "Image-ExifTool-13.59/link") { LinkName = "/etc/passwd" });
+            }
+        }
+
+        return bytes.ToArray();
     }
 
     private void UseTesseract(string? installerSha256 = null)
@@ -1036,6 +1311,27 @@ public sealed class ToolInstallerTests : IDisposable
 
         public Task<int?> DetectRotationAsync(string imagePath, OcrRunOptions options, CancellationToken ct = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class FakeExifToolLocator : IExifToolLocator
+    {
+        public string? Perl { get; set; }
+
+        public ExifToolCommand? Resolve() => null;
+
+        public string? FindPerl() => Perl;
+
+        public string? ResolveConfigFile() => null;
+    }
+
+    /// <summary>Answers the tools list without starting anything: ExifTool is missing until a test says otherwise.</summary>
+    private sealed class FakeExifToolRunner : IExifToolRunner
+    {
+        public ExifToolStatus Status { get; set; } = new(ToolRequirementStates.Missing, null, false);
+
+        public Task<ExifToolStatus> CheckAsync(CancellationToken ct) => Task.FromResult(Status);
+
+        public Task<IExifToolSession?> OpenSessionAsync(CancellationToken ct) => Task.FromResult<IExifToolSession?>(null);
     }
 
     private sealed class NoModels : IModelDownloadManager

@@ -45,6 +45,11 @@
     <ProjectReference Include="..\MediaEngine.AI\MediaEngine.AI.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The Library's ExifTool configuration (the XMP-tuvima tags). The config folder's copy wins; this one is used when that folder predates it. -->
+    <EmbeddedResource Include="..\..\config\exiftool\tuvima.config" LogicalName="MediaEngine.Api.exiftool.tuvima.config" />
+  </ItemGroup>
+
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
     <Compile Remove="DevSupport\**\*.cs" />
     <Compile Remove="Endpoints\DebugEndpoints.cs" />

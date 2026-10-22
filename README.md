@@ -122,6 +122,7 @@ Tuvima Library stands on the work of many open-source projects. Thank you to eve
 | [PDF.js](https://mozilla.github.io/pdf.js/), [PdfPig](https://github.com/UglyToad/PdfPig), [PDFtoImage](https://github.com/sungaila/PDFtoImage) and [PDFium](https://pdfium.googlesource.com/pdfium/) | Shows and searches PDF documents |
 | [Open XML SDK](https://github.com/dotnet/Open-XML-SDK) | Searches Word, Excel and PowerPoint files |
 | [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) | Reads scanned pages and photos of paper |
+| [ExifTool](https://exiftool.org/) by Phil Harvey | Writes the profile name into photos, phone videos and PDFs in View |
 | [hls.js](https://github.com/video-dev/hls.js) | Adaptive video playback in the browser |
 | [LLamaSharp](https://github.com/SciSharp/LLamaSharp) with [llama.cpp](https://github.com/ggml-org/llama.cpp), and [Whisper.net](https://github.com/sandrohanea/whisper.net) with [whisper.cpp](https://github.com/ggml-org/whisper.cpp) | Optional local AI and speech-to-text, all on your own computer |
 | [Wasmtime](https://wasmtime.dev/) | Runs plugins safely in a sandbox |
