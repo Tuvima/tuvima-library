@@ -31,13 +31,13 @@ public interface IViewGalleryRepository
         CancellationToken ct = default,
         IReadOnlyCollection<string>? blockedKinds = null);
     /// <remarks>
-    /// Without <c>includeDocuments</c> a document is refused with <see cref="UnauthorizedAccessException"/>, after the
-    /// check that every item belongs to the Gallery owner's Personal Space.
+    /// An item whose View kind is in <c>blockedKinds</c> is refused with <see cref="UnauthorizedAccessException"/>, after
+    /// the check that every item belongs to the Gallery owner's Personal Space.
     /// </remarks>
     Task<AddViewGalleryItemsResult> AddItemsAsync(
         Guid galleryId,
         IReadOnlyCollection<Guid> itemIds,
-        bool includeDocuments = true,
+        IReadOnlyCollection<string>? blockedKinds = null,
         CancellationToken ct = default);
     /// <remarks>Without <c>includeDocuments</c> a document is left alone and not counted.</remarks>
     Task<int> RemoveItemsAsync(

@@ -235,7 +235,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
     public Task<AddViewGalleryItemsResult> AddItemsAsync(
         Guid galleryId,
         IReadOnlyCollection<Guid> itemIds,
-        bool includeDocuments = true,
+        IReadOnlyCollection<string>? blockedKinds = null,
         CancellationToken ct = default)
     {
         ValidateId(galleryId, nameof(galleryId));
@@ -254,12 +254,21 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                 throw new InvalidOperationException("Every Gallery item must belong to the Gallery owner's Personal Space.");
             }
 
-            // A profile without Documents cannot put one in a Gallery (the items are already known to be the owner's).
-            if (!includeDocuments && distinctIds.Any(itemId => connection.ExecuteScalar<long>(new CommandDefinition("""
-                    SELECT COUNT(1) FROM local_items WHERE id = @itemId AND media_kind = 'document';
-                    """, new { itemId }, transaction, cancellationToken: token)) != 0))
+            // A profile cannot put an item of a kind it may not use (Photos, Personal videos or Documents) in a Gallery
+            // (the items are already known to be the owner's). A document with no kind yet counts as Documents.
+            if (blockedKinds is { Count: > 0 } && distinctIds.Any(itemId => connection.ExecuteScalar<long>(new CommandDefinition("""
+                    SELECT COUNT(1) FROM local_items
+                     WHERE id = @itemId
+                       AND (content_kind IN @blockedKinds
+                            OR (content_kind IS NULL AND media_kind = 'document' AND @documentsBlocked = 1));
+                    """, new
             {
-                throw new UnauthorizedAccessException("Documents are not available for this profile.");
+                itemId,
+                blockedKinds = blockedKinds.ToArray(),
+                documentsBlocked = blockedKinds.Contains(ViewContentKinds.Documents) ? 1 : 0,
+            }, transaction, cancellationToken: token)) != 0))
+            {
+                throw new UnauthorizedAccessException("An item of a kind this profile may not use cannot be added.");
             }
             var position = connection.ExecuteScalar<int>(new CommandDefinition(
                 "SELECT COALESCE(MAX(position), -1) + 1 FROM view_gallery_items WHERE gallery_id = @galleryId;",

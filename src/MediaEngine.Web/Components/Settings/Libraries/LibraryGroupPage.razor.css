@@ -76,7 +76,7 @@
 .lib-page__icon--tv { color: #49a7ff; }
 .lib-page__icon--music { color: #e76fce; }
 .lib-page__icon--comics { color: #7de568; }
-.lib-page__icon--photos { color: #2dd4bf; }
+.lib-page__icon--photos, .lib-page__icon--personal_videos, .lib-page__icon--documents { color: #2dd4bf; }
 .lib-page__icon--other { color: var(--tl-text-muted); }
 
 .lib-page__counts {

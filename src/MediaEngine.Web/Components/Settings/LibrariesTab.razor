@@ -15,7 +15,8 @@
 
 @* Libraries has three levels, each its own address so Back and a reload keep the level:
    the front door (/settings/libraries), a group (/settings/libraries/watch) and a type (/settings/libraries/watch/movies).
-   The Import folder is /settings/libraries/import and View's photo settings /settings/libraries/view/photos. *@
+   The Import folder is /settings/libraries/import and each View kind's settings /settings/libraries/view/{kind} (photos,
+   personal_videos, documents). *@
 <div class="libraries">
     @if (unavailable)
     {
@@ -40,7 +41,7 @@
         var level = CurrentLevel;
 
         @* The folders panel carries its own phone note; this one covers the View settings, which are read-only on a phone too. *@
-        @if (readOnly && level.Kind == LevelKind.Photos)
+        @if (readOnly && level.Kind == LevelKind.ViewKind)
         {
             <p class="libraries__mobile-note">Library storage and intake are read-only on mobile. Use a desktop or tablet to change library configuration.</p>
         }
@@ -79,8 +80,11 @@
                                   ReadOnly="@readOnly"
                                   FolderAdded="FolderAddedAsync" />
                 break;
-            case LevelKind.Photos:
-                <ViewLibrarySettings Configuration="@_configuration"
+            case LevelKind.ViewKind:
+                <ViewLibrarySettings @key="@level.TypeKey"
+                                     Kind="@(level.TypeKey!)"
+                                     Kinds="@Kinds"
+                                     Configuration="@_configuration"
                                      ReadOnly="@readOnly"
                                      StartAdding="@StartAdding"
                                      InitialPath="@StartPath"
@@ -119,14 +123,14 @@
     // The address this page was routed with (see RoutedPageQuery): the page under the details overlay keeps its own query.
     [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
 
-    private enum LevelKind { Front, Group, Type, Photos, NotFound }
+    private enum LevelKind { Front, Group, Type, ViewKind, NotFound }
 
     private sealed record Level(LevelKind Kind, LibraryGroup? Group = null, string? TypeKey = null);
 
     private LibrariesConfigurationDto? _configuration;
     private LibraryKindCatalog Kinds => LibraryKinds.Catalog;
     private LibraryOverviewDto? _overview;
-    private int? _viewFolders;
+    private IReadOnlyDictionary<string, int>? _viewFolders;
     // Null until the folder checks finish: no health icon is shown before then.
     private IReadOnlyDictionary<string, string>? _pathIssues;
     private string? _loadError;
@@ -154,7 +158,7 @@
 
     protected override void OnAfterRender(bool firstRender)
     {
-        if (_addAddressCleared || _loading || _configuration is null || CurrentLevel.Kind != LevelKind.Photos || !StartAdding) return;
+        if (_addAddressCleared || _loading || _configuration is null || CurrentLevel.Kind != LevelKind.ViewKind || !StartAdding) return;
         _addAddressCleared = true;
         var uri = new Uri(Navigation.Uri);
         var kept = QueryHelpers.ParseQuery(uri.Query)
@@ -248,21 +252,23 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    // View keeps its folders per profile, outside the library list: the distinct folders across every profile's sources.
-    // The count is unknown (null) when the profiles could not be read or any profile's sources could not, never a guessed zero.
-    private async Task<int?> CountViewFoldersAsync()
+    // View keeps its folders per profile, outside the library list: the distinct folders of each View kind across every profile's
+    // sources. The counts are unknown (null) when the profiles could not be read or any profile's sources could not, never a guessed zero.
+    private async Task<IReadOnlyDictionary<string, int>?> CountViewFoldersAsync()
     {
         var profiles = await ApiClient.GetProfilesAsync();
         // The client answers an empty list on failure, so an empty list only counts as "no profiles" when no failure was recorded.
         if (profiles.Count == 0 && !string.IsNullOrWhiteSpace(ApiClient.LastError)) return null;
         var reviews = await Task.WhenAll(profiles.Select(profile => ApiClient.GetViewProfileSourcesAsync(profile.Id)));
         if (reviews.Any(review => review is null)) return null;
-        return reviews
-            .SelectMany(review => review!.Sources)
-            .Select(source => source.Location)
-            .Where(location => !string.IsNullOrWhiteSpace(location))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Count();
+        var sources = reviews.SelectMany(review => review!.Sources).Where(source => !string.IsNullOrWhiteSpace(source.Location)).ToList();
+        return Kinds.ViewKinds.ToDictionary(
+            kind => kind.Key,
+            kind => sources
+                .Where(source => LibraryRollup.ViewFolderBelongsTo(source, kind.Key))
+                .Select(source => source.Location)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count());
     }
 
     // The folders panel saves on its own; keep this page's copy current for the View settings and the counts.
@@ -311,10 +317,10 @@
         if (group is null) return new Level(LevelKind.NotFound);
         if (string.IsNullOrEmpty(detail)) return new Level(LevelKind.Group, group);
 
-        if (group.Key == "view")
+        if (group.Key == LibraryTypeCatalog.ViewArea)
         {
-            return string.Equals(detail, LibraryTypeCatalog.PhotosKey, StringComparison.OrdinalIgnoreCase)
-                ? new Level(LevelKind.Photos, group, LibraryTypeCatalog.PhotosKey)
+            return Kinds.FindViewKind(detail) is { } viewKind
+                ? new Level(LevelKind.ViewKind, group, viewKind.Key)
                 : new Level(LevelKind.NotFound);
         }
 
