@@ -10,12 +10,14 @@ public interface IBackupPortableValueCodec
     /// <summary>
     /// The readable value, or null when it cannot be read with this computer's key (for example the key ring was
     /// replaced). Throws <see cref="InvalidOperationException"/> for a table and column it does not handle.
+    /// <paramref name="row"/> holds the row's values by column name, because some values are protected for the row they
+    /// belong to (a webhook secret is protected for that webhook's id).
     /// </summary>
-    string? Export(string table, string column, string protectedValue);
+    string? Export(string table, string column, string protectedValue, IReadOnlyDictionary<string, BackupValue> row);
 
     /// <summary>
     /// The value protected with this computer's key. Throws <see cref="InvalidOperationException"/> for a table and
-    /// column it does not handle.
+    /// column it does not handle. <paramref name="row"/> holds the row's values by column name, as for <see cref="Export"/>.
     /// </summary>
-    string Import(string table, string column, string portableValue);
+    string Import(string table, string column, string portableValue, IReadOnlyDictionary<string, BackupValue> row);
 }

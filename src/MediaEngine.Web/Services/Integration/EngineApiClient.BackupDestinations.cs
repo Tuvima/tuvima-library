@@ -11,9 +11,6 @@ public sealed partial class EngineApiClient
     public Task<BackupSettingsResponse?> UpdateBackupSettingsAsync(UpdateBackupSettingsRequest request, CancellationToken ct = default) =>
         PutAsync<UpdateBackupSettingsRequest, BackupSettingsResponse>("PUT /backup/settings", "/backup/settings", request, ct: ct);
 
-    public Task<BackupSettingsResponse?> SetBackupPassphraseAsync(SetBackupPassphraseRequest request, CancellationToken ct = default) =>
-        PostAsync<SetBackupPassphraseRequest, BackupSettingsResponse>("POST /backup/passphrase", "/backup/passphrase", request, ct: ct);
-
     public Task<BackupSettingsResponse?> SaveBackupDestinationAsync(SaveBackupDestinationRequest request, CancellationToken ct = default) =>
         PostAsync<SaveBackupDestinationRequest, BackupSettingsResponse>("POST /backup/destinations", "/backup/destinations", request, ct: ct);
 

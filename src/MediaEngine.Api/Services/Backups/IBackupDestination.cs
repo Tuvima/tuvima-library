@@ -9,7 +9,7 @@ public sealed record DestinationTestResult(bool Success, string Message);
 /// <summary>
 /// A place a finished backup is copied to (Developer tools spec WP25, decision D-P). A destination can do exactly these things and
 /// nothing else: test the connection, send a backup, list what it holds, fetch one for restore, delete old ones, and report free
-/// space. A destination that <see cref="LeavesMachine"/> only ever receives an encrypted file.
+/// space. Every destination receives the same plain backup file (backups are never encrypted).
 /// </summary>
 public interface IBackupDestination
 {
@@ -18,7 +18,7 @@ public interface IBackupDestination
 
     string Name { get; }
 
-    /// <summary>True when the copy goes somewhere other than this computer's backup folder, so it must be encrypted first.</summary>
+    /// <summary>True when the copy goes somewhere other than this computer's backup folder, so it only receives a copy when switched on.</summary>
     bool LeavesMachine { get; }
 
     /// <summary>False until the person has filled in what it needs. A destination that is not set up is shown but never used.</summary>

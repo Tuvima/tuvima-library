@@ -1,4 +1,5 @@
 using System.Globalization;
+using MediaEngine.Domain.Services;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Backup;
@@ -53,7 +54,60 @@ internal sealed class TitleRecognitionReader
             _ => throw new ArgumentOutOfRangeException(nameof(target), target, "Unknown catalogue target."),
         };
 
-        return title is null ? null : IsWithheld(target, id) ? Withhold(title) : title;
+        if (title is null)
+        {
+            return null;
+        }
+
+        // A Vault video is recognised by its Stash-box record as well, on the live side too: only a Vault video has a match row, so
+        // this changes nothing for any other title, and it lets a backed-up Vault title find the same video after a rescan even
+        // though the file (and so its fingerprint) is different.
+        title = WithStashBoxId(target, id, title);
+        return IsWithheld(target, id)
+            ? Withhold(title) // Recognised by its ids, its Stash-box record and its file fingerprints, never by name.
+            : title;
+    }
+
+    private BackupTitle WithStashBoxId(CatalogueTarget target, byte[] id, BackupTitle title)
+    {
+        var stashBoxId = target switch
+        {
+            CatalogueTarget.MediaAsset => ReadStashBoxId(id),
+            CatalogueTarget.Edition => ReadStashBoxIdOf("ma.edition_id", id),
+            CatalogueTarget.Work => ReadStashBoxIdOf("e.work_id", id),
+            _ => null,
+        };
+
+        return stashBoxId is null
+            ? title
+            : title with { Ids = new Dictionary<string, string>(title.Ids, StringComparer.Ordinal) { [BookmarkPackMatcher.VaultStashBoxIdKey] = stashBoxId } };
+    }
+
+    /// <summary>The Stash-box record of the videos under an edition or work, when they all share the one record; null when there is none or they differ.</summary>
+    private string? ReadStashBoxIdOf(string ownerColumn, byte[] ownerId)
+    {
+        var rows = Query(
+            $"""
+            SELECT DISTINCT vm.server_id, vm.record_id FROM vault_matches vm
+            JOIN media_assets ma ON ma.id = vm.asset_id
+            JOIN editions e ON e.id = ma.edition_id
+            WHERE {ownerColumn} = $id
+            """,
+            ("$id", ownerId));
+        return rows.Count == 1 && Text(rows[0][0]) is { Length: > 0 } server && Text(rows[0][1]) is { Length: > 0 } record
+            ? $"{server}|{record}"
+            : null;
+    }
+
+    /// <summary>The Stash-box server and record of a matched Vault video, written <c>server|record</c>; null when it has no match.</summary>
+    private string? ReadStashBoxId(byte[] assetId)
+    {
+        var rows = Query(
+            "SELECT server_id, record_id FROM vault_matches WHERE asset_id = $id",
+            ("$id", assetId));
+        return rows.Count == 0 || Text(rows[0][0]) is not { Length: > 0 } server || Text(rows[0][1]) is not { Length: > 0 } record
+            ? null
+            : $"{server}|{record}";
     }
 
     /// <summary>
@@ -101,14 +155,32 @@ internal sealed class TitleRecognitionReader
     }
 
     /// <summary>
-    /// Whether a title must not carry a name, parent name or year in a backup. Today nothing is withheld; this is
-    /// wired to the adult-video libraries when Videos Wave 3 merges, so such a title appears only as ids and
-    /// fingerprints, and a person's corrections and choices on it are not kept.
+    /// Whether a title must not carry a name, parent name or year in a backup: a media asset in a Vault library, a work
+    /// or edition reached from such an asset, or a local item in a Vault image library. Such a title appears only as ids,
+    /// its Stash-box record and fingerprints, and a person's corrections and choices on it are not kept. A test can
+    /// replace the rule with the seam passed to the constructor.
     /// </summary>
-    public bool IsWithheld(CatalogueTarget target, byte[] id) => _isWithheld?.Invoke(target, id) ?? false;
+    public bool IsWithheld(CatalogueTarget target, byte[] id) => _isWithheld is not null ? _isWithheld(target, id) : IsInVault(target, id);
+
+    private bool IsInVault(CatalogueTarget target, byte[] id)
+    {
+        const string assetInVault =
+            "SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ";
+        var sql = target switch
+        {
+            CatalogueTarget.MediaAsset => assetInVault + "ma.id = $id LIMIT 1",
+            CatalogueTarget.Edition => assetInVault + "ma.edition_id = $id LIMIT 1",
+            CatalogueTarget.Work => assetInVault +
+                "ma.edition_id IN (SELECT e.id FROM editions e WHERE e.work_id = $id OR e.work_id IN (SELECT child.id FROM works child WHERE child.parent_work_id = $id)) LIMIT 1",
+            CatalogueTarget.LocalItem =>
+                "SELECT 1 FROM local_items li JOIN vault_image_libraries vil ON vil.library_id = li.library_id WHERE li.id = $id LIMIT 1",
+            _ => null,
+        };
+        return sql is not null && Query(sql, ("$id", id)).Count > 0;
+    }
 
     private static BackupTitle Withhold(BackupTitle title) =>
-        title with { Name = null, ParentName = null, Year = null };
+        title with { Name = null, ParentName = null, Year = null, Withheld = true };
 
     private BackupTitle? ReadAsset(byte[] assetId)
     {

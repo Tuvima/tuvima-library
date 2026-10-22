@@ -27,18 +27,6 @@
             }
         </AppCard>
 
-        <AppCard Title="Backup passphrase">
-            <p class="backup-destinations__note">
-                Copies that leave this computer are encrypted with your passphrase. We never store it. If you lose it, those copies cannot be restored.
-            </p>
-            @if (_settings.PassphraseSet)
-            {
-                <AppTextField Label="Current passphrase" InputType="AppInputType.Password" Value="@_currentPassphrase" ValueChanged="@(value => _currentPassphrase = value)" />
-            }
-            <AppTextField Label="@(_settings.PassphraseSet ? "New passphrase" : "Passphrase (at least 10 characters)")" InputType="AppInputType.Password" Value="@_passphrase" ValueChanged="@(value => _passphrase = value)" />
-            <AppButton Label="@(_settings.PassphraseSet ? "Change passphrase" : "Set passphrase")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || string.IsNullOrWhiteSpace(_passphrase))" OnClick="SavePassphraseAsync" />
-        </AppCard>
-
         <AppCard Title="Where backups go">
             @foreach (var destination in _settings.Destinations)
             {
@@ -86,9 +74,9 @@
                         </div>
                         @if (NewHost is { } host)
                         {
-                            <AppSwitchRow Label="@($"Send encrypted backups to {host}")" Value="_confirmed" ValueChanged="@(on => _confirmed = on)" />
+                            <AppSwitchRow Label="@($"Send backups to {host}")" Value="_confirmed" ValueChanged="@(on => _confirmed = on)" />
                         }
-                        <small class="backup-destinations__hint">Only encrypted copies are sent. The login is kept encrypted on this computer and is never shown again.</small>
+                        <small class="backup-destinations__hint">Backups are sent as ordinary files, not encrypted, so keep the destination safe. The login is kept encrypted on this computer and is never shown again.</small>
                     }
                     <div class="backup-destinations__actions">
                         <AppButton Label="Add destination" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || !CanAdd)" OnClick="AddAsync" />
@@ -117,10 +105,6 @@
             @if (_held.Count > 0)
             {
                 <AppSelect Native="true" Label="Backup" Value="@_restoreName" Options="@HeldOptions" Disabled="@_busy" ValueChanged="@(value => _restoreName = value)" />
-                @if (_held.FirstOrDefault(item => item.Name == _restoreName)?.Encrypted == true)
-                {
-                    <AppTextField Label="Backup passphrase" InputType="AppInputType.Password" Value="@_restorePassphrase" ValueChanged="@(value => _restorePassphrase = value)" />
-                }
                 <AppButton Label="Restore this backup" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Warning" Disabled="@(_busy || string.IsNullOrEmpty(_restoreName))" OnClick="RestoreAsync" />
             }
             else if (_restoreLoaded)
@@ -154,14 +138,11 @@
     private List<DestinationBackupDto> _held = [];
     private string? _restoreDestination = BackupDestinationIds.Local;
     private string? _restoreName;
-    private string? _restorePassphrase;
-    private string? _passphrase;
-    private string? _currentPassphrase;
     private bool _restoreLoaded;
     private bool _busy;
 
     private IReadOnlyList<AppSelectOption> DestinationOptions => [.. _settings!.Destinations.Select(item => new AppSelectOption(item.Id, item.Name))];
-    private IReadOnlyList<AppSelectOption> HeldOptions => [.. _held.Select(item => new AppSelectOption(item.Name, $"{item.ModifiedAt.ToLocalTime():MMM d, yyyy · h:mm tt}{(item.Encrypted ? " (encrypted)" : "")}"))];
+    private IReadOnlyList<AppSelectOption> HeldOptions => [.. _held.Select(item => new AppSelectOption(item.Name, $"{item.ModifiedAt.ToLocalTime():MMM d, yyyy · h:mm tt}"))];
 
     private static string KindLabel(string kind) => KindOptions.FirstOrDefault(option => option.Value == kind)?.Label ?? "This computer";
 
@@ -209,24 +190,6 @@
         return SaveAsync(new() { EnabledDestinations = ids });
     }
 
-    private async Task SavePassphraseAsync()
-    {
-        _busy = true;
-        var saved = await ApiClient.SetBackupPassphraseAsync(new() { Passphrase = _passphrase ?? "", CurrentPassphrase = _currentPassphrase });
-        if (saved is null)
-        {
-            Snackbar.Add("The passphrase was not saved. Check the current passphrase, and that the new one is at least 10 characters.", AppSeverity.Error);
-        }
-        else
-        {
-            _settings = saved;
-            _passphrase = null;
-            _currentPassphrase = null;
-            Snackbar.Add("Backup passphrase saved. Keep it somewhere safe.", AppSeverity.Success);
-        }
-        _busy = false;
-    }
-
     private void StartAdding()
     {
         _new = new SaveBackupDestinationRequest { Kind = BackupDestinationKinds.Folder };
@@ -247,7 +210,7 @@
         {
             _settings = saved;
             _adding = false;
-            Snackbar.Add(_settings.PassphraseSet ? "Destination added. Use Test to check it." : "Destination added. Set a backup passphrase before the first copy.", AppSeverity.Success);
+            Snackbar.Add("Destination added. Use Test to check it.", AppSeverity.Success);
         }
         _busy = false;
     }
@@ -295,10 +258,9 @@
     private async Task RestoreAsync()
     {
         _busy = true;
-        var result = await ApiClient.RestoreFromDestinationAsync(new() { DestinationId = _restoreDestination ?? "", Name = _restoreName ?? "", Passphrase = _restorePassphrase });
-        _restorePassphrase = null;
+        var result = await ApiClient.RestoreFromDestinationAsync(new() { DestinationId = _restoreDestination ?? "", Name = _restoreName ?? "" });
         if (result?.Scheduled == true) Snackbar.Add(result.Message, AppSeverity.Warning);
-        else Snackbar.Add("The restore could not be staged. If the backup is encrypted, check the passphrase.", AppSeverity.Error);
+        else Snackbar.Add("The restore could not be staged. The backup may be damaged or not a Library backup.", AppSeverity.Error);
         _busy = false;
     }
 }

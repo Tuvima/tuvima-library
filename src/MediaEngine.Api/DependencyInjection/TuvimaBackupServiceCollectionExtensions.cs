@@ -12,6 +12,11 @@ public static class TuvimaBackupServiceCollectionExtensions
         // What a backup keeps of the data store, and the codec that makes the two-step secret readable on any computer.
         services.AddSingleton<IBackupPortableValueCodec, DataProtectionBackupPortableValueCodec>();
         services.AddSingleton<PersonalStateBackupRepository>();
+
+        // Restore: settings go back at once, and a person's own state waits for its title and is put back as the title arrives.
+        services.AddSingleton<BackupRestoreRepository>();
+        services.AddSingleton<WaitingPersonalStateRepository>();
+        services.AddHostedService<WaitingStateReattachHostedService>();
         services.AddSingleton<BackupSettingsAccessor>();
         services.AddSingleton<IBackupDestination, LocalFolderBackupDestination>();
         services.AddSingleton<IBackupHttp, BackupHttp>();

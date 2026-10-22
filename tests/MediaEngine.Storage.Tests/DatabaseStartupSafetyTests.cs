@@ -721,8 +721,6 @@ public sealed class DatabaseStartupSafetyTests
             ("vault_artwork", "id"),
             ("vault_artwork", "owner_id"),
             ("vault_matches", "asset_id"),
-            ("vault_pending_bookmarks", "id"),
-            ("vault_pending_bookmarks", "profile_id"),
             ("vault_field_sources", "asset_id"),
             ("vault_file_fingerprints", "asset_id"),
             ("vault_activity", "id"),
@@ -741,6 +739,10 @@ public sealed class DatabaseStartupSafetyTests
             ("vault_galleries", "cover_item_id"),
             ("vault_gallery_items", "gallery_id"),
             ("vault_gallery_items", "item_id"),
+            ("backup_restores", "id"),
+            ("waiting_personal_state", "id"),
+            ("waiting_personal_state", "restore_id"),
+            ("waiting_personal_state", "profile_id"),
         ];
 
         foreach (var (table, column) in internalGuidColumns)
