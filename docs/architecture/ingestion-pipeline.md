@@ -499,14 +499,14 @@ A file is considered stale when its stored hash differs from the currently-compu
 - **Apply** - commits the pending diff to `CurrentHashes` and signals the worker to start a sweep.
 - **Run Now** - re-runs the sweep against the current hashes without applying a new diff (useful if a tagger version was bumped).
 
-No files are touched until the user clicks Apply or Run Now.
+No files are touched until the user clicks Apply or Run Now, and even then the sweep only queues each file: the scheduled file-write run writes it (see the write-back paragraph above).
 
 ### RetagSweepWorker
 
 A `BackgroundService` that wakes on either a cron schedule (`config/maintenance.json` -> `schedules.retag_sweep`, default `0 3 * * *`) or the `PendingApplied` signal from `WritebackConfigState`. Each pass:
 
 1. Calls `IMediaAssetRepository.GetStaleForRetagAsync` to find identified assets whose `writeback_fields_hash` differs from the current hash (or is NULL).
-2. Processes in batches, calling `WriteBackService.WriteMetadataAsync(assetId, "config_change")` for each asset. On success, the service stamps the new hash on the row.
+2. Processes in batches, queuing each asset with `IFileWriteQueue.EnqueueAssetAsync(assetId, "config_change")` (files already waiting are skipped). The scheduled run writes the file through `WriteBackService`, which stamps the new hash on the row on success.
 3. Classifies failures via `RetagFailureClassifier`:
    - **Locked** / **IoFailed** -> `ScheduleRetagRetryAsync` with the next off-hours window start. The sweep picks these up on the next run.
    - **Corrupt** / **Unknown** (after retries exhausted) -> inserts a `ReviewQueueEntry` with trigger `WritebackFailed`, routing the file to the Review Queue.
