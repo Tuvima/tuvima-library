@@ -5473,6 +5473,12 @@ input[type="reset"],
 .add-wizard__kind-option:hover, .add-wizard__kind-option:focus-visible, .add-wizard__kind-option.is-selected,
 .add-wizard__choice:hover, .add-wizard__choice:focus-visible, .add-wizard__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
 
+/* First-run "What do you have?" tick cards (SetupMediaStage): AppNativeButton roots. */
+.setup-have__card { display: grid; align-content: center; justify-items: center; gap: 6px; min-height: 124px; padding: 14px 8px; color: inherit; font: inherit; text-align: center; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
+.setup-have__card small { color: var(--tl-text-muted); font-size: .78rem; }
+.setup-have__card:hover, .setup-have__card[aria-pressed="true"] { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
+.setup-have__card:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+
 /* Phone search: the visible Cancel button next to the full-screen search field. */
 .universal-search-overlay__cancel {
     min-width: 44px;

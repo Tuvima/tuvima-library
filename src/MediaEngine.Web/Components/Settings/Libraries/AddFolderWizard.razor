@@ -254,7 +254,8 @@
         }
         else
         {
-            _groupKey = LibraryGroupCatalog.TryGetVisibleGroup(StartGroupKey, ShowVault)?.Key;
+            // Only a group the wizard offers can start it, so setup can never open on View (and so never hand off to it).
+            _groupKey = OfferedGroups.FirstOrDefault(group => string.Equals(group.Key, StartGroupKey?.Trim(), StringComparison.OrdinalIgnoreCase))?.Key;
         }
     }
 
