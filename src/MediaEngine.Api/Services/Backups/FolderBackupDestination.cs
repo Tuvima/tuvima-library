@@ -4,8 +4,8 @@ namespace MediaEngine.Api.Services.Backups;
 
 /// <summary>
 /// Another folder, such as an external drive, or a folder on another computer reached by its network path (Developer tools spec WP26).
-/// Both are the same thing to the Library: a place it can write files. A copy here is encrypted first because the folder is not
-/// the Library's own, and a copy is written under a temporary name and renamed so a half-written file is never mistaken for a backup.
+/// Both are the same thing to the Library: a place it can write files. A copy is written under a temporary name and
+/// renamed so a half-written file is never mistaken for a backup.
 /// </summary>
 internal sealed class FolderBackupDestination(string id, string name, string path, bool isShare) : IBackupDestination
 {

@@ -1723,11 +1723,14 @@ Added by upgrade step `0030_vault_access` (Videos spec WP9). A **Vault library**
 | `vault_file_fingerprints` | Fingerprints computed on this machine (`OSHASH`, `MD5`, `PHASH`) with the file size they were computed at, kept so a big file is not read twice. Computed and sent only while the administrator's separate fingerprint permission is on. |
 | `vault_activity` | The quiet Vault activity list: `kind` (`added`, `matched`, `unmatched`, `identified`, `failed`), the file's own name, a fixed plain-words detail (never a title or path) and the time. Shown only inside Vault mode to an administrator. |
 
-**Bookmarks waiting after a restore (upgrade step `0035_vault_pending_bookmarks`).** A backup never holds the Vault catalogue, so a person's Vault bookmarks travel in a backup as `vault_pending_bookmarks` and are re-linked after a rescan. The table is empty on a data store that was never restored.
+**Vault bookmarks after a restore.** Step `0035_vault_pending_bookmarks` added a Vault-only waiting table; step `0040_drop_vault_pending_bookmarks` drops it. A restored Vault bookmark now waits in `waiting_personal_state` (below) like every other bookmark, marked `is_withheld`, and the Vault settings count reads those rows.
+
+**State waiting for its title after a restore (upgrade step `0039_waiting_personal_state`).** A backup holds a person's own state against how to recognise the title, not against the title's row. A restore puts settings straight back and parks every row that points at a title here; the Engine writes a row back when all its titles are in the Library, and clears it when it has waited longer than the waiting period (`missing_file_retention_days`, 90 by default, read live so a change affects rows already waiting). The same step adds `idx_editions_wikidata_qid` on `editions(wikidata_qid)`, so a title can be looked up by the Wikidata id of its edition without reading every edition. Both tables are empty on a data store that was never restored, and both are Configuration in the backup classification, so a backup taken while items still wait keeps them.
 
 | Table | What it holds |
 |---|---|
-| `vault_pending_bookmarks` | One row per saved Vault bookmark waiting for its video: `profile_id` (cascade), `is_global`, `identity_json` (the canonical IDs including the Stash-box record as `stash_box_id`, `running_time_seconds`, `edition`, `content_hash` and exact `fingerprints`), the bookmark itself (`position_seconds`, `end_seconds`, `duration_seconds`, `chapter_index`, `chapter_title`, `chapter_start_seconds`, `label`, `note`, `description`) and `created_at`. The Engine moves a row into `audiobook_bookmarks` (and deletes it) when a Vault video matches; a row with no matching video stays and is counted. |
+| `backup_restores` | One row per restore: `restored_at`, `backup_file_name`, `backup_created_at`, `applied_rows` (rows put straight into place), `waiting_rows` (rows that started waiting), and `attached_rows`, `yielded_rows` (rows removed because the person made the same row since the restore; theirs stays) and `purged_rows`, which grow as the waiting area empties. |
+| `waiting_personal_state` | One parked row: `restore_id` (cascade), `group_kind` (`configuration`, `personal`, `correction`, `choice`), `table_name`, `profile_id` (the owner, when the table has an owner column), `is_withheld` (a title it refers to is one a backup may not name), `row_json` (the row's columns and values in the backup's value encoding, each title reference replaced by the index of its title in `titles_json`, plus the rows that hang off it), `titles_json` (the recognition data of those titles), `created_at` (when it started waiting; the waiting period counts from here, and a row carried back by a later backup keeps it), `last_checked_at`. Indexed by `created_at` and `profile_id`. |
 
 **Skipped writes (triggers):** `trg_application_events_no_vault` stops an event about a Vault item from reaching `application_events` (and so apps and webhooks); `trg_personal_activity_no_vault` stops a Vault file from entering anyone's activity history. A skipped write is simply not stored. A file cannot move into or out of a Vault library once it exists (`trg_media_assets_vault_library_fixed`).
 
@@ -1782,7 +1785,7 @@ Named factual entries in a Wikidata series manifest, including works the local l
 
 ### backup_settings
 
-The backup schedule, how many backups to keep, which destinations are switched on, and the two key halves for encrypted copies (JSON rows; currently the single key `settings`). The passphrase itself is never stored: the public key is not secret, and the private key is locked with the passphrase.
+The backup schedule, how many backups to keep, which destinations are switched on, the destinations an administrator added, and the last restore check (JSON rows; currently the single key `settings`). Backups are never encrypted, so no key is kept; a destination's own login is stored encrypted with the machine key.
 
 | Column | Type | Notes |
 |---|---|---|

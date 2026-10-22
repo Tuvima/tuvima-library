@@ -51,6 +51,7 @@ public static class JsonConfigValidator
                 AddRange(errors, maintenance.ActivityMaxEvents, "activity_max_events", LogRetentionLimits.MinActivityEvents, LogRetentionLimits.MaxActivityEvents);
                 AddRange(errors, maintenance.LogRetentionDays, "log_retention_days", LogRetentionLimits.MinDays, LogRetentionLimits.MaxDays);
                 AddRange(errors, maintenance.LogMaxTotalMegabytes, "log_max_total_mb", LogRetentionLimits.MinLogTotalMegabytes, LogRetentionLimits.MaxLogTotalMegabytes);
+                AddRange(errors, maintenance.MissingFileRetentionDays, "missing_file_retention_days", MissingFileRetentionLimits.MinDays, MissingFileRetentionLimits.MaxDays);
                 AddPositive(errors, maintenance.MaxTransactionLogEntries, "max_transaction_log_entries");
                 AddPositive(errors, maintenance.WeeklySyncIntervalDays, "weekly_sync_interval_days");
                 AddPositive(errors, maintenance.WeeklySyncBatchSize, "weekly_sync_batch_size");

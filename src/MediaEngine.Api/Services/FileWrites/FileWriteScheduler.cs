@@ -357,73 +357,91 @@ public sealed class FileWriteScheduler(
                     continue;
                 }
 
-                while (true)
+                var begun = false;
+                try
                 {
-                    ct.ThrowIfCancellationRequested();
-                    var chunk = await intents.ClaimBatchAsync(kind, ChunkSize, LeaseDuration, startedAt, runId, ct);
-                    if (chunk.Count == 0)
+                    while (true)
                     {
-                        break;
-                    }
-
-                    var results = await WriteChunkAsync(writer, chunk, ct);
-                    foreach (var intent in chunk)
-                    {
-                        var result = results.TryGetValue(intent.Id, out var found)
-                            ? found
-                            : new FileWriteResult(intent.Id, WriteBackOutcome.Failed("The writer gave no result for this file."));
-                        if (result.ReadAgainFirst)
+                        ct.ThrowIfCancellationRequested();
+                        var chunk = await intents.ClaimBatchAsync(kind, ChunkSize, LeaseDuration, startedAt, runId, ct);
+                        if (chunk.Count == 0)
                         {
-                            // The file was changed outside Library and has been read back; it waits for the next run, attempt not counted.
-                            await intents.ReleaseForReReadAsync(intent.Id, intent.Generation, result.Outcome.Reason, ct);
-                            continue;
+                            break;
                         }
 
-                        var (status, error) = MapCompletion(intent, result.Outcome);
-                        if (!await intents.CompleteByIdAsync(intent.Id, intent.Generation, status, error, ct))
+                        if (!begun)
                         {
-                            logger.LogInformation(
-                                "Ignored stale write completion for {Kind} {Id}, generation {Generation}; a newer change is waiting.",
-                                kind, intent.Id, intent.Generation);
-                        }
-                        else
-                        {
-                            logger.LogInformation(
-                                "File write {OperationToken} for {Kind} {Id} completed as {Status} after attempt {Attempt}.",
-                                intent.OperationToken, kind, intent.Id, status, intent.Attempts);
+                            // The writer's helper program starts once, when this run first has a row for it.
+                            begun = true;
+                            await writer.BeginRunAsync(ct);
                         }
 
-                        switch (status)
+                        var results = await WriteChunkAsync(writer, chunk, ct);
+                        foreach (var intent in chunk)
                         {
-                            case "verified":
-                                written++;
-                                break;
-                            case "blocked":
-                            case "unsupported":
-                                kept++;
-                                break;
-                            default:
-                                failed++;
-                                break;
+                            var result = results.TryGetValue(intent.Id, out var found)
+                                ? found
+                                : new FileWriteResult(intent.Id, WriteBackOutcome.Failed("The writer gave no result for this file."));
+                            if (result.ReadAgainFirst)
+                            {
+                                // The file was changed outside Library and has been read back; it waits for the next run, attempt not counted.
+                                await intents.ReleaseForReReadAsync(intent.Id, intent.Generation, result.Outcome.Reason, ct);
+                                continue;
+                            }
+
+                            var (status, error) = MapCompletion(intent, result.Outcome);
+                            if (!await intents.CompleteByIdAsync(intent.Id, intent.Generation, status, error, ct))
+                            {
+                                logger.LogInformation(
+                                    "Ignored stale write completion for {Kind} {Id}, generation {Generation}; a newer change is waiting.",
+                                    kind, intent.Id, intent.Generation);
+                            }
+                            else
+                            {
+                                logger.LogInformation(
+                                    "File write {OperationToken} for {Kind} {Id} completed as {Status} after attempt {Attempt}.",
+                                    intent.OperationToken, kind, intent.Id, status, intent.Attempts);
+                            }
+
+                            switch (status)
+                            {
+                                case "verified":
+                                    written++;
+                                    break;
+                                case "blocked":
+                                case "unsupported":
+                                    kept++;
+                                    break;
+                                default:
+                                    failed++;
+                                    break;
+                            }
+                        }
+
+                        handledCount += chunk.Count;
+                        lock (_stateLock)
+                        {
+                            _runDone = handledCount;
+                            _runTotal = Math.Max(_runTotal, handledCount);
+                        }
+
+                        // A library move asked for during a long run still happens within seconds, not after the whole run. A failure there
+                        // must not stop the run: the move lane is tried again on the next pass.
+                        try
+                        {
+                            await RunMoveLaneAsync(ct);
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            logger.LogWarning(ex, "The move lane failed between write chunks; the run carries on and moves are tried again on the next pass.");
                         }
                     }
-
-                    handledCount += chunk.Count;
-                    lock (_stateLock)
+                }
+                finally
+                {
+                    if (begun)
                     {
-                        _runDone = handledCount;
-                        _runTotal = Math.Max(_runTotal, handledCount);
-                    }
-
-                    // A library move asked for during a long run still happens within seconds, not after the whole run. A failure there
-                    // must not stop the run: the move lane is tried again on the next pass.
-                    try
-                    {
-                        await RunMoveLaneAsync(ct);
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        logger.LogWarning(ex, "The move lane failed between write chunks; the run carries on and moves are tried again on the next pass.");
+                        await EndWriterRunAsync(writer);
                     }
                 }
             }
@@ -456,6 +474,19 @@ public sealed class FileWriteScheduler(
             {
                 _running = false;
             }
+        }
+    }
+
+    /// <summary>Lets a writer put its helper program away. A stop must still end it, and a failure here never fails the run.</summary>
+    private async Task EndWriterRunAsync(IFileWriteTargetWriter writer)
+    {
+        try
+        {
+            await writer.EndRunAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "The {Kind} writer could not finish its run cleanly.", writer.TargetKind);
         }
     }
 

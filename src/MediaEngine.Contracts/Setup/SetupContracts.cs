@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Contracts.System;
 
 namespace MediaEngine.Contracts.Setup;
 
@@ -139,7 +140,8 @@ public sealed record SetupBackupInspectionDto(
     [property: JsonPropertyName("uncompressed_bytes")] long UncompressedBytes,
     [property: JsonPropertyName("entry_count")] int EntryCount,
     [property: JsonPropertyName("configuration_files")] int ConfigurationFiles,
-    [property: JsonPropertyName("warning")] string Warning);
+    [property: JsonPropertyName("warning")] string Warning,
+    [property: JsonPropertyName("contents")] BackupContentsDto? Contents = null);
 
 public sealed record SetupRestoreConfirmationDto(
     [property: JsonPropertyName("scheduled")] bool Scheduled,

@@ -53,7 +53,7 @@ The Engine listens only on this computer, so other devices reach Tuvima Library 
 
 ## Helper tools
 
-The installer includes FFmpeg, FFprobe and Tesseract, so the Library normally shows every tool as **Ready**. To see them, open **Settings > Tools and requirements** in the Dashboard. The Library also checks the tools at first run and at every start-up.
+The installer includes FFmpeg, FFprobe and Tesseract, so the Library normally shows every tool as **Ready**. ExifTool is not in the installer. The Library fetches it by itself the first time, from Tuvima's own GitHub copy of the official release, and then shows it **Ready**. To see them, open **Settings > Tools and requirements** in the Dashboard. The Library also checks the tools at first run and at every start-up.
 
 If FFmpeg is missing or broken, open **Settings > Tools and requirements** and choose **Download again** on that page to repair it. Until FFmpeg is found, video and audio files show **Waiting for media tools** and finish by themselves; nothing fails. Tesseract is optional. Without it, scanned pages and photos of paper are not searchable.
 

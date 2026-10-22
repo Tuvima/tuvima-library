@@ -1,26 +1,33 @@
 using System.IO.Compression;
 using System.Text.Json;
-using MediaEngine.Api.Services.Vault;
+using MediaEngine.Storage.Backup;
 
 namespace MediaEngine.Api.Services;
 
 internal static class BackupManifestWriter
 {
-    public static void Write(ZipArchiveEntry entry, VaultBackupScrubResult vault)
+    /// <summary>The data store epoch this build writes (DatabaseEpoch, which is internal to Storage); a test keeps the two equal.</summary>
+    internal const string DatabaseEpoch = "guid-blob-v11-upgrade-steps";
+
+    public static void Write(ZipArchiveEntry entry, BackupExportContents contents)
     {
         using var stream = entry.Open();
         JsonSerializer.Serialize(stream, new
         {
-            schema_version = "1.0",
+            schema_version = "3.0",
+            kind = BackupArchiveFormat.ContentsKind,
             created_at = DateTimeOffset.UtcNow,
-            database_epoch = "guid-blob-v6-shared-library-contributions",
+            database_epoch = DatabaseEpoch,
             includes_secrets = false,
-            note = "Provider secrets are intentionally excluded. Re-enter credentials after restore if needed.",
-            vault_catalogue_excluded = true,
-            vault_libraries_kept = vault.VaultLibraries,
-            vault_bookmarks_kept = vault.BookmarksKept,
-            vault_bookmark_packs_dropped = vault.BookmarkPacksDropped,
-            vault_note = "The Vault catalogue is never part of a backup. Vault libraries reappear empty and are rebuilt by a rescan; saved Vault bookmarks are kept as the title they belong to and re-linked as the rescan finds each video.",
+            includes_keys = false,
+            leaves_out = new[] { "media files", "folders", "artwork", "catalogue", "adult-video catalogue", "secrets" },
+            profiles = contents.Profiles,
+            configuration_rows = contents.ConfigurationRows,
+            personal_rows = contents.PersonalRows,
+            correction_rows = contents.CorrectionRows,
+            choice_rows = contents.ChoiceRows,
+            titles = contents.Titles,
+            titles_recognised_by_file_only = contents.TitlesRecognisedByFileOnly,
         });
     }
 }

@@ -126,6 +126,21 @@ The map tries `https://tiles.openfreemap.org/styles/dark`. On failure it falls b
 
 </details>
 
+## The profile name inside your files
+
+In a managed View folder, Library writes the name of the profile that added a file into the file itself. Your originals in read-only folders are never changed.
+
+- **Photos** (JPEG, PNG, TIFF, GIF, WebP, HEIC/HEIF, AVIF and camera RAW such as DNG, CR2, CR3, NEF and ARW), **phone videos** (MP4, MOV and M4V) and **PDFs** get the name as an XMP field, written by **ExifTool**.
+- **Word, Excel and PowerPoint** files (.docx, .xlsx and .pptx) get a **Tuvima Added By** custom property.
+- **MKV, WebM and AVI videos, older Office files, OpenDocument files, text files, and signed or encrypted PDFs and Office files** are **kept in Library only**. The folder row shows how many, as **N files kept in Library only**. Library does not retry them.
+- Author and other existing fields are never touched.
+
+Each write goes to a temporary copy first. Library checks the copy before it replaces the original. If anything fails, the original is left exactly as it was.
+
+The name is written on the run described in [when changes reach your files](library-settings.md#when-changes-reach-your-files), so it can take up to an hour to appear. A photo you share into the shared library from a personal or read-only folder gets the name on its shared, managed copy. The original is never changed.
+
+Writing these fields needs ExifTool. Library downloads it by itself when it is missing. If it is not ready, the Photos, videos and PDFs wait with the message **waiting for ExifTool**. Check **Settings > Tools and requirements**.
+
 ## Next steps
 
 - [Understand privacy and network access](../explanation/privacy-local-first.md)

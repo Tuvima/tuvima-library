@@ -53,7 +53,7 @@ public static class BookmarkPackMatcher
 
     /// <summary>
     /// The extra ID a restored Vault bookmark may use to recognise a matched Vault video: the Stash-box server and record, written
-    /// <c>server|record</c>. It is only ever read by <see cref="VaultBookmarkRelinkPlanner"/>; a pack never writes it.
+    /// <c>server|record</c>. It is kept with a backed-up Vault title and used by the waiting area's re-attach pass; a pack never writes it.
     /// </summary>
     public const string VaultStashBoxIdKey = "stash_box_id";
 

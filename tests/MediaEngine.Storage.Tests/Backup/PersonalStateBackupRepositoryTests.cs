@@ -1069,9 +1069,9 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
 
     private sealed class FakePortableCodec(bool canRead) : IBackupPortableValueCodec
     {
-        public string? Export(string table, string column, string protectedValue) => canRead ? "readable:" + protectedValue : null;
+        public string? Export(string table, string column, string protectedValue, IReadOnlyDictionary<string, BackupValue> row) => canRead ? "readable:" + protectedValue : null;
 
-        public string Import(string table, string column, string portableValue) => portableValue;
+        public string Import(string table, string column, string portableValue, IReadOnlyDictionary<string, BackupValue> row) => portableValue;
     }
 
     private byte[] AddArtworkAsset(string provider, string? url, string? providerReference, string path, string hash)

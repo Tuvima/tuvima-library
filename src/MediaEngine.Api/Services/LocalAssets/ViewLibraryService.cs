@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.LocalAssets.Filing;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Storage.Contracts;
@@ -27,7 +28,8 @@ public sealed class ViewLibraryService(
     IMediaOperationRepository? operations = null,
     DocumentOcrQueue? ocrQueue = null,
     DocumentRulesQueue? rulesQueue = null,
-    PersonalMediaActivityRecorder? activityRecorder = null) : IViewPathIndexer, IVaultImageIndexer
+    PersonalMediaActivityRecorder? activityRecorder = null,
+    IFileWriteQueue? fileWrites = null) : IViewPathIndexer, IVaultImageIndexer
 {
     private const int MaxDocumentCharacters = 256 * 1024;
 
@@ -504,6 +506,11 @@ public sealed class ViewLibraryService(
             }
         }
 
+        // Who added it: the profile making the request for an upload, otherwise the profile that added the folder.
+        // The upload/backup source has no adder of its own, so its files default to the space's owner.
+        var addedBy = addedByProfileId
+            ?? source.AddedByProfileId
+            ?? (ViewKindAcceptance.IsIntakeSource(source.SourceKey) ? space.OwnerProfileId : null);
         var upserted = await repository.UpsertAsync(new LocalAssetRegistration(
             LibraryId: space.LibraryId,
             PersonalSpaceId: space.Id,
@@ -511,11 +518,7 @@ public sealed class ViewLibraryService(
             MediaKind: group.Primary.Type.MediaKind,
             Title: metadata.Title ?? Path.GetFileNameWithoutExtension(group.Primary.Path),
             ContentKind: ViewKindAcceptance.KindFor(source.ContentKind, source.SourceKey, group.Primary.Type.MediaKind),
-            // Who added it: the profile making the request for an upload, otherwise the profile that added the folder.
-            // The upload/backup source has no adder of its own, so its files default to the space's owner.
-            AddedByProfileId: addedByProfileId
-                ?? source.AddedByProfileId
-                ?? (ViewKindAcceptance.IsIntakeSource(source.SourceKey) ? space.OwnerProfileId : null),
+            AddedByProfileId: addedBy,
             CapturedAt: metadata.CapturedAt,
             Files: registrations,
             Width: metadata.Width,
@@ -536,6 +539,7 @@ public sealed class ViewLibraryService(
             FrameRate: metadata.FrameRate,
             DocumentText: metadata.DocumentText), ct);
         await QueueDocumentTextReadAsync(upserted.ItemId, group.Primary, registrations, ct);
+        await QueueAddedByWriteAsync(upserted, source, addedBy, ct);
         if (upserted.ItemAdded && activityRecorder is not null
             && group.Primary.Type.MediaKind is LocalAssetMediaKinds.Image or LocalAssetMediaKinds.Video)
         {
@@ -551,6 +555,29 @@ public sealed class ViewLibraryService(
         }
 
         return upserted;
+    }
+
+    /// <summary>
+    /// A new item with an adder in a Managed folder goes on the write list, so the adder's name is put into the file on the next scheduled
+    /// run (batched write-back D7). Every such item is queued, also kinds that cannot hold the name, so the folder can count the files
+    /// kept in Library only. A Read-only (linked) folder is never queued. The item is already saved; a failure to queue never fails the
+    /// scan, and the next scan does not queue it again (it is no longer new), so it is logged.
+    /// </summary>
+    private async Task QueueAddedByWriteAsync(LocalAssetUpsertResult upserted, ViewSource source, Guid? addedBy, CancellationToken ct)
+    {
+        if (!upserted.ItemAdded || fileWrites is null || addedBy is null || source.StorageMode != ViewSourceStorageMode.Managed)
+        {
+            return;
+        }
+
+        try
+        {
+            await fileWrites.EnqueueViewItemAsync(upserted.ItemId, MediaFileWriteTriggers.ViewAddedBy, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "The profile name of View item {ItemId} could not be put on the file write list.", upserted.ItemId);
+        }
     }
 
     /// <summary>

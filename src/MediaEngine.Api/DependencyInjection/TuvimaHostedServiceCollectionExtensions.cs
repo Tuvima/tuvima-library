@@ -27,11 +27,6 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<VaultLocationGuardRefreshService>();
         services.AddHostedService(sp => sp.GetRequiredService<VaultLocationGuardRefreshService>());
 
-        // After a restore: re-links saved Vault bookmarks to their videos as the rescan finds them (WP17, backups).
-        services.AddSingleton<VaultBookmarkRelinkRepository>();
-        services.AddSingleton<VaultBookmarkRelinkService>();
-        services.AddHostedService<VaultBookmarkRelinkHostedService>();
-
         // Logs page and log/activity retention (recurring runs are recorded through the ScheduledTaskRunner).
         services.AddSingleton(EngineLogLocation.FromEnvironment());
         services.AddSingleton<ITechnicalLogService, TechnicalLogService>();
@@ -60,6 +55,8 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<OutsideChangeGuard>();
         services.AddSingleton<IAssetRereader, IngestionAssetRereader>();
         services.AddSingleton<IFileWriteTargetWriter, MediaAssetFileWriter>();
+        // The profile name written into View files (batched write-back D7 to D9).
+        services.AddSingleton<IFileWriteTargetWriter, MediaEngine.Api.Services.LocalAssets.FileWrites.ViewItemFileWriter>();
         services.AddSingleton<LibraryMoveRunner>();
         services.AddSingleton<FileWriteScheduler>();
         services.AddHostedService(sp => sp.GetRequiredService<FileWriteScheduler>());

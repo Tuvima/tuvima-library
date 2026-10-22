@@ -8,10 +8,12 @@ using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.System;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Backup;
 using MediaEngine.Storage.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using SystemStatusResponse = MediaEngine.Contracts.System.SystemStatusResponse;
@@ -145,6 +147,43 @@ public static class SystemEndpoints
         .Produces<IReadOnlyList<BackupArchiveDto>>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.BackupRead);
 
+        app.MapGet("/system/backups/state", (
+            [FromServices] PersonalStateBackupRepository personalState,
+            [FromServices] WaitingPersonalStateRepository waiting,
+            [FromServices] IConfigurationLoader configLoader,
+            CancellationToken ct) =>
+            Results.Ok(BuildBackupState(personalState, waiting, configLoader, ct)))
+        .WithTags("System")
+        .WithName("GetBackupState")
+        .WithSummary("Counts for the Backup screen: titles a restore can match by exact file only, the waiting period, how many restored items still wait for their files, and the latest restore. Counts only; it names no title.")
+        .Produces<BackupStateDto>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.BackupRead);
+
+        app.MapPut("/system/backups/waiting-period", (
+            UpdateWaitingPeriodRequest request,
+            [FromServices] PersonalStateBackupRepository personalState,
+            [FromServices] WaitingPersonalStateRepository waiting,
+            [FromServices] IConfigurationLoader configLoader,
+            CancellationToken ct) =>
+        {
+            if (request.Days is < MissingFileRetentionLimits.MinDays or > MissingFileRetentionLimits.MaxDays)
+            {
+                return ApiErrors.BadRequest(
+                    $"Choose between {MissingFileRetentionLimits.MinDays} and {MissingFileRetentionLimits.MaxDays} days.");
+            }
+
+            var maintenance = configLoader.LoadMaintenance();
+            maintenance.MissingFileRetentionDays = request.Days;
+            configLoader.SaveMaintenance(maintenance);
+            return Results.Ok(BuildBackupState(personalState, waiting, configLoader, ct));
+        })
+        .WithTags("System")
+        .WithName("UpdateBackupWaitingPeriod")
+        .WithSummary("Changes how many days restored progress waits for its files before it is cleared (7 to 3650).")
+        .Produces<BackupStateDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireEffectiveAdministrator();
+
         app.MapGet("/system/data-store-version", (DataStoreVersionRepository versions) =>
         {
             var current = versions.GetCurrent();
@@ -276,6 +315,23 @@ public static class SystemEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.BackupRestore);
 
         return app;
+    }
+
+    private static BackupStateDto BuildBackupState(
+        PersonalStateBackupRepository personalState,
+        WaitingPersonalStateRepository waiting,
+        IConfigurationLoader configLoader,
+        CancellationToken ct)
+    {
+        var latest = waiting.GetLatestRestore();
+        return new BackupStateDto(
+            personalState.CountTitlesRecognisedByFileOnly(ct),
+            configLoader.LoadMaintenance().MissingFileRetentionDays,
+            waiting.CountWaiting(includeWithheld: true),
+            latest is null
+                ? null
+                : new LatestRestoreDto(
+                    latest.RestoredAt, latest.BackupFileName, latest.AppliedRows, latest.AttachedRows, latest.YieldedRows, latest.PurgedRows));
     }
 
     private static SystemActivityOperationDto ToSystemActivityOperation(MediaOperation operation) => new()

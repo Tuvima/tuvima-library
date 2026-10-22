@@ -1,34 +1,33 @@
+using System.Globalization;
 using System.IO.Compression;
 using System.Text.Json;
-using MediaEngine.Api.Services.Vault;
+using MediaEngine.Api.Services.Backups;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Contracts.System;
 using MediaEngine.Storage;
-using MediaEngine.Storage.Contracts;
-using Microsoft.Data.Sqlite;
+using MediaEngine.Storage.Backup;
 
 namespace MediaEngine.Api.Services;
 
 /// <summary>
-/// Creates consistent SQLite + non-secret configuration archives and stages a
-/// selected archive for atomic application before the next Engine startup.
+/// Creates backups (the safe configuration files plus the settings and a person's own state, never the catalogue, media files or
+/// secrets), checks and stages a selected backup for the next Engine start-up, and applies a staged restore before the data store opens:
+/// the current data store is put aside as a pre-restore copy and the start-up builds a fresh one, into which
+/// <see cref="PendingRestoreImportService"/> imports the backup.
 /// </summary>
 public sealed class DatabaseBackupService
 {
-    private const string PendingRestoreFileName = ".restore-pending.json";
     private const long MaxSetupUploadBytes = 2L * 1024 * 1024 * 1024;
-    private const long MaxUncompressedBytes = 16L * 1024 * 1024 * 1024;
-    private const int MaxArchiveEntries = 10_000;
-    private readonly IDatabaseConnection _database;
+    private readonly PersonalStateBackupRepository _export;
     private readonly string _configDirectory;
     private readonly string _backupDirectory;
 
     public DatabaseBackupService(
-        IDatabaseConnection database,
+        PersonalStateBackupRepository export,
         string configDirectory,
         string? backupDirectory = null)
     {
-        _database = database;
+        _export = export;
         _configDirectory = Path.GetFullPath(configDirectory);
         _backupDirectory = ResolveBackupDirectory(_configDirectory, backupDirectory);
     }
@@ -58,30 +57,14 @@ public sealed class DatabaseBackupService
         Directory.CreateDirectory(_backupDirectory);
         var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
         var archivePath = UniquePath(Path.Combine(_backupDirectory, $"tuvima-backup-{stamp}.zip"));
-        var stagingDirectory = Path.Combine(_backupDirectory, $".building-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(stagingDirectory);
 
         try
         {
-            var databaseCopy = Path.Combine(stagingDirectory, "library.db");
-            await _database.AcquireWriteLockAsync(ct).ConfigureAwait(false);
-            try
-            {
-                ct.ThrowIfCancellationRequested();
-                using var source = _database.CreateConnection();
-                using var destination = SqliteBackupTarget.Create(databaseCopy);
-                source.BackupDatabase(destination);
-            }
-            finally
-            {
-                _database.ReleaseWriteLock();
-            }
-
-            // The Vault catalogue is removed from the COPY only; the live data store is never touched.
-            var vault = VaultBackupScrubber.Scrub(databaseCopy, _configDirectory);
+            // The export reads one consistent snapshot of its own, so nothing is locked and the Library keeps working.
+            var export = await Task.Run(() => _export.Export(BackupScope.WholeLibrary, ct), ct).ConfigureAwait(false);
 
             using var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create);
-            archive.CreateEntryFromFile(databaseCopy, "database/library.db", CompressionLevel.SmallestSize);
+            BackupArchiveFormat.Write(archive, export);
             foreach (var path in EnumerateSafeConfigFiles())
             {
                 ct.ThrowIfCancellationRequested();
@@ -90,7 +73,7 @@ public sealed class DatabaseBackupService
             }
 
             var manifest = archive.CreateEntry("manifest.json", CompressionLevel.SmallestSize);
-            BackupManifestWriter.Write(manifest, vault);
+            BackupManifestWriter.Write(manifest, export.Contents);
             return archivePath;
         }
         catch
@@ -101,13 +84,6 @@ public sealed class DatabaseBackupService
             }
 
             throw;
-        }
-        finally
-        {
-            if (Directory.Exists(stagingDirectory))
-            {
-                Directory.Delete(stagingDirectory, recursive: true);
-            }
         }
     }
 
@@ -120,8 +96,8 @@ public sealed class DatabaseBackupService
         {
             ValidateAndStageArchive(archivePath, stagingDirectory);
 
-            var markerPath = Path.Combine(_configDirectory, PendingRestoreFileName);
-            if (File.Exists(markerPath))
+            var markerPath = Path.Combine(_configDirectory, RestoreMarkers.PendingFileName);
+            if (File.Exists(markerPath) || File.Exists(Path.Combine(_configDirectory, RestoreMarkers.ImportFileName)))
             {
                 throw new InvalidOperationException("A restore is already scheduled. Restart the Engine before scheduling another restore.");
             }
@@ -129,12 +105,12 @@ public sealed class DatabaseBackupService
             File.WriteAllText(markerPath, JsonSerializer.Serialize(new PendingRestore(
                 Path.GetFullPath(stagingDirectory),
                 Path.GetFileName(archivePath),
-                DateTimeOffset.UtcNow)));
+                DateTimeOffset.UtcNow,
+                Guid.NewGuid())));
             return new ScheduleRestoreResultDto(
                 true,
                 true,
-                "Restore validated and scheduled. Restart the Engine to apply it. The current database and configuration will be retained as pre-restore backups."
-                + VaultRestoreNote.For(Path.Combine(stagingDirectory, "library.db")));
+                "Restore checked and scheduled. Restart the Engine to apply it. Your current Library is kept as a pre-restore copy.");
         }
         catch
         {
@@ -215,12 +191,13 @@ public sealed class DatabaseBackupService
         Directory.CreateDirectory(stagingDirectory);
         try
         {
-            ValidateAndStageArchive(archivePath, stagingDirectory);
+            var info = ValidateAndStageArchive(archivePath, stagingDirectory);
             return new RestoreValidationResultDto(
                 true,
                 Path.GetFileName(archivePath),
                 DateTimeOffset.UtcNow,
-                "Restore test passed. The database and non-secret configuration can be staged; no restore was scheduled.");
+                "Restore test passed. The settings and personal state in this backup can be read; no restore was scheduled.",
+                ContentsOf(info));
         }
         finally
         {
@@ -248,106 +225,30 @@ public sealed class DatabaseBackupService
 
     private static SetupBackupInspectionDto InspectArchive(Guid operationId, string archivePath, string originalFileName)
     {
-        using var archive = ZipFile.OpenRead(archivePath);
-        if (archive.Entries.Count == 0 || archive.Entries.Count > MaxArchiveEntries)
-        {
-            throw new InvalidDataException("The backup contains an unsupported number of entries.");
-        }
-
-        long uncompressed = 0;
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var entry in archive.Entries)
-        {
-            var normalized = entry.FullName.Replace('\\', '/');
-            if (normalized.StartsWith("/", StringComparison.Ordinal)
-                || normalized.Contains("../", StringComparison.Ordinal)
-                || !seen.Add(normalized))
-            {
-                throw new InvalidDataException("The backup contains an unsafe or duplicate entry path.");
-            }
-
-            if (IsForbiddenRestoreEntry(normalized))
-            {
-                throw new InvalidDataException($"The backup contains forbidden host secret material: {normalized}");
-            }
-
-            checked { uncompressed += entry.Length; }
-            if (uncompressed > MaxUncompressedBytes)
-            {
-                throw new InvalidDataException("The expanded backup exceeds the 16 GB safety limit.");
-            }
-
-            if (entry.CompressedLength > 0 && entry.Length / Math.Max(1, entry.CompressedLength) > 250)
-            {
-                throw new InvalidDataException("The backup contains an unsafe compression ratio.");
-            }
-        }
-
-        var manifestEntry = archive.GetEntry("manifest.json")
-            ?? throw new InvalidDataException("The backup does not contain manifest.json.");
-        var databaseEntry = archive.GetEntry("database/library.db")
-            ?? throw new InvalidDataException("The backup does not contain database/library.db.");
-        if (manifestEntry.Length > 1024 * 1024)
-        {
-            throw new InvalidDataException("The backup manifest is unexpectedly large.");
-        }
-
-        string manifestVersion;
-        string databaseEpoch;
-        DateTimeOffset? createdAt = null;
-        using (var document = ZipArchiveJson.Parse(manifestEntry))
-        {
-            var root = document.RootElement;
-            manifestVersion = root.TryGetProperty("schema_version", out var version) ? version.GetString() ?? "unknown" : "unknown";
-            databaseEpoch = root.TryGetProperty("database_epoch", out var epoch) ? epoch.GetString() ?? "unknown" : "unknown";
-            if (root.TryGetProperty("created_at", out var created) && created.TryGetDateTimeOffset(out var parsed))
-            {
-                createdAt = parsed;
-            }
-
-            if (root.TryGetProperty("includes_secrets", out var includesSecrets) && includesSecrets.ValueKind == JsonValueKind.True)
-            {
-                throw new InvalidDataException("Backups containing secrets cannot be restored during setup.");
-            }
-        }
-        if (!string.Equals(manifestVersion, "1.0", StringComparison.Ordinal)
-            && !string.Equals(manifestVersion, "2.0", StringComparison.Ordinal))
-        {
-            throw new InvalidDataException($"Backup manifest version '{manifestVersion}' is unsupported.");
-        }
-
-        if (!string.Equals(databaseEpoch, "guid-blob-v6-shared-library-contributions", StringComparison.Ordinal))
-        {
-            throw new InvalidDataException($"Backup database epoch '{databaseEpoch}' is unsupported.");
-        }
-
-        var verifyPath = Path.Combine(Path.GetDirectoryName(archivePath)!, $".verify-{operationId:N}.db");
-        try
-        {
-            databaseEntry.ExtractToFile(verifyPath);
-            SqliteBackupTarget.Verify(verifyPath);
-        }
-        finally
-        {
-            if (File.Exists(verifyPath))
-            {
-                File.Delete(verifyPath);
-            }
-        }
-
-        var configCount = archive.Entries.Count(entry => entry.FullName.StartsWith("config/", StringComparison.Ordinal));
+        var info = RestoreArchiveValidator.Validate(archivePath);
         return new SetupBackupInspectionDto(
-            operationId, Path.GetFileName(originalFileName), createdAt, manifestVersion,
-            databaseEpoch, new FileInfo(archivePath).Length, uncompressed, archive.Entries.Count,
-            configCount,
-            "Provider credentials, active sessions, downloaded models, artwork caches, the Vault catalogue, and original media are not restored.");
+            operationId, Path.GetFileName(originalFileName), info.CreatedAt, info.ManifestVersion,
+            info.DatabaseEpoch, new FileInfo(archivePath).Length, info.UncompressedBytes, info.EntryCount,
+            info.ConfigurationFileCount,
+            Summarise(info),
+            ContentsOf(info));
     }
 
-    private static bool IsForbiddenRestoreEntry(string relative) =>
-        relative.StartsWith("config/secrets/", StringComparison.OrdinalIgnoreCase)
-        || relative.StartsWith("config/.secrets/", StringComparison.OrdinalIgnoreCase)
-        || relative.StartsWith("config/.keys/", StringComparison.OrdinalIgnoreCase)
-        || relative.EndsWith(".restore-pending.json", StringComparison.OrdinalIgnoreCase);
+    /// <summary>The manifest's counts for the first look at a backup. Totals only: it names no title, no profile and no kind of title.</summary>
+    internal static BackupContentsDto ContentsOf(RestoreArchiveInfo info) =>
+        new(info.Profiles, info.ConfigurationRows, info.ItemsOfPersonalState, info.Titles, info.FileOnlyTitles);
+
+    /// <summary>A plain sentence about what the backup holds, from the manifest's counts. It names no title and no profile.</summary>
+    internal static string Summarise(RestoreArchiveInfo info)
+    {
+        var holds = info.Profiles > 0
+            ? $"Holds {info.Profiles.ToString("N0", CultureInfo.InvariantCulture)} {(info.Profiles == 1 ? "profile" : "profiles")} and your settings"
+            : "Holds your settings";
+        var items = info.ItemsOfPersonalState > 0
+            ? $", with {info.ItemsOfPersonalState.ToString("N0", CultureInfo.InvariantCulture)} {(info.ItemsOfPersonalState == 1 ? "item" : "items")} of progress, bookmarks and favourites that come back as {(info.ItemsOfPersonalState == 1 ? "its title is" : "their titles are")} found again"
+            : string.Empty;
+        return $"{holds}{items}. Media files and folders are not included.";
+    }
 
     public string ResolveArchive(string fileName)
     {
@@ -371,7 +272,7 @@ public sealed class DatabaseBackupService
         string? backupDirectory = null)
     {
         var fullConfigDirectory = Path.GetFullPath(configDirectory);
-        var markerPath = Path.Combine(fullConfigDirectory, PendingRestoreFileName);
+        var markerPath = Path.Combine(fullConfigDirectory, RestoreMarkers.PendingFileName);
         if (!File.Exists(markerPath))
         {
             return;
@@ -383,41 +284,158 @@ public sealed class DatabaseBackupService
         var stagedDirectory = SafeChildPath(
             resolvedBackupDirectory,
             Path.GetRelativePath(resolvedBackupDirectory, marker.StagingDirectory));
-        var stagedDatabase = Path.Combine(stagedDirectory, "library.db");
-        SqliteBackupTarget.Verify(stagedDatabase);
+        var stagedArchive = Path.Combine(stagedDirectory, RestoreMarkers.StagedArchiveFileName);
+        if (!File.Exists(stagedArchive))
+        {
+            throw new FileNotFoundException("The staged backup file is missing, so nothing was restored.", stagedArchive);
+        }
+
+        // Checked again before anything is moved, so a backup the import would refuse never costs the person their Library.
+        RestoreArchiveValidator.Validate(stagedArchive);
 
         var targetDatabase = Path.GetFullPath(databasePath);
         Directory.CreateDirectory(Path.GetDirectoryName(targetDatabase)!);
         DatabaseConnection.ReleasePooledConnections(databasePath);
         var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
-        if (File.Exists(targetDatabase))
+
+        // Where the current data store goes is written into the marker before anything is moved, so a crash at any point still says
+        // where the person's Library is. A name already in the marker is reused: an earlier attempt may have moved part of the store.
+        var preRestoreCopy = marker.PreRestoreCopy
+            ?? (File.Exists(targetDatabase) ? UniquePath($"{targetDatabase}.pre-restore-{stamp}.bak") : null);
+        if (preRestoreCopy is not null && !string.Equals(preRestoreCopy, marker.PreRestoreCopy, StringComparison.Ordinal))
         {
-            File.Copy(targetDatabase, $"{targetDatabase}.pre-restore-{stamp}.bak", overwrite: false);
+            marker = marker with { PreRestoreCopy = preRestoreCopy };
+            WriteMarker(markerPath, JsonSerializer.Serialize(marker));
         }
 
-        File.Copy(stagedDatabase, targetDatabase, overwrite: true);
-        DeleteIfPresent(targetDatabase + "-wal");
-        DeleteIfPresent(targetDatabase + "-shm");
+        // The current data store is put aside whole (file, write-ahead log and shared memory), never deleted; the start-up then builds a fresh one.
+        // Write-ahead log or shared-memory files left behind by a store that is gone are put aside too, so SQLite never replays them into the new store.
+        var aside = preRestoreCopy ?? $"{targetDatabase}.orphaned-{stamp}";
+        var moves = PutDataStoreAside(targetDatabase, aside);
 
-        var stagedConfig = Path.Combine(stagedDirectory, "config");
-        if (Directory.Exists(stagedConfig))
+        var configCopies = new List<(string Destination, string? Original)>();
+        try
         {
-            foreach (var source in Directory.EnumerateFiles(stagedConfig, "*", SearchOption.AllDirectories))
+            var stagedConfig = Path.Combine(stagedDirectory, "config");
+            if (Directory.Exists(stagedConfig))
             {
-                var relative = Path.GetRelativePath(stagedConfig, source);
-                var destination = SafeChildPath(fullConfigDirectory, relative);
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                if (File.Exists(destination))
+                foreach (var source in Directory.EnumerateFiles(stagedConfig, "*", SearchOption.AllDirectories).OrderBy(path => path, StringComparer.Ordinal))
                 {
-                    File.Copy(destination, $"{destination}.pre-restore-{stamp}.bak", overwrite: false);
+                    var relative = Path.GetRelativePath(stagedConfig, source);
+                    var destination = SafeChildPath(fullConfigDirectory, relative);
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    if (File.Exists(destination))
+                    {
+                        var original = $"{destination}.pre-restore-{stamp}.bak";
+                        File.Copy(destination, original, overwrite: false);
+                        configCopies.Add((destination, original));
+                        File.Copy(source, destination, overwrite: true);
+                    }
+                    else
+                    {
+                        File.Copy(source, destination, overwrite: false);
+                        configCopies.Add((destination, null));
+                    }
                 }
-
-                File.Copy(source, destination, overwrite: true);
             }
+
+            // The marker is replaced, not deleted, so a stop before the import still imports it at the next start.
+            WriteMarker(
+                Path.Combine(fullConfigDirectory, RestoreMarkers.ImportFileName),
+                JsonSerializer.Serialize(new PendingRestoreImport(stagedArchive, marker.BackupFileName, marker.ScheduledAt, preRestoreCopy, marker.RestoreId)));
+        }
+        catch
+        {
+            // Put everything back as it was: the configuration files already replaced, then the data store. The pending marker stays.
+            UndoRestore(fullConfigDirectory, configCopies, moves, preRestoreCopy);
+            throw;
         }
 
         File.Delete(markerPath);
-        Directory.Delete(stagedDirectory, recursive: true);
+    }
+
+    /// <summary>
+    /// Moves the data store file and its write-ahead log and shared-memory files to <paramref name="aside"/> (and the same name with
+    /// <c>-wal</c> and <c>-shm</c>). A file whose source is missing or whose target already exists is left alone, so running it again after
+    /// a stop part-way finishes the job. If a move fails the ones made are undone and the exception is thrown, so the data store is
+    /// left exactly as it was. Returns the moves made.
+    /// </summary>
+    private static List<(string From, string To)> PutDataStoreAside(string targetDatabase, string aside)
+    {
+        var done = new List<(string From, string To)>();
+        try
+        {
+            foreach (var suffix in new[] { string.Empty, "-wal", "-shm" })
+            {
+                var from = targetDatabase + suffix;
+                var to = aside + suffix;
+                if (File.Exists(from) && !File.Exists(to))
+                {
+                    File.Move(from, to, overwrite: false);
+                    done.Add((from, to));
+                }
+            }
+        }
+        catch
+        {
+            MoveBack(done);
+            throw;
+        }
+
+        return done;
+    }
+
+    private static void MoveBack(List<(string From, string To)> moves)
+    {
+        for (var i = moves.Count - 1; i >= 0; i--)
+        {
+            File.Move(moves[i].To, moves[i].From, overwrite: false);
+        }
+    }
+
+    /// <summary>
+    /// Undoes a restore that failed after the data store was put aside: replaced configuration files go back from their
+    /// <c>.pre-restore</c> copies (files the restore created are removed) and the data store moves back. A failure here is reported with
+    /// where the Library's data is, so nothing is silently lost.
+    /// </summary>
+    private static void UndoRestore(
+        string configDirectory,
+        List<(string Destination, string? Original)> configCopies,
+        List<(string From, string To)> moves,
+        string? preRestoreCopy)
+    {
+        try
+        {
+            for (var i = configCopies.Count - 1; i >= 0; i--)
+            {
+                var (destination, original) = configCopies[i];
+                if (original is null)
+                {
+                    File.Delete(destination);
+                }
+                else if (File.Exists(original))
+                {
+                    File.Move(original, destination, overwrite: true);
+                }
+            }
+
+            MoveBack(moves);
+            File.Delete(Path.Combine(configDirectory, RestoreMarkers.ImportFileName));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new IOException(
+                $"The restore could not be undone after it failed. Your previous Library data is at {preRestoreCopy ?? "(there was none)"}, and replaced configuration files are kept beside the originals as .pre-restore copies.",
+                ex);
+        }
+    }
+
+    /// <summary>Writes a marker so a stop in the middle never leaves half of one.</summary>
+    private static void WriteMarker(string path, string json)
+    {
+        var temporary = path + ".tmp";
+        File.WriteAllText(temporary, json);
+        File.Move(temporary, path, overwrite: true);
     }
 
     private IEnumerable<string> EnumerateSafeConfigFiles() =>
@@ -431,51 +449,20 @@ public sealed class DatabaseBackupService
                     && !relative.StartsWith(".keys/", StringComparison.OrdinalIgnoreCase)
                     && !relative.EndsWith(".bak", StringComparison.OrdinalIgnoreCase)
                     && !relative.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(relative, PendingRestoreFileName, StringComparison.OrdinalIgnoreCase);
+                    && !relative.StartsWith(".restore-", StringComparison.OrdinalIgnoreCase);
             });
 
-    private static void ValidateAndStageArchive(string archivePath, string stagingDirectory)
+    /// <summary>
+    /// Copies the backup file into the staging folder, checks the copy (so what is checked is what will be imported) and unpacks its
+    /// configuration files beside it.
+    /// </summary>
+    private static RestoreArchiveInfo ValidateAndStageArchive(string archivePath, string stagingDirectory)
     {
-        using var archive = ZipFile.OpenRead(archivePath);
-        if (archive.Entries.Count > MaxArchiveEntries)
-        {
-            throw new InvalidDataException($"The backup contains more than {MaxArchiveEntries:N0} entries.");
-        }
+        var stagedArchive = Path.Combine(stagingDirectory, RestoreMarkers.StagedArchiveFileName);
+        File.Copy(archivePath, stagedArchive, overwrite: false);
+        var info = RestoreArchiveValidator.Validate(stagedArchive);
 
-        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var entry in archive.Entries)
-        {
-            var normalized = entry.FullName.Replace('\\', '/');
-            if (normalized.StartsWith("/", StringComparison.Ordinal)
-                || normalized.Contains("../", StringComparison.Ordinal)
-                || !seenPaths.Add(normalized))
-            {
-                throw new InvalidDataException("The backup contains an unsafe or duplicate entry path.");
-            }
-
-            if (IsForbiddenRestoreEntry(normalized))
-            {
-                throw new InvalidDataException($"The backup contains forbidden host secret material: {normalized}");
-            }
-
-            if (entry.CompressedLength > 0 && entry.Length / Math.Max(1, entry.CompressedLength) > 250)
-            {
-                throw new InvalidDataException("The backup contains an unsafe compression ratio.");
-            }
-        }
-
-        var uncompressedBytes = archive.Entries.Sum(entry => entry.Length);
-        if (uncompressedBytes > MaxUncompressedBytes)
-        {
-            throw new InvalidDataException("The backup expands beyond the 16 GB restore limit.");
-        }
-
-        var databaseEntry = archive.GetEntry("database/library.db")
-            ?? throw new InvalidOperationException("The backup does not contain database/library.db.");
-        var stagedDatabase = Path.Combine(stagingDirectory, "library.db");
-        databaseEntry.ExtractToFile(stagedDatabase);
-        SqliteBackupTarget.Verify(stagedDatabase);
-
+        using var archive = ZipFile.OpenRead(stagedArchive);
         var stagedConfig = Path.Combine(stagingDirectory, "config");
         foreach (var entry in archive.Entries.Where(entry => entry.FullName.StartsWith("config/", StringComparison.Ordinal)))
         {
@@ -489,6 +476,8 @@ public sealed class DatabaseBackupService
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             entry.ExtractToFile(destination);
         }
+
+        return info;
     }
 
     private static string ResolveBackupDirectory(string fullConfigDirectory, string? configuredDirectory) =>
@@ -520,13 +509,4 @@ public sealed class DatabaseBackupService
             $"{Path.GetFileNameWithoutExtension(path)}-{Guid.NewGuid().ToString("N")[..8]}{Path.GetExtension(path)}");
     }
 
-    private static void DeleteIfPresent(string path)
-    {
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
-    }
-
-    private sealed record PendingRestore(string StagingDirectory, string BackupFileName, DateTimeOffset ScheduledAt);
 }

@@ -71,7 +71,7 @@ internal sealed partial class ExifToolSession : IExifToolSession
 
         try
         {
-            var (output, errors) = await ExecuteAsync(arguments, ct).ConfigureAwait(false);
+            var (output, errors) = await ExecuteAsync(arguments, ct, options.Timeout).ConfigureAwait(false);
             var result = ExifToolOutputParser.ParseWrite(output, errors);
             if (!result.IsSuccess)
             {
@@ -196,8 +196,13 @@ internal sealed partial class ExifToolSession : IExifToolSession
 
     // ── The conversation with ExifTool ───────────────────────────────────────
 
-    private async Task<(List<string> Output, List<string> Errors)> ExecuteAsync(IReadOnlyList<string> arguments, CancellationToken ct)
+    private TimeSpan EffectiveTimeout(TimeSpan? requested) =>
+        requested is { } longer && longer > _commandTimeout ? longer : _commandTimeout;
+
+    private async Task<(List<string> Output, List<string> Errors)> ExecuteAsync(
+        IReadOnlyList<string> arguments, CancellationToken ct, TimeSpan? requestedTimeout = null)
     {
+        var limit = EffectiveTimeout(requestedTimeout);
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -208,7 +213,7 @@ internal sealed partial class ExifToolSession : IExifToolSession
 
             var id = ++_commandId;
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(_commandTimeout);
+            timeout.CancelAfter(limit);
             try
             {
                 var command = new StringBuilder();
@@ -234,7 +239,7 @@ internal sealed partial class ExifToolSession : IExifToolSession
             }
             catch (OperationCanceledException)
             {
-                var reason = $"ExifTool did not answer within {_commandTimeout.TotalSeconds:0} seconds.";
+                var reason = $"ExifTool did not answer within {limit.TotalSeconds:0} seconds.";
                 Stop(reason);
                 throw new ExifToolStoppedException(reason);
             }

@@ -445,7 +445,8 @@ public sealed class ViewLibraryServiceTests
             MediaEngine.Api.Services.LocalAssets.Ocr.IOcrService? ocr = null,
             bool withFiling = false,
             string contentKind = ViewContentKinds.Photos,
-            bool addedByAdministrator = false)
+            bool addedByAdministrator = false,
+            MediaEngine.Domain.Contracts.IFileWriteQueue? fileWrites = null)
         {
             PersonalRoot = Path.Combine(_root, "personal");
             CatalogueRoot = Path.Combine(_root, "catalogue");
@@ -513,6 +514,7 @@ public sealed class ViewLibraryServiceTests
                 IncludeSubdirectories: true, Enabled: true, ContentKind: contentKind,
                 AddedByProfileId: addedByAdministrator ? AdministratorProfileId : null)).GetAwaiter().GetResult();
             var storage = new ViewStorageService(_configuration, spaces, new ViewSharedLibraryRepository(_database));
+            Storage = storage;
             Operations = new MediaOperationRepository(_database);
             if (ocr is not null)
             {
@@ -544,7 +546,8 @@ public sealed class ViewLibraryServiceTests
                 NullLogger<ViewLibraryService>.Instance,
                 operations: Operations,
                 ocrQueue: OcrQueue,
-                rulesQueue: RulesQueue);
+                rulesQueue: RulesQueue,
+                fileWrites: fileWrites);
             TextReader = new DocumentTextReadService(
                 Repository, _configuration, NullLogger<DocumentTextReadService>.Instance, OcrQueue, RulesQueue);
             Worker = new DocumentTextReadOperationWorker(
@@ -553,6 +556,8 @@ public sealed class ViewLibraryServiceTests
 
         public MediaOperationRepository Operations { get; }
         public ViewPersonalSpaceRepository Spaces { get; }
+        public ViewStorageService Storage { get; }
+        public IDatabaseConnection Database => _database;
         public Guid PersonalSpaceId { get; }
         public DocumentFilingRepository? FilingRepository { get; }
         public DocumentRuleRepository? RulesRepository { get; }
