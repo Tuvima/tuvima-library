@@ -27,7 +27,7 @@
             @if (_step == WizardStep.Kind)
             {
                 <div class="add-wizard__tiles" role="group" aria-label="What is it?">
-                    @foreach (var group in LibraryGroupCatalog.Visible(ShowVault))
+                    @foreach (var group in OfferedGroups)
                     {
                         <AppNativeButton Type="button"
                                          Class="@($"add-wizard__tile add-wizard__tile--{group.Key}{(group.Key == _groupKey ? " is-selected" : string.Empty)}")"
@@ -74,9 +74,13 @@
                 @if (_footagePending && LooksLikeFootage)
                 {
                     <div class="add-wizard__hint" role="note">
-                        <span>This looks like phone or camera footage. Personal videos belong in View.</span>
+                        @* First-run setup never leaves setup for View's settings, so it only says where View is set up. *@
+                        <span>@(Embedded ? "This looks like phone or camera footage. Personal videos belong in View; you can set View up later in Settings > Libraries > View." : "This looks like phone or camera footage. Personal videos belong in View.")</span>
                         <div class="add-wizard__hint-actions">
-                            <AppButton Label="Add to View instead" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => HandOffToView(_folder?.Path))" />
+                            @if (!Embedded)
+                            {
+                                <AppButton Label="Add to View instead" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => HandOffToView(_folder?.Path))" />
+                            }
                             <AppButton Label="Continue anyway" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => GoTo(WizardStep.How))" />
                         </div>
                     </div>
@@ -221,9 +225,12 @@
     private string? _notice;
     private LibrariesConfigurationDto _configuration = default!;
 
+    // First-run setup has no way into View's settings, so View is not offered there.
+    private IEnumerable<LibraryGroup> OfferedGroups => LibraryGroupCatalog.Visible(ShowVault).Where(group => !Embedded || group.Key != "view");
+
     private FolderAddScope Scope => new(Embedded, SetupSession);
     private bool IsVideos => _type?.MediaTypes.Contains("Videos", StringComparer.OrdinalIgnoreCase) == true;
-    private LibraryGroup? CurrentGroup => LibraryGroupCatalog.TryGetVisibleGroup(_groupKey, ShowVault);
+    private LibraryGroup? CurrentGroup => OfferedGroups.FirstOrDefault(group => group.Key == _groupKey);
     private bool InWatch => LibraryGroupCatalog.GroupFor(_type?.Key)?.Key == "watch";
     private bool LooksLikeFootage => InWatch && _folder is { LooksLikePhoneFootage: true };
     private bool CanGoBack => _step == WizardStep.How || (_step == WizardStep.Folder && !_typeKnown);

@@ -418,7 +418,8 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         await OpenWizardAsync(type: "movies");
         PickFolder(path: "F:\\Phone", phoneFootage: true);
 
-        Assert.Equal("This looks like phone or camera footage. Personal videos belong in View. Add to View instead Continue anyway", Text(_dialogs.Find(".add-wizard__hint")));
+        Assert.Equal("This looks like phone or camera footage. Personal videos belong in View.", Text(_dialogs.Find(".add-wizard__hint > span")));
+        Assert.Equal(["Add to View instead", "Continue anyway"], _dialogs.FindAll(".add-wizard__hint button").Select(Text).ToArray());
         // The hint shows on the folder step instead of moving on.
         Assert.Empty(_dialogs.FindAll(".add-wizard__question"));
         Click("Add to View instead");
@@ -441,6 +442,34 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         _dialogs.WaitForElement(".add-wizard__question");
         Assert.Empty(_dialogs.FindAll(".add-wizard__hint"));
         Assert.Empty(_mutations);
+    }
+
+    // First-run setup must not navigate out of setup: the hint only says where View is set up.
+    [Fact]
+    public async Task InSetupThePhoneFootageHintOnlyOffersContinueAnywayAndNeverLeavesSetup()
+    {
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        var before = navigation.Uri;
+        await OpenWizardAsync(type: "movies", setupSession: "session", embedded: true);
+        PickFolder(path: "F:\\Phone", phoneFootage: true);
+
+        Assert.Equal("This looks like phone or camera footage. Personal videos belong in View; you can set View up later in Settings > Libraries > View.", Text(_dialogs.Find(".add-wizard__hint > span")));
+        Assert.Equal(["Continue anyway"], _dialogs.FindAll(".add-wizard__hint button").Select(Text).ToArray());
+        Assert.Equal(before, navigation.Uri);
+
+        Click("Continue anyway");
+        _dialogs.WaitForElement(".add-wizard__question");
+        Assert.Equal(before, navigation.Uri);
+    }
+
+    [Fact]
+    public async Task InSetupStepOneDoesNotOfferViewSoNothingHandsOverToViewsSettings()
+    {
+        // Setup always opens the wizard on a known type, so step 1 is normally skipped; if it is shown, View is not on it.
+        await OpenWizardAsync(embedded: true, setupSession: "session");
+
+        Assert.Equal(["Watch", "Listen", "Read"], _dialogs.FindAll(".add-wizard__tile").Select(Text).ToArray());
+        Assert.Empty(_dialogs.FindAll(".add-wizard__tile[data-group=view]"));
     }
 
     [Fact]
@@ -467,8 +496,10 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         Assert.True((await first.Result)!.Canceled);
 
         // Step 2.
+        // The phone-footage hint holds the person on step 2 after confirming the folder.
         var second = await OpenWizardAsync(type: "movies");
-        _dialogs.WaitForElement(".server-folder-picker");
+        PickFolder(path: "F:\\Phone", phoneFootage: true);
+        Assert.NotEmpty(_dialogs.FindAll(".add-wizard__hint"));
         Click("Cancel");
         Assert.True((await second.Result)!.Canceled);
 
@@ -547,6 +578,9 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, "view").Add(x => x.Detail, "photos"));
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".libraries-form-grid")));
+        // The address then drops the hand-over, so a reload or Back does not reopen the form.
+        cut.WaitForAssertion(() => Assert.EndsWith("/settings/libraries/view/photos", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal));
+        Assert.Single(cut.FindAll(".libraries-form-grid"));
     }
 
     // 8. Phone: no Add folder on any level.

@@ -626,6 +626,91 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
         Assert.Equal("C:\\srv", confirmed!.Path);
     }
 
+    // A path typed but not entered stays in the box when focus leaves it (moving to Next), so Next can neither confirm the earlier folder
+    // nor lose the typing unseen. Only Enter uses the path.
+    [Fact]
+    public void LeavingTheBoxWithATypedButNotEnteredPathKeepsItAndLeavesNextOffUntilEnter()
+    {
+        ServerFolderValidationResultDto? confirmed = null;
+        var cut = Render<ServerFolderPicker>(parameters => parameters
+            .Add(picker => picker.Inline, true)
+            .Add(picker => picker.ConfirmLabel, "Next")
+            .Add(picker => picker.OnConfirmed, EventCallback.Factory.Create<ServerFolderValidationResultDto>(this, result => confirmed = result)));
+        cut.WaitForElement(".server-folder-picker__folder");
+        IElement Next() => cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next");
+        cut.WaitForAssertion(() => Assert.False(Next().HasAttribute("disabled")));
+
+        cut.Find(".server-folder-picker__address-end").Click();
+        cut.Find(".server-folder-picker__address-input").Input("C:\\srv\\Films");
+        cut.Find(".server-folder-picker__address-input").Blur();
+
+        Assert.Equal("C:\\srv\\Films", cut.Find(".server-folder-picker__address-input").GetAttribute("value"));
+        Assert.True(Next().HasAttribute("disabled"));
+        Assert.Null(confirmed);
+
+        cut.Find(".server-folder-picker__address-input").KeyDown(Key("Enter"));
+        cut.WaitForAssertion(() => Assert.False(Next().HasAttribute("disabled")));
+        Next().Click();
+        cut.WaitForAssertion(() => Assert.NotNull(confirmed));
+        Assert.EndsWith("Films", confirmed!.Path, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LeavingTheBoxUntouchedGoesBackToTheFolderNamesAndKeepsTheSelection()
+    {
+        var cut = Render<ServerFolderPicker>(parameters => parameters.Add(picker => picker.Inline, true).Add(picker => picker.ConfirmLabel, "Next"));
+        cut.WaitForElement(".server-folder-picker__folder");
+        cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").HasAttribute("disabled")));
+
+        cut.Find(".server-folder-picker__address-end").Click();
+        cut.Find(".server-folder-picker__address-input").Blur();
+
+        cut.WaitForElement(".server-folder-picker__address-end");
+        Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").HasAttribute("disabled"));
+    }
+
+    // Focus is a convenience: when the browser says the element it was asked to focus is gone, the picker carries on.
+    [Fact]
+    public async Task AFocusThatFailsBecauseTheElementIsGoneDoesNotBreakThePicker()
+    {
+        var host = await OpenPickerAsync();
+        JSInterop.SetupVoid("Blazor._internal.domWrapper.focus", _ => true).SetException(new Microsoft.JSInterop.JSException("Unable to focus an invalid element."));
+        JSInterop.SetupVoid("selectText", _ => true).SetException(new Microsoft.JSInterop.JSException("Unable to focus an invalid element."));
+
+        // Selecting a folder moves focus to the list; opening the path box selects its text.
+        Row(host, "Movies").Click();
+        host.WaitForAssertion(() => Assert.Contains("is-selected", Row(host, "Movies").ClassName));
+        host.Find(".server-folder-picker__address-end").Click();
+        host.WaitForElement(".server-folder-picker__address-input");
+        host.Find(".server-folder-picker__address-input").KeyDown(Key("Escape"));
+
+        host.WaitForElement(".server-folder-picker__address-end");
+        Assert.Contains("Movies", SelectedPathValue(host), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ARejectedTypedPathMarksTheBoxInvalidAndPointsAtItsMessage()
+    {
+        var host = await OpenPickerAsync();
+        var input = OpenPathBox(host);
+        Assert.Null(input.GetAttribute("aria-invalid"));
+
+        input.Input("C:\\srv\\missing");
+        host.Find(".server-folder-picker__address-input").KeyDown(Key("Enter"));
+
+        host.WaitForAssertion(() => Assert.Equal("true", host.Find(".server-folder-picker__address-input").GetAttribute("aria-invalid")));
+        var describedBy = host.Find(".server-folder-picker__address-input").GetAttribute("aria-describedby");
+        Assert.False(string.IsNullOrWhiteSpace(describedBy));
+        var message = host.Find($"#{describedBy}");
+        Assert.Equal("alert", message.GetAttribute("role"));
+        Assert.Contains("That folder doesn't exist.", message.TextContent, StringComparison.Ordinal);
+
+        // Typing again clears the message and the markers with it.
+        host.Find(".server-folder-picker__address-input").Input("C:\\srv\\Mov");
+        host.WaitForAssertion(() => Assert.Null(host.Find(".server-folder-picker__address-input").GetAttribute("aria-invalid")));
+        Assert.Null(host.Find(".server-folder-picker__address-input").GetAttribute("aria-describedby"));
+    }
+
     [Fact]
     public async Task NotInlineConfirmingClosesTheDialogWithTheValidationResult()
     {

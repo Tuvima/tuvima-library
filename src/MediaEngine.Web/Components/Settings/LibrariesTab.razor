@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Web.Services.Navigation
+@using Microsoft.AspNetCore.WebUtilities
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject DeviceContextService DeviceContext
@@ -138,6 +139,20 @@
         await LoadAsync();
         await InvokeAsync(StateHasChanged);
         await LoadSummaryAsync();
+    }
+
+    // The hand-over to View's add form (?add=folder) is read once; the address then drops it, so a reload or Back does not reopen the form.
+    private bool _addAddressCleared;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (_addAddressCleared || _loading || _configuration is null || CurrentLevel.Kind != LevelKind.Photos || !StartAdding) return;
+        _addAddressCleared = true;
+        var uri = new Uri(Navigation.Uri);
+        var kept = QueryHelpers.ParseQuery(uri.Query)
+            .Where(pair => !string.Equals(pair.Key, "add", StringComparison.OrdinalIgnoreCase) && !string.Equals(pair.Key, "path", StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(pair => pair.Key, pair => (string?)pair.Value.ToString());
+        Navigation.NavigateTo(QueryHelpers.AddQueryString(uri.GetLeftPart(UriPartial.Path), kept), replace: true);
     }
 
     protected override async Task OnParametersSetAsync()
