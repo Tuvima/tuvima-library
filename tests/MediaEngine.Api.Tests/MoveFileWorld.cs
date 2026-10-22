@@ -71,10 +71,14 @@ internal sealed class MoveFileWorld : IDisposable
     public FileWriteScheduler CreateScheduler(IAutoOrganizeService organizer) => new(
         Intents,
         [new SpyMediaAssetWriter(WriteBack)],
-        organizer,
+        CreateMover(organizer),
         Configuration,
         TimeProvider.System,
         NullLogger<FileWriteScheduler>.Instance);
+
+    /// <summary>The crash-safe mover of the move lane over the given organiser.</summary>
+    public LibraryMoveRunner CreateMover(IAutoOrganizeService organizer) => new(
+        Intents, organizer, new MediaAssetRepository(Database), new AssetHasher(), Configuration, NullLogger<LibraryMoveRunner>.Instance);
 
     /// <summary>The real organiser over a file organiser of the test's choosing (one that fails a move, say).</summary>
     public AutoOrganizeService CreateOrganizer(IFileOrganizer fileOrganizer) => new(

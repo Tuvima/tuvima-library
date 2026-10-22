@@ -217,6 +217,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IExcludedSourceFileRepository, ExcludedSourceFileRepository>();
         services.AddSingleton<MediaEditorCommitRepository>();
         services.AddSingleton<MediaFileWriteIntentRepository>();
+        services.AddSingleton<MediaEngine.Domain.Contracts.IFileMoveInProgress>(sp => sp.GetRequiredService<MediaFileWriteIntentRepository>());
         services.AddSingleton<MediaEngine.Domain.Contracts.IFileWriteQueue, MediaEngine.Api.Services.FileWrites.FileWriteQueue>();
         services.AddSingleton<MediaEngine.Api.Services.FileWrites.RestoredFileWriteQueuer>();
         services.AddSingleton<MusicPairingCommitRepository>();

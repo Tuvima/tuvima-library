@@ -12,6 +12,9 @@ public sealed class FileWriteQueueGuardrailTests
     private const string WriterFile = "MediaAssetFileWriter.cs";
 
     private static readonly Regex TagWrite = new(@"\.\s*WriteMetadata(WithOutcome)?Async\s*\(", RegexOptions.Compiled);
+    private static readonly Regex TaggerTagWrite = new(@"\.\s*WriteTagsAsync\s*\(", RegexOptions.Compiled);
+    private static readonly Regex TaggerCoverWrite = new(@"\.\s*WriteCoverArtAsync\s*\(", RegexOptions.Compiled);
+    private static readonly Regex TagLibSave = new(@"\bfile\s*\.\s*Save\s*\(\s*\)", RegexOptions.Compiled);
     private static readonly Regex ArtworkWrite = new(@"\.\s*ProcessAsync\s*\(", RegexOptions.Compiled);
 
     [Fact]
@@ -38,6 +41,53 @@ public sealed class FileWriteQueueGuardrailTests
 
         Assert.True(offenders.Count == 0,
             $"Queue an artwork write with IFileWriteQueue instead of calling ProcessAsync: {string.Join(", ", offenders)}");
+    }
+
+    [Fact]
+    public void OnlyTheWriteBackService_CallsATaggerToWriteTags()
+    {
+        // Ingestion used to write tags straight into a file while it registered it; now it puts the file on the list like everything else.
+        var offenders = ActiveSources()
+            .Where(file => file.Name != "WriteBackService.cs" && TaggerTagWrite.IsMatch(file.Text))
+            .Select(file => file.Name)
+            .ToList();
+
+        Assert.True(offenders.Count == 0,
+            $"Put the file on the list with IFileWriteQueue instead of calling a tagger: {string.Join(", ", offenders)}");
+    }
+
+    [Fact]
+    public void OnlyTheWriteBackServiceAndTheArtworkService_CallATaggerToEmbedACover()
+    {
+        var offenders = ActiveSources()
+            .Where(file => file.Name is not ("WriteBackService.cs" or "ArtworkWritebackService.cs") && TaggerCoverWrite.IsMatch(file.Text))
+            .Select(file => file.Name)
+            .ToList();
+
+        Assert.True(offenders.Count == 0,
+            $"Queue the cover with IFileWriteQueue instead of calling a tagger: {string.Join(", ", offenders)}");
+    }
+
+    [Fact]
+    public void OnlyTheTaggers_SaveATagLibFile()
+    {
+        var offenders = ActiveSources()
+            .Where(file => !file.Name.EndsWith("MetadataTagger.cs", StringComparison.Ordinal) && TagLibSave.IsMatch(file.Text))
+            .Select(file => file.Name)
+            .ToList();
+
+        Assert.True(offenders.Count == 0,
+            $"Only a tagger may save tags into a media file; queue the write instead: {string.Join(", ", offenders)}");
+    }
+
+    [Fact]
+    public void TheIngestionPipeline_PutsAFileOnTheListAndWritesNothingIntoIt()
+    {
+        var pipeline = ActiveSources().Single(file => file.Name == "IngestionEngine.Pipeline.cs").Text;
+
+        Assert.Contains("EnqueueAssetAsync", pipeline, StringComparison.Ordinal);
+        Assert.DoesNotMatch(TaggerTagWrite, pipeline);
+        Assert.DoesNotMatch(TaggerCoverWrite, pipeline);
     }
 
     [Fact]

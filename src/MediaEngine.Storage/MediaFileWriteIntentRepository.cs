@@ -1,5 +1,6 @@
 using System.Globalization;
 using Dapper;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Data.Sqlite;
 
@@ -11,10 +12,13 @@ namespace MediaEngine.Storage;
 /// lease, so a row that was being worked on when the Engine stopped comes back once its lease runs out. Also keeps the schedule's
 /// own memory (<c>file_write_runs</c>).
 /// </summary>
-public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database, TimeProvider? clock = null)
+public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database, TimeProvider? clock = null) : IFileMoveInProgress
 {
     public const string MediaAssetKind = "media_asset";
     public const string ViewItemKind = "view_item";
+
+    /// <summary>What a moved file's row says when write-back is off: the file was moved, its tags were not written.</summary>
+    public const string MoveTagsBlockedReason = "Write-back is off, so the file was moved but its tags were not written.";
 
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
 
@@ -205,23 +209,45 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
         }, ct);
 
     /// <summary>
-    /// The file has been moved: the row goes back to pending so its tags are written on the next scheduled run. Ignored when a newer
-    /// change arrived while the move ran (the move is simply checked again, which changes nothing).
+    /// The move is done and checked: the move columns are cleared and the row goes back to pending, so its tags are written on the next
+    /// scheduled run. When a newer change arrived while the move ran (a second move may have been asked for), the row is instead put
+    /// back to <c>requested</c>, so the move lane plans again from the data store and moves the file again if it no longer fits.
+    /// Returns true when nothing newer arrived.
     /// </summary>
-    public Task<bool> CompleteMoveAsync(Guid id, long generation, CancellationToken ct = default) =>
+    public Task<bool> CompleteMoveAsync(Guid id, long generation, bool writeTags = true, CancellationToken ct = default) =>
         database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
-            return connection.Execute("""
+            var current = connection.ExecuteScalar<long?>(
+                "SELECT generation FROM media_file_write_intents WHERE id = @id AND move_step IS NOT NULL;", new { id }, transaction);
+            if (current is null)
+            {
+                return false;
+            }
+            var newerArrived = current.Value != generation;
+            connection.Execute("""
                 UPDATE media_file_write_intents
-                SET move_step = NULL, status = 'pending', attempts = 0, lease_expires_at = NULL, last_error = NULL,
-                    updated_at = @now
-                WHERE id = @id AND generation = @generation AND status = 'writing' AND move_step IS NOT NULL;
-                """, new { id, generation, now = Iso(_clock.GetUtcNow()) }, transaction) == 1;
+                SET move_step = @nextStep, move_source_path = NULL, move_target_path = NULL, move_source_hash = NULL,
+                    status = @status, attempts = 0, lease_expires_at = NULL, last_error = @error, updated_at = @now,
+                    completed_at = CASE WHEN @status = 'blocked' THEN @now ELSE completed_at END
+                WHERE id = @id AND move_step IS NOT NULL;
+                """, new
+            {
+                id,
+                nextStep = newerArrived ? "requested" : null,
+                // With write-back off the move still happened (it is filing, not tag writing), but its tag write is dropped.
+                status = writeTags || newerArrived ? "pending" : "blocked",
+                error = writeTags || newerArrived ? null : MoveTagsBlockedReason,
+                now = Iso(_clock.GetUtcNow()),
+            }, transaction);
+            return !newerArrived;
         }, ct);
 
-    /// <summary>The move did not work this time: it is tried again (<c>pending</c>) or given up (<c>failed</c>), with the reason.</summary>
-    public Task<bool> FailMoveAsync(Guid id, long generation, string status, string? error, CancellationToken ct = default)
+    /// <summary>
+    /// The move did not work this time: it is tried again (<c>pending</c>, back to <c>requested</c>) or given up (<c>failed</c>), with
+    /// the reason. Only called once the disk has been looked at, so the file is known to be at its old place.
+    /// </summary>
+    public Task<bool> FailMoveAsync(Guid id, string status, string? error, CancellationToken ct = default)
     {
         if (status is not ("pending" or "failed"))
         {
@@ -232,10 +258,153 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
             token.ThrowIfCancellationRequested();
             return connection.Execute("""
                 UPDATE media_file_write_intents
-                SET status = @status, lease_expires_at = NULL, last_error = @error, updated_at = @now
-                WHERE id = @id AND generation = @generation AND status = 'writing' AND move_step IS NOT NULL;
-                """, new { id, generation, status, error, now = Iso(_clock.GetUtcNow()) }, transaction) == 1;
+                SET status = @status, lease_expires_at = NULL, last_error = @error, updated_at = @now,
+                    move_step = CASE WHEN @status = 'pending' THEN 'requested' ELSE NULL END,
+                    move_source_path = NULL, move_target_path = NULL, move_source_hash = NULL
+                WHERE id = @id AND move_step IS NOT NULL;
+                """, new { id, status, error, now = Iso(_clock.GetUtcNow()) }, transaction) == 1;
         }, ct);
+    }
+
+    // ----- the steps of a move (D10) -----------------------------------------------------------------------------------------
+
+    /// <summary>Planned: written before the disk is touched, so the record always says where the file might be.</summary>
+    public Task RecordMovePlannedAsync(Guid id, string sourcePath, string targetPath, string? sourceHash, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            connection.Execute("""
+                UPDATE media_file_write_intents
+                SET move_step = 'planned', move_source_path = @sourcePath, move_target_path = @targetPath, move_source_hash = @sourceHash
+                WHERE id = @id AND move_step IS NOT NULL;
+                """, new { id, sourcePath, targetPath, sourceHash }, transaction);
+        }, ct);
+
+    /// <summary>Moved: the file is at <paramref name="actualPath"/> and the old place is empty; the data store has not followed yet.</summary>
+    public Task RecordMoveMovedAsync(Guid id, string actualPath, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            connection.Execute("""
+                UPDATE media_file_write_intents SET move_step = 'moved', move_target_path = @actualPath
+                WHERE id = @id AND move_step IS NOT NULL;
+                """, new { id, actualPath }, transaction);
+        }, ct);
+
+    /// <summary>Checked: the data store holds the new path and the file was verified there.</summary>
+    public Task RecordMoveCheckedAsync(Guid id, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            connection.Execute(
+                "UPDATE media_file_write_intents SET move_step = 'checked' WHERE id = @id AND move_step IS NOT NULL;",
+                new { id }, transaction);
+        }, ct);
+
+    /// <summary>
+    /// Starts the move over: the file was found at its old place only, so the plan is cleared and the move lane tries again. The claim
+    /// is released.
+    /// </summary>
+    public Task ResetMoveAsync(Guid id, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            connection.Execute("""
+                UPDATE media_file_write_intents
+                SET move_step = 'requested', move_source_path = NULL, move_target_path = NULL, move_source_hash = NULL,
+                    status = 'pending', lease_expires_at = NULL, updated_at = @now
+                WHERE id = @id AND move_step IS NOT NULL;
+                """, new { id, now = Iso(_clock.GetUtcNow()) }, transaction);
+        }, ct);
+
+    /// <summary>Moves with a step recorded past <c>requested</c>: the ones a stop part-way can leave on disk in either place.</summary>
+    public Task<IReadOnlyList<MediaFileWriteIntent>> GetStartedMovesAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        var rows = connection.Query<MediaFileWriteIntent>($"""
+            SELECT {SelectColumns} FROM media_file_write_intents i
+            WHERE i.target_kind = 'media_asset' AND i.move_step IN ('planned', 'moved', 'checked')
+            ORDER BY i.updated_at, i.id;
+            """).ToList();
+        return Task.FromResult<IReadOnlyList<MediaFileWriteIntent>>(rows);
+    }
+
+    public Task<MediaFileWriteIntent?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        return Task.FromResult(connection.QueryFirstOrDefault<MediaFileWriteIntent>(
+            $"SELECT {SelectColumns} FROM media_file_write_intents i WHERE i.id = @id;", new { id }));
+    }
+
+    /// <summary>
+    /// Nothing is running when the Engine starts, so every claim on a move is stale: released, so a move cut short by the stop does not
+    /// wait for its claim to run out.
+    /// </summary>
+    public Task ReleaseMoveClaimsAsync(CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            connection.Execute("""
+                UPDATE media_file_write_intents SET status = 'pending', lease_expires_at = NULL
+                WHERE move_step IS NOT NULL AND status = 'writing';
+                """, transaction: transaction);
+        }, ct);
+
+    // ----- the waiting mark (D11) --------------------------------------------------------------------------------------------
+
+    /// <inheritdoc/>
+    public Task<bool> HasMoveForAssetAsync(Guid assetId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        return Task.FromResult(connection.ExecuteScalar<long>(
+            "SELECT COUNT(*) FROM media_file_write_intents WHERE asset_id = @assetId AND move_step IS NOT NULL;", new { assetId }) > 0);
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlySet<string>> GetPathsAsync(CancellationToken ct = default) => GetPathsWithMoveInProgressAsync(ct);
+
+    /// <summary>
+    /// The old and new place of every file with a move in progress. A move that is only requested has just its current place; one
+    /// that has started also has the place it is going to.
+    /// </summary>
+    public Task<IReadOnlySet<string>> GetPathsWithMoveInProgressAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        var rows = connection.Query<(string? Current, string? Source, string? Target)>("""
+            SELECT ma.file_path_root, i.move_source_path, i.move_target_path
+            FROM media_file_write_intents i
+            LEFT JOIN media_assets ma ON ma.id = i.asset_id
+            WHERE i.move_step IS NOT NULL;
+            """);
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (current, source, target) in rows)
+        {
+            foreach (var path in new[] { current, source, target })
+            {
+                if (!string.IsNullOrWhiteSpace(path))
+                {
+                    paths.Add(Normalise(path));
+                }
+            }
+        }
+        return Task.FromResult<IReadOnlySet<string>>(paths);
+    }
+
+    private static string Normalise(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            // A path the system cannot make sense of is kept as written, so it still matches the same text.
+            return path;
+        }
     }
 
     public Task<bool> CompleteAsync(Guid assetId, long generation, string status,
@@ -265,6 +434,21 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 """, new { key, generation, status, error, now }, transaction) == 1;
         }, ct);
     }
+
+    /// <summary>
+    /// The file was changed outside Library and has been read back, so nothing was written: the row goes back to pending with the
+    /// reason, and the attempt just spent does not count. Ignored when a newer change replaced the row meanwhile.
+    /// </summary>
+    public Task<bool> ReleaseForReReadAsync(Guid id, long generation, string? reason, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            return connection.Execute("""
+                UPDATE media_file_write_intents
+                SET status = 'pending', attempts = MAX(attempts - 1, 0), lease_expires_at = NULL, last_error = @reason, updated_at = @now
+                WHERE id = @id AND generation = @generation AND status = 'writing';
+                """, new { id, generation, reason, now = Iso(_clock.GetUtcNow()) }, transaction) == 1;
+        }, ct);
 
     /// <summary>Of the given media assets, the ones that have a write waiting (pending or being written).</summary>
     public Task<ISet<Guid>> GetWaitingAssetIdsAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default)
@@ -349,6 +533,16 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
             token.ThrowIfCancellationRequested();
             connection.Execute(
                 "INSERT INTO file_write_runs (id, anchor_at) VALUES (1, @anchor) ON CONFLICT(id) DO NOTHING;",
+                new { anchor = Iso(anchor) }, transaction);
+        }, ct);
+
+    /// <summary>Moves the schedule's anchor forward (never back): the idle slots before <paramref name="anchor"/> are skipped.</summary>
+    public Task MoveAnchorForwardAsync(DateTimeOffset anchor, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            connection.Execute(
+                "UPDATE file_write_runs SET anchor_at = @anchor WHERE id = 1 AND anchor_at < @anchor;",
                 new { anchor = Iso(anchor) }, transaction);
         }, ct);
 

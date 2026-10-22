@@ -16,5 +16,9 @@ public interface IFileWriteTargetWriter
     Task<IReadOnlyList<FileWriteResult>> WriteBatchAsync(IReadOnlyList<MediaFileWriteIntent> intents, CancellationToken ct);
 }
 
-/// <summary>How one claimed row ended.</summary>
-public sealed record FileWriteResult(Guid IntentId, WriteBackOutcome Outcome);
+/// <summary>
+/// How one claimed row ended. <paramref name="ReadAgainFirst"/> means the file was changed by something else after the change was
+/// queued: nothing was written, the file's own tags were read back into Library, and the row waits for the next run (the attempt does
+/// not count against it).
+/// </summary>
+public sealed record FileWriteResult(Guid IntentId, WriteBackOutcome Outcome, bool ReadAgainFirst = false);

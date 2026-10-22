@@ -82,6 +82,21 @@ public static class SettingsEndpoints
     // Fallback display names when a provider config file has no display_name field.
     // In practice all provider configs have display_name set explicitly; this map
     // is kept as a safety net and is derived from the same data in the config files.
+    /// <summary>Write now. With write-back off nothing is written, so asking for a run is refused with a plain message.</summary>
+    internal static async Task<IResult> StartFileWriteRunAsync(
+        FileWriteScheduler scheduler, IConfigurationLoader configLoader, CancellationToken ct)
+    {
+        var settings = configLoader.LoadConfig<WriteBackConfiguration>(string.Empty, "writeback") ?? new WriteBackConfiguration();
+        if (!settings.Enabled)
+        {
+            return ApiErrors.Conflict("Write-back is turned off, so nothing can be written now. Turn it on first.");
+        }
+
+        return scheduler.RequestRun()
+            ? Results.Accepted("/settings/writeback/schedule", await scheduler.GetScheduleAsync(ct))
+            : ApiErrors.Conflict("A write run is already going.");
+    }
+
     private static readonly IReadOnlyDictionary<string, string> _displayNames =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -487,12 +502,9 @@ public static class SettingsEndpoints
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageConfigWrite);
 
-        grp.MapPost("/writeback/run", async (FileWriteScheduler scheduler, CancellationToken ct) =>
-            scheduler.RequestRun()
-                ? Results.Accepted("/settings/writeback/schedule", await scheduler.GetScheduleAsync(ct))
-                : ApiErrors.Conflict("A write run is already going."))
+        grp.MapPost("/writeback/run", StartFileWriteRunAsync)
         .WithName("StartFileWriteRun")
-        .WithSummary("Write now: starts a run over everything waiting. 202 when it was started, 409 when a run is already going.")
+        .WithSummary("Write now: starts a run over everything waiting. 202 when it was started, 409 when a run is already going or write-back is off.")
         .Produces<FileWriteScheduleDto>(StatusCodes.Status202Accepted)
         .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageConfigWrite);

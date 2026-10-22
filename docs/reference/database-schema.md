@@ -1247,8 +1247,8 @@ The durable to-do list for every write into a file (added by upgrade step `0038_
 | `status` | TEXT | `pending`, `writing`, `verified`, `blocked`, `unsupported` or `failed` |
 | `attempts` / `lease_expires_at` / `last_error` | INTEGER / TEXT / TEXT | Claim attempts, when a claimed row may be claimed again (a stopped Engine's rows come back after this), and the last reason |
 | `created_at` / `updated_at` / `completed_at` | TEXT | UTC; `completed_at` is when the last write finished |
-| `move_step` | TEXT | A library move in progress: `requested`, `planned`, `moved` or `checked` (NULL when none). Moves run at once, not on the schedule, and a row with a move in progress is not written until the move is done |
-| `move_source_path` / `move_target_path` / `move_source_hash` | TEXT | What a move was about to do, so a stop part-way can be finished or undone from what is on disk |
+| `move_step` | TEXT | A library move in progress: `requested`, `planned`, `moved` or `checked` (NULL when none). Moves run at once, not on the schedule, and a row with a move in progress is not written until the move is done. Each step is written before and after it happens (`planned` before the disk is touched, `moved` once the file is at its new place, `checked` once the stored path matches and the file was verified there); a second move asked for meanwhile keeps the first step and is planned again from the data store when the first is checked |
+| `move_source_path` / `move_target_path` / `move_source_hash` | TEXT | What a move was about to do, so a stop part-way can be finished or undone from what is on disk. Cleared when the move is done. The old and new place of every row with a move in progress is the waiting mark: the folder watcher, the rescan and the daily missing-file check leave those files alone |
 
 **Indices:** unique partial indexes on `asset_id` and `local_item_id`, `ix_media_file_write_intents_dispatch` on `(status, lease_expires_at, updated_at)` and a partial index on `move_step`.
 

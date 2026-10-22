@@ -194,7 +194,7 @@ public sealed class MediaFileWriteIntentRepositoryTests : IDisposable
         var repository = Repository;
         UpsertWithMove(_asset);
         var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
-        Assert.True(await repository.FailMoveAsync(move.Id, move.Generation, "pending", "in use"));
+        Assert.True(await repository.FailMoveAsync(move.Id, "pending", "in use"));
 
         Assert.Null(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5), [move.Id]));
         Assert.NotNull(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)));
@@ -301,6 +301,146 @@ public sealed class MediaFileWriteIntentRepositoryTests : IDisposable
             VALUES (@id,'media_asset',@asset,1,'t','auto_match','2026-10-22T00:00:00.0000000+00:00','2026-10-22T00:00:00.0000000+00:00','teleported');
             """, new { id = Guid.NewGuid(), asset = _asset }));
     }
+
+    // ----- the steps of a move, the waiting mark and the schedule (BW1b) ---------------------------------------------------------
+
+    [Fact]
+    public async Task AMove_RecordsEachStepOnItsRow_AndWhenCheckedClearsThemAndLeavesTheTagWriteWaiting()
+    {
+        var repository = Repository;
+        UpsertWithMove(_asset);
+        var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+
+        await repository.RecordMovePlannedAsync(move.Id, "C:/a/old.mp4", "C:/b/new.mp4", "hash-1");
+        var planned = (await repository.GetByIdAsync(move.Id))!;
+        Assert.Equal("planned", planned.MoveStep);
+        Assert.Equal(("C:/a/old.mp4", "C:/b/new.mp4", "hash-1"), (planned.MoveSourcePath, planned.MoveTargetPath, planned.MoveSourceHash));
+
+        await repository.RecordMoveMovedAsync(move.Id, "C:/b/new (2).mp4");
+        var moved = (await repository.GetByIdAsync(move.Id))!;
+        Assert.Equal("moved", moved.MoveStep);
+        Assert.Equal("C:/b/new (2).mp4", moved.MoveTargetPath);
+
+        await repository.RecordMoveCheckedAsync(move.Id);
+        Assert.Equal("checked", (await repository.GetByIdAsync(move.Id))!.MoveStep);
+
+        Assert.True(await repository.CompleteMoveAsync(move.Id, move.Generation));
+        var done = (await repository.GetByIdAsync(move.Id))!;
+        Assert.Null(done.MoveStep);
+        Assert.Null(done.MoveSourcePath);
+        Assert.Null(done.MoveTargetPath);
+        Assert.Null(done.MoveSourceHash);
+        Assert.Equal("pending", done.Status);
+        Assert.Single(await repository.ClaimBatchAsync("media_asset", 10, TimeSpan.FromMinutes(5), Start.AddHours(1)));
+    }
+
+    [Fact]
+    public async Task AMoveCheckedWhileWriteBackIsOff_DropsItsTagWrite_ButStillCountsAsDone()
+    {
+        var repository = Repository;
+        UpsertWithMove(_asset);
+        var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+
+        Assert.True(await repository.CompleteMoveAsync(move.Id, move.Generation, writeTags: false));
+
+        var row = (await repository.GetByIdAsync(move.Id))!;
+        Assert.Null(row.MoveStep);
+        Assert.Equal("blocked", row.Status);
+        Assert.Equal(0, (await repository.GetCountsAsync()).Waiting);
+        Assert.Empty(await repository.ClaimBatchAsync("media_asset", 10, TimeSpan.FromMinutes(5), Start.AddHours(1)));
+    }
+
+    [Fact]
+    public async Task AnotherMoveAskedForWhileOneIsInProgress_KeepsTheFirstStepAndIsPlannedAgainWhenTheFirstIsChecked()
+    {
+        var repository = Repository;
+        UpsertWithMove(_asset);
+        var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+        await repository.RecordMovePlannedAsync(move.Id, "C:/a/old.mp4", "C:/b/new.mp4", "hash-1");
+
+        UpsertWithMove(_asset);
+
+        var during = (await repository.GetByIdAsync(move.Id))!;
+        Assert.Equal("planned", during.MoveStep);
+        Assert.Equal("C:/b/new.mp4", during.MoveTargetPath);
+        Assert.Equal(move.Generation + 1, during.Generation);
+
+        await repository.RecordMoveCheckedAsync(move.Id);
+        Assert.False(await repository.CompleteMoveAsync(move.Id, move.Generation));
+
+        var again = Assert.IsType<MediaFileWriteIntent>(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)));
+        Assert.Equal("requested", again.MoveStep);
+        Assert.Null(again.MoveTargetPath);
+    }
+
+    [Fact]
+    public async Task ResettingAMove_ReleasesItsClaimAndAsksForTheMoveAgain()
+    {
+        var repository = Repository;
+        UpsertWithMove(_asset);
+        var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+        await repository.RecordMovePlannedAsync(move.Id, "C:/a/old.mp4", "C:/b/new.mp4", "hash-1");
+
+        await repository.ResetMoveAsync(move.Id);
+
+        var row = (await repository.GetByIdAsync(move.Id))!;
+        Assert.Equal(("requested", "pending"), (row.MoveStep, row.Status));
+        Assert.Null(row.MoveSourcePath);
+        Assert.NotNull(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)));
+    }
+
+    [Fact]
+    public async Task TheWaitingMark_NamesBothPlacesOfEveryMoveInProgress_AndNoOtherFile()
+    {
+        var repository = Repository;
+        var other = AddAsset("C:/fixture/untouched.mp4");
+        UpsertWithMove(_asset);
+        Assert.True((await repository.GetPathsWithMoveInProgressAsync()).SetEquals([Normalise("C:/fixture/movie.mp4")]));
+        Assert.True(await repository.HasMoveForAssetAsync(_asset));
+        Assert.False(await repository.HasMoveForAssetAsync(other));
+
+        var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+        await repository.RecordMovePlannedAsync(move.Id, "C:/fixture/movie.mp4", "C:/library/Movie (2020)/movie.mp4", null);
+
+        var marked = await repository.GetPathsWithMoveInProgressAsync();
+        Assert.True(marked.SetEquals([Normalise("C:/fixture/movie.mp4"), Normalise("C:/library/Movie (2020)/movie.mp4")]));
+        Assert.DoesNotContain(Normalise("C:/fixture/untouched.mp4"), await repository.GetPathsAsync());
+
+        await repository.CompleteMoveAsync(move.Id, move.Generation);
+        Assert.Empty(await repository.GetPathsWithMoveInProgressAsync());
+        Assert.False(await repository.HasMoveForAssetAsync(_asset));
+    }
+
+    [Fact]
+    public async Task AFileReadBackAfterAnOutsideChange_WaitsForTheNextRun_WithoutSpendingAnAttempt()
+    {
+        var repository = Repository;
+        await repository.EnqueueAssetsAsync([_asset], "auto_match");
+        var claimed = Assert.Single(await repository.ClaimBatchAsync("media_asset", 10, TimeSpan.FromMinutes(5), Start.AddHours(1)));
+        Assert.Equal(1, claimed.Attempts);
+
+        Assert.True(await repository.ReleaseForReReadAsync(claimed.Id, claimed.Generation, "The file changed outside Library."));
+
+        var row = Row<(string Status, long Attempts, string? Error)>(
+            "SELECT status AS Status, attempts AS Attempts, last_error AS Error FROM media_file_write_intents WHERE asset_id=@asset;",
+            new { asset = _asset });
+        Assert.Equal(("pending", 0L, "The file changed outside Library."), (row.Status, row.Attempts, row.Error));
+        Assert.True((await repository.GetAssetStateAsync(_asset)).Waiting);
+    }
+
+    [Fact]
+    public async Task TheScheduleAnchor_OnlyEverMovesForward()
+    {
+        var repository = Repository;
+        await repository.EnsureAnchorAsync(Start);
+
+        await repository.MoveAnchorForwardAsync(Start.AddHours(5));
+        await repository.MoveAnchorForwardAsync(Start.AddHours(2));
+
+        Assert.Equal(Start.AddHours(5), DateTimeOffset.Parse((await repository.GetRunStateAsync())!.AnchorAt));
+    }
+
+    private static string Normalise(string path) => Path.GetFullPath(path);
 
     private void UpsertWithMove(Guid asset)
     {

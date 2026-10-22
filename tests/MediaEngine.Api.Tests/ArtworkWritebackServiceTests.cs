@@ -168,6 +168,138 @@ public sealed class ArtworkWritebackServiceTests : IDisposable
         Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM media_artwork_writeback;"));
     }
 
+    // ----- a file changed outside Library after it was queued (batched write-back D11) -----------------------------------------
+
+    [Fact]
+    public async Task AFileEditedOutsideLibraryAfterQueueing_IsReadAgainFirst_AndNothingIsWritten()
+    {
+        var (assetId, path) = await AddFileAsync("the original bytes");
+        var tags = new SpyTagWriter();
+        var rereader = new SpyRereader(_database);
+        var writer = CreateWriter(tags, rereader);
+        await File.WriteAllTextAsync(path, "edited by another program");
+
+        var result = Assert.Single(await writer.WriteBatchAsync([Intent(assetId)], CancellationToken.None));
+
+        Assert.True(result.ReadAgainFirst);
+        Assert.Equal("The file changed outside Library; it will be read again before writing.", result.Outcome.Reason);
+        Assert.Empty(tags.Asked);
+        Assert.Equal([assetId], rereader.Asked);
+    }
+
+    [Fact]
+    public async Task AfterTheFileWasReadAgain_TheNextWriteGoesAhead()
+    {
+        var (assetId, path) = await AddFileAsync("the original bytes");
+        var tags = new SpyTagWriter();
+        var rereader = new SpyRereader(_database);
+        var writer = CreateWriter(tags, rereader);
+        await File.WriteAllTextAsync(path, "edited by another program");
+        Assert.True(Assert.Single(await writer.WriteBatchAsync([Intent(assetId)], CancellationToken.None)).ReadAgainFirst);
+
+        var second = Assert.Single(await writer.WriteBatchAsync([Intent(assetId)], CancellationToken.None));
+
+        Assert.False(second.ReadAgainFirst);
+        Assert.Equal(WriteBackOutcomeKind.Verified, second.Outcome.Kind);
+        Assert.Equal([assetId], tags.Asked.Select(call => call.AssetId));
+    }
+
+    [Fact]
+    public async Task AFileLibraryJustWrote_IsNotTakenForAnOutsideChange()
+    {
+        var (assetId, path) = await AddFileAsync("the original bytes");
+        var guard = CreateGuard();
+        await File.WriteAllTextAsync(path, "written by Library's own tagger");
+        Assert.True(await guard.ChangedSinceLibraryLastSawAsync(assetId, CancellationToken.None));
+
+        await guard.RecordOwnWriteAsync(assetId, CancellationToken.None);
+
+        Assert.False(await guard.ChangedSinceLibraryLastSawAsync(assetId, CancellationToken.None));
+        var writer = CreateWriter(new SpyTagWriter(), new SpyRereader(_database), guard);
+        Assert.False(Assert.Single(await writer.WriteBatchAsync([Intent(assetId)], CancellationToken.None)).ReadAgainFirst);
+    }
+
+    [Fact]
+    public async Task AFileThatCouldNotBeReadBack_IsReportedAsAnOrdinaryFailure_SoItCannotWaitForEver()
+    {
+        var (assetId, path) = await AddFileAsync("the original bytes");
+        var writer = CreateWriter(new SpyTagWriter(), new SpyRereader(_database) { Fails = true });
+        await File.WriteAllTextAsync(path, "edited by another program");
+
+        var result = Assert.Single(await writer.WriteBatchAsync([Intent(assetId)], CancellationToken.None));
+
+        Assert.False(result.ReadAgainFirst);
+        Assert.Equal(WriteBackOutcomeKind.Failed, result.Outcome.Kind);
+    }
+
+    [Fact]
+    public async Task AnUnchangedFile_IsWrittenWithoutBeingReadAgain()
+    {
+        var (assetId, _) = await AddFileAsync("the original bytes");
+        var tags = new SpyTagWriter();
+        var rereader = new SpyRereader(_database);
+
+        var result = Assert.Single(await CreateWriter(tags, rereader).WriteBatchAsync([Intent(assetId)], CancellationToken.None));
+
+        Assert.False(result.ReadAgainFirst);
+        Assert.Empty(rereader.Asked);
+        Assert.Single(tags.Asked);
+    }
+
+    private static MediaFileWriteIntent Intent(Guid assetId) =>
+        new() { Id = Guid.NewGuid(), AssetId = assetId, Trigger = "manual_override", MediaType = "Movies" };
+
+    private OutsideChangeGuard CreateGuard() => new(
+        new MediaAssetRepository(_database), new AssetHasher(), NullLogger<OutsideChangeGuard>.Instance, new FileHashCacheRepository(_database));
+
+    private MediaAssetFileWriter CreateWriter(SpyTagWriter tags, SpyRereader rereader, OutsideChangeGuard? guard = null) => new(
+        tags,
+        CreateService(new ArtworkAssetService(_database, new AssetPathService(_root), new EmptyHttpFactory()), new EmptyLibraryResolver()),
+        _configuration,
+        NullLogger<MediaAssetFileWriter>.Instance,
+        guard ?? CreateGuard(),
+        rereader);
+
+    /// <summary>A real file with a media asset whose recorded fingerprint is the file as it is now.</summary>
+    private async Task<(Guid AssetId, string Path)> AddFileAsync(string content)
+    {
+        var path = Path.Combine(_root, $"{Guid.NewGuid():N}.mkv");
+        await File.WriteAllTextAsync(path, content);
+        var hash = (await new AssetHasher().ComputeAsync(path)).Hex;
+        var work = Guid.NewGuid();
+        var edition = Guid.NewGuid();
+        var asset = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute("INSERT INTO works (id,media_type) VALUES (@work,'Movies')", new { work });
+        connection.Execute("INSERT INTO editions (id,work_id) VALUES (@edition,@work)", new { edition, work });
+        connection.Execute(
+            "INSERT INTO media_assets (id,edition_id,content_hash,file_path_root) VALUES (@asset,@edition,@hash,@path)",
+            new { asset, edition, hash, path });
+        return (asset, path);
+    }
+
+    /// <summary>Stands in for the folder watcher's re-read: records the ask and, like the real one, records the file's new fingerprint.</summary>
+    private sealed class SpyRereader(DatabaseConnection database) : IAssetRereader
+    {
+        public List<Guid> Asked { get; } = [];
+
+        public bool Fails { get; init; }
+
+        public async Task<FileMetadataRereadResult> RereadAsync(Guid assetId, CancellationToken ct)
+        {
+            Asked.Add(assetId);
+            if (Fails)
+            {
+                return new FileMetadataRereadResult(assetId, "Failed", false, true, "The file was read, but its local metadata could not be refreshed.");
+            }
+
+            var assets = new MediaAssetRepository(database);
+            var asset = (await assets.FindByIdAsync(assetId, ct))!;
+            await assets.UpdateContentHashAsync(assetId, (await new AssetHasher().ComputeAsync(asset.FilePathRoot, ct)).Hex, ct);
+            return new FileMetadataRereadResult(assetId, "Updated", true, true, "Refreshed.");
+        }
+    }
+
     private ArtworkWritebackService CreateService(ArtworkAssetService artwork, ILibraryFolderResolver libraries)
     {
         var intents = new MediaFileWriteIntentRepository(_database);

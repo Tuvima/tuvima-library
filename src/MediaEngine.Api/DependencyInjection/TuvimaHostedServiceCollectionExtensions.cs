@@ -57,7 +57,10 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<ActivityPruningService>();
         services.AddHostedService<MediaOperationRecoveryHostedService>();
         services.AddHostedService<FolderOrganiseJobWorker>();
+        services.AddSingleton<OutsideChangeGuard>();
+        services.AddSingleton<IAssetRereader, IngestionAssetRereader>();
         services.AddSingleton<IFileWriteTargetWriter, MediaAssetFileWriter>();
+        services.AddSingleton<LibraryMoveRunner>();
         services.AddSingleton<FileWriteScheduler>();
         services.AddHostedService(sp => sp.GetRequiredService<FileWriteScheduler>());
         services.AddSingleton<IngestionQueueProgressService>();

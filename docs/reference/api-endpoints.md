@@ -691,7 +691,7 @@ The action itself enforces the rule, so an application (a non-Dashboard caller h
 | PUT | `/settings/organization-template` | Save the organization template after validation | Administrator |
 | GET | `/settings/writeback/schedule` | Batched file write-back status: `{ enabled, interval_minutes, waiting_count, failed_count, is_running, run_total, run_done, last_run_at, next_run_at }`. `next_run_at` is null when nothing is waiting or write-back is off | Administrator or precise Application permission |
 | PUT | `/settings/writeback/schedule` | Body `{ "interval_minutes": 1-1440 }`; saves `run_interval_minutes` in `config/writeback.json` (400 outside the range). The scheduler reads it again on its next pass | Administrator or precise Application permission |
-| POST | `/settings/writeback/run` | Write now: starts a run over everything waiting. 202 with the schedule status, 409 when a run is already going | Administrator or precise Application permission |
+| POST | `/settings/writeback/run` | Write now: starts a run over everything waiting. 202 with the schedule status, 409 when a run is already going or write-back is turned off | Administrator or precise Application permission |
 | GET | `/settings/writeback/failed` | Files that could not be written: `[{ target_kind, asset_id, local_item_id, title, path, reason, attempts, updated_at }]` | Administrator or precise Application permission |
 
 ---

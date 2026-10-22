@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Configuration;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -149,6 +150,29 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
         using var connection = _database.CreateConnection();
         Assert.Equal("editor_commit", connection.QuerySingle<string>(
             "SELECT trigger FROM media_file_write_intents WHERE asset_id = @asset;", new { asset = _asset }));
+    }
+
+    [Fact]
+    public async Task ASaveMadeWhileWriteBackIsOff_QueuesNoTagWrite_ButStillSavesTheChange()
+    {
+        var configRoot = Path.Combine(Path.GetTempPath(), $"tuvima_editor_commit_config_{Guid.NewGuid():N}");
+        using var configuration = new ConfigurationDirectoryLoader(configRoot);
+        configuration.SaveConfig(string.Empty, "writeback", new WriteBackConfiguration { Enabled = false });
+        try
+        {
+            var committed = await new MediaEditorCommitRepository(_database, configuration)
+                .CommitVerifiedTvEpisodeMoveAsync(Move());
+
+            Assert.Equal(MediaEditorCommitOutcome.Committed, committed.Outcome);
+            using var connection = _database.CreateConnection();
+            Assert.Equal(0, connection.QuerySingle<int>("SELECT COUNT(*) FROM media_file_write_intents;"));
+            Assert.Equal(_target, connection.QuerySingle<Guid>(
+                "SELECT work_id FROM editions WHERE id = @edition;", new { edition = _edition }));
+        }
+        finally
+        {
+            try { Directory.Delete(configRoot, recursive: true); } catch (IOException) { /* The OS temp sweep removes it. */ }
+        }
     }
 
     private void SeedIntent(string trigger, string status, string? moveStep = null)

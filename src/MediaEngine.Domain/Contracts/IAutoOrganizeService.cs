@@ -36,4 +36,19 @@ public interface IAutoOrganizeService
     /// it is and the reason is recorded in the activity history. Nothing is ever overwritten.
     /// </summary>
     Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>
+    /// As <see cref="RefileAsync(Guid, CancellationToken)"/>, telling <paramref name="steps"/> about each step before and after it
+    /// happens, so a stop part-way can be finished or undone from what is on disk. Implementations that do not move files simply
+    /// re-file without recording steps.
+    /// </summary>
+    Task<AssetRefileOutcome> RefileAsync(Guid assetId, IRefileStepRecorder steps, CancellationToken ct = default) =>
+        RefileAsync(assetId, ct);
+
+    /// <summary>
+    /// Finishes a move that was cut short after the file reached <paramref name="targetPath"/>: the stored path, the files that travel
+    /// with it and the folders it left follow, exactly as they would have. Does nothing when the file is not there.
+    /// </summary>
+    Task CompleteInterruptedMoveAsync(Guid assetId, string sourcePath, string targetPath, CancellationToken ct = default) =>
+        Task.CompletedTask;
 }

@@ -1,10 +1,14 @@
 using Dapper;
+using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Services.FileWrites;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
+using MediaEngine.Ingestion;
 using MediaEngine.Storage;
 using MediaEngine.TestSupport;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -36,7 +40,11 @@ public sealed class FileWriteSchedulerTests : IDisposable
         Intents = new MediaFileWriteIntentRepository(_database, _clock);
         Queue = new FileWriteQueue(Intents, _configuration, NullLogger<FileWriteQueue>.Instance);
         Scheduler = new FileWriteScheduler(
-            Intents, [_writer], _organizer, _configuration, _clock, NullLogger<FileWriteScheduler>.Instance);
+            Intents, [_writer],
+            new LibraryMoveRunner(
+                Intents, _organizer, new MediaAssetRepository(_database), new AssetHasher(), _configuration,
+                NullLogger<LibraryMoveRunner>.Instance),
+            _configuration, _clock, NullLogger<FileWriteScheduler>.Instance);
         var work = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute("INSERT INTO works(id,media_type,work_kind) VALUES(@work,'Music','child');", new { work });
@@ -69,6 +77,21 @@ public sealed class FileWriteSchedulerTests : IDisposable
         using var connection = _database.CreateConnection();
         return connection.QuerySingle<(string, long, int, string?)>(
             "SELECT status, generation, attempts, move_step FROM media_file_write_intents WHERE asset_id=@asset;", new { asset });
+    }
+
+    private void PutTitle(Guid asset, string title)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO canonical_values(entity_id, key, value, last_scored_at) VALUES(@asset, 'title', @title, @now)
+            ON CONFLICT(entity_id, key) DO UPDATE SET value = excluded.value;
+            """, new { asset, title, now = Start.ToString("O") });
+    }
+
+    private string TitleOf(Guid asset)
+    {
+        using var connection = _database.CreateConnection();
+        return connection.ExecuteScalar<string>("SELECT value FROM canonical_values WHERE entity_id=@asset AND key='title';", new { asset })!;
     }
 
     private int RowCount()
@@ -255,6 +278,129 @@ public sealed class FileWriteSchedulerTests : IDisposable
         _clock.Advance(TimeSpan.FromSeconds(21));
         await Scheduler.TickAsync();
         Assert.Single(_writer.Written);
+    }
+
+    [Fact]
+    public async Task AfterAnIdleSpell_ANewChangeWaitsForTheNextSlot_InsteadOfBeingWrittenWithinSeconds()
+    {
+        var early = AddAsset();
+        await Scheduler.AnchorScheduleAsync(CancellationToken.None);
+        _clock.Advance(TimeSpan.FromMinutes(150));
+        await Scheduler.TickAsync();
+
+        await Queue.EnqueueAssetAsync(early, "manual_override");
+        _clock.Advance(TimeSpan.FromSeconds(2));
+        await Scheduler.TickAsync();
+        Assert.Empty(_writer.Written);
+
+        // The slots keep their rhythm from the first start: 60, 120, 180 minutes. The next one after 150 minutes is at 180.
+        var next = await Scheduler.GetNextRunAtAsync();
+        Assert.Equal(Start.AddMinutes(180), next);
+        Assert.InRange(next - _clock.GetUtcNow(), TimeSpan.Zero, TimeSpan.FromMinutes(60));
+
+        _clock.Advance(TimeSpan.FromMinutes(30) - TimeSpan.FromSeconds(2) - TimeSpan.FromSeconds(1));
+        await Scheduler.TickAsync();
+        Assert.Empty(_writer.Written);
+
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        await Scheduler.TickAsync();
+        Assert.Single(_writer.Written);
+    }
+
+    [Fact]
+    public async Task AnIdleSpellNeverMovesTheNextSlotMoreThanOneIntervalAway()
+    {
+        await Scheduler.AnchorScheduleAsync(CancellationToken.None);
+
+        foreach (var minutes in new[] { 61, 119, 250, 1000 })
+        {
+            _clock.Advance(TimeSpan.FromMinutes(minutes));
+            await Scheduler.TickAsync();
+            var wait = await Scheduler.GetNextRunAtAsync() - _clock.GetUtcNow();
+            Assert.InRange(wait, TimeSpan.Zero, TimeSpan.FromMinutes(60));
+        }
+    }
+
+    [Fact]
+    public async Task ARefreshLandingWhileAnEntryWaits_LeavesOneEntry_AndTheRunWritesTheRefreshedValues()
+    {
+        var asset = AddAsset();
+        PutTitle(asset, "Old title");
+        await Scheduler.AnchorScheduleAsync(CancellationToken.None);
+        await Queue.EnqueueAssetAsync(asset, "auto_match");
+        var titleAtWriteTime = new List<string>();
+        _writer.Next = intent =>
+        {
+            titleAtWriteTime.Add(TitleOf(intent.AssetId));
+            return WriteBackOutcome.Verified();
+        };
+
+        // A metadata refresh lands while the file waits: Library saves the new values and asks again.
+        PutTitle(asset, "Refreshed title");
+        await Queue.EnqueueAssetAsync(asset, "universe_enrichment");
+        Assert.Equal(1, RowCount());
+        Assert.Equal(2, Row(asset).Generation);
+
+        _clock.Advance(TimeSpan.FromMinutes(60));
+        await Scheduler.TickAsync();
+
+        Assert.Equal("Refreshed title", Assert.Single(titleAtWriteTime));
+        Assert.Equal("universe_enrichment", Assert.Single(_writer.Written).Trigger);
+        Assert.Equal("verified", Row(asset).Status);
+    }
+
+    [Fact]
+    public async Task AFileChangedOutsideLibrary_IsReadAgainFirst_WritesNothing_AndWaitsWithoutSpendingAnAttempt_ThenIsWrittenOnTheNextRun()
+    {
+        var asset = AddAsset();
+        await Scheduler.AnchorScheduleAsync(CancellationToken.None);
+        await Queue.EnqueueAssetAsync(asset, "manual_override");
+        var firstTime = true;
+        _writer.ReadAgain = _ =>
+        {
+            var again = firstTime;
+            firstTime = false;
+            return again;
+        };
+
+        _clock.Advance(TimeSpan.FromMinutes(60));
+        await Scheduler.TickAsync();
+
+        var waiting = Row(asset);
+        Assert.Equal("pending", waiting.Status);
+        Assert.Equal(0, waiting.Attempts);
+        using (var connection = _database.CreateConnection())
+        {
+            Assert.Equal("The file changed outside Library; it will be read again before writing.", connection.ExecuteScalar<string>(
+                "SELECT last_error FROM media_file_write_intents WHERE asset_id=@asset;", new { asset }));
+        }
+        Assert.True((await Intents.GetAssetStateAsync(asset)).Waiting);
+
+        _clock.Advance(TimeSpan.FromMinutes(60));
+        await Scheduler.TickAsync();
+
+        Assert.Equal("verified", Row(asset).Status);
+        Assert.Equal(2, _writer.Written.Count);
+    }
+
+    [Fact]
+    public async Task WriteNow_WhileWriteBackIsOff_IsRefusedWithAPlainMessage_AndStartsNoRun()
+    {
+        var asset = AddAsset();
+        await Scheduler.AnchorScheduleAsync(CancellationToken.None);
+        await Queue.EnqueueAssetAsync(asset, "auto_match");
+        SaveSettings(settings => settings.Enabled = false);
+
+        var refused = await SettingsEndpoints.StartFileWriteRunAsync(Scheduler, _configuration, CancellationToken.None);
+
+        var problem = Assert.IsAssignableFrom<IStatusCodeHttpResult>(refused);
+        Assert.Equal(StatusCodes.Status409Conflict, problem.StatusCode);
+        Assert.Contains("turned off", Assert.IsType<ProblemHttpResult>(refused).ProblemDetails.Detail, StringComparison.Ordinal);
+        Assert.False(Scheduler.GetProgress().IsRunning);
+
+        SaveSettings(settings => settings.Enabled = true);
+        var accepted = await SettingsEndpoints.StartFileWriteRunAsync(Scheduler, _configuration, CancellationToken.None);
+        Assert.Equal(StatusCodes.Status202Accepted, Assert.IsAssignableFrom<IStatusCodeHttpResult>(accepted).StatusCode);
     }
 
     [Fact]
@@ -596,6 +742,8 @@ public sealed class FileWriteSchedulerTests : IDisposable
 
         public Action? WhileWriting { get; set; }
 
+        public Func<MediaFileWriteIntent, bool>? ReadAgain { get; set; }
+
         public bool Throw { get; set; }
 
         public string TargetKind => MediaFileWriteIntentRepository.MediaAssetKind;
@@ -612,7 +760,9 @@ public sealed class FileWriteSchedulerTests : IDisposable
             {
                 Written.Add(intent);
                 WhileWriting?.Invoke();
-                results.Add(new FileWriteResult(intent.Id, Next?.Invoke(intent) ?? WriteBackOutcome.Verified()));
+                results.Add(ReadAgain?.Invoke(intent) == true
+                    ? new FileWriteResult(intent.Id, WriteBackOutcome.Failed("The file changed outside Library; it will be read again before writing."), ReadAgainFirst: true)
+                    : new FileWriteResult(intent.Id, Next?.Invoke(intent) ?? WriteBackOutcome.Verified()));
             }
 
             return Task.FromResult<IReadOnlyList<FileWriteResult>>(results);

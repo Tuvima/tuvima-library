@@ -19,7 +19,8 @@ public sealed record WriteBackStageDependencies(
     IEntityAssetRepository? EntityAssetRepository,
     AssetPathService? AssetPathService,
     IWorkRepository? WorkRepository,
-    IAssetExportService? AssetExportService);
+    IAssetExportService? AssetExportService,
+    IFileWriteQueue? FileWriteQueue = null);
 
 public sealed record IdentityJobStageDependencies(
     IIdentityPipelineSignal? Signal);

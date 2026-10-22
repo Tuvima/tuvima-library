@@ -12,10 +12,12 @@ namespace MediaEngine.Api.Services.FileWrites;
 /// <list type="bullet">
 ///   <item>The <b>move lane</b> runs every couple of seconds: a file whose library move was requested is renamed and moved at once,
 ///   through the organiser's re-file (which asks the shared mutation policy again and leaves As-is, protected and read-only files where
-///   they are). Its tags are not written here; the row goes back to waiting for the scheduled run.</item>
+///   they are). Each step is written on the row before and after it happens, and a move cut short by a stop is finished or undone from
+///   what is on disk when the Engine starts. Its tags are not written here; the row goes back to waiting for the scheduled run.</item>
 ///   <item>The <b>batch lane</b> starts a run when an administrator chose Write now, or when something is waiting and the interval
 ///   (<c>run_interval_minutes</c>) has passed since the last run finished (the first interval counts from when the scheduler first
-///   started). A run claims the waiting rows in chunks per kind of target, hands each chunk to that kind's writer and records the
+///   started; after an idle spell the slots keep their regular rhythm, so a change waits for the next slot rather than being written
+///   at once). A run claims the waiting rows in chunks per kind of target, hands each chunk to that kind's writer and records the
 ///   outcome. If the Engine was off when a run was due, the run happens shortly after it starts.</item>
 /// </list>
 /// Both lanes are safe to repeat: a row that was being worked on when the Engine stopped is claimed again once its lease runs out.
@@ -23,7 +25,7 @@ namespace MediaEngine.Api.Services.FileWrites;
 public sealed class FileWriteScheduler(
     MediaFileWriteIntentRepository intents,
     IEnumerable<IFileWriteTargetWriter> writers,
-    IAutoOrganizeService organizer,
+    LibraryMoveRunner mover,
     IConfigurationLoader configuration,
     TimeProvider clock,
     ILogger<FileWriteScheduler> logger) : BackgroundService
@@ -86,12 +88,27 @@ public sealed class FileWriteScheduler(
         }
     }
 
-    /// <summary>Remembers when the scheduler first started (kept in the data store) and when this start happened.</summary>
+    /// <summary>
+    /// Remembers when the scheduler first started (kept in the data store) and when this start happened, then finishes or undoes any
+    /// library move that a stop left part-way, before the move lane begins.
+    /// </summary>
     internal async Task AnchorScheduleAsync(CancellationToken ct)
     {
         var now = clock.GetUtcNow();
         _startedAt = now;
         await intents.EnsureAnchorAsync(now, ct);
+        try
+        {
+            var recovered = await mover.RecoverInterruptedAsync(ct);
+            if (recovered > 0)
+            {
+                logger.LogInformation("Looked at {Count} library move(s) that a stop left part-way.", recovered);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Library moves that a stop left part-way could not be looked at; they are tried again at the next start.");
+        }
     }
 
     /// <summary>One pass of both lanes. Returns true when it did any work.</summary>
@@ -157,10 +174,19 @@ public sealed class FileWriteScheduler(
 
     private DateTimeOffset ComputeNextRun(FileWriteRunState? state, TimeSpan interval)
     {
-        var baseline = ParseTime(state?.LastRunFinishedAt) ?? ParseTime(state?.AnchorAt) ?? _startedAt ?? clock.GetUtcNow();
-        var next = baseline + interval;
+        var next = Baseline(state) + interval;
         var earliest = (_startedAt ?? clock.GetUtcNow()) + StartupGrace;
         return next > earliest ? next : earliest;
+    }
+
+    /// <summary>The slot counts from the later of the schedule's anchor (moved forward across idle spells) and the last finished run.</summary>
+    private DateTimeOffset Baseline(FileWriteRunState? state)
+    {
+        var anchor = ParseTime(state?.AnchorAt);
+        var finished = ParseTime(state?.LastRunFinishedAt);
+        return anchor is { } a && finished is { } f
+            ? (a > f ? a : f)
+            : anchor ?? finished ?? _startedAt ?? clock.GetUtcNow();
     }
 
     private async Task<bool> ShouldStartRunAsync(CancellationToken ct)
@@ -183,6 +209,7 @@ public sealed class FileWriteScheduler(
             {
                 _runRequested = false;
             }
+            await SkipIdleSlotsAsync(ct);
             return false;
         }
 
@@ -195,6 +222,30 @@ public sealed class FileWriteScheduler(
         var settings = LoadSettings();
         return settings.Enabled
             && clock.GetUtcNow() >= ComputeNextRun(await intents.GetRunStateAsync(ct), settings.RunInterval);
+    }
+
+    /// <summary>
+    /// A slot that comes round with nothing waiting is simply skipped: the anchor moves forward by whole intervals to the latest slot
+    /// that has passed, so a change made after an idle spell waits for the next slot instead of being written within seconds.
+    /// </summary>
+    private async Task SkipIdleSlotsAsync(CancellationToken ct)
+    {
+        var interval = LoadSettings().RunInterval;
+        var state = await intents.GetRunStateAsync(ct);
+        if (state is null)
+        {
+            return;
+        }
+
+        var now = clock.GetUtcNow();
+        var due = Baseline(state) + interval;
+        if (now < due)
+        {
+            return;
+        }
+
+        var passed = (long)((now - due).Ticks / interval.Ticks);
+        await intents.MoveAnchorForwardAsync(due + (interval * passed), ct);
     }
 
     // ----- The move lane ----------------------------------------------------------------------------------------------------
@@ -212,41 +263,28 @@ public sealed class FileWriteScheduler(
             }
 
             handled.Add(intent.Id);
-            var failure = await RefileAsync(intent, ct);
-            if (failure is null)
+            var result = await mover.MoveAsync(intent, ct);
+            switch (result.Kind)
             {
-                var done = await intents.CompleteMoveAsync(intent.Id, intent.Generation, ct);
-                logger.LogInformation(
-                    "Library move for asset {AssetId} finished; its tags wait for the next write run{Stale}.",
-                    intent.AssetId, done ? string.Empty : " (a newer change arrived while it ran)");
-                continue;
+                case LibraryMoveRunner.MoveResultKind.Done:
+                    var done = await intents.CompleteMoveAsync(
+                        intent.Id, intent.Generation, LoadSettings().AllowsTrigger(MediaFileWriteTriggers.LibraryMove), ct);
+                    logger.LogInformation(
+                        "Library move for asset {AssetId} finished; its tags wait for the next write run{Stale}.",
+                        intent.AssetId, done ? string.Empty : " (a newer change arrived while it ran, so the move is planned again)");
+                    break;
+                case LibraryMoveRunner.MoveResultKind.Retry:
+                    var status = intent.Attempts < MaxAttempts ? "pending" : "failed";
+                    await intents.FailMoveAsync(intent.Id, status, result.Reason, ct);
+                    break;
+                case LibraryMoveRunner.MoveResultKind.Lost:
+                    logger.LogWarning("The file of asset {AssetId} was lost mid-move; it is on the failed list.", intent.AssetId);
+                    break;
+                default:
+                    // Part-way and not settled: the steps stay on the row and the next start looks at the disk again.
+                    logger.LogWarning("Library move for asset {AssetId} is part-way: {Reason}", intent.AssetId, result.Reason);
+                    break;
             }
-
-            var status = intent.Attempts < MaxAttempts ? "pending" : "failed";
-            await intents.FailMoveAsync(intent.Id, intent.Generation, status, failure, ct);
-        }
-    }
-
-    /// <summary>
-    /// Renames and moves the file of a library move. Returns why it should be tried again, or null when the file is where it should be
-    /// or was deliberately left alone (the organiser records that in the activity history).
-    /// </summary>
-    private async Task<string?> RefileAsync(MediaFileWriteIntent intent, CancellationToken ct)
-    {
-        try
-        {
-            var filed = await organizer.RefileAsync(intent.AssetId, ct);
-            return filed.Kind == AssetRefileOutcomeKind.Failed ? filed.Reason ?? "The file could not be renamed and moved." : null;
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            // Lease expiry safely recovers an interrupted process.
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Renaming the file of asset {AssetId} after a library move failed.", intent.AssetId);
-            return ex.Message;
         }
     }
 
@@ -304,10 +342,17 @@ public sealed class FileWriteScheduler(
                     var results = await WriteChunkAsync(writer, chunk, ct);
                     foreach (var intent in chunk)
                     {
-                        var outcome = results.TryGetValue(intent.Id, out var result)
-                            ? result
-                            : WriteBackOutcome.Failed("The writer gave no result for this file.");
-                        var (status, error) = MapCompletion(intent, outcome);
+                        var result = results.TryGetValue(intent.Id, out var found)
+                            ? found
+                            : new FileWriteResult(intent.Id, WriteBackOutcome.Failed("The writer gave no result for this file."));
+                        if (result.ReadAgainFirst)
+                        {
+                            // The file was changed outside Library and has been read back; it waits for the next run, attempt not counted.
+                            await intents.ReleaseForReReadAsync(intent.Id, intent.Generation, result.Outcome.Reason, ct);
+                            continue;
+                        }
+
+                        var (status, error) = MapCompletion(intent, result.Outcome);
                         if (!await intents.CompleteByIdAsync(intent.Id, intent.Generation, status, error, ct))
                         {
                             logger.LogInformation(
@@ -369,15 +414,15 @@ public sealed class FileWriteScheduler(
         }
     }
 
-    private async Task<Dictionary<Guid, WriteBackOutcome>> WriteChunkAsync(
+    private async Task<Dictionary<Guid, FileWriteResult>> WriteChunkAsync(
         IFileWriteTargetWriter writer, IReadOnlyList<MediaFileWriteIntent> chunk, CancellationToken ct)
     {
-        var outcomes = new Dictionary<Guid, WriteBackOutcome>();
+        var outcomes = new Dictionary<Guid, FileWriteResult>();
         try
         {
             foreach (var result in await writer.WriteBatchAsync(chunk, ct))
             {
-                outcomes[result.IntentId] = result.Outcome;
+                outcomes[result.IntentId] = result;
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -390,7 +435,7 @@ public sealed class FileWriteScheduler(
             logger.LogWarning(ex, "A batch of {Count} {Kind} file write(s) failed; each will be retried.", chunk.Count, writer.TargetKind);
             foreach (var intent in chunk)
             {
-                outcomes.TryAdd(intent.Id, WriteBackOutcome.Failed(ex.Message));
+                outcomes.TryAdd(intent.Id, new FileWriteResult(intent.Id, WriteBackOutcome.Failed(ex.Message)));
             }
         }
 
