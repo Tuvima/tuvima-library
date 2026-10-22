@@ -34,6 +34,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Batched write-back (all files, on a schedule, with ExifTool)](specs/batched-writeback.md) | Built, awaiting Local checks (v2; #416, #419, #420, #422, BW5 docs) |
 | [Spec: Encrypted plugin and integration keys](specs/encrypted-plugin-keys.md) | Locked (v1, 2026-10-21, change note 2026-10-22; EK1 and EK3 before plugin install WP19, EK2 with a 4-digit PIN after Backup and restore WP3) |
 | [Spec: Backup and restore (settings and personal state)](specs/backup-and-restore.md) | Built, awaiting your Local checks (v8, 2026-10-22; [handoff](handoffs/2026-10-21-backup-and-restore.md) done; WP1 to WP6 built: #397, #405, #421, #424, #428, #431; checks L1 to L6 in [the batch list](validation/batch.md)) |
+| [Spec: Users, profiles and households](specs/users-profiles-households.md) | Draft (v1, 2026-10-22; the profile holds the person and its access, a user is a sign-in; Q1 to Q7 open; the unmerged delete-user work on `claude/wizardly-franklin-trjrs8` folds into it) |
 | [Spec: Right-sized pictures on every screen](specs/archive/right-sized-pictures.md) | Built (v1, archived 2026-10-22; awaiting Local checks L1-L4; features to consider later (WebP, F1-F3) in its section 13) |
 | [Spec: Person credits and series search without the whole-library credit list](specs/archive/person-credits-and-series-search-speed.md) | Built (v2, archived 2026-10-21; follow-ups R1 and R2 in its section 8) |
 | [Archive](specs/archive/README.md) | Built specs |
