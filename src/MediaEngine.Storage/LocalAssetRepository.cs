@@ -703,6 +703,31 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         return kinds;
     }
 
+    public IReadOnlyDictionary<Guid, string> GetContentKinds(IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(itemIds);
+        var kinds = new Dictionary<Guid, string>();
+        using var connection = database.CreateConnection();
+        foreach (var chunk in itemIds.Where(id => id != Guid.Empty).Distinct().Chunk(500))
+        {
+            ct.ThrowIfCancellationRequested();
+            foreach (var row in connection.Query<ContentKindRow>(new CommandDefinition(
+                         "SELECT id AS Id, content_kind AS ContentKind FROM local_items WHERE id IN @ids AND content_kind IS NOT NULL;",
+                         new { ids = chunk.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct)))
+            {
+                kinds[row.Id] = row.ContentKind;
+            }
+        }
+
+        return kinds;
+    }
+
+    private sealed class ContentKindRow
+    {
+        public Guid Id { get; init; }
+        public string ContentKind { get; init; } = string.Empty;
+    }
+
     private sealed class MediaKindRow
     {
         public Guid Id { get; init; }
