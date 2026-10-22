@@ -217,7 +217,7 @@ Score blending: 85% composite (type-aware scoring) / 15% original Wikidata API s
 
 Stage 2 (Wikidata) requires bridge IDs from Stage 1 (retail). If Stage 1 produces no match:
 - The text-only Wikidata fallback is **removed** - no automatic text reconciliation bypass
-- The item routes directly to the review queue with `RetailMatchFailed`
+- The file is marked **Unmatched** (`unmatched_assets`): it stays where it is, keeps playing and browsing with its file name and tags, and is looked up again later (weekly, after a provider or plugin change, or on Retry now). No Needs Review item is created; that queue is for matches the Engine found but is unsure about
 
 Bridge resolution guard: non-music Stage 2 requests require real bridge IDs from Stage 1. Title-only hints are not a Wikidata bypass; when no bridge ID is available, the item stays in the precision-preserving no-match/review path.
 

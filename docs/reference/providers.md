@@ -262,7 +262,7 @@ Cover similarity can boost an already plausible candidate, but it cannot rescue 
 |---|---|---|
 | Auto-accept | >= 0.90 | Match accepted automatically and allowed to proceed to Wikidata |
 | Ambiguous | 0.65 - <0.90 | Review queue (`RetailMatchAmbiguous`) |
-| Failed | < 0.65 or no results | Review queue (`RetailMatchFailed`) |
+| Failed | < 0.65 or no results | **Unmatched**: the file stays where it is, plays with its file name and tags, and is looked up again later; no Needs Review item |
 
 Additional contradiction gates apply before auto-accept. Weak creator agreement can cap a candidate to review, grouped TV auto-accept requires exact show/season/episode agreement, and grouped music auto-accept requires track-number or duration corroboration.
 

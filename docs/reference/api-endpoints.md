@@ -227,7 +227,7 @@ through compatibility routes.
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/settings/libraries` | Return the complete library configuration, including stable sources and universal incoming sources | Administrator |
+| GET | `/settings/libraries` | Return the complete library configuration, including stable sources and universal incoming sources. Each library carries a read-only `unmatched_count` (files the Engine could not match, kept-as-is files excluded; `0` for anyone who is not an effective administrator) | Administrator |
 | GET | `/settings/library-kinds` | Every library kind (type of library) in order (Watch, Listen, Read, View, Vault, then each kind's `order`): the kinds in `config/library_kinds.json` followed by the kinds of switched-on declarative plugins. Each entry has `key`, `area`, `label`, `icon`, `format`, `lookup_providers` (empty means no lookup), `naming_template`, `misfit`, `default_handling`, `tooltip`, `order`, `built_in`, `plugin_id` (null for a built-in kind), `available` (false for a kind that is defined but not offered yet; screens show only available kinds), `allows_multiple` (true when a person may keep several named libraries of the kind) and `max_libraries` (how many; 1 unless `allows_multiple`). Same access as `GET /settings/libraries` | Administrator |
 | PUT | `/settings/libraries` | Validate and replace the complete schema-7 library configuration; the library responses (GET, PUT, mutation) include `import_folder_status` (whether the optional import folder is set and which types still need a destination) | Administrator |
 | GET | `/settings/tools` | The last tools check: each tool and AI model with whether it is required, its state (`ready`, `missing`, `problem`, `downloading`, `installer_ready`), what it affects, how to fix it for this install, and how many files are waiting on it, whether the Library can install it (`can_install`, `can_download_again`). Runs a first check if none has run | Administrator |
@@ -411,6 +411,13 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/library/overview` | Aggregated library health and readiness view, including `hidden_by_quality_gate`, `art_pending`, `retail_needs_review`, `qid_no_match`, and `completed_with_art`. Every count comes from one counts-only pass over the item projection. | Required |
+| GET | `/library/unmatched/counts` | Each library's Unmatched count (kept-as-is files excluded) as `{ counts: { library_id: n } }`, for the libraries the caller may see; a library with none is absent | Effective administrator |
+| GET | `/library/unmatched/libraries/{libraryId}` | One library's Unmatched files, newest first: `{ items, total, skip, take }`. Query `include_kept` (default false), `skip`, `take` (1 to 200, default 50). Each item is `{ asset_id, library_id, title, file_name, reason ("no_match" or "no_youtube_id"), first_unmatched_at, last_tried_at, next_retry_at, kept_as_is }`; only the file's name is returned, never its folder. `404` for an unknown library or a Vault library | Effective administrator |
+| POST | `/library/unmatched/libraries/{libraryId}/retry` | Retry now for a whole library: looks up again every Unmatched file in it that is not kept. Returns `{ affected }` | Effective administrator |
+| POST | `/library/unmatched/libraries/{libraryId}/keep` | Keep all Unmatched as they are, for one library: stops their retries and clears them from the count and filter. Returns `{ affected }` | Effective administrator |
+| POST | `/library/unmatched/items/{assetId}/retry` | Retry now for one Unmatched file that is not kept (`affected` is `0` for a kept file). `404` when the file is not Unmatched | Effective administrator |
+| POST | `/library/unmatched/items/{assetId}/keep` | Keep as is: stops the file's retries and clears it from the count and filter | Effective administrator |
+| POST | `/library/unmatched/items/{assetId}/look-up-again` | Look up again: clears the kept mark and looks the file up now | Effective administrator |
 
 ---
 
