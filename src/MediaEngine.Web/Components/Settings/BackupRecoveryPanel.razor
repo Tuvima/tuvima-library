@@ -319,6 +319,17 @@
                 return null;
             }
 
+            var days = state.WaitingPeriodDays;
+            var waiting = state.StillWaiting.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+            var waitingOnly = state.StillWaiting == 1
+                ? $"1 item is waiting for its file; it'll return if the file does, and is cleared after {days} days."
+                : $"{waiting} items are waiting for their files; they'll return if the files do, and are cleared after {days} days.";
+            if (restore.Attached <= 0)
+            {
+                // Nothing came back yet: say only what waits, and nothing at all when nothing waits either.
+                return state.StillWaiting > 0 ? waitingOnly : null;
+            }
+
             var attached = restore.Attached == 1
                 ? "1 item got its progress and bookmarks back."
                 : $"{restore.Attached.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)} items got their progress and bookmarks back.";
@@ -327,10 +338,9 @@
                 return attached;
             }
 
-            var waiting = state.StillWaiting.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
             return state.StillWaiting == 1
-                ? $"{attached} 1 is waiting for its file; it'll return if the file does, and is cleared after {state.WaitingPeriodDays} days."
-                : $"{attached} {waiting} are waiting for their files; they'll return if the files do, and are cleared after {state.WaitingPeriodDays} days.";
+                ? $"{attached} 1 is waiting for its file; it'll return if the file does, and is cleared after {days} days."
+                : $"{attached} {waiting} are waiting for their files; they'll return if the files do, and are cleared after {days} days.";
         }
     }
 

@@ -155,6 +155,41 @@ public sealed class BackupRecoveryPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void WhenNothingCameBackYetAndSeveralItemsWait_TheSummaryLineSaysOnlyWhatWaits()
+    {
+        _state = new BackupStateDto(0, 90, 3, Restore(attached: 0, DateTimeOffset.UtcNow.AddDays(-1)));
+
+        var cut = Render<BackupRecoveryPanel>();
+
+        cut.WaitForAssertion(() => Assert.Equal(
+            "3 items are waiting for their files; they'll return if the files do, and are cleared after 90 days.",
+            cut.Find("[data-testid='restore-summary']").TextContent));
+    }
+
+    [Fact]
+    public void WhenNothingCameBackYetAndOneItemWaits_TheSummaryLineSaysOnlyThatOneWaits()
+    {
+        _state = new BackupStateDto(0, 60, 1, Restore(attached: 0, DateTimeOffset.UtcNow.AddDays(-30)));
+
+        var cut = Render<BackupRecoveryPanel>();
+
+        cut.WaitForAssertion(() => Assert.Equal(
+            "1 item is waiting for its file; it'll return if the file does, and is cleared after 60 days.",
+            cut.Find("[data-testid='restore-summary']").TextContent));
+    }
+
+    [Fact]
+    public void WhenNothingCameBackAndNothingWaits_TheSummaryLineIsHidden_EvenRightAfterTheRestore()
+    {
+        _state = new BackupStateDto(0, 90, 0, Restore(attached: 0, DateTimeOffset.UtcNow.AddHours(-1)));
+
+        var cut = Render<BackupRecoveryPanel>();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid='backup-note']")));
+        Assert.Empty(cut.FindAll("[data-testid='restore-summary']"));
+    }
+
+    [Fact]
     public void WithNoRestoreEver_NoSummaryLineIsShown_AndNoItemIsListed()
     {
         _state = new BackupStateDto(0, 90, 0, null);
