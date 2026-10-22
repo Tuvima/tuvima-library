@@ -1,7 +1,10 @@
+/* One width for every step (the folder picker's), so the dialog does not jump between steps. */
 .add-wizard {
     display: grid;
     gap: 16px;
-    min-width: 0;
+    box-sizing: border-box;
+    width: min(calc(100vw - 64px), 820px);
+    max-width: 100%;
 }
 
 .add-wizard__steps {
@@ -29,10 +32,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    font-size: 1.75rem;
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    font-size: 40px;
     color: var(--add-wizard-colour, var(--tl-text-muted));
     background: color-mix(in srgb, var(--add-wizard-colour, var(--tl-text-muted)) 16%, transparent);
 }

@@ -13,20 +13,22 @@ Use Settings in Tuvima Library to add folders and check background work. This fi
 
 ## Choose how a folder is handled
 
-Libraries is one screen: **Settings > Libraries**. The seven media types (Books, Audiobooks, Movies, TV Shows, Music, Comics, Videos) are always listed, with the Import folder as an extra entry. There is no separate Library settings page.
+Libraries is **Settings > Libraries**, in three levels: Watch, Listen, Read and View, then the types in each (Books, Audiobooks, Movies, TV Shows, Music, Comics, Videos and Photos & personal videos), with the Import folder as an extra entry. There is no separate Library settings page.
 
-1. Open **Settings > Libraries** with admin access and choose a media type.
-2. Choose **Add folder** and pick the folder.
-   - Paste or type a path into the full-width path box, then press Enter or **Go**.
+1. Open **Settings > Libraries** with admin access and choose **+ Add folder** (on the front door, on a group's page, or **Add Folder** on a type's page). A short three-step dialog opens: **What is it?**, **Folder**, then **How**. Opening it from a type's page skips the first step.
+   - **What is it?** Pick Watch, Listen, Read or View, then the kind. The (i) beside each kind says what belongs there. Choosing View takes you to View's own add-folder form.
+2. In the **Folder** step, pick the folder.
+   - The address bar shows the folder as clickable names. Click a name to go there, or the small arrow after it to jump to a folder inside it. Click the empty end of the bar to type or paste a full path instead, then press Enter (Esc puts the names back).
    - Single-click a folder to select it, and double-click to open it.
-   - Use **Back**, **Forward**, **Up** or the breadcrumbs to move around, and the folder search to find a folder by name.
+   - Use **Back**, **Forward**, **Up** and the folder search to find a folder by name.
    - **Selected path** shows what you picked, with a copy button.
-   - Media locations are listed before drives. Only folders are listed, the Library's own folders never appear, and **Add** turns on when the folder is valid.
+   - Media locations are listed before drives. Only folders are listed, the Library's own folders never appear, and **Next** turns on when the folder is valid.
+   - A Watch folder that looks like untouched phone footage (for example `DCIM` with `IMG_` files) gets a hint with **Add to View instead**. Nothing is saved until the last step.
    - Paths are shown as the server sees them. On Docker that means paths inside the container, such as `/library`, not paths on your computer.
    - If a path does not exist, the picker says so in plain words.
-   - Every folder asks **Videos (Watch)** or **Photos and videos (View)**. A folder that looks like untouched phone footage (for example `DCIM` with `IMG_` files) is suggested for View. Choosing Videos turns on the optional YouTube lookup and the **OK for limited profiles** switch; removing a Videos folder never touches the files.
+   - Choosing the Videos kind offers the optional YouTube lookup (in the last step) and the **OK for limited profiles** switch; removing a Videos folder never touches the files.
    - Every library type has a **Recycle bin** switch (on for Videos). With it on, a deleted file is kept in Library's own data folder instead of being removed straight away. Settings lists what is waiting there; **Put back** returns a file to where it was (nothing is ever overwritten) and **Empty recycle bin** removes everything for good.
-3. If the folder already has files, choose **Use read-only** (recommended), **Merge into** a managed folder, or **Let Tuvima manage it**.
+3. In the **How** step, if the folder already has files, choose **Read-only** (recommended), **Merge into your managed folder**, or **Let Library manage it**. An empty folder only asks whether new media should go there. **Add folder** saves it; the dialog then offers **Go to** the type or **Add another**.
 
 Every folder is handled one of two ways:
 

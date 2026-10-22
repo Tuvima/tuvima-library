@@ -40,13 +40,15 @@ else
                                    type="text"
                                    class="server-folder-picker__address-field server-folder-picker__address-input"
                                    aria-label="Folder path"
+                                   aria-invalid="@(_pathMessage is not null ? "true" : null)"
+                                   aria-describedby="@(_pathMessage is not null ? _pathErrorId : null)"
                                    autocomplete="off"
                                    spellcheck="false"
                                    value="@_pathText"
                                    placeholder="Type or paste a folder path (for example /media/movies) and press Enter"
                                    @oninput="PathInput"
                                    @onkeydown="PathKeyDownAsync"
-                                   @onblur="CancelPathEditAsync" />
+                                   @onblur="PathBlurAsync" />
                         </div>
                     }
                     else
@@ -81,7 +83,7 @@ else
                     }
                     @if (_pathMessage is not null)
                     {
-                        <div class="app-field__help tl-field-error" role="alert">@_pathMessage</div>
+                        <div id="@_pathErrorId" class="app-field__help tl-field-error" role="alert">@_pathMessage</div>
                     }
                 </div>
             }
@@ -320,6 +322,7 @@ else
     // Always the path exactly as the Engine reports it (inside the container when the Engine runs in Docker); never translated.
     private string _selectedPathText = string.Empty;
     private string? _pathMessage;
+    private readonly string _pathErrorId = $"server-folder-picker-path-error-{Guid.NewGuid():N}";
     private string? _copyMessage;
     private string _search = string.Empty;
     private string _pathText = string.Empty;
@@ -437,6 +440,7 @@ else
     private async Task SelectLocationAsync(ServerStorageLocationDto location, string? relativePath = null)
     {
         CancelSearchDebounce();
+        EndPathEdit();
         _activeLocation = location;
         _search = string.Empty;
         _selectedRelativePath = relativePath ?? string.Empty;
@@ -448,6 +452,7 @@ else
     private async Task NavigateAsync(string relativePath, bool preserveSelection = false, bool fromHistory = false)
     {
         if (_activeLocation is null) return;
+        EndPathEdit();
         var generation = ++_browseGeneration;
         _browseRequest?.Cancel();
         _browseRequest?.Dispose();
@@ -571,6 +576,7 @@ else
     private async Task SelectFolderAsync(ServerFolderEntryDto folder, int position)
     {
         _focusList = true;
+        EndPathEdit();
         _highlight = position;
         _selectedFolder = folder.RelativePath;
         _selectedRelativePath = folder.RelativePath;
@@ -715,7 +721,24 @@ else
         _focusPathInput = true;
     }
 
-    // Esc or leaving the box goes back to the folder names; nothing is browsed and the earlier selection returns.
+    // Leaving the box untouched goes back to the folder names. A path that was typed but not entered stays in the box: only Enter
+    // uses it and only Esc drops it, so moving to the Next button can neither confirm the earlier folder nor lose the typing unseen
+    // (Next stays off while the typed path is waiting).
+    private async Task PathBlurAsync()
+    {
+        if (_pathEdited) return;
+        await CancelPathEditAsync();
+    }
+
+    // Choosing a folder, drive or crumb with the mouse replaces whatever was being typed.
+    private void EndPathEdit()
+    {
+        _editingPath = false;
+        _pathEdited = false;
+        _beforeEdit = null;
+    }
+
+    // Esc goes back to the folder names; nothing is browsed and the earlier selection returns.
     private async Task CancelPathEditAsync()
     {
         if (!_editingPath) return;
@@ -811,25 +834,35 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        try
+        // Each focus request is a flag set while handling an event; it runs here, once the elements have rendered.
+        if (_lifetime.IsCancellationRequested) return;
+        if (_focusPathInput && _editingPath)
         {
-            if (_focusPathInput && _editingPath)
+            _focusPathInput = false;
+            await TryAsync(async () =>
             {
-                _focusPathInput = false;
                 _fields ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-fields.js");
-                await _fields.InvokeVoidAsync("selectText", _pathInput);
-            }
-            else if (_focusAddressEnd && !_editingPath)
-            {
-                _focusAddressEnd = false;
-                if (!_focusList && _addressEnd.Id is not null) await _addressEnd.FocusAsync();
-            }
-
-            if (!_focusList || _loadingBrowse) return;
-            _focusList = false;
-            await _listElement.FocusAsync();
+                if (_pathInput.Id is not null) await _fields.InvokeVoidAsync("selectText", _pathInput);
+            });
         }
+        else if (_focusAddressEnd && !_editingPath)
+        {
+            _focusAddressEnd = false;
+            if (!_focusList) await TryFocusAsync(_addressEnd);
+        }
+
+        if (!_focusList || _loadingBrowse) return;
+        _focusList = false;
+        await TryFocusAsync(_listElement);
+    }
+
+    private Task TryFocusAsync(ElementReference element) => element.Id is null ? Task.CompletedTask : TryAsync(async () => await element.FocusAsync());
+
+    private static async Task TryAsync(Func<Task> focus)
+    {
+        try { await focus(); }
         catch (JSDisconnectedException) { /* The circuit closed while focus was moving; nothing to restore. */ }
+        catch (JSException) { /* Focus is a convenience; the element may have gone away between the render and this call. */ }
     }
 
     private void InvalidateValidation()
