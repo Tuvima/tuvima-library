@@ -1,6 +1,8 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Ui
+@inject IAppDialogService DialogService
 
 @* The Libraries front door: one card per group (Watch, Listen, Read, View, and the Vault when it may be shown) with its types,
    a health icon and counts, then the Import folder row. The page title and one-line subtitle come from the Settings frame. *@
@@ -55,6 +57,19 @@
         </a>
     }
 
+    @if (!ReadOnly)
+    {
+        <div class="lib-door__actions">
+            <AppButton Label="Add folder"
+                       StartIcon="@AppMaterialIcons.Outlined.Add"
+                       ButtonStyle="@(NoFolders ? AppButtonStyle.Filled : AppButtonStyle.Outlined)"
+                       Tone="@(NoFolders ? AppUiTone.Primary : AppUiTone.Neutral)"
+                       Class="lib-door__add"
+                       aria-label="Add folder"
+                       OnClick="AddFolderAsync" />
+        </div>
+    }
+
     <LibraryIconLegend ShowHealth="true" />
 </div>
 
@@ -73,6 +88,22 @@
     [Parameter] public bool ShowVault { get; set; }
     /// <summary>Phones: cards and counts only, with a note saying where to change folders.</summary>
     [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Raised after a folder was added through the wizard, so the page can refresh its counts.</summary>
+    [Parameter] public EventCallback FolderAdded { get; set; }
+
+    // With no folder anywhere (View's included) the button is the one prominent primary action on the page.
+    private bool NoFolders => Configuration.Libraries.All(library => library.Sources.Count == 0) && (ViewFolders ?? 0) == 0;
+
+    private async Task AddFolderAsync()
+    {
+        var parameters = new AppDialogParameters<AddFolderWizard>
+        {
+            { component => component.ShowVault, ShowVault },
+            { component => component.Configuration, Configuration },
+            { component => component.OnFolderAdded, (Func<string?, Task>)(_ => FolderAdded.InvokeAsync()) },
+        };
+        await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
+    }
 
     private IReadOnlyList<LibraryGroupSummary> Summaries => [.. LibraryGroupCatalog.Visible(ShowVault)
         .Select(group => LibraryRollup.SummaryFor(group, Configuration, Overview, ViewFolders, PathIssues))];

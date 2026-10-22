@@ -63,7 +63,8 @@
                                   ViewFolders="@_viewFolders"
                                   PathIssues="@_pathIssues"
                                   ShowVault="@VaultVisible"
-                                  ReadOnly="@readOnly" />
+                                  ReadOnly="@readOnly"
+                                  FolderAdded="FolderAddedAsync" />
                 break;
             case LevelKind.Group:
                 <LibraryGroupPage Group="@(level.Group!)"
@@ -71,10 +72,15 @@
                                   Overview="@_overview"
                                   ViewFolders="@_viewFolders"
                                   PathIssues="@_pathIssues"
-                                  ReadOnly="@readOnly" />
+                                  ReadOnly="@readOnly"
+                                  FolderAdded="FolderAddedAsync" />
                 break;
             case LevelKind.Photos:
-                <ViewLibrarySettings Configuration="@_configuration" ReadOnly="@readOnly" RootChanged="LoadAsync" />
+                <ViewLibrarySettings Configuration="@_configuration"
+                                     ReadOnly="@readOnly"
+                                     StartAdding="@StartAdding"
+                                     InitialPath="@StartPath"
+                                     RootChanged="LoadAsync" />
                 break;
             case LevelKind.Type:
                 <LibraryFoldersPanel @key="@level.TypeKey"
@@ -216,6 +222,18 @@
 
     // A jump from the Import folder's "Choose" arrives with ?highlight=add so Add Folder is pointed at on the type's page.
     private bool HighlightAdd => string.Equals(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("highlight"), "add", StringComparison.OrdinalIgnoreCase);
+
+    // The Add folder wizard hands View over with ?add=folder (and the folder it was shown, as ?path=); View's own add form opens.
+    private bool StartAdding => string.Equals(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("add"), "folder", StringComparison.OrdinalIgnoreCase);
+
+    private string? StartPath => StartAdding ? RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("path") : null;
+
+    // A folder was added from the front door or a group page: its counts and health are read again.
+    private async Task FolderAddedAsync()
+    {
+        await RefreshConfigurationAsync();
+        await LoadSummaryAsync();
+    }
 
     private Level CurrentLevel => ResolveLevel();
 

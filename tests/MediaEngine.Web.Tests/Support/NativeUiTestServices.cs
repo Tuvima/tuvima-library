@@ -18,6 +18,7 @@ internal static class NativeUiTestServices
         services.TryAddScoped(_ => new DeviceContextService(EngineApiClientStub.CreateDefault()));
         services.TryAddScoped<IAppToastService>(provider => provider.GetRequiredService<AppToastService>());
         services.TryAddScoped<MediaEngine.Web.Services.Settings.ApprovalFlow>();
+        services.TryAddScoped<MediaEngine.Web.Components.Settings.LibraryFolderAddService>();
         return services;
     }
 }
