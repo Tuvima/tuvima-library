@@ -920,3 +920,12 @@
 .tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(69svh, 47rem); }
 @media (max-height: 760px) { .tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(58svh, 47rem); } }
 @media (width < 840px) { .tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(48svh, 26rem); } }
+
+.cinematic-hero--landing .tl-detail-media-stage__cover-wrap { --hc: min(30rem, 52svh); position: absolute; z-index: 2; top: 50%; right: 8vw; height: var(--hc); transform: translateY(-50%); pointer-events: none; }
+.cinematic-hero--landing .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap,
+.cinematic-hero--landing .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap { width: var(--hc); }
+.cinematic-hero--landing .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap { --hero-book-cover-height: var(--hc); aspect-ratio: 2 / 3; height: auto; }
+.cinematic-hero--landing .tl-detail-media-stage--audiobook .tl-detail-media-stage__foreground,
+.cinematic-hero--landing .tl-detail-media-stage--square .tl-detail-media-stage__foreground,
+.cinematic-hero--landing .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover,
+.cinematic-hero--landing .tl-detail-media-stage--square .tl-detail-media-stage__cover { width: 100%; height: 100%; object-fit: contain; }

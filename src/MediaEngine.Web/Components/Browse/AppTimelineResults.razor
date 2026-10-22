@@ -15,7 +15,7 @@
             <small>@YearSemantic</small>
         </header>
 
-        <div class="app-timeline__groups">
+        <AppCssElement Tag="div" Class="app-timeline__groups" Css="@($"--timeline-artwork-size:{TimelineArtworkSizePx}px")">
             @foreach (var group in Groups)
             {
                 @if (Grouping == TimelineGrouping.Decade && (group == Groups.First() || (Groups.TakeWhile(value => value != group).Last().Key / 10 != group.Key / 10)))
@@ -32,11 +32,12 @@
                     </header>
 
                     <div class="app-timeline__items">
-                        @foreach (var item in group)
+                        @foreach (var item in ItemsInYear(group))
                         {
                             <a class="app-timeline__item"
                                href="@ItemNavigationUrl(item)"
-                               aria-label="@($"Open {item.Title}")"
+                               title="@HoverDetails(item)"
+                               aria-label="@($"Open {HoverDetails(item)}")"
                                @key="item.RenderKey">
                                 <span class="app-timeline__artwork @ArtworkShapeClass(item.Shape)">
                                     @if (!string.IsNullOrWhiteSpace(ItemArtworkUrl(item)))
@@ -53,13 +54,12 @@
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ImageNotSupported" />
                                     }
                                 </span>
-                                <span class="app-timeline__item-title" title="@item.Title">@item.Title</span>
                             </a>
                         }
                     </div>
                 </section>
             }
-        </div>
+        </AppCssElement>
     </div>
 </section>
 
@@ -140,6 +140,28 @@
     private string CountLabel(int count) => count == 1
         ? $"1 {ItemNoun}"
         : $"{count} {ItemNoun}s";
+
+    // Covers by the same creator sit side by side within a year, in the order the creator's first item appears; unknown creators come last.
+    private static IReadOnlyList<MediaTileViewModel> ItemsInYear(IEnumerable<MediaTileViewModel> items)
+    {
+        var ordered = items
+            .Select((item, index) => (item, index, creator: CreatorKey(item)))
+            .GroupBy(entry => entry.creator, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group.Key.Length == 0)
+            .ThenBy(group => group.Min(entry => entry.index))
+            .SelectMany(group => group.OrderBy(entry => entry.index).Select(entry => entry.item))
+            .ToList();
+        return ordered;
+    }
+
+    private static string CreatorKey(MediaTileViewModel item) => (item.Creator ?? string.Empty).Trim();
+
+    // The title lives in the hover tooltip so the timeline reads as a wall of covers.
+    private static string HoverDetails(MediaTileViewModel item)
+    {
+        var parts = new[] { item.Title, CreatorKey(item), item.SortYear > 0 ? item.SortYear.ToString() : null };
+        return string.Join(" · ", parts.Where(part => !string.IsNullOrWhiteSpace(part)));
+    }
 
     private static string ItemNavigationUrl(MediaTileViewModel item) =>
         StringHelpers.FirstNonBlank(item.DetailsNavigationUrl, item.NavigationUrl, item.PrimaryNavigationUrl) ?? "/";

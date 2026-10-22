@@ -103,6 +103,16 @@
                     }
                 </div>
             }
+            @if (ShowsAlbumTrackCount)
+            {
+                @* An album is one tile however many songs it holds; the count is the only hint of that. *@
+                <div class="media-tile-group-indicators">
+                    <span class="media-tile-group-count" aria-label="@GroupCountAriaLabel" title="@GroupCountAriaLabel">
+                        <AppMaterialIcon Icon="@GroupCountIcon" />
+                        <span>@Item.PreviewTotalCount</span>
+                    </span>
+                </div>
+            }
             <AppArtworkProgress Enabled="@SupportsCompletion" State="@Item.ContinuationState" Percent="@Item.ProgressPct" MediaKind="@Item.MediaKind" RemainingSeconds="@Item.RemainingSeconds" Label="@Item.ProgressLabel" />
         </div>
 
@@ -315,6 +325,9 @@
 
     private bool ShouldHideGroupKind => HideGroupIndicators || HideGroupKind;
     private bool ShouldHideGroupCount => HideGroupIndicators || HideGroupCount;
+    private bool ShowsAlbumTrackCount => Item.Presentation == MediaTilePresentation.Album
+        && Item.PreviewTotalCount is > 0
+        && !(Item.IsCollection && !ShouldHideGroupCount);
     private string CardImageLoading => EagerArtwork ? "eager" : "lazy";
 
     private bool _hoverRegistered;

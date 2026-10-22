@@ -3363,7 +3363,8 @@ public partial class ListenPage
             route: $"/details/musicalbum/{album.CollectionId:D}?context=listen",
             presentation: MediaTilePresentation.Album,
             primaryActionLabel: "Open",
-            sortYear: int.TryParse(album.Year, out var albumYear) ? albumYear : 0);
+            sortYear: int.TryParse(album.Year, out var albumYear) ? albumYear : 0,
+            creator: album.Creator);
 
     private MediaTileViewModel ToArtistAlbumTile(CollectionGroupSeasonDto album)
     {
@@ -3395,7 +3396,8 @@ public partial class ListenPage
         string? logoUrl = null,
         string? description = null,
         IReadOnlyList<string>? facts = null,
-        int sortYear = 0)
+        int sortYear = 0,
+        string? creator = null)
     {
         var small = MediaTileArtworkUrl.Sized(imageUrl, "s");
         var medium = MediaTileArtworkUrl.Sized(imageUrl, "m");
@@ -3409,6 +3411,7 @@ public partial class ListenPage
             Id = id,
             Title = title,
             Subtitle = subtitle,
+            Creator = creator,
             Description = description,
             CoverUrl = imageUrl,
             BackgroundUrl = backgroundUrl,

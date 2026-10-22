@@ -117,8 +117,11 @@ public sealed class MediaTileComposerService
 
     private static DiscoveryHeroViewModel FromDisplayHero(DisplayHeroDto hero, ISet<Guid>? settling = null)
     {
-        var heroSurfaceKind = ResolveHeroSurfaceKind(hero.Artwork);
-        var heroPreviewSurfaceKind = ResolvePreviewSurfaceKind(hero.Artwork);
+        // Audiobook and album covers are square; when the provider reported no pixel size they must not default to a portrait poster.
+        var heroSurfaceKind = ResolveHeroSurfaceKind(hero.Artwork,
+            hero.MediaType is "Audiobook" or "Music" ? MediaTileSurfaceKind.CoverSquare : MediaTileSurfaceKind.CoverPortrait);
+        var heroPreviewSurfaceKind = ResolvePreviewSurfaceKind(hero.Artwork,
+            hero.MediaType is "Audiobook" or "Music" ? MediaTileSurfaceKind.CoverSquare : MediaTileSurfaceKind.CoverPortrait);
         var primaryAction = hero.Progress?.ResumeAction ?? hero.Actions.FirstOrDefault();
         var secondaryAction = hero.Actions.Skip(1).FirstOrDefault();
 
@@ -520,7 +523,7 @@ public sealed class MediaTileComposerService
             or MediaTileBucket.Audiobook
             or MediaTileBucket.Music;
 
-    private static MediaTileSurfaceKind ResolveHeroSurfaceKind(DisplayArtworkDto artwork)
+    private static MediaTileSurfaceKind ResolveHeroSurfaceKind(DisplayArtworkDto artwork, MediaTileSurfaceKind fallback = MediaTileSurfaceKind.CoverPortrait)
     {
         // Background and banner are semantic landscape roles. They remain valid
         // hero backdrops even when a provider did not report pixel dimensions.
@@ -534,14 +537,14 @@ public sealed class MediaTileComposerService
             return MediaTileSurfaceKind.BannerLandscape;
         }
 
-        return ResolvePreviewSurfaceKind(artwork);
+        return ResolvePreviewSurfaceKind(artwork, fallback);
     }
 
-    private static MediaTileSurfaceKind ResolvePreviewSurfaceKind(DisplayArtworkDto artwork)
+    private static MediaTileSurfaceKind ResolvePreviewSurfaceKind(DisplayArtworkDto artwork, MediaTileSurfaceKind fallback = MediaTileSurfaceKind.CoverPortrait)
     {
         if (!string.IsNullOrWhiteSpace(artwork.CoverUrl))
         {
-            return ShapeFromDimensions(artwork.CoverWidthPx, artwork.CoverHeightPx);
+            return ShapeFromDimensions(artwork.CoverWidthPx, artwork.CoverHeightPx, fallback);
         }
 
         if (!string.IsNullOrWhiteSpace(artwork.SquareUrl))
@@ -554,7 +557,7 @@ public sealed class MediaTileComposerService
             return MediaTileSurfaceKind.BannerLandscape;
         }
 
-        return MediaTileSurfaceKind.CoverPortrait;
+        return fallback;
     }
 
     private static MediaTileSurfaceKind ShapeFromDimensions(int? width, int? height, MediaTileSurfaceKind fallback = MediaTileSurfaceKind.CoverPortrait)

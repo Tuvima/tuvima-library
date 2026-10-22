@@ -33,6 +33,45 @@ public sealed class HomeSpotlightStateTests
     }
 
     [Fact]
+    public async Task HeroSkipsItemsStillSettlingOrWithoutArtwork()
+    {
+        DisplayWorkRow Movie(string title, string? background, bool updating) => new()
+        {
+            WorkId = Guid.NewGuid(),
+            AssetId = Guid.NewGuid(),
+            MediaType = "Movie",
+            Title = title,
+            CreatedAt = DateTimeOffset.UtcNow,
+            BackgroundUrl = background,
+            IsUpdatingDetails = updating,
+        };
+        var ready = Movie("Ready", "/ready.jpg", false);
+        var home = await Composer(new Repository([Movie("Settling", "/settling.jpg", true), Movie("No art", null, false), ready], [])).BuildHomeAsync();
+        var hero = Assert.Single(home.Spotlights);
+        Assert.Equal("Ready", hero.Title);
+    }
+
+    [Fact]
+    public async Task ListenShelfShowsAnAlbumOnceWhenTracksNameDifferentFeaturedArtists()
+    {
+        DisplayWorkRow Track(string title, string artist, Guid? root = null) => new()
+        {
+            WorkId = Guid.NewGuid(),
+            AssetId = Guid.NewGuid(),
+            RootWorkId = root ?? Guid.Empty,
+            MediaType = "Music",
+            Title = title,
+            Album = "One Album",
+            Artist = artist,
+            CreatedAt = DateTimeOffset.UtcNow,
+            CoverUrl = "/cover.jpg",
+        };
+        var home = await Composer(new Repository([Track("A", "Lead"), Track("B", "Lead feat. Guest"), Track("C", "Lead & Friend")], [])).BuildHomeAsync();
+        var album = Assert.Single(home.Shelves.Single(shelf => shelf.Key == "listen-next").Items);
+        Assert.Equal(3, album.PreviewTotalCount);
+    }
+
+    [Fact]
     public async Task MostRecentlySavedStartedShowIsTvRepresentative()
     {
         var profile = Guid.NewGuid();
