@@ -20,6 +20,7 @@
                                  AriaLabel="When the same file arrives twice"
                                  Disabled="@(ReadOnly || Busy)" />
         </div>
+        <LibraryWriteSchedulePanel ReadOnly="@ReadOnly" />
         <AppSwitchRow Label="Embed artwork in files"
                       Description="Puts cover art inside the files Library writes tags to. Available while at least one type has tags switched on."
                       Value="@(_artwork?.ArtworkEnabled ?? false)"
