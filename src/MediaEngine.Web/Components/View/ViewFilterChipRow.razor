@@ -1,0 +1,29 @@
+@namespace MediaEngine.Web.Components.View
+
+@* A quiet row of choose-any chips that narrows a View list (who added the items, or their tags). Nothing chosen means everyone/everything. The row draws nothing below MinimumChoices. *@
+@if (Choices.Count >= MinimumChoices)
+{
+    <div class="view-filter-chips" role="group" aria-label="@Label">
+        <span class="sr-only">@Label</span>
+        @foreach (var choice in Choices)
+        {
+            var chosen = Selected.Contains(choice.Id);
+            <AppChip @key="choice.Id" Text="@choice.Text" Tone="@(chosen ? AppUiTone.Primary : AppUiTone.Neutral)"
+                     Variant="@(chosen ? (AppVariant?)AppVariant.Filled : null)" aria-pressed="@(chosen ? "true" : "false")"
+                     OnClick="@(() => OnToggle.InvokeAsync(choice.Id))" />
+        }
+    </div>
+}
+
+@code {
+    /// <summary>The name for assistive technology only (for example "Added by"); never drawn.</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired] public IReadOnlyList<ViewFilterChoice> Choices { get; set; } = [];
+
+    [Parameter] public IReadOnlySet<Guid> Selected { get; set; } = new HashSet<Guid>();
+
+    [Parameter] public int MinimumChoices { get; set; } = 1;
+
+    [Parameter] public EventCallback<Guid> OnToggle { get; set; }
+}

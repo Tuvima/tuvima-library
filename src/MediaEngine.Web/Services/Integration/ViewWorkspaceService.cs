@@ -30,6 +30,12 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
         ? OtherPeople?.Households.SelectMany(household => household.People).FirstOrDefault(person => person.ProfileId == id)?.DisplayName
         : null;
 
+    // Until the scopes load the answer is unknown, so nothing is hidden; once they do, a kind the profile may not use is not offered (the Engine already withholds its items).
+    public bool CanViewDocuments => Scopes?.CanViewDocuments != false;
+    public bool CanViewPersonalVideos => Scopes?.CanViewPersonalVideos != false;
+    /// <summary>The Photos entry is the timeline of photos and personal videos together, so it shows while the profile may use either.</summary>
+    public bool CanViewPhotoTimeline => Scopes is null || Scopes.CanViewPhotos || Scopes.CanViewPersonalVideos;
+
     public ViewTimelineDensity Density => Preferences?.TimelineDensity ?? ViewTimelineDensity.Comfortable;
     public bool ViewerInfoOpen => Preferences?.ViewerInfoOpen ?? true;
     public IReadOnlyList<ViewGalleryDto> OwnedGalleries { get; private set; } = [];
