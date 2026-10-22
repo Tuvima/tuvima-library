@@ -129,6 +129,19 @@ public sealed class ToolsInstallActionsTests : AsyncBunitContext
         Assert.DoesNotContain(cut.FindAll("[data-tool-id=ffmpeg] button"), button => button.TextContent.Trim() == "Install for me");
     }
 
+    [Fact]
+    public void ToolsPage_ListsExifToolBesideTheOtherTools_WithItsInstallButton()
+    {
+        _onGet = () => Tools(
+            Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready),
+            Tool(ToolRequirementIds.ExifTool, "ExifTool", requirement: ToolRequirementLevels.Optional, canInstall: true, fix: "Download ExifTool."));
+
+        var cut = Render<ToolsRequirementsTab>();
+
+        Assert.Contains("ExifTool", cut.Find("[data-tool-id=exiftool]").TextContent, StringComparison.Ordinal);
+        Assert.Contains(cut.FindAll("[data-tool-id=exiftool] button"), button => button.TextContent.Trim() == "Install for me");
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private static ToolRequirementsDto Tools(params ToolRequirementDto[] rows) => new(

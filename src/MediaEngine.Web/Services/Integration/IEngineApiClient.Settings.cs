@@ -8,12 +8,28 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Profiles;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.System;
+using MediaEngine.Contracts.WriteBack;
 using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Integration;
 
 public partial interface IEngineApiClient
 {
+    /// <summary>GET /settings/writeback/schedule: the time between file write runs, how many files are waiting or failed, a run's progress and the last and next run. Null when the Engine could not be asked.</summary>
+    Task<FileWriteScheduleDto?> GetFileWriteScheduleAsync(CancellationToken ct = default);
+
+    /// <summary>PUT /settings/writeback/schedule: saves the minutes between runs (1 to 1440) and returns the fresh status; null when it was not saved.</summary>
+    Task<FileWriteScheduleDto?> UpdateFileWriteScheduleAsync(int intervalMinutes, CancellationToken ct = default);
+
+    /// <summary>POST /settings/writeback/run: Write now. A refusal (a run is already going, write-back is off, not an administrator) comes back as a plain sentence, not an error.</summary>
+    Task<FileWriteRunResult> StartFileWriteRunAsync(CancellationToken ct = default);
+
+    /// <summary>GET /settings/writeback/failed: the files that could not be written, with why. Empty when none or the Engine could not be asked.</summary>
+    Task<IReadOnlyList<FailedFileWriteDto>> GetFailedFileWritesAsync(CancellationToken ct = default);
+
+    /// <summary>GET /metadata/assets/{assetId}/file-write: whether changes are waiting to be written into this file. Null when the Engine could not be asked.</summary>
+    Task<AssetFileWriteStatusDto?> GetAssetFileWriteStatusAsync(Guid assetId, CancellationToken ct = default);
+
     /// <summary>The Engine's last tools check, or <c>null</c> when the Engine could not be asked.</summary>
     Task<ToolRequirementsDto?> GetToolRequirementsAsync(CancellationToken ct = default);
 
@@ -435,3 +451,6 @@ public sealed record ToolLocationResult(bool Success, ToolRequirementsDto? Tools
 
 /// <summary>The outcome of an install, cancel, run-installer or decline request: the fresh tools list, or a short plain reason it was refused.</summary>
 public sealed record ToolActionResult(bool Success, ToolRequirementsDto? Tools = null, string? ErrorMessage = null);
+
+/// <summary>The outcome of Write now: the fresh status when a run started, or a short plain reason it did not.</summary>
+public sealed record FileWriteRunResult(bool Started, FileWriteScheduleDto? Schedule = null, string? Message = null);
