@@ -34,7 +34,7 @@ public static class PdfWriteSafety
             {
                 // Any signature field, filled or empty, or a signature flag on the form, keeps the file as it is.
                 if (form.Dictionary.ContainsKey(UglyToad.PdfPig.Tokens.NameToken.Create("SigFlags"))
-                    || form.GetFields().Any(field => field.FieldType == UglyToad.PdfPig.AcroForms.Fields.AcroFieldType.Signature))
+                    || form.Fields.Any(field => field.FieldType == UglyToad.PdfPig.AcroForms.Fields.AcroFieldType.Signature))
                 {
                     return ViewProfileNameFormats.KeptSignedPdfReason;
                 }

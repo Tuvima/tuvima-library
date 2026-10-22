@@ -4478,6 +4478,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewSourceAd
   SkippedFileCount: System.Int32 | nullability=not-null | accessors=get,init
   AddedByProfileId: System.Guid? | nullability=nullable | accessors=get,init
   AcceptsPhotosAndVideos: System.Boolean | nullability=not-null | accessors=get,init
+  KeptInLibraryCount: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTagDto
   Id: System.Guid | nullability=not-null | accessors=get,init

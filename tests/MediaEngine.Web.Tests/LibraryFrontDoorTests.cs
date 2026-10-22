@@ -173,9 +173,9 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         new(Guid.NewGuid(), "local_folder", "Photos", "linked", location, true, true, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
     private static ViewSourceAdminDto ViewSource(
-        string location, string name, string kind, int skipped = 0, bool photosAndVideos = false) =>
+        string location, string name, string kind, int skipped = 0, bool photosAndVideos = false, int keptInLibrary = 0) =>
         new(Guid.NewGuid(), "local_folder", name, "linked", location, true, true, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow,
-            ContentKind: kind, SkippedFileCount: skipped, AcceptsPhotosAndVideos: photosAndVideos);
+            ContentKind: kind, SkippedFileCount: skipped, AcceptsPhotosAndVideos: photosAndVideos, KeptInLibraryCount: keptInLibrary);
 
     private IRenderedComponent<LibrariesTab> Open(string? subsection = null, string? detail = null)
     {
@@ -870,6 +870,26 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.Equal("These files aren't photos, so this folder leaves them out. They stay where they are.",
             skipped.ParentElement!.GetAttribute("data-playback-tooltip"));
         Assert.DoesNotContain("skipped", Text(rows[1]), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AFolderWithFilesKeptInLibraryOnlySaysSoNextToTheSkippedNote_AndOneWithNoneSaysNothing()
+    {
+        _personalSpace = TestSpace;
+        _viewSources =
+        [
+            ViewSource("D:\\Pictures", "Pictures", "photos", skipped: 12, keptInLibrary: 3),
+            ViewSource("E:\\Phone", "Phone", "photos", keptInLibrary: 1),
+            ViewSource("F:\\Trips", "Trips", "photos"),
+        ];
+        var page = Open("view", "photos");
+
+        page.WaitForAssertion(() => Assert.Equal(3, page.FindAll(".view-source-row").Count));
+        var rows = page.FindAll(".view-source-row");
+        var notes = rows[0].QuerySelectorAll("small").Select(Text).ToList();
+        Assert.Equal(["12 files skipped", "3 files kept in Library only"], notes);
+        Assert.Equal(["1 file kept in Library only"], rows[1].QuerySelectorAll("small").Select(Text).ToList());
+        Assert.DoesNotContain("kept in Library", Text(rows[2]), StringComparison.Ordinal);
     }
 
     [Fact]
