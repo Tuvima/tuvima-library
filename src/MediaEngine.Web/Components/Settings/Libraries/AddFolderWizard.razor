@@ -480,12 +480,17 @@
         GoTo(WizardStep.Folder);
     }
 
-    // The library step opens on the first existing library, or on a new custom library when the kind has none yet.
+    // The library step opens on the first existing library, or on a new custom library when the kind has none yet; the first
+    // library of a kind starts out named for it (the person can change it), later ones start empty.
     private void PreselectLibrary()
     {
         if (_libraryChoice == NewLibraryChoice && CanAddLibrary) return;
         if (ChosenLibrary is not null) return;
         _libraryChoice = ExistingLibraries.FirstOrDefault()?.Id ?? (CanAddLibrary ? NewLibraryChoice : null);
+        if (_libraryChoice == NewLibraryChoice && ExistingLibraries.Count == 0 && string.IsNullOrWhiteSpace(_newLibraryName) && _type is not null)
+        {
+            _newLibraryName = _type.Label;
+        }
     }
 
     private void GoTo(WizardStep step)

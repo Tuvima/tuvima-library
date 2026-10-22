@@ -473,6 +473,35 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TheFirstLibraryOfAKindStartsOutNamedForTheKindAndCanBeEdited()
+    {
+        var label = LibraryKindsTestData.Catalog.Find("other_videos")!.Label;
+        await OpenWizardAsync(type: "other_videos");
+
+        Assert.Equal("true", _dialogs.Find("[data-library=new]").GetAttribute("aria-checked"));
+        Assert.Equal(label, _dialogs.Find(".add-wizard__field input").GetAttribute("value"));
+        Assert.False(Button("Next").HasAttribute("disabled"));
+        Click("Next");
+        _dialogs.WaitForElement(".server-folder-picker");
+        PickFolder(path: "E:\\Courses");
+        GoToHow();
+        await AddFolderAsync();
+
+        Assert.Equal(label, Assert.Single(_mutations).Library!.Name);
+    }
+
+    [Fact]
+    public async Task WhenLibrariesAlreadyExistANewCustomLibraryStartsWithAnEmptyName()
+    {
+        AddOtherAudioLibraries("Vinyl rips");
+        await OpenWizardAsync(type: "other_audio", kinds: EveryKind());
+
+        _dialogs.Find("[data-library=new]").Click();
+
+        Assert.Equal(string.Empty, _dialogs.Find(".add-wizard__field input").GetAttribute("value") ?? string.Empty);
+    }
+
+    [Fact]
     public async Task ChoosingAnExistingLibraryAddsTheFolderToThatLibrary()
     {
         AddOtherAudioLibraries("Vinyl rips", "Voice notes");

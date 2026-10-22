@@ -86,22 +86,30 @@
             @foreach (var row in Rows)
             {
                 var type = row.Type;
-                @* The warning's words open on hover and on keyboard focus of the link itself. *@
-                <AppTooltip Class="lib-page__tip" Text="@(row.Health is { Healthy: false } ? row.Health.Text : null)">
-                <a class="lib-page__row" href="@AddressFor(type)" data-type="@type.Key" data-library="@type.LibraryId" aria-label="@AccessibleName(row)">
+                @* Only the library's name is the link; the Metadata icons, the Unmatched count and the health warning are their own tab stops
+                   after it, so no interactive content sits inside a link. The warning's words open on hover and focus of the icon. *@
+                <div class="lib-page__row" data-type="@type.Key" data-library="@type.LibraryId">
                     <span class="lib-page__name">
                         <span class="@LibraryKindLook.TileClass(type)"><AppMaterialIcon Icon="@type.Icon" /></span>
-                        <strong>@type.Label</strong>
-                        <LibraryUnmatchedCount Count="@row.Unmatched" />
+                        <a class="lib-page__link" href="@AddressFor(type)" aria-label="@AccessibleName(row)"><strong>@type.Label</strong></a>
                     </span>
                     <span class="lib-page__meta"><LibraryMetadataCell Type="@type" Catalogue="@_catalogue" /></span>
-                    <span class="lib-page__counts">@LibraryRollup.CountsText(row.Folders, row.Titles)</span>
+                    <span class="lib-page__folders">
+                        <span class="lib-page__counts">@LibraryRollup.CountsText(row.Folders, row.Titles)</span>
+                        <LibraryUnmatchedCount Count="@row.Unmatched" />
+                    </span>
                     <span class="lib-page__status">
-                        <LibraryHealthIcon Health="@row.Health" />
+                        @if (row.Health is { Healthy: false })
+                        {
+                            <AppTooltip Text="@row.Health.Text"><LibraryHealthIcon Health="@row.Health" /></AppTooltip>
+                        }
+                        else
+                        {
+                            <LibraryHealthIcon Health="@row.Health" />
+                        }
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                     </span>
-                </a>
-                </AppTooltip>
+                </div>
             }
         </div>
 

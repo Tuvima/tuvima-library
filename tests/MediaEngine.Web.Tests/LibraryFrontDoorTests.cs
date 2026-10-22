@@ -235,7 +235,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
 
         var group = Open("listen");
         Assert.Equal(["Music", "Audiobooks", "Podcasts"], group.FindAll(".lib-page__row strong").Select(Text).ToArray());
-        Assert.Equal("/settings/libraries/listen/podcasts", group.Find(".lib-page__row[data-type=podcasts]").GetAttribute("href"));
+        Assert.Equal("/settings/libraries/listen/podcasts", group.Find(".lib-page__row[data-type=podcasts] a").GetAttribute("href"));
 
         var page = Open("listen", "podcasts");
         Assert.Empty(page.FindAll(".lib-page__row"));
@@ -393,7 +393,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.Null(Card(cut, "listen").ParentElement!.GetAttribute("data-playback-tooltip"));
 
         var group = Open("watch");
-        group.WaitForAssertion(() => Assert.Equal("1 folder unavailable", group.Find(".lib-page__row[data-type=movies]").ParentElement!.GetAttribute("data-playback-tooltip")));
+        group.WaitForAssertion(() => Assert.Equal("1 folder unavailable", group.Find(".lib-page__row[data-type=movies] .lib-health").ParentElement!.GetAttribute("data-playback-tooltip")));
     }
 
     // The View folder count is unknown (no counts line), never "Nothing added yet", when it could not be read.
@@ -464,7 +464,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.Equal("Name Metadata Folders Status", Text(cut.Find(".lib-page__head")));
         // The Settings frame carries the breadcrumb and the group's name as the title; the page repeats neither.
         Assert.Empty(cut.FindAll(".libraries h1, .libraries h2, .libraries h3, .libraries nav[aria-label=Breadcrumb]"));
-        Assert.Equal("/settings/libraries/watch/movies", cut.Find(".lib-page__row[data-type=movies]").GetAttribute("href"));
+        Assert.Equal("/settings/libraries/watch/movies", cut.Find(".lib-page__row[data-type=movies] a").GetAttribute("href"));
         cut.WaitForAssertion(() => Assert.Equal("2 folders · 1,284 titles", Text(cut.Find(".lib-page__row[data-type=movies] .lib-page__counts"))));
         Assert.Equal("Nothing added yet", Text(cut.Find(".lib-page__row[data-type=tv] .lib-page__counts")));
         Assert.Empty(cut.FindAll(".library-folders"));
@@ -565,7 +565,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.Equal(["Photos", "Personal videos", "Documents"], group.FindAll(".lib-page__row strong").Select(Text).ToArray());
         Assert.Equal(
             ["/settings/libraries/view/photos", "/settings/libraries/view/personal_videos", "/settings/libraries/view/documents"],
-            group.FindAll(".lib-page__row").Select(row => row.GetAttribute("href")!).ToArray());
+            group.FindAll(".lib-page__row a").Select(link => link.GetAttribute("href")!).ToArray());
         Assert.Empty(group.FindAll(".library-detail"));
 
         var photos = Open("view", "photos");
@@ -598,7 +598,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
 
         Assert.Equal(["Music", "Audiobooks", "Podcasts"], cut.FindAll(".lib-page__row strong").Select(Text).ToArray());
         var row = cut.Find($".lib-page__row[data-type=other-{OtherId}]");
-        Assert.Equal($"/settings/libraries/listen/other-{OtherId}", row.GetAttribute("href"));
+        Assert.Equal($"/settings/libraries/listen/other-{OtherId}", row.QuerySelector("a")!.GetAttribute("href"));
         Assert.Contains("1 folder", Text(row));
 
         var page = Open("listen", $"other-{OtherId}");
@@ -634,7 +634,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.Equal(["Movies", "TV Shows", "Lectures", "Family recordings"], cut.FindAll(".lib-page__row strong").Select(Text).ToArray());
         // Each library is its own row (D51); both open the kind's one page, which lists them as sections.
         Assert.Equal(["/settings/libraries/watch/other_videos", "/settings/libraries/watch/other_videos"],
-            cut.FindAll(".lib-page__row[data-type=other_videos]").Select(row => row.GetAttribute("href")!).ToArray());
+            cut.FindAll(".lib-page__row[data-type=other_videos] a").Select(link => link.GetAttribute("href")!).ToArray());
         Assert.Equal("1 folder", Text(cut.Find(".lib-page__row[data-library='55555555-5555-4555-8555-555555555555'] .lib-page__counts")));
         Assert.Equal("1 folder", Text(cut.Find($".lib-page__row[data-library='{OtherId}'] .lib-page__counts")));
     }
@@ -720,11 +720,41 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         var count = cut.Find(".lib-page__row[data-type=movies] .lib-unmatched");
         Assert.Equal("3", Text(count));
         Assert.Equal("3 files couldn't be matched. They stay where they are and are tried again.", count.ParentElement!.GetAttribute("data-playback-tooltip"));
-        Assert.Contains("3 files couldn't be matched", cut.Find(".lib-page__row[data-type=movies]").GetAttribute("aria-label"));
+        Assert.Contains("3 files couldn't be matched", cut.Find(".lib-page__row[data-type=movies] a").GetAttribute("aria-label"));
 
         _configuration.Libraries[0].UnmatchedCount = 0;
         var none = Open("watch");
         Assert.Empty(none.FindAll(".lib-unmatched"));
+    }
+
+    [Fact]
+    public void OnlyTheNameIsTheLinkSoTheMetadataIconsAndTheUnmatchedCountSitOutsideItInKeyboardOrder()
+    {
+        _configuration.Libraries[0].UnmatchedCount = 3;
+
+        var cut = Open("watch");
+
+        var row = cut.Find(".lib-page__row[data-type=movies]");
+        Assert.Equal("div", row.LocalName);
+        var link = Assert.Single(row.QuerySelectorAll("a"));
+        Assert.Equal("Movies", Text(link));
+        Assert.Empty(link.QuerySelectorAll("[tabindex], button, img, .lib-unmatched, .lib-meta__icon"));
+        // Name link first, then each Metadata icon, then the Unmatched count.
+        var stops = row.QuerySelectorAll("a, [tabindex='0']").Select(stop => stop.GetAttribute("data-provider") ?? (stop.ClassList.Contains("lib-unmatched") ? "unmatched" : "name")).ToArray();
+        Assert.Equal(["name", "tmdb", "subdl", "unmatched"], stops);
+    }
+
+    [Fact]
+    public void TheHealthWarningsTooltipSitsOnTheStatusIconAndNeverOnTheWholeRow()
+    {
+        _pathProbe = path => path == "F:\\Movies" ? new() { Exists = false } : new() { Exists = true, HasRead = true, HasWrite = true };
+
+        var cut = Open("watch");
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".lib-page__row[data-type=movies] .lib-health--warning")));
+        var row = cut.Find(".lib-page__row[data-type=movies]");
+        Assert.Null(row.ParentElement!.GetAttribute("data-playback-tooltip"));
+        Assert.Equal("1 folder unavailable", cut.Find(".lib-page__row[data-type=movies] .lib-page__status .lib-health").ParentElement!.GetAttribute("data-playback-tooltip"));
     }
 
     [Fact]
