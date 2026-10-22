@@ -26,7 +26,7 @@ public static class LibraryItemEndpoints
         group.MapGet("/{entityId}/detail", async (
             Guid entityId,
             ILibraryItemRepository repo,
-            MediaEngine.Api.Services.Unmatched.ItemLookupStateService lookupStates,
+            [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Unmatched.ItemLookupStateService lookupStates,
             CancellationToken ct) =>
         {
             var detail = await repo.GetDetailAsync(entityId, ct);

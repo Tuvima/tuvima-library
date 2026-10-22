@@ -26,7 +26,7 @@ public static class UnmatchedEndpoints
         group.MapGet("/counts", async (
             HttpContext http,
             IRequestAuthorityResolver authorities,
-            UnmatchedCountService counts,
+            [FromServices] UnmatchedCountService counts,
             CancellationToken ct) =>
         {
             var scope = UnmatchedScope.For(await authorities.ResolveAsync(http, ct));
@@ -71,7 +71,7 @@ public static class UnmatchedEndpoints
             string libraryId,
             IConfigurationLoader configuration,
             IVaultLibraryRepository vault,
-            UnmatchedAssetService service,
+            [FromServices] UnmatchedAssetService service,
             CancellationToken ct) =>
             await IsListedLibraryAsync(libraryId, configuration, vault, ct)
                 ? Results.Ok(new UnmatchedActionResultDto { Affected = await service.RetryLibraryNowAsync(libraryId, ct) })
@@ -85,7 +85,7 @@ public static class UnmatchedEndpoints
             string libraryId,
             IConfigurationLoader configuration,
             IVaultLibraryRepository vault,
-            UnmatchedAssetService service,
+            [FromServices] UnmatchedAssetService service,
             CancellationToken ct) =>
             await IsListedLibraryAsync(libraryId, configuration, vault, ct)
                 ? Results.Ok(new UnmatchedActionResultDto { Affected = await service.KeepAllAsIsAsync(libraryId, ct) })
@@ -100,7 +100,7 @@ public static class UnmatchedEndpoints
             IUnmatchedAssetRepository unmatched,
             IConfigurationLoader configuration,
             IVaultLibraryRepository vault,
-            UnmatchedAssetService service,
+            [FromServices] UnmatchedAssetService service,
             CancellationToken ct) =>
             ActOnItemAsync(assetId, unmatched, configuration, vault, service.RetryNowAsync, ct))
         .WithName("RetryUnmatchedItem")
@@ -113,7 +113,7 @@ public static class UnmatchedEndpoints
             IUnmatchedAssetRepository unmatched,
             IConfigurationLoader configuration,
             IVaultLibraryRepository vault,
-            UnmatchedAssetService service,
+            [FromServices] UnmatchedAssetService service,
             CancellationToken ct) =>
             ActOnItemAsync(assetId, unmatched, configuration, vault, service.KeepAsIsAsync, ct))
         .WithName("KeepUnmatchedItemAsItIs")
@@ -126,7 +126,7 @@ public static class UnmatchedEndpoints
             IUnmatchedAssetRepository unmatched,
             IConfigurationLoader configuration,
             IVaultLibraryRepository vault,
-            UnmatchedAssetService service,
+            [FromServices] UnmatchedAssetService service,
             CancellationToken ct) =>
             ActOnItemAsync(assetId, unmatched, configuration, vault, service.LookUpAgainAsync, ct))
         .WithName("LookUpUnmatchedItemAgain")
