@@ -46,6 +46,15 @@ public interface IAutoOrganizeService
         RefileAsync(assetId, ct);
 
     /// <summary>
+    /// Files an asset that Library queued for the next run (Library setup D62): a newly identified file in a Managed folder is renamed
+    /// and moved to fit its kind's pattern, through the same step-recorded path as <see cref="RefileAsync(Guid, IRefileStepRecorder, CancellationToken)"/>;
+    /// a file in the Import folder is filed out of it into its type's Managed folder. A review opened since the file was queued, a
+    /// protected file or a taken name leave the file where it is. Implementations that do not queue filing simply re-file.
+    /// </summary>
+    Task<AssetRefileOutcome> FileOnScheduleAsync(Guid assetId, IRefileStepRecorder steps, CancellationToken ct = default) =>
+        RefileAsync(assetId, steps, ct);
+
+    /// <summary>
     /// Finishes a move that was cut short after the file reached <paramref name="targetPath"/>: the stored path, the files that travel
     /// with it and the folders it left follow, exactly as they would have. Does nothing when the file is not there.
     /// </summary>

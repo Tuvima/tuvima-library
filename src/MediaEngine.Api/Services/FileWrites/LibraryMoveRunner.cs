@@ -49,6 +49,12 @@ public sealed class LibraryMoveRunner(
 
         /// <summary>The move is part-way and could not be settled yet; its steps stay on the row and it is looked at again later.</summary>
         Interrupted,
+
+        /// <summary>
+        /// An automatic filing move found its file in use (being played, or held by another program). The file was left exactly as it
+        /// was and the move waits for the next run; this is not a failed attempt and nothing was written for the file.
+        /// </summary>
+        InUse,
     }
 
     /// <param name="Kind">What happened.</param>
@@ -71,11 +77,22 @@ public sealed class LibraryMoveRunner(
             return new MoveResult(MoveResultKind.Interrupted, OfflineReason);
         }
 
+        // Library's own filing never takes a file that is in use: the probe opens it exclusively and lets go at once. The file is left
+        // untouched, and so are its tags, which must be written at its final place.
+        var filing = intent.MoveOrigin == MediaFileWriteIntentRepository.MoveOriginFiling;
+        if (filing && current is not null && FileInUseProbe.IsInUse(current.FilePathRoot))
+        {
+            await intents.DeferFilingAsync(intent.Id, MediaFileWriteIntentRepository.InUseReason, ct);
+            return new MoveResult(MoveResultKind.InUse, MediaFileWriteIntentRepository.InUseReason);
+        }
+
         string failure;
         try
         {
             var steps = new StepRecorder(intents, assets, hasher, intent);
-            var filed = await organizer.RefileAsync(intent.AssetId, steps, ct);
+            var filed = filing
+                ? await organizer.FileOnScheduleAsync(intent.AssetId, steps, ct)
+                : await organizer.RefileAsync(intent.AssetId, steps, ct);
             if (filed.Kind != AssetRefileOutcomeKind.Failed)
             {
                 return new MoveResult(MoveResultKind.Done);
@@ -106,6 +123,17 @@ public sealed class LibraryMoveRunner(
                     return new MoveResult(MoveResultKind.Lost, settled.Reason ?? LostReason);
                 case Recovery.Waiting:
                     return new MoveResult(MoveResultKind.Interrupted, settled.Reason);
+            }
+        }
+
+        // A sharing violation during the move is the same as being in use: the file is where it was, so it is set aside, not failed.
+        if (filing)
+        {
+            var after = await assets.FindByIdAsync(intent.AssetId, ct);
+            if (after is not null && FileInUseProbe.IsInUse(after.FilePathRoot))
+            {
+                await intents.DeferFilingAsync(intent.Id, MediaFileWriteIntentRepository.InUseReason, ct);
+                return new MoveResult(MoveResultKind.InUse, MediaFileWriteIntentRepository.InUseReason);
             }
         }
 
