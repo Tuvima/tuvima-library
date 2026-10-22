@@ -223,6 +223,7 @@ The rows a rescan rebuilds are not kept; the tables below say where a person's o
 | `entity_relationship_qualifiers` | Details of those relationships. |
 | `entity_capability_states` | What enrichment has done for each title. |
 | `identity_jobs` | Identification and enrichment jobs. |
+| `unmatched_assets` | Files the Engine could not match, with when each is tried again and whether it was kept as it is. |
 | `retail_match_candidates` | Retail match candidates for an identification job. |
 | `wikidata_bridge_candidates` | Wikidata candidates for an identification job. |
 | `deferred_enrichment_queue` | Titles waiting for enrichment. |
