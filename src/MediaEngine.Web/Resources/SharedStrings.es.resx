@@ -1551,4 +1551,34 @@
   <data name="Ingestion_ActivityProcessingDetail" xml:space="preserve">
     <value>Processing library data.</value>
   </data>
+  <data name="PluginPage_NotFoundTitle" xml:space="preserve">
+    <value>Esta página no está disponible</value>
+  </data>
+  <data name="PluginPage_NotFoundMessage" xml:space="preserve">
+    <value>El plugin que la ofrece está desactivado o no tienes acceso.</value>
+  </data>
+  <data name="PluginPage_EmptyTitle" xml:space="preserve">
+    <value>Aún no hay nada que mostrar</value>
+  </data>
+  <data name="PluginPage_EmptyMessage" xml:space="preserve">
+    <value>Este plugin aún no ha aportado nada para esta página.</value>
+  </data>
+  <data name="PluginPage_WideScreenTitle" xml:space="preserve">
+    <value>Ábrelo en una pantalla más grande</value>
+  </data>
+  <data name="PluginPage_WideScreenMessage" xml:space="preserve">
+    <value>Esta página necesita el ancho de una tableta o un ordenador.</value>
+  </data>
+  <data name="PluginPage_FromPlugin" xml:space="preserve">
+    <value>De {0}</value>
+  </data>
+  <data name="PluginPage_Truncated" xml:space="preserve">
+    <value>Se muestran las primeras {0} entradas.</value>
+  </data>
+  <data name="PluginPage_Saved" xml:space="preserve">
+    <value>Guardado.</value>
+  </data>
+  <data name="PluginPage_SaveFailed" xml:space="preserve">
+    <value>No se pudo guardar. Revisa el formulario e inténtalo de nuevo.</value>
+  </data>
 </root>

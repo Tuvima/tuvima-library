@@ -1551,4 +1551,34 @@
   <data name="Ingestion_ActivityProcessingDetail" xml:space="preserve">
     <value>Processing library data.</value>
   </data>
+  <data name="PluginPage_NotFoundTitle" xml:space="preserve">
+    <value>Diese Seite ist nicht verfügbar</value>
+  </data>
+  <data name="PluginPage_NotFoundMessage" xml:space="preserve">
+    <value>Das Plugin, das sie bereitstellt, ist ausgeschaltet, oder Sie haben keinen Zugriff.</value>
+  </data>
+  <data name="PluginPage_EmptyTitle" xml:space="preserve">
+    <value>Noch nichts anzuzeigen</value>
+  </data>
+  <data name="PluginPage_EmptyMessage" xml:space="preserve">
+    <value>Dieses Plugin hat für diese Seite noch nichts bereitgestellt.</value>
+  </data>
+  <data name="PluginPage_WideScreenTitle" xml:space="preserve">
+    <value>Öffnen Sie dies auf einem größeren Bildschirm</value>
+  </data>
+  <data name="PluginPage_WideScreenMessage" xml:space="preserve">
+    <value>Diese Seite braucht die Breite eines Tablets oder Computers.</value>
+  </data>
+  <data name="PluginPage_FromPlugin" xml:space="preserve">
+    <value>Von {0}</value>
+  </data>
+  <data name="PluginPage_Truncated" xml:space="preserve">
+    <value>Die ersten {0} Einträge werden angezeigt.</value>
+  </data>
+  <data name="PluginPage_Saved" xml:space="preserve">
+    <value>Gespeichert.</value>
+  </data>
+  <data name="PluginPage_SaveFailed" xml:space="preserve">
+    <value>Das konnte nicht gespeichert werden. Prüfen Sie das Formular und versuchen Sie es erneut.</value>
+  </data>
 </root>

@@ -443,7 +443,7 @@ public static class ItemCanonicalEndpoints
             return Results.Ok(new VideoRenameResponse { Renamed = result.Renamed, Skipped = result.Skipped + result.Failed });
         })
         .WithName("RenameVideoFilesToOrder")
-        .WithSummary("Rename the files of a series to match its order. Managed folders only; refused for as-is or read-only folders.")
+        .WithSummary("Rename the files of a series to match its order. Managed folders only; refused for read-only folders.")
         .Produces<VideoRenameResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict)

@@ -430,6 +430,7 @@ builder.Services.AddScoped<IRequestAuthorityResolver, RequestAuthorityResolver>(
 builder.Services.AddScoped<DashboardAuthorityProjector>();
 builder.Services.AddScoped<IAccountAccessMutationService, AccountAccessMutationService>();
 builder.Services.AddScoped<ApplicationAdministrationService>();
+builder.Services.AddScoped<IntegrationHealthService>();
 builder.Services.AddScoped<IGrantAdminUnlockService, GrantAdminUnlockService>();
 builder.Services.AddScoped<IAccountAccessDecisionService, AccountAccessDecisionService>();
 builder.Services.AddScoped<ISelfServiceAuthorizationService>(sp => (AccountAccessDecisionService)sp.GetRequiredService<IAccountAccessDecisionService>());
@@ -508,6 +509,8 @@ builder.Services.AddApplicationWebhooks();
 builder.Services.AddTuvimaApprovals();
 builder.Services.AddTuvimaHostedServices();
 builder.Services.AddTuvimaToolRequirements();
+builder.Services.AddTuvimaNotifications();
+builder.Services.AddTuvimaBackupDestinations();
 
 builder.Services.AddSingleton<StartupReadinessService>();
 builder.Services.AddHealthChecks()

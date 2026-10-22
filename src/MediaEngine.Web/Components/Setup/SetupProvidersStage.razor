@@ -8,7 +8,7 @@
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudSync" />
         <div>
             <h2 id="setup-stage-title">Enhance your library</h2>
-            <p>Connect services that add richer identity, artwork, people, and relationships for the media you selected.</p>
+            <p>Choose where information about your media comes from. Each source below says what it can supply.</p>
         </div>
     </div>
 
@@ -53,7 +53,8 @@
                             <div class="setup-builtin-row">
                                 <AppProviderLogo ImageUrl="@provider.IconPath" Icon="@provider.MaterialIcon" AccentColor="@provider.AccentColor" FallbackText="@Initials(provider.DisplayName)" AltText="" />
                                 <span>@provider.DisplayName</span>
-                                <span class="setup-builtin-row__status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppSize.Small" /> No key needed</span>
+                                @* Done: nothing to enter. A green check and the words, so it is never colour alone. *@
+                                <AppStatusBadge Text="No key needed" Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Filled.CheckCircle" />
                             </div>
                         }
                     </div>
@@ -73,7 +74,6 @@
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<ProviderCatalogueDto> Catalogue { get; set; } = [];
-    [Parameter] public LibrariesConfigurationDto? Libraries { get; set; }
     [Parameter] public string? SetupSession { get; set; }
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback RefreshRequested { get; set; }
@@ -82,12 +82,6 @@
     [Parameter] public EventCallback Back { get; set; }
     [Parameter] public bool ShowReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
-
-    private HashSet<string> ConfiguredMediaTypes => Libraries?.Libraries
-        .Where(library => string.Equals(library.Kind, "catalogued", StringComparison.OrdinalIgnoreCase))
-        .SelectMany(library => library.MediaTypes)
-        .Where(mediaType => !string.IsNullOrWhiteSpace(mediaType))
-        .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     private IReadOnlyList<ProviderCatalogueDto> RelevantProviders => Catalogue
         .OrderBy(provider => provider.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -153,12 +147,13 @@
             builder.CloseElement();
             builder.CloseElement();
             builder.CloseElement();
-            // The group heading already says Recommended or Optional; only a connected key needs a badge.
+            // The group heading already says Recommended or Optional; only a connected key needs a badge, and it is a green check: done, nothing to do.
             if (IsConnected(provider))
             {
                 builder.OpenComponent<AppStatusBadge>(25);
                 builder.AddAttribute(26, nameof(AppStatusBadge.Text), "Key configured");
-                builder.AddAttribute(27, nameof(AppStatusBadge.Tone), AppUiTone.Neutral);
+                builder.AddAttribute(27, nameof(AppStatusBadge.Tone), AppUiTone.Success);
+                builder.AddAttribute(34, nameof(AppStatusBadge.Icon), AppMaterialIcons.Filled.CheckCircle);
                 builder.CloseComponent();
             }
             builder.OpenComponent<AppButton>(28);
@@ -173,12 +168,6 @@
         builder.CloseElement();
         builder.CloseElement();
     };
-
-    private bool IsRelevant(ProviderCatalogueDto provider)
-    {
-        if (!provider.Enabled || ConfiguredMediaTypes.Count == 0) return false;
-        return provider.MediaTypes.Count == 0 || provider.MediaTypes.Any(ConfiguredMediaTypes.Contains);
-    }
 
     private async Task OpenProviderAsync(ProviderCatalogueDto provider)
     {

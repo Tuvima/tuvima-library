@@ -255,6 +255,7 @@ public sealed class MetadataHarvestingScalarEvidencePersistenceTests : IDisposab
             string.Equals(name, providerName, StringComparison.OrdinalIgnoreCase)
                 ? new ProviderConfiguration { Name = providerName, Enabled = true, Weight = 1.0 }
                 : null;
+        public void DeleteProvider(string name) { }
         public void SaveProvider(ProviderConfiguration config) { }
         public IReadOnlyList<ProviderConfiguration> LoadAllProviders() =>
             [new ProviderConfiguration { Name = providerName, Enabled = true, Weight = 1.0 }];

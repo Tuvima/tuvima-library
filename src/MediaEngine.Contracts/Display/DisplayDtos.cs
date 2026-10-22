@@ -32,7 +32,14 @@ public sealed record DisplayTimelinePeriodDto(int Year, int Count, int Offset);
 public sealed record DisplayBrowseFacetsDto(
     IReadOnlyList<string> Genres,
     IReadOnlyList<string> Creators,
-    IReadOnlyList<string> Years);
+    IReadOnlyList<string> Years)
+{
+    /// <summary>Vibes the Vibe tags plugin chose for items in this view; empty when the plugin is off.</summary>
+    public IReadOnlyList<string> Vibes { get; init; } = [];
+
+    /// <summary>Themes the Description insights plugin chose for items in this view; empty when the plugin is off.</summary>
+    public IReadOnlyList<string> Themes { get; init; } = [];
+}
 
 public sealed record DisplayHeroDto(
     string Title,

@@ -16,6 +16,9 @@ public partial interface IEngineApiClient
     /// </summary>
     Task<SetupBeginOutcome> BeginSetupAsync(SetupBeginRequest request, CancellationToken ct = default);
     Task<SetupPreflightDto?> RunSetupPreflightAsync(string? setupSession, CancellationToken ct = default);
+
+    /// <summary>The tools list alone, so setup can follow a tool download without repeating the server check.</summary>
+    Task<ToolRequirementsDto?> GetSetupToolRequirementsAsync(string? setupSession, CancellationToken ct = default);
     Task<SetupAdministratorOutcome> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default);
     Task<SetupMediaLocationsDto?> ValidateSetupMediaLocationsAsync(string? setupSession, CancellationToken ct = default);
     Task<LibrariesConfigurationDto?> GetSetupLibrariesAsync(string? setupSession, CancellationToken ct = default);

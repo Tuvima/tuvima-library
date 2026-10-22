@@ -5,7 +5,7 @@
 # Push rules:
 #   - Push to main      -> :latest
 #   - Push tag v1.2.3   -> :v1.2.3  :1.2  :1
-#   - Pull request      -> build only (no push), validates the Dockerfile
+#   - Pull request      -> build only (no push), validates the Dockerfile; only when image inputs change
 # -----------------------------------------------------------------------------
 
 name: Build & publish Docker image
@@ -14,8 +14,19 @@ on:
   push:
     branches: [ "main" ]
     tags:     [ "v*.*.*" ]
+  # Pull requests only rebuild the image when something the image is made from changed.
   pull_request:
     branches: [ "main" ]
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "src/**"
+      - "config/**"
+      - "tests/container/**"
+      - "Directory.*"
+      - "nuget.config"
+      - "global.json"
+      - ".github/workflows/docker-publish.yml"
 
 env:
   IMAGE_HOST:  ghcr.io

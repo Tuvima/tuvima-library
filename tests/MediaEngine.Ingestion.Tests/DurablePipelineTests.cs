@@ -461,8 +461,23 @@ public sealed class DurablePipelineTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(closed!.MissingReason));
         Assert.Null(await _operationRepo.GetActiveBySourcePathAsync(Path.GetFullPath(path)));
 
-        var history = await new MediaOperationEventRepository(_dbFactory.Connection).GetByOperationAsync(waiting.Id);
+        // The status changes a moment before the history entry is written, so wait for the entry rather than read it at once.
+        var events = new MediaOperationEventRepository(_dbFactory.Connection);
+        var history = await events.GetByOperationAsync(waiting.Id);
+        for (var attempt = 0; attempt < 100 && !history.Any(entry => entry.EventType == "missing_confirmed"); attempt++)
+        {
+            await Task.Delay(50);
+            history = await events.GetByOperationAsync(waiting.Id);
+        }
+
         Assert.Contains(history, entry => entry.EventType == "missing_confirmed");
+
+        // The change notification goes out after the status and the history entry, so wait for it as well.
+        for (var attempt = 0; attempt < 200 && !HasMissingNotice(); attempt++)
+        {
+            await Task.Delay(50);
+        }
+
         Assert.Contains(
             _publisher.Published.ToArray(),
             item => item.EventName == SignalREvents.MediaOperationChanged
@@ -508,6 +523,10 @@ public sealed class DurablePipelineTests : IDisposable
         Assert.Equal(MediaOperationStatus.MissingConfirmed, after!.Status);
         Assert.Null(await _operationRepo.GetActiveBySourcePathAsync(Path.GetFullPath(path)));
     }
+
+    private bool HasMissingNotice() => _publisher.Published.ToArray().Any(item =>
+        item.EventName == SignalREvents.MediaOperationChanged
+        && item.Payload is MediaOperationChangedEvent { Status: MediaOperationStatus.MissingConfirmed });
 
     private async Task<MediaOperation?> WaitForOperationAsync(Guid id, Func<MediaOperation, bool> isReady)
     {
@@ -2260,6 +2279,7 @@ public sealed class DurablePipelineTests : IDisposable
         public FieldPriorityConfiguration LoadFieldPriorities() => new();
         public void SaveFieldPriorities(FieldPriorityConfiguration config) { }
         public ProviderConfiguration? LoadProvider(string name) => null;
+        public void DeleteProvider(string name) { }
         public void SaveProvider(ProviderConfiguration config) { }
         public T? LoadAi<T>() where T : class => default;
         public void SaveAi<T>(T settings) where T : class { }

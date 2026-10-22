@@ -21,7 +21,7 @@ Follow a file from discovery to browsing in Tuvima Library. In about four minute
 
 The [Engine](../reference/glossary.md#engine) waits for a stable file, computes a fingerprint, and reads its metadata. It can use folder hints and supported classification to decide the media type.
 
-Source policy controls file handling. As-is folders are indexed read-only; managed intake may use staging before permitted organization. View personal media bypasses catalog matching.
+Source policy controls file handling. Read-only folders are indexed read-only; managed intake may use staging before permitted organization. View personal media bypasses catalog matching.
 
 ## Establish identity before adding relationships
 

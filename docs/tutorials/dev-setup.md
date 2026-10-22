@@ -45,7 +45,7 @@ Do not assume committed paths match your machine.
 | `config/providers/*.json` | Provider behavior and non-secret settings |
 | `config/secrets/` | Ignored provider key overlays |
 | `config/.secrets/` | Dedicated authentication/email secrets |
-| `config/ai.json` | AI features and operational settings |
+| `config/ai.json` | Local AI engine settings (resource profile, limits, plugin allowance) |
 | `nuget.config` | Package sources and mappings |
 
 This checkout uses nuget.org for packages. Older or local setups may map `Tuvima.Wikidata*` to `C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-wikidata\artifacts`. If restore reports those packages missing, check the configured feed and sibling output before changing references.

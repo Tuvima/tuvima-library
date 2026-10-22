@@ -46,7 +46,16 @@ public interface ILibraryItemRepository
     /// Returns aggregate counts derived from the shared libraryItem pipeline projection.
     /// </summary>
     Task<LibraryItemProjectionSummary> GetProjectionSummaryAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the lifecycle counts and the projection summary together, from one pass over the projection
+    /// (the library overview needs both; building the projection is the expensive part).
+    /// </summary>
+    Task<LibraryItemOverviewCounts> GetOverviewCountsAsync(CancellationToken ct = default);
 }
+
+/// <summary>The lifecycle counts and the projection summary, read from one pass over the projection.</summary>
+public sealed record LibraryItemOverviewCounts(LibraryItemLifecycleCounts Lifecycle, LibraryItemProjectionSummary Projection);
 
 /// <summary>
 /// Four-state counts for the LibraryItem: Identified, InReview, Provisional, Rejected.

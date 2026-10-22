@@ -61,7 +61,7 @@ Formats of the same title (ebook + audiobook) are variants of one Work, not a co
 
 ## Current status (October 2026)
 
-Core browsing, playback/reading, identification and administration work today. Partly built or planned: some discovery and recommendation features, plugins, personal-media intelligence (faces, scenes), bulk editing, and live updates on detail pages. The public [feature status page](../../docs/product/status.md) is the authority on what's ready.
+Core browsing, playback/reading, identification and administration work today. Partly built or planned: some discovery and recommendation features, plugins (the platform is built: four kinds, approval, signed installs, a blocklist, Local AI features as plugins; one-click install stays off until plugin keys are encrypted on disk), personal-media intelligence (faces, scenes), bulk editing, and live updates on detail pages. The public [feature status page](../../docs/product/status.md) is the authority on what's ready.
 
 ## Open product questions
 

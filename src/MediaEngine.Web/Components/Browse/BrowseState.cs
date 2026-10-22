@@ -13,4 +13,6 @@ public sealed record BrowseState(
     string Status,
     IReadOnlyList<string> Years,
     int? TileSize,
-    MediaEngine.Web.Components.Shared.TimelineGrouping Period = MediaEngine.Web.Components.Shared.TimelineGrouping.Year);
+    MediaEngine.Web.Components.Shared.TimelineGrouping Period = MediaEngine.Web.Components.Shared.TimelineGrouping.Year,
+    IReadOnlyList<string>? Vibes = null,
+    IReadOnlyList<string>? Themes = null);

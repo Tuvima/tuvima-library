@@ -67,6 +67,10 @@ Test restore uses temporary storage, checks archive boundaries and SQLite integr
 
 A bookmark pack is a small `.zip` file made from **Bookmarks → Saved → Export** in the video player. It follows the same conventions as a recovery point: a ZIP with a `manifest.json` (`schema_version`, `created_at`, `includes_secrets: false`) and one `pack/bookmarks.json`, and it is checked on the way in with the same refusals (unexpected entries, unsafe paths, oversized or over-compressed contents). Like a recovery point it has no password, because it holds nothing secret: only how to recognise the title (IMDb, TMDB, TVDB, Wikidata or YouTube IDs, running time and edition) and, for each bookmark you choose, its time, optional end, chapter name, short note and longer description. It never holds file paths, profile names or what anyone watched, and a Vault title cannot be exported at all. **Import** (in the same Saved list) checks the pack is for the title, tells you when it was made on a different cut and offers **Align by chapter** or **Skip**, then adds read-only pack bookmarks labelled with the pack's name and author. Each pack can be switched off or removed on its own.
 
+## Copy backups to other places
+
+Under **Settings → Backup and recovery → Where backups go**, **Add a destination** copies each backup somewhere besides this computer: **Another folder** (such as an external drive), a **Network share** (a path such as `\\nas\backups`, or a mounted folder), **S3-compatible storage** (Amazon S3, MinIO, Backblaze B2, Wasabi) or **WebDAV** (Nextcloud and many NAS devices). Every copy that leaves this computer is encrypted with your backup passphrase first, so the destination only ever holds a sealed file, and each copy is read back and checked. A web destination asks you to agree to the exact address backups will be sent to. Its login is kept encrypted on this computer and is never shown again. Press **Test** to check a destination; for a network share the Library uses the access your computer already has, so mount or sign in to the share first.
+
 ## Restore a recovery point
 
 1. Choose **Restore** and confirm the recovery point.

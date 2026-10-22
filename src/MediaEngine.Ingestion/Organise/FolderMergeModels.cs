@@ -191,7 +191,7 @@ public sealed class FolderMergeContext
         {
             check = new FolderMergeCheck(
                 FolderMergeProblem.TargetNotManaged,
-                "Files can only be merged into a folder Library manages. An As-is folder is never written to.");
+                "Files can only be merged into a folder Library manages. A Read-only folder is never written to.");
             return null;
         }
 
@@ -209,7 +209,7 @@ public sealed class FolderMergeContext
         {
             check = new FolderMergeCheck(
                 FolderMergeProblem.MoveNeedsManagedSource,
-                "Move is only available for a folder Library manages. This folder is used as-is, so its files can only be copied.");
+                "Move is only available for a folder Library manages. This folder is read-only, so its files can only be copied.");
             return null;
         }
 

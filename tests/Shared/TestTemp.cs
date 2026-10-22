@@ -35,6 +35,8 @@ internal static class TestTemp
             Environment.SetEnvironmentVariable("TMP", RunRoot);
             Environment.SetEnvironmentVariable("TEMP", RunRoot);
             Environment.SetEnvironmentVariable("TMPDIR", RunRoot);
+            // New data stores in tests start as a copy of one already-upgraded file (src/MediaEngine.Storage/SchemaTemplate.cs).
+            Environment.SetEnvironmentVariable("TUVIMA_SCHEMA_TEMPLATE", "1");
             AppDomain.CurrentDomain.ProcessExit += static (_, _) => CleanupRun();
         }
         catch (Exception exception)

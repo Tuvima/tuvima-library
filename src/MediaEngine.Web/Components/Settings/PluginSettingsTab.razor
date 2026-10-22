@@ -50,7 +50,8 @@ else
                     @PluginSettingsPanel(ConfiguredPlugin)
                 </AppCard>
             }
-            <AvailablePluginsPanel />
+            <MetadataSourcesPanel />
+            <AvailablePluginsPanel OnChanged="ReloadAsync" />
             @AdvancedPluginPanel()
         }
     </div>
@@ -71,6 +72,7 @@ else
     private string? _selectedPluginId;
     private string? _configurePluginId;
     private string? _deletePluginId;
+    private PluginRemovalImpactResponse? _removalImpact;
 
     /// <summary>
     /// The plugin a <c>/settings/plugins?plugin={id}</c> link points at. When it names an installed plugin the page scrolls to
@@ -313,6 +315,21 @@ else
             }
             else if (string.Equals(_deletePluginId, plugin.Id, StringComparison.OrdinalIgnoreCase))
             {
+                @if (_removalImpact is { WouldLose.Count: > 0 } impact)
+                {
+                    <AppAlert Tone="AppUiTone.Warning" Dense="true" data-testid="plugin-removal-impact">
+                        @foreach (var line in impact.WouldLose)
+                        {
+                            <div>@line</div>
+                        }
+                        <div>@impact.Keeps</div>
+                    </AppAlert>
+                }
+                else if (_removalImpact is { } safe)
+                {
+                    <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" data-testid="plugin-removal-keeps">@safe.Keeps</AppText>
+                }
+
                 <AppActionBar Align="AppHorizontalAlignment.End">
                     <AppButton Label="Confirm delete"
                                StartIcon="@AppMaterialIcons.Outlined.DeleteForever"
@@ -327,7 +344,7 @@ else
                 <AppButton Label="Delete plugin"
                            StartIcon="@AppMaterialIcons.Outlined.Delete"
                            Tone="AppUiTone.Error"
-                           OnClick="@(() => _deletePluginId = plugin.Id)" />
+                           OnClick="@(() => BeginDeleteAsync(plugin))" />
             }
         </div>
     </AppCard>;
@@ -570,6 +587,13 @@ else
         await SaveSettingAsync(plugin, key, JsonSerializer.SerializeToElement(parsed, _json));
     }
 
+    // Removing says first what would have no source, and that what the plugin already saved stays.
+    private async Task BeginDeleteAsync(PluginSummaryResponse plugin)
+    {
+        _removalImpact = await Orchestrator.GetPluginRemovalImpactAsync(plugin.Id);
+        _deletePluginId = plugin.Id;
+    }
+
     private async Task DeletePluginAsync(PluginSummaryResponse plugin)
     {
         if (!await Orchestrator.DeletePluginAsync(plugin.Id))
@@ -581,6 +605,7 @@ else
         Snackbar.Add($"{plugin.Name} deleted.", AppSeverity.Success);
         _selectedPluginId = null;
         _deletePluginId = null;
+        _removalImpact = null;
         await ReloadAsync();
     }
 

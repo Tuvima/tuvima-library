@@ -37,6 +37,7 @@
 | 3 | Developer tools waves 3 to 8 | one other thread | Continue wave by wave, one thread per wave. |
 | 3 | Lane View all grid (3d) |  any gap | Built 2026-10-20, merged in PR #297 (rules: `docs/product/presentation-rules.md` › Shelves and View all grids). |
 | 3 | Deletion specs, then slow-read investigation | any gap | Locked specs, unscheduled. The investigation is read-only. |
+| 3 | Doubled category folder fix (3f) | any gap | Approved 2026-10-20 (option B), paused mid-build; save point on `claude/nifty-bardeen-de8194`. Touches Ingestion filing and its tests, so not beside 1a. |
 | 4 | Details overlay and Editing Mode planning | needs Shy | Planning first (Claude Code cannot start without a spec). |
 
 Spec dependency notes: Universe U-WP4 waits on Developer tools WP9. Developer tools WP2, WP4, WP6, WP10 and WP30 wait on WP1; WP10, WP28 and WP30 also wait on WP27; WP17 waits on WP9, WP10 and WP13.
@@ -72,7 +73,7 @@ Also confirm bug 22 (each TV file listed as its own show in Watch) with a test; 
 Continue engineering/specs/developer-tools.md (v3, In progress). Read CLAUDE.md and the spec first; run its collision check against ingestion-and-readiness.md and universe.md.
 Wave 1 is on main (WP0, WP3, WP13, WP32). Do, in this order:
 1. Finish WP0 repeatability: two baseline runs of the same build differed in 36 values. Add a record-and-replay mode to the baseline tool (src/MediaEngine.Api/DevSupport/Baseline*.cs, tools/Run-IngestionBaseline.ps1): the first run saves every provider answer under the run folder and later runs replay them. Development builds only, and no saved answer may contain a key. Done when two replayed runs of the same build compare with zero differences; list any remaining differences as our own nondeterminism.
-2. Ask Shy whether C:\Temp\real_import (books with PDFs, audiobooks, movies, tv, music, comics, personal_photos, personal_videos) is ready, and record a real-media baseline with -SampleRoot before WP9.
+2. Ask Shy whether Z:\Development\testing\media\real_media (books with PDFs, audiobooks, movies, tv, music, comics, personal_photos, personal_videos) is ready, and record a real-media baseline with -SampleRoot before WP9.
 3. WP1 (shared state card and health words; the Settings frame it needed is built) and WP27 (Local AI engine room), two at a time.
 4. Then WP14 (plugin secrets store), WP5 (Developer Tools made honest), WP2 (approval step and record), then WP9 (make all shipped providers declarative; compare before and after with the replay baseline).
 Run the checkpoint after each wave: build, tests, ingestion comparison, independent review, merge. Stop and ask Shy if the WP21 licence check or any security decision comes up. Finish with a Plain English summary and the list of next packets that are now unblocked.
@@ -97,6 +98,12 @@ Do, two at a time: U-WP5 (Universe page, entry points, empty and partly-ready st
 Depends on: the ingestion finish and Developer tools foundation threads being merged. One session runs all three waves. Wave 2 needs the Details overlay and Editing Mode "..." menu and banner, and the Developer tools secrets store. Wave 3 checks the StashDB terms with Shy before the Stash-box plugin. The Vault access, PIN, history-isolation and leak-audit packets (WP9, WP12, WP13, WP17) need an independent security review.
 ```
 Run engineering/specs/videos.md end to end, all waves, per .claude/rules/end-to-end-runs.md. Read CLAUDE.md first.
+```
+
+### Thread 3f: Doubled category folder fix (approved 2026-10-20, paused)
+Media in a managed folder is filed to `library\Books\Books\...`. Shy chose option B (templates name the path inside the type's own folder). The Engine changes are on a save point; tests, Settings examples, docs, the Engine check, review and merge remain. Full details: `engineering/handoffs/2026-10-20-doubled-category-folder.md`.
+```
+Run engineering/handoffs/2026-10-20-doubled-category-folder.md end to end per .claude/rules/end-to-end-runs.md, starting from the save point on claude/nifty-bardeen-de8194. Read CLAUDE.md first.
 ```
 
 ### Thread 3d: Lane "View all" grid (H4e)
@@ -126,7 +133,7 @@ Investigate why the library list takes about 14 seconds unfiltered and uncached 
 - **Lane "View all" grid (H4e) and My Library on desktop/tablet (H4c).** Not confirmed from the repo; decide whether to keep them in scope.
 
 ## 6. Owed by Shy
-Provide the Engine log for bug 13 (Cibola Burn). Confirm `C:\Temp\real_import` is ready. Device checks: iPhone book reader and Home; Android playback past 10 minutes then seek, pause 15 minutes, picture-in-picture; TV cast; phone and TV pairing and QR code from the Settings revamp.
+Provide the Engine log for bug 13 (Cibola Burn). Confirm `Z:\Development\testing\media\real_media` is ready. Device checks: iPhone book reader and Home; Android playback past 10 minutes then seek, pause 15 minutes, picture-in-picture; TV cast; phone and TV pairing and QR code from the Settings revamp.
 
 ## 7. Plain English summary
 Most testing bugs are fixed. Seven Claude Code threads finish the rest in a sensible order: tidy and land the Expanse fix first; then finish ingestion beside the plugin foundation; then the Library wording and heart icon beside the Universe page; then the remaining plugin waves, the deletion features and the slow-load investigation. The details pop-over and editing drawer need a plan from the planning project before they can be built.

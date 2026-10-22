@@ -38,8 +38,11 @@ public sealed class PluginEndpointAuthorizationTests
             ("/plugins/", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/directory", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}", "GET", ApplicationPermissionIds.PluginsRead),
+            ("/plugins/{pluginId}/removal-impact", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}/enable", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/disable", "POST", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/ai-steps/{stepKey}/run", "POST", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/{pluginId}/service/lookup", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/settings", "PUT", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/manifest", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}/manifest", "PUT", ApplicationPermissionIds.PluginsManage),
@@ -54,8 +57,8 @@ public sealed class PluginEndpointAuthorizationTests
             ("/universe/{qid}/lore/enrich", "POST", ApplicationPermissionIds.PluginsJobsRun),
         };
 
-        // +1 for the legacy lore discovery route, +3 for the plugin secrets routes (administrator-only; see PluginSecretsTests) and +4 for the plugin directory actions (administrator-only; see PluginDirectoryEndpointTests).
-        Assert.Equal(expected.Length + 1 + 3 + 4, endpoints.Length);
+        // +1 for the legacy lore discovery route, +3 for the plugin secrets routes (administrator-only; see PluginSecretsTests) and +5 for the plugin directory actions (administrator-only, install included; see PluginDirectoryEndpointTests).
+        Assert.Equal(expected.Length + 1 + 3 + 5, endpoints.Length);
         foreach (var route in expected)
         {
             AssertPolicy(endpoints, route.Route, route.Method, route.Permission);

@@ -1551,4 +1551,34 @@
   <data name="Ingestion_ActivityProcessingDetail" xml:space="preserve">
     <value>Processing library data.</value>
   </data>
+  <data name="PluginPage_NotFoundTitle" xml:space="preserve">
+    <value>This page isn't available</value>
+  </data>
+  <data name="PluginPage_NotFoundMessage" xml:space="preserve">
+    <value>The plugin that provides it is switched off, or you don't have access to it.</value>
+  </data>
+  <data name="PluginPage_EmptyTitle" xml:space="preserve">
+    <value>Nothing to show yet</value>
+  </data>
+  <data name="PluginPage_EmptyMessage" xml:space="preserve">
+    <value>This plugin hasn't provided anything for this page yet.</value>
+  </data>
+  <data name="PluginPage_WideScreenTitle" xml:space="preserve">
+    <value>Open this on a larger screen</value>
+  </data>
+  <data name="PluginPage_WideScreenMessage" xml:space="preserve">
+    <value>This page needs the width of a tablet or computer.</value>
+  </data>
+  <data name="PluginPage_FromPlugin" xml:space="preserve">
+    <value>From {0}</value>
+  </data>
+  <data name="PluginPage_Truncated" xml:space="preserve">
+    <value>Showing the first {0} entries.</value>
+  </data>
+  <data name="PluginPage_Saved" xml:space="preserve">
+    <value>Saved.</value>
+  </data>
+  <data name="PluginPage_SaveFailed" xml:space="preserve">
+    <value>That couldn't be saved. Check the form and try again.</value>
+  </data>
 </root>

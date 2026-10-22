@@ -106,14 +106,14 @@ on the same shelf. Precedence:
    identity (provider key, then label plus media type), as `MainSequence`.
 
 **A person's choice is a lock.** When a person picks a Series in the editor's
-Matching section (or "Not in a Series"), the Engine saves it as
+Matching section's Series override (or "Remove from its Series"), the Engine saves it as
 `works.series_placement_locked = 1` with `works.collection_id` as their choice.
 `SeriesPlacementInput.Lock` comes before every rule above: the rule returns the
 locked shelf (scope from that shelf's manifest when it lists the work, else main
 sequence) or "no Series", and is never ambiguous. `CollectionAssignmentService`
 (and so backfill), `LinkOwnedWorksAsync` (which only refreshes the work's position
 on its chosen Series) and the repository's assign and clear calls all leave a
-locked work where the person put it. "Let the Library decide" clears the lock,
+locked work where the person put it. "Go back to the Library's choice" clears the lock,
 takes the work off its shelf and runs placement for it again. The lock is a
 placement lock, not a claim lock (`PriorityCascadeEngine`'s lockable fields are
 unchanged).

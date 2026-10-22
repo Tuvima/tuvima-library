@@ -164,9 +164,9 @@ public sealed class SettingsNavTests
             .Select(item => item.Label)
             .ToArray();
 
-        // Which AI features run is decided on the Plugins page, so Local AI keeps only its Runtime page.
-        Assert.Equal(["Runtime"], labels);
-        Assert.Equal("models", SettingsNav.GetDefaultSubsection(SettingsSection.LocalAi).Slug);
+        // Which AI features run is decided on the Plugins page, so Local AI keeps Status, Model and hardware, Budget and Usage.
+        Assert.Equal(["Status", "Model and hardware", "Budget", "Usage"], labels);
+        Assert.Equal("status", SettingsNav.GetDefaultSubsection(SettingsSection.LocalAi).Slug);
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.LocalAi, "unknown"));
     }
 
@@ -217,6 +217,7 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.Delivery, "/settings/delivery")]
     [InlineData(SettingsSection.Access, "/settings/access/users")]
     [InlineData(SettingsSection.Tools, "/settings/tools")]
+    [InlineData(SettingsSection.Notifications, "/settings/notifications")]
     [InlineData(SettingsSection.Server, "/settings/backup-recovery")]
     [InlineData(SettingsSection.Review, "/settings/review")]
     [InlineData(SettingsSection.ProviderTester, "/settings/developer")]
@@ -354,8 +355,8 @@ public sealed class SettingsNavTests
         Assert.Equal(["Local Network", "Remote Access", "Advanced"], ChildLabels(groups, "Network and Remote Access"));
         Assert.Equal(["Hardware Acceleration", "Optimized Copies", "Diagnostics"], ChildLabels(groups, "Streaming"));
         Assert.Equal(["Sign-in Methods"], ChildLabels(groups, "Users and Sign-in"));
-        Assert.Equal(["Tools and requirements", "Logs", "Backup and recovery"], ChildLabels(groups, "System"));
-        Assert.Equal(["Runtime"], ChildLabels(groups, "Local AI"));
+        Assert.Equal(["Tools and requirements", "Logs", "Notifications", "Backup and recovery"], ChildLabels(groups, "System"));
+        Assert.Equal(["Status", "Model and hardware", "Budget", "Usage"], ChildLabels(groups, "Local AI"));
         Assert.Empty(ChildLabels(groups, "Plugins"));
         Assert.Equal(["Enrichment Tester", "Development data"], ChildLabels(groups, "Developer Tools"));
         Assert.Empty(ChildLabels(groups, "Integrations"));
@@ -468,6 +469,7 @@ public sealed class SettingsNavTests
     [InlineData("network", SettingsSection.Network, "/settings/network/overview")]
     [InlineData("delivery", SettingsSection.Delivery, "/settings/delivery")]
     [InlineData("tools", SettingsSection.Tools, "/settings/tools")]
+    [InlineData("notifications", SettingsSection.Notifications, "/settings/notifications")]
     [InlineData("access", SettingsSection.Access, "/settings/access/users")]
     [InlineData("backup-recovery", SettingsSection.Server, "/settings/backup-recovery")]
     [InlineData("ai", SettingsSection.LocalAi, "/settings/ai")]

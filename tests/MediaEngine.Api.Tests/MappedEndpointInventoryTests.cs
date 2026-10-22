@@ -265,6 +265,10 @@ public sealed class MappedEndpointInventoryTests
             "/cast/v1/{grant}/text/{trackId:guid}",
             "/intercom",
             "/intercom/negotiate",
+            // Plugin programs have no person to sign in: the plugin-scoped key is their sign-in (checked inside, loopback only).
+            "/plugin-host/v1/ai/text",
+            "/plugin-host/v1/records/{collection}/{key}",
+            "/plugin-host/v1/whoami",
             "/stream/hls/{grant}/{packageId:guid}/{**resourcePath}",
             "/system/status",
         ], inventory.AnonymousPatterns);
@@ -342,6 +346,7 @@ public sealed class MappedEndpointInventoryTests
             ("/plugins/directory/seen", HttpMethods.Post, "MarkPluginDirectorySeen"),
             ("/plugins/directory/settings", HttpMethods.Put, "SavePluginDirectorySettings"),
             ("/plugins/directory/{pluginId}/approval-preview", HttpMethods.Post, "PreviewPluginDirectoryInstall"),
+            ("/plugins/directory/{pluginId}/install", HttpMethods.Post, "InstallDirectoryPlugin"),
         })
         {
             var route = inventory.Require(pattern, method);
@@ -418,6 +423,8 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddTuvimaHostedServices();
         builder.Services.AddTuvimaScheduledTasks();
         builder.Services.AddTuvimaToolRequirements();
+        builder.Services.AddTuvimaNotifications();
+        builder.Services.AddTuvimaBackupDestinations();
         builder.Services.AddTuvimaPlugins();
         builder.Services.AddPluginApplicationServices();
         builder.Services.AddApplicationEvents();
@@ -454,6 +461,7 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddScoped<IGrantAdminUnlockService, GrantAdminUnlockService>();
         builder.Services.AddScoped<IAccountAccessMutationService, AccountAccessMutationService>();
         builder.Services.AddScoped<ApplicationAdministrationService>();
+        builder.Services.AddScoped<IntegrationHealthService>();
         builder.Services.AddSingleton<ClientAuthorizationService>();
         builder.Services.AddSingleton<AuthenticationPolicyMutationGate>();
         builder.Services.AddSingleton<AuthenticationProviderConfigurationService>();

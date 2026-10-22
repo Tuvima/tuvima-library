@@ -21,10 +21,12 @@ namespace MediaEngine.Api.Services.Plugins;
 public sealed class PluginDirectoryService
 {
     /// <summary>
-    /// Whether this Library can install a listed plugin. It cannot until the install packet adds the download, which flips
-    /// this one constant; the Dashboard shows an Install button only when the Engine says so.
+    /// Whether this Library can install a listed plugin (<see cref="PluginPackageInstaller"/>). The Dashboard shows an
+    /// Install button only when the Engine says so. The install work is built and tested, but this stays off until plugin
+    /// keys are encrypted on disk (the encrypted plugin keys spec, packet EK1), which Shy asked to land first; flipping it
+    /// is the one change that turns installing on.
     /// </summary>
-    public const bool InstallSupported = false;
+    public static bool InstallSupported { get; } = false;
 
     public const string HttpClientName = "plugin_catalog";
 
@@ -53,6 +55,8 @@ public sealed class PluginDirectoryService
     private readonly TuvimaDataPaths _dataPaths;
     private readonly ILogger<PluginDirectoryService> _logger;
     private readonly TimeProvider _time;
+    private readonly PluginBlocklist? _blocklist;
+    private readonly PluginCatalog? _catalog;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public PluginDirectoryService(
@@ -60,13 +64,17 @@ public sealed class PluginDirectoryService
         IConfigurationLoader configurationLoader,
         TuvimaDataPaths dataPaths,
         ILogger<PluginDirectoryService> logger,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        PluginBlocklist? blocklist = null,
+        PluginCatalog? catalog = null)
     {
+        _catalog = catalog;
         _httpClientFactory = httpClientFactory;
         _configurationLoader = configurationLoader;
         _dataPaths = dataPaths;
         _logger = logger;
         _time = timeProvider ?? TimeProvider.System;
+        _blocklist = blocklist;
     }
 
     /// <summary>Where the saved copy lives: <c>plugin-directory/directory.json</c> in the Tuvima data folder.</summary>
@@ -202,6 +210,25 @@ public sealed class PluginDirectoryService
         return ApprovalStatementBuilder.ToPreview(ApprovalKinds.Plugin, entry.Id, statement);
     }
 
+    /// <summary>One listed plugin from the saved copy, with everything the install check needs; null when it is not listed.</summary>
+    public async Task<PluginDirectoryEntryDto?> FindEntryAsync(string pluginId, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
+        var settings = _configurationLoader.LoadCore().PluginCatalog;
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var saved = await LoadSavedAsync(settings.ApprovedPluginsUrl, ct).ConfigureAwait(false);
+            var parsed = saved?.List is { } list ? PluginDirectoryParser.TryParse(list, out _) : null;
+            return parsed?.Entries.FirstOrDefault(candidate =>
+                string.Equals(candidate.Id, pluginId.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     // ── Checking ─────────────────────────────────────────────────────────────
 
     private static bool CanCheck(PluginCatalogSettings settings) => settings.Enabled && IsAllowedGitHubUrl(settings.ApprovedPluginsUrl);
@@ -320,6 +347,7 @@ public sealed class PluginDirectoryService
             }
 
             File.Move(temp, path, overwrite: true);
+            _blocklist?.NotifyChanged();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -354,6 +382,15 @@ public sealed class PluginDirectoryService
                 {
                     entry.IsNew = !previous.Contains(entry.Id);
                     entry.IsInstalled = installed.Contains(entry.Id);
+                    if (entry.IsInstalled && _catalog?.Get(entry.Id) is { IsBuiltIn: false } registration)
+                    {
+                        entry.InstalledVersion = registration.Manifest.Version;
+                        entry.UpdateAvailable = _catalog.InstallRecords.Find(entry.Id) is not null
+                            && PluginCompatibility.TryParseVersion(entry.Version, out var listed)
+                            && PluginCompatibility.TryParseVersion(registration.Manifest.Version, out var current)
+                            && listed > current;
+                    }
+
                     return entry;
                 })
                 .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)

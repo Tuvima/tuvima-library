@@ -16,6 +16,10 @@ Font Awesome Free SVG artwork under `src/MediaEngine.Web/wwwroot/icons/fontaweso
 
 NUglify 1.23.3 is used only for Release CSS compilation and is excluded from Dashboard runtime assets. Copyright 2016 Alexandre Mutel. Its BSD 2-clause license and original Microsoft Ajax Minifier Apache 2.0 notice are preserved in `licenses/NUglify.txt`.
 
+## Wasmtime (sandboxed plugins)
+
+Wasmtime 48.0.2 (Bytecode Alliance, Apache License 2.0 with LLVM exception, <https://github.com/bytecodealliance/wasmtime>) runs sandboxed WebAssembly plugins inside the Engine, with limits on time, memory and steps, and with no access to files or the network except through the Library's own plugin services. It is used through the Wasmtime .NET package (same licence). The licence is kept in `licenses/Wasmtime-Apache-2.0-with-LLVM-exception.txt`. Plugin code never leaves the computer.
+
 ## QRCoder (invitation QR codes)
 
 QRCoder 1.6.0 draws the QR code that Users & Access shows with an invitation link. It runs inside the Dashboard, so the link never leaves the computer. Copyright Raffael Herrmann, MIT License.
@@ -34,7 +38,7 @@ PDF.js (pdfjs-dist 5.4.149, Mozilla, Apache License 2.0) draws PDFs and finds wo
 
 ## FFmpeg and FFprobe (video and audio inspection, thumbnails and streaming)
 
-Video and audio files are inspected, thumbnailed and prepared for streaming with FFmpeg and FFprobe (version 9.0.1, GNU General Public License v3, <https://ffmpeg.org>), run as separate programs on the user's computer and never linked into Tuvima Library. The build is the static GPL build from BtbN/FFmpeg-Builds, release `autobuild-2026-08-28-17-08` (<https://github.com/BtbN/FFmpeg-Builds>), pinned by SHA-256 in `tools/Download-FFmpeg.ps1`, `tools/ffmpeg/README.md` and `config/tool_downloads.json`. The Windows installer bundles it unmodified with its licence under `licenses/ffmpeg`; the container image installs the matching Linux build. When a person presses **Install for me** or **Download again** in Settings, the same build is fetched from GitHub, checked against those values and placed in the Library's data folder, and the licence file from the download is kept beside the programs as `LICENSE.txt`. GPLv3 is compatible with this project's AGPLv3 licence.
+Video and audio files are inspected, thumbnailed and prepared for streaming with FFmpeg and FFprobe (version 9.0.2, GNU General Public License v3, <https://ffmpeg.org>), run as separate programs on the user's computer and never linked into Tuvima Library. The Windows build is the GPLv3 "essentials" build from gyan.dev, release `9.0.2` (<https://github.com/GyanD/codexffmpeg>), pinned by SHA-256 in `tools/Download-FFmpeg.ps1`, `tools/ffmpeg/README.md` and `config/tool_downloads.json`. The Windows installer bundles it unmodified with its licence under `licenses/ffmpeg`; the container image installs the matching Linux build. When a person presses **Install for me** or **Download again** in Settings, the same build is fetched from GitHub, checked against those values and placed in the Library's data folder, and the licence file from the download is kept beside the programs as `LICENSE.txt`. GPLv3 is compatible with this project's AGPLv3 licence.
 
 ## Tesseract OCR, tessdata_fast, PDFtoImage and PDFium (scanned document search)
 

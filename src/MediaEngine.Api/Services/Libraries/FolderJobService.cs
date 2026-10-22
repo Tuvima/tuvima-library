@@ -470,7 +470,7 @@ public sealed class FolderJobService
 
             _logger.LogInformation("Stopping folder job {OperationId}: its folder is no longer managed", operation.Id);
             await _operations.MarkCancelledAsync(
-                operation.Id, "The folder was switched to As-is, so Library stopped organising it. Nothing was undone.", ct)
+                operation.Id, "The folder was switched to Read-only, so Library stopped organising it. Nothing was undone.", ct)
                 .ConfigureAwait(false);
             await PublishAsync(operation.Id, ct).ConfigureAwait(false);
         }

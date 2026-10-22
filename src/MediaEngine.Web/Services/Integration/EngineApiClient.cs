@@ -75,6 +75,15 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
+    public Task<PluginSourcesResponse?> GetPluginSourcesAsync(CancellationToken ct = default) =>
+        GetAsync<PluginSourcesResponse>("GET /plugin-sources", "/plugin-sources", ct: ct);
+
+    public Task<PluginSourceImpactDto?> GetPluginSourceSwitchOffImpactAsync(string name, CancellationToken ct = default) =>
+        GetAsync<PluginSourceImpactDto>("GET /plugin-sources/{name}/switch-off-impact", $"/plugin-sources/{Uri.EscapeDataString(name)}/switch-off-impact", ct: ct);
+
+    public Task<PluginSourceComparisonDto?> ComparePluginSourcesAsync(string from, string to, CancellationToken ct = default) =>
+        GetAsync<PluginSourceComparisonDto>("GET /plugin-sources/compare", $"/plugin-sources/compare?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}", ct: ct);
+
     public Task<PluginDirectoryResponse?> GetPluginDirectoryAsync(CancellationToken ct = default) =>
         GetAsync<PluginDirectoryResponse>("GET /plugins/directory", "/plugins/directory", ct: ct);
 
@@ -93,6 +102,30 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             $"/plugins/directory/{Uri.EscapeDataString(pluginId)}/approval-preview",
             new { },
             ct: ct);
+
+    public async Task<PluginInstallOutcome> InstallDirectoryPluginAsync(string pluginId, CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await _http.PostAsJsonAsync(
+                $"/plugins/directory/{Uri.EscapeDataString(pluginId)}/install", new { }, ct);
+            if (response.IsSuccessStatusCode)
+            {
+                return new PluginInstallOutcome(await response.Content.ReadFromJsonAsync<PluginInstallResponse>(ct));
+            }
+
+            return new PluginInstallOutcome(null, await ReadProblemDetailAsync(response, ct));
+        }
+        catch (OperationCanceledException) { return new PluginInstallOutcome(null); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /plugins/directory/{PluginId}/install failed", pluginId);
+            return new PluginInstallOutcome(null);
+        }
+    }
+
+    public Task<PluginRemovalImpactResponse?> GetPluginRemovalImpactAsync(string pluginId, CancellationToken ct = default) =>
+        GetAsync<PluginRemovalImpactResponse>("GET /plugins/{id}/removal-impact", $"/plugins/{Uri.EscapeDataString(pluginId)}/removal-impact", ct: ct);
 
     public async Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, string? approvalHash = null, CancellationToken ct = default)
     {
@@ -252,6 +285,9 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
 
     public async Task<StartupReadinessResponse?> GetStartupReadinessAsync(CancellationToken ct = default)
         => await _systemClient.GetStartupReadinessAsync(ct);
+
+    public async Task<StartupReadinessResponse?> GetStorageReadinessAsync(CancellationToken ct = default)
+        => await _systemClient.GetStorageReadinessAsync(ct);
 
     public async Task<DevelopmentToolsResponse?> GetDevelopmentToolsAsync(CancellationToken ct = default)
         => await _systemClient.GetDevelopmentToolsAsync(ct);

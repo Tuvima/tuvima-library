@@ -29,6 +29,7 @@ public sealed class PluginHostServicesPermissionTests : IDisposable
     [InlineData("library-events", "Is told when things happen in the Library (items added, ingestion finished, metadata changes)")]
     [InlineData("watch-activity", "Is told what people watch, read and listen to")]
     [InlineData("background-work", "Runs continuously in the background while switched on")]
+    [InlineData("plugin-pages", "Adds pages and menu entries to the Library")]
     public void TheApprovalStatement_SaysEachNewPermissionInPlainWords(string permission, string expectedLine)
     {
         Assert.Contains(permission, PluginPermissionIds.All);
@@ -47,6 +48,7 @@ public sealed class PluginHostServicesPermissionTests : IDisposable
     [InlineData("library-events")]
     [InlineData("watch-activity")]
     [InlineData("background-work")]
+    [InlineData("plugin-pages")]
     public void AGainedHostPermission_ChangesTheFingerprint_SoTheAdministratorIsAskedAgain(string permission)
     {
         var before = new PluginManifest { Id = "test.words", Name = "Words", Permissions = [PluginPermissionIds.MediaRead] };

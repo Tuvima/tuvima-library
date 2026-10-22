@@ -4,12 +4,14 @@ using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Approvals;
+using MediaEngine.Api.Services.LocalAi;
 using MediaEngine.Contracts.Ai;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
+using MediaEngine.Plugins;
 using MediaEngine.Storage.Contracts;
 using Microsoft.AspNetCore.Mvc;
 
@@ -258,6 +260,13 @@ internal static class AiEndpoints
         .Produces<ResourceSnapshotDto>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.AiStatusRead);
 
+        // ── GET /ai/usage ────────────────────────────────────────────────────
+        group.MapGet("/usage", GetAiUsageAsync)
+        .WithName("GetAiUsage")
+        .WithSummary("Returns who used which Local AI ability over the last days, and each AI plugin's standing against its hourly allowance.")
+        .Produces<AiUsageResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.AiStatusRead);
+
         // ── GET /ai/enrichment/progress ──────────────────────────────────────
         group.MapGet("/enrichment/progress", async (
             ICanonicalValueRepository canonicals,
@@ -282,6 +291,53 @@ internal static class AiEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataEnrichmentRead);
 
         return group;
+    }
+
+    /// <summary>Usage per caller and ability since <c>days</c> ago (1 to 90, default 7), plus each AI plugin's hourly standing.</summary>
+    internal static async Task<IResult> GetAiUsageAsync(
+        IAiUsageRecordRepository usage,
+        [FromServices] PluginAiBudget budget,
+        Services.Plugins.PluginCatalog plugins,
+        TimeProvider clock,
+        CancellationToken ct,
+        int days = 7)
+    {
+        days = Math.Clamp(days, 1, IAiUsageRecordRepository.RetentionDays);
+        var since = clock.GetUtcNow().AddDays(-days);
+        var names = plugins.List().ToDictionary(p => p.Manifest.Id, p => p.Manifest.Name, StringComparer.OrdinalIgnoreCase);
+        var response = new AiUsageResponse { Since = since, Days = days };
+        foreach (var row in await usage.SummariseSinceAsync(since, ct).ConfigureAwait(false))
+        {
+            response.Rows.Add(new AiUsageRowDto
+            {
+                CallerKind = row.CallerKind.ToKey(),
+                CallerId = row.CallerId,
+                CallerName = row.CallerKind == AiCallerKind.Plugin && names.TryGetValue(row.CallerId, out var name) ? name : row.CallerId,
+                Ability = row.Ability.ToDisplayName(),
+                Requests = row.Requests,
+                Succeeded = row.Succeeded,
+                BusySeconds = Math.Round(row.BusyMs / 1000.0, 1),
+                LastUsedAt = row.LastUsedAt,
+            });
+        }
+
+        foreach (var plugin in plugins.List().Where(p => p.Manifest.Permissions.Contains(PluginPermissionIds.AiInfer, StringComparer.Ordinal))
+                     .OrderBy(p => p.Manifest.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var status = await budget.GetStatusAsync(plugin.Manifest.Id, ct).ConfigureAwait(false);
+            response.Plugins.Add(new AiPluginBudgetStandingDto
+            {
+                PluginId = plugin.Manifest.Id,
+                PluginName = plugin.Manifest.Name,
+                RequestsThisHour = status.Requests,
+                RequestsPerHour = status.Budget.RequestsPerHour,
+                BusySecondsThisHour = Math.Round(status.BusyMs / 1000.0, 1),
+                BusySecondsPerHour = status.Budget.BusySecondsPerHour,
+                OverBudget = status.IsOverBudget,
+            });
+        }
+
+        return Results.Ok(response);
     }
 
     /// <summary>The saved Local AI settings. Which AI features run is decided by their plugins, not here.</summary>

@@ -111,7 +111,7 @@ Long-lived keys belong in `config/secrets/`. A blank key in the public provider 
 
 Open **Settings → Tools and requirements**. Check whether a model is missing, downloading, ready or failed, and use **Download again** if a download did not finish. Loading and unloading a model are on the same page; the runtime limits are on **Settings → Local AI → Runtime**.
 
-Confirm model storage, native runtime availability, and capability gates. Saved feature flags do not make missing dependencies ready. Local AI is optional for initial catalogue setup.
+Confirm model storage, native runtime availability, and capability gates. Switching an AI plugin on does not make missing dependencies ready. Local AI is optional for initial catalogue setup.
 
 ## Sending logs with a bug report
 

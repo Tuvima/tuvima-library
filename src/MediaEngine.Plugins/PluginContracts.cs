@@ -143,6 +143,9 @@ public static class PluginPermissionIds
     /// <summary>Runs continuously in the background while switched on (<see cref="IPluginBackgroundService"/>).</summary>
     public const string BackgroundWork = "background-work";
 
+    /// <summary>Adds pages and menu entries to the Library, shown in the Library's own page types and drawn from the plugin's records.</summary>
+    public const string PluginPages = "plugin-pages";
+
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         MediaRead,
@@ -157,5 +160,6 @@ public static class PluginPermissionIds
         LibraryEvents,
         WatchActivity,
         BackgroundWork,
+        PluginPages,
     };
 }

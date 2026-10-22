@@ -216,6 +216,20 @@ public sealed class StateCardPagesTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TheAttentionState_KnowsWhetherAnAiFeaturePluginIsSwitchedOn()
+    {
+        _plugins = [Plugin("tuvima.ai-vibe-tags", "Vibe tags", enabled: false), Plugin("a.other", "Other", enabled: true)];
+        await State.StartAsync();
+        Assert.False(State.AiFeaturesOn);
+        State.Stop();
+
+        _plugins = [Plugin("tuvima.ai-vibe-tags", "Vibe tags", enabled: true)];
+        await State.StartAsync();
+        Assert.True(State.AiFeaturesOn);
+        State.Stop();
+    }
+
+    [Fact]
     public async Task TheAttentionState_ShadesPluginsFromTheListItReads_WithoutTheCardsPageOpen()
     {
         _plugins = [Plugin("a.bad", "Bad plugin", enabled: true, loadError: "Could not load.")];
@@ -322,7 +336,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
     // ── Local AI ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task LocalAiOverview_DrawsOneEngineCardAndOneCardPerAiFeaturePlugin_WithNoSwitchesOfItsOwn()
+    public async Task LocalAiStatus_DrawsOneEngineCard_WithNoFeatureCardsOrSwitchesOfItsOwn()
     {
         _plugins = AiFeaturePlugins();
         await State.StartAsync();
@@ -330,14 +344,14 @@ public sealed class StateCardPagesTests : AsyncBunitContext
         var cut = Render<LocalAiSettingsTab>();
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=localaiengine]")));
-        cut.WaitForAssertion(() => Assert.Equal(5, cut.FindAll(".local-ai-settings__feature-card").Count));
+        Assert.Empty(cut.FindAll(".local-ai-settings__feature-card"));
         Assert.Empty(cut.FindAll("input[role=switch]"));
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Save features");
         State.Stop();
     }
 
     [Fact]
-    public async Task LocalAiOverview_WhileLocalAiIsBlocked_ShowsTheEngineAsBroken_AndEachFeatureKeepsItsOwnPluginState()
+    public async Task LocalAiStatus_WhileLocalAiIsBlocked_ShowsTheEngineAsBroken()
     {
         _onTools = () => new ToolRequirementsDto(
             ToolInstallKinds.Source,
@@ -353,10 +367,6 @@ public sealed class StateCardPagesTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=localaiengine]")));
         Assert.Equal("broken", cut.Find("[data-state-card=localaiengine]").GetAttribute("data-health"));
-        cut.WaitForAssertion(() => Assert.Equal(5, cut.FindAll(".local-ai-settings__feature-card").Count));
-        var states = cut.FindAll(".local-ai-settings__feature-state").Select(state => state.TextContent).ToList();
-        Assert.Single(states, text => text.Contains("On", StringComparison.Ordinal) && !text.Contains("Off", StringComparison.Ordinal));
-        Assert.Equal(4, states.Count(text => text.Contains("Off", StringComparison.Ordinal)));
         State.Stop();
     }
 

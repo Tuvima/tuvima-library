@@ -189,6 +189,42 @@ public sealed class DisplayComposerServiceTests
     }
 
     [Fact]
+    public async Task Browse_FiltersByVibeAndTheme_AndListsOnlyWhatTheLibraryHas()
+    {
+        var cozy = Work(Guid.NewGuid(), "Book", "The Lantern", author: "A. Writer");
+        cozy.Vibe = "cozy;slow-burn";
+        cozy.Themes = "friendship";
+        var tense = Work(Guid.NewGuid(), "Book", "The Chase", author: "B. Writer");
+        tense.Vibe = "tense";
+        tense.Themes = "betrayal;friendship";
+        var plain = Work(Guid.NewGuid(), "Book", "No Tags", author: "C. Writer");
+        var composer = CreateComposer(new StubDisplayProjectionRepository([cozy, tense, plain], []));
+
+        var vibePage = await composer.BuildBrowseAsync("read", "Books", "all", null, 0, 48, ct: default, vibes: "Cozy");
+        var themePage = await composer.BuildBrowseAsync("read", "Books", "all", null, 0, 48, ct: default, themes: "betrayal");
+        var both = await composer.BuildBrowseAsync("read", "Books", "all", null, 0, 48, ct: default, vibes: "tense", themes: "friendship");
+
+        Assert.Equal(cozy.WorkId, Assert.Single(vibePage.Catalog).WorkId);
+        Assert.Equal(tense.WorkId, Assert.Single(themePage.Catalog).WorkId);
+        Assert.Equal(tense.WorkId, Assert.Single(both.Catalog).WorkId);
+        // The lists keep the full scope, so choosing a vibe does not hide the other vibes.
+        Assert.Equal(["friendship", "betrayal"], vibePage.Facets!.Themes);
+        Assert.Equal(["cozy", "slow-burn", "tense"], vibePage.Facets.Vibes.Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task Browse_WithNoAiResults_OffersNoVibeOrThemeFilters()
+    {
+        var composer = CreateComposer(new StubDisplayProjectionRepository(
+            [Work(Guid.NewGuid(), "Book", "No Tags", author: "A. Writer")], []));
+
+        var page = await composer.BuildBrowseAsync("read", "Books", "all", null, 0, 48, ct: default);
+
+        Assert.Empty(page.Facets!.Vibes);
+        Assert.Empty(page.Facets.Themes);
+    }
+
+    [Fact]
     public async Task Browse_SearchIncludesNewCanonicalMetadataAndKeepsTitleAndLaneFiltering()
     {
         var networkId = Guid.NewGuid();

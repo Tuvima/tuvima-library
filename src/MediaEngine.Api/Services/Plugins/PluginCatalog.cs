@@ -1,6 +1,10 @@
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
+using MediaEngine.Api.Services.Plugins.Declarative;
+using MediaEngine.Api.Services.Plugins.Sandbox;
+using MediaEngine.Api.Services.Plugins.Service;
+using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
 using MediaEngine.Storage.Contracts;
@@ -31,8 +35,12 @@ public sealed class PluginCatalog
     private readonly IPluginApprovalCheck _approvals;
     private readonly ILogger<PluginCatalog> _logger;
     private readonly string _pluginRoot;
+    private readonly string _installRecordRoot;
+    private readonly string _stagingRoot;
     private readonly string _libraryVersion;
     private readonly string _platform;
+    private readonly PluginBlocklist? _blocklist;
+    private readonly PluginMetadataSourceFiles? _sourceFiles;
     private readonly object _lock = new();
     private List<PluginRegistration> _registrations = [];
     private bool _loaded;
@@ -48,8 +56,10 @@ public sealed class PluginCatalog
         PluginSettingsService settingsService,
         IConfigurationLoader configurationLoader,
         IPluginApprovalCheck approvals,
-        ILogger<PluginCatalog> logger)
-        : this(builtInPlugins, settingsService, configurationLoader, approvals, logger, LibraryVersion.Current, PluginCompatibility.CurrentRid)
+        ILogger<PluginCatalog> logger,
+        PluginBlocklist? blocklist = null,
+        PluginMetadataSourceFiles? sourceFiles = null)
+        : this(builtInPlugins, settingsService, configurationLoader, approvals, logger, LibraryVersion.Current, PluginCompatibility.CurrentRid, blocklist, sourceFiles)
     {
     }
 
@@ -62,8 +72,17 @@ public sealed class PluginCatalog
         IPluginApprovalCheck approvals,
         ILogger<PluginCatalog> logger,
         string libraryVersion,
-        string platform)
+        string platform,
+        PluginBlocklist? blocklist = null,
+        PluginMetadataSourceFiles? sourceFiles = null)
     {
+        _sourceFiles = sourceFiles;
+        _blocklist = blocklist;
+        if (blocklist is not null)
+        {
+            blocklist.Changed += Reload;
+        }
+
         _builtInPlugins = builtInPlugins.ToList();
         _settingsService = settingsService;
         _approvals = approvals;
@@ -76,7 +95,52 @@ public sealed class PluginCatalog
             ? Path.GetFullPath(".data")
             : Path.Combine(core.LibraryRoot, ".data");
         _pluginRoot = Path.Combine(root, "plugins");
+        _installRecordRoot = Path.Combine(root, "plugin-installs");
+        _stagingRoot = Path.Combine(root, "plugin-staging");
+        InstallRecords = new PluginInstallRecords(_installRecordRoot, _pluginRoot);
     }
+
+    /// <summary>What the Library remembers about plugins it installed from the directory (their trust level and the manifest it checked).</summary>
+    public PluginInstallRecords InstallRecords { get; }
+
+    /// <summary>The folder installed plugins live in.</summary>
+    public string PluginRoot => _pluginRoot;
+
+    /// <summary>Where a package is unpacked and checked before it is moved into the plugins folder. Never scanned for plugins.</summary>
+    public string StagingRoot => _stagingRoot;
+
+    /// <summary>
+    /// What would have no source if this plugin were removed: each thing it provides (other than its own housekeeping)
+    /// that no other switched-on plugin provides too. Empty when nothing depends on it or it is switched off.
+    /// </summary>
+    public IReadOnlyList<string> DescribeRemovalImpact(string pluginId)
+    {
+        var registration = Get(pluginId)
+            ?? throw new InvalidOperationException($"Plugin '{pluginId}' is not registered.");
+        if (!registration.Enabled)
+        {
+            return [];
+        }
+
+        var others = List()
+            .Where(other => other.Enabled && !string.Equals(other.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase))
+            .SelectMany(other => other.Manifest.Capabilities.Select(capability => capability.Kind))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return registration.Manifest.Capabilities
+            .Where(capability => !string.IsNullOrWhiteSpace(capability.Kind) && !HousekeepingKinds.Contains(capability.Kind) && !others.Contains(capability.Kind))
+            .Select(capability => string.IsNullOrWhiteSpace(capability.Name) ? capability.Kind : capability.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(name => $"{name} would have no source.")
+            .ToList();
+    }
+
+    private static readonly HashSet<string> HousekeepingKinds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        PluginCapabilityKinds.HealthCheckKind,
+        PluginCapabilityKinds.ScheduledJobKind,
+        PluginCapabilityKinds.EventSubscriberKind,
+        PluginCapabilityKinds.BackgroundServiceKind,
+    };
 
     public IReadOnlyList<PluginRegistration> List()
     {
@@ -193,6 +257,7 @@ public sealed class PluginCatalog
         }
 
         Directory.Delete(pluginDirectory, recursive: true);
+        InstallRecords.Delete(registration.Manifest.Id);
         _settingsService.Delete(registration.Manifest.Id);
         Reload();
     }
@@ -217,6 +282,9 @@ public sealed class PluginCatalog
             _registrations = [];
         }
         EnsureLoaded();
+
+        // Metadata sources supplied by switched-on JSON plugins live in the providers folder; keep it in step.
+        _sourceFiles?.Reconcile(List());
     }
 
     private void EnsureLoaded()
@@ -296,9 +364,19 @@ public sealed class PluginCatalog
     {
         var compatibility = PluginCompatibility.Evaluate(manifest, _libraryVersion, _platform, loadError);
 
+        // A plugin Tuvima has pulled is switched off with the reason showing, and cannot be switched back on.
+        if (!isBuiltIn && _blocklist?.Find(manifest.Id, manifest.Version) is { } block)
+        {
+            compatibility = PluginCompatibilityResult.Incompatible(
+                string.IsNullOrWhiteSpace(block.Reason)
+                    ? "Blocked: this plugin has been removed from the plugin directory."
+                    : $"Blocked: {block.Reason}");
+        }
+
         // Trust is decided here, never read from the manifest. Anything in the plugins folder is a sideloaded
-        // (private) plugin, even if it says it is official. Signature checks for verified plugins come in WP19.
-        var trust = isBuiltIn ? PluginTrustLevel.Official : PluginTrustLevel.Private;
+        // (private) plugin, even if it says it is official, unless the Library's own install record (written only after
+        // the package's checksum and, for checked plugins, signature were verified) vouches for exactly this manifest.
+        var trust = isBuiltIn ? PluginTrustLevel.Official : InstallRecords.TrustFor(manifest, manifestPath);
 
         var switchedOn = config.Enabled && compatibility.IsCompatible;
         var approved = !switchedOn || _approvals.IsCovered(manifest, trust);
@@ -514,6 +592,36 @@ public sealed class PluginCatalog
                 if (manifest is not null && PluginCompatibility.ValidateManifest(manifest) is { } invalidManifest)
                 {
                     results.Add(LoadFailure(manifest, invalidManifest, manifestPath));
+                    continue;
+                }
+
+                if (manifest is not null && manifest.Kind == PluginKind.Declarative)
+                {
+                    // A plugin that is only JSON: no code is loaded; the Library reads the description and checks it.
+                    var (declarative, problem) = DeclarativePlugin.TryCreate(manifest);
+                    results.Add(declarative is null
+                        ? LoadFailure(manifest, problem ?? "The plugin description could not be read.", manifestPath)
+                        : BuildRegistration(declarative, manifest, isBuiltIn: false, loadError: null, manifestPath: manifestPath));
+                    continue;
+                }
+
+                if (manifest is not null && manifest.Kind == PluginKind.Service)
+                {
+                    // A separate program: nothing of it is loaded here. The host starts it when the plugin is switched on.
+                    var (program, problem) = ServicePlugin.TryCreate(manifest, Path.GetDirectoryName(Path.GetFullPath(manifestPath)));
+                    results.Add(program is null
+                        ? LoadFailure(manifest, problem ?? "The plugin description could not be read.", manifestPath)
+                        : BuildRegistration(program, manifest, isBuiltIn: false, loadError: null, manifestPath: manifestPath));
+                    continue;
+                }
+
+                if (manifest is not null && manifest.Kind == PluginKind.Sandboxed)
+                {
+                    // WebAssembly: the module is read when a job runs, inside a sandbox with limits.
+                    var (sandboxed, problem) = SandboxPlugin.TryCreate(manifest, Path.GetDirectoryName(Path.GetFullPath(manifestPath)));
+                    results.Add(sandboxed is null
+                        ? LoadFailure(manifest, problem ?? "The plugin description could not be read.", manifestPath)
+                        : BuildRegistration(sandboxed, manifest, isBuiltIn: false, loadError: null, manifestPath: manifestPath));
                     continue;
                 }
 

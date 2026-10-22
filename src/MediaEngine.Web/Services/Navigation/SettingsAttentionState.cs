@@ -37,6 +37,8 @@ public sealed class SettingsAttentionState(
     private int _reviewCount;
     private bool _loaded;
     private bool _pluginsBroken;
+    private bool _integrationsBroken;
+    private bool _aiFeaturesOn;
     private bool _dismissalsLoaded;
     private bool _busy;
     private string? _actionError;
@@ -102,10 +104,28 @@ public sealed class SettingsAttentionState(
     public bool LocalAiBlocked => LocalAiBlockers.Count > 0;
 
     /// <summary>
+    /// An AI feature plugin is switched on, so it needs Local AI. Local AI itself has no switch: it only counts as broken
+    /// (red in the menu) when something switched on is waiting on it. False for anyone who is not a server administrator.
+    /// </summary>
+    public bool AiFeaturesOn => IsServerAdministrator && Volatile.Read(ref _aiFeaturesOn);
+
+    /// <summary>The Official AI feature plugins all have ids starting with this.</summary>
+    private const string AiFeaturePluginPrefix = "tuvima.ai-";
+
+    private static bool AnyAiFeatureOn(IEnumerable<PluginSummaryResponse> plugins) =>
+        plugins.Any(plugin => plugin.Enabled && plugin.Id.StartsWith(AiFeaturePluginPrefix, StringComparison.Ordinal));
+
+    /// <summary>
     /// A plugin that is switched on cannot do its job (it did not load, or it does not work with this Library), so the
     /// Plugins menu row shows red. A plugin that is switched off never counts. False for anyone who is not a server administrator.
     /// </summary>
     public bool PluginsBroken => IsServerAdministrator && Volatile.Read(ref _pluginsBroken);
+
+    /// <summary>
+    /// A webhook that is switched on keeps failing, so it cannot do its job and the Applications row shows red. One failed
+    /// delivery never does this. False for anyone who is not a server administrator.
+    /// </summary>
+    public bool IntegrationsBroken => IsServerAdministrator && Volatile.Read(ref _integrationsBroken);
 
     /// <summary>
     /// Takes the plugin list the Plugins page just loaded or changed, so the menu agrees with the page straight away
@@ -114,8 +134,12 @@ public sealed class SettingsAttentionState(
     public void ReportPlugins(IEnumerable<PluginSummaryResponse> plugins)
     {
         ArgumentNullException.ThrowIfNull(plugins);
-        var broken = plugins.Any(StateCardHealth.IsPluginBroken);
-        if (Interlocked.Exchange(ref _pluginsBroken, broken) != broken)
+        var list = plugins as IReadOnlyCollection<PluginSummaryResponse> ?? plugins.ToList();
+        var broken = list.Any(StateCardHealth.IsPluginBroken);
+        var aiOn = AnyAiFeatureOn(list);
+        var changed = Interlocked.Exchange(ref _pluginsBroken, broken) != broken;
+        changed |= Interlocked.Exchange(ref _aiFeaturesOn, aiOn) != aiOn;
+        if (changed)
         {
             Changed?.Invoke();
         }
@@ -240,6 +264,8 @@ public sealed class SettingsAttentionState(
                 Volatile.Write(ref _reviewCount, 0);
                 Volatile.Write(ref _tools, null);
                 Volatile.Write(ref _pluginsBroken, false);
+                Volatile.Write(ref _integrationsBroken, false);
+                Volatile.Write(ref _aiFeaturesOn, false);
                 Volatile.Write(ref _loaded, true);
                 Changed?.Invoke();
                 return;
@@ -248,10 +274,11 @@ public sealed class SettingsAttentionState(
             var reviewTask = orchestrator.TryRefreshReviewCountAsync(ct);
             var toolsTask = api.GetToolRequirementsAsync(ct);
             var pluginsTask = api.GetPluginsAsync(ct);
+            var integrationsTask = api.GetIntegrationHealthAsync(ct);
             var noticesTask = reloadDismissals || !HasDismissalsLoaded
                 ? api.GetSettingsNoticesAsync(ct)
                 : Task.FromResult<ProfileNoticesResponse?>(null);
-            await Task.WhenAll(reviewTask, toolsTask, pluginsTask, noticesTask).ConfigureAwait(false);
+            await Task.WhenAll(reviewTask, toolsTask, pluginsTask, integrationsTask, noticesTask).ConfigureAwait(false);
 
             // The Engine could not be asked (or this person may not see the queue): keep what was last known rather than
             // clearing a real problem, and never treat the failed read as "nothing needs review".
@@ -267,7 +294,13 @@ public sealed class SettingsAttentionState(
                 Volatile.Write(ref _tools, tools);
             }
 
-            Volatile.Write(ref _pluginsBroken, (await pluginsTask.ConfigureAwait(false)).Any(StateCardHealth.IsPluginBroken));
+            var pluginsRead = await pluginsTask.ConfigureAwait(false);
+            Volatile.Write(ref _pluginsBroken, pluginsRead.Any(StateCardHealth.IsPluginBroken));
+            Volatile.Write(ref _aiFeaturesOn, AnyAiFeatureOn(pluginsRead));
+            if (await integrationsTask.ConfigureAwait(false) is { } integrations)
+            {
+                Volatile.Write(ref _integrationsBroken, integrations.BrokenWebhooks > 0);
+            }
 
             if (await noticesTask.ConfigureAwait(false) is { } notices)
             {

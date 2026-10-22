@@ -136,6 +136,39 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
         Assert.Contains("Continue", saved.Markup, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void EnhanceStep_DoesNotListWhatTheLibraryNeeds()
+    {
+        var source = new ProviderCatalogueDto { DisplayName = "Example", MediaTypes = ["Movies"], Capabilities = ["artwork"] };
+
+        var cut = Render<SetupProvidersStage>(parameters => parameters.Add(p => p.Catalogue, [source]));
+
+        Assert.DoesNotContain("What your library needs", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='setup-need']"));
+    }
+
+    [Fact]
+    public void EnhanceStep_ShowsAGreenCheckForProvidersThatNeedNoKeyAndForConfiguredKeys()
+    {
+        var free = new ProviderCatalogueDto { DisplayName = "Free source", RequiresKey = false };
+        var withKey = Provider(configured: true);
+        var withKeyAlso = Provider(configured: false);
+        withKeyAlso.DisplayName = "Needs a key";
+
+        var cut = Render<SetupProvidersStage>(parameters => parameters.Add(p => p.Catalogue, [free, withKey, withKeyAlso]));
+
+        var noKey = cut.FindAll(".app-status-badge").Single(x => x.TextContent.Contains("No key needed", StringComparison.Ordinal));
+        Assert.Contains("app-tone--success", noKey.ClassList);
+        Assert.NotNull(noKey.QuerySelector("svg, .tl-icon-root"));
+
+        var configured = cut.FindAll(".app-status-badge").Single(x => x.TextContent.Contains("Key configured", StringComparison.Ordinal));
+        Assert.Contains("app-tone--success", configured.ClassList);
+        Assert.NotNull(configured.QuerySelector("svg, .tl-icon-root"));
+
+        // A provider whose key is still missing shows no done-badge.
+        Assert.Single(cut.FindAll(".app-status-badge"), x => x.TextContent.Contains("Key configured", StringComparison.Ordinal));
+    }
+
     private static ProviderCatalogueDto Provider(bool configured) => new()
     {
         DisplayName = "Example",

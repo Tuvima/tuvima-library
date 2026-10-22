@@ -22,4 +22,5 @@ public static class ScheduledTaskKeys
     public const string FolderHealthCheck = "folder_health_check";
     public const string AdaptiveStreamingCleanup = "adaptive_streaming_cleanup";
     public const string EnrichmentRefreshSchedule = "enrichment_refresh_schedule";
+    public const string ScheduledBackup = "scheduled_backup";
 }

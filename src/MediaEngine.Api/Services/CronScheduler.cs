@@ -66,7 +66,7 @@ public static class CronScheduler
         }
     }
 
-    private static DateTimeOffset? NextOccurrence(string? cronExpression, DateTimeOffset from, TimeZoneInfo zone)
+    internal static DateTimeOffset? NextOccurrence(string? cronExpression, DateTimeOffset from, TimeZoneInfo zone)
     {
         if (string.IsNullOrWhiteSpace(cronExpression))
         {

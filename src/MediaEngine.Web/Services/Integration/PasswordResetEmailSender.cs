@@ -1,6 +1,5 @@
-using System.Net;
-using System.Net.Mail;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Services.Configuration;
 
 namespace MediaEngine.Web.Services.Integration;
@@ -47,33 +46,12 @@ public sealed class PasswordResetEmailSender(
             return false;
         }
 
-        using var message = new MailMessage
+        var result = await SmtpMailSender.SendAsync(settings, email, subject, body, ct).ConfigureAwait(false);
+        if (!result.Success)
         {
-            From = new MailAddress(settings.FromAddress, settings.FromName),
-            Subject = subject,
-            Body = body,
-            IsBodyHtml = false,
-        };
-        message.To.Add(new MailAddress(email));
-        using var client = new SmtpClient(settings.SmtpHost, settings.SmtpPort)
-        {
-            EnableSsl = settings.UseStartTls,
-            DeliveryMethod = SmtpDeliveryMethod.Network,
-            UseDefaultCredentials = false,
-        };
-        if (!string.IsNullOrWhiteSpace(settings.Username))
-        {
-            client.Credentials = new NetworkCredential(settings.Username, settings.Password);
+            logger.LogError("Password reset email delivery failed: {Reason}", result.Error);
         }
-        try
-        {
-            await client.SendMailAsync(message, ct).ConfigureAwait(false);
-            return true;
-        }
-        catch (Exception ex) when (ex is SmtpException or InvalidOperationException or FormatException)
-        {
-            logger.LogError(ex, "Password reset email delivery failed.");
-            return false;
-        }
+
+        return result.Success;
     }
 }

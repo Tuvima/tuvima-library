@@ -38,7 +38,7 @@ These tools appear in Editing Mode on the Overview of a video, on a computer onl
 
 - **Series.** A video that stands on its own can be put in an existing series (or one section of a series), or start a new series by name. A video in a series can be taken out so it stands on its own again. This changes only how Library shows the video; your files are not moved or renamed, and a re-scan keeps your choice.
 - **Order.** The videos of a series have move up and move down buttons. The order is saved in Library.
-- **Rename files to match this order.** Shown only when every video in the list lives in a Managed folder. It asks first, then renames each file to start with its position ("01 - Title"). A folder used as-is, or a read-only folder, never shows the button and is never touched; files stay in the folder they are in.
+- **Rename files to match this order.** Shown only when every video in the list lives in a Managed folder. It asks first, then renames each file to start with its position ("01 - Title"). A read-only folder never shows the button and is never touched; files stay in the folder they are in.
 - **Identify.** In the "..." menu of a video that has not been matched, **Identify** opens Editing Mode with Match and Identity. Paste a YouTube link or the 11-character video ID and Library looks it up. Only the ID is sent to YouTube, never your file, and only when the lookup is switched on for that library in Settings. Once a video is matched the entry no longer appears.
 - **Change thumbnail.** In the same "..." menu, opens Editing Mode with Manage Artwork on the cover.
 

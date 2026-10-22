@@ -5,6 +5,8 @@ using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Api.Services.LocalAi;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
+using MediaEngine.Api.Services.Plugins.Declarative;
+using MediaEngine.Api.Services.Plugins.Service;
 using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Operations;
@@ -106,6 +108,53 @@ internal static class PluginEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .RequireEffectiveAdministrator();
 
+        group.MapPost("/directory/{pluginId}/install", async ([FromServices] PluginPackageInstaller installer, string pluginId, CancellationToken ct) =>
+        {
+            if (!PluginDirectoryService.InstallSupported)
+            {
+                return ApiErrors.BadRequest("Installing plugins from the directory is not switched on yet.");
+            }
+
+            try
+            {
+                return Results.Ok(await installer.InstallAsync(pluginId, ct).ConfigureAwait(false));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return ApiErrors.NotFound(ex.Message);
+            }
+            catch (PluginInstallException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+        })
+            .WithName("InstallDirectoryPlugin")
+            .WithSummary("Install, or update to the listed version, a plugin from the plugin directory. The package is downloaded from GitHub, checked against the directory's checksum (and, for verified plugins, the publisher's signature) and unpacked safely. The plugin is left switched off; an update that asks for more than was approved leaves it off until approved again.")
+            .Produces<PluginInstallResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireEffectiveAdministrator();
+
+        group.MapGet("/{pluginId}/removal-impact", (string pluginId, PluginCatalog catalog) =>
+        {
+            if (catalog.Get(pluginId) is null)
+            {
+                return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+            }
+
+            return Results.Ok(new PluginRemovalImpactResponse
+            {
+                PluginId = pluginId,
+                WouldLose = catalog.DescribeRemovalImpact(pluginId).ToList(),
+                Keeps = "Anything this plugin already saved to your Library stays.",
+            });
+        })
+            .WithName("GetPluginRemovalImpact")
+            .WithSummary("What would have no source if the plugin were removed. Saved metadata is always kept.")
+            .Produces<PluginRemovalImpactResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
         group.MapGet("/{pluginId}", async (
             string pluginId,
             PluginCatalog catalog,
@@ -133,7 +182,7 @@ internal static class PluginEndpoints
         .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
-        group.MapPost("/{pluginId}/disable", async (string pluginId, PluginCatalog catalog, AiFeatureRetractionService retraction, CancellationToken ct) =>
+        group.MapPost("/{pluginId}/disable", async (string pluginId, PluginCatalog catalog, [FromServices] AiFeatureRetractionService retraction, CancellationToken ct) =>
         {
             catalog.SetEnabled(pluginId, false);
 
@@ -143,6 +192,76 @@ internal static class PluginEndpoints
         })
         .WithName("DisablePlugin")
         .Produces<PluginEnabledResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPost("/{pluginId}/ai-steps/{stepKey}/run", async (
+            string pluginId,
+            string stepKey,
+            PluginAiStepRunRequest request,
+            [FromServices] DeclarativeAiStepRunner runner,
+            CancellationToken ct) =>
+        {
+            var result = await runner.RunAsync(pluginId, stepKey, request.inputs, ct);
+            return result is null
+                ? ApiErrors.NotFound($"Plugin '{pluginId}' has no AI step '{stepKey}'.")
+                : Results.Ok(new PluginAiStepRunResponse
+                {
+                    plugin_id = pluginId,
+                    step = stepKey,
+                    status = AiStatusWord(result.Status),
+                    message = result.Message,
+                    text = result.Text,
+                });
+        })
+        .WithName("RunPluginAiStep")
+        .WithSummary("Run an AI step a JSON-only plugin declared. The plugin must be switched on and approved; Local AI answers as that plugin.")
+        .Produces<PluginAiStepRunResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPost("/{pluginId}/service/lookup", async (
+            string pluginId,
+            HttpContext http,
+            PluginCatalog catalog,
+            [FromServices] PluginServiceClient service,
+            CancellationToken ct) =>
+        {
+            var registration = catalog.Get(pluginId);
+            if (registration is null)
+            {
+                return ApiErrors.NotFound($"There is no plugin '{pluginId}'.");
+            }
+
+            if (registration.Capabilities.OfType<ServiceLookupCapability>().FirstOrDefault() is null)
+            {
+                return ApiErrors.Conflict("This plugin is not a separate program.");
+            }
+
+            if (!registration.Enabled)
+            {
+                return ApiErrors.Conflict("Switch the plugin on first.");
+            }
+
+            var query = http.Request.Query
+                .Where(pair => pair.Key.Length <= 64)
+                .Take(10)
+                .ToDictionary(pair => pair.Key, pair => pair.Value.ToString(), StringComparer.Ordinal);
+            var result = await service.LookupAsync(pluginId, query, ct).ConfigureAwait(false);
+            return Results.Ok(new PluginServiceLookupResponse
+            {
+                plugin_id = pluginId,
+                status = result.Status switch
+                {
+                    ServiceCallStatus.Succeeded => "succeeded",
+                    ServiceCallStatus.NotRunning => "not_running",
+                    _ => "failed",
+                },
+                message = result.Message,
+                result = result.Json is null ? null : JsonDocument.Parse(result.Json).RootElement.Clone(),
+            });
+        })
+        .WithName("RunPluginServiceLookup")
+        .WithSummary("Ask a plugin that is a separate program to look something up (query values are passed on), to check that it works.")
+        .Produces<PluginServiceLookupResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
         group.MapPut("/{pluginId}/settings", (
@@ -510,6 +629,18 @@ internal static class PluginEndpoints
     /// statement's hash (the person confirmed it), which is recorded first. Anything else is an approval-required 409.
     /// A plugin that cannot work here keeps its own plain-English 409 and is never asked about.
     /// </summary>
+    internal static string AiStatusWord(PluginAiStatus status) => status switch
+    {
+        PluginAiStatus.Succeeded => "succeeded",
+        PluginAiStatus.Refused => "refused",
+        PluginAiStatus.AiUnavailable => "ai_unavailable",
+        PluginAiStatus.Busy => "busy",
+        PluginAiStatus.OverAllowance => "over_allowance",
+        PluginAiStatus.TimedOut => "timed_out",
+        PluginAiStatus.InvalidAnswer => "invalid_answer",
+        _ => "failed",
+    };
+
     internal static async Task<IResult> EnablePlugin(
         string pluginId,
         [FromBody] PluginEnableRequest? request,

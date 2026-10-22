@@ -41,7 +41,8 @@
                     <strong>@webhook.Url</strong>
                     <small>@string.Join(", ", webhook.EventTypes)</small>
                 </div>
-                <AppChip Text="@(webhook.IsEnabled ? "Enabled" : "Disabled")" Tone="@(webhook.IsEnabled ? AppUiTone.Success : AppUiTone.Neutral)" />
+                @{ var health = StateCardHealth.ForWebhook(webhook); }
+                <AppChip Text="@(webhook.IsEnabled ? StateCardHealth.Text(health.Word) : "Disabled")" Tone="@StateCardHealth.Tone(health.Word)" title="@health.LastProblem" />
             </div>
             <div class="application-webhook__status">
                 <strong>Delivery status</strong>

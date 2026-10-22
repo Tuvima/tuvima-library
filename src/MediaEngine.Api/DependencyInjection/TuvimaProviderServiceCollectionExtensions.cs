@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Api.Services.Review;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -146,6 +147,8 @@ public static class TuvimaProviderServiceCollectionExtensions
             TimeSpan.FromMinutes(10),
             addStandardResilience: false);
         services.AddTuvimaHttpClient("plugin_catalog", TimeSpan.FromSeconds(15));
+        // Plugin packages (install and update): a larger file than the directory list, fetched once, so no automatic retry.
+        services.AddTuvimaHttpClient("plugin_package", TimeSpan.FromMinutes(2), addStandardResilience: false);
         // The plugin web connection. Redirects are not followed by the handler: the Library follows them itself, one hop at
         // a time, so every hop is checked against the places the plugin declared. The standard retry pipeline is left off
         // because a hidden retry would send more requests than the plugin's requests-a-minute limit counts.
@@ -153,6 +156,7 @@ public static class TuvimaProviderServiceCollectionExtensions
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 
         var providerConfigurations = configLoader.LoadAllProviders();
+        services.AddSingleton(new ProviderStartupSnapshot(providerConfigurations.Where(config => config.PluginId is not null && config.Enabled).Select(config => config.Name)));
         foreach (var providerConfig in ConfigDrivenProviders(providerConfigurations).Where(config => config.RegistrationOrder <= 0))
         {
             RegisterConfigDrivenProvider(services, providerConfig);

@@ -1,0 +1,41 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+
+@* What Local AI features worked out about this item. Every value here is a suggestion, so the whole panel is marked AI;
+   nothing on it replaces what a provider or a person entered. *@
+@if (Results is { IsEmpty: false })
+{
+    <section class="tl-detail-panel tl-ai-results" aria-label="Suggested by Local AI">
+        <div class="tl-section-heading tl-ai-results__heading">
+            <h2>Suggested by Local AI</h2>
+            <AppStatusBadge Text="AI" Tone="AppUiTone.Info" />
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Results.Summary))
+        {
+            <p class="tl-ai-results__summary">@Results.Summary</p>
+        }
+        <dl class="tl-ai-results__groups">
+            @Group("Vibes", Results.Vibes)
+            @Group("Themes", Results.Themes)
+            @Group("Moods", Results.Moods)
+            @Group("Content warnings", Results.ContentWarnings)
+        </dl>
+        <p class="tl-ai-results__note">Made on this machine by an AI plugin. Switch the plugin off and these go away.</p>
+    </section>
+}
+
+@code {
+    [Parameter] public DetailAiResultsViewModel? Results { get; set; }
+
+    private static RenderFragment Group(string label, IReadOnlyList<string> values) => values.Count == 0
+        ? builder => { }
+        : @<div class="tl-ai-results__group">
+              <dt>@label</dt>
+              <dd>
+                  @foreach (var value in values)
+                  {
+                      <span class="tl-ai-results__value">@value</span>
+                  }
+              </dd>
+          </div>;
+}

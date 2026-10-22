@@ -59,6 +59,15 @@ public partial interface IEngineApiClient
     /// <summary>GET /plugins/directory — the saved plugin directory (Available plugins). The Engine checks GitHub first only when the switch is on and the last check is over a day old. Null when the Engine could not be asked.</summary>
     Task<PluginDirectoryResponse?> GetPluginDirectoryAsync(CancellationToken ct = default);
 
+    /// <summary>GET /plugin-sources: every metadata source with what it supplies, and whether the Engine must restart to match the list.</summary>
+    Task<PluginSourcesResponse?> GetPluginSourcesAsync(CancellationToken ct = default);
+
+    /// <summary>GET /plugin-sources/{name}/switch-off-impact: what would have no source if this one were switched off. Null when unknown.</summary>
+    Task<PluginSourceImpactDto?> GetPluginSourceSwitchOffImpactAsync(string name, CancellationToken ct = default);
+
+    /// <summary>GET /plugin-sources/compare: two sources side by side. Null when either is unknown.</summary>
+    Task<PluginSourceComparisonDto?> ComparePluginSourcesAsync(string from, string to, CancellationToken ct = default);
+
     /// <summary>POST /plugins/directory/check — Check now. Null when the Engine could not be asked.</summary>
     Task<PluginDirectoryResponse?> CheckPluginDirectoryAsync(CancellationToken ct = default);
 
@@ -70,6 +79,12 @@ public partial interface IEngineApiClient
 
     /// <summary>POST /plugins/directory/{id}/approval-preview — what to show before installing a listed plugin. Null when the Engine could not be asked or does not list it.</summary>
     Task<ApprovalPreviewResponse?> PreviewPluginDirectoryInstallAsync(string pluginId, CancellationToken ct = default);
+
+    /// <summary>POST /plugins/directory/{id}/install — installs or updates a listed plugin. Carries the Engine's reason when it was refused.</summary>
+    Task<PluginInstallOutcome> InstallDirectoryPluginAsync(string pluginId, CancellationToken ct = default);
+
+    /// <summary>GET /plugins/{id}/removal-impact — what would have no source if the plugin were removed. Null when the Engine could not be asked.</summary>
+    Task<PluginRemovalImpactResponse?> GetPluginRemovalImpactAsync(string pluginId, CancellationToken ct = default);
 
     /// <summary>
     /// POST /plugins/{id}/enable|disable. Switching on can answer with <see cref="PluginActionResult.Approval"/> (the Engine
@@ -102,6 +117,10 @@ public partial interface IEngineApiClient
 
     /// <summary>GET /system/readiness — structured launch-readiness report.</summary>
     Task<StartupReadinessResponse?> GetStartupReadinessAsync(CancellationToken ct = default)
+        => Task.FromResult<StartupReadinessResponse?>(null);
+
+    /// <summary>GET /system/readiness?category=storage — only the library and watch folder checks, without the data store scan.</summary>
+    Task<StartupReadinessResponse?> GetStorageReadinessAsync(CancellationToken ct = default)
         => Task.FromResult<StartupReadinessResponse?>(null);
 
     /// <summary>GET /system/activity-status — sanitized active Engine operations for the global shell.</summary>
@@ -355,6 +374,9 @@ public partial interface IEngineApiClient
 
     /// <summary>GET /ai/config — returns persisted AI configuration.</summary>
     Task<AiConfigDto?> GetAiConfigAsync(CancellationToken ct = default);
+
+    /// <summary>GET /ai/usage — who used which Local AI ability over the last days. Null when the Engine could not be asked.</summary>
+    Task<AiUsageResponse?> GetAiUsageAsync(int days = 7, CancellationToken ct = default);
 
     /// <summary>PUT /ai/config — saves persisted AI configuration.</summary>
     Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default);

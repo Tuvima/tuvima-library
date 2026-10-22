@@ -23,12 +23,12 @@ Use [View Personal Space](../guides/view-personal-space.md) for private photos, 
 
 1. Open **Settings → Libraries** and choose a media type: Books, Audiobooks, Movies, TV Shows, Music or Comics. There is no Add library step; a type's library is created when its first folder is added.
 2. Choose **Add folder**. Click a folder to open it, or type the path in the bar. You browse the server's drives (inside a container, whatever the container can see). Only administrators can browse, and Tuvima's own folders are never listed.
-3. If the folder already has files, Tuvima asks whether to use it as-is, merge it into a managed folder, or let Tuvima manage it. Use it as-is for originals that must stay unchanged.
+3. If the folder already has files, Tuvima asks whether to use it read-only, merge it into a managed folder, or let Tuvima manage it. Use it read-only for originals that must stay unchanged.
 4. Choose **Add**. It saves at once.
 
 The path belongs to the server running the Engine. For Docker, use the path inside the container, such as `/library`, rather than its host path.
 
-As-is folders always stay read-only. Saving a naming template does not reorganize existing files. A filename collision preserves the existing file and gives the incoming file a unique name.
+Read-only folders always stay read-only. Saving a naming template does not reorganize existing files. A filename collision preserves the existing file and gives the incoming file a unique name.
 
 ## Import a small batch
 

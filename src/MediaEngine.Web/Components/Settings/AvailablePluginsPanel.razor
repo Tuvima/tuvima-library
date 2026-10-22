@@ -77,7 +77,11 @@
 
 @code {
     private readonly CancellationTokenSource _disposed = new();
+    /// <summary>Raised after a plugin was installed or updated, so the installed list can load again.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
     private PluginDirectoryResponse? _directory;
+    private string? _busyPluginId;
     private bool _loading = true;
     private bool _checking;
     private int _newCount;
@@ -147,8 +151,19 @@
                            Size="AppControlSize.Compact"
                            Tone="AppUiTone.Primary"
                            ButtonStyle="AppButtonStyle.Filled"
+                           Disabled="@(_busyPluginId is not null)"
                            OnClick="@(() => InstallAsync(entry))"
                            data-testid="available-plugin-install" />
+            }
+            @if (_directory is { InstallSupported: true } && entry.IsInstalled && entry.UpdateAvailable)
+            {
+                <AppButton Label="@($"Update to {entry.Version}")"
+                           Size="AppControlSize.Compact"
+                           Tone="AppUiTone.Primary"
+                           ButtonStyle="AppButtonStyle.Filled"
+                           Disabled="@(_busyPluginId is not null)"
+                           OnClick="@(() => InstallAsync(entry))"
+                           data-testid="available-plugin-update" />
             }
             @if (!string.IsNullOrWhiteSpace(entry.ReleaseUrl))
             {
@@ -220,14 +235,39 @@
         }
 
         // The same approval step as switching a plugin on, in the Engine's own words. Cancel leaves everything as it was.
-        var hashes = await Approvals.ConfirmAsync([preview], $"Install {entry.Name}?", "Install");
+        var update = entry.IsInstalled;
+        var hashes = await Approvals.ConfirmAsync(
+            [preview],
+            update ? $"Update {entry.Name} to {entry.Version}?" : $"Install {entry.Name}?",
+            update ? "Update" : "Install");
         if (hashes is null || !hashes.ContainsKey(entry.Id))
         {
             return;
         }
 
-        // The download and install of the package arrive with the install work; the Engine reports installing as
-        // unsupported until then, so the Install button is not drawn and this point is not reached.
+        // Installing never switches the plugin on: that is its own approval, from the Plugins list.
+        _busyPluginId = entry.Id;
+        await InvokeAsync(StateHasChanged);
+        PluginInstallOutcome outcome;
+        try
+        {
+            outcome = await Orchestrator.InstallDirectoryPluginAsync(entry.Id, _disposed.Token);
+        }
+        finally
+        {
+            _busyPluginId = null;
+        }
+
+        if (outcome.Result is { } installed)
+        {
+            Snackbar.Add(installed.Message, installed.NeedsApprovalAgain ? AppSeverity.Warning : AppSeverity.Success);
+            await ShowAsync(await Orchestrator.GetPluginDirectoryAsync(_disposed.Token));
+            await OnChanged.InvokeAsync();
+            return;
+        }
+
+        Snackbar.Add(outcome.Problem ?? $"{entry.Name} could not be installed.", AppSeverity.Error);
+        await InvokeAsync(StateHasChanged);
     }
 
     private static string EntryMeta(PluginDirectoryEntryDto entry)

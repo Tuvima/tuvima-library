@@ -1,0 +1,26 @@
+{
+  "id": "tuvima.sample.webhook-channel",
+  "name": "Webhook channel (sample)",
+  "version": "1.0.0",
+  "kind": "declarative",
+  "description": "Sends the Library's notifications to a webhook such as ntfy. It is only JSON: no code.",
+  "permissions": ["network.http", "secrets.plugin"],
+  "network": [
+    { "host": "ntfy.sh", "sends": "The notification title and message" }
+  ],
+  "secrets": [
+    { "name": "token", "label": "Access token", "description": "Your ntfy access token. Leave it out of the file; enter it on the plugin's card." }
+  ],
+  "declarative": {
+    "notification_channels": [
+      {
+        "key": "ntfy",
+        "name": "Phone alert",
+        "url": "https://ntfy.sh/my-library-alerts",
+        "headers": { "Authorization": "Bearer {secret:token}" },
+        "content_type": "text/plain",
+        "body": "{title}\n{body}"
+      }
+    ]
+  }
+}

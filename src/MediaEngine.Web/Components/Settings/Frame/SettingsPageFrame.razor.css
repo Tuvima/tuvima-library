@@ -1,4 +1,4 @@
-/* The frame owns the one left edge, the content width and the vertical rhythm for every Settings page.
+/* The frame owns the one content column (centred in the space beside the menu), its width and the vertical rhythm for every Settings page.
    Pages never set their own outer width, margin or padding; they read these properties if they need the measure. */
 .settings-frame {
     --settings-frame-max-width: 1180px;
@@ -13,7 +13,8 @@
     width: 100%;
     min-width: 0;
     max-width: var(--settings-frame-max-width);
-    margin: 0;
+    /* Centred, so a wide screen leaves equal space on both sides; at or below the max width it fills the space. */
+    margin: 0 auto;
     flex-direction: column;
     gap: var(--settings-frame-gap);
 }

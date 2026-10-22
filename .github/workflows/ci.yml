@@ -5,48 +5,187 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manual run on any branch behaves like a push to main: full format check, coverage collected and enforced.
+  workflow_dispatch:
+  # Nightly full run (everything, with coverage) so problems that a lighter pull-request check misses show up within a day.
+  schedule:
+    - cron: '0 6 * * *'
 
 permissions:
   contents: read
   packages: write
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  build-and-test:
-    name: Build & Test
+  # A pull request that only touches engineering/ (specs, handoffs, plans) has nothing to build or test. Tests read
+  # docs/, config/ and root files, so those still run everything. The decision is a cheap step inside each job
+  # rather than a separate job, because every extra job waits in the runner queue.
+  build:
+    name: Build, format and publish checks
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      - name: Decide whether code changed
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          other=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -v '^engineering/' || true)
+          if [ -z "$other" ]; then echo "code=false" >> "$GITHUB_OUTPUT"; else echo "code=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Setup .NET
+        if: steps.scope.outputs.code == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.2xx"
+
+      - name: Cache NuGet packages
+        if: steps.scope.outputs.code == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore dependencies
+        if: steps.scope.outputs.code == 'true'
+        run: dotnet restore MediaEngine.slnx
+
+      - name: Build (warnings as errors)
+        if: steps.scope.outputs.code == 'true'
+        run: dotnet build MediaEngine.slnx --no-restore --warnaserror
+
+      # Developer tools outside the solution; building them here stops them silently breaking when product APIs change.
+      - name: Build developer tools (warnings as errors)
+        if: steps.scope.outputs.code == 'true'
+        run: |
+          dotnet build benchmarks/MediaEngine.Storage.Benchmarks/MediaEngine.Storage.Benchmarks.csproj --warnaserror
+          dotnet build tools/MediaEngine.PerformanceProbe/MediaEngine.PerformanceProbe.csproj --warnaserror
+
+      # Pull requests check the C# files they changed; main (and any other push) checks the whole solution.
+      - name: Verify formatting
+        if: steps.scope.outputs.code == 'true'
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            mapfile -t files < <(git diff --name-only --diff-filter=d "origin/${{ github.base_ref }}...HEAD" -- '*.cs')
+            if [ "${#files[@]}" -eq 0 ]; then echo "No C# files changed."; exit 0; fi
+            dotnet format MediaEngine.slnx --verify-no-changes --no-restore --include "${files[@]}"
+          else
+            dotnet format MediaEngine.slnx --verify-no-changes --no-restore
+          fi
+
+      - name: Setup Node for release asset verification
+        if: steps.scope.outputs.code == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Verify native runtime output selection
+        if: steps.scope.outputs.code == 'true'
+        run: node --test tests/build/*.test.mjs
+
+      - name: Run Dashboard script tests
+        if: steps.scope.outputs.code == 'true'
+        run: node --test tests/MediaEngine.Web.Tests/JavaScript/*.test.mjs
+
+      - name: Publish Dashboard (Release)
+        if: steps.scope.outputs.code == 'true'
+        run: dotnet publish src/MediaEngine.Web/MediaEngine.Web.csproj --configuration Release --output ./.tmp/ci/dashboard-publish
+
+      - name: Verify Release CSS minification and compression
+        if: steps.scope.outputs.code == 'true'
+        run: node scripts/build/verify-dashboard-css.mjs ./.tmp/ci/dashboard-publish "" ./.tmp/ci/published-css.json
+
+      - name: Check vulnerable packages
+        if: steps.scope.outputs.code == 'true'
+        run: dotnet list MediaEngine.slnx package --vulnerable --include-transitive
+
+  # Three test lanes run side by side. Api is the slowest project, so it gets a runner to itself.
+  # Code coverage is collected only on pushes to main: it slows the instrumented tests by roughly a fifth,
+  # and the threshold is enforced where it is collected.
+  test:
+    name: Tests (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Api
+            projects: tests/MediaEngine.Api.Tests
+          - name: Storage
+            projects: tests/MediaEngine.Storage.Tests
+          - name: Everything else
+            projects: >-
+              tests/MediaEngine.Web.Tests
+              tests/MediaEngine.AI.Tests tests/MediaEngine.Admin.Tests tests/MediaEngine.Contracts.Tests
+              tests/MediaEngine.Domain.Tests tests/MediaEngine.Identity.Tests tests/MediaEngine.Ingestion.Tests
+              tests/MediaEngine.Intelligence.Tests tests/MediaEngine.Performance.Tests
+              tests/MediaEngine.Processors.Tests tests/MediaEngine.Providers.Tests
     steps:
       - uses: actions/checkout@v4
         with:
           # Full history so origin/main exists for ReleasedStepsOnMain_AreUnchangedInThisChange.
           fetch-depth: 0
 
+      - name: Decide whether code changed
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          other=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -v '^engineering/' || true)
+          if [ -z "$other" ]; then echo "code=false" >> "$GITHUB_OUTPUT"; else echo "code=true" >> "$GITHUB_OUTPUT"; fi
+
       - name: Setup .NET
+        if: steps.scope.outputs.code == 'true'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.2xx"
 
-      - name: Restore dependencies
-        run: dotnet restore MediaEngine.slnx
+      - name: Cache NuGet packages
+        if: steps.scope.outputs.code == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
 
-      - name: Build (warnings as errors)
-        run: dotnet build MediaEngine.slnx --no-restore --warnaserror
-
-      # Developer tools outside the solution; building them here stops them silently breaking when product APIs change.
-      - name: Build developer tools (warnings as errors)
-        run: |
-          dotnet build benchmarks/MediaEngine.Storage.Benchmarks/MediaEngine.Storage.Benchmarks.csproj --warnaserror
-          dotnet build tools/MediaEngine.PerformanceProbe/MediaEngine.PerformanceProbe.csproj --warnaserror
-
-      - name: Verify formatting
-        run: dotnet format MediaEngine.slnx --verify-no-changes --no-restore
-
+      # Projects in one lane run at the same time; each prints its own result and any failure fails the lane.
       - name: Run tests
-        run: dotnet test MediaEngine.slnx --no-build --verbosity minimal --filter "Category!=LiveProvider" --collect:"XPlat Code Coverage" --results-directory ./TestResults
+        if: steps.scope.outputs.code == 'true'
+        shell: bash
+        run: |
+          coverage=()
+          if [ "${{ github.event_name }}" != "pull_request" ]; then coverage=(--collect:"XPlat Code Coverage"); fi
+          # Build first, one after another, so lanes never race on the shared project outputs.
+          for project in ${{ matrix.projects }}; do dotnet build "$project" --verbosity quiet; done
+          # At most three projects at once: timing-sensitive tests (file watchers, UI timers) misfire when
+          # eleven test hosts fight over four cores.
+          pids=()
+          for project in ${{ matrix.projects }}; do
+            while [ "$(jobs -rp | wc -l)" -ge 3 ]; do sleep 1; done
+            name=$(basename "$project")
+            dotnet test "$project" --no-build --verbosity minimal --filter "Category!=LiveProvider" "${coverage[@]}" \
+              --results-directory "./TestResults/$name" > "test-$name.log" 2>&1 &
+            pids+=("$!:$name")
+          done
+          failed=0
+          for entry in "${pids[@]}"; do
+            if ! wait "${entry%%:*}"; then failed=1; echo "::error::${entry##*:} failed"; fi
+            echo "=== ${entry##*:} ==="; tail -n 60 "test-${entry##*:}.log"
+          done
+          exit $failed
 
       - name: Explain snapshot and native-library failures
         if: failure()
@@ -58,34 +197,40 @@ jobs:
             diff -u "${received/.received./.approved.}" "$received" | head -120 || true
           done
 
-      - name: Enforce coverage threshold
-        shell: pwsh
-        run: ./scripts/coverage/Enforce-Coverage.ps1 -ResultsDirectory ./TestResults
-
-      - name: Setup Node for release asset verification
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Verify native runtime output selection
-        run: node --test tests/build/*.test.mjs
-
-      - name: Run Dashboard script tests
-        run: node --test tests/MediaEngine.Web.Tests/JavaScript/*.test.mjs
-
-      - name: Publish Dashboard (Release)
-        run: dotnet publish src/MediaEngine.Web/MediaEngine.Web.csproj --configuration Release --output ./.tmp/ci/dashboard-publish
-
-      - name: Verify Release CSS minification and compression
-        run: node scripts/build/verify-dashboard-css.mjs ./.tmp/ci/dashboard-publish "" ./.tmp/ci/published-css.json
-
-      - name: Check vulnerable packages
-        run: dotnet list MediaEngine.slnx package --vulnerable --include-transitive
-
       - name: Upload test results
-        if: always()
+        if: github.event_name != 'pull_request' && always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-${{ strategy.job-index }}
           path: ./TestResults
           retention-days: 30
+
+  # The single required check on main. It always runs and reports, whether the heavy jobs ran, were skipped
+  # (engineering-only change) or failed, so the ready-to-merge auto-merge keeps working. On pushes to main it
+  # also enforces the coverage threshold from the merged lane results.
+  gate:
+    name: Build & Test
+    needs: [build, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every job to pass
+        run: |
+          echo "build=${{ needs.build.result }} test=${{ needs.test.result }}"
+          if [ "${{ needs.build.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ]; then exit 1; fi
+
+      - uses: actions/checkout@v4
+        if: github.event_name != 'pull_request'
+
+      - name: Download test results
+        if: github.event_name != 'pull_request'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: ./TestResults
+          merge-multiple: true
+
+      - name: Enforce coverage threshold
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: ./scripts/coverage/Enforce-Coverage.ps1 -ResultsDirectory ./TestResults

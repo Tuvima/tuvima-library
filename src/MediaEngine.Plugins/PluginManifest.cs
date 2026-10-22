@@ -72,11 +72,40 @@ public sealed record PluginManifest
     [JsonPropertyName("default_settings")]
     public Dictionary<string, JsonElement> DefaultSettings { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// What a plugin of kind <see cref="PluginKind.Declarative"/> does, described in JSON: <c>ai_steps</c>,
+    /// <c>channel_sources</c> and <c>metadata_sources</c>. Ignored by other kinds.
+    /// </summary>
+    [JsonPropertyName("declarative")]
+    public JsonElement? Declarative { get; init; }
+
+    /// <summary>
+    /// How a plugin of kind <see cref="PluginKind.Service"/> (a separate program) is started or reached: <c>command</c> and
+    /// <c>arguments</c>, or <c>address</c> for a program that is already running, plus <c>health_path</c>, <c>lookup_path</c>,
+    /// <c>max_memory_mb</c> and <c>startup_seconds</c>. Ignored by other kinds.
+    /// </summary>
+    [JsonPropertyName("service")]
+    public JsonElement? Service { get; init; }
+
+    /// <summary>
+    /// How a plugin of kind <see cref="PluginKind.Sandboxed"/> (WebAssembly) runs: <c>module</c> (a .wasm file inside the plugin's
+    /// folder), <c>jobs</c>, and the limits <c>max_memory_mb</c>, <c>max_seconds</c> and <c>max_steps</c>. Ignored by other kinds.
+    /// </summary>
+    [JsonPropertyName("sandbox")]
+    public JsonElement? Sandbox { get; init; }
+
+    /// <summary>
+    /// Pages and menu entries the plugin adds, chosen from the Library's own page types (list, grid, guide, form, detail).
+    /// Needs the <c>plugin-pages</c> and <c>plugin-records</c> permissions. Read by <c>PluginPageDeclarations</c>.
+    /// </summary>
+    [JsonPropertyName("pages")]
+    public JsonElement? Pages { get; init; }
+
     [JsonPropertyName("settings_schema")]
     public JsonElement? SettingsSchema { get; init; }
 }
 
-/// <summary>How a plugin runs. Only <see cref="Official"/> can run in this version of the Library.</summary>
+/// <summary>How a plugin runs. <see cref="Official"/> and <see cref="Declarative"/> run in this version of the Library.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<PluginKind>))]
 public enum PluginKind
 {

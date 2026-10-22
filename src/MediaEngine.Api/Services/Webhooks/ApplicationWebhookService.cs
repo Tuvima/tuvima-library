@@ -29,7 +29,10 @@ internal sealed class ApplicationWebhookService(
     public async Task<IReadOnlyList<ApplicationWebhookResponse>> ListAsync(Guid applicationId, CancellationToken ct)
     {
         await RequireApplicationAsync(applicationId, ct);
-        return (await repository.ListAsync(applicationId, ct)).Select(Map).ToList();
+        var failures = await repository.ConsecutiveFailuresAsync(ct);
+        return (await repository.ListAsync(applicationId, ct))
+            .Select(webhook => Map(webhook, failures.GetValueOrDefault(webhook.Id)))
+            .ToList();
     }
 
     public const int DefaultAttemptCount = 6;
@@ -198,8 +201,8 @@ internal sealed class ApplicationWebhookService(
         return webhook?.ApplicationId == applicationId ? webhook : throw new KeyNotFoundException("Webhook not found.");
     }
 
-    internal static ApplicationWebhookResponse Map(ApplicationWebhook webhook) => new(
+    internal static ApplicationWebhookResponse Map(ApplicationWebhook webhook, int consecutiveFailures = 0) => new(
         webhook.Id, webhook.ApplicationId, webhook.Url,
         JsonSerializer.Deserialize<string[]>(webhook.EventTypesJson) ?? [], webhook.AllowLocalNetwork,
-        webhook.IsEnabled, webhook.Version, webhook.LastStatus, webhook.LastAttemptAt, webhook.LastSuccessAt);
+        webhook.IsEnabled, webhook.Version, webhook.LastStatus, webhook.LastAttemptAt, webhook.LastSuccessAt, consecutiveFailures);
 }

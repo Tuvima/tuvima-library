@@ -1551,4 +1551,34 @@
   <data name="Ingestion_ActivityProcessingDetail" xml:space="preserve">
     <value>Processing library data.</value>
   </data>
+  <data name="PluginPage_NotFoundTitle" xml:space="preserve">
+    <value>Cette page n’est pas disponible</value>
+  </data>
+  <data name="PluginPage_NotFoundMessage" xml:space="preserve">
+    <value>Le plugin qui la fournit est désactivé, ou vous n’y avez pas accès.</value>
+  </data>
+  <data name="PluginPage_EmptyTitle" xml:space="preserve">
+    <value>Rien à afficher pour l’instant</value>
+  </data>
+  <data name="PluginPage_EmptyMessage" xml:space="preserve">
+    <value>Ce plugin n’a encore rien fourni pour cette page.</value>
+  </data>
+  <data name="PluginPage_WideScreenTitle" xml:space="preserve">
+    <value>Ouvrez ceci sur un écran plus grand</value>
+  </data>
+  <data name="PluginPage_WideScreenMessage" xml:space="preserve">
+    <value>Cette page demande la largeur d’une tablette ou d’un ordinateur.</value>
+  </data>
+  <data name="PluginPage_FromPlugin" xml:space="preserve">
+    <value>Fourni par {0}</value>
+  </data>
+  <data name="PluginPage_Truncated" xml:space="preserve">
+    <value>Affichage des {0} premières entrées.</value>
+  </data>
+  <data name="PluginPage_Saved" xml:space="preserve">
+    <value>Enregistré.</value>
+  </data>
+  <data name="PluginPage_SaveFailed" xml:space="preserve">
+    <value>Impossible d’enregistrer. Vérifiez le formulaire et réessayez.</value>
+  </data>
 </root>

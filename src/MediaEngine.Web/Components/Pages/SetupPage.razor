@@ -1,5 +1,6 @@
 @page "/setup"
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+@implements IDisposable
 @layout MediaEngine.Web.Shared.SetupWizardLayout
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Contracts.Setup
@@ -82,7 +83,7 @@
                                         ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "providers":
-                    <SetupProvidersStage Catalogue="@_providerCatalogue" Libraries="@_setupLibraries" SetupSession="@_setupSession" Busy="@_busy"
+                    <SetupProvidersStage Catalogue="@_providerCatalogue" SetupSession="@_setupSession" Busy="@_busy"
                                          RefreshRequested="RefreshProvidersAsync" Continue="SaveProviderResultAsync" Defer="DeferProviderResultAsync"
                                          Back="@(() => { _languageConfirmed = false; return Task.CompletedTask; })" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
@@ -388,6 +389,12 @@
             _preflightError = "Library could not finish getting ready. Try again.";
         }
         finally { _busy = false; }
+        // A missing Required tool the Library can fetch (FFmpeg) is already downloading; show its progress until it ends.
+        if (_preflight is { Passed: true } && SetupToolRules.IsDownloadingRequiredTool(_preflight.Tools))
+        {
+            StateHasChanged();
+            await FollowToolDownloadsAsync();
+        }
         // A missing tool never blocks setup, but the person sees the list first and moves on with Continue.
         if (_preflight is { Passed: true, Tools.NeedsAttention: false } && automaticallyAdvance && !_showRestore && _selectedStep is null)
         {
@@ -396,6 +403,47 @@
         }
     }
     private Task ContinuePastToolsAsync() => ReloadAsync();
+
+    private static readonly TimeSpan ToolPollInterval = TimeSpan.FromSeconds(1.5);
+    private readonly CancellationTokenSource _closed = new();
+
+    // Reads the tools list every moment or so while a download runs. It stops when the download ends, the Engine cannot be
+    // reached (Check again tries once more) or the person leaves the page.
+    private async Task FollowToolDownloadsAsync()
+    {
+        var token = _closed.Token;
+        try
+        {
+            while (true)
+            {
+                var current = _preflight;
+                if (current is null || !SetupToolRules.IsDownloadingRequiredTool(current.Tools))
+                {
+                    return;
+                }
+
+                await Task.Delay(ToolPollInterval, token);
+                var fresh = await ApiClient.GetSetupToolRequirementsAsync(_setupSession, token);
+                if (fresh is null)
+                {
+                    return;
+                }
+
+                _preflight = current with { Tools = fresh };
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // The person left the page; nothing is waiting on the result.
+        }
+    }
+
+    public void Dispose()
+    {
+        _closed.Cancel();
+        _closed.Dispose();
+    }
     private async Task RunPreflightManualAsync()
     {
         _preflightError = null;

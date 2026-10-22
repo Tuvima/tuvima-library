@@ -459,6 +459,7 @@ public sealed class VaultImageServiceTests : IDisposable
         public void SaveFieldPriorities(FieldPriorityConfiguration config) { }
         public ProviderConfiguration? LoadProvider(string name) => null;
         public void SaveProvider(ProviderConfiguration config) { }
+        public void DeleteProvider(string name) { }
         public IReadOnlyList<ProviderConfiguration> LoadAllProviders() => [];
         public T? LoadConfig<T>(string subdirectory, string name) where T : class => null;
         public void SaveConfig<T>(string subdirectory, string name, T config) where T : class { }

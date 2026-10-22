@@ -773,7 +773,17 @@ public sealed partial class EngineApiClient
                 path += $"&search={Uri.EscapeDataString(search)}";
             }
 
-            return await _http.GetFromJsonAsync<PagedResponse<ActivityLogEntryDto>>(path, ct);
+            var page = await _http.GetFromJsonAsync<PagedResponse<ActivityLogEntryDto>>(path, ct);
+            if (page is not null)
+            {
+                // Covers are Engine addresses; the browser reads them through the Dashboard's own artwork route.
+                foreach (var entry in page.Items.Where(entry => !string.IsNullOrWhiteSpace(entry.CoverUrl)))
+                {
+                    entry.CoverUrl = AbsoluteUrl(entry.CoverUrl!);
+                }
+            }
+
+            return page;
         }
         catch (OperationCanceledException) { return null; }
         catch (Exception ex)
@@ -1303,6 +1313,21 @@ public sealed partial class EngineApiClient
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GET /ai/config failed");
+            LastError = ex.Message;
+            return null;
+        }
+    }
+
+    public async Task<AiUsageResponse?> GetAiUsageAsync(int days = 7, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<AiUsageResponse>($"/ai/usage?days={days}", ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /ai/usage failed");
             LastError = ex.Message;
             return null;
         }

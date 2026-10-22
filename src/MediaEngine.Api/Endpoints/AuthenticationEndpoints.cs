@@ -30,13 +30,15 @@ public static class AuthenticationEndpoints
 
         // One call per sign-in page load; nothing is cached. The Dashboard says where the visitor is (header) and
         // whether they came over HTTPS (query); every answer uses the same rules the sign-in actions enforce.
-        group.MapGet("/sign-in-methods", (HttpRequest request, bool? https, IConfigurationLoader configuration,
-            AuthenticationProviderConfigurationService providerConfiguration) =>
-            Results.Ok(BuildSignInMethods(
-                providerConfiguration.LoadWithSecrets(),
-                configuration.LoadNetwork(),
-                request.Headers[ClientIngressValues.ValidateHeader].ToString(),
-                https == true)))
+        group.MapGet("/sign-in-methods", async (HttpRequest request, bool? https, IConfigurationLoader configuration,
+            AuthenticationProviderConfigurationService providerConfiguration, IAccountRepository accounts, CancellationToken ct) =>
+            Results.Ok(WithPasswordAvailability(
+                BuildSignInMethods(
+                    providerConfiguration.LoadWithSecrets(),
+                    configuration.LoadNetwork(),
+                    request.Headers[ClientIngressValues.ValidateHeader].ToString(),
+                    https == true),
+                await accounts.GetAllAsync(ct).ConfigureAwait(false))))
             .WithName("GetSignInMethods")
             .Produces<SignInMethodsResponse>()
             .RequireAuthorization(AuthPolicies.DashboardService);
@@ -1051,6 +1053,16 @@ public static class AuthenticationEndpoints
             IsPasskeyAvailable(policy, network, originalClientIngress, originalClientIsHttps),
             AvailableExternalProviders(policy, network, originalClientIngress, originalClientIsHttps),
             AllowsClient(network, originalClientIngress, originalClientIsHttps, true));
+
+    /// <summary>
+    /// The email and password form is only offered while some enabled account can use one: an account that has an email and
+    /// is not the this-computer-only account (which has no password). An install with only a passwordless owner shows no
+    /// password form at all; the owner continues with the this-computer button, or straight in.
+    /// </summary>
+    internal static SignInMethodsResponse WithPasswordAvailability(SignInMethodsResponse methods, IEnumerable<Account> accounts) =>
+        methods.Password && !accounts.Any(account => account.IsEnabled && !account.IsThisComputerOnly && account.HasEmail)
+            ? methods with { Password = false }
+            : methods;
 
     /// <summary>The configured sign-in providers a visitor may use from where they are.</summary>
     internal static List<AccountExternalProviderResponse> AvailableExternalProviders(

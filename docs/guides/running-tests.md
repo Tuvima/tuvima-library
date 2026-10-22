@@ -184,7 +184,7 @@ without setting an API key during development.
 ### Protected real-media harness
 
 Use `tools/Run-RealMediaHarness.ps1` for an existing collection, defaulting to
-`C:\Temp\real_import`. It stops the development apps, builds them, hashes every
+`Z:\Development\testing\media\real_media`. It stops the development apps, builds them, hashes every
 original, backs up the database/configuration, and clears development library
 records offline while holding the Engine and Dashboard process leases. Accounts,
 profiles, permissions, and storage identity reservations remain. View content and
@@ -283,7 +283,7 @@ They are absent in any other environment.
 
 ### POST /dev/reset-and-seed
 
-This is the primary Development Tools workflow. It preserves application configuration and configured source media, clears catalogued library and derived ingestion state, creates the selected fixtures, queues them through normal ingestion, and resumes file watching. Generated fixture paths are recorded in a manifest. Cleanup follows each one to wherever ingestion filed it and deletes it, the subtitle files the Engine wrote for it and the folders it leaves empty, only inside managed, writable source folders and the library folder. Anything else (your own files, as-is folders, the Import folder, photos) stays, and the result lists the files it kept. This works on the default layout, where the source folders sit inside the library folder.
+This is the primary Development Tools workflow. It preserves application configuration and configured source media, clears catalogued library and derived ingestion state, creates the selected fixtures, queues them through normal ingestion, and resumes file watching. Generated fixture paths are recorded in a manifest. Cleanup follows each one to wherever ingestion filed it and deletes it, the subtitle files the Engine wrote for it and the folders it leaves empty, only inside managed, writable source folders and the library folder. Anything else (your own files, read-only folders, the Import folder, photos) stays, and the result lists the files it kept. This works on the default layout, where the source folders sit inside the library folder.
 
 ```bash
 curl -X POST "http://localhost:61495/dev/reset-and-seed?types=books,tv,music&fixtureSet=standard"

@@ -33,6 +33,9 @@ public sealed class DatabaseBackupService
         _backupDirectory = ResolveBackupDirectory(_configDirectory, backupDirectory);
     }
 
+    /// <summary>The folder finished backups are written to (the "local" backup destination).</summary>
+    public string BackupDirectory => _backupDirectory;
+
     public IReadOnlyList<BackupArchiveDto> List()
     {
         if (!Directory.Exists(_backupDirectory))
@@ -437,6 +440,28 @@ public sealed class DatabaseBackupService
         if (archive.Entries.Count > MaxArchiveEntries)
         {
             throw new InvalidDataException($"The backup contains more than {MaxArchiveEntries:N0} entries.");
+        }
+
+        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in archive.Entries)
+        {
+            var normalized = entry.FullName.Replace('\\', '/');
+            if (normalized.StartsWith("/", StringComparison.Ordinal)
+                || normalized.Contains("../", StringComparison.Ordinal)
+                || !seenPaths.Add(normalized))
+            {
+                throw new InvalidDataException("The backup contains an unsafe or duplicate entry path.");
+            }
+
+            if (IsForbiddenRestoreEntry(normalized))
+            {
+                throw new InvalidDataException($"The backup contains forbidden host secret material: {normalized}");
+            }
+
+            if (entry.CompressedLength > 0 && entry.Length / Math.Max(1, entry.CompressedLength) > 250)
+            {
+                throw new InvalidDataException("The backup contains an unsafe compression ratio.");
+            }
         }
 
         var uncompressedBytes = archive.Entries.Sum(entry => entry.Length);

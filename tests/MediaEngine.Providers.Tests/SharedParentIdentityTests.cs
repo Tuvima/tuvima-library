@@ -360,6 +360,7 @@ public sealed class SharedParentIdentityTests
         public FieldPriorityConfiguration LoadFieldPriorities() => throw new NotImplementedException();
         public void SaveFieldPriorities(FieldPriorityConfiguration config) => throw new NotImplementedException();
         public ProviderConfiguration? LoadProvider(string name) => throw new NotImplementedException();
+        public void DeleteProvider(string name) { }
         public void SaveProvider(ProviderConfiguration config) => throw new NotImplementedException();
         public T? LoadAi<T>() where T : class => throw new NotImplementedException();
         public void SaveAi<T>(T settings) where T : class => throw new NotImplementedException();

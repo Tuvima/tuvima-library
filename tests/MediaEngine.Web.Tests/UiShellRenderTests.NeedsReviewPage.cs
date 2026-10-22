@@ -107,12 +107,15 @@ public sealed partial class UiShellRenderTests
         Assert.Contains("Unmatched Album", host.Markup, StringComparison.Ordinal);
         Assert.Empty(host.FindAll(".review-pinned__header"));
 
-        host.Find("article.review-row .app-overflow-menu__trigger").Click();
-        host.WaitForAssertion(() => Assert.Single(host.FindAll("button.app-menu-item"),
-            button => button.TextContent.Contains("Dismiss from review", StringComparison.Ordinal)));
-        host.FindAll("button.app-menu-item")
-            .Single(button => button.TextContent.Contains("Dismiss from review", StringComparison.Ordinal))
-            .Click();
+        // The row can redraw while the list settles, closing the menu again, so open it and press Dismiss as one retried step
+        // rather than reading the menu in between.
+        host.WaitForAssertion(() =>
+        {
+            host.Find("article.review-row .app-overflow-menu__trigger").Click();
+            host.FindAll("button.app-menu-item")
+                .Single(button => button.TextContent.Contains("Dismiss from review", StringComparison.Ordinal))
+                .Click();
+        });
 
         host.WaitForAssertion(() => Assert.Empty(host.FindAll("article.review-row")));
         Assert.Equal([PendingReviewId], dismissed);

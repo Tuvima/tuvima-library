@@ -122,7 +122,7 @@
                     </div>
                     @if (!CanMove)
                     {
-                        <p class="merge-folder__note">Move is not offered because Library uses this folder as-is and never changes it.</p>
+                        <p class="merge-folder__note">Move is not offered because this folder is read-only and Library never changes it.</p>
                     }
                 </fieldset>
 
@@ -194,7 +194,7 @@
     [Parameter, EditorRequired] public string SourceId { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string Path { get; set; } = string.Empty;
     [Parameter] public string SourceName { get; set; } = string.Empty;
-    /// <summary>True when the folder is one Tuvima manages, so Move can be offered. A folder used as-is is only ever copied.</summary>
+    /// <summary>True when the folder is one Tuvima manages, so Move can be offered. A read-only folder is only ever copied.</summary>
     [Parameter] public bool CanMove { get; set; }
     /// <summary>The managed folders of the same type, other than this one.</summary>
     [Parameter] public IReadOnlyList<MergeTargetOption> Targets { get; set; } = [];

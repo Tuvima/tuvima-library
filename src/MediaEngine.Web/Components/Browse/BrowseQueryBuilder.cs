@@ -30,7 +30,9 @@ public static class BrowseQueryBuilder
             query["status"] ?? string.Empty,
             ParseList(query.GetValues("year")),
             int.TryParse(query["tile"], out var tileSize) ? tileSize : null,
-            query["period"] == "decade" ? MediaEngine.Web.Components.Shared.TimelineGrouping.Decade : MediaEngine.Web.Components.Shared.TimelineGrouping.Year);
+            query["period"] == "decade" ? MediaEngine.Web.Components.Shared.TimelineGrouping.Decade : MediaEngine.Web.Components.Shared.TimelineGrouping.Year,
+            ParseList(query.GetValues("vibe")),
+            ParseList(query.GetValues("theme")));
     }
 
     public static string ResolveGrouping(string? requestedGrouping, BrowseTabPreset tab)

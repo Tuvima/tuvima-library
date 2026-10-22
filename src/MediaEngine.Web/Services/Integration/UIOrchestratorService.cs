@@ -327,6 +327,12 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public Task<IReadOnlyList<PluginSummaryResponse>> GetPluginsAsync(CancellationToken ct = default) =>
         _api.GetPluginsAsync(ct);
 
+    public Task<PluginSourcesResponse?> GetPluginSourcesAsync(CancellationToken ct = default) =>
+        _api.GetPluginSourcesAsync(ct);
+
+    public Task<PluginSourceComparisonDto?> ComparePluginSourcesAsync(string from, string to, CancellationToken ct = default) =>
+        _api.ComparePluginSourcesAsync(from, to, ct);
+
     public Task<PluginDirectoryResponse?> GetPluginDirectoryAsync(CancellationToken ct = default) =>
         _api.GetPluginDirectoryAsync(ct);
 
@@ -341,6 +347,12 @@ public sealed class UIOrchestratorService : IAsyncDisposable
 
     public Task<ApprovalPreviewResponse?> PreviewPluginDirectoryInstallAsync(string pluginId, CancellationToken ct = default) =>
         _api.PreviewPluginDirectoryInstallAsync(pluginId, ct);
+
+    public Task<PluginInstallOutcome> InstallDirectoryPluginAsync(string pluginId, CancellationToken ct = default) =>
+        _api.InstallDirectoryPluginAsync(pluginId, ct);
+
+    public Task<PluginRemovalImpactResponse?> GetPluginRemovalImpactAsync(string pluginId, CancellationToken ct = default) =>
+        _api.GetPluginRemovalImpactAsync(pluginId, ct);
 
     public Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, string? approvalHash = null, CancellationToken ct = default) =>
         _api.SetPluginEnabledAsync(pluginId, enabled, approvalHash, ct);
@@ -1721,6 +1733,9 @@ public sealed class UIOrchestratorService : IAsyncDisposable
 
     public Task<AiConfigDto?> GetAiConfigAsync(CancellationToken ct = default)
         => _api.GetAiConfigAsync(ct);
+
+    public Task<AiUsageResponse?> GetAiUsageAsync(int days = 7, CancellationToken ct = default)
+        => _api.GetAiUsageAsync(days, ct);
 
     public Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default)
         => _api.SaveAiConfigAsync(config, ct);

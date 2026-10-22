@@ -56,11 +56,14 @@ public static class SystemEndpoints
         .RequireEffectiveAdministrator(surfaceUnlock: false);
 
         app.MapGet("/system/readiness", async (
+            string? category,
             StartupReadinessService readiness,
-            CancellationToken ct) => Results.Ok(await readiness.GetAsync(ct).ConfigureAwait(false)))
+            CancellationToken ct) => !string.IsNullOrWhiteSpace(category) && !StartupReadinessService.Categories.Contains(category.Trim())
+                ? (IResult)ApiErrors.BadRequest($"Unknown readiness category '{category}'. Known: {string.Join(", ", StartupReadinessService.Categories.Order())}.")
+                : Results.Ok(await readiness.GetAsync(category, ct).ConfigureAwait(false)))
         .WithTags("System")
         .WithName("GetStartupReadiness")
-        .WithSummary("Reports database, configuration, storage, model, provider, and worker readiness.")
+        .WithSummary("Reports database, configuration, storage, model, provider, and worker readiness; ?category=storage runs only the folder checks.")
         .Produces<StartupReadinessResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.SystemStatusRead);
 
@@ -157,9 +160,24 @@ public static class SystemEndpoints
 
         app.MapPost("/system/backups", async (
             DatabaseBackupService backups,
+            INotificationPublisher notifications,
             CancellationToken ct) =>
         {
-            var path = await backups.CreateAsync(ct).ConfigureAwait(false);
+            string path;
+            try
+            {
+                path = await backups.CreateAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                notifications.Publish(new NotificationRequest(
+                    NotificationEventIds.BackupFailed,
+                    "manual",
+                    "A backup could not be written. Check that the backup folder exists and the drive has free space, then try again."));
+                throw;
+            }
+
+            notifications.Publish(new NotificationRequest(NotificationEventIds.BackupCompleted, "manual", "A backup was written."));
             return Results.Ok(new BackupArchiveDto(
                 Path.GetFileName(path),
                 File.GetCreationTimeUtc(path),

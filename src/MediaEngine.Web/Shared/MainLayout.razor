@@ -21,6 +21,7 @@
 @inject IAppToastService Toasts
 @inject IStringLocalizer<SharedStrings> L
 @inject ILogger<MainLayout> Logger
+@inject IEngineApiClient EngineApi
 @implements IAsyncDisposable
 
 @using MediaEngine.Web.Components.Listen
@@ -166,6 +167,7 @@
                                    ActiveProfileId="@_activeProfileId"
                                    Profiles="@_profiles"
                                    ReviewCount="@_reviewCount"
+                                   PluginMenu="@_pluginMenu"
                                    CanViewReview="@(CanViewReview && !_isKids)"
                                    IsKids="@_isKids"
                                    ShowSignOut="true" />
@@ -282,6 +284,7 @@
                          CurrentPath="@_currentPath"
                          ShowSettings="@ShellNavigation.ShowsSettings(_isKids)"
                          ShowSwitchProfile="@ShellNavigation.ShowsSwitchProfile(_profiles.Count)"
+                         PluginEntries="@PluginPageRoute.ForDevice(_pluginMenu, isPhone: true)"
                          OnClose="CloseMenu" />
 }
 </AppCssElement>
@@ -308,6 +311,7 @@
     private Guid? _activeProfileId;
     private bool _isKids;
     private int _reviewCount;
+    private IReadOnlyList<PluginMenuEntryDto> _pluginMenu = [];
     private int _accountMenuVersion;
     private readonly CancellationTokenSource _authorityRefreshCancellation = new();
     private bool _disposed;
@@ -483,6 +487,8 @@
             await AudioSidebar.ReloadAsync();
             if (ShouldStopStartup(startupToken)) return;
             await LoadReviewCountAsync();
+            if (ShouldStopStartup(startupToken)) return;
+            await LoadPluginMenuAsync();
             if (ShouldStopStartup(startupToken)) return;
             await Orchestrator.StartSignalRAsync();
             if (ShouldStopStartup(startupToken)) return;
@@ -835,6 +841,20 @@
         }
     }
 
+    // Pages plugins add. The Engine cuts the list to what the active profile may see; a Kids profile sees only the pages made for everyone.
+    private async Task LoadPluginMenuAsync()
+    {
+        try
+        {
+            var entries = await EngineApi.GetPluginMenuAsync();
+            if (!_disposed) _pluginMenu = entries;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to load the plugin menu for layout shell.");
+        }
+    }
+
     private async Task LoadReviewCountAsync()
     {
         if (!CanViewReview)
@@ -896,6 +916,8 @@
             await AudioSidebar.ReloadAsync();
             if (_disposed) return;
             await LoadReviewCountAsync();
+            if (_disposed) return;
+            await LoadPluginMenuAsync();
             if (_disposed) return;
             StateHasChanged();
         });

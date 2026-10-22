@@ -322,6 +322,12 @@ documented in `config/schemas/providers/provider.schema.json`. See
 
 See `config/providers/` for complete examples of each provider.
 
+## Sources From Plugins
+
+A switched-on JSON plugin can supply metadata sources (the `metadata_sources` part of its `declarative` section, written in the same format as a file in `config/providers/`). When the plugin is switched on, the Library writes each source into `config/providers/` as `plugin_<plugin id>_<source name>.json`; when the plugin is switched off or removed, the file is removed. The plugin only suggests: the Library sets the name, the identity, the weight (0.5, below every source that ships with the Library), the order (after the shipped sources), and removes any key, icon or onboarding. Only `config_driven` and `text_track` sources are accepted, every address must be one the plugin declared under `network`, and the plugin must hold the `network.http` permission; anything else is left out and logged. A source that asks for its own key is not supported. Sources are read when the Engine starts, so the Plugins page shows "Restart the Engine" after one is switched on or off. Existing matches are never changed by adding or removing a source, and nothing is matched again unless the person asks.
+
+The Plugins page lists every source (built in or from a plugin) with what it supplies, and a comparison of any two. The Metadata providers page asks for confirmation before a source is switched off and says what would have no source. First-run setup lists what the chosen media needs and which sources supply it. All of these read `GET /plugin-sources` and the wording comes from one shared list of phrases (`ProviderCapabilityPhrases`).
+
 ## Related
 
 - [How to Configure Metadata Providers](../guides/configuring-providers.md)

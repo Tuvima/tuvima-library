@@ -261,7 +261,7 @@ public sealed class FolderJobServiceTests : IDisposable
 
         var stopped = await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default);
         Assert.Equal("cancelled", stopped!.State);
-        Assert.Contains("switched to As-is", stopped.Message);
+        Assert.Contains("switched to Read-only", stopped.Message);
         var saved = _f.Source(folder.Id);
         Assert.Equal(LibrarySourceConversionStates.None, saved.ConversionState);
         Assert.Null(saved.ConversionOperationId);
@@ -449,7 +449,7 @@ public sealed class FolderJobServiceTests : IDisposable
         var missing = await Assert.ThrowsAsync<FolderJobException>(
             () => _f.Jobs.StartMergeAsync(new FolderMergeRequest { SourceId = source.Id, TargetSourceId = Guid.NewGuid().ToString("D") }, default));
 
-        Assert.Contains("An As-is folder is never written to", intoAsIs.Message);
+        Assert.Contains("A Read-only folder is never written to", intoAsIs.Message);
         Assert.Contains("Move is only available", moveFromAsIs.Message);
         Assert.True(missing.NotFound);
         Assert.Equal(LibrarySourceMergeStates.None, _f.Source(source.Id).MergeState);
