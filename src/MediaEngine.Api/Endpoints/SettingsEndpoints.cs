@@ -82,13 +82,16 @@ public static class SettingsEndpoints
     // Fallback display names when a provider config file has no display_name field.
     // In practice all provider configs have display_name set explicitly; this map
     // is kept as a safety net and is derived from the same data in the config files.
-    /// <summary>Write now. With write-back off nothing is written, so asking for a run is refused with a plain message.</summary>
+    /// <summary>
+    /// Write now. With write-back off no tags are written, so asking for a run is refused with a plain message, unless a file is
+    /// waiting to be filed: filing does not depend on the tag-writing switch, so the run files it and writes nothing.
+    /// </summary>
     internal static async Task<IResult> StartFileWriteRunAsync(
         FileWriteScheduler scheduler, IConfigurationLoader configLoader, CancellationToken ct,
         IReadOnlySet<string>? hiddenLibraryIds = null)
     {
         var settings = configLoader.LoadConfig<WriteBackConfiguration>(string.Empty, "writeback") ?? new WriteBackConfiguration();
-        if (!settings.Enabled)
+        if (!settings.Enabled && !await scheduler.HasFilingWaitingAsync(ct))
         {
             return ApiErrors.Conflict("Write-back is turned off, so nothing can be written now. Turn it on first.");
         }

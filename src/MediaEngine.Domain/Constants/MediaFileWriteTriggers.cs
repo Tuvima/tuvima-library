@@ -16,6 +16,13 @@ public static class MediaFileWriteTriggers
     /// </summary>
     public const string LibraryMove = "library_move";
 
+    /// <summary>
+    /// Library filed the file on its own (a newly identified file in a Managed folder, or a file out of the Import folder). The move waits
+    /// for the next run and is done with the tags (Library setup D62). On a row that has no tags waiting this is the whole job: the row
+    /// is removed once the move is checked. It is not a tag-writing trigger, so the tag-writing switches do not apply to it.
+    /// </summary>
+    public const string Filing = "filing";
+
     /// <summary>Embedded artwork for a Music or Audiobooks file needs bringing up to date.</summary>
     public const string Artwork = "artwork";
 

@@ -107,6 +107,56 @@ public sealed class LibraryMoveCrashSafetyTests : IDisposable
         Assert.Equal("verified", Files.Intent(move.Asset).Status);
     }
 
+    // ----- Library's own filing, promoted from the waiting list when a run started (Library setup D62) ---------------------------
+
+    [Theory]
+    [InlineData("planned")]
+    [InlineData("moved")]
+    public async Task AWaitingFilingPromotedAndStoppedAfterTheFileMoved_IsFinishedAfterARestart_AndItsTagsLandAtTheFinalPath(string recordedStep)
+    {
+        var move = await RequestFilingAsync();
+        Assert.Equal(1, await Files.Intents.PromoteWaitingFilingsAsync());
+        var claimed = await ClaimAsync(move.Asset);
+        await Files.Intents.RecordMovePlannedAsync(claimed.Id, move.OldPath, move.NewPath, await HashOfAsync(move.OldPath));
+        Directory.CreateDirectory(Path.GetDirectoryName(move.NewPath)!);
+        File.Move(move.OldPath, move.NewPath);
+        if (recordedStep == "moved")
+        {
+            await Files.Intents.RecordMoveMovedAsync(claimed.Id, move.NewPath);
+        }
+
+        Assert.Equal(move.OldPath, Files.StoredPath(move.Asset));
+
+        await RestartAsync();
+
+        AssertFileOnlyAt(move.NewPath, move.OldPath);
+        Assert.Equal(move.NewPath, Files.StoredPath(move.Asset));
+        Assert.Null(MoveStep(move.Asset));
+
+        await Files.DrainQueueAsync();
+
+        Assert.Equal(move.NewPath, Assert.Single(Files.WriteBack.Calls).PathAtTheTime);
+        Assert.Equal("verified", Files.Intent(move.Asset).Status);
+    }
+
+    [Fact]
+    public async Task AWaitingFilingPromotedButStoppedBeforeItWasPlanned_IsFiledAfterARestart_WithNothingLost()
+    {
+        var move = await RequestFilingAsync();
+        await Files.Intents.PromoteWaitingFilingsAsync();
+
+        await RestartAsync();
+
+        Assert.Equal("requested", MoveStep(move.Asset));
+        Assert.True(File.Exists(move.OldPath));
+
+        await Files.DrainQueueAsync();
+
+        AssertFileOnlyAt(move.NewPath, move.OldPath);
+        Assert.Equal(move.NewPath, Files.StoredPath(move.Asset));
+        Assert.Equal(move.NewPath, Assert.Single(Files.WriteBack.Calls).PathAtTheTime);
+    }
+
     [Fact]
     public async Task AnInterruptedCopyAcrossDrivesThatFinishedCopying_IsCompletedByRemovingTheOldCopy()
     {
@@ -506,6 +556,29 @@ public sealed class LibraryMoveCrashSafetyTests : IDisposable
         var newPath = Path.GetFullPath(Path.Combine(Files.Managed, "Music", "Radiohead", "OK Computer (1997)", "02 - Paranoid Android.flac"));
         Assert.Equal("requested", MoveStep(asset));
         return new RequestedMove(song, asset, oldPath, newPath);
+    }
+
+    /// <summary>A song outside its folder's pattern that Library has queued to file on the next run, with its tags asked for too.</summary>
+    private async Task<RequestedMove> RequestFilingAsync()
+    {
+        var bestOf = _world.AddParent("Music", "The Best Of");
+        _world.Put(bestOf, "year", "2000");
+        var oldPath = MoveFileWorld.WriteFile(Files.Managed, "inbox/04 Paranoid Android.flac");
+        var (song, _, assetId) = _world.AddChild(bestOf, "Music", "Paranoid Android", 4, filePath: oldPath);
+        var asset = assetId!.Value;
+        _world.Put(asset, "title", "Paranoid Android");
+        _world.Put(asset, "media_type", "Music");
+        _world.Put(asset, "artist", "Radiohead");
+        _world.Put(asset, "album", "The Best Of");
+        _world.Put(asset, "track_number", "4");
+        Files.WriteBack.PathOf = Files.StoredPath;
+
+        var plan = await Files.Organizer.PlanRefileAsync(asset, null);
+        Assert.Equal(MediaEngine.Domain.Models.AssetRefileDisposition.Moves, plan.Disposition);
+        await Files.FilingOrganizer.TryAutoOrganizeAsync(asset);
+        await Files.Intents.EnqueueAssetsAsync([asset], "auto_match");
+        Assert.Equal("waiting", MoveStep(asset));
+        return new RequestedMove(song, asset, oldPath, plan.TargetPath!);
     }
 
     /// <summary>The Engine takes the move off the list (as the move lane does) and then stops.</summary>

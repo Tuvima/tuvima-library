@@ -561,6 +561,249 @@ public sealed class MediaFileWriteIntentRepositoryTests : IDisposable
         connection.Execute(sql, args);
     }
 
+    // ----- automatic filing waits for the next run (Library setup D62) ----------------------------------------------------------
+
+    private (string? Step, string? Origin, string Trigger, string Status) FilingRow(Guid asset) =>
+        Row<(string?, string?, string, string)>(
+            "SELECT move_step, move_origin, trigger, status FROM media_file_write_intents WHERE asset_id = @asset;", new { asset });
+
+    [Fact]
+    public async Task AFilingRequest_WaitsForTheNextRun_AndTheFileIsNotMarkedAsMoving()
+    {
+        var repository = Repository;
+
+        Assert.True(await repository.RequestFilingAsync(_asset, held: false));
+
+        Assert.Equal(("waiting", "filing", "filing", "pending"), FilingRow(_asset));
+        Assert.False(await repository.HasMoveForAssetAsync(_asset));
+        Assert.Empty(await repository.GetPathsWithMoveInProgressAsync());
+        Assert.Null(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)));
+        Assert.Empty(await repository.ClaimBatchAsync("media_asset", 10, TimeSpan.FromMinutes(1), Start.AddHours(1)));
+        Assert.True((await repository.GetAssetStateAsync(_asset)).Waiting);
+        // The item's own waiting line covers it; the sweeps, which only care about tag writes, do not count it (see below).
+    }
+
+    [Fact]
+    public async Task AskingForFilingAgain_ChangesNothing_SoASweepDoesNotChurnTheRow()
+    {
+        var repository = Repository;
+        await repository.RequestFilingAsync(_asset, held: false);
+        var generation = Scalar<long>("SELECT generation FROM media_file_write_intents WHERE asset_id=@asset;", new { asset = _asset });
+
+        Assert.False(await repository.RequestFilingAsync(_asset, held: false));
+
+        Assert.Equal(generation, Scalar<long>("SELECT generation FROM media_file_write_intents WHERE asset_id=@asset;", new { asset = _asset }));
+    }
+
+    [Fact]
+    public async Task TagsAskedForWhileAFileWaitsToBeFiled_StayOnTheSameRow_AndWaitForTheMove()
+    {
+        var repository = Repository;
+        await repository.RequestFilingAsync(_asset, held: false);
+
+        await repository.EnqueueAssetsAsync([_asset], "auto_match");
+
+        Assert.Equal(1, Scalar<long>("SELECT COUNT(*) FROM media_file_write_intents WHERE asset_id=@asset;", new { asset = _asset }));
+        Assert.Equal(("waiting", "filing", "auto_match", "pending"), FilingRow(_asset));
+        Assert.Empty(await repository.ClaimBatchAsync("media_asset", 10, TimeSpan.FromMinutes(1), Start.AddHours(1)));
+    }
+
+    [Fact]
+    public async Task FilingAskedForWhileTagsAreWaiting_KeepsTheTagsTrigger_SoTheyAreWrittenAfterTheMove()
+    {
+        var repository = Repository;
+        await repository.EnqueueAssetsAsync([_asset], "auto_match");
+
+        Assert.True(await repository.RequestFilingAsync(_asset, held: false));
+
+        Assert.Equal(("waiting", "filing", "auto_match", "pending"), FilingRow(_asset));
+    }
+
+    [Fact]
+    public async Task PromotingTheWaitingFilings_MakesThemRequestedMoves_AndNeverTouchesAHeldOne()
+    {
+        var repository = Repository;
+        var held = AddAsset("C:/fixture/held.mp4");
+        await repository.RequestFilingAsync(_asset, held: false);
+        await repository.RequestFilingAsync(held, held: true);
+        Assert.Equal(("held", "filing", "filing", "pending"), FilingRow(held));
+
+        Assert.Equal(1, await repository.PromoteWaitingFilingsAsync());
+
+        Assert.Equal(("requested", "filing", "filing", "pending"), FilingRow(_asset));
+        Assert.Equal(("held", "filing", "filing", "pending"), FilingRow(held));
+        Assert.Equal(_asset, (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!.AssetId);
+        Assert.Null(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)));
+    }
+
+    [Fact]
+    public async Task AHeldRequest_IsNotReleasedByAskingAgain_AndAWaitingOneBecomesHeldWhenTheFolderIsHeld()
+    {
+        var repository = Repository;
+        await repository.RequestFilingAsync(_asset, held: false);
+
+        Assert.True(await repository.RequestFilingAsync(_asset, held: true));
+        Assert.False(await repository.RequestFilingAsync(_asset, held: false));
+
+        Assert.Equal("held", FilingRow(_asset).Step);
+    }
+
+    [Fact]
+    public async Task APersonsMove_TakesOverAWaitingFiling_AndAFilingRequestNeverDisturbsAPersonsMove()
+    {
+        var repository = Repository;
+        var other = AddAsset("C:/fixture/other-file.mp4");
+        await repository.RequestFilingAsync(_asset, held: false);
+        UpsertWithMove(_asset);
+        Assert.Equal(("requested", "person"), (FilingRow(_asset).Step, FilingRow(_asset).Origin));
+
+        UpsertWithMove(other);
+        Assert.False(await repository.RequestFilingAsync(other, held: false));
+
+        Assert.Equal(("requested", "person"), (FilingRow(other).Step, FilingRow(other).Origin));
+    }
+
+    [Fact]
+    public async Task AFilingThatFoundItsFileInUse_GoesBackToWaiting_WithoutCountingAnAttempt()
+    {
+        var repository = Repository;
+        await repository.RequestFilingAsync(_asset, held: false);
+        await repository.PromoteWaitingFilingsAsync();
+        var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+        Assert.Equal(1, move.Attempts);
+
+        Assert.True(await repository.DeferFilingAsync(move.Id));
+
+        var row = (await repository.GetByIdAsync(move.Id))!;
+        Assert.Equal((MediaFileWriteIntentRepository.MoveStepWaiting, "pending", 0), (row.MoveStep, row.Status, row.Attempts));
+        Assert.Equal(MediaFileWriteIntentRepository.InUseReason, Scalar<string>("SELECT last_error FROM media_file_write_intents WHERE id=@id;", new { id = move.Id }));
+        Assert.Null(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)));
+        Assert.Equal(1, (await repository.GetCountsAsync()).Claimable);
+    }
+
+    [Fact]
+    public async Task AFilingWhoseTagsNobodyAskedFor_IsRemovedOnceItsMoveIsDone_ButOneWithTagsWaitingKeepsThem()
+    {
+        var repository = Repository;
+        var tagged = AddAsset("C:/fixture/tagged.mp4");
+        await repository.RequestFilingAsync(_asset, held: false);
+        await repository.EnqueueAssetsAsync([tagged], "auto_match");
+        await repository.RequestFilingAsync(tagged, held: false);
+        await repository.PromoteWaitingFilingsAsync();
+
+        var first = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+        var second = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+        foreach (var move in new[] { first, second })
+        {
+            await repository.RecordMovePlannedAsync(move.Id, "C:/a.mp4", "C:/b.mp4", null);
+            Assert.True(await repository.CompleteMoveAsync(move.Id, move.Generation));
+        }
+
+        Assert.Equal(0, Scalar<long>("SELECT COUNT(*) FROM media_file_write_intents WHERE asset_id=@asset;", new { asset = _asset }));
+        Assert.Equal((null, null, "auto_match", "pending"), FilingRow(tagged));
+        Assert.Single(await repository.ClaimBatchAsync("media_asset", 10, TimeSpan.FromMinutes(1), Start.AddHours(1)));
+    }
+
+    [Fact]
+    public async Task AFilingWithTagsPending_KeepsThemPendingAfterItsMove_EvenWhenWriteBackIsOff()
+    {
+        var repository = Repository;
+        await repository.EnqueueAssetsAsync([_asset], "auto_match");
+        await repository.RequestFilingAsync(_asset, held: false);
+        await repository.PromoteWaitingFilingsAsync();
+        var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+        await repository.RecordMovePlannedAsync(move.Id, "C:/a.mp4", "C:/b.mp4", null);
+
+        // Write-back is off, so the tags are not wanted now: they stay waiting, as a plain tag row's would, not dropped as blocked.
+        Assert.True(await repository.CompleteMoveAsync(move.Id, move.Generation, writeTags: false));
+
+        var row = Row<(string Status, string? Error, string? Step)>(
+            "SELECT status, last_error, move_step FROM media_file_write_intents WHERE asset_id=@asset;", new { asset = _asset });
+        Assert.Equal(("pending", (string?)null, (string?)null), row);
+    }
+
+    [Fact]
+    public async Task AFilingWithNoTagsAskedFor_DoesNotHideTheFileFromTheSweeps_AndALaterRetagRequestIsNotLost()
+    {
+        var repository = Repository;
+        await repository.RequestFilingAsync(_asset, held: false);
+
+        // The artwork and retag sweeps skip a file that already has a tag write waiting; a file only waiting to be filed has none.
+        Assert.DoesNotContain(_asset, await repository.GetWaitingAssetIdsAsync([_asset]));
+
+        await repository.EnqueueAssetsAsync([_asset], "config_change");
+
+        Assert.Equal(("waiting", "filing", "config_change", "pending"), FilingRow(_asset));
+        Assert.Contains(_asset, await repository.GetWaitingAssetIdsAsync([_asset]));
+    }
+
+    [Fact]
+    public async Task AFilingThatFailed_GoesBackToWaiting_WithTheAttemptCounted_AndIsFailedAtTheLimit()
+    {
+        var repository = Repository;
+        await repository.RequestFilingAsync(_asset, held: false);
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            await repository.PromoteWaitingFilingsAsync();
+            var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+            Assert.Equal(attempt, move.Attempts);
+
+            Assert.True(await repository.FailFilingAttemptAsync(move.Id, "The disk said no.", maxAttempts: 3));
+
+            var row = Row<(string Status, string? Step, string? Error, int Attempts)>(
+                "SELECT status, move_step, last_error, attempts FROM media_file_write_intents WHERE asset_id=@asset;", new { asset = _asset });
+            if (attempt < 3)
+            {
+                Assert.Equal(("pending", "waiting", "The disk said no.", attempt), row);
+                Assert.Null(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)));
+            }
+            else
+            {
+                Assert.Equal(("failed", (string?)null, "The disk said no.", 3), row);
+            }
+        }
+
+        Assert.Equal(_asset, Assert.Single(await repository.GetFailedAsync()).AssetId);
+    }
+
+    [Fact]
+    public async Task AClaimHandedBack_IsPendingAgainWithTheTryNotCounted()
+    {
+        var repository = Repository;
+        UpsertWithMove(_asset);
+        var move = (await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)))!;
+
+        await repository.ReleaseClaimAsync(move.Id);
+
+        var row = (await repository.GetByIdAsync(move.Id))!;
+        Assert.Equal(("pending", 0), (row.Status, row.Attempts));
+        Assert.NotNull(await repository.ClaimNextMoveAsync(TimeSpan.FromMinutes(5)));
+    }
+
+    [Fact]
+    public async Task ARunsHistory_CountsTheFilesItFiledApartFromTheOnesItWrote()
+    {
+        var repository = Repository;
+
+        await repository.RecordRunAsync(Start, Start.AddMinutes(1), written: 3, failed: 1, kept: 2, filed: 5);
+
+        var state = (await repository.GetRunStateAsync())!;
+        Assert.Equal((3, 1, 2, 5), (state.LastRunWritten, state.LastRunFailed, state.LastRunKept, state.LastRunFiled));
+    }
+
+    [Fact]
+    public async Task TheCounts_TreatAWaitingFilingAsClaimable_AndAHeldOneAsWaitingButNotClaimable()
+    {
+        var repository = Repository;
+        var held = AddAsset("C:/fixture/held.mp4");
+        await repository.RequestFilingAsync(_asset, held: false);
+        await repository.RequestFilingAsync(held, held: true);
+
+        var counts = await repository.GetCountsAsync();
+
+        Assert.Equal((2, 1, 1), (counts.Waiting, counts.Claimable, counts.FilingWaiting));
+    }
+
     private void UpsertWithMove(Guid asset)
     {
         using var connection = _database.CreateConnection();

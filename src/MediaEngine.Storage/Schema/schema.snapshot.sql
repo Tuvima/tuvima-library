@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0041 unmatched_assets).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0042 filing_moves_wait_for_the_batch).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1110,7 +1110,7 @@ CREATE TABLE file_write_runs (
     last_run_written INTEGER,
     last_run_failed INTEGER,
     last_run_kept INTEGER
-);
+, last_run_filed INTEGER);
 
 CREATE TABLE folder_organise_log (
   operation_id BLOB NOT NULL,
@@ -1481,7 +1481,7 @@ CREATE TABLE media_editor_preferred_artwork_commits (
     committed_at TEXT NOT NULL
 );
 
-CREATE TABLE media_file_write_intents (
+CREATE TABLE "media_file_write_intents" (
     id BLOB NOT NULL PRIMARY KEY,
     target_kind TEXT NOT NULL CHECK (target_kind IN ('media_asset', 'view_item')),
     asset_id BLOB REFERENCES media_assets(id) ON DELETE CASCADE,
@@ -1497,7 +1497,8 @@ CREATE TABLE media_file_write_intents (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     completed_at TEXT,
-    move_step TEXT CHECK (move_step IS NULL OR move_step IN ('requested', 'planned', 'moved', 'checked')),
+    move_step TEXT CHECK (move_step IS NULL OR move_step IN ('waiting', 'held', 'requested', 'planned', 'moved', 'checked')),
+    move_origin TEXT CHECK (move_origin IS NULL OR move_origin IN ('person', 'filing')),
     move_source_path TEXT,
     move_target_path TEXT,
     move_source_hash TEXT,
@@ -1506,7 +1507,9 @@ CREATE TABLE media_file_write_intents (
     recovery_attempts INTEGER NOT NULL DEFAULT 0,
     claimed_run_id TEXT,
     CHECK ((target_kind = 'media_asset' AND asset_id IS NOT NULL AND local_item_id IS NULL)
-        OR (target_kind = 'view_item' AND local_item_id IS NOT NULL AND asset_id IS NULL))
+        OR (target_kind = 'view_item' AND local_item_id IS NOT NULL AND asset_id IS NULL)),
+    CHECK ((move_step IS NULL) = (move_origin IS NULL)),
+    CHECK (move_step IS NULL OR move_step IN ('requested', 'planned', 'moved', 'checked') OR move_origin = 'filing')
 );
 
 CREATE TABLE media_inspection_holds (
