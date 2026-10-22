@@ -175,13 +175,16 @@ public sealed class ServerFolderPickerUiTests
     }
 
     [Fact]
-    public void Picker_LocationListIsATightTreeOnDesktopAndKeepsTouchTargetsElsewhere()
+    public void Picker_RowsAreRoomyAndNeverDropBelowTheTapTarget()
     {
         var css = Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor.css");
 
-        // Short rows with small gaps for a mouse and keyboard desktop only; the base row keeps the 44px tap target.
+        // D43: 48px location rows (44px only for a mouse and keyboard desktop) and 56px folder rows (60px under 840px).
         Assert.Contains("@media (hover: hover) and (pointer: fine) and (min-width: 1180px)", css, StringComparison.Ordinal);
-        Assert.Contains(".server-folder-picker__location { min-height: 36px; }", css, StringComparison.Ordinal);
+        Assert.Contains(".server-folder-picker__location { min-height: 44px; }", css, StringComparison.Ordinal);
+        Assert.Contains("min-height: 48px;", css, StringComparison.Ordinal);
+        Assert.Contains("min-height: 56px;", css, StringComparison.Ordinal);
+        Assert.Contains(".server-folder-picker__folder { grid-template-columns: minmax(0, 1fr); min-height: 60px; }", css, StringComparison.Ordinal);
         Assert.Contains("gap: 2px;", css, StringComparison.Ordinal);
     }
 
