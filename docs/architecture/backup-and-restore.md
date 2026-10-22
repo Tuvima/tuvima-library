@@ -52,7 +52,7 @@ A rescan rebuilds the catalogue, so anything a person changed on a catalogue row
 
 The reader accepts a choices or corrections file only for a table whose rule allows it. Restoring them (re-applying each correction to the rescanned title) is part of restore, not of the export.
 
-Artwork a person chose is kept only when it has a stable outside identity: a cover picked from a provider is found again by provider and image address (`entity_assets`). Artwork a person uploaded is never kept, because artwork files are not in a backup.
+Artwork a person chose is kept only when it has a stable outside identity: a cover picked from a provider is found again by provider and image address (`entity_assets`) or by the artwork's provider, source address and provider reference (`entity_artwork_links`). Artwork a person uploaded is never kept, because artwork files are not in a backup.
 
 ## Portable sign-in data
 
@@ -187,7 +187,7 @@ The rows a rescan rebuilds are not kept; the tables below say where a person's o
 | `artwork_assets` | Artwork files known to the Library. |
 | `artwork_asset_context` | Where each artwork file is used. |
 | `artwork_asset_search` | Search index over artwork. |
-| `entity_artwork_links` | Which artwork belongs to which title or person. Not kept: a link names an artwork file by id only, with no provider or image address on the row to find it again. |
+| `entity_artwork_links` | Which artwork belongs to which title or person. A cover a person picked from a provider is kept as a correction (`is_user_override = 1`): `entity_id` is a reference to the title or person, and `artwork_asset_id` is a reference to the artwork, found again by its provider, source address and provider reference (never its content hash, because artwork files are not in a backup). A link to an uploaded artwork, or one with no source address and no provider reference, cannot be found again, so that row is dropped and counted. |
 | `entity_assets` | Images attached to titles and people. A cover a person chose from a provider is kept as a correction (`is_user_override = 1`, a provider other than `user_upload`, an `http` image address), found again by provider and image address; `entity_id` is a reference, and the row id, local file paths and export flags are left out. Uploads are not kept. |
 | `image_cache` | Cached downloaded images (not kept: a cache row has no owner to attach a choice to). |
 | `image_cache_sources` | Where cached images came from. |

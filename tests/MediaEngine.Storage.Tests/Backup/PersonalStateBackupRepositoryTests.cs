@@ -794,6 +794,58 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
     }
 
     [Fact]
+    public void Export_KeepsACoverAPersonPickedFromAProvider_KeyedToItsSourceAddress()
+    {
+        var movie = AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: null);
+        var asset = AddArtworkAsset("tmdb", "https://image.tmdb.org/t/p/original/picked.jpg", "picked-ref", "ARTWORK-PATH-MARKER", "arthash1");
+        var notPicked = AddArtworkAsset("tmdb", "https://example.test/NOT-PICKED-MARKER.jpg", null, "OTHER-PATH-MARKER", "arthash2");
+        AddArtworkLink(movie.Work, asset, userOverride: true);
+        AddArtworkLink(movie.Work, notPicked, userOverride: false);
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        var links = Assert.Single(export.Corrections, table => table.Table == "entity_artwork_links");
+        var row = Assert.Single(links.Rows);
+        Assert.IsType<BackupValue.TitleRef>(row[links.Columns.ToList().IndexOf("entity_id")]);
+        Assert.Equal(BackupValue.FromText("Primary"), row[links.Columns.ToList().IndexOf("role")]);
+        Assert.Equal(BackupValue.FromInteger(1), row[links.Columns.ToList().IndexOf("is_preferred")]);
+        var reference = Assert.IsType<BackupValue.TitleRef>(row[links.Columns.ToList().IndexOf("artwork_asset_id")]);
+        var artwork = Assert.Single(export.Titles, title => title.Key == reference.Key);
+        Assert.Equal("ArtworkAsset", artwork.Target);
+        Assert.Equal("https://image.tmdb.org/t/p/original/picked.jpg", artwork.Ids["source_url"]);
+        Assert.Equal("tmdb", artwork.Ids["source_provider"]);
+        Assert.Equal("picked-ref", artwork.Ids["provider_reference"]);
+        Assert.Empty(artwork.FileHashes);
+        Assert.Null(artwork.Name);
+
+        var bytes = Archive(export);
+        var text = EntryText(bytes);
+        Assert.DoesNotContain("ARTWORK-PATH-MARKER", text);
+        Assert.DoesNotContain("arthash1", text);
+        Assert.DoesNotContain("NOT-PICKED-MARKER", text);
+        Assert.DoesNotContain("OTHER-PATH-MARKER", text);
+    }
+
+    [Fact]
+    public void Export_LeavesOutACoverAPersonUploaded()
+    {
+        var movie = AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: null);
+        var upload = AddArtworkAsset("user_upload", "https://example.test/UPLOAD-SOURCE-MARKER.jpg", null, "UPLOAD-PATH-MARKER", "arthash3");
+        var anonymous = AddArtworkAsset("tmdb", null, null, "ANON-PATH-MARKER", "arthash4");
+        AddArtworkLink(movie.Work, upload, userOverride: true);
+        AddArtworkLink(movie.Work, anonymous, userOverride: true);
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        Assert.DoesNotContain(export.Corrections, table => table.Table == "entity_artwork_links");
+        Assert.Equal(2, export.Contents.DroppedRows);
+        var text = EntryText(Archive(export));
+        Assert.DoesNotContain("UPLOAD-SOURCE-MARKER", text);
+        Assert.DoesNotContain("UPLOAD-PATH-MARKER", text);
+        Assert.DoesNotContain("ANON-PATH-MARKER", text);
+    }
+
+    [Fact]
     public void Export_KeepsAFictionalThingCorrection_KeyedToItsWikidataId()
     {
         var entity = GuidSql.ToBlob(Guid.NewGuid());
@@ -942,6 +994,30 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
         public string? Export(string table, string column, string protectedValue) => canRead ? "readable:" + protectedValue : null;
 
         public string Import(string table, string column, string portableValue) => portableValue;
+    }
+
+    private byte[] AddArtworkAsset(string provider, string? url, string? providerReference, string path, string hash)
+    {
+        var id = GuidSql.ToBlob(Guid.NewGuid());
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO artwork_assets (id, content_hash, original_path, source_provider, source_url, provider_reference)
+            VALUES (@id, @hash, @path, @provider, @url, @providerReference)
+            """,
+            new { id, hash, path = "/art/" + path + ".jpg", provider, url, providerReference });
+        return id;
+    }
+
+    private void AddArtworkLink(byte[] entity, byte[] asset, bool userOverride)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO entity_artwork_links (id, entity_id, entity_type, artwork_asset_id, role, is_preferred, is_user_override)
+            VALUES (@id, @entity, 'Work', @asset, 'Primary', 1, @userOverride)
+            """,
+            new { id = GuidSql.ToBlob(Guid.NewGuid()), entity, asset, userOverride = userOverride ? 1 : 0 });
     }
 
     private void AddTwoStepSecret(string protectedValue)

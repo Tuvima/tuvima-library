@@ -16,6 +16,12 @@ public enum CatalogueTarget
     /// <summary>A fictional thing (character, place) from Wikidata, recognised by its Wikidata id.</summary>
     FictionalEntity,
 
+    /// <summary>
+    /// An artwork asset a provider supplied, recognised by its outside identity (provider, source address, provider
+    /// reference). An uploaded asset, or one with no source address and no provider reference, has no such identity.
+    /// </summary>
+    ArtworkAsset,
+
     /// <summary>A catalogue row whose kind depends on another column (for example an entity kind and id pair).</summary>
     Other,
 }

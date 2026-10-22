@@ -40,6 +40,7 @@ internal sealed class TitleRecognitionReader
             CatalogueTarget.Person => ReadPerson(id),
             CatalogueTarget.LocalItem => ReadLocalItem(id),
             CatalogueTarget.FictionalEntity => ReadFictionalEntity(id),
+            CatalogueTarget.ArtworkAsset => ReadArtworkAsset(id),
             CatalogueTarget.Other => BackupTitle.Empty(string.Empty, nameof(CatalogueTarget.Other)),
             _ => throw new ArgumentOutOfRangeException(nameof(target), target, "Unknown catalogue target."),
         };
@@ -414,6 +415,47 @@ internal sealed class TitleRecognitionReader
             Ids = ids,
             Name = NullIfBlank(Text(rows[0][1])),
         };
+    }
+
+    /// <summary>
+    /// An artwork asset by its outside identity only. The content hash is not used, because artwork files are never in a
+    /// backup. Null when the asset is gone, was uploaded by a person, or has neither a source address nor a provider reference.
+    /// </summary>
+    private BackupTitle? ReadArtworkAsset(byte[] id)
+    {
+        var rows = Query(
+            "SELECT source_provider, source_url, provider_reference FROM artwork_assets WHERE id = $id",
+            ("$id", id));
+        if (rows.Count == 0)
+        {
+            return null;
+        }
+
+        var provider = NullIfBlank(Text(rows[0][0]));
+        var url = NullIfBlank(Text(rows[0][1]));
+        var reference = NullIfBlank(Text(rows[0][2]));
+        if (string.Equals(provider, "user_upload", StringComparison.OrdinalIgnoreCase) || (url is null && reference is null))
+        {
+            return null;
+        }
+
+        var ids = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (provider is not null)
+        {
+            ids["source_provider"] = provider;
+        }
+
+        if (url is not null)
+        {
+            ids["source_url"] = url;
+        }
+
+        if (reference is not null)
+        {
+            ids["provider_reference"] = reference;
+        }
+
+        return BackupTitle.Empty(string.Empty, nameof(CatalogueTarget.ArtworkAsset)) with { Ids = ids };
     }
 
     private string? ReadCanonical(byte[] entityId, string key)

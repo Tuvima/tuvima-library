@@ -131,7 +131,7 @@ public static partial class BackupTableClassification
         Catalogue("artwork_assets", "Artwork files known to the Library."),
         Catalogue("artwork_asset_context", "Where each artwork file is used."),
         Catalogue("artwork_asset_search", "Search index over artwork."),
-        Catalogue("entity_artwork_links", "Which artwork belongs to which title or person."),
+        Catalogue("entity_artwork_links", "Which artwork belongs to which title or person. A cover a person picked from a provider is kept, found again by the artwork's provider and source address; uploads are not kept.", correctionWhere: "is_user_override = 1", refs: [Other("entity_id"), Artwork("artwork_asset_id")]),
         Catalogue("entity_assets", "Images attached to titles and people. A cover a person chose from a provider is kept, found again by provider and image address; uploads are not kept.", correctionWhere: "is_user_override = 1 AND (source_provider IS NULL OR source_provider <> 'user_upload') AND image_url LIKE 'http%'", refs: [Other("entity_id")], excluded: ["id", "local_image_path", "local_image_path_s", "local_image_path_m", "local_image_path_l", "local_image_path_t", "is_locally_exported", "is_preferred_exported"]),
         Catalogue("image_cache", "Cached downloaded images."),
         Catalogue("image_cache_sources", "Where cached images came from."),
@@ -345,6 +345,8 @@ public static partial class BackupTableClassification
     private static CatalogueReference LocalItem(string column) => new(column, CatalogueTarget.LocalItem);
 
     private static CatalogueReference Other(string column) => new(column, CatalogueTarget.Other);
+
+    private static CatalogueReference Artwork(string column) => new(column, CatalogueTarget.ArtworkAsset);
 
     private static CatalogueReference Fictional(string column) => new(column, CatalogueTarget.FictionalEntity);
 }
