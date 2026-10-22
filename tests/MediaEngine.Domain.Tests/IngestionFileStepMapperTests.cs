@@ -52,7 +52,8 @@ public sealed class IngestionFileStepMapperTests
     [InlineData(IdentityJobState.QidNoMatch, false, IngestionFileOutcome.Added)]
     [InlineData(IdentityJobState.Ready, true, IngestionFileOutcome.NeedsReview)]
     [InlineData(IdentityJobState.QidNoMatch, true, IngestionFileOutcome.NeedsReview)]
-    [InlineData(IdentityJobState.RetailNoMatch, false, IngestionFileOutcome.NeedsReview)]
+    [InlineData(IdentityJobState.RetailNoMatch, false, IngestionFileOutcome.Unmatched)]
+    [InlineData(IdentityJobState.RetailNoMatch, true, IngestionFileOutcome.NeedsReview)]
     [InlineData(IdentityJobState.QidNeedsReview, false, IngestionFileOutcome.NeedsReview)]
     [InlineData(IdentityJobState.Failed, false, IngestionFileOutcome.Failed)]
     public void FinishedIdentityJob_IsDoneWithTheMatchingOutcome(

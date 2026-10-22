@@ -14,7 +14,7 @@ public enum IngestionQueueRunState
 }
 
 /// <summary>How many finished files ended each way.</summary>
-public sealed record IngestionQueueOutcomes(int Added, int NeedsReview, int Failed, int Skipped);
+public sealed record IngestionQueueOutcomes(int Added, int NeedsReview, int Failed, int Skipped, int Unmatched = 0);
 
 /// <summary>How many files of one media type are in the queue.</summary>
 public sealed record IngestionQueueTypeTally(string MediaType, int Files);
@@ -44,7 +44,7 @@ public sealed record IngestionQueueProgressSnapshot
     public int FilesMoreFound { get; init; }
 
     /// <summary>How the finished files ended.</summary>
-    public IngestionQueueOutcomes Outcomes { get; init; } = new(0, 0, 0, 0);
+    public IngestionQueueOutcomes Outcomes { get; init; } = new(0, 0, 0, 0, 0);
 
     /// <summary>Files per media type, for the types with at least one file.</summary>
     public IReadOnlyList<IngestionQueueTypeTally> Tally { get; init; } = [];

@@ -23,7 +23,7 @@ public sealed class IngestionQueueProgressContractTests
             node.Select(pair => pair.Key).Order(StringComparer.Ordinal));
 
         Assert.Equal(
-            new[] { "added", "needs_review", "failed", "skipped" }.Order(StringComparer.Ordinal),
+            new[] { "added", "needs_review", "failed", "skipped", "unmatched" }.Order(StringComparer.Ordinal),
             Assert.IsType<JsonObject>(node["outcomes"]).Select(pair => pair.Key).Order(StringComparer.Ordinal));
 
         var tally = Assert.IsType<JsonArray>(node["tally"]);
@@ -51,6 +51,7 @@ public sealed class IngestionQueueProgressContractTests
         Assert.Equal(original.Outcomes.NeedsReview, restored.Outcomes.NeedsReview);
         Assert.Equal(original.Outcomes.Failed, restored.Outcomes.Failed);
         Assert.Equal(original.Outcomes.Skipped, restored.Outcomes.Skipped);
+        Assert.Equal(original.Outcomes.Unmatched, restored.Outcomes.Unmatched);
         var tally = Assert.Single(restored.Tally);
         Assert.Equal("Movies", tally.MediaType);
         Assert.Equal(7, tally.Files);
@@ -84,7 +85,7 @@ public sealed class IngestionQueueProgressContractTests
         FilesWaiting = 12,
         WaitingFor = ["ffmpeg"],
         FilesMoreFound = 120,
-        Outcomes = new IngestionQueueOutcomesDto { Added = 380, NeedsReview = 10, Failed = 6, Skipped = 4 },
+        Outcomes = new IngestionQueueOutcomesDto { Added = 380, NeedsReview = 10, Failed = 6, Skipped = 4, Unmatched = 7 },
         Tally = [new IngestionQueueTypeTallyDto { MediaType = "Movies", Files = 7 }],
         FilesUnsorted = 3,
         StepsTotal = 4572,

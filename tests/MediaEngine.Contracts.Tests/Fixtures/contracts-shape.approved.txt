@@ -3086,6 +3086,7 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionQueueOu
   NeedsReview: System.Int32 | nullability=not-null | accessors=get,set
   Failed: System.Int32 | nullability=not-null | accessors=get,set
   Skipped: System.Int32 | nullability=not-null | accessors=get,set
+  Unmatched: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionQueueProgressDto
   State: System.String | nullability=not-null | accessors=get,set

@@ -129,7 +129,12 @@ public static class IngestionFileStepMapper
             or IdentityJobState.QidNoMatch
             => Finished(row.HasPendingReview ? IngestionFileOutcome.NeedsReview : IngestionFileOutcome.Added),
 
-        IdentityJobState.RetailNoMatch or IdentityJobState.QidNeedsReview
+        // A file nothing matched is Unmatched (it stays in the Library and is looked up again later), unless a review item was raised for it
+        // (a placeholder title, or a film TMDB lists as TV), which is a Needs Review case.
+        IdentityJobState.RetailNoMatch
+            => Finished(row.HasPendingReview ? IngestionFileOutcome.NeedsReview : IngestionFileOutcome.Unmatched),
+
+        IdentityJobState.QidNeedsReview
             => Finished(IngestionFileOutcome.NeedsReview),
 
         IdentityJobState.Failed => Finished(IngestionFileOutcome.Failed),

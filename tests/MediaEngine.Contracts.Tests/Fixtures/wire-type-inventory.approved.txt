@@ -3712,7 +3712,8 @@
   NeedsReview: System.Int32 | json=needs_review | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Failed: System.Int32 | json=failed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Skipped: System.Int32 | json=skipped | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"added":7,"needs_review":7,"failed":7,"skipped":7}
+  Unmatched: System.Int32 | json=unmatched | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"added":7,"needs_review":7,"failed":7,"skipped":7,"unmatched":7}
 
 [contracts] MediaEngine.Contracts.Ingestion.IngestionQueueProgressDto
   kind=class | converter=default | number-handling=default | unmapped=default
