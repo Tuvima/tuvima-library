@@ -481,7 +481,7 @@ After Stage 3 retail metadata returns 3 or more claims, the pipeline can auto-re
 
 ## Writeback & Auto Re-tag Sweep
 
-Once a file is identified and enriched, `WriteBackService` embeds the canonical metadata back into the file itself so external players, re-ingestion, and library rebuilds see it without consulting the database. The per-media-type field list lives in `config/writeback-fields.json` - the single source of truth shared by the taggers and the media detail editor.
+Once a file is identified and enriched, the canonical metadata is queued for the file itself, so external players, re-ingestion, and library rebuilds see it without consulting the database. Each change saves straight away in the data store and adds or refreshes one row on the durable file-write list (`media_file_write_intents`). A later change to the same file replaces the earlier row. The scheduled run (`FileWriteScheduler`, interval `run_interval_minutes` in `config/writeback.json`) works through the list and writes each file once with its final values. Moves are described in [libraries, sources, and intake](library-model-and-intake.md). The per-media-type field list lives in `config/writeback-fields.json` - the single source of truth shared by the taggers and the media detail editor.
 
 ### Per-media-type writeback hash
 
