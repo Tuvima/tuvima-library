@@ -699,37 +699,27 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
     }
 
     [Fact]
-    public void Export_KeepsAWorksLockedSeriesPlacement_AndDropsAnUnlockedOne()
+    public void Export_LeavesAWorksMatchAndPlacementLocksToTheRescan()
     {
         var shelf = Guid.NewGuid();
         var locked = AddMovie("Locked Book", "2001", imdb: "tt0000011", tmdb: null, hash: "cccc0001", seconds: null);
-        var unlocked = AddMovie("UNLOCKED-WORK-MARKER", "2002", imdb: "tt0000022", tmdb: null, hash: "cccc0002", seconds: null);
         using (var connection = _database.CreateConnection())
         {
             connection.Execute(
-                "INSERT INTO collections (id, collection_type, display_name, wikidata_qid) VALUES (@id, 'Series', 'Placed Series', 'Q7')",
+                "INSERT INTO collections (id, collection_type, display_name, wikidata_qid) VALUES (@id, 'Series', 'PLACED-SERIES-MARKER', 'Q7')",
                 new { id = GuidSql.ToBlob(shelf) });
             connection.Execute(
-                "UPDATE works SET series_placement_locked = 1, collection_id = @c, wikidata_match_source = 'WRONG-SOURCE-MARKER' WHERE id = @w",
+                "UPDATE works SET series_placement_locked = 1, collection_id = @c, wikidata_match_locked = 1, wikidata_match_source = 'MATCH-SOURCE-MARKER', wikidata_rejected_qids_json = '[\"Q8\"]' WHERE id = @w",
                 new { c = GuidSql.ToBlob(shelf), w = locked.Work });
-            connection.Execute(
-                "UPDATE works SET series_placement_locked = 0, collection_id = @c, wikidata_match_source = 'WRONG-SOURCE-MARKER-2' WHERE id = @w",
-                new { c = GuidSql.ToBlob(shelf), w = unlocked.Work });
         }
 
         var export = _repository.Export(BackupScope.WholeLibrary);
 
-        var works = Assert.Single(export.Choices, table => table.Table == "works");
-        var row = Assert.Single(works.Rows);
-        Assert.Equal(BackupValue.FromInteger(1), row[works.Columns.ToList().IndexOf("series_placement_locked")]);
-        var placed = Assert.IsType<BackupValue.TitleRef>(row[works.Columns.ToList().IndexOf("collection_id")]);
-        Assert.Equal("Q7", Assert.Single(export.Titles, title => title.Key == placed.Key).Ids["wikidata_qid"]);
-        Assert.Equal(BackupValue.Null, row[works.Columns.ToList().IndexOf("wikidata_match_source")]);
-
+        Assert.DoesNotContain(export.Choices, table => table.Table == "works");
         var text = EntryText(Archive(export));
-        Assert.DoesNotContain("UNLOCKED-WORK-MARKER", text);
-        Assert.DoesNotContain("WRONG-SOURCE-MARKER", text);
-        Assert.DoesNotContain("tt0000022", text);
+        Assert.DoesNotContain("PLACED-SERIES-MARKER", text);
+        Assert.DoesNotContain("MATCH-SOURCE-MARKER", text);
+        Assert.DoesNotContain("tt0000011", text);
     }
 
     [Fact]
@@ -887,35 +877,24 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
     }
 
     [Fact]
-    public void Export_KeepsWhichEpisodesAPersonSaidAFileCovers()
+    public void Export_LeavesHandSetFileCoverageToTheRescan()
     {
         var first = AddMovie("Episode One", "2020", imdb: "tt0000101", tmdb: null, hash: "dddd0001", seconds: null);
         var second = AddMovie("Episode Two", "2020", imdb: "tt0000102", tmdb: null, hash: "dddd0002", seconds: null);
-        var other = AddMovie("Other Show", "2021", imdb: "tt0000103", tmdb: null, hash: "dddd0003", seconds: null);
         using (var connection = _database.CreateConnection())
         {
             connection.Execute(
                 """
                 INSERT INTO media_asset_coverage (asset_id, work_id, position, source) VALUES (@a1, @w1, 1, 'manual');
                 INSERT INTO media_asset_coverage (asset_id, work_id, position, source) VALUES (@a1, @w2, 2, 'manual');
-                INSERT INTO media_asset_coverage (asset_id, work_id, position, source) VALUES (@a3, @w3, 1, 'filename');
                 """,
-                new { a1 = first.Asset, w1 = first.Work, w2 = second.Work, a3 = other.Asset, w3 = other.Work });
+                new { a1 = first.Asset, w1 = first.Work, w2 = second.Work });
         }
 
         var export = _repository.Export(BackupScope.WholeLibrary);
 
-        var coverage = Assert.Single(export.Corrections, table => table.Table == "media_asset_coverage");
-        Assert.Equal(2, coverage.Rows.Count);
-        var columns = coverage.Columns.ToList();
-        Assert.All(coverage.Rows, row =>
-        {
-            Assert.IsType<BackupValue.TitleRef>(row[columns.IndexOf("asset_id")]);
-            Assert.IsType<BackupValue.TitleRef>(row[columns.IndexOf("work_id")]);
-            Assert.Equal(BackupValue.FromText("manual"), row[columns.IndexOf("source")]);
-        });
-        Assert.Equal([1L, 2L], coverage.Rows.Select(row => ((BackupValue.Integer)row[columns.IndexOf("position")]).Value).Order().ToArray());
-        Assert.DoesNotContain("tt0000103", EntryText(Archive(export)));
+        Assert.DoesNotContain(export.Corrections, table => table.Table == "media_asset_coverage");
+        Assert.DoesNotContain("tt0000102", EntryText(Archive(export)));
     }
 
     [Fact]
@@ -1027,8 +1006,8 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
         var works = new BackupExportTable(
             "works",
             BackupDataKind.Catalogue,
-            ["ref", "series_placement_locked", "collection_id", "wikidata_match_locked", "wikidata_match_source"],
-            [[BackupValue.FromTitleRef("t1"), BackupValue.FromInteger(1), BackupValue.FromTitleRef("t1"), BackupValue.FromInteger(0), BackupValue.Null]]);
+            ["ref", "display_overrides_json"],
+            [[BackupValue.FromTitleRef("t1"), BackupValue.FromText("{\"title\":\"Own title\"}")]]);
         var contents = new BackupExportContents(BackupScope.WholeLibrary, 1, 1, 0, 1, 1, 0, 1, 0, 1, 2, 3);
         var export = new BackupExport([secret], [works], [title], contents, [corrections]);
 
