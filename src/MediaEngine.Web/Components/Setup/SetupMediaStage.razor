@@ -113,7 +113,12 @@
         <AppAlert Tone="@(Media.Passed ? AppUiTone.Success : AppUiTone.Warning)" Class="setup-media-notice"><span>@Media.Detail</span></AppAlert>
     }
     <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-        @if (!HasLibraries)
+        @if (!HasLibraries && HasViewFolders)
+        {
+            @* Only View folders so far: they are already saved, and the Watch, Listen and Read check has nothing to check, so this moves on like Skip. *@
+            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="DeferMedia" />
+        }
+        else if (!HasLibraries)
         {
             <AppButton Label="Skip for now" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DeferMedia" />
         }
@@ -166,6 +171,7 @@
     // The signed-in administrator's profile id while setup may add View folders; null while a setup session exists or nobody is signed in as one.
     private Guid? ViewOwner => SetupViewAccess.OwnerProfileId(SetupSession, Session);
     private bool CanAddView => ViewOwner is not null;
+    private bool HasViewFolders => _viewShared.Count + _viewMine.Count > 0;
 
     // The Vault is never offered in setup.
     private IReadOnlyList<LibraryGroup> Groups => _kinds.Visible(showVault: false);

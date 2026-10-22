@@ -517,6 +517,30 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task WithOnlyAViewFolderAddedTheFooterSaysContinueAndMovesOnWithoutTheFolderCheck()
+    {
+        SignIn();
+        var cut = RenderStage(session: null);
+        WaitForSignedInLoad(cut);
+        Tick(cut, "view");
+        Button(cut, "+ Add folder").Click();
+        _dialogs.WaitForElement(".add-wizard");
+        _picked = new ServerFolderValidationResultDto { Path = "E:\\Family\\Photos", StorageLocationId = "media", Exists = true, HasRead = true, HasWrite = true, CanSelect = true, ContainsFiles = true };
+        _dialogs.FindAll(".add-wizard__kind-option").Single(x => Text(x) == "Photos").Click();
+        PickViewFolder("E:\\Family\\Photos");
+        DialogButton("Add folder").Click();
+        _dialogs.WaitForElement(".add-wizard__done");
+
+        cut.WaitForAssertion(() => Assert.DoesNotContain(cut.FindAll("button"), x => Text(x) == "Skip for now"));
+        await cut.InvokeAsync(() => Button(cut, "Continue").Click());
+
+        // The Watch, Listen and Read check has nothing to check, so this moves on the way Skip does; the View folder is already saved.
+        Assert.Equal(1, _deferred);
+        Assert.Equal(0, _validated);
+        Assert.Single(_sharedCreates);
+    }
+
+    [Fact]
     public void AnEngineRefusalOfAViewFolderShowsUnchangedAndNothingIsListed()
     {
         SignIn();
