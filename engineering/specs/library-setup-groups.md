@@ -244,7 +244,7 @@ Built in the cloud and validated locally in one batch. **Start only after the lo
 - **L6.** Turn Vault mode on and off: the Vault card appears and disappears with no trace when off.
 - **L15.** First run with View ticked: add a family photos folder (shared, the default) and a folder to your own space; continue. After setup a second profile sees the shared folder's photos but not your own.
 - **L16.** Two profiles each upload a few photos to the shared gallery: each photo shows its profile name, and filtering the shared gallery by one profile shows only that profile's photos. In a Managed folder the name is written into the photo file; in a read-only folder the file is unchanged.
-- **L17.** In a Managed Documents folder, add a PDF, a .docx, an .xlsx and a JPEG, then open each in Acrobat or Edge, Word, Excel and the Windows Photos app: each opens normally and looks unchanged, and Word and Excel show the profile name under custom properties (File > Info > Properties > Advanced). A signed PDF and a HEIC photo are byte-for-byte unchanged. Search finds a word inside an old .doc and .xls file.
+- **L17.** In a Managed Documents folder, add a PDF, a .docx, an .xlsx and a JPEG, then open each in Acrobat or Edge, Word, Excel and the Windows Photos app: each opens normally and looks unchanged, and Word and Excel show the profile name under custom properties (File > Info > Properties > Advanced). A HEIC photo gets the name too, while a signed PDF and an MKV video are byte-for-byte unchanged (Batched write-back D7). Files are written on the batch schedule, so press Write now first. Search finds a word inside an old .doc and .xls file.
 
 ## 8. Risks and open questions
 

@@ -1,8 +1,8 @@
 # Spec: Batched write-back (all files, on a schedule, with ExifTool for photos, videos and PDFs)
 
-> **Status:** Draft · **Version:** 1 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../product/overview.md) · [Simpler library setup](library-setup-groups.md) (D48, D55) · [Privacy and local-first](../../docs/explanation/privacy-local-first.md)
+> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../product/overview.md) · [Simpler library setup](library-setup-groups.md) (D48, D55) · [Privacy and local-first](../../docs/explanation/privacy-local-first.md)
 
-> Written 2026-10-22 from Shy's decisions while planning D48 (the profile name written into View files): use ExifTool for photos, videos and PDFs, download it from a copy Tuvima keeps on GitHub, and batch every write into files, not only View's, "so it's only built one way", running every hour by default and configurable. Changes are saved in Library's data store straight away; files catch up on the schedule.
+> Written 2026-10-22 from Shy's decisions while planning D48 (the profile name written into View files): use ExifTool for photos, videos and PDFs, download it from a copy Tuvima keeps on GitHub, and batch every write into files, not only View's, "so it's only built one way", running every hour by default and configurable. Changes are saved in Library's data store straight away; files catch up on the schedule. Version 2 (same day) records Shy's answers: ExifTool is fetched automatically (D5), library moves happen straight away while their tags wait (D10), and waiting work survives a crash and is respected by anything else that touches the file (D11). Locked by Shy 2026-10-22 ("all recommended").
 
 ## Plain-English product walkthrough
 
@@ -36,6 +36,8 @@
 - A4 (BW2): ExifTool is fetched from Tuvima's GitHub copy, its checksum is checked, and one ExifTool run handles a whole batch.
 - A5 (BW3): View files get the profile name per D7, and files that can't hold it are counted as "kept in Library only".
 - A6 (BW4): the Settings panel shows the waiting count, the last and next run, failures and Write now.
+- A7 (BW1): a move interrupted by a crash is finished or put back on the next start, never leaving the file in two places or none, and its tags still get written.
+- A8 (BW1): a metadata refresh, rescan or retag of a file with waiting work never loses that work or writes over it with older values.
 
 ## 1. Goal
 
@@ -62,7 +64,7 @@ Every write into a media file happens one way: changes save in Library at once, 
 - **D2. Runs every hour by default; configurable** (Shy, 2026-10-22). The interval lives in `config/writeback.json` and is changed from Settings > Libraries > Advanced. A run starts when the interval has passed and something is waiting; when the list is empty nothing runs. If the Engine was off when a run was due, the run happens shortly after it starts.
 - **D3. Write now.** Administrators can start a run at once from the Settings panel. Nothing else skips the schedule.
 - **D4. The data store is the true record.** Library shows every change straight away. A file copied out of Library before the next run may not carry the latest tags yet; that is the accepted cost of batching.
-- **D5. ExifTool runs as a helper program, from Tuvima's own GitHub copy** (Shy, 2026-10-22). It is fetched and checked like FFmpeg and Tesseract: the address must be on GitHub and the file must match its checksum. The Windows build is a copy of the official release that Tuvima keeps as a release on its own GitHub, refreshed by a small task run by hand when ExifTool updates. Linux and Docker use the official source on ExifTool's GitHub with Perl installed. It runs on the person's own computer only; nothing is uploaded. Licence: the same terms as Perl (Artistic or GPL). Credit (Shy, 2026-10-22: "always give clear credit in our readme"): "ExifTool by Phil Harvey" with a link in the README's "Built on open-source software" table, a row in the attributions page, and its copyright line and licence in the third-party notices. The downloaded copy keeps ExifTool's own licence and readme files beside it, and Tuvima's GitHub copy is the unmodified official release.
+- **D5. ExifTool runs as a helper program, from Tuvima's own GitHub copy** (Shy, 2026-10-22). It is fetched automatically when missing, like FFmpeg (Shy, 2026-10-22), and checked the same way: the address must be on GitHub and the file must match its checksum. The Windows build is a copy of the official release that Tuvima keeps as a release on its own GitHub, refreshed by a small task run by hand when ExifTool updates. Linux and Docker use the official source on ExifTool's GitHub with Perl installed. It runs on the person's own computer only; nothing is uploaded. Licence: the same terms as Perl (Artistic or GPL). Credit (Shy, 2026-10-22: "always give clear credit in our readme"): "ExifTool by Phil Harvey" with a link in the README's "Built on open-source software" table, a row in the attributions page, and its copyright line and licence in the third-party notices. The downloaded copy keeps ExifTool's own licence and readme files beside it, and Tuvima's GitHub copy is the unmodified official release.
 - **D6. One ExifTool start per run.** ExifTool stays open for the whole batch and takes file after file, so thousands of photos cost one program start. If ExifTool stops part-way, the remaining files stay on the list for the next run, and the Engine is not affected.
 - **D7. Which View files get the profile name, and with which tool** (replaces the tool choices in the library setup spec's D55).
   - **Written by ExifTool:** JPEG, PNG, TIFF, GIF, WebP, HEIC/HEIF, AVIF and camera RAW (DNG, CR2, CR3, NEF, ARW) photos, MP4, MOV and M4V videos, and PDFs.
@@ -71,6 +73,14 @@ Every write into a media file happens one way: changes save in Library at once, 
   - The field is Library's own; Author and other existing fields are never touched. PDFsharp is no longer needed. TagLibSharp stays for music, audiobooks and MKV.
 - **D8. Library recognises its own writes.** After writing a file, Library records the file's new fingerprint and size, so the file is not treated as new or changed.
 - **D9. Safety rules are unchanged and apply to every write.** Library writes only where the folder's handling allows it. A View write goes to a temporary copy, is re-read, and only then replaces the original. On any failure the file is left exactly as it was and the entry is marked failed with the reason; failed entries are retried up to the existing attempt limit.
+- **D10. Library moves happen straight away; only their tags wait** (Shy, 2026-10-22). Moving a file to another library is filing, not writing into the file, so the file moves at once and its folders on disk always match Library. The move is written on the to-do list *before* it starts, with each step recorded (planned, moved, checked), so a crash part-way is finished or undone on the next start from what is actually on disk: the file is never left in two places or in none. The tags for its new place join the list and are written on the schedule.
+- **D11. Waiting work survives crashes and is respected by everything else that touches the file** (Shy, 2026-10-22). Waiting entries live in the data store, so a crash, a restart or a power cut loses none of them. Every file with waiting work is marked as such, and every other process checks that mark before acting:
+  - *A metadata refresh, enrichment or edit* updates Library and joins the existing entry rather than writing the file itself. What a run writes is always built from Library's latest values at the moment of writing, so the newest result wins and nothing older overwrites it.
+  - *A file that was changed outside Library* after its work was queued (for example, tags edited in another app) is read again before writing. Library's normal priority rules then decide, and the person's own locks always win.
+  - *A rescan or folder watcher* treats a file with a move in progress as the same item, never as missing or new.
+  - *Deleting or recycling the item* removes its waiting entry. Restoring it from the Recycle bin queues a fresh one.
+  - *A second move* of the same file waits until the first is finished.
+- **D12. Waiting work is visible on the item.** In Editing Mode, the File section shows "Changes waiting to be written to the file · next run 11:00" when an entry is waiting, and the reason when the last attempt failed. History records each completed write and move.
 
 ## 4. UI behaviour
 
@@ -88,6 +98,8 @@ Every write into a media file happens one way: changes save in Library at once, 
 
 **Settings > Tools** lists ExifTool beside FFmpeg and Tesseract, with its version, status and the usual download and repair buttons.
 
+**Editing Mode, File section** shows the waiting note from D12.
+
 **View folder rows** show "N files kept in Library only" when some files can't hold the profile name (from the library setup spec, D55).
 
 Phones see the status text only, with no editing or buttons, as with other Settings on phones.
@@ -101,10 +113,12 @@ Phones see the status text only, with no editing or buttons, as with other Setti
 ## 6. Work packets
 
 ### BW1 — One scheduled to-do list for every write
-- **What it does:** D1 to D4, D8, D9.
+- **What it does:** D1 to D4, D8 to D12 (the Editing Mode note in D12 is BW4).
   - Every write-back caller adds to the durable list instead of writing straight away: enrichment, manual overrides, item preferences and canonical apply, the retag sweep, the folder organisers, artwork embedding and library moves.
   - The list's worker runs batches on the configured interval (and on Write now), claims entries with the existing lease and attempt rules, and keeps one entry per file with the newest generation.
-  - The list's shape grows so it can also point at a View item.
+  - The list's shape grows so it can also point at a View item, and records a move's steps (D10).
+  - Moves run at once through the list; on start, half-finished moves are finished or undone from what is on disk.
+  - Every other process that touches a file (enrichment, rescans and the folder watcher, retag sweep, organisers, deletion and restore) checks the waiting mark (D11).
   - Adds Engine actions for status and Write now, with their Contracts.
 - **Files likely touched:** `src/MediaEngine.Ingestion/Services/WriteBackService.cs`, `src/MediaEngine.Domain/Contracts/IWriteBackService.cs`, `src/MediaEngine.Api/Services/MediaFileWriteIntentDispatcher.cs`, `src/MediaEngine.Storage/MediaFileWriteIntentRepository.cs`, a new upgrade step, `EnrichmentService.cs`, `RetagSweepWorker.cs`, `ItemCanonicalEndpoints.cs`, `MetadataEndpoints.cs`, `FolderConversionOrganiser.cs`, `FolderMergeOrganiser.cs`, `ArtworkWritebackService.cs`, `config/writeback.json`, `WriteBackConfiguration.cs`, `src/MediaEngine.Contracts/`, tests (to be confirmed by a scout)
 - **Depends on:** none
@@ -115,6 +129,11 @@ Phones see the status text only, with no editing or buttons, as with other Setti
   - A run starts only after the interval, or on Write now, and writes every waiting file.
   - An entry interrupted by an Engine stop is written on the next run.
   - A file Library just wrote is not picked up as changed.
+  - A move stopped after each of its steps (simulated crash) ends, after restart, with the file in exactly one place matching Library, and its tags written on the next run.
+  - A metadata refresh landing while an entry waits leaves one entry, and the run writes the refreshed values.
+  - A file edited outside Library after queueing is re-read first, and a locked field keeps the person's value.
+  - A rescan during a move doesn't mark the file missing or add it as new.
+  - Deleting the item drops its entry.
 
 ### BW2 — ExifTool helper program
 - **What it does:** D5, D6.
@@ -150,7 +169,7 @@ Phones see the status text only, with no editing or buttons, as with other Setti
   - A write that fails part-way leaves the original unchanged.
 
 ### BW4 — Settings: schedule, status and Write now
-- **What it does:** section 4's panel in Settings > Libraries > Advanced, ExifTool in Settings > Tools, and the View folder count.
+- **What it does:** section 4's panel in Settings > Libraries > Advanced, ExifTool in Settings > Tools, the View folder count, and the Editing Mode File note (D12).
 - **Files likely touched:** `src/MediaEngine.Web/Components/Settings/LibraryAdvancedSettings.razor`, the Tools tab, the Engine API client, tests
 - **Depends on:** BW1 (and BW2 for the Tools row)
 - **Size:** Standard
@@ -177,6 +196,7 @@ Waves:
 - **L2.** On SHY-DESKTOP: Settings > Tools downloads ExifTool from Tuvima's GitHub copy, and it shows as ready.
 - **L3.** In a Managed View folder: an iPhone HEIC, a JPEG, a phone MP4 and a PDF get the profile name. Each opens normally in Windows Photos, Films & TV and Acrobat or Edge, and looks unchanged.
 - **L4.** Make ten edits, stop the Engine before the run, start it again: the files are written shortly after start.
+- **L6.** Move a movie to another library and end the Engine process mid-move (Task Manager): after restart the file is in exactly one place, matching Library, and its tags are written on the next run or by Write now.
 - **L5.** A View folder inside OneDrive: a day of edits causes one upload per changed file, not one per edit.
 
 ## 8. Risks and open questions
@@ -186,12 +206,4 @@ Waves:
   - A large first run after a new library is added could take a while. Runs are batched and resumable, and the status panel shows progress.
   - ExifTool is mostly one maintainer's work, with a long, steady record; a missing ExifTool only delays View writes.
   - The Docker image grows by Perl's size.
-- **Open questions:**
-  - **Q1. Is ExifTool fetched automatically (like FFmpeg) or by a button (like Tesseract)?**
-    - Automatic means the profile name just works.
-    - The button means nothing is downloaded until someone asks.
-    - Recommendation: automatic.
-  - **Q2. Do library moves also wait for the batch?**
-    - Waiting means moves are built the same way as everything else, but a moved movie stays in its old folder on disk for up to an hour.
-    - Moving straight away, with only the tags waiting, keeps folders on disk matching Library.
-    - Recommendation: move the file straight away and batch only the tags. Moving is filing, not writing into the file.
+- **Open questions:** none. Q1 (ExifTool fetched automatically) and Q2 (moves straight away, tags wait) were answered by Shy on 2026-10-22; see D5 and D10.

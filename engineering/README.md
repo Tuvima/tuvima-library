@@ -30,7 +30,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Delete a show, season, album or Series, and the Recycle bin](specs/delete-groups.md) | Locked (v7, 2026-10-21) |
 | [Spec: Safer deleting in View](specs/safer-deleting-in-view.md) | Locked (v2, 2026-10-21) |
 | [Spec: Simpler library setup (Watch, Listen, Read, View, Vault)](specs/library-setup-groups.md) | In progress (v24; WP11, WP1 to WP5 merged 2026-10-21/22; WP7a and WP8a being built; then WP7b/c, WP8b/d, WP13 (WP8c moved to Batched write-back), WP9, WP12; WP6 after the Videos Vault wave; WP10 last) |
-| [Spec: Batched write-back (all files, on a schedule, with ExifTool)](specs/batched-writeback.md) | Draft (v1, 2026-10-22; two open questions for Shy) |
+| [Spec: Batched write-back (all files, on a schedule, with ExifTool)](specs/batched-writeback.md) | Locked (v2, 2026-10-22; built after WP7a and WP8a of the library setup spec) |
 | [Spec: Encrypted plugin and integration keys](specs/encrypted-plugin-keys.md) | Locked (v1, 2026-10-21; EK1 and EK3 before plugin install WP19, EK2 with backup passphrase WP25) |
 | [Spec: Backup and restore (settings and personal state)](specs/backup-and-restore.md) | In progress (v2, 2026-10-21; [handoff](handoffs/2026-10-21-backup-and-restore.md); WP1 and WP2 building; WP3 waits for the bookmark pack matcher in Videos Wave 3, #374) |
 | [Spec: Right-sized pictures on every screen](specs/archive/right-sized-pictures.md) | Built (v1, archived 2026-10-22; awaiting Local checks L1-L4; follow-up in its section 12, B9) |
