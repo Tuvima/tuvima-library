@@ -157,7 +157,7 @@
                                 @foreach (var art in _artwork)
                                 {
                                     <article class="see-art-card">
-                                        @if (!string.IsNullOrWhiteSpace(AbsoluteArtworkUrl(art.image_url))) { <img src="@AbsoluteArtworkUrl(art.image_url)" alt="@art.asset_type artwork" /> }
+                                        @if (!string.IsNullOrWhiteSpace(AbsoluteArtworkUrl(art.image_url))) { <img src="@MediaTileArtworkUrl.ForDrawnSize(AbsoluteArtworkUrl(art.image_url), 320)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(AbsoluteArtworkUrl(art.image_url), 320)" alt="@art.asset_type artwork" loading="lazy" decoding="async" /> }
                                         <strong>@ArtworkLabel(art.asset_type)</strong><small>@(art.is_user_override ? "Managed" : art.source_provider ?? "Source artwork")@(art.is_preferred ? " · Preferred" : string.Empty)</small>
                                     </article>
                                 }

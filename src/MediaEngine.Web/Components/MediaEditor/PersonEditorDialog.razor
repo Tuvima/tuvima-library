@@ -21,7 +21,8 @@
         <div class="person-editor__portrait">
             @if (!string.IsNullOrWhiteSpace(_person?.EffectiveHeadshotUrl))
             {
-                <img src="@_person.EffectiveHeadshotUrl" alt="" />
+                @* Drawn 80x92px (PersonEditorDialog.razor.css) *@
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(_person.EffectiveHeadshotUrl, 92)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(_person.EffectiveHeadshotUrl, 92)" alt="" decoding="async" />
             }
             else
             {

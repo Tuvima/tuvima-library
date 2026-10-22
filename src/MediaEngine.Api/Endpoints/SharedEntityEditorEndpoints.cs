@@ -14,6 +14,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
+using MediaEngine.Providers.Helpers;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -139,14 +140,14 @@ public static class SharedEntityEditorEndpoints
         return response;
     }
 
-    private static async Task<IResult> UploadUniverseArtworkAsync(string qid, string assetType, HttpRequest request, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IEntityAssetRepository assets, IEntityTimelineRepository timeline, ArtworkScopeService artworkScope, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
+    private static async Task<IResult> UploadUniverseArtworkAsync(string qid, string assetType, HttpRequest request, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IEntityAssetRepository assets, IEntityTimelineRepository timeline, ArtworkScopeService artworkScope, AssetPathService assetPaths, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var root = await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataWrite, ct);
         if (root is null)
         {
             return ApiErrors.NotFound("Universe not found.");
         }
-        return await UploadArtworkAsync(root.Qid, SharedEntityEditorTargetKinds.Universe, RootHistoryId(root.Qid), assetType, request, assets, timeline, artworkScope, ct);
+        return await UploadArtworkAsync(root.Qid, SharedEntityEditorTargetKinds.Universe, RootHistoryId(root.Qid), assetType, request, assets, timeline, artworkScope, assetPaths, ct);
     }
 
     private static async Task<IResult> GetEntityContextAsync(string qid, Guid id, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
@@ -271,14 +272,14 @@ public static class SharedEntityEditorEndpoints
         return response;
     }
 
-    private static async Task<IResult> UploadEntityArtworkAsync(string qid, Guid id, string assetType, HttpRequest request, HttpContext http, IFictionalEntityRepository entities, IEntityAssetRepository assets, IEntityTimelineRepository timeline, ArtworkScopeService artworkScope, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
+    private static async Task<IResult> UploadEntityArtworkAsync(string qid, Guid id, string assetType, HttpRequest request, HttpContext http, IFictionalEntityRepository entities, IEntityAssetRepository assets, IEntityTimelineRepository timeline, ArtworkScopeService artworkScope, AssetPathService assetPaths, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var entity = await AuthorizedEntityAsync(qid, id, http, entities, display, authorization, ApplicationPermissionIds.MetadataWrite, ct);
         if (entity is null)
         {
             return ApiErrors.NotFound("Entity not found.");
         }
-        return await UploadArtworkAsync(entity.Id.ToString(), SharedEntityEditorTargetKinds.FictionalEntity, entity.Id, assetType, request, assets, timeline, artworkScope, ct);
+        return await UploadArtworkAsync(entity.Id.ToString(), SharedEntityEditorTargetKinds.FictionalEntity, entity.Id, assetType, request, assets, timeline, artworkScope, assetPaths, ct);
     }
 
     private static async Task<IResult> GetAppearancesAsync(string qid, Guid id, HttpContext http, IFictionalEntityRepository entities, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
@@ -412,7 +413,7 @@ public static class SharedEntityEditorEndpoints
         return Results.Ok(ToArtwork(await assets.GetByEntityAsync(entityId, null, ct)));
     }
 
-    private static async Task<IResult> UploadArtworkAsync(string entityId, string entityType, Guid ownerId, string assetType, HttpRequest request, IEntityAssetRepository assets, IEntityTimelineRepository timeline, ArtworkScopeService artworkScope, CancellationToken ct)
+    private static async Task<IResult> UploadArtworkAsync(string entityId, string entityType, Guid ownerId, string assetType, HttpRequest request, IEntityAssetRepository assets, IEntityTimelineRepository timeline, ArtworkScopeService artworkScope, AssetPathService assetPaths, CancellationToken ct)
     {
         var normalizedType = ArtworkScopeService.NormalizeUploadedArtworkType(assetType);
         if (normalizedType is null)
@@ -440,6 +441,7 @@ public static class SharedEntityEditorEndpoints
             await BoundedHttpContent.CopyImageToFileAtomicallyAsync(input, localPath, ct);
         }
         var asset = new EntityAsset { Id = variantId, EntityId = entityId, EntityType = entityType, AssetTypeValue = normalizedType, ImageUrl = $"/stream/artwork/{variantId}", LocalImagePath = localPath, SourceProvider = "user_upload", OwnerScope = entityType, IsPreferred = true, IsUserOverride = true, CreatedAt = DateTimeOffset.UtcNow };
+        ArtworkVariantHelper.StampMetadataAndRenditions(asset, assetPaths);
         await assets.UpsertAsync(asset, ct);
         await assets.SetPreferredAsync(asset.Id, ct);
         await RecordEditorEventAsync(timeline, ownerId, entityType, "user_artwork_edit", "Managed artwork uploaded in shared editor.", ct);

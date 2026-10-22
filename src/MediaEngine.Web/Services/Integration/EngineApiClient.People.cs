@@ -228,9 +228,7 @@ public sealed partial class EngineApiClient
         var normalized = page.Items
             .Select(person => person with
             {
-                headshot_url = person.has_local_headshot || !string.IsNullOrEmpty(person.headshot_url)
-                    ? AbsoluteUrl($"/persons/{person.id}/headshot")
-                    : null,
+                headshot_url = ResolvePersonHeadshotUrl(person.id, person.has_local_headshot, person.headshot_url),
             })
             .ToList();
         return page with { Items = normalized };

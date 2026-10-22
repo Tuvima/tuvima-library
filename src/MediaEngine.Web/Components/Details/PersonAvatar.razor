@@ -6,7 +6,7 @@
      aria-label="@Name">
     @if (!string.IsNullOrWhiteSpace(ImageUrl) && !_imageFailed)
     {
-        <img src="@ImageUrl" alt="@Name" @onerror="HandleImageError" />
+        <img src="@MediaTileArtworkUrl.ForDrawnSize(ImageUrl, ResolvedDrawnPx)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ImageUrl, ResolvedDrawnPx)" alt="@Name" @onerror="HandleImageError" />
     }
     else
     {
@@ -20,6 +20,11 @@
     [Parameter] public string? Initials { get; set; }
     [Parameter] public string? Role { get; set; }
     [Parameter] public string Size { get; set; } = "md";
+
+    /// <summary>The long side the picture is drawn at, in CSS pixels. 0 derives it from <see cref="Size"/>: sm up to 96, md up to 140 (credit cards).</summary>
+    [Parameter] public int DrawnPx { get; set; }
+
+    private int ResolvedDrawnPx => DrawnPx > 0 ? DrawnPx : Size == "sm" ? ArtworkSize.TinyPx : 140;
 
     private bool _imageFailed;
     private string? _lastImageUrl;

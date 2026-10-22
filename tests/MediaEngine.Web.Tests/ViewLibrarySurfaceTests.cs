@@ -118,7 +118,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.DoesNotContain("grid-template-columns", browserStyles, StringComparison.Ordinal);
         Assert.Contains("ItemKey", gallery, StringComparison.Ordinal);
         Assert.Contains("UseContain", gallery, StringComparison.Ordinal);
-        Assert.Contains("(max-width: 1400px) 32vw, 480px", gallery, StringComparison.Ordinal);
+        Assert.Contains("MediaTileArtworkUrl.ForDrawnSize(ImageUrl(item), DrawnPx(item))", gallery, StringComparison.Ordinal);
         Assert.Contains("display: flex", galleryStyles, StringComparison.Ordinal);
         Assert.Contains("gap: 7px", galleryStyles, StringComparison.Ordinal);
         Assert.Contains("height: 11.5rem", galleryStyles, StringComparison.Ordinal);

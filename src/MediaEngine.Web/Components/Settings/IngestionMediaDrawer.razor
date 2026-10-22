@@ -18,7 +18,7 @@
                 <AppRowErrorBoundary ItemTitle="@IngestionMediaCard.DisplayTitleFor(Item.Title)" ResetKey="@Item">
                 <div class="ingestion-drawer__body">
                     <section class="ingestion-drawer__identity">
-                        <span class="ingestion-drawer__cover"><AppMediaArtwork ImageUrl="@Item.CoverUrl" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(Item.MediaType)" /></span>
+                        <span class="ingestion-drawer__cover"><AppMediaArtwork ImageUrl="@Item.CoverUrl" DrawnPx="173" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(Item.MediaType)" /></span>
                         <div><h2 id="ingestion-drawer-title">@IngestionMediaCard.DisplayTitleFor(Item.Title)</h2><p>@Item.Subtitle</p><small>@IngestionMediaCard.FriendlyType(Item.MediaType)</small></div>
                     </section>
 

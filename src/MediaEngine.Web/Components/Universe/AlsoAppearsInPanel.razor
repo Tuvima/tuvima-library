@@ -46,7 +46,9 @@
                                                 <span class="also-appears-in__thumb">
                                                     @if (!string.IsNullOrWhiteSpace(work.CoverUrl))
                                                     {
-                                                        <img src="@ApiClient.ToAbsoluteEngineUrl(work.CoverUrl)" alt="" loading="lazy" />
+                                                        @* Drawn 36x52px (AlsoAppearsInPanel.razor.css). *@
+                                                        var thumb = ApiClient.ToAbsoluteEngineUrl(work.CoverUrl);
+                                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(thumb, 52)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(thumb, 52)" alt="" loading="lazy" decoding="async" />
                                                     }
                                                     else
                                                     {

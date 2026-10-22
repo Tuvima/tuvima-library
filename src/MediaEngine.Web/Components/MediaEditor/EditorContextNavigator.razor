@@ -20,9 +20,8 @@
                                aria-current="@(level.IsActive ? "page" : null)" OnClick="@(() => OpenLevelAsync(level))">
                         @if (!level.IsTextOnly && !string.IsNullOrWhiteSpace(level.ArtworkUrl))
                         {
-                            <img class="editor-context-level__artwork" src="@SmallArtwork(level.ArtworkUrl)"
-                                 srcset="@ArtworkSrcSet(level.ArtworkUrl)"
-                                 sizes="@(level.NodeKind == "episode" ? "(max-width: 700px) 2rem, 5rem" : "(max-width: 700px) 2rem, 2.8rem")" alt="" loading="lazy" />
+                            <img class="editor-context-level__artwork" src="@MediaTileArtworkUrl.ForDrawnSize(level.ArtworkUrl, ArtworkPx(level.NodeKind))"
+                                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(level.ArtworkUrl, ArtworkPx(level.NodeKind))" alt="" loading="lazy" decoding="async" />
                         }
                         else
                         {
@@ -53,8 +52,8 @@
                                      OnClick="@(() => SelectOptionAsync(option))">
                             @if (!option.IsTextOnly && !string.IsNullOrWhiteSpace(option.ArtworkUrl))
                             {
-                                <img class="editor-context-option__artwork is-@level.NodeKind" src="@SmallArtwork(option.ArtworkUrl)"
-                                     srcset="@ArtworkSrcSet(option.ArtworkUrl)" sizes="@(level.NodeKind == "episode" ? "5rem" : "2.5rem")" alt="" loading="lazy" />
+                                <img class="editor-context-option__artwork is-@level.NodeKind" src="@MediaTileArtworkUrl.ForDrawnSize(option.ArtworkUrl, ArtworkPx(level.NodeKind))"
+                                     srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(option.ArtworkUrl, ArtworkPx(level.NodeKind))" alt="" loading="lazy" decoding="async" />
                             }
                             else
                             {
@@ -100,9 +99,8 @@
     private readonly HashSet<string> _searching = new(StringComparer.Ordinal);
     private CancellationTokenSource? _searchCancellation;
 
-    private static string? SmallArtwork(string? url) => MediaTileArtworkUrl.Sized(url, "s") ?? url;
-    private static string? ArtworkSrcSet(string? url) => MediaTileArtworkUrl.SrcSet(
-        MediaTileArtworkUrl.Sized(url, "s"), MediaTileArtworkUrl.Sized(url, "m"), MediaTileArtworkUrl.Sized(url, "l"));
+    // Drawn at most 2.8rem x 4.2rem (68px long side); episode stills 5rem (80px) wide (EditorContextNavigator.razor.css).
+    private static int ArtworkPx(string? nodeKind) => string.Equals(nodeKind, "episode", StringComparison.Ordinal) ? 80 : 68;
 
     private string GetQuery(EditorContextLevel level) =>
         _queries.TryGetValue(GetLevelKey(level), out var query) ? query : string.Empty;

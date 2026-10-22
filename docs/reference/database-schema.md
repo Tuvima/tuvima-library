@@ -1269,6 +1269,23 @@ Cached candidate lists from previous search/resolve operations.
 
 ## Content
 
+### entity_assets
+
+One row per picture kept for an entity (cover art, headshot, background, logo and the like). The Engine keeps the original and, for every type except logos, four smaller copies so a screen can ask for the size it draws. The long edge of each copy is: tiny 96 px (faces and small thumbnails), small 320, medium 960, large 2160.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | Primary key; also the picture's address (`/stream/artwork/{id}`) |
+| `entity_id`, `entity_type` | BLOB or TEXT, TEXT | Owner (a Work, Person, Universe or fictional entity) |
+| `asset_type` | TEXT | `CoverArt`, `Headshot`, `Background`, `Logo` and similar |
+| `local_image_path` | TEXT | The original file |
+| `local_image_path_t` | TEXT | Tiny copy (96 px long edge). Added by upgrade step `0029_entity_asset_tiny_rendition`; empty until the copy exists. |
+| `local_image_path_s`, `local_image_path_m`, `local_image_path_l` | TEXT | Small (320), medium (960) and large (2160) copies |
+| `width_px`, `height_px`, `aspect_class`, `primary_hex`, `secondary_hex`, `accent_hex` | | Measured size and palette |
+| `is_preferred`, `is_user_override` | INTEGER | The chosen picture for the slot, and whether the person chose it |
+
+A missing copy is made the first time it is asked for (or by the start-up catch-up) and recorded here; until then the next bigger copy is sent. People's faces are `Headshot` rows like any other picture; a face saved before this was so is registered by the start-up catch-up.
+
 ### image_cache
 
 Tracks managed entity artwork stored under `.data/assets`.

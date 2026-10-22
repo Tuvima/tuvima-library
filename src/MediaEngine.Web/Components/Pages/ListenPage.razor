@@ -124,7 +124,7 @@ else
                                     <a href="@playlistRoute" target="_top" data-enhance-nav="false" class='@($"listen-rail__item is-child {(IsRouteActive(playlistRoute) ? "is-active" : null)}")' aria-current="@(IsRouteActive(playlistRoute) ? "page" : null)" @onclick="@(() => NavigateRailLink(playlistRoute))" @onclick:preventDefault="true" @ondragover:preventDefault="@CanAcceptPlaylistItems(playlist)" @ondrop="@(() => CanAcceptPlaylistItems(playlist) ? HandlePlaylistDropAsync(playlist.Id) : Task.CompletedTask)">
                                         @if (!string.IsNullOrWhiteSpace(playlist.CoverArtworkUrl))
                                         {
-                                            <span class="listen-rail__thumb"><img src="@playlist.CoverArtworkUrl" alt="" /></span>
+                                            <span class="listen-rail__thumb"><img src="@MediaTileArtworkUrl.ForDrawnSize(playlist.CoverArtworkUrl, 20)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(playlist.CoverArtworkUrl, 20)" alt="" loading="lazy" decoding="async" /></span>
                                         }
                                         else
                                         {
@@ -303,7 +303,7 @@ else
                     <div class="listen-detail__art">
                         @if (!string.IsNullOrWhiteSpace(_albumDetail.CoverUrl))
                         {
-                            <img src="@_albumDetail.CoverUrl" alt="@_albumDetail.DisplayName" />
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(_albumDetail.CoverUrl, 320)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(_albumDetail.CoverUrl, 320)" alt="@_albumDetail.DisplayName" decoding="async" />
                         }
                         else
                         {
@@ -436,7 +436,7 @@ else
                                     <div class="listen-list-item__thumb">
                                         @if (!string.IsNullOrWhiteSpace(artist.ArtistPhotoUrl))
                                         {
-                                            <img src="@artist.ArtistPhotoUrl" alt="@artist.DisplayName" />
+                                            <img src="@MediaTileArtworkUrl.ForDrawnSize(artist.ArtistPhotoUrl, 54)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(artist.ArtistPhotoUrl, 54)" alt="@artist.DisplayName" loading="lazy" decoding="async" />
                                         }
                                         else
                                         {
@@ -477,7 +477,7 @@ else
                                 <div class="listen-detail__art">
                                     @if (!string.IsNullOrWhiteSpace(_artistDetail.ArtistPhotoUrl))
                                     {
-                                        <img src="@_artistDetail.ArtistPhotoUrl" alt="@_artistDetail.DisplayName" />
+                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(_artistDetail.ArtistPhotoUrl, 320)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(_artistDetail.ArtistPhotoUrl, 320)" alt="@_artistDetail.DisplayName" decoding="async" />
                                     }
                                     else
                                     {
@@ -655,7 +655,7 @@ else
                     <div class="listen-detail__collage">
                         @if (!string.IsNullOrWhiteSpace(ActivePlaylistCollection?.CoverArtworkUrl))
                         {
-                            <img class="listen-detail__custom-art" src="@ActivePlaylistCollection.CoverArtworkUrl" alt="" />
+                            <img class="listen-detail__custom-art" src="@MediaTileArtworkUrl.ForDrawnSize(ActivePlaylistCollection.CoverArtworkUrl, 320)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ActivePlaylistCollection.CoverArtworkUrl, 320)" alt="" decoding="async" />
                         }
                         else if (PlaylistCoverUrls.Count == 0)
                         {
@@ -666,7 +666,7 @@ else
                             @foreach (var cover in PlaylistCoverUrls)
                             {
                                 <div class="listen-detail__collage-tile">
-                                    <img src="@cover" alt="" />
+                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 160)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(cover, 160)" alt="" loading="lazy" decoding="async" />
                                 </div>
                             }
                         }
@@ -840,7 +840,7 @@ else
                                             <div class="listen-playlist-track-row__art">
                                                 @if (!string.IsNullOrWhiteSpace(track.CoverUrl))
                                                 {
-                                                    <img src="@track.CoverUrl" alt="" />
+                                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(track.CoverUrl, 36)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(track.CoverUrl, 36)" alt="" loading="lazy" decoding="async" />
                                                 }
                                                 else
                                                 {
@@ -1011,7 +1011,7 @@ else
                                         <a class="audiobooks-continue-card__cover" href="@route">
                                             @if (!string.IsNullOrWhiteSpace(coverUrl))
                                             {
-                                                <img src="@coverUrl" alt="@title" />
+                                                <img src="@MediaTileArtworkUrl.ForDrawnSize(coverUrl, 160)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(coverUrl, 160)" alt="@title" loading="lazy" decoding="async" />
                                             }
                                             else
                                             {
@@ -1061,7 +1061,7 @@ else
                                                 <span>
                                                     @if (!string.IsNullOrWhiteSpace(series.CoverUrl))
                                                     {
-                                                        <img src="@series.CoverUrl" alt="@series.DisplayName" />
+                                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(series.CoverUrl, 160)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(series.CoverUrl, 160)" alt="@series.DisplayName" loading="lazy" decoding="async" />
                                                     }
                                                     else
                                                     {
@@ -1142,7 +1142,7 @@ else
                                             <a class="audiobooks-book-card__cover" href="@route">
                                                 @if (!string.IsNullOrWhiteSpace(coverUrl))
                                                 {
-                                                    <img src="@coverUrl" alt="@title" />
+                                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(coverUrl, 160)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(coverUrl, 160)" alt="@title" loading="lazy" decoding="async" />
                                                 }
                                                 else
                                                 {
@@ -1188,7 +1188,7 @@ else
                                             <span>
                                                 @if (!string.IsNullOrWhiteSpace(series.CoverUrl))
                                                 {
-                                                    <img src="@series.CoverUrl" alt="@series.DisplayName" />
+                                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(series.CoverUrl, 160)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(series.CoverUrl, 160)" alt="@series.DisplayName" loading="lazy" decoding="async" />
                                                 }
                                                 else
                                                 {

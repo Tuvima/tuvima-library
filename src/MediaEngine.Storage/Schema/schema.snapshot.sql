@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0028 backup_destinations).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0029 entity_asset_tiny_rendition).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -900,7 +900,7 @@ CREATE TABLE entity_assets (
     is_preferred_exported INTEGER NOT NULL DEFAULT 0,
     created_at       TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at       TEXT
-);
+, local_image_path_t TEXT);
 
 CREATE TABLE entity_capability_states (
   id                  BLOB PRIMARY KEY,

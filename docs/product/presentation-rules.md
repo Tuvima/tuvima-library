@@ -33,6 +33,23 @@ Canonical media, person, series, and standard-collection details use a full-widt
 
 A detail page never shows a button that goes nowhere: the main button exists only when there is something to play or read (Watch, Resume, Read, Listen, Play album, Explore Timeline), so a page with nothing playable, such as a track with no readable or listenable format, a show with no owned episode or a universe without a timeline, has no main button and no generic "Open" fallback. Every action the Engine sends either carries a route to open or is one the Dashboard handles itself (`DetailActionKeys`), and a test fails when one does neither. A detail page that cannot open says why in one of three ways: "not found" (also used for items outside the active profile's access), "not allowed", or "Engine unreachable" with a Retry button; only the connection failure offers Retry.
 
+## Picture sizes (right-sized pictures, October 2026)
+
+Every picture loads at about the size it is drawn, never the downloaded original, except the artwork picker's full view and downloads. The rule: ask for the smallest copy (tiny 96, small 320, medium 960, large 2160 px on the long side) that is at least the drawn size times the screen's sharpness. Fixed-size pictures offer the next copy up to sharp screens; screen-wide pictures let the browser choose medium on phones and large on desktop and TV. A picture seen once is kept by the browser and not fetched again until it changes; an edited picture gets a new address and shows straight away. Photos in View keep their own sizes (160-2048).
+
+| Surface | Drawn (CSS px, long side) | Copy asked for |
+|---|---|---|
+| People list, Universe cast lists, family tree, Events/Added rows, table and song-row covers, Continue strip | 32-64 | tiny (96); small on sharp screens |
+| Now playing bar, queue and history rows, editor thumbnails | 48-128 | tiny or small by drawn size; next copy up on sharp screens |
+| Credit card faces and character pictures | up to 140 | small |
+| Home, Watch, Listen, Read tiles and shelves | 128-342 | small; medium on sharp screens (browser choice) |
+| Search results, Listen album/artist art, Series and album rails | 160-400 | small or medium by drawn size |
+| Tile hover panel, details cover, person portrait, full player, editor artwork preview | 320-640 | medium |
+| Hero carousel, details and phone hero backgrounds | full width | medium on phones, large on desktop and TV (browser choice) |
+| Artwork picker "full view" and downloads | full | original |
+
+Logos have no copies and load as stored. A new screen that draws an Engine picture without a size fails the build (`PictureSizeGuardrailTests`).
+
 ## Shelves and View all grids (October 2026)
 
 Approved by the product owner on 2026-10-16 and 2026-10-20.

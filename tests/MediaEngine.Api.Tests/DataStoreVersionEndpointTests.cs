@@ -79,7 +79,12 @@ public sealed class DataStoreVersionEndpointTests : IDisposable
         Assert.True(latestNumber >= 1);
         Assert.Equal(latestNumber, root.GetProperty("step_number").GetInt32());
         Assert.Equal(latestName, root.GetProperty("step_name").GetString());
-        Assert.True(root.GetProperty("applied_at").GetDateTimeOffset() > DateTimeOffset.UtcNow.AddMinutes(-5));
+        // Test processes start each new data store as a copy of one schema template built once per run
+        // (SchemaTemplate), so the step was recorded when this test process built it, not within the last few
+        // minutes: a long suite made a fixed five-minute window fail. It must still be from this run, not the future.
+        var appliedAt = root.GetProperty("applied_at").GetDateTimeOffset();
+        Assert.True(appliedAt >= System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime().AddMinutes(-1), appliedAt.ToString("o"));
+        Assert.True(appliedAt <= DateTimeOffset.UtcNow.AddMinutes(1), appliedAt.ToString("o"));
     }
 
     // What a fresh start recorded, read straight from the table, so the test keeps passing when more steps are added.

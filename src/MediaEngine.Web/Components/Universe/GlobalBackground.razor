@@ -6,7 +6,8 @@
     </AppCssElement>
     @if (!string.IsNullOrEmpty(ImageUrl))
     {
-        <img src="@ImageUrl" class="global-bg-image" alt="" />
+        @* A full-screen picture blurred 120px at 10% opacity: the medium copy is plenty on every screen. *@
+        <img src="@MediaTileArtworkUrl.ForDrawnSize(ImageUrl, ArtworkSize.MediumPx)" class="global-bg-image" alt="" decoding="async" />
     }
     <div class="global-bg-grain"></div>
 </div>

@@ -39,6 +39,9 @@ public sealed class EntityAsset
     /// <summary>Local filesystem path to the downloaded image.</summary>
     public string? LocalImagePath { get; set; }
 
+    /// <summary>Tiny face/thumbnail rendition path (96px long edge).</summary>
+    public string? LocalImagePathTiny { get; set; }
+
     /// <summary>Small shelf/thumbnail rendition path (typically 320px long edge).</summary>
     public string? LocalImagePathSmall { get; set; }
 

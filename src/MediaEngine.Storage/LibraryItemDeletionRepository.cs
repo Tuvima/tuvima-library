@@ -471,6 +471,7 @@ public sealed class LibraryItemDeletionRepository(
                 UNION SELECT medium_path FROM artwork_assets WHERE id IN (SELECT id FROM deletion_artwork)
                 UNION SELECT large_path FROM artwork_assets WHERE id IN (SELECT id FROM deletion_artwork)
                 UNION SELECT local_image_path FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)
+                UNION SELECT local_image_path_t FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)
                 UNION SELECT local_image_path_s FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)
                 UNION SELECT local_image_path_m FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)
                 UNION SELECT local_image_path_l FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)

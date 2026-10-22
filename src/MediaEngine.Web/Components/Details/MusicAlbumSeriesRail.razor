@@ -19,7 +19,8 @@
                     <span class="tl-music-album-series-rail__art">
                         @if (!string.IsNullOrWhiteSpace(album.ArtworkUrl))
                         {
-                            <img src="@album.ArtworkUrl" alt="" loading="lazy" />
+                            @* Drawn up to 240px square (MusicAlbumSeriesRail.razor.css). *@
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(album.ArtworkUrl, 240)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(album.ArtworkUrl, 240)" alt="" loading="lazy" decoding="async" />
                         }
                         else
                         {

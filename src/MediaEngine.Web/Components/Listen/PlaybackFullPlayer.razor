@@ -25,14 +25,14 @@
             @if (_tool is null)
             {
             <div class="playback-full__art">
-                @if (PlaybackArtworkUrl.ForItem(item) is { } cover)
-                { <img src="@cover" srcset="@PlaybackArtworkUrl.SrcSet(item)" sizes="@(IsBook ? "(max-height:740px) 160px, 220px" : "(max-height:740px) 220px, 320px")" data-image-display="full-audio-artwork" alt="" decoding="async" /> }
+                @if (PlaybackArtworkUrl.ForItem(item) is not null)
+                { <img src="@PlaybackArtworkUrl.ForItem(item)" data-image-display="full-audio-artwork" alt="" decoding="async" /> }
                 else { <AppMaterialIcon Icon="@(IsBook ? AppMaterialIcons.Outlined.MenuBook : AppMaterialIcons.Outlined.MusicNote)" /> }
             </div>
             }
             <div class="playback-full__identity @(_tool is not null ? "playback-full__identity--compact" : null)">
-                @if (_tool is not null && PlaybackArtworkUrl.ForItem(item, "s") is { } smallArt)
-                { <img class="playback-full__compact-art" src="@smallArt" sizes="56px" data-image-display="audio-panel-identity" alt="" /> }
+                @if (_tool is not null && PlaybackArtworkUrl.ForDrawnSize(item, 56) is not null)
+                { <img class="playback-full__compact-art" src="@PlaybackArtworkUrl.ForDrawnSize(item, 56)" srcset="@PlaybackArtworkUrl.SrcSetForDrawnSize(item, 56)" data-image-display="audio-panel-identity" alt="" /> }
                 <div class="playback-full__title">
                     <h1>@if (IsBook) { <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="audiobook" Id="@(item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId)" Text="@item.Title" NavigationCompleted="NavigationCompleted" /> }
                         else { @item.Title }</h1>
