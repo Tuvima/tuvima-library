@@ -563,7 +563,10 @@ public static class JsonConfigValidator
                     errors.Add($"{prefix}.videos libraries must use the watch area.");
                 }
 
-                if (library.MetadataPolicy != LibraryMetadataPolicies.LocalOnly)
+                // A Videos library of a kind (Other videos, YouTube) is local only because its kind says so, whatever the file says;
+                // a person's save is refused for disagreeing (LibraryKindRules.LibraryProblems), a file already on disk loads.
+                if (library.MetadataPolicy != LibraryMetadataPolicies.LocalOnly
+                    && LibraryKindLookupPolicy.ModeOf(library.KindKey, libraryKinds) == LibraryLookupMode.FromFields)
                 {
                     errors.Add($"{prefix}.videos libraries must use local_only metadata.");
                 }

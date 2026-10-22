@@ -60,12 +60,14 @@ public sealed class LibraryKindListService(IConfigurationLoader loader, PluginCa
 
     /// <summary>
     /// The first problem with how libraries link to kinds, checked against the full list (plugins included), or null. A
-    /// library must name a kind that exists and whose format is one of the library's media types.
+    /// library must name a kind that exists and whose format is one of the library's media types, and its own lookup settings must
+    /// agree with the kind (a plain kind is local only with the YouTube lookup off). Only a save is refused for that; a file already on
+    /// disk loads with the kind winning.
     /// </summary>
     public string? ValidateLibraries(LibrariesConfiguration proposed)
     {
         ArgumentNullException.ThrowIfNull(proposed);
-        var problems = LibraryKindRules.LibraryProblems(proposed, [.. GetAll().Select(entry => entry.Kind)]);
+        var problems = LibraryKindRules.LibraryProblems(proposed, [.. GetAll().Select(entry => entry.Kind)], checkLookupFields: true);
         return problems.Count == 0 ? null : string.Join(" ", problems);
     }
 

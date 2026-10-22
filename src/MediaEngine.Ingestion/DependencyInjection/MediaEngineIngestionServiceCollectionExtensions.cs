@@ -20,6 +20,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Ingestion.DependencyInjection;
 
@@ -166,9 +167,10 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.AddSingleton(libraryChanges);
         services.AddSingleton<Microsoft.Extensions.Options.IOptionsChangeTokenSource<IngestionOptions>>(libraryChanges);
 
-        services.PostConfigure<IngestionOptions>(opts =>
+        services.AddOptions<IngestionOptions>().PostConfigure<IServiceProvider>((opts, serviceProvider) =>
         {
             opts.WatchDirectories = [];
+            var logger = serviceProvider.GetService<ILoggerFactory>()?.CreateLogger(typeof(LibraryFolderEntryFactory).FullName!);
 
             try
             {
@@ -211,8 +213,7 @@ public static class MediaEngineIngestionServiceCollectionExtensions
                 var libraries = configLoader.LoadLibraries();
                 opts.DuplicatePolicy = libraries.FileHandling.DuplicatePolicy;
                 var kinds = LoadKindsOrBuiltIn(configLoader);
-                opts.LibraryFolders = libraries.Libraries
-                    .Select(library => LibraryFolderEntryFactory.Create(library, kinds))
+                opts.LibraryFolders = LibraryFolderEntryFactory.CreateAll(libraries.Libraries, kinds, logger)
                     .Where(e => e.EffectiveSourcePaths.Count > 0)
                     .ToList();
 

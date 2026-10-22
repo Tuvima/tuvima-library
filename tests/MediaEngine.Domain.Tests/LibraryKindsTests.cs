@@ -394,15 +394,15 @@ public sealed class LibraryKindsTests
     public void APlainKindWhoseFieldsAgreeIsAccepted_AndOneWithEnrichedOrYoutubeOnIsExplainedInPlainWords()
     {
         var kinds = LibraryKindsConfiguration.BuiltIn();
-        Assert.Empty(LibraryKindRules.LibraryProblems(Libraries(Library("other_audio", "Music", "Recordings", LibraryAreas.Listen)), kinds));
+        Assert.Empty(LibraryKindRules.LibraryProblems(Libraries(Library("other_audio", "Music", "Recordings", LibraryAreas.Listen)), kinds, checkLookupFields: true));
 
         var enriched = Library("other_audio", "Music", "Recordings", LibraryAreas.Listen);
         enriched.MetadataPolicy = LibraryMetadataPolicies.Enriched;
         var youtube = Library("other_videos", "Videos", "Lectures", LibraryAreas.Watch);
         youtube.YoutubeLookup = true;
 
-        var enrichedProblem = Assert.Single(LibraryKindRules.LibraryProblems(Libraries(enriched), kinds));
-        var youtubeProblem = Assert.Single(LibraryKindRules.LibraryProblems(Libraries(Library("other_audio", "Music", "Recordings", LibraryAreas.Listen), Library("other_reading", "Books", "Loose books", LibraryAreas.Read), youtube), kinds));
+        var enrichedProblem = Assert.Single(LibraryKindRules.LibraryProblems(Libraries(enriched), kinds, checkLookupFields: true));
+        var youtubeProblem = Assert.Single(LibraryKindRules.LibraryProblems(Libraries(Library("other_audio", "Music", "Recordings", LibraryAreas.Listen), Library("other_reading", "Books", "Loose books", LibraryAreas.Read), youtube), kinds, checkLookupFields: true));
 
         Assert.Equal("libraries[0] is an Other audio library, which never looks anything up, but metadata_policy is \"enriched\". Use local_only.", enrichedProblem);
         Assert.Equal("libraries[2] is a Videos library, which never looks anything up, but youtube_lookup is true. Set youtube_lookup to false.", youtubeProblem);
@@ -417,6 +417,8 @@ public sealed class LibraryKindsTests
         var off = Library("youtube", "Videos");
         off.YoutubeLookup = false;
 
-        Assert.Contains("youtube_lookup is false", Assert.Single(LibraryKindRules.LibraryProblems(Libraries(off), kinds)), StringComparison.Ordinal);
+        Assert.Contains("youtube_lookup is false", Assert.Single(LibraryKindRules.LibraryProblems(Libraries(off), kinds, checkLookupFields: true)), StringComparison.Ordinal);
+        // A file already on disk is not refused for it; only a person's save is.
+        Assert.Empty(LibraryKindRules.LibraryProblems(Libraries(off), kinds));
     }
 }

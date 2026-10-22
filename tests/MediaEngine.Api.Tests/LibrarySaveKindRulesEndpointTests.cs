@@ -130,6 +130,22 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
     [InlineData(SettingsSave)]
     [InlineData(SetupSave)]
     [InlineData(Mutation)]
+    public async Task AnOtherVideosLibrarySavedWithTheYoutubeLookupOnIsRefusedInPlainWords(string door)
+    {
+        var lectures = Other("Lectures");
+        lectures.YoutubeLookup = true;
+
+        var saved = await SaveAsync(door, [], lectures);
+
+        Assert.Equal(400, saved.Status);
+        Assert.Contains("is a Videos library, which never looks anything up, but youtube_lookup is true. Set youtube_lookup to false.", saved.Text, StringComparison.Ordinal);
+        Assert.Empty(_loader.LoadLibraries().Libraries);
+    }
+
+    [Theory]
+    [InlineData(SettingsSave)]
+    [InlineData(SetupSave)]
+    [InlineData(Mutation)]
     public async Task ASecondMoviesLibraryIsRefusedBecauseALookupKindHoldsOne(string door)
     {
         var saved = await SaveAsync(door, [Standard("movies", "Movies", LibraryAreas.Watch, "Movies")], Standard("movies", "Films", LibraryAreas.Watch, "Movies"));

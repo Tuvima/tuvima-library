@@ -172,7 +172,8 @@ public static partial class LibraryKindRules
         LibrariesConfiguration libraries,
         IReadOnlyList<LibraryKindDefinition> kinds,
         bool allowUnknownKeys = false,
-        bool allowMissingKeys = false)
+        bool allowMissingKeys = false,
+        bool checkLookupFields = false)
     {
         ArgumentNullException.ThrowIfNull(libraries);
         ArgumentNullException.ThrowIfNull(kinds);
@@ -215,7 +216,12 @@ public static partial class LibraryKindRules
                 problems.Add($"{prefix}.media_types must include {kind.Format ?? "a format"}, the format of the library kind \"{kind.Key}\".");
             }
 
-            AddLookupContradiction(library, kind, prefix, problems);
+            // Only a person's save is refused for this. A file already on disk loads with the kind winning (LibraryKindLookupPolicy),
+            // so an older or hand-edited file never stops the Engine.
+            if (checkLookupFields)
+            {
+                problems.AddRange(LookupContradictions(library, kind, prefix));
+            }
         }
 
         AddCountAndNameProblems(libraries, kinds, problems);
@@ -223,8 +229,26 @@ public static partial class LibraryKindRules
         return problems;
     }
 
-    // The kind decides what a library may look up (LibraryKindLookupPolicy), so a library whose own metadata_policy or youtube_lookup
-    // says otherwise is reported in plain words. Ingestion follows the kind either way; the message is so nobody is surprised.
+    /// <summary>
+    /// What a library's own <c>metadata_policy</c> and <c>youtube_lookup</c> say that its kind overrides (see
+    /// <see cref="LibraryKindLookupPolicy"/>), each in one plain sentence beginning with <paramref name="prefix"/>. Empty when the
+    /// library agrees with its kind, or names no known kind.
+    /// </summary>
+    public static IReadOnlyList<string> LookupContradictions(LibraryFolderConfig library, IReadOnlyList<LibraryKindDefinition> kinds, string prefix)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        ArgumentNullException.ThrowIfNull(kinds);
+        var kind = kinds.FirstOrDefault(candidate => string.Equals(candidate.Key, library.KindKey, StringComparison.Ordinal));
+        return kind is null ? [] : LookupContradictions(library, kind, prefix);
+    }
+
+    private static List<string> LookupContradictions(LibraryFolderConfig library, LibraryKindDefinition kind, string prefix)
+    {
+        var problems = new List<string>();
+        AddLookupContradiction(library, kind, prefix, problems);
+        return problems;
+    }
+
     private static void AddLookupContradiction(LibraryFolderConfig library, LibraryKindDefinition kind, string prefix, List<string> problems)
     {
         var mode = LibraryKindLookupPolicy.ModeOf(kind.Key, [kind]);

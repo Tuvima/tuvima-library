@@ -70,31 +70,36 @@ public sealed class LibraryKindLookupValidationTests
     [Theory]
     [InlineData("other_audio", "Music", LibraryAreas.Listen, "Recordings")]
     [InlineData("other_reading", "Books", LibraryAreas.Read, "Loose books")]
-    public void APlainLibraryWithEnrichedMetadataIsRefusedAndToldWhy(string kindKey, string mediaType, string area, string name)
+    public void APlainLibraryWithEnrichedMetadataIsRefusedOnSaveAndToldWhy_ButLoadsFromAFile(string kindKey, string mediaType, string area, string name)
     {
         var library = Plain(kindKey, mediaType, area, name);
         library.MetadataPolicy = LibraryMetadataPolicies.Enriched;
+        var config = ShippedWith(library);
 
-        var errors = Errors(ShippedWith(library));
+        var problems = LibraryKindRules.LibraryProblems(config, LibraryKindsConfiguration.BuiltIn(), checkLookupFields: true);
 
-        var message = Assert.Single(errors, error => error.Contains("never looks anything up", StringComparison.Ordinal));
+        var message = Assert.Single(problems, problem => problem.Contains("never looks anything up", StringComparison.Ordinal));
         Assert.Contains($"libraries[{Load("config", "libraries.json").Libraries.Count}]", message, StringComparison.Ordinal);
         Assert.Contains("metadata_policy is \"enriched\". Use local_only.", message, StringComparison.Ordinal);
+        // The file check lets it load (the kind wins at load), and does not call it a lookup library either.
+        var errors = Errors(config);
+        Assert.DoesNotContain(errors, error => error.Contains("never looks anything up", StringComparison.Ordinal));
         Assert.DoesNotContain(errors, error => error.Contains("must use enriched metadata", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void AnOtherVideosLibraryWhoseYoutubeLookupIsTrueIsRefusedInPlainWords()
+    public void AnOtherVideosLibraryWhoseYoutubeLookupIsTrueIsRefusedOnSaveInPlainWords_ButLoadsFromAFile()
     {
         var config = Load("config", "libraries.json");
         var index = config.Libraries.FindIndex(library => library.KindKey == "other_videos");
         config.Libraries[index].YoutubeLookup = true;
 
-        var errors = Errors(config);
+        var problems = LibraryKindRules.LibraryProblems(config, LibraryKindsConfiguration.BuiltIn(), checkLookupFields: true);
 
         Assert.Contains(
             $"libraries[{index}] is a Videos library, which never looks anything up, but youtube_lookup is true. Set youtube_lookup to false.",
-            errors);
+            problems);
+        Assert.DoesNotContain(Errors(config), error => error.Contains("youtube_lookup", StringComparison.Ordinal));
     }
 
     [Fact]
