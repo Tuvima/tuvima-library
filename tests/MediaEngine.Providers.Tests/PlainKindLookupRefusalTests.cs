@@ -241,6 +241,32 @@ public sealed class PlainKindLookupRefusalTests : IDisposable
     }
 
     [Fact]
+    public async Task ATypedInWikidataIdForAFileInAPlainKindLibrary_SendsNothingOut_AndQueuesNoJob()
+    {
+        // The Wikidata-match and apply routes store the person's claim locally, then hand the pre-resolved ID to the identity pipeline.
+        // Its Wikidata fetch (the workers here are absent, so reaching them would fail) is never reached, and no job is created.
+        var audio = await SeedAssetAsync(MediaType.Music, OtherAudioLibraryId);
+        var service = new SynchronousIdentityPipelineService(
+            _jobs, _canonicals, null!, null!, null!, NullLogger<SynchronousIdentityPipelineService>.Instance, lookupGuard: _guard);
+        var request = new HarvestRequest
+        {
+            EntityId = audio.AssetId,
+            EntityType = EntityType.MediaAsset,
+            MediaType = MediaType.Music,
+            PreResolvedQid = "Q42",
+            IsUserResolution = true,
+        };
+
+        var queued = await service.EnqueueAsync(request);
+        var ran = await service.RunSynchronousAsync(request);
+
+        Assert.Equal(Guid.Empty, queued);
+        Assert.Equal(0, ran.TotalClaimsAdded);
+        Assert.Null(await _jobs.GetByEntityAsync(audio.AssetId));
+        Assert.Empty(_http.Urls);
+    }
+
+    [Fact]
     public async Task CoverArt_IsNeverDownloadedForAFileInAPlainKindLibrary_EvenFromAnExplicitUrl()
     {
         var audio = await SeedAssetAsync(MediaType.Music, OtherAudioLibraryId);

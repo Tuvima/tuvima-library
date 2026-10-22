@@ -809,12 +809,19 @@ public static class ItemCanonicalEndpoints
             IItemCanonicalRepository itemCanonicalData,
             IHttpClientFactory httpFactory,
             IMemoryCache cache,
+            [Microsoft.AspNetCore.Mvc.FromServices] IExternalLookupGuard lookupGuard,
             CancellationToken ct) =>
         {
             var context = await itemCanonicalData.ResolveWorkAssetContextAsync(entityId, ct);
             if (context is null)
             {
                 return ApiErrors.NotFound($"No current media asset or work target found for {entityId}.");
+            }
+
+            // The search asks retail providers and Wikidata, so it is refused where the library never looks anything up.
+            if (await RefuseInLibraryThatNeverLooksAnythingUpAsync(lookupGuard, context.AssetId, ct) is { } refused)
+            {
+                return refused;
             }
 
             var mediaType = ResolveMediaType(request.MediaType, context.MediaType);
@@ -1331,12 +1338,19 @@ public static class ItemCanonicalEndpoints
             AppleRetailClient apple,
             ProviderApiClient tvdb,
             IEnumerable<IExternalMetadataProvider> externalProviders,
+            [Microsoft.AspNetCore.Mvc.FromServices] IExternalLookupGuard lookupGuard,
             CancellationToken ct) =>
         {
             var context = await itemCanonicalData.ResolveWorkAssetContextAsync(entityId, ct);
             if (context is null)
             {
                 return ApiErrors.NotFound($"No current media asset or work target found for {entityId}.");
+            }
+
+            // The preview verifies the candidate with the provider, so it is refused where the library never looks anything up.
+            if (await RefuseInLibraryThatNeverLooksAnythingUpAsync(lookupGuard, context.AssetId, ct) is { } refused)
+            {
+                return refused;
             }
             if (string.IsNullOrWhiteSpace(request.ProviderName) || string.IsNullOrWhiteSpace(request.ProviderItemId)
                 || !Guid.TryParse(request.ProviderId, out var providerId))

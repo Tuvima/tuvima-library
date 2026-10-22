@@ -102,6 +102,26 @@ public sealed class PlainKindEditorRefusalTests : IDisposable
     }
 
     [Fact]
+    public void TheSearchAndPreviewRoutes_RefuseBeforeTheyAskAnyProvider()
+    {
+        var source = File.ReadAllText(RepoFile("src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
+
+        var search = source[source.IndexOf("/{entityId:guid}/canonical-search\"", StringComparison.Ordinal)..];
+        search = search[..search.IndexOf("/{entityId:guid}/canonical-apply", StringComparison.Ordinal)];
+        var searchRefusal = search.IndexOf("RefuseInLibraryThatNeverLooksAnythingUpAsync", StringComparison.Ordinal);
+        Assert.True(searchRefusal >= 0);
+        Assert.True(searchRefusal < search.IndexOf("retailMatchPreview.SearchAsync", StringComparison.Ordinal));
+        Assert.True(searchRefusal < search.IndexOf("wikidataMatchPreview.", StringComparison.Ordinal));
+
+        var preview = source[source.IndexOf("/{entityId:guid}/retail-match-preview\"", StringComparison.Ordinal)..];
+        preview = preview[..preview.IndexOf("/{entityId:guid}/retail-match\"", StringComparison.Ordinal)];
+        var previewRefusal = preview.IndexOf("RefuseInLibraryThatNeverLooksAnythingUpAsync", StringComparison.Ordinal);
+        Assert.True(previewRefusal >= 0);
+        Assert.True(previewRefusal < preview.IndexOf("VerifyTvdbEpisodeMoveAsync(", StringComparison.Ordinal));
+        Assert.True(previewRefusal < preview.IndexOf("VerifyProviderParentChildRelationAsync(", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task TheScheduledRefresh_SkipsAWorkInAPlainKindLibrary_InsteadOfQueuingItEveryCycle()
     {
         var hydration = new RecordingHydration();
