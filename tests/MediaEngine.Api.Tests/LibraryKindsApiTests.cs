@@ -55,7 +55,7 @@ public sealed class LibraryKindsApiTests : IDisposable
     }
 
     [Fact]
-    public void TheKindsListHoldsTheKindsThatShipInOrderWithTheNewKindsHidden()
+    public void TheKindsListHoldsTheKindsThatShipInOrderAndEveryOneIsAvailable()
     {
         var list = _kinds.GetDtos();
 
@@ -63,7 +63,8 @@ public sealed class LibraryKindsApiTests : IDisposable
             ["movies", "tv", "youtube", "other_videos", "music", "audiobooks", "other_audio", "books", "comics", "other_reading", "photos", "personal_videos", "documents"],
             list.Select(kind => kind.Key).ToArray());
         Assert.Equal(["watch", "watch", "watch", "watch", "listen", "listen", "listen", "read", "read", "read", "view", "view", "view"], list.Select(kind => kind.Area).ToArray());
-        Assert.Equal(["youtube", "other_audio", "other_reading"], list.Where(kind => !kind.Available).Select(kind => kind.Key).ToArray());
+        Assert.All(list, kind => Assert.True(kind.Available, kind.Key));
+        Assert.Equal(["youtube"], list.Single(kind => kind.Key == "youtube").LookupProviders);
         Assert.All(list, kind =>
         {
             Assert.True(kind.BuiltIn);
@@ -238,7 +239,7 @@ public sealed class LibraryKindsApiTests : IDisposable
         {
             Libraries =
             [
-                new LibraryFolderConfig { Id = Guid.NewGuid().ToString("D"), Name = "Podcasts", Kind = LibraryKinds.Catalogued, KindKey = "podcasts", MediaTypes = ["Music"] },
+                new LibraryFolderConfig { Id = Guid.NewGuid().ToString("D"), Name = "Podcasts", Kind = LibraryKinds.Catalogued, KindKey = "podcasts", MediaTypes = ["Music"], MetadataPolicy = LibraryMetadataPolicies.LocalOnly, YoutubeLookup = false },
             ],
         };
         Add("json.podcasts", PodcastsPlugin());
@@ -250,6 +251,33 @@ public sealed class LibraryKindsApiTests : IDisposable
 
         configuration.Libraries[0].MediaTypes = ["Books"];
         Assert.Contains("must include Music", _kinds.ValidateLibraries(configuration), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ASaveThatGivesAPlainKindLibraryALookupIsRefusedInPlainWords_EvenForAPluginsKind()
+    {
+        Add("json.podcasts", PodcastsPlugin());
+        _catalog.SetEnabled("json.podcasts", true);
+        var podcasts = new LibraryFolderConfig
+        {
+            Id = Guid.NewGuid().ToString("D"),
+            Name = "Shows",
+            Kind = LibraryKinds.Catalogued,
+            KindKey = "podcasts",
+            Area = LibraryAreas.Listen,
+            MediaTypes = ["Music"],
+            MetadataPolicy = LibraryMetadataPolicies.LocalOnly,
+            YoutubeLookup = false,
+        };
+        var configuration = new LibrariesConfiguration { Libraries = [podcasts] };
+        Assert.Null(_kinds.ValidateLibraries(configuration));
+
+        podcasts.MetadataPolicy = LibraryMetadataPolicies.Enriched;
+        podcasts.YoutubeLookup = true;
+
+        var problem = _kinds.ValidateLibraries(configuration);
+        Assert.Contains("libraries[0] is a Podcasts library, which never looks anything up, but metadata_policy is \"enriched\". Use local_only.", problem, StringComparison.Ordinal);
+        Assert.Contains("but youtube_lookup is true. Set youtube_lookup to false.", problem, StringComparison.Ordinal);
     }
 
     private static string PodcastsKind() => """
