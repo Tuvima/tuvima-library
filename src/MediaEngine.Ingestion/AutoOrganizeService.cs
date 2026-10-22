@@ -703,7 +703,22 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
         long sizeBefore = -1;
         if (steps is not null)
         {
-            sizeBefore = new FileInfo(oldPath).Length;
+            // A file that cannot be seen (a drive that went away) is not measured; the move below then does not happen and the
+            // recorded plan is looked at again when the drive is back.
+            if (File.Exists(oldPath))
+            {
+                sizeBefore = new FileInfo(oldPath).Length;
+            }
+
+            // The plan named a free name; if something took it since, the move is dropped rather than renamed to "(2)", which the
+            // recorded plan would not know about after a stop.
+            if (!string.Equals(Path.GetFullPath(oldPath), Path.GetFullPath(newDest), StringComparison.OrdinalIgnoreCase)
+                && File.Exists(newDest))
+            {
+                _logger.LogInformation("Library move: {Dest} for {Id} was taken after the move was planned, so the move is tried again later", newDest, assetId);
+                await steps.NotMovedAsync(ct).ConfigureAwait(false);
+                return null;
+            }
         }
 
         var relocatedPath = await _organizer.ExecuteMoveAsync(oldPath, newDest, ct)

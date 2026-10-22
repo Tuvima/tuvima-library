@@ -40,7 +40,13 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 ELSE excluded.trigger END,
             status = 'pending', attempts = 0, lease_expires_at = NULL, last_error = NULL, completed_at = NULL,
             updated_at = excluded.updated_at,
-            move_step = COALESCE(media_file_write_intents.move_step, excluded.move_step);
+            move_step = COALESCE(media_file_write_intents.move_step, excluded.move_step),
+            next_attempt_at = CASE WHEN excluded.move_step IS NOT NULL THEN NULL ELSE media_file_write_intents.next_attempt_at END,
+            move_source_path = CASE WHEN media_file_write_intents.move_step IS NULL THEN NULL ELSE media_file_write_intents.move_source_path END,
+            move_target_path = CASE WHEN media_file_write_intents.move_step IS NULL THEN NULL ELSE media_file_write_intents.move_target_path END,
+            move_source_hash = CASE WHEN media_file_write_intents.move_step IS NULL THEN NULL ELSE media_file_write_intents.move_source_hash END,
+            move_generation = CASE WHEN media_file_write_intents.move_step IS NULL THEN NULL ELSE media_file_write_intents.move_generation END,
+            recovery_attempts = CASE WHEN media_file_write_intents.move_step IS NULL THEN 0 ELSE media_file_write_intents.recovery_attempts END;
         """;
 
     private const string UpsertViewItemSql = """
@@ -59,7 +65,8 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
         i.id AS Id, i.target_kind AS TargetKind, i.asset_id AS AssetId, i.local_item_id AS LocalItemId,
         i.generation AS Generation, i.operation_token AS OperationToken, i.trigger AS Trigger,
         i.status AS Status, i.attempts AS Attempts, i.move_step AS MoveStep,
-        i.move_source_path AS MoveSourcePath, i.move_target_path AS MoveTargetPath, i.move_source_hash AS MoveSourceHash
+        i.move_source_path AS MoveSourcePath, i.move_target_path AS MoveTargetPath, i.move_source_hash AS MoveSourceHash,
+        i.move_generation AS MoveGeneration, i.recovery_attempts AS RecoveryAttempts
         """;
 
     /// <summary>
@@ -121,18 +128,21 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
     /// Claims up to <paramref name="limit"/> waiting rows of one kind for a run: pending rows, and rows whose claim ran out (the Engine
     /// stopped mid-write). Rows with a move in progress wait for the move. Only rows last changed at or before
     /// <paramref name="changedBefore"/> are taken, so a change that lands during a run, and a retry that is only now due, wait for the
-    /// next run instead of being picked up again in the same one. <paramref name="excluding"/> are rows the run has already handled.
+    /// next run instead of being picked up again in the same one. A row is marked with <paramref name="runId"/> when it is claimed, and a
+    /// row already marked with the same run is not taken again, so the run never writes a file twice however many chunks it takes.
     /// </summary>
     public Task<IReadOnlyList<MediaFileWriteIntent>> ClaimBatchAsync(
         string targetKind,
         int limit,
         TimeSpan lease,
         DateTimeOffset changedBefore,
-        IReadOnlyCollection<Guid>? excluding = null,
+        string? runId = null,
         CancellationToken ct = default) =>
         database.ExecuteWriteAsync<IReadOnlyList<MediaFileWriteIntent>>((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
+            // A caller without a run of its own gets a fresh mark each time, so nothing it asks for is held back.
+            var mark = runId ?? Guid.NewGuid().ToString("N");
             var now = _clock.GetUtcNow();
             var rows = connection.Query<MediaFileWriteIntent>($"""
                 SELECT {SelectColumns}, w.media_type AS MediaType
@@ -142,7 +152,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 LEFT JOIN works w ON w.id = e.work_id
                 WHERE i.target_kind = @targetKind AND i.move_step IS NULL
                   AND (i.status = 'pending' OR (i.status = 'writing' AND i.lease_expires_at < @now))
-                  AND i.updated_at <= @changedBefore AND i.id NOT IN @excluded
+                  AND i.updated_at <= @changedBefore AND (i.claimed_run_id IS NULL OR i.claimed_run_id <> @runId)
                 ORDER BY i.updated_at, i.id
                 LIMIT @limit;
                 """, new
@@ -150,7 +160,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 targetKind,
                 now = Iso(now),
                 changedBefore = Iso(changedBefore),
-                excluded = (excluding ?? []).Select(GuidSql.ToBlob).ToArray(),
+                runId = mark,
                 limit = Math.Max(1, limit),
             }, transaction).ToList();
 
@@ -159,7 +169,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
             {
                 var changed = connection.Execute("""
                     UPDATE media_file_write_intents
-                    SET status = 'writing', attempts = attempts + 1, lease_expires_at = @leaseUntil
+                    SET status = 'writing', attempts = attempts + 1, lease_expires_at = @leaseUntil, claimed_run_id = @runId
                     WHERE id = @id AND generation = @generation AND move_step IS NULL
                       AND (status = 'pending' OR (status = 'writing' AND lease_expires_at < @now));
                     """, new
@@ -168,6 +178,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                     generation = row.Generation,
                     now = Iso(now),
                     leaseUntil = Iso(now.Add(lease)),
+                    runId = mark,
                 }, transaction);
                 if (changed == 1)
                 {
@@ -178,11 +189,10 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
         }, ct);
 
     /// <summary>
-    /// Claims the next row whose file must be moved now (library moves do not wait for the schedule), or null.
-    /// <paramref name="excluding"/> are rows already handled in this pass, so a move that keeps failing is not retried in a tight loop.
+    /// Claims the next row whose file must be moved now (library moves do not wait for the schedule), or null. A move that failed waits
+    /// for its next attempt time, so one that keeps failing is not retried in a tight loop.
     /// </summary>
-    public Task<MediaFileWriteIntent?> ClaimNextMoveAsync(
-        TimeSpan lease, IReadOnlyCollection<Guid>? excluding = null, CancellationToken ct = default) =>
+    public Task<MediaFileWriteIntent?> ClaimNextMoveAsync(TimeSpan lease, CancellationToken ct = default) =>
         database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -192,9 +202,9 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 FROM media_file_write_intents i
                 WHERE i.move_step = 'requested' AND i.target_kind = 'media_asset'
                   AND (i.status = 'pending' OR (i.status = 'writing' AND i.lease_expires_at < @now))
-                  AND i.id NOT IN @excluded
+                  AND (i.next_attempt_at IS NULL OR i.next_attempt_at <= @now)
                 ORDER BY i.updated_at, i.id LIMIT 1;
-                """, new { now = Iso(now), excluded = (excluding ?? []).Select(GuidSql.ToBlob).ToArray() }, transaction);
+                """, new { now = Iso(now) }, transaction);
             if (row is null)
             {
                 return null;
@@ -228,6 +238,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
             connection.Execute("""
                 UPDATE media_file_write_intents
                 SET move_step = @nextStep, move_source_path = NULL, move_target_path = NULL, move_source_hash = NULL,
+                    move_generation = NULL, recovery_attempts = 0, next_attempt_at = NULL,
                     status = @status, attempts = 0, lease_expires_at = NULL, last_error = @error, updated_at = @now,
                     completed_at = CASE WHEN @status = 'blocked' THEN @now ELSE completed_at END
                 WHERE id = @id AND move_step IS NOT NULL;
@@ -244,10 +255,11 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
         }, ct);
 
     /// <summary>
-    /// The move did not work this time: it is tried again (<c>pending</c>, back to <c>requested</c>) or given up (<c>failed</c>), with
-    /// the reason. Only called once the disk has been looked at, so the file is known to be at its old place.
+    /// The move did not work this time: it is tried again after <paramref name="retryAfter"/> (<c>pending</c>, back to <c>requested</c>,
+    /// the file is known to be at its old place) or given up (<c>failed</c>), with the reason. A move given up keeps the paths it was
+    /// planned with, for diagnosis, but no longer counts as a move in progress.
     /// </summary>
-    public Task<bool> FailMoveAsync(Guid id, string status, string? error, CancellationToken ct = default)
+    public Task<bool> FailMoveAsync(Guid id, string status, string? error, TimeSpan? retryAfter = null, CancellationToken ct = default)
     {
         if (status is not ("pending" or "failed"))
         {
@@ -260,24 +272,68 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 UPDATE media_file_write_intents
                 SET status = @status, lease_expires_at = NULL, last_error = @error, updated_at = @now,
                     move_step = CASE WHEN @status = 'pending' THEN 'requested' ELSE NULL END,
-                    move_source_path = NULL, move_target_path = NULL, move_source_hash = NULL
+                    move_source_path = CASE WHEN @status = 'pending' THEN NULL ELSE move_source_path END,
+                    move_target_path = CASE WHEN @status = 'pending' THEN NULL ELSE move_target_path END,
+                    move_source_hash = CASE WHEN @status = 'pending' THEN NULL ELSE move_source_hash END,
+                    move_generation = NULL, recovery_attempts = 0,
+                    next_attempt_at = @nextAttempt
                 WHERE id = @id AND move_step IS NOT NULL;
-                """, new { id, status, error, now = Iso(_clock.GetUtcNow()) }, transaction) == 1;
+                """, new
+            {
+                id,
+                status,
+                error,
+                now = Iso(_clock.GetUtcNow()),
+                nextAttempt = status == "pending" && retryAfter is { } wait ? Iso(_clock.GetUtcNow().Add(wait)) : null,
+            }, transaction) == 1;
         }, ct);
     }
 
-    // ----- the steps of a move (D10) -----------------------------------------------------------------------------------------
-
-    /// <summary>Planned: written before the disk is touched, so the record always says where the file might be.</summary>
-    public Task RecordMovePlannedAsync(Guid id, string sourcePath, string targetPath, string? sourceHash, CancellationToken ct = default) =>
+    /// <summary>
+    /// A move that is part-way could not be settled yet (a drive is offline, or the data store could not follow): its steps and paths
+    /// stay on the row, the claim is released and it is looked at again after <paramref name="retryAfter"/>. When
+    /// <paramref name="countAttempt"/> is true the try counts towards the cap on recovery attempts. Returns how many tries have been
+    /// counted.
+    /// </summary>
+    public Task<int> DeferMoveAsync(
+        Guid id, TimeSpan retryAfter, bool countAttempt, string? error, CancellationToken ct = default) =>
         database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
             connection.Execute("""
                 UPDATE media_file_write_intents
-                SET move_step = 'planned', move_source_path = @sourcePath, move_target_path = @targetPath, move_source_hash = @sourceHash
+                SET status = 'pending', lease_expires_at = NULL, last_error = @error,
+                    next_attempt_at = @nextAttempt, recovery_attempts = recovery_attempts + @counted
                 WHERE id = @id AND move_step IS NOT NULL;
-                """, new { id, sourcePath, targetPath, sourceHash }, transaction);
+                """, new
+            {
+                id,
+                error,
+                nextAttempt = Iso(_clock.GetUtcNow().Add(retryAfter)),
+                counted = countAttempt ? 1 : 0,
+            }, transaction);
+            return connection.ExecuteScalar<int?>(
+                "SELECT recovery_attempts FROM media_file_write_intents WHERE id = @id;", new { id }, transaction) ?? 0;
+        }, ct);
+
+    // ----- the steps of a move (D10) -----------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Planned: written before the disk is touched, so the record always says where the file might be.
+    /// <paramref name="generation"/> is the generation of the row the plan was made at: finishing the move after a stop completes with
+    /// it, so a change that arrived since is seen and the move is planned again.
+    /// </summary>
+    public Task RecordMovePlannedAsync(
+        Guid id, string sourcePath, string targetPath, string? sourceHash, long? generation = null, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            connection.Execute("""
+                UPDATE media_file_write_intents
+                SET move_step = 'planned', move_source_path = @sourcePath, move_target_path = @targetPath, move_source_hash = @sourceHash,
+                    move_generation = COALESCE(@generation, generation)
+                WHERE id = @id AND move_step IS NOT NULL;
+                """, new { id, sourcePath, targetPath, sourceHash, generation }, transaction);
         }, ct);
 
     /// <summary>Moved: the file is at <paramref name="actualPath"/> and the old place is empty; the data store has not followed yet.</summary>
@@ -312,21 +368,26 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
             connection.Execute("""
                 UPDATE media_file_write_intents
                 SET move_step = 'requested', move_source_path = NULL, move_target_path = NULL, move_source_hash = NULL,
+                    move_generation = NULL, recovery_attempts = 0, next_attempt_at = NULL,
                     status = 'pending', lease_expires_at = NULL, updated_at = @now
                 WHERE id = @id AND move_step IS NOT NULL;
                 """, new { id, now = Iso(_clock.GetUtcNow()) }, transaction);
         }, ct);
 
-    /// <summary>Moves with a step recorded past <c>requested</c>: the ones a stop part-way can leave on disk in either place.</summary>
-    public Task<IReadOnlyList<MediaFileWriteIntent>> GetStartedMovesAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Moves with a step recorded past <c>requested</c>: the ones a stop part-way can leave on disk in either place. With
+    /// <paramref name="onlyDue"/>, only the ones nobody is working on whose next attempt time has come.
+    /// </summary>
+    public Task<IReadOnlyList<MediaFileWriteIntent>> GetStartedMovesAsync(bool onlyDue = false, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
         var rows = connection.Query<MediaFileWriteIntent>($"""
             SELECT {SelectColumns} FROM media_file_write_intents i
             WHERE i.target_kind = 'media_asset' AND i.move_step IN ('planned', 'moved', 'checked')
+              AND (@onlyDue = 0 OR (i.status = 'pending' AND (i.next_attempt_at IS NULL OR i.next_attempt_at <= @now)))
             ORDER BY i.updated_at, i.id;
-            """).ToList();
+            """, new { onlyDue = onlyDue ? 1 : 0, now = Iso(_clock.GetUtcNow()) }).ToList();
         return Task.FromResult<IReadOnlyList<MediaFileWriteIntent>>(rows);
     }
 
@@ -466,21 +527,39 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
         return Task.FromResult<ISet<Guid>>(found.ToHashSet());
     }
 
-    public Task<FileWriteCounts> GetCountsAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Counts what is waiting and what failed. Files in <paramref name="hiddenLibraryIds"/> are left out, so a caller who may not know
+    /// about a library cannot see its files in the numbers.
+    /// </summary>
+    public Task<FileWriteCounts> GetCountsAsync(IReadOnlySet<string>? hiddenLibraryIds = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
+        var hidden = hiddenLibraryIds is { Count: > 0 };
         using var connection = database.CreateConnection();
         return Task.FromResult(connection.QuerySingle<FileWriteCounts>("""
-            SELECT COALESCE(SUM(CASE WHEN status IN ('pending', 'writing') THEN 1 ELSE 0 END), 0) AS Waiting,
-                   COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS Failed
-            FROM media_file_write_intents;
-            """));
+            SELECT COALESCE(SUM(CASE WHEN i.status IN ('pending', 'writing') THEN 1 ELSE 0 END), 0) AS Waiting,
+                   COALESCE(SUM(CASE WHEN i.status = 'failed' THEN 1 ELSE 0 END), 0) AS Failed,
+                   COALESCE(SUM(CASE WHEN i.move_step IS NULL
+                                      AND (i.status = 'pending' OR (i.status = 'writing' AND i.lease_expires_at < @now))
+                                      AND (i.next_attempt_at IS NULL OR i.next_attempt_at <= @now)
+                                     THEN 1 ELSE 0 END), 0) AS Claimable
+            FROM media_file_write_intents i
+            LEFT JOIN media_assets ma ON ma.id = i.asset_id
+            WHERE (@hidden = 0 OR ma.library_id IS NULL OR lower(ma.library_id) NOT IN @hiddenIds);
+            """, new
+        {
+            now = Iso(_clock.GetUtcNow()),
+            hidden = hidden ? 1 : 0,
+            hiddenIds = hidden ? hiddenLibraryIds!.Select(id => id.ToLowerInvariant()).ToArray() : [string.Empty],
+        }));
     }
 
     /// <summary>The files that could not be written, with the reason, newest first.</summary>
-    public Task<IReadOnlyList<FailedFileWrite>> GetFailedAsync(int limit = 500, CancellationToken ct = default)
+    public Task<IReadOnlyList<FailedFileWrite>> GetFailedAsync(
+        int limit = 500, IReadOnlySet<string>? hiddenLibraryIds = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
+        var hidden = hiddenLibraryIds is { Count: > 0 };
         using var connection = database.CreateConnection();
         var rows = connection.Query<FailedFileWrite>("""
             SELECT i.target_kind AS TargetKind, i.asset_id AS AssetId, i.local_item_id AS LocalItemId,
@@ -494,9 +573,15 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
             LEFT JOIN editions e ON e.id = ma.edition_id
             LEFT JOIN local_items li ON li.id = i.local_item_id
             WHERE i.status = 'failed'
+              AND (@hidden = 0 OR ma.library_id IS NULL OR lower(ma.library_id) NOT IN @hiddenIds)
             ORDER BY i.updated_at DESC, i.id
             LIMIT @limit;
-            """, new { limit = Math.Clamp(limit, 1, 5000) });
+            """, new
+        {
+            limit = Math.Clamp(limit, 1, 5000),
+            hidden = hidden ? 1 : 0,
+            hiddenIds = hidden ? hiddenLibraryIds!.Select(id => id.ToLowerInvariant()).ToArray() : [string.Empty],
+        });
         return Task.FromResult<IReadOnlyList<FailedFileWrite>>(rows.ToList());
     }
 
@@ -582,14 +667,25 @@ public sealed record MediaFileWriteIntent
     public string? MoveTargetPath { get; init; }
     public string? MoveSourceHash { get; init; }
 
+    /// <summary>The generation of the row when the move was planned; null before it is planned.</summary>
+    public long? MoveGeneration { get; init; }
+
+    /// <summary>How many starts a part-way move could not be settled.</summary>
+    public int RecoveryAttempts { get; init; }
+
     /// <summary>The Work's media type for a media asset (Music, Audiobooks, Movies...); null for a View item.</summary>
     public string? MediaType { get; init; }
 }
 
 public sealed record FileWriteCounts
 {
+    /// <summary>Everything waiting for a write, including rows that cannot be taken yet (a move in progress, a retry not yet due).</summary>
     public int Waiting { get; init; }
+
     public int Failed { get; init; }
+
+    /// <summary>The rows a write run could take right now; the schedule starts a run only when this is above zero.</summary>
+    public int Claimable { get; init; }
 }
 
 public sealed record FailedFileWrite

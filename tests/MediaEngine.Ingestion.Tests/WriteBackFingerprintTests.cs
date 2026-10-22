@@ -19,8 +19,10 @@ public sealed class WriteBackFingerprintTests : IDisposable
 
     public void Dispose() => _harness.Dispose();
 
-    [Fact]
-    public async Task AFileLibraryJustWrote_IsRecordedUnderItsNewFingerprint_SoItIsNotTakenForAChangedFile()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AFileLibraryJustWrote_IsRecordedUnderItsNewFingerprint_SoItIsNotTakenForAChangedFile(bool readBackProvedIt)
     {
         var path = _harness.Write("Dune (2021).mkv", "the original bytes");
         var assetId = await _harness.RegisterAsync(path, "Dune", "2021");
@@ -32,7 +34,7 @@ public sealed class WriteBackFingerprintTests : IDisposable
             _harness.Canonicals,
             new WorkRepository(_harness.Db.Connection),
             _harness.Config,
-            [new AppendingTagger()],
+            [new AppendingTagger(readBackProvedIt)],
             _harness.Activity,
             NullLogger<WriteBackService>.Instance,
             libraryResolver: new LibraryFolderResolver(new OptionsMonitorStub<IngestionOptions>(_harness.Options)),
@@ -41,7 +43,7 @@ public sealed class WriteBackFingerprintTests : IDisposable
 
         var outcome = await service.WriteMetadataWithOutcomeAsync(assetId, "manual_override");
 
-        Assert.Equal(WriteBackOutcomeKind.Verified, outcome.Kind);
+        Assert.Equal(readBackProvedIt ? WriteBackOutcomeKind.Verified : WriteBackOutcomeKind.Unverified, outcome.Kind);
         var after = (await _harness.Hasher.ComputeAsync(path)).Hex;
         Assert.NotEqual(before, after);
         Assert.Equal(after, (await _harness.Assets.FindByIdAsync(assetId))!.ContentHash);
@@ -50,7 +52,7 @@ public sealed class WriteBackFingerprintTests : IDisposable
     }
 
     /// <summary>Changes the file the way a real tagger does (so its fingerprint moves) and reads the tags back as written.</summary>
-    private sealed class AppendingTagger : IMetadataTagger
+    private sealed class AppendingTagger(bool readBackProvesIt) : IMetadataTagger
     {
         public bool CanHandle(string filePath) => true;
 
@@ -65,7 +67,9 @@ public sealed class WriteBackFingerprintTests : IDisposable
 
         public Task<MetadataTagReadbackResult> VerifyTagsAsync(
             string filePath, IReadOnlyDictionary<string, string> tags, CancellationToken ct = default) =>
-            Task.FromResult(MetadataTagReadbackResult.Verified());
+            Task.FromResult(readBackProvesIt
+                ? MetadataTagReadbackResult.Verified()
+                : MetadataTagReadbackResult.Unverified("This adapter has no verified metadata reader."));
 
         public Task WriteCoverArtAsync(string filePath, byte[] imageData, CancellationToken ct = default) => Task.CompletedTask;
     }

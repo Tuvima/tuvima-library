@@ -1489,6 +1489,10 @@ CREATE TABLE media_file_write_intents (
     move_source_path TEXT,
     move_target_path TEXT,
     move_source_hash TEXT,
+    move_generation INTEGER,
+    next_attempt_at TEXT,
+    recovery_attempts INTEGER NOT NULL DEFAULT 0,
+    claimed_run_id TEXT,
     CHECK ((target_kind = 'media_asset' AND asset_id IS NOT NULL AND local_item_id IS NULL)
         OR (target_kind = 'view_item' AND local_item_id IS NOT NULL AND asset_id IS NULL))
 );

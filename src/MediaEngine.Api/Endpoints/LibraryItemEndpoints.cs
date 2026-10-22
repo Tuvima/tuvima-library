@@ -184,7 +184,7 @@ public static class LibraryItemEndpoints
 
     // The Vault's entries in the recycle bin are visible only inside Vault mode (Videos spec D34). Anyone else, administrators included,
     // sees the bin as if those files were not there, and cannot restore or empty them.
-    private static async Task<IReadOnlySet<string>> HiddenLibrariesAsync(
+    internal static async Task<IReadOnlySet<string>> HiddenLibrariesAsync(
         HttpContext http, IRequestAuthorityResolver authorities, VaultAccessResolver vaultAccess, CancellationToken ct)
     {
         var authority = await authorities.ResolveAsync(http, ct);

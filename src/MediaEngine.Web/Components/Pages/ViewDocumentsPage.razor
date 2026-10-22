@@ -1,6 +1,7 @@
 @page "/view/documents"
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
+@using MediaEngine.Web.Components.View
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Theming
 @using MediaEngine.Web.Services.Ui
@@ -54,6 +55,9 @@
                         }
                     </QuickFilters>
                 </AppDiscoveryFilterBar>
+
+                @* Who added the documents: only in the Shared Library and only when two or more people did. The chips carry the bare name. *@
+                <ViewFilterChipRow Label="Added by" Choices="_addedByChoices" Selected="_filter.AddedBy" MinimumChoices="2" OnToggle="ToggleAddedByAsync" />
 
                 <div class="view-documents-layout">
                 @if (!Device.IsPhone)
@@ -290,6 +294,7 @@
     private readonly ViewDocumentFilterState _filter = new();
     private readonly HashSet<Guid> _filing = [];
     private ViewDocumentCatalogueDto? _catalogue;
+    private IReadOnlyList<ViewFilterChoice> _addedByChoices = [];
     private int? _inboxCount;
     private ViewAssetTimelinePageDto? _page;
     private LocalAssetDto? _active;
@@ -358,10 +363,35 @@
 
     private ViewAssetQueryOptions Query(string? cursor = null) => new(
         Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, ["document"],
-        Lifecycle: _filter.TrashOnly ? "trashed" : "active", GalleryId: _filter.SavedViewId, Limit: PageSize, Documents: _filter.ToDto());
+        Lifecycle: _filter.TrashOnly ? "trashed" : "active", GalleryId: _filter.SavedViewId, Limit: PageSize, Documents: _filter.ToDto(),
+        AddedBy: _filter.AddedBy.Count > 0 ? _filter.AddedBy.ToList() : null);
 
-    private async Task LoadCatalogueAsync() =>
+    private async Task LoadCatalogueAsync()
+    {
         _catalogue = await ApiClient.GetViewCatalogueAsync(Workspace.ScopeKind, Workspace.ScopeProfileId, ["document"]);
+        await LoadAddedByAsync();
+    }
+
+    // The profiles that added documents to the Shared Library; no other scope has more than one adder.
+    private async Task LoadAddedByAsync()
+    {
+        var profiles = Workspace.ScopeKind == ViewScopeKind.Shared
+            ? await ApiClient.GetViewAssetsAddedByAsync(new ViewAssetQueryOptions(Workspace.ScopeKind, Workspace.ScopeProfileId, Kinds: ["document"]))
+            : null;
+        _addedByChoices = (profiles ?? []).Select(profile => new ViewFilterChoice(profile.ProfileId, profile.Name)).ToList();
+        // A chip the Engine no longer lists cannot be switched off, so a choice that has gone is dropped from the filter too.
+        _filter.AddedBy.IntersectWith(_addedByChoices.Select(choice => choice.Id));
+    }
+
+    private Task ToggleAddedByAsync(Guid profileId)
+    {
+        if (!_filter.AddedBy.Add(profileId))
+        {
+            _filter.AddedBy.Remove(profileId);
+        }
+
+        return LoadAsync();
+    }
 
     private async Task LoadInboxCountAsync()
     {
