@@ -16,6 +16,13 @@
                                  AriaLabel="Filter the activity log" />
         </div>
         <div class="activity-log__sort">
+            <AppSelect Label="Media type"
+                       Value="@_mediaType"
+                       ValueChanged="OnMediaTypeChanged"
+                       Options="MediaTypeOptions"
+                       Size="AppControlSize.Compact" />
+        </div>
+        <div class="activity-log__sort">
             <AppSelect Label="Sort by"
                        Value="@_sort"
                        ValueChanged="OnSortChanged"
@@ -62,66 +69,44 @@
     else
     {
         <ol class="activity-log__list" aria-label="Events, newest first" data-testid="activity-log-rows">
-            @foreach (var entry in OrderedItems)
+            @foreach (var row in Rows)
             {
-                @* An entry that cannot be drawn becomes a "couldn't be shown" row in the same list; the other entries stay. *@
-                <AppRowErrorBoundary ItemTitle="@entry.Title" ResetKey="@entry">
-                <ChildContent>
-                <li class="activity-log__row activity-log__row--@CategoryKey(entry.Category)" data-testid="activity-log-row" data-category="@entry.Category">
-                    <time class="activity-log__time" datetime="@entry.OccurredAt.ToString("O")" title="@FullTime(entry.OccurredAt)">@ShortTime(entry.OccurredAt)</time>
+                if (row.Children is null)
+                {
+                    @EntryRow(row.Entry)
+                }
+                else
+                {
+                var open = _expanded.Contains(row.Key);
+                var newest = row.Children[0];
+                <li class="activity-log__row activity-log__row--added activity-log__row--group" data-testid="activity-log-group" data-group="@row.Key">
+                    <time class="activity-log__time" datetime="@newest.OccurredAt.ToString("O")" title="@FullTime(newest.OccurredAt)">@ShortTime(newest.OccurredAt)</time>
                     <span class="activity-log__symbol" aria-hidden="true">
-                        <AppMaterialIcon Icon="@SymbolFor(entry.Category)" Size="AppSize.Small" />
+                        <AppMaterialIcon Icon="@SymbolFor(newest.Category)" Size="AppSize.Small" />
                     </span>
                     <span class="activity-log__art" aria-hidden="true">
-                        @if (HasArt(entry))
-                        {
-                            <AppMediaArtwork ImageUrl="@entry.CoverUrl" AspectRatio="1 / 1" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(entry.MediaType)" />
-                        }
+                        <AppMediaArtwork ImageUrl="@newest.CoverUrl" AspectRatio="1 / 1" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(newest.MediaType)" />
                     </span>
                     <div class="activity-log__body">
-                        <div class="activity-log__headline">
-                            @if (!string.IsNullOrWhiteSpace(entry.Route))
-                            {
-                                <a class="activity-log__title activity-log__title--link" href="@entry.Route">@entry.Title</a>
-                            }
-                            else
-                            {
-                                <strong class="activity-log__title">@entry.Title</strong>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(entry.MediaType))
-                            {
-                                @* The type is an icon with its name as the tooltip and accessible name, the same icon the Now panel uses. *@
-                                <AppTooltip Text="@TypeLabel(entry)" Placement="AppPlacement.Top">
-                                    <span class="activity-log__media-type" role="img" aria-label="@TypeLabel(entry)">
-                                        <AppMaterialIcon Icon="@IngestionMediaCard.MediaIcon(entry.MediaType)" Size="AppSize.Small" aria-hidden="true" />
-                                    </span>
-                                </AppTooltip>
-                            }
-                        </div>
-                        @if (!string.IsNullOrWhiteSpace(entry.Detail))
+                        <AppButton ButtonStyle="AppButtonStyle.Text"
+                                   Size="AppControlSize.Compact"
+                                   Class="activity-log__group-toggle"
+                                   StartIcon="@(open ? AppMaterialIcons.Outlined.ExpandMore : AppMaterialIcons.Outlined.ChevronRight)"
+                                   Label="@($"{row.Title} · {GroupSummary(row)}")"
+                                   aria-expanded="@(open ? "true" : "false")"
+                                   OnClick="@(() => ToggleGroup(row.Key))" />
+                        @if (open)
                         {
-                            <p class="activity-log__detail">@entry.Detail</p>
+                            <ol class="activity-log__children" aria-label="@($"Added to {row.Title}")">
+                                @foreach (var child in row.Children)
+                                {
+                                    @EntryRow(child)
+                                }
+                            </ol>
                         }
                     </div>
                 </li>
-                </ChildContent>
-                <ErrorContent>
-                    <li class="activity-log__row activity-log__row--failed" data-testid="row-error">
-                        <span></span>
-                        <span class="activity-log__symbol" aria-hidden="true">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ReportProblem" Size="AppSize.Small" />
-                        </span>
-                        <span class="activity-log__art" aria-hidden="true"></span>
-                        <div class="activity-log__body">
-                            <div class="activity-log__headline"><strong class="activity-log__title">@AppRowErrorBoundary.Headline</strong></div>
-                            @if (!string.IsNullOrWhiteSpace(entry.Title))
-                            {
-                                <p class="activity-log__detail">@entry.Title</p>
-                            }
-                        </div>
-                    </li>
-                </ErrorContent>
-                </AppRowErrorBoundary>
+                }
             }
         </ol>
 
@@ -144,6 +129,127 @@
 </AppCard>
 
 @code {
+    // One row of the log: a single event, or a show or album folding the episodes or songs added to it.
+    private RenderFragment EntryRow(ActivityLogEntryDto entry) => @<text>
+        <AppRowErrorBoundary ItemTitle="@entry.Title" ResetKey="@entry">
+        <ChildContent>
+        <li class="activity-log__row activity-log__row--@CategoryKey(entry.Category)" data-testid="activity-log-row" data-category="@entry.Category">
+            <time class="activity-log__time" datetime="@entry.OccurredAt.ToString("O")" title="@FullTime(entry.OccurredAt)">@ShortTime(entry.OccurredAt)</time>
+            <span class="activity-log__symbol" aria-hidden="true">
+                <AppMaterialIcon Icon="@SymbolFor(entry.Category)" Size="AppSize.Small" />
+            </span>
+            <span class="activity-log__art" aria-hidden="true">
+                @if (HasArt(entry))
+                {
+                    <AppMediaArtwork ImageUrl="@entry.CoverUrl" AspectRatio="1 / 1" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(entry.MediaType)" />
+                }
+            </span>
+            <div class="activity-log__body">
+                <div class="activity-log__headline">
+                    @if (!string.IsNullOrWhiteSpace(entry.Route))
+                    {
+                        <a class="activity-log__title activity-log__title--link" href="@entry.Route">@entry.Title</a>
+                    }
+                    else
+                    {
+                        <strong class="activity-log__title">@entry.Title</strong>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(entry.MediaType))
+                    {
+                        @* The type is an icon with its name as the tooltip and accessible name, the same icon the Now panel uses. *@
+                        <AppTooltip Text="@TypeLabel(entry)" Placement="AppPlacement.Top">
+                            <span class="activity-log__media-type" role="img" aria-label="@TypeLabel(entry)">
+                                <AppMaterialIcon Icon="@IngestionMediaCard.MediaIcon(entry.MediaType)" Size="AppSize.Small" aria-hidden="true" />
+                            </span>
+                        </AppTooltip>
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(entry.Detail))
+                {
+                    <p class="activity-log__detail">@entry.Detail@(string.IsNullOrWhiteSpace(entry.GroupTitle) ? null : $" · {entry.GroupTitle}")</p>
+                }
+            </div>
+        </li>
+        </ChildContent>
+        <ErrorContent>
+            <li class="activity-log__row activity-log__row--failed" data-testid="row-error">
+                <span></span>
+                <span class="activity-log__symbol" aria-hidden="true">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ReportProblem" Size="AppSize.Small" />
+                </span>
+                <span class="activity-log__art" aria-hidden="true"></span>
+                <div class="activity-log__body">
+                    <div class="activity-log__headline"><strong class="activity-log__title">@AppRowErrorBoundary.Headline</strong></div>
+                    @if (!string.IsNullOrWhiteSpace(entry.Title))
+                    {
+                        <p class="activity-log__detail">@entry.Title</p>
+                    }
+                </div>
+            </li>
+        </ErrorContent>
+        </AppRowErrorBoundary>
+
+    </text>;
+
+    private sealed record ActivityRow(ActivityLogEntryDto Entry, string Key, string Title, IReadOnlyList<ActivityLogEntryDto>? Children);
+
+    private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
+
+    private void ToggleGroup(string key)
+    {
+        if (!_expanded.Remove(key))
+        {
+            _expanded.Add(key);
+        }
+    }
+
+    // Only episodes and songs are ever added, never the show or album, so entries that name one fold under it: one row per show
+    // or album with the episodes or songs from this page inside. A lone episode or song stays an ordinary row.
+    private IReadOnlyList<ActivityRow> Rows
+    {
+        get
+        {
+            var ordered = OrderedItems.ToList();
+            var groups = ordered
+                .Where(IsGroupable)
+                .GroupBy(GroupKey, StringComparer.Ordinal)
+                .Where(group => group.Count() > 1)
+                .ToDictionary(group => group.Key, group => (IReadOnlyList<ActivityLogEntryDto>)group.ToList(), StringComparer.Ordinal);
+            var rows = new List<ActivityRow>(ordered.Count);
+            var placed = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var entry in ordered)
+            {
+                if (IsGroupable(entry) && groups.TryGetValue(GroupKey(entry), out var children))
+                {
+                    if (placed.Add(GroupKey(entry)))
+                    {
+                        rows.Add(new ActivityRow(children[0], GroupKey(entry), entry.GroupTitle!, children));
+                    }
+
+                    continue;
+                }
+
+                rows.Add(new ActivityRow(entry, string.Empty, entry.Title, null));
+            }
+
+            return rows;
+        }
+    }
+
+    private static bool IsGroupable(ActivityLogEntryDto entry) =>
+        !string.IsNullOrWhiteSpace(entry.GroupTitle) && CategoryKey(entry.Category ?? string.Empty) == ActivityLogCategoryValues.Added;
+
+    private static string GroupKey(ActivityLogEntryDto entry) => $"{entry.MediaType}|{entry.GroupTitle}";
+
+    private static string GroupSummary(ActivityRow row)
+    {
+        var count = row.Children!.Count;
+        var unit = string.Equals(row.Entry.MediaType, "Music", StringComparison.OrdinalIgnoreCase)
+            ? (count == 1 ? "song" : "songs")
+            : (count == 1 ? "episode" : "episodes");
+        return $"{count:N0} {unit} added";
+    }
+
     private const int PageSize = 50;
 
     private static readonly IReadOnlyList<AppSelectOption> FilterOptions =
@@ -153,6 +259,13 @@
         new(ActivityLogCategoryValues.Failed, "Failed"),
         new(ActivityLogCategoryValues.System, "System"),
         new(ActivityLogCategoryValues.All, "All"),
+    ];
+
+    // Only types that have events of their own; photos and personal videos arrive as count rows, not titles.
+    private static readonly IReadOnlyList<AppSelectOption> MediaTypeOptions =
+    [
+        new("all", "All types"), new("Movies", "Movies"), new("TV", "TV Shows"), new("Music", "Music"),
+        new("Books", "Books"), new("Audiobooks", "Audiobooks"), new("Comics", "Comics"),
     ];
 
     private const string SortNewest = "newest";
@@ -173,6 +286,7 @@
     private string? _appliedParameter;
     private bool _parameterApplied;
     private string? _search;
+    private string _mediaType = "all";
     private string _sort = SortNewest;
     private int _offset;
     private int? _total;
@@ -198,6 +312,13 @@
     private Task OnFilterChanged(string value)
     {
         _filter = NormalizeFilter(value);
+        _offset = 0;
+        return LoadAsync();
+    }
+
+    private Task OnMediaTypeChanged(string? value)
+    {
+        _mediaType = string.IsNullOrWhiteSpace(value) ? "all" : value;
         _offset = 0;
         return LoadAsync();
     }
@@ -242,7 +363,7 @@
         _failed = false;
         await InvokeAsync(StateHasChanged);
 
-        var page = await ApiClient.GetActivityLogAsync(_filter, _search, _offset, PageSize, token);
+        var page = await ApiClient.GetActivityLogAsync(_filter, _search, _offset, PageSize, _mediaType == "all" ? null : _mediaType, token);
         if (token.IsCancellationRequested)
         {
             return;
@@ -252,7 +373,7 @@
         {
             // The log shrank under a later page (for example after old entries were pruned): go back to the first page.
             _offset = 0;
-            page = await ApiClient.GetActivityLogAsync(_filter, _search, _offset, PageSize, token);
+            page = await ApiClient.GetActivityLogAsync(_filter, _search, _offset, PageSize, _mediaType == "all" ? null : _mediaType, token);
             if (token.IsCancellationRequested)
             {
                 return;

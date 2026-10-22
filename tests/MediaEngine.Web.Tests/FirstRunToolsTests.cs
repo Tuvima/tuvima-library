@@ -195,15 +195,16 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     // ── Setup: the last step ─────────────────────────────────────────────────
 
     [Fact]
-    public void ReadinessStep_SaysTesseractIsMissingInOneQuietLine()
+    public void ReadinessStep_SaysTesseractIsMissingInAnInfoBoxWithADownloadButton()
     {
         var cut = RenderReadiness(Tools(
             Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready),
             Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional)));
 
-        var notes = cut.FindAll(".setup-tool-notes li").Select(item => item.TextContent.Trim()).ToList();
-        Assert.Equal(["Scanned documents won't be readable until Tesseract is installed."], notes);
-        Assert.Empty(cut.FindAll(".setup-tool-notes .alert, .setup-tool-notes [role=alert]"));
+        var box = Assert.Single(cut.FindAll(".setup-tool-info"));
+        Assert.Equal("Scanned documents won't be readable until Tesseract is installed.", box.QuerySelectorAll("p")[0].TextContent.Trim());
+        Assert.Contains("Download Tesseract", box.TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".setup-tool-warning"));
     }
 
     [Fact]
@@ -211,11 +212,11 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     {
         var cut = RenderReadiness(Tools(
             Tool("ai_runtime", "Local AI engine", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Problem)));
-        Assert.Equal([FfmpegEffect], cut.FindAll(".setup-tool-notes li").Select(item => item.TextContent.Trim()));
+        Assert.Equal([FfmpegEffect], cut.FindAll(".setup-tool-info").Select(box => box.QuerySelectorAll("p")[0].TextContent.Trim()));
 
         var quiet = RenderReadiness(Tools(
             Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready)));
-        Assert.Empty(quiet.FindAll(".setup-tool-notes"));
+        Assert.Empty(quiet.FindAll(".setup-tool-info"));
     }
 
     [Fact]

@@ -1,7 +1,8 @@
 .activity-log__toolbar {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    /* The selects carry a label above their box and the filter tabs do not, so line everything up along the bottom edge. */
+    align-items: flex-end;
     gap: var(--tl-space-3);
     margin-bottom: var(--tl-space-3);
 }
@@ -196,4 +197,12 @@
     .activity-log__body {
         grid-area: body;
     }
+}
+
+/* A show or album row folds the episodes or songs added to it. */
+.activity-log__children {
+    margin: var(--tl-space-2) 0 0;
+    padding: 0 0 0 var(--tl-space-3);
+    list-style: none;
+    border-left: 2px solid var(--tl-border-subtle);
 }

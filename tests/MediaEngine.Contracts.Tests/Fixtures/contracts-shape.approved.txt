@@ -21,6 +21,7 @@ MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.ActivityLogEntryDt
   MediaType: System.String | nullability=nullable | accessors=get,set
   Count: System.Int32? | nullability=nullable | accessors=get,set
   Route: System.String | nullability=nullable | accessors=get,set
+  GroupTitle: System.String | nullability=nullable | accessors=get,set
   CoverUrl: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.ActivityStatsResponse

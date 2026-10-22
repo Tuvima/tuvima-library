@@ -70,4 +70,4 @@ public interface IWorkReadinessRepository
 }
 
 /// <summary>What the Ready event needs to describe a Work.</summary>
-public sealed record WorkReadinessDetails(Guid WorkId, Guid? CollectionId, string MediaType, string Title, Guid? AssetId);
+public sealed record WorkReadinessDetails(Guid WorkId, Guid? CollectionId, string MediaType, string Title, Guid? AssetId, string? GroupTitle = null);

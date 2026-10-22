@@ -301,7 +301,7 @@ public sealed class WorkReadinessService : BackgroundService
                 CollectionName = detail.Title,
                 EntityId = detail.WorkId,
                 EntityType = "Work",
-                ChangesJson = JsonSerializer.Serialize(new { media_type = detail.MediaType }),
+                ChangesJson = JsonSerializer.Serialize(new { media_type = detail.MediaType, group_title = detail.GroupTitle }),
                 Detail = "Added",
             }, ct).ConfigureAwait(false);
             _activityWritten.Add(detail.WorkId);

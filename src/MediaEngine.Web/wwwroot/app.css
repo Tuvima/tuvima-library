@@ -4657,6 +4657,9 @@ input[type="reset"],
     max-width: 100vw;
     z-index: 1301 !important;
 }
+/* The picker host is fit-content by default, which squeezed the picker; give it a real width. */
+.tl-dialog.server-folder-picker-host { width: min(calc(100vw - 32px), 1240px) !important; }
+.tl-dialog.server-folder-picker-host .app-dialog-shell { width: 100%; }
 @media (max-width: 520px){
     .tl-dialog.server-folder-picker-host {
         width: 100%;
