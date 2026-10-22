@@ -77,7 +77,7 @@ public static class UnmatchedEndpoints
                 ? Results.Ok(new UnmatchedActionResultDto { Affected = await service.RetryLibraryNowAsync(libraryId, ct) })
                 : ApiErrors.NotFound($"Library '{libraryId}' was not found."))
         .WithName("RetryUnmatchedLibrary")
-        .WithSummary("Retry now for a whole library: looks up again every Unmatched file in it that is not kept.")
+        .WithSummary("Retry now for a whole library: makes every Unmatched file in it that is not kept due now and returns at once; the files are looked up in the background.")
         .Produces<UnmatchedActionResultDto>()
         .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -165,7 +165,7 @@ public static class UnmatchedEndpoints
             return false;
         }
 
-        return !(await vault.GetIdsAsync(ct)).Contains(libraryId.ToLowerInvariant());
+        return !(await vault.GetIdsAsync(ct)).Contains(libraryId);
     }
 
     private static UnmatchedItemDto ToDto(UnmatchedAssetListItem item) => new()

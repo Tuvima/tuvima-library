@@ -43,6 +43,8 @@ public sealed class UnmatchedRetryTests : IDisposable
     private readonly LibrariesOnlyLoader _loader;
     private readonly SpyRereader _rereader;
     private readonly SpySignal _signal = new();
+    private readonly UnmatchedRetryWake _wake = new();
+    private readonly VaultLibraryRepository _vault;
     private readonly UnmatchedAssetService _service;
 
     public UnmatchedRetryTests()
@@ -51,6 +53,7 @@ public sealed class UnmatchedRetryTests : IDisposable
         _database = new DatabaseConnection(_databasePath);
         _database.InitializeSchema();
         _unmatched = new UnmatchedAssetRepository(_database);
+        _vault = new VaultLibraryRepository(_database);
         _jobs = new IdentityJobRepository(_database);
         _canonicals = new CanonicalValueRepository(_database);
         _rereader = new SpyRereader(_canonicals);
@@ -70,11 +73,13 @@ public sealed class UnmatchedRetryTests : IDisposable
             _rereader,
             NullLogger<UnmatchedAssetService>.Instance,
             _signal,
-            clock: new FixedClock(Now));
+            clock: new FixedClock(Now),
+            wake: _wake);
     }
 
     public void Dispose()
     {
+        _wake.Dispose();
         _database.Dispose();
         DatabaseConnection.ReleasePooledConnections(_databasePath);
         File.Delete(_databasePath);
@@ -157,7 +162,7 @@ public sealed class UnmatchedRetryTests : IDisposable
     // ── Retry now ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task RetryNowOnALibrary_QueuesEveryItemThatIsNotKept_AndLeavesOtherLibrariesAlone()
+    public async Task RetryNowOnALibrary_ReturnsAtOnce_AndMakesEveryItemThatIsNotKeptDue_WithoutLookingAnythingUpInTheRequest()
     {
         var first = await SeedUnmatchedAsync(MoviesLibrary, "Movies", due: Now.AddDays(5));
         var second = await SeedUnmatchedAsync(MoviesLibrary, "Movies", due: Now.AddDays(6));
@@ -165,13 +170,49 @@ public sealed class UnmatchedRetryTests : IDisposable
         var otherLibrary = await SeedUnmatchedAsync(ShowsLibrary, "TV", due: Now.AddDays(5));
         await _service.KeepAsIsAsync(kept, CancellationToken.None);
 
-        var looked = await _service.RetryLibraryNowAsync(MoviesLibrary, CancellationToken.None);
+        var queued = await _service.RetryLibraryNowAsync(MoviesLibrary, CancellationToken.None);
 
-        Assert.Equal(2, looked);
+        Assert.Equal(2, queued);
+        // Nothing was looked up inside the call: no job was queued and nothing was signalled to the identity pipeline.
+        Assert.Equal(nameof(IdentityJobState.RetailNoMatch), (await _jobs.GetByEntityAsync(first))!.State);
+        Assert.Equal(nameof(IdentityJobState.RetailNoMatch), (await _jobs.GetByEntityAsync(second))!.State);
+        Assert.Empty(_signal.Signals);
+        Assert.Empty(_rereader.Reread);
+        var due = (await _unmatched.ListDueAsync(Now, 10)).Select(item => item.AssetId).ToHashSet();
+        Assert.Equal(new HashSet<Guid> { first, second }, due);
+        Assert.DoesNotContain(kept, due);
+        Assert.DoesNotContain(otherLibrary, due);
+        // The retry service is woken so the files are looked up in the background straight away.
+        Assert.True(await _wake.WaitAsync(TimeSpan.Zero, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task RetryNowOnALibrary_HasTheBackgroundPassLookTheItemsUpAgain()
+    {
+        var first = await SeedUnmatchedAsync(MoviesLibrary, "Movies", due: Now.AddDays(5));
+        var second = await SeedUnmatchedAsync(MoviesLibrary, "Movies", due: Now.AddDays(6));
+        var otherLibrary = await SeedUnmatchedAsync(ShowsLibrary, "TV", due: Now.AddDays(5));
+        using var hosted = NewHostedService();
+
+        await _service.RetryLibraryNowAsync(MoviesLibrary, CancellationToken.None);
+        var handled = await hosted.RunOnceAsync(CancellationToken.None);
+
+        Assert.Equal(2, handled);
         Assert.Equal(nameof(IdentityJobState.Queued), (await _jobs.GetByEntityAsync(first))!.State);
         Assert.Equal(nameof(IdentityJobState.Queued), (await _jobs.GetByEntityAsync(second))!.State);
-        Assert.Equal(nameof(IdentityJobState.RetailNoMatch), (await _jobs.GetByEntityAsync(kept))!.State);
         Assert.Equal(nameof(IdentityJobState.RetailNoMatch), (await _jobs.GetByEntityAsync(otherLibrary))!.State);
+    }
+
+    [Fact]
+    public async Task RetryNowOnALibraryWithNothingToRetry_QueuesNothing_AndDoesNotWakeTheRetryService()
+    {
+        var kept = await SeedUnmatchedAsync(MoviesLibrary, "Movies", due: Now.AddDays(5));
+        await _service.KeepAsIsAsync(kept, CancellationToken.None);
+
+        var queued = await _service.RetryLibraryNowAsync(MoviesLibrary, CancellationToken.None);
+
+        Assert.Equal(0, queued);
+        Assert.False(await _wake.WaitAsync(TimeSpan.Zero, CancellationToken.None));
     }
 
     [Fact]
@@ -310,10 +351,28 @@ public sealed class UnmatchedRetryTests : IDisposable
         await SeedUnmatchedAsync(ShowsLibrary, "TV", due: Now);
         await _service.KeepAsIsAsync(kept, CancellationToken.None);
 
-        var counts = await new UnmatchedCountService(_unmatched).CountsAsync(UnmatchedScope.For(Administrator()), CancellationToken.None);
+        var counts = await new UnmatchedCountService(_unmatched, _vault).CountsAsync(UnmatchedScope.For(Administrator()), CancellationToken.None);
 
         Assert.Equal(1, counts[MoviesLibrary]);
         Assert.Equal(1, counts[ShowsLibrary]);
+    }
+
+    [Fact]
+    public async Task TheUnmatchedCount_NeverNamesAVaultLibrary_EvenForAnAdministrator()
+    {
+        const string vaultLibrary = "cccccccc-0000-4000-8000-0000000000aa";
+        await SeedUnmatchedAsync(MoviesLibrary, "Movies", due: Now);
+        await SeedUnmatchedAsync(vaultLibrary, "Videos", due: Now);
+        using (var conn = _database.CreateConnection())
+        {
+            conn.Execute(
+                "INSERT INTO vault_libraries(library_id, lookup_source, lookup_server_id, adults_confirmed_at, created_by_profile_id, created_at, updated_at) VALUES(@vaultLibrary,'none',NULL,@now,NULL,@now,@now);",
+                new { vaultLibrary, now = Now.ToString("O") });
+        }
+
+        var counts = await new UnmatchedCountService(_unmatched, _vault).CountsAsync(UnmatchedScope.For(Administrator()), CancellationToken.None);
+
+        Assert.Equal([MoviesLibrary], counts.Keys.ToArray());
     }
 
     [Fact]
@@ -321,7 +380,7 @@ public sealed class UnmatchedRetryTests : IDisposable
     {
         await SeedUnmatchedAsync(MoviesLibrary, "Movies", due: Now);
         await SeedUnmatchedAsync(ShowsLibrary, "TV", due: Now);
-        var service = new UnmatchedCountService(_unmatched);
+        var service = new UnmatchedCountService(_unmatched, _vault);
 
         var ordinary = await service.CountsAsync(UnmatchedScope.For(Member()), CancellationToken.None);
         var signedOut = await service.CountsAsync(UnmatchedScope.For(new RequestAuthority(PrincipalKind.Anonymous, false)), CancellationToken.None);

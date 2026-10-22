@@ -40,15 +40,19 @@ public sealed class UnmatchedScope
     }
 }
 
-/// <summary>Reads each library's Unmatched count (kept-as-is files excluded) for the libraries a caller may see.</summary>
-public sealed class UnmatchedCountService(IUnmatchedAssetRepository unmatched)
+/// <summary>
+/// Reads each library's Unmatched count (kept-as-is files excluded) for the libraries a caller may see. A Vault library is never counted
+/// here: the Vault is never named outside the Vault area (Videos spec D45), even though its lookups can end in no match.
+/// </summary>
+public sealed class UnmatchedCountService(IUnmatchedAssetRepository unmatched, IVaultLibraryRepository vault)
 {
     public async Task<IReadOnlyDictionary<string, int>> CountsAsync(UnmatchedScope scope, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(scope);
         var counts = await unmatched.CountByLibraryAsync(ct).ConfigureAwait(false);
-        return scope.AllLibraries
-            ? counts
-            : counts.Where(count => scope.Allows(count.Key)).ToDictionary(count => count.Key, count => count.Value, StringComparer.OrdinalIgnoreCase);
+        var vaultIds = await vault.GetIdsAsync(ct).ConfigureAwait(false);
+        return counts
+            .Where(count => !vaultIds.Contains(count.Key) && scope.Allows(count.Key))
+            .ToDictionary(count => count.Key, count => count.Value, StringComparer.OrdinalIgnoreCase);
     }
 }

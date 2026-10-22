@@ -359,7 +359,8 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         builder.Services.AddSingleton(NothingThere.Create<IFileOrganizer>());
         builder.Services.AddSingleton(new SetupSessionService(null!, null!, TimeProvider.System));
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthority(() => _asAdministrator));
-        builder.Services.AddSingleton(new MediaEngine.Api.Services.Unmatched.UnmatchedCountService(new UnmatchedCountsSpy()));
+        builder.Services.AddSingleton(sp => new MediaEngine.Api.Services.Unmatched.UnmatchedCountService(
+            new UnmatchedCountsSpy(), sp.GetRequiredService<IVaultLibraryRepository>()));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new AllowEverything());
         var app = builder.Build();
         app.MapSettingsEndpoints();

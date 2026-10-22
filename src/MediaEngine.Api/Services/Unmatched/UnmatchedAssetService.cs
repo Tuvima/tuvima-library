@@ -31,6 +31,7 @@ public sealed class UnmatchedAssetService
     private readonly IIdentityPipelineSignal? _signal;
     private readonly ILibraryKindSource? _kindSource;
     private readonly TimeProvider _clock;
+    private readonly UnmatchedRetryWake? _wake;
 
     public UnmatchedAssetService(
         IUnmatchedAssetRepository unmatched,
@@ -43,7 +44,8 @@ public sealed class UnmatchedAssetService
         ILogger<UnmatchedAssetService> logger,
         IIdentityPipelineSignal? signal = null,
         ILibraryKindSource? kindSource = null,
-        TimeProvider? clock = null)
+        TimeProvider? clock = null,
+        UnmatchedRetryWake? wake = null)
     {
         _unmatched = unmatched;
         _jobs = jobs;
@@ -56,6 +58,7 @@ public sealed class UnmatchedAssetService
         _signal = signal;
         _kindSource = kindSource;
         _clock = clock ?? TimeProvider.System;
+        _wake = wake;
     }
 
     /// <summary>Retry now for one file: looks it up again straight away. False when the file is not Unmatched or was kept as it is (Look up again brings a kept file back).</summary>
@@ -70,21 +73,21 @@ public sealed class UnmatchedAssetService
         return item is not null && await RetryAsync(item, ct).ConfigureAwait(false);
     }
 
-    /// <summary>Retry now for a whole library: looks up again every file in it that is not kept. Returns how many were looked up.</summary>
+    /// <summary>
+    /// Retry now for a whole library: makes every file in it that is not kept due now and wakes the retry service, then returns at once with
+    /// how many were queued. The lookups run in the background in small batches (a library can hold thousands of files, so none of them
+    /// run inside the request).
+    /// </summary>
     public async Task<int> RetryLibraryNowAsync(string libraryId, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryId);
-        await _unmatched.MakeAllDueAsync(libraryId, _clock.GetUtcNow(), ct).ConfigureAwait(false);
-        var total = 0;
-        while (true)
+        var queued = await _unmatched.MakeAllDueAsync(libraryId, _clock.GetUtcNow(), ct).ConfigureAwait(false);
+        if (queued > 0)
         {
-            var done = await RetryDueAsync(ct, libraryId).ConfigureAwait(false);
-            total += done;
-            if (done < BatchSize)
-            {
-                return total;
-            }
+            _wake?.Signal();
         }
+
+        return queued;
     }
 
     /// <summary>Keep as is: stops the file's retries and takes it out of the Unmatched count and filter.</summary>

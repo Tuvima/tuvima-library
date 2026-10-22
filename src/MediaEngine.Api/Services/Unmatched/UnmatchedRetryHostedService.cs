@@ -22,7 +22,8 @@ public sealed class UnmatchedRetryHostedService : BackgroundService
     private readonly IConfigurationLoader _configuration;
     private readonly PluginCatalog? _plugins;
     private readonly ILogger<UnmatchedRetryHostedService> _logger;
-    private readonly SemaphoreSlim _wake = new(0, 1);
+    private readonly UnmatchedRetryWake _wake;
+    private readonly bool _ownsWake;
     private int _changePending;
 
     public UnmatchedRetryHostedService(
@@ -30,8 +31,11 @@ public sealed class UnmatchedRetryHostedService : BackgroundService
         ScheduledTaskRunner runner,
         IConfigurationLoader configuration,
         ILogger<UnmatchedRetryHostedService> logger,
-        PluginCatalog? plugins = null)
+        PluginCatalog? plugins = null,
+        UnmatchedRetryWake? wake = null)
     {
+        _ownsWake = wake is null;
+        _wake = wake ?? new UnmatchedRetryWake();
         _service = service;
         _runner = runner;
         _configuration = configuration;
@@ -51,14 +55,7 @@ public sealed class UnmatchedRetryHostedService : BackgroundService
     public void NotifyProviderOrPluginChanged()
     {
         Interlocked.Exchange(ref _changePending, 1);
-        try
-        {
-            _wake.Release();
-        }
-        catch (SemaphoreFullException)
-        {
-            // The loop is already due to wake; one wake-up covers every change before it.
-        }
+        _wake.Signal();
     }
 
     /// <summary>One pass: applies a pending provider or plugin change, then looks up again one batch of due files. Returns how many were handled.</summary>
@@ -127,7 +124,11 @@ public sealed class UnmatchedRetryHostedService : BackgroundService
             _plugins.Changed -= NotifyProviderOrPluginChanged;
         }
 
-        _wake.Dispose();
+        if (_ownsWake)
+        {
+            _wake.Dispose();
+        }
+
         base.Dispose();
     }
 
