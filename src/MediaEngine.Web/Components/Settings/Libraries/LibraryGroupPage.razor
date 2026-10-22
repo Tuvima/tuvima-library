@@ -1,6 +1,8 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Services.Vault
 @using MediaEngine.Web.Services.Ui
 @inject IAppDialogService DialogService
 
@@ -25,33 +27,81 @@
         </div>
     }
 
-    <div class="lib-page__list" role="group" aria-label="@($"{Group.Label} libraries")">
-        <div class="lib-page__head" aria-hidden="true">
-            <span>Name</span>
-            <span>Folders</span>
-            <span>Status</span>
+    @if (IsVault)
+    {
+        @* The Vault has one library. Its folders are kept out of the library settings the Dashboard reads, so the row shows the
+           library and where to manage it. *@
+        <div class="lib-page__list" role="group" aria-label="Vault library">
+            <div class="lib-page__head" aria-hidden="true">
+                <span>Name</span>
+                <span>Lookup</span>
+                <span></span>
+            </div>
+            @if (VaultReadFailed)
+            {
+                <AppPageState Kind="AppPageStateKind.Error"
+                              Icon="@AppMaterialIcons.Outlined.CloudOff"
+                              Title="The Vault library could not be read"
+                              Message="@VaultMessages.Unreachable">
+                    <Actions>
+                        <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => RetryVault.InvokeAsync())" />
+                    </Actions>
+                </AppPageState>
+            }
+            else if (VaultLibraries is null)
+            {
+                <AppSkeleton Height="60px" />
+            }
+            else if (VaultLibraries.Count == 0)
+            {
+                <div class="lib-page__row lib-page__empty"><span class="lib-page__counts">No Vault library yet.</span></div>
+            }
+            else
+            {
+                @foreach (var library in VaultLibraries)
+                {
+                    <div class="lib-page__row" data-vault-library="@library.Id">
+                        <span class="lib-page__name">
+                            <span class="lib-page__icon lib-page__icon--other"><AppMaterialIcon Icon="@Group.Icon" /></span>
+                            <strong>@Group.Label</strong>
+                        </span>
+                        <span class="lib-page__counts">@LookupLabel(library)</span>
+                        <a class="lib-page__manage" href="@ManageAddress">Manage in the Vault</a>
+                    </div>
+                }
+            }
         </div>
-        @foreach (var row in Rows)
-        {
-            var type = row.Type;
-            @* The warning's words open on hover and on keyboard focus of the link itself. *@
-            <AppTooltip Class="lib-page__tip" Text="@(row.Health is { Healthy: false } ? row.Health.Text : null)">
-            <a class="lib-page__row" href="@AddressFor(type)" data-type="@type.Key" aria-label="@AccessibleName(row)">
-                <span class="lib-page__name">
-                    <span class="@($"lib-page__icon lib-page__icon--{IconKey(type)}")"><AppMaterialIcon Icon="@type.Icon" /></span>
-                    <strong>@type.Label</strong>
-                </span>
-                <span class="lib-page__counts">@LibraryRollup.CountsText(row.Folders, row.Titles)</span>
-                <span class="lib-page__status">
-                    <LibraryHealthIcon Health="@row.Health" />
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
-                </span>
-            </a>
-            </AppTooltip>
-        }
-    </div>
+    }
+    else
+    {
+        <div class="lib-page__list" role="group" aria-label="@($"{Group.Label} libraries")">
+            <div class="lib-page__head" aria-hidden="true">
+                <span>Name</span>
+                <span>Folders</span>
+                <span>Status</span>
+            </div>
+            @foreach (var row in Rows)
+            {
+                var type = row.Type;
+                @* The warning's words open on hover and on keyboard focus of the link itself. *@
+                <AppTooltip Class="lib-page__tip" Text="@(row.Health is { Healthy: false } ? row.Health.Text : null)">
+                <a class="lib-page__row" href="@AddressFor(type)" data-type="@type.Key" aria-label="@AccessibleName(row)">
+                    <span class="lib-page__name">
+                        <span class="@($"lib-page__icon lib-page__icon--{IconKey(type)}")"><AppMaterialIcon Icon="@type.Icon" /></span>
+                        <strong>@type.Label</strong>
+                    </span>
+                    <span class="lib-page__counts">@LibraryRollup.CountsText(row.Folders, row.Titles)</span>
+                    <span class="lib-page__status">
+                        <LibraryHealthIcon Health="@row.Health" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
+                    </span>
+                </a>
+                </AppTooltip>
+            }
+        </div>
 
-    <LibraryIconLegend ShowHealth="true" />
+        <LibraryIconLegend ShowHealth="true" />
+    }
 </div>
 
 @code {
@@ -64,8 +114,20 @@
     [Parameter] public IReadOnlyDictionary<string, int>? ViewFolders { get; set; }
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>The Vault's libraries, for the Vault's own page; null while they are not known.</summary>
+    [Parameter] public IReadOnlyList<VaultLibraryDto>? VaultLibraries { get; set; }
+    /// <summary>The Vault's libraries could not be read (so they are unknown, not none).</summary>
+    [Parameter] public bool VaultReadFailed { get; set; }
+    /// <summary>Reads the Vault's libraries again.</summary>
+    [Parameter] public EventCallback RetryVault { get; set; }
     /// <summary>Raised after a folder was added through the wizard, so the page can refresh its counts.</summary>
     [Parameter] public EventCallback FolderAdded { get; set; }
+
+    private bool IsVault => Group.Key == LibraryGroupCatalog.VaultKey;
+
+    private static readonly string ManageAddress = VaultViews.Route(VaultViews.LibrarySettings);
+
+    private static string LookupLabel(VaultLibraryDto library) => library.LookupSource == "stash_box" ? "Stash-box" : "None";
 
     // The wizard starts on this group's tile.
     private async Task AddFolderAsync()
@@ -73,6 +135,7 @@
         var parameters = new AppDialogParameters<AddFolderWizard>
         {
             { component => component.StartGroupKey, Group.Key },
+            { component => component.ShowVault, IsVault },
             { component => component.Configuration, Configuration },
             { component => component.Kinds, Kinds },
             { component => component.OnFolderAdded, (Func<string?, Task>)(_ => FolderAdded.InvokeAsync()) },

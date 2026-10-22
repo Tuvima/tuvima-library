@@ -27,6 +27,13 @@ public sealed record VaultOnboardingResult(VaultOnboardingOutcome Outcome, strin
     public static VaultOnboardingResult Of(VaultOnboardingOutcome outcome, string? message = null) => new(outcome, message);
 }
 
+/// <summary>What a new Vault library is created with: where its details come from, and the person's adults-only confirmation (D34).</summary>
+public sealed record NewVaultLibrary(string LookupSource, string? LookupServerId, bool AdultsConfirmed)
+{
+    /// <summary>No lookups (file names only), which is what the dialog flow creates.</summary>
+    public static NewVaultLibrary WithoutLookup { get; } = new("none", null, true);
+}
+
 /// <summary>
 /// The third Add folder choice (Videos spec D3, D45), for administrators in Vault mode only. In order: the administrator needs a
 /// profile PIN of their own (D25), confirms that everyone who can unlock the Vault is an adult and the content is lawful and that
@@ -81,7 +88,29 @@ public sealed class VaultLibraryOnboarding(
         }
 
         var existing = await api.GetVaultLibrariesAsync(ct);
-        VaultLibraryDto? library = existing.Succeeded ? existing.Value?.FirstOrDefault() : null;
+        VaultLibraryDto? existingLibrary = existing.Succeeded ? existing.Value?.FirstOrDefault() : null;
+        return await AddFolderAsync(folderPath, existingLibrary, NewVaultLibrary.WithoutLookup, ct);
+    }
+
+    /// <summary>
+    /// The PIN step on its own, for a screen that has already asked its questions (the Add folder wizard's Vault step): the
+    /// administrator needs a PIN of their own and Vault mode must be on, which the caller checks. If there is no Vault library
+    /// yet (<paramref name="library"/> is null) it is created from <paramref name="newLibrary"/> with the person's confirmation;
+    /// otherwise the folder is added to <paramref name="library"/>. The Engine's refusals come back as plain sentences, unchanged.
+    /// </summary>
+    public async Task<VaultOnboardingResult> AddFolderAsync(string folderPath, VaultLibraryDto? library, NewVaultLibrary? newLibrary, CancellationToken ct = default)
+    {
+        if (!nsfw.Unlocked)
+        {
+            return VaultOnboardingResult.Of(VaultOnboardingOutcome.NotAvailable);
+        }
+
+        if (library is null && newLibrary is not { AdultsConfirmed: true })
+        {
+            // A new Vault library is never created without the adults-only confirmation.
+            return VaultOnboardingResult.Of(VaultOnboardingOutcome.Cancelled);
+        }
+
         VaultOnboardingResult? outcome = null;
 
         // One PIN entry covers both steps: creating the library (once; later folders reuse it) and adding the folder to it.
@@ -95,7 +124,7 @@ public sealed class VaultLibraryOnboarding(
             {
                 if (library is null)
                 {
-                    var created = await api.CreateVaultLibraryAsync(new CreateVaultLibraryRequest { LookupSource = "none", AdultsConfirmed = true, AdminPin = pin }, ct);
+                    var created = await api.CreateVaultLibraryAsync(new CreateVaultLibraryRequest { LookupSource = newLibrary!.LookupSource, LookupServerId = newLibrary.LookupServerId, AdultsConfirmed = true, AdminPin = pin }, ct);
                     if (!created.Succeeded)
                     {
                         return VaultMessages.For(created);

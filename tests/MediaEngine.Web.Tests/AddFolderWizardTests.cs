@@ -116,6 +116,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.ValidateServerFolderAsync), args => Task.FromResult<ServerFolderValidationResultDto?>(Validate((ValidateServerFolderRequest)args![0]!)));
             stub.SetHandler(nameof(IEngineApiClient.ValidateSetupServerFolderAsync), args => Task.FromResult<ServerFolderValidationResultDto?>(Validate((ValidateServerFolderRequest)args![0]!)));
         }));
+        Services.AddScoped<DashboardSessionAccessor>();
         Services.AddScoped<DeviceContextService>();
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();

@@ -83,10 +83,7 @@
     [Parameter] public IReadOnlyDictionary<string, int>? ViewFolders { get; set; }
     /// <summary>Folder path to issue, from <see cref="LibraryFolderHealth.CheckAsync"/>; null while the checks have not finished (no health icon is shown then).</summary>
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
-    /// <summary>
-    /// Draws the Vault strip. The Vault card follows the Vault's privacy rules, so the host decides; today it is always false
-    /// because Vault mode does not exist yet (the Videos Vault work adds it, and a later packet wires it here).
-    /// </summary>
+    /// <summary>Draws the Vault strip (and offers the Vault in Add folder). The Vault follows its privacy rules, so the host decides: see <see cref="LibraryVaultAccess"/>.</summary>
     [Parameter] public bool ShowVault { get; set; }
     /// <summary>Phones: cards and counts only, with a note saying where to change folders.</summary>
     [Parameter] public bool ReadOnly { get; set; }

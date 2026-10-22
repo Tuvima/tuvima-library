@@ -128,6 +128,12 @@ public static class LibraryRollup
         IReadOnlyDictionary<string, int>? viewFolders,
         IReadOnlyDictionary<string, string>? issues)
     {
+        // The Vault's folders are kept out of the library settings the Dashboard reads, so its strip shows no count rather than a wrong zero.
+        if (group.Key == LibraryGroupCatalog.VaultKey)
+        {
+            return new LibraryGroupSummary(group, [], null, null, null);
+        }
+
         var rows = RowsFor(kinds, group, configuration, overview, viewFolders, issues);
         int? folders = rows.Any(row => row.Folders is null) ? null : rows.Sum(row => row.Folders!.Value);
         int? titles = overview is null || rows.All(row => row.Titles is null) ? null : rows.Sum(row => row.Titles ?? 0);
