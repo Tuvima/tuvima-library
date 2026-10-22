@@ -220,6 +220,13 @@ public sealed class EngineCompositionValidationTests
             new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
 
         Assert.IsType<MediaEngine.Providers.Services.ConfiguredExternalLookupGuard>(provider.GetRequiredService<IExternalLookupGuard>());
+        // The one merged kinds list (plugins included) is what ingestion's folder list and the guard read.
+        Assert.IsType<MediaEngine.Api.Services.Settings.LibraryKindListService>(provider.GetRequiredService<ILibraryKindSource>());
+        Assert.NotNull(provider.GetRequiredService<IOptionsMonitor<MediaEngine.Ingestion.Models.IngestionOptions>>().CurrentValue);
+        var guardKinds = typeof(MediaEngine.Providers.Services.ConfiguredExternalLookupGuard)
+            .GetField("_kindSource", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(provider.GetRequiredService<IExternalLookupGuard>());
+        Assert.NotNull(guardKinds);
         // These take the guard as an optional argument; a missing registration would leave them unguarded without any error.
         object[] guarded =
         [

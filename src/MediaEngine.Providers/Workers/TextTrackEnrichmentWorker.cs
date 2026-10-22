@@ -33,6 +33,7 @@ public sealed class TextTrackEnrichmentWorker
     private readonly ITextTrackExportService? _textTrackExportService;
     private readonly IConfigurationLoader? _configurationLoader;
     private readonly ITvEpisodeCrosswalk? _episodeCrosswalk;
+    private readonly ILibraryKindSource? _kindSource;
 
     public TextTrackEnrichmentWorker(
         IMediaAssetRepository assetRepo,
@@ -45,8 +46,10 @@ public sealed class TextTrackEnrichmentWorker
         ILogger<TextTrackEnrichmentWorker> logger,
         ITextTrackExportService? textTrackExportService = null,
         IConfigurationLoader? configurationLoader = null,
-        ITvEpisodeCrosswalk? episodeCrosswalk = null)
+        ITvEpisodeCrosswalk? episodeCrosswalk = null,
+        ILibraryKindSource? kindSource = null)
     {
+        _kindSource = kindSource;
         _assetRepo = assetRepo;
         _workRepo = workRepo;
         _canonicalRepo = canonicalRepo;
@@ -262,7 +265,7 @@ public sealed class TextTrackEnrichmentWorker
                 string.Equals(candidate.Id, asset.LibraryId, StringComparison.OrdinalIgnoreCase));
             // The library's kind decides first: a plain kind never contacts a subtitle or lyrics provider (Library setup D38).
             return library is not null
-                && LibraryKindLookupPolicy.BypassesExternalIdentity(library, _configurationLoader.LoadLibraryKinds().Kinds);
+                && LibraryKindLookupPolicy.BypassesExternalIdentity(library, _kindSource?.GetKinds() ?? _configurationLoader.LoadLibraryKinds().Kinds);
         }
         catch (Exception ex)
         {

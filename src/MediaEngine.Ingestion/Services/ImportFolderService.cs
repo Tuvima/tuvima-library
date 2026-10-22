@@ -19,14 +19,16 @@ public sealed class ImportFolderService : IImportFolderService
 
     private readonly IConfigurationLoader _configLoader;
     private readonly ILogger<ImportFolderService> _logger;
+    private readonly ILibraryKindSource? _kindSource;
     private readonly object _cacheLock = new();
     private LibrariesConfiguration? _cached;
     private (DateTime LastWriteUtc, long Length)? _cachedStamp;
     private IReadOnlyList<(string Label, string[] MediaTypes)>? _cachedTypes;
     private (DateTime LastWriteUtc, long Length)? _cachedTypesStamp;
 
-    public ImportFolderService(IConfigurationLoader configLoader, ILogger<ImportFolderService> logger)
+    public ImportFolderService(IConfigurationLoader configLoader, ILogger<ImportFolderService> logger, ILibraryKindSource? kindSource = null)
     {
+        _kindSource = kindSource;
         ArgumentNullException.ThrowIfNull(configLoader);
         ArgumentNullException.ThrowIfNull(logger);
         _configLoader = configLoader;
@@ -293,7 +295,7 @@ public sealed class ImportFolderService : IImportFolderService
     {
         try
         {
-            return _configLoader.LoadLibraryKinds().Kinds;
+            return _kindSource?.GetKinds() ?? _configLoader.LoadLibraryKinds().Kinds;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

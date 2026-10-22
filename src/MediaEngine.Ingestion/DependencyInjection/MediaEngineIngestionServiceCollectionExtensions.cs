@@ -163,9 +163,9 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.Configure<IngestionOptions>(configuration.GetSection(IngestionOptions.SectionName));
 
         // Saving libraries.json refreshes the folder list the file-source policy reads, with no restart.
-        var libraryChanges = new LibrariesOptionsChangeTokenSource(configLoader);
-        services.AddSingleton(libraryChanges);
-        services.AddSingleton<Microsoft.Extensions.Options.IOptionsChangeTokenSource<IngestionOptions>>(libraryChanges);
+        services.AddSingleton(sp => new LibrariesOptionsChangeTokenSource(configLoader, sp.GetService<ILibraryKindSource>()));
+        services.AddSingleton<Microsoft.Extensions.Options.IOptionsChangeTokenSource<IngestionOptions>>(
+            sp => sp.GetRequiredService<LibrariesOptionsChangeTokenSource>());
 
         services.AddOptions<IngestionOptions>().PostConfigure<IServiceProvider>((opts, serviceProvider) =>
         {
@@ -212,7 +212,7 @@ public static class MediaEngineIngestionServiceCollectionExtensions
             {
                 var libraries = configLoader.LoadLibraries();
                 opts.DuplicatePolicy = libraries.FileHandling.DuplicatePolicy;
-                var kinds = LoadKindsOrBuiltIn(configLoader);
+                var kinds = LoadKindsOrBuiltIn(configLoader, serviceProvider.GetService<ILibraryKindSource>());
                 opts.LibraryFolders = LibraryFolderEntryFactory.CreateAll(libraries.Libraries, kinds, logger)
                     .Where(e => e.EffectiveSourcePaths.Count > 0)
                     .ToList();
@@ -250,11 +250,12 @@ public static class MediaEngineIngestionServiceCollectionExtensions
     }
 
     // A kinds file that can't be read leaves the kinds that ship, so a plain kind still never looks anything up.
-    private static IReadOnlyList<LibraryKindDefinition> LoadKindsOrBuiltIn(IConfigurationLoader configLoader)
+    private static IReadOnlyList<LibraryKindDefinition> LoadKindsOrBuiltIn(IConfigurationLoader configLoader, ILibraryKindSource? kindSource)
     {
         try
         {
-            return configLoader.LoadLibraryKinds().Kinds;
+            // The merged list: the kinds that ship plus those of switched-on plugins, so a plugin's plain kind is plain here too.
+            return kindSource?.GetKinds() ?? configLoader.LoadLibraryKinds().Kinds;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

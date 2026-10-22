@@ -16,20 +16,36 @@ public sealed record LibraryKindEntry(LibraryKindDefinition Kind, string? Plugin
 /// the list is asked for, so switching a plugin on or off changes the list at once with nothing written to the config folder
 /// (metadata sources, by contrast, are files that the providers read at start-up).
 /// </summary>
-public sealed class LibraryKindListService(IConfigurationLoader loader, PluginCatalog plugins)
+public sealed class LibraryKindListService : ILibraryKindSource
 {
+    private readonly IConfigurationLoader _loader;
+    private readonly PluginCatalog _plugins;
+
+    public LibraryKindListService(IConfigurationLoader loader, PluginCatalog plugins)
+    {
+        _loader = loader;
+        _plugins = plugins;
+        plugins.Changed += () => Changed?.Invoke();
+    }
+
+    /// <inheritdoc/>
+    public event Action? Changed;
+
+    /// <inheritdoc/>
+    public IReadOnlyList<LibraryKindDefinition> GetKinds() => [.. GetAll().Select(entry => entry.Kind)];
+
     private static readonly string[] AreaOrder =
         [LibraryAreas.Watch, LibraryAreas.Listen, LibraryAreas.Read, LibraryAreas.View, LibraryAreas.Vault];
 
     /// <summary>Every kind, available or not, ordered by area (Watch, Listen, Read, View, Vault), then by <c>order</c>, then by key.</summary>
     public IReadOnlyList<LibraryKindEntry> GetAll()
     {
-        var entries = loader.LoadLibraryKinds().Kinds
+        var entries = _loader.LoadLibraryKinds().Kinds
             .Select(kind => new LibraryKindEntry(kind, null, [.. kind.Lookup.Providers]))
             .ToList();
         var keys = new HashSet<string>(entries.Select(entry => entry.Kind.Key), StringComparer.Ordinal);
 
-        foreach (var registration in plugins.List().Where(registration => registration is { Enabled: true, LoadError: null }))
+        foreach (var registration in _plugins.List().Where(registration => registration is { Enabled: true, LoadError: null }))
         {
             var ownSources = registration.Capabilities.OfType<DeclarativeMetadataSourceCapability>().Select(capability => capability.Source.Name).ToHashSet(StringComparer.Ordinal);
             foreach (var capability in registration.Capabilities.OfType<DeclarativeLibraryKindCapability>())

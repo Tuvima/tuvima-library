@@ -43,7 +43,8 @@ internal sealed class ArtworkScopeService(
     IMediaAssetRepository mediaAssetRepo,
     IMetadataEditorRepository metadataData,
     AssetPathService assetPathService,
-    IConfigurationLoader configurationLoader)
+    IConfigurationLoader configurationLoader,
+    ILibraryKindSource? kindSource = null)
 {
     public async Task<ArtworkEditorEnvelope> BuildScopedArtworkEnvelopeAsync(
         EditorScopeResolution scope,
@@ -178,7 +179,7 @@ internal sealed class ArtworkScopeService(
             {
                 library = configurationLoader.LoadLibraries().Libraries.FirstOrDefault(candidate =>
                     string.Equals(candidate.Id, representativeAsset.LibraryId, StringComparison.OrdinalIgnoreCase));
-                kinds = configurationLoader.LoadLibraryKinds().Kinds;
+                kinds = kindSource?.GetKinds() ?? configurationLoader.LoadLibraryKinds().Kinds;
             }
             catch
             {
