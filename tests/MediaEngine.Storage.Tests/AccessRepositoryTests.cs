@@ -339,6 +339,42 @@ public sealed class AccessRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task AVaultLibrary_CanNeverBeGrantedToAnAccount_AndNothingIsChangedWhenItIsTried()
+    {
+        var account = new Account
+        {
+            Id = Guid.NewGuid(),
+            Email = "vaultgrant@example.test",
+            NormalizedEmail = "VAULTGRANT@EXAMPLE.TEST",
+            IsEnabled = true,
+            AuthorizationVersion = 1,
+            CreatedAt = _now,
+            UpdatedAt = _now,
+        };
+        var ordinary = Guid.NewGuid();
+        var vault = Guid.NewGuid();
+        await _accounts.CreateAccountAsync(
+            account,
+            Grant(account.Id, Profile.SeedProfileId, isDefault: true),
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read },
+            new HashSet<Guid> { ordinary });
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO vault_libraries(library_id, lookup_source, lookup_server_id, adults_confirmed_at, created_at, updated_at) VALUES(@vault,'none',NULL,@now,@now,@now);",
+                new { vault = vault.ToString("D"), now = _now.ToString("O") });
+        }
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _accounts.ReplaceAccountAccessAsync(
+            account.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read },
+            new HashSet<Guid> { ordinary, vault },
+            _now.AddMinutes(1)));
+
+        Assert.Equal(new HashSet<Guid> { ordinary }, (await _accounts.GetLibraryGrantsAsync(account.Id)).ToHashSet());
+    }
+
+    [Fact]
     public async Task ViewScopeParentsAndSharedIdentity_CannotBeMutatedIntoInvalidState()
     {
         var sharedLibrary = await new ViewSharedLibraryRepository(_database).GetAsync();

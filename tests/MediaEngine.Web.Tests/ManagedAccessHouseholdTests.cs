@@ -174,7 +174,7 @@ public sealed class ManagedAccessHouseholdTests : AsyncBunitContext
                 [new("read", true), new("watch", true)],
                 [new(HouseholdLibrary.Id, HouseholdLibrary.DisplayName, true)],
                 [new AccountProfileGrantDto(id, profileId, "Profile", null, true, true, false,
-                    new GrantAdminProtectionDto(false, "FixedDuration", 30, 1, false, null), 1, DateTimeOffset.UtcNow)],
+                    new GrantAdminProtectionDto(false, "FixedDuration", 30, 1), 1, DateTimeOffset.UtcNow)],
                 DateTimeOffset.UtcNow.AddMonths(-1) + TimeSpan.FromMinutes(id == AdminAccountId ? 0 : 5), DateTimeOffset.UtcNow, null,
                 HouseholdId, GrantsInheritFromAccountId: inheritsFrom, HouseholdAdmin: householdAdmin);
 

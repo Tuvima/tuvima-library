@@ -1,0 +1,59 @@
+@using MediaEngine.Contracts.Vault
+@namespace MediaEngine.Web.Components.Vault
+@implements IDisposable
+@inject NsfwModeState Nsfw
+
+@* The viewing options of Videos spec D24, remembered per profile on this device: Layout, Group by, Sort, Covers and Titles. *@
+<div class="vault-options" role="group" aria-label="Viewing options">
+    <AppNativeSelect Value="@Nsfw.Preferences.Layout.ToString()" aria-label="Layout"
+                     OnChange="@(e => Change(preferences => preferences with { Layout = Parse(e, preferences.Layout) }))">
+        @foreach (var choice in Enum.GetValues<VaultLayout>())
+        {
+            <option value="@choice">@VaultViewLabels.For(choice)</option>
+        }
+    </AppNativeSelect>
+    <AppNativeSelect Value="@Nsfw.Preferences.GroupBy.ToString()" aria-label="Group by"
+                     OnChange="@(e => Change(preferences => preferences with { GroupBy = Parse(e, preferences.GroupBy) }))">
+        @foreach (var choice in Enum.GetValues<VaultGroupBy>())
+        {
+            <option value="@choice">Group by: @VaultViewLabels.For(choice)</option>
+        }
+    </AppNativeSelect>
+    <AppNativeSelect Value="@Nsfw.Preferences.Sort.ToString()" aria-label="Sort"
+                     OnChange="@(e => Change(preferences => preferences with { Sort = Parse(e, preferences.Sort) }))">
+        @foreach (var choice in Enum.GetValues<VaultSort>())
+        {
+            <option value="@choice">Sort: @VaultViewLabels.For(choice)</option>
+        }
+    </AppNativeSelect>
+    <AppNativeSelect Value="@Nsfw.Preferences.Covers.ToString()" aria-label="Covers"
+                     OnChange="@(e => Change(preferences => preferences with { Covers = Parse(e, preferences.Covers) }))">
+        @foreach (var choice in Enum.GetValues<VaultCoverMode>())
+        {
+            <option value="@choice">Covers: @VaultViewLabels.For(choice)</option>
+        }
+    </AppNativeSelect>
+    <AppNativeSelect Value="@(Nsfw.Preferences.TitlesHiddenUntilPointed ? "hidden" : "shown")" aria-label="Titles"
+                     OnChange="@(e => Change(preferences => preferences with { TitlesHiddenUntilPointed = e.Value?.ToString() == "hidden" }))">
+        <option value="shown">Titles: Shown</option>
+        <option value="hidden">Titles: Hidden until pointed at</option>
+    </AppNativeSelect>
+    <AppNativeSelect Value="@(Nsfw.Preferences.HoverStills ? "on" : "off")" aria-label="Hover previews"
+                     OnChange="@(e => Change(preferences => preferences with { HoverStills = e.Value?.ToString() == "on" }))">
+        <option value="off">Hover previews: Off</option>
+        <option value="on">Hover previews: Matched scenes</option>
+    </AppNativeSelect>
+</div>
+
+@code {
+    protected override void OnInitialized() => Nsfw.Changed += OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private Task Change(Func<VaultViewPreferences, VaultViewPreferences> change) => Nsfw.UpdatePreferencesAsync(change);
+
+    private static T Parse<T>(ChangeEventArgs args, T current) where T : struct, Enum =>
+        Enum.TryParse<T>(args.Value?.ToString(), out var parsed) ? parsed : current;
+
+    public void Dispose() => Nsfw.Changed -= OnChanged;
+}

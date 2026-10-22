@@ -241,19 +241,30 @@ public static partial class BackupTableClassification
         Transient("data_store_upgrades", "Which data store upgrade steps have run."),
         Transient("storage_metadata", "Data store bookkeeping."),
 
-        // ---------------------------------------------------------------------------------------------------------
-        // Registered ahead of Videos Wave 3 (PR #374).
-        // These tables are created by that branch (git show origin/claude/project-thread-lo9aal:
-        // src/MediaEngine.Storage/Schema/schema.snapshot.sql) and do not exist on main yet. That branch adds the rules
-        // for its own area-specific tables when it merges. These are listed in
-        // RegisteredAhead so the guardrail tolerates them until that branch merges; remove each name from that set
-        // once its table lands.
-        // ---------------------------------------------------------------------------------------------------------
-        Config("profile_nsfw_settings", "How each profile's adult area is locked."),
-        Config("profile_nsfw_pins", "Adult area PIN hashes, needed to open it after a restore."),
+        // Videos Wave 3: the Vault. Settings and each person's own state are kept; the Vault catalogue is never backed up (a rescan rebuilds it).
+        Config("profile_nsfw_settings", "How each profile's Vault mode is protected and when it turns off."),
+        Config("vault_libraries", "Which libraries are Vault libraries and how they look things up."),
         Personal("bookmark_packs", "profile_id", "Bookmark packs a person imported for a title.", refs: [Work("work_id"), Asset("asset_id")]),
         Personal("bookmark_pack_items", null, "The bookmarks inside a pack (owned through the pack's profile).", refs: []),
-        Transient("nsfw_session_unlocks", "Temporary adult area unlocks."),
+        Personal("vault_pending_bookmarks", "profile_id", "Vault bookmarks waiting for their title after a restore.", refs: []),
+        Transient("nsfw_session_unlocks", "Temporary Vault mode sessions."),
+        Catalogue("vault_activity", "Quiet list of Vault ingestion activity."),
+        Catalogue("vault_artwork", "Vault artwork."),
+        Catalogue("vault_asset_performers", "Vault performers per video."),
+        Catalogue("vault_asset_studios", "Vault studios per video."),
+        Catalogue("vault_asset_tags", "Vault tags per video."),
+        Catalogue("vault_field_sources", "Where each Vault field came from."),
+        Catalogue("vault_file_fingerprints", "Vault file fingerprints."),
+        Catalogue("vault_matches", "Vault lookup matches."),
+        Catalogue("vault_performers", "Vault performers."),
+        Catalogue("vault_studios", "Vault studios."),
+        Catalogue("vault_tags", "Vault tags."),
+        Catalogue("vault_galleries", "Vault image galleries."),
+        Catalogue("vault_gallery_items", "Images inside Vault galleries."),
+        Catalogue("vault_image_folders", "Vault image folders."),
+        Catalogue("vault_image_items", "Vault images."),
+        Catalogue("vault_image_libraries", "Vault image libraries."),
+        Catalogue("vault_image_tags", "Vault image tags."),
 
         .. SearchIndexRules(),
     ];
@@ -262,14 +273,7 @@ public static partial class BackupTableClassification
     /// Tables registered before they exist on main (Videos Wave 3 adds them). The guardrail tests allow a rule
     /// for a table that does not exist only if the table is named here.
     /// </summary>
-    public static IReadOnlySet<string> RegisteredAhead { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        "profile_nsfw_settings",
-        "profile_nsfw_pins",
-        "bookmark_packs",
-        "bookmark_pack_items",
-        "nsfw_session_unlocks",
-    };
+    public static IReadOnlySet<string> RegisteredAhead { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Every rule, by table name (case-insensitive).</summary>
     public static IReadOnlyDictionary<string, BackupTableRule> Rules { get; } = BuildRules();

@@ -3,6 +3,8 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Identity;
+using MediaEngine.Identity.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using DomainAuthorizationEvaluator = MediaEngine.Domain.Contracts.IAuthorizationEvaluator;
@@ -399,7 +401,7 @@ public sealed class AuthorizationEvaluator(
 
 public sealed class GrantAdminUnlockService(
     IAccountRepository accounts,
-    IPasswordHasher<GrantAdminProtection> hasher,
+    IProfilePinVerifier profilePins,
     TimeProvider clock) : IGrantAdminUnlockService
 {
     public async ValueTask<GrantAdminUnlockState> GetStateAsync(
@@ -446,20 +448,27 @@ public sealed class GrantAdminUnlockService(
 
         var mode = ParseMode(protection.UnlockMode);
         var now = clock.GetUtcNow();
-        if (protection.LockedUntil > now)
-        {
-            throw new InvalidOperationException("Administrator unlock is temporarily locked.");
-        }
 
-        if (string.IsNullOrWhiteSpace(protection.PinHash) ||
-            hasher.VerifyHashedPassword(protection, protection.PinHash, pin) == PasswordVerificationResult.Failed)
+        // The profile's own PIN, with the profile PIN's wrong-try count and pause (five tries, 15 minutes). A profile with no PIN
+        // cannot pass: the question is only ever switched on for a profile that has one.
+        if (!await profilePins.HasProfilePinAsync(ids.Profile, ct).ConfigureAwait(false))
         {
-            await accounts.RecordAdminProtectionFailureAsync(
-                ids.Account, ids.Profile, now.AddMinutes(15), ct).ConfigureAwait(false);
             throw new UnauthorizedAccessException("Invalid administrator PIN.");
         }
 
-        await accounts.ResetAdminProtectionAttemptsAsync(ids.Account, ids.Profile, ct).ConfigureAwait(false);
+        try
+        {
+            await profilePins.VerifyProfilePinAsync(ids.Profile, pin, countsTowardLockout: true, ct).ConfigureAwait(false);
+        }
+        catch (ProfilePinLockedException)
+        {
+            throw new InvalidOperationException("Administrator unlock is temporarily locked.");
+        }
+        catch (ProfilePinRequiredException)
+        {
+            throw new UnauthorizedAccessException("Invalid administrator PIN.");
+        }
+
         DateTimeOffset? expiresAt = mode switch
         {
             AdminUnlockMode.FixedDuration => now.AddMinutes(Math.Clamp(protection.UnlockMinutes ?? 30, 1, 120)),

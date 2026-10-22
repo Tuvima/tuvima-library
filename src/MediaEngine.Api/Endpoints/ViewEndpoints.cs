@@ -22,7 +22,8 @@ public static partial class ViewEndpoints
             .RequireAuthorization(AuthPolicies.Authenticated);
 
         group.MapGet("/library-capacity", async (string? area, IConfigurationLoader configuration,
-            IViewRequestProfileContext identity, IAccountAccessDecisionService accounts, CancellationToken ct) =>
+            IViewRequestProfileContext identity, IAccountAccessDecisionService accounts,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, HttpContext http, CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
             if (!authority.IsAuthenticated)
@@ -50,8 +51,17 @@ public static partial class ViewEndpoints
                 var libraries = normalizedArea == "collections"
                     ? config.Libraries
                     : config.Libraries.Where(library => string.Equals(library.Area, normalizedArea, StringComparison.OrdinalIgnoreCase));
+                // The Vault's folders and the disk they sit on are not part of the shared capacity picture; they show only inside
+                // Vault mode (Videos spec D17, D45).
+                var vaultIds = await vaultLibraries.GetIdsAsync(ct);
+                var hideVault = vaultIds.Count > 0 && !await http.IsVaultUnlockedAsync(ct);
                 foreach (var library in libraries)
                 {
+                    if (hideVault && vaultIds.Contains(library.Id))
+                    {
+                        continue;
+                    }
+
                     var feature = library.Area.ToLowerInvariant() switch { "read" => AccountFeatureId.Read, "watch" => AccountFeatureId.Watch, "listen" => AccountFeatureId.Listen, _ => AccountFeatureId.View };
                     if (!Guid.TryParse(library.Id, out var libraryId)
                         || !(await accounts.EvaluateFeatureAsync(authority, feature, ct)).IsAllowed
@@ -929,7 +939,7 @@ public static partial class ViewEndpoints
         group.MapPost("/admin/profiles/{profileId:guid}/sources", async (
             Guid profileId, CreateViewSourceRequest request, IProfileService profiles,
             ViewStorageService storage, ViewSourceIndexingHostedService indexing,
-            ViewLibraryService viewLibrary, IViewProfileRepository policies, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, CancellationToken ct) =>
+            ViewLibraryService viewLibrary, IViewProfileRepository policies, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, HttpContext http, CancellationToken ct) =>
         {
             if (await profiles.GetProfileAsync(profileId, ct) is null)
             {
@@ -959,7 +969,7 @@ public static partial class ViewEndpoints
                     {
                         ManualPath = request.Path,
                         SelectionMode = MediaEngine.Contracts.Settings.ServerFolderSelectionModes.PersonalSpaceExisting,
-                    });
+                    }, await http.HiddenVaultFolderRootsAsync(ct));
                     if (!validation.CanSelect)
                     {
                         return ApiErrors.BadRequest(validation.Issues.First(x => x.Severity == "error").Message);
@@ -1068,6 +1078,7 @@ public static partial class ViewEndpoints
             CreateViewSourceRequest request, ViewSharedSourceService sources,
             ViewStorageService storage, ViewSourceIndexingHostedService indexing,
             MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders,
+            HttpContext http,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.Name))
@@ -1088,7 +1099,7 @@ public static partial class ViewEndpoints
                     {
                         ManualPath = request.Path,
                         SelectionMode = MediaEngine.Contracts.Settings.ServerFolderSelectionModes.PersonalSpaceExisting,
-                    });
+                    }, await http.HiddenVaultFolderRootsAsync(ct));
                     if (!validation.CanSelect)
                     {
                         return ApiErrors.BadRequest(validation.Issues.First(issue => issue.Severity == "error").Message);

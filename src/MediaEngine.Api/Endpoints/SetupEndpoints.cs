@@ -252,14 +252,17 @@ public static class SetupEndpoints
 
         group.MapGet("/libraries", async (
             HttpContext context, ClaimsPrincipal user, SetupSessionService sessions,
-            IConfigurationLoader configuration, CancellationToken ct) =>
+            IConfigurationLoader configuration, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
             if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
             {
                 return Results.Unauthorized();
             }
 
-            return Results.Ok(SettingsContractMapper.ToContract(configuration.LoadLibraries()));
+            // The Vault is in no library list, including the one setup shows (Videos spec D45).
+            return Results.Ok(SettingsContractMapper.ToContract(
+                MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(
+                    configuration.LoadLibraries(), await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false))));
         }).Produces<LibrariesConfigurationDto>();
 
         group.MapPut("/libraries", async (
@@ -323,7 +326,7 @@ public static class SetupEndpoints
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(service.Browse(request)); }
+            try { return Results.Ok(service.Browse(request, await context.HiddenVaultFolderRootsAsync(ct).ConfigureAwait(false))); }
             catch (ServerFolderAccessException exception) { return ApiErrors.BadRequest(exception.Message); }
         }).Produces<BrowseServerFoldersResultDto>();
 
@@ -336,7 +339,7 @@ public static class SetupEndpoints
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(service.Validate(request)); }
+            try { return Results.Ok(service.Validate(request, await context.HiddenVaultFolderRootsAsync(ct).ConfigureAwait(false))); }
             catch (ServerFolderAccessException exception) { return ApiErrors.BadRequest(exception.Message); }
         }).Produces<ServerFolderValidationResultDto>();
 

@@ -1,5 +1,6 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain.Authorization;
@@ -19,10 +20,11 @@ public static class OperationsEndpoints
             string? queueName,
             int? limit,
             IMediaOperationRepository repository,
+            [Microsoft.AspNetCore.Mvc.FromServices] VaultOperationGate vault,
             CancellationToken ct) =>
         {
             var paged = PagedRequest.From(null, limit, defaultLimit: 200);
-            var operations = await repository.GetQueueAsync(queueName, paged.Limit, ct);
+            var operations = await vault.VisibleAsync(await repository.GetQueueAsync(queueName, paged.Limit, ct), ct);
             return Results.Ok(operations.Select((op, index) => MapOperation(op, index + 1)).ToList());
         })
         .WithName("ListMediaOperations")
@@ -34,10 +36,11 @@ public static class OperationsEndpoints
             Guid id,
             IMediaOperationRepository repository,
             IMediaOperationEventRepository events,
+            [Microsoft.AspNetCore.Mvc.FromServices] VaultOperationGate vault,
             CancellationToken ct) =>
         {
             var operation = await repository.GetByIdAsync(id, ct);
-            if (operation is null)
+            if (operation is null || await vault.HidesAsync(operation, ct))
             {
                 return ApiErrors.NotFound($"Media operation '{id}' not found.");
             }
@@ -69,9 +72,10 @@ public static class OperationsEndpoints
         group.MapPost("/{id:guid}/retry", async (
             Guid id,
             IMediaOperationRepository repository,
+            [Microsoft.AspNetCore.Mvc.FromServices] VaultOperationGate vault,
             CancellationToken ct) =>
         {
-            if (await repository.GetByIdAsync(id, ct) is null)
+            if (await repository.GetByIdAsync(id, ct) is not { } operation || await vault.HidesAsync(operation, ct))
             {
                 return ApiErrors.NotFound($"Media operation '{id}' not found.");
             }
@@ -87,9 +91,10 @@ public static class OperationsEndpoints
         group.MapPost("/{id:guid}/cancel", async (
             Guid id,
             IMediaOperationRepository repository,
+            [Microsoft.AspNetCore.Mvc.FromServices] VaultOperationGate vault,
             CancellationToken ct) =>
         {
-            if (await repository.GetByIdAsync(id, ct) is null)
+            if (await repository.GetByIdAsync(id, ct) is not { } operation || await vault.HidesAsync(operation, ct))
             {
                 return ApiErrors.NotFound($"Media operation '{id}' not found.");
             }

@@ -1179,7 +1179,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 GROUP BY {PresentationGroupSql}
             )
             SELECT COUNT(*) AS ItemsAddedToday,
-                   (SELECT MAX(COALESCE(updated_at, created_at)) FROM ingestion_log) AS LastActivityAt
+                   (SELECT MAX(COALESCE(updated_at, created_at)) FROM ingestion_log WHERE media_asset_id IS NULL OR {VaultSql.NotVaultAsset("ingestion_log.media_asset_id")}) AS LastActivityAt
             FROM scoped;
             """, new
         {
@@ -1202,23 +1202,25 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     private async Task<CurrentOperationFacts> ReadCurrentOperationFactsAsync(CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
-        return await conn.QuerySingleAsync<CurrentOperationFacts>(new CommandDefinition("""
+        return await conn.QuerySingleAsync<CurrentOperationFacts>(new CommandDefinition($"""
             SELECT
-                COUNT(CASE WHEN status IN ('leased','running','processing','active') THEN 1 END) + (SELECT COUNT(*) FROM identity_jobs WHERE state IN ('RetailSearching','BridgeSearching','Hydrating','UniverseEnriching')) AS Active,
-                COUNT(CASE WHEN status IN ('pending','queued') THEN 1 END) + (SELECT COUNT(*) FROM identity_jobs WHERE state IN ('Queued','RetailMatched','QidResolved')) AS Queued,
+                COUNT(CASE WHEN status IN ('leased','running','processing','active') THEN 1 END) + (SELECT COUNT(*) FROM identity_jobs WHERE state IN ('RetailSearching','BridgeSearching','Hydrating','UniverseEnriching') AND {VaultSql.NotVaultEntity("identity_jobs.entity_id")}) AS Active,
+                COUNT(CASE WHEN status IN ('pending','queued') THEN 1 END) + (SELECT COUNT(*) FROM identity_jobs WHERE state IN ('Queued','RetailMatched','QidResolved') AND {VaultSql.NotVaultEntity("identity_jobs.entity_id")}) AS Queued,
                 COUNT(CASE WHEN status IN ('retry_waiting','failed_retryable','interrupted') THEN 1 END) AS RetryWaiting,
                 COUNT(CASE WHEN status IN ('pending','queued','leased','running','processing','active','retry_waiting','failed_retryable','interrupted')
                              AND (LOWER(operation_type) LIKE '%lyric%' OR LOWER(operation_type) LIKE '%subtitle%' OR LOWER(COALESCE(capability_id,'')) LIKE '%lyric%' OR LOWER(COALESCE(capability_id,'')) LIKE '%subtitle%') THEN 1 END) AS TextTrackWaiting
-            FROM media_operations;
+            FROM media_operations
+            WHERE {VaultSql.NotVaultEntity("media_operations.entity_id")};
             """, cancellationToken: ct)).ConfigureAwait(false);
     }
 
     private async Task<int> ReadPendingReviewCountAsync(CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
-        return await conn.ExecuteScalarAsync<int>(new CommandDefinition("""
+        return await conn.ExecuteScalarAsync<int>(new CommandDefinition($"""
             SELECT COUNT(*) FROM review_queue
-            WHERE status = 'Pending' AND review_ready_at IS NOT NULL;
+            WHERE status = 'Pending' AND review_ready_at IS NOT NULL
+              AND {VaultSql.NotVaultEntity("review_queue.entity_id")};
             """, cancellationToken: ct)).ConfigureAwait(false);
     }
 
@@ -1413,7 +1415,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     private const string AddedAtSql = "w.first_ready_at";
 
     // The newest ingestion log row of each file, from any intake. A file that is scanned again is still one file.
-    private const string LatestLogsCte = """
+    // A file in a Vault library never shows here (Videos spec D17, D32): not as a row, not in any count.
+    private static readonly string LatestLogsCte = $"""
         latest_logs AS (
             SELECT *
             FROM (
@@ -1423,6 +1426,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                            ORDER BY il.updated_at DESC, il.created_at DESC) AS rn
                 FROM ingestion_log il
                 WHERE il.media_asset_id IS NOT NULL
+                  AND {VaultSql.NotVaultAsset("il.media_asset_id")}
             )
             WHERE rn = 1
         )

@@ -589,3 +589,27 @@ Browser playback mechanics for the Dashboard Listen host. These are not user lis
 ### Retail matrix follow-up
 
 Retail identity confidence uses typed per-media `scoring.scopes` in `config/pipelines.json` and synchronized settings defaults. Eight scopes replace the global retail weights: books, audiobooks, movies, TV series, TV episodes, music tracks, music albums and comic issues. Missing optional values redistribute their weight and show Not provided; required creator evidence fails closed. Genre contributes nothing. Wrong-kind and structural gates apply after bonuses. Additive nullable `field_scores` exposes the complete durable breakdown. Accept/review thresholds remain 0.90/0.65. See `docs/architecture/scoring-and-cascade.md` for the normative matrices and the distinction from canonical trust scoring. No legacy fallback or data conversion is supported.
+
+### Adult-only providers and the Stash-box plugin
+
+Two optional flags on a provider file (`config/providers/*.json`) decide who may be asked about what.
+
+| Field | What it does |
+|---|---|
+| `adult_only` | The provider is asked only about Vault items (files in a Vault library). Every other provider, YouTube included, is never asked about a Vault item. The Library enforces this in one place (`IProviderAudienceGate`), so a provider cannot opt out. |
+| `file_fingerprint` | The provider can also match a file by a fingerprint of it. That sends a fingerprint of the file, so it is a separate permission an administrator turns on ("Sends a fingerprint of your file"); it is off by default and nothing about the file leaves the machine without it. |
+
+The Official Stash-box plugin (`config/providers/stashbox.json`) speaks the open stash-box GraphQL standard and contacts a stash-box server. It ships enabled and does nothing without an account key. The default server is StashDB (`endpoints.api`). An administrator can add other servers by address (https only, except a server on the same computer) and set the order they are tried in; this list and the fingerprint permission are saved in `config/stashbox_servers.json`, which holds no keys. Each account key is kept in the secrets store (`config/secrets/stashbox.json` for the default server, `config/secrets/plugins/stashbox-servers.json` for added ones), is sent only in an `ApiKey` header to that server's own address, is never logged, and is never shown again after saving; the Dashboard shows only "connected" or "not connected". Redirects are not followed and replies and cover images are size-limited. A video is matched only by a strong signal, strongest first: an exact fingerprint of the file (only with the fingerprint permission), then a product code whose record has the same length (and date, when both are known), then an equal title whose record has the same length (and date). A name alone, signals that point at different records, or two records that fit equally well leave the video Unmatched and queue nothing in Needs Review; Identify on the video finds it by hand, with a tick per field. A match fills the title, description, date, cover, studio, performers and tags; a value a person edited is never replaced. Every field is cleaned first (markup, links and hidden characters removed, lengths limited), a picture must open as a JPEG, PNG or WebP of a sensible size and shape (otherwise the video's own still frame stays), and where each field came from is recorded. Only the title leaves the machine unless the fingerprint permission is on.
+
+### Vault file names (`config/vault_naming.json`)
+
+How a Vault file's name is read before it is looked up. A missing file means the defaults below. Changes apply without a restart. The same settings apply to every Vault library.
+
+| Field | What it does |
+|---|---|
+| `patterns` | Name patterns made of parts in square brackets (`[studio]`, `[date]`, `[title]`, `[performer]`, `[code]`), tried in order; the first that fits the whole name wins. A space in a pattern matches any run of spaces. |
+| `ignored_words` | Release words left out before a name is read (for example `1080p`, `x264`, `web-dl`). |
+| `space_characters` | Characters read as spaces (default `.` and `_`). |
+| `product_code.pattern` | A regular expression with the named groups `letters` and `digits`; the default reads codes such as `ABC-123` and `IPX001`. It must finish within 250 ms or the name is read without a code. |
+| `product_code.ignored_prefixes` | Letter groups that look like a code but are not (`hd`, `mp`, `part`, `dvd` and so on). |
+| `duration_tolerance` | How closely a file's length must agree with a record's for a code or a title to count: the larger of `seconds` (default 5) and `percent` (default 1.5) of the longer length. |

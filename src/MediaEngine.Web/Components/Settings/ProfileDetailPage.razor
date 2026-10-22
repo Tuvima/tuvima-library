@@ -131,6 +131,14 @@
             </div>
         }
 
+        @if (!_forbidden)
+        {
+            <MediaEngine.Web.Components.Vault.VaultProfileSettings Person="@_person"
+                                                                   IsSelf="@IsSelf"
+                                                                   IsAdministrator="@IsAdministrator"
+                                                                   AdministratorHasPin="@(_active?.HasPin == true)" />
+        }
+
         @if (ShowHouseholdAccess)
         {
             <div class="profile-detail__group" data-profile-section="household-access">
@@ -170,7 +178,8 @@
 
         @if (ShowPinProtection)
         {
-            @* Moved here from Users and Sign-in: the PIN asked for before this person opens administrator settings. *@
+            @* "Ask for my PIN on admin pages": the profile's own PIN (one PIN per profile), asked for before this person opens
+               administrator settings. Off unless switched on, and only possible once the profile has a PIN. *@
             <div class="profile-detail__group" data-profile-section="pin-protection">
             <SettingsSectionPanel Title="PIN protection">
                 @if (!string.IsNullOrWhiteSpace(_protectionMessage))
@@ -184,31 +193,26 @@
                 @foreach (var grant in _adminGrants)
                 {
                     <div class="profile-detail__protection" data-admin-protection="@grant.AccountId" @key="grant.AccountId">
-                        <div>
-                            <strong>@(grant.Grant.AdminProtection.Enabled ? "Admin settings are protected" : "Protect admin settings")</strong>
+                        @if (_adminGrants.Count > 1)
+                        {
                             <small class="profile-detail__protection-account">@grant.AccountLabel</small>
-                            <small>Require a PIN before opening administrator settings from this profile.</small>
-                        </div>
-                        <AppTextField InputType="AppInputType.Password" InputMode="AppInputMode.numeric" Value="@Pin(grant.AccountId)"
-                                      ValueChanged="@(value => _pins[grant.AccountId] = value ?? string.Empty)" Disabled="@_protectionBusy"
-                                      autocomplete="off" aria-label="@($"New administrator PIN for {PersonName}")" />
-                        <AppNativeSelect Value="@ProtectionOption(grant)" OnChange="@(value => _protectionOptions[grant.AccountId] = value.Value?.ToString() ?? "FixedDuration:30")"
-                                         Disabled="@_protectionBusy" aria-label="@($"PIN unlock duration for {PersonName}")">
-                            <option value="FixedDuration:15">For 15 minutes</option>
-                            <option value="FixedDuration:30">For 30 minutes</option>
-                            <option value="FixedDuration:60">For 1 hour</option>
-                            <option value="UntilProfileSwitch">Until profile switch</option>
-                            <option value="LockOnLeave">Lock when leaving settings</option>
-                        </AppNativeSelect>
-                        <div class="profile-detail__protection-actions">
-                            <AppButton Label="@(grant.Grant.AdminProtection.Enabled ? "Update protection" : "Enable protection")" Size="AppControlSize.Compact"
-                                       Disabled="@(_protectionBusy || string.IsNullOrWhiteSpace(Pin(grant.AccountId)))" OnClick="@(() => SaveProtectionAsync(grant, true))" />
-                            @if (grant.Grant.AdminProtection.Enabled)
-                            {
-                                <AppButton Label="Remove protection" Size="AppControlSize.Compact" Tone="AppUiTone.Error"
-                                           Disabled="@_protectionBusy" OnClick="@(() => SaveProtectionAsync(grant, false))" />
-                            }
-                        </div>
+                        }
+                        <AppSwitchRow Label="@(IsSelf ? "Ask for my PIN on admin pages" : "Ask for their PIN on admin pages")"
+                                      Description="@ProtectionDescription()"
+                                      Value="@grant.Grant.AdminProtection.Enabled"
+                                      ValueChanged="@(on => ToggleProtectionAsync(grant, on))"
+                                      Disabled="@_protectionBusy" />
+                        @if (grant.Grant.AdminProtection.Enabled)
+                        {
+                            <AppNativeSelect Value="@ProtectionOption(grant)" OnChange="@(value => ProtectionDurationChangedAsync(grant, value.Value?.ToString() ?? "FixedDuration:30"))"
+                                             Disabled="@_protectionBusy" aria-label="@($"How long the PIN unlocks admin pages for {PersonName}")">
+                                <option value="FixedDuration:15">For 15 minutes</option>
+                                <option value="FixedDuration:30">For 30 minutes</option>
+                                <option value="FixedDuration:60">For 1 hour</option>
+                                <option value="UntilProfileSwitch">Until profile switch</option>
+                                <option value="LockOnLeave">Lock when leaving settings</option>
+                            </AppNativeSelect>
+                        }
                     </div>
                 }
             </SettingsSectionPanel>
@@ -298,7 +302,6 @@
     private string? _accessError;
     private string? _accessMessage;
     private List<AdminGrantRow> _adminGrants = [];
-    private readonly Dictionary<Guid, string> _pins = [];
     private readonly Dictionary<Guid, string> _protectionOptions = [];
     private bool _protectionBusy;
     private string? _protectionMessage;
@@ -373,7 +376,28 @@
     // PIN protection only has something to protect when an account lets this person open administrator settings.
     private bool ShowPinProtection => IsAdministrator && _adminGrants.Count > 0;
 
-    private string Pin(Guid accountId) => _pins.GetValueOrDefault(accountId, string.Empty);
+    private string ProtectionDescription() =>
+        _person?.HasPin == true
+            ? $"Uses the profile PIN, the same one that protects the profile. Off unless you turn it on."
+            : "Needs a PIN on this profile. Set one in Profile details first.";
+
+    private async Task ToggleProtectionAsync(AdminGrantRow row, bool on)
+    {
+        if (on && _person?.HasPin != true)
+        {
+            _protectionMessage = null;
+            _protectionError = "Set a PIN for this profile first (Profile details), then turn this on.";
+            return;
+        }
+
+        await SaveProtectionAsync(row, on);
+    }
+
+    private async Task ProtectionDurationChangedAsync(AdminGrantRow row, string option)
+    {
+        _protectionOptions[row.AccountId] = option;
+        await SaveProtectionAsync(row, true);
+    }
 
     private string ProtectionOption(AdminGrantRow row) =>
         _protectionOptions.TryGetValue(row.AccountId, out var chosen)
@@ -669,10 +693,8 @@
             var unlockMinutes = unlockMode == "FixedDuration" && parts.Length == 2 && int.TryParse(parts[1], out var minutes)
                 ? minutes
                 : row.Grant.AdminProtection.UnlockMinutes;
-            var pin = enabled ? Pin(row.AccountId) : null;
             var result = await Confirmed.RunAsync(() => Identity.SetGrantProtectionResultAsync(row.AccountId, ProfileId,
-                new SetGrantAdminProtectionRequest(enabled, pin, unlockMode, unlockMinutes)));
-            _pins.Remove(row.AccountId);
+                new SetGrantAdminProtectionRequest(enabled, unlockMode, unlockMinutes)));
             if (!result.Succeeded)
             {
                 _protectionError = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou
@@ -683,8 +705,8 @@
 
             await LoadAccessAsync();
             _protectionMessage = enabled
-                ? $"PIN protection for {PersonName} was updated."
-                : $"PIN protection for {PersonName} was removed.";
+                ? $"Admin pages now ask for {PersonName}'s PIN."
+                : $"Admin pages no longer ask for {PersonName}'s PIN.";
         }
         finally
         {

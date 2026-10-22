@@ -20,11 +20,22 @@ public static class LocalAssetSmartRuleSqlCompiler
     public static LocalAssetSmartRuleSql Compile(CollectionRuleDefinition definition, DateOnly? today = null)
     {
         ViewSmartGalleryRules.Validate(definition);
-        var compiler = new Compiler(today ?? DateOnly.FromDateTime(DateTime.UtcNow));
+        var compiler = new Compiler(today ?? DateOnly.FromDateTime(DateTime.UtcNow), vaultScope: false);
         return compiler.Compile(definition);
     }
 
-    private sealed class Compiler(DateOnly today)
+    /// <summary>
+    /// Compiles a Vault gallery rule (Videos spec D44): the same rule document and the same compiler, limited to the fields the Vault
+    /// allows (<see cref="ViewSmartGalleryRules.VaultFields"/>), with tags read from the Vault's own tags and never from the shared list.
+    /// </summary>
+    public static LocalAssetSmartRuleSql CompileForVault(CollectionRuleDefinition definition, DateOnly? today = null)
+    {
+        ViewSmartGalleryRules.ValidateForVault(definition);
+        var compiler = new Compiler(today ?? DateOnly.FromDateTime(DateTime.UtcNow), vaultScope: true);
+        return compiler.Compile(definition);
+    }
+
+    private sealed class Compiler(DateOnly today, bool vaultScope)
     {
         private readonly DynamicParameters _parameters = new();
         private int _parameterIndex;
@@ -47,7 +58,11 @@ public static class LocalAssetSmartRuleSqlCompiler
             return $"({string.Join(join, group.Conditions.Select(CompileCondition))})";
         }
 
-        private string CompileCondition(CollectionRulePredicate condition) => condition.Field switch
+        private string CompileCondition(CollectionRulePredicate condition) => vaultScope && !ViewSmartGalleryRules.VaultFields.Contains(condition.Field)
+            ? throw new ArgumentException($"Vault gallery rules cannot use the field '{condition.Field}'.")
+            : CompileAllowedCondition(condition);
+
+        private string CompileAllowedCondition(CollectionRulePredicate condition) => condition.Field switch
         {
             "media_type" => TextScalar(condition, "li.media_kind", "li.media_kind IS NOT NULL"),
             "file_type" => FileType(condition),
@@ -75,7 +90,10 @@ public static class LocalAssetSmartRuleSqlCompiler
         /// <summary>Tags match by id (what a saved view stores) or by name. "all" needs every listed tag.</summary>
         private string Tags(CollectionRulePredicate condition)
         {
-            const string relation = "SELECT 1 FROM local_item_tag_links lit JOIN tags tg ON tg.id = lit.tag_id WHERE lit.item_id = li.id";
+            // A Vault gallery reads the Vault's own tags; a View gallery reads the shared list. Neither can see the other's.
+            var relation = vaultScope
+                ? "SELECT 1 FROM vault_image_tags lit JOIN vault_tags tg ON tg.id = lit.tag_id WHERE lit.item_id = li.id"
+                : "SELECT 1 FROM local_item_tag_links lit JOIN tags tg ON tg.id = lit.tag_id WHERE lit.item_id = li.id";
             string Match(string value, bool contains)
             {
                 if (Guid.TryParse(value, out var id))

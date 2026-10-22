@@ -41,7 +41,6 @@ public sealed class AccountEmailRequiredTests
                         configuration,
                         new AllowAdministratorDecisions(),
                         new AllowEvaluator(),
-                        new PasswordHasher<GrantAdminProtection>(),
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
@@ -154,7 +153,6 @@ public sealed class AccountEmailRequiredTests
                         configuration,
                         new AllowAdministratorDecisions(),
                         new AllowEvaluator(),
-                        new PasswordHasher<GrantAdminProtection>(),
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
@@ -248,7 +246,6 @@ public sealed class AccountEmailRequiredTests
                         configuration,
                         new AllowAdministratorDecisions(),
                         new AllowEvaluator(),
-                        new PasswordHasher<GrantAdminProtection>(),
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
@@ -332,7 +329,7 @@ public sealed class AccountEmailRequiredTests
                     var mutations = new AccountAccessMutationService(
                         accounts, new IdentityRepository(database), new ProfileRepository(database), configuration,
                         new AllowAdministratorDecisions(), new AllowEvaluator(),
-                        new PasswordHasher<GrantAdminProtection>(), new NoOpInvalidation(), new NoOpAudit(),
+                        new NoOpInvalidation(), new NoOpAudit(),
                         firstParty, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
                     var human = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),

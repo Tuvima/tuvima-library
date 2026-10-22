@@ -42,7 +42,6 @@ public sealed class TwoStepResetTests : IDisposable
         _mutations = new AccountAccessMutationService(
             accounts, identities, profiles, _configuration,
             new AllowDecisions(), new AllowEvaluator(),
-            new PasswordHasher<GrantAdminProtection>(),
             new NoOpInvalidation(), _audit, _firstParty, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
     }
 

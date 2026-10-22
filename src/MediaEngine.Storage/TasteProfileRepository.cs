@@ -101,6 +101,7 @@ public sealed class TasteProfileRepository : ITasteProfileRepository
             LEFT JOIN works p ON p.id = w.parent_work_id
             LEFT JOIN works gp ON gp.id = p.parent_work_id
             WHERE us.user_id = @userId
+              AND {VaultSql.NotVaultAsset("us.asset_id")}
             ORDER BY us.last_accessed DESC
             LIMIT @limit;
             """,
@@ -111,7 +112,7 @@ public sealed class TasteProfileRepository : ITasteProfileRepository
         }
 
         var arrayRows = conn.Query<ArrayRow>(
-            """
+            $"""
             SELECT DISTINCT cva.entity_id AS EntityId,
                             cva.key AS Key,
                             cva.ordinal AS Ordinal,
@@ -125,6 +126,7 @@ public sealed class TasteProfileRepository : ITasteProfileRepository
             INNER JOIN canonical_value_arrays cva
                 ON cva.entity_id IN (us.asset_id, e.work_id, COALESCE(gp.id, p.id, w.id))
             WHERE us.user_id = @userId
+              AND {VaultSql.NotVaultAsset("us.asset_id")}
               AND cva.key IN ('genre', 'vibe', 'mood')
             ORDER BY cva.entity_id, cva.key, cva.ordinal;
             """,

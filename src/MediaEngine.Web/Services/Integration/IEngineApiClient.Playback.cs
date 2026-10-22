@@ -46,6 +46,22 @@ public partial interface IEngineApiClient
 
     Task<AudiobookBookmarkOperationResult<bool>> DeleteAudiobookBookmarkWithOutcomeAsync(Guid bookmarkId, Guid profileId, CancellationToken ct = default);
 
+    /// <summary>The bookmark packs the profile imported on a title, with their read-only pack bookmarks.</summary>
+    Task<IReadOnlyList<BookmarkPackDto>> GetBookmarkPacksAsync(Guid workId, Guid profileId, CancellationToken ct = default);
+
+    /// <summary>Builds a pack file from some of the profile's own bookmarks. Null when the Engine refused; <see cref="LastError"/> says why.</summary>
+    Task<BookmarkPackFileDto?> ExportBookmarkPackAsync(Guid workId, Guid profileId, BookmarkPackExportRequestDto request, CancellationToken ct = default);
+
+    /// <summary>Reads a pack file and says whether it is for this title. Null when the Engine refused; <see cref="LastError"/> says why.</summary>
+    Task<BookmarkPackPreviewDto?> InspectBookmarkPackAsync(Guid workId, Guid profileId, BookmarkPackImportRequestDto request, CancellationToken ct = default);
+
+    /// <summary>Adds a pack's bookmarks to the title. Null when the Engine refused; <see cref="LastError"/> says why.</summary>
+    Task<BookmarkPackDto?> ImportBookmarkPackAsync(Guid workId, Guid profileId, BookmarkPackImportRequestDto request, CancellationToken ct = default);
+
+    Task<bool> SetBookmarkPackEnabledAsync(Guid packId, Guid profileId, bool isEnabled, CancellationToken ct = default);
+
+    Task<bool> DeleteBookmarkPackAsync(Guid packId, Guid profileId, CancellationToken ct = default);
+
     Task<IReadOnlyList<AudiobookChapterTitleOverrideDto>> GetAudiobookChapterTitleOverridesAsync(Guid workId, Guid? assetId = null, CancellationToken ct = default);
 
     Task<AudiobookChapterTitleOverrideDto?> UpsertAudiobookChapterTitleOverrideAsync(Guid workId, UpsertAudiobookChapterTitleOverrideRequestDto request, CancellationToken ct = default);

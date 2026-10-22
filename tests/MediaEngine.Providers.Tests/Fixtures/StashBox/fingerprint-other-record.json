@@ -1,0 +1,19 @@
+{
+  "data": {
+    "findScenesByFullFingerprints": [
+      {
+        "id": "7d1c2c0e-4f0b-4a3e-9a63-0f2b1f9a9999",
+        "title": "A Different Record",
+        "details": "A record that carries the file's fingerprint but another product code.",
+        "date": "2020-01-02",
+        "code": "XYZ-999",
+        "duration": 1800,
+        "studio": { "id": "5a0c4b1e-0000-4000-8000-000000000009", "name": "Other Studio" },
+        "tags": [],
+        "performers": [],
+        "fingerprints": [ { "hash": "8e245d9679d31e12", "algorithm": "OSHASH" } ],
+        "images": []
+      }
+    ]
+  }
+}

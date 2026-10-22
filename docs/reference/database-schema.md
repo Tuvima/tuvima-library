@@ -990,7 +990,7 @@ The libraries an account may open: `account_id` and `library_id` (primary key to
 
 ### grant_admin_protections
 
-Administrator PIN protection on one account-profile grant, set under **Protect admin settings**. `account_id` and `profile_id` (primary key; references `account_profile_grants`), `is_enabled`, `unlock_mode` (`FixedDuration`, `UntilProfileSwitch` or `LockOnLeave`), `unlock_minutes`, `pin_hash` and `hash_scheme` (both set while enabled), `failed_attempt_count`, `locked_until`, `protection_version` and `updated_at`.
+The "Ask for my PIN on admin pages" switch on one account-profile grant (off unless turned on). `account_id` and `profile_id` (primary key; references `account_profile_grants`), `is_enabled`, `unlock_mode` (`FixedDuration`, `UntilProfileSwitch` or `LockOnLeave`), `unlock_minutes`, `protection_version` and `updated_at`. The PIN asked for is the profile's own PIN (no PIN is stored here), so wrong tries count toward the profile PIN's one pause.
 
 ### grant_admin_unlocks
 
@@ -1360,7 +1360,7 @@ Saved reading positions.
 
 ### audiobook_bookmarks
 
-Saved audiobook playback positions. These are separate from EPUB reader bookmarks because they use audio seconds, optional chapter metadata, and the owning audiobook work.
+Saved playback positions in a video or an audiobook (the table keeps its audiobook name; a row works for any playable file). These are separate from EPUB reader bookmarks because they use seconds, optional chapter metadata, and the owning work. A bookmark is personal to `profile_id`, or global (`is_global = 1`): global bookmarks are seen by every profile that can see the title and are made and deleted only by a server administrator, with `profile_id` recording who made it. A bookmark on a Vault file is never listed, counted or found while Vault mode is off.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1373,7 +1373,42 @@ Saved audiobook playback positions. These are separate from EPUB reader bookmark
 | `position_seconds` | REAL | Exact audio position |
 | `duration_seconds` | REAL | Optional asset duration |
 | `label` | TEXT | Optional user-facing bookmark label |
+| `note` | TEXT | The short note (up to 200 characters); on a bookmark saved before the longer description existed, its text |
+| `description` | TEXT | Optional longer description (up to 4,000 characters) |
+| `is_global` | INTEGER | 1 when shared with everyone (upgrade step 0032); 0 for a personal bookmark |
+| `end_seconds` | REAL | Optional end of a bookmark that marks a part of the video (a scene), after `position_seconds` (upgrade step 0034); NULL for a plain bookmark |
 | `created_at` | TEXT | Timestamp |
+
+### bookmark_packs
+
+One imported bookmark pack on one title for one profile (Videos spec D46, upgrade step 0034). The pack's bookmarks are read-only and live in `bookmark_pack_items`. `asset_id` is the file the pack was imported on: a pack on a file the caller cannot see (a Vault file without an unlocked session) is not listed, counted or found. A pack is never exported from the Vault.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | UUID, primary key |
+| `profile_id` | BLOB | FK -> `profiles.id`; the profile that imported the pack |
+| `work_id` | BLOB | FK -> `works.id` |
+| `asset_id` | BLOB | FK -> `media_assets.id` |
+| `name` | TEXT | The pack's name, shown on its bookmarks |
+| `author` | TEXT | Optional author typed by whoever exported the pack |
+| `content_hash` | TEXT | Fingerprint of the pack's content; unique per profile and title so the same pack is not added twice |
+| `source_running_time_seconds` | REAL | Running time of the copy the pack was made on |
+| `source_edition` | TEXT | Edition label of that copy |
+| `is_aligned` | INTEGER | 1 when the pack was for a different cut and was aligned by chapter on import |
+| `is_enabled` | INTEGER | 0 hides the pack's ticks and rows without removing it |
+| `imported_at` | TEXT | Timestamp |
+
+### bookmark_pack_items
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | UUID, primary key |
+| `pack_id` | BLOB | FK -> `bookmark_packs.id` (cascade) |
+| `position_seconds` | REAL | Time of the bookmark |
+| `end_seconds` | REAL | Optional end, after the time |
+| `chapter_title` | TEXT | Optional chapter name |
+| `note` | TEXT | Short note (up to 200 characters) |
+| `description` | TEXT | Longer description (up to 4,000 characters) |
 
 ### audiobook_chapter_title_overrides
 
@@ -1617,6 +1652,36 @@ The order a person last chose on each "View all" grid (Watch, Read, Listen, My l
 ### profile_taste_overrides
 
 What a person removed from, or added to, the taste the Library learned about them (Settings > Personal > Overview > Taste). Added by upgrade step `0010_profile_taste_overrides`. The learned taste (the taste profiler's reading of their history) is never changed; these rows are applied on top whenever taste is shown, so a removed value is hidden and an added value is shown as "Added by you". One row per `profile_id` (cascades on profile deletion), `taste_group` (`genre`, `mood` or `era`) and `value` (trimmed and lower-cased, the way the profiler writes its keys), with `action` (`removed` or `added`) and `created_at` (UTC). Setting a value again replaces its row. Only the signed-in person writes their own rows.
+
+## Vault
+
+Added by upgrade step `0030_vault_access` (Videos spec WP9). A **Vault library** is a library whose items are absent for anyone without an unlocked Vault mode session. An item is a Vault item because its `media_assets.library_id` appears in `vault_libraries`; that table is the single source of truth (there is no flag on the item). Rules that must hold whichever service writes are enforced by triggers, so a new code path cannot forget them.
+
+| Table | Meaning |
+|---|---|
+| `vault_libraries` | One row per Vault library: `library_id` (primary key, text), `lookup_source` (`none` or `stash_box`; the only sources a Vault library may use), `lookup_server_id` (the chosen server), `adults_confirmed_at`, `created_by_profile_id`, `created_at`, `updated_at`. A library that already holds items cannot be marked, and a Vault library that holds items cannot be unmarked. |
+| `profile_nsfw_settings` | A profile's Vault mode: `access_mode` (`off`; `pin`, which asks for the profile PIN and can only be saved for a profile that has one; `allowed`, which needs no PIN) and `idle_lock_minutes` (5, 15, 30 or 60; 0 means never, for `allowed` only; the default is 60). There is no separate Vault PIN: the profile PIN in `profile_credentials` is the only PIN. No row means Off. A Kids profile or a profile with a content limit can never be given a mode other than `off` (trigger). |
+| `nsfw_session_unlocks` | One row per device session that has switched Vault mode on: `session_id`, `profile_id`, `method` (`pin` or `allowed`), `unlocked_at`, `last_activity_at`, `expires_at` (the sliding idle limit; NULL means never). Triggers delete the row when the session changes profile, or the profile's mode, PIN, role or content limit changes. |
+| `vault_performers`, `vault_studios`, `vault_tags` | Names that exist only inside the Vault, never shared with the People, Series or Tags of ordinary libraries. |
+| `vault_asset_performers`, `vault_asset_studios`, `vault_asset_tags` | Links from a Vault file to those names. A name with no remaining link is removed (trigger). |
+| `vault_artwork` | Artwork for a Vault file, performer or studio, stored only here (never in the shared artwork tables) and removed with its owner (trigger). |
+
+**Lookup and Identify (upgrade step `0031_vault_lookup`, Videos spec WP12).** Four more tables hold what the Library knows about how each Vault video was matched. Each refuses a row for a file that is not in a Vault library (before-insert trigger) and goes with its file (cascade).
+
+| Table | Meaning |
+|---|---|
+| `vault_matches` | One row per matched Vault video: `asset_id` (primary key), `server_id`, `record_id`, `matched_by` (`fingerprint`, `product_code`, `title` or `identify`), `applied_via` (`automatic` or `identify`), `matched_at`. A Vault video with no row is Unmatched; nothing is queued in Needs Review for it. |
+| `vault_field_sources` | Where each field came from: one row per `asset_id` and `field` (`title`, `description`, `release_date`, `cover`, `studio`, `performers`, `tags`) with the server, record, how it was matched, how it was applied, the language noted for the text, and when. An Identify replaces the rows of the fields that were ticked. |
+| `vault_file_fingerprints` | Fingerprints computed on this machine (`OSHASH`, `MD5`, `PHASH`) with the file size they were computed at, kept so a big file is not read twice. Computed and sent only while the administrator's separate fingerprint permission is on. |
+| `vault_activity` | The quiet Vault activity list: `kind` (`added`, `matched`, `unmatched`, `identified`, `failed`), the file's own name, a fixed plain-words detail (never a title or path) and the time. Shown only inside Vault mode to an administrator. |
+
+**Bookmarks waiting after a restore (upgrade step `0035_vault_pending_bookmarks`).** A backup never holds the Vault catalogue, so a person's Vault bookmarks travel in a backup as `vault_pending_bookmarks` and are re-linked after a rescan. The table is empty on a data store that was never restored.
+
+| Table | What it holds |
+|---|---|
+| `vault_pending_bookmarks` | One row per saved Vault bookmark waiting for its video: `profile_id` (cascade), `is_global`, `identity_json` (the canonical IDs including the Stash-box record as `stash_box_id`, `running_time_seconds`, `edition`, `content_hash` and exact `fingerprints`), the bookmark itself (`position_seconds`, `end_seconds`, `duration_seconds`, `chapter_index`, `chapter_title`, `chapter_start_seconds`, `label`, `note`, `description`) and `created_at`. The Engine moves a row into `audiobook_bookmarks` (and deletes it) when a Vault video matches; a row with no matching video stays and is counted. |
+
+**Skipped writes (triggers):** `trg_application_events_no_vault` stops an event about a Vault item from reaching `application_events` (and so apps and webhooks); `trg_personal_activity_no_vault` stops a Vault file from entering anyone's activity history. A skipped write is simply not stored. A file cannot move into or out of a Vault library once it exists (`trg_media_assets_vault_library_fixed`).
 
 ## Related
 

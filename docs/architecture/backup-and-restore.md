@@ -303,17 +303,35 @@ None of these are kept.
 | `data_store_upgrades` | Which data store upgrade steps have run. |
 | `storage_metadata` | Data store bookkeeping. |
 
-## Registered ahead of Videos Wave 3
+## The Vault
 
-Videos Wave 3 adds its own tables in a separate proposed change. The ones below are classified now; they do not exist yet on the main line, and the guardrail allows a rule for a missing table only while it is named in the registry's registered-ahead list. That change adds the rules for the rest of its tables itself (the guardrail fails until it does), and when it lands these names come out of the list so the guardrail checks their real columns.
+The Vault keeps its settings and each person's own state in a backup, and never its catalogue (a rescan rebuilds it).
 
 | Table | Kind | Why |
 |---|---|---|
-| `profile_nsfw_settings` | Configuration | How each profile's adult area is locked. |
-| `profile_nsfw_pins` | Configuration | Adult area PIN hashes, needed to open it after a restore. |
+| `profile_nsfw_settings` | Configuration | How each profile's Vault mode is protected and when it turns off. |
+| `vault_libraries` | Configuration | Which libraries are Vault libraries and how they look things up. |
 | `bookmark_packs` | Personal state | Bookmark packs a person imported for a title. |
 | `bookmark_pack_items` | Personal state | The bookmarks inside a pack (owned through the pack's profile). |
-| `nsfw_session_unlocks` | Transient | Temporary adult area unlocks. |
+| `vault_pending_bookmarks` | Personal state | Vault bookmarks waiting for their title after a restore. |
+| `nsfw_session_unlocks` | Transient | Temporary Vault mode sessions. |
+| `vault_activity` | Catalogue | Quiet list of Vault ingestion activity. |
+| `vault_artwork` | Catalogue | Vault artwork. |
+| `vault_asset_performers` | Catalogue | Vault performers per video. |
+| `vault_asset_studios` | Catalogue | Vault studios per video. |
+| `vault_asset_tags` | Catalogue | Vault tags per video. |
+| `vault_field_sources` | Catalogue | Where each Vault field came from. |
+| `vault_file_fingerprints` | Catalogue | Vault file fingerprints. |
+| `vault_matches` | Catalogue | Vault lookup matches. |
+| `vault_performers` | Catalogue | Vault performers. |
+| `vault_studios` | Catalogue | Vault studios. |
+| `vault_tags` | Catalogue | Vault tags. |
+| `vault_galleries` | Catalogue | Vault image galleries. |
+| `vault_gallery_items` | Catalogue | Images inside Vault galleries. |
+| `vault_image_folders` | Catalogue | Vault image folders. |
+| `vault_image_items` | Catalogue | Vault images. |
+| `vault_image_libraries` | Catalogue | Vault image libraries. |
+| `vault_image_tags` | Catalogue | Vault image tags. |
 
 ## How to add a table
 

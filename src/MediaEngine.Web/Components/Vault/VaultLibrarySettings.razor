@@ -1,0 +1,126 @@
+@namespace MediaEngine.Web.Components.Vault
+@using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Services.Integration
+@inject NsfwModeState Nsfw
+@inject IEngineApiClient ApiClient
+@inject IAppDialogService Dialogs
+@inject IAppToastService Toasts
+
+@* The Vault's own library settings, inside the area and not in the normal Libraries list (Videos spec D45). Administrators only:
+   the Engine answers "not found" to anyone else, and this component draws nothing unless Vault mode is on. *@
+@if (Nsfw.Unlocked)
+{
+    <div class="vault-library-settings" data-vault-library-settings>
+        <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true">@VaultLibraryOnboarding.AdultsConfirmationText</AppAlert>
+        @if (_loading)
+        {
+            <AppSkeleton Height="96px" />
+        }
+        else if (_libraries.Count == 0)
+        {
+            <AppEmptyState Title="No Vault library yet"
+                           Message="Add a folder from Settings > Library and Ingestion > Videos, then choose the Vault." />
+        }
+        else
+        {
+            @foreach (var library in _libraries)
+            {
+                <AppCard Class="vault-library-settings__card" @key="library.Id">
+                    <div class="vault-library-settings__row">
+                        <label>
+                            <span>Where details come from</span>
+                            <AppNativeSelect Value="@SourceFor(library)"
+                                             OnChange="@(e => _sources[library.Id] = e.Value?.ToString() ?? "none")"
+                                             Disabled="@_busy"
+                                             aria-label="Where details for this library come from">
+                                <option value="none">Nowhere: file names only</option>
+                                <option value="stash_box">A Stash-box server</option>
+                            </AppNativeSelect>
+                        </label>
+                        <div class="vault-library-settings__actions">
+                            <AppButton Label="Save" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => SaveAsync(library))" />
+                            <AppButton Label="Remove library" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@_busy" OnClick="@(() => RemoveAsync(library))" />
+                        </div>
+                    </div>
+                    @if (SourceFor(library) == "stash_box")
+                    {
+                        <small>Choosing a server and entering its key arrives with the Vault lookup update. Until then details stay file-name based.</small>
+                    }
+                </AppCard>
+            }
+        }
+        <VaultActivityList />
+    </div>
+}
+
+@code {
+    private List<VaultLibraryDto> _libraries = [];
+    private readonly Dictionary<string, string> _sources = [];
+    private bool _loading = true;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        var call = await ApiClient.GetVaultLibrariesAsync();
+        _libraries = call.Succeeded && call.Value is { } libraries ? [.. libraries] : [];
+        _sources.Clear();
+        _loading = false;
+    }
+
+    private string SourceFor(VaultLibraryDto library) => _sources.TryGetValue(library.Id, out var chosen) ? chosen : library.LookupSource;
+
+    private async Task SaveAsync(VaultLibraryDto library)
+    {
+        var source = SourceFor(library);
+        _busy = true;
+        try
+        {
+            var saved = await VaultPinPrompt.AskAsync(Dialogs, "Enter your PIN to continue",
+                "This is your own profile PIN, asked for again before the Vault library changes.", "Save", "Your profile PIN",
+                async pin => VaultMessages.For(await ApiClient.UpdateVaultLibraryAsync(
+                    library.Id, new UpdateVaultLibraryRequest { LookupSource = source, LookupServerId = library.LookupServerId, AdminPin = pin })));
+            if (saved)
+            {
+                Toasts.Add("Library settings saved.", AppSeverity.Success);
+                await LoadAsync();
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RemoveAsync(VaultLibraryDto library)
+    {
+        if (await Dialogs.ShowMessageBoxAsync("Remove the Vault library?",
+                "Your files stay where they are. The Vault library is removed from the Library.",
+                yesText: "Remove", noText: "Cancel") != true)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var removed = await VaultPinPrompt.AskAsync(Dialogs, "Enter your PIN to continue",
+                "This is your own profile PIN, asked for again before the Vault library is removed.", "Remove", "Your profile PIN",
+                async pin => VaultMessages.For(await ApiClient.RemoveVaultLibraryAsync(library.Id, new RemoveVaultLibraryRequest { AdminPin = pin })));
+            if (removed)
+            {
+                Toasts.Add("Library removed.", AppSeverity.Success);
+                await LoadAsync();
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

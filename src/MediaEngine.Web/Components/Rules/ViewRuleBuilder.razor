@@ -1,6 +1,6 @@
 @namespace MediaEngine.Web.Components.Rules
 
-<SharedRuleBuilder Catalog="@ViewRuleCatalog.Instance"
+<SharedRuleBuilder Catalog="@(Catalog ?? ViewRuleCatalog.Instance)"
                    Definition="@Definition"
                    DefinitionChanged="@DefinitionChanged"
                    SortField="@SortField"
@@ -16,6 +16,8 @@
                    PreviewLoader="@PreviewLoader" />
 
 @code {
+    /// <summary>The fields on offer. View's own list unless the Vault's narrower list is passed.</summary>
+    [Parameter] public RuleBuilderCatalog? Catalog { get; set; }
     [Parameter, EditorRequired] public CollectionRuleDefinitionViewModel Definition { get; set; } = new();
     [Parameter] public EventCallback<CollectionRuleDefinitionViewModel> DefinitionChanged { get; set; }
     [Parameter] public string? SortField { get; set; } = "captured_date";

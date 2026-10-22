@@ -5,6 +5,12 @@ namespace MediaEngine.Contracts.Playback;
 public sealed record PlaybackManifestDto
 {
     public Guid AssetId { get; init; }
+
+    /// <summary>
+    /// True when the file is in a Vault library. A player shows a generic title ("Video") for it in the browser tab, history and the
+    /// device's media controls, and keeps Vault mode awake while it plays. False (the default) for every ordinary file.
+    /// </summary>
+    public bool IsVault { get; init; }
     public string Client { get; init; } = "web";
     public string MediaType { get; init; } = "Unknown";
     public string SourceExtension { get; init; } = string.Empty;
@@ -205,8 +211,15 @@ public sealed record AudiobookBookmarkDto
     public string? ChapterTitle { get; init; }
     public double PositionSeconds { get; init; }
     public double? DurationSeconds { get; init; }
+    /// <summary>Where the part ends, in seconds, when the bookmark marks a part of the video (a scene). Null for a plain bookmark.</summary>
+    public double? EndSeconds { get; init; }
     public string? Label { get; init; }
+    /// <summary>The short note, up to 200 characters.</summary>
     public string? Note { get; init; }
+    /// <summary>The optional longer description, up to 4,000 characters.</summary>
+    public string? Description { get; init; }
+    /// <summary>True for a bookmark shared with everybody who can see the title; only a server administrator can make or change one.</summary>
+    public bool IsGlobal { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
 }
 
@@ -228,8 +241,14 @@ public sealed record CreateAudiobookBookmarkRequestDto
     public string? ChapterTitle { get; init; }
     public double PositionSeconds { get; init; }
     public double? DurationSeconds { get; init; }
+    /// <summary>Where the part ends, in seconds, when the bookmark marks a part of the video (a scene). Must be after the position.</summary>
+    public double? EndSeconds { get; init; }
     public string? Label { get; init; }
     public string? Note { get; init; }
+    /// <summary>The optional longer description, up to 4,000 characters.</summary>
+    public string? Description { get; init; }
+    /// <summary>Share the bookmark with everybody who can see the title. Refused unless the caller is a server administrator.</summary>
+    public bool IsGlobal { get; init; }
 }
 
 public sealed record AudiobookChapterTitleOverrideDto

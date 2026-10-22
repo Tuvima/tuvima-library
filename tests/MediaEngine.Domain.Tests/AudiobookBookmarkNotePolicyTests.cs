@@ -45,4 +45,28 @@ public sealed class AudiobookBookmarkNotePolicyTests
         Assert.False(AudiobookBookmarkNotePolicy.TryNormalize(paddedOverLimit, out normalized));
         Assert.Null(normalized);
     }
+
+    [Fact]
+    public void TryNormalizeDescription_TrimsMapsBlankToNullAndKeepsInternalNewlines()
+    {
+        Assert.True(AudiobookBookmarkNotePolicy.TryNormalizeDescription("  first line\nsecond line \n", out var normalized));
+        Assert.Equal("first line\nsecond line", normalized);
+
+        Assert.True(AudiobookBookmarkNotePolicy.TryNormalizeDescription("  \t ", out normalized));
+        Assert.Null(normalized);
+        Assert.True(AudiobookBookmarkNotePolicy.TryNormalizeDescription(null, out normalized));
+        Assert.Null(normalized);
+    }
+
+    [Fact]
+    public void TryNormalizeDescription_AcceptsFourThousandUnitsAndRejectsOneMore()
+    {
+        var atLimit = new string('d', AudiobookBookmarkNotePolicy.MaximumDescriptionLength);
+        Assert.Equal(4000, atLimit.Length);
+        Assert.True(AudiobookBookmarkNotePolicy.TryNormalizeDescription(atLimit, out var normalized));
+        Assert.Equal(atLimit, normalized);
+
+        Assert.False(AudiobookBookmarkNotePolicy.TryNormalizeDescription(atLimit + "d", out normalized));
+        Assert.Null(normalized);
+    }
 }

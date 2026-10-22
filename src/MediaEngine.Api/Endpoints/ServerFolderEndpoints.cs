@@ -20,13 +20,14 @@ public static class ServerFolderEndpoints
         .WithSummary("Lists only administrator-approved server/container folder roots.")
         .Produces<IReadOnlyList<ServerStorageLocationDto>>();
 
-        group.MapPost("/browse", (
+        group.MapPost("/browse", async (
             [FromBody] BrowseServerFoldersRequest request,
-            ServerFolderBrowserService service) =>
+            ServerFolderBrowserService service,
+            HttpContext http) =>
         {
             try
             {
-                return Results.Ok(service.Browse(request));
+                return Results.Ok(service.Browse(request, await http.HiddenVaultFolderRootsAsync(http.RequestAborted)));
             }
             catch (ServerFolderAccessException exception)
             {
@@ -38,13 +39,14 @@ public static class ServerFolderEndpoints
         .Produces<BrowseServerFoldersResultDto>()
         .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        group.MapPost("/validate", (
+        group.MapPost("/validate", async (
             [FromBody] ValidateServerFolderRequest request,
-            ServerFolderBrowserService service) =>
+            ServerFolderBrowserService service,
+            HttpContext http) =>
         {
             try
             {
-                return Results.Ok(service.Validate(request));
+                return Results.Ok(service.Validate(request, await http.HiddenVaultFolderRootsAsync(http.RequestAborted)));
             }
             catch (ServerFolderAccessException exception)
             {

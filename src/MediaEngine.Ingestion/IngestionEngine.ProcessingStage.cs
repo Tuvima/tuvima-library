@@ -350,7 +350,8 @@ public sealed partial class IngestionEngine
             var rawTitle = result.Claims.FirstOrDefault(c =>
                 c.Key.Equals(MetadataFieldConstants.Title, StringComparison.OrdinalIgnoreCase));
 
-            if (rawTitle is not null && context.Library?.MediaTypes.Any(t => t is MediaType.Audiobooks or MediaType.Music) != true)
+            // A file in a Vault library is never handed to a Local AI model (Videos spec D33).
+            if (rawTitle is not null && !context.IsVault && context.Library?.MediaTypes.Any(t => t is MediaType.Audiobooks or MediaType.Music) != true)
             {
                 try
                 {

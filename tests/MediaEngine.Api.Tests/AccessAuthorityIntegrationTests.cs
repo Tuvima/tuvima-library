@@ -361,10 +361,13 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             AccountFeatureId.Read)).DenialReason);
     }
 
+    // "Ask for my PIN on admin pages" asks for the profile's own PIN (one PIN per profile, owner decision 2026-10-21). The wrong-try
+    // count and the pause belong to that PIN (covered with the real PIN service in OneProfilePinTests and VaultAdministrationServiceTests), so here a wrong PIN, a
+    // paused PIN and a profile with no PIN each fail closed.
     [Fact]
-    public async Task GrantPinFailures_AreAtomicAndLockAfterFiveAttempts()
+    public async Task GrantPinUnlock_FailsClosed_ForAWrongPin_APausedPin_AndAProfileWithNoPin()
     {
-        var protection = new GrantAdminProtection
+        await _accounts.SetAdminProtectionAsync(new GrantAdminProtection
         {
             AccountId = _accountId,
             ProfileId = Profile.SeedProfileId,
@@ -373,22 +376,37 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             UnlockMinutes = null,
             ProtectionVersion = 1,
             UpdatedAt = _clock.GetUtcNow(),
-        };
-        var hasher = new PasswordHasher<GrantAdminProtection>();
-        protection.PinHash = hasher.HashPassword(protection, "2468");
-        protection.HashScheme = "aspnet-passwordhasher-v3";
-        await _accounts.SetAdminProtectionAsync(protection);
-
-        var service = new GrantAdminUnlockService(_accounts, hasher, _clock);
+        });
         var authority = HumanAdministratorAuthority(Guid.NewGuid());
-        var attempts = Enumerable.Range(0, 5)
-            .Select(_ => Assert.ThrowsAsync<UnauthorizedAccessException>(
-                () => service.UnlockAsync(authority, "0000").AsTask()));
-        await Task.WhenAll(attempts);
 
-        var stored = await _accounts.GetAdminProtectionAsync(_accountId, Profile.SeedProfileId);
-        Assert.Equal(5, stored?.FailedAttemptCount);
-        Assert.Equal(_clock.GetUtcNow().AddMinutes(15), stored?.LockedUntil);
+        var noPin = new GrantAdminUnlockService(_accounts, new StubProfilePins(), _clock);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => noPin.UnlockAsync(authority, "2468").AsTask());
+
+        var withPin = new GrantAdminUnlockService(_accounts, new StubProfilePins().With(Profile.SeedProfileId, "2468"), _clock);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => withPin.UnlockAsync(authority, "0000").AsTask());
+
+        var paused = new GrantAdminUnlockService(_accounts, new PausedProfilePins(), _clock);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => paused.UnlockAsync(authority, "2468").AsTask());
+    }
+
+    [Fact]
+    public async Task GrantPinUnlock_IsNotAsked_WhenTheSwitchIsOff_SoAdminFunctionsWorkWithoutAPin()
+    {
+        var service = new GrantAdminUnlockService(_accounts, new StubProfilePins(), _clock);
+        var authority = HumanAdministratorAuthority(Guid.NewGuid());
+
+        var state = await service.GetStateAsync(authority);
+
+        Assert.False(state.ProtectionEnabled);
+        Assert.True(state.IsUnlocked);
+    }
+
+    private sealed class PausedProfilePins : MediaEngine.Identity.Contracts.IProfilePinVerifier
+    {
+        public Task<bool> HasProfilePinAsync(Guid profileId, CancellationToken ct = default) => Task.FromResult(true);
+
+        public Task VerifyProfilePinAsync(Guid profileId, string? pin, bool countsTowardLockout, CancellationToken ct = default) =>
+            throw new MediaEngine.Identity.ProfilePinLockedException();
     }
 
     [Theory]
@@ -406,9 +424,6 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             ProtectionVersion = 1,
             UpdatedAt = _clock.GetUtcNow(),
         };
-        var hasher = new PasswordHasher<GrantAdminProtection>();
-        protection.PinHash = hasher.HashPassword(protection, "2468");
-        protection.HashScheme = "aspnet-passwordhasher-v3";
         await _accounts.SetAdminProtectionAsync(protection);
         var sessionId = Guid.NewGuid();
         await new IdentityRepository(_database).InsertSessionAsync(new AuthSession
@@ -426,7 +441,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             LastSeenAt = _clock.GetUtcNow(),
             ExpiresAt = _clock.GetUtcNow().AddHours(1),
         });
-        var service = new GrantAdminUnlockService(_accounts, hasher, _clock);
+        var service = new GrantAdminUnlockService(_accounts, new StubProfilePins().With(Profile.SeedProfileId, "2468"), _clock);
         var authority = HumanAdministratorAuthority(sessionId);
 
         var unlocked = await service.UnlockAsync(authority, "2468");
@@ -447,8 +462,6 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             IsEnabled = true,
             UnlockMode = AdminUnlockMode.FixedDuration.ToString(),
             UnlockMinutes = 30,
-            PinHash = "unused",
-            HashScheme = "test",
             ProtectionVersion = 1,
             UpdatedAt = _clock.GetUtcNow(),
         };
@@ -456,8 +469,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         var projector = new DashboardAuthorityProjector(
             _accounts,
             new ProfileRepository(_database),
-            new GrantAdminUnlockService(_accounts, new PasswordHasher<GrantAdminProtection>(), _clock),
-            _clock);
+            new GrantAdminUnlockService(_accounts, new StubProfilePins(), _clock));
 
         var projected = await projector.ProjectAsync(_accountId, Profile.SeedProfileId, Guid.NewGuid());
         Assert.True(projected.EffectiveAdministrator);
@@ -491,7 +503,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
 
     private AccountAccessDecisionService CreateDecisions() =>
         new(_accounts, new GrantAdminUnlockService(
-            _accounts, new PasswordHasher<GrantAdminProtection>(), _clock));
+            _accounts, new StubProfilePins(), _clock));
 
     private async Task<MediaEngine.Domain.Entities.Application> CreateApplicationAsync(
         ApplicationType type,

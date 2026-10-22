@@ -278,6 +278,17 @@ public sealed record ListenQueueItem
     [JsonIgnore]
     public PlaybackExperience PlaybackExperience => MediaKindClassifier.Classify(MediaType);
 
+    /// <summary>True when the Engine says the file is in the Vault (Videos spec D33). Known once the playback manifest has loaded.</summary>
+    [JsonIgnore]
+    public bool IsVault => Manifest?.IsVault == true;
+
+    /// <summary>
+    /// The title anything outside the player itself may show: the browser tab and history, the phone or computer's media controls and
+    /// lock screen, and the shell's activity notice. A Vault video is always just "Video" there (Videos spec D33).
+    /// </summary>
+    [JsonIgnore]
+    public string DeviceTitle => IsVault ? VaultPrivacy.GenericTitle : Title;
+
     [JsonPropertyName("title")]
     public string Title { get; init; } = string.Empty;
 

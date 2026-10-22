@@ -78,6 +78,7 @@ public sealed partial class DetailsOverlayGuardrailTests
     // changed count, fails until it is reviewed and listed here.
     private static readonly Dictionary<string, (int Count, string Reason)> ReplacingNavigationAllowlist = new(StringComparer.Ordinal)
     {
+        ["Services/Vault/VaultExit.cs"] = (1, "Locking returns Home, and a Vault address for anyone not unlocked goes to /not-found; neither can reach a /details/ address."),
         ["Components/Browse/MediaBrowseShell.razor"] = (1, "The lane rewriting its own filter address (a browse route)."),
         ["Components/Navigation/TopNavProfileSwitcher.razor"] = (1, "Full reload to Home after switching profile."),
         ["Components/Pages/BookReader.razor"] = (1, "The reader's no-title exit to the literal Home address; a title exit goes through DetailsOverlayNavigation."),

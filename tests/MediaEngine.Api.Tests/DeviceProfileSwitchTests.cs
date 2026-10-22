@@ -70,7 +70,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var decisions = new RealAdministratorDecisions();
         var mutations = new AccountAccessMutationService(
             _accounts, identities, profiles, _configuration, decisions, new AllowEvaluator(),
-            new PasswordHasher<GrantAdminProtection>(), new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
+            new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
         _devices = new ClientAuthorizationRepository(_database);
         var applications = new ApplicationRepository(_database);
         _authorization = new ClientAuthorizationService(_devices, _accounts, applications, new PermissionRegistry(), TimeProvider.System);
@@ -819,7 +819,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var downloadAccessor = new HttpContextAccessor();
         var downloadDecisions = new AccountAccessDecisionService(
             _accounts,
-            new GrantAdminUnlockService(_accounts, new PasswordHasher<GrantAdminProtection>(), TimeProvider.System));
+            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System));
         var downloadApplications = new ApplicationRepository(_database);
         var downloadEvaluator = new AuthorizationEvaluator(
             downloadDecisions, downloadApplications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts), downloadAccessor);
@@ -1006,7 +1006,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var accessor = new HttpContextAccessor { HttpContext = context };
         var decisions = new AccountAccessDecisionService(
             _accounts,
-            new GrantAdminUnlockService(_accounts, new PasswordHasher<GrantAdminProtection>(), TimeProvider.System));
+            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System));
         var applications = new ApplicationRepository(_database);
         return new CatalogueResourceAuthorizationService(
             _database,

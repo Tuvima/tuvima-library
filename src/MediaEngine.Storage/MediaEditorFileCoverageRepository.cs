@@ -152,22 +152,22 @@ public sealed class MediaEditorFileCoverageRepository(IDatabaseConnection databa
                 // that were unticked and have no other file go back to the catalogue.
                 WorkOwnershipSync.Recompute(conn, tx, existing.Keys.Concat(rows.Select(row => row.WorkId)));
 
-                conn.Execute("""
-                    INSERT INTO system_activity(action_type, entity_id, entity_type, detail, changes_json)
-                    VALUES('MetadataUpdated', @assetId, 'MediaAsset', @detail, @changes);
-                    """, new
+                // Through the one activity writer, so a file in the Vault is never recorded (Videos spec D17, D33).
+                SystemActivityRepository.Write(conn, tx, new SystemActivityEntry
                 {
-                    assetId,
-                    detail = rows.Count == 0
+                    ActionType = "MetadataUpdated",
+                    EntityId = assetId,
+                    EntityType = "MediaAsset",
+                    Detail = rows.Count == 0
                         ? "File now covers a single episode"
                         : $"File now covers {rows.Count} episodes",
-                    changes = System.Text.Json.JsonSerializer.Serialize(new
+                    ChangesJson = System.Text.Json.JsonSerializer.Serialize(new
                     {
                         host_work_id = view.HostWorkId,
                         covered_work_ids = ordered.Select(episode => episode.WorkId),
                         source = MediaAssetCoverage.SourceManual,
                     }),
-                }, tx);
+                });
             }
 
             // A person has now said exactly which episodes this file holds, so the
@@ -179,10 +179,13 @@ public sealed class MediaEditorFileCoverageRepository(IDatabaseConnection databa
                 """, new { assetId, trigger = ReviewTrigger.RetailMatchAmbiguous, now = DateTimeOffset.UtcNow.ToString("O") }, tx);
             if (resolved > 0)
             {
-                conn.Execute("""
-                    INSERT INTO system_activity(action_type, entity_id, entity_type, detail)
-                    VALUES('MetadataUpdated', @assetId, 'MediaAsset', 'Review answered by choosing the episodes this file covers');
-                    """, new { assetId }, tx);
+                SystemActivityRepository.Write(conn, tx, new SystemActivityEntry
+                {
+                    ActionType = "MetadataUpdated",
+                    EntityId = assetId,
+                    EntityType = "MediaAsset",
+                    Detail = "Review answered by choosing the episodes this file covers",
+                });
             }
 
             var stamp = DateTimeOffset.UtcNow;

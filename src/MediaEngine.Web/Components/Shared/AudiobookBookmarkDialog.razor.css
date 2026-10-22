@@ -190,6 +190,7 @@
     color: var(--tl-accent-primary);
 }
 
+.audiobook-bookmark-dialog__everyone { color:var(--playback-text-muted); font-style:normal; }
 .audiobook-bookmark-dialog__note-label {
     color: var(--playback-text);
     display: flex;

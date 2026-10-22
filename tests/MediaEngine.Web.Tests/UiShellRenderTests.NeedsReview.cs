@@ -24,7 +24,7 @@ public sealed partial class UiShellRenderTests
         return new DashboardAuthorityResponse(
             id, id, true, true, 1, 1, effectiveAdministrator, effectiveAdministrator, null, 1,
             [new AccountProfileGrantDto(id, id, "Test User", null, true, true, effectiveAdministrator,
-                new GrantAdminProtectionDto(false, "None", null, 1, false, null), 1, DateTimeOffset.UtcNow)],
+                new GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow)],
             navigation, actions);
     }
 

@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
+using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Contracts.System;
 using MediaEngine.Storage;
@@ -76,6 +77,9 @@ public sealed class DatabaseBackupService
                 _database.ReleaseWriteLock();
             }
 
+            // The Vault catalogue is removed from the COPY only; the live data store is never touched.
+            var vault = VaultBackupScrubber.Scrub(databaseCopy, _configDirectory);
+
             using var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create);
             archive.CreateEntryFromFile(databaseCopy, "database/library.db", CompressionLevel.SmallestSize);
             foreach (var path in EnumerateSafeConfigFiles())
@@ -86,7 +90,7 @@ public sealed class DatabaseBackupService
             }
 
             var manifest = archive.CreateEntry("manifest.json", CompressionLevel.SmallestSize);
-            BackupManifestWriter.Write(manifest);
+            BackupManifestWriter.Write(manifest, vault);
             return archivePath;
         }
         catch
@@ -129,7 +133,8 @@ public sealed class DatabaseBackupService
             return new ScheduleRestoreResultDto(
                 true,
                 true,
-                "Restore validated and scheduled. Restart the Engine to apply it. The current database and configuration will be retained as pre-restore backups.");
+                "Restore validated and scheduled. Restart the Engine to apply it. The current database and configuration will be retained as pre-restore backups."
+                + VaultRestoreNote.For(Path.Combine(stagingDirectory, "library.db")));
         }
         catch
         {
@@ -335,7 +340,7 @@ public sealed class DatabaseBackupService
             operationId, Path.GetFileName(originalFileName), createdAt, manifestVersion,
             databaseEpoch, new FileInfo(archivePath).Length, uncompressed, archive.Entries.Count,
             configCount,
-            "Provider credentials, active sessions, downloaded models, artwork caches, and original media are not restored.");
+            "Provider credentials, active sessions, downloaded models, artwork caches, the Vault catalogue, and original media are not restored.");
     }
 
     private static bool IsForbiddenRestoreEntry(string relative) =>

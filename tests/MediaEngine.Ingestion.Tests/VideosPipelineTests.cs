@@ -29,6 +29,7 @@ namespace MediaEngine.Ingestion.Tests;
 public sealed class VideosPipelineTests : IDisposable
 {
     private readonly ImportFolderHarness _h = new();
+    private readonly StubEventPublisher _publisher = new();
     private readonly string _videos;
 
     public VideosPipelineTests()
@@ -104,13 +105,147 @@ public sealed class VideosPipelineTests : IDisposable
         Assert.NotNull(await _h.Assets.FindByPathRootAsync(c));
     }
 
-    private async Task RunAsync(int expectedAssets)
+    [Fact]
+    public async Task AVideoInAVaultLibrary_IsNeverLookedUpOnYoutube_EvenWithTheLibrarySwitchOn()
+    {
+        Write("Holiday clip [dQw4w9WgXcQ].mp4");
+        var lookup = new CountingLookup();
+
+        await RunAsync(1, lookup, new FixedGate(allowed: false));
+
+        Assert.Equal(0, lookup.Calls);
+    }
+
+    [Fact]
+    public async Task AVideoInANormalLibrary_IsStillLookedUpOnYoutube_WhenTheGateAllows()
+    {
+        Write("Holiday clip [dQw4w9WgXcQ].mp4");
+        var lookup = new CountingLookup();
+
+        await RunAsync(1, lookup, new FixedGate(allowed: true));
+
+        Assert.Equal(1, lookup.Calls);
+    }
+
+    // ── The Vault's part of ingestion (Videos spec WP12, D32) ───────────────────────────────────
+
+    private const string VaultLibraryId = "bbbbbbbb-0000-4000-8000-000000000001";
+
+    [Fact]
+    public async Task AFileInAVaultLibrary_IsHandedToTheVaultHookOnce_AndAnnouncesNothingToOpenScreens()
+    {
+        var path = Write("Quiet clip.mp4");
+        var hook = new RecordingVaultHook(VaultLibraryId);
+
+        await RunAsync(1, vaultHook: hook);
+
+        var registered = Assert.Single(hook.Registered);
+        Assert.Equal(path, registered.FilePath);
+        Assert.Equal(VaultLibraryId, registered.LibraryId);
+        Assert.Equal((await _h.Assets.FindByPathRootAsync(path))!.Id, registered.AssetId);
+        Assert.DoesNotContain(_publisher.Published, p => p.EventName.StartsWith("Ingestion", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AFileInAVaultLibrary_NeverGetsANeedsReviewItem_AndAPictureBesideItStaysOutOfTheSharedArtwork()
+    {
+        Write("Quiet clip.mp4");
+        Write("Quiet clip.jpg");
+        var hook = new RecordingVaultHook(VaultLibraryId);
+
+        await RunAsync(1, vaultHook: hook);
+
+        using var conn = _h.Db.Connection.CreateConnection();
+        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM review_queue"));
+        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_assets"));
+        Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM canonical_values WHERE key IN ('cover', 'cover_state', 'cover_url')"));
+        Assert.NotEmpty(hook.Registered);
+    }
+
+    [Fact]
+    public async Task AFileInANormalLibrary_IsNeverHandedToTheVaultHook_AndStillAnnouncesItsProgress()
+    {
+        Write("Ordinary clip.mp4");
+        var hook = new RecordingVaultHook("00000000-0000-4000-8000-00000000dead");
+
+        await RunAsync(1, vaultHook: hook);
+
+        Assert.Empty(hook.Registered);
+        Assert.Contains(_publisher.Published, p => p.EventName.StartsWith("Ingestion", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AVaultHookThatFails_NeverFailsIngestion()
+    {
+        var path = Write("Quiet clip.mp4");
+        var hook = new RecordingVaultHook(VaultLibraryId) { Fail = true };
+
+        await RunAsync(1, vaultHook: hook);
+
+        Assert.NotNull(await _h.Assets.FindByPathRootAsync(path));
+    }
+
+    [Fact]
+    public async Task ADryRun_NeverListsOrReadsAVaultFile_ButListsTheSameFileInAnOrdinaryLibrary()
+    {
+        var path = Write("Quiet clip.mp4");
+        IReadOnlyList<PendingOperation>? ordinary = null;
+        IReadOnlyList<PendingOperation>? vault = null;
+
+        await RunAsync(1, probe: async engine => ordinary = await engine.DryRunAsync(_videos));
+        await RunAsync(1, vaultHook: new RecordingVaultHook(VaultLibraryId), probe: async engine => vault = await engine.DryRunAsync(_videos));
+
+        Assert.Contains(ordinary!, operation => operation.SourcePath == path);
+        Assert.NotNull(vault);
+        Assert.Empty(vault!);
+    }
+
+    private sealed class RecordingVaultHook(string vaultLibraryId) : IVaultIngestionHook
+    {
+        public List<VaultRegisteredFile> Registered { get; } = [];
+
+        public bool Fail { get; init; }
+
+        public Task<bool> IsVaultLibraryAsync(string? libraryId, CancellationToken ct = default) =>
+            Task.FromResult(string.Equals(libraryId, vaultLibraryId, StringComparison.OrdinalIgnoreCase));
+
+        public Task<bool> IsVaultAssetAsync(Guid assetId, CancellationToken ct = default) =>
+            Task.FromResult(Registered.Any(file => file.AssetId == assetId));
+
+        public Task OnFileRegisteredAsync(VaultRegisteredFile file, CancellationToken ct = default)
+        {
+            Registered.Add(file);
+            return Fail ? throw new InvalidOperationException("The lookup fell over.") : Task.CompletedTask;
+        }
+    }
+
+    private sealed class CountingLookup : IVideoOnlineLookup
+    {
+        public int Calls { get; private set; }
+
+        public Task<VideoOnlineInfo?> LookupAsync(string youtubeVideoId, CancellationToken ct = default)
+        {
+            Calls++;
+            return Task.FromResult<VideoOnlineInfo?>(null);
+        }
+    }
+
+    private sealed class FixedGate(bool allowed) : IProviderAudienceGate
+    {
+        public Task<bool> MayAskAboutItemAsync(string providerName, Guid assetOrWorkId, CancellationToken ct = default) => Task.FromResult(allowed);
+
+        public Task<bool> MayAskAboutLibraryAsync(string providerName, string? libraryId, CancellationToken ct = default) => Task.FromResult(allowed);
+    }
+
+    private async Task RunAsync(
+        int expectedAssets, IVideoOnlineLookup? lookup = null, IProviderAudienceGate? gate = null, IVaultIngestionHook? vaultHook = null,
+        Func<IIngestionEngine, Task>? probe = null)
     {
         var db = _h.Db.Connection;
-        var publisher = new StubEventPublisher();
+        var publisher = _publisher;
         var workRepo = new WorkRepository(db);
         var operationRepo = new MediaOperationRepository(db);
-        var tracker = new MediaOperationTracker(operationRepo, new MediaOperationEventRepository(db), publisher, NullLogger<MediaOperationTracker>.Instance);
+        var tracker = new MediaOperationTracker(operationRepo, new MediaOperationEventRepository(db), publisher, NullLogger<MediaOperationTracker>.Instance, new VaultLibraryRepository(db));
         var options = _h.Options;
         using var debounce = new DebounceQueue(new DebounceOptions
         {
@@ -150,10 +285,13 @@ public sealed class VideosPipelineTests : IDisposable
             new HashDedupeStageDependencies(null), new ScoreIdentifyStageDependencies(null), new OrganizeStageDependencies(null),
             new WriteBackStageDependencies(new EntityAssetRepository(db), new AssetPathService(_h.LibraryRoot), workRepo, null),
             new IdentityJobStageDependencies(new IdentityPipelineSignal()),
+            vaultHook ?? new NoVaultIngestionHook(),
             operationTracker: tracker, operationRepository: operationRepo,
             libraryFolderResolver: new LibraryFolderResolver(monitor),
             sourceMutationPolicyGate: new SourceMutationPolicyGate(),
-            videoReader: reader);
+            videoReader: reader,
+            videoLookup: lookup,
+            audienceGate: gate);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         try
@@ -166,6 +304,10 @@ public sealed class VideosPipelineTests : IDisposable
 
             // Placement is recorded just after registration; give it a moment to finish.
             await Task.Delay(500, cts.Token);
+            if (probe is not null)
+            {
+                await probe(engine);
+            }
         }
         catch (OperationCanceledException)
         {

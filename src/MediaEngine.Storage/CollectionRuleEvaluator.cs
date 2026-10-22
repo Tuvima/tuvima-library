@@ -143,6 +143,7 @@ public sealed class CollectionRuleEvaluator
             SELECT DISTINCT w.id
             FROM works w
             WHERE {visibleWorkPredicate}
+              AND {VaultSql.NotVaultEntity("w.id")}
               AND ({whereClause})
               {searchClause}
             {orderBy}
@@ -188,7 +189,7 @@ public sealed class CollectionRuleEvaluator
         }
 
         var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
-        cmd.CommandText = $"SELECT COUNT(DISTINCT w.id) FROM works w WHERE {visibleWorkPredicate} AND ({whereClause}) {searchClause};";
+        cmd.CommandText = $"SELECT COUNT(DISTINCT w.id) FROM works w WHERE {visibleWorkPredicate} AND {VaultSql.NotVaultEntity("w.id")} AND ({whereClause}) {searchClause};";
         return Convert.ToInt32(cmd.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
     }
 

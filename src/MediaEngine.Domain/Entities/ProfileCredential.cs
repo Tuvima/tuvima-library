@@ -2,6 +2,7 @@ namespace MediaEngine.Domain.Entities;
 
 public enum ProfileCredentialKind
 {
+    /// <summary>The one PIN of a profile: switching to it, its admin pages (when asked) and Vault mode (when asked).</summary>
     ProfilePin = 0,
 }
 

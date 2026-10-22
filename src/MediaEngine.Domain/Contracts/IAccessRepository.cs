@@ -67,8 +67,9 @@ public interface IAccountAccessMutationRepository
     /// household's primary account when the household has none. Raises the account's authorization version.
     /// </summary>
     Task<bool> SetHouseholdAdminAsync(Guid accountId, bool isHouseholdAdmin, DateTimeOffset changedAt, CancellationToken ct = default);
-    Task<GrantAdminProtection> RecordAdminProtectionFailureAsync(Guid accountId, Guid profileId, DateTimeOffset lockedUntilAfterLimit, CancellationToken ct = default);
-    Task ResetAdminProtectionAttemptsAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
+
+    /// <summary>True when any sign-in has "Ask for my PIN on admin pages" switched on for this profile.</summary>
+    Task<bool> HasEnabledAdminProtectionAsync(Guid profileId, CancellationToken ct = default);
     Task SetAdminUnlockAsync(GrantAdminUnlock unlock, CancellationToken ct = default);
     Task ClearAdminUnlockAsync(Guid sessionId, CancellationToken ct = default);
 }
@@ -111,7 +112,6 @@ public sealed record UpdateAccountAccessCommand(
 
 public sealed record GrantAdminProtectionCommand(
     bool Enabled,
-    string? Pin,
     AdminUnlockMode UnlockMode,
     int? UnlockMinutes);
 

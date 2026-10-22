@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0029 entity_asset_tiny_rendition).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0036 one_profile_pin).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -340,7 +340,7 @@ CREATE TABLE audiobook_bookmarks (
     label                  TEXT,
     note                   TEXT,
     created_at             TEXT NOT NULL
-);
+, description TEXT, is_global INTEGER NOT NULL DEFAULT 0 CHECK (is_global IN (0, 1)), end_seconds REAL CHECK (end_seconds IS NULL OR end_seconds > position_seconds));
 
 CREATE TABLE audiobook_chapter_title_overrides (
     work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
@@ -434,6 +434,32 @@ CREATE TABLE backup_settings (
     setting_key  TEXT NOT NULL PRIMARY KEY,
     value_json   TEXT NOT NULL,
     updated_at   TEXT NOT NULL
+);
+
+CREATE TABLE bookmark_pack_items (
+    id               BLOB NOT NULL PRIMARY KEY,
+    pack_id          BLOB NOT NULL REFERENCES bookmark_packs(id) ON DELETE CASCADE,
+    position_seconds REAL NOT NULL CHECK (position_seconds >= 0),
+    end_seconds      REAL CHECK (end_seconds IS NULL OR end_seconds > position_seconds),
+    chapter_title    TEXT,
+    note             TEXT,
+    description      TEXT
+);
+
+CREATE TABLE bookmark_packs (
+    id                           BLOB NOT NULL PRIMARY KEY,
+    profile_id                   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    work_id                      BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
+    asset_id                     BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    name                         TEXT NOT NULL,
+    author                       TEXT,
+    content_hash                 TEXT NOT NULL,
+    source_running_time_seconds  REAL,
+    source_edition               TEXT,
+    is_aligned                   INTEGER NOT NULL DEFAULT 0 CHECK (is_aligned IN (0, 1)),
+    is_enabled                   INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
+    imported_at                  TEXT NOT NULL,
+    UNIQUE (profile_id, work_id, content_hash)
 );
 
 CREATE TABLE bridge_ids (
@@ -1075,23 +1101,17 @@ CREATE TABLE folder_organise_log (
   PRIMARY KEY (operation_id, old_path)
 );
 
-CREATE TABLE grant_admin_protections (
-    account_id BLOB NOT NULL,
-    profile_id BLOB NOT NULL,
-    is_enabled INTEGER NOT NULL DEFAULT 0 CHECK (is_enabled IN (0, 1)),
-    unlock_mode TEXT NOT NULL DEFAULT 'FixedDuration'
+CREATE TABLE "grant_admin_protections" (
+    account_id         BLOB NOT NULL,
+    profile_id         BLOB NOT NULL,
+    is_enabled         INTEGER NOT NULL DEFAULT 0 CHECK (is_enabled IN (0, 1)),
+    unlock_mode        TEXT NOT NULL DEFAULT 'FixedDuration'
         CHECK (unlock_mode IN ('FixedDuration','UntilProfileSwitch','LockOnLeave')),
-    unlock_minutes INTEGER,
-    pin_hash TEXT,
-    hash_scheme TEXT,
-    failed_attempt_count INTEGER NOT NULL DEFAULT 0,
-    locked_until TEXT,
+    unlock_minutes     INTEGER,
     protection_version INTEGER NOT NULL DEFAULT 1 CHECK (protection_version > 0),
-    updated_at TEXT NOT NULL,
+    updated_at         TEXT NOT NULL,
     PRIMARY KEY (account_id, profile_id),
-    FOREIGN KEY (account_id, profile_id) REFERENCES account_profile_grants(account_id, profile_id) ON DELETE CASCADE,
-    CHECK ((is_enabled = 0 AND pin_hash IS NULL AND hash_scheme IS NULL)
-        OR (is_enabled = 1 AND pin_hash IS NOT NULL AND hash_scheme IS NOT NULL))
+    FOREIGN KEY (account_id, profile_id) REFERENCES account_profile_grants(account_id, profile_id) ON DELETE CASCADE
 );
 
 CREATE TABLE grant_admin_unlocks (
@@ -1615,6 +1635,15 @@ CREATE TABLE notifications (
     read_at           TEXT                            -- ISO 8601 UTC; null while unread
 );
 
+CREATE TABLE nsfw_session_unlocks (
+    session_id       BLOB NOT NULL PRIMARY KEY REFERENCES auth_sessions(id) ON DELETE CASCADE,
+    profile_id       BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    method           TEXT NOT NULL CHECK (method IN ('pin', 'allowed')),
+    unlocked_at      TEXT NOT NULL,
+    last_activity_at TEXT NOT NULL,
+    expires_at       TEXT
+);
+
 CREATE TABLE offline_variants (
     id            BLOB NOT NULL PRIMARY KEY,
     asset_id      BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
@@ -2044,6 +2073,14 @@ CREATE TABLE profile_notice_dismissals (
     fingerprint  TEXT NOT NULL,   -- what was true when it was dismissed (the review count, or the sorted missing tool ids)
     dismissed_at TEXT NOT NULL,   -- ISO 8601 UTC
     PRIMARY KEY (profile_id, notice_key)
+);
+
+CREATE TABLE profile_nsfw_settings (
+    profile_id            BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+    access_mode           TEXT NOT NULL DEFAULT 'off' CHECK (access_mode IN ('off', 'pin', 'allowed')),
+    idle_lock_minutes     INTEGER CHECK (idle_lock_minutes IS NULL OR idle_lock_minutes BETWEEN 0 AND 1440),
+    changed_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    updated_at            TEXT NOT NULL
 );
 
 CREATE TABLE profile_person_preferences (
@@ -2527,6 +2564,188 @@ CREATE TABLE user_taste_profiles (
     updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE vault_activity (
+    id         BLOB NOT NULL PRIMARY KEY,
+    asset_id   BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    kind       TEXT NOT NULL CHECK (kind IN ('added', 'matched', 'unmatched', 'identified', 'failed')),
+    file_name  TEXT NOT NULL,
+    detail     TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE vault_artwork (
+    id           BLOB NOT NULL PRIMARY KEY,
+    owner_kind   TEXT NOT NULL CHECK (owner_kind IN ('asset', 'performer', 'studio')),
+    owner_id     BLOB NOT NULL,
+    artwork_kind TEXT NOT NULL CHECK (artwork_kind IN ('cover', 'thumbnail', 'portrait', 'logo', 'still')),
+    file_path    TEXT NOT NULL,
+    content_hash TEXT,
+    width        INTEGER,
+    height       INTEGER,
+    source       TEXT,
+    created_at   TEXT NOT NULL
+);
+
+CREATE TABLE vault_asset_performers (
+    asset_id     BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    performer_id BLOB NOT NULL REFERENCES vault_performers(id) ON DELETE CASCADE,
+    PRIMARY KEY (asset_id, performer_id)
+);
+
+CREATE TABLE vault_asset_studios (
+    asset_id  BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    studio_id BLOB NOT NULL REFERENCES vault_studios(id) ON DELETE CASCADE,
+    PRIMARY KEY (asset_id, studio_id)
+);
+
+CREATE TABLE vault_asset_tags (
+    asset_id BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    tag_id   BLOB NOT NULL REFERENCES vault_tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (asset_id, tag_id)
+);
+
+CREATE TABLE vault_field_sources (
+    asset_id    BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    field       TEXT NOT NULL CHECK (field IN ('title', 'description', 'release_date', 'cover', 'studio', 'performers', 'tags')),
+    server_id   TEXT NOT NULL,
+    record_id   TEXT NOT NULL,
+    matched_by  TEXT NOT NULL CHECK (matched_by IN ('fingerprint', 'product_code', 'title', 'identify')),
+    applied_via TEXT NOT NULL CHECK (applied_via IN ('automatic', 'identify')),
+    language    TEXT,
+    applied_at  TEXT NOT NULL,
+    PRIMARY KEY (asset_id, field)
+);
+
+CREATE TABLE vault_file_fingerprints (
+    asset_id    BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    algorithm   TEXT NOT NULL CHECK (algorithm IN ('OSHASH', 'MD5', 'PHASH')),
+    hash        TEXT NOT NULL,
+    file_size   INTEGER NOT NULL,
+    computed_at TEXT NOT NULL,
+    PRIMARY KEY (asset_id, algorithm)
+);
+
+CREATE TABLE vault_galleries (
+    id                    BLOB NOT NULL PRIMARY KEY,
+    library_id            BLOB NOT NULL REFERENCES vault_image_libraries(library_id) ON DELETE CASCADE,
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    name                  TEXT NOT NULL,
+    description           TEXT,
+    gallery_kind          TEXT NOT NULL CHECK (gallery_kind IN ('manual', 'smart')),
+    smart_rule_json       TEXT CHECK (smart_rule_json IS NULL OR json_valid(smart_rule_json)),
+    cover_item_id         BLOB REFERENCES local_items(id) ON DELETE SET NULL,
+    sort_order            INTEGER NOT NULL DEFAULT 0,
+    created_at            TEXT NOT NULL,
+    updated_at            TEXT NOT NULL,
+    CHECK ((gallery_kind = 'manual' AND smart_rule_json IS NULL)
+        OR (gallery_kind = 'smart' AND smart_rule_json IS NOT NULL))
+);
+
+CREATE TABLE vault_gallery_items (
+    gallery_id BLOB NOT NULL REFERENCES vault_galleries(id) ON DELETE CASCADE,
+    item_id    BLOB NOT NULL REFERENCES vault_image_items(item_id) ON DELETE CASCADE,
+    position   INTEGER NOT NULL DEFAULT 0,
+    added_at   TEXT NOT NULL,
+    PRIMARY KEY (gallery_id, item_id)
+);
+
+CREATE TABLE vault_image_folders (
+    id         BLOB NOT NULL PRIMARY KEY,
+    library_id BLOB NOT NULL REFERENCES vault_image_libraries(library_id) ON DELETE CASCADE,
+    name       TEXT NOT NULL,
+    folder_key TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (library_id, folder_key)
+);
+
+CREATE TABLE vault_image_items (
+    item_id          BLOB NOT NULL PRIMARY KEY REFERENCES local_items(id) ON DELETE CASCADE,
+    library_id       BLOB NOT NULL REFERENCES vault_image_libraries(library_id) ON DELETE CASCADE,
+    folder_id        BLOB REFERENCES vault_image_folders(id) ON DELETE SET NULL,
+    recycle_entries  TEXT CHECK (recycle_entries IS NULL OR json_valid(recycle_entries)),
+    added_at         TEXT NOT NULL
+);
+
+CREATE TABLE vault_image_libraries (
+    library_id       BLOB NOT NULL PRIMARY KEY,
+    vault_library_id TEXT NOT NULL UNIQUE COLLATE NOCASE REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
+    created_at       TEXT NOT NULL
+);
+
+CREATE TABLE vault_image_tags (
+    item_id  BLOB NOT NULL REFERENCES vault_image_items(item_id) ON DELETE CASCADE,
+    tag_id   BLOB NOT NULL REFERENCES vault_tags(id) ON DELETE CASCADE,
+    added_at TEXT NOT NULL,
+    PRIMARY KEY (item_id, tag_id)
+);
+
+CREATE TABLE vault_libraries (
+    library_id            TEXT NOT NULL PRIMARY KEY COLLATE NOCASE,
+    lookup_source         TEXT NOT NULL DEFAULT 'none' CHECK (lookup_source IN ('none', 'stash_box')),
+    lookup_server_id      TEXT,
+    adults_confirmed_at   TEXT NOT NULL,   -- D34: the administrator confirmed everyone who can unlock it is an adult and the content is lawful
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at            TEXT NOT NULL,
+    updated_at            TEXT NOT NULL
+);
+
+CREATE TABLE vault_matches (
+    asset_id    BLOB NOT NULL PRIMARY KEY REFERENCES media_assets(id) ON DELETE CASCADE,
+    server_id   TEXT NOT NULL,
+    record_id   TEXT NOT NULL,
+    matched_by  TEXT NOT NULL CHECK (matched_by IN ('fingerprint', 'product_code', 'title', 'identify')),
+    applied_via TEXT NOT NULL CHECK (applied_via IN ('automatic', 'identify')),
+    matched_at  TEXT NOT NULL
+);
+
+CREATE TABLE vault_pending_bookmarks (
+    id                    BLOB NOT NULL PRIMARY KEY,
+    profile_id            BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    is_global             INTEGER NOT NULL DEFAULT 0 CHECK (is_global IN (0, 1)),
+    identity_json         TEXT NOT NULL CHECK (json_valid(identity_json)),
+    position_seconds      REAL NOT NULL DEFAULT 0.0,
+    end_seconds           REAL CHECK (end_seconds IS NULL OR end_seconds > position_seconds),
+    duration_seconds      REAL,
+    chapter_index         INTEGER,
+    chapter_title         TEXT,
+    chapter_start_seconds REAL,
+    label                 TEXT,
+    note                  TEXT,
+    description           TEXT,
+    created_at            TEXT NOT NULL
+);
+
+CREATE TABLE vault_performers (
+    id         BLOB NOT NULL PRIMARY KEY,
+    library_id TEXT NOT NULL REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
+    name       TEXT NOT NULL COLLATE NOCASE,
+    sort_name  TEXT,
+    source     TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (library_id, name)
+);
+
+CREATE TABLE vault_studios (
+    id         BLOB NOT NULL PRIMARY KEY,
+    library_id TEXT NOT NULL REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
+    name       TEXT NOT NULL COLLATE NOCASE,
+    source     TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (library_id, name)
+);
+
+CREATE TABLE vault_tags (
+    id         BLOB NOT NULL PRIMARY KEY,
+    library_id TEXT NOT NULL REFERENCES vault_libraries(library_id) ON DELETE CASCADE,
+    name       TEXT NOT NULL COLLATE NOCASE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (library_id, name)
+);
+
 CREATE TABLE view_devices (
     id                  BLOB NOT NULL PRIMARY KEY,
     personal_space_id   BLOB NOT NULL REFERENCES view_personal_spaces(id) ON DELETE CASCADE,
@@ -2798,6 +3017,10 @@ CREATE INDEX idx_artwork_asset_context_facets
 CREATE INDEX idx_artwork_asset_context_search
     ON artwork_asset_context(search_text COLLATE NOCASE);
 
+CREATE INDEX idx_audiobook_bookmarks_global_work
+    ON audiobook_bookmarks(work_id, created_at DESC)
+    WHERE is_global = 1;
+
 CREATE INDEX idx_audiobook_bookmarks_profile_work
     ON audiobook_bookmarks(profile_id, work_id, created_at DESC);
 
@@ -2815,6 +3038,12 @@ CREATE INDEX idx_auth_sessions_account_active
 
 CREATE INDEX idx_authorization_audit_subject
     ON authorization_audit_events(subject_type, subject_id, occurred_at DESC);
+
+CREATE INDEX idx_bookmark_pack_items_pack
+    ON bookmark_pack_items(pack_id, position_seconds);
+
+CREATE INDEX idx_bookmark_packs_profile_work
+    ON bookmark_packs(profile_id, work_id, imported_at DESC);
 
 CREATE INDEX idx_bridge_ids_entity
     ON bridge_ids(entity_id);
@@ -3092,6 +3321,8 @@ CREATE INDEX idx_metadata_claims_provider_id
 CREATE INDEX idx_music_play_stats_profile_recent
     ON music_play_stats(profile_id, last_played_at DESC);
 
+CREATE INDEX idx_nsfw_session_unlocks_profile ON nsfw_session_unlocks(profile_id);
+
 CREATE INDEX idx_offline_variants_asset
     ON offline_variants(asset_id, status);
 
@@ -3243,6 +3474,18 @@ CREATE INDEX idx_text_tracks_asset_kind
 
 CREATE INDEX idx_text_tracks_preferred
     ON text_tracks(asset_id, kind, language, is_preferred);
+
+CREATE INDEX idx_vault_activity_created ON vault_activity(created_at DESC);
+
+CREATE INDEX idx_vault_artwork_owner ON vault_artwork(owner_kind, owner_id);
+
+CREATE INDEX idx_vault_asset_performers_performer ON vault_asset_performers(performer_id);
+
+CREATE INDEX idx_vault_asset_studios_studio ON vault_asset_studios(studio_id);
+
+CREATE INDEX idx_vault_asset_tags_tag ON vault_asset_tags(tag_id);
+
+CREATE INDEX idx_vault_pending_bookmarks_profile ON vault_pending_bookmarks(profile_id);
 
 CREATE INDEX idx_view_shared_contribution_events_batch
     ON view_shared_contribution_events(contribution_id, occurred_at, id);
@@ -3430,6 +3673,16 @@ CREATE INDEX ix_scheduled_task_runs_task_started ON scheduled_task_runs(task_key
 
 CREATE INDEX ix_tv_episode_credits_show ON tv_episode_credits(show_work_id, season, episode);
 
+CREATE INDEX ix_vault_galleries_library   ON vault_galleries(library_id, sort_order, updated_at DESC, id);
+
+CREATE INDEX ix_vault_gallery_items_item  ON vault_gallery_items(item_id, gallery_id);
+
+CREATE INDEX ix_vault_image_items_folder  ON vault_image_items(folder_id, item_id);
+
+CREATE INDEX ix_vault_image_items_library ON vault_image_items(library_id, item_id);
+
+CREATE INDEX ix_vault_image_tags_tag      ON vault_image_tags(tag_id, item_id);
+
 CREATE INDEX ix_view_devices_space_backup
     ON view_devices(personal_space_id, last_backup_at DESC, id);
 
@@ -3527,6 +3780,18 @@ CREATE UNIQUE INDEX ux_works_root_parent_key
       AND parent_key IS NOT NULL
       AND parent_work_id IS NULL;
 
+CREATE TRIGGER trg_application_events_no_vault
+BEFORE INSERT ON application_events
+WHEN (NEW.library_id IS NOT NULL
+      AND EXISTS (SELECT 1 FROM vault_libraries WHERE UPPER(REPLACE(library_id, '-', '')) = HEX(NEW.library_id)))
+  OR EXISTS (
+      SELECT 1
+      FROM media_assets ma
+      JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE
+      WHERE ma.id = UNHEX(REPLACE(NEW.subject_id, '-', ''))
+         OR ma.edition_id IN (SELECT e.id FROM editions e WHERE e.work_id = UNHEX(REPLACE(NEW.subject_id, '-', ''))))
+BEGIN SELECT RAISE(IGNORE); END;
+
 CREATE TRIGGER trg_artwork_asset_context_search_delete
 AFTER DELETE ON artwork_asset_context BEGIN
     DELETE FROM artwork_asset_search
@@ -3547,6 +3812,16 @@ AFTER UPDATE OF search_text, artwork_asset_id ON artwork_asset_context BEGIN
     VALUES (new.artwork_asset_id, new.search_text);
 END;
 
+CREATE TRIGGER trg_auth_sessions_nsfw_locked_on_profile_switch
+AFTER UPDATE OF active_profile_id ON auth_sessions
+WHEN OLD.active_profile_id <> NEW.active_profile_id
+BEGIN DELETE FROM nsfw_session_unlocks WHERE session_id = NEW.id; END;
+
+CREATE TRIGGER trg_local_item_tag_links_no_vault_image
+BEFORE INSERT ON local_item_tag_links
+WHEN EXISTS (SELECT 1 FROM vault_image_items WHERE item_id = NEW.item_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault image cannot use the shared tag list.'); END;
+
 CREATE TRIGGER trg_local_items_delete_search
 BEFORE DELETE ON local_items
 BEGIN
@@ -3555,12 +3830,201 @@ BEGIN
 END;
 
 CREATE TRIGGER trg_local_items_scope_insert BEFORE INSERT ON local_items BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) AND NOT EXISTS (SELECT 1 FROM vault_image_libraries v WHERE v.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
 END;
 
 CREATE TRIGGER trg_local_items_scope_update BEFORE UPDATE OF scope_kind,personal_space_id,owner_profile_id,library_id ON local_items BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) AND NOT EXISTS (SELECT 1 FROM vault_image_libraries v WHERE v.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
 END;
+
+CREATE TRIGGER trg_local_items_vault_image_register
+AFTER INSERT ON local_items
+WHEN EXISTS (SELECT 1 FROM vault_image_libraries WHERE library_id = NEW.library_id)
+BEGIN
+    INSERT INTO vault_image_items (item_id, library_id, added_at) VALUES (NEW.id, NEW.library_id, NEW.created_at);
+END;
+
+CREATE TRIGGER trg_local_items_vault_library_fixed
+BEFORE UPDATE OF library_id ON local_items
+WHEN OLD.library_id IS NOT NEW.library_id
+ AND (EXISTS (SELECT 1 FROM vault_image_libraries WHERE library_id = OLD.library_id)
+   OR EXISTS (SELECT 1 FROM vault_image_libraries WHERE library_id = NEW.library_id))
+BEGIN SELECT RAISE(ABORT, 'Items cannot be moved into or out of a Vault image library.'); END;
+
+CREATE TRIGGER trg_media_assets_vault_library_fixed
+BEFORE UPDATE OF library_id ON media_assets
+WHEN OLD.library_id IS NOT NEW.library_id
+ AND (EXISTS (SELECT 1 FROM vault_libraries WHERE library_id = OLD.library_id)
+   OR EXISTS (SELECT 1 FROM vault_libraries WHERE library_id = NEW.library_id))
+BEGIN SELECT RAISE(ABORT, 'Files cannot be moved into or out of a Vault library.'); END;
+
+CREATE TRIGGER trg_personal_activity_no_vault
+BEFORE INSERT ON personal_activity
+WHEN NEW.asset_id IS NOT NULL
+ AND EXISTS (
+      SELECT 1
+      FROM media_assets ma
+      JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE
+      WHERE ma.id = NEW.asset_id)
+BEGIN SELECT RAISE(IGNORE); END;
+
+CREATE TRIGGER trg_profile_credentials_vault_locked_on_change
+AFTER UPDATE OF secret_hash ON profile_credentials
+WHEN OLD.secret_hash <> NEW.secret_hash
+BEGIN DELETE FROM nsfw_session_unlocks WHERE profile_id = NEW.profile_id AND method = 'pin'; END;
+
+CREATE TRIGGER trg_profile_credentials_vault_locked_on_removal
+AFTER DELETE ON profile_credentials
+BEGIN DELETE FROM nsfw_session_unlocks WHERE profile_id = OLD.profile_id AND method = 'pin'; END;
+
+CREATE TRIGGER trg_profile_nsfw_settings_eligible_insert
+BEFORE INSERT ON profile_nsfw_settings
+WHEN NEW.access_mode <> 'off'
+ AND EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND (role = 'RestrictedProfile' OR content_limit IS NOT NULL))
+BEGIN SELECT RAISE(ABORT, 'A Kids or content-limited profile cannot have Vault access.'); END;
+
+CREATE TRIGGER trg_profile_nsfw_settings_eligible_update
+BEFORE UPDATE OF access_mode ON profile_nsfw_settings
+WHEN NEW.access_mode <> 'off'
+ AND EXISTS (SELECT 1 FROM profiles WHERE id = NEW.profile_id AND (role = 'RestrictedProfile' OR content_limit IS NOT NULL))
+BEGIN SELECT RAISE(ABORT, 'A Kids or content-limited profile cannot have Vault access.'); END;
+
+CREATE TRIGGER trg_profile_nsfw_settings_mode_changed
+AFTER UPDATE OF access_mode ON profile_nsfw_settings
+WHEN OLD.access_mode <> NEW.access_mode
+BEGIN DELETE FROM nsfw_session_unlocks WHERE profile_id = NEW.profile_id; END;
+
+CREATE TRIGGER trg_profile_nsfw_settings_pin_needs_profile_pin_insert
+BEFORE INSERT ON profile_nsfw_settings
+WHEN NEW.access_mode = 'pin'
+ AND NOT EXISTS (SELECT 1 FROM profile_credentials WHERE profile_id = NEW.profile_id AND credential_kind = 'ProfilePin')
+BEGIN SELECT RAISE(ABORT, 'Set a PIN on this profile first.'); END;
+
+CREATE TRIGGER trg_profile_nsfw_settings_pin_needs_profile_pin_update
+BEFORE UPDATE OF access_mode ON profile_nsfw_settings
+WHEN NEW.access_mode = 'pin'
+ AND NOT EXISTS (SELECT 1 FROM profile_credentials WHERE profile_id = NEW.profile_id AND credential_kind = 'ProfilePin')
+BEGIN SELECT RAISE(ABORT, 'Set a PIN on this profile first.'); END;
+
+CREATE TRIGGER trg_profile_nsfw_settings_removed
+AFTER DELETE ON profile_nsfw_settings
+BEGIN DELETE FROM nsfw_session_unlocks WHERE profile_id = OLD.profile_id; END;
+
+CREATE TRIGGER trg_profiles_nsfw_access_withdrawn
+AFTER UPDATE OF role, content_limit ON profiles
+WHEN NEW.role = 'RestrictedProfile' OR NEW.content_limit IS NOT NULL
+BEGIN
+    UPDATE profile_nsfw_settings SET access_mode = 'off' WHERE profile_id = NEW.id AND access_mode <> 'off';
+    DELETE FROM nsfw_session_unlocks WHERE profile_id = NEW.id;
+END;
+
+CREATE TRIGGER trg_vault_activity_vault_only
+BEFORE INSERT ON vault_activity
+WHEN NOT EXISTS (
+    SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
+BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have Vault activity.'); END;
+
+CREATE TRIGGER trg_vault_artwork_asset_removed
+AFTER DELETE ON media_assets
+BEGIN DELETE FROM vault_artwork WHERE owner_kind = 'asset' AND owner_id = OLD.id; END;
+
+CREATE TRIGGER trg_vault_artwork_performer_removed
+AFTER DELETE ON vault_performers
+BEGIN DELETE FROM vault_artwork WHERE owner_kind = 'performer' AND owner_id = OLD.id; END;
+
+CREATE TRIGGER trg_vault_artwork_studio_removed
+AFTER DELETE ON vault_studios
+BEGIN DELETE FROM vault_artwork WHERE owner_kind = 'studio' AND owner_id = OLD.id; END;
+
+CREATE TRIGGER trg_vault_asset_performers_prune
+AFTER DELETE ON vault_asset_performers
+BEGIN DELETE FROM vault_performers WHERE id = OLD.performer_id AND NOT EXISTS (SELECT 1 FROM vault_asset_performers WHERE performer_id = OLD.performer_id); END;
+
+CREATE TRIGGER trg_vault_asset_studios_prune
+AFTER DELETE ON vault_asset_studios
+BEGIN DELETE FROM vault_studios WHERE id = OLD.studio_id AND NOT EXISTS (SELECT 1 FROM vault_asset_studios WHERE studio_id = OLD.studio_id); END;
+
+CREATE TRIGGER trg_vault_asset_tags_prune
+AFTER DELETE ON vault_asset_tags
+BEGIN DELETE FROM vault_tags WHERE id = OLD.tag_id AND NOT EXISTS (SELECT 1 FROM vault_asset_tags WHERE tag_id = OLD.tag_id); END;
+
+CREATE TRIGGER trg_vault_field_sources_vault_only
+BEFORE INSERT ON vault_field_sources
+WHEN NOT EXISTS (
+    SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
+BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have Vault field sources.'); END;
+
+CREATE TRIGGER trg_vault_file_fingerprints_vault_only
+BEFORE INSERT ON vault_file_fingerprints
+WHEN NOT EXISTS (
+    SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
+BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have Vault fingerprints.'); END;
+
+CREATE TRIGGER trg_vault_galleries_cover_same_library
+BEFORE UPDATE OF cover_item_id ON vault_galleries
+WHEN NEW.cover_item_id IS NOT NULL
+ AND NOT EXISTS (SELECT 1 FROM vault_image_items WHERE item_id = NEW.cover_item_id AND library_id = NEW.library_id)
+BEGIN SELECT RAISE(ABORT, 'A gallery cover must be an image of its own Vault library.'); END;
+
+CREATE TRIGGER trg_vault_galleries_cover_same_library_insert
+BEFORE INSERT ON vault_galleries
+WHEN NEW.cover_item_id IS NOT NULL
+ AND NOT EXISTS (SELECT 1 FROM vault_image_items WHERE item_id = NEW.cover_item_id AND library_id = NEW.library_id)
+BEGIN SELECT RAISE(ABORT, 'A gallery cover must be an image of its own Vault library.'); END;
+
+CREATE TRIGGER trg_vault_gallery_items_same_library
+BEFORE INSERT ON vault_gallery_items
+WHEN (SELECT library_id FROM vault_image_items WHERE item_id = NEW.item_id)
+     IS NOT (SELECT library_id FROM vault_galleries WHERE id = NEW.gallery_id)
+BEGIN SELECT RAISE(ABORT, 'A gallery can only hold images of its own Vault library.'); END;
+
+CREATE TRIGGER trg_vault_image_libraries_not_view
+BEFORE INSERT ON vault_image_libraries
+WHEN EXISTS (SELECT 1 FROM local_items WHERE library_id = NEW.library_id)
+  OR EXISTS (SELECT 1 FROM view_personal_spaces WHERE library_id = NEW.library_id)
+  OR EXISTS (SELECT 1 FROM view_shared_library WHERE library_id = NEW.library_id)
+BEGIN SELECT RAISE(ABORT, 'A library that View already uses cannot hold Vault images.'); END;
+
+CREATE TRIGGER trg_vault_image_tags_same_library
+BEFORE INSERT ON vault_image_tags
+WHEN lower((SELECT vil.vault_library_id FROM vault_image_items vii
+              JOIN vault_image_libraries vil ON vil.library_id = vii.library_id
+             WHERE vii.item_id = NEW.item_id))
+     IS NOT lower((SELECT library_id FROM vault_tags WHERE id = NEW.tag_id))
+BEGIN SELECT RAISE(ABORT, 'An image can only use the tags of its own Vault library.'); END;
+
+CREATE TRIGGER trg_vault_libraries_images_in_use
+BEFORE DELETE ON vault_libraries
+WHEN EXISTS (SELECT 1 FROM vault_image_items vii
+               JOIN vault_image_libraries vil ON vil.library_id = vii.library_id
+              WHERE vil.vault_library_id = OLD.library_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault library that still has items cannot be removed.'); END;
+
+CREATE TRIGGER trg_vault_libraries_in_use
+BEFORE DELETE ON vault_libraries
+WHEN EXISTS (SELECT 1 FROM media_assets WHERE library_id = OLD.library_id COLLATE NOCASE)
+BEGIN SELECT RAISE(ABORT, 'A Vault library that still has items cannot be removed.'); END;
+
+CREATE TRIGGER trg_vault_matches_vault_only
+BEFORE INSERT ON vault_matches
+WHEN NOT EXISTS (
+    SELECT 1 FROM media_assets ma JOIN vault_libraries vl ON vl.library_id = ma.library_id COLLATE NOCASE WHERE ma.id = NEW.asset_id)
+BEGIN SELECT RAISE(ABORT, 'Only a Vault file can have a Vault match.'); END;
+
+CREATE TRIGGER trg_view_galleries_cover_no_vault_image_insert
+BEFORE INSERT ON view_galleries
+WHEN NEW.cover_item_id IS NOT NULL AND EXISTS (SELECT 1 FROM vault_image_items WHERE item_id = NEW.cover_item_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault image cannot be a View gallery cover.'); END;
+
+CREATE TRIGGER trg_view_galleries_cover_no_vault_image_update
+BEFORE UPDATE OF cover_item_id ON view_galleries
+WHEN NEW.cover_item_id IS NOT NULL AND EXISTS (SELECT 1 FROM vault_image_items WHERE item_id = NEW.cover_item_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault image cannot be a View gallery cover.'); END;
+
+CREATE TRIGGER trg_view_gallery_items_no_vault_image
+BEFORE INSERT ON view_gallery_items
+WHEN EXISTS (SELECT 1 FROM vault_image_items WHERE item_id = NEW.item_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault image cannot be added to a View gallery.'); END;
 
 CREATE TRIGGER trg_view_personal_space_identity_immutable
 BEFORE UPDATE OF owner_profile_id,library_id ON view_personal_spaces
@@ -3577,6 +4041,11 @@ BEFORE UPDATE OF library_id ON view_personal_spaces WHEN EXISTS (
     SELECT 1 FROM view_shared_library WHERE library_id=NEW.library_id)
 BEGIN SELECT RAISE(ABORT,'Personal Space library cannot use the Shared library identity'); END;
 
+CREATE TRIGGER trg_view_personal_spaces_not_vault
+BEFORE INSERT ON view_personal_spaces
+WHEN EXISTS (SELECT 1 FROM vault_image_libraries WHERE library_id = NEW.library_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault image library cannot be a View library.'); END;
+
 CREATE TRIGGER trg_view_shared_library_collision_insert
 BEFORE INSERT ON view_shared_library WHEN EXISTS (
     SELECT 1 FROM view_personal_spaces WHERE library_id=NEW.library_id)
@@ -3590,6 +4059,11 @@ BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted while it hol
 CREATE TRIGGER trg_view_shared_library_identity_immutable
 BEFORE UPDATE OF library_id ON view_shared_library WHEN NEW.library_id<>OLD.library_id
 BEGIN SELECT RAISE(ABORT,'Shared library identity is immutable'); END;
+
+CREATE TRIGGER trg_view_shared_library_not_vault
+BEFORE INSERT ON view_shared_library
+WHEN EXISTS (SELECT 1 FROM vault_image_libraries WHERE library_id = NEW.library_id)
+BEGIN SELECT RAISE(ABORT, 'A Vault image library cannot be a View library.'); END;
 
 CREATE TRIGGER trg_view_sources_scope_insert BEFORE INSERT ON view_sources BEGIN
     SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;

@@ -1,0 +1,20 @@
+.vault-list__group { display: grid; gap: 8px; margin-bottom: 16px; }
+.vault-list__heading { margin: 0; font-size: 1.125rem; }
+.vault-list__cards--grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); align-items: start; }
+.vault-list__cards--shelf { display: grid; gap: 12px; grid-auto-flow: column; grid-auto-columns: minmax(200px, 240px); overflow-x: auto; padding-bottom: 8px; align-items: start; }
+.vault-list__chip { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--tl-border-subtle, currentColor); color: inherit; text-decoration: none; }
+.vault-list__cards--grid:has(.vault-list__chip) { display: flex; flex-wrap: wrap; }
+.vault-list__muted { color: var(--tl-text-muted); font-size: 0.875rem; }
+.vault-list__mark { margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; border: 1px solid currentColor; color: var(--tl-text-muted); }
+.vault-list__title--hidden { visibility: hidden; }
+.vault-list__row:hover .vault-list__title--hidden, .vault-list__row:focus-visible .vault-list__title--hidden, .vault-list__chip:hover .vault-list__title--hidden, .vault-list__chip:focus-visible .vault-list__title--hidden { visibility: visible; }
+.vault-list--details { display: grid; }
+.vault-list__head, .vault-list__row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 90px 110px; gap: 12px; align-items: center; min-height: 44px; padding: 4px 8px; color: inherit; text-decoration: none; }
+.vault-list__head { font-size: 0.8125rem; color: var(--tl-text-muted); border-bottom: 1px solid var(--tl-border-subtle, currentColor); }
+.vault-list__row:hover, .vault-list__row:focus-visible { background: var(--tl-bg-surface-raised); }
+@media (max-width: 640px) {
+    .vault-list__head { display: none; }
+    .vault-list__row { grid-template-columns: 1fr 1fr 1fr; }
+    .vault-list__row > :nth-child(1) { grid-column: 1 / -1; }
+    .vault-list__row > :nth-child(2) { grid-column: span 1; }
+}

@@ -9,4 +9,10 @@ public interface IProfilePinVerifier
     /// while the profile is locked. Only attempts that <paramref name="countsTowardLockout"/> are blocked by, or add to, the lockout.
     /// </summary>
     Task VerifyProfilePinAsync(Guid profileId, string? pin, bool countsTowardLockout, CancellationToken ct = default);
+
+    /// <summary>
+    /// True when the profile has a PIN. <see cref="VerifyProfilePinAsync"/> lets a profile with no PIN through (switching to it needs
+    /// none), so every place that asks for the PIN as protection checks this first and treats "no PIN" as "cannot pass".
+    /// </summary>
+    Task<bool> HasProfilePinAsync(Guid profileId, CancellationToken ct = default);
 }
