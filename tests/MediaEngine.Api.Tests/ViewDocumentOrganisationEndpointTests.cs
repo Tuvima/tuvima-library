@@ -1163,10 +1163,11 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
 
         await _policies.SavePolicyAsync(ViewProfilePolicy.Default(owner.ProfileId) with { DocumentsEnabled = false });
 
-        // Without Documents: the document is refused as a whole request (nothing is half-added) ...
+        // Without Documents: the document is refused as a whole request (nothing is half-added), with the answer for an
+        // id that is not in the owner's space, even for the owner ...
         var other = await AddDocument(owner, 'e');
         using var refused = await _client.PostAsJsonAsync($"/view/galleries/{gallery.Id:D}/items", new ViewGalleryItemsRequest([photo, other]));
-        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
         Assert.DoesNotContain((await galleries.GetItemsAsync(gallery.Id)).Items, item => item.ItemId == other);
 
         // ... it is never counted as removed or moved, so the answer cannot reveal it is in the Gallery ...
@@ -1191,10 +1192,10 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         Assert.Equal(HttpStatusCode.OK, photoOnly.StatusCode);
         using var documentCover = await _client.PostAsJsonAsync("/view/galleries",
             new ViewGalleryRequest("Cover", ViewGalleryKind.Manual, CoverItemId: document));
-        Assert.Equal(HttpStatusCode.Forbidden, documentCover.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, documentCover.StatusCode);
         using var updateCover = await _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}",
             new ViewGalleryRequest("Trip", ViewGalleryKind.Manual, CoverItemId: document));
-        Assert.Equal(HttpStatusCode.Forbidden, updateCover.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, updateCover.StatusCode);
         var counted = await _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}", new ViewGalleryRequest("Trip", ViewGalleryKind.Manual));
         Assert.Equal(1, (await counted.Content.ReadFromJsonAsync<ViewGalleryDto>())!.ItemCount);
     }
@@ -1441,7 +1442,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
     }
 
     [Fact]
-    public async Task AGalleryContributorWithoutDocumentsCannotTellADocumentFromAnUnknownId()
+    public async Task AGalleryContributorOrOwnerWithoutDocumentsCannotTellADocumentFromAnUnknownId()
     {
         var household = Guid.NewGuid();
         var owner = await CreatePersonWithoutDocuments(household);
@@ -1466,8 +1467,10 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         Assert.Equal(unknown.Status, forDocument.Status);
         Assert.DoesNotContain("Documents", forDocument.Body, StringComparison.Ordinal);
 
-        // ... and only the owner, whose document it is, is told Documents is the reason.
-        Assert.Equal(HttpStatusCode.Forbidden, (await AddAsync(owner, document)).Status);
+        // ... and so does the owner, whose document it is: nobody is told Documents is the reason.
+        var ownerForDocument = await AddAsync(owner, document);
+        Assert.Equal(HttpStatusCode.BadRequest, ownerForDocument.Status);
+        Assert.Equal(unknown.Body, ownerForDocument.Body);
         Assert.Equal(HttpStatusCode.OK, (await AddAsync(owner, photo)).Status);
     }
 
