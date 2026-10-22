@@ -11,6 +11,8 @@ public sealed class BrowseLibrariesStateTests
 {
     private static readonly Guid First = Guid.Parse("00000000-0000-0000-0000-000000000001");
     private static readonly Guid Second = Guid.Parse("00000000-0000-0000-0000-000000000002");
+    private static readonly Guid AccountA = Guid.Parse("a0000000-0000-0000-0000-00000000000a");
+    private static readonly Guid AccountB = Guid.Parse("a0000000-0000-0000-0000-00000000000b");
 
     private static BrowseLibraryDto Library(string name) =>
         new(Guid.NewGuid(), name, "other_videos", "watch", "Videos", true);
@@ -36,10 +38,12 @@ public sealed class BrowseLibrariesStateTests
                 });
             });
             Profiles = new ActiveProfileSessionService(null!, api);
-            State = new BrowseLibrariesState(api, Profiles, _clock);
+            Session = new DashboardSessionAccessor();
+            State = new BrowseLibrariesState(api, Profiles, Session, _clock);
         }
 
         public ActiveProfileSessionService Profiles { get; }
+        public DashboardSessionAccessor Session { get; }
         public BrowseLibrariesState State { get; }
         public int Reads { get; private set; }
         public IReadOnlyList<BrowseLibraryDto>? Next { get; set; } = [Library("Lectures")];
@@ -97,6 +101,27 @@ public sealed class BrowseLibrariesStateTests
 
         Assert.Equal(2, harness.Reads);
         Assert.Empty(forSecond!);
+    }
+
+    [Fact]
+    public async Task AnotherSignedInAccountNeverSeesTheListReadForTheFirst_EvenWithTheSameProfileId()
+    {
+        using var harness = new Harness();
+        harness.Session.Set("token-a", AccountA, First, Guid.NewGuid(), null);
+        await harness.State.GetAsync();
+        harness.Session.Set("token-b", AccountB, First, Guid.NewGuid(), null);
+        harness.Next = [];
+
+        var forB = await harness.State.GetAsync();
+
+        Assert.Equal(2, harness.Reads);
+        Assert.Empty(forB!);
+
+        // Back to the first account the list is read again; the held copy belongs to the account that read it last.
+        harness.Session.Set("token-a", AccountA, First, Guid.NewGuid(), null);
+        harness.Next = [Library("Lectures")];
+        Assert.Single((await harness.State.GetAsync())!);
+        Assert.Equal(3, harness.Reads);
     }
 
     [Fact]
