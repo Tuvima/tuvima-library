@@ -57,6 +57,7 @@ T2 and T3 both touch the credit reads, so they run one after the other, not side
 
 * **Source:** spec `person-credits-and-series-search-speed.md`, section 8, R2.
 * **The reads (about 14):** universal search's people results (once per matching person), the series browse page (three places), the contributor shelf, people reads (four), a work's cast credits, artwork (two services), a series detail read, access checks, collection rules, the metadata editor and the person store.
+* **Update 2026-10-21 (B29):** a work's cast credits (the actor list on movie, episode and show pages) now uses the per-file credit block. The People section's three reads (list, role counts, presence) were measured at about 82,000 work each at 4,000 works; see [Slow pages B17, B29, B31](../reports/slow-pages-b17-b29-b31-2026-10-21.md).
 * **Brief:** first measure each on the performance-test library at 4,000 and 8,000 works, and say which build the list once per visit and which once per row. Then plan moving the slow ones to `PersonCreditSql.ScopedCreditsCte` for the files they need, with T1's candidate step. Use the same same-values comparison and guardrails as T1. Plan first; wait for "go ahead".
 
 ### T4. Combined artist view shows "Unknown Artist"

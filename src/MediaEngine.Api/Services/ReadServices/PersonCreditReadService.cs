@@ -447,24 +447,31 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
         IDatabaseConnection db,
         CancellationToken ct)
     {
+        // Credits are worked out for this work's own files only. Filtering the whole-library credit view by work still
+        // built every file's credits first: about 1 s per movie, episode or show page at 4,000 works (B29).
+        var workCreditsCte = PersonCreditSql.ScopedCreditsCte(
+            "work_credits",
+            """
+            SELECT ma.id
+            FROM media_assets ma
+            INNER JOIN editions e ON e.id = ma.edition_id
+            WHERE e.work_id = @workId
+            """,
+            "actor_");
         using var conn = db.CreateConnection();
         var rows = (await conn.QueryAsync<ActorOnlyRow>(
-            """
+            $"""
+            WITH {workCreditsCte}
             SELECT MIN(primary_credit.billing_order) AS LinkOrder,
                    p.id                  AS ActorPersonId,
                    p.name                AS ActorName,
                    p.wikidata_qid        AS ActorQid,
                    p.headshot_url        AS ActorHeadshotUrl,
                    p.local_headshot_path AS ActorLocalHeadshotPath
-            FROM primary_person_media_credits primary_credit
+            FROM work_credits primary_credit
             INNER JOIN persons p
                 ON p.id = primary_credit.person_id
-            INNER JOIN media_assets ma
-                ON ma.id = primary_credit.media_asset_id
-            INNER JOIN editions e
-                ON e.id = ma.edition_id
-            WHERE e.work_id = @workId
-              AND primary_credit.role = 'Actor'
+            WHERE primary_credit.role = 'Actor'
             GROUP BY p.id, p.name, p.wikidata_qid, p.headshot_url, p.local_headshot_path
             ORDER BY MIN(primary_credit.billing_order);
             """,

@@ -34,16 +34,15 @@ public static class LibraryEndpoints
             ILibraryOverviewReadService overviewReadService,
             CancellationToken ct) =>
         {
-            // These aggregates are independent and each owns its SQLite connection.
-            // Running them together removes avoidable serial latency from the dashboard.
-            var fourStateTask = libraryItemRepo.GetFourStateCountsAsync(ct: ct);
-            var projectionTask = libraryItemRepo.GetProjectionSummaryAsync(ct);
+            // The lifecycle counts and the projection summary come from one pass over the item projection, which is the
+            // expensive part of this read (it was built three times, B17). The other two reads are small.
+            var counts = await libraryItemRepo.GetOverviewCountsAsync(ct);
             var mediaTypeCountsTask = libraryItemRepo.GetOwnedMediaTypeCountsAsync(ct);
             var overviewTask = overviewReadService.GetOverviewAggregatesAsync(ct);
-            await Task.WhenAll(fourStateTask, projectionTask, mediaTypeCountsTask, overviewTask);
+            await Task.WhenAll(mediaTypeCountsTask, overviewTask);
 
-            var fourState = await fourStateTask;
-            var projection = await projectionTask;
+            var fourState = counts.Lifecycle;
+            var projection = counts.Projection;
             // Admin overview media type counts should reflect owned media assets,
             // not catalogue-only works discovered during enrichment.
             var mediaTypeCounts = await mediaTypeCountsTask;

@@ -119,6 +119,10 @@ public partial interface IEngineApiClient
     Task<StartupReadinessResponse?> GetStartupReadinessAsync(CancellationToken ct = default)
         => Task.FromResult<StartupReadinessResponse?>(null);
 
+    /// <summary>GET /system/readiness?category=storage — only the library and watch folder checks, without the data store scan.</summary>
+    Task<StartupReadinessResponse?> GetStorageReadinessAsync(CancellationToken ct = default)
+        => Task.FromResult<StartupReadinessResponse?>(null);
+
     /// <summary>GET /system/activity-status — sanitized active Engine operations for the global shell.</summary>
     Task<IReadOnlyList<SystemActivityOperationViewModel>> GetSystemActivityOperationsAsync(CancellationToken ct = default);
 
