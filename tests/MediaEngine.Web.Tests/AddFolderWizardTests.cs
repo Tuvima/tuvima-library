@@ -170,24 +170,22 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     {
         _dialogs.Find($".add-wizard__tile[data-group={group}]").Click();
         _dialogs.FindAll(".add-wizard__kind-option").Single(x => Text(x) == kind).Click();
-        _dialogs.WaitForElement(".add-wizard__folder");
+        _dialogs.WaitForElement(".server-folder-picker");
     }
 
-    // Step 2: open the picker over the wizard, confirm the folder the Engine reports, and see it shown.
+    // Step 2 embeds the folder picker. Its Next button confirms the folder the Engine reports; a folder that needs no further
+    // question (no phone-footage hint) moves on to step 3 by itself.
     private void PickFolder(string path = "E:\\Incoming\\Films", bool containsFiles = true, bool phoneFootage = false)
     {
         _picked = new ServerFolderValidationResultDto { Path = path, StorageLocationId = "media", Exists = true, HasRead = true, HasWrite = true, CanSelect = true, ContainsFiles = containsFiles, LooksLikePhoneFootage = phoneFootage };
-        Click("Choose folder");
-        _dialogs.WaitForAssertion(() => Assert.False(Button("Choose").HasAttribute("disabled")));
-        Click("Choose");
-        _dialogs.WaitForAssertion(() => Assert.Equal(path, Text(_dialogs.Find(".add-wizard__path"))));
+        _dialogs.WaitForElement(".server-folder-picker");
+        // The picker validates its starting folder when it opens; Next is live once it holds a folder it can select.
+        _dialogs.WaitForAssertion(() => Assert.False(Button("Next").HasAttribute("disabled")));
+        Click("Next");
+        _dialogs.WaitForAssertion(() => Assert.True(_dialogs.FindAll(".add-wizard__question, .add-wizard__hint").Count > 0));
     }
 
-    private void GoToHow()
-    {
-        Click("Next");
-        _dialogs.WaitForElement(".add-wizard__question");
-    }
+    private void GoToHow() => _dialogs.WaitForElement(".add-wizard__question");
 
     // Add folder, and wait for the confirmation (a folder whose files raise a follow-up question is clicked through by its test instead).
     private Task AddFolderAsync()
@@ -230,7 +228,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
 
         Assert.Equal("1 Folder · 2 How", Steps);
         Assert.Empty(_dialogs.FindAll(".add-wizard__tile"));
-        Assert.NotEmpty(_dialogs.FindAll(".add-wizard__folder"));
+        Assert.NotEmpty(_dialogs.FindAll(".server-folder-picker"));
         Assert.DoesNotContain(_dialogs.FindAll("button"), x => Text(x) == "Back");
     }
 
@@ -420,7 +418,9 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         await OpenWizardAsync(type: "movies");
         PickFolder(path: "F:\\Phone", phoneFootage: true);
 
-        Assert.Equal("This looks like phone or camera footage. Personal videos belong in View. Add to View instead", Text(_dialogs.Find(".add-wizard__hint")));
+        Assert.Equal("This looks like phone or camera footage. Personal videos belong in View. Add to View instead Continue anyway", Text(_dialogs.Find(".add-wizard__hint")));
+        // The hint shows on the folder step instead of moving on.
+        Assert.Empty(_dialogs.FindAll(".add-wizard__question"));
         Click("Add to View instead");
 
         var navigation = Services.GetRequiredService<NavigationManager>();
@@ -428,6 +428,19 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         Assert.Empty(_mutations);
         Assert.Empty(_setupUpdates);
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".add-wizard")));
+    }
+
+    [Fact]
+    public async Task ContinueAnywayOnThePhoneFootageHintMovesOnToStepThree()
+    {
+        await OpenWizardAsync(type: "movies");
+        PickFolder(path: "F:\\Phone", phoneFootage: true);
+
+        Click("Continue anyway");
+
+        _dialogs.WaitForElement(".add-wizard__question");
+        Assert.Empty(_dialogs.FindAll(".add-wizard__hint"));
+        Assert.Empty(_mutations);
     }
 
     [Fact]
@@ -455,7 +468,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
 
         // Step 2.
         var second = await OpenWizardAsync(type: "movies");
-        PickFolder();
+        _dialogs.WaitForElement(".server-folder-picker");
         Click("Cancel");
         Assert.True((await second.Result)!.Canceled);
 
@@ -494,8 +507,9 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
 
         Click("Back");
 
-        Assert.Equal("E:\\Kept", Text(_dialogs.Find(".add-wizard__path")));
-        Assert.False(Button("Next").HasAttribute("disabled"));
+        // The picker opens on the folder that was chosen.
+        _dialogs.WaitForAssertion(() => Assert.Equal("E:\\Kept", _dialogs.Find("input[aria-label='Selected path']").GetAttribute("value")));
+        _dialogs.WaitForAssertion(() => Assert.False(Button("Next").HasAttribute("disabled")));
         Assert.Empty(_mutations);
     }
 
@@ -691,7 +705,7 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
         Click("Add another");
         // Started from a type page, so it comes back to the folder step.
         Assert.Equal("1 Folder · 2 How", Steps);
-        Assert.Empty(_dialogs.FindAll(".add-wizard__path"));
+        Assert.Empty(_dialogs.FindAll(".add-wizard__question"));
 
         PickFolder(path: "E:\\More");
         GoToHow();
