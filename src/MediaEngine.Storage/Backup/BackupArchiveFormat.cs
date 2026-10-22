@@ -249,7 +249,7 @@ public static class BackupArchiveFormat
         writer.WriteEndObject();
     }
 
-    private static void WriteTitles(Utf8JsonWriter writer, IReadOnlyList<BackupTitle> titles)
+    internal static void WriteTitles(Utf8JsonWriter writer, IReadOnlyList<BackupTitle> titles)
     {
         writer.WriteStartObject();
         writer.WriteStartArray("titles");
@@ -284,6 +284,11 @@ public static class BackupArchiveFormat
             WriteOptionalString(writer, "name", title.Name);
             WriteOptionalString(writer, "parent_name", title.ParentName);
             WriteOptionalNumber(writer, "year", title.Year);
+            if (title.Withheld)
+            {
+                writer.WriteBoolean("withheld", true);
+            }
+
             writer.WriteEndObject();
         }
 
@@ -356,7 +361,7 @@ public static class BackupArchiveFormat
         writer.WriteEndObject();
     }
 
-    private static void WriteValue(Utf8JsonWriter writer, BackupValue value)
+    internal static void WriteValue(Utf8JsonWriter writer, BackupValue value)
     {
         switch (value)
         {
@@ -628,7 +633,7 @@ public static class BackupArchiveFormat
         return name.All(character => character is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_');
     }
 
-    private static BackupValue ReadValue(JsonElement element)
+    internal static BackupValue ReadValue(JsonElement element)
     {
         switch (element.ValueKind)
         {
@@ -697,7 +702,7 @@ public static class BackupArchiveFormat
         }
     }
 
-    private static List<BackupTitle> ReadTitles(JsonElement root)
+    internal static List<BackupTitle> ReadTitles(JsonElement root)
     {
         var titles = new List<BackupTitle>();
         var keys = new HashSet<string>(StringComparer.Ordinal);
@@ -727,7 +732,8 @@ public static class BackupArchiveFormat
                 OptionalStrings(element, "file_hashes"),
                 OptionalString(element, "name"),
                 OptionalString(element, "parent_name"),
-                OptionalInt(element, "year")));
+                OptionalInt(element, "year"),
+                OptionalBool(element, "withheld")));
         }
 
         return titles;
@@ -783,6 +789,11 @@ public static class BackupArchiveFormat
         element.TryGetProperty(name, out var value)
             ? value.ValueKind == JsonValueKind.String ? value.GetString() : throw new InvalidDataException($"'{name}' is not text.")
             : null;
+
+    private static bool OptionalBool(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value)
+            ? value.ValueKind is JsonValueKind.True or JsonValueKind.False ? value.GetBoolean() : throw new InvalidDataException($"'{name}' is not true or false.")
+            : false;
 
     private static int? OptionalInt(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value)

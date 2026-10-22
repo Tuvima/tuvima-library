@@ -739,6 +739,10 @@ public sealed class DatabaseStartupSafetyTests
             ("vault_galleries", "cover_item_id"),
             ("vault_gallery_items", "gallery_id"),
             ("vault_gallery_items", "item_id"),
+            ("backup_restores", "id"),
+            ("waiting_personal_state", "id"),
+            ("waiting_personal_state", "restore_id"),
+            ("waiting_personal_state", "profile_id"),
         ];
 
         foreach (var (table, column) in internalGuidColumns)
