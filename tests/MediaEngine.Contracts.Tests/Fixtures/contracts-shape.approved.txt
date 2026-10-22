@@ -3674,6 +3674,29 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryOverviewDto
   QidNoMatch: System.Int32 | nullability=not-null | accessors=get,init
   CompletedWithArt: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.UnmatchedActionResultDto
+  Affected: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.UnmatchedCountsDto
+  Counts: System.Collections.Generic.Dictionary<System.String, System.Int32> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.UnmatchedItemDto
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  LibraryId: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+  FirstUnmatchedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  LastTriedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  NextRetryAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  KeptAsIs: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.UnmatchedPageDto
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Library.UnmatchedItemDto> | nullability=not-null | accessors=get,init
+  Total: System.Int32 | nullability=not-null | accessors=get,init
+  Skip: System.Int32 | nullability=not-null | accessors=get,init
+  Take: System.Int32 | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.AddViewGalleryItemsResponseDto
   Added: System.Int32 | nullability=not-null | accessors=get,init
   AlreadyPresent: System.Int32 | nullability=not-null | accessors=get,init
@@ -8156,6 +8179,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   AcceptedIntakeModes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   OrganizationPolicy: MediaEngine.Contracts.Settings.LibraryOrganizationPolicyDto | nullability=not-null | accessors=get,set
   Notes: System.String | nullability=nullable | accessors=get,set
+  UnmatchedCount: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryKindDto
   Key: System.String | nullability=not-null | accessors=get,set
