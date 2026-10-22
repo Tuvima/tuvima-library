@@ -136,7 +136,7 @@
                 <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="SearchAsync">Try again</AppButton>
             </div>
         }
-        else if (FilteredResponse is { TotalCount: 0 } && !_loading)
+        else if (FilteredResponse is { TotalCount: 0, Sections.Count: 0 } && !_loading)
         {
             <div class="search-page__empty">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SearchOff" />
@@ -213,7 +213,10 @@
             if (_response is null)
                 return null;
 
+            // Items waiting for their file after a restore are a section of their own: never a top result, never merged into a
+            // media-scoped list, sorted by the Engine and always last.
             var all = _response.Sections
+                .Where(section => !IsFileMissingSection(section))
                 .SelectMany(section => section.Results)
                 .Prepend(_response.TopResult)
                 .Where(result => result is not null)
@@ -224,6 +227,7 @@
 
             all = SortResults(all).ToList();
             var sections = _response.Sections
+                .Where(section => !IsFileMissingSection(section))
                 .Select(section => section with
                 {
                     Results = SortResults(section.Results.Where(MatchesFilters)).ToList(),
@@ -244,6 +248,16 @@
                         ScopedRoute(_selectedMedia[0])),
                 ];
             }
+
+            var fileMissing = _response.Sections
+                .Where(IsFileMissingSection)
+                .Select(section => section with
+                {
+                    Results = section.Results.Where(MatchesFilters).ToList(),
+                    TotalCount = section.Results.Count(MatchesFilters),
+                })
+                .Where(section => section.Results.Count > 0);
+            sections.AddRange(fileMissing);
 
             return new UniversalSearchResponseDto(_response.Query, all.FirstOrDefault(), sections, all.Count);
         }
@@ -409,6 +423,7 @@
     private void SyncSelectedResultToFilters(bool forceFirstMatch = false)
     {
         var matching = _response?.Sections
+            .Where(section => !IsFileMissingSection(section))
             .SelectMany(section => section.Results)
             .Where(MatchesFilters)
             .DistinctBy(result => $"{result.EntityType}:{result.Id}", StringComparer.OrdinalIgnoreCase)
@@ -461,12 +476,14 @@
 
     private static bool MatchesResultType(UniversalSearchResultDto result, string type) => type switch
     {
-        "title" => result.EntityType is "book" or "comic" or "movie" or "tv-show" or "album" or "song" or "audiobook",
+        "title" => result.EntityType is "book" or "comic" or "movie" or "tv-show" or "album" or "song" or "audiobook" or "file-missing",
         "person" => result.EntityType == "person",
         "group" => result.EntityType is "series" or "collection",
         "playlist" => result.EntityType == "playlist",
         _ => true,
     };
+
+    private static bool IsFileMissingSection(UniversalSearchSectionDto section) => section.Key == "file-missing";
 
     private static int ParseYear(string? value) => int.TryParse(value, out var parsed) ? parsed : 0;
     private static string NormalizeYear(string? value) => int.TryParse(value, out var parsed) && parsed is >= 1000 and <= 9999 ? parsed.ToString() : string.Empty;

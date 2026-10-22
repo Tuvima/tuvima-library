@@ -287,7 +287,8 @@ public sealed class CharacterCreditSpoilerTests : IDisposable
             new HttpContextAccessor { HttpContext = new DefaultHttpContext() },
             TestViewAuthorityResolver.Human(Profile.SeedProfileId),
             SpoilerTestKit.Create(display, _database),
-            new ProfileRepository(_database));
+            new ProfileRepository(_database),
+            new MediaEngine.Storage.Backup.WaitingPersonalStateRepository(_database));
     }
 
     // The request's services: the real resolver for the seed profile plus the filter built over this test's data.

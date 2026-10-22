@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Dapper;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
@@ -30,6 +31,13 @@ public sealed record ReattachResult(
     /// <summary>The tables of the failed rows, each once; empty when none failed.</summary>
     public IReadOnlyList<string> FailedTables { get; init; } = FailedTables ?? [];
 }
+
+/// <summary>One title a profile's restored state is still waiting for, as global search lists it ("File missing").</summary>
+/// <param name="Name">The title's name.</param>
+/// <param name="ParentName">The show, album or series it belongs to, when there is one.</param>
+/// <param name="Year">The release year, when known.</param>
+/// <param name="MediaType">The media type of the title as the Library stored it, when known.</param>
+public sealed record WaitingTitle(string Name, string? ParentName, int? Year, string? MediaType);
 
 /// <summary>The latest restore, in counts.</summary>
 public sealed record RestoreSummary(
@@ -81,6 +89,58 @@ public sealed class WaitingPersonalStateRepository
         using var command = connection.CreateCommand();
         command.CommandText = $"SELECT COUNT(*) FROM {WaitingTable} WHERE is_withheld = 1";
         return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// The titles one profile's restored personal state is still waiting for whose name or parent name contains
+    /// <paramref name="query"/> (case-insensitive), at most <paramref name="take"/>, each once. Only rows of that profile, only
+    /// personal state, never a row on a title a backup may not name (a Vault video), and only titles that are a Work, Edition or
+    /// Media Asset (never a View item). Once a title's rows are written back they are gone from the waiting area, so it stops appearing.
+    /// </summary>
+    public IReadOnlyList<WaitingTitle> SearchWaitingTitles(Guid profileId, string query, int take, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (take < 1 || string.IsNullOrWhiteSpace(query))
+        {
+            return [];
+        }
+
+        using var connection = _db.CreateConnection();
+        var rows = connection.Query<WaitingTitleRow>(new CommandDefinition(
+            $"""
+            SELECT DISTINCT
+                   json_extract(title.value, '$.name') AS Name,
+                   json_extract(title.value, '$.parent_name') AS ParentName,
+                   json_extract(title.value, '$.year') AS Year,
+                   json_extract(title.value, '$.media_type') AS MediaType
+            FROM {WaitingTable} waiting, json_each(waiting.titles_json, '$.titles') title
+            WHERE waiting.profile_id = @Profile
+              AND waiting.group_kind = 'personal'
+              AND waiting.is_withheld = 0
+              AND json_extract(title.value, '$.target') IN ('Work', 'Edition', 'MediaAsset')
+              AND COALESCE(json_extract(title.value, '$.withheld'), 0) = 0
+              AND json_extract(title.value, '$.name') IS NOT NULL
+              AND (json_extract(title.value, '$.name') LIKE @Like ESCAPE '\'
+                   OR COALESCE(json_extract(title.value, '$.parent_name'), '') LIKE @Like ESCAPE '\')
+            ORDER BY json_extract(title.value, '$.name') COLLATE NOCASE, json_extract(title.value, '$.parent_name') COLLATE NOCASE
+            LIMIT @Take
+            """,
+            new
+            {
+                Profile = GuidSql.ToBlob(profileId),
+                Like = "%" + query.Trim().Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal) + "%",
+                Take = take,
+            },
+            cancellationToken: ct));
+        return rows.Select(row => new WaitingTitle(row.Name, row.ParentName, row.Year, row.MediaType)).ToList();
+    }
+
+    private sealed class WaitingTitleRow
+    {
+        public string Name { get; init; } = string.Empty;
+        public string? ParentName { get; init; }
+        public int? Year { get; init; }
+        public string? MediaType { get; init; }
     }
 
     /// <summary>The most recent restore with what it put back, what is waiting and what has attached or been cleared since; null if nothing was ever restored.</summary>

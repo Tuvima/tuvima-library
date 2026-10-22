@@ -110,7 +110,7 @@
                         <p>Try again. Your query has been preserved.</p>
                     </div>
                 }
-                else if (_response is not null && _response.TotalCount == 0 && !_loading)
+                else if (_response is not null && _response.TotalCount == 0 && _response.Sections.Count == 0 && !_loading)
                 {
                     <div class="universal-search-overlay__empty universal-search-overlay__empty--small">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SearchOff" />
