@@ -1,7 +1,8 @@
 .activity-log__toolbar {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    /* The selects carry a label above their box and the filter tabs do not, so line everything up along the bottom edge. */
+    align-items: flex-end;
     gap: var(--tl-space-3);
     margin-bottom: var(--tl-space-3);
 }
@@ -196,4 +197,41 @@
     .activity-log__body {
         grid-area: body;
     }
+}
+
+/* A show or album row folds the episodes or songs added to it; the toggle is the whole headline. */
+.activity-log__group-toggle {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 1.5rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.activity-log__group-count {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-secondary);
+}
+
+.activity-log__children {
+    display: grid;
+    margin: var(--tl-space-2) 0 0;
+    padding: 0;
+    list-style: none;
+    border-left: 2px solid var(--tl-border-subtle);
+}
+
+.activity-log__children .activity-log__row {
+    padding-left: var(--tl-space-3);
+}
+
+.activity-log__children .activity-log__row:last-child {
+    border-bottom: 0;
 }

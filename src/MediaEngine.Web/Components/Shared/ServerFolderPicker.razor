@@ -58,9 +58,9 @@ else
                             {
                                 <span class="server-folder-picker__segment">
                                     <button type="button"
-                                            class="server-folder-picker__crumb@(crumb.IsCurrent ? " is-current" : string.Empty)"
+                                            class="@CrumbClass(crumb)"
                                             aria-current="@(crumb.IsCurrent ? "location" : null)"
-                                            @onclick="@(() => OpenCrumbAsync(crumb.Relative))">@crumb.Label</button>
+                                            @onclick="@(() => OpenCrumbAsync(crumb.Relative))">@if (crumb.Relative.Length == 0) { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" /> }@crumb.Label</button>
                                     <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.ChevronRight"
                                                      Class="server-folder-picker__chevron"
                                                      AriaLabel="@($"Folders inside {crumb.Label}")"
@@ -891,6 +891,9 @@ else
     }
     private void Cancel() => DialogInstance.Cancel();
 
+    private static string CrumbClass((string Label, string Relative, bool IsCurrent) crumb) =>
+        $"server-folder-picker__crumb{(crumb.Relative.Length == 0 ? " server-folder-picker__crumb--root" : string.Empty)}{(crumb.IsCurrent ? " is-current" : string.Empty)}";
+
     private string RootClass => DeviceContext.IsMobile ? "server-folder-picker server-folder-picker--phone" : "server-folder-picker";
     private string FolderId(int index) => $"server-folder-picker-folder-{index}";
     private string? ActiveDescendant => _browse is { Directories.Count: > 0 } && _highlight < _browse.Directories.Count ? FolderId(_highlight) : null;
@@ -903,6 +906,10 @@ else
             if (_browse is null || _activeLocation is null) return [];
             var separator = _browse.DisplayPath.Contains('\\') ? '\\' : '/';
             var segments = _browse.RelativePath.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
+            var rootLabel = _activeLocation.Label.TrimEnd('\\', '/');
+            // A drive reports its letter as the location and sometimes again as the first folder; show it once.
+            var repeatsDrive = segments.Length > 0 && rootLabel.EndsWith(':')
+                && string.Equals(segments[0].TrimEnd('\\', '/'), rootLabel, StringComparison.OrdinalIgnoreCase);
             var crumbs = new List<(string Label, string Relative, bool IsCurrent)>
             {
                 (_activeLocation.Path is "/" ? "/" : _activeLocation.Label, string.Empty, segments.Length == 0),
@@ -911,6 +918,12 @@ else
             for (var index = 0; index < segments.Length; index++)
             {
                 relative = relative.Length == 0 ? segments[index] : relative + separator + segments[index];
+                if (index == 0 && repeatsDrive)
+                {
+                    if (segments.Length == 1) crumbs[0] = (crumbs[0].Label, crumbs[0].Relative, true);
+                    continue;
+                }
+
                 crumbs.Add((segments[index], relative, index == segments.Length - 1));
             }
 

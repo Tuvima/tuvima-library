@@ -45,6 +45,20 @@ public sealed class SystemActivityQueryTests : IDisposable
     }
 
     [Fact]
+    public async Task Query_WithAMediaType_KeepsOnlyEntriesRecordedForThatType_IgnoringCase()
+    {
+        await Log(SystemActionType.MediaAdded, "Pilot", changesJson: """{"media_type":"TV"}""");
+        await Log(SystemActionType.MediaAdded, "Dune", changesJson: """{"media_type":"Movies"}""");
+        await Log(SystemActionType.MediaAdded, "No type", changesJson: "not json");
+        await Log(SystemActionType.MediaAdded, "Also no type");
+
+        var (items, total) = await _repo.QueryAsync([SystemActionType.MediaAdded], null, 0, 50, "tv");
+
+        Assert.Equal(1, total);
+        Assert.Equal("Pilot", Assert.Single(items).CollectionName);
+    }
+
+    [Fact]
     public async Task Query_WithNoActionTypes_ReturnsNothing()
     {
         await Log(SystemActionType.MediaAdded, "Dune");

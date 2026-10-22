@@ -221,14 +221,26 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
                           AND ma_p.status = 'Normal' AND ma_p.is_orphaned = 0
                           AND {HomeVisibilitySql.VisibleAssetPathPredicate("ma_p.file_path_root")}
                         ORDER BY woa_p.is_covered, CASE WHEN LOWER(ma_p.file_path_root) LIKE '%.epub' THEN 0 ELSE 1 END, ma_p.id
-                        LIMIT 1) AS AssetId
+                        LIMIT 1) AS AssetId,
+                       -- An episode's show (two levels up, through its season) or a song's album (one level up).
+                       CASE WHEN w.media_type IN ('TV', 'Music') THEN
+                           (SELECT cv.value FROM canonical_values cv
+                            WHERE cv.entity_id = CASE WHEN w.media_type = 'TV'
+                                      THEN COALESCE(
+                                          (SELECT gp.id FROM works p
+                                           INNER JOIN works gp ON gp.id = p.parent_work_id
+                                           WHERE p.id = w.parent_work_id),
+                                          w.parent_work_id)
+                                      ELSE w.parent_work_id END
+                              AND cv.key = 'title' AND TRIM(cv.value) <> '')
+                       END AS GroupTitle
                 FROM works w
                 WHERE w.id IN @ids;
                 """, new { ids = ToBlobs(batch) });
 
             foreach (var row in rows)
             {
-                result[row.WorkId] = new WorkReadinessDetails(row.WorkId, row.CollectionId, row.MediaType, row.Title, row.AssetId);
+                result[row.WorkId] = new WorkReadinessDetails(row.WorkId, row.CollectionId, row.MediaType, row.Title, row.AssetId, row.GroupTitle);
             }
         }
 
@@ -353,5 +365,6 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
         public string MediaType { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public Guid? AssetId { get; set; }
+        public string? GroupTitle { get; set; }
     }
 }

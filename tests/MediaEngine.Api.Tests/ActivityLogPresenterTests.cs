@@ -45,6 +45,16 @@ public sealed class ActivityLogPresenterTests
     }
 
     [Fact]
+    public void MediaAdded_ForAnEpisodeOrSong_CarriesTheShowOrAlbumItBelongsTo()
+    {
+        var episode = Present(SystemActionType.MediaAdded, name: "Pilot", entityId: WorkId, changes: """{"media_type":"TV","group_title":"The Expanse"}""");
+        var movie = Present(SystemActionType.MediaAdded, name: "Dune", entityId: WorkId, changes: """{"media_type":"Movies","group_title":null}""");
+
+        Assert.Equal("The Expanse", episode.GroupTitle);
+        Assert.Null(movie.GroupTitle);
+    }
+
+    [Fact]
     public void MediaAdded_WithoutATitle_ReadsAsAnUntitledItem()
     {
         var dto = Present(SystemActionType.MediaAdded, name: null, changes: """{"media_type":"Books"}""");

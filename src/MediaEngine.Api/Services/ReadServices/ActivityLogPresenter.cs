@@ -47,6 +47,7 @@ public static partial class ActivityLogPresenter
                 dto.MediaType = mediaType;
                 dto.Route = WorkRoute(entry.EntityId, changes.Text("media_type"));
                 dto.CoverUrl = WorkCoverUrl(entry.EntityId);
+                dto.GroupTitle = FirstText(changes.Text("group_title"));
                 break;
 
             case SystemActionType.MediaRemoved:
