@@ -7,7 +7,7 @@ namespace MediaEngine.Api.Services.Tools;
 /// Runs the tools check once at start-up and writes one summary line to the log: Information when every Required
 /// tool is ready, Warning otherwise. It runs after start-up completes, so a slow probe never delays the Engine. When a
 /// Required tool the Library can fetch (FFmpeg) is missing, it then starts that download once, so files waiting for
-/// "media tools" are released without anyone pressing a button.
+/// "media tools" are released without anyone pressing a button; a missing ExifTool is fetched the same way.
 /// </summary>
 public sealed class ToolRequirementsStartupService(
     IToolRequirementsService tools,
@@ -22,10 +22,14 @@ public sealed class ToolRequirementsStartupService(
         {
             var result = await tools.CheckAsync(stoppingToken).ConfigureAwait(false);
             var summary = Summarise(result);
+            if (result.MayHaveAutoInstallWork())
+            {
+                await autoInstaller.StartMissingRequiredAsync(result, stoppingToken).ConfigureAwait(false);
+            }
+
             if (result.NeedsAttention)
             {
                 logger.LogWarning("Tools check: {Summary}", summary);
-                await autoInstaller.StartMissingRequiredAsync(result, stoppingToken).ConfigureAwait(false);
                 foreach (var tool in result.Tools.Where(tool => tool.Requirement == ToolRequirementLevels.Required && tool.State != ToolRequirementStates.Ready))
                 {
                     notifications.Publish(new NotificationRequest(NotificationEventIds.ToolMissing, tool.Id, $"{tool.Name}: {tool.Effect} {tool.Fix}".Trim()));

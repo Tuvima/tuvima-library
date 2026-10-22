@@ -1,0 +1,105 @@
+name: Mirror ExifTool
+
+# Run by hand (Actions > Mirror ExifTool > Run workflow) when the Library moves to a new ExifTool version.
+#
+# What it does: downloads the two official ExifTool files from exiftool.org (falling back to SourceForge, where the
+# author also publishes them), checks both against the author's published SHA-256 list, and attaches them UNMODIFIED to a
+# release of this repository named exiftool-<version>. The Engine downloads ExifTool from that release (the Library only
+# fetches from github.com), and checks the same SHA-256 values again from config/tool_downloads.json.
+#
+# The release is a pre-release and never marked "latest", so it cannot be mistaken for a Library installer. The Windows
+# installer workflow (release.yml) only runs for v*.*.* tags and is not triggered by it.
+#
+# After a new version: update config/tool_downloads.json, the Dockerfile (version and commit),
+# THIRD-PARTY-NOTICES.md and docs/reference/attributions.md in the same change.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: ExifTool version to mirror (for example 13.59)
+        type: string
+        required: true
+        default: "13.59"
+
+permissions:
+  contents: write # creates the release and uploads the two files; nothing else is touched
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the official files and check them against the author's list
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          case "$VERSION" in
+            ""|*[!0-9.]*) echo "The version must be digits and dots, for example 13.59." >&2; exit 1 ;;
+          esac
+          mkdir -p mirror
+          cd mirror
+
+          fetch() {
+            curl --fail --location --retry 3 --silent --show-error "https://exiftool.org/$1" --output "$1" \
+              || curl --fail --location --retry 3 --silent --show-error "https://sourceforge.net/projects/exiftool/files/$1/download" --output "$1"
+          }
+
+          windows="exiftool-${VERSION}_64.zip"
+          perl_dist="Image-ExifTool-${VERSION}.tar.gz"
+          fetch "$windows"
+          fetch "$perl_dist"
+          curl --fail --location --retry 3 --silent --show-error "https://exiftool.org/checksums.txt" --output checksums.txt
+
+          for file in "$windows" "$perl_dist"; do
+            # The author's list gives several hashes per file; take the SHA-256 line for this file.
+            expected=$(grep -F "$file" checksums.txt | grep -iE 'sha-?2?-?256' | grep -oE '[0-9a-fA-F]{64}' | head -n 1 | tr 'A-F' 'a-f')
+            if [ -z "$expected" ]; then
+              echo "No SHA-256 for $file in https://exiftool.org/checksums.txt." >&2
+              exit 1
+            fi
+            actual=$(sha256sum "$file" | cut -d ' ' -f 1)
+            if [ "$expected" != "$actual" ]; then
+              echo "$file does not match the author's SHA-256 ($actual, expected $expected). Nothing was published." >&2
+              exit 1
+            fi
+            echo "$file matches the official SHA-256 $actual"
+          done
+
+      - name: Publish the release with both files, unmodified
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          cd mirror
+          windows="exiftool-${VERSION}_64.zip"
+          perl_dist="Image-ExifTool-${VERSION}.tar.gz"
+          tag="exiftool-${VERSION}"
+          windows_sha=$(sha256sum "$windows" | cut -d ' ' -f 1)
+          perl_sha=$(sha256sum "$perl_dist" | cut -d ' ' -f 1)
+
+          cat > notes.md <<EOF
+          Unmodified copies of ExifTool ${VERSION} by Phil Harvey, kept here so Tuvima Library can download them from github.com. This is not a Library installer.
+
+          Credit and licence: copyright 2003-2026 Phil Harvey. ExifTool is free software; you can redistribute it and/or modify it under the same terms as Perl itself (the Perl Artistic License or the GNU General Public License). Upstream: https://exiftool.org/ and https://github.com/exiftool/exiftool
+
+          | File | SHA-256 |
+          |---|---|
+          | ${windows} | ${windows_sha} |
+          | ${perl_dist} | ${perl_sha} |
+
+          Both match the author's list at https://exiftool.org/checksums.txt. The Windows zip also contains Strawberry Perl; its licences are in Licenses_Strawberry_Perl.zip inside the zip.
+          EOF
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$windows" "$perl_dist" --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$tag" --notes-file notes.md --prerelease --latest=false --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" "$windows" "$perl_dist" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "ExifTool ${VERSION} (unmodified official copy)" \
+              --notes-file notes.md \
+              --prerelease \
+              --latest=false
+          fi

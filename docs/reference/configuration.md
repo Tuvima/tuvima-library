@@ -472,7 +472,7 @@ Names are lower-case letters, digits, `-`, `_` and `.`. The Dashboard writes the
 |---|---|---|
 | `TUVIMA_INSTALL_KIND` | `windows_installer`, `docker`, `source` | Tells the tools list how this install was set up, so the fix for a missing tool reads right (reinstall with the Windows installer, update the Docker image, or a package-manager command). The Windows installer sets `windows_installer` on the Engine service and the Docker image sets `docker`. When unset, a container is `docker` and anything else is `source`. |
 
-The Engine keeps one catalogue of tools (FFmpeg, smooth streaming, Tesseract, the image engine, the local AI engine and each AI model). FFmpeg is always **required**, because every Library starts with Movies, TV, Music and Audiobooks set up. The catalogue drives the setup server check, `GET /settings/tools`, one summary line in the Engine log at start-up, and the `media_runtime` and `ai_models` health checks. A missing tool is reported and never blocks setup.
+The Engine keeps one catalogue of tools (FFmpeg, smooth streaming, Tesseract, ExifTool, the image engine, the local AI engine and each AI model). FFmpeg is always **required**, because every Library starts with Movies, TV, Music and Audiobooks set up. The catalogue drives the setup server check, `GET /settings/tools`, one summary line in the Engine log at start-up, and the `media_runtime` and `ai_models` health checks. A missing tool is reported and never blocks setup.
 
 ## config/transcoding.json
 
@@ -527,7 +527,7 @@ The helper is found in this order: `tesseract_binary_path` when set, then `tools
 
 ## config/tool_downloads.json
 
-The exact builds of FFmpeg and Tesseract the Library may fetch when an administrator presses **Install for me** or **Download again** under **Settings > Tools and requirements** (the same builds as `tools/Download-FFmpeg.ps1` and `tools/Download-Tesseract.ps1`). Only FFmpeg is ever downloaded by itself, while it is missing and `auto_install_required` is true; Tesseract and every repair start only when a person asks. A missing file means the values below. The Local AI models and extra OCR languages keep their own download settings (`config/ai.json`, `language_download_url` in `config/ocr.json`).
+The exact builds of FFmpeg, Tesseract and ExifTool the Library may fetch when an administrator presses **Install for me** or **Download again** under **Settings > Tools and requirements** (the same builds as `tools/Download-FFmpeg.ps1` and `tools/Download-Tesseract.ps1`). Only FFmpeg is ever downloaded by itself, while it is missing and `auto_install_required` is true; Tesseract and every repair start only when a person asks. A missing file means the values below. The Local AI models and extra OCR languages keep their own download settings (`config/ai.json`, `language_download_url` in `config/ocr.json`).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -538,6 +538,9 @@ The exact builds of FFmpeg and Tesseract the Library may fetch when an administr
 | `ffmpeg.sha256` | string | pinned | SHA-256 of the whole archive. |
 | `ffmpeg.files[]` | object[] | `ffmpeg.exe`, `ffprobe.exe` | `name` and `sha256` of each program taken out of the archive by file name. Nothing else is unpacked and archive paths are never used to place a file. |
 | `ffmpeg.license_names[]` | string[] | `LICENSE.txt`, `COPYING.GPLv3` | The licence file to keep, saved as `LICENSE.txt` beside the programs. |
+| `exiftool.version` | string | `"13.59"` | Shown in the activity log. |
+| `exiftool.auto_install` | bool | `true` | ExifTool is Optional (only writing the profile name into View files needs it), but while this is true and `auto_install_required` is true the Library fetches it by itself whenever it is missing. No other Optional tool is ever fetched by itself. |
+| `exiftool.builds[]` | object[] | Windows zip; Linux Perl distribution | Each build has `platforms[]` (`win-x64`, `linux-x64`, `linux-arm64`), `url` (a `.zip` or `.tar.gz` on `github.com`: the Library's own `exiftool-13.59` release holding unmodified copies of the official files, see `.github/workflows/mirror-exiftool.yml`), `sha256` of the archive, and `files[]` (`path` inside the archive without its top folder, plus `sha256`) checked after unpacking. The whole archive is unpacked into `{DataRoot}/tools/exiftool` so its licence and readme stay beside it; paths that leave the folder and links are refused. The Linux build is a Perl script, so it is offered only when Perl is installed. Containers bring their own copy (`TUVIMA_EXIFTOOL_PATH`) and never download. |
 | `tesseract.platform` / `version` | string | `"win-x64"` / `"5.4.0"` | As above. |
 | `tesseract.installer` | object | pinned UB Mannheim setup | `name`, `url` and `sha256` of the setup program. It is downloaded to `{DataRoot}/tools/installers/`, checked again just before it runs, and deleted afterwards. Never unpacked. |
 | `tesseract.executable_sha256` | string | pinned | The program the setup installs; recorded for reference, not checked. |

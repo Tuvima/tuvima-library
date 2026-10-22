@@ -25,7 +25,7 @@ You need:
 
 ## Download the installer
 
-Installers are attached to tagged releases on the [GitHub Releases page](https://github.com/Tuvima/tuvima-library/releases). Download the newest `TuvimaLibrary-Setup-<version>.exe` and read that release's notes.
+Installers are attached to tagged releases on the [GitHub Releases page](https://github.com/Tuvima/tuvima-library/releases). Download the newest `TuvimaLibrary-Setup-<version>.exe` and read that release's notes. Releases named `exiftool-<version>` are not installers: they hold the unmodified ExifTool files the Library fetches for itself, so you can ignore them.
 
 If no release is listed yet, use [Docker Compose](docker.md), or build the installer yourself (see **Technical details** at the end of this page).
 
