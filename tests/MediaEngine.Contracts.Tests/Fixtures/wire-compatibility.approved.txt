@@ -305,6 +305,10 @@
   input request | default=required | shape=844d5e6ce527e3ab369abf122223a84b5e86943851b096495719c97bdbf61832
   response | shape=b3355df68f2a4ea0a7798a10f0df5babc8dc6c001aa62c2a369d67b219204ed6
 
+[method] CreateViewSharedSourceAsync
+  input request | default=required | shape=844d5e6ce527e3ab369abf122223a84b5e86943851b096495719c97bdbf61832
+  response | shape=b3355df68f2a4ea0a7798a10f0df5babc8dc6c001aa62c2a369d67b219204ed6
+
 [method] CreateViewTagAsync
   input request | default=required | shape=0a0e5154d657772da1cce89cae23b0595597ce8226620e824910fc3f892ac522
   response | shape=03a2cb2384277496cc8c8caddd333cdd7663d8b8a5dc6e24e93cd48b41d4f964
@@ -1695,6 +1699,9 @@
   input offset | default=0 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
   input limit | default=50 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
   response | shape=31519a7b41157afcf16a9083959f720d671bcc335ca7c675b05c423c0706d3aa
+
+[method] GetViewSharedSourcesAsync
+  response | shape=65d89a785c3f580fe7aa268a852ff84b580c4e9a712c7f295eca48492ea113d3
 
 [method] GetViewStorageSummaryAsync
   response | shape=b9344c7c9da276f9eb85750c69c0fb3f1a23181987f5530ac45da41d2a379e3f
