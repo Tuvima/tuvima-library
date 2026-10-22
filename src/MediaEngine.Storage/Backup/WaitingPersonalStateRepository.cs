@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Dapper;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
@@ -96,7 +97,7 @@ public sealed class WaitingPersonalStateRepository
     /// personal state, never a row on a title a backup may not name (a Vault video), and only titles that are a Work, Edition or
     /// Media Asset (never a View item). Once a title's rows are written back they are gone from the waiting area, so it stops appearing.
     /// </summary>
-    public IReadOnlyList<WaitingTitle> SearchWaitingTitles(Guid profileId, string query, int take, CancellationToken ct = default)
+    public async Task<IReadOnlyList<WaitingTitle>> SearchWaitingTitlesAsync(Guid profileId, string query, int take, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         if (take < 1 || string.IsNullOrWhiteSpace(query))
@@ -105,43 +106,41 @@ public sealed class WaitingPersonalStateRepository
         }
 
         using var connection = _db.CreateConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText =
+        var rows = await connection.QueryAsync<WaitingTitleRow>(new CommandDefinition(
             $"""
             SELECT DISTINCT
-                   json_extract(title.value, '$.name'),
-                   json_extract(title.value, '$.parent_name'),
-                   json_extract(title.value, '$.year'),
-                   json_extract(title.value, '$.media_type')
+                   json_extract(title.value, '$.name') AS Name,
+                   json_extract(title.value, '$.parent_name') AS ParentName,
+                   json_extract(title.value, '$.year') AS Year,
+                   json_extract(title.value, '$.media_type') AS MediaType
             FROM {WaitingTable} waiting, json_each(waiting.titles_json, '$.titles') title
-            WHERE waiting.profile_id = $profile
+            WHERE waiting.profile_id = @Profile
               AND waiting.group_kind = 'personal'
               AND waiting.is_withheld = 0
               AND json_extract(title.value, '$.target') IN ('Work', 'Edition', 'MediaAsset')
               AND COALESCE(json_extract(title.value, '$.withheld'), 0) = 0
               AND json_extract(title.value, '$.name') IS NOT NULL
-              AND (json_extract(title.value, '$.name') LIKE $like ESCAPE '\'
-                   OR COALESCE(json_extract(title.value, '$.parent_name'), '') LIKE $like ESCAPE '\')
+              AND (json_extract(title.value, '$.name') LIKE @Like ESCAPE '\'
+                   OR COALESCE(json_extract(title.value, '$.parent_name'), '') LIKE @Like ESCAPE '\')
             ORDER BY json_extract(title.value, '$.name') COLLATE NOCASE, json_extract(title.value, '$.parent_name') COLLATE NOCASE
-            LIMIT $take
-            """;
-        command.Parameters.AddWithValue("$profile", GuidSql.ToBlob(profileId));
-        command.Parameters.AddWithValue(
-            "$like",
-            "%" + query.Trim().Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal) + "%");
-        command.Parameters.AddWithValue("$take", (long)take);
-        using var reader = command.ExecuteReader();
-        var titles = new List<WaitingTitle>();
-        while (reader.Read())
-        {
-            titles.Add(new WaitingTitle(
-                reader.GetString(0),
-                reader.IsDBNull(1) ? null : reader.GetString(1),
-                reader.IsDBNull(2) ? null : Convert.ToInt32(reader.GetValue(2), CultureInfo.InvariantCulture),
-                reader.IsDBNull(3) ? null : reader.GetString(3)));
-        }
+            LIMIT @Take
+            """,
+            new
+            {
+                Profile = GuidSql.ToBlob(profileId),
+                Like = "%" + query.Trim().Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal) + "%",
+                Take = take,
+            },
+            cancellationToken: ct)).ConfigureAwait(false);
+        return rows.Select(row => new WaitingTitle(row.Name, row.ParentName, row.Year, row.MediaType)).ToList();
+    }
 
-        return titles;
+    private sealed class WaitingTitleRow
+    {
+        public string Name { get; init; } = string.Empty;
+        public string? ParentName { get; init; }
+        public int? Year { get; init; }
+        public string? MediaType { get; init; }
     }
 
     /// <summary>The most recent restore with what it put back, what is waiting and what has attached or been cleared since; null if nothing was ever restored.</summary>

@@ -5,6 +5,11 @@
     gap: 22px;
 }
 
+/* Only "File missing" rows matched: nothing to preview, so the list takes the whole width. */
+.universal-results.universal-results--no-preview {
+    grid-template-columns: minmax(0, 1fr);
+}
+
 .universal-results__content {
     display: grid;
     min-width: 0;

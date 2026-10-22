@@ -3,55 +3,55 @@
 
 @if (Response is not null && (Response.TopResult is not null || Response.Sections.Count > 0))
 {
-    <div class="universal-results @(Compact ? "universal-results--compact" : null)">
+    <div class="universal-results @(Compact ? "universal-results--compact" : null) @(!Compact && ActiveResult is null ? "universal-results--no-preview" : null)">
         <div class="universal-results__content">
             @if (Response.TopResult is not null)
             {
-            <section class="universal-results__top" aria-labelledby="universal-top-result">
-                <span id="universal-top-result" class="universal-results__eyebrow">Top result</span>
-                <article class="universal-results__top-card"
-                         @onmouseenter="@(() => SelectAsync(Response.TopResult))">
-                    <a href="@Response.TopResult.DetailRoute"
-                       class="@ArtworkClass("universal-results__top-art", Response.TopResult)"
-                       @onfocus="@(() => SelectAsync(Response.TopResult))">
-                        @if (!string.IsNullOrWhiteSpace(Response.TopResult.ArtworkUrl))
-                        {
-                            @* Drawn up to 152x228px (UniversalSearchResults.razor.css). *@
-                            <img src="@MediaTileArtworkUrl.ForDrawnSize(Response.TopResult.ArtworkUrl, 228)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Response.TopResult.ArtworkUrl, 228)" alt="" decoding="async" />
-                        }
-                        else
-                        {
-                            <AppMaterialIcon Icon="@IconFor(Response.TopResult)" />
-                        }
-                    </a>
-                    <div class="universal-results__top-copy">
-                        <span class="universal-results__type">@TypeLabel(Response.TopResult)</span>
-                        <h2>@Response.TopResult.Title</h2>
-                        @if (!string.IsNullOrWhiteSpace(Response.TopResult.Subtitle))
-                        {
-                            <p class="universal-results__creator">@Response.TopResult.Subtitle</p>
-                        }
-                        <div class="universal-results__facts">@FormattedFactLine(Response.TopResult)</div>
-                        @if (!Compact && !string.IsNullOrWhiteSpace(Response.TopResult.Description))
-                        {
-                            <p class="universal-results__description">@Response.TopResult.Description</p>
-                        }
-                    </div>
-                    <div class="universal-results__top-actions">
-                        <AppButton Href="@Response.TopResult.DetailRoute"
-                                   ButtonStyle="AppButtonStyle.Filled"
-                                   Tone="AppUiTone.Primary"
-                                   StartIcon="@PrimaryIcon(Response.TopResult)">
-                            @Response.TopResult.PrimaryActionLabel
-                        </AppButton>
-                        <AppButton Href="@Response.TopResult.DetailRoute"
-                                   ButtonStyle="AppButtonStyle.Outlined"
-                                   Tone="AppUiTone.Neutral">
-                            Open details
-                        </AppButton>
-                    </div>
-                </article>
-            </section>
+                <section class="universal-results__top" aria-labelledby="universal-top-result">
+                    <span id="universal-top-result" class="universal-results__eyebrow">Top result</span>
+                    <article class="universal-results__top-card"
+                             @onmouseenter="@(() => SelectAsync(Response.TopResult))">
+                        <a href="@Response.TopResult.DetailRoute"
+                           class="@ArtworkClass("universal-results__top-art", Response.TopResult)"
+                           @onfocus="@(() => SelectAsync(Response.TopResult))">
+                            @if (!string.IsNullOrWhiteSpace(Response.TopResult.ArtworkUrl))
+                            {
+                                @* Drawn up to 152x228px (UniversalSearchResults.razor.css). *@
+                                <img src="@MediaTileArtworkUrl.ForDrawnSize(Response.TopResult.ArtworkUrl, 228)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Response.TopResult.ArtworkUrl, 228)" alt="" decoding="async" />
+                            }
+                            else
+                            {
+                                <AppMaterialIcon Icon="@IconFor(Response.TopResult)" />
+                            }
+                        </a>
+                        <div class="universal-results__top-copy">
+                            <span class="universal-results__type">@TypeLabel(Response.TopResult)</span>
+                            <h2>@Response.TopResult.Title</h2>
+                            @if (!string.IsNullOrWhiteSpace(Response.TopResult.Subtitle))
+                            {
+                                <p class="universal-results__creator">@Response.TopResult.Subtitle</p>
+                            }
+                            <div class="universal-results__facts">@FormattedFactLine(Response.TopResult)</div>
+                            @if (!Compact && !string.IsNullOrWhiteSpace(Response.TopResult.Description))
+                            {
+                                <p class="universal-results__description">@Response.TopResult.Description</p>
+                            }
+                        </div>
+                        <div class="universal-results__top-actions">
+                            <AppButton Href="@Response.TopResult.DetailRoute"
+                                       ButtonStyle="AppButtonStyle.Filled"
+                                       Tone="AppUiTone.Primary"
+                                       StartIcon="@PrimaryIcon(Response.TopResult)">
+                                @Response.TopResult.PrimaryActionLabel
+                            </AppButton>
+                            <AppButton Href="@Response.TopResult.DetailRoute"
+                                       ButtonStyle="AppButtonStyle.Outlined"
+                                       Tone="AppUiTone.Neutral">
+                                Open details
+                            </AppButton>
+                        </div>
+                    </article>
+                </section>
             }
 
             @foreach (var resultSection in Response.Sections)

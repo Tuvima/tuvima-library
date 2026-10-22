@@ -836,11 +836,57 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         var service = CreateService(new StubDisplayProjection(Array.Empty<DisplayWorkRow>()));
         Assert.Single((await service.SearchAsync("Dune", 20, CancellationToken.None)).Sections);
 
-        AddMovie("tt1160419", "returned-hash");
+        var (workId, assetId) = AddMovie("tt1160419", "returned-hash");
         var pass = new WaitingPersonalStateRepository(_db).RunPass(DateTimeOffset.UtcNow.AddMinutes(1), 100, 90);
 
+        // The title is back in the Library, so the ordinary section lists it (it can be opened) and the waiting row is gone.
         Assert.Equal(1, pass.Attached);
-        Assert.Empty((await service.SearchAsync("Dune", 20, CancellationToken.None)).Sections);
+        var returned = CreateService(new StubDisplayProjection(
+        [
+            new DisplayWorkRow { WorkId = workId, AssetId = assetId, MediaType = "Movies", Title = "Dune" },
+        ]));
+        var response = await returned.SearchAsync("Dune", 20, CancellationToken.None);
+        Assert.Equal("watch", Assert.Single(response.Sections).Key);
+        Assert.Equal("Dune", Assert.Single(response.Sections[0].Results).Title);
+        Assert.DoesNotContain(response.Sections, section => section.Key == "file-missing");
+    }
+
+    [Fact]
+    public async Task SearchAsync_DoesNotListFileMissingTitles_ToAPairedApp()
+    {
+        Wait(Profile.SeedProfileId, WaitingTitle("Dune", null, 2021, "Movies"));
+        // The paired app's active profile is the one with the waiting row, so only the kind of caller keeps the section out.
+        var service = CreateAppService(new StubDisplayProjection(Array.Empty<DisplayWorkRow>()), Profile.SeedProfileId);
+
+        var response = await service.SearchAsync("Dune", 20, CancellationToken.None);
+
+        Assert.Empty(response.Sections);
+    }
+
+    [Fact]
+    public async Task SearchAsync_DoesNotListFileMissingTitles_ToAnAnonymousCaller()
+    {
+        Wait(Profile.SeedProfileId, WaitingTitle("Dune", null, 2021, "Movies"));
+        var display = new StubDisplayProjection(Array.Empty<DisplayWorkRow>());
+        var anonymous = new UniversalSearchReadService(
+            _db,
+            display,
+            new HttpContextAccessor { HttpContext = new DefaultHttpContext() },
+            TestViewAuthorityResolver.Anonymous,
+            SpoilerTestKit.Create(display, _db),
+            new ProfileRepository(_db),
+            new WaitingPersonalStateRepository(_db));
+        var noRequest = new UniversalSearchReadService(
+            _db,
+            display,
+            new NoRequestAccessor(),
+            TestViewAuthorityResolver.Human(Profile.SeedProfileId),
+            SpoilerTestKit.Create(display, _db),
+            new ProfileRepository(_db),
+            new WaitingPersonalStateRepository(_db));
+
+        Assert.Empty((await anonymous.SearchAsync("Dune", 20, CancellationToken.None)).Sections);
+        Assert.Empty((await noRequest.SearchAsync("Dune", 20, CancellationToken.None)).Sections);
     }
 
     [Fact]
@@ -901,11 +947,13 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         new BackupRestoreRepository(_db).Import(export, "backup.zip", null, null, DateTimeOffset.UtcNow);
     }
 
-    private void AddMovie(string imdb, string hash)
+    private (Guid Work, Guid Asset) AddMovie(string imdb, string hash)
     {
-        var work = GuidSql.ToBlob(Guid.NewGuid());
+        var workId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var work = GuidSql.ToBlob(workId);
         var edition = GuidSql.ToBlob(Guid.NewGuid());
-        var asset = GuidSql.ToBlob(Guid.NewGuid());
+        var asset = GuidSql.ToBlob(assetId);
         using var conn = _db.CreateConnection();
         conn.Execute("INSERT INTO works (id, media_type) VALUES (@work, 'Movies')", new { work });
         conn.Execute("INSERT INTO editions (id, work_id, format_label) VALUES (@edition, @work, '4K Remux')", new { edition, work });
@@ -915,15 +963,16 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         conn.Execute(
             "INSERT INTO bridge_ids (id, entity_id, id_type, id_value) VALUES (@id, @work, 'imdb_id', @imdb)",
             new { id = GuidSql.ToBlob(Guid.NewGuid()), work, imdb });
+        return (workId, assetId);
     }
 
     // A paired Kids TV: a delegated device token on a restricted profile (never a signed-in person).
-    private UniversalSearchReadService CreateAppService(IDisplayProjectionReadService display) => new(
+    private UniversalSearchReadService CreateAppService(IDisplayProjectionReadService display, Guid? activeProfileId = null) => new(
         _db,
         display,
         new HttpContextAccessor { HttpContext = new DefaultHttpContext() },
         new TestViewAuthorityResolver(new RequestAuthority(
-            PrincipalKind.DelegatedUserClient, true, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, Guid.NewGuid(),
+            PrincipalKind.DelegatedUserClient, true, Guid.NewGuid(), activeProfileId ?? Guid.NewGuid(), Guid.NewGuid(), null, Guid.NewGuid(),
             AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true, ActiveProfileIsRestricted: true)),
         SpoilerTestKit.Create(display, _db),
         new ProfileRepository(_db),
@@ -940,6 +989,12 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
             SpoilerTestKit.Create(display, _db),
             new ProfileRepository(_db),
             new WaitingPersonalStateRepository(_db));
+    }
+
+    // HttpContextAccessor shares one ambient context across instances, so a test of "no request" needs its own.
+    private sealed class NoRequestAccessor : IHttpContextAccessor
+    {
+        public HttpContext? HttpContext { get => null; set { } }
     }
 
     private sealed class StubDisplayProjection : IDisplayProjectionReadService

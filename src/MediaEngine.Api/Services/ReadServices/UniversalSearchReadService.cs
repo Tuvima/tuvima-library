@@ -74,7 +74,7 @@ public sealed class UniversalSearchReadService(
         var sections = BuildSections(results, trimmed).ToList();
         // The profile's own items still waiting for their file after a restore: a section of its own, always last, never the top
         // result and not counted in the response total (that total is the titles the person can open).
-        var fileMissing = SearchFileMissing(trimmed, profileId, ct);
+        var fileMissing = await SearchFileMissingAsync(trimmed, authority, profileId, ct).ConfigureAwait(false);
         if (fileMissing.Count > 0)
         {
             sections.Add(new UniversalSearchSectionDto(FileMissingKey, "File missing", fileMissing, fileMissing.Count, null));
@@ -90,14 +90,21 @@ public sealed class UniversalSearchReadService(
 
     // A restored item whose file has not come back yet is listed by name only, for the searching profile alone. The waiting area
     // holds no View items to leak (the query takes Work, Edition and Media Asset titles only) and never a withheld (Vault) title.
-    private IReadOnlyList<UniversalSearchResultDto> SearchFileMissing(string query, Guid? profileId, CancellationToken ct)
+    // Only a person in the Dashboard sees them: a paired app (TV web, Roku, Android) draws every section as tappable tiles and
+    // these rows have nothing to open.
+    private async Task<IReadOnlyList<UniversalSearchResultDto>> SearchFileMissingAsync(
+        string query,
+        RequestAuthority authority,
+        Guid? profileId,
+        CancellationToken ct)
     {
-        if (profileId is not { } profile || profile == Guid.Empty)
+        if (authority.PrincipalKind != PrincipalKind.Human || profileId is not { } profile || profile == Guid.Empty)
         {
             return [];
         }
 
-        return waiting.SearchWaitingTitles(profile, query, FileMissingLimit, ct)
+        var titles = await waiting.SearchWaitingTitlesAsync(profile, query, FileMissingLimit, ct).ConfigureAwait(false);
+        return titles
             .Select(title =>
             {
                 var year = title.Year?.ToString(System.Globalization.CultureInfo.InvariantCulture);
