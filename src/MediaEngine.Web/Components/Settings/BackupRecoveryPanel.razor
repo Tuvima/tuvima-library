@@ -27,6 +27,10 @@
         <AppCard Title="Backup status" Class="backup-status">
             @if (LatestBackup is null)
             {
+                @if (RestoreSummaryLine is { } emptyRestoreSummary)
+                {
+                    <p class="backup-status__mobile-note" data-testid="restore-summary">@emptyRestoreSummary</p>
+                }
                 <div class="backup-status__empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" /><span><strong>No recovery points yet</strong><small>Create a backup before significant library or configuration changes.</small></span></div>
             }
             else
@@ -36,6 +40,10 @@
                     <div><small>Backup size</small><strong>@FormatBytes(LatestBackup.SizeBytes)</strong></div>
                     <div><small>Recovery points</small><strong>@_backups.Count</strong></div>
                 </div>
+                @if (RestoreSummaryLine is { } restoreSummary)
+                {
+                    <p class="backup-status__mobile-note" data-testid="restore-summary">@restoreSummary</p>
+                }
                 @if (DeviceContext.IsMobile)
                 {
                     <p class="backup-status__mobile-note">Creating, downloading, testing, and restoring recovery points is available on desktop and tablet.</p>
@@ -46,8 +54,16 @@
         @if (_lastValidation is { Valid: false })
         {
             <AppAlert Tone="AppUiTone.Error" Class="backup-validation-result">
-                <strong>Restore test failed</strong>
-                <span>@_lastValidation.Message Tested @_lastValidation.ValidatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt").</span>
+                <div><strong>Restore test failed</strong></div>
+                <div data-testid="restore-error">@_lastValidation.Message</div>
+                <div><small>Tested @_lastValidation.ValidatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt").</small></div>
+            </AppAlert>
+        }
+        else if (_lastValidation is { Valid: true, Contents: { } firstLook })
+        {
+            <AppAlert Tone="AppUiTone.Success" Class="backup-validation-result" data-testid="restore-first-look">
+                <div><strong>Restore test passed</strong></div>
+                <BackupContentsSummary Contents="firstLook" />
             </AppAlert>
         }
 
@@ -55,8 +71,17 @@
         {
         <div class="backup-actions-grid">
             <AppCard Title="Create backup" Class="backup-action-card">
-                <p>Back up the library database and safe configuration. Provider secrets stay on this server.</p>
                 <AppButton Label="Create backup" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" Loading="@_busy" OnClick="CreateAsync" />
+                @if (_lastCreated is { } created)
+                {
+                    <p data-testid="backup-created">Backup created: <strong>@created.FileName</strong>, @FormatBytes(created.SizeBytes).</p>
+                }
+                <p data-testid="backup-note">Backups hold your settings and your own progress, bookmarks and favourites. They do not include your media files or folders. Back those up with your computer's own backup tool.</p>
+                <p data-testid="backup-keep-safe">Anyone with this file can see your settings and sign in as you. Keep it somewhere safe.</p>
+                @if (_state is { FileOnlyTitles: > 0 } fileOnly)
+                {
+                    <AppAlert Tone="AppUiTone.Warning" data-testid="file-only-warning">@FileOnlyLine(fileOnly.FileOnlyTitles)</AppAlert>
+                }
             </AppCard>
 
             <AppCard Title="Restore" Class="backup-action-card">
@@ -84,13 +109,21 @@
             </AppCard>
         </div>
 
+        @if (_state is { } state)
+        {
+            <AppCard Title="Restored progress" Class="backup-action-card">
+                <AppSelect Native="true" Label="Keep restored progress waiting for" Value="@state.WaitingPeriodDays.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                           Options="@WaitingPeriodOptions(state.WaitingPeriodDays)" Disabled="@_busy" ValueChanged="SetWaitingPeriodAsync" data-testid="waiting-period" />
+            </AppCard>
+        }
+
         <BackupDestinationsSection />
 
         <AppCard>
         <details class="backup-advanced">
             <summary>Advanced</summary>
             <div class="backup-advanced__content">
-                <div><span>Stored content</span><strong>SQLite snapshot + non-secret configuration</strong></div>
+                <div><span>Stored content</span><strong>Settings and your own progress, bookmarks and favourites</strong></div>
                 <div><span>Total archive size</span><strong>@FormatBytes(_backups.Sum(item => item.SizeBytes))</strong></div>
                 <p>Backup location and retention are controlled by the Engine's server configuration.</p>
             </div>
@@ -148,6 +181,10 @@
     private RestoreValidationResultDto? _lastValidation;
     private bool _restoreDialogOpen;
     private BackupArchiveDto? _selectedRestore;
+    private BackupArchiveDto? _lastCreated;
+
+    // Null when the Engine could not be asked; everything that depends on it is then hidden.
+    private BackupStateDto? _state;
     private BackupArchiveDto? LatestBackup => _backups.OrderByDescending(item => item.CreatedAt).FirstOrDefault();
 
     // Null when the Engine could not be asked; the line is then hidden (the usual unreachable messaging applies).
@@ -168,8 +205,10 @@
         _loading = true;
         var backups = ApiClient.GetBackupsAsync();
         var version = ApiClient.GetDataStoreVersionAsync();
+        var state = ApiClient.GetBackupStateAsync();
         _backups = await backups;
         _dataStoreVersion = await version;
+        _state = await state;
         _loading = false;
     }
 
@@ -185,6 +224,7 @@
         }
         else
         {
+            _lastCreated = backup;
             Snackbar.Add("Recovery point created.", AppSeverity.Success);
             await LoadAsync();
         }
@@ -258,6 +298,66 @@
         else
         {
             Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error);
+        }
+        _busy = false;
+    }
+
+    private static readonly int[] StandardWaitingDays = [30, 60, 90, 180, 365];
+
+    private static string FileOnlyLine(int count) => count == 1
+        ? "1 item is matched by exact file only and may lose progress if the file changes."
+        : $"{count.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)} items are matched by exact file only and may lose progress if the file changes.";
+
+    // The latest restore stays in view while items still wait for their files, and for a week after a restore that has nothing waiting.
+    private string? RestoreSummaryLine
+    {
+        get
+        {
+            if (_state is not { LatestRestore: { } restore } state
+                || (state.StillWaiting <= 0 && restore.RestoredAt < DateTimeOffset.UtcNow.AddDays(-7)))
+            {
+                return null;
+            }
+
+            var attached = restore.Attached == 1
+                ? "1 item got its progress and bookmarks back."
+                : $"{restore.Attached.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)} items got their progress and bookmarks back.";
+            if (state.StillWaiting <= 0)
+            {
+                return attached;
+            }
+
+            var waiting = state.StillWaiting.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+            return state.StillWaiting == 1
+                ? $"{attached} 1 is waiting for its file; it'll return if the file does, and is cleared after {state.WaitingPeriodDays} days."
+                : $"{attached} {waiting} are waiting for their files; they'll return if the files do, and are cleared after {state.WaitingPeriodDays} days.";
+        }
+    }
+
+    // The five standard choices; a stored value that is not one of them is shown as one more choice so the page never lies about it.
+    private static IReadOnlyList<AppSelectOption> WaitingPeriodOptions(int stored)
+    {
+        var days = StandardWaitingDays.Contains(stored) ? StandardWaitingDays : [.. StandardWaitingDays, stored];
+        return [.. days.Order().Select(count => new AppSelectOption(
+            count.ToString(System.Globalization.CultureInfo.InvariantCulture), $"{count} days"))];
+    }
+
+    private async Task SetWaitingPeriodAsync(string? value)
+    {
+        if (_state is null || !int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var days))
+        {
+            return;
+        }
+
+        _busy = true;
+        var updated = await ApiClient.SetBackupWaitingPeriodAsync(days);
+        if (updated is null)
+        {
+            Snackbar.Add("The waiting period could not be saved.", AppSeverity.Error);
+        }
+        else
+        {
+            _state = updated;
         }
         _busy = false;
     }

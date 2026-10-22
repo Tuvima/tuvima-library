@@ -66,7 +66,17 @@ public partial interface IEngineApiClient
 
     Task<byte[]?> DownloadBackupAsync(string fileName, CancellationToken ct = default);
 
+    /// <summary>
+    /// Runs a restore test. When the Engine refuses the file (an older layout, a damaged file) the result is not valid and its
+    /// <c>Message</c> is the Engine's one sentence; <c>null</c> means the Engine could not be asked.
+    /// </summary>
     Task<RestoreValidationResultDto?> ValidateRestoreAsync(string fileName, CancellationToken ct = default);
+
+    /// <summary>GET /system/backups/state: counts for the Backup screen; <c>null</c> when the Engine could not be asked.</summary>
+    Task<BackupStateDto?> GetBackupStateAsync(CancellationToken ct = default);
+
+    /// <summary>PUT /system/backups/waiting-period: how many days restored progress waits for its files. Returns the new state, or <c>null</c> when it was not saved.</summary>
+    Task<BackupStateDto?> SetBackupWaitingPeriodAsync(int days, CancellationToken ct = default);
 
     Task<ScheduleRestoreResultDto?> ScheduleRestoreAsync(string fileName, CancellationToken ct = default);
 

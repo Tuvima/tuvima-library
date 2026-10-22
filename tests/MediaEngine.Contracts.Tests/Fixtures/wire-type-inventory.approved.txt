@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1221; api=0; web-client=54
+# scopes: contracts=1225; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10633,6 +10633,7 @@
   EntryCount: System.Int32 | json=entry_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ConfigurationFiles: System.Int32 | json=configuration_files | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Warning: System.String | json=warning | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Contents: MediaEngine.Contracts.System.BackupContentsDto | json=contents | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Setup.SetupBeginRefusalDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10748,6 +10749,21 @@
   SizeBytes: System.Int64 | json=size_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IncludesSecrets: System.Boolean | json=includes_secrets | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
+[contracts] MediaEngine.Contracts.System.BackupContentsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Profiles: System.Int32 | json=profiles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ConfigurationRows: System.Int32 | json=configuration_rows | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PersonalItems: System.Int32 | json=personal_items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Titles: System.Int32 | json=titles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileOnlyTitles: System.Int32 | json=file_only_titles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.System.BackupStateDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  FileOnlyTitles: System.Int32 | json=file_only_titles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WaitingPeriodDays: System.Int32 | json=waiting_period_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StillWaiting: System.Int32 | json=still_waiting | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LatestRestore: MediaEngine.Contracts.System.LatestRestoreDto | json=latest_restore | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
 [contracts] MediaEngine.Contracts.System.CreateBackupRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   sample={}
@@ -10762,6 +10778,15 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   EnrichmentTester: System.Boolean | json=enrichment_tester | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DevelopmentData: System.Boolean | json=development_data | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.System.LatestRestoreDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  RestoredAt: System.DateTimeOffset | json=restored_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BackupFileName: System.String | json=backup_file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Applied: System.Int32 | json=applied | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Attached: System.Int32 | json=attached | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Yielded: System.Int32 | json=yielded | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Purged: System.Int32 | json=purged | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.System.LogExportPreviewDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10804,6 +10829,7 @@
   FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ValidatedAt: System.DateTimeOffset | json=validated_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Contents: MediaEngine.Contracts.System.BackupContentsDto | json=contents | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.System.ScheduleRestoreRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10892,6 +10918,10 @@
   Lines: System.Collections.Generic.List<MediaEngine.Contracts.System.TechnicalLogLineDto> | json=lines | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NextCursor: System.String | json=next_cursor | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"lines":[],"next_cursor":"sample"}
+
+[contracts] MediaEngine.Contracts.System.UpdateWaitingPeriodRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Days: System.Int32 | json=days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Taste.AddTasteItemRequest
   kind=class | converter=default | number-handling=default | unmapped=default

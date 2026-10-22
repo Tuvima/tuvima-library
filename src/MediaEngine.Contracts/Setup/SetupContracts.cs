@@ -139,7 +139,8 @@ public sealed record SetupBackupInspectionDto(
     [property: JsonPropertyName("uncompressed_bytes")] long UncompressedBytes,
     [property: JsonPropertyName("entry_count")] int EntryCount,
     [property: JsonPropertyName("configuration_files")] int ConfigurationFiles,
-    [property: JsonPropertyName("warning")] string Warning);
+    [property: JsonPropertyName("warning")] string Warning,
+    [property: JsonPropertyName("contents")] MediaEngine.Contracts.System.BackupContentsDto? Contents = null);
 
 public sealed record SetupRestoreConfirmationDto(
     [property: JsonPropertyName("scheduled")] bool Scheduled,
