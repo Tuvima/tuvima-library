@@ -4836,7 +4836,7 @@ input[type="reset"],
 .who-card__name { max-width: 100%; font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { .who-card { transition: none; } .who-card:hover:not(:disabled), .who-card:focus-visible { transform: none; } }
 @media (min-width: 1600px) { .who-card__picture { max-width: 220px; } .who-card__name { font-size: 1.35rem; } .who-button, .who-link { min-height: 56px; } }
-.who-check__box { width: 20px; height: 20px; accent-color: var(--tl-accent-primary); }
+.who-check__box { flex-shrink: 0; width: 20px; height: 20px; accent-color: var(--tl-accent-primary); }
 .who-link { min-height: 44px; padding: 0 8px; color: var(--tl-accent-primary); border: 0; background: none; font: inherit; text-decoration: underline; cursor: pointer; }
 /* Settings > Profiles rows: the class sits on an AppNativeButton, so it cannot be styled from the page's isolated CSS. */
 .profiles-tab__row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 16px; box-sizing: border-box; color: inherit; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
@@ -4944,7 +4944,10 @@ input[type="reset"],
 .who-dialog__hint { margin: 0; color: var(--tl-text-muted); font-size: .85rem; text-align: center; }
 .profile-editor__photos { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
 .profile-editor__photos legend { padding: 0; font-weight: 600; }
-.profile-editor__choice { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; cursor: pointer; }
+.profile-editor__choice { --profile-editor-choice-line: 1.5rem; display: flex; align-items: flex-start; gap: 12px; min-height: 44px; cursor: pointer; }
+/* The box sits level with the first line of its label, however far the helper text below it wraps. */
+.profile-editor__choice > .who-check__box { margin-top: calc((var(--profile-editor-choice-line) - 20px) / 2); }
+.profile-editor__choice span > strong { line-height: var(--profile-editor-choice-line); }
 .profile-editor__choice span { display: grid; gap: 2px; }
 .profile-editor__choice small { color: var(--tl-text-muted); font-size: .85rem; }
 

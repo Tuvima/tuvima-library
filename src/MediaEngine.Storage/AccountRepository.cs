@@ -281,13 +281,20 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             return new AccountRemovalPlan(PlanAccountRemoval(connection, transaction, accountId));
         }, ct);
 
-    public Task<AccountRemovalOutcome> DeleteAccountWithOwnProfilesAsync(Guid accountId, CancellationToken ct = default) =>
+    public Task<AccountRemovalOutcome> DeleteAccountWithOwnProfilesAsync(
+        Guid accountId, IReadOnlyCollection<Guid>? confirmedProfileIds = null, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
             // Worked out inside the transaction that deletes, so the profiles that go are exactly the ones just checked.
             var profiles = PlanAccountRemoval(connection, transaction, accountId);
             var profileIds = profiles.Select(profile => profile.Id).ToArray();
+            // What goes must be exactly what the caller was shown and confirmed; otherwise nothing is deleted.
+            if (confirmedProfileIds is not null && !confirmedProfileIds.ToHashSet().SetEquals(profileIds))
+            {
+                throw new AccountRemovalChangedException();
+            }
+
             var affected = profileIds.Length == 0
                 ? []
                 : connection.Query<Guid>(
@@ -673,8 +680,9 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     /// only by it, so both go with it (the confirmation names every profile that will go, and the last owner of a household
     /// cannot be deleted, so this only happens once someone else owns the household).</item>
     /// </list>
-    /// Throws when the delete would strand someone: the Owner profile is never deleted, and no other enabled sign-in may be left
-    /// able to open only profiles that are going.
+    /// Throws when the delete would strand someone: a sign-in that signs in as the Owner profile (never deleted) must pick another
+    /// first (an Owner profile it merely holds stays and is not part of what goes), and no other sign-in, disabled ones included,
+    /// may be left able to open only profiles that are going.
     /// </summary>
     private static IReadOnlyList<Profile> PlanAccountRemoval(SqliteConnection connection, SqliteTransaction transaction, Guid accountId)
     {
@@ -682,15 +690,25 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             Select + " WHERE id=@accountId;", new { accountId }, transaction)
             ?? throw new KeyNotFoundException("Account not found.");
         var profileIds = OwnProfileIds(connection, transaction, account);
+        if (profileIds.Contains(Profile.SeedProfileId))
+        {
+            // The Owner profile is never deleted. A sign-in that signs in as it must pick another profile first; one that merely
+            // holds it (no other sign-in does) leaves it standing, and it is not part of what goes.
+            var signInProfile = connection.Query<GrantRow>(
+                    GrantSelect + " WHERE account_id=@Id AND is_enabled=1 AND is_default=1;", new { account.Id }, transaction)
+                .FirstOrDefault()?.ProfileId;
+            if (signInProfile == Profile.SeedProfileId)
+            {
+                throw new InvalidOperationException(
+                    "This sign-in signs in as the Owner profile, which is never deleted. Choose a different profile for it first.");
+            }
+
+            profileIds.Remove(Profile.SeedProfileId);
+        }
+
         if (profileIds.Count == 0)
         {
             return [];
-        }
-
-        if (profileIds.Contains(Profile.SeedProfileId))
-        {
-            throw new InvalidOperationException(
-                "This sign-in signs in as the Owner profile, which is never deleted. Choose a different profile for it first.");
         }
 
         var blobs = profileIds.Select(GuidSql.ToBlob).ToArray();
@@ -700,7 +718,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                     WHERE own.account_id=a.id AND own.is_enabled=1
                     ORDER BY own.is_default DESC, own.granted_at LIMIT 1) AS PersonName
             FROM accounts a
-            WHERE a.id<>@accountId AND a.is_enabled=1
+            WHERE a.id<>@accountId
               AND EXISTS (SELECT 1 FROM account_profile_grants g
                           WHERE g.account_id=a.id AND g.is_enabled=1 AND g.profile_id IN @blobs)
               AND NOT EXISTS (SELECT 1 FROM account_profile_grants rest

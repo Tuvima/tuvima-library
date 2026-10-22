@@ -24,7 +24,8 @@ public sealed class AccountAccessMutationService(
     IProfilePhotoDisposer photoDisposer,
     TimeProvider clock,
     IUsableAdministratorService usableAdministrators,
-    AuthenticationPolicyMutationGate mutationGate) : IAccountAccessMutationService
+    AuthenticationPolicyMutationGate mutationGate,
+    ILogger<AccountAccessMutationService>? logger = null) : IAccountAccessMutationService
 {
     /// <summary>What a person is told when a change would leave nobody able to sign in as a server administrator.</summary>
     public const string LastAdministratorMessage =
@@ -35,6 +36,8 @@ public sealed class AccountAccessMutationService(
         CreateAccountAccessCommand command,
         CancellationToken ct = default)
     {
+        // Held across the checks and the save, so a delete's plan and the delete itself see the same grants.
+        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
         await RequireWriteAsync(actor, ct).ConfigureAwait(false);
         if ((command.ProfileId is null) == (command.NewProfile is null))
         {
@@ -333,6 +336,7 @@ public sealed class AccountAccessMutationService(
         RequestAuthority actor,
         Guid accountId,
         ProfilePhotoDisposition photos = ProfilePhotoDisposition.MoveToShared,
+        IReadOnlyCollection<Guid>? confirmedProfileIds = null,
         CancellationToken ct = default)
     {
         // Held across the last-administrator and last-owner checks and the save, so two people removing each other cannot both pass.
@@ -387,13 +391,31 @@ public sealed class AccountAccessMutationService(
             }
         }
 
-        var photoPlans = new List<ProfilePhotoPlan>();
-        foreach (var profile in plan.OwnProfiles)
+        // What goes must be what the caller confirmed (the grant paths hold the same gate, so nothing moves between this and the delete).
+        if (confirmedProfileIds is not null && !confirmedProfileIds.ToHashSet().SetEquals(plan.OwnProfiles.Select(profile => profile.Id)))
         {
-            photoPlans.Add(await photoDisposer.PrepareAsync(profile, photos, actor.ActiveProfileId ?? profile.Id, ct).ConfigureAwait(false));
+            throw new AccountRemovalChangedException();
         }
 
-        var outcome = await accounts.DeleteAccountWithOwnProfilesAsync(accountId, ct).ConfigureAwait(false);
+        // Every refusal is behind us: only now do photos move, then the delete.
+        var photoPlans = new List<ProfilePhotoPlan>();
+        AccountRemovalOutcome outcome;
+        try
+        {
+            foreach (var profile in plan.OwnProfiles)
+            {
+                photoPlans.Add(await photoDisposer.PrepareAsync(profile, photos, actor.ActiveProfileId ?? profile.Id, ct).ConfigureAwait(false));
+            }
+
+            outcome = await accounts.DeleteAccountWithOwnProfilesAsync(
+                accountId, plan.OwnProfiles.Select(profile => profile.Id).ToArray(), ct).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            LogPhotosLeftInShared(photoPlans);
+            throw;
+        }
+
         foreach (var photoPlan in photoPlans)
         {
             await photoDisposer.CompleteAsync(photoPlan, ct).ConfigureAwait(false);
@@ -410,6 +432,20 @@ public sealed class AccountAccessMutationService(
             accountId, null, ct,
             new Dictionary<string, string?> { ["profiles_deleted"] = outcome.DeletedProfileIds.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) })
             .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// A delete failed after photos had already moved into the Shared Library (an unexpected error: every refusal runs first).
+    /// Says so, by profile id only (never names), so the person can find the photos.
+    /// </summary>
+    private void LogPhotosLeftInShared(IEnumerable<ProfilePhotoPlan> plans)
+    {
+        foreach (var plan in plans.Where(plan => plan.PhotosMovedToShared))
+        {
+            (logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<AccountAccessMutationService>.Instance).LogError(
+                "Deleting profile {ProfileId} failed after its photos were moved to the Shared Library; the photos are now in Shared.",
+                plan.ProfileId);
+        }
     }
 
     public async Task<IReadOnlyList<Profile>> PreviewDeleteAsync(
@@ -479,6 +515,8 @@ public sealed class AccountAccessMutationService(
         IssueAccountInvitationCommand command,
         CancellationToken ct = default)
     {
+        // Held across the checks and the save, so a delete's plan and the delete itself see the same grants.
+        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
         await RequireWriteAsync(actor, ct).ConfigureAwait(false);
         var email = NormalizeEmail(command.Email);
         var profileIds = command.ProfileIds.Distinct().ToArray();
@@ -605,6 +643,8 @@ public sealed class AccountAccessMutationService(
         CreateManagedProfileCommand command,
         CancellationToken ct = default)
     {
+        // Held across the checks and the save, so a delete's plan and the delete itself see the same grants.
+        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
         await RequireWriteAsync(actor, ct).ConfigureAwait(false);
         var now = clock.GetUtcNow();
         var profile = new Profile
@@ -633,6 +673,8 @@ public sealed class AccountAccessMutationService(
         AddHouseholdPersonCommand command,
         CancellationToken ct = default)
     {
+        // Held across the checks and the save, so a delete's plan and the delete itself see the same grants.
+        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
         await RequireHouseholdWriteAsync(actor, command.HouseholdId, ct).ConfigureAwait(false);
         var name = NormalizeDisplayName(command.DisplayName);
         var color = NormalizeAvatarColor(command.AvatarColor);
@@ -690,6 +732,8 @@ public sealed class AccountAccessMutationService(
         GiveOwnSignInCommand command,
         CancellationToken ct = default)
     {
+        // Held across the checks and the save, so a delete's plan and the delete itself see the same grants.
+        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
         var profile = await profiles.GetByIdAsync(command.ProfileId, ct).ConfigureAwait(false);
         var householdOnly = await RequireHouseholdWriteAsync(actor, profile?.HouseholdId, ct).ConfigureAwait(false);
         if (profile is null)
@@ -799,6 +843,8 @@ public sealed class AccountAccessMutationService(
         Guid accountId,
         CancellationToken ct = default)
     {
+        // Held across the checks and the save, so a delete's plan and the delete itself see the same grants.
+        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
         await RequireHouseholdWriteAsync(actor, account?.HouseholdId, ct).ConfigureAwait(false);
         if (account is null)
@@ -992,8 +1038,18 @@ public sealed class AccountAccessMutationService(
 
         await accounts.ValidateManagedProfileRemovalAsync(profileId, ct).ConfigureAwait(false);
 
+        // Every refusal is behind us: only now do photos move, then the delete.
         var plan = await photoDisposer.PrepareAsync(profile, photos, actor.ActiveProfileId ?? profileId, ct).ConfigureAwait(false);
-        await accounts.DeleteManagedProfileAsync(profileId, ct).ConfigureAwait(false);
+        try
+        {
+            await accounts.DeleteManagedProfileAsync(profileId, ct).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            LogPhotosLeftInShared([plan]);
+            throw;
+        }
+
         await photoDisposer.CompleteAsync(plan, ct).ConfigureAwait(false);
         await ChangedAsync(actor, "profile.deleted", "profile", profileId.ToString("D"),
             actor.AccountId ?? Guid.Empty, profileId, ct).ConfigureAwait(false);

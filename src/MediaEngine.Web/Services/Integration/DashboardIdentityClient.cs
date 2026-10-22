@@ -611,12 +611,16 @@ public sealed class DashboardIdentityClient(
     /// <summary>
     /// Deletes a user: their sign-in and their own profiles. <paramref name="keepPhotos"/> moves the deleted profiles' personal
     /// photos to the Shared Library (true) or deletes them (false). Screens open on the sign-in, or on a profile that went with
-    /// it (<paramref name="deletedProfileIds"/>), close.
+    /// it (<paramref name="deletedProfileIds"/>), close. When <paramref name="deletedProfileIds"/> is given it is also sent
+    /// as the list the person confirmed (<c>profiles=</c>), so the Engine refuses if what would go has changed since.
     /// </summary>
     public async Task<DashboardAccessMutationResult> DeleteManagedAccountResultAsync(
         Guid accountId, bool keepPhotos = true, IReadOnlyCollection<Guid>? deletedProfileIds = null, CancellationToken ct = default)
     {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}?photos={(keepPhotos ? "move" : "delete")}", ct, includeMessage: true).ConfigureAwait(false);
+        var confirmed = deletedProfileIds is null
+            ? string.Empty
+            : $"&profiles={string.Join(',', deletedProfileIds.Select(id => id.ToString("D")))}";
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}?photos={(keepPhotos ? "move" : "delete")}{confirmed}", ct, includeMessage: true).ConfigureAwait(false);
         if (result.Succeeded)
         {
             openScreens?.CloseWhere(screen => screen.AccountId == accountId

@@ -276,7 +276,8 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         cut.FindAll("button").Last(button => button.TextContent.Trim() == "Delete user").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("was deleted", cut.Markup));
-        Assert.Equal("?photos=move", Assert.Single(_handler.DeleteQueries));
+        // The profiles the person was shown travel with the delete, so the Engine can refuse if they have changed.
+        Assert.Equal($"?photos=move&profiles={string.Join(',', _handler.PreviewIds.Select(id => id.ToString("D")))}", Assert.Single(_handler.DeleteQueries));
     }
 
     [Fact]
@@ -289,7 +290,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         cut.FindAll("button").Last(button => button.TextContent.Trim() == "Delete user").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("was deleted", cut.Markup));
-        Assert.Equal("?photos=delete", Assert.Single(_handler.DeleteQueries));
+        Assert.Equal($"?photos=delete&profiles={string.Join(',', _handler.PreviewIds.Select(id => id.ToString("D")))}", Assert.Single(_handler.DeleteQueries));
     }
 
     [Fact]
@@ -407,8 +408,19 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
 
         /// <summary>The profiles the Engine says go with the user.</summary>
         public string[] DeletionProfileNames { get; set; } = ["Owner"];
+
+        /// <summary>The ids of the profiles the last preview listed, in order.</summary>
+        public List<Guid> PreviewIds { get; } = [];
         public HttpStatusCode PreviewStatus { get; set; } = HttpStatusCode.OK;
         public string? PreviewDetail { get; set; }
+        private AccountDeletionPreviewResponse NewPreview()
+        {
+            PreviewIds.Clear();
+            PreviewIds.AddRange(DeletionProfileNames.Select(_ => Guid.NewGuid()));
+            return new AccountDeletionPreviewResponse(
+                DeletionProfileNames.Select((name, index) => new AccountDeletionProfileDto(PreviewIds[index], name)).ToList());
+        }
+
         public HttpStatusCode DeleteStatus { get; set; } = HttpStatusCode.NoContent;
         public string? DeleteDetail { get; set; }
 
@@ -468,7 +480,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
             if (request.Method == HttpMethod.Get && path == $"/access/accounts/{AccountId:D}/deletion-preview")
             {
                 return PreviewStatus == HttpStatusCode.OK
-                    ? Json(new AccountDeletionPreviewResponse(DeletionProfileNames.Select(name => new AccountDeletionProfileDto(Guid.NewGuid(), name)).ToList()))
+                    ? Json(NewPreview())
                     : new HttpResponseMessage(PreviewStatus) { Content = JsonContent.Create(new { detail = PreviewDetail }) };
             }
 

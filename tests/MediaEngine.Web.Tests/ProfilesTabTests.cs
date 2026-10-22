@@ -25,6 +25,8 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     private readonly List<ManagedProfileResponse> _managed = [];
     private readonly List<HouseholdResponse> _households = [];
     private readonly List<RequestRecord> _requests = [];
+    private readonly List<AccountAccessResponse> _accounts = [];
+    private DashboardAuthorityResponse? _authority;
 
     public ProfilesTabTests()
     {
@@ -183,6 +185,27 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
+    public void DeletingAUserFromTheHouseholdPanel_RefreshesTheProfileList_SoTheirProfilesAreGone()
+    {
+        Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 3, 2, DateTimeOffset.UtcNow));
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(KidId, "Robin", true), Person(SamId, "Sam", false)]);
+        _accounts.Add(new AccountAccessResponse(Guid.NewGuid(), "sam@home.test", true, false, 1, [], [], [],
+            DateTimeOffset.UtcNow.AddYears(-1), DateTimeOffset.UtcNow, null, HouseholdId: HouseholdId, HouseholdAdmin: false));
+        var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".profiles-tab__line").Count));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Delete user sam@home.test']")));
+
+        cut.Find("button[aria-label='Delete user sam@home.test']").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-user-deletion] button")));
+        cut.FindAll("[data-user-deletion] button").Single(button => button.TextContent.Trim() == "Delete user").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
+        Assert.DoesNotContain("Sam", string.Concat(cut.FindAll(".profiles-tab__line").Select(line => line.TextContent)));
+        Assert.Contains(_requests, request => request.Method == HttpMethod.Delete && request.Path.StartsWith("/access/accounts/", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void PickerManageButton_GoesToSettingsForAdministrators_AndStaysInPlaceOnTelevision()
     {
         var picker = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ProfilePickerPage.razor"));
@@ -216,6 +239,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         var authority = new DashboardAuthorityResponse(OwnId, OwnId, true, true, 1, 1, serverAdministrator, serverAdministrator, null, 1,
             grants, navigation, actions);
         var session = new DashboardSessionAccessor();
+        _authority = authority;
         session.Set("test-session-token", OwnId, OwnId, Guid.NewGuid(), authority);
         Services.AddScoped(_ => session);
     }
@@ -252,6 +276,42 @@ public sealed class ProfilesTabTests : AsyncBunitContext
             if (request.Method == HttpMethod.Get && path == "/access/households")
             {
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._households) };
+            }
+
+            if (request.Method == HttpMethod.Post && path == "/auth/session/validate" && owner._authority is { } authority)
+            {
+                // The same person is still signed in with the same access when the page refreshes its authority.
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(new SessionValidationResponse
+                    {
+                        SessionId = Guid.NewGuid(),
+                        AccountId = authority.AccountId,
+                        ActiveProfileId = authority.ActiveProfileId,
+                        Authority = authority,
+                    }),
+                };
+            }
+
+            if (request.Method == HttpMethod.Get && path == "/access/accounts")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._accounts) };
+            }
+
+            if (request.Method == HttpMethod.Get && path.EndsWith("/deletion-preview", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(new AccountDeletionPreviewResponse([new AccountDeletionProfileDto(SamId, "Sam")])),
+                };
+            }
+
+            if (request.Method == HttpMethod.Delete && path.StartsWith("/access/accounts/", StringComparison.Ordinal))
+            {
+                // The user's own profile goes with them.
+                owner._managed.RemoveAll(person => person.Id == SamId);
+                owner._accounts.Clear();
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
             }
 
             if (request.Method == HttpMethod.Post && path.EndsWith("/people", StringComparison.Ordinal))

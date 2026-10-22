@@ -36,6 +36,30 @@ public sealed class HouseholdUsersPanelTests : AsyncBunitContext
         Assert.NotEmpty(cut.FindAll("button[aria-label='Delete user lee@home.test']"));
         Assert.Empty(cut.FindAll("button[aria-label='Delete user admin@home.test']"));
         Assert.DoesNotContain("me@home.test", cut.Markup);
+        // The server administrator stays listed, without a Delete button.
+        Assert.Contains("admin@home.test", cut.Markup);
+    }
+
+    [Fact]
+    public void TheRowsDeleteUserButton_UsesTheProfilesPagesDestructiveButtonStyle()
+    {
+        var cut = Render<HouseholdUsersPanel>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Delete user pat@home.test']")));
+
+        var classes = cut.Find("button[aria-label='Delete user pat@home.test']").ClassList;
+
+        Assert.Contains("who-button", classes);
+        Assert.Contains("who-button--danger", classes);
+    }
+
+    [Fact]
+    public void ThePhotoChoiceBoxes_KeepTheirSizeAndSitLevelWithTheFirstLineOfTheirLabel()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var css = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "wwwroot", "app.css"));
+
+        Assert.Contains(".who-check__box { flex-shrink: 0;", css, StringComparison.Ordinal);
+        Assert.Contains(".profile-editor__choice > .who-check__box { margin-top:", css, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -69,7 +93,41 @@ public sealed class HouseholdUsersPanelTests : AsyncBunitContext
         cut.FindAll("[data-user-deletion] button").Single(button => button.TextContent.Trim() == "Delete user").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("pat@home.test was deleted. Media files were kept.", cut.Markup));
-        Assert.Equal($"/access/accounts/{_handler.PatId:D}?photos=delete", Assert.Single(_handler.Deletes));
+        // The profiles the person was shown travel with the delete, so the Engine can refuse if they have changed.
+        var shown = string.Join(',', _handler.PreviewIds.Select(id => id.ToString("D")));
+        Assert.Equal($"/access/accounts/{_handler.PatId:D}?photos=delete&profiles={shown}", Assert.Single(_handler.Deletes));
+        Assert.Equal(2, _handler.PreviewIds.Count);
+    }
+
+    [Fact]
+    public async Task AskingToDeleteAUser_IsRefusedOnAPhone_EvenWhenTheButtonWasAlreadyDrawn()
+    {
+        var cut = Render<HouseholdUsersPanel>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Delete user pat@home.test']")));
+        var button = cut.Find("button[aria-label='Delete user pat@home.test']");
+        // The device becomes a phone without the panel being drawn again.
+        await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+
+        button.Click();
+
+        Assert.DoesNotContain(_handler.Requests, request => request.Path.EndsWith("/deletion-preview", StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-user-deletion]"));
+    }
+
+    [Fact]
+    public async Task ConfirmingTheDelete_IsRefusedOnAPhone_AndNothingIsSentToTheEngine()
+    {
+        var cut = Render<HouseholdUsersPanel>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Delete user pat@home.test']")));
+        cut.Find("button[aria-label='Delete user pat@home.test']").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-user-deletion] button")));
+        var confirm = cut.FindAll("[data-user-deletion] button").Single(candidate => candidate.TextContent.Trim() == "Delete user");
+        await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+
+        confirm.Click();
+
+        Assert.Empty(_handler.Deletes);
+        Assert.DoesNotContain("was deleted", cut.Markup);
     }
 
     [Fact]
@@ -132,6 +190,9 @@ public sealed class HouseholdUsersPanelTests : AsyncBunitContext
         public Guid PatId { get; } = Guid.NewGuid();
         public Guid LeeId { get; } = Guid.NewGuid();
         public string[] DeletionProfileNames { get; set; } = ["Pat"];
+
+        /// <summary>The ids of the profiles the last preview listed, in order.</summary>
+        public List<Guid> PreviewIds { get; } = [];
         public HttpStatusCode DeleteStatus { get; set; } = HttpStatusCode.NoContent;
         public string? DeleteDetail { get; set; }
         public List<Request> Requests { get; } = [];
@@ -160,8 +221,10 @@ public sealed class HouseholdUsersPanelTests : AsyncBunitContext
 
             if (request.Method == HttpMethod.Get && path.EndsWith("/deletion-preview", StringComparison.Ordinal))
             {
+                PreviewIds.Clear();
+                PreviewIds.AddRange(DeletionProfileNames.Select(_ => Guid.NewGuid()));
                 return Task.FromResult(Json(new AccountDeletionPreviewResponse(
-                    DeletionProfileNames.Select(name => new AccountDeletionProfileDto(Guid.NewGuid(), name)).ToList())));
+                    DeletionProfileNames.Select((name, index) => new AccountDeletionProfileDto(PreviewIds[index], name)).ToList())));
             }
 
             if (request.Method == HttpMethod.Delete)

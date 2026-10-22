@@ -94,6 +94,109 @@ public sealed class UserDeletionTests
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.PreviewDeleteAsync(world.KimAuthority, world.Sam.Id));
     }
 
+    // ---- What is deleted is what was confirmed ----
+
+    [Fact]
+    public async Task DeletingAUser_WithAConfirmedListThatNoLongerMatches_IsRefusedBeforeAnythingMoves_AndChangesNothing()
+    {
+        await using var world = await World.CreateAsync();
+        var confirmed = (await world.Mutations.PreviewDeleteAsync(world.ServerAdmin, world.Sam.Id)).Select(profile => profile.Id).ToArray();
+        // Someone gives Sam another profile of their own after the list was shown.
+        var kids = await world.Mutations.CreateProfileAsync(world.ServerAdmin,
+            new CreateManagedProfileCommand(world.Sam.Id, "Sam (Kids)", null, false));
+
+        var refused = await Assert.ThrowsAsync<AccountRemovalChangedException>(
+            () => world.Mutations.DeleteAsync(world.ServerAdmin, world.Sam.Id, ProfilePhotoDisposition.MoveToShared, confirmed));
+        var empty = await Assert.ThrowsAsync<AccountRemovalChangedException>(
+            () => world.Mutations.DeleteAsync(world.ServerAdmin, world.Sam.Id, ProfilePhotoDisposition.MoveToShared, []));
+
+        Assert.Equal("Something changed since you looked. Check the list and try again.", refused.Message);
+        Assert.Equal(refused.Message, empty.Message);
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Sam.Id));
+        Assert.NotNull(await world.Profiles.GetByIdAsync(world.SamProfile.Id));
+        Assert.NotNull(await world.Profiles.GetByIdAsync(kids.Id));
+        Assert.Empty(world.Photos.Prepared);
+        Assert.DoesNotContain(world.Audit.Events, e => e.EventType == "account.deleted");
+
+        // The list as shown now, in any order, goes through; a caller that sends no list is not compared.
+        var current = (await world.Mutations.PreviewDeleteAsync(world.ServerAdmin, world.Sam.Id)).Select(profile => profile.Id).Reverse().ToArray();
+        await world.Mutations.DeleteAsync(world.ServerAdmin, world.Sam.Id, ProfilePhotoDisposition.MoveToShared, current);
+        Assert.Null(await world.Accounts.GetByIdAsync(world.Sam.Id));
+        Assert.Null(await world.Profiles.GetByIdAsync(kids.Id));
+        await world.Mutations.DeleteAsync(world.ServerAdmin, world.Kim.Id);
+        Assert.Null(await world.Accounts.GetByIdAsync(world.Kim.Id));
+    }
+
+    [Fact]
+    public async Task ChangesToWhoCanOpenWhat_WaitForTheSameGateAsDeletingAUser()
+    {
+        var gate = new AuthenticationPolicyMutationGate();
+        await using var world = await World.CreateAsync(gate: gate);
+        using var held = await gate.EnterAsync(CancellationToken.None);
+
+        var profile = world.Mutations.CreateProfileAsync(world.ServerAdmin,
+            new CreateManagedProfileCommand(world.Sam.Id, "Sam (Kids)", null, false));
+        var person = world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
+            new AddHouseholdPersonCommand(world.Household.Id, "Zed", null, false, null));
+        var removal = world.Mutations.RemoveOwnSignInAsync(world.ServerAdmin, Guid.NewGuid());
+        await Task.Delay(150);
+
+        // All of them are queued behind the held gate, so a delete's plan and the delete itself see the same grants.
+        Assert.False(profile.IsCompleted);
+        Assert.False(person.IsCompleted);
+        Assert.False(removal.IsCompleted);
+
+        held.Dispose();
+        await profile;
+        await person;
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => removal);
+    }
+
+    // ---- Photos move only once nothing can refuse ----
+
+    [Fact]
+    public async Task WhenAnotherSignInWouldBeLeftWithNothingToOpen_NoPhotosAreMoved_AndNothingIsDeleted()
+    {
+        await using var world = await World.CreateAsync();
+        // Pia can open only Sam's profile.
+        var pia = await world.Mutations.CreateAsync(world.ServerAdmin, new CreateAccountAccessCommand(
+            "pia@example.com", IsAdministrator: false, ProfileId: world.SamProfile.Id, NewProfile: null,
+            Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read }, Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteAsync(world.ServerAdmin, world.Sam.Id));
+        var profileRefused = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => world.Mutations.DeleteProfileAsync(world.ServerAdmin, world.SamProfile.Id));
+
+        Assert.Contains("pia@example.com can only open this profile", refused.Message, StringComparison.Ordinal);
+        Assert.NotNull(profileRefused);
+        Assert.Empty(world.Photos.Prepared);
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.Sam.Id));
+        Assert.NotNull(await world.Accounts.GetByIdAsync(pia.Id));
+        Assert.NotNull(await world.Profiles.GetByIdAsync(world.SamProfile.Id));
+    }
+
+    [Fact]
+    public async Task WhenTheDeleteFailsAfterPhotosMoved_AnErrorNamesTheProfileId_AndNeverAName()
+    {
+        await using var world = await World.CreateAsync();
+        world.Photos.ReportsPhotosMoved = true;
+        // The usable-administrator check is a spy here, so only the data store's own backstop stops this delete, after photos moved.
+        var serverProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value;
+
+        await world.Mutations.SetHouseholdAdminAsync(world.ServerAdmin, world.ServerAdminAccount.Id, false);
+
+        var failed = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.DeleteAsync(world.ServerAdmin, world.ServerAdminAccount.Id));
+        Assert.Contains("final effective administrator", failed.Message, StringComparison.Ordinal);
+
+        Assert.Equal([serverProfile], world.Photos.Prepared.Select(prepared => prepared.ProfileId).ToArray());
+        var message = Assert.Single(world.Log.Messages);
+        Assert.Equal([LogLevel.Error], world.Log.Levels);
+        Assert.Contains(serverProfile.ToString("D"), message, StringComparison.Ordinal);
+        Assert.Contains("Shared", message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Server", message, StringComparison.Ordinal);
+        Assert.NotNull(await world.Accounts.GetByIdAsync(world.ServerAdminAccount.Id));
+    }
+
     // ---- The last owner ----
 
     [Fact]
@@ -200,12 +303,13 @@ public sealed class UserDeletionTests
     {
         using var temp = new TempFolder();
         var avatars = Path.Combine(temp.Path, "profiles");
-        var folder = Path.Combine(avatars, Guid.NewGuid().ToString("D"));
+        var profileId = Guid.NewGuid();
+        var folder = Path.Combine(avatars, profileId.ToString("D"));
         Directory.CreateDirectory(folder);
         var picture = Path.Combine(folder, "avatar-1.png");
         File.WriteAllBytes(picture, [1, 2, 3]);
 
-        ProfilePhotoDisposer.DeleteAvatar(picture, avatars, new CapturingLogger());
+        ProfilePhotoDisposer.DeleteAvatar(picture, avatars, profileId, new CapturingLogger());
 
         Assert.False(File.Exists(picture));
         Assert.False(Directory.Exists(folder));
@@ -224,14 +328,75 @@ public sealed class UserDeletionTests
         Directory.CreateDirectory(Path.GetDirectoryName(sibling)!);
         File.WriteAllBytes(sibling, [1]);
         var traversal = Path.Combine(avatars, "..", "family-photo.png");
+        var profileId = Guid.NewGuid();
 
-        ProfilePhotoDisposer.DeleteAvatar(outside, avatars, new CapturingLogger());
-        ProfilePhotoDisposer.DeleteAvatar(sibling, avatars, new CapturingLogger());
-        ProfilePhotoDisposer.DeleteAvatar(traversal, avatars, new CapturingLogger());
-        ProfilePhotoDisposer.DeleteAvatar(null, avatars, new CapturingLogger());
+        ProfilePhotoDisposer.DeleteAvatar(outside, avatars, profileId, new CapturingLogger());
+        ProfilePhotoDisposer.DeleteAvatar(sibling, avatars, profileId, new CapturingLogger());
+        ProfilePhotoDisposer.DeleteAvatar(traversal, avatars, profileId, new CapturingLogger());
+        ProfilePhotoDisposer.DeleteAvatar(null, avatars, profileId, new CapturingLogger());
 
         Assert.True(File.Exists(outside));
         Assert.True(File.Exists(sibling));
+    }
+
+    [Fact]
+    public void ADeletedProfilesPicture_InAnotherProfilesFolder_IsNeverDeleted_EvenInsideTheAvatarFolder()
+    {
+        using var temp = new TempFolder();
+        var avatars = Path.Combine(temp.Path, "profiles");
+        var other = Path.Combine(avatars, Guid.NewGuid().ToString("D"));
+        Directory.CreateDirectory(other);
+        var othersPicture = Path.Combine(other, "avatar.png");
+        File.WriteAllBytes(othersPicture, [1]);
+        var atTheTop = Path.Combine(avatars, "avatar.png");
+        File.WriteAllBytes(atTheTop, [1]);
+        var profileId = Guid.NewGuid();
+        // The same letters in another case are a different folder on a case-sensitive disk and are refused everywhere.
+        var upper = Path.Combine(avatars, profileId.ToString("D").ToUpperInvariant());
+        var casePicture = Path.Combine(upper, "avatar.png");
+        Directory.CreateDirectory(upper);
+        File.WriteAllBytes(casePicture, [1]);
+
+        ProfilePhotoDisposer.DeleteAvatar(othersPicture, avatars, profileId, new CapturingLogger());
+        ProfilePhotoDisposer.DeleteAvatar(atTheTop, avatars, profileId, new CapturingLogger());
+        ProfilePhotoDisposer.DeleteAvatar(casePicture, avatars, profileId, new CapturingLogger());
+
+        Assert.True(File.Exists(othersPicture));
+        Assert.True(File.Exists(atTheTop));
+        Assert.True(File.Exists(casePicture));
+    }
+
+    [Fact]
+    public void ADeletedProfilesPicture_ReachedThroughASymbolicLink_IsNeverDeleted_AndIsLoggedAsAWarning()
+    {
+        using var temp = new TempFolder();
+        var avatars = Path.Combine(temp.Path, "profiles");
+        var profileId = Guid.NewGuid();
+        var folder = Path.Combine(avatars, profileId.ToString("D"));
+        Directory.CreateDirectory(folder);
+        var precious = Path.Combine(temp.Path, "family-photo.png");
+        File.WriteAllBytes(precious, [1, 2, 3]);
+        var linkedFile = Path.Combine(folder, "avatar.png");
+        File.CreateSymbolicLink(linkedFile, precious);
+        var logger = new CapturingLogger();
+
+        ProfilePhotoDisposer.DeleteAvatar(linkedFile, avatars, profileId, logger);
+
+        Assert.True(File.Exists(precious));
+        Assert.True(File.Exists(linkedFile));
+        Assert.Equal([LogLevel.Warning], logger.Levels);
+
+        // The profile's own folder being a link to somewhere else is refused as well.
+        var elsewhere = Path.Combine(temp.Path, "elsewhere");
+        Directory.CreateDirectory(elsewhere);
+        var target = Path.Combine(elsewhere, "avatar.png");
+        File.WriteAllBytes(target, [1]);
+        var linkedProfile = Guid.NewGuid();
+        Directory.CreateSymbolicLink(Path.Combine(avatars, linkedProfile.ToString("D")), elsewhere);
+
+        ProfilePhotoDisposer.DeleteAvatar(Path.Combine(avatars, linkedProfile.ToString("D"), "avatar.png"), avatars, linkedProfile, new CapturingLogger());
+
+        Assert.True(File.Exists(target));
     }
 
     [Fact]
@@ -240,11 +405,12 @@ public sealed class UserDeletionTests
         using var temp = new TempFolder();
         var avatars = Path.Combine(temp.Path, "profiles");
         // A directory where the picture should be: File.Delete refuses it.
-        var stubborn = Path.Combine(avatars, Guid.NewGuid().ToString("D"), "avatar.png");
+        var profileId = Guid.NewGuid();
+        var stubborn = Path.Combine(avatars, profileId.ToString("D"), "avatar.png");
         Directory.CreateDirectory(stubborn);
         var logger = new CapturingLogger();
 
-        ProfilePhotoDisposer.DeleteAvatar(stubborn, avatars, logger);
+        ProfilePhotoDisposer.DeleteAvatar(stubborn, avatars, profileId, logger);
 
         Assert.Equal([LogLevel.Warning], logger.Levels);
     }
@@ -267,17 +433,23 @@ public sealed class UserDeletionTests
         }
     }
 
-    private sealed class CapturingLogger : ILogger
+    private class CapturingLogger : ILogger
     {
         public List<LogLevel> Levels { get; } = [];
+        public List<string> Messages { get; } = [];
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
         public bool IsEnabled(LogLevel logLevel) => true;
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
             Levels.Add(logLevel);
+            Messages.Add(formatter(state, exception));
+        }
     }
+
+    private sealed class CapturingLogger<T> : CapturingLogger, ILogger<T>;
 
     private sealed class World : IAsyncDisposable
     {
@@ -291,6 +463,7 @@ public sealed class UserDeletionTests
         public AccountAccessMutationService Mutations { get; private set; } = null!;
         public NoProfilePhotos Photos { get; } = new();
         public CapturingAudit Audit { get; } = new();
+        public CapturingLogger<AccountAccessMutationService> Log { get; } = new();
         public Household Household { get; private set; } = null!;
 
         public RequestAuthority ServerAdmin { get; private set; } = null!;
@@ -318,7 +491,7 @@ public sealed class UserDeletionTests
         public Account Bea { get; private set; } = null!;
         public RequestAuthority BeaAuthority { get; private set; } = null!;
 
-        public static async Task<World> CreateAsync(bool secondOwner = true)
+        public static async Task<World> CreateAsync(bool secondOwner = true, AuthenticationPolicyMutationGate? gate = null)
         {
             var world = new World();
             world._database = new DatabaseConnection(world._databasePath);
@@ -334,7 +507,7 @@ public sealed class UserDeletionTests
             world.Mutations = new AccountAccessMutationService(
                 world.Accounts, identities, world.Profiles, world._configuration,
                 new RealDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit,
-                identity, world.Photos, TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
+                identity, world.Photos, TimeProvider.System, new AlwaysUsableAdministrators(), gate ?? new AuthenticationPolicyMutationGate(), world.Log);
             var households = new HouseholdRepository(world._database);
 
             var bootstrap = ServerAuthority(Guid.NewGuid(), Guid.NewGuid());

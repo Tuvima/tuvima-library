@@ -34,9 +34,8 @@
                             }
                             @if (CanDelete(user))
                             {
-                                <AppButton Label="Delete user" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
-                                           Disabled="@(_busy || _asking == user.Id)" aria-label="@($"Delete user {Label(user)}")"
-                                           OnClick="@(() => AskAsync(user))" />
+                                <AppNativeButton Type="button" Class="who-button who-button--danger" Disabled="@(_busy || _asking == user.Id)"
+                                                 AriaLabel="@($"Delete user {Label(user)}")" OnClick="@(() => AskAsync(user))">Delete user</AppNativeButton>
                             }
                         </div>
                         @if (_asking == user.Id)
@@ -53,6 +52,9 @@
 }
 
 @code {
+    /// <summary>Raised after a user was deleted, so the page can reload the profile list (their profiles went with them).</summary>
+    [Parameter] public EventCallback Deleted { get; set; }
+
     private List<AccountAccessResponse> _users = [];
     private bool _loading = true;
     private bool _busy;
@@ -101,8 +103,16 @@
 
     private bool CanDelete(AccountAccessResponse target) => HouseholdUserRules.CanDelete(target, Session.AccountId, _users);
 
+    // The same checks as the buttons: a handler reached some other way (a stale render, a replayed event) still refuses.
+    private bool MayAct(AccountAccessResponse user) => IsOwner && !DeviceContext.IsPhone && CanDelete(user);
+
     private async Task AskAsync(AccountAccessResponse user)
     {
+        if (!MayAct(user))
+        {
+            return;
+        }
+
         _error = null;
         _notice = null;
         _busy = true;
@@ -130,7 +140,7 @@
 
     private async Task DeleteAsync(AccountAccessResponse user)
     {
-        if (_busy)
+        if (_busy || _asking != user.Id || !MayAct(user))
         {
             return;
         }
@@ -148,6 +158,7 @@
                 _asking = null;
                 _notice = UserDeletionText.Done(label);
                 await LoadAsync();
+                await Deleted.InvokeAsync();
             }
             else
             {

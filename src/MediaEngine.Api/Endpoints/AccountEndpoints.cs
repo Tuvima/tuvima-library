@@ -480,8 +480,11 @@ public static class AccountEndpoints
         // Deletes a user: their sign-in and their own profiles. A server administrator (or a trusted application) may delete
         // anyone but the last server administrator and a household's last owner; a household owner only a user of their own
         // household. ?photos=move (the default, also for a missing or unknown value) keeps the deleted profiles' personal
-        // photos in the household's Shared Library; ?photos=delete removes them.
-        group.MapDelete("/{accountId:guid}", async (Guid accountId, [FromQuery] string? photos, HttpContext http,
+        // photos in the household's Shared Library; ?photos=delete removes them. ?profiles=<id>,<id> is the list the person
+        // confirmed (from the deletion preview; present but empty means none): if the profiles that would go differ, the
+        // Engine refuses with 409 "Something changed since you looked..." and deletes nothing. Without it nothing is compared.
+        group.MapDelete("/{accountId:guid}", async (Guid accountId, [FromQuery] string? photos, [FromQuery] string? profiles,
+            HttpContext http,
             IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
             [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(async () =>
@@ -494,7 +497,8 @@ public static class AccountEndpoints
             var disposition = string.Equals(photos?.Trim(), "delete", StringComparison.OrdinalIgnoreCase)
                 ? ProfilePhotoDisposition.Delete
                 : ProfilePhotoDisposition.MoveToShared;
-            await mutations.DeleteAsync(await resolver.ResolveAsync(http, ct), accountId, disposition, ct);
+            await mutations.DeleteAsync(
+                await resolver.ResolveAsync(http, ct), accountId, disposition, ParseConfirmedProfiles(profiles), ct);
             return Results.NoContent();
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("DeleteAccount")
@@ -888,6 +892,28 @@ public static class AccountEndpoints
     private static HouseholdResponse MapHousehold(HouseholdSummary summary) =>
         new(summary.Household.Id, summary.Household.Name, summary.ProfileCount, summary.AccountCount,
             summary.Household.CreatedAt);
+
+    /// <summary>The comma-separated profile ids a delete was confirmed for; <see langword="null"/> when none were sent.</summary>
+    private static IReadOnlyCollection<Guid>? ParseConfirmedProfiles(string? profiles)
+    {
+        if (profiles is null)
+        {
+            return null;
+        }
+
+        var ids = new List<Guid>();
+        foreach (var part in profiles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!Guid.TryParse(part, out var id))
+            {
+                throw new ArgumentException("profiles must be a comma-separated list of profile ids.");
+            }
+
+            ids.Add(id);
+        }
+
+        return ids.Distinct().ToArray();
+    }
 
     private static async Task<IResult> ExecuteAsync(Func<Task<IResult>> operation)
     {

@@ -9,11 +9,14 @@ internal sealed class NoProfilePhotos : IProfilePhotoDisposer
 {
     public List<(Guid ProfileId, ProfilePhotoDisposition Photos)> Prepared { get; } = [];
 
+    /// <summary>When true, each prepared person is reported as having had photos moved into the Shared Library.</summary>
+    public bool ReportsPhotosMoved { get; set; }
+
     public Task<ProfilePhotoPlan> PrepareAsync(
         Profile profile, ProfilePhotoDisposition photos, Guid actorProfileId, CancellationToken ct = default)
     {
         Prepared.Add((profile.Id, photos));
-        return Task.FromResult(new ProfilePhotoPlan([]));
+        return Task.FromResult(new ProfilePhotoPlan([], null, profile.Id, ReportsPhotosMoved));
     }
 
     public Task CompleteAsync(ProfilePhotoPlan plan, CancellationToken ct = default) => Task.CompletedTask;
