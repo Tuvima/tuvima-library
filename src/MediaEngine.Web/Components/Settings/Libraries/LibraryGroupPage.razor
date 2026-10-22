@@ -54,7 +54,7 @@
             }
             else if (VaultLibraries.Count == 0)
             {
-                <p class="lib-page__empty">No Vault library yet.</p>
+                <div class="lib-page__row lib-page__empty"><span class="lib-page__counts">No Vault library yet.</span></div>
             }
             else
             {
@@ -62,7 +62,7 @@
                 {
                     <div class="lib-page__row" data-vault-library="@library.Id">
                         <span class="lib-page__name">
-                            <span class="lib-page__icon lib-page__icon--vault"><AppMaterialIcon Icon="@Group.Icon" /></span>
+                            <span class="lib-page__icon lib-page__icon--other"><AppMaterialIcon Icon="@Group.Icon" /></span>
                             <strong>@Group.Label</strong>
                         </span>
                         <span class="lib-page__counts">@LookupLabel(library)</span>

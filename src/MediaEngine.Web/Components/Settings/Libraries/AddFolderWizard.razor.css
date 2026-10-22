@@ -87,11 +87,6 @@
     font-size: 1rem;
 }
 
-.add-wizard__field {
-    display: grid;
-    gap: 6px;
-}
-
 .add-wizard__path {
     min-width: 0;
     overflow-wrap: anywhere;
