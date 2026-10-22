@@ -55,7 +55,9 @@ public sealed class PersonalStateBackupRepository
         ArgumentNullException.ThrowIfNull(scope);
         using var connection = _db.CreateConnection();
         using var transaction = connection.BeginTransaction(deferred: true);
-        var export = Build(connection, transaction, scope, includeConfiguration: !scope.IsProfile, _portableValues, _isWithheld, afterSnapshotStarted, ct);
+        var export = scope.IsAccount
+            ? BuildUser(connection, transaction, scope, _portableValues, _isWithheld, afterSnapshotStarted, ct)
+            : Build(connection, transaction, scope, includeConfiguration: !scope.IsProfile, _portableValues, _isWithheld, afterSnapshotStarted, ct);
         transaction.Commit();
         return export;
     }
@@ -200,6 +202,102 @@ public sealed class PersonalStateBackupRepository
         return new BackupExport(tables, choices, book.Titles, contents, corrections);
     }
 
+    /// <summary>
+    /// One user: the account, every profile in its profile grants, those profiles' own state and what they built, as listed by
+    /// <see cref="UserExportScope"/>. No other account or profile, no access rights, and no choices or corrections on catalogue rows.
+    /// </summary>
+    private static BackupExport BuildUser(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        BackupScope scope,
+        IBackupPortableValueCodec? portableValues,
+        Func<CatalogueTarget, byte[], bool>? isWithheld,
+        Action? afterSnapshotStarted,
+        CancellationToken ct)
+    {
+        var live = ReadLiveStructure(connection, transaction);
+        afterSnapshotStarted?.Invoke();
+        var accountId = scope.AccountId ?? throw new ArgumentException("A user export needs an account.", nameof(scope));
+        if (!AccountExists(connection, transaction, accountId))
+        {
+            throw new InvalidOperationException("The account to export was not found.");
+        }
+
+        var profiles = ReadProfileIds(connection, transaction, accountId);
+        var book = new TitleBook(new TitleRecognitionReader(connection, transaction, isWithheld));
+        var tables = new List<BackupExportTable>();
+        var dropped = 0;
+        var withheld = 0;
+        var keptMachineBound = 0;
+        foreach (var entry in UserExportScope.Tables)
+        {
+            ct.ThrowIfCancellationRequested();
+            var rule = BackupTableClassification.Find(entry.Table)
+                ?? throw new InvalidOperationException($"The user export holds '{entry.Table}', which has no backup rule.");
+            if (rule.Kind is not (BackupDataKind.Configuration or BackupDataKind.PersonalState))
+            {
+                throw new InvalidOperationException($"The user export holds '{entry.Table}', which a backup never keeps.");
+            }
+
+            if (!live.TryGetValue(entry.Table, out var liveColumns))
+            {
+                continue;
+            }
+
+            // An administrator exporting someone else never carries that person's two-step secret.
+            if (scope.LeaveOutTwoStep && string.Equals(entry.Table, UserExportScope.TwoStepTable, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var filter = UserExportScope.FilterFor(entry, accountId, profiles);
+            var predicate = string.IsNullOrWhiteSpace(rule.KeepWhere) ? filter : "(" + rule.KeepWhere + ") AND (" + filter + ")";
+            tables.Add(ExportTable(connection, transaction, rule, liveColumns, scope, book, predicate, portableValues, ref dropped, ref withheld, ref keptMachineBound, ct, entry.ExcludedColumns));
+        }
+
+        var configuration = tables.Where(table => table.Kind == BackupDataKind.Configuration).ToList();
+        var contents = new BackupExportContents(
+            scope,
+            configuration.Count,
+            configuration.Sum(table => table.Rows.Count),
+            tables.Where(table => table.Kind == BackupDataKind.PersonalState).Sum(table => table.Rows.Count),
+            0,
+            book.Titles.Count,
+            book.Titles.Count(title => title.IsRecognisedByFileOnly),
+            profiles.Count,
+            dropped,
+            0,
+            keptMachineBound,
+            withheld);
+        return new BackupExport(tables, [], book.Titles, contents, []);
+    }
+
+    private static bool AccountExists(SqliteConnection connection, SqliteTransaction transaction, Guid accountId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT COUNT(*) FROM accounts WHERE id = $id";
+        command.Parameters.AddWithValue("$id", GuidSql.ToBlob(accountId));
+        return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
+    }
+
+    /// <summary>Every profile the account may use, enabled or not.</summary>
+    private static List<Guid> ReadProfileIds(SqliteConnection connection, SqliteTransaction transaction, Guid accountId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT profile_id FROM account_profile_grants WHERE account_id = $id ORDER BY is_default DESC, granted_at, profile_id";
+        command.Parameters.AddWithValue("$id", GuidSql.ToBlob(accountId));
+        var ids = new List<Guid>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            ids.Add(GuidSql.FromDb(reader.GetValue(0)));
+        }
+
+        return ids;
+    }
+
     private static BackupExportTable ExportTable(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -212,9 +310,10 @@ public sealed class PersonalStateBackupRepository
         ref int dropped,
         ref int withheld,
         ref int keptMachineBound,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyList<string>? alsoExcluded = null)
     {
-        var excluded = new HashSet<string>(rule.ExcludedColumns, StringComparer.OrdinalIgnoreCase);
+        var excluded = new HashSet<string>(rule.ExcludedColumns.Concat(alsoExcluded ?? []), StringComparer.OrdinalIgnoreCase);
 
         // An excluded column is never read. One that may be NULL (and has no default) stays in the column list as NULL;
         // any other is left out of the list, so a restore uses the table's own default.

@@ -29,6 +29,13 @@ internal sealed record RestoreArchiveInfo(
     int Titles = 0,
     int FileOnlyTitles = 0);
 
+/// <summary>A checked user export: everything it holds, what it says about itself, and when it was made.</summary>
+/// <param name="Export">What the file holds.</param>
+/// <param name="Summary">The one user it holds.</param>
+/// <param name="CreatedAt">When the manifest says it was made.</param>
+/// <param name="TwoStepLeftOut">True when the manifest says an administrator made the file and left the two-step secret out, so the person sets two-step up again.</param>
+internal sealed record ValidatedUserExport(BackupExport Export, UserExportSummary Summary, DateTimeOffset? CreatedAt, bool TwoStepLeftOut = false);
+
 /// <summary>
 /// The one check every route into a restore uses (scheduling it, the monthly restore check, the test restore, a setup upload and a
 /// restore from a destination): the zip's own safety rules first, then the manifest, then the whole data part is read once. A backup that
@@ -38,6 +45,15 @@ internal static class RestoreArchiveValidator
 {
     public const string OlderVersionMessage = "This backup is from an older version of the Library and can't be restored. Make a new backup with this version.";
     public const string DamagedMessage = "This backup file is damaged and can't be restored.";
+
+    /// <summary>What every route into a restore says to a user export (backup and restore spec D19): it is one person, never the Library.</summary>
+    public const string UserExportRefusedMessage = "This file is one user's data, not a backup of the Library. Use Import a user instead.";
+
+    /// <summary>What the user import says to any other kind of file.</summary>
+    public const string NotAUserExportMessage = "This file isn't a user export.";
+
+    /// <summary>What the user import says to a file it cannot read.</summary>
+    public const string UserExportDamagedMessage = "This file is damaged and can't be imported.";
     public const string CurrentManifestVersion = "3.0";
 
     private const long MaxUncompressedBytes = 16L * 1024 * 1024 * 1024;
@@ -91,7 +107,7 @@ internal static class RestoreArchiveValidator
     }
 
     /// <summary>Unsafe or duplicate paths, host secret material, an implausible compression ratio, and too many or too large entries.</summary>
-    private static long CheckEntries(ZipArchive archive)
+    internal static long CheckEntries(ZipArchive archive)
     {
         if (archive.Entries.Count == 0 || archive.Entries.Count > MaxArchiveEntries)
         {
@@ -138,6 +154,105 @@ internal static class RestoreArchiveValidator
         || relative.EndsWith(".restore-import.json", StringComparison.OrdinalIgnoreCase)
         || relative.EndsWith(".restore-import-failed.json", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Checks a user export (the file an administrator imports a person from): the zip's own safety rules, the manifest, then the whole
+    /// data part is read once and proven to hold exactly one user. Throws <see cref="InvalidDataException"/> with one plain sentence.
+    /// </summary>
+    public static ValidatedUserExport ValidateUserExport(string archivePath)
+    {
+        ZipArchive archive;
+        try
+        {
+            archive = ZipFile.OpenRead(archivePath);
+        }
+        catch (InvalidDataException ex)
+        {
+            throw new InvalidDataException(UserExportDamagedMessage, ex);
+        }
+
+        using (archive)
+        {
+            try
+            {
+                CheckEntries(archive);
+            }
+            catch (InvalidDataException ex)
+            {
+                // The checker's own reasons name entries; the person gets one sentence.
+                throw new InvalidDataException(UserExportDamagedMessage, ex);
+            }
+
+            var (createdAt, twoStepLeftOut) = ReadUserManifest(archive);
+            try
+            {
+                var export = BackupArchiveFormat.ReadUserExport(archive);
+                var summary = UserExportReader.Read(export);
+
+                // The manifest is a claim, not proof: a file that says the secret was left out yet holds one is not a user export.
+                if (twoStepLeftOut && summary.HasTwoStep)
+                {
+                    throw new InvalidDataException(NotAUserExportMessage);
+                }
+
+                return new ValidatedUserExport(export, summary, createdAt, twoStepLeftOut);
+            }
+            catch (InvalidDataException ex)
+            {
+                throw new InvalidDataException(NotAUserExportMessage, ex);
+            }
+            catch (IOException ex)
+            {
+                throw new InvalidDataException(UserExportDamagedMessage, ex);
+            }
+        }
+    }
+
+    private static (DateTimeOffset? CreatedAt, bool TwoStepLeftOut) ReadUserManifest(ZipArchive archive)
+    {
+        var manifestEntry = archive.GetEntry("manifest.json");
+        if (manifestEntry is null || manifestEntry.Length > MaxManifestBytes || archive.GetEntry("database/library.db") is not null)
+        {
+            throw new InvalidDataException(NotAUserExportMessage);
+        }
+
+        JsonDocument document;
+        try
+        {
+            document = ZipArchiveJson.Parse(manifestEntry);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException(NotAUserExportMessage, ex);
+        }
+
+        using (document)
+        {
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object
+                || !string.Equals(OptionalString(root, "kind"), UserExportScope.Kind, StringComparison.Ordinal)
+                || !string.Equals(OptionalString(root, "schema_version"), CurrentManifestVersion, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(NotAUserExportMessage);
+            }
+
+            var twoStepLeftOut = false;
+            if (root.TryGetProperty("two_step_left_out", out var left))
+            {
+                twoStepLeftOut = left.ValueKind switch
+                {
+                    JsonValueKind.True => true,
+                    JsonValueKind.False => false,
+                    _ => throw new InvalidDataException(NotAUserExportMessage),
+                };
+            }
+
+            var createdAt = root.TryGetProperty("created_at", out var created) && created.ValueKind == JsonValueKind.String && created.TryGetDateTimeOffset(out var parsed)
+                ? parsed
+                : (DateTimeOffset?)null;
+            return (createdAt, twoStepLeftOut);
+        }
+    }
+
     /// <summary>When the backup was made, from its manifest; null when the manifest does not say.</summary>
     public static DateTimeOffset? ReadCreatedAt(ZipArchive archive) => ReadManifest(archive).CreatedAt;
 
@@ -176,6 +291,13 @@ internal static class RestoreArchiveValidator
 
             var version = OptionalString(root, "schema_version");
             var kind = OptionalString(root, "kind");
+
+            // One user's file is never a backup of the Library, whatever else it says: every route into a restore refuses it here.
+            if (string.Equals(kind, UserExportScope.Kind, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(UserExportRefusedMessage);
+            }
+
             if (version is null or "1.0" or "2.0" || kind is null)
             {
                 throw new InvalidDataException(OlderVersionMessage);

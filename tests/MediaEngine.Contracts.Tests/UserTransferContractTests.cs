@@ -1,0 +1,73 @@
+using System.Text.Json;
+using MediaEngine.Contracts.Backups;
+using MediaEngine.Domain.Services;
+
+namespace MediaEngine.Contracts.Tests;
+
+public sealed class UserTransferContractTests
+{
+    [Fact]
+    public void UserImportPreview_UsesTheAgreedSnakeCaseNames_AndRoundTrips()
+    {
+        var preview = new UserImportPreviewDto(
+            Guid.Parse("11111111-2222-3333-4444-555555555555"),
+            "maya@example.com",
+            "The Khans",
+            [new UserImportProfileDto("Maya", "StandardUser", null, false), new UserImportProfileDto("Maya (kids)", "RestrictedProfile", "PG", true)],
+            12,
+            null,
+            true);
+
+        var json = JsonSerializer.Serialize(preview, MediaEngineJson.Web);
+        var roundTrip = JsonSerializer.Deserialize<UserImportPreviewDto>(json, MediaEngineJson.Web);
+
+        Assert.Equal(
+            "{\"operation_id\":\"11111111-2222-3333-4444-555555555555\",\"email\":\"maya@example.com\",\"household_name\":\"The Khans\"," +
+            "\"profiles\":[{\"name\":\"Maya\",\"role\":\"StandardUser\",\"content_limit\":null,\"content_limit_allow_unrated\":false}," +
+            "{\"name\":\"Maya (kids)\",\"role\":\"RestrictedProfile\",\"content_limit\":\"PG\",\"content_limit_allow_unrated\":true}]," +
+            "\"personal_items\":12,\"blocked_reason\":null,\"two_step_to_set_up\":true}",
+            json);
+        Assert.Equal(preview.Email, roundTrip!.Email);
+        Assert.Equal(preview.Profiles, roundTrip.Profiles);
+        Assert.Equal("PG", roundTrip.Profiles[1].ContentLimit);
+        Assert.True(roundTrip.Profiles[1].ContentLimitAllowUnrated);
+        Assert.Null(roundTrip.BlockedReason);
+        Assert.True(roundTrip.TwoStepToSetUp);
+    }
+
+    [Fact]
+    public void UserImportPreview_WithoutTwoStepToSetUp_ReadsAsFalse()
+    {
+        var roundTrip = JsonSerializer.Deserialize<UserImportPreviewDto>(
+            "{\"operation_id\":\"11111111-2222-3333-4444-555555555555\",\"email\":\"maya@example.com\",\"household_name\":null,\"profiles\":[],\"personal_items\":0,\"blocked_reason\":null}",
+            MediaEngineJson.Web);
+
+        Assert.False(roundTrip!.TwoStepToSetUp);
+    }
+
+    [Fact]
+    public void UserImportPreview_ThatIsBlocked_CarriesOneSentenceAndNoHousehold()
+    {
+        var json = JsonSerializer.Serialize(
+            new UserImportPreviewDto(Guid.Empty, "maya@example.com", null, [new UserImportProfileDto("Maya", "StandardUser", null, false)], 0, "Someone in this Library already signs in with maya@example.com. Nothing was imported."),
+            MediaEngineJson.Web);
+
+        Assert.Contains("\"household_name\":null", json, StringComparison.Ordinal);
+        Assert.Contains("\"blocked_reason\":\"Someone in this Library already signs in with maya@example.com. Nothing was imported.\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UserImportResult_UsesTheAgreedSnakeCaseNames_AndRoundTrips()
+    {
+        var result = new UserImportResultDto(Guid.Parse("11111111-2222-3333-4444-555555555555"), "maya@example.com", ["Maya"], 4);
+
+        var json = JsonSerializer.Serialize(result, MediaEngineJson.Web);
+        var roundTrip = JsonSerializer.Deserialize<UserImportResultDto>(json, MediaEngineJson.Web);
+
+        Assert.Equal(
+            "{\"account_id\":\"11111111-2222-3333-4444-555555555555\",\"display_name\":\"maya@example.com\",\"profiles\":[\"Maya\"],\"waiting_items\":4}",
+            json);
+        Assert.Equal(result.AccountId, roundTrip!.AccountId);
+        Assert.Equal(4, roundTrip.WaitingItems);
+    }
+}

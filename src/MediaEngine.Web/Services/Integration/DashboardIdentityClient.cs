@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Contracts.Backups;
 using MediaEngine.Contracts.Profiles;
 using MediaEngine.Web.Services.Configuration;
 
@@ -13,6 +14,9 @@ public sealed record DashboardSessionAttempt(AuthSessionResponse? Session, HttpS
 
 /// <summary>The result of asking the Engine for a live-updates token: the token, or the status and how long the Engine asked us to wait.</summary>
 public sealed record IntercomTokenAttempt(IntercomTokenResponse? Token, HttpStatusCode Status, TimeSpan? RetryAfter);
+
+/// <summary>A file the Engine made for the person to keep (a user export): its bytes and the name the Engine gave it.</summary>
+public sealed record DashboardDownloadedFile(byte[] Content, string FileName);
 
 public sealed class DashboardIdentityClient(
     IHttpClientFactory clients,
@@ -801,6 +805,126 @@ public sealed class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult<AccountAccessResponse>> ResetAccountTwoStepResultAsync(Guid accountId, CancellationToken ct = default) =>
         SendMutationAsync<object, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/two-step/reset", new { }, ct, includeMessage: true);
 
+    /// <summary>The biggest user export file the Engine takes (the same cap as the Engine's), so the Dashboard can refuse a bigger one before sending it.</summary>
+    public const long MaxUserImportBytes = 256L * 1024 * 1024;
+
+    /// <summary>Downloads the signed-in person's own data (sign-in, profiles, progress, bookmarks, favourites) as one file.</summary>
+    public Task<DashboardAccessMutationResult<DashboardDownloadedFile>> ExportMyDataResultAsync(CancellationToken ct = default) =>
+        SendDownloadAsync("/access/me/export", ct);
+
+    /// <summary>An administrator downloads one user's data so another Library can import it.</summary>
+    public Task<DashboardAccessMutationResult<DashboardDownloadedFile>> ExportAccountResultAsync(Guid accountId, CancellationToken ct = default) =>
+        SendDownloadAsync($"/access/accounts/{accountId:D}/export", ct);
+
+    /// <summary>
+    /// Sends a user export file to be checked. Nothing is imported yet. <paramref name="openFile"/> is called for each attempt, because a
+    /// stale sign-in is retried once after the person confirms it is them and a stream cannot be read twice.
+    /// </summary>
+    public async Task<DashboardAccessMutationResult<UserImportPreviewDto>> InspectUserImportResultAsync(
+        Func<Stream> openFile, string fileName, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(openFile);
+        try
+        {
+            await using var file = openFile();
+            using var form = new MultipartFormDataContent();
+            using var fileContent = new StreamContent(file);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
+            form.Add(fileContent, "file", string.IsNullOrWhiteSpace(fileName) ? "user.zip" : Path.GetFileName(fileName));
+            using var response = await Client.PostAsync("/access/accounts/import/inspect", form, ct).ConfigureAwait(false);
+            return await ReadMutationResponseAsync<UserImportPreviewDto>(response, ct).ConfigureAwait(false);
+        }
+        catch (HttpRequestException)
+        {
+            return DashboardAccessMutationResult<UserImportPreviewDto>.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+        catch (IOException)
+        {
+            return DashboardAccessMutationResult<UserImportPreviewDto>.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return DashboardAccessMutationResult<UserImportPreviewDto>.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+    }
+
+    /// <summary>Imports a file that was checked, as a new user who sees nothing until an administrator gives them access.</summary>
+    public async Task<DashboardAccessMutationResult<UserImportResultDto>> ImportUserResultAsync(Guid operationId, CancellationToken ct = default)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"/access/accounts/import/{operationId:D}");
+            using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
+            return await ReadMutationResponseAsync<UserImportResultDto>(response, ct).ConfigureAwait(false);
+        }
+        catch (HttpRequestException)
+        {
+            return DashboardAccessMutationResult<UserImportResultDto>.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return DashboardAccessMutationResult<UserImportResultDto>.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+    }
+
+    // Same header handling as the View documents export: the file name comes from Content-Disposition.
+    private async Task<DashboardAccessMutationResult<DashboardDownloadedFile>> SendDownloadAsync(string path, CancellationToken ct)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, path);
+            using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return await ReadMutationFailureAsync<DashboardDownloadedFile>(response, ct, includeMessage: true, readAnyEngineSentence: true).ConfigureAwait(false);
+            }
+
+            var fileName = response.Content.Headers.ContentDisposition?.FileNameStar
+                ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+                ?? "tuvima-user.zip";
+            var content = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+            return DashboardAccessMutationResult<DashboardDownloadedFile>.Success(new DashboardDownloadedFile(content, fileName));
+        }
+        catch (HttpRequestException)
+        {
+            return DashboardAccessMutationResult<DashboardDownloadedFile>.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+        catch (IOException)
+        {
+            return DashboardAccessMutationResult<DashboardDownloadedFile>.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return DashboardAccessMutationResult<DashboardDownloadedFile>.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+    }
+
+    // The user export and import calls keep the Engine's own sentence for a missing user or file, a refusal and a problem on
+    // this computer (fixed sentences with no submitted values), not only for a conflict or a bad request.
+    private async Task<DashboardAccessMutationResult<T>> ReadMutationResponseAsync<T>(HttpResponseMessage response, CancellationToken ct)
+    {
+        if (!response.IsSuccessStatusCode)
+        {
+            return await ReadMutationFailureAsync<T>(response, ct, includeMessage: true, readAnyEngineSentence: true).ConfigureAwait(false);
+        }
+
+        try
+        {
+            var value = await response.Content.ReadFromJsonAsync<T>(cancellationToken: ct).ConfigureAwait(false);
+            return value is null
+                ? DashboardAccessMutationResult<T>.FailureResult(DashboardAccessMutationFailure.InvalidResponse, response.StatusCode)
+                : DashboardAccessMutationResult<T>.Success(value);
+        }
+        catch (JsonException)
+        {
+            return DashboardAccessMutationResult<T>.FailureResult(DashboardAccessMutationFailure.InvalidResponse, response.StatusCode);
+        }
+        catch (NotSupportedException)
+        {
+            return DashboardAccessMutationResult<T>.FailureResult(DashboardAccessMutationFailure.InvalidResponse, response.StatusCode);
+        }
+    }
+
     private static async Task<DashboardSessionAttempt> ReadSessionAttemptAsync(HttpResponseMessage response, CancellationToken ct)
     {
         if (response.StatusCode == HttpStatusCode.Accepted)
@@ -1058,7 +1182,7 @@ public sealed class DashboardIdentityClient(
         }
     }
 
-    private async Task<DashboardAccessMutationResult<T>> ReadMutationFailureAsync<T>(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
+    private async Task<DashboardAccessMutationResult<T>> ReadMutationFailureAsync<T>(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false, bool readAnyEngineSentence = false)
     {
         if (await ApprovalResponses.TryReadAsync(response, logger, ct).ConfigureAwait(false) is { } approval)
         {
@@ -1067,10 +1191,11 @@ public sealed class DashboardIdentityClient(
         }
 
         var failure = await ClassifyFailureAsync(response, ct).ConfigureAwait(false);
-        var fields = failure == DashboardAccessMutationFailure.Validation
+        // The body can be read once. The user export and import calls want the Engine's sentence, not the names of fields.
+        var fields = failure == DashboardAccessMutationFailure.Validation && !readAnyEngineSentence
             ? await ReadValidationFieldNamesAsync(response, ct).ConfigureAwait(false)
             : [];
-        var message = includeMessage ? await ReadPlainMessageAsync(response, failure, ct).ConfigureAwait(false) : null;
+        var message = includeMessage ? await ReadPlainMessageAsync(response, failure, ct, readAnyEngineSentence).ConfigureAwait(false) : null;
         return DashboardAccessMutationResult<T>.FailureResult(failure, response.StatusCode, fields, message);
     }
 
@@ -1091,10 +1216,15 @@ public sealed class DashboardIdentityClient(
     }
 
     // The Engine's own sentence for a rule refusal (a bad name, a household that still holds people). Only calls that opt in
-    // read it, and only for those two classes of refusal, so submitted values are never replayed.
-    private static async Task<string?> ReadPlainMessageAsync(HttpResponseMessage response, DashboardAccessMutationFailure failure, CancellationToken ct)
+    // read it, and only for those two classes of refusal (plus a missing item, a refusal and a failure for the user export and
+    // import calls), so submitted values are never replayed.
+    private static async Task<string?> ReadPlainMessageAsync(
+        HttpResponseMessage response, DashboardAccessMutationFailure failure, CancellationToken ct, bool readAnyEngineSentence = false)
     {
-        if (failure is not (DashboardAccessMutationFailure.Conflict or DashboardAccessMutationFailure.Validation))
+        var readable = failure is DashboardAccessMutationFailure.Conflict or DashboardAccessMutationFailure.Validation
+            || (readAnyEngineSentence
+                && failure is DashboardAccessMutationFailure.NotFound or DashboardAccessMutationFailure.Forbidden or DashboardAccessMutationFailure.Failed);
+        if (!readable)
         {
             return null;
         }
