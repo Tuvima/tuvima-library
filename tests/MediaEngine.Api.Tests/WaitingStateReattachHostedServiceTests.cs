@@ -21,6 +21,7 @@ public sealed class WaitingStateReattachHostedServiceTests : IDisposable
     private readonly string _path = Path.Combine(Path.GetTempPath(), $"tuvima_reattach_worker_{Guid.NewGuid():N}.db");
     private readonly DatabaseConnection _database;
     private readonly RecordingLogger _logger = new();
+    private readonly ControlledIngestion _ingestion = new();
 
     public WaitingStateReattachHostedServiceTests()
     {
@@ -65,8 +66,63 @@ public sealed class WaitingStateReattachHostedServiceTests : IDisposable
         Assert.Contains("0 cleared", line);
     }
 
-    private WaitingStateReattachHostedService NewWorker() =>
-        new(new WaitingPersonalStateRepository(_database), new IdleIngestion(), () => 90, _logger);
+    [Fact]
+    public void RunOnce_LooksAtEveryWaitingRowOnce_InBatches_WithAShortPauseBetweenThem()
+    {
+        var profile = AddProfile();
+        RestoreProgressOnTitles(profile, count: 5);
+        var pauses = new List<TimeSpan>();
+        var worker = NewWorker(batchSize: 2, pause: (span, _) => pauses.Add(span));
+
+        var result = worker.RunOnce(Now.AddMinutes(1), CancellationToken.None);
+
+        // Two, two and one: a pause after each full batch and none after the last. Nothing is capped, so no row is left for days.
+        Assert.Equal(5, result!.StillWaiting);
+        Assert.Equal([WaitingStateReattachHostedService.BatchPause, WaitingStateReattachHostedService.BatchPause], pauses);
+        Assert.Equal(WaitingStateReattachHostedService.BatchPause, TimeSpan.FromMilliseconds(100));
+        using var connection = _database.CreateConnection();
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM waiting_personal_state WHERE last_checked_at IS NULL"));
+    }
+
+    [Fact]
+    public void RunOnce_StopsEarly_WhenIngestionBecomesBusyAgain_AndLeavesTheRestUnlooked()
+    {
+        var profile = AddProfile();
+        RestoreProgressOnTitles(profile, count: 5);
+        var worker = NewWorker(batchSize: 2, pause: (_, _) => _ingestion.State = "working");
+
+        var result = worker.RunOnce(Now.AddMinutes(1), CancellationToken.None);
+
+        // The first batch ran, the pause let ingestion start, so the second batch was the last: one row was never looked at.
+        Assert.NotNull(result);
+        using var connection = _database.CreateConnection();
+        Assert.Equal(1, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM waiting_personal_state WHERE last_checked_at IS NULL"));
+    }
+
+    [Fact]
+    public void RunOnce_LogsOneWarningWithTheCountAndTables_ForRowsThatCouldNotBeWritten_AndNeverATitle()
+    {
+        var profile = AddProfile();
+        RestoreProgressOnATitle(profile, progress: 42.5);
+        AddMovie("tt1160419", "returned-hash");
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("CREATE TRIGGER refuse_user_states BEFORE INSERT ON user_states BEGIN SELECT RAISE(ABORT, 'refused'); END");
+        }
+
+        var worker = NewWorker();
+        var result = worker.RunOnce(Now.AddMinutes(1), CancellationToken.None);
+
+        Assert.Equal(1, result!.FailedRows);
+        Assert.Equal(["user_states"], result.FailedTables);
+        var warning = Assert.Single(_logger.Warnings);
+        Assert.Contains("1 waiting rows", warning);
+        Assert.Contains("user_states", warning);
+        Assert.DoesNotContain("tt1160419", warning);
+    }
+
+    private WaitingStateReattachHostedService NewWorker(int batchSize = WaitingStateReattachHostedService.BatchSize, Action<TimeSpan, CancellationToken>? pause = null) =>
+        new(new WaitingPersonalStateRepository(_database), _ingestion, () => 90, _logger, batchSize, pause ?? ((_, _) => { }));
 
     private byte[] AddProfile()
     {
@@ -117,6 +173,34 @@ public sealed class WaitingStateReattachHostedServiceTests : IDisposable
         new BackupRestoreRepository(_database).Import(export, "backup.zip", null, null, Now);
     }
 
+    /// <summary>Restores a backup that holds one progress entry for each of <paramref name="count"/> titles the Library does not have.</summary>
+    private void RestoreProgressOnTitles(byte[] profile, int count)
+    {
+        var titles = new List<BackupTitle>();
+        var rows = new List<IReadOnlyList<BackupValue>>();
+        for (var i = 0; i < count; i++)
+        {
+            var key = "t" + i;
+            titles.Add(BackupTitle.Empty(key, "MediaAsset") with
+            {
+                Ids = new Dictionary<string, string> { ["imdb_id"] = "tt90000" + i },
+                FileHashes = ["missing-hash-" + i],
+                Edition = "4K Remux",
+            });
+            rows.Add([BackupValue.FromBlob(profile), BackupValue.FromTitleRef(key), BackupValue.FromReal(10 + i), BackupValue.FromText(Stamp)]);
+        }
+
+        var table = new BackupExportTable("user_states", BackupDataKind.PersonalState, ["user_id", "asset_id", "progress_pct", "last_accessed"], rows);
+        var export = new BackupExport(
+            [table],
+            [],
+            titles,
+            new BackupExportContents(BackupScope.WholeLibrary, 0, 0, count, 0, count, 0, count, 0),
+            []);
+
+        new BackupRestoreRepository(_database).Import(export, "backup.zip", null, null, Now);
+    }
+
     public void Dispose()
     {
         _database.Dispose();
@@ -138,14 +222,18 @@ public sealed class WaitingStateReattachHostedServiceTests : IDisposable
         }
     }
 
-    private sealed class IdleIngestion : IIngestionQueueProgressService
+    private sealed class ControlledIngestion : IIngestionQueueProgressService
     {
-        public IngestionQueueProgressDto Current { get; } = new() { State = "idle" };
+        public string State { get; set; } = "idle";
+
+        public IngestionQueueProgressDto Current => new() { State = State };
     }
 
     private sealed class RecordingLogger : ILogger<WaitingStateReattachHostedService>
     {
         public List<string> Messages { get; } = [];
+
+        public List<string> Warnings { get; } = [];
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
@@ -157,6 +245,11 @@ public sealed class WaitingStateReattachHostedServiceTests : IDisposable
             if (logLevel >= LogLevel.Information)
             {
                 Messages.Add(formatter(state, exception));
+            }
+
+            if (logLevel == LogLevel.Warning)
+            {
+                Warnings.Add(formatter(state, exception));
             }
         }
     }

@@ -60,6 +60,13 @@ internal sealed class LiveTitleResolver
         return match;
     }
 
+    /// <summary>The fingerprint of a live file, or null when there is no such file.</summary>
+    public string? ReadContentHash(byte[] assetId)
+    {
+        var rows = Query("SELECT content_hash FROM media_assets WHERE id = $id", ("$id", assetId));
+        return rows.Count == 0 ? null : rows[0][0] as string;
+    }
+
     /// <summary>The running time of a live file, from its latest inspection.</summary>
     public double? ReadRunningTime(byte[] assetId)
     {
@@ -277,12 +284,10 @@ internal sealed class LiveTitleResolver
             switch (type)
             {
                 case "wikidata_qid":
-                    rows = Query(
-                        "SELECT id FROM works WHERE wikidata_qid = $value UNION SELECT work_id FROM editions WHERE wikidata_qid = $value",
-                        ("$value", value));
+                    rows = Query(WorksByWikidataIdSql, ("$value", value));
                     break;
                 case "edition_wikidata_qid":
-                    rows = Query("SELECT work_id FROM editions WHERE wikidata_qid = $value", ("$value", value));
+                    rows = Query(WorksByEditionWikidataIdSql, ("$value", value));
                     break;
                 case BookmarkPackMatcher.VaultStashBoxIdKey:
                     var split = value.IndexOf('|', StringComparison.Ordinal);
@@ -303,12 +308,8 @@ internal sealed class LiveTitleResolver
                     break;
                 default:
                     rows = Query(
-                        """
-                        SELECT w.id FROM bridge_ids b JOIN works w ON w.id = b.entity_id WHERE lower(b.id_type) = $type AND b.id_value = $value
-                        UNION
-                        SELECT e.work_id FROM bridge_ids b JOIN editions e ON e.id = b.entity_id WHERE lower(b.id_type) = $type AND b.id_value = $value
-                        """,
-                        ("$type", type.ToLowerInvariant()),
+                        WorksByBridgeIdSql,
+                        ("$type", type.Trim().ToLowerInvariant()),
                         ("$value", value));
                     break;
             }
@@ -320,12 +321,40 @@ internal sealed class LiveTitleResolver
         }
     }
 
+    // Other ids are compared on the lower-case id kind and the value, which is exactly idx_bridge_ids_type_value.
+    internal const string WorksByBridgeIdSql =
+        """
+        SELECT w.id FROM bridge_ids b JOIN works w ON w.id = b.entity_id WHERE b.id_type = $type AND b.id_value = $value
+        UNION
+        SELECT e.work_id FROM bridge_ids b JOIN editions e ON e.id = b.entity_id WHERE b.id_type = $type AND b.id_value = $value
+        """;
+
+    internal const string WorksByWikidataIdSql =
+        "SELECT id FROM works WHERE wikidata_qid = $value UNION SELECT work_id FROM editions WHERE wikidata_qid = $value";
+
+    internal const string WorksByEditionWikidataIdSql = "SELECT work_id FROM editions WHERE wikidata_qid = $value";
+
+    // The lookups by file fingerprint. Stored hashes are lower-case hex, so the hash is lower-cased in code and compared plainly, which
+    // lets the hash indexes serve them (a COLLATE on the comparison would not). local_files.content_hash is declared NOCASE, so its own
+    // index already serves a plain comparison.
+    internal const string AssetsByHashSql = "SELECT id FROM media_assets WHERE content_hash = $hash";
+
+    internal const string LocalItemsByHashSql =
+        "SELECT lif.item_id FROM local_item_files lif JOIN local_files f ON f.id = lif.file_id WHERE f.content_hash = $hash";
+
+    internal static string DistinctParentsSql(string column) =>
+        $"SELECT {column} FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE ma.content_hash = $hash";
+
+    /// <summary>The distinct, non-blank fingerprints of a title, lower-cased the way they are stored.</summary>
+    private static IEnumerable<string> LowerHashes(IReadOnlyList<string> hashes) =>
+        hashes.Where(hash => !string.IsNullOrWhiteSpace(hash)).Select(hash => hash.Trim().ToLowerInvariant()).Distinct(StringComparer.Ordinal);
+
     private List<byte[]> AssetsByHash(IReadOnlyList<string> hashes)
     {
         var found = new List<byte[]>();
-        foreach (var hash in hashes.Where(hash => !string.IsNullOrWhiteSpace(hash)))
+        foreach (var hash in LowerHashes(hashes))
         {
-            foreach (var row in Query("SELECT id FROM media_assets WHERE content_hash = $hash COLLATE NOCASE", ("$hash", hash)))
+            foreach (var row in Query(AssetsByHashSql, ("$hash", hash)))
             {
                 var id = (byte[])row[0]!;
                 if (!found.Any(known => known.AsSpan().SequenceEqual(id)))
@@ -345,10 +374,10 @@ internal sealed class LiveTitleResolver
     private List<byte[]> DistinctParents(IReadOnlyList<string> hashes, string column)
     {
         var found = new List<byte[]>();
-        foreach (var hash in hashes.Where(hash => !string.IsNullOrWhiteSpace(hash)))
+        foreach (var hash in LowerHashes(hashes))
         {
             foreach (var row in Query(
-                         $"SELECT {column} FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE ma.content_hash = $hash COLLATE NOCASE",
+                         DistinctParentsSql(column),
                          ("$hash", hash)))
             {
                 var id = (byte[])row[0]!;
@@ -403,10 +432,10 @@ internal sealed class LiveTitleResolver
     private LiveTitleMatch ResolveLocalItem(BackupTitle title)
     {
         var items = new List<byte[]>();
-        foreach (var hash in title.FileHashes.Where(hash => !string.IsNullOrWhiteSpace(hash)))
+        foreach (var hash in LowerHashes(title.FileHashes))
         {
             foreach (var row in Query(
-                         "SELECT lif.item_id FROM local_item_files lif JOIN local_files f ON f.id = lif.file_id WHERE f.content_hash = $hash COLLATE NOCASE",
+                         LocalItemsByHashSql,
                          ("$hash", hash)))
             {
                 var id = (byte[])row[0]!;

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
@@ -14,7 +15,21 @@ namespace MediaEngine.Storage.Backup;
 /// <param name="StillWaiting">Rows still waiting after the pass.</param>
 /// <param name="Purged">Rows cleared because their waiting period ended.</param>
 /// <param name="Checked">Rows the pass looked at (a full batch means there may be more to look at).</param>
-public sealed record ReattachResult(int Attached, int StillWaiting, int Purged, int Checked = 0);
+/// <param name="Yielded">Rows removed unwritten because the person made the same row in the Library since the restore; theirs stays. Not counted as attached.</param>
+/// <param name="FailedRows">Rows that could not be written this time and keep waiting (a data store error, not "title not found yet").</param>
+/// <param name="FailedTables">The tables of the failed rows, each once. Never a title.</param>
+public sealed record ReattachResult(
+    int Attached,
+    int StillWaiting,
+    int Purged,
+    int Checked = 0,
+    int Yielded = 0,
+    int FailedRows = 0,
+    IReadOnlyList<string>? FailedTables = null)
+{
+    /// <summary>The tables of the failed rows, each once; empty when none failed.</summary>
+    public IReadOnlyList<string> FailedTables { get; init; } = FailedTables ?? [];
+}
 
 /// <summary>The latest restore, in counts.</summary>
 public sealed record RestoreSummary(
@@ -25,7 +40,8 @@ public sealed record RestoreSummary(
     int AppliedRows,
     int WaitingRows,
     int AttachedRows,
-    int PurgedRows);
+    int PurgedRows,
+    int YieldedRows = 0);
 
 /// <summary>
 /// The waiting area of a restored backup (<c>waiting_personal_state</c>): state that is waiting for its title. A pass looks every
@@ -65,7 +81,7 @@ public sealed class WaitingPersonalStateRepository
         using var command = connection.CreateCommand();
         command.CommandText =
             """
-            SELECT id, restored_at, backup_file_name, backup_created_at, applied_rows, waiting_rows, attached_rows, purged_rows
+            SELECT id, restored_at, backup_file_name, backup_created_at, applied_rows, waiting_rows, attached_rows, purged_rows, yielded_rows
             FROM backup_restores ORDER BY restored_at DESC, id LIMIT 1
             """;
         using var reader = command.ExecuteReader();
@@ -82,7 +98,8 @@ public sealed class WaitingPersonalStateRepository
             reader.GetInt32(4),
             reader.GetInt32(5),
             reader.GetInt32(6),
-            reader.GetInt32(7));
+            reader.GetInt32(7),
+            reader.GetInt32(8));
     }
 
     /// <summary>
@@ -100,7 +117,8 @@ public sealed class WaitingPersonalStateRepository
         var stamp = RestoredRowSql.Timestamp(now);
 
         List<WaitingRow> batch;
-        var attached = 0;
+        int attached = 0, yielded = 0, failed = 0;
+        var failedTables = new SortedSet<string>(StringComparer.Ordinal);
         var stayed = new List<Guid>();
         using (var read = _db.CreateConnection())
         {
@@ -110,23 +128,37 @@ public sealed class WaitingPersonalStateRepository
             foreach (var row in batch)
             {
                 ct.ThrowIfCancellationRequested();
-                if (TryAttach(row, resolver, structure, now, ct))
+                switch (TryAttach(row, resolver, structure, now, ct))
                 {
-                    attached++;
-                }
-                else
-                {
-                    stayed.Add(row.Id);
+                    case AttachOutcome.Attached:
+                        attached++;
+                        break;
+                    case AttachOutcome.Yielded:
+                        yielded++;
+                        break;
+                    case AttachOutcome.Failed:
+                        failed++;
+                        failedTables.Add(row.Table);
+                        stayed.Add(row.Id);
+                        break;
+                    default:
+                        stayed.Add(row.Id);
+                        break;
                 }
             }
         }
 
         MarkChecked(stayed, stamp, ct);
         var purged = Purge(RestoredRowSql.Timestamp(now.AddDays(-retentionDays)), ct);
-        var result = new ReattachResult(attached, CountWaiting(includeWithheld: true), purged, batch.Count);
-        if (attached > 0 || purged > 0)
+        var result = new ReattachResult(attached, CountWaiting(includeWithheld: true), purged, batch.Count, yielded, failed, failedTables.ToList());
+        if (attached > 0 || yielded > 0 || purged > 0)
         {
-            _logger.LogDebug("Restored state pass: {Attached} attached, {Waiting} still waiting, {Purged} cleared.", attached, result.StillWaiting, purged);
+            _logger.LogDebug(
+                "Restored state pass: {Attached} attached, {Yielded} yielded, {Waiting} still waiting, {Purged} cleared.",
+                attached,
+                yielded,
+                result.StillWaiting,
+                purged);
         }
 
         return result;
@@ -171,8 +203,30 @@ public sealed class WaitingPersonalStateRepository
     // One row
     // ---------------------------------------------------------------------------------------------------------
 
-    /// <summary>Tries to put one row back. Returns false when it stays waiting, whether it is not ready or cannot be written.</summary>
-    private bool TryAttach(
+    private enum AttachOutcome
+    {
+        /// <summary>Not ready (a title not found, or found more than once): it keeps waiting.</summary>
+        Waiting,
+
+        /// <summary>It could not be written (a data store error): it keeps waiting and is reported.</summary>
+        Failed,
+
+        /// <summary>Written back and removed.</summary>
+        Attached,
+
+        /// <summary>The person made this row since the restore: theirs stays and the waiting row is removed.</summary>
+        Yielded,
+    }
+
+    /// <summary>What a write did to the live data store.</summary>
+    private enum WriteOutcome
+    {
+        Written,
+        Yielded,
+    }
+
+    /// <summary>Tries to put one row back; the outcome says whether it attached, yielded, keeps waiting, or could not be written.</summary>
+    private AttachOutcome TryAttach(
         WaitingRow row,
         LiveTitleResolver resolver,
         IReadOnlyDictionary<string, List<RestoredColumn>> structure,
@@ -183,7 +237,7 @@ public sealed class WaitingPersonalStateRepository
         {
             if (!CanBeWritten(row, structure, out var rule, out var liveColumns))
             {
-                return false;
+                return AttachOutcome.Waiting;
             }
 
             var data = WaitingRowJson.ReadRow(row.RowJson);
@@ -194,15 +248,17 @@ public sealed class WaitingPersonalStateRepository
                 matches[i] = resolver.Resolve(titles[i]);
                 if (matches[i].Kind == LiveMatchKind.None)
                 {
-                    return false;
+                    return AttachOutcome.Waiting;
                 }
             }
 
             var values = ValuesToWrite(row.Table, data.Columns, data.Values, titles, matches, resolver);
             if (values is null)
             {
-                return false;
+                return AttachOutcome.Waiting;
             }
+
+            UseLiveFileHash(row.Table, data.Columns, values, resolver);
 
             var childValues = data.Children
                 .Select(child => (Child: child, Values: child.Values.Select(RestoredRowSql.ToSql).ToList()))
@@ -211,40 +267,45 @@ public sealed class WaitingPersonalStateRepository
             {
                 if (!structure.ContainsKey(child.Table) || BackupTableClassification.Find(child.Table) is not { Kind: BackupDataKind.Configuration or BackupDataKind.PersonalState })
                 {
-                    return false;
+                    return AttachOutcome.Waiting;
                 }
             }
 
-            var written = _db.ExecuteWriteAsync(
+            var outcome = _db.ExecuteWriteAsync(
                 (connection, transaction, token) =>
                 {
                     token.ThrowIfCancellationRequested();
-                    var done = row.Group switch
+                    WriteOutcome? done = row.Group switch
                     {
                         "configuration" or "personal" => WriteInPlace(connection, transaction, row.Table, liveColumns, data.Columns, values, childValues, structure),
-                        "correction" => WriteCorrection(connection, transaction, row.Table, rule, liveColumns, data.Columns, values, now),
-                        _ => WriteChoice(connection, transaction, rule, liveColumns, data.Columns, values),
+                        "correction" => WriteCorrection(connection, transaction, row.Table, rule, liveColumns, data.Columns, values, now) ? WriteOutcome.Written : null,
+                        _ => WriteChoice(connection, transaction, rule, liveColumns, data.Columns, values) ? WriteOutcome.Written : null,
                     };
-                    if (done)
+                    if (done is { } finished)
                     {
-                        RemoveRow(connection, transaction, row);
+                        RemoveRow(connection, transaction, row, finished == WriteOutcome.Yielded ? "yielded_rows" : "attached_rows");
                     }
 
                     return done;
                 },
                 ct).GetAwaiter().GetResult();
-            if (written)
+            switch (outcome)
             {
-                _logger.LogDebug("Restored state re-attached for {Table}.", row.Table);
+                case WriteOutcome.Written:
+                    _logger.LogDebug("Restored state re-attached for {Table}.", row.Table);
+                    return AttachOutcome.Attached;
+                case WriteOutcome.Yielded:
+                    _logger.LogDebug("Restored state for {Table} yielded to a row made since the restore.", row.Table);
+                    return AttachOutcome.Yielded;
+                default:
+                    return AttachOutcome.Waiting;
             }
-
-            return written;
         }
         catch (Exception ex) when (ex is SqliteException or InvalidDataException or InvalidOperationException or JsonException)
         {
             // The kind of error and the table only: a title is exactly what must not be written down. The row stays and is tried again.
             _logger.LogDebug("Restored state for {Table} could not be put back ({Type}); it keeps waiting.", row.Table, ex.GetType().Name);
-            return false;
+            return AttachOutcome.Failed;
         }
     }
 
@@ -312,7 +373,24 @@ public sealed class WaitingPersonalStateRepository
             return result;
         }
 
-        if (time.ExactCutOnly || otherCut.Count > 1 || time.ChapterColumn is null)
+        if (time.ExactCutOnly)
+        {
+            return null;
+        }
+
+        // Seconds kept inside a JSON column (the saved timing of a file) mean nothing on another cut: they are left out, and the rest
+        // of the row, its percent included, attaches.
+        if (time.JsonColumn is not null && time.JsonSecondsKeys is { Count: > 0 })
+        {
+            DropSecondsFromJson(columns, result, time.JsonColumn, time.JsonSecondsKeys);
+        }
+
+        if (time.Positions.Count == 0)
+        {
+            return result;
+        }
+
+        if (otherCut.Count > 1 || time.ChapterColumn is null)
         {
             return null;
         }
@@ -351,6 +429,54 @@ public sealed class WaitingPersonalStateRepository
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// The kept tables whose <c>content_hash</c> is the fingerprint of the file the row's asset column points at (the other kept table
+    /// with a content_hash, <c>bookmark_packs</c>, fingerprints the pack itself and is not listed). Nothing in the Engine resets
+    /// progress when it differs, but the hash is sent to clients and must describe the file the row now sits on.
+    /// </summary>
+    private static readonly Dictionary<string, (string AssetColumn, string HashColumn)> AssetHashColumns = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["user_states"] = ("asset_id", "content_hash"),
+    };
+
+    /// <summary>A row written onto a live file carries that file's fingerprint, not the one in the backup (the file may be a different one).</summary>
+    private static void UseLiveFileHash(string table, IReadOnlyList<string> columns, List<object?> values, LiveTitleResolver resolver)
+    {
+        if (!AssetHashColumns.TryGetValue(table, out var hash))
+        {
+            return;
+        }
+
+        var assetIndex = IndexOf(columns, hash.AssetColumn);
+        var hashIndex = IndexOf(columns, hash.HashColumn);
+        if (assetIndex >= 0 && hashIndex >= 0 && values[assetIndex] is byte[] asset && resolver.ReadContentHash(asset) is { } live)
+        {
+            values[hashIndex] = live;
+        }
+    }
+
+    /// <summary>Removes the given keys (any case) from the JSON object in <paramref name="column"/>; a column that is null or not an object is left as it is.</summary>
+    private static void DropSecondsFromJson(IReadOnlyList<string> columns, List<object?> row, string column, IReadOnlyList<string> keys)
+    {
+        var index = IndexOf(columns, column);
+        if (index < 0 || row[index] is not string { Length: > 0 } json)
+        {
+            return;
+        }
+
+        if (JsonNode.Parse(json) is not JsonObject properties)
+        {
+            return;
+        }
+
+        foreach (var key in properties.Select(pair => pair.Key).Where(name => keys.Contains(name, StringComparer.OrdinalIgnoreCase)).ToList())
+        {
+            properties.Remove(key);
+        }
+
+        row[index] = properties.ToJsonString();
     }
 
     private static double? Seconds(object? value) => value switch
@@ -405,8 +531,11 @@ public sealed class WaitingPersonalStateRepository
     // Writing
     // ---------------------------------------------------------------------------------------------------------
 
-    /// <summary>Settings and personal state: a row the person has since made in the Library wins, so the restored row only fills a gap.</summary>
-    private static bool WriteInPlace(
+    /// <summary>
+    /// Settings and personal state: a row the person has since made in the Library wins, so the restored row only fills a gap. When the
+    /// row itself is not written, the rows that hang off it are not either (they would point at a row that was never made).
+    /// </summary>
+    private static WriteOutcome WriteInPlace(
         SqliteConnection connection,
         SqliteTransaction transaction,
         string table,
@@ -416,13 +545,17 @@ public sealed class WaitingPersonalStateRepository
         IReadOnlyList<(WaitingRowChild Child, List<object?> Values)> children,
         IReadOnlyDictionary<string, List<RestoredColumn>> structure)
     {
-        RestoredRowSql.Insert(connection, transaction, "INSERT OR IGNORE", table, liveColumns, columns, values);
+        if (RestoredRowSql.Insert(connection, transaction, "INSERT OR IGNORE", table, liveColumns, columns, values) == 0)
+        {
+            return WriteOutcome.Yielded;
+        }
+
         foreach (var (child, childValues) in children)
         {
             RestoredRowSql.Insert(connection, transaction, "INSERT OR IGNORE", child.Table, structure[child.Table], child.Columns, childValues);
         }
 
-        return true;
+        return WriteOutcome.Written;
     }
 
     /// <summary>
@@ -730,7 +863,8 @@ public sealed class WaitingPersonalStateRepository
         return command.ExecuteScalar() is not null;
     }
 
-    private static void RemoveRow(SqliteConnection connection, SqliteTransaction transaction, WaitingRow row)
+    /// <param name="counter">The <c>backup_restores</c> column that counts this row: <c>attached_rows</c> or <c>yielded_rows</c>.</param>
+    private static void RemoveRow(SqliteConnection connection, SqliteTransaction transaction, WaitingRow row, string counter)
     {
         using (var delete = connection.CreateCommand())
         {
@@ -742,7 +876,7 @@ public sealed class WaitingPersonalStateRepository
 
         using var count = connection.CreateCommand();
         count.Transaction = transaction;
-        count.CommandText = "UPDATE backup_restores SET attached_rows = attached_rows + 1 WHERE id = $restore";
+        count.CommandText = $"UPDATE backup_restores SET {counter} = {counter} + 1 WHERE id = $restore";
         count.Parameters.AddWithValue("$restore", row.RestoreId);
         count.ExecuteNonQuery();
     }
