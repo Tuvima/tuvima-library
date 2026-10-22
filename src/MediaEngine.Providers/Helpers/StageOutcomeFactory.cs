@@ -90,6 +90,25 @@ public sealed class StageOutcomeFactory
         return await CreateRetailFailedAsync(entityId, mediaType, ct).ConfigureAwait(false);
     }
 
+    // A file that now has a review item (a placeholder title, or a film TMDB lists as TV) is an unsure case, which belongs to Needs Review, so
+    // a row left by an earlier no-match (a retried file) goes: a file is never Unmatched and in Needs Review at once.
+    private async Task ClearUnmatchedAsync(Guid entityId, CancellationToken ct)
+    {
+        if (_unmatched is null)
+        {
+            return;
+        }
+
+        var assetId = entityId;
+        if (_assets is not null && await _assets.FindByIdAsync(entityId, ct).ConfigureAwait(false) is null
+            && await _assets.FindFirstByWorkIdAsync(entityId, ct).ConfigureAwait(false) is { } first)
+        {
+            assetId = first.Id;
+        }
+
+        await _unmatched.ClearAsync(assetId, ct).ConfigureAwait(false);
+    }
+
     // An Unmatched file is shown in the library (it browses with its file name and tags), and the display rule wants the artwork search to
     // be settled. No provider will supply a picture for a file nothing matched, so a file with no picture of its own is settled as it is.
     private async Task SettleArtworkSearchAsync(Guid assetId, DateTimeOffset now, CancellationToken ct)
@@ -175,13 +194,15 @@ public sealed class StageOutcomeFactory
             return null;
         }
 
-        return await CreateCoreAsync(
+        var created = await CreateCoreAsync(
             entityId,
             ReviewTrigger.MovieMatchedAsTv,
             0.0,
             DescribeMovieTvSuggestion(suggestion),
             ct,
             candidatesJson: JsonSerializer.Serialize(new[] { suggestion })).ConfigureAwait(false);
+        await ClearUnmatchedAsync(entityId, ct).ConfigureAwait(false);
+        return created;
     }
 
     /// <summary>
@@ -304,17 +325,19 @@ public sealed class StageOutcomeFactory
     /// the file's title looks like a placeholder ("Unknown", "Untitled", "Track 01")
     /// and there are no bridge IDs to fall back on.
     /// </summary>
-    public Task<Guid?> CreatePlaceholderTitleAsync(
+    public async Task<Guid?> CreatePlaceholderTitleAsync(
         Guid entityId,
         string? title,
         CancellationToken ct = default)
     {
-        return CreateCoreAsync(
+        var created = await CreateCoreAsync(
             entityId,
             ReviewTrigger.PlaceholderTitle,
             0.0,
             $"Title \"{title ?? "(blank)"}\" appears to be a placeholder with no ISBN, ASIN, or QID",
-            ct);
+            ct).ConfigureAwait(false);
+        await ClearUnmatchedAsync(entityId, ct).ConfigureAwait(false);
+        return created;
     }
 
     /// <summary>

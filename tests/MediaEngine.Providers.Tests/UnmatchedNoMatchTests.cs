@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Contracts.Review;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
@@ -199,6 +200,44 @@ public sealed class UnmatchedNoMatchTests : IDisposable
 
         Assert.Null(await _unmatched.GetAsync(book.AssetId));
         Assert.Empty(await _reviews.GetPendingByEntityAsync(book.AssetId));
+    }
+
+    [Fact]
+    public async Task ARetriedUnmatchedFileThatNowHasAPlaceholderTitle_GoesToNeedsReview_AndIsNoLongerUnmatched()
+    {
+        var movie = await SeedAssetAsync(MediaType.Movies, MoviesLibraryId, "Untitled.mkv");
+        await QueueAsync(movie, "Movies");
+        await RunWorkerAsync(new StubRetailProvider("tmdb", WellKnownProviders.Tmdb), new FixedRetailScoring(0.0));
+        Assert.NotNull(await _unmatched.GetAsync(movie.AssetId));
+        Assert.Empty(await _reviews.GetPendingByEntityAsync(movie.AssetId));
+
+        // The file's title is now a placeholder with no bridge IDs, so the retry ends in the placeholder-title branch.
+        await _canonicals.UpsertBatchAsync(
+        [
+            new CanonicalValue { EntityId = movie.AssetId, Key = "title", Value = "Untitled", LastScoredAt = DateTimeOffset.UtcNow },
+        ]);
+        await QueueAsync(movie, "Movies");
+        await RunWorkerAsync(new StubRetailProvider("tmdb", WellKnownProviders.Tmdb), new FixedRetailScoring(0.0));
+
+        var review = Assert.Single(await _reviews.GetPendingByEntityAsync(movie.AssetId));
+        Assert.Equal(ReviewTrigger.PlaceholderTitle, review.Trigger);
+        Assert.Null(await _unmatched.GetAsync(movie.AssetId));
+    }
+
+    [Fact]
+    public async Task ARetriedUnmatchedFileThatTmdbListsAsATvTitle_GoesToNeedsReview_AndIsNoLongerUnmatched()
+    {
+        var movie = await SeedAssetAsync(MediaType.Movies, MoviesLibraryId, "Dr Horribles Sing-Along Blog.mkv");
+        await _outcomes.RecordRetailNoMatchAsync(movie.AssetId, "Movies");
+        Assert.NotNull(await _unmatched.GetAsync(movie.AssetId));
+
+        await _outcomes.CreateMovieMatchedAsTvAsync(
+            movie.AssetId,
+            new MovieTvSuggestionDto { TmdbTvId = "1", Name = "Dr. Horrible's Sing-Along Blog", FirstAirYear = 2008, Type = "Miniseries", Episodes = 3 });
+
+        var review = Assert.Single(await _reviews.GetPendingByEntityAsync(movie.AssetId));
+        Assert.Equal(ReviewTrigger.MovieMatchedAsTv, review.Trigger);
+        Assert.Null(await _unmatched.GetAsync(movie.AssetId));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
