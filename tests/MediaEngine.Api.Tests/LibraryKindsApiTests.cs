@@ -76,6 +76,25 @@ public sealed class LibraryKindsApiTests : IDisposable
     }
 
     [Fact]
+    public void OnlyThePlainKindsAllowSeveralLibrariesAndAPluginKindCanAskForTheSame()
+    {
+        Assert.Equal(
+            ["other_videos", "other_audio", "other_reading"],
+            _kinds.GetDtos().Where(kind => kind.AllowsMultiple).Select(kind => kind.Key).ToArray());
+        Assert.All(_kinds.GetDtos().Where(kind => kind.AllowsMultiple), kind => Assert.Equal(5, kind.MaxLibraries));
+        Assert.Equal(1, _kinds.GetDtos().Single(kind => kind.Key == "movies").MaxLibraries);
+
+        Add("json.podcasts", $$"""
+            "declarative": { "library_kinds": [{{ReplaceField(PodcastsKind(), "misfit", "\"misfit\": \"keep\", \"allows_multiple\": true, \"max_libraries\": 3")}}] }
+            """);
+        _catalog.SetEnabled("json.podcasts", true);
+
+        var podcasts = Assert.Single(_kinds.GetDtos(), kind => kind.Key == "podcasts");
+        Assert.True(podcasts.AllowsMultiple);
+        Assert.Equal(3, podcasts.MaxLibraries);
+    }
+
+    [Fact]
     public void AValidPodcastsKindAppearsOnceThePluginIsSwitchedOnAndGoesWhenItIsSwitchedOff()
     {
         Add("json.podcasts", PodcastsPlugin());

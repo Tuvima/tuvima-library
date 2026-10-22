@@ -184,6 +184,74 @@ public sealed class LibraryKindsTests
     }
 
     [Fact]
+    public void OnlyThePlainKindsAllowSeveralLibrariesAndUpToFive()
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+
+        Assert.Equal(
+            ["other_videos", "other_audio", "other_reading"],
+            kinds.Where(kind => kind.AllowsMultiple).Select(kind => kind.Key).ToArray());
+        Assert.All(kinds.Where(kind => kind.AllowsMultiple), kind => Assert.Equal(5, kind.MaxLibraries));
+        Assert.All(kinds.Where(kind => !kind.AllowsMultiple), kind => Assert.Equal(1, kind.MaxLibraries));
+    }
+
+    [Fact]
+    public void AKindWithMoreThanOneLibraryAllowedButNotAllowingSeveralIsRefused()
+    {
+        var kind = Podcasts();
+        kind.MaxLibraries = 3;
+
+        Assert.Contains("allows_multiple", LibraryKindRules.Problem(kind, "kinds[0]"), StringComparison.Ordinal);
+
+        kind.AllowsMultiple = true;
+        Assert.Null(LibraryKindRules.Problem(kind, "kinds[0]"));
+    }
+
+    [Fact]
+    public void SeveralNamedLibrariesOfAPlainKindAreFineUpToTheLimit()
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        var named = new[] { "Lectures", "Family recordings", "Talks", "Courses", "Clips" }
+            .Select(name => Library("other_videos", "Videos", name, LibraryAreas.Watch))
+            .ToArray();
+
+        Assert.Empty(LibraryKindRules.LibraryProblems(Libraries(named), kinds));
+
+        var sixth = Libraries([.. named, Library("other_videos", "Videos", "Concerts", LibraryAreas.Watch)]);
+        Assert.Contains("allows at most 5", Assert.Single(LibraryKindRules.LibraryProblems(sixth, kinds)), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ASecondLibraryOfAKindThatHoldsOneIsRefused()
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        var configuration = Libraries(
+            Library("movies", "Movies", "Movies", LibraryAreas.Watch),
+            Library("movies", "Movies", "Old films", LibraryAreas.Watch));
+
+        Assert.Contains("holds one library", Assert.Single(LibraryKindRules.LibraryProblems(configuration, kinds)), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LibraryNamesAreUniqueInAnAreaIgnoringCaseAndNeverAnotherKindsLabel()
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        var duplicate = Libraries(
+            Library("other_videos", "Videos", "Lectures", LibraryAreas.Watch),
+            Library("other_videos", "Videos", "LECTURES", LibraryAreas.Watch));
+        var otherArea = Libraries(
+            Library("other_videos", "Videos", "Lectures", LibraryAreas.Watch),
+            Library("other_audio", "Music", "Lectures", LibraryAreas.Listen));
+        var kindLabel = Libraries(Library("other_videos", "Videos", "Movies", LibraryAreas.Watch));
+        var ownLabel = Libraries(Library("other_videos", "Videos", "Videos", LibraryAreas.Watch));
+
+        Assert.Contains("already used", Assert.Single(LibraryKindRules.LibraryProblems(duplicate, kinds)), StringComparison.Ordinal);
+        Assert.Empty(LibraryKindRules.LibraryProblems(otherArea, kinds));
+        Assert.Contains("name of the library kind", Assert.Single(LibraryKindRules.LibraryProblems(kindLabel, kinds)), StringComparison.Ordinal);
+        Assert.Empty(LibraryKindRules.LibraryProblems(ownLabel, kinds));
+    }
+
+    [Fact]
     public void TheImportFolderTypesAndFoldersComeFromTheAvailableKindsWithAFormat()
     {
         Assert.Equal(
@@ -213,12 +281,13 @@ public sealed class LibraryKindsTests
 
     private static LibrariesConfiguration Libraries(params LibraryFolderConfig[] libraries) => new() { Libraries = [.. libraries] };
 
-    private static LibraryFolderConfig Library(string kindKey, string mediaType) => new()
+    private static LibraryFolderConfig Library(string kindKey, string mediaType, string? name = null, string area = LibraryAreas.Read) => new()
     {
         Id = Guid.NewGuid().ToString("D"),
-        Name = mediaType,
+        Name = name ?? mediaType,
         Kind = LibraryKinds.Catalogued,
         KindKey = kindKey,
+        Area = area,
         MediaTypes = [mediaType],
     };
 }

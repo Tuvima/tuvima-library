@@ -17,7 +17,9 @@ public sealed record LibraryTypeOption(
     string? LibraryId = null,
     string Tooltip = "",
     IReadOnlyList<string>? LookupProviders = null,
-    string? NamingTemplate = null);
+    string? NamingTemplate = null,
+    bool AllowsMultiple = false,
+    int MaxLibraries = 1);
 
 /// <summary>Keys the Libraries addresses and the Dashboard know by name: the Import folder row and View's photo settings.</summary>
 public static class LibraryTypeCatalog
@@ -99,7 +101,9 @@ public sealed class LibraryKindCatalog
         LibraryKindIcons.Resolve(kind.Icon),
         Tooltip: kind.Tooltip,
         LookupProviders: kind.LookupProviders,
-        NamingTemplate: kind.NamingTemplate);
+        NamingTemplate: kind.NamingTemplate,
+        AllowsMultiple: kind.AllowsMultiple,
+        MaxLibraries: Math.Max(1, kind.MaxLibraries));
 
     /// <summary>The label as it reads in the middle of a sentence: "TV Shows" is "TV shows", and "&amp;" reads "and".</summary>
     internal static string PluralLabelFor(string label)

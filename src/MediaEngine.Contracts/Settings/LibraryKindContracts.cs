@@ -61,4 +61,12 @@ public sealed class LibraryKindDto
     /// <summary>False for a kind that is defined but not offered on any screen yet.</summary>
     [JsonPropertyName("available")]
     public bool Available { get; set; } = true;
+
+    /// <summary>True when a person may keep several named libraries of this kind (the plain kinds: Other videos, Other audio, Other reading).</summary>
+    [JsonPropertyName("allows_multiple")]
+    public bool AllowsMultiple { get; set; }
+
+    /// <summary>The most libraries of this kind a person may keep; 1 unless <see cref="AllowsMultiple"/>.</summary>
+    [JsonPropertyName("max_libraries")]
+    public int MaxLibraries { get; set; } = 1;
 }

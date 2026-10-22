@@ -77,7 +77,9 @@
       "tooltip": "Courses, talks and downloads. YouTube lookup can be switched on in the last step.",
       "order": 4,
       "built_in": true,
-      "available": true
+      "available": true,
+      "allows_multiple": true,
+      "max_libraries": 5
     },
     {
       "key": "music",
@@ -135,7 +137,9 @@
       "tooltip": "Random audio files, recordings and lectures, shown by folder and the tags inside the files.",
       "order": 3,
       "built_in": true,
-      "available": false
+      "available": false,
+      "allows_multiple": true,
+      "max_libraries": 5
     },
     {
       "key": "books",
@@ -191,7 +195,9 @@
       "tooltip": "Loose books and documents with no match, shown by folder and the details inside the files.",
       "order": 3,
       "built_in": true,
-      "available": false
+      "available": false,
+      "allows_multiple": true,
+      "max_libraries": 5
     },
     {
       "key": "photos",

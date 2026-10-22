@@ -19,6 +19,11 @@ public static partial class LibraryKindRules
     private const int MaxTooltipLength = 300;
     private const int MaxProviders = 12;
 
+    /// <summary>How many named libraries a plain kind (Other videos, Other audio, Other reading) allows.</summary>
+    public const int MaxPlainLibraries = 5;
+
+    private const int MaxLibrariesCeiling = 20;
+
     [GeneratedRegex("^[a-z][a-z0-9]*(_[a-z0-9]+)*$")]
     private static partial Regex KeyPattern();
 
@@ -123,6 +128,16 @@ public static partial class LibraryKindRules
             return $"{name} needs an \"order\" of 0 or more.";
         }
 
+        if (kind.MaxLibraries < 1 || kind.MaxLibraries > MaxLibrariesCeiling)
+        {
+            return $"{name} needs a \"max_libraries\" between 1 and {MaxLibrariesCeiling}.";
+        }
+
+        if (!kind.AllowsMultiple && kind.MaxLibraries != 1)
+        {
+            return $"{name} has a \"max_libraries\" above 1 but \"allows_multiple\" is not true. Set \"allows_multiple\": true or use 1.";
+        }
+
         return null;
     }
 
@@ -193,7 +208,68 @@ public static partial class LibraryKindRules
             }
         }
 
+        AddCountAndNameProblems(libraries, kinds, problems);
+
         return problems;
+    }
+
+    // A kind without allows_multiple holds one library; a plain kind holds up to max_libraries, each with its own name. Names are unique
+    // (ignoring case) among the catalogued libraries of an area and never read as another kind's label (a library may keep its own
+    // kind's label: that is the default name of the first one).
+    private static void AddCountAndNameProblems(LibrariesConfiguration libraries, IReadOnlyList<LibraryKindDefinition> kinds, List<string> problems)
+    {
+        var catalogued = libraries.Libraries
+            .Select((library, index) => (library, index))
+            .Where(entry => string.Equals(entry.library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        foreach (var group in catalogued.Where(entry => IsValidKey(entry.library.KindKey)).GroupBy(entry => entry.library.KindKey, StringComparer.Ordinal))
+        {
+            var kind = kinds.FirstOrDefault(candidate => string.Equals(candidate.Key, group.Key, StringComparison.Ordinal));
+            if (kind is null)
+            {
+                continue;
+            }
+
+            var allowed = kind.AllowsMultiple ? Math.Max(1, kind.MaxLibraries) : 1;
+            if (group.Count() > allowed)
+            {
+                var extra = group.ElementAt(allowed);
+                problems.Add(kind.AllowsMultiple
+                    ? $"libraries[{extra.index}] is library number {allowed + 1} of the kind \"{kind.Key}\", which allows at most {allowed}."
+                    : $"libraries[{extra.index}] is a second library of the kind \"{kind.Key}\", which holds one library.");
+            }
+        }
+
+        foreach (var areaGroup in catalogued.Where(entry => !string.IsNullOrWhiteSpace(entry.library.Name)).GroupBy(entry => entry.library.Area, StringComparer.OrdinalIgnoreCase))
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (library, index) in areaGroup)
+            {
+                var name = library.Name.Trim();
+                if (!seen.Add(name))
+                {
+                    problems.Add($"libraries[{index}].name \"{name}\" is already used by another library in {areaGroup.Key}. Give each library its own name.");
+                }
+            }
+        }
+
+        foreach (var (library, index) in catalogued.Where(entry => !string.IsNullOrWhiteSpace(entry.library.Name)))
+        {
+            var kind = kinds.FirstOrDefault(candidate => string.Equals(candidate.Key, library.KindKey, StringComparison.Ordinal));
+            if (kind is not { AllowsMultiple: true })
+            {
+                continue;
+            }
+
+            var name = library.Name.Trim();
+            var clash = kinds.FirstOrDefault(other => !string.Equals(other.Key, kind.Key, StringComparison.Ordinal)
+                && string.Equals(other.Label, name, StringComparison.OrdinalIgnoreCase));
+            if (clash is not null)
+            {
+                problems.Add($"libraries[{index}].name \"{name}\" is the name of the library kind \"{clash.Label}\". Choose a different name.");
+            }
+        }
     }
 
     /// <summary>True when a library's media type token (Movies, TV, and the older TVShows spelling) is the kind's format.</summary>

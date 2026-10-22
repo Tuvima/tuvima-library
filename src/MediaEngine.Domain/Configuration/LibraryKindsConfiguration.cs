@@ -30,19 +30,19 @@ public sealed class LibraryKindsConfiguration
         Kind("youtube", LibraryAreas.Watch, "YouTube", "PlayCircle", MediaType.Videos, ["youtube"], LibraryKindGroupings.VideoSeriesFolder, "Videos",
             LibraryKindMisfits.Unmatched, "Videos saved from YouTube, found by the video ID in the file name.", 3, available: false),
         Kind("other_videos", LibraryAreas.Watch, "Videos", "VideoLibrary", MediaType.Videos, null, LibraryKindGroupings.VideoSeriesFolder, "Videos",
-            LibraryKindMisfits.Keep, "Courses, talks and downloads. YouTube lookup can be switched on in the last step.", 4),
+            LibraryKindMisfits.Keep, "Courses, talks and downloads. YouTube lookup can be switched on in the last step.", 4, allowsMultiple: true),
         Kind("music", LibraryAreas.Listen, "Music", "MusicNote", MediaType.Music, ["musicbrainz", "apple_api", "lrclib"], LibraryKindGroupings.MusicAlbum, "Music",
             LibraryKindMisfits.Unmatched, "Albums and songs, tagged or in artist and album folders.", 1),
         Kind("audiobooks", LibraryAreas.Listen, "Audiobooks", "Headphones", MediaType.Audiobooks, ["apple_api"], LibraryKindGroupings.Audiobook, "Audiobooks",
             LibraryKindMisfits.Unmatched, "Spoken books, one file or folder per book.", 2),
         Kind("other_audio", LibraryAreas.Listen, "Other audio", "AudioFile", MediaType.Music, null, LibraryKindGroupings.FolderAndTags, "default",
-            LibraryKindMisfits.Keep, "Random audio files, recordings and lectures, shown by folder and the tags inside the files.", 3, available: false),
+            LibraryKindMisfits.Keep, "Random audio files, recordings and lectures, shown by folder and the tags inside the files.", 3, available: false, allowsMultiple: true),
         Kind("books", LibraryAreas.Read, "Books", "MenuBook", MediaType.Books, ["apple_api"], LibraryKindGroupings.BookSeries, "Books",
             LibraryKindMisfits.Unmatched, "EPUB and PDF books.", 1),
         Kind("comics", LibraryAreas.Read, "Comics", "AutoStories", MediaType.Comics, ["comicvine"], LibraryKindGroupings.ComicSeries, "Comics",
             LibraryKindMisfits.Unmatched, "CBZ and CBR comics and manga.", 2),
         Kind("other_reading", LibraryAreas.Read, "Other reading", "Description", MediaType.Books, null, LibraryKindGroupings.FolderAndTags, "default",
-            LibraryKindMisfits.Keep, "Loose books and documents with no match, shown by folder and the details inside the files.", 3, available: false),
+            LibraryKindMisfits.Keep, "Loose books and documents with no match, shown by folder and the details inside the files.", 3, available: false, allowsMultiple: true),
         new LibraryKindDefinition
         {
             Key = "photos",
@@ -74,7 +74,8 @@ public sealed class LibraryKindsConfiguration
         string misfit,
         string tooltip,
         int order,
-        bool available = true) => new()
+        bool available = true,
+        bool allowsMultiple = false) => new()
         {
             Key = key,
             Area = area,
@@ -90,6 +91,8 @@ public sealed class LibraryKindsConfiguration
             Order = order,
             BuiltIn = true,
             Available = available,
+            AllowsMultiple = allowsMultiple,
+            MaxLibraries = allowsMultiple ? LibraryKindRules.MaxPlainLibraries : 1,
         };
 }
 
@@ -155,6 +158,14 @@ public sealed class LibraryKindDefinition
     /// <summary>False while a kind is defined but not offered on any screen.</summary>
     [JsonPropertyName("available")]
     public bool Available { get; set; } = true;
+
+    /// <summary>True when a person may keep several named libraries of this kind (for example "Lectures" and "Family recordings"). False means one library.</summary>
+    [JsonPropertyName("allows_multiple")]
+    public bool AllowsMultiple { get; set; }
+
+    /// <summary>The most libraries of this kind a person may keep. 1 unless <see cref="AllowsMultiple"/>.</summary>
+    [JsonPropertyName("max_libraries")]
+    public int MaxLibraries { get; set; } = 1;
 
     [JsonIgnore]
     public MediaType FormatMediaType => Services.MediaTypeParser.Parse(Format);

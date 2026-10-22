@@ -525,6 +525,35 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     }
 
     [Fact]
+    public void SeveralNamedLibrariesOfAPlainKindAreEachARowOnTheWatchGroupPage()
+    {
+        _configuration.Libraries.Add(new()
+        {
+            Id = "55555555-5555-4555-8555-555555555555",
+            Name = "Lectures",
+            Kind = "catalogued",
+            KindKey = "other_videos",
+            Area = "watch",
+            MediaTypes = ["Videos"],
+            Sources = [new() { Id = "lec-1", Path = "C:\\media\\Lectures", ManagementMode = "existing_library", AccessMode = "read_only" }],
+        });
+        _configuration.Libraries.Add(new()
+        {
+            Id = OtherId,
+            Name = "Family recordings",
+            Kind = "catalogued",
+            KindKey = "other_videos",
+            Area = "watch",
+            MediaTypes = ["Videos"],
+            Sources = [new() { Id = "fam-1", Path = "C:\\media\\Family", ManagementMode = "existing_library", AccessMode = "read_only" }],
+        });
+        var cut = Open("watch");
+
+        Assert.Equal(["Movies", "TV Shows", "Lectures", "Family recordings"], cut.FindAll(".lib-page__row strong").Select(Text).ToArray());
+        Assert.Equal($"/settings/libraries/watch/other-{OtherId}", cut.Find($".lib-page__row[data-type=other-{OtherId}]").GetAttribute("href"));
+    }
+
+    [Fact]
     public void AnOtherLibraryWithNoKnownAreaIsARowUnderTheImportFolderOnTheFrontDoor()
     {
         _configuration.Libraries.Add(new()

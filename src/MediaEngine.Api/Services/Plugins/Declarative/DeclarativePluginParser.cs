@@ -430,7 +430,7 @@ internal static partial class DeclarativePluginParser
     private static readonly string[] LibraryKindRequired =
         ["key", "area", "label", "icon", "format", "lookup", "grouping", "naming_template", "misfit"];
 
-    private static readonly string[] LibraryKindOptional = ["default_handling", "tooltip", "order", "available"];
+    private static readonly string[] LibraryKindOptional = ["default_handling", "tooltip", "order", "available", "allows_multiple", "max_libraries"];
 
     /// <summary>Where a plugin's kind sits in its area when it gives no order: after every kind that ships with the Library.</summary>
     private const int DefaultLibraryKindOrder = 100;

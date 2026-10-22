@@ -39,7 +39,7 @@ public static class LibraryRollup
                 string.IsNullOrWhiteSpace(library.Name) ? "other" : library.Name,
                 library.Area,
                 [.. library.MediaTypes],
-                OtherIcon(library.Area),
+                kinds.Find(library.KindKey)?.Icon ?? OtherIcon(library.Area),
                 library.Id))
             .ToList();
 
@@ -84,7 +84,10 @@ public static class LibraryRollup
         return new LibraryRowSummary(type, sources.Count, TitlesFor(type, overview), issues is null ? null : LibraryFolderHealth.Worst(sources, issues));
     }
 
-    /// <summary>The rows of a group page: its types in order, then that area's other libraries.</summary>
+    /// <summary>
+    /// The rows of a group page: its types in order, then that area's other libraries. A kind that allows several named libraries
+    /// (Other videos and its kind) is shown under the name of its first library, so each library reads by the name its owner chose.
+    /// </summary>
     public static IReadOnlyList<LibraryRowSummary> RowsFor(
         LibraryKindCatalog kinds,
         LibraryGroup group,
@@ -95,8 +98,14 @@ public static class LibraryRollup
         [.. group.TypeKeys
             .Select(kinds.Find)
             .OfType<LibraryTypeOption>()
+            .Select(type => NamedAfterItsLibrary(type, configuration))
             .Concat(OthersIn(kinds, configuration, group))
             .Select(type => RowFor(type, configuration, overview, viewFolders, issues))];
+
+    private static LibraryTypeOption NamedAfterItsLibrary(LibraryTypeOption type, LibrariesConfigurationDto configuration) =>
+        type.AllowsMultiple && PrimaryLibraryFor(configuration, type) is { Name: { Length: > 0 } name } && !string.IsNullOrWhiteSpace(name)
+            ? type with { Label = name, PluralLabel = name }
+            : type;
 
     public static LibraryGroupSummary SummaryFor(
         LibraryKindCatalog kinds,

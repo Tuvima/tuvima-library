@@ -85,6 +85,8 @@ public sealed class LibraryKindListService(IConfigurationLoader loader, PluginCa
         BuiltIn = entry.Kind.BuiltIn,
         PluginId = entry.PluginId,
         Available = entry.Kind.Available,
+        AllowsMultiple = entry.Kind.AllowsMultiple,
+        MaxLibraries = entry.Kind.MaxLibraries,
     };
 
     private static int AreaRank(string area)

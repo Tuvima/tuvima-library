@@ -28,6 +28,8 @@ internal static class LibraryKindsTestData
             Order = kind.Order,
             BuiltIn = kind.BuiltIn,
             Available = kind.Available,
+            AllowsMultiple = kind.AllowsMultiple,
+            MaxLibraries = kind.MaxLibraries,
         }),
         .. extra,
     ];
