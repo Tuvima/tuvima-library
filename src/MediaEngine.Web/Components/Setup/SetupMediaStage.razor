@@ -116,7 +116,7 @@
         @if (!HasLibraries && HasViewFolders)
         {
             @* Only View folders so far: they are already saved, and the Watch, Listen and Read check has nothing to check, so this moves on like Skip. *@
-            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="DeferMedia" />
+            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="ContinueWithViewOnly" />
         }
         else if (!HasLibraries)
         {
@@ -134,6 +134,8 @@
 
     [Parameter] public bool HasLibraries { get; set; }
     [Parameter] public EventCallback DeferMedia { get; set; }
+    // Only View folders were added: the step is still recorded as later (the Engine checks Watch, Listen and Read folders), with a note that says what was added.
+    [Parameter] public EventCallback ContinueWithViewOnly { get; set; }
     [Parameter] public SetupMediaLocationsDto? Media { get; set; }
     [Parameter] public string? SetupSession { get; set; }
     [Parameter] public bool Busy { get; set; }

@@ -40,6 +40,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     private ServerFolderValidationResultDto _picked = new() { Path = "E:\\Setup\\Films", StorageLocationId = "media", Exists = true, HasRead = true, HasWrite = true, CanSelect = true, ContainsFiles = true };
     private IRenderedComponent<AppDialogHost> _dialogs = null!;
     private int _deferred;
+    private int _viewOnlyContinued;
     private int _validated;
     private int _created;
     private static readonly Guid Me = Guid.Parse("a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1");
@@ -132,6 +133,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         .Add(x => x.SetupSession, session)
         .Add(x => x.HasLibraries, hasLibraries)
         .Add(x => x.DeferMedia, EventCallback.Factory.Create(this, () => _deferred++))
+        .Add(x => x.ContinueWithViewOnly, EventCallback.Factory.Create(this, () => _viewOnlyContinued++))
         .Add(x => x.ValidateMedia, EventCallback.Factory.Create(this, () => _validated++))
         .Add(x => x.LibraryCreated, EventCallback.Factory.Create(this, () => _created++)));
 
@@ -517,7 +519,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task WithOnlyAViewFolderAddedTheFooterSaysContinueAndMovesOnWithoutTheFolderCheck()
+    public async Task WithOnlyAViewFolderAddedTheFooterSaysContinueAndRecordsTheStepAsLaterWithAViewNote()
     {
         SignIn();
         var cut = RenderStage(session: null);
@@ -534,8 +536,9 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.DoesNotContain(cut.FindAll("button"), x => Text(x) == "Skip for now"));
         await cut.InvokeAsync(() => Button(cut, "Continue").Click());
 
-        // The Watch, Listen and Read check has nothing to check, so this moves on the way Skip does; the View folder is already saved.
-        Assert.Equal(1, _deferred);
+        // The Watch, Listen and Read check has nothing to check, so the step is recorded as later with its own note; the View folder is already saved.
+        Assert.Equal(1, _viewOnlyContinued);
+        Assert.Equal(0, _deferred);
         Assert.Equal(0, _validated);
         Assert.Single(_sharedCreates);
     }
