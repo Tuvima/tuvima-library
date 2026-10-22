@@ -673,7 +673,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             .Distinct()
             .Count();
         var cover = rows.OrderByDescending(row => row.UpdatedAt).FirstOrDefault(row => row.CoverAssetId.HasValue)?.CoverAssetId;
-        var needsReview = rows.Any(row => row.ReviewCount > 0 || row.IdentityState is "RetailNoMatch" or "QidNoMatch" or "QidNeedsReview" or "RetailMatchedNeedsReview");
+        // A file with no retail match is Unmatched (stays in place, retried later), not a review: Needs Review is for matches the Engine is unsure about.
+        var needsReview = rows.Any(row => row.ReviewCount > 0 || row.IdentityState is "QidNoMatch" or "QidNeedsReview" or "RetailMatchedNeedsReview");
         // A file's own intake failure always counts. Any other failure counts only when it is no older than the group's
         // newest file: a group spans every intake (there are no runs), so a newer episode supersedes an old failure on
         // another one, while a movie whose last step failed still shows it.
@@ -1537,7 +1538,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                                            AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL)
                                  OR (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
                                      ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1)
-                                    IN ('RetailNoMatch','QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
+                                    IN ('QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
                             THEN 1 ELSE 0 END AS NeedsReview,
                        CASE WHEN EXISTS (SELECT 1 FROM media_inspection_holds mih WHERE mih.asset_id = ll.media_asset_id)
                             THEN 1 ELSE 0 END AS RowHold,
@@ -1604,7 +1605,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                                            AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL)
                                  OR (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
                                      ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1)
-                                    IN ('RetailNoMatch','QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
+                                    IN ('QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
                                  OR lfo.status IN ('failed_terminal','dead_lettered')
                             THEN 1 ELSE 0 END) = 1
                 -- A failure other than the file's own intake counts only when no older than the group's newest file.
