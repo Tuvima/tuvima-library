@@ -1,5 +1,5 @@
 {
-  "_comment": "The exact builds of FFmpeg, Tesseract and ExifTool the Library may fetch. A missing Required tool (FFmpeg) is fetched by itself at first-run setup and at Engine start-up while auto_install_required is true, and so is ExifTool while its own auto_install is true; everything else (Tesseract, a repair, Download again) starts only when a person presses the button in Settings. Every address must be https on github.com and every file must match its sha256, or it is refused. ExifTool comes from a release of the Library's own GitHub project holding unmodified copies of the official files (mirror-exiftool workflow); the Linux build needs Perl on the machine, and Docker images bring their own copy. FFmpeg and Tesseract are the same builds as tools/Download-FFmpeg.ps1 and tools/Download-Tesseract.ps1.",
+  "_comment": "The exact builds of FFmpeg, Tesseract and ExifTool the Library may fetch. A missing Required tool (FFmpeg) is fetched by itself at first-run setup and at Engine start-up while auto_install_required is true, and so is ExifTool while its own auto_install is true; Tesseract's setup program is downloaded by itself too while its own auto_install is true (the person still runs it); a repair or Download again starts only when a person presses the button in Settings. Every address must be https on github.com and every file must match its sha256, or it is refused. ExifTool comes from a release of the Library's own GitHub project holding unmodified copies of the official files (mirror-exiftool workflow); the Linux build needs Perl on the machine, and Docker images bring their own copy. FFmpeg and Tesseract are the same builds as tools/Download-FFmpeg.ps1 and tools/Download-Tesseract.ps1.",
 
   "auto_install_required": true,
 
@@ -16,6 +16,7 @@
   },
 
   "tesseract": {
+    "auto_install": true,
     "platform": "win-x64",
     "version": "5.4.0",
     "installer": {

@@ -542,12 +542,7 @@
     private async Task InstallOptionalToolAsync(ToolRequirementDto tool)
     {
         bool started;
-        try
-        {
-            started = tool.Kind == "ai_model"
-                ? (await ApiClient.StartAiModelDownloadAsync(tool.Id[ToolRequirementIds.AiModelPrefix.Length..])).Succeeded
-                : (await ApiClient.InstallToolAsync(tool.Id)).Success;
-        }
+        try { started = (await ApiClient.InstallToolAsync(tool.Id)).Success; }
         catch (Exception) { started = false; }
         if (started) Snackbar.Add($"Downloading {tool.Name}. Library finishes this in the background.", AppSeverity.Info);
         else Snackbar.Add($"The download of {tool.Name} could not start. You can try again from Settings, Tools and requirements.", AppSeverity.Warning);

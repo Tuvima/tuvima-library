@@ -50,7 +50,8 @@ public sealed class ToolAutoInstaller(
                      && tool.State == ToolRequirementStates.Missing
                      && tool.CanInstall
                      && (tool.Requirement == ToolRequirementLevels.Required
-                         || (tool.Id == ToolRequirementIds.ExifTool && downloads.ExifTool is { AutoInstall: true }))))
+                         || (tool.Id == ToolRequirementIds.ExifTool && downloads.ExifTool is { AutoInstall: true })
+                         || (tool.Id == ToolRequirementIds.Tesseract && downloads.Tesseract is { AutoInstall: true }))))
         {
             var result = await installer.StartAsync(tool.Id, ct).ConfigureAwait(false);
             switch (result.Outcome)
