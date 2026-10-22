@@ -134,6 +134,10 @@ public sealed record BackupTitle(
 /// <param name="Profiles">Profiles in scope.</param>
 /// <param name="DroppedRows">Rows left out because the catalogue row they pointed at no longer exists.</param>
 /// <param name="CorrectionRows">Rows of a person's own corrections on catalogue rows (a locked title field, a renamed chapter).</param>
+/// <param name="WithheldRows">
+/// Corrections and choices left out because they are on a withheld title (one a backup may not name). Not counted in
+/// <paramref name="DroppedRows"/>.
+/// </param>
 /// <param name="PortableValuesKeptMachineBound">
 /// Portable values that could not be read with this computer's key (for example the key is gone), so they were kept as
 /// they are and only work on this computer.
@@ -149,7 +153,8 @@ public sealed record BackupExportContents(
     int Profiles,
     int DroppedRows,
     int CorrectionRows = 0,
-    int PortableValuesKeptMachineBound = 0);
+    int PortableValuesKeptMachineBound = 0,
+    int WithheldRows = 0);
 
 /// <summary>
 /// An export of configuration and personal state, with personal state keyed by recognition data.

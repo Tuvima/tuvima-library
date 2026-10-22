@@ -20,6 +20,7 @@ public sealed class PersonalStateBackupRepository
 
     private readonly IDatabaseConnection _db;
     private readonly IBackupPortableValueCodec? _portableValues;
+    private readonly Func<CatalogueTarget, byte[], bool>? _isWithheld;
 
     /// <param name="db">The data store.</param>
     /// <param name="portableValues">
@@ -29,6 +30,13 @@ public sealed class PersonalStateBackupRepository
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _portableValues = portableValues;
+    }
+
+    /// <summary>A test seam: <paramref name="isWithheld"/> marks titles as withheld (see <see cref="TitleRecognitionReader"/>).</summary>
+    internal PersonalStateBackupRepository(IDatabaseConnection db, IBackupPortableValueCodec? portableValues, Func<CatalogueTarget, byte[], bool>? isWithheld)
+        : this(db, portableValues)
+    {
+        _isWithheld = isWithheld;
     }
 
     /// <summary>
@@ -47,7 +55,7 @@ public sealed class PersonalStateBackupRepository
         ArgumentNullException.ThrowIfNull(scope);
         using var connection = _db.CreateConnection();
         using var transaction = connection.BeginTransaction(deferred: true);
-        var export = Build(connection, transaction, scope, includeConfiguration: !scope.IsProfile, _portableValues, afterSnapshotStarted, ct);
+        var export = Build(connection, transaction, scope, includeConfiguration: !scope.IsProfile, _portableValues, _isWithheld, afterSnapshotStarted, ct);
         transaction.Commit();
         return export;
     }
@@ -108,14 +116,16 @@ public sealed class PersonalStateBackupRepository
         BackupScope scope,
         bool includeConfiguration,
         IBackupPortableValueCodec? portableValues,
+        Func<CatalogueTarget, byte[], bool>? isWithheld,
         Action? afterSnapshotStarted,
         CancellationToken ct)
     {
         var live = ReadLiveStructure(connection, transaction);
         afterSnapshotStarted?.Invoke();
-        var book = new TitleBook(new TitleRecognitionReader(connection, transaction));
+        var book = new TitleBook(new TitleRecognitionReader(connection, transaction, isWithheld));
         var tables = new List<BackupExportTable>();
         var dropped = 0;
+        var withheld = 0;
         var keptMachineBound = 0;
 
         var rules = (includeConfiguration ? BackupTableClassification.OfKind(BackupDataKind.Configuration) : [])
@@ -134,7 +144,7 @@ public sealed class PersonalStateBackupRepository
                 continue;
             }
 
-            tables.Add(ExportTable(connection, transaction, rule, liveColumns, scope, book, rule.KeepWhere, portableValues, ref dropped, ref keptMachineBound, ct));
+            tables.Add(ExportTable(connection, transaction, rule, liveColumns, scope, book, rule.KeepWhere, portableValues, ref dropped, ref withheld, ref keptMachineBound, ct));
         }
 
         // A person's own choices: on catalogue rows, and on the rows of a configuration table that a keep condition leaves
@@ -147,7 +157,7 @@ public sealed class PersonalStateBackupRepository
         {
             ct.ThrowIfCancellationRequested();
             if (live.TryGetValue(rule.Table, out var liveColumns)
-                && ExportChoices(connection, transaction, rule, liveColumns, scope, book, ref dropped, ct) is { } choiceTable)
+                && ExportChoices(connection, transaction, rule, liveColumns, scope, book, ref dropped, ref withheld, ct) is { } choiceTable)
             {
                 choices.Add(choiceTable);
             }
@@ -165,7 +175,7 @@ public sealed class PersonalStateBackupRepository
                     continue;
                 }
 
-                var table = ExportTable(connection, transaction, rule, liveColumns, scope, book, rule.CorrectionWhere, null, ref dropped, ref keptMachineBound, ct);
+                var table = ExportTable(connection, transaction, rule, liveColumns, scope, book, rule.CorrectionWhere, null, ref dropped, ref withheld, ref keptMachineBound, ct);
                 if (table.Rows.Count > 0)
                 {
                     corrections.Add(table);
@@ -185,7 +195,8 @@ public sealed class PersonalStateBackupRepository
             CountProfiles(connection, transaction, scope),
             dropped,
             corrections.Sum(table => table.Rows.Count),
-            keptMachineBound);
+            keptMachineBound,
+            withheld);
         return new BackupExport(tables, choices, book.Titles, contents, corrections);
     }
 
@@ -199,6 +210,7 @@ public sealed class PersonalStateBackupRepository
         string? predicate,
         IBackupPortableValueCodec? portableValues,
         ref int dropped,
+        ref int withheld,
         ref int keptMachineBound,
         CancellationToken ct)
     {
@@ -285,10 +297,20 @@ public sealed class PersonalStateBackupRepository
                     raw[i] = reader.IsDBNull(i) ? null : reader.GetValue(i);
                 }
 
+                var mark = book.Mark();
                 var row = ConvertRow(rule.Table, raw, references, nullableReferences, kindIndex, stripped, book);
                 if (row is null)
                 {
+                    book.Rollback(mark);
                     dropped++;
+                    continue;
+                }
+
+                // A person's correction on a withheld title is not kept (and the title is not written for it).
+                if (rule.Kind == BackupDataKind.Catalogue && book.TouchesWithheld(row))
+                {
+                    book.Rollback(mark);
+                    withheld++;
                     continue;
                 }
 
@@ -490,13 +512,16 @@ public sealed class PersonalStateBackupRepository
         BackupScope scope,
         TitleBook book,
         ref int dropped,
+        ref int withheld,
         CancellationToken ct)
     {
-        var target = ChoiceTarget(rule.Table);
+        // The choice belongs to the row itself, or to the catalogue row a column names (a View item's metadata row).
+        var target = rule.ChoiceRowReference?.Target ?? ChoiceTarget(rule.Table);
+        var rowColumn = rule.ChoiceRowReference?.Column ?? "id";
         var byName = liveColumns.ToDictionary(column => column.Name, StringComparer.OrdinalIgnoreCase);
-        if (!byName.ContainsKey("id"))
+        if (!byName.ContainsKey(rowColumn))
         {
-            throw new InvalidOperationException($"Backup rule for '{rule.Table}' has choices but the table has no id column.");
+            throw new InvalidOperationException($"Backup rule for '{rule.Table}' has choices but the table has no {rowColumn} column.");
         }
 
         foreach (var column in rule.ChoiceColumns.Where(column => !byName.ContainsKey(column)))
@@ -558,7 +583,7 @@ public sealed class PersonalStateBackupRepository
         }
 
         command.CommandText =
-            $"SELECT {string.Join(", ", new[] { "id" }.Concat(choiceColumns).Select(Quote))} FROM {Quote(rule.Table)}" +
+            $"SELECT {string.Join(", ", new[] { rowColumn }.Concat(choiceColumns).Select(Quote))} FROM {Quote(rule.Table)}" +
             (where.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", where));
 
         var rows = new List<IReadOnlyList<BackupValue>>();
@@ -594,6 +619,7 @@ public sealed class PersonalStateBackupRepository
                 continue;
             }
 
+            var mark = book.Mark();
             var key = book.Resolve(target, null, id);
             if (key is null)
             {
@@ -603,12 +629,20 @@ public sealed class PersonalStateBackupRepository
             var converted = ConvertRow(rule.Table, values, references, nullableReferences, -1, [], book);
             if (converted is null)
             {
+                book.Rollback(mark);
                 dropped++;
                 continue;
             }
 
             var row = new List<BackupValue>(values.Length + 1) { BackupValue.FromTitleRef(key) };
             row.AddRange(converted);
+            if (book.TouchesWithheld(row))
+            {
+                book.Rollback(mark);
+                withheld++;
+                continue;
+            }
+
             rows.Add(row);
         }
 
@@ -728,6 +762,8 @@ public sealed class PersonalStateBackupRepository
         private readonly TitleRecognitionReader _reader;
         private readonly Dictionary<(CatalogueTarget Target, string Id), string?> _keys = [];
         private readonly List<BackupTitle> _titles = [];
+        private readonly List<(CatalogueTarget Target, string Id)> _titleCacheKeys = [];
+        private readonly HashSet<string> _withheldKeys = new(StringComparer.Ordinal);
 
         public TitleBook(TitleRecognitionReader reader)
         {
@@ -735,6 +771,25 @@ public sealed class PersonalStateBackupRepository
         }
 
         public IReadOnlyList<BackupTitle> Titles => _titles;
+
+        /// <summary>The number of titles written so far, to roll back to if a row turns out not to be kept.</summary>
+        public int Mark() => _titles.Count;
+
+        /// <summary>Forgets the titles added since <paramref name="mark"/>, so a row that is left out does not leave its titles behind.</summary>
+        public void Rollback(int mark)
+        {
+            for (var i = _titles.Count - 1; i >= mark; i--)
+            {
+                _keys.Remove(_titleCacheKeys[i]);
+                _withheldKeys.Remove(_titles[i].Key);
+                _titles.RemoveAt(i);
+                _titleCacheKeys.RemoveAt(i);
+            }
+        }
+
+        /// <summary>Whether a row refers to a withheld title.</summary>
+        public bool TouchesWithheld(IEnumerable<BackupValue> row) =>
+            _withheldKeys.Count > 0 && row.OfType<BackupValue.TitleRef>().Any(reference => _withheldKeys.Contains(reference.Key));
 
         /// <summary>The key of the title for a catalogue row, or null when the row no longer exists.</summary>
         public string? Resolve(CatalogueTarget target, string? kind, byte[] id)
@@ -761,6 +816,11 @@ public sealed class PersonalStateBackupRepository
             {
                 key = "t" + (_titles.Count + 1).ToString(CultureInfo.InvariantCulture);
                 _titles.Add(title with { Key = key });
+                _titleCacheKeys.Add(cacheKey);
+                if (_reader.IsWithheld(target, id))
+                {
+                    _withheldKeys.Add(key);
+                }
             }
 
             _keys[cacheKey] = key;

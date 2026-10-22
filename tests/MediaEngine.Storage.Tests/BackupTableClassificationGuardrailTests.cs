@@ -65,6 +65,7 @@ public sealed class BackupTableClassificationGuardrailTests
                     .Concat(rule.ChoiceColumns)
                     .Concat(rule.ChoiceGatedBy.SelectMany(gate => new[] { gate.Column, gate.Flag }))
                     .Concat(rule.PortableColumns)
+                    .Concat(rule.ChoiceRowReference is null ? [] : [rule.ChoiceRowReference.Column])
                     .Concat(rule.ExcludedJsonProperties.Select(property => property.Column))
                     .Concat(rule.OwnerColumn is null ? [] : [rule.OwnerColumn]);
                 foreach (var column in named.Where(column => !columns.Contains(column)))
@@ -195,6 +196,20 @@ public sealed class BackupTableClassificationGuardrailTests
             "Choice columns (a person's own choices on a catalogue row) belong to Catalogue tables, or Configuration tables that keep only some rows: " + string.Join(", ", offenders));
         Assert.Contains(BackupTableClassification.Rules.Values, rule => rule.Table == "local_items" && rule.ChoiceColumns.Contains("favorite"));
         Assert.Contains(BackupTableClassification.Rules.Values, rule => rule.Table == "collections" && rule.ChoiceColumns.Contains("is_enabled"));
+    }
+
+    [Fact]
+    public void ChoiceRowReference_IsOnlyAllowedOnRulesWithChoiceColumns()
+    {
+        var offenders = BackupTableClassification.Rules.Values
+            .Where(rule => rule.ChoiceRowReference is not null && rule.ChoiceColumns.Count == 0)
+            .Select(rule => rule.Table)
+            .ToList();
+
+        Assert.True(offenders.Count == 0, "A choice row reference needs choice columns: " + string.Join(", ", offenders));
+        Assert.Contains(
+            BackupTableClassification.Rules.Values,
+            rule => rule.Table == "local_item_metadata" && rule.ChoiceRowReference?.Column == "item_id");
     }
 
     [Fact]

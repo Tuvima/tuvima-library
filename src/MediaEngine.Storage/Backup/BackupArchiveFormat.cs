@@ -245,6 +245,7 @@ public static class BackupArchiveFormat
         writer.WriteNumber("dropped_rows", contents.DroppedRows);
         writer.WriteNumber("correction_rows", contents.CorrectionRows);
         writer.WriteNumber("portable_values_kept_machine_bound", contents.PortableValuesKeptMachineBound);
+        writer.WriteNumber("withheld_rows", contents.WithheldRows);
         writer.WriteEndObject();
     }
 
@@ -759,7 +760,8 @@ public static class BackupArchiveFormat
             RequiredInt(root, "profiles"),
             RequiredInt(root, "dropped_rows"),
             RequiredInt(root, "correction_rows"),
-            RequiredInt(root, "portable_values_kept_machine_bound"));
+            RequiredInt(root, "portable_values_kept_machine_bound"),
+            RequiredInt(root, "withheld_rows"));
     }
 
     private static string RequiredString(JsonElement element, string name) =>

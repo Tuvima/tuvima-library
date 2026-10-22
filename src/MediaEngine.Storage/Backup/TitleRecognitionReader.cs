@@ -16,11 +16,19 @@ internal sealed class TitleRecognitionReader
 
     private readonly SqliteConnection _connection;
     private readonly SqliteTransaction? _transaction;
+    private readonly Func<CatalogueTarget, byte[], bool>? _isWithheld;
 
     public TitleRecognitionReader(SqliteConnection connection, SqliteTransaction? transaction)
+        : this(connection, transaction, null)
+    {
+    }
+
+    /// <summary>A test seam: <paramref name="isWithheld"/> marks titles as withheld, as the adult-video libraries will be.</summary>
+    internal TitleRecognitionReader(SqliteConnection connection, SqliteTransaction? transaction, Func<CatalogueTarget, byte[], bool>? isWithheld)
     {
         _connection = connection ?? throw new ArgumentNullException(nameof(connection));
         _transaction = transaction;
+        _isWithheld = isWithheld;
     }
 
     /// <summary>
@@ -45,7 +53,7 @@ internal sealed class TitleRecognitionReader
             _ => throw new ArgumentOutOfRangeException(nameof(target), target, "Unknown catalogue target."),
         };
 
-        return title is null ? null : IsWithheldTitle(target, id) ? Withhold(title) : title;
+        return title is null ? null : IsWithheld(target, id) ? Withhold(title) : title;
     }
 
     /// <summary>
@@ -95,14 +103,9 @@ internal sealed class TitleRecognitionReader
     /// <summary>
     /// Whether a title must not carry a name, parent name or year in a backup. Today nothing is withheld; this is
     /// wired to the adult-video libraries when Videos Wave 3 merges, so such a title appears only as ids and
-    /// fingerprints.
+    /// fingerprints, and a person's corrections and choices on it are not kept.
     /// </summary>
-    private static bool IsWithheldTitle(CatalogueTarget target, byte[] id)
-    {
-        _ = target;
-        _ = id;
-        return false;
-    }
+    public bool IsWithheld(CatalogueTarget target, byte[] id) => _isWithheld?.Invoke(target, id) ?? false;
 
     private static BackupTitle Withhold(BackupTitle title) =>
         title with { Name = null, ParentName = null, Year = null };

@@ -104,7 +104,7 @@ public static partial class BackupTableClassification
         Catalogue("editions", "Editions of a title; rebuilt by a rescan."),
         Catalogue("media_assets", "The files themselves; rebuilt by a rescan."),
         Catalogue("media_asset_chapters", "Chapters read from a file."),
-        Catalogue("media_asset_coverage", "Which part of a work a file covers."),
+        Catalogue("media_asset_coverage", "Which part of a work a file covers; rows a person set by hand (which episodes a file covers) are kept as corrections, the ones worked out from the file name or chapters are rebuilt.", correctionWhere: "source = 'manual'", refs: [Asset("asset_id"), Work("work_id")]),
         Catalogue("media_artwork_writeback", "Artwork write-back state for files."),
         Catalogue("media_inspection_holds", "Inspection holds on files."),
         Catalogue("playback_inspection_cache", "Cached file inspection results."),
@@ -131,16 +131,16 @@ public static partial class BackupTableClassification
         Catalogue("artwork_assets", "Artwork files known to the Library."),
         Catalogue("artwork_asset_context", "Where each artwork file is used."),
         Catalogue("artwork_asset_search", "Search index over artwork."),
-        Catalogue("entity_artwork_links", "Which artwork belongs to which title or person. A cover a person picked from a provider is kept, found again by the artwork's provider and source address; uploads are not kept.", correctionWhere: "is_user_override = 1", refs: [Other("entity_id"), Artwork("artwork_asset_id")]),
-        Catalogue("entity_assets", "Images attached to titles and people. A cover a person chose from a provider is kept, found again by provider and image address; uploads are not kept.", correctionWhere: "is_user_override = 1 AND (source_provider IS NULL OR source_provider <> 'user_upload') AND image_url LIKE 'http%'", refs: [Other("entity_id")], excluded: ["id", "local_image_path", "local_image_path_s", "local_image_path_m", "local_image_path_l", "local_image_path_t", "is_locally_exported", "is_preferred_exported"]),
+        Catalogue("entity_artwork_links", "Which artwork belongs to which title or person. A cover a person picked from a provider is kept, found again by the artwork's provider and source address; uploads are not kept.", correctionWhere: "is_user_override = 1 AND artwork_asset_id IN (SELECT id FROM artwork_assets WHERE COALESCE(source_provider, '') <> 'user_upload' COLLATE NOCASE AND (NULLIF(TRIM(source_url), '') IS NOT NULL OR NULLIF(TRIM(provider_reference), '') IS NOT NULL))", refs: [Other("entity_id"), Artwork("artwork_asset_id")]),
+        Catalogue("entity_assets", "Images attached to titles and people. A cover a person chose from a provider is kept, found again by provider and image address; uploads are not kept.", correctionWhere: "is_user_override = 1 AND COALESCE(source_provider, '') <> 'user_upload' COLLATE NOCASE AND image_url LIKE 'http%'", refs: [Other("entity_id")], excluded: ["id", "local_image_path", "local_image_path_s", "local_image_path_m", "local_image_path_l", "local_image_path_t", "is_locally_exported", "is_preferred_exported"]),
         Catalogue("image_cache", "Cached downloaded images."),
         Catalogue("image_cache_sources", "Where cached images came from."),
         Catalogue("character_portraits", "Character portraits."),
         Catalogue("character_performer_links", "Which performer plays which character."),
         Catalogue("fictional_entities", "Characters, places and other fictional things from Wikidata."),
         Catalogue("fictional_entity_work_links", "Where a fictional thing appears."),
-                Catalogue("narrative_roots", "Universes and franchises from Wikidata."),
-                Catalogue("persons", "Creators and performers; rebuilt from files and providers, but a person's display changes are kept.", choices: ["display_overrides_json"]),
+        Catalogue("narrative_roots", "Universes and franchises from Wikidata."),
+        Catalogue("persons", "Creators and performers; rebuilt from files and providers, but a person's display changes are kept.", choices: ["display_overrides_json"]),
         Catalogue("person_aliases", "Pseudonyms of people."),
         Catalogue("person_group_members", "Members of bands and groups."),
         Catalogue("person_media_links", "Which person worked on which file."),
@@ -160,7 +160,7 @@ public static partial class BackupTableClassification
         Catalogue("local_files", "Files behind View items."),
         Catalogue("local_file_sources", "Where View files were found."),
         Catalogue("local_item_files", "Which files belong to which View item."),
-        Catalogue("local_item_metadata", "Metadata read from View items."),
+        Catalogue("local_item_metadata", "Metadata read from View items; a place a person set on a photo and a description they wrote are kept as choices on the item (never the embedded coordinates, camera or lens details, or document text).", choices: ["description", "location_user_override", "latitude", "longitude", "location_name", "location_city", "location_region", "location_country", "location_country_code", "location_source"], gatedBy: [("latitude", "location_user_override"), ("longitude", "location_user_override"), ("location_name", "location_user_override"), ("location_city", "location_user_override"), ("location_region", "location_user_override"), ("location_country", "location_user_override"), ("location_country_code", "location_user_override"), ("location_source", "location_user_override")], choiceRow: LocalItem("item_id")),
         Catalogue("local_item_annotations", "Labels and detections found on View items; a name a person gave, or a detection they reviewed, is kept (the machine's own details are not).", correctionWhere: "source = 'user_assignment' OR reviewed_at IS NOT NULL", refs: [LocalItem("item_id")], excluded: ["confidence", "model_name", "model_version", "provenance_json"]),
         Catalogue("local_item_search", "Search index over View items."),
         Catalogue("local_item_search_keys", "Row numbers linking View items to their search index entries."),
@@ -316,10 +316,10 @@ public static partial class BackupTableClassification
         ExcludedJsonProperty[]? excludedJson = null,
         string[]? choices = null,
         string[]? portable = null) =>
-        new(table, BackupDataKind.Configuration, reason, refs ?? [], excluded ?? [], null, choices ?? [], null, [], keepWhere, excludedJson ?? [], portable ?? []);
+        new(table, BackupDataKind.Configuration, reason, refs ?? [], excluded ?? [], null, choices ?? [], null, [], null, keepWhere, excludedJson ?? [], portable ?? []);
 
     private static BackupTableRule Personal(string table, string? owner, string reason, CatalogueReference[] refs, string[]? excluded = null) =>
-        new(table, BackupDataKind.PersonalState, reason, refs, excluded ?? [], owner, [], null, [], null, [], []);
+        new(table, BackupDataKind.PersonalState, reason, refs, excluded ?? [], owner, [], null, [], null, null, [], []);
 
     private static BackupTableRule Catalogue(
         string table,
@@ -328,11 +328,12 @@ public static partial class BackupTableClassification
         (string Column, string Flag)[]? gatedBy = null,
         string? correctionWhere = null,
         CatalogueReference[]? refs = null,
-        string[]? excluded = null) =>
-        new(table, BackupDataKind.Catalogue, reason, refs ?? [], excluded ?? [], null, choices ?? [], correctionWhere, gatedBy ?? [], null, [], []);
+        string[]? excluded = null,
+        CatalogueReference? choiceRow = null) =>
+        new(table, BackupDataKind.Catalogue, reason, refs ?? [], excluded ?? [], null, choices ?? [], correctionWhere, gatedBy ?? [], choiceRow, null, [], []);
 
     private static BackupTableRule Transient(string table, string reason) =>
-        new(table, BackupDataKind.Transient, reason, [], [], null, [], null, [], null, [], []);
+        new(table, BackupDataKind.Transient, reason, [], [], null, [], null, [], null, null, [], []);
 
     private static CatalogueReference Work(string column) => new(column, CatalogueTarget.Work);
 

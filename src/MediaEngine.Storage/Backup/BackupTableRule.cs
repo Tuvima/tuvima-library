@@ -72,6 +72,11 @@ public sealed record ExcludedJsonProperty(string Column, string Property);
 /// Choice columns that count only while a sibling flag column is set: the value is written only when the flag is
 /// non-zero, otherwise as NULL (a value the Engine read itself is not a choice). Both columns must be in <see cref="ChoiceColumns"/>.
 /// </param>
+/// <param name="ChoiceRowReference">
+/// For rules with <see cref="ChoiceColumns"/>: the column whose catalogue row the choice belongs to, when that is not
+/// the row's own id (for example the choices on a View item's metadata row belong to the item named by <c>item_id</c>).
+/// Null means the row's own <c>id</c>, with the table's own target.
+/// </param>
 /// <param name="KeepWhere">
 /// Optional SQL predicate (over the table's own columns) for tables whose rows mix kinds; only matching rows are kept.
 /// Null means every row is kept. Always null for Catalogue and Transient.
@@ -94,6 +99,7 @@ public sealed record BackupTableRule(
     IReadOnlyList<string> ChoiceColumns,
     string? CorrectionWhere,
     IReadOnlyList<(string Column, string Flag)> ChoiceGatedBy,
+    CatalogueReference? ChoiceRowReference,
     string? KeepWhere,
     IReadOnlyList<ExcludedJsonProperty> ExcludedJsonProperties,
     IReadOnlyList<string> PortableColumns);
