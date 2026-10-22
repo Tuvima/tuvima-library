@@ -94,7 +94,8 @@
                 <header class="library-folders__detail-header">
                     <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
                     <div>
-                        <h3 id="library-import-title">Import folder</h3>
+                        @* On its own type page the Settings title already says "Import folder", so the heading is kept for screen readers only. *@
+                        <h3 id="library-import-title" class="@(ShowTypeNav ? null : "sr-only")">Import folder</h3>
                         <p>One folder where new media can be dropped. Apps like Sonarr and Radarr can save finished downloads here too, and Library files them into your libraries.</p>
                     </div>
                     @if (!ImportStatus.Configured)
