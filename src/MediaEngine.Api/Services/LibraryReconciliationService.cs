@@ -55,6 +55,7 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
     private readonly MediaEngine.Ingestion.Contracts.IImportFolderService? _importFolders;
     private readonly MediaEngine.Ingestion.Services.ImportFilingJournal? _importJournal;
     private readonly ScheduledTaskRunner _runner;
+    private readonly IFileMoveInProgress? _moveInProgress;
     private readonly ILogger<LibraryReconciliationService> _logger;
 
     /// <summary>Tuvima's own working folder under the library root (staging, caches, images, database).</summary>
@@ -79,8 +80,10 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
         ScheduledTaskRunner runner,
         ILogger<LibraryReconciliationService> logger,
         MediaEngine.Ingestion.Contracts.IImportFolderService? importFolders = null,
-        MediaEngine.Ingestion.Services.ImportFilingJournal? importJournal = null)
+        MediaEngine.Ingestion.Services.ImportFilingJournal? importJournal = null,
+        IFileMoveInProgress? moveInProgress = null)
     {
+        _moveInProgress = moveInProgress;
         _runner = runner;
         _importFolders = importFolders;
         _importJournal = importJournal;
@@ -192,6 +195,15 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
 
             if (File.Exists(asset.FilePathRoot))
             {
+                continue;
+            }
+
+            // A file Library is moving right now is not missing: the move lane owns it until the move is checked or undone.
+            if (await HasMoveInProgressAsync(asset.Id, ct).ConfigureAwait(false))
+            {
+                _logger.LogInformation(
+                    "Reconciliation skipped asset {Id}: its file is being moved and the move brings its record up to date",
+                    asset.Id);
                 continue;
             }
 
@@ -443,7 +455,7 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
         foreach (var asset in vaultAssets)
         {
             ct.ThrowIfCancellationRequested();
-            if (File.Exists(asset.FilePathRoot))
+            if (File.Exists(asset.FilePathRoot) || await HasMoveInProgressAsync(asset.Id, ct).ConfigureAwait(false))
             {
                 continue;
             }
@@ -460,6 +472,9 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
             await _reviewRepo.DismissAllByEntityAsync(asset.Id, ct).ConfigureAwait(false);
         }
     }
+
+    private async Task<bool> HasMoveInProgressAsync(Guid assetId, CancellationToken ct) =>
+        _moveInProgress is not null && await _moveInProgress.HasMoveForAssetAsync(assetId, ct).ConfigureAwait(false);
 
     internal static bool IsConfiguredSourceAvailable(string sourcePath)
     {

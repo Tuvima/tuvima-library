@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0037 view_kinds_and_added_by).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0038 batched_writeback).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1090,6 +1090,16 @@ CREATE TABLE file_hash_cache (
     cached_at     TEXT    NOT NULL
 );
 
+CREATE TABLE file_write_runs (
+    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    anchor_at TEXT NOT NULL,
+    last_run_started_at TEXT,
+    last_run_finished_at TEXT,
+    last_run_written INTEGER,
+    last_run_failed INTEGER,
+    last_run_kept INTEGER
+);
+
 CREATE TABLE folder_organise_log (
   operation_id BLOB NOT NULL,
   source_id    BLOB NOT NULL,
@@ -1460,17 +1470,31 @@ CREATE TABLE media_editor_preferred_artwork_commits (
 );
 
 CREATE TABLE media_file_write_intents (
-    asset_id BLOB NOT NULL PRIMARY KEY REFERENCES media_assets(id) ON DELETE CASCADE,
+    id BLOB NOT NULL PRIMARY KEY,
+    target_kind TEXT NOT NULL CHECK (target_kind IN ('media_asset', 'view_item')),
+    asset_id BLOB REFERENCES media_assets(id) ON DELETE CASCADE,
+    local_item_id BLOB REFERENCES local_items(id) ON DELETE CASCADE,
     generation INTEGER NOT NULL DEFAULT 1,
     operation_token TEXT NOT NULL,
     trigger TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending'
-        CHECK(status IN ('pending','writing','verified','blocked','unsupported','failed')),
+        CHECK (status IN ('pending', 'writing', 'verified', 'blocked', 'unsupported', 'failed')),
     attempts INTEGER NOT NULL DEFAULT 0,
     lease_expires_at TEXT,
     last_error TEXT,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    completed_at TEXT,
+    move_step TEXT CHECK (move_step IS NULL OR move_step IN ('requested', 'planned', 'moved', 'checked')),
+    move_source_path TEXT,
+    move_target_path TEXT,
+    move_source_hash TEXT,
+    move_generation INTEGER,
+    next_attempt_at TEXT,
+    recovery_attempts INTEGER NOT NULL DEFAULT 0,
+    claimed_run_id TEXT,
+    CHECK ((target_kind = 'media_asset' AND asset_id IS NOT NULL AND local_item_id IS NULL)
+        OR (target_kind = 'view_item' AND local_item_id IS NOT NULL AND asset_id IS NULL))
 );
 
 CREATE TABLE media_inspection_holds (
@@ -3650,8 +3674,9 @@ CREATE INDEX ix_local_items_space_timeline
 
 CREATE INDEX ix_media_editor_commits_asset ON media_editor_commits(asset_id, committed_at);
 
-CREATE INDEX ix_media_file_write_intents_dispatch
-    ON media_file_write_intents(status, lease_expires_at, updated_at);
+CREATE INDEX ix_media_file_write_intents_dispatch ON media_file_write_intents (status, lease_expires_at, updated_at);
+
+CREATE INDEX ix_media_file_write_intents_move ON media_file_write_intents (move_step) WHERE move_step IS NOT NULL;
 
 CREATE INDEX ix_media_inspection_holds_tool ON media_inspection_holds(tool_id, held_at);
 
@@ -3745,6 +3770,10 @@ CREATE UNIQUE INDEX ux_identity_jobs_entity_pass_active
 CREATE UNIQUE INDEX ux_local_item_single_primary
     ON local_item_files(item_id)
     WHERE role = 'primary';
+
+CREATE UNIQUE INDEX ux_media_file_write_intents_asset ON media_file_write_intents (asset_id) WHERE asset_id IS NOT NULL;
+
+CREATE UNIQUE INDEX ux_media_file_write_intents_local_item ON media_file_write_intents (local_item_id) WHERE local_item_id IS NOT NULL;
 
 CREATE UNIQUE INDEX ux_media_operations_idempotency
 ON media_operations(idempotency_key);

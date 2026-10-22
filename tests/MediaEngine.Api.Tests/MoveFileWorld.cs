@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.FileWrites;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
@@ -20,7 +21,7 @@ namespace MediaEngine.Api.Tests;
 /// folder; the real organiser (naming policy, shared mutation policy with the real merge ledger, file mover, companion files and
 /// stored path); and the real durable file queue drained by the real dispatcher. Only the tag writer is a spy.
 /// </summary>
-internal sealed class MoveFileWorld
+internal sealed class MoveFileWorld : IDisposable
 {
     public MoveFileWorld(DatabaseConnection database, string root)
     {
@@ -46,7 +47,8 @@ internal sealed class MoveFileWorld
         Organizer = CreateOrganizer(new FileOrganizer(NullLogger<FileOrganizer>.Instance, HashCache));
         Intents = new MediaFileWriteIntentRepository(database);
         WriteBack = new SpyWriteBack();
-        Dispatcher = new MediaFileWriteIntentDispatcher(Intents, WriteBack, Organizer, NullLogger<MediaFileWriteIntentDispatcher>.Instance);
+        Configuration = new ConfigurationDirectoryLoader(Path.Combine(root, "config"));
+        Scheduler = CreateScheduler(Organizer);
     }
 
     public DatabaseConnection Database { get; }
@@ -60,7 +62,24 @@ internal sealed class MoveFileWorld
     public AutoOrganizeService Organizer { get; }
     public MediaFileWriteIntentRepository Intents { get; }
     public SpyWriteBack WriteBack { get; }
-    public MediaFileWriteIntentDispatcher Dispatcher { get; }
+    public ConfigurationDirectoryLoader Configuration { get; }
+    public FileWriteScheduler Scheduler { get; }
+
+    public void Dispose() => Configuration.Dispose();
+
+    /// <summary>The real scheduler over the real queue, with a tag writer that only records what it is asked to write.</summary>
+    public FileWriteScheduler CreateScheduler(IAutoOrganizeService organizer) => new(
+        Intents,
+        [new SpyMediaAssetWriter(WriteBack)],
+        CreateMover(organizer),
+        Configuration,
+        TimeProvider.System,
+        NullLogger<FileWriteScheduler>.Instance);
+
+    /// <summary>The crash-safe mover of the move lane over the given organiser.</summary>
+    public LibraryMoveRunner CreateMover(IAutoOrganizeService organizer) => new(
+        Intents, organizer, new MediaAssetRepository(Database), new AssetHasher(), Configuration, NullLogger<LibraryMoveRunner>.Instance,
+        new LibraryFolderResolver(new StaticMonitor(Options)));
 
     /// <summary>The real organiser over a file organiser of the test's choosing (one that fails a move, say).</summary>
     public AutoOrganizeService CreateOrganizer(IFileOrganizer fileOrganizer) => new(
@@ -92,16 +111,16 @@ internal sealed class MoveFileWorld
         await MergeLedger.UpsertAsync(new FolderOrganiseLogEntry(
             Guid.NewGuid(), Guid.NewGuid(), path, path + ".copy", FolderOrganiseOutcomes.Copied, DateTimeOffset.UtcNow));
 
-    /// <summary>Runs the durable file queue until it has nothing left to claim.</summary>
-    public async Task<int> DrainQueueAsync()
+    /// <summary>
+    /// Does everything waiting on the durable file list: the move lane first (library moves do not wait for the schedule), then one
+    /// write run, as Write now would. Returns whether anything was done.
+    /// </summary>
+    public async Task<bool> DrainQueueAsync(FileWriteScheduler? scheduler = null)
     {
-        var handled = 0;
-        while (await Dispatcher.DispatchOnceAsync())
-        {
-            handled++;
-        }
-
-        return handled;
+        scheduler ??= Scheduler;
+        var moved = await scheduler.RunMoveLaneAsync(CancellationToken.None);
+        var written = await scheduler.RunBatchAsync();
+        return moved || written;
     }
 
     public string StoredPath(Guid assetId)
@@ -173,6 +192,24 @@ internal sealed class MoveFileWorld
 
         public Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default) =>
             Task.FromResult(new AssetRefileOutcome(AssetRefileOutcomeKind.AlreadyFits, AssetRefileDisposition.AlreadyFits, string.Empty, null));
+    }
+
+    /// <summary>The media-file writer of the scheduler, over the recording tag writer.</summary>
+    internal sealed class SpyMediaAssetWriter(SpyWriteBack writeBack) : IFileWriteTargetWriter
+    {
+        public string TargetKind => MediaFileWriteIntentRepository.MediaAssetKind;
+
+        public async Task<IReadOnlyList<FileWriteResult>> WriteBatchAsync(IReadOnlyList<MediaFileWriteIntent> intents, CancellationToken ct)
+        {
+            var results = new List<FileWriteResult>();
+            foreach (var intent in intents)
+            {
+                results.Add(new FileWriteResult(
+                    intent.Id, await writeBack.WriteMetadataWithOutcomeAsync(intent.AssetId, intent.Trigger, ct)));
+            }
+
+            return results;
+        }
     }
 
     /// <summary>Records every tag write the queue asks for and says it was verified.</summary>

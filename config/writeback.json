@@ -4,6 +4,7 @@
   "write_on_manual_override": true,
   "write_on_universe_enrichment": true,
   "backup_before_write": false,
+  "run_interval_minutes": 60,
   "fields_to_write": "all",
   "exclude_fields": []
 }

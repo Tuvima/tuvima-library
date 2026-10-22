@@ -355,8 +355,9 @@ public static partial class MetadataEndpoints
             IMetadataClaimRepository claimRepo,
             ICanonicalValueRepository canonicalRepo,
             ISystemActivityRepository activityRepo,
-            IWriteBackService writeBack,
+            IFileWriteQueue fileWrites,
             IEventPublisher publisher,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
             if (request.Fields.Count == 0)
@@ -446,14 +447,16 @@ public static partial class MetadataEndpoints
                     updatedKeys.ToArray()),
                 ct);
 
-            // 5. Write-back: write manual overrides to the physical file.
+            // 5. Write-back: the override is already saved in Library; the file catches up on the next scheduled write run.
             try
             {
-                await writeBack.WriteMetadataAsync(entityId, "manual_override", ct);
+                await fileWrites.EnqueueAssetAsync(entityId, "manual_override", ct);
             }
-            catch
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // Non-fatal ? write-back failure should not prevent override success.
+                // Non-fatal: the override is saved, so a file that could not join the write list must not fail the request.
+                loggerFactory.CreateLogger("MetadataOverride").LogWarning(
+                    ex, "The file of {EntityId} could not be put on the write list after a manual override; its tags are not written until it is next changed.", entityId);
             }
 
             return Results.Ok(new MetadataOverrideResponse

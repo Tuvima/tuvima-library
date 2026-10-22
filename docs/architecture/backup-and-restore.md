@@ -257,6 +257,7 @@ None of these are kept.
 | `media_operations` | Media operation queue. |
 | `media_operation_events` | Media operation log. |
 | `media_file_write_intents` | Pending file write-back jobs. |
+| `file_write_runs` | When the file write-back schedule last ran. |
 | `encode_jobs` | Encode job queue. |
 | `alignment_jobs` | Book and audiobook alignment job queue. |
 | `adaptive_hls_packages` | Streaming copies prepared for playback. |

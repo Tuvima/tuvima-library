@@ -90,14 +90,7 @@ public sealed class WriteBackService : IWriteBackOutcomeService
         // Check trigger-specific flags. The "config_change" trigger is the
         // auto re-tag sweep — defaults to enabled (mirrors WriteOnAutoMatch)
         // because the user has just edited writeback-fields.json and clicked Apply.
-        var allowed = trigger switch
-        {
-            "auto_match" => config.WriteOnAutoMatch,
-            "manual_override" => config.WriteOnManualOverride,
-            "universe_enrichment" => config.WriteOnUniverseEnrichment,
-            "config_change" => config.WriteOnAutoMatch,
-            _ => config.Enabled,
-        };
+        var allowed = config.AllowsTrigger(trigger);
 
         if (!allowed)
         {
@@ -215,10 +208,12 @@ public sealed class WriteBackService : IWriteBackOutcomeService
             await tagger.WriteTagsAsync(asset.FilePathRoot, tags, ct);
             var readback = await tagger.VerifyTagsAsync(asset.FilePathRoot, tags, ct);
 
-            // A verified physical mutation changes the asset's reconciliation
-            // fingerprint. Refresh both durable identity and the watcher cache
-            // before reporting success so our own file event keeps this asset ID.
-            if (readback.IsVerified && _assetHasher is not null)
+            // A physical mutation changes the asset's reconciliation fingerprint,
+            // whether or not the read-back could prove it. Refresh both durable
+            // identity and the watcher cache before reporting the outcome so our
+            // own file event keeps this asset ID and the next run does not take
+            // Library's own write for a change made outside Library.
+            if (_assetHasher is not null)
             {
                 var fingerprint = await _assetHasher.ComputeAsync(asset.FilePathRoot, ct);
                 if (!await _assetRepo.UpdateContentHashAsync(assetId, fingerprint.Hex, ct))

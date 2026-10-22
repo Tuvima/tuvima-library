@@ -1231,6 +1231,35 @@ The Engine's durable work queue. Each file noticed by ingestion has one row with
 
 **Indices:** `idx_media_operations_entity` on `(entity_id)`, and for the live count `idx_media_operations_type_created` on `(operation_type, created_at)` and `idx_media_operations_type_status` on `(operation_type, status)`, so each second's look finds the files since the active period began, and the files still being worked on, without reading every intake row the Library has ever had.
 
+### media_file_write_intents (the file write to-do list)
+
+The durable to-do list for every write into a file (added by upgrade step `0038_batched_writeback`). A change is saved in Library at once and only adds or refreshes one row here; a scheduler works through the list in one pass every `run_interval_minutes` (`config/writeback.json`, 60 by default) or when an administrator chooses Write now. What a run writes is always built from Library's values at the moment of writing.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | Primary key |
+| `target_kind` | TEXT | `media_asset` or `view_item` |
+| `asset_id` | BLOB | FK -> `media_assets.id` (cascade); set only for `media_asset`. Unique, so a file has at most one waiting row |
+| `local_item_id` | BLOB | FK -> `local_items.id` (cascade); set only for `view_item`. Unique |
+| `generation` | INTEGER | Goes up with every newer change, so a write that finishes for an older generation never marks the newer one done |
+| `operation_token` | TEXT | Identifies the change that last touched the row |
+| `trigger` | TEXT | Why it was queued (`auto_match`, `manual_override`, `library_move`, `artwork`, `restore`, ...) |
+| `status` | TEXT | `pending`, `writing`, `verified`, `blocked`, `unsupported` or `failed` |
+| `attempts` / `lease_expires_at` / `last_error` | INTEGER / TEXT / TEXT | Claim attempts, when a claimed row may be claimed again (a stopped Engine's rows come back after this), and the last reason |
+| `created_at` / `updated_at` / `completed_at` | TEXT | UTC; `completed_at` is when the last write finished |
+| `move_step` | TEXT | A library move in progress: `requested`, `planned`, `moved` or `checked` (NULL when none). Moves run at once, not on the schedule, and a row with a move in progress is not written until the move is done. Each step is written before and after it happens (`planned` before the disk is touched, `moved` once the file is at its new place, `checked` once the stored path matches and the file was verified there); a second move asked for meanwhile keeps the first step and is planned again from the data store when the first is checked |
+| `move_source_path` / `move_target_path` / `move_source_hash` | TEXT | What a move was about to do, so a stop part-way can be finished or undone from what is on disk. Cleared when the move is done. A move given up as failed keeps them for diagnosis, but no longer counts as a move in progress. The old and new place of every row with a move in progress is the waiting mark: the folder watcher, the rescan and the daily missing-file check leave those files alone |
+| `move_generation` | INTEGER | The generation of the row when the move was planned. Finishing the move after a stop completes with it, so a change that arrived since is seen and the move is planned again from the data store |
+| `recovery_attempts` | INTEGER | How many starts or passes found a part-way move that could not be settled (a drive that is offline does not count); the move is given up as failed at a cap |
+| `next_attempt_at` | TEXT | UTC; when a failed or unsettled move is tried again (a minute, five minutes, half an hour, two hours, then failed). NULL means now |
+| `claimed_run_id` | TEXT | The write run that last claimed the row; a run never takes a row it already took, however many chunks it needs |
+
+**Indices:** unique partial indexes on `asset_id` and `local_item_id`, `ix_media_file_write_intents_dispatch` on `(status, lease_expires_at, updated_at)` and a partial index on `move_step`.
+
+### file_write_runs
+
+One row (`id = 1`) that remembers the schedule: `anchor_at` (when the scheduler first started, so the first interval counts from there), `last_run_started_at`, `last_run_finished_at`, and how many files the last run wrote (`last_run_written`), failed (`last_run_failed`) and kept in Library only (`last_run_kept`).
+
 ### ingestion_log
 
 One row per file processed through the ingestion pipeline.

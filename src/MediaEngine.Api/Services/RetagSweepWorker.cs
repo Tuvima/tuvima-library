@@ -7,6 +7,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Ingestion.Services;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services;
@@ -33,7 +34,8 @@ namespace MediaEngine.Api.Services;
 public sealed class RetagSweepWorker : BackgroundService
 {
     private readonly IMediaAssetRepository _assetRepo;
-    private readonly IWriteBackService _writeBackService;
+    private readonly IFileWriteQueue _fileWrites;
+    private readonly MediaFileWriteIntentRepository _intents;
     private readonly IReviewQueueRepository _reviewRepo;
     private readonly IConfigurationLoader _configLoader;
     private readonly IEventPublisher _eventPublisher;
@@ -49,7 +51,8 @@ public sealed class RetagSweepWorker : BackgroundService
 
     public RetagSweepWorker(
         IMediaAssetRepository assetRepo,
-        IWriteBackService writeBackService,
+        IFileWriteQueue fileWrites,
+        MediaFileWriteIntentRepository intents,
         IReviewQueueRepository reviewRepo,
         IConfigurationLoader configLoader,
         IEventPublisher eventPublisher,
@@ -59,7 +62,8 @@ public sealed class RetagSweepWorker : BackgroundService
     {
         ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(assetRepo);
-        ArgumentNullException.ThrowIfNull(writeBackService);
+        ArgumentNullException.ThrowIfNull(fileWrites);
+        ArgumentNullException.ThrowIfNull(intents);
         ArgumentNullException.ThrowIfNull(reviewRepo);
         ArgumentNullException.ThrowIfNull(configLoader);
         ArgumentNullException.ThrowIfNull(eventPublisher);
@@ -68,7 +72,8 @@ public sealed class RetagSweepWorker : BackgroundService
 
         _runner = runner;
         _assetRepo = assetRepo;
-        _writeBackService = writeBackService;
+        _fileWrites = fileWrites;
+        _intents = intents;
         _reviewRepo = reviewRepo;
         _configLoader = configLoader;
         _eventPublisher = eventPublisher;
@@ -124,7 +129,7 @@ public sealed class RetagSweepWorker : BackgroundService
 
     // ── Internals ──────────────────────────────────────────────────────────
 
-    private async Task<TaskRunResult> RunSweepAsync(CancellationToken ct)
+    internal async Task<TaskRunResult> RunSweepAsync(CancellationToken ct)
     {
         var settings = LoadSettings();
 
@@ -165,6 +170,10 @@ public sealed class RetagSweepWorker : BackgroundService
 
             _logger.LogInformation("RetagSweepWorker: processing batch of {Count} stale asset(s)", batch.Count);
 
+            // A file already waiting on the write list is left alone, so the sweep does not bump the same entry again and push it past
+            // the run that is about to write it (it will be written with the current tag settings anyway).
+            var waiting = await _intents.GetWaitingAssetIdsAsync([.. batch.Select(item => item.AssetId)], ct);
+
             foreach (var stale in batch)
             {
                 ct.ThrowIfCancellationRequested();
@@ -182,11 +191,17 @@ public sealed class RetagSweepWorker : BackgroundService
                     continue;
                 }
 
+                if (waiting.Contains(stale.AssetId))
+                {
+                    _logger.LogDebug("RetagSweepWorker: asset {Id} is already waiting on the write list; left alone", stale.AssetId);
+                    continue;
+                }
+
                 try
                 {
-                    await _writeBackService.WriteMetadataAsync(stale.AssetId, "config_change", ct);
-                    // A completed adapter call lacks complete metadata read-back;
-                    // it cannot resolve a failure review or count as verified.
+                    // The file joins the write list and is written on the next scheduled run. Queueing proves nothing about
+                    // the file itself, so it cannot resolve a failure review or count as verified.
+                    await _fileWrites.EnqueueAssetAsync(stale.AssetId, "config_change", ct);
                     totalCompletedUnverified++;
                 }
                 catch (OperationCanceledException)

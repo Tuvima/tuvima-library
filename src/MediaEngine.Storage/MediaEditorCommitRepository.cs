@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using Dapper;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Storage;
@@ -12,8 +14,14 @@ namespace MediaEngine.Storage;
 /// already resolved and reviewed. This is intentionally not an HTTP contract:
 /// provider lookup and catalogue validation belong before this write lock.
 /// </summary>
-public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
+public sealed class MediaEditorCommitRepository(IDatabaseConnection database, IConfigurationLoader? configuration = null)
 {
+    // Turning write-back off stops every write into a file, so a save adds nothing to the write list while it is off (the same rule as
+    // the queue every other change goes through). Without a configuration the default applies: write-back on.
+    private bool WriteBackEnabled() =>
+        (configuration?.LoadConfig<WriteBackConfiguration>(string.Empty, "writeback") ?? new WriteBackConfiguration())
+        .AllowsTrigger("editor_commit");
+
     /// <summary>
     /// Saves a bounded, server-verified TV plan as one unit. Every row is checked
     /// before any row is moved. A shared Edition can move only when all its assets
@@ -410,6 +418,7 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
             // Both artwork scopes may affect unselected sibling files. Persist
             // one durable retag intent per distinct affected file alongside the
             // identity/artwork transaction; pending never claims completion.
+            var queueFileWrites = WriteBackEnabled();
             var writebackAssetIds = ordered.Select(row => row.AssetId)
                 .Concat(normalizedStill?.ExpectedAffectedAssetIds ?? [])
                 .Concat(normalizedShared?.ExpectedAffectedAssets.Select(item => item.AssetId) ?? [])
@@ -422,29 +431,12 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                         writeback_attempts=0, writeback_next_retry_at=NULL
                     WHERE id=@assetId;
                     """, new { assetId, pendingHash = "editor:pending:" + tokenValue }, transaction);
-                // A library move still waiting for its file rename keeps its trigger: this save must not drop the rename.
-                connection.Execute("""
-                    INSERT INTO media_file_write_intents
-                        (asset_id, generation, operation_token, trigger, status, attempts,
-                         lease_expires_at, last_error, created_at, updated_at)
-                    VALUES (@assetId, 1, @tokenValue, 'editor_commit', 'pending', 0,
-                            NULL, NULL, @intentNow, @intentNow)
-                    ON CONFLICT(asset_id) DO UPDATE SET
-                        generation = media_file_write_intents.generation + 1,
-                        operation_token = excluded.operation_token,
-                        trigger = CASE
-                            WHEN media_file_write_intents.trigger = 'library_move'
-                                 AND media_file_write_intents.status IN ('pending', 'writing')
-                            THEN media_file_write_intents.trigger
-                            ELSE excluded.trigger END,
-                        status = 'pending', attempts = 0, lease_expires_at = NULL,
-                        last_error = NULL, updated_at = excluded.updated_at;
-                    """, new
+                // A library move still waiting for its file rename keeps its move step and trigger: this save must not drop the rename.
+                if (queueFileWrites)
                 {
-                    assetId,
-                    tokenValue,
-                    intentNow = DateTimeOffset.UtcNow.ToString("O")
-                }, transaction);
+                    MediaFileWriteIntentRepository.UpsertAsset(
+                        connection, transaction, assetId, "editor_commit", tokenValue, DateTimeOffset.UtcNow);
+                }
             }
 
             var first = ordered[0];
