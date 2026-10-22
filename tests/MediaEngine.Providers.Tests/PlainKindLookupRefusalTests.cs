@@ -35,6 +35,7 @@ public sealed class PlainKindLookupRefusalTests : IDisposable
     private const string OtherAudioLibraryId = "aaaaaaaa-0000-4000-8000-0000000000a1";
     private const string OtherReadingLibraryId = "aaaaaaaa-0000-4000-8000-0000000000b2";
     private const string BooksLibraryId = "aaaaaaaa-0000-4000-8000-0000000000c3";
+    private const string MusicLibraryId = "aaaaaaaa-0000-4000-8000-0000000000d4";
 
     private readonly string _tempRoot;
     private readonly DatabaseConnection _db;
@@ -81,7 +82,8 @@ public sealed class PlainKindLookupRefusalTests : IDisposable
         _libraries = new LibrariesOnlyLoader(
             Library(OtherAudioLibraryId, "Recordings", "other_audio", "Music", LibraryAreas.Listen),
             Library(OtherReadingLibraryId, "Loose books", "other_reading", "Books", LibraryAreas.Read),
-            Library(BooksLibraryId, "Books", "books", "Books", LibraryAreas.Read));
+            Library(BooksLibraryId, "Books", "books", "Books", LibraryAreas.Read),
+            Library(MusicLibraryId, "Music", "music", "Music", LibraryAreas.Listen));
         _guard = new ConfiguredExternalLookupGuard(_libraries, new MediaAssetRepository(_db), NullLogger<ConfiguredExternalLookupGuard>.Instance);
     }
 
@@ -260,6 +262,31 @@ public sealed class PlainKindLookupRefusalTests : IDisposable
     }
 
     [Fact]
+    public async Task LyricsAndSubtitles_AreNeverSearchedForAFileInAPlainKindLibrary_ButAreForALookupKind()
+    {
+        var audio = await SeedAssetAsync(MediaType.Music, OtherAudioLibraryId);
+        var music = await SeedAssetAsync(MediaType.Music, MusicLibraryId);
+        var lyrics = new RecordingTextTrackProvider(TextTrackKind.Lyrics, MediaType.Music);
+        var worker = new TextTrackEnrichmentWorker(
+            new MediaAssetRepository(_db),
+            _works,
+            _canonicals,
+            _bridgeIds,
+            new TextTrackRepository(_db),
+            [lyrics],
+            new AssetPathService(Path.Combine(_tempRoot, "assets")),
+            NullLogger<TextTrackEnrichmentWorker>.Instance,
+            configurationLoader: _libraries);
+
+        var refused = await worker.EnrichAsync(audio.AssetId, TextTrackKind.Lyrics);
+        Assert.Equal("ExternalLookupBlocked", refused.Status);
+        Assert.Equal(0, lyrics.Searches);
+
+        await worker.EnrichAsync(music.AssetId, TextTrackKind.Lyrics);
+        Assert.Equal(1, lyrics.Searches);
+    }
+
+    [Fact]
     public async Task TheLeasedJobHelper_LeavesEveryJobAloneWhenNoGuardIsGiven()
     {
         var audio = await SeedAssetAsync(MediaType.Music, OtherAudioLibraryId);
@@ -430,6 +457,25 @@ public sealed class PlainKindLookupRefusalTests : IDisposable
 
             return Task.FromResult<IReadOnlyList<ProviderClaim>>([]);
         }
+    }
+
+    private sealed class RecordingTextTrackProvider(TextTrackKind kind, MediaType mediaType) : ITextTrackProvider
+    {
+        public int Searches { get; private set; }
+
+        public string Name => "lrclib";
+        public TextTrackKind Kind => kind;
+        public bool IsEnabled => true;
+        public bool CanHandle(MediaType candidate) => candidate == mediaType;
+
+        public Task<IReadOnlyList<TextTrackCandidate>> SearchAsync(TextTrackLookup lookup, CancellationToken ct = default)
+        {
+            Searches++;
+            return Task.FromResult<IReadOnlyList<TextTrackCandidate>>([]);
+        }
+
+        public Task<TextTrackDownload?> DownloadAsync(TextTrackCandidate candidate, CancellationToken ct = default) =>
+            Task.FromResult<TextTrackDownload?>(null);
     }
 
     private sealed class RecordingEnrichmentService : IEnrichmentService
