@@ -17,6 +17,9 @@ public interface IUnmatchedAssetRepository
     /// <summary>The Unmatched row of one asset, or null.</summary>
     Task<UnmatchedAsset?> GetAsync(Guid assetId, CancellationToken ct = default);
 
+    /// <summary>The Unmatched rows of the given assets (kept ones included); an asset with no row is absent. Reads only the ids asked for.</summary>
+    Task<IReadOnlyList<UnmatchedAsset>> ListByAssetsAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default);
+
     /// <summary>Removes the row (the file matched). Returns true when a row was removed.</summary>
     Task<bool> ClearAsync(Guid assetId, CancellationToken ct = default);
 

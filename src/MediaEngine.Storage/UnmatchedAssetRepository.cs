@@ -67,6 +67,23 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
         return Task.FromResult(row?.ToModel());
     }
 
+    public Task<IReadOnlyList<UnmatchedAsset>> ListByAssetsAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(assetIds);
+        ct.ThrowIfCancellationRequested();
+        if (assetIds.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyList<UnmatchedAsset>>([]);
+        }
+
+        using var connection = db.CreateConnection();
+        // One JSON-array parameter instead of one value per id, so a long list never meets SQLite's variable limit.
+        var rows = connection.Query<Row>(
+            $"{SelectSql} WHERE asset_id IN (SELECT unhex(value) FROM json_each(@assetIds));",
+            new { assetIds = GuidSql.ToJsonHexArray(assetIds.Distinct()) });
+        return Task.FromResult<IReadOnlyList<UnmatchedAsset>>(rows.Select(row => row.ToModel()).ToList());
+    }
+
     public Task<bool> ClearAsync(Guid assetId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

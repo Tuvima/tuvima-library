@@ -2271,6 +2271,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPageViewModel
   MusicAlbumCompanion: MediaEngine.Contracts.Details.MusicAlbumCompanionViewModel | nullability=nullable | accessors=get,init
   LibraryStatus: MediaEngine.Contracts.Details.LibraryStatus | nullability=not-null | accessors=get,init
   IsUnmatched: System.Boolean | nullability=not-null | accessors=get,set
+  UnmatchedAssets: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailUnmatchedAssetViewModel> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPresentationContext
 
@@ -2288,6 +2289,10 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailProgressKind
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailTab
   Key: System.String | nullability=not-null | accessors=get,init
   Label: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailUnmatchedAssetViewModel
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  KeptAsIs: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.EntityCreditViewModel
   IsUpdatingDetails: System.Boolean | nullability=not-null | accessors=get,set
@@ -2662,6 +2667,14 @@ MediaEngine.Contracts.Development.MediaEngine.Contracts.Development.DevHarnessWi
   Details: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Development.MediaEngine.Contracts.Development.DevHarnessWipeScope
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.BrowseLibraryDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  KindKey: System.String | nullability=not-null | accessors=get,init
+  Area: System.String | nullability=not-null | accessors=get,init
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  HasFolders: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayActionDto
   Type: System.String | nullability=not-null | accessors=get,init

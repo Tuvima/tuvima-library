@@ -276,6 +276,26 @@ public sealed class UnmatchedAssetRepositoryTests : IDisposable
         return (asset, job);
     }
 
+    [Fact]
+    public async Task ListByAssets_ReturnsOnlyTheAskedForAssetsThatAreUnmatched_KeptOnesIncluded()
+    {
+        var open = AddAsset("movies", "Open.mkv");
+        var kept = AddAsset("movies", "Kept.mkv");
+        var other = AddAsset("movies", "Other.mkv");
+        var matched = AddAsset("movies", "Matched.mkv");
+        await _unmatched.MarkUnmatchedAsync(open, "movies", UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+        await _unmatched.MarkUnmatchedAsync(kept, "movies", UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+        await _unmatched.MarkUnmatchedAsync(other, "movies", UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+        await _unmatched.KeepAsIsAsync(kept, Now);
+
+        var rows = await _unmatched.ListByAssetsAsync([open, kept, matched, open]);
+
+        Assert.Equal(new[] { open, kept }.Order(), rows.Select(row => row.AssetId).Order());
+        Assert.False(rows.Single(row => row.AssetId == open).KeptAsIs);
+        Assert.True(rows.Single(row => row.AssetId == kept).KeptAsIs);
+        Assert.Empty(await _unmatched.ListByAssetsAsync([]));
+    }
+
     private Guid AddAsset(string libraryId, string fileName)
     {
         var workId = Guid.NewGuid();
