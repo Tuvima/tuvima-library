@@ -32,7 +32,9 @@ public partial interface IEngineApiClient
         string? year = null,
         string? sort = null,
         string? vibes = null,
-        string? themes = null);
+        string? themes = null,
+        Guid? libraryId = null,
+        bool? unmatched = null);
 
     /// <summary>
     /// GET /api/v1/display/continue - compact in-progress cards for one lane and optional media type.

@@ -16,6 +16,7 @@ public sealed partial class DisplayComposerService
     private readonly ISeriesManifestRepository? _manifests;
     private readonly ICanonicalValueArrayRepository? _arrays;
     private readonly ICollectionRepository? _collections;
+    private readonly IUnmatchedAssetRepository? _unmatched;
 
     public DisplayComposerService(
         IDisplayProjectionReadService readService,
@@ -26,7 +27,8 @@ public sealed partial class DisplayComposerService
         DisplayGridPersonalReader? personal = null,
         ISeriesManifestRepository? manifests = null,
         ICanonicalValueArrayRepository? arrays = null,
-        ICollectionRepository? collections = null)
+        ICollectionRepository? collections = null,
+        IUnmatchedAssetRepository? unmatched = null)
     {
         _readService = readService;
         _cards = cards;
@@ -37,6 +39,7 @@ public sealed partial class DisplayComposerService
         _manifests = manifests;
         _arrays = arrays;
         _collections = collections;
+        _unmatched = unmatched;
     }
 
     // Projection rows remain per asset for resume/state calculations. Only presentation
@@ -163,10 +166,15 @@ public sealed partial class DisplayComposerService
         string? year = null,
         string? sort = null,
         string? vibes = null,
-        string? themes = null)
+        string? themes = null,
+        Guid? libraryId = null,
+        bool unmatchedOnly = false)
     {
         var normalizedLane = DisplayMediaRules.NormalizeLane(lane);
-        if (normalizedLane is not null &&
+        // A single library or the Unmatched filter always needs the rows, so the lane shortcuts below (prebuilt shelves) do not apply.
+        var narrowed = libraryId is not null || unmatchedOnly;
+        if (!narrowed &&
+            normalizedLane is not null &&
             string.IsNullOrWhiteSpace(mediaType) &&
             string.IsNullOrWhiteSpace(search) &&
             (string.IsNullOrWhiteSpace(grouping) || string.Equals(grouping, "all", StringComparison.OrdinalIgnoreCase)) &&
@@ -175,7 +183,8 @@ public sealed partial class DisplayComposerService
             return await BuildLaneAsync(normalizedLane, includeCatalog, profileId, ct);
         }
 
-        if (string.Equals(normalizedLane, "listen", StringComparison.OrdinalIgnoreCase) &&
+        if (!narrowed &&
+            string.Equals(normalizedLane, "listen", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(DisplayMediaRules.NormalizeMediaType(mediaType ?? string.Empty), "Music", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(grouping, "home", StringComparison.OrdinalIgnoreCase) &&
             string.IsNullOrWhiteSpace(search) &&
@@ -195,6 +204,19 @@ public sealed partial class DisplayComposerService
         var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
 
         var filtered = works.AsEnumerable();
+
+        // Both narrowings run on rows the read service has already authorized (grants, content limits, Vault), so a library the profile
+        // cannot see is simply an empty result and nothing says whether it exists.
+        if (libraryId is { } onlyLibrary)
+        {
+            filtered = filtered.Where(work => Guid.TryParse(work.LibraryId, out var rowLibrary) && rowLibrary == onlyLibrary);
+        }
+
+        if (unmatchedOnly)
+        {
+            filtered = await KeepUnmatchedAsync(filtered.ToList(), ct);
+        }
+
         if (!string.IsNullOrWhiteSpace(mediaType))
         {
             filtered = filtered.Where(work => string.Equals(DisplayMediaRules.NormalizeMediaType(work.MediaType), DisplayMediaRules.NormalizeMediaType(mediaType), StringComparison.OrdinalIgnoreCase));
@@ -385,6 +407,19 @@ public sealed partial class DisplayComposerService
             Timeline = isTimeline ? filteredWorks.Select((work, index) => new { Year = int.TryParse(work.Year, out var parsed) && parsed > 0 ? parsed : 0, Index = index })
                 .GroupBy(item => item.Year).Select(group => new DisplayTimelinePeriodDto(group.Key, group.Count(), group.Min(item => item.Index))).ToList() : null,
         };
+    }
+
+    // Rows whose file has an Unmatched row that is not kept as it is. Only the ids of the rows already in view are looked up.
+    private async Task<IEnumerable<DisplayWorkRow>> KeepUnmatchedAsync(IReadOnlyList<DisplayWorkRow> rows, CancellationToken ct)
+    {
+        if (_unmatched is null || rows.Count == 0)
+        {
+            return [];
+        }
+
+        var unmatched = await _unmatched.ListByAssetsAsync(rows.Select(row => row.AssetId).Distinct().ToList(), ct);
+        var open = unmatched.Where(item => !item.KeptAsIs).Select(item => item.AssetId).ToHashSet();
+        return rows.Where(row => open.Contains(row.AssetId));
     }
 
     public async Task<DisplayPageDto> BuildContinueAsync(

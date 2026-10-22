@@ -87,6 +87,25 @@ public sealed class DetailActionAuthorizationPolicyTests
         Assert.False(result.Allows("delete-library-item"));
     }
 
+    [Theory]
+    [InlineData("unmatched-retry")]
+    [InlineData("unmatched-keep")]
+    [InlineData("unmatched-look-up-again")]
+    public async Task UnmatchedActionsNeedTheSameAdministratorCheckAsEditing(string key)
+    {
+        var administrator = await DetailActionAuthorizationPolicy.ResolveAsync(
+            HumanAuthority(), new AccountDecisions(AuthorizationDecision.Allow()), new AppEvaluator(false), default);
+        var ordinary = await DetailActionAuthorizationPolicy.ResolveAsync(
+            HumanAuthority(),
+            new AccountDecisions(AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired)),
+            new AppEvaluator(true),
+            default);
+
+        Assert.True(administrator.Allows(key));
+        Assert.False(ordinary.Allows(key));
+        Assert.False(default(DetailActionAuthorizationContext).Allows(key));
+    }
+
     private static RequestAuthority HumanAuthority() => new(
         PrincipalKind.Human,
         true,

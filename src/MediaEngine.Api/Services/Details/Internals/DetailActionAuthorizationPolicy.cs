@@ -12,6 +12,8 @@ internal readonly record struct DetailActionAuthorizationContext(bool CanManageM
     public bool Allows(string actionKey) => actionKey switch
     {
         "edit" or "identify" or "change-thumbnail" => CanManageMetadata,
+        // The Unmatched actions of a single item ride on the same administrator check; the item routes they call require one too.
+        DetailUnmatchedActions.RetryKey or DetailUnmatchedActions.KeepKey or DetailUnmatchedActions.LookUpAgainKey => CanManageMetadata,
         _ => false,
     };
 }
