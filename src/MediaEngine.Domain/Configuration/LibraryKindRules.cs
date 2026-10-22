@@ -230,7 +230,7 @@ public static partial class LibraryKindRules
         var mode = LibraryKindLookupPolicy.ModeOf(kind.Key, [kind]);
         if (mode == LibraryLookupMode.Plain)
         {
-            var never = $"{prefix} is an \"{kind.Label}\" library (the kind \"{kind.Key}\"), which never looks anything up";
+            var never = $"{prefix} is {Article(kind.Label)} {kind.Label} library, which never looks anything up";
             if (!LibraryMetadataPolicies.BypassesExternalIdentity(library.MetadataPolicy))
             {
                 problems.Add($"{never}, but metadata_policy is \"{library.MetadataPolicy}\". Use local_only.");
@@ -243,7 +243,7 @@ public static partial class LibraryKindRules
         }
         else if (mode == LibraryLookupMode.YouTube)
         {
-            var youtube = $"{prefix} is a \"{kind.Label}\" library (the kind \"{kind.Key}\"), which looks videos up on YouTube by their ID and nowhere else";
+            var youtube = $"{prefix} is {Article(kind.Label)} {kind.Label} library, which looks videos up on YouTube by their ID and nowhere else";
             if (!LibraryMetadataPolicies.BypassesExternalIdentity(library.MetadataPolicy))
             {
                 problems.Add($"{youtube}, but metadata_policy is \"{library.MetadataPolicy}\". Use local_only.");
@@ -255,6 +255,9 @@ public static partial class LibraryKindRules
             }
         }
     }
+
+    private static string Article(string label) =>
+        label.Length > 0 && "AEIOUaeiou".Contains(label[0]) ? "an" : "a";
 
     // A kind without allows_multiple holds one library; a plain kind holds up to max_libraries, each with its own name. Names are unique
     // (ignoring case) among the catalogued libraries of an area and never read as another kind's label (a library may keep its own

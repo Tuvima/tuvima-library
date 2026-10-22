@@ -56,6 +56,9 @@ public static class ImportFolderRules
         [
             .. kinds
                 .Where(kind => kind.Available && kind.Format is not null)
+                // The YouTube kind shares the Videos format with Other videos but never stands for it: the Import folder's Videos folder
+                // keeps the name it has always had (the sort is stable, so every other kind keeps the list's order).
+                .OrderBy(kind => string.Equals(kind.Key, LibraryKindLookupPolicy.YouTubeKindKey, StringComparison.Ordinal))
                 .DistinctBy(kind => kind.Format, StringComparer.OrdinalIgnoreCase)
                 .OrderBy(kind => RankOf(TypeOrder, kind.Format!))
                 .Select(kind => (kind.Label, string.Equals(kind.Format, nameof(Enums.MediaType.TV), StringComparison.OrdinalIgnoreCase)

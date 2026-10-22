@@ -26,16 +26,14 @@ public sealed class LibraryKindsTests
     };
 
     [Fact]
-    public void TheShippedKindsListWatchListenReadAndViewInOrderWithTheNewKindsHidden()
+    public void TheShippedKindsListWatchListenReadAndViewInOrderWithEveryKindAvailable()
     {
         var kinds = LibraryKindsConfiguration.BuiltIn();
 
         Assert.Equal(
             ["movies", "tv", "youtube", "other_videos", "music", "audiobooks", "other_audio", "books", "comics", "other_reading", "photos", "personal_videos", "documents"],
             kinds.Select(kind => kind.Key).ToArray());
-        Assert.Equal(
-            ["youtube", "other_audio", "other_reading"],
-            kinds.Where(kind => !kind.Available).Select(kind => kind.Key).ToArray());
+        Assert.All(kinds, kind => Assert.True(kind.Available, kind.Key));
         Assert.All(kinds, kind => Assert.True(kind.BuiltIn));
         Assert.Empty(LibraryKindRules.Problems(kinds));
     }
@@ -269,6 +267,7 @@ public sealed class LibraryKindsTests
             ["Books", "Audiobooks", "Movies", "TV Shows", "Music", "Comics", "Videos"],
             ImportFolderRules.Types.Select(type => type.Label).ToArray());
         Assert.Equal(["Movies", "TV", "Music", "Books", "Audiobooks", "Comics", "Videos"], ImportFolderRules.Subfolders);
+        Assert.DoesNotContain(ImportFolderRules.Types, type => type.Label is "YouTube" or "Other audio" or "Other reading");
         Assert.Equal(["TV", "TVShows"], ImportFolderRules.Types.Single(type => type.Label == "TV Shows").MediaTypes);
     }
 
@@ -300,5 +299,124 @@ public sealed class LibraryKindsTests
         KindKey = kindKey,
         Area = area,
         MediaTypes = [mediaType],
+        // A plain or YouTube kind is local only; the plain kinds never ask YouTube and the YouTube kind always does.
+        MetadataPolicy = kindKey is "other_videos" or "other_audio" or "other_reading" or "youtube" ? LibraryMetadataPolicies.LocalOnly : LibraryMetadataPolicies.Enriched,
+        YoutubeLookup = kindKey == "youtube",
     };
+
+    // ── The kind decides what a library may look up (Library setup D17, D18, D38) ──
+
+    [Theory]
+    [InlineData("other_videos")]
+    [InlineData("other_audio")]
+    [InlineData("other_reading")]
+    public void APlainKindNeverLooksAnythingUp_WhateverItsLibraryFieldsSay(string kindKey)
+    {
+        var library = Library(kindKey, "Videos");
+        library.MetadataPolicy = LibraryMetadataPolicies.Enriched;
+        library.YoutubeLookup = true;
+
+        var effective = LibraryKindLookupPolicy.For(library, LibraryKindsConfiguration.BuiltIn());
+
+        Assert.Equal(LibraryLookupMode.Plain, effective.Mode);
+        Assert.True(effective.BypassesExternalIdentity);
+        Assert.False(effective.YoutubeLookup);
+        Assert.Equal(LibraryMetadataPolicies.LocalOnly, effective.MetadataPolicy);
+    }
+
+    [Fact]
+    public void TheYoutubeKindKeepsIdentityLocalAndAsksYoutube_WhateverItsLibraryFieldsSay()
+    {
+        var library = Library("youtube", "Videos");
+        library.MetadataPolicy = LibraryMetadataPolicies.Enriched;
+        library.YoutubeLookup = false;
+
+        var effective = LibraryKindLookupPolicy.For(library, LibraryKindsConfiguration.BuiltIn());
+
+        Assert.Equal(LibraryLookupMode.YouTube, effective.Mode);
+        Assert.True(effective.BypassesExternalIdentity);
+        Assert.True(effective.YoutubeLookup);
+    }
+
+    [Theory]
+    [InlineData("movies", "Movies")]
+    [InlineData("tv", "TV")]
+    [InlineData("music", "Music")]
+    [InlineData("audiobooks", "Audiobooks")]
+    [InlineData("books", "Books")]
+    [InlineData("comics", "Comics")]
+    public void ALookupKindBehavesFromItsOwnFields_AsItAlwaysHas(string kindKey, string mediaType)
+    {
+        var enriched = Library(kindKey, mediaType);
+        var local = Library(kindKey, mediaType);
+        local.MetadataPolicy = LibraryMetadataPolicies.LocalOnly;
+
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+
+        Assert.Equal(LibraryLookupMode.FromFields, LibraryKindLookupPolicy.For(enriched, kinds).Mode);
+        Assert.False(LibraryKindLookupPolicy.BypassesExternalIdentity(enriched, kinds));
+        Assert.True(LibraryKindLookupPolicy.BypassesExternalIdentity(local, kinds));
+    }
+
+    [Fact]
+    public void ALibraryWithNoKindOrAnUnknownKind_FollowsItsOwnFields()
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        var vault = Library("", "Videos");
+        vault.MetadataPolicy = LibraryMetadataPolicies.LocalOnly;
+        vault.YoutubeLookup = true;
+        var unknown = Library("recorded_tv", "Videos");
+
+        var vaultLookup = LibraryKindLookupPolicy.For(vault, kinds);
+
+        Assert.Equal(LibraryLookupMode.FromFields, vaultLookup.Mode);
+        Assert.True(vaultLookup.YoutubeLookup);
+        Assert.True(vaultLookup.BypassesExternalIdentity);
+        Assert.False(LibraryKindLookupPolicy.BypassesExternalIdentity(unknown, kinds));
+    }
+
+    [Fact]
+    public void APluginKindWithNoLookupIsPlainToo()
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        kinds.Add(Podcasts());
+
+        Assert.Equal(LibraryLookupMode.Plain, LibraryKindLookupPolicy.ModeOf("podcasts", kinds));
+    }
+
+    [Fact]
+    public void WithoutAKindsListAPlainKindIsStillPlain()
+    {
+        Assert.Equal(LibraryLookupMode.Plain, LibraryKindLookupPolicy.ModeOf("other_audio", null));
+    }
+
+    [Fact]
+    public void APlainKindWhoseFieldsAgreeIsAccepted_AndOneWithEnrichedOrYoutubeOnIsExplainedInPlainWords()
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        Assert.Empty(LibraryKindRules.LibraryProblems(Libraries(Library("other_audio", "Music", "Recordings", LibraryAreas.Listen)), kinds));
+
+        var enriched = Library("other_audio", "Music", "Recordings", LibraryAreas.Listen);
+        enriched.MetadataPolicy = LibraryMetadataPolicies.Enriched;
+        var youtube = Library("other_videos", "Videos", "Lectures", LibraryAreas.Watch);
+        youtube.YoutubeLookup = true;
+
+        var enrichedProblem = Assert.Single(LibraryKindRules.LibraryProblems(Libraries(enriched), kinds));
+        var youtubeProblem = Assert.Single(LibraryKindRules.LibraryProblems(Libraries(Library("other_audio", "Music", "Recordings", LibraryAreas.Listen), Library("other_reading", "Books", "Loose books", LibraryAreas.Read), youtube), kinds));
+
+        Assert.Equal("libraries[0] is an Other audio library, which never looks anything up, but metadata_policy is \"enriched\". Use local_only.", enrichedProblem);
+        Assert.Equal("libraries[2] is a Videos library, which never looks anything up, but youtube_lookup is true. Set youtube_lookup to false.", youtubeProblem);
+    }
+
+    [Fact]
+    public void TheYoutubeKindMustKeepTheYoutubeLookupOn()
+    {
+        var kinds = LibraryKindsConfiguration.BuiltIn();
+        Assert.Empty(LibraryKindRules.LibraryProblems(Libraries(Library("youtube", "Videos")), kinds));
+
+        var off = Library("youtube", "Videos");
+        off.YoutubeLookup = false;
+
+        Assert.Contains("youtube_lookup is false", Assert.Single(LibraryKindRules.LibraryProblems(Libraries(off), kinds)), StringComparison.Ordinal);
+    }
 }
