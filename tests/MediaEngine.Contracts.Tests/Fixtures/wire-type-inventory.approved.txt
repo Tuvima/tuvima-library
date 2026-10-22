@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1222; api=0; web-client=54
+# scopes: contracts=1221; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1666,20 +1666,18 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Schedule: MediaEngine.Contracts.Backups.BackupScheduleDto | json=schedule | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   KeepLast: System.Int32 | json=keep_last | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  PassphraseSet: System.Boolean | json=passphrase_set | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Destinations: System.Collections.Generic.List<MediaEngine.Contracts.Backups.BackupDestinationDto> | json=destinations | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NextRunAt: System.DateTimeOffset? | json=next_run_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LastRestoreCheckAt: System.DateTimeOffset? | json=last_restore_check_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LastRestoreCheckResult: System.String | json=last_restore_check_result | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"schedule":null,"keep_last":7,"passphrase_set":true,"destinations":[],"next_run_at":"2025-01-02T03:04:05+00:00","last_restore_check_at":"2025-01-02T03:04:05+00:00","last_restore_check_result":"sample"}
+  sample={"schedule":null,"keep_last":7,"destinations":[],"next_run_at":"2025-01-02T03:04:05+00:00","last_restore_check_at":"2025-01-02T03:04:05+00:00","last_restore_check_result":"sample"}
 
 [contracts] MediaEngine.Contracts.Backups.DestinationBackupDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SizeBytes: System.Int64 | json=size_bytes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ModifiedAt: System.DateTimeOffset | json=modified_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Encrypted: System.Boolean | json=encrypted | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"name":"sample","size_bytes":7,"modified_at":"2025-01-02T03:04:05+00:00","encrypted":true}
+  sample={"name":"sample","size_bytes":7,"modified_at":"2025-01-02T03:04:05+00:00"}
 
 [contracts] MediaEngine.Contracts.Backups.DestinationBackupsResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1690,8 +1688,7 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   DestinationId: System.String | json=destination_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Passphrase: System.String | json=passphrase | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"destination_id":"sample","name":"sample","passphrase":"sample"}
+  sample={"destination_id":"sample","name":"sample"}
 
 [contracts] MediaEngine.Contracts.Backups.SaveBackupDestinationRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1706,12 +1703,6 @@
   Secret: System.String | json=secret | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ConfirmedHost: System.String | json=confirmed_host | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"sample","kind":"sample","name":"sample","location":"sample","bucket":"sample","region":"sample","prefix":"sample","username":"sample","secret":"sample","confirmed_host":"sample"}
-
-[contracts] MediaEngine.Contracts.Backups.SetBackupPassphraseRequest
-  kind=class | converter=default | number-handling=default | unmapped=default
-  Passphrase: System.String | json=passphrase | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  CurrentPassphrase: System.String | json=current_passphrase | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"passphrase":"sample","current_passphrase":"sample"}
 
 [contracts] MediaEngine.Contracts.Backups.UpdateBackupSettingsRequest
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -97,6 +97,10 @@ public sealed record BackupExportTable(
 /// <param name="Name">The title's name; null for a withheld title.</param>
 /// <param name="ParentName">The parent's name; null for a withheld title.</param>
 /// <param name="Year">The release year; null for a withheld title.</param>
+/// <param name="Withheld">
+/// True for a title a backup may not name (one in a Vault library). Its name, parent name and year are null. A restore
+/// uses the flag to keep rows that refer to it out of anything it shows.
+/// </param>
 public sealed record BackupTitle(
     string Key,
     string Target,
@@ -110,7 +114,8 @@ public sealed record BackupTitle(
     IReadOnlyList<string> FileHashes,
     string? Name,
     string? ParentName,
-    int? Year)
+    int? Year,
+    bool Withheld = false)
 {
     /// <summary>
     /// True when the title has no external id of its own or its parent's, so a restore can only re-attach state by

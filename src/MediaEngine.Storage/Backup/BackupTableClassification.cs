@@ -39,7 +39,7 @@ public static partial class BackupTableClassification
         Config("application_client_bindings", "Which client ids belong to which application."),
         Config("application_credentials", "Hashed application credentials, which are access settings."),
         Config("application_permission_grants", "Which permissions an application has been granted."),
-        Config("application_webhooks", "Webhook destinations an application has registered.", excluded: ["secret_ciphertext"]),
+        Config("application_webhooks", "Webhook destinations an application has registered; the signing secret is protected with this computer's Data Protection key, so the export writes it readable (or keeps it as it is when it cannot be read).", portable: ["secret_ciphertext"]),
         Config("approval_records", "Approvals an administrator has given, with the statement approved."),
         Config("plugin_lore_sources", "Lore sources a person approved or rejected; sources only discovered but never decided on are rebuilt.", keepWhere: "approved_at IS NOT NULL OR rejected_at IS NOT NULL"),
         Config("metadata_providers", "The list of metadata providers and whether each is switched on."),
@@ -76,6 +76,8 @@ public static partial class BackupTableClassification
         Config("collection_view_sources", "The gallery or rule feeding a person-built collection.", keepWhere: InPersonBuiltCollection),
         Config("fictional_entity_user_overrides", "A person's name and description corrections for a fictional thing, found again by its Wikidata id.", refs: [Fictional("entity_id")]),
         Config("narrative_root_user_overrides", "A person's name and description corrections for a universe (already keyed by its Wikidata id)."),
+        Config("backup_restores", "Which backups were restored and when, with counts of what was put back and what is still waiting."),
+        Config("waiting_personal_state", "State from a restored backup that is still waiting for its title, kept with the time it started waiting, so a backup taken before it attaches does not lose it or restart its waiting period."),
 
         // ---------------------------------------------------------------------------------------------------------
         // Personal state: a person's own state tied to a title. Kept, re-attached by recognition data after a rescan.
@@ -247,7 +249,6 @@ public static partial class BackupTableClassification
         Config("vault_libraries", "Which libraries are Vault libraries and how they look things up."),
         Personal("bookmark_packs", "profile_id", "Bookmark packs a person imported for a title.", refs: [Work("work_id"), Asset("asset_id")]),
         Personal("bookmark_pack_items", null, "The bookmarks inside a pack (owned through the pack's profile).", refs: []),
-        Personal("vault_pending_bookmarks", "profile_id", "Vault bookmarks waiting for their title after a restore.", refs: []),
         Transient("nsfw_session_unlocks", "Temporary Vault mode sessions."),
         Catalogue("vault_activity", "Quiet list of Vault ingestion activity."),
         Catalogue("vault_artwork", "Vault artwork."),

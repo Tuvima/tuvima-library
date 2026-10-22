@@ -6,6 +6,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Providers.Services.Vault;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Backup;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -157,7 +158,7 @@ public static class VaultIdentifyEndpoints
 
         // Saved Vault bookmarks that came back with a restored backup and still wait for their video. A count only, never a title.
         app.MapGet("/api/v1/vault/restored-bookmarks", async (
-            HttpContext http, IRequestAuthorityResolver resolver, VaultAccessResolver access, [Microsoft.AspNetCore.Mvc.FromServices] VaultBookmarkRelinkRepository relink, CancellationToken ct) =>
+            HttpContext http, IRequestAuthorityResolver resolver, VaultAccessResolver access, [Microsoft.AspNetCore.Mvc.FromServices] WaitingPersonalStateRepository waitingState, CancellationToken ct) =>
         {
             CatalogueResourceAuthorizationService.ApplyVaultCacheControl(http.Response);
             var authority = await resolver.ResolveAsync(http, ct);
@@ -166,13 +167,13 @@ public static class VaultIdentifyEndpoints
                 return ApiErrors.NotFound("Not found.");
             }
 
-            var waiting = await relink.CountWaitingAsync(ct);
+            var waiting = waitingState.CountWithheldWaiting();
             return Results.Ok(new VaultRestoredBookmarksDto
             {
                 Waiting = waiting,
                 Message = waiting == 0
                     ? string.Empty
-                    : $"{waiting} saved bookmark{(waiting == 1 ? " is" : "s are")} still waiting for a matching video. They are re-linked when a scan of the Vault folders finds the video; any that never find one cannot be restored.",
+                    : $"{waiting} saved bookmark{(waiting == 1 ? " is" : "s are")} still waiting for a matching video. They come back when a scan of the Vault folders finds the video; any that never find one are cleared when the waiting period ends.",
             });
         })
         .WithMetadata(VaultGatedRoute.Instance)

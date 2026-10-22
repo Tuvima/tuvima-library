@@ -61,7 +61,7 @@ public sealed class BackupDestinationDto
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 
-    /// <summary>True when the copy leaves this computer, so it is encrypted first.</summary>
+    /// <summary>True when the copy leaves this computer (it is still the same plain backup file).</summary>
     [JsonPropertyName("leaves_machine")]
     public bool LeavesMachine { get; set; }
 
@@ -152,10 +152,6 @@ public sealed class BackupSettingsResponse
     [JsonPropertyName("keep_last")]
     public int KeepLast { get; set; } = 10;
 
-    /// <summary>True once a backup passphrase has been set. The passphrase itself is never stored.</summary>
-    [JsonPropertyName("passphrase_set")]
-    public bool PassphraseSet { get; set; }
-
     [JsonPropertyName("destinations")]
     public List<BackupDestinationDto> Destinations { get; set; } = [];
 
@@ -181,16 +177,6 @@ public sealed class UpdateBackupSettingsRequest
     /// <summary>The destination ids that should receive each backup. The local folder always does.</summary>
     [JsonPropertyName("enabled_destinations")]
     public List<string>? EnabledDestinations { get; set; }
-}
-
-public sealed class SetBackupPassphraseRequest
-{
-    [JsonPropertyName("passphrase")]
-    public string Passphrase { get; set; } = "";
-
-    /// <summary>Required when a passphrase is already set, so a signed-in session cannot swap it silently.</summary>
-    [JsonPropertyName("current_passphrase")]
-    public string? CurrentPassphrase { get; set; }
 }
 
 public sealed class BackupDestinationOutcomeDto
@@ -240,10 +226,6 @@ public sealed class DestinationBackupDto
 
     [JsonPropertyName("modified_at")]
     public DateTimeOffset ModifiedAt { get; set; }
-
-    /// <summary>True when the file is encrypted and needs the passphrase to restore.</summary>
-    [JsonPropertyName("encrypted")]
-    public bool Encrypted { get; set; }
 }
 
 public sealed class DestinationBackupsResponse
@@ -259,8 +241,4 @@ public sealed class RestoreFromDestinationRequest
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
-
-    /// <summary>Needed for an encrypted backup. Used once to open the file and never stored.</summary>
-    [JsonPropertyName("passphrase")]
-    public string? Passphrase { get; set; }
 }
