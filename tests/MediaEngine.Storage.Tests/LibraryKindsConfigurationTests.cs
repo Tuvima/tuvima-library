@@ -160,6 +160,19 @@ public sealed class LibraryKindsConfigurationTests : IDisposable
     }
 
     [Fact]
+    public void TheDockerImageDefaultsPassTheStartUpCheckOfTheShippedKinds()
+    {
+        // The Docker entrypoint seeds /config from config/ and then lays docker/config/ over it.
+        CopyShippedConfig();
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(FindRepoRoot(), "docker", "config"), "*.json"))
+        {
+            File.Copy(file, Path.Combine(_directory, Path.GetFileName(file)), overwrite: true);
+        }
+
+        new ConfigurationDirectoryLoader(_directory).CheckLibraryKindReferences();
+    }
+
+    [Fact]
     public void ALookupProviderThatDoesNotExistIsReportedAtStartUpNamingTheKindAndTheFile()
     {
         CopyShippedConfig();

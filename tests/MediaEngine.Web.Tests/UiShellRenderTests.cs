@@ -834,9 +834,13 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     {
         var cut = RenderLibraries(subsection, detail);
 
-        var steps = cut.FindAll(".settings-breadcrumbs a, .settings-breadcrumbs span[aria-current]").Select(step => step.TextContent.Trim()).ToArray();
         var expected = trail.Split('|');
-        Assert.Equal(expected, steps[^expected.Length..]);
+        // The frame redraws once the kinds have arrived, so wait for the trail rather than reading it once.
+        cut.WaitForAssertion(() =>
+        {
+            var steps = cut.FindAll(".settings-breadcrumbs a, .settings-breadcrumbs span[aria-current]").Select(step => step.TextContent.Trim()).ToArray();
+            Assert.Equal(expected, steps[^expected.Length..]);
+        });
         Assert.Equal(title, cut.Find(".app-page-header__title").TextContent.Trim());
         Assert.Equal(hasSubtitle, cut.FindAll(".app-page-header p").Count > 0);
         if (subsection is not null)
