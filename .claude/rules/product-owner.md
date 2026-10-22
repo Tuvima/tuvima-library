@@ -58,3 +58,12 @@ Say what went wrong in plain English, what you'll do, then fix it — errors ins
 ## Uncertainty
 
 Never guess silently. Name the options and the trade-off, and ask which matters more.
+
+## Asking Shy questions (Shy, 2026-10-22)
+
+When a message ends with questions or decisions, Shy should never have to scroll back to find the context:
+
+1. **Context first, short.** One brief paragraph per question, numbered to match: what it is about, what each option means for the person using Library (one concrete example), the trade-off, and the recommendation with its reason. If a recommendation changed from an earlier message, say so.
+2. **Questions at the very end, succinct.** The last thing in the message is a numbered list, one line per question, each with lettered options (A, B, C) of a few words and the recommended one marked, so Shy can answer with codes like "1A, 2B". Split independent choices into sub-questions (3a, 3b). Nothing follows the list.
+3. **Restate every open question.** Any question Shy has not yet answered is repeated in the same message with its short context, not only the new ones, so the end of the latest message is always the complete list of what is waiting on Shy.
+4. Plain English throughout; no code names unless needed to find something.
