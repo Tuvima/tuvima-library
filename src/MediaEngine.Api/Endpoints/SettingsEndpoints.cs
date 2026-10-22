@@ -356,7 +356,7 @@ public static class SettingsEndpoints
         // ── GET/PUT /settings/libraries ───────────────────────────────────────
         grp.MapGet("/libraries", (IConfigurationLoader configLoader) =>
         {
-            return Results.Ok(SettingsContractMapper.ToContract(configLoader.LoadLibraries()));
+            return Results.Ok(SettingsContractMapper.ToContract(configLoader.LoadLibraries(), configLoader));
         })
         .WithName("GetLibraries")
         .WithSummary("Returns schema 7 catalogued libraries, the single View root, and approved storage.")
@@ -382,7 +382,6 @@ public static class SettingsEndpoints
                 MediaEngine.Api.Services.Libraries.FolderJobService.KeepEngineOwnedConversionState(configLoader.LoadLibraries(), config);
                 var viewError = ValidateViewStorage(config)
                     ?? ValidateViewRootChange(configLoader.LoadLibraries(), config)
-                    ?? MediaEngine.Api.Services.Settings.LibraryTypeRules.ValidateOneLibraryPerType(configLoader.LoadLibraries(), config)
                     ?? MediaEngine.Api.Services.Settings.ImportFolderValidation.Validate(config)
                     ?? libraryKinds.ValidateLibraries(config);
                 if (viewError is not null)
@@ -395,7 +394,7 @@ public static class SettingsEndpoints
                     return ApiErrors.BadRequest(pathError);
                 }
 
-                var validationErrors = JsonConfigValidator.Validate(config, "libraries.json");
+                var validationErrors = JsonConfigValidator.Validate(config, "libraries.json", configLoader.LoadLibraryKinds().Kinds);
                 if (validationErrors.Count > 0)
                 {
                     return ApiErrors.BadRequest(string.Join(" ", validationErrors));
@@ -418,7 +417,7 @@ public static class SettingsEndpoints
                     }
                 }
 
-                return Results.Ok(SettingsContractMapper.ToContract(config));
+                return Results.Ok(SettingsContractMapper.ToContract(config, configLoader));
             }
             finally { LibraryMutationEndpoints.WriteGate.Release(); }
         })

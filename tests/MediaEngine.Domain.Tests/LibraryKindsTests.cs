@@ -252,12 +252,12 @@ public sealed class LibraryKindsTests
     }
 
     [Fact]
-    public void TheImportFolderTypesAndFoldersComeFromTheAvailableKindsWithAFormat()
+    public void TheImportFolderTypesAndFoldersComeFromTheAvailableKindsWithAFormatInTheOrderTheyHaveAlwaysHad()
     {
         Assert.Equal(
-            ["Movies", "TV Shows", "Videos", "Music", "Audiobooks", "Books", "Comics"],
+            ["Books", "Audiobooks", "Movies", "TV Shows", "Music", "Comics", "Videos"],
             ImportFolderRules.Types.Select(type => type.Label).ToArray());
-        Assert.Equal(["Movies", "TV", "Videos", "Music", "Audiobooks", "Books", "Comics"], ImportFolderRules.Subfolders);
+        Assert.Equal(["Movies", "TV", "Music", "Books", "Audiobooks", "Comics", "Videos"], ImportFolderRules.Subfolders);
         Assert.Equal(["TV", "TVShows"], ImportFolderRules.Types.Single(type => type.Label == "TV Shows").MediaTypes);
     }
 

@@ -344,6 +344,7 @@ internal sealed class StubConfigurationLoader : IConfigurationLoader
     public string ConfigDirectoryPath { get; set; } = string.Empty;
     public CoreConfiguration Core { get; set; } = new();
     public LibrariesConfiguration Libraries { get; set; } = new();
+    public LibraryKindsConfiguration LibraryKinds { get; set; } = new();
     public WritebackFieldsConfiguration? WritebackFields { get; set; }
 
     public CoreConfiguration LoadCore() => Core;
@@ -365,6 +366,7 @@ internal sealed class StubConfigurationLoader : IConfigurationLoader
     public FieldPriorityConfiguration LoadFieldPriorities() => new();
     public void SaveFieldPriorities(FieldPriorityConfiguration config) { }
     public LibrariesConfiguration LoadLibraries() => Libraries;
+    public LibraryKindsConfiguration LoadLibraryKinds() => LibraryKinds;
     public ProviderConfiguration? LoadProvider(string name) => null;
     public void DeleteProvider(string name) { }
     public void SaveProvider(ProviderConfiguration config) { }

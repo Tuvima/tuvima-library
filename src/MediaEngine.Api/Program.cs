@@ -262,6 +262,9 @@ ConfigurationDirectoryLoader configLoader;
 try
 {
     configLoader = new ConfigurationDirectoryLoader(configDirectory, configSecrets);
+    // Library kinds refer to providers and naming templates in other files; a typo in a user-edited kinds file stops start-up here
+    // with the entry named, like any other invalid configuration file.
+    configLoader.CheckLibraryKindReferences();
 #if DEBUG
     if (realMediaRun is null)
     {

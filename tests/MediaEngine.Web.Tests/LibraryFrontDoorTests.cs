@@ -466,6 +466,29 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AnOldBookmarkToTheVideosTypePageLandsOnTheOtherVideosPage()
+    {
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/settings/libraries/watch/videos");
+
+        Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, "watch").Add(x => x.Detail, "videos"));
+
+        Assert.Equal("http://localhost/settings/libraries/watch/other_videos", navigation.Uri);
+    }
+
+    [Fact]
+    public void AnOldVideosAddressUnderAnotherGroupIsNotRedirected()
+    {
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/settings/libraries/listen/videos");
+
+        var cut = Open("listen", "videos");
+
+        Assert.Equal("http://localhost/settings/libraries/listen/videos", navigation.Uri);
+        Assert.Contains("This library page does not exist", cut.Markup);
+    }
+
+    [Fact]
     public void ASavedLinkToAnUnknownTypeStaysOnTheFrontDoor()
     {
         var navigation = Services.GetRequiredService<NavigationManager>();
