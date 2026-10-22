@@ -853,6 +853,15 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             c.Execute("INSERT INTO account_feature_grants(account_id,feature_id,granted_at) VALUES(@accountId,@feature,@at);", new { accountId, feature = f.Value, at = Iso(at) }, tx);
         }
 
+        // The Vault is only ever opened through Vault mode, never through a library grant (owner decision 2026-10-22).
+        var vaultIds = c.Query<string>("SELECT library_id FROM vault_libraries;", transaction: tx)
+            .Select(text => Guid.TryParse(text, out var parsed) ? parsed : Guid.Empty)
+            .ToHashSet();
+        if (libraries.Any(vaultIds.Contains))
+        {
+            throw new ArgumentException("The Vault can't be given to an account as a library. It opens only through Vault mode.");
+        }
+
         foreach (var id in libraries)
         {
             c.Execute("INSERT INTO account_library_grants(account_id,library_id,granted_at) VALUES(@accountId,@id,@at);", new { accountId, id, at = Iso(at) }, tx);
