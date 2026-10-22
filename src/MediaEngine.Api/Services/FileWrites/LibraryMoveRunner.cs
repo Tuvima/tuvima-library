@@ -59,6 +59,18 @@ public sealed class LibraryMoveRunner(
     /// <summary>Renames and moves the file of a claimed library move, recording each step. Never throws except for a stop.</summary>
     public async Task<MoveResult> MoveAsync(MediaFileWriteIntent intent, CancellationToken ct)
     {
+        // A move asked for while the file's drive or folder is not reachable waits for it to come back rather than being dropped as
+        // "not on disk", so the folders on disk end up matching Library once the drive returns (D10).
+        var current = await assets.FindByIdAsync(intent.AssetId, ct);
+        if (current is not null
+            && !string.IsNullOrWhiteSpace(current.FilePathRoot)
+            && !File.Exists(current.FilePathRoot)
+            && !IsReachable(current.FilePathRoot))
+        {
+            await intents.DeferMoveAsync(intent.Id, OfflineRetry, countAttempt: false, OfflineReason, ct);
+            return new MoveResult(MoveResultKind.Interrupted, OfflineReason);
+        }
+
         string failure;
         try
         {

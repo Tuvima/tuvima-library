@@ -213,6 +213,35 @@ public sealed class LibraryMoveCrashSafetyTests : IDisposable
     }
 
     [Fact]
+    public async Task AMoveAskedForWhileTheDriveIsUnplugged_WaitsInsteadOfBeingDropped_AndHappensOnceTheDriveIsBack()
+    {
+        var move = await RequestMoveAsync();
+        var away = Files.Managed + "_away";
+        Directory.Move(Files.Managed, away);
+        try
+        {
+            await Files.DrainQueueAsync();
+
+            Assert.Equal("requested", MoveStep(move.Asset));
+            Assert.Equal("pending", Files.Intent(move.Asset).Status);
+            Assert.Equal(0, (await Files.Intents.GetCountsAsync()).Failed);
+            Assert.Equal(move.OldPath, Files.StoredPath(move.Asset));
+        }
+        finally
+        {
+            Directory.Move(away, Files.Managed);
+        }
+
+        // The wait before the next look passes, and the move lane tries again.
+        Files.Execute("UPDATE media_file_write_intents SET next_attempt_at = NULL;");
+        await Files.DrainQueueAsync();
+
+        AssertFileOnlyAt(move.NewPath, move.OldPath);
+        Assert.Equal(move.NewPath, Files.StoredPath(move.Asset));
+        Assert.Null(MoveStep(move.Asset));
+    }
+
+    [Fact]
     public async Task AFileThatVanishedFromBothPlaces_WhileTheirFoldersCanBeSeen_IsKeptOnTheFailedListWithItsPaths()
     {
         var move = await RequestMoveAsync();

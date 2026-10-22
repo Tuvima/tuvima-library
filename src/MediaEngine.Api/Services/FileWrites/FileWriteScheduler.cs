@@ -157,6 +157,13 @@ public sealed class FileWriteScheduler(
         var counts = await intents.GetCountsAsync(hiddenLibraryIds, ct);
         var state = await intents.GetRunStateAsync(ct);
         var progress = GetProgress();
+        if (hiddenLibraryIds is { Count: > 0 })
+        {
+            // A run writes files in every library, so its numbers would reveal how many files sit in libraries this caller may not
+            // know about: show that a run is going, without its numbers.
+            progress = progress with { Total = 0, Done = 0 };
+        }
+
         return new FileWriteScheduleDto
         {
             Enabled = settings.Enabled,
@@ -297,8 +304,16 @@ public sealed class FileWriteScheduler(
                     logger.LogWarning("The file of asset {AssetId} was lost mid-move; it is on the failed list.", intent.AssetId);
                     break;
                 default:
-                    // Part-way and not settled: the steps stay on the row and the next start looks at the disk again.
-                    logger.LogWarning("Library move for asset {AssetId} is part-way: {Reason}", intent.AssetId, result.Reason);
+                    // Not settled yet: the row keeps its steps (or its request) and is looked at again later. An unplugged drive can hold
+                    // thousands of files, so waiting for one is logged quietly.
+                    if (result.Reason == LibraryMoveRunner.OfflineReason)
+                    {
+                        logger.LogDebug("Library move for asset {AssetId} waits: {Reason}", intent.AssetId, result.Reason);
+                    }
+                    else
+                    {
+                        logger.LogWarning("Library move for asset {AssetId} is part-way: {Reason}", intent.AssetId, result.Reason);
+                    }
                     break;
             }
         }
@@ -400,8 +415,16 @@ public sealed class FileWriteScheduler(
                         _runTotal = Math.Max(_runTotal, handledCount);
                     }
 
-                    // A library move asked for during a long run still happens within seconds, not after the whole run.
-                    await RunMoveLaneAsync(ct);
+                    // A library move asked for during a long run still happens within seconds, not after the whole run. A failure there
+                    // must not stop the run: the move lane is tried again on the next pass.
+                    try
+                    {
+                        await RunMoveLaneAsync(ct);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        logger.LogWarning(ex, "The move lane failed between write chunks; the run carries on and moves are tried again on the next pass.");
+                    }
                 }
             }
 
