@@ -64,7 +64,7 @@ Local AI is the engine room: it runs the models and keeps the machine fair. The 
 
 The Library has one notification service with a routing table, quiet hours and a limit of one message a minute per channel. Built-in channels are the Dashboard inbox and email; a JSON-only plugin can add more (see the sample in `samples/plugins/webhook-channel`).
 
-Under **Backup and recovery** you choose where backups go: this computer, another folder, a network share, S3-compatible storage or WebDAV. Copies that leave the computer are encrypted with your backup passphrase first and read back to check them. Backups never include media files. See [Operations and recovery](operations-and-recovery.md#copy-backups-to-other-places).
+Under **Backup and recovery** you choose where backups go: this computer, another folder, a network share, S3-compatible storage or WebDAV. Every copy is the same plain backup file, read back to check it; backups are never encrypted, so keeping them safe is up to you. Backups never include media files. See [Operations and recovery](operations-and-recovery.md#copy-backups-to-other-places).
 
 ## Where to go next
 

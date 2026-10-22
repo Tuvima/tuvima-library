@@ -58,7 +58,7 @@ Artwork a person chose is kept only when it has a stable outside identity: a cov
 
 ## Portable sign-in data
 
-The two-step sign-in secret is stored sealed with this computer's Data Protection key, so on its own it would be useless on a new computer. The `account_two_step` rule names `secret_protected` as a portable column: the exporter asks the Engine's codec to unseal it and writes it readable, marked as portable in the file, and a restore seals it again with the new computer's key. Plainly: **without a backup password, the backup file can be used to sign in as you, so keep it safe; with a password, the file is locked.** (The optional backup password itself arrives with restore.) If the key is gone and the secret cannot be unsealed, it is kept as it is, counted in the backup's contents, and works only on this computer. Without a codec registered, portable columns are written unchanged. The codec handles exactly this one column and refuses any other.
+The two-step sign-in secret is stored sealed with this computer's Data Protection key, so on its own it would be useless on a new computer. The `account_two_step` rule names `secret_protected` as a portable column: the exporter asks the Engine's codec to unseal it and writes it readable, marked as portable in the file, and a restore seals it again with the new computer's key. Plainly: **backups are never encrypted, so the backup file can be used to sign in as you; keeping it safe is your job.** If the key is gone and the secret cannot be unsealed, it is kept as it is, counted in the backup's contents, and works only on this computer. Without a codec registered, portable columns are written unchanged. The codec handles exactly this one column and refuses any other.
 
 ## Backup contents (manifest)
 

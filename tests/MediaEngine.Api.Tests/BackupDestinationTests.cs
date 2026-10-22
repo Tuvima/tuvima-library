@@ -9,12 +9,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// Backup destinations (Developer tools spec WP25): the passphrase-sealed file format, a copy that leaves the computer being
-/// encrypted and read back, "keep the last N", a restore from a destination, and what a backup is allowed to hold.
+/// Backup destinations (Developer tools spec WP25, Backup and restore spec D15): the same plain backup sent to every destination
+/// and read back, "keep the last N", a restore from a destination with the usual safety checks, and what a backup is allowed to hold.
 /// </summary>
 public sealed class BackupDestinationTests : IDisposable
 {
-    private const string Passphrase = "correct horse battery";
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"tuvima-backup-destinations-{Guid.NewGuid():N}");
     private readonly DatabaseConnection _db;
     private readonly DatabaseBackupService _backups;
@@ -47,70 +46,22 @@ public sealed class BackupDestinationTests : IDisposable
     }
 
     [Fact]
-    public async Task Encrypt_ThenDecryptWithThePassphrase_ReturnsTheOriginalBytes()
+    public async Task ABackupSentToARemoteDestination_IsTheSamePlainBackup_AndCheckedAfterwards()
     {
-        var plain = new byte[300_000];
-        Random.Shared.NextBytes(plain);
-        var keys = BackupEncryption.CreateKeyMaterial(Passphrase);
-
-        var sealedBytes = await SealAsync(plain, keys);
-        var opened = await OpenAsync(sealedBytes, Passphrase);
-
-        Assert.Equal(plain, opened);
-    }
-
-    [Fact]
-    public async Task Decrypt_WithTheWrongPassphrase_SaysSoInPlainWords()
-    {
-        var sealedBytes = await SealAsync([1, 2, 3, 4], BackupEncryption.CreateKeyMaterial(Passphrase));
-
-        var ex = await Assert.ThrowsAsync<BackupPassphraseException>(() => OpenAsync(sealedBytes, "not the passphrase"));
-
-        Assert.Contains("passphrase", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task Decrypt_AFileThatWasTamperedWithOrCutShort_IsRefused()
-    {
-        var plain = new byte[200_000];
-        Random.Shared.NextBytes(plain);
-        var sealedBytes = await SealAsync(plain, BackupEncryption.CreateKeyMaterial(Passphrase));
-
-        var flipped = (byte[])sealedBytes.Clone();
-        flipped[^50] ^= 0xFF;
-        var truncated = sealedBytes[..(sealedBytes.Length - 100)];
-
-        await Assert.ThrowsAnyAsync<Exception>(() => OpenAsync(flipped, Passphrase));
-        await Assert.ThrowsAnyAsync<Exception>(() => OpenAsync(truncated, Passphrase));
-    }
-
-    [Fact]
-    public void APassphraseThatIsTooShort_IsRefused() =>
-        Assert.Throws<ArgumentException>(() => BackupEncryption.CreateKeyMaterial("short"));
-
-    [Fact]
-    public async Task ARemoteDestinationWithNoPassphrase_FailsAndNothingLeavesTheComputer()
-    {
-        await EnableRemoteAsync(withPassphrase: false);
-
-        var run = await _orchestrator.RunAsync(CancellationToken.None);
-
-        Assert.False(run.AllOk);
-        Assert.Empty(_remote.Files);
-        Assert.Contains(_published.Requests, request => request.EventId == NotificationEventIds.BackupFailed);
-    }
-
-    [Fact]
-    public async Task ABackupSentToARemoteDestination_IsEncrypted_AndCheckedAfterwards()
-    {
-        await EnableRemoteAsync(withPassphrase: true);
+        await EnableRemoteAsync();
 
         var run = await _orchestrator.RunAsync(CancellationToken.None);
 
         Assert.True(run.AllOk);
         var file = Assert.Single(_remote.Files);
-        Assert.EndsWith(BackupEncryption.FileExtension, file.Key);
-        Assert.NotEqual((byte)'P', file.Value[0]); // not a plain zip
+        Assert.Equal(run.ArchiveName, file.Key);
+        Assert.EndsWith(".zip", file.Key);
+        Assert.Equal(await File.ReadAllBytesAsync(Path.Combine(_backups.BackupDirectory, run.ArchiveName)), file.Value);
+        using (var archive = new ZipArchive(new MemoryStream(file.Value)))
+        {
+            Assert.Contains(archive.Entries, entry => entry.FullName == "manifest.json");
+        }
+
         var copy = Assert.Single(await _repository.ListCopiesAsync(_remote.Id, 10, CancellationToken.None));
         Assert.Equal("verified", copy.State);
     }
@@ -118,7 +69,7 @@ public sealed class BackupDestinationTests : IDisposable
     [Fact]
     public async Task ACopyThatArrivesDamaged_ShowsAsFailed()
     {
-        await EnableRemoteAsync(withPassphrase: true);
+        await EnableRemoteAsync();
         _remote.Corrupt = true;
 
         var run = await _orchestrator.RunAsync(CancellationToken.None);
@@ -130,7 +81,7 @@ public sealed class BackupDestinationTests : IDisposable
     [Fact]
     public async Task OnlyTheNewestBackupsAreKept()
     {
-        await EnableRemoteAsync(withPassphrase: true, keep: 2);
+        await EnableRemoteAsync(keep: 2);
 
         for (var i = 0; i < 4; i++)
         {
@@ -142,22 +93,46 @@ public sealed class BackupDestinationTests : IDisposable
     }
 
     [Fact]
-    public async Task RestoringFromADestination_NeedsTheRightPassphrase_ThenStagesTheRestore()
+    public async Task RestoringFromADestination_StagesTheRestoreWithoutAnyPassphrase()
     {
-        await EnableRemoteAsync(withPassphrase: true);
+        await EnableRemoteAsync();
         await _orchestrator.RunAsync(CancellationToken.None);
         var name = _remote.Files.Keys.Single();
 
-        await Assert.ThrowsAsync<BackupPassphraseException>(() => _orchestrator.RestoreFromDestinationAsync(_remote, name, null, CancellationToken.None));
-        await Assert.ThrowsAsync<BackupPassphraseException>(() => _orchestrator.RestoreFromDestinationAsync(_remote, name, "wrong passphrase", CancellationToken.None));
-        var staged = await _orchestrator.RestoreFromDestinationAsync(_remote, name, Passphrase, CancellationToken.None);
+        var staged = await _orchestrator.RestoreFromDestinationAsync(_remote, name, CancellationToken.None);
 
         Assert.True(staged.Scheduled);
     }
 
     [Fact]
+    public async Task AnOlderSealedCopy_IsRefusedInPlainWords()
+    {
+        _remote.Plant("tuvima-backup-20260101-000000.tvbk", [1, 2, 3]);
+
+        var ex = await Assert.ThrowsAsync<BackupDestinationException>(() => _orchestrator.RestoreFromDestinationAsync(_remote, "tuvima-backup-20260101-000000.tvbk", CancellationToken.None));
+
+        Assert.Equal("This copy was made by an older version and can't be restored.", ex.Message);
+    }
+
+    [Fact]
+    public async Task AnOlderSealedCopy_IsNeverTrimmedOrListedAsABackup()
+    {
+        await EnableRemoteAsync(keep: 1);
+        _remote.Plant("tuvima-backup-20260101-000000.tvbk", [1, 2, 3]);
+
+        for (var i = 0; i < 3; i++)
+        {
+            _clock.Advance(TimeSpan.FromMinutes(5));
+            await _orchestrator.RunAsync(CancellationToken.None);
+        }
+
+        Assert.Contains("tuvima-backup-20260101-000000.tvbk", _remote.Files.Keys);
+        Assert.Equal(2, _remote.Files.Count);
+    }
+
+    [Fact]
     public async Task ARestoreNameThatIsAPath_IsRefused() =>
-        await Assert.ThrowsAsync<BackupDestinationException>(() => _orchestrator.RestoreFromDestinationAsync(_remote, "../outside.zip", null, CancellationToken.None));
+        await Assert.ThrowsAsync<BackupDestinationException>(() => _orchestrator.RestoreFromDestinationAsync(_remote, "../outside.zip", CancellationToken.None));
 
     [Fact]
     public async Task ABackupHoldsOnlyTheDataStoreAndConfiguration_NeverMediaFiles()
@@ -175,19 +150,35 @@ public sealed class BackupDestinationTests : IDisposable
     }
 
     [Fact]
-    public async Task APlainZipAtARemoteDestination_IsNeverRestored()
+    public async Task AFileThatIsNotABackup_FetchedFromADestination_IsRefusedAndLeavesNothingBehind()
     {
         _remote.Plant("tuvima-backup-planted.zip", [1, 2, 3]);
 
-        await Assert.ThrowsAsync<BackupDestinationException>(() => _orchestrator.RestoreFromDestinationAsync(_remote, "tuvima-backup-planted.zip", null, CancellationToken.None));
+        await Assert.ThrowsAnyAsync<InvalidDataException>(() => _orchestrator.RestoreFromDestinationAsync(_remote, "tuvima-backup-planted.zip", CancellationToken.None));
+
+        Assert.DoesNotContain(Directory.GetFiles(_backups.BackupDirectory), path => Path.GetFileName(path).Contains("restored-", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task Decrypt_BytesAfterTheEnd_AreRefused()
+    public async Task ABackupFromADestinationHoldingSecrets_IsRefusedWhenRestored()
     {
-        var sealedBytes = await SealAsync([1, 2, 3], BackupEncryption.CreateKeyMaterial(Passphrase));
+        var good = await _backups.CreateAsync(CancellationToken.None);
+        var bytes = await File.ReadAllBytesAsync(good);
+        using (var memory = new MemoryStream())
+        {
+            memory.Write(bytes);
+            using (var zip = new ZipArchive(memory, ZipArchiveMode.Update, leaveOpen: true))
+            {
+                using var writer = new StreamWriter(zip.CreateEntry("config/secrets/key.json").Open());
+                writer.Write("{}");
+            }
 
-        await Assert.ThrowsAsync<InvalidDataException>(() => OpenAsync([.. sealedBytes, 0], Passphrase));
+            _remote.Plant("tuvima-backup-hostile.zip", memory.ToArray());
+        }
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => _orchestrator.RestoreFromDestinationAsync(_remote, "tuvima-backup-hostile.zip", CancellationToken.None));
+
+        Assert.DoesNotContain(Directory.GetFiles(_backups.BackupDirectory), path => Path.GetFileName(path).Contains("restored-", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -206,33 +197,12 @@ public sealed class BackupDestinationTests : IDisposable
         Assert.Throws<InvalidDataException>(() => _backups.ScheduleRestore("tuvima-backup-hostile.zip"));
     }
 
-    private async Task EnableRemoteAsync(bool withPassphrase, int keep = 10)
+    private async Task EnableRemoteAsync(int keep = 10)
     {
         var settings = await _settings.LoadAsync(CancellationToken.None);
         settings.EnabledDestinations = [_remote.Id];
         settings.KeepLast = keep;
-        if (withPassphrase)
-        {
-            var keys = BackupEncryption.CreateKeyMaterial(Passphrase);
-            settings.PublicKey = Convert.ToBase64String(keys.PublicKey);
-            settings.EncryptedPrivateKey = Convert.ToBase64String(keys.EncryptedPrivateKey);
-        }
-
         await _settings.SaveAsync(settings, CancellationToken.None);
-    }
-
-    private static async Task<byte[]> SealAsync(byte[] plain, BackupKeyMaterial keys)
-    {
-        using var output = new MemoryStream();
-        await BackupEncryption.EncryptAsync(new MemoryStream(plain), output, keys, CancellationToken.None);
-        return output.ToArray();
-    }
-
-    private static async Task<byte[]> OpenAsync(byte[] sealedBytes, string passphrase)
-    {
-        using var output = new MemoryStream();
-        await BackupEncryption.DecryptAsync(new MemoryStream(sealedBytes), output, passphrase, CancellationToken.None);
-        return output.ToArray();
     }
 
     private sealed class SpyPublisher : INotificationPublisher

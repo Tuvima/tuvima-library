@@ -1753,7 +1753,7 @@ Named factual entries in a Wikidata series manifest, including works the local l
 
 ### backup_settings
 
-The backup schedule, how many backups to keep, which destinations are switched on, and the two key halves for encrypted copies (JSON rows; currently the single key `settings`). The passphrase itself is never stored: the public key is not secret, and the private key is locked with the passphrase.
+The backup schedule, how many backups to keep, which destinations are switched on, the destinations an administrator added, and the last restore check (JSON rows; currently the single key `settings`). Backups are never encrypted, so no key is kept; a destination's own login is stored encrypted with the machine key.
 
 | Column | Type | Notes |
 |---|---|---|

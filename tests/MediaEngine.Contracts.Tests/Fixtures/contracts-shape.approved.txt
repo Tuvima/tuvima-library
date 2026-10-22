@@ -1408,7 +1408,6 @@ MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupScheduleDto
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.BackupSettingsResponse
   Schedule: MediaEngine.Contracts.Backups.BackupScheduleDto | nullability=not-null | accessors=get,set
   KeepLast: System.Int32 | nullability=not-null | accessors=get,set
-  PassphraseSet: System.Boolean | nullability=not-null | accessors=get,set
   Destinations: System.Collections.Generic.List<MediaEngine.Contracts.Backups.BackupDestinationDto> | nullability=not-null | accessors=get,set
   NextRunAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   LastRestoreCheckAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
@@ -1418,7 +1417,6 @@ MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.DestinationBackupDto
   Name: System.String | nullability=not-null | accessors=get,set
   SizeBytes: System.Int64 | nullability=not-null | accessors=get,set
   ModifiedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
-  Encrypted: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.DestinationBackupsResponse
   Items: System.Collections.Generic.List<MediaEngine.Contracts.Backups.DestinationBackupDto> | nullability=not-null | accessors=get,set
@@ -1426,7 +1424,6 @@ MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.DestinationBackupsRe
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.RestoreFromDestinationRequest
   DestinationId: System.String | nullability=not-null | accessors=get,set
   Name: System.String | nullability=not-null | accessors=get,set
-  Passphrase: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.SaveBackupDestinationRequest
   Id: System.String | nullability=nullable | accessors=get,set
@@ -1439,10 +1436,6 @@ MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.SaveBackupDestinatio
   Username: System.String | nullability=nullable | accessors=get,set
   Secret: System.String | nullability=nullable | accessors=get,set
   ConfirmedHost: System.String | nullability=nullable | accessors=get,set
-
-MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.SetBackupPassphraseRequest
-  Passphrase: System.String | nullability=not-null | accessors=get,set
-  CurrentPassphrase: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Backups.MediaEngine.Contracts.Backups.UpdateBackupSettingsRequest
   Schedule: MediaEngine.Contracts.Backups.BackupScheduleDto | nullability=nullable | accessors=get,set

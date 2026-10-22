@@ -24,7 +24,6 @@ internal sealed class ReversingSecretStore : ISecretStore
 /// </summary>
 public sealed class BackupDestinationKindsTests : IDisposable
 {
-    private const string Passphrase = "correct horse battery";
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"tuvima-backup-kinds-{Guid.NewGuid():N}");
     private readonly DatabaseConnection _db;
     private readonly BackupDestinationRepository _repository;
@@ -62,23 +61,23 @@ public sealed class BackupDestinationKindsTests : IDisposable
     {
         var folder = Directory.CreateDirectory(Path.Combine(_root, "drive")).FullName;
         var destination = new FolderBackupDestination("folder-1", "Spare drive", folder, isShare: false);
-        File.WriteAllText(Path.Combine(folder, "tuvima-backup-half.tvbk.part"), "partial");
+        File.WriteAllText(Path.Combine(folder, "tuvima-backup-half.zip.part"), "partial");
 
         Assert.True((await destination.TestAsync(CancellationToken.None)).Success);
         await using (var content = new MemoryStream([1, 2, 3, 4]))
         {
-            await destination.SendAsync("tuvima-backup-a.tvbk", content, 4, CancellationToken.None);
+            await destination.SendAsync("tuvima-backup-a.zip", content, 4, CancellationToken.None);
         }
 
         var held = Assert.Single(await destination.ListAsync(CancellationToken.None));
-        Assert.Equal("tuvima-backup-a.tvbk", held.Name);
+        Assert.Equal("tuvima-backup-a.zip", held.Name);
         Assert.Equal(4, held.SizeBytes);
-        await using (var fetched = await destination.FetchAsync("tuvima-backup-a.tvbk", CancellationToken.None))
+        await using (var fetched = await destination.FetchAsync("tuvima-backup-a.zip", CancellationToken.None))
         {
             Assert.Equal(4, fetched.Length);
         }
 
-        await destination.DeleteAsync("tuvima-backup-a.tvbk", CancellationToken.None);
+        await destination.DeleteAsync("tuvima-backup-a.zip", CancellationToken.None);
         Assert.Empty(await destination.ListAsync(CancellationToken.None));
         await Assert.ThrowsAsync<BackupDestinationException>(() => destination.FetchAsync("..\\evil", CancellationToken.None));
     }
@@ -95,10 +94,9 @@ public sealed class BackupDestinationKindsTests : IDisposable
     }
 
     [Fact]
-    public async Task ABackupRunToAFolder_IsEncrypted_Checked_Trimmed_AndRestorable()
+    public async Task ABackupRunToAFolder_IsCopied_Checked_Trimmed_AndRestorable()
     {
         var folder = Directory.CreateDirectory(Path.Combine(_root, "drive")).FullName;
-        Assert.Null(await _manager.SetPassphraseAsync(new SetBackupPassphraseRequest { Passphrase = Passphrase }, CancellationToken.None));
         Assert.Null(await _manager.SaveDestinationAsync(new SaveBackupDestinationRequest { Kind = BackupDestinationKinds.Folder, Name = "Spare drive", Location = folder }, CancellationToken.None));
         Assert.Null(await _manager.UpdateAsync(new UpdateBackupSettingsRequest { KeepLast = 1 }, CancellationToken.None));
         var added = Assert.Single((await _manager.GetAsync(CancellationToken.None)).Destinations, item => item.Removable);
@@ -109,9 +107,9 @@ public sealed class BackupDestinationKindsTests : IDisposable
 
         Assert.True(first.AllOk && second.AllOk);
         var file = Assert.Single(Directory.GetFiles(folder));
-        Assert.EndsWith(BackupEncryption.FileExtension, file);
-        Assert.NotEqual((byte)'P', File.ReadAllBytes(file)[0]);
-        var scheduled = await _orchestrator.RestoreFromDestinationAsync(_orchestrator.Find(added.Id)!, Path.GetFileName(file), Passphrase, CancellationToken.None);
+        Assert.EndsWith(".zip", file);
+        Assert.Equal((byte)'P', File.ReadAllBytes(file)[0]); // a plain zip
+        var scheduled = await _orchestrator.RestoreFromDestinationAsync(_orchestrator.Find(added.Id)!, Path.GetFileName(file), CancellationToken.None);
         Assert.True(scheduled.Scheduled);
     }
 
@@ -275,20 +273,20 @@ public sealed class BackupDestinationKindsTests : IDisposable
         Assert.True((await destination.TestAsync(CancellationToken.None)).Success);
         await using (var content = new MemoryStream([9, 8, 7]))
         {
-            await destination.SendAsync("tuvima-backup-a.tvbk", content, 3, CancellationToken.None);
+            await destination.SendAsync("tuvima-backup-a.zip", content, 3, CancellationToken.None);
         }
 
         Assert.Contains("MKCOL", server.Methods);
         var held = Assert.Single(await destination.ListAsync(CancellationToken.None));
-        Assert.Equal(("tuvima-backup-a.tvbk", 3), (held.Name, held.SizeBytes));
-        await using (var fetched = await destination.FetchAsync("tuvima-backup-a.tvbk", CancellationToken.None))
+        Assert.Equal(("tuvima-backup-a.zip", 3), (held.Name, held.SizeBytes));
+        await using (var fetched = await destination.FetchAsync("tuvima-backup-a.zip", CancellationToken.None))
         {
             using var copy = new MemoryStream();
             await fetched.CopyToAsync(copy);
             Assert.Equal(new byte[] { 9, 8, 7 }, copy.ToArray());
         }
 
-        await destination.DeleteAsync("tuvima-backup-a.tvbk", CancellationToken.None);
+        await destination.DeleteAsync("tuvima-backup-a.zip", CancellationToken.None);
         Assert.Empty(await destination.ListAsync(CancellationToken.None));
     }
 
@@ -314,29 +312,29 @@ public sealed class BackupDestinationKindsTests : IDisposable
             new ConfiguredDestination { Id = "s3-1", Name = "Bucket", Location = "https://s3.example.com", Bucket = "bucket", Region = "eu-west-1", Prefix = "library/", Username = "AKIDEXAMPLE" }, "secret", server);
 
         Assert.True((await destination.TestAsync(CancellationToken.None)).Success);
-        foreach (var name in new[] { "tuvima-backup-a.tvbk", "tuvima-backup-b.tvbk" })
+        foreach (var name in new[] { "tuvima-backup-a.zip", "tuvima-backup-b.zip" })
         {
             await using var content = new MemoryStream(Encoding.UTF8.GetBytes(name));
             await destination.SendAsync(name, content, content.Length, CancellationToken.None);
         }
 
         var held = await destination.ListAsync(CancellationToken.None);
-        Assert.Equal(["tuvima-backup-a.tvbk", "tuvima-backup-b.tvbk"], held.Select(item => item.Name).Order());
+        Assert.Equal(["tuvima-backup-a.zip", "tuvima-backup-b.zip"], held.Select(item => item.Name).Order());
         Assert.All(server.Authorizations, header =>
         {
             Assert.StartsWith("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/", header);
             Assert.Contains("/eu-west-1/s3/aws4_request", header);
             Assert.Contains("SignedHeaders=host;x-amz-content-sha256;x-amz-date", header);
         });
-        Assert.Contains("library/tuvima-backup-a.tvbk", server.Keys);
-        await using (var fetched = await destination.FetchAsync("tuvima-backup-b.tvbk", CancellationToken.None))
+        Assert.Contains("library/tuvima-backup-a.zip", server.Keys);
+        await using (var fetched = await destination.FetchAsync("tuvima-backup-b.zip", CancellationToken.None))
         {
             using var copy = new MemoryStream();
             await fetched.CopyToAsync(copy);
-            Assert.Equal("tuvima-backup-b.tvbk", Encoding.UTF8.GetString(copy.ToArray()));
+            Assert.Equal("tuvima-backup-b.zip", Encoding.UTF8.GetString(copy.ToArray()));
         }
 
-        await destination.DeleteAsync("tuvima-backup-a.tvbk", CancellationToken.None);
+        await destination.DeleteAsync("tuvima-backup-a.zip", CancellationToken.None);
         Assert.Single(await destination.ListAsync(CancellationToken.None));
     }
 
@@ -348,7 +346,7 @@ public sealed class BackupDestinationKindsTests : IDisposable
             new ConfiguredDestination { Id = "s3-1", Name = "Bucket", Location = "https://s3.example.com", Bucket = "bucket", Username = "AKIDEXAMPLE" }, "secret", server);
 
         await using var content = new MemoryStream([5, 6, 7, 8]);
-        await destination.SendAsync("tuvima-backup-a.tvbk", content, 4, CancellationToken.None);
+        await destination.SendAsync("tuvima-backup-a.zip", content, 4, CancellationToken.None);
 
         Assert.Equal(Convert.ToHexStringLower(SHA256.HashData([5, 6, 7, 8])), server.LastPayloadHash);
     }
@@ -400,18 +398,18 @@ public sealed class BackupDestinationKindsTests : IDisposable
         Random.Shared.NextBytes(bytes);
         await using (var content = new MemoryStream(bytes))
         {
-            await destination.SendAsync("tuvima-backup-live.tvbk", content, bytes.Length, CancellationToken.None);
+            await destination.SendAsync("tuvima-backup-live.zip", content, bytes.Length, CancellationToken.None);
         }
 
-        var held = Assert.Single(await destination.ListAsync(CancellationToken.None), item => item.Name == "tuvima-backup-live.tvbk");
+        var held = Assert.Single(await destination.ListAsync(CancellationToken.None), item => item.Name == "tuvima-backup-live.zip");
         Assert.Equal(bytes.Length, held.SizeBytes);
-        await using (var fetched = await destination.FetchAsync("tuvima-backup-live.tvbk", CancellationToken.None))
+        await using (var fetched = await destination.FetchAsync("tuvima-backup-live.zip", CancellationToken.None))
         {
             Assert.Equal(SHA256.HashData(bytes), await SHA256.HashDataAsync(fetched));
         }
 
-        await destination.DeleteAsync("tuvima-backup-live.tvbk", CancellationToken.None);
-        Assert.DoesNotContain(await destination.ListAsync(CancellationToken.None), item => item.Name == "tuvima-backup-live.tvbk");
+        await destination.DeleteAsync("tuvima-backup-live.zip", CancellationToken.None);
+        Assert.DoesNotContain(await destination.ListAsync(CancellationToken.None), item => item.Name == "tuvima-backup-live.zip");
     }
 
     /// <summary>
@@ -439,18 +437,18 @@ public sealed class BackupDestinationKindsTests : IDisposable
         Random.Shared.NextBytes(bytes);
         await using (var content = new MemoryStream(bytes))
         {
-            await destination.SendAsync("tuvima-backup-live.tvbk", content, bytes.Length, CancellationToken.None);
+            await destination.SendAsync("tuvima-backup-live.zip", content, bytes.Length, CancellationToken.None);
         }
 
-        var held = Assert.Single(await destination.ListAsync(CancellationToken.None), item => item.Name == "tuvima-backup-live.tvbk");
+        var held = Assert.Single(await destination.ListAsync(CancellationToken.None), item => item.Name == "tuvima-backup-live.zip");
         Assert.Equal(bytes.Length, held.SizeBytes);
-        await using (var fetched = await destination.FetchAsync("tuvima-backup-live.tvbk", CancellationToken.None))
+        await using (var fetched = await destination.FetchAsync("tuvima-backup-live.zip", CancellationToken.None))
         {
             Assert.Equal(SHA256.HashData(bytes), await SHA256.HashDataAsync(fetched));
         }
 
-        await destination.DeleteAsync("tuvima-backup-live.tvbk", CancellationToken.None);
-        Assert.DoesNotContain(await destination.ListAsync(CancellationToken.None), item => item.Name == "tuvima-backup-live.tvbk");
+        await destination.DeleteAsync("tuvima-backup-live.zip", CancellationToken.None);
+        Assert.DoesNotContain(await destination.ListAsync(CancellationToken.None), item => item.Name == "tuvima-backup-live.zip");
     }
 
     private sealed class EndlessListing : IBackupHttp
@@ -496,7 +494,7 @@ public sealed class BackupDestinationKindsTests : IDisposable
 
             var path = request.RequestUri!.AbsolutePath;
             var name = path.TrimEnd('/').Split('/')[^1];
-            var isFolder = !name.EndsWith(".tvbk", StringComparison.Ordinal);
+            var isFolder = !name.EndsWith(".zip", StringComparison.Ordinal);
             switch (request.Method.Method)
             {
                 case "MKCOL":
