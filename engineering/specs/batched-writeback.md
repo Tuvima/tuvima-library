@@ -62,7 +62,7 @@ Every write into a media file happens one way: changes save in Library at once, 
 - **D2. Runs every hour by default; configurable** (Shy, 2026-10-22). The interval lives in `config/writeback.json` and is changed from Settings > Libraries > Advanced. A run starts when the interval has passed and something is waiting; when the list is empty nothing runs. If the Engine was off when a run was due, the run happens shortly after it starts.
 - **D3. Write now.** Administrators can start a run at once from the Settings panel. Nothing else skips the schedule.
 - **D4. The data store is the true record.** Library shows every change straight away. A file copied out of Library before the next run may not carry the latest tags yet; that is the accepted cost of batching.
-- **D5. ExifTool runs as a helper program, from Tuvima's own GitHub copy** (Shy, 2026-10-22). It is fetched and checked like FFmpeg and Tesseract: the address must be on GitHub and the file must match its checksum. The Windows build is a copy of the official release that Tuvima keeps as a release on its own GitHub, refreshed by a small task run by hand when ExifTool updates. Linux and Docker use the official source on ExifTool's GitHub with Perl installed. It runs on the person's own computer only; nothing is uploaded. Licence: the same terms as Perl (Artistic or GPL), credited in the attributions page and third-party notices.
+- **D5. ExifTool runs as a helper program, from Tuvima's own GitHub copy** (Shy, 2026-10-22). It is fetched and checked like FFmpeg and Tesseract: the address must be on GitHub and the file must match its checksum. The Windows build is a copy of the official release that Tuvima keeps as a release on its own GitHub, refreshed by a small task run by hand when ExifTool updates. Linux and Docker use the official source on ExifTool's GitHub with Perl installed. It runs on the person's own computer only; nothing is uploaded. Licence: the same terms as Perl (Artistic or GPL). Credit (Shy, 2026-10-22: "always give clear credit in our readme"): "ExifTool by Phil Harvey" with a link in the README's "Built on open-source software" table, a row in the attributions page, and its copyright line and licence in the third-party notices. The downloaded copy keeps ExifTool's own licence and readme files beside it, and Tuvima's GitHub copy is the unmodified official release.
 - **D6. One ExifTool start per run.** ExifTool stays open for the whole batch and takes file after file, so thousands of photos cost one program start. If ExifTool stops part-way, the remaining files stay on the list for the next run, and the Engine is not affected.
 - **D7. Which View files get the profile name, and with which tool** (replaces the tool choices in the library setup spec's D55).
   - **Written by ExifTool:** JPEG, PNG, TIFF, GIF, WebP, HEIC/HEIF, AVIF and camera RAW (DNG, CR2, CR3, NEF, ARW) photos, MP4, MOV and M4V videos, and PDFs.
@@ -124,13 +124,14 @@ Phones see the status text only, with no editing or buttons, as with other Setti
   - A batch runner that keeps one ExifTool open for a list of files, writes a given field and reads back a per-file result.
   - A hand-run GitHub task that copies a pinned official ExifTool release into a Tuvima release with its checksum.
   - Licence notices.
-- **Files likely touched:** `config/tool_downloads.json`, the tool download services, `tools/` (a download script like `Download-FFmpeg.ps1`), `.github/workflows/` (the copy task), `Dockerfile`, `docs/reference/attributions.md`, `THIRD-PARTY-NOTICES.md`, Settings > Tools components, tests
+- **Files likely touched:** `config/tool_downloads.json`, the tool download services, `tools/` (a download script like `Download-FFmpeg.ps1`), `.github/workflows/` (the copy task), `Dockerfile`, `README.md` (credits table), `docs/reference/attributions.md`, `THIRD-PARTY-NOTICES.md`, Settings > Tools components, tests
 - **Depends on:** none (runs beside BW1; different files)
 - **Size:** Standard
 - **Done when:** tests show:
   - A download with a wrong checksum is refused.
   - A batch of 50 generated JPEGs, PNGs and MP4s is written in one ExifTool start, and each file still opens with its picture or video data unchanged.
   - A corrupt file in the batch fails alone and the rest succeed.
+  - ExifTool is credited in the README, the attributions page and the third-party notices, and its licence files sit beside the downloaded copy.
 
   Tests that need the real ExifTool are skipped when it isn't installed.
 

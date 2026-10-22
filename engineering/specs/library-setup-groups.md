@@ -186,8 +186,8 @@ Built in the cloud and validated locally in one batch. **Start only after the lo
 - **Moved** to [Batched write-back](batched-writeback.md) as BW3 (version 25). It is built with that spec and depends on WP8a.
 
 ### WP8d — Search inside old Office and OpenDocument files
-- **What it does:** D56: adds .doc, .xls, .ppt (NPOI, Apache-2.0) and .ods, .odp (built in) to the document text reader with the same size, page and time limits as today. Adds NPOI with its credits.
-- **Files likely touched:** `src/MediaEngine.Api/Services/LocalAssets/DocumentTextReader.cs`, `Directory.Packages.props`, `docs/reference/attributions.md`, `THIRD-PARTY-NOTICES.md`, tests
+- **What it does:** D56: adds .doc, .xls, .ppt (NPOI, Apache-2.0) and .ods, .odp (built in) to the document text reader with the same size, page and time limits as today. Adds NPOI with its credits: the README's "Built on open-source software" table, the attributions page, and the third-party notices with its Apache-2.0 licence and NOTICE file.
+- **Files likely touched:** `src/MediaEngine.Api/Services/LocalAssets/DocumentTextReader.cs`, `Directory.Packages.props`, `README.md`, `docs/reference/attributions.md`, `THIRD-PARTY-NOTICES.md`, tests
 - **Depends on:** none (can run beside WP8a and WP8c, different files)
 - **Size:** Standard
 - **Done when:** search finds a word inside a sample .doc, .xls, .ppt, .ods and .odp; a damaged or encrypted file is skipped without stopping the batch.
