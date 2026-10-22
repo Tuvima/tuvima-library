@@ -302,6 +302,131 @@ public sealed class UserExportImportTests : IDisposable
         Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM accounts"));
     }
 
+    [Fact]
+    public void Import_EmptiesAnAvatarPathAndCollectionArtworkPathsACraftedFileNames_SoNoFileOnThisComputerCanBeServedOrDeleted()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
+        var movie = source.AddMovie("Dune", "tt1160419", "aaaa1111");
+        source.AddPlaylist(maya.Profiles[0], "Friday night", movie);
+        var crafted = Export(source, maya);
+        crafted = WithValue(crafted, "profiles", "avatar_image_path", BackupValue.FromText("/etc/tuvima/secrets/key-ring.xml"));
+        foreach (var column in new[] { "cover_artwork_path", "background_artwork_path", "banner_artwork_path", "logo_artwork_path" })
+        {
+            crafted = WithValue(crafted, "collections", column, BackupValue.FromText("/var/lib/tuvima/tuvima_master.db"));
+        }
+
+        ImportInto(target, crafted);
+
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name = 'Maya' AND avatar_image_path IS NULL"));
+        Assert.Equal(
+            1,
+            target.Scalar(
+                "SELECT COUNT(*) FROM collections WHERE display_name = 'Friday night' AND cover_artwork_path IS NULL AND background_artwork_path IS NULL " +
+                "AND banner_artwork_path IS NULL AND logo_artwork_path IS NULL"));
+    }
+
+    [Fact]
+    public void Import_EmptiesWhoChangedTheVaultSetting_AndAParentCollectionThatIsNotInTheFile()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
+        var movie = source.AddMovie("Dune", "tt1160419", "aaaa1111");
+        var first = source.AddPlaylist(maya.Profiles[0], "First", movie);
+        var second = source.AddPlaylist(maya.Profiles[0], "Second", movie);
+        var crafted = Export(source, maya);
+        crafted = WithValue(crafted, "profile_nsfw_settings", "changed_by_profile_id", BackupValue.FromBlob(GuidSql.ToBlob(maya.Profiles[0])));
+        var elsewhere = BackupValue.FromBlob(GuidSql.ToBlob(Guid.NewGuid()));
+        crafted = WithValue(crafted, "collections", "parent_collection_id", elsewhere, rowWhere: (table, row) => Text(table, row, "display_name") == "First");
+        crafted = WithValue(crafted, "collections", "parent_collection_id", BackupValue.FromBlob(first), rowWhere: (table, row) => Text(table, row, "display_name") == "Second");
+
+        ImportInto(target, crafted);
+
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM profile_nsfw_settings WHERE changed_by_profile_id IS NOT NULL"));
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM collections WHERE display_name = 'First' AND parent_collection_id IS NULL"));
+        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM collections WHERE display_name = 'Second' AND parent_collection_id = {Blob(first)}"));
+        Assert.NotEqual(first, second);
+    }
+
+    [Fact]
+    public void Import_BringsCollectionsInPrivateAndNotFeatured_AndKeepsAnAudienceLimitedToTheirOwnProfiles()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya", "Maya (kids)"], administrator: false);
+        var movie = source.AddMovie("Dune", "tt1160419", "aaaa1111");
+        var everyone = source.AddPlaylist(maya.Profiles[0], "For everyone", movie);
+        var selected = source.AddPlaylist(maya.Profiles[0], "For the kids", movie);
+        source.Execute($"UPDATE collections SET is_featured = 1, audience = 'Everyone' WHERE id = {Blob(everyone)}");
+        source.Execute($"UPDATE collections SET is_featured = 1, audience = 'SelectedProfiles' WHERE id = {Blob(selected)}");
+        source.Execute($"INSERT INTO collection_profile_audience (collection_id, profile_id) VALUES ({Blob(selected)}, {Blob(maya.Profiles[1])})");
+
+        ImportInto(target, Export(source, maya));
+
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM collections WHERE is_featured <> 0"));
+        Assert.Equal("Private", target.Text("SELECT audience FROM collections WHERE display_name = 'For everyone'"));
+        Assert.Equal("SelectedProfiles", target.Text("SELECT audience FROM collections WHERE display_name = 'For the kids'"));
+        Assert.Equal(1, target.Scalar($"SELECT COUNT(*) FROM collection_profile_audience WHERE profile_id = {Blob(maya.Profiles[1])}"));
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM collection_profile_audience"));
+    }
+
+    [Fact]
+    public void Preview_ListsEachProfilesRoleAndContentLimitAsTheFileStatesThem()
+    {
+        var source = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya", "Maya (kids)"], administrator: false);
+        source.Execute($"UPDATE profiles SET role = 'RestrictedProfile', content_limit = 'PG', content_limit_allow_unrated = 1 WHERE id = {Blob(maya.Profiles[1])}");
+
+        var summary = UserExportReader.Read(Export(source, maya));
+
+        Assert.Equal(new UserExportProfile("Maya", "StandardUser", null, false), summary.Profiles[0]);
+        Assert.Equal(new UserExportProfile("Maya (kids)", "RestrictedProfile", "PG", true), summary.Profiles[1]);
+    }
+
+    [Fact]
+    public void FindHouseholdName_NamesAHouseholdThatExistsHere_AndIsNullForOneThatDoesNot()
+    {
+        var target = NewStore();
+        var household = target.AddHousehold("The Khans here");
+
+        var repository = new UserImportRepository(target.Database);
+
+        Assert.Equal("The Khans here", repository.FindHouseholdName(household));
+        Assert.Null(repository.FindHouseholdName(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void AFileThatFillsAColumnAnExportAlwaysLeavesEmpty_IsRefusedByTheReaderOfAUserExportAndOfAWholeLibraryBackup()
+    {
+        var source = NewStore();
+        var maya = source.AddUser("maya@example.com", ["Maya"], administrator: false);
+
+        var user = WithValue(Export(source, maya), "profiles", "avatar_image_path", BackupValue.FromText("/etc/passwd"));
+        using (var stream = Zip(user))
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Read))
+        {
+            Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.ReadUserExport(archive));
+        }
+
+        var whole = WithValue(
+            new PersonalStateBackupRepository(source.Database).Export(BackupScope.WholeLibrary),
+            "profiles",
+            "avatar_image_path",
+            BackupValue.FromText("/etc/passwd"));
+        using (var stream = Zip(whole))
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Read))
+        {
+            Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.ReadBackupFile(archive));
+        }
+
+        // The same file with the column left empty, as every export writes it, is read.
+        using var honest = Zip(new PersonalStateBackupRepository(source.Database).Export(BackupScope.WholeLibrary));
+        using var honestArchive = new ZipArchive(honest, ZipArchiveMode.Read);
+        BackupArchiveFormat.ReadBackupFile(honestArchive);
+    }
+
     // ---------------------------------------------------------------------------------------------------------
     // Reading a file
     // ---------------------------------------------------------------------------------------------------------
@@ -409,6 +534,25 @@ public sealed class UserExportImportTests : IDisposable
 
     private static UserImportResult ImportInto(Store target, BackupExport export) =>
         new UserImportRepository(target.Database).Import(export, "tuvima-user-1.zip", ImportedAt.AddDays(-1), new FakeCodec(), ImportedAt);
+
+    /// <summary>The export with one column of a table set to a value in every row (or in the rows that pass <paramref name="rowWhere"/>), as a crafted file would hold it.</summary>
+    private static BackupExport WithValue(
+        BackupExport export,
+        string tableName,
+        string column,
+        BackupValue value,
+        Func<BackupExportTable, IReadOnlyList<BackupValue>, bool>? rowWhere = null)
+    {
+        var table = Table(export, tableName);
+        var index = table.Columns.ToList().IndexOf(column);
+        Assert.True(index >= 0, $"{tableName} has no column {column} in the export.");
+        var rows = table.Rows
+            .Select(row => rowWhere is null || rowWhere(table, row)
+                ? (IReadOnlyList<BackupValue>)row.Select((existing, position) => position == index ? value : existing).ToList()
+                : row)
+            .ToList();
+        return export with { Tables = [.. export.Tables.Select(candidate => candidate.Table == tableName ? table with { Rows = rows } : candidate)] };
+    }
 
     private static BackupExportTable Table(BackupExport export, string name) => export.Tables.Single(table => table.Table == name);
 

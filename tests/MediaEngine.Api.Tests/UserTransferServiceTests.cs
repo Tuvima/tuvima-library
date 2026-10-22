@@ -101,8 +101,9 @@ public sealed class UserTransferServiceTests : IDisposable
         Assert.Equal(admin.Account, audited.ActorAccountId);
         Assert.Equal(maya.Account.ToString("D"), audited.SubjectId);
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        var missing = await Assert.ThrowsAsync<KeyNotFoundException>(
             () => old.Service(administrator: admin.Account).ExportAsync(Human(admin.Account), Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal("That user isn't in this Library.", missing.Message);
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -124,7 +125,7 @@ public sealed class UserTransferServiceTests : IDisposable
 
         Assert.Null(preview.BlockedReason);
         Assert.Equal("maya@example.com", preview.Email);
-        Assert.Equal(["Maya", "Maya (kids)"], preview.Profiles);
+        Assert.Equal(["Maya", "Maya (kids)"], preview.Profiles.Select(profile => profile.Name));
         Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM accounts WHERE email = 'maya@example.com'"));
         Assert.Single(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
 
@@ -154,6 +155,67 @@ public sealed class UserTransferServiceTests : IDisposable
 
         // The same file cannot be imported twice.
         await Assert.ThrowsAsync<KeyNotFoundException>(() => service.ImportAsync(Human(admin.Account), preview.OperationId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Inspect_ShowsEachProfilesRoleAndContentLimit_SoAnAdministratorCanSpotAFileThatWasChanged()
+    {
+        var old = Computer.New(this, "old");
+        var fresh = Computer.New(this, "new");
+        var maya = old.AddUser("maya@example.com", ["Maya", "Maya (kids)"]);
+        old.Execute("UPDATE profiles SET role = 'RestrictedProfile', content_limit = 'PG', content_limit_allow_unrated = 1 WHERE display_name = 'Maya (kids)'");
+        var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var download = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
+
+        var preview = await InspectAsync(fresh.Service(administrator: admin.Account), admin.Account, download.Content);
+
+        Assert.Equal(
+            [
+                new MediaEngine.Contracts.Backups.UserImportProfileDto("Maya", "StandardUser", null, false),
+                new MediaEngine.Contracts.Backups.UserImportProfileDto("Maya (kids)", "RestrictedProfile", "PG", true),
+            ],
+            preview.Profiles);
+    }
+
+    [Fact]
+    public async Task Inspect_NamesTheHouseholdThePersonWillJoin_ThatExistsHereOtherwiseTheFilesOwn_OtherwiseNone()
+    {
+        var old = Computer.New(this, "old");
+        var fresh = Computer.New(this, "new");
+        var householdId = Guid.NewGuid();
+        old.AddHousehold(householdId, "The Khans (old name)");
+        var maya = old.AddUser("maya@example.com", ["Maya"], household: householdId);
+        var noHousehold = old.AddUser("noor@example.com", ["Noor"]);
+        var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var service = fresh.Service(administrator: admin.Account);
+        var mayaFile = (await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None)).Content;
+        var noorFile = (await old.Service().ExportOwnAsync(Human(noHousehold.Account), CancellationToken.None)).Content;
+
+        Assert.Equal("The Khans (old name)", (await InspectAsync(service, admin.Account, mayaFile)).HouseholdName);
+        Assert.Null((await InspectAsync(service, admin.Account, noorFile)).HouseholdName);
+
+        // The household already exists here under its own name: that is the one they join, whatever the file says.
+        fresh.AddHousehold(householdId, "The Khans (here)");
+        Assert.Equal("The Khans (here)", (await InspectAsync(service, admin.Account, mayaFile)).HouseholdName);
+    }
+
+    [Fact]
+    public async Task Inspect_ByTheSameAdministratorAgain_ReplacesAndDeletesTheirEarlierKeptFile()
+    {
+        var old = Computer.New(this, "old");
+        var fresh = Computer.New(this, "new");
+        var maya = old.AddUser("maya@example.com", ["Maya"]);
+        var noor = old.AddUser("noor@example.com", ["Noor"]);
+        var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var other = fresh.AddUser("other-admin@example.com", ["Other"]);
+        var service = fresh.Service(administrator: admin.Account);
+        var first = await InspectAsync(service, admin.Account, (await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None)).Content);
+        var second = await InspectAsync(service, admin.Account, (await old.Service().ExportOwnAsync(Human(noor.Account), CancellationToken.None)).Content);
+
+        Assert.Single(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.ImportAsync(Human(admin.Account), first.OperationId, CancellationToken.None));
+        Assert.Equal("noor@example.com", (await service.ImportAsync(Human(admin.Account), second.OperationId, CancellationToken.None)).DisplayName);
+        Assert.NotEqual(admin.Account, other.Account);
     }
 
     [Fact]
@@ -201,7 +263,7 @@ public sealed class UserTransferServiceTests : IDisposable
 
         fresh.AddUser("maya@example.com", ["Quick"]);
         var accountsBefore = fresh.Scalar("SELECT COUNT(*) FROM accounts");
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ImportAsync(Human(admin.Account), preview.OperationId, CancellationToken.None));
+        var refused = await Assert.ThrowsAsync<UserTransferRefusedException>(() => service.ImportAsync(Human(admin.Account), preview.OperationId, CancellationToken.None));
 
         Assert.Equal("Someone in this Library already signs in with maya@example.com. Nothing was imported.", refused.Message);
         Assert.Equal(accountsBefore, fresh.Scalar("SELECT COUNT(*) FROM accounts"));
@@ -294,6 +356,45 @@ public sealed class UserTransferServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AWholeBackupThatFillsAColumnAnExportLeavesEmpty_IsRefusedByEveryRestoreRoute()
+    {
+        var old = Computer.New(this, "old");
+        old.AddUser("maya@example.com", ["Maya"]);
+        var crafted = CraftAvatarPath(await File.ReadAllBytesAsync(await old.BackupService().CreateAsync(CancellationToken.None)), "/etc/passwd");
+        var restoreTarget = Computer.New(this, "restore");
+        var backups = restoreTarget.BackupService();
+        Directory.CreateDirectory(backups.BackupDirectory);
+        var inFolder = Path.Combine(backups.BackupDirectory, "tuvima-backup-20261022-090000.zip");
+        await File.WriteAllBytesAsync(inFolder, crafted);
+
+        var message = RestoreArchiveValidator.DamagedMessage;
+        Assert.Equal(message, Assert.Throws<InvalidDataException>(() => RestoreArchiveValidator.Validate(inFolder)).Message);
+        Assert.Equal(message, Assert.Throws<InvalidDataException>(() => backups.ScheduleRestore(Path.GetFileName(inFolder))).Message);
+        Assert.Equal(message, Assert.Throws<InvalidDataException>(() => backups.ValidateRestore(Path.GetFileName(inFolder))).Message);
+        await using var upload = new MemoryStream(crafted);
+        var setup = await Assert.ThrowsAsync<InvalidDataException>(
+            () => backups.UploadAndInspectAsync(upload, "recovery.zip", new OnboardingRepository(restoreTarget.Database), CancellationToken.None));
+        Assert.Equal(message, setup.Message);
+        Assert.False(File.Exists(Path.Combine(restoreTarget.Config, RestoreMarkers.PendingFileName)));
+    }
+
+    [Fact]
+    public async Task AUserExportThatFillsAnAvatarPath_IsRefusedWhenInspected_AndKeepsNothing()
+    {
+        var old = Computer.New(this, "old");
+        var fresh = Computer.New(this, "new");
+        var maya = old.AddUser("maya@example.com", ["Maya"]);
+        var admin = fresh.AddUser("admin@example.com", ["Admin"]);
+        var download = await old.Service().ExportOwnAsync(Human(maya.Account), CancellationToken.None);
+        var crafted = CraftAvatarPath(download.Content, "/etc/passwd");
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => InspectAsync(fresh.Service(administrator: admin.Account), admin.Account, crafted));
+
+        Assert.Empty(Directory.GetFiles(fresh.StagingFolder, "*.zip"));
+        Assert.Equal(0, fresh.Scalar("SELECT COUNT(*) FROM accounts WHERE email = 'maya@example.com'"));
+    }
+
+    [Fact]
     public async Task AWholeBackupFile_IsNotReadAsAUserExport()
     {
         var old = Computer.New(this, "old");
@@ -318,6 +419,37 @@ public sealed class UserTransferServiceTests : IDisposable
     {
         await using var stream = new MemoryStream(file);
         return await service.InspectAsync(Human(actor), stream, "tuvima-user-20261022-090000.zip", CancellationToken.None);
+    }
+
+    /// <summary>The archive with every profile's <c>avatar_image_path</c> set to a path, as a crafted file would carry it.</summary>
+    private static byte[] CraftAvatarPath(byte[] archiveBytes, string path)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(archiveBytes);
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            var entry = archive.Entries.Single(candidate => candidate.FullName.EndsWith("/profiles.json", StringComparison.Ordinal));
+            string json;
+            using (var reader = new StreamReader(entry.Open()))
+            {
+                json = reader.ReadToEnd();
+            }
+
+            var node = System.Text.Json.Nodes.JsonNode.Parse(json)!;
+            var index = node["columns"]!.AsArray().Select(column => column!.GetValue<string>()).ToList().IndexOf("avatar_image_path");
+            Assert.True(index >= 0);
+            foreach (var row in node["rows"]!.AsArray())
+            {
+                row![index] = path;
+            }
+
+            var name = entry.FullName;
+            entry.Delete();
+            using var writer = new StreamWriter(archive.CreateEntry(name).Open(), new UTF8Encoding(false));
+            writer.Write(node.ToJsonString());
+        }
+
+        return stream.ToArray();
     }
 
     private static string Blob(Guid id) => "X'" + Convert.ToHexString(GuidSql.ToBlob(id)) + "'";
@@ -432,14 +564,28 @@ public sealed class UserTransferServiceTests : IDisposable
         private UserImportStagingArea Staging() =>
             _staging ??= new UserImportStagingArea(_backups, TimeProvider.System, NullLogger<UserImportStagingArea>.Instance);
 
-        public Person AddUser(string email, string[] profileNames, bool administrator = false)
+        public void AddHousehold(Guid id, string name)
+        {
+            using var connection = Database.CreateConnection();
+            connection.Execute(
+                "INSERT INTO households (id, name, created_at) VALUES (@id, @name, @now)",
+                new { id = GuidSql.ToBlob(id), name, now = Stamp });
+        }
+
+        public void Execute(string sql)
+        {
+            using var connection = Database.CreateConnection();
+            connection.Execute(sql);
+        }
+
+        public Person AddUser(string email, string[] profileNames, bool administrator = false, Guid? household = null)
         {
             var account = Guid.NewGuid();
             var accountBlob = GuidSql.ToBlob(account);
             using var connection = Database.CreateConnection();
             connection.Execute(
-                "INSERT INTO accounts (id, email, normalized_email, is_administrator, created_at, updated_at) VALUES (@account, @email, @normalized, @admin, @now, @now)",
-                new { account = accountBlob, email, normalized = email.ToUpperInvariant(), admin = administrator ? 1 : 0, now = Stamp });
+                "INSERT INTO accounts (id, email, normalized_email, is_administrator, created_at, updated_at, household_id) VALUES (@account, @email, @normalized, @admin, @now, @now, @household)",
+                new { account = accountBlob, email, normalized = email.ToUpperInvariant(), admin = administrator ? 1 : 0, now = Stamp, household = household is { } h ? GuidSql.ToBlob(h) : null });
             connection.Execute(
                 """
                 INSERT INTO account_credentials (id, account_id, credential_kind, secret_hash, hash_scheme, hash_version, security_stamp, created_at, updated_at)

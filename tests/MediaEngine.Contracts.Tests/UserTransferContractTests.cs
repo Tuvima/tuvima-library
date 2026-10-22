@@ -10,17 +10,26 @@ public sealed class UserTransferContractTests
     public void UserImportPreview_UsesTheAgreedSnakeCaseNames_AndRoundTrips()
     {
         var preview = new UserImportPreviewDto(
-            Guid.Parse("11111111-2222-3333-4444-555555555555"), "maya@example.com", "The Khans", ["Maya", "Maya (kids)"], 12, null);
+            Guid.Parse("11111111-2222-3333-4444-555555555555"),
+            "maya@example.com",
+            "The Khans",
+            [new UserImportProfileDto("Maya", "StandardUser", null, false), new UserImportProfileDto("Maya (kids)", "RestrictedProfile", "PG", true)],
+            12,
+            null);
 
         var json = JsonSerializer.Serialize(preview, MediaEngineJson.Web);
         var roundTrip = JsonSerializer.Deserialize<UserImportPreviewDto>(json, MediaEngineJson.Web);
 
         Assert.Equal(
             "{\"operation_id\":\"11111111-2222-3333-4444-555555555555\",\"email\":\"maya@example.com\",\"household_name\":\"The Khans\"," +
-            "\"profiles\":[\"Maya\",\"Maya (kids)\"],\"personal_items\":12,\"blocked_reason\":null}",
+            "\"profiles\":[{\"name\":\"Maya\",\"role\":\"StandardUser\",\"content_limit\":null,\"content_limit_allow_unrated\":false}," +
+            "{\"name\":\"Maya (kids)\",\"role\":\"RestrictedProfile\",\"content_limit\":\"PG\",\"content_limit_allow_unrated\":true}]," +
+            "\"personal_items\":12,\"blocked_reason\":null}",
             json);
         Assert.Equal(preview.Email, roundTrip!.Email);
         Assert.Equal(preview.Profiles, roundTrip.Profiles);
+        Assert.Equal("PG", roundTrip.Profiles[1].ContentLimit);
+        Assert.True(roundTrip.Profiles[1].ContentLimitAllowUnrated);
         Assert.Null(roundTrip.BlockedReason);
     }
 
@@ -28,7 +37,7 @@ public sealed class UserTransferContractTests
     public void UserImportPreview_ThatIsBlocked_CarriesOneSentenceAndNoHousehold()
     {
         var json = JsonSerializer.Serialize(
-            new UserImportPreviewDto(Guid.Empty, "maya@example.com", null, ["Maya"], 0, "Someone in this Library already signs in with maya@example.com. Nothing was imported."),
+            new UserImportPreviewDto(Guid.Empty, "maya@example.com", null, [new UserImportProfileDto("Maya", "StandardUser", null, false)], 0, "Someone in this Library already signs in with maya@example.com. Nothing was imported."),
             MediaEngineJson.Web);
 
         Assert.Contains("\"household_name\":null", json, StringComparison.Ordinal);

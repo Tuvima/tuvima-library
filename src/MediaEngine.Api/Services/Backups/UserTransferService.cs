@@ -35,6 +35,12 @@ public sealed class UserTransferService(
     /// <summary>What an administrator is told when the account has no email, so it could not be found again on import.</summary>
     public const string NoEmailMessage = "This person has no email address, so their data can't be exported.";
 
+    /// <summary>What an administrator is told when the user to export is not in this Library.</summary>
+    public const string UserNotFoundMessage = "That user isn't in this Library.";
+
+    /// <summary>What an administrator is told when the file could not be made readable or protected on this computer.</summary>
+    public const string ComputerProblemMessage = "The file couldn't be made on this computer.";
+
     /// <summary>What an administrator is told when the kept file is gone (it waits for an hour).</summary>
     public const string ExpiredMessage = "This file is no longer kept. Choose it again.";
 
@@ -116,7 +122,7 @@ public sealed class UserTransferService(
             }
             catch (UserImportRefusedException ex)
             {
-                throw new InvalidOperationException(SentenceFor(ex.Refusal, checkedFile.Summary.Email), ex);
+                throw new UserTransferRefusedException(SentenceFor(ex.Refusal, checkedFile.Summary.Email), ex);
             }
 
             await audit.WriteAsync(
@@ -141,10 +147,10 @@ public sealed class UserTransferService(
     private async Task<UserExportDownload> ExportCoreAsync(RequestAuthority actor, Guid accountId, CancellationToken ct)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
-            ?? throw new KeyNotFoundException("Account not found.");
+            ?? throw new KeyNotFoundException(UserNotFoundMessage);
         if (string.IsNullOrWhiteSpace(account.Email))
         {
-            throw new InvalidOperationException(NoEmailMessage);
+            throw new UserTransferRefusedException(NoEmailMessage);
         }
 
         // The export reads one consistent snapshot of its own, so nothing is locked and the Library keeps working.
@@ -211,6 +217,16 @@ public sealed class UserTransferService(
         await destination.FlushAsync(ct).ConfigureAwait(false);
     }
 
-    private static UserImportPreviewDto Preview(Guid operationId, UserExportSummary summary, string? blockedReason) =>
-        new(operationId, summary.Email, summary.HouseholdName, summary.ProfileNames, summary.PersonalItems, blockedReason);
+    /// <summary>
+    /// The preview. The household named is the one the person will join: the one already here when the file's household exists in this
+    /// Library, otherwise the file's own household (created for them), otherwise none.
+    /// </summary>
+    private UserImportPreviewDto Preview(Guid operationId, UserExportSummary summary, string? blockedReason)
+    {
+        var household = summary.HouseholdId is { } householdId ? import.FindHouseholdName(householdId) ?? summary.HouseholdName : null;
+        var profiles = summary.Profiles
+            .Select(profile => new UserImportProfileDto(profile.Name, profile.Role, profile.ContentLimit, profile.AllowsUnrated))
+            .ToList();
+        return new UserImportPreviewDto(operationId, summary.Email, household, profiles, summary.PersonalItems, blockedReason);
+    }
 }

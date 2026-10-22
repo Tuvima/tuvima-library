@@ -611,6 +611,14 @@ public static class BackupArchiveFormat
             var values = rowElement.EnumerateArray().Select(ReadValue).ToList();
             for (var i = 0; i < values.Count; i++)
             {
+                // An excluded column (a file path, someone else's id) is written empty by every export; a file that fills one is refused,
+                // so no file can make the Engine open, serve or delete a path it chose.
+                if (values[i] is not BackupValue.NullValue
+                    && rule.ExcludedColumns.Contains(columns[i], StringComparer.OrdinalIgnoreCase))
+                {
+                    throw new InvalidDataException($"Table '{table}' has columns this version does not recognise.");
+                }
+
                 // A portable value is a protected secret made readable; it is accepted only where the rule says so.
                 if (values[i] is BackupValue.Portable
                     && (folder != ConfigurationFolder || !rule.PortableColumns.Contains(columns[i], StringComparer.OrdinalIgnoreCase)))

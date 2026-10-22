@@ -5,6 +5,7 @@ using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Backups;
 using MediaEngine.Api.Services.Security;
+using MediaEngine.Contracts.Backups;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -20,6 +21,7 @@ using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
 
@@ -39,7 +41,9 @@ public sealed class UserTransferEndpointTests : IDisposable
     private readonly FirstPartyIdentityService _identity;
     private readonly ClockStub _clock = new(new DateTimeOffset(2026, 10, 22, 12, 0, 0, TimeSpan.Zero));
     private readonly RecordingAudit _audit = new();
+    private readonly RecordingLogs _logs = new();
     private Guid _administrator;
+    private IUserTransferService? _transfers;
 
     public UserTransferEndpointTests()
     {
@@ -149,7 +153,7 @@ public sealed class UserTransferEndpointTests : IDisposable
         Assert.Equal(StatusCodes.Status200OK, preview.Status);
         Assert.Equal("maya@example.com", preview.Json.GetProperty("email").GetString());
         Assert.Equal(JsonValueKind.Null, preview.Json.GetProperty("blocked_reason").ValueKind);
-        Assert.Equal("Maya", preview.Json.GetProperty("profiles")[0].GetString());
+        Assert.Equal("Maya", preview.Json.GetProperty("profiles")[0].GetProperty("name").GetString());
         var operation = Guid.Parse(preview.Json.GetProperty("operation_id").GetString()!);
 
         _administrator = Guid.Empty;
@@ -165,6 +169,50 @@ public sealed class UserTransferEndpointTests : IDisposable
         var again = await SendAsync(app, "/access/accounts/import/{operationId:guid}", HumanUser(issued), operation: operation);
         Assert.Equal(StatusCodes.Status404NotFound, again.Status);
         Assert.Contains(_audit.Events, item => item.EventType == "account.imported" && item.SubjectId == exportingPerson.ToString("D"));
+    }
+
+    [Fact]
+    public async Task ExportAccount_OfSomeoneWhoIsNotInThisLibrary_Is404WithOnePlainSentence()
+    {
+        var issued = await SignInAsync();
+        _administrator = issued.Account.Id;
+        await using var app = BuildApplication();
+
+        var missing = await SendAsync(app, "/access/accounts/{accountId:guid}/export", HumanUser(issued), account: Guid.NewGuid());
+
+        Assert.Equal(StatusCodes.Status404NotFound, missing.Status);
+        Assert.Contains("That user isn't in this Library.", missing.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Account not found", missing.Text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AProblemOnThisComputer_Is500WithAPlainSentence_ItsInternalMessageIsLoggedNotShown()
+    {
+        var issued = await SignInAsync();
+        _administrator = issued.Account.Id;
+        _transfers = new FailingTransfers(new InvalidOperationException("internal: key ring c:\\keys\\secret.xml is unreadable"));
+        await using var app = BuildApplication();
+
+        var failed = await SendAsync(app, "/access/accounts/{accountId:guid}/export", HumanUser(issued), account: Guid.NewGuid());
+
+        Assert.Equal(StatusCodes.Status500InternalServerError, failed.Status);
+        Assert.Contains("The file couldn't be made on this computer.", failed.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret.xml", failed.Text, StringComparison.Ordinal);
+        Assert.Contains(_logs.Lines, line => line.Level == Microsoft.Extensions.Logging.LogLevel.Error);
+    }
+
+    [Fact]
+    public async Task ARealClash_Is409WithTheRefusalSentence()
+    {
+        var issued = await SignInAsync();
+        _administrator = issued.Account.Id;
+        _transfers = new FailingTransfers(new UserTransferRefusedException("Someone in this Library already signs in with maya@example.com. Nothing was imported."));
+        await using var app = BuildApplication();
+
+        var clash = await SendAsync(app, "/access/accounts/import/{operationId:guid}", HumanUser(issued), operation: Guid.NewGuid());
+
+        Assert.Equal(StatusCodes.Status409Conflict, clash.Status);
+        Assert.Contains("Someone in this Library already signs in with maya@example.com. Nothing was imported.", clash.Text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -226,7 +274,8 @@ public sealed class UserTransferEndpointTests : IDisposable
         builder.Services.AddSingleton<IFirstPartyIdentityService>(_identity);
         builder.Services.AddScoped<RecentSignInGuard>();
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new ClaimsAuthorityResolver());
-        builder.Services.AddSingleton<IUserTransferService>(_ => new UserTransferService(
+        builder.Logging.AddProvider(_logs);
+        builder.Services.AddSingleton<IUserTransferService>(_ => _transfers ?? new UserTransferService(
             new PersonalStateBackupRepository(_database, codec),
             new UserImportRepository(_database),
             codec,
@@ -358,6 +407,36 @@ public sealed class UserTransferEndpointTests : IDisposable
         {
             Events.Add(auditEvent);
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class FailingTransfers(Exception failure) : IUserTransferService
+    {
+        public Task<UserExportDownload> ExportOwnAsync(RequestAuthority actor, CancellationToken ct) => throw failure;
+
+        public Task<UserExportDownload> ExportAsync(RequestAuthority actor, Guid accountId, CancellationToken ct) => throw failure;
+
+        public Task<UserImportPreviewDto> InspectAsync(RequestAuthority actor, Stream upload, string originalFileName, CancellationToken ct) => throw failure;
+
+        public Task<UserImportResultDto> ImportAsync(RequestAuthority actor, Guid operationId, CancellationToken ct) => throw failure;
+    }
+
+    /// <summary>Keeps what is logged, whatever the category.</summary>
+    private sealed class RecordingLogs : ILoggerProvider, ILogger
+    {
+        public List<(Microsoft.Extensions.Logging.LogLevel Level, string Message)> Lines { get; } = [];
+
+        public ILogger CreateLogger(string categoryName) => this;
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Lines.Add((logLevel, formatter(state, exception)));
+
+        public void Dispose()
+        {
         }
     }
 

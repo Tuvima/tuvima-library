@@ -21,7 +21,7 @@ public static class UserTransferEndpoints
         // The signed-in person's own account, never one named in the request.
         access.MapPost("/me/export", async (HttpContext http, IRequestAuthorityResolver resolver,
             [FromServices] IUserTransferService transfers, [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
+            CancellationToken ct) => await ExecuteAsync(http, async () =>
         {
             if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
             {
@@ -40,7 +40,7 @@ public static class UserTransferEndpoints
         var accounts = access.MapGroup("/accounts");
         accounts.MapPost("/{accountId:guid}/export", async (Guid accountId, HttpContext http, IRequestAuthorityResolver resolver,
             [FromServices] IUserTransferService transfers, [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
+            CancellationToken ct) => await ExecuteAsync(http, async () =>
         {
             if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
             {
@@ -55,11 +55,13 @@ public static class UserTransferEndpoints
             .WithSummary("Downloads one user's data as a file another Library can import. For administrators.")
             .Produces(StatusCodes.Status200OK, contentType: "application/zip")
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         accounts.MapPost("/import/inspect", async (HttpRequest request, HttpContext http, IRequestAuthorityResolver resolver,
             [FromServices] IUserTransferService transfers, [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
+            CancellationToken ct) => await ExecuteAsync(http, async () =>
         {
             if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
             {
@@ -94,7 +96,7 @@ public static class UserTransferEndpoints
 
         accounts.MapPost("/import/{operationId:guid}", async (Guid operationId, HttpContext http, IRequestAuthorityResolver resolver,
             [FromServices] IUserTransferService transfers, [FromServices] RecentSignInGuard recentSignIn,
-            CancellationToken ct) => await ExecuteAsync(async () =>
+            CancellationToken ct) => await ExecuteAsync(http, async () =>
         {
             if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
             {
@@ -109,18 +111,26 @@ public static class UserTransferEndpoints
             .Produces<UserImportResultDto>()
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         return app;
     }
 
-    private static async Task<IResult> ExecuteAsync(Func<Task<IResult>> operation)
+    private static async Task<IResult> ExecuteAsync(HttpContext http, Func<Task<IResult>> operation)
     {
         try { return await operation(); }
         catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
         catch (InvalidDataException ex) { return ApiErrors.BadRequest(ex.Message); }
         catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
-        catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
+        catch (UserTransferRefusedException ex) { return ApiErrors.Conflict(ex.Message); }
         catch (UnauthorizedAccessException ex) { return ApiErrors.Forbidden(ex.Message); }
+        catch (InvalidOperationException ex)
+        {
+            // A problem on this computer (a missing key, a table the rules do not know): the internal message is logged, never shown.
+            http.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(UserTransferEndpoints))
+                .LogError(ex, "A user export or import failed on this computer.");
+            return ApiErrors.Problem(StatusCodes.Status500InternalServerError, "The user couldn't be moved.", UserTransferService.ComputerProblemMessage);
+        }
     }
 }

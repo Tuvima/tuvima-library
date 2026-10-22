@@ -70,9 +70,16 @@ public sealed class UserImportStagingArea
         return Path.Combine(_folder, operationId.ToString("N", CultureInfo.InvariantCulture) + ".zip");
     }
 
-    /// <summary>Records an uploaded file the administrator can import until it expires.</summary>
-    public void Keep(Guid operationId, Guid actorAccountId, string path, string originalName) =>
+    /// <summary>Records an uploaded file the administrator can import until it expires. Their earlier kept file, if any, is replaced and removed.</summary>
+    public void Keep(Guid operationId, Guid actorAccountId, string path, string originalName)
+    {
+        foreach (var earlier in _staged.Values.Where(item => item.ActorAccountId == actorAccountId && item.OperationId != operationId).ToList())
+        {
+            Discard(earlier.OperationId);
+        }
+
         _staged[operationId] = new StagedUserImport(operationId, actorAccountId, path, SafeName(originalName), _clock.GetUtcNow().Add(Lifetime));
+    }
 
     /// <summary>A file name only (no folders), short enough to show; a blank name becomes a plain one.</summary>
     private static string SafeName(string name)

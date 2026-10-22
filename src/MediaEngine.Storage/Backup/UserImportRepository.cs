@@ -64,6 +64,16 @@ public sealed class UserImportRepository
         return Preflight(connection, null, summary);
     }
 
+    /// <summary>The name of a household that already exists in this data store, or null when there is none with that id.</summary>
+    public string? FindHouseholdName(Guid householdId)
+    {
+        using var connection = _db.CreateConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT name FROM households WHERE id = $id";
+        command.Parameters.AddWithValue("$id", GuidSql.ToBlob(householdId));
+        return command.ExecuteScalar() as string;
+    }
+
     /// <summary>
     /// Imports the export as a new user. Throws <see cref="UserImportRefusedException"/> when something clashes at this moment, and
     /// <see cref="InvalidDataException"/> when the file is not one user's export; in both cases nothing was written.
@@ -190,16 +200,20 @@ public sealed class UserImportRepository
     /// <summary>
     /// The export with the access rights taken out: not an administrator, no administrator grant, no follow-another-account link, no Vault
     /// access, no administrator profile role; the household joined or created; the household's administrator flag only when this import
-    /// creates the household.
+    /// creates the household. Every excluded column (a file path, someone else's id) is emptied whatever the file says, so no file can
+    /// make the Engine open, serve or delete a path it chose; collections arrive private and not featured, and keep a parent only when
+    /// the parent is in the same file.
     /// </summary>
     private static BackupExport Prepare(BackupExport export, UserExportSummary summary, bool householdExists)
     {
         var accountBlob = GuidSql.ToBlob(summary.AccountId);
         var keepHousehold = summary.HouseholdId is not null && (householdExists || summary.HouseholdName is not null);
         var createdHousehold = keepHousehold && !householdExists;
+        var collectionIds = summary.CollectionIds.ToHashSet();
         var tables = new List<BackupExportTable>();
-        foreach (var table in export.Tables)
+        foreach (var original in export.Tables)
         {
+            var table = ClearExcluded(original);
             switch (table.Table.ToLowerInvariant())
             {
                 case "accounts":
@@ -237,6 +251,16 @@ public sealed class UserImportRepository
                         },
                         ("role", value => value is BackupValue.Text { Value: "Administrator" } ? BackupValue.FromText("StandardUser") : value)));
                     break;
+                case "collections":
+                    tables.Add(Rewrite(
+                        table,
+                        new Dictionary<string, BackupValue>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["is_featured"] = BackupValue.FromInteger(0),
+                        },
+                        ("audience", value => value is BackupValue.Text { Value: "Everyone" } ? BackupValue.FromText("Private") : value),
+                        ("parent_collection_id", value => UserExportReader.GuidOf(value) is { } parent && collectionIds.Contains(parent) ? value : BackupValue.Null)));
+                    break;
                 case "profile_nsfw_settings":
                     tables.Add(Rewrite(table, new Dictionary<string, BackupValue>(StringComparer.OrdinalIgnoreCase)
                     {
@@ -250,6 +274,37 @@ public sealed class UserImportRepository
         }
 
         return export with { Tables = tables };
+    }
+
+    /// <summary>The table with every column its rules exclude (the backup rule's and the user export's own) set to NULL in every row.</summary>
+    private static BackupExportTable ClearExcluded(BackupExportTable table)
+    {
+        var excluded = (BackupTableClassification.Find(table.Table)?.ExcludedColumns ?? [])
+            .Concat(UserExportScope.Find(table.Table)?.ExcludedColumns ?? [])
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var indexes = table.Columns
+            .Select((column, index) => (column, index))
+            .Where(entry => excluded.Contains(entry.column))
+            .Select(entry => entry.index)
+            .ToList();
+        if (indexes.Count == 0)
+        {
+            return table;
+        }
+
+        var rows = table.Rows
+            .Select(row =>
+            {
+                var values = row.ToList();
+                foreach (var index in indexes)
+                {
+                    values[index] = BackupValue.Null;
+                }
+
+                return (IReadOnlyList<BackupValue>)values;
+            })
+            .ToList();
+        return table with { Rows = rows };
     }
 
     /// <summary>The table with each named column set to the given value in every row (a column the table lacks is added).</summary>

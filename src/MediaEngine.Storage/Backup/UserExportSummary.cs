@@ -8,6 +8,13 @@ namespace MediaEngine.Storage.Backup;
 /// <param name="Subject">The person's id at the provider.</param>
 public sealed record UserExportExternalLogin(string Provider, string Issuer, string Subject);
 
+/// <summary>A profile as the file states it, so an administrator can see the limits it carries before importing.</summary>
+/// <param name="Name">The profile's name.</param>
+/// <param name="Role">The role stored in the file (Administrator, StandardUser or RestrictedProfile).</param>
+/// <param name="ContentLimit">The highest rating the profile may see (G, PG, PG-13 or R); null when there is none.</param>
+/// <param name="AllowsUnrated">Whether unrated items stay visible although a content limit is set.</param>
+public sealed record UserExportProfile(string Name, string Role, string? ContentLimit, bool AllowsUnrated);
+
 /// <summary>
 /// What a user export says about itself, read from its data (never from its manifest, which a person could have edited). Built only by
 /// <see cref="UserExportReader.Read"/>, which refuses a file that does not hold exactly one user and nothing of anyone else.
@@ -19,6 +26,7 @@ public sealed record UserExportExternalLogin(string Provider, string Issuer, str
 /// <param name="HouseholdAdmin">Whether the person looked after their household.</param>
 /// <param name="ProfileIds">Every profile the account may use.</param>
 /// <param name="ProfileNames">Those profiles' names, in the same order.</param>
+/// <param name="Profiles">The same profiles with the role and content limit the file states.</param>
 /// <param name="CollectionIds">The collections the profiles built.</param>
 /// <param name="PasskeyIds">The passkeys' credential ids.</param>
 /// <param name="ExternalLogins">The outside sign-in links.</param>
@@ -32,6 +40,7 @@ public sealed record UserExportSummary(
     bool HouseholdAdmin,
     IReadOnlyList<Guid> ProfileIds,
     IReadOnlyList<string> ProfileNames,
+    IReadOnlyList<UserExportProfile> Profiles,
     IReadOnlyList<Guid> CollectionIds,
     IReadOnlyList<byte[]> PasskeyIds,
     IReadOnlyList<UserExportExternalLogin> ExternalLogins,
@@ -111,6 +120,7 @@ public static class UserExportReader
 
         var profilesTable = tables.GetValueOrDefault("profiles") ?? throw NotAUserExport();
         var names = new Dictionary<Guid, string>();
+        var details = new Dictionary<Guid, UserExportProfile>();
         foreach (var row in profilesTable.Rows)
         {
             var id = GuidOf(Value(profilesTable, row, "id")) ?? throw NotAUserExport();
@@ -119,6 +129,12 @@ public static class UserExportReader
             {
                 throw NotAUserExport();
             }
+
+            details[id] = new UserExportProfile(
+                name,
+                Value(profilesTable, row, "role") is BackupValue.Text { Value: var role } ? role : "RestrictedProfile",
+                Value(profilesTable, row, "content_limit") is BackupValue.Text { Value: { Length: > 0 } limit } ? limit : null,
+                Value(profilesTable, row, "content_limit_allow_unrated") is BackupValue.Integer { Value: 1 });
         }
 
         if (names.Count != grantedProfiles.Count || grantedProfiles.Any(id => !names.ContainsKey(id)))
@@ -199,6 +215,7 @@ public static class UserExportReader
             Value(accountsTable, account, "household_admin") is BackupValue.Integer { Value: 1 },
             ordered,
             ordered.Select(id => names[id]).ToList(),
+            ordered.Select(id => details[id]).ToList(),
             collections,
             passkeys,
             logins,
