@@ -209,6 +209,12 @@
                                                               Selected="@IsFinishedOnly"
                                                               SelectedChanged="OnFinishedChanged" />
                                     }
+                                    @if (CurrentTab.LibraryId is not null)
+                                    {
+                                        <AppQuickFilterToggle Label="Unmatched"
+                                                              Selected="@_unmatched"
+                                                              SelectedChanged="OnUnmatchedChanged" />
+                                    }
                                 </div>
                             }
                         </div>
@@ -349,8 +355,11 @@
         <div class="browse-shell__empty">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inbox" Class="tl-u-font-size-52px tl-u-opacity-0-16" />
             <h3>@EmptyStateTitle</h3>
-            <p>@EmptyStateMessage</p>
-            @if (string.IsNullOrWhiteSpace(_searchText) && !IsPlaylistGrouping)
+            @if (!_unmatched)
+            {
+                <p>@EmptyStateMessage</p>
+            }
+            @if (string.IsNullOrWhiteSpace(_searchText) && !IsPlaylistGrouping && !_unmatched)
             {
                 <AppButton ButtonStyle="AppButtonStyle.Text"
                            Tone="AppUiTone.Neutral"
@@ -448,6 +457,8 @@
     private readonly HashSet<string> _selectedVibes = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _selectedThemes = new(StringComparer.OrdinalIgnoreCase);
     private string _status = string.Empty;
+    // Unmatched is its own value, not a status: the Unmatched files of the tab's library (Library setup spec D64).
+    private bool _unmatched;
     private DisplayBrowseFacetsDto? _facets;
     private int _totalCount;
     private readonly List<MediaTileViewModel> _continueCards = [];
@@ -475,12 +486,16 @@
         Preset.Tabs.FirstOrDefault(tab => string.Equals(tab.Id, _activeTabId, StringComparison.OrdinalIgnoreCase))
         ?? Preset.Tabs[0];
 
+    // The fixed tab whose per-tab rules (sort, columns, tiles, links) the active tab follows: a library's own tab follows the tab of its media type.
+    private string BehaviourTabId => CurrentTab.EffectiveBehaviourId;
+
     private string RootClass =>
         $"browse-shell {(Embedded ? "browse-shell--embedded" : string.Empty)}".Trim();
     private bool ShowTabs => ShowTabNavigation && Preset.Tabs.Count > 1;
     private bool ShowHeaderRow => ShowTitleBlock || ShowTabs;
     private int ActiveBrowseTabIndex => GetSelectedIndex(Preset.Tabs.Select(tab => tab.Id), _activeTabId);
-    private bool IsContainerGrouping => BrowseQueryBuilder.IsContainerGrouping(_grouping);
+    // Unmatched files have no series, show or album to sit in, so the Unmatched filter always lists them flat, whatever the grouping chip says.
+    private bool IsContainerGrouping => !_unmatched && BrowseQueryBuilder.IsContainerGrouping(_grouping);
     private bool IsMusicTab => string.Equals(CurrentTab.MediaType, "Music", StringComparison.OrdinalIgnoreCase);
     private bool IsAudiobookTab => string.Equals(CurrentTab.MediaType, "Audiobooks", StringComparison.OrdinalIgnoreCase);
     private bool UsesAlbumTimeline => IsTimelineGrouping
@@ -488,7 +503,7 @@
     private bool UsesTvShowTimeline => IsTimelineGrouping
                                        && CurrentTab.TimelineAggregation == TimelineAggregation.TvShows;
     private bool IsTvNetworksGrouping =>
-        string.Equals(_activeTabId, "tv", StringComparison.OrdinalIgnoreCase)
+        string.Equals(BehaviourTabId, "tv", StringComparison.OrdinalIgnoreCase)
         && string.Equals(_grouping, "networks", StringComparison.OrdinalIgnoreCase)
         && string.Equals(CurrentTab.MediaType, "TV", StringComparison.OrdinalIgnoreCase);
     private bool IsPlaylistGrouping => IsMusicTab
@@ -496,14 +511,17 @@
     private bool IsMusicSongsGrouping => IsMusicTab
                                          && _grouping is "tracks" or "songs";
     private bool IsTvShowsGrouping =>
-        string.Equals(_activeTabId, "tv", StringComparison.OrdinalIgnoreCase)
+        string.Equals(BehaviourTabId, "tv", StringComparison.OrdinalIgnoreCase)
         && string.Equals(_grouping, "shows", StringComparison.OrdinalIgnoreCase)
         && string.Equals(CurrentTab.MediaType, "TV", StringComparison.OrdinalIgnoreCase);
     private bool SupportsFacetFilters => true;
     private bool UseListLayout => !IsPlaylistGrouping
                                   && (_layout == LibraryLayoutMode.List || _grouping is "tracks" or "songs");
     private bool SupportsLayoutToggle => _grouping is not ("tracks" or "songs" or "playlists");
-    private bool IsTimelineGrouping => string.Equals(_grouping, "timeline", StringComparison.OrdinalIgnoreCase);
+    private bool IsTimelineGrouping => !_unmatched && string.Equals(_grouping, "timeline", StringComparison.OrdinalIgnoreCase);
+
+    // The grouping the Engine is asked for: the Unmatched filter is always a flat list of files (see IsContainerGrouping).
+    private string BrowseGrouping => _unmatched ? "all" : _grouping;
     private bool IsInProgressOnly => string.Equals(_status, "in-progress", StringComparison.OrdinalIgnoreCase);
     private bool IsSecondaryQuickFilterSelected => string.Equals(_status, SecondaryQuickFilterValue, StringComparison.OrdinalIgnoreCase);
     private bool IsFinishedOnly => string.Equals(_status, "finished", StringComparison.OrdinalIgnoreCase);
@@ -587,6 +605,9 @@
             .. string.IsNullOrWhiteSpace(_status)
                 ? []
                 : new[] { new ActiveFilterChip("status", StatusDisplayLabel) },
+            .. _unmatched
+                ? new[] { new ActiveFilterChip("unmatched", "Unmatched") }
+                : [],
         ];
     private string StatusDisplayLabel => _status switch
     {
@@ -615,7 +636,9 @@
         _ => 128,
     };
     private string EmptyStateTitle =>
-        HasQualifyingFilters
+        _unmatched
+            ? "Nothing unmatched here."
+        : HasQualifyingFilters
             ? $"No {ActiveGroupingLabel.ToLowerInvariant()} match these filters"
             : IsContainerGrouping
                 ? $"No {ActiveGroupingLabel.ToLowerInvariant()} yet"
@@ -637,7 +660,8 @@
         || _selectedYears.Count > 0
         || _selectedVibes.Count > 0
         || _selectedThemes.Count > 0
-        || !string.IsNullOrWhiteSpace(_status);
+        || !string.IsNullOrWhiteSpace(_status)
+        || _unmatched;
 
     private string ActiveGroupingLabel => CurrentTab.GroupingOptions
         .FirstOrDefault(option => string.Equals(option.Value, _grouping, StringComparison.OrdinalIgnoreCase))?.Label
@@ -661,8 +685,8 @@
 
     private List<LibraryColumnDef> ActiveColumns =>
         IsContainerGrouping
-            ? LibraryColumnDefinitions.GetColumnsByTab(_activeTabId, _grouping)
-            : LibraryColumnDefinitions.GetColumnsByTab(_activeTabId);
+            ? LibraryColumnDefinitions.GetColumnsByTab(BehaviourTabId, _grouping)
+            : LibraryColumnDefinitions.GetColumnsByTab(BehaviourTabId);
 
     private List<string> VisibleColumnKeys =>
         ActiveColumns
@@ -769,6 +793,7 @@
         _selectedCreators.Clear();
         _selectedCreators.UnionWith(state.Creators);
         _status = state.Status;
+        _unmatched = state.Unmatched;
         _selectedYears.Clear();
         _selectedYears.UnionWith(state.Years);
         _selectedVibes.Clear();
@@ -792,7 +817,7 @@
         BrowseQueryBuilder.ResolveLayout(requestedLayout, tab, grouping);
 
     private string ResolveSort(string? requestedSort) =>
-        BrowseQueryBuilder.ResolveSort(requestedSort, _activeTabId, _grouping);
+        BrowseQueryBuilder.ResolveSort(requestedSort, BehaviourTabId, _grouping);
 
     private async Task LoadBrowseContentAsync(bool append = false)
     {
@@ -913,6 +938,7 @@
         string.Join(',', _selectedVibes.Order()),
         string.Join(',', _selectedThemes.Order()),
         _status,
+        _unmatched,
         _sortBy,
         _layout,
         _activeProfileId?.ToString("N") ?? string.Empty);
@@ -925,7 +951,7 @@
         var requestedOffset = timelineOffset ?? (append ? _timelineOffset + _cards.Count : 0);
         var page = await ApiClient.GetDisplayBrowseAsync(
             mediaType: CurrentTab.MediaType,
-            grouping: _grouping,
+            grouping: BrowseGrouping,
             search: string.IsNullOrWhiteSpace(_searchText) ? null : _searchText,
             offset: requestedOffset,
             limit: PageSize,
@@ -937,6 +963,8 @@
             themes: _selectedThemes.Count == 0 ? null : string.Join(',', _selectedThemes),
             profileId: _activeProfileId,
             sort: _sortBy,
+            libraryId: CurrentTab.LibraryId,
+            unmatched: _unmatched ? true : null,
             ct: ct);
 
         if (ct.IsCancellationRequested) return true;
@@ -987,7 +1015,7 @@
         var ct = BeginBrowseRequest();
         var response = await ApiClient.GetDisplayBrowseAsync(
             mediaType: CurrentTab.MediaType,
-            grouping: _grouping,
+            grouping: BrowseGrouping,
             search: string.IsNullOrWhiteSpace(_searchText) ? null : _searchText,
             offset: requestedOffset,
             limit: PageSize,
@@ -999,6 +1027,8 @@
             themes: _selectedThemes.Count == 0 ? null : string.Join(',', _selectedThemes),
             profileId: _activeProfileId,
             sort: _sortBy,
+            libraryId: CurrentTab.LibraryId,
+            unmatched: _unmatched ? true : null,
             ct: ct);
 
         // A newer browse request (or leaving the page) cancelled this one; the newer load owns the state.
@@ -1061,8 +1091,8 @@
         var mediaType = CurrentTab.MediaType;
 
         var groups = systemGroupField is not null
-            ? await ApiClient.GetSystemViewGroupsAsync(mediaType, systemGroupField)
-            : await ApiClient.GetContentGroupsAsync();
+            ? await ApiClient.GetSystemViewGroupsAsync(mediaType, systemGroupField, libraryId: CurrentTab.LibraryId, unmatched: _unmatched ? true : null)
+            : await ApiClient.GetContentGroupsAsync(libraryId: CurrentTab.LibraryId, unmatched: _unmatched ? true : null);
         if (systemGroupField is null)
         {
             groups = groups
@@ -1076,7 +1106,8 @@
             || _selectedYears.Count > 0
             || _selectedVibes.Count > 0
             || _selectedThemes.Count > 0
-            || !string.IsNullOrWhiteSpace(_status))
+            || !string.IsNullOrWhiteSpace(_status)
+            || _unmatched)
         {
             var qualifyingPage = await ApiClient.GetDisplayBrowseAsync(
                 mediaType: CurrentTab.MediaType,
@@ -1091,7 +1122,9 @@
                 vibes: _selectedVibes.Count == 0 ? null : string.Join(',', _selectedVibes),
                 themes: _selectedThemes.Count == 0 ? null : string.Join(',', _selectedThemes),
                 profileId: _activeProfileId,
-                sort: _sortBy);
+                sort: _sortBy,
+                libraryId: CurrentTab.LibraryId,
+                unmatched: _unmatched ? true : null);
 
             if (qualifyingPage is not null)
             {
@@ -1200,7 +1233,9 @@
             grouping: "all",
             offset: 0,
             limit: 1,
-            profileId: _activeProfileId);
+            profileId: _activeProfileId,
+            libraryId: CurrentTab.LibraryId,
+            unmatched: _unmatched ? true : null);
         _facets = facetPage?.Facets;
     }
 
@@ -1383,7 +1418,7 @@
             return ToPersonGroupCard(group);
         }
 
-        var presentation = (_activeTabId, _grouping) switch
+        var presentation = (BehaviourTabId, _grouping) switch
         {
             ("tv", "shows") => "tvSeries",
             ("tv", "timeline") => "tvSeries",
@@ -1557,6 +1592,7 @@
         _selectedGenres.Clear();
         _selectedCreators.Clear();
         _status = string.Empty;
+        _unmatched = false;
         _selectedYears.Clear();
         _selectedVibes.Clear();
         _selectedThemes.Clear();
@@ -1679,6 +1715,14 @@
     {
         _status = selected ? "finished" : string.Empty;
         await NavigateAndReloadAsync();
+    }
+
+    // Like the search box, the Unmatched filter replaces the address entry instead of adding one, so Back leaves the lane.
+    private async Task OnUnmatchedChanged(bool selected)
+    {
+        _unmatched = selected;
+        ClearActiveGroupState();
+        await NavigateAndReloadAsync(reloadData: true, replace: true);
     }
 
     private async Task ToggleFavoriteAsync(Guid workId)
@@ -1805,20 +1849,25 @@
             _selectedThemes.Remove(key[6..]);
         else if (key == "status")
             _status = string.Empty;
+        else if (key == "unmatched")
+            _unmatched = false;
 
-        await NavigateAndReloadAsync();
+        // Like the toggle, taking the Unmatched filter off replaces the address entry instead of adding one.
+        await NavigateAndReloadAsync(replace: key == "unmatched");
     }
 
     private async Task ClearFiltersAsync()
     {
+        var hadUnmatched = _unmatched;
         _selectedGenres.Clear();
         _selectedCreators.Clear();
         _status = string.Empty;
+        _unmatched = false;
         _selectedYears.Clear();
         _selectedVibes.Clear();
         _selectedThemes.Clear();
 
-        await NavigateAndReloadAsync();
+        await NavigateAndReloadAsync(replace: hadUnmatched);
     }
 
     private async Task LoadMoreAsync()
@@ -2010,6 +2059,11 @@
             queryParts.Add($"status={Uri.EscapeDataString(_status)}");
         }
 
+        if (_unmatched)
+        {
+            queryParts.Add("unmatched=true");
+        }
+
         if (_selectedYears.Count > 0)
         {
             queryParts.AddRange(_selectedYears.OrderByDescending(value => value, StringComparer.OrdinalIgnoreCase)
@@ -2051,7 +2105,7 @@
                 PersonDetailContext);
         }
 
-        return (_activeTabId, _grouping) switch
+        return (BehaviourTabId, _grouping) switch
         {
             ("tv", "shows") => $"/details/tvshow/{GetTvShowGroupRouteId(group):D}?context=watch",
             ("tv", "timeline") => $"/details/tvshow/{GetTvShowGroupRouteId(group):D}?context=watch",
@@ -2070,7 +2124,7 @@
     private static string BuildMusicAlbumNavigationUrl(ContentGroupViewModel group)
         => $"/details/musicalbum/{(group.RootWorkId ?? group.CollectionId):D}?context=listen";
 
-    private string? PersonDetailContext => _activeTabId switch
+    private string? PersonDetailContext => BehaviourTabId switch
     {
         "music" or "audiobooks" => "listen",
         "movies" or "tv" or "videos" => "watch",
@@ -2097,7 +2151,7 @@
             ? "album"
             : UsesTvShowTimeline
                 ? "show_name"
-            : BrowseQueryBuilder.GetSystemViewGroupField(_activeTabId, _grouping);
+            : BrowseQueryBuilder.GetSystemViewGroupField(BehaviourTabId, _grouping);
 
     private bool IsPersonGrouping => _grouping is "authors" or "creators" or "directors" or "artists" or "narrators";
 
@@ -2177,7 +2231,7 @@
     }
 
     private IEnumerable<(string Value, string Label)> GetSortOptions() =>
-        BrowseQueryBuilder.GetSortOptions(_activeTabId, _grouping);
+        BrowseQueryBuilder.GetSortOptions(BehaviourTabId, _grouping);
 
     private static Guid GenerateDeterministicGuid(string value)
     {
@@ -2305,7 +2359,7 @@
     }
 
     private string BuildGroupPreviewNavigationUrl(ContentGroupViewModel group, Guid workId) =>
-        (_activeTabId, _grouping) switch
+        (BehaviourTabId, _grouping) switch
         {
             ("movies", "series") => $"/details/work/{workId:D}?context=watch",
             ("books", "series") => $"/details/work/{workId:D}?context=read",

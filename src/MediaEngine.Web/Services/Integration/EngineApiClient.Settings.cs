@@ -459,6 +459,18 @@ public sealed partial class EngineApiClient
         PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
             "POST /library/unmatched/libraries/{libraryId}/keep", $"/library/unmatched/libraries/{Uri.EscapeDataString(libraryId)}/keep", null, ct: ct);
 
+    public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryUnmatchedItemAsync(Guid assetId, CancellationToken ct = default) =>
+        PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
+            "POST /library/unmatched/items/{assetId}/retry", $"/library/unmatched/items/{assetId:D}/retry", null, ct: ct);
+
+    public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> KeepUnmatchedItemAsync(Guid assetId, CancellationToken ct = default) =>
+        PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
+            "POST /library/unmatched/items/{assetId}/keep", $"/library/unmatched/items/{assetId:D}/keep", null, ct: ct);
+
+    public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> LookUpUnmatchedItemAgainAsync(Guid assetId, CancellationToken ct = default) =>
+        PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
+            "POST /library/unmatched/items/{assetId}/look-up-again", $"/library/unmatched/items/{assetId:D}/look-up-again", null, ct: ct);
+
     public async Task<IReadOnlyList<LibraryKindDto>?> GetLibraryKindsAsync(CancellationToken ct = default) =>
         await GetAsync<List<LibraryKindDto>>("GET /settings/library-kinds", "/settings/library-kinds", ct: ct);
 

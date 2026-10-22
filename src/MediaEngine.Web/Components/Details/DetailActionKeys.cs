@@ -34,6 +34,12 @@ public static class DetailActionKeys
     public const string Identify = "identify";
     /// <summary>A video's "..." shortcut into Editing Mode with Manage Artwork open.</summary>
     public const string ChangeThumbnail = "change-thumbnail";
+    /// <summary>An administrator's "..." entry for a file the Engine could not match: look it up again now (Library setup spec D34).</summary>
+    public const string UnmatchedRetry = "unmatched-retry";
+    /// <summary>An administrator's "..." entry for an Unmatched file: stop retrying it and mark it Kept (D40).</summary>
+    public const string UnmatchedKeep = "unmatched-keep";
+    /// <summary>An administrator's "..." entry for a kept Unmatched file: bring it back and look it up now (D40).</summary>
+    public const string UnmatchedLookUpAgain = "unmatched-look-up-again";
     /// <summary>Added by the Dashboard itself to Editing Mode's More list, never sent by the Engine; <c>DetailPage</c> opens the delete confirmation.</summary>
     public const string DeleteFromLibrary = "delete-from-library";
 
@@ -64,7 +70,13 @@ public static class DetailActionKeys
         Identify,
         ChangeThumbnail,
         DeleteFromLibrary,
+        UnmatchedRetry,
+        UnmatchedKeep,
+        UnmatchedLookUpAgain,
     ];
+
+    /// <summary>True for the administrator's Unmatched actions; they are not edits, so a device that cannot edit still shows them.</summary>
+    public static bool IsUnmatchedAction(string key) => key is UnmatchedRetry or UnmatchedKeep or UnmatchedLookUpAgain;
 
     /// <summary>True for the personal-status actions (mark complete or reset, hide or show in Continue, history).</summary>
     public static bool IsPersonalStatus(string key) => key is StatusComplete or StatusReset or StatusHide or StatusShow or StatusHistory;

@@ -40,6 +40,9 @@ public sealed record UnmatchedAsset(
     bool KeptAsIs,
     DateTimeOffset? KeptAt);
 
+/// <summary>One Unmatched file that is not kept as it is, with the work it belongs to and the library it is in now.</summary>
+public sealed record UnmatchedWorkFile(Guid WorkId, Guid AssetId, string LibraryId);
+
 /// <summary>One Unmatched file as a list shows it: the row plus where the file is and the title it plays under.</summary>
 public sealed record UnmatchedAssetListItem(UnmatchedAsset Asset, string FilePath, string? Title);
 

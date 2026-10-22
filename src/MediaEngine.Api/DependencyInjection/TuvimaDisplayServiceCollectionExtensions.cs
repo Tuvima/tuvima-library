@@ -46,10 +46,12 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddSingleton<DisplayFormatReader>();
         services.AddSingleton<DisplayGridPersonalReader>();
         services.AddScoped<DisplayComposerService>();
+        services.AddScoped<BrowseLibraryListService>();
         services.AddScoped<RecentCatalogueReadService>();
         services.AddScoped<DisplayRecentComposerService>();
         services.AddScoped<ProfileStateAccessService>();
         services.AddSingleton<DetailComposerService>();
+        services.AddSingleton<DetailUnmatchedStateService>();
         services.AddSingleton<ContributorReadiness>();
         return services;
     }

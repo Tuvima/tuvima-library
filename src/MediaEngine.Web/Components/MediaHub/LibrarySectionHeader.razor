@@ -11,6 +11,10 @@
                               AriaLabel="@($"Browse {Title}")"
                               Class="library-section-header__navigation" />
     }
+    else if (Loading)
+    {
+        <AppSkeleton Class="library-section-header__navigation" Width="min(420px, 100%)" Height="34px" aria-label="Loading tabs" />
+    }
 
     @if (Actions is not null)
     {
@@ -25,6 +29,9 @@
     [Parameter] public string ActiveMode { get; set; } = "all";
     [Parameter] public IReadOnlyList<MediaHubModeViewModel> Modes { get; set; } = [];
     [Parameter] public RenderFragment? Actions { get; set; }
+
+    /// <summary>True while the tabs are still being read: a skeleton stands where the tab strip will be.</summary>
+    [Parameter] public bool Loading { get; set; }
 
     private IReadOnlyList<SurfaceTabItem> NavigationItems => Modes
         .Select(mode => new SurfaceTabItem(mode.Id, mode.Label))

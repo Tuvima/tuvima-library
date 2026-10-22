@@ -75,6 +75,10 @@ internal class EngineApiClientStub : DispatchProxy
         _handlers[nameof(IEngineApiClient.GetSetupLibraryKindsAsync)] =
             _ => Task.FromResult<IReadOnlyList<LibraryKindDto>?>(LibraryKindsTestData.BuiltIn());
 
+        // Most tests do not care about the browse tabs: a list that cannot be read keeps the lanes' fixed tabs.
+        _handlers[nameof(IEngineApiClient.GetBrowseLibrariesAsync)] =
+            _ => Task.FromResult<IReadOnlyList<BrowseLibraryDto>?>(null);
+
         _handlers[nameof(IEngineApiClient.ToAbsoluteEngineUrl)] =
             args => args?[0]?.ToString() ?? string.Empty;
 

@@ -8,6 +8,7 @@
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Navigation
 @inject IEngineApiClient ApiClient
+@inject BrowseLibrariesState LibraryList
 @inject UIOrchestratorService Orchestrator
 @inject MediaTileComposerService MediaTiles
 @inject ListenAudioDragService AudioDrag
@@ -23,11 +24,12 @@
                Subtitle="Music and audiobooks from your local library"
                SearchPlaceholder="Search music and audiobooks..."
                SectionType="MediaHubSectionType.Listen"
-               Preset="@ListenBrowseConfiguration.Preset"
-               Modes="@ListenBrowseConfiguration.LaneModes"
+               Preset="@Preset"
+               Modes="@Modes"
                NavigationGroups="@ListenNavigationGroups"
                ActiveMode="@ActiveListenMode"
                Tab="@Tab"
+               TabsLoading="@(!_tabsLoaded)"
                LandingPage="@_landingPage"
                Shelves="@ListenHubShelves"
                Loading="@_loading"
@@ -66,19 +68,25 @@
     private bool _loadFailed;
     private bool _playlistsLoaded;
 
-    private string ActiveListenMode => NormalizedTab switch
-    {
-        "music" => "music",
-        "audiobooks" => "audiobooks",
-        "playlists" => "playlists",
-        _ => "all",
-    };
+    // The tabs follow the Engine's library list (one per library with folders, then Playlists); the fixed tabs stand in when it cannot be read.
+    private LibraryBrowsePreset Preset = ListenBrowseConfiguration.Preset;
+    private IReadOnlyList<MediaHubModeViewModel> Modes = ListenBrowseConfiguration.LaneModes;
+    private bool _tabsLoaded;
+    private bool _landingAttempted;
 
-    private string NormalizedTab => Tab?.Trim().ToLowerInvariant() ?? string.Empty;
+    private string ActiveListenMode => BrowseQueryBuilder.FindTab(Preset, Tab)?.Id ?? "all";
 
-    private bool IsSupportedBrowseTab =>
-        ListenBrowseConfiguration.Preset.Tabs.Any(
-            tab => string.Equals(tab.Id, NormalizedTab, StringComparison.OrdinalIgnoreCase));
+    private bool IsSupportedBrowseTab => BrowseQueryBuilder.FindTab(Preset, Tab) is not null;
+
+    // The tab whose shortcuts the rail lists (Songs, Albums and Artists, Recently Played, Recently Added): the first music-type library tab
+    // (Playlists is its own group); none when this profile has no music-type library.
+    private BrowseTabPreset? MusicTab => Preset.Tabs.FirstOrDefault(tab =>
+        string.Equals(tab.MediaType, "Music", StringComparison.OrdinalIgnoreCase)
+        && !ListenBrowseConfiguration.FixedTabIds.Contains(tab.Id));
+
+    // The tab "Continue Listening" opens: the first Audiobooks tab; none when this profile has no audiobook library.
+    private BrowseTabPreset? AudiobookTab => Preset.Tabs.FirstOrDefault(tab =>
+        string.Equals(tab.MediaType, "Audiobooks", StringComparison.OrdinalIgnoreCase));
 
     private IReadOnlyList<MediaSectionNavigationGroup> ListenNavigationGroups
     {
@@ -102,31 +110,47 @@
                         "playlist",
                         IsSmart: IsSmartPlaylist(playlist)))));
 
-            return
-            [
+            var musicTab = MusicTab;
+            var navigationGroups = new List<MediaSectionNavigationGroup>
+            {
                 MediaLaneConfigurationBuilder.BuildLibraryGroup(
-                    ListenBrowseConfiguration.Preset,
-                    ListenBrowseConfiguration.LibraryRailTabIds),
+                    Preset,
+                    Preset.Tabs.Where(tab => !ListenBrowseConfiguration.FixedTabIds.Contains(tab.Id)).Select(tab => tab.Id).ToHashSet(StringComparer.OrdinalIgnoreCase)),
                 new("Listen next",
                 [
                     new("My List", "/for-me?view=my-list&area=listen", AppMaterialIcons.Outlined.FavoriteBorder, Exact: true),
-                    new("Continue Listening", "/listen/audiobooks?status=in-progress", AppMaterialIcons.Outlined.PlayCircle, Exact: true),
-                    new("Recently Played", "/listen/music?sort=recently-played", AppMaterialIcons.Outlined.History, Exact: true),
-                    new("Recently Added", "/listen/music?sort=newest", AppMaterialIcons.Outlined.Schedule, Exact: true),
+                    .. AudiobookTab is { } audiobookTab
+                        ? new MediaSectionNavigationItem[]
+                        {
+                            new("Continue Listening", $"/listen/{audiobookTab.Id}?status=in-progress", AppMaterialIcons.Outlined.PlayCircle, Exact: true),
+                        }
+                        : [],
+                    .. musicTab is not null
+                        ? new MediaSectionNavigationItem[]
+                        {
+                            new("Recently Played", $"/listen/{musicTab.Id}?sort=recently-played", AppMaterialIcons.Outlined.History, Exact: true),
+                            new("Recently Added", $"/listen/{musicTab.Id}?sort=newest", AppMaterialIcons.Outlined.Schedule, Exact: true),
+                        }
+                        : [],
                 ]),
-                MediaBrowseNavigationBuilder.BuildBrowseGroup(
-                    ListenBrowseConfiguration.Preset,
+            };
+            if (musicTab is not null)
+            {
+                navigationGroups.Add(MediaBrowseNavigationBuilder.BuildBrowseGroup(
+                    Preset,
                     "Music",
-                    new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "music" }),
-                new("Playlists", playlistItems,
-                    new MediaSectionNavigationCreateOptions(
-                        "New Playlist",
-                        "New Smart Playlist",
-                        "Playlist name",
-                        new ManualPlaylistCreateTarget(),
-                        new SmartPlaylistCreateTarget(),
-                        new NewPlaylistNavigationDropTarget())),
-            ];
+                    new HashSet<string>(StringComparer.OrdinalIgnoreCase) { musicTab.Id }));
+            }
+
+            navigationGroups.Add(new("Playlists", playlistItems,
+                new MediaSectionNavigationCreateOptions(
+                    "New Playlist",
+                    "New Smart Playlist",
+                    "Playlist name",
+                    new ManualPlaylistCreateTarget(),
+                    new SmartPlaylistCreateTarget(),
+                    new NewPlaylistNavigationDropTarget())));
+            return navigationGroups;
         }
     }
 
@@ -167,6 +191,23 @@
         }
     }
 
+    // The page draws its header and a tab-strip skeleton at once; the library list is read while the playlists and the landing load.
+    protected override async Task OnInitializedAsync()
+    {
+        var tabs = LoadTabsAsync();
+        await EnsurePlaylistNavigationAsync();
+        var landing = string.IsNullOrWhiteSpace(Tab) ? LoadLandingAsync() : Task.CompletedTask;
+        await Task.WhenAll(tabs, landing);
+    }
+
+    private async Task LoadTabsAsync()
+    {
+        Preset = BrowseLibraryTabs.Build(
+            ListenBrowseConfiguration.Preset, "listen", await LibraryList.GetAsync(), ListenBrowseConfiguration.FixedTabIds);
+        Modes = MediaLaneConfigurationBuilder.BuildModes(Preset);
+        _tabsLoaded = true;
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         await EnsurePlaylistNavigationAsync();
@@ -177,7 +218,10 @@
             return;
         }
 
-        await LoadLandingAsync();
+        if (!_landingAttempted)
+        {
+            await LoadLandingAsync();
+        }
     }
 
     private async Task EnsurePlaylistNavigationAsync()
@@ -213,6 +257,7 @@
 
     private async Task LoadLandingAsync()
     {
+        _landingAttempted = true;
         _loading = true;
         _loadFailed = false;
 

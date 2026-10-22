@@ -38,6 +38,14 @@ public sealed record BrowseTabPreset
     public string YearSemantic { get; init; } = "Release / publication year";
     public TimelineAggregation TimelineAggregation { get; init; } = TimelineAggregation.MediaItems;
     public string TimelineItemNoun { get; init; } = "item";
+
+    /// <summary>The library this tab browses (a <c>BrowseLibraryDto</c> id); null for a fixed tab such as Playlists.</summary>
+    public Guid? LibraryId { get; init; }
+
+    /// <summary>The fixed tab whose per-tab rules (sort, columns, links) this library tab follows; null means this tab's own <see cref="Id"/>.</summary>
+    public string? BehaviourId { get; init; }
+
+    public string EffectiveBehaviourId => BehaviourId ?? Id;
 }
 
 public sealed record LibraryBrowsePreset

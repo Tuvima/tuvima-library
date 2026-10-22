@@ -6,7 +6,7 @@
 <PageTitle>@Title - Library</PageTitle>
 
 <MediaSectionShell Title="@Title"
-                   NavigationGroups="@NavigationGroups"
+                   NavigationGroups="@ShownNavigationGroups"
                    ShowMobileNavigation="false"
                    OnNavigationItemDrop="@OnNavigationItemDrop"
                    OnNavigationCreateDrop="@OnNavigationCreateDrop"
@@ -17,10 +17,24 @@
                    OnNavigationItemDelete="@OnNavigationItemDelete"
                    OnNavigationItemReorder="@OnNavigationItemReorder">
     <LibrarySectionHeader Title="@Title"
-                          Modes="@Modes"
-                          ActiveMode="@ActiveMode" />
+                          Modes="@ShownModes"
+                          ActiveMode="@ActiveMode"
+                          Loading="@TabsLoading" />
 
-    @if (string.IsNullOrWhiteSpace(Tab))
+    @if (NoTabs)
+    {
+        <AppPageState Kind="AppPageStateKind.Empty"
+                      Title="@EmptyTitle"
+                      Message="@EmptyMessage" />
+    }
+    else if (TabsLoading && !string.IsNullOrWhiteSpace(Tab))
+    {
+        <AppPageState Kind="AppPageStateKind.Loading"
+                      Title="@($"Loading {Title}")"
+                      Message="@LoadingMessage"
+                      Class="browse-shell__loading" />
+    }
+    else if (string.IsNullOrWhiteSpace(Tab))
     {
         @if (Loading)
         {
@@ -87,6 +101,9 @@
     [Parameter] public bool Loading { get; set; }
     [Parameter] public bool LoadFailed { get; set; }
     [Parameter] public bool IsSupportedBrowseTab { get; set; } = true;
+
+    /// <summary>True while the lane's tabs are being read: the header shows a skeleton tab strip and no rail, and the page content waits for the tabs.</summary>
+    [Parameter] public bool TabsLoading { get; set; }
     [Parameter] public string? LoadingMessage { get; set; }
     [Parameter] public string LoadFailedTitle { get; set; } = "Page failed to load";
     [Parameter] public string LoadFailedMessage { get; set; } = "The Dashboard could not load this page from the Engine.";
@@ -95,6 +112,11 @@
     [Parameter] public string UnsupportedTitle { get; set; } = "Page not found";
     [Parameter] public string UnsupportedMessage { get; set; } = "Choose another library section.";
     [Parameter] public EventCallback Retry { get; set; }
+
+    // A profile that can see no library in this lane has no tabs and no rail: the lane shows its empty state, never a browse shell with nothing to browse.
+    private bool NoTabs => !TabsLoading && Preset.Tabs.Count == 0;
+    private IReadOnlyList<MediaHubModeViewModel> ShownModes => TabsLoading || NoTabs ? [] : Modes;
+    private IReadOnlyList<MediaSectionNavigationGroup> ShownNavigationGroups => TabsLoading || NoTabs ? [] : NavigationGroups;
     [Parameter] public EventCallback<MediaSectionNavigationDropEvent> OnNavigationItemDrop { get; set; }
     [Parameter] public EventCallback<MediaSectionNavigationCreateDropEvent> OnNavigationCreateDrop { get; set; }
     [Parameter] public EventCallback<MediaSectionNavigationCreateTarget> OnNavigationCreateCanceled { get; set; }

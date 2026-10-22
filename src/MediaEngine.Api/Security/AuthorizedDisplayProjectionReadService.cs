@@ -63,6 +63,18 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         return scope.IsValid ? new DisplayLibraryScope(scope.AllLibraries, scope.Libraries) : new DisplayLibraryScope(false, new HashSet<Guid>());
     }
 
+    public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorkLibraryRowsAsync(CancellationToken ct) =>
+        AllowedWorkLibraryRows(await inner.LoadWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false)).ToList();
+
+    public async Task<DisplayLibraryAccess> LoadLibraryAccessAsync(CancellationToken ct)
+    {
+        var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
+        return scope.IsValid
+            ? new DisplayLibraryAccess((libraryId, mediaType) =>
+                !scope.Content.IsVaultLibrary(libraryId) && AllowsLibraryFile(libraryId, mediaType, scope))
+            : DisplayLibraryAccess.Nothing;
+    }
+
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadDetailWorksAsync(Guid id, CancellationToken ct) =>
         FilterWorks(await inner.LoadDetailWorksAsync(id, ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
 
@@ -256,13 +268,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         IReadOnlyList<DisplayWorkRow> rows,
         CatalogueScope scope)
     {
-        if (!scope.IsValid)
-        {
-            return [];
-        }
-
-        var vaultWorks = WorksInHiddenVault(rows.Select(row => (row.WorkId, row.LibraryId)), scope);
-        return rows.Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope))
+        return AllowedWorkLibraryRows(rows, scope)
             .GroupBy(row => row.WorkId)
             .Select(group => group
                 .OrderBy(row => row.CreatedAt)
@@ -270,6 +276,18 @@ internal sealed class AuthorizedDisplayProjectionReadService(
                 .First())
             .OrderByDescending(row => row.CreatedAt)
             .ToList();
+    }
+
+    // The one allow rule for works, applied per (work, library) row; FilterWorks then keeps one row per work.
+    private static IEnumerable<DisplayWorkRow> AllowedWorkLibraryRows(IReadOnlyList<DisplayWorkRow> rows, CatalogueScope scope)
+    {
+        if (!scope.IsValid)
+        {
+            return [];
+        }
+
+        var vaultWorks = WorksInHiddenVault(rows.Select(row => (row.WorkId, row.LibraryId)), scope);
+        return rows.Where(row => !vaultWorks.Contains(row.WorkId) && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope));
     }
 
     /// <summary>
@@ -284,8 +302,11 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     /// Watch feature, so a person can play what they find in the Vault area.
     /// </summary>
     private static bool AllowsFile(string? libraryId, string mediaType, string? contentRating, CatalogueScope scope) =>
+        scope.Content.Allows(contentRating) && AllowsLibraryFile(libraryId, mediaType, scope);
+
+    /// <summary>The part of <see cref="AllowsFile"/> that depends on the library, not the file's rating: also what decides whether a library may be listed.</summary>
+    private static bool AllowsLibraryFile(string? libraryId, string mediaType, CatalogueScope scope) =>
         !scope.Content.HidesLibrary(libraryId)
-        && scope.Content.Allows(contentRating)
         && scope.Content.AllowsVideo(libraryId, mediaType)
         && AllowsLibraryAndFeature(libraryId, mediaType, scope);
 
