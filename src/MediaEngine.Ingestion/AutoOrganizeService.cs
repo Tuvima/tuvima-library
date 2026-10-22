@@ -4,6 +4,7 @@ using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
@@ -42,6 +43,8 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
     private readonly ImportFileMover? _importMover;
     private readonly ImportFilingJournal? _importJournal;
     private readonly SidecarMover? _sidecars;
+    private readonly IFilingQueue? _filingQueue;
+    private readonly IFilingHold _filingHold;
 
     // Filing out of the Import folder runs one file at a time, so two passes (the pipeline and the sweep) can't file the
     // same file twice or race for the same unique name.
@@ -67,8 +70,12 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
         IImportFolderService? importFolders = null,
         ImportFileMover? importMover = null,
         ImportFilingJournal? importJournal = null,
-        SidecarMover? sidecars = null)
+        SidecarMover? sidecars = null,
+        IFilingQueue? filingQueue = null,
+        IFilingHold? filingHold = null)
     {
+        _filingQueue = filingQueue;
+        _filingHold = filingHold ?? new NoFilingHold();
         _sidecars = sidecars;
         _importJournal = importJournal;
         _importFolders = importFolders;
@@ -120,7 +127,7 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
                     && File.Exists(current.FilePathRoot)
                     && _importFolders.IsInImportFolder(current.FilePathRoot))
                 {
-                    await TryFileFromImportAsync(current, assetId, ct).ConfigureAwait(false);
+                    await TryFileFromImportAsync(current, assetId, immediate: false, ct).ConfigureAwait(false);
                 }
             }
             finally
@@ -401,16 +408,21 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
     /// folder, or the folder is offline, full or unwritable) it is left untouched in the Import folder and the next pass,
     /// the periodic sweep or a manual folder check, tries again. Nothing is ever filed into another folder.
     /// </summary>
-    private async Task TryFileFromImportAsync(
+    /// <remarks>
+    /// With a filing queue the move is not made here: once every check has passed the file is recorded as waiting for the next run
+    /// and stays where it is (Library setup D62). The run asks again with <paramref name="immediate"/> set, which makes the move.
+    /// </remarks>
+    private async Task<AssetRefileOutcome> TryFileFromImportAsync(
         Domain.Aggregates.MediaAsset asset,
         Guid assetId,
+        bool immediate,
         CancellationToken ct)
     {
         var canonicals = await _canonicalRepo.GetByEntityAsync(assetId, ct).ConfigureAwait(false);
         if (canonicals.Count == 0)
         {
             _logger.LogDebug("Import filing skipped for {Id}: no canonical values yet", assetId);
-            return;
+            return KeptInPlace(asset, "Nothing is known about this file yet.");
         }
 
         var metadata = canonicals.ToDictionary(
@@ -420,7 +432,7 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
             || mediaType == MediaType.Unknown)
         {
             _logger.LogDebug("Import filing waits for {Id}: its media type is not settled", assetId);
-            return;
+            return KeptInPlace(asset, "Its type is not settled yet.");
         }
 
         var pendingReviews = await _reviewRepo.GetPendingByEntityAsync(assetId, ct).ConfigureAwait(false);
@@ -431,14 +443,14 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
         {
             _logger.LogDebug(
                 "Import filing blocked for {Id}: review '{Trigger}' must be resolved first", assetId, blocking.Trigger);
-            return;
+            return KeptInPlace(asset, "A review must be resolved first.");
         }
 
         var title = metadata.GetValueOrDefault("title");
         if (string.IsNullOrWhiteSpace(title) || title is "Untitled" or "Unknown")
         {
             _logger.LogDebug("Import filing blocked for {Id}: no resolved title", assetId);
-            return;
+            return KeptInPlace(asset, "It has no resolved title yet.");
         }
 
         await ApplyRecordedEpisodeRangeAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
@@ -450,7 +462,7 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
             _logger.LogDebug(
                 "Import filing held for {Id}: {State} for {Type}. {Reason}",
                 assetId, destination.State, destination.TypeLabel, destination.Reason);
-            return;
+            return KeptInPlace(asset, destination.Reason ?? "Its folder is not ready.");
         }
 
         var synth = new IngestionCandidate
@@ -474,7 +486,7 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
         if (!gateResult.CanOrganize)
         {
             _logger.LogDebug("Import filing blocked for {Id}: {Reason}", assetId, gateResult.BlockReason);
-            return;
+            return KeptInPlace(asset, "The file has no proper name to take yet.");
         }
 
         var destPath = Path.GetFullPath(Path.Combine(destination.Source!.Path, relative));
@@ -483,7 +495,14 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
         {
             _logger.LogInformation(
                 "Import filing blocked by source policy for {Id}: {Source} -> {Dest}", assetId, sourcePath, destPath);
-            return;
+            return KeptInPlace(asset, "The file is protected, so it is not touched.");
+        }
+
+        if (!immediate && _filingQueue is not null)
+        {
+            // Every check has passed; the move itself waits for the next run with the tags, and the file stays where it is, playable.
+            await QueueFilingAsync(assetId, sourcePath, destination.Library!.Id, destination.Source!.Id, ct).ConfigureAwait(false);
+            return KeptInPlace(asset, "Waiting to be filed at the next run.");
         }
 
         // The intent is written first and removed only once the data store points at the new location, so a crash between
@@ -492,7 +511,7 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
             && !_importJournal.TryBegin(new ImportFilingIntent(
                 assetId, sourcePath, destPath, asset.ContentHash, destination.Library!.Id, DateTimeOffset.UtcNow)))
         {
-            return;
+            return KeptInPlace(asset, "Another pass is already filing it.");
         }
 
         var finalPath = await _importMover!.MoveAsync(sourcePath, destPath, asset.ContentHash, adoptIdenticalCopy: true, ct: ct).ConfigureAwait(false);
@@ -500,7 +519,9 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
         {
             _importJournal?.Complete(assetId);
             _logger.LogWarning("Import filing did not move {Id}; it stays in the Import folder: {Source}", assetId, sourcePath);
-            return;
+            return new AssetRefileOutcome(
+                AssetRefileOutcomeKind.Failed, AssetRefileDisposition.Moves, sourcePath,
+                "The file could not be moved out of the Import folder (it may be in use). It will be tried again.");
         }
 
         await _assetRepo.UpdateFilePathAsync(assetId, finalPath, ct).ConfigureAwait(false);
@@ -559,6 +580,33 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogDebug(ex, "Event publish failed for import filing of {Id}; continuing", assetId);
+        }
+
+        return new AssetRefileOutcome(AssetRefileOutcomeKind.Moved, AssetRefileDisposition.Moves, finalPath, null);
+    }
+
+    private static AssetRefileOutcome KeptInPlace(Domain.Aggregates.MediaAsset asset, string reason) =>
+        new(AssetRefileOutcomeKind.Kept, AssetRefileDisposition.Unavailable, asset.FilePathRoot, reason);
+
+    /// <summary>
+    /// Records that the file is to be filed on the next run, or held when its newly added Managed folder has not passed its first
+    /// check (D61). The file is not touched and stays playable where it is; it is presented now, as it would have been once filed.
+    /// </summary>
+    private async Task QueueFilingAsync(Guid assetId, string path, string libraryId, string sourceId, CancellationToken ct)
+    {
+        var held = _filingHold.IsHeld(libraryId, sourceId, path);
+        var recorded = await _filingQueue!.RequestFilingAsync(assetId, held, ct).ConfigureAwait(false);
+        await MarkPresentedAsync(assetId, ct).ConfigureAwait(false);
+        if (recorded)
+        {
+            _logger.LogInformation(
+                "Filing for asset {Id} is {State}: {Path} stays where it is until the next run", assetId, held ? "held" : "waiting", path);
+        }
+        else
+        {
+            // Asked again by a sweep while it already waits (or a person's own move is asked for): nothing changes.
+            _logger.LogDebug(
+                "Filing for asset {Id} was not queued again: it is already waiting, or a person's own move is asked for: {Path}", assetId, path);
         }
     }
 
@@ -630,12 +678,7 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
 
         // A file still waiting for a person to confirm what it is is not renamed in place: the name would come from an
         // unconfirmed match. (A name clash or a merge arrival is not a question about identity and does not hold it back.)
-        var pendingReviews = await _reviewRepo.GetPendingByEntityAsync(assetId, ct).ConfigureAwait(false);
-        var blockingReview = pendingReviews.FirstOrDefault(review =>
-            review.ReviewReadyAt is not null
-            && !string.Equals(review.Trigger, nameof(ReviewTrigger.WritebackFailed), StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(review.Trigger, ReviewTrigger.NameCollision, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(review.Trigger, ReviewTrigger.FromMerge, StringComparison.OrdinalIgnoreCase));
+        var blockingReview = await FindBlockingReviewAsync(assetId, ct).ConfigureAwait(false);
         if (blockingReview is not null)
         {
             _logger.LogDebug(
@@ -684,6 +727,16 @@ public sealed partial class AutoOrganizeService : IAutoOrganizeService
             _logger.LogInformation(
                 "Re-organization skipped for {Id}: {Dest} is already taken by another file, so {Source} stays where it is",
                 assetId, newDest, oldPath);
+            return;
+        }
+
+        if (_filingQueue is not null)
+        {
+            // Library's own filing waits for the next run with the tags; the file stays where it is, playable (Library setup D62, D63).
+            var resolved = _libraryResolver?.ResolveSourceForPath(oldPath);
+            await QueueFilingAsync(
+                assetId, oldPath, resolved?.Library.Id ?? library?.Id ?? asset.LibraryId ?? string.Empty, resolved?.Source.Id ?? string.Empty, ct)
+                .ConfigureAwait(false);
             return;
         }
 

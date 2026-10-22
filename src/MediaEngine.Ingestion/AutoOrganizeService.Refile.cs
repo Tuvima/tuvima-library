@@ -147,6 +147,67 @@ public sealed partial class AutoOrganizeService
     }
 
     /// <inheritdoc/>
+    public async Task<AssetRefileOutcome> FileOnScheduleAsync(Guid assetId, IRefileStepRecorder steps, CancellationToken ct = default)
+    {
+        var asset = await _assetRepo.FindByIdAsync(assetId, ct).ConfigureAwait(false);
+        if (asset is null)
+        {
+            return new AssetRefileOutcome(
+                AssetRefileOutcomeKind.Kept, AssetRefileDisposition.Unavailable, string.Empty, "The file is no longer in the library.");
+        }
+
+        if (!File.Exists(asset.FilePathRoot))
+        {
+            return KeptInPlace(asset, "The file is not on disk.");
+        }
+
+        // A file waiting in the Import folder is filed out of it by the import flow, which keeps its own journal for a stop part-way.
+        if (_importFolders is not null && _importMover is not null && _importFolders.IsInImportFolder(asset.FilePathRoot))
+        {
+            await _importFilingGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                var current = await _assetRepo.FindByIdAsync(assetId, ct).ConfigureAwait(false);
+                if (current is not null
+                    && File.Exists(current.FilePathRoot)
+                    && _importFolders.IsInImportFolder(current.FilePathRoot))
+                {
+                    return await TryFileFromImportAsync(current, assetId, immediate: true, ct).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                _importFilingGate.Release();
+            }
+
+            // Another pass filed it while this one waited.
+            return await RefileCoreAsync(assetId, steps, ct).ConfigureAwait(false);
+        }
+
+        // A review opened since the move was queued still holds it back: the name would come from an unconfirmed match.
+        var blocking = await FindBlockingReviewAsync(assetId, ct).ConfigureAwait(false);
+        if (blocking is not null)
+        {
+            _logger.LogDebug("Filing held for {Id}: review '{Trigger}' must be resolved first", assetId, blocking.Trigger);
+            return KeptInPlace(asset, "A review must be resolved first.");
+        }
+
+        return await RefileCoreAsync(assetId, steps, ct).ConfigureAwait(false);
+    }
+
+    // A file still waiting for a person to confirm what it is is not renamed in place. (A name clash or a merge arrival is not a
+    // question about identity and does not hold it back.)
+    private async Task<ReviewQueueEntry?> FindBlockingReviewAsync(Guid assetId, CancellationToken ct)
+    {
+        var pendingReviews = await _reviewRepo.GetPendingByEntityAsync(assetId, ct).ConfigureAwait(false);
+        return pendingReviews.FirstOrDefault(review =>
+            review.ReviewReadyAt is not null
+            && !string.Equals(review.Trigger, nameof(ReviewTrigger.WritebackFailed), StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(review.Trigger, ReviewTrigger.NameCollision, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(review.Trigger, ReviewTrigger.FromMerge, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <inheritdoc/>
     public async Task CompleteInterruptedMoveAsync(Guid assetId, string sourcePath, string targetPath, CancellationToken ct = default)
     {
         var asset = await _assetRepo.FindByIdAsync(assetId, ct).ConfigureAwait(false);

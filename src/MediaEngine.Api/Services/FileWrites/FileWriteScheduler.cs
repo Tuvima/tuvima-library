@@ -20,6 +20,10 @@ namespace MediaEngine.Api.Services.FileWrites;
 ///   at once). A run claims the waiting rows in chunks per kind of target, hands each chunk to that kind's writer and records the
 ///   outcome. If the Engine was off when a run was due, the run happens shortly after it starts.</item>
 /// </list>
+/// A move Library makes on its own (filing a newly identified file, filing out of the Import folder) is not done by the move lane at
+/// once: it waits on the list until a run starts, and the run files it first (promoting it to the move lane) and then writes its tags
+/// in the same run (Library setup D62). A file that is in use when its turn comes is left untouched and waits for the next run.
+/// Filing does not depend on the tag-writing switch: it runs on the schedule even when write-back is off.
 /// Both lanes are safe to repeat: a row that was being worked on when the Engine stopped is claimed again once its lease runs out.
 /// </summary>
 public sealed class FileWriteScheduler(
@@ -139,6 +143,10 @@ public sealed class FileWriteScheduler(
         }
     }
 
+    /// <summary>True when a file is waiting to be filed. Filing does not depend on the tag-writing switch, so Write now may run for it.</summary>
+    public async Task<bool> HasFilingWaitingAsync(CancellationToken ct = default) =>
+        (await intents.GetCountsAsync(ct: ct)).FilingWaiting > 0;
+
     public FileWriteProgress GetProgress()
     {
         lock (_stateLock)
@@ -174,7 +182,10 @@ public sealed class FileWriteScheduler(
             RunTotal = progress.Total,
             RunDone = progress.Done,
             LastRunAt = ParseTime(state?.LastRunFinishedAt),
-            NextRunAt = settings.Enabled && counts.Waiting > 0 ? ComputeNextRun(state, settings.RunInterval) : null,
+            // Filing moves run on the schedule even when tag writing is switched off.
+            NextRunAt = (settings.Enabled && counts.Waiting > 0) || counts.FilingWaiting > 0
+                ? ComputeNextRun(state, settings.RunInterval)
+                : null,
         };
     }
 
@@ -229,9 +240,10 @@ public sealed class FileWriteScheduler(
             return true;
         }
 
-        // With write-back off nothing new is queued and the schedule stays quiet; what is waiting is written once it is turned back on.
+        // With write-back off no tags are queued and the schedule stays quiet for them (what is waiting is written once it is turned back
+        // on), but a file waiting to be filed is still filed on the schedule.
         var settings = LoadSettings();
-        return settings.Enabled
+        return (settings.Enabled || counts.FilingWaiting > 0)
             && clock.GetUtcNow() >= ComputeNextRun(await intents.GetRunStateAsync(ct), settings.RunInterval);
     }
 
@@ -266,7 +278,17 @@ public sealed class FileWriteScheduler(
     /// has come. A move that fails waits (a minute, five minutes, half an hour, two hours) before it is tried again, so no move is
     /// retried in a tight loop. Returns true when a move was attempted.
     /// </summary>
-    internal async Task<bool> RunMoveLaneAsync(CancellationToken ct)
+    internal Task<bool> RunMoveLaneAsync(CancellationToken ct) => RunMoveLaneAsync(ct, tally: null);
+
+    /// <summary>What a run's move lane did with the filing moves it took, so the run can say how many files it handled.</summary>
+    private sealed class MoveLaneTally
+    {
+        public int Filed { get; set; }
+
+        public int SetAside { get; set; }
+    }
+
+    private async Task<bool> RunMoveLaneAsync(CancellationToken ct, MoveLaneTally? tally)
     {
         var worked = await mover.RecoverDueAsync(ct) > 0;
         while (true)
@@ -281,7 +303,21 @@ public sealed class FileWriteScheduler(
             var result = await mover.MoveAsync(intent, ct);
             switch (result.Kind)
             {
+                case LibraryMoveRunner.MoveResultKind.InUse:
+                    // Not a failed attempt: the file is left exactly as it was and waits for the next run, and so do its tags.
+                    logger.LogInformation(
+                        "The file of asset {AssetId} is in use, so its filing waits for the next run and nothing was changed.", intent.AssetId);
+                    if (tally is not null)
+                    {
+                        tally.SetAside++;
+                    }
+                    break;
                 case LibraryMoveRunner.MoveResultKind.Done:
+                    if (tally is not null && intent.MoveOrigin == MediaFileWriteIntentRepository.MoveOriginFiling)
+                    {
+                        tally.Filed++;
+                    }
+
                     if (result.Completed)
                     {
                         logger.LogInformation(
@@ -297,6 +333,18 @@ public sealed class FileWriteScheduler(
                         intent.AssetId, done ? string.Empty : " (a newer change arrived while it ran, so the move is planned again)");
                     break;
                 case LibraryMoveRunner.MoveResultKind.Retry:
+                    if (intent.MoveOrigin == MediaFileWriteIntentRepository.MoveOriginFiling)
+                    {
+                        // Library's own filing is retried at the next scheduled run, never in a tight loop outside a run; after the
+                        // attempt limit it is given up and listed as failed, like a tag write.
+                        if (!await intents.FailFilingAttemptAsync(intent.Id, result.Reason, MaxAttempts, ct))
+                        {
+                            await intents.ReleaseClaimAsync(intent.Id, ct);
+                        }
+
+                        break;
+                    }
+
                     var wait = FileWriteBackoff.After(intent.Attempts);
                     await intents.FailMoveAsync(intent.Id, wait is null ? "failed" : "pending", result.Reason, wait, ct);
                     break;
@@ -306,7 +354,7 @@ public sealed class FileWriteScheduler(
                 default:
                     // Not settled yet: the row keeps its steps (or its request) and is looked at again later. An unplugged drive can hold
                     // thousands of files, so waiting for one is logged quietly.
-                    if (result.Reason == LibraryMoveRunner.OfflineReason)
+                    if (result.Reason is LibraryMoveRunner.OfflineReason or LibraryMoveRunner.TookOverReason)
                     {
                         logger.LogDebug("Library move for asset {AssetId} waits: {Reason}", intent.AssetId, result.Reason);
                     }
@@ -337,7 +385,7 @@ public sealed class FileWriteScheduler(
         }
 
         var startedAt = clock.GetUtcNow();
-        int written = 0, failed = 0, kept = 0, handledCount = 0;
+        int written = 0, failed = 0, kept = 0, filed = 0, handledCount = 0;
         try
         {
             var counts = await intents.GetCountsAsync(ct: ct);
@@ -346,9 +394,29 @@ public sealed class FileWriteScheduler(
                 _runTotal = counts.Claimable;
             }
 
+            // Moves first: every file waiting to be filed joins the move lane now, and is filed before any tag is written, so its tags are
+            // written at its final place in this same run. A file that is in use is set aside untouched, with its tags, for the next run.
+            if (await intents.PromoteWaitingFilingsAsync(ct) > 0)
+            {
+                var tally = new MoveLaneTally();
+                await RunMoveLaneAsync(ct, tally);
+                filed += tally.Filed;
+                handledCount += tally.Filed + tally.SetAside;
+            }
+
+            // What the moves just changed is part of this run, so its tags are taken now rather than at the next run.
+            var claimBefore = clock.GetUtcNow();
+
+            // Tag writing follows its switch: with write-back off a run only files, and what is waiting for a tag write stays until it
+            // is turned back on.
+            var tagsAllowed = LoadSettings().Enabled;
+
             // Rows are marked with this run as they are claimed, so no file is taken twice however many chunks the run needs.
             var runId = Guid.NewGuid().ToString("N");
-            foreach (var kind in new[] { MediaFileWriteIntentRepository.MediaAssetKind, MediaFileWriteIntentRepository.ViewItemKind })
+            string[] kinds = tagsAllowed
+                ? [MediaFileWriteIntentRepository.MediaAssetKind, MediaFileWriteIntentRepository.ViewItemKind]
+                : [];
+            foreach (var kind in kinds)
             {
                 var writer = writers.FirstOrDefault(candidate => string.Equals(candidate.TargetKind, kind, StringComparison.Ordinal));
                 if (writer is null)
@@ -363,7 +431,7 @@ public sealed class FileWriteScheduler(
                     while (true)
                     {
                         ct.ThrowIfCancellationRequested();
-                        var chunk = await intents.ClaimBatchAsync(kind, ChunkSize, LeaseDuration, startedAt, runId, ct);
+                        var chunk = await intents.ClaimBatchAsync(kind, ChunkSize, LeaseDuration, claimBefore, runId, ct);
                         if (chunk.Count == 0)
                         {
                             break;
@@ -456,7 +524,7 @@ public sealed class FileWriteScheduler(
                 {
                     // A run stopped part-way is recorded for the files it did handle (the rest come back by lease and the next run
                     // counts them again).
-                    await intents.RecordRunAsync(startedAt, clock.GetUtcNow(), written, failed, kept, CancellationToken.None);
+                    await intents.RecordRunAsync(startedAt, clock.GetUtcNow(), written, failed, kept, filed, CancellationToken.None);
                 }
                 else if (!ct.IsCancellationRequested)
                 {
