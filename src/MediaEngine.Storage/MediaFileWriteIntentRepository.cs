@@ -1,5 +1,6 @@
 using System.Globalization;
 using Dapper;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Data.Sqlite;
@@ -12,7 +13,7 @@ namespace MediaEngine.Storage;
 /// lease, so a row that was being worked on when the Engine stopped comes back once its lease runs out. Also keeps the schedule's
 /// own memory (<c>file_write_runs</c>).
 /// </summary>
-public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database, TimeProvider? clock = null) : IFileMoveInProgress
+public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database, TimeProvider? clock = null) : IFileMoveInProgress, IFilingQueue
 {
     public const string MediaAssetKind = "media_asset";
     public const string ViewItemKind = "view_item";
@@ -22,14 +23,32 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
 
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
 
+    /// <summary>A file with a move that is queued for the next run (<see cref="MoveStepWaiting"/>) or held back (<see cref="MoveStepHeld"/>) has not moved.</summary>
+    public const string MoveStepWaiting = "waiting";
+
+    /// <summary>An automatic filing move held until its newly added Managed folder passes its first check (Library setup D61); never moved while held.</summary>
+    public const string MoveStepHeld = "held";
+
+    public const string MoveOriginPerson = "person";
+    public const string MoveOriginFiling = "filing";
+
+    /// <summary>What a retry notes on a file that was in use when its filing turn came; the file was left exactly as it was.</summary>
+    public const string InUseReason = "In use; will try again at the next run";
+
+    // A move that is in flight or asked for now. A waiting or held filing move has not started: its file stays where it is, so the
+    // watcher and reconciliation treat the file normally at its current path.
+    private const string MoveInFlightFilter = "move_step IS NOT NULL AND move_step NOT IN ('waiting', 'held')";
+
     // The one statement every place that asks for a file write uses. A newer ask for a file already on the list (whatever state it is
     // in, including being written right now) bumps the generation and puts it back to pending, so the write that is in flight cannot
     // mark the newer version done. A move in progress is never cleared: the first step recorded wins until the move is finished.
-    // An id that is not a media asset adds nothing.
+    // The one exception is a person's own move asked for while an automatic filing waits or is held: theirs is done at once, so the
+    // row becomes a requested move of the person's. An id that is not a media asset adds nothing.
     private const string UpsertAssetSql = """
         INSERT INTO media_file_write_intents
-            (id, target_kind, asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at, move_step)
-        SELECT @id, 'media_asset', @assetId, 1, @token, @trigger, 'pending', 0, @now, @now, @moveStep
+            (id, target_kind, asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at, move_step, move_origin)
+        SELECT @id, 'media_asset', @assetId, 1, @token, @trigger, 'pending', 0, @now, @now, @moveStep,
+               CASE WHEN @moveStep IS NULL THEN NULL ELSE 'person' END
         WHERE EXISTS (SELECT 1 FROM media_assets WHERE id = @assetId)
         ON CONFLICT(asset_id) WHERE asset_id IS NOT NULL DO UPDATE SET
             generation = media_file_write_intents.generation + 1,
@@ -40,13 +59,40 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 ELSE excluded.trigger END,
             status = 'pending', attempts = 0, lease_expires_at = NULL, last_error = NULL, completed_at = NULL,
             updated_at = excluded.updated_at,
-            move_step = COALESCE(media_file_write_intents.move_step, excluded.move_step),
+            move_step = CASE
+                WHEN media_file_write_intents.move_step IN ('waiting', 'held') AND excluded.move_step = 'requested' THEN 'requested'
+                ELSE COALESCE(media_file_write_intents.move_step, excluded.move_step) END,
+            move_origin = CASE WHEN excluded.move_step IS NOT NULL THEN 'person' ELSE media_file_write_intents.move_origin END,
             next_attempt_at = CASE WHEN excluded.move_step IS NOT NULL THEN NULL ELSE media_file_write_intents.next_attempt_at END,
             move_source_path = CASE WHEN media_file_write_intents.move_step IS NULL THEN NULL ELSE media_file_write_intents.move_source_path END,
             move_target_path = CASE WHEN media_file_write_intents.move_step IS NULL THEN NULL ELSE media_file_write_intents.move_target_path END,
             move_source_hash = CASE WHEN media_file_write_intents.move_step IS NULL THEN NULL ELSE media_file_write_intents.move_source_hash END,
             move_generation = CASE WHEN media_file_write_intents.move_step IS NULL THEN NULL ELSE media_file_write_intents.move_generation END,
             recovery_attempts = CASE WHEN media_file_write_intents.move_step IS NULL THEN 0 ELSE media_file_write_intents.recovery_attempts END;
+        """;
+
+    // An automatic filing move (Library setup D62): the row waits for the next run, or is held. A request never disturbs a move that is
+    // asked for or running (a person's own move wins, and one already filing is not asked twice), and tags asked for meanwhile stay on
+    // the same row. The trigger is left alone when tags are waiting on the row (so they are still written after the move) and is
+    // 'filing' otherwise, which says nobody asked for tags: such a row is removed once its move is checked.
+    private const string UpsertFilingSql = """
+        INSERT INTO media_file_write_intents
+            (id, target_kind, asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at, move_step, move_origin)
+        SELECT @id, 'media_asset', @assetId, 1, @token, 'filing', 'pending', 0, @now, @now, @moveStep, 'filing'
+        WHERE EXISTS (SELECT 1 FROM media_assets WHERE id = @assetId)
+        ON CONFLICT(asset_id) WHERE asset_id IS NOT NULL DO UPDATE SET
+            generation = media_file_write_intents.generation + 1,
+            operation_token = excluded.operation_token,
+            trigger = CASE
+                WHEN media_file_write_intents.move_step IS NULL AND media_file_write_intents.status IN ('pending', 'writing')
+                THEN media_file_write_intents.trigger
+                ELSE 'filing' END,
+            status = 'pending', attempts = 0, lease_expires_at = NULL, last_error = NULL, completed_at = NULL,
+            updated_at = excluded.updated_at,
+            move_step = excluded.move_step, move_origin = 'filing', next_attempt_at = NULL,
+            move_source_path = NULL, move_target_path = NULL, move_source_hash = NULL, move_generation = NULL, recovery_attempts = 0
+        WHERE media_file_write_intents.move_step IS NULL
+           OR (media_file_write_intents.move_origin = 'filing' AND media_file_write_intents.move_step = 'waiting' AND excluded.move_step = 'held');
         """;
 
     private const string UpsertViewItemSql = """
@@ -64,7 +110,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
     private const string SelectColumns = """
         i.id AS Id, i.target_kind AS TargetKind, i.asset_id AS AssetId, i.local_item_id AS LocalItemId,
         i.generation AS Generation, i.operation_token AS OperationToken, i.trigger AS Trigger,
-        i.status AS Status, i.attempts AS Attempts, i.move_step AS MoveStep,
+        i.status AS Status, i.attempts AS Attempts, i.move_step AS MoveStep, i.move_origin AS MoveOrigin,
         i.move_source_path AS MoveSourcePath, i.move_target_path AS MoveTargetPath, i.move_source_hash AS MoveSourceHash,
         i.move_generation AS MoveGeneration, i.recovery_attempts AS RecoveryAttempts
         """;
@@ -107,6 +153,58 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 }
             }
             return queued;
+        }, ct);
+
+    /// <summary>
+    /// Records that Library wants to file a media asset on its own (Library setup D62): the move waits for the next run (or Write now)
+    /// and is done with the tags, moves first. The file is not touched and stays playable where it is. With <paramref name="held"/> the
+    /// request is recorded as held (D61) and is never moved here. Returns false when nothing was recorded: the asset is not a media
+    /// asset, or a move is already asked for or running (a person's own move wins) or already waiting.
+    /// </summary>
+    /// <inheritdoc/>
+    public Task<bool> RequestFilingAsync(Guid assetId, bool held, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            return connection.Execute(UpsertFilingSql, new
+            {
+                id = Guid.NewGuid(),
+                assetId,
+                token = Guid.NewGuid().ToString("N"),
+                now = Iso(_clock.GetUtcNow()),
+                moveStep = held ? MoveStepHeld : MoveStepWaiting,
+            }, transaction) > 0;
+        }, ct);
+
+    /// <summary>
+    /// A run is starting: every waiting filing move becomes a requested move, so the move lane takes it before any tag is written.
+    /// Held moves are never touched. Returns how many were promoted.
+    /// </summary>
+    public Task<int> PromoteWaitingFilingsAsync(CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            return connection.Execute("""
+                UPDATE media_file_write_intents SET move_step = 'requested', next_attempt_at = NULL
+                WHERE target_kind = 'media_asset' AND move_step = 'waiting' AND move_origin = 'filing' AND status = 'pending';
+                """, transaction: transaction);
+        }, ct);
+
+    /// <summary>
+    /// The file was in use when its turn came (or a sharing violation stopped its move), and was left exactly as it was: the filing
+    /// move goes back to waiting for the next run. It is not a failed attempt, so the try is not counted and the reason is recorded.
+    /// </summary>
+    public Task<bool> DeferFilingAsync(Guid id, string? reason = null, CancellationToken ct = default) =>
+        database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            return connection.Execute("""
+                UPDATE media_file_write_intents
+                SET move_step = 'waiting', move_origin = 'filing', status = 'pending', lease_expires_at = NULL, last_error = @reason,
+                    attempts = MAX(attempts - 1, 0), move_source_path = NULL, move_target_path = NULL, move_source_hash = NULL,
+                    move_generation = NULL, recovery_attempts = 0, next_attempt_at = NULL, updated_at = @now
+                WHERE id = @id AND move_origin = 'filing' AND move_step IN ('requested', 'planned', 'waiting');
+                """, new { id, reason = reason ?? InUseReason, now = Iso(_clock.GetUtcNow()) }, transaction) == 1;
         }, ct);
 
     /// <summary>Puts a View item's file on the list. Returns false when the item does not exist.</summary>
@@ -228,16 +326,24 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
         database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
-            var current = connection.ExecuteScalar<long?>(
-                "SELECT generation FROM media_file_write_intents WHERE id = @id AND move_step IS NOT NULL;", new { id }, transaction);
-            if (current is null)
+            var row = connection.QueryFirstOrDefault<MoveRowState>(
+                "SELECT generation AS Generation, move_origin AS Origin, trigger AS Trigger FROM media_file_write_intents WHERE id = @id AND move_step IS NOT NULL;",
+                new { id }, transaction);
+            if (row is null)
             {
                 return false;
             }
-            var newerArrived = current.Value != generation;
+            var newerArrived = row.Generation != generation;
+            if (!newerArrived && row.Origin == MoveOriginFiling && row.Trigger == MediaFileWriteTriggers.Filing)
+            {
+                // Nobody asked for tags on this file: filing was the whole job, so nothing is left waiting.
+                connection.Execute("DELETE FROM media_file_write_intents WHERE id = @id AND move_step IS NOT NULL;", new { id }, transaction);
+                return true;
+            }
             connection.Execute("""
                 UPDATE media_file_write_intents
-                SET move_step = @nextStep, move_source_path = NULL, move_target_path = NULL, move_source_hash = NULL,
+                SET move_step = @nextStep, move_origin = CASE WHEN @nextStep IS NULL THEN NULL ELSE move_origin END,
+                    move_source_path = NULL, move_target_path = NULL, move_source_hash = NULL,
                     move_generation = NULL, recovery_attempts = 0, next_attempt_at = NULL,
                     status = @status, attempts = 0, lease_expires_at = NULL, last_error = @error, updated_at = @now,
                     completed_at = CASE WHEN @status = 'blocked' THEN @now ELSE completed_at END
@@ -272,6 +378,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 UPDATE media_file_write_intents
                 SET status = @status, lease_expires_at = NULL, last_error = @error, updated_at = @now,
                     move_step = CASE WHEN @status = 'pending' THEN 'requested' ELSE NULL END,
+                    move_origin = CASE WHEN @status = 'pending' THEN move_origin ELSE NULL END,
                     move_source_path = CASE WHEN @status = 'pending' THEN NULL ELSE move_source_path END,
                     move_target_path = CASE WHEN @status = 'pending' THEN NULL ELSE move_target_path END,
                     move_source_hash = CASE WHEN @status = 'pending' THEN NULL ELSE move_source_hash END,
@@ -421,7 +528,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
         return Task.FromResult(connection.ExecuteScalar<long>(
-            "SELECT COUNT(*) FROM media_file_write_intents WHERE asset_id = @assetId AND move_step IS NOT NULL;", new { assetId }) > 0);
+            $"SELECT COUNT(*) FROM media_file_write_intents WHERE asset_id = @assetId AND {MoveInFlightFilter};", new { assetId }) > 0);
     }
 
     /// <inheritdoc/>
@@ -429,7 +536,8 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
 
     /// <summary>
     /// The old and new place of every file with a move in progress. A move that is only requested has just its current place; one
-    /// that has started also has the place it is going to.
+    /// that has started also has the place it is going to. A filing move that is waiting for the next run (or held) has not started:
+    /// its file is not in the list and is treated normally at its current path.
     /// </summary>
     public Task<IReadOnlySet<string>> GetPathsWithMoveInProgressAsync(CancellationToken ct = default)
     {
@@ -439,7 +547,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
             SELECT ma.file_path_root, i.move_source_path, i.move_target_path
             FROM media_file_write_intents i
             LEFT JOIN media_assets ma ON ma.id = i.asset_id
-            WHERE i.move_step IS NOT NULL;
+            WHERE i.move_step IS NOT NULL AND i.move_step NOT IN ('waiting', 'held');
             """);
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (current, source, target) in rows)
@@ -542,7 +650,9 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                    COALESCE(SUM(CASE WHEN i.move_step IS NULL
                                       AND (i.status = 'pending' OR (i.status = 'writing' AND i.lease_expires_at < @now))
                                       AND (i.next_attempt_at IS NULL OR i.next_attempt_at <= @now)
-                                     THEN 1 ELSE 0 END), 0) AS Claimable
+                                     THEN 1 ELSE 0 END), 0)
+                   + COALESCE(SUM(CASE WHEN i.move_step = 'waiting' AND i.status = 'pending' THEN 1 ELSE 0 END), 0) AS Claimable,
+                   COALESCE(SUM(CASE WHEN i.move_step = 'waiting' AND i.status = 'pending' THEN 1 ELSE 0 END), 0) AS FilingWaiting
             FROM media_file_write_intents i
             LEFT JOIN media_assets ma ON ma.id = i.asset_id
             WHERE (@hidden = 0 OR ma.library_id IS NULL OR lower(ma.library_id) NOT IN @hiddenIds);
@@ -648,6 +758,8 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 """, new { started = Iso(startedAt), finished = Iso(finishedAt), written, failed, kept }, transaction);
         }, ct);
 
+    private sealed record MoveRowState(long Generation, string? Origin, string Trigger);
+
     private static string Iso(DateTimeOffset value) => value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
 }
 
@@ -663,6 +775,10 @@ public sealed record MediaFileWriteIntent
     public string Status { get; init; } = "";
     public int Attempts { get; init; }
     public string? MoveStep { get; init; }
+
+    /// <summary>Who asked for the move: <c>person</c> (done at once) or <c>filing</c> (Library's own, done in the run); null when no move.</summary>
+    public string? MoveOrigin { get; init; }
+
     public string? MoveSourcePath { get; init; }
     public string? MoveTargetPath { get; init; }
     public string? MoveSourceHash { get; init; }
@@ -684,8 +800,11 @@ public sealed record FileWriteCounts
 
     public int Failed { get; init; }
 
-    /// <summary>The rows a write run could take right now; the schedule starts a run only when this is above zero.</summary>
+    /// <summary>The rows a write run could take right now (including waiting filing moves); the schedule starts a run only when this is above zero.</summary>
     public int Claimable { get; init; }
+
+    /// <summary>Filing moves waiting for the next run. They run on the schedule even when tag writing is switched off.</summary>
+    public int FilingWaiting { get; init; }
 }
 
 public sealed record FailedFileWrite
