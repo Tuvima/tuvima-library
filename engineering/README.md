@@ -30,7 +30,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Right-sized pictures on every screen](specs/right-sized-pictures.md) | Locked (v1, 2026-10-21) |
 | [Spec: Delete a show, season, album or Series, and the Recycle bin](specs/delete-groups.md) | Locked (v7, 2026-10-21) |
 | [Spec: Safer deleting in View](specs/safer-deleting-in-view.md) | Locked (v2, 2026-10-21) |
-| [Spec: Simpler library setup (Watch, Listen, Read, View, Vault)](specs/library-setup-groups.md) | In progress (v21; WP11 large upload spike done 2026-10-21, awaiting its real-network Local check; WP1 to WP3 wait for the Libraries local-check fixes) |
+| [Spec: Simpler library setup (Watch, Listen, Read, View, Vault)](specs/library-setup-groups.md) | In progress (v21; WP11 upload spike, WP1 and WP2 merged 2026-10-21/22; WP3 Add folder wizard with WP5 in review; WP7 waits on the plugin-surface decision) |
 | [Spec: Encrypted plugin and integration keys](specs/encrypted-plugin-keys.md) | Locked (v1, 2026-10-21; EK1 and EK3 before plugin install WP19, EK2 with backup passphrase WP25) |
 | [Spec: Backup and restore (settings and personal state)](specs/backup-and-restore.md) | In progress (v2, 2026-10-21; [handoff](handoffs/2026-10-21-backup-and-restore.md); WP1 and WP2 building; WP3 waits for the bookmark pack matcher in Videos Wave 3, #374) |
 | [Spec: Person credits and series search without the whole-library credit list](specs/archive/person-credits-and-series-search-speed.md) | Built (v2, archived 2026-10-21; follow-ups R1 and R2 in its section 8) |
