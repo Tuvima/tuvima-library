@@ -63,6 +63,9 @@ public sealed class BackupTableClassificationGuardrailTests
                 var named = rule.CatalogueReferences.Select(reference => reference.Column)
                     .Concat(rule.ExcludedColumns)
                     .Concat(rule.ChoiceColumns)
+                    .Concat(rule.ChoiceGatedBy.SelectMany(gate => new[] { gate.Column, gate.Flag }))
+                    .Concat(rule.PortableColumns)
+                    .Concat(rule.ChoiceRowReference is null ? [] : [rule.ChoiceRowReference.Column])
                     .Concat(rule.ExcludedJsonProperties.Select(property => property.Column))
                     .Concat(rule.OwnerColumn is null ? [] : [rule.OwnerColumn]);
                 foreach (var column in named.Where(column => !columns.Contains(column)))
@@ -131,56 +134,161 @@ public sealed class BackupTableClassificationGuardrailTests
     }
 
     [Fact]
-    public void CatalogueAndTransientTables_CarryNoColumnRules_ExceptChoicesOnCatalogue()
+    public void TransientTables_CarryNoRules()
     {
         var offenders = BackupTableClassification.Rules.Values
-            .Where(rule => rule.Kind is BackupDataKind.Catalogue or BackupDataKind.Transient)
+            .Where(rule => rule.Kind == BackupDataKind.Transient)
             .Where(rule => rule.CatalogueReferences.Count > 0
                 || rule.ExcludedColumns.Count > 0
                 || rule.ExcludedJsonProperties.Count > 0
+                || rule.ChoiceColumns.Count > 0
+                || rule.ChoiceGatedBy.Count > 0
+                || rule.PortableColumns.Count > 0
                 || rule.OwnerColumn is not null
+                || rule.CorrectionWhere is not null
                 || rule.KeepWhere is not null)
             .Select(rule => rule.Table)
             .ToList();
 
-        Assert.True(
-            offenders.Count == 0,
-            "Catalogue and Transient tables are never kept, so they carry no column or row rules: " + string.Join(", ", offenders));
+        Assert.True(offenders.Count == 0, "Transient tables are never kept, so they carry no rules: " + string.Join(", ", offenders));
     }
 
     [Fact]
-    public void ChoiceColumns_AreOnlyAllowedOnCatalogueTables()
+    public void CatalogueTables_CarryColumnRulesOnlyForTheCorrectionsAndChoicesTheyKeep()
+    {
+        var problems = new List<string>();
+        foreach (var rule in BackupTableClassification.Rules.Values.Where(rule => rule.Kind == BackupDataKind.Catalogue))
+        {
+            // A catalogue table is rebuilt by a rescan; it names columns only for what a person's own rows need.
+            if (rule.OwnerColumn is not null || rule.KeepWhere is not null || rule.ExcludedJsonProperties.Count > 0 || rule.PortableColumns.Count > 0)
+            {
+                problems.Add($"'{rule.Table}' carries an owner, keep condition, JSON exclusion or portable column, which a Catalogue table never has.");
+            }
+
+            if (rule.ExcludedColumns.Count > 0 && rule.CorrectionWhere is null)
+            {
+                problems.Add($"'{rule.Table}' excludes columns but keeps no corrections.");
+            }
+
+            var strayReferences = rule.CatalogueReferences
+                .Where(reference => rule.CorrectionWhere is null && !rule.ChoiceColumns.Contains(reference.Column, StringComparer.OrdinalIgnoreCase))
+                .Select(reference => reference.Column);
+            foreach (var column in strayReferences)
+            {
+                problems.Add($"'{rule.Table}' names reference '{column}' but keeps no corrections and it is not a choice column.");
+            }
+        }
+
+        Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems));
+    }
+
+    [Fact]
+    public void ChoiceColumns_AreOnlyAllowedOnCatalogueTables_OrConfigurationTablesWithAKeepCondition()
     {
         var offenders = BackupTableClassification.Rules.Values
-            .Where(rule => rule.Kind != BackupDataKind.Catalogue && rule.ChoiceColumns.Count > 0)
+            .Where(rule => rule.ChoiceColumns.Count > 0)
+            .Where(rule => !(rule.Kind == BackupDataKind.Catalogue || (rule.Kind == BackupDataKind.Configuration && rule.KeepWhere is not null)))
             .Select(rule => rule.Table)
             .ToList();
 
         Assert.True(
             offenders.Count == 0,
-            "Choice columns (a person's own choices on a catalogue row) belong to Catalogue tables only: " + string.Join(", ", offenders));
+            "Choice columns (a person's own choices on a catalogue row) belong to Catalogue tables, or Configuration tables that keep only some rows: " + string.Join(", ", offenders));
         Assert.Contains(BackupTableClassification.Rules.Values, rule => rule.Table == "local_items" && rule.ChoiceColumns.Contains("favorite"));
+        Assert.Contains(BackupTableClassification.Rules.Values, rule => rule.Table == "collections" && rule.ChoiceColumns.Contains("is_enabled"));
     }
 
     [Fact]
-    public void KeepWhere_IsValidSql()
+    public void ChoiceRowReference_IsOnlyAllowedOnRulesWithChoiceColumns()
+    {
+        var offenders = BackupTableClassification.Rules.Values
+            .Where(rule => rule.ChoiceRowReference is not null && rule.ChoiceColumns.Count == 0)
+            .Select(rule => rule.Table)
+            .ToList();
+
+        Assert.True(offenders.Count == 0, "A choice row reference needs choice columns: " + string.Join(", ", offenders));
+        Assert.Contains(
+            BackupTableClassification.Rules.Values,
+            rule => rule.Table == "local_item_metadata" && rule.ChoiceRowReference?.Column == "item_id");
+    }
+
+    [Fact]
+    public void CorrectionWhere_IsOnlyAllowedOnCatalogueTables()
+    {
+        var offenders = BackupTableClassification.Rules.Values
+            .Where(rule => rule.Kind != BackupDataKind.Catalogue && rule.CorrectionWhere is not null)
+            .Select(rule => rule.Table)
+            .ToList();
+
+        Assert.True(offenders.Count == 0, "A correction condition belongs to Catalogue tables only: " + string.Join(", ", offenders));
+        Assert.Contains(BackupTableClassification.Rules.Values, rule => rule.Table == "metadata_claims" && rule.CorrectionWhere is not null);
+    }
+
+    [Fact]
+    public void PortableColumns_AreOnlyAllowedOnConfigurationTables()
+    {
+        var offenders = BackupTableClassification.Rules.Values
+            .Where(rule => rule.Kind != BackupDataKind.Configuration && rule.PortableColumns.Count > 0)
+            .Select(rule => rule.Table)
+            .ToList();
+
+        Assert.True(offenders.Count == 0, "Portable columns belong to Configuration tables only: " + string.Join(", ", offenders));
+        Assert.Contains(
+            BackupTableClassification.Rules.Values,
+            rule => rule.Table == "account_two_step" && rule.PortableColumns.Contains("secret_protected"));
+        Assert.All(
+            BackupTableClassification.Rules.Values,
+            rule => Assert.DoesNotContain(rule.PortableColumns, column => rule.ExcludedColumns.Contains(column, StringComparer.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void ChoiceGatedBy_NamesChoiceColumnsOnly()
+    {
+        var problems = new List<string>();
+        foreach (var rule in BackupTableClassification.Rules.Values)
+        {
+            foreach (var (column, flag) in rule.ChoiceGatedBy)
+            {
+                if (!rule.ChoiceColumns.Contains(column, StringComparer.OrdinalIgnoreCase) || !rule.ChoiceColumns.Contains(flag, StringComparer.OrdinalIgnoreCase))
+                {
+                    problems.Add($"'{rule.Table}' gates '{column}' by '{flag}', but both must be listed in its choice columns.");
+                }
+            }
+        }
+
+        Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems));
+        Assert.Contains(
+            BackupTableClassification.Rules.Values,
+            rule => rule.Table == "local_items" && rule.ChoiceGatedBy.Contains(("captured_at", "captured_at_user_override")));
+    }
+
+    [Fact]
+    public void KeepWhere_AndCorrectionWhere_AreValidSql()
     {
         WithFreshStore(connection =>
         {
             var tables = ReadTables(connection).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var problems = new List<string>();
 
-            foreach (var rule in BackupTableClassification.Rules.Values.Where(rule => rule.KeepWhere is not null && tables.Contains(rule.Table)))
+            foreach (var rule in BackupTableClassification.Rules.Values.Where(rule => tables.Contains(rule.Table)))
             {
-                try
+                foreach (var (name, predicate) in new[] { ("KeepWhere", rule.KeepWhere), ("CorrectionWhere", rule.CorrectionWhere) })
                 {
-                    using var command = connection.CreateCommand();
-                    command.CommandText = $"SELECT COUNT(*) FROM {rule.Table} WHERE {rule.KeepWhere}";
-                    command.ExecuteScalar();
-                }
-                catch (SqliteException ex)
-                {
-                    problems.Add($"KeepWhere for '{rule.Table}' is not valid SQL: {ex.Message}");
+                    if (predicate is null)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        using var command = connection.CreateCommand();
+                        command.CommandText = $"SELECT COUNT(*) FROM {rule.Table} WHERE {predicate}";
+                        command.ExecuteScalar();
+                    }
+                    catch (SqliteException ex)
+                    {
+                        problems.Add($"{name} for '{rule.Table}' is not valid SQL: {ex.Message}");
+                    }
                 }
             }
 

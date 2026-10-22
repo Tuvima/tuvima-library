@@ -19,34 +19,50 @@ Every table in the Library's data store is classified as one of four kinds, in o
 - `src/MediaEngine.Storage/Backup/BackupTableRule.cs` and `BackupDataKind.cs`
 - `tests/MediaEngine.Storage.Tests/BackupTableClassificationGuardrailTests.cs` (the guardrail)
 - `src/MediaEngine.Storage/Backup/PersonalStateBackupRepository.cs`, `TitleRecognitionReader.cs` and `BackupArchiveFormat.cs` (the exporter that follows the registry, the one place that reads a title's recognition data, and the file format it writes)
+- `src/MediaEngine.Storage/Backup/IBackupPortableValueCodec.cs` (the port that makes a machine-protected value readable for a backup) and `src/MediaEngine.Api/Security/DataProtectionBackupPortableValueCodec.cs` (the Engine's implementation for the two-step secret, registered with the exporter in `src/MediaEngine.Api/DependencyInjection/TuvimaBackupServiceCollectionExtensions.cs`)
 
 ## What a backup is for
 
-A backup holds what is hard to recreate: your settings, your preferences and your own state (reading and watching positions, bookmarks, favourites). It does not hold your library's catalogue (titles, matches, enrichment results, artwork), which a rescan rebuilds, and it never holds your media files or folders. Backing those up is a job for your computer's own backup tool, such as File History, Time Machine or a NAS.
+A backup holds what is hard to recreate: your settings, your preferences and your own state (reading and watching positions, bookmarks, favourites). It does not hold your library's catalogue (titles, matches, enrichment results, artwork), which a rescan rebuilds (apart from the corrections you made to it yourself, such as a title field you locked or a chapter you renamed), and it never holds your media files or folders. Backing those up is a job for your computer's own backup tool, such as File History, Time Machine or a NAS.
 
 After a restore and a rescan, your own state finds its way back to the right titles, even if a file has since changed. To make that possible, a kept row that points at a catalogue row does not rely on the row's id (ids do not survive a rescan). It is stored with recognition data instead: the title's external ids, running time and edition, with the file fingerprint as a fallback.
 
 ## The four kinds
 
-**Configuration** is settings and access, kept as rows: accounts, passkeys, profiles, households, grants, view policies and preferences, provider settings without secrets, notification settings, document types, fields and rules, backup settings, plugin approvals, collections, playlists and View galleries a person built, values a person typed into document fields, and files a person chose to keep out of the Library. Rows that point at View items are re-attached by file fingerprint. Password hashes, passkey public keys and two-step data stay, because they are what lets people sign in after a restore.
+**Configuration** is settings and access, kept as rows: accounts, passkeys, profiles, households, grants, view policies and preferences, provider settings without secrets, notification settings, document types, fields and rules, backup settings, plugin approvals, collections, playlists and View galleries a person built, values a person typed into document fields, and files a person chose to keep out of the Library. Rows that point at View items are re-attached by file fingerprint. Password hashes, passkey public keys and two-step data stay, because they are what lets people sign in after a restore. A person's name and description corrections for a fictional thing or a universe stay too (a fictional thing is found again by its Wikidata id). Collections the Library built (universes and series) are rebuilt, but a person's own switches on them (shown, featured, display changes) are kept.
 
 **Personal state** is a person's own state tied to a title: bookmarks, highlights, reading statistics, audiobook bookmarks and listening history, music play stats, consumption history, reactions, saved items, taste overrides, personal activity and playback positions. It is kept and re-attached to titles by recognition data. Each rule names an owner column (the profile or user the row belongs to), so one profile's state can be exported on its own.
 
-**Catalogue** is anything a rescan rebuilds: works, editions, media assets, canonical values, claims, artwork, fingerprints, subtitles, people, provider caches, search indexes, the Needs Review queue, and identity and enrichment jobs, and View items with what the Engine works out about them. It is never kept. The adult-video area's catalogue is in this group too. The one exception is a person's own choice on a catalogue row, such as a favourite View item: a rule can name choice columns, and the exporter keeps only those columns (as a reference to the row plus the values), only for rows where a choice differs from its default.
+**Catalogue** is anything a rescan rebuilds: works, editions, media assets, canonical values, claims, artwork, fingerprints, subtitles, people, provider caches, search indexes, the Needs Review queue, and identity and enrichment jobs, and View items with what the Engine works out about them. It is not kept. The adult-video area's catalogue is in this group too. The exception is what a person did to it themselves: a person's own corrections on catalogue rows are kept, in two ways (see "A person's own choices and corrections" below).
 
 **Transient** is not kept and not rebuilt from files: sessions and tokens, one-time codes and challenges, run, operation and audit logs, telemetry, device pairing requests, notifications already sent, job queues, backup copy records and data store bookkeeping.
 
-Tables that mix kinds are split in three ways. By column, a rule can name catalogue references (columns that point at catalogue rows, swapped for recognition data), excluded columns (secret or machine-bound columns, never read: a column that may be empty is written as empty, any other is left out of the file) and excluded JSON properties (a named property removed, at any depth, from a JSON column, for example the machine-encrypted destination logins inside the backup settings). By row, a rule can carry a keep condition (for example, only collections a person built, or only provider settings that are not secrets).
+Tables that mix kinds are split in three ways. By column, a rule can name catalogue references (columns that point at catalogue rows, swapped for recognition data), excluded columns (secret or machine-bound columns, never read: a column that may be empty is written as empty, any other is left out of the file) and excluded JSON properties (a named property removed, at any depth, from a JSON column, for example the machine-encrypted destination logins inside the backup settings). By row, a rule can carry a keep condition (for example, only collections a person built, or only provider settings that are not secrets). A rule can also name portable columns (see "Portable sign-in data" below).
 
 A catalogue reference is normally an id. A reference stored as text is treated the same way when it parses as an id; any other text (a Wikidata id, a provider key) is an external key and is kept as written. A reference whose catalogue row no longer exists drops the row, and the count of dropped rows is recorded.
 
-Secrets are never kept. Provider settings marked secret, webhook secrets and similar values are left out, in the same way as today's backups.
+Secrets are never kept. Provider settings marked secret, webhook secrets and similar values are left out, in the same way as today's backups. The one deliberate exception is the two-step sign-in secret, which is kept readable so a restore works on a new computer (see "Portable sign-in data").
+
+## A person's own choices and corrections
+
+A rescan rebuilds the catalogue, so anything a person changed on a catalogue row would be lost. Two kinds of rule keep it:
+
+- **Choices** are single columns on a row that a rescan recreates: a favourite flag on a View item, a locked match on a title, a switch on a collection the Library built. The rule names the choice columns (and, when they sit on a side table such as a View item's metadata row, the column that says whose choice the row is, otherwise the row's own id); the exporter writes them to `data/choices/<table>.json` as a reference to the row (recognised by its external ids, or its file fingerprint) plus the values, and only for rows where a choice differs from its default. A choice column that points at another catalogue row (the series a title was placed in) is written as a reference too. A column can be gated by a sibling flag: it counts only while the flag is set, so a value the Engine read itself (a capture date from the file, a match source the person never locked) is never written. A Configuration table that keeps only some of its rows (collections) can name choice columns as well; they apply to the rows its keep condition leaves out.
+- **Corrections** are whole rows a person made on a Catalogue table: a title field they locked or edited, a renamed audiobook chapter, a name they gave to a face in a photo, a cover they chose from a provider. The rule carries a correction condition; matching rows are written to `data/corrections/<table>.json` like personal rows, with every catalogue reference turned into a reference to a title and machine-only columns left out. A row whose required reference no longer exists is dropped and counted. A correction or choice on a withheld title (one a backup may not name, which today is none) is left out and counted separately, and the title is not written for it. A profile backup holds no corrections or Library choices, because they belong to the Library.
+
+The reader accepts a choices or corrections file only for a table whose rule allows it. Restoring them (re-applying each correction to the rescanned title) is part of restore, not of the export.
+
+Artwork a person chose is kept only when it has a stable outside identity: a cover picked from a provider is found again by provider and image address (`entity_assets`) or by the artwork's provider, source address and provider reference (`entity_artwork_links`). Artwork a person uploaded is never kept, because artwork files are not in a backup.
+
+## Portable sign-in data
+
+The two-step sign-in secret is stored sealed with this computer's Data Protection key, so on its own it would be useless on a new computer. The `account_two_step` rule names `secret_protected` as a portable column: the exporter asks the Engine's codec to unseal it and writes it readable, marked as portable in the file, and a restore seals it again with the new computer's key. Plainly: **without a backup password, the backup file can be used to sign in as you, so keep it safe; with a password, the file is locked.** (The optional backup password itself arrives with restore.) If the key is gone and the secret cannot be unsealed, it is kept as it is, counted in the backup's contents, and works only on this computer. Without a codec registered, portable columns are written unchanged. The codec handles exactly this one column and refuses any other.
 
 ## Backup contents (manifest)
 
 A backup's manifest will name its kind (`settings-and-personal-state`) and list what the backup leaves out: media files, folders, artwork, the catalogue, the adult-video catalogue and secrets. The export of kept rows is built (`PersonalStateBackupRepository`, `BackupArchiveFormat`); writing it into backups, the manifest and restore come in the next step.
 
-## Configuration tables (60)
+## Configuration tables (62)
 
 | Table | Why | Points at the catalogue | Left out | Only rows where |
 |---|---|---|---|---|
@@ -54,7 +70,7 @@ A backup's manifest will name its kind (`settings-and-personal-state`) and list 
 | `account_credentials` | Password hashes, needed to sign in after a restore. | none | none | all rows |
 | `account_external_logins` | Links between an account and an outside sign-in provider. | none | none | all rows |
 | `account_passkeys` | Passkey public keys, needed to sign in after a restore. | none | none | all rows |
-| `account_two_step` | Two-step sign-in data, needed to sign in after a restore (the secret is protected with this machine's Data Protection keys). | none | none | all rows |
+| `account_two_step` | Two-step sign-in data, needed to sign in after a restore; the secret is protected with this computer's Data Protection key, so the export writes it readable (portable column `secret_protected`), or keeps it as it is when it cannot be read. | none | none | all rows |
 | `account_feature_grants` | Which features an account may use. | none | none | all rows |
 | `account_library_grants` | Which libraries an account may use. | none | none | all rows |
 | `account_profile_grants` | Which profiles an account may use. | none | none | all rows |
@@ -105,11 +121,13 @@ A backup's manifest will name its kind (`settings-and-personal-state`) and list 
 | `local_item_tag_links` | Which tags a person put on which View item. | `item_id` (local item) | none | all rows |
 | `doc_item_details` | Filing details a person entered for a document (machine suggestions are rebuilt). | `item_id` (local item) | `suggestions_json` | all rows |
 | `excluded_source_files` | Files a person removed from the library and chose to keep out, so a rescan does not add them back. | none | `title`, `excluded_by_name` | all rows |
-| `collections` | Collections and playlists a person built; collections built from providers (universes and series) are rebuilt. | `universe_id` (other), `parent_collection_id` (collection) | `cover_artwork_path`, `background_artwork_path`, `banner_artwork_path`, `logo_artwork_path` | `collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart')` |
+| `collections` | Collections and playlists a person built; collections built from providers (universes and series) are rebuilt, but a person's switches on them are kept: choice columns `is_enabled`, `is_featured`, `display_overrides_json`, for the rows not kept here. | `universe_id` (other), `parent_collection_id` (collection) | `cover_artwork_path`, `background_artwork_path`, `banner_artwork_path`, `logo_artwork_path` | `collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart')` |
 | `collection_items` | The titles in a person-built collection. | `work_id` (work) | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart'))` |
 | `collection_placements` | Where a person-built collection appears. | none | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart'))` |
 | `collection_profile_audience` | Which profiles can see a person-built collection. | none | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart'))` |
 | `collection_view_sources` | The gallery or rule feeding a person-built collection. | none | none | `collection_id IN (SELECT id FROM collections WHERE collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart'))` |
+| `fictional_entity_user_overrides` | A person's name and description corrections for a fictional thing, found again by its Wikidata id. | `entity_id` (fictional thing) | none | all rows |
+| `narrative_root_user_overrides` | A person's name and description corrections for a universe (already keyed by its Wikidata id). | none | none | all rows |
 
 ## Personal state tables (16)
 
@@ -132,17 +150,17 @@ A backup's manifest will name its kind (`settings-and-personal-state`) and list 
 | `profile_work_preferences` | A person's own tags and preferences for a title. | `profile_id` | `work_id` (work) | none |
 | `profile_person_preferences` | A person's own tags and preferences for a creator or performer. | `profile_id` | `person_id` (person) | none |
 
-## Catalogue tables (74)
+## Catalogue tables (72)
 
-None of these are kept. The search indexes (`search_index`, `local_item_search`, `artwork_asset_search`) are listed; their hidden storage tables are not.
+The rows a rescan rebuilds are not kept; the tables below say where a person's own choices or corrections on them are. The search indexes (`search_index`, `local_item_search`, `artwork_asset_search`) are listed; their hidden storage tables are not.
 
 | Table | Why |
 |---|---|
-| `works` | Titles; rebuilt by a rescan. |
+| `works` | Titles; rebuilt by a rescan, but a person's own matching and placement choices (locked match, rejected matches, locked series placement, display changes) are kept: choice columns `wikidata_match_locked`, `wikidata_rejected_qids_json`, `wikidata_match_source` (only while the match is locked), `series_placement_locked`, `collection_id` (a reference, only while the placement is locked), `display_overrides_json`. |
 | `editions` | Editions of a title; rebuilt by a rescan. |
 | `media_assets` | The files themselves; rebuilt by a rescan. |
 | `media_asset_chapters` | Chapters read from a file. |
-| `media_asset_coverage` | Which part of a work a file covers. |
+| `media_asset_coverage` | Which part of a work a file covers; rows a person set by hand (which episodes a file covers, `source = 'manual'`, with `asset_id` and `work_id` as references) are kept as corrections, the ones worked out from the file name or chapters are rebuilt. |
 | `media_artwork_writeback` | Artwork write-back state for files. |
 | `media_inspection_holds` | Inspection holds on files. |
 | `playback_inspection_cache` | Cached file inspection results. |
@@ -151,7 +169,7 @@ None of these are kept. The search indexes (`search_index`, `local_item_search`,
 | `file_hash_cache` | Cached file hashes. |
 | `canonical_values` | Winning metadata values, rebuilt from claims. |
 | `canonical_value_arrays` | Winning list-type metadata values, rebuilt from claims. |
-| `metadata_claims` | What each provider said about a title; rebuilt by enrichment. |
+| `metadata_claims` | What each provider said about a title; rebuilt by enrichment. Current claims a person made themselves are kept as corrections: `is_current = 1` and either locked by a person or written by the manual-edit provider. `entity_id` is a reference (work, edition, person or file). |
 | `bridge_ids` | External ids found for a title. |
 | `entity_events` | Identity and enrichment history of a title. |
 | `entity_field_changes` | Field changes recorded in a title's history. |
@@ -169,18 +187,16 @@ None of these are kept. The search indexes (`search_index`, `local_item_search`,
 | `artwork_assets` | Artwork files known to the Library. |
 | `artwork_asset_context` | Where each artwork file is used. |
 | `artwork_asset_search` | Search index over artwork. |
-| `entity_artwork_links` | Which artwork belongs to which title or person. |
-| `entity_assets` | Images attached to titles and people. |
-| `image_cache` | Cached downloaded images. |
+| `entity_artwork_links` | Which artwork belongs to which title or person. A cover a person picked from a provider is kept as a correction (`is_user_override = 1`): `entity_id` is a reference to the title or person, and `artwork_asset_id` is a reference to the artwork, found again by its provider, source address and provider reference (never its content hash, because artwork files are not in a backup). A link to an uploaded artwork, or one with no source address and no provider reference, cannot be found again, so the correction condition leaves it out (it is simply absent, not counted as dropped). |
+| `entity_assets` | Images attached to titles and people. A cover a person chose from a provider is kept as a correction (`is_user_override = 1`, a provider other than `user_upload`, an `http` image address), found again by provider and image address; `entity_id` is a reference, and the row id, local file paths and export flags are left out. Uploads are not kept. |
+| `image_cache` | Cached downloaded images (not kept: a cache row has no owner to attach a choice to). |
 | `image_cache_sources` | Where cached images came from. |
 | `character_portraits` | Character portraits. |
 | `character_performer_links` | Which performer plays which character. |
 | `fictional_entities` | Characters, places and other fictional things from Wikidata. |
 | `fictional_entity_work_links` | Where a fictional thing appears. |
-| `fictional_entity_user_overrides` | A person's name and description corrections for a fictional thing. |
 | `narrative_roots` | Universes and franchises from Wikidata. |
-| `narrative_root_user_overrides` | A person's name and description corrections for a universe. |
-| `persons` | Creators and performers; rebuilt from files and providers. |
+| `persons` | Creators and performers; rebuilt from files and providers, but a person's display changes are kept: choice column `display_overrides_json`. |
 | `person_aliases` | Pseudonyms of people. |
 | `person_group_members` | Members of bands and groups. |
 | `person_media_links` | Which person worked on which file. |
@@ -190,18 +206,18 @@ None of these are kept. The search indexes (`search_index`, `local_item_search`,
 | `series_manifest_items` | The items of a series fetched from providers. |
 | `series_members` | Series membership fetched from providers. |
 | `tv_episode_credits` | Episode credits from providers. |
-| `audiobook_chapter_title_overrides` | A person's chapter title corrections (no owner is recorded, so they are not kept). |
+| `audiobook_chapter_title_overrides` | Chapter titles; the ones a person renamed are kept as corrections (`title_source = 'Override'`, with `work_id` and `asset_id` as references), the ones read from the file are rebuilt. |
 | `subtitle_index_assets` | Subtitle indexing state per file. |
 | `subtitle_index_tracks` | Subtitle tracks that were indexed. |
 | `subtitle_lines` | Indexed subtitle text. |
 | `subtitle_name_tags` | Characters found in subtitle text. |
 | `text_tracks` | Subtitle and lyric tracks found for files. |
-| `local_items` | Photos, documents and other View items found on disk; a person's own choices on them (favourite, hidden, archived, trashed, capture date they set) are kept: choice columns `favorite`, `hidden`, `archived_at`, `trashed_at`, `captured_at_user_override`, `captured_at`. |
+| `local_items` | Photos, documents and other View items found on disk; a person's own choices on them (favourite, hidden, archived, trashed, capture date they set) are kept: choice columns `favorite`, `hidden`, `archived_at`, `trashed_at`, `captured_at_user_override`, `captured_at` (the date only while the person set it). |
 | `local_files` | Files behind View items. |
 | `local_file_sources` | Where View files were found. |
 | `local_item_files` | Which files belong to which View item. |
-| `local_item_metadata` | Metadata read from View items. |
-| `local_item_annotations` | Labels and detections found on View items. |
+| `local_item_metadata` | Metadata read from View items; a place a person set on a photo and a description they wrote are kept as choices on the item named by `item_id`: choice columns `description`, `location_user_override`, and the place columns `latitude`, `longitude`, `location_name`, `location_city`, `location_region`, `location_country`, `location_country_code`, `location_source` (only while `location_user_override` is set). The embedded coordinates, camera and lens details and document text are never kept. |
+| `local_item_annotations` | Labels and detections found on View items; a name a person gave, or a detection they reviewed, is kept as a correction (`source = 'user_assignment' OR reviewed_at IS NOT NULL`, `item_id` as a reference), without the machine's own details (`confidence`, `model_name`, `model_version`, `provenance_json`). |
 | `local_item_search` | Search index over View items. |
 | `local_item_search_keys` | Row numbers linking View items to their search index entries. |
 | `doc_item_field_sources` | Where document field values came from (tied to View items). |
@@ -303,6 +319,6 @@ When you add a table through a numbered data store upgrade step, add one line fo
 
 - For Configuration or Personal state, list every column that holds the id of a catalogue row as a catalogue reference, and every secret or machine-bound column as an excluded column. Personal state also names its owner column.
 - If only some rows are kept, give the rule a keep condition.
-- If a secret sits inside a JSON column, name the JSON property to remove. If a person's own choice sits on a Catalogue row, name the choice columns on that Catalogue rule.
+- If a secret sits inside a JSON column, name the JSON property to remove. If a person's own choice sits on a Catalogue row, name the choice columns on that Catalogue rule (and gate a column by its flag when only a person-set value counts). If a person makes whole rows on a Catalogue table, give it a correction condition, its catalogue references and its machine-only excluded columns. If a Configuration column is sealed with this computer's key, name it as a portable column and extend the Engine's codec (it refuses anything it does not know).
 - Add the table to the matching list on this page. A second test fails if a classified table is missing here.
 - If unsure whether a column holds a secret, exclude it and ask.

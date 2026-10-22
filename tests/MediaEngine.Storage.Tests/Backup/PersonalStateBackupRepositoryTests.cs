@@ -2,6 +2,8 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using Dapper;
+using MediaEngine.Domain;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Backup;
 using Microsoft.Data.Sqlite;
@@ -389,8 +391,8 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
                 BackupValue.FromTitleRef("t1", wasText: true),
             ]]);
         var choices = new BackupExportTable("local_items", BackupDataKind.Catalogue, ["ref", "favorite"], [[BackupValue.FromTitleRef("t1"), BackupValue.FromInteger(1)]]);
-        var contents = new BackupExportContents(BackupScope.ForProfile(Guid.Parse("11111111-2222-3333-4444-555555555555")), 0, 0, 1, 1, 1, 0, 1, 2);
-        var export = new BackupExport([table], [choices], [title], contents);
+        var contents = new BackupExportContents(BackupScope.ForProfile(Guid.Parse("11111111-2222-3333-4444-555555555555")), 0, 0, 1, 1, 1, 0, 1, 2, 3, 4, 5);
+        var export = new BackupExport([table], [choices], [title], contents, []);
 
         using var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
@@ -457,7 +459,9 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
         {
             ("data/personal/works.json", "personal_state"),
             ("data/configuration/works.json", "configuration"),
-            ("data/choices/works.json", "choices"),
+            ("data/choices/playback_inspection_cache.json", "choices"),
+            ("data/corrections/playback_inspection_cache.json", "corrections"),
+            ("data/corrections/user_states.json", "corrections"),
             ("data/personal/playback_inspection_cache.json", "personal_state"),
             ("data/configuration/user_states.json", "configuration"),
             ("data/personal/not_a_table.json", "personal_state"),
@@ -585,8 +589,589 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
         Assert.Equal(["aaaa0000", "ffff0000"], title.FileHashes);
     }
 
+    [Fact]
+    public async Task Export_KeepsATitleFieldAPersonLocked_KeyedToTheTitle()
+    {
+        var movie = AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: null);
+        await AddClaimAsync(movie.Work, WellKnownProviders.UserManual, "title", "PERSON-TITLE-MARKER", locked: true);
+        await AddClaimAsync(movie.Work, WellKnownProviders.Tmdb, "title", "PROVIDER-CLAIM-MARKER-4471");
+        await AddClaimAsync(movie.Work, WellKnownProviders.UserManual, "subtitle", "SUPERSEDED-PERSON-MARKER", current: false);
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        var claims = Assert.Single(export.Corrections);
+        Assert.Equal("metadata_claims", claims.Table);
+        var row = Assert.Single(claims.Rows);
+        var entity = Assert.IsType<BackupValue.TitleRef>(row[claims.Columns.ToList().IndexOf("entity_id")]);
+        Assert.Equal(BackupValue.FromText("PERSON-TITLE-MARKER"), row[claims.Columns.ToList().IndexOf("claim_value")]);
+        var title = Assert.Single(export.Titles, candidate => candidate.Key == entity.Key);
+        Assert.Equal("Work", title.Target);
+        Assert.Equal("tt1160419", title.Ids["imdb_id"]);
+        Assert.Equal(1, export.Contents.CorrectionRows);
+
+        var text = EntryText(Archive(export));
+        Assert.Contains("PERSON-TITLE-MARKER", text);
+        Assert.DoesNotContain("PROVIDER-CLAIM-MARKER-4471", text);
+        Assert.DoesNotContain("SUPERSEDED-PERSON-MARKER", text);
+        Assert.Contains("data/corrections/metadata_claims.json", ArchiveEntryNames(Archive(export)));
+    }
+
+    [Fact]
+    public async Task Export_KeepsAProviderClaimAPersonLocked()
+    {
+        var movie = AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: null);
+        await AddClaimAsync(movie.Work, WellKnownProviders.Tmdb, "genre", "LOCKED-PROVIDER-VALUE", locked: true);
+
+        var claims = Assert.Single(_repository.Export(BackupScope.WholeLibrary).Corrections);
+
+        Assert.Equal(BackupValue.FromText("LOCKED-PROVIDER-VALUE"), Assert.Single(claims.Rows)[claims.Columns.ToList().IndexOf("claim_value")]);
+    }
+
+    [Fact]
+    public async Task Export_ForOneProfile_HoldsNoCorrectionsOrLibraryChoices()
+    {
+        var maya = AddProfile("Maya");
+        var movie = AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: null);
+        await AddClaimAsync(movie.Work, WellKnownProviders.UserManual, "title", "PERSON-TITLE-MARKER", locked: true);
+
+        var export = _repository.Export(BackupScope.ForProfile(maya));
+
+        Assert.Empty(export.Corrections);
+        Assert.Empty(export.Choices);
+        Assert.DoesNotContain("PERSON-TITLE-MARKER", EntryText(Archive(export)));
+    }
+
+    [Fact]
+    public void Export_KeepsARenamedAudiobookChapter_ButNotAnEmbeddedOne()
+    {
+        var book = AddMovie("Dune", "1965", imdb: null, tmdb: null, hash: "bbbb0001", seconds: null);
+        using (var connection = _database.CreateConnection())
+        {
+            foreach (var (index, title, source) in new[] { (0, "The Spice Must Flow", "Override"), (1, "EMBEDDED-CHAPTER-MARKER", "Embedded") })
+            {
+                connection.Execute(
+                    "INSERT INTO audiobook_chapter_title_overrides (work_id, asset_id, chapter_index, title, title_source, updated_at) VALUES (@w, @a, @i, @t, @s, @now)",
+                    new { w = book.Work, a = book.Asset, i = index, t = title, s = source, now = Now });
+            }
+        }
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        var chapters = Assert.Single(export.Corrections);
+        Assert.Equal("audiobook_chapter_title_overrides", chapters.Table);
+        var row = Assert.Single(chapters.Rows);
+        Assert.Equal(BackupValue.FromText("The Spice Must Flow"), row[chapters.Columns.ToList().IndexOf("title")]);
+        Assert.IsType<BackupValue.TitleRef>(row[chapters.Columns.ToList().IndexOf("asset_id")]);
+        Assert.IsType<BackupValue.TitleRef>(row[chapters.Columns.ToList().IndexOf("work_id")]);
+        Assert.DoesNotContain("EMBEDDED-CHAPTER-MARKER", EntryText(Archive(export)));
+    }
+
+    [Fact]
+    public void Export_KeepsTheSwitchesOnALibraryBuiltCollection()
+    {
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO collections (id, collection_type, display_name, description, is_enabled, wikidata_qid)
+                VALUES (@id, 'Universe', 'Dune Universe', 'PROVIDER-DESCRIPTION-MARKER', 0, 'Q190192');
+                INSERT INTO collections (id, collection_type, display_name, description, is_enabled, wikidata_qid)
+                VALUES (@other, 'Universe', 'Untouched Universe', 'OTHER-DESCRIPTION-MARKER', 1, 'Q999');
+                """,
+                new { id = GuidSql.ToBlob(Guid.NewGuid()), other = GuidSql.ToBlob(Guid.NewGuid()) });
+        }
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        var choices = Assert.Single(export.Choices);
+        Assert.Equal("collections", choices.Table);
+        Assert.Equal(["ref", "is_enabled", "is_featured", "display_overrides_json"], choices.Columns);
+        var row = Assert.Single(choices.Rows);
+        Assert.Equal(BackupValue.FromInteger(0), row[1]);
+        var shelf = Assert.Single(export.Titles, title => title.Key == Assert.IsType<BackupValue.TitleRef>(row[0]).Key);
+        Assert.Equal("Q190192", shelf.Ids["wikidata_qid"]);
+        Assert.Empty(Assert.Single(export.Tables, table => table.Table == "collections").Rows);
+
+        var text = EntryText(Archive(export));
+        Assert.DoesNotContain("PROVIDER-DESCRIPTION-MARKER", text);
+        Assert.DoesNotContain("OTHER-DESCRIPTION-MARKER", text);
+        Assert.DoesNotContain("Q999", text);
+    }
+
+    [Fact]
+    public void Export_KeepsAWorksLockedSeriesPlacement_AndDropsAnUnlockedOne()
+    {
+        var shelf = Guid.NewGuid();
+        var locked = AddMovie("Locked Book", "2001", imdb: "tt0000011", tmdb: null, hash: "cccc0001", seconds: null);
+        var unlocked = AddMovie("UNLOCKED-WORK-MARKER", "2002", imdb: "tt0000022", tmdb: null, hash: "cccc0002", seconds: null);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO collections (id, collection_type, display_name, wikidata_qid) VALUES (@id, 'Series', 'Placed Series', 'Q7')",
+                new { id = GuidSql.ToBlob(shelf) });
+            connection.Execute(
+                "UPDATE works SET series_placement_locked = 1, collection_id = @c, wikidata_match_source = 'WRONG-SOURCE-MARKER' WHERE id = @w",
+                new { c = GuidSql.ToBlob(shelf), w = locked.Work });
+            connection.Execute(
+                "UPDATE works SET series_placement_locked = 0, collection_id = @c, wikidata_match_source = 'WRONG-SOURCE-MARKER-2' WHERE id = @w",
+                new { c = GuidSql.ToBlob(shelf), w = unlocked.Work });
+        }
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        var works = Assert.Single(export.Choices, table => table.Table == "works");
+        var row = Assert.Single(works.Rows);
+        Assert.Equal(BackupValue.FromInteger(1), row[works.Columns.ToList().IndexOf("series_placement_locked")]);
+        var placed = Assert.IsType<BackupValue.TitleRef>(row[works.Columns.ToList().IndexOf("collection_id")]);
+        Assert.Equal("Q7", Assert.Single(export.Titles, title => title.Key == placed.Key).Ids["wikidata_qid"]);
+        Assert.Equal(BackupValue.Null, row[works.Columns.ToList().IndexOf("wikidata_match_source")]);
+
+        var text = EntryText(Archive(export));
+        Assert.DoesNotContain("UNLOCKED-WORK-MARKER", text);
+        Assert.DoesNotContain("WRONG-SOURCE-MARKER", text);
+        Assert.DoesNotContain("tt0000022", text);
+    }
+
+    [Fact]
+    public void Export_KeepsAFaceNameAPersonGave_ButNotAMachineDetection()
+    {
+        var item = AddLocalItem("Beach day", "ffff0010", favorite: false);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO local_item_annotations (id, item_id, annotation_kind, annotation_value, source, created_at, reviewed_at)
+                VALUES (@a, @item, 'person_name', 'Maya Rao', 'user_assignment', @now, @now);
+                INSERT INTO local_item_annotations (id, item_id, annotation_kind, annotation_value, confidence, source, model_name, model_version, provenance_json, created_at)
+                VALUES (@b, @item, 'face_identity', 'MACHINE-DETECTION-MARKER', 0.91, 'face_model', 'MODEL-NAME-MARKER', '3', 'PROVENANCE-MARKER', @now);
+                """,
+                new { a = GuidSql.ToBlob(Guid.NewGuid()), b = GuidSql.ToBlob(Guid.NewGuid()), item, now = Now });
+        }
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        var annotations = Assert.Single(export.Corrections, table => table.Table == "local_item_annotations");
+        var row = Assert.Single(annotations.Rows);
+        Assert.Equal(BackupValue.FromText("Maya Rao"), row[annotations.Columns.ToList().IndexOf("annotation_value")]);
+        Assert.IsType<BackupValue.TitleRef>(row[annotations.Columns.ToList().IndexOf("item_id")]);
+        Assert.Equal(BackupValue.Null, row[annotations.Columns.ToList().IndexOf("model_name")]);
+        var text = EntryText(Archive(export));
+        Assert.DoesNotContain("MACHINE-DETECTION-MARKER", text);
+        Assert.DoesNotContain("MODEL-NAME-MARKER", text);
+        Assert.DoesNotContain("PROVENANCE-MARKER", text);
+    }
+
+    [Fact]
+    public void Export_KeepsACoverAPersonChoseFromAProvider_ButNotAnUpload()
+    {
+        var movie = AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: null);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, image_url, local_image_path, source_provider, is_user_override)
+                VALUES (@a, @work, 'Work', 'CoverArt', 'https://image.tmdb.org/t/p/original/chosen.jpg', '/art/LOCAL-PATH-MARKER.jpg', 'tmdb', 1);
+                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, image_url, source_provider, is_user_override)
+                VALUES (@b, @work, 'Work', 'CoverArt', 'https://example.test/UPLOAD-MARKER.jpg', 'user_upload', 1);
+                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, image_url, source_provider, is_user_override)
+                VALUES (@c, @work, 'Work', 'CoverArt', 'https://example.test/NOT-CHOSEN-MARKER.jpg', 'tmdb', 0);
+                """,
+                new { a = GuidSql.ToBlob(Guid.NewGuid()), b = GuidSql.ToBlob(Guid.NewGuid()), c = GuidSql.ToBlob(Guid.NewGuid()), work = movie.Work });
+        }
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        var artwork = Assert.Single(export.Corrections, table => table.Table == "entity_assets");
+        var row = Assert.Single(artwork.Rows);
+        Assert.Equal(BackupValue.FromText("https://image.tmdb.org/t/p/original/chosen.jpg"), row[artwork.Columns.ToList().IndexOf("image_url")]);
+        Assert.Equal(BackupValue.FromText("tmdb"), row[artwork.Columns.ToList().IndexOf("source_provider")]);
+        Assert.IsType<BackupValue.TitleRef>(row[artwork.Columns.ToList().IndexOf("entity_id")]);
+        Assert.Equal(BackupValue.Null, row[artwork.Columns.ToList().IndexOf("id")]);
+        var text = EntryText(Archive(export));
+        Assert.DoesNotContain("LOCAL-PATH-MARKER", text);
+        Assert.DoesNotContain("UPLOAD-MARKER", text);
+        Assert.DoesNotContain("NOT-CHOSEN-MARKER", text);
+    }
+
+    [Fact]
+    public void Export_KeepsACoverAPersonPickedFromAProvider_KeyedToItsSourceAddress()
+    {
+        var movie = AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: null);
+        var asset = AddArtworkAsset("tmdb", "https://image.tmdb.org/t/p/original/picked.jpg", "picked-ref", "ARTWORK-PATH-MARKER", "arthash1");
+        var notPicked = AddArtworkAsset("tmdb", "https://example.test/NOT-PICKED-MARKER.jpg", null, "OTHER-PATH-MARKER", "arthash2");
+        AddArtworkLink(movie.Work, asset, userOverride: true);
+        AddArtworkLink(movie.Work, notPicked, userOverride: false);
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        var links = Assert.Single(export.Corrections, table => table.Table == "entity_artwork_links");
+        var row = Assert.Single(links.Rows);
+        Assert.IsType<BackupValue.TitleRef>(row[links.Columns.ToList().IndexOf("entity_id")]);
+        Assert.Equal(BackupValue.FromText("Primary"), row[links.Columns.ToList().IndexOf("role")]);
+        Assert.Equal(BackupValue.FromInteger(1), row[links.Columns.ToList().IndexOf("is_preferred")]);
+        var reference = Assert.IsType<BackupValue.TitleRef>(row[links.Columns.ToList().IndexOf("artwork_asset_id")]);
+        var artwork = Assert.Single(export.Titles, title => title.Key == reference.Key);
+        Assert.Equal("ArtworkAsset", artwork.Target);
+        Assert.Equal("https://image.tmdb.org/t/p/original/picked.jpg", artwork.Ids["source_url"]);
+        Assert.Equal("tmdb", artwork.Ids["source_provider"]);
+        Assert.Equal("picked-ref", artwork.Ids["provider_reference"]);
+        Assert.Empty(artwork.FileHashes);
+        Assert.Null(artwork.Name);
+
+        var bytes = Archive(export);
+        var text = EntryText(bytes);
+        Assert.DoesNotContain("ARTWORK-PATH-MARKER", text);
+        Assert.DoesNotContain("arthash1", text);
+        Assert.DoesNotContain("NOT-PICKED-MARKER", text);
+        Assert.DoesNotContain("OTHER-PATH-MARKER", text);
+    }
+
+    [Fact]
+    public void Export_LeavesOutACoverAPersonUploaded()
+    {
+        var movie = AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: null);
+        var upload = AddArtworkAsset("user_upload", "https://example.test/UPLOAD-SOURCE-MARKER.jpg", null, "UPLOAD-PATH-MARKER", "arthash3");
+        var anonymous = AddArtworkAsset("tmdb", null, null, "ANON-PATH-MARKER", "arthash4");
+        AddArtworkLink(movie.Work, upload, userOverride: true);
+        AddArtworkLink(movie.Work, anonymous, userOverride: true);
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        Assert.DoesNotContain(export.Corrections, table => table.Table == "entity_artwork_links");
+        Assert.Equal(0, export.Contents.DroppedRows);
+        Assert.Equal(0, export.Contents.WithheldRows);
+        var text = EntryText(Archive(export));
+        Assert.DoesNotContain("UPLOAD-SOURCE-MARKER", text);
+        Assert.DoesNotContain("UPLOAD-PATH-MARKER", text);
+        Assert.DoesNotContain("ANON-PATH-MARKER", text);
+    }
+
+    [Fact]
+    public void Export_KeepsAPhotosLocationAndDescriptionAPersonSet_ButNotItsEmbeddedData()
+    {
+        var edited = AddLocalItem("Honeymoon", "ffff0020", favorite: false);
+        var untouched = AddLocalItem("Plain", "ffff0021", favorite: false);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO local_item_metadata (item_id, latitude, longitude, location_name, location_city, location_source, location_user_override,
+                    embedded_latitude, embedded_longitude, description, device_make, lens_model, document_text, updated_at)
+                VALUES (@edited, 48.8566, 2.3522, 'PERSON-PLACE-NAME', 'Paris', 'user', 1, 12.3456, 65.4321, 'Our honeymoon', 'DEVICE-MARKER', 'LENS-MARKER', 'DOCTEXT-MARKER', @now);
+                INSERT INTO local_item_metadata (item_id, latitude, longitude, location_name, location_source, location_user_override,
+                    embedded_latitude, embedded_longitude, device_make, document_text, updated_at)
+                VALUES (@untouched, 10.5, 20.5, 'EMBEDDED-PLACE-MARKER', 'embedded', 0, 10.5, 20.5, 'OTHER-DEVICE-MARKER', 'OTHER-DOCTEXT-MARKER', @now);
+                """,
+                new { edited, untouched, now = Now });
+        }
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        var metadata = Assert.Single(export.Choices, table => table.Table == "local_item_metadata");
+        var row = Assert.Single(metadata.Rows);
+        var columns = metadata.Columns.ToList();
+        var reference = Assert.IsType<BackupValue.TitleRef>(row[0]);
+        Assert.Equal("LocalItem", Assert.Single(export.Titles, title => title.Key == reference.Key).Target);
+        Assert.Equal(BackupValue.FromText("Our honeymoon"), row[columns.IndexOf("description")]);
+        Assert.Equal(BackupValue.FromInteger(1), row[columns.IndexOf("location_user_override")]);
+        Assert.Equal(BackupValue.FromText("PERSON-PLACE-NAME"), row[columns.IndexOf("location_name")]);
+        Assert.Equal(BackupValue.FromReal(48.8566), row[columns.IndexOf("latitude")]);
+        Assert.DoesNotContain("embedded_latitude", columns);
+        Assert.DoesNotContain("document_text", columns);
+
+        var text = EntryText(Archive(export));
+        foreach (var marker in new[] { "DEVICE-MARKER", "LENS-MARKER", "DOCTEXT-MARKER", "EMBEDDED-PLACE-MARKER", "12.3456", "65.4321", "ffff0021" })
+        {
+            Assert.DoesNotContain(marker, text);
+        }
+    }
+
+    [Fact]
+    public void Export_KeepsWhichEpisodesAPersonSaidAFileCovers()
+    {
+        var first = AddMovie("Episode One", "2020", imdb: "tt0000101", tmdb: null, hash: "dddd0001", seconds: null);
+        var second = AddMovie("Episode Two", "2020", imdb: "tt0000102", tmdb: null, hash: "dddd0002", seconds: null);
+        var other = AddMovie("Other Show", "2021", imdb: "tt0000103", tmdb: null, hash: "dddd0003", seconds: null);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO media_asset_coverage (asset_id, work_id, position, source) VALUES (@a1, @w1, 1, 'manual');
+                INSERT INTO media_asset_coverage (asset_id, work_id, position, source) VALUES (@a1, @w2, 2, 'manual');
+                INSERT INTO media_asset_coverage (asset_id, work_id, position, source) VALUES (@a3, @w3, 1, 'filename');
+                """,
+                new { a1 = first.Asset, w1 = first.Work, w2 = second.Work, a3 = other.Asset, w3 = other.Work });
+        }
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        var coverage = Assert.Single(export.Corrections, table => table.Table == "media_asset_coverage");
+        Assert.Equal(2, coverage.Rows.Count);
+        var columns = coverage.Columns.ToList();
+        Assert.All(coverage.Rows, row =>
+        {
+            Assert.IsType<BackupValue.TitleRef>(row[columns.IndexOf("asset_id")]);
+            Assert.IsType<BackupValue.TitleRef>(row[columns.IndexOf("work_id")]);
+            Assert.Equal(BackupValue.FromText("manual"), row[columns.IndexOf("source")]);
+        });
+        Assert.Equal([1L, 2L], coverage.Rows.Select(row => ((BackupValue.Integer)row[columns.IndexOf("position")]).Value).Order().ToArray());
+        Assert.DoesNotContain("tt0000103", EntryText(Archive(export)));
+    }
+
+    [Fact]
+    public async Task Export_DropsACorrectionOnAWithheldTitle()
+    {
+        var hidden = AddMovie("Hidden", "2022", imdb: "tt0000201", tmdb: null, hash: "eeee0001", seconds: null);
+        var shown = AddMovie("Shown", "2022", imdb: "tt0000202", tmdb: null, hash: "eeee0002", seconds: null);
+        await AddClaimAsync(hidden.Work, WellKnownProviders.UserManual, "title", "HIDDEN-CLAIM-MARKER", locked: true);
+        await AddClaimAsync(shown.Work, WellKnownProviders.UserManual, "title", "SHOWN-CLAIM-MARKER", locked: true);
+        var repository = new PersonalStateBackupRepository(
+            _database,
+            null,
+            (target, id) => target == CatalogueTarget.Work && id.AsSpan().SequenceEqual(hidden.Work));
+
+        var export = repository.Export(BackupScope.WholeLibrary);
+
+        Assert.Equal(1, export.Contents.WithheldRows);
+        Assert.Equal(0, export.Contents.DroppedRows);
+        var claims = Assert.Single(export.Corrections);
+        Assert.Equal(BackupValue.FromText("SHOWN-CLAIM-MARKER"), Assert.Single(claims.Rows)[claims.Columns.ToList().IndexOf("claim_value")]);
+        var title = Assert.Single(export.Titles);
+        Assert.Equal("tt0000202", title.Ids["imdb_id"]);
+        var text = EntryText(Archive(export));
+        Assert.DoesNotContain("HIDDEN-CLAIM-MARKER", text);
+        Assert.DoesNotContain("tt0000201", text);
+        Assert.DoesNotContain("eeee0001", text);
+    }
+
+    [Fact]
+    public void Export_KeepsAFictionalThingCorrection_KeyedToItsWikidataId()
+    {
+        var entity = GuidSql.ToBlob(Guid.NewGuid());
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO fictional_entities (id, wikidata_qid, label, entity_sub_type, created_at) VALUES (@e, 'Q5', 'Paul Atreides', 'Character', @now);
+                INSERT INTO fictional_entity_user_overrides (entity_id, label, description) VALUES (@e, 'Muad''Dib', 'Own words');
+                """,
+                new { e = entity, now = Now });
+        }
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        var overrides = Assert.Single(export.Tables, table => table.Table == "fictional_entity_user_overrides");
+        var row = Assert.Single(overrides.Rows);
+        var reference = Assert.IsType<BackupValue.TitleRef>(row[overrides.Columns.ToList().IndexOf("entity_id")]);
+        var title = Assert.Single(export.Titles, candidate => candidate.Key == reference.Key);
+        Assert.Equal("FictionalEntity", title.Target);
+        Assert.Equal("Q5", title.Ids["wikidata_qid"]);
+        Assert.Equal(BackupValue.FromText("Muad'Dib"), row[overrides.Columns.ToList().IndexOf("label")]);
+    }
+
+    [Fact]
+    public void Export_WritesTheTwoStepSecretReadable_WhenTheCodecCanReadIt()
+    {
+        AddTwoStepSecret("PROTECTED-BLOB-MARKER");
+        var repository = new PersonalStateBackupRepository(_database, new FakePortableCodec(canRead: true));
+
+        var export = repository.Export(BackupScope.WholeLibrary);
+
+        var table = Assert.Single(export.Tables, candidate => candidate.Table == "account_two_step");
+        var value = Assert.Single(table.Rows)[table.Columns.ToList().IndexOf("secret_protected")];
+        Assert.Equal(BackupValue.FromPortable("readable:PROTECTED-BLOB-MARKER"), value);
+        Assert.Equal(0, export.Contents.PortableValuesKeptMachineBound);
+        var text = EntryText(Archive(export));
+        Assert.Contains("{\"portable\":\"readable:PROTECTED-BLOB-MARKER\"}", text);
+    }
+
+    [Fact]
+    public void Export_KeepsTheTwoStepSecretMachineBound_WhenTheCodecCannotReadIt()
+    {
+        AddTwoStepSecret("PROTECTED-BLOB-MARKER");
+        var repository = new PersonalStateBackupRepository(_database, new FakePortableCodec(canRead: false));
+
+        var export = repository.Export(BackupScope.WholeLibrary);
+
+        var table = Assert.Single(export.Tables, candidate => candidate.Table == "account_two_step");
+        Assert.Equal(BackupValue.FromText("PROTECTED-BLOB-MARKER"), Assert.Single(table.Rows)[table.Columns.ToList().IndexOf("secret_protected")]);
+        Assert.Equal(1, export.Contents.PortableValuesKeptMachineBound);
+    }
+
+    [Fact]
+    public void Export_LeavesThePortableColumnUnchanged_WhenNoCodecIsRegistered()
+    {
+        AddTwoStepSecret("PROTECTED-BLOB-MARKER");
+
+        var export = _repository.Export(BackupScope.WholeLibrary);
+
+        var table = Assert.Single(export.Tables, candidate => candidate.Table == "account_two_step");
+        Assert.Equal(BackupValue.FromText("PROTECTED-BLOB-MARKER"), Assert.Single(table.Rows)[table.Columns.ToList().IndexOf("secret_protected")]);
+        Assert.Equal(0, export.Contents.PortableValuesKeptMachineBound);
+    }
+
+    [Fact]
+    public void ArchiveFormat_RoundTripsCorrectionsPortableValuesAndGatedChoices()
+    {
+        var title = BackupTitle.Empty("t1", "Work") with { Ids = new Dictionary<string, string> { ["imdb_id"] = "tt1" } };
+        var corrections = new BackupExportTable(
+            "metadata_claims",
+            BackupDataKind.Catalogue,
+            ["id", "entity_id", "claim_value"],
+            [[BackupValue.FromBlob([1, 2, 3, 4]), BackupValue.FromTitleRef("t1"), BackupValue.FromText("Own title")]]);
+        var secret = new BackupExportTable(
+            "account_two_step",
+            BackupDataKind.Configuration,
+            ["account_id", "secret_protected"],
+            [[BackupValue.FromBlob([9]), BackupValue.FromPortable("JBSWY3DPEHPK3PXP")]]);
+        var works = new BackupExportTable(
+            "works",
+            BackupDataKind.Catalogue,
+            ["ref", "series_placement_locked", "collection_id", "wikidata_match_locked", "wikidata_match_source"],
+            [[BackupValue.FromTitleRef("t1"), BackupValue.FromInteger(1), BackupValue.FromTitleRef("t1"), BackupValue.FromInteger(0), BackupValue.Null]]);
+        var contents = new BackupExportContents(BackupScope.WholeLibrary, 1, 1, 0, 1, 1, 0, 1, 0, 1, 2, 3);
+        var export = new BackupExport([secret], [works], [title], contents, [corrections]);
+
+        var read = RoundTrip(export);
+
+        Assert.Equal(secret.Rows[0], Assert.Single(Assert.Single(read.Tables).Rows));
+        Assert.IsType<BackupValue.Portable>(Assert.Single(read.Tables).Rows[0][1]);
+        Assert.Equal(works.Rows[0], Assert.Single(Assert.Single(read.Choices).Rows));
+        var readCorrections = Assert.Single(read.Corrections);
+        Assert.Equal(corrections.Rows[0], Assert.Single(readCorrections.Rows));
+        Assert.Equal(contents, read.Contents);
+    }
+
+    [Fact]
+    public void ArchiveFormat_RefusesACorrectionsFileForATableWithNoCorrectionCondition()
+    {
+        using var stream = ArchiveWith(
+            ("data/contents.json", ContentsJson),
+            ("data/titles.json", """{"titles":[]}"""),
+            ("data/corrections/works.json", """{"table":"works","kind":"corrections","columns":["id"],"rows":[]}"""));
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+        Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(archive));
+    }
+
+    [Fact]
+    public void ArchiveFormat_RefusesAPortableValueInAColumnThatIsNotPortable()
+    {
+        foreach (var column in new[] { "created_at", "account_id" })
+        {
+            using var stream = ArchiveWith(
+                ("data/contents.json", ContentsJson),
+                ("data/titles.json", """{"titles":[]}"""),
+                ("data/configuration/account_two_step.json", $$"""{"table":"account_two_step","kind":"configuration","columns":["{{column}}"],"rows":[[{"portable":"x"}]]}"""));
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+            Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(archive));
+        }
+
+        using var inPersonal = ArchiveWith(
+            ("data/contents.json", ContentsJson),
+            ("data/titles.json", """{"titles":[]}"""),
+            ("data/personal/user_states.json", """{"table":"user_states","kind":"personal_state","columns":["progress_pct"],"rows":[[{"portable":"x"}]]}"""));
+        using var personalArchive = new ZipArchive(inPersonal, ZipArchiveMode.Read);
+        Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(personalArchive));
+    }
+
+    [Fact]
+    public void ArchiveFormat_RefusesAChoicesFileForAConfigurationTableThatKeepsAllItsRows()
+    {
+        using var stream = ArchiveWith(
+            ("data/contents.json", ContentsJson),
+            ("data/titles.json", """{"titles":[]}"""),
+            ("data/choices/profiles.json", """{"table":"profiles","kind":"choices","columns":["ref"],"rows":[]}"""));
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+        Assert.Throws<InvalidDataException>(() => BackupArchiveFormat.Read(archive));
+    }
+
+    private sealed class FakePortableCodec(bool canRead) : IBackupPortableValueCodec
+    {
+        public string? Export(string table, string column, string protectedValue) => canRead ? "readable:" + protectedValue : null;
+
+        public string Import(string table, string column, string portableValue) => portableValue;
+    }
+
+    private byte[] AddArtworkAsset(string provider, string? url, string? providerReference, string path, string hash)
+    {
+        var id = GuidSql.ToBlob(Guid.NewGuid());
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO artwork_assets (id, content_hash, original_path, source_provider, source_url, provider_reference)
+            VALUES (@id, @hash, @path, @provider, @url, @providerReference)
+            """,
+            new { id, hash, path = "/art/" + path + ".jpg", provider, url, providerReference });
+        return id;
+    }
+
+    private void AddArtworkLink(byte[] entity, byte[] asset, bool userOverride)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO entity_artwork_links (id, entity_id, entity_type, artwork_asset_id, role, is_preferred, is_user_override)
+            VALUES (@id, @entity, 'Work', @asset, 'Primary', 1, @userOverride)
+            """,
+            new { id = GuidSql.ToBlob(Guid.NewGuid()), entity, asset, userOverride = userOverride ? 1 : 0 });
+    }
+
+    private void AddTwoStepSecret(string protectedValue)
+    {
+        var account = GuidSql.ToBlob(Guid.NewGuid());
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO accounts (id, created_at, updated_at) VALUES (@account, @now, @now);
+            INSERT INTO account_two_step (account_id, secret_protected, created_at) VALUES (@account, @secret, @now);
+            """,
+            new { account, secret = protectedValue, now = Now });
+    }
+
+    private async Task AddClaimAsync(byte[] work, Guid provider, string key, string value, bool locked = false, bool current = true)
+    {
+        var claims = new MetadataClaimRepository(_database);
+        await claims.InsertBatchAsync(
+        [
+            new MetadataClaim
+            {
+                Id = Guid.NewGuid(),
+                EntityId = new Guid(work, bigEndian: true),
+                ProviderId = provider,
+                ClaimKey = key,
+                ClaimValue = value,
+                Confidence = 1.0,
+                ClaimedAt = DateTimeOffset.UtcNow,
+                IsUserLocked = locked,
+                IsCurrent = current,
+            },
+        ]);
+    }
+
+    private static BackupExport RoundTrip(BackupExport export)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            BackupArchiveFormat.Write(archive, export);
+        }
+
+        stream.Position = 0;
+        using var readable = new ZipArchive(stream, ZipArchiveMode.Read);
+        return BackupArchiveFormat.Read(readable);
+    }
+
+    private static List<string> ArchiveEntryNames(byte[] archiveBytes)
+    {
+        using var archive = new ZipArchive(new MemoryStream(archiveBytes), ZipArchiveMode.Read);
+        return archive.Entries.Select(entry => entry.FullName).ToList();
+    }
+
     private const string ContentsJson =
-        """{"kind":"settings-and-personal-state","scope":"library","configuration_tables":0,"configuration_rows":0,"personal_rows":0,"choice_rows":0,"titles":0,"titles_recognised_by_file_only":0,"profiles":0,"dropped_rows":0}""";
+        """{"kind":"settings-and-personal-state","scope":"library","configuration_tables":0,"configuration_rows":0,"personal_rows":0,"choice_rows":0,"titles":0,"titles_recognised_by_file_only":0,"profiles":0,"dropped_rows":0,"correction_rows":0,"portable_values_kept_machine_bound":0,"withheld_rows":0}""";
 
     private static MemoryStream ArchiveWith(params (string Name, string Json)[] entries)
     {
