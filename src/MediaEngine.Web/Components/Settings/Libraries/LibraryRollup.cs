@@ -1,12 +1,14 @@
 using MediaEngine.Contracts.Library;
+using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Formatting;
 
 namespace MediaEngine.Web.Components.Settings;
 
 /// <summary>One row on a group page, and one line of a group card: what a library type holds and how its folders are doing.</summary>
-/// <param name="Folders">Folder count; null only for View while its folders are not known yet.</param>
+/// <param name="Folders">Folder count; null only for a View kind while its folders are not known yet.</param>
 /// <param name="Titles">Titles the Engine counts for the type; null when the overview is not available or the type has no count.</param>
 public sealed record LibraryRowSummary(LibraryTypeOption Type, int? Folders, int? Titles, LibraryHealth? Health);
 
@@ -65,18 +67,29 @@ public static class LibraryRollup
         ? configuration?.Libraries.FirstOrDefault(library => library.Id == type.LibraryId)
         : PrimaryLibraryFor(configuration, type);
 
-    /// <summary>The counts and health of one type. <paramref name="viewFolders"/> is View's own folder count (Photos has no library).</summary>
+    /// <summary>
+    /// True when a View folder belongs on the page of this View kind: its own kind, or, for the phone-backup and upload folders
+    /// that take pictures and videos together, Photos and Personal videos alike.
+    /// </summary>
+    public static bool ViewFolderBelongsTo(ViewSourceAdminDto source, string kind) =>
+        string.Equals(source.ContentKind, kind, StringComparison.OrdinalIgnoreCase)
+        || (source.AcceptsPhotosAndVideos && kind is ViewContentKinds.Photos or ViewContentKinds.PersonalVideos);
+
+    /// <summary>
+    /// The counts and health of one type. <paramref name="viewFolders"/> is View's own folder count per kind (a View kind has no
+    /// library); null while it is not known.
+    /// </summary>
     public static LibraryRowSummary RowFor(
         LibraryTypeOption type,
         LibrariesConfigurationDto configuration,
         LibraryOverviewDto? overview,
-        int? viewFolders,
+        IReadOnlyDictionary<string, int>? viewFolders,
         IReadOnlyDictionary<string, string>? issues)
     {
-        if (type.Key == LibraryTypeCatalog.PhotosKey)
+        if (LibraryTypeCatalog.IsViewKind(type))
         {
             // View keeps its folders outside the library list and the Engine counts no titles for it, so only folders show.
-            return new LibraryRowSummary(type, viewFolders, null, null);
+            return new LibraryRowSummary(type, viewFolders is null ? null : viewFolders.GetValueOrDefault(type.Key), null, null);
         }
 
         var library = LibraryFor(configuration, type);
@@ -93,7 +106,7 @@ public static class LibraryRollup
         LibraryGroup group,
         LibrariesConfigurationDto configuration,
         LibraryOverviewDto? overview,
-        int? viewFolders,
+        IReadOnlyDictionary<string, int>? viewFolders,
         IReadOnlyDictionary<string, string>? issues) =>
         [.. group.TypeKeys
             .Select(kinds.Find)
@@ -112,16 +125,16 @@ public static class LibraryRollup
         LibraryGroup group,
         LibrariesConfigurationDto configuration,
         LibraryOverviewDto? overview,
-        int? viewFolders,
+        IReadOnlyDictionary<string, int>? viewFolders,
         IReadOnlyDictionary<string, string>? issues)
     {
         var rows = RowsFor(kinds, group, configuration, overview, viewFolders, issues);
         int? folders = rows.Any(row => row.Folders is null) ? null : rows.Sum(row => row.Folders!.Value);
         int? titles = overview is null || rows.All(row => row.Titles is null) ? null : rows.Sum(row => row.Titles ?? 0);
-        var sources = rows.Where(row => row.Type.Key != LibraryTypeCatalog.PhotosKey)
+        var sources = rows.Where(row => !LibraryTypeCatalog.IsViewKind(row.Type))
             .SelectMany(row => LibraryFor(configuration, row.Type)?.Sources ?? []);
         // View's folders are never checked, so a group of only View has no health to show; others wait for the checks.
-        var checkedRows = rows.Where(row => row.Type.Key != LibraryTypeCatalog.PhotosKey).ToList();
+        var checkedRows = rows.Where(row => !LibraryTypeCatalog.IsViewKind(row.Type)).ToList();
         var health = issues is null || checkedRows.Count == 0 ? null : LibraryFolderHealth.Worst(sources, issues);
         return new LibraryGroupSummary(group, rows, folders, titles, health);
     }

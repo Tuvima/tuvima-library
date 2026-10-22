@@ -60,16 +60,16 @@ public sealed class LibraryKindsApiTests : IDisposable
         var list = _kinds.GetDtos();
 
         Assert.Equal(
-            ["movies", "tv", "youtube", "other_videos", "music", "audiobooks", "other_audio", "books", "comics", "other_reading", "photos"],
+            ["movies", "tv", "youtube", "other_videos", "music", "audiobooks", "other_audio", "books", "comics", "other_reading", "photos", "personal_videos", "documents"],
             list.Select(kind => kind.Key).ToArray());
-        Assert.Equal(["watch", "watch", "watch", "watch", "listen", "listen", "listen", "read", "read", "read", "view"], list.Select(kind => kind.Area).ToArray());
+        Assert.Equal(["watch", "watch", "watch", "watch", "listen", "listen", "listen", "read", "read", "read", "view", "view", "view"], list.Select(kind => kind.Area).ToArray());
         Assert.Equal(["youtube", "other_audio", "other_reading"], list.Where(kind => !kind.Available).Select(kind => kind.Key).ToArray());
         Assert.All(list, kind =>
         {
             Assert.True(kind.BuiltIn);
             Assert.Null(kind.PluginId);
         });
-        Assert.Equal("Photos & personal videos", list.Single(kind => kind.Key == "photos").Label);
+        Assert.Equal(["Photos", "Personal videos", "Documents"], list.Where(kind => kind.Area == "view").Select(kind => kind.Label).ToArray());
         Assert.Null(list.Single(kind => kind.Key == "photos").Format);
         Assert.Equal(["tmdb", "subdl"], list.Single(kind => kind.Key == "movies").LookupProviders);
         Assert.Empty(list.Single(kind => kind.Key == "other_videos").LookupProviders);
@@ -117,7 +117,7 @@ public sealed class LibraryKindsApiTests : IDisposable
         _catalog.SetEnabled("json.podcasts", false);
 
         Assert.DoesNotContain(_kinds.GetDtos(), kind => kind.Key == "podcasts");
-        Assert.Equal(11, _kinds.GetDtos().Count);
+        Assert.Equal(13, _kinds.GetDtos().Count);
     }
 
     [Fact]
@@ -189,7 +189,7 @@ public sealed class LibraryKindsApiTests : IDisposable
         Assert.Contains("ships with the Library", plugin.LoadError, StringComparison.Ordinal);
         Assert.False(plugin.Enabled);
         Assert.Throws<PluginCannotBeEnabledException>(() => _catalog.SetEnabled("json.music", true));
-        Assert.Equal(11, _kinds.GetDtos().Count);
+        Assert.Equal(13, _kinds.GetDtos().Count);
     }
 
     [Fact]

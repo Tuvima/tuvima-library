@@ -29,9 +29,12 @@ internal static class ViewSourceKindReapplication
             ct.ThrowIfCancellationRequested();
             if (ViewKindAcceptance.SourceAccepts(contentKind, sourceKey, item.MediaKind))
             {
+                // An intake source (phone backup, uploads) keeps each item's own kind: a clip stays a personal video
+                // even when the folder's own kind is Photos.
+                var itemKind = ViewKindAcceptance.KindFor(contentKind, sourceKey, item.MediaKind);
                 connection.Execute(new CommandDefinition(
-                    "UPDATE local_items SET content_kind = @contentKind WHERE id = @ItemId AND content_kind IS NOT @contentKind;",
-                    new { contentKind, item.ItemId }, transaction, cancellationToken: ct));
+                    "UPDATE local_items SET content_kind = @itemKind WHERE id = @ItemId AND content_kind IS NOT @itemKind;",
+                    new { itemKind, item.ItemId }, transaction, cancellationToken: ct));
                 continue;
             }
 

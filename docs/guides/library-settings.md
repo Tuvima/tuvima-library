@@ -13,7 +13,7 @@ Use Settings in Tuvima Library to add folders and check background work. This fi
 
 ## Choose how a folder is handled
 
-Libraries is **Settings > Libraries**, in three levels: Watch, Listen, Read and View, then the types in each (Books, Audiobooks, Movies, TV Shows, Music, Comics, Videos and Photos & personal videos), with the Import folder as an extra entry. There is no separate Library settings page.
+Libraries is **Settings > Libraries**, in three levels: Watch, Listen, Read and View, then the types in each (Books, Audiobooks, Movies, TV Shows, Music, Comics, Videos, Photos, Personal videos and Documents), with the Import folder as an extra entry. There is no separate Library settings page.
 
 1. Open **Settings > Libraries** with admin access and choose **+ Add folder** (on the front door, on a group's page, or **Add Folder** on a type's page). A short three-step dialog opens: **What is it?**, **Folder**, then **How**. Opening it from a type's page skips the first step.
    - **What is it?** Pick Watch, Listen, Read or View, then the kind. The (i) beside each kind says what belongs there. Choosing View takes you to View's own add-folder form.

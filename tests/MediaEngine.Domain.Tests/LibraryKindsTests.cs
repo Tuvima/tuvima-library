@@ -31,7 +31,7 @@ public sealed class LibraryKindsTests
         var kinds = LibraryKindsConfiguration.BuiltIn();
 
         Assert.Equal(
-            ["movies", "tv", "youtube", "other_videos", "music", "audiobooks", "other_audio", "books", "comics", "other_reading", "photos"],
+            ["movies", "tv", "youtube", "other_videos", "music", "audiobooks", "other_audio", "books", "comics", "other_reading", "photos", "personal_videos", "documents"],
             kinds.Select(kind => kind.Key).ToArray());
         Assert.Equal(
             ["youtube", "other_audio", "other_reading"],
@@ -63,6 +63,7 @@ public sealed class LibraryKindsTests
         Assert.Equal(LibraryKindMisfits.Unmatched, kinds["youtube"].Misfit);
         Assert.Equal(LibraryKindMisfits.Keep, kinds["other_videos"].Misfit);
         Assert.Null(kinds["photos"].Format);
+        Assert.Equal(["Photos", "Personal videos", "Documents"], kinds.Where(pair => pair.Value.Area == LibraryAreas.View).Select(pair => pair.Value.Label).ToArray());
     }
 
     [Fact]

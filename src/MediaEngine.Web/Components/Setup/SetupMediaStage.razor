@@ -191,7 +191,7 @@
     // The group's standard types, then any older library in the same area, so none of its folders hides.
     private IReadOnlyList<LibraryTypeOption> TypesOf(LibraryGroup group) =>
     [
-        .. group.TypeKeys.Select(_kinds.Find).OfType<LibraryTypeOption>().Where(type => type.Key != LibraryTypeCatalog.PhotosKey),
+        .. group.TypeKeys.Select(_kinds.Find).OfType<LibraryTypeOption>().Where(type => !LibraryTypeCatalog.IsViewKind(type)),
         .. LibraryRollup.OthersIn(_kinds, _configuration, group),
     ];
 

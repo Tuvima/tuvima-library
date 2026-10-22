@@ -132,7 +132,9 @@ public sealed class ViewDocumentsGuardrailTests
             var start = endpoint.IndexOf(route, StringComparison.Ordinal);
             Assert.True(start >= 0, $"{route} is missing.");
             var end = endpoint.IndexOf(".WithName(", start, StringComparison.Ordinal);
-            Assert.Contains("MayUseDocumentsAsync", endpoint[start..end], StringComparison.Ordinal);
+            // The add route gates by every View kind the profile may not use (documents included), not by Documents alone.
+            var permission = route.StartsWith("group.MapPost", StringComparison.Ordinal) ? "BlockedKindsAsync" : "MayUseDocumentsAsync";
+            Assert.Contains(permission, endpoint[start..end], StringComparison.Ordinal);
         }
 
         // The contribution list and detail read items through one place that leaves documents out.
