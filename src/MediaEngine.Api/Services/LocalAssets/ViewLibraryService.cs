@@ -149,9 +149,18 @@ public sealed class ViewLibraryService(
                 .ToList();
             filesSeen += candidates.Count;
 
+            // A folder takes only what fits its kind. The rest is left exactly where it is (never moved, deleted or
+            // changed) and counted on the folder's row, reset by every full scan.
+            var skipped = 0;
             foreach (var group in BuildGroups(candidates))
             {
                 ct.ThrowIfCancellationRequested();
+                if (!ViewKindAcceptance.SourceAccepts(source.ContentKind, source.SourceKey, group.Primary.Type.MediaKind))
+                {
+                    skipped += group.Files.Count;
+                    continue;
+                }
+
                 try
                 {
                     var result = await IndexGroupAsync(space, source, group, ct);
@@ -174,6 +183,8 @@ public sealed class ViewLibraryService(
                     errors++;
                 }
             }
+
+            await spaces.SetSourceSkippedFileCountAsync(space.Id, source.Id, skipped, ct);
         }
 
         if (activityRecorder is not null)
@@ -197,9 +208,20 @@ public sealed class ViewLibraryService(
     /// Adjacent Live Photo/RAW companions with the same stem are included so a
     /// direct upload produces the same logical grouping as a later full scan.
     /// </summary>
+    public Task<LocalAssetUpsertResult?> IndexPathAsync(
+        Guid libraryId,
+        string path,
+        CancellationToken ct = default) =>
+        IndexPathAsync(libraryId, path, null, ct);
+
+    /// <param name="addedByProfileId">
+    /// The profile that put the file there (an upload's requester). Without it the item is tagged with the folder's
+    /// own profile, or the space's owner for the upload/backup source.
+    /// </param>
     public async Task<LocalAssetUpsertResult?> IndexPathAsync(
         Guid libraryId,
         string path,
+        Guid? addedByProfileId,
         CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -259,14 +281,25 @@ public sealed class ViewLibraryService(
             throw new InvalidDataException("The uploaded local asset could not be grouped for indexing.");
         }
 
-        return await IndexGroupAsync(space, source, group, ct);
+        if (!ViewKindAcceptance.SourceAccepts(source.ContentKind, source.SourceKey, group.Primary.Type.MediaKind))
+        {
+            throw new InvalidDataException($"The file type '{Path.GetExtension(fullPath)}' does not fit the folder's kind.");
+        }
+
+        return await IndexGroupAsync(space, source, group, ct, addedByProfileId);
     }
 
+    /// <param name="ownerProfileId">Whose personal space the file lands in.</param>
+    /// <param name="addedByProfileId">
+    /// The profile that made the request, recorded as who added the item. It differs from the owner when a paired phone
+    /// backs up to someone else's space; without it the owner is recorded.
+    /// </param>
     public async Task<LocalAssetUpsertResult> UploadAsync(
         Guid ownerProfileId,
         string fileName,
         Stream content,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        Guid? addedByProfileId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
         ArgumentNullException.ThrowIfNull(content);
@@ -277,7 +310,9 @@ public sealed class ViewLibraryService(
         }
 
         var safeName = Path.GetFileName(fileName);
-        if (string.IsNullOrWhiteSpace(safeName) || TryCreateCandidate(safeName) is null)
+        if (string.IsNullOrWhiteSpace(safeName)
+            || TryCreateCandidate(safeName) is not { } named
+            || !ViewKindAcceptance.IntakeAccepts(named.Type.MediaKind))
         {
             throw new InvalidDataException("The uploaded file type is not supported by View.");
         }
@@ -316,7 +351,7 @@ public sealed class ViewLibraryService(
             var organizedName = effective.ToString("MMM dd - HH.mm.ss", CultureInfo.InvariantCulture) + typeSuffix + extension;
             var finalPath = UniqueDestination(calendarDirectory, organizedName);
             File.Move(temporaryPath, finalPath);
-            return await IndexPathAsync(space.LibraryId, finalPath, ct)
+            return await IndexPathAsync(space.LibraryId, finalPath, addedByProfileId ?? ownerProfileId, ct)
                 ?? throw new InvalidOperationException("The uploaded file could not be indexed.");
         }
         catch
@@ -349,7 +384,8 @@ public sealed class ViewLibraryService(
         ViewPersonalSpace space,
         ViewSource source,
         AssetGroup group,
-        CancellationToken ct)
+        CancellationToken ct,
+        Guid? addedByProfileId = null)
     {
         var metadata = await ReadMetadataAsync(group.Primary, ct);
         var device = await ResolveDeviceAsync(space, source, metadata, ct);
@@ -381,6 +417,12 @@ public sealed class ViewLibraryService(
             OwnerProfileId: space.OwnerProfileId,
             MediaKind: group.Primary.Type.MediaKind,
             Title: metadata.Title ?? Path.GetFileNameWithoutExtension(group.Primary.Path),
+            ContentKind: ViewKindAcceptance.KindFor(source.ContentKind, source.SourceKey, group.Primary.Type.MediaKind),
+            // Who added it: the profile making the request for an upload, otherwise the profile that added the folder.
+            // The upload/backup source has no adder of its own, so its files default to the space's owner.
+            AddedByProfileId: addedByProfileId
+                ?? source.AddedByProfileId
+                ?? (ViewKindAcceptance.IsIntakeSource(source.SourceKey) ? space.OwnerProfileId : null),
             CapturedAt: metadata.CapturedAt,
             Files: registrations,
             Width: metadata.Width,
@@ -506,6 +548,16 @@ public sealed class ViewLibraryService(
     /// </summary>
     public static bool IsDocumentFileName(string fileName) =>
         TryCreateCandidate(Path.GetFileName(fileName)) is { Type.MediaKind: LocalAssetMediaKinds.Document };
+
+    /// <summary>
+    /// The View kind a file of this name takes when it arrives through an upload or backup (a picture is a photo, a video a
+    /// personal video, a document a document), or null when View takes no such file. Uploads use it to check the right
+    /// permission before anything is stored.
+    /// </summary>
+    public static string? OwnKindOfFileName(string fileName) =>
+        TryCreateCandidate(Path.GetFileName(fileName)) is { } candidate
+            ? ViewKindAcceptance.OwnKindOf(candidate.Type.MediaKind)
+            : null;
 
     private static FileCandidate? TryCreateCandidate(string path)
     {

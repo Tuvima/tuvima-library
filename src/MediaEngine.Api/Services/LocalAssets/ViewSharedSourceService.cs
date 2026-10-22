@@ -23,10 +23,16 @@ public sealed class ViewSharedSourceService(
 
     public async Task<ViewSharedSource> CreateAsync(
         CreateViewSourceRequest request,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        Guid? addedByProfileId = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Name);
+        if (!ViewContentKinds.IsValid(request.ContentKind))
+        {
+            throw new ArgumentException("Choose what the folder holds: photos, personal_videos or documents.", nameof(request));
+        }
+
         if (request.StorageMode is not ("linked" or "managed"))
         {
             throw new ArgumentException("Choose managed or linked storage.", nameof(request));
@@ -44,7 +50,8 @@ public sealed class ViewSharedSourceService(
                 request.Name.Trim(), $"shared:linked:{id:N}", null, now, now,
                 ViewSourceStorageMode.Linked, ExternalPath: path,
                 IncludeSubdirectories: request.IncludeSubdirectories,
-                Enabled: true, IncludeInTimeline: request.IncludeInTimeline);
+                Enabled: true, IncludeInTimeline: request.IncludeInTimeline,
+                ContentKind: request.ContentKind!, AddedByProfileId: addedByProfileId);
         }
         else
         {
@@ -56,7 +63,8 @@ public sealed class ViewSharedSourceService(
                 request.Name.Trim(), $"shared:managed:{id:N}", null, now, now,
                 ViewSourceStorageMode.Managed, RelativePath: relative,
                 IncludeSubdirectories: true, Enabled: true,
-                IncludeInTimeline: request.IncludeInTimeline);
+                IncludeInTimeline: request.IncludeInTimeline,
+                ContentKind: request.ContentKind!, AddedByProfileId: addedByProfileId);
         }
 
         source = await shared.UpsertSourceAsync(source, ct);
@@ -75,6 +83,11 @@ public sealed class ViewSharedSourceService(
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Name);
+        if (request.ContentKind is not null && !ViewContentKinds.IsValid(request.ContentKind))
+        {
+            throw new ArgumentException("Choose what the folder holds: photos, personal_videos or documents.", nameof(request));
+        }
+
         var source = (await shared.GetSourcesAsync(ct)).SingleOrDefault(candidate => candidate.Id == sourceId);
         return source is null
             ? null
@@ -83,6 +96,10 @@ public sealed class ViewSharedSourceService(
                 Name = request.Name.Trim(),
                 Enabled = request.Enabled,
                 IncludeInTimeline = request.IncludeInTimeline,
+                // The built-in intake sources take whatever people send, so their stored kind stays put.
+                ContentKind = request.ContentKind is null || ViewKindAcceptance.IsIntakeSource(source.SourceKey)
+                    ? source.ContentKind
+                    : request.ContentKind,
             }, ct);
     }
 

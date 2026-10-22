@@ -40,7 +40,7 @@ namespace MediaEngine.Api.Tests;
 /// The real View routes, wired to a real data store and a signed-in person who can be swapped between calls. These
 /// tests cover who may use the Documents routes and who may rename or delete a shared name.
 /// </summary>
-public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
+public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
 {
     private readonly string _path = Path.Combine(Path.GetTempPath(), $"tuvima-view-routes-{Guid.NewGuid():N}.db");
     private readonly string _thumbnailRoot = Path.Combine(Path.GetTempPath(), $"tuvima-view-thumbs-{Guid.NewGuid():N}");
@@ -1683,6 +1683,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["GET /view/admin/profiles/{profileId:guid}/sources"] = NoItems + "administrator source settings, no items",
         ["GET /view/admin/shared/sources"] = NoItems + "administrator source settings, no items",
         ["GET /view/assets"] = Refused,
+        ["GET /view/assets/added-by"] = Covers(AddedByCounts, "/view/assets/added-by"),
         ["GET /view/assets/timeline-index"] = Covers(TimelineIndex, "timeline-index"),
         ["GET /view/catalogue"] = Refused,
         ["GET /view/document-rules"] = Refused,

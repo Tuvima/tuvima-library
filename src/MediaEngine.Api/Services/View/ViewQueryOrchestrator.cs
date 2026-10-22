@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.LocalAssets;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Storage.Contracts;
@@ -25,7 +26,8 @@ public sealed record ViewAssetQueryRequest(
     bool SortByAddedAt = false,
     DateTimeOffset? AddedBefore = null,
     string? AddedAfterKey = null,
-    LocalAssetDocumentFilter? DocumentFilter = null);
+    LocalAssetDocumentFilter? DocumentFilter = null,
+    IReadOnlyCollection<Guid>? AddedByProfileIds = null);
 
 /// <summary>
 /// Authorized persistence plan. Backends receive only library IDs approved by
@@ -53,7 +55,13 @@ public sealed record ViewAssetQueryPlan(
     bool SortByAddedAt = false,
     DateTimeOffset? AddedBefore = null,
     string? AddedAfterKey = null,
-    LocalAssetDocumentFilter? DocumentFilter = null);
+    LocalAssetDocumentFilter? DocumentFilter = null,
+    IReadOnlyCollection<string>? ExcludedContentKinds = null,
+    IReadOnlyCollection<Guid>? AddedByProfileIds = null);
+
+public sealed record ViewAddedByResult(
+    ViewAccessOutcome Outcome,
+    IReadOnlyList<ViewAddedByDto>? Profiles = null);
 
 public sealed record ViewQueryResult(
     ViewAccessOutcome Outcome,
@@ -73,8 +81,24 @@ public sealed class ViewQueryOrchestrator(
     IViewRequestProfileContext profileContext,
     IViewResourceAuthorizationService authorization,
     IViewAssetQueryBackend backend,
-    IViewSmartGalleryQueryService? smartGalleries = null) : IViewQueryOrchestrator
+    IViewSmartGalleryQueryService? smartGalleries = null,
+    IViewProfileRepository? profiles = null) : IViewQueryOrchestrator
 {
+    /// <summary>
+    /// The View kinds the signed-in profile may not use. Every listing, search and count goes through this
+    /// orchestrator, so a kind that is switched off is left out here once, for all of them.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> BlockedKindsAsync(CancellationToken ct)
+    {
+        if (profiles is null
+            || (await profileContext.ResolveAuthorityAsync(ct).ConfigureAwait(false)).ActiveProfileId is not { } profileId)
+        {
+            return [];
+        }
+
+        return (await profiles.GetPolicyAsync(profileId, ct).ConfigureAwait(false)).BlockedContentKinds;
+    }
+
     /// <summary>
     /// The Documents page lists every document the person may see, including those in folders kept out of the Photos
     /// timeline, so a documents-only listing is not narrowed to timeline-eligible sources.
@@ -138,7 +162,9 @@ public sealed class ViewQueryOrchestrator(
                 && !AsksOnlyForDocuments(request.MediaKinds),
             decision.Scope.Kind == ViewScopeKind.Shared,
             request.AnchorBefore, request.WithoutLocation, request.PersonKey, request.From, request.To, request.SortByAddedAt, request.AddedBefore, request.AddedAfterKey,
-            request.DocumentFilter);
+            request.DocumentFilter,
+            await BlockedKindsAsync(ct).ConfigureAwait(false),
+            request.AddedByProfileIds);
         var page = await backend.QueryAsync(plan, ct).ConfigureAwait(false);
         return new ViewQueryResult(ViewAccessOutcome.Allowed, page, decision.Scope);
     }
@@ -185,8 +211,47 @@ public sealed class ViewQueryOrchestrator(
             smartRule,
             request.GalleryId is null && string.IsNullOrWhiteSpace(request.Search),
             decision.Scope.Kind == ViewScopeKind.Shared,
-            null);
+            null,
+            ExcludedContentKinds: await BlockedKindsAsync(ct).ConfigureAwait(false),
+            AddedByProfileIds: request.AddedByProfileIds);
         var index = await backend.IndexAsync(plan, ct).ConfigureAwait(false);
         return new ViewTimelineIndexResult(ViewAccessOutcome.Allowed, index, decision.Scope);
+    }
+
+    public async Task<ViewAddedByResult> AddedByAsync(
+        ViewAssetQueryRequest request,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var decision = await authorization.AuthorizeAsync(
+            await profileContext.ResolveAuthorityAsync(ct).ConfigureAwait(false),
+            new ViewResourceRequest(
+                request.Scope,
+                ViewResourceKind.Search,
+                null,
+                AllowStaleSelectionFallback: request.AllowStaleSelectionFallback),
+            ct).ConfigureAwait(false);
+        if (!decision.IsAllowed || decision.Scope is null)
+        {
+            return new ViewAddedByResult(decision.Outcome);
+        }
+
+        var plan = new ViewAssetQueryPlan(
+            decision.Scope,
+            request.Limit,
+            null,
+            null,
+            request.MediaKinds,
+            false,
+            false,
+            false,
+            null,
+            LocalAssetLifecycleFilter.Active,
+            null,
+            !AsksOnlyForDocuments(request.MediaKinds),
+            decision.Scope.Kind == ViewScopeKind.Shared,
+            ExcludedContentKinds: await BlockedKindsAsync(ct).ConfigureAwait(false));
+        var people = await backend.AddedByAsync(plan, ct).ConfigureAwait(false);
+        return new ViewAddedByResult(ViewAccessOutcome.Allowed, people);
     }
 }

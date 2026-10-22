@@ -211,6 +211,12 @@ public sealed class ViewProfilePolicyDto
     [JsonPropertyName("allow_documents")]
     public bool AllowDocuments { get; init; } = true;
 
+    [JsonPropertyName("allow_photos")]
+    public bool AllowPhotos { get; init; } = true;
+
+    [JsonPropertyName("allow_personal_videos")]
+    public bool AllowPersonalVideos { get; init; } = true;
+
     [JsonPropertyName("updated_at")]
     public DateTimeOffset? UpdatedAt { get; init; }
 }
@@ -235,4 +241,12 @@ public sealed class UpdateViewProfilePolicyRequest
     /// </summary>
     [JsonPropertyName("allow_documents")]
     public bool? AllowDocuments { get; init; }
+
+    /// <summary>The Photos switch. Omitted (null) keeps what is already saved.</summary>
+    [JsonPropertyName("allow_photos")]
+    public bool? AllowPhotos { get; init; }
+
+    /// <summary>The Personal videos switch. Omitted (null) keeps what is already saved.</summary>
+    [JsonPropertyName("allow_personal_videos")]
+    public bool? AllowPersonalVideos { get; init; }
 }

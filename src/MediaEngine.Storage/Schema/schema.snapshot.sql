@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0029 entity_asset_tiny_rendition).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0030 view_kinds_and_added_by).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1284,7 +1284,8 @@ CREATE TABLE local_items (
     favorite            INTEGER NOT NULL DEFAULT 0 CHECK (favorite IN (0, 1)),
     hidden              INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1)),
     archived_at         TEXT,
-    trashed_at          TEXT,
+    trashed_at          TEXT, content_kind TEXT
+    CHECK (content_kind IS NULL OR content_kind IN ('photos', 'personal_videos', 'documents')), added_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
     CHECK ((scope_kind = 'personal' AND personal_space_id IS NOT NULL AND owner_profile_id IS NOT NULL)
         OR (scope_kind = 'shared' AND personal_space_id IS NULL AND owner_profile_id IS NULL)),
     UNIQUE (personal_space_id, id)
@@ -2099,7 +2100,7 @@ CREATE TABLE profile_view_policies (
     share_galleries         INTEGER NOT NULL DEFAULT 0 CHECK (share_galleries IN (0, 1)),
     documents_enabled       INTEGER NOT NULL DEFAULT 1 CHECK (documents_enabled IN (0, 1)),
     updated_at              TEXT NOT NULL
-);
+, photos_enabled INTEGER NOT NULL DEFAULT 1 CHECK (photos_enabled IN (0, 1)), personal_videos_enabled INTEGER NOT NULL DEFAULT 1 CHECK (personal_videos_enabled IN (0, 1)));
 
 CREATE TABLE profile_view_preferences (
     profile_id              BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
@@ -2703,7 +2704,8 @@ CREATE TABLE view_sources (
     enabled             INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
     last_activity_at    TEXT,
     created_at          TEXT NOT NULL,
-    updated_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL, content_kind TEXT NOT NULL DEFAULT 'photos'
+    CHECK (content_kind IN ('photos', 'personal_videos', 'documents')), added_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL, skipped_file_count INTEGER NOT NULL DEFAULT 0 CHECK (skipped_file_count >= 0),
     CHECK ((storage_mode = 'managed' AND relative_path IS NOT NULL AND external_path IS NULL)
         OR (storage_mode = 'linked' AND external_path IS NOT NULL AND relative_path IS NULL)),
     CHECK ((scope_kind = 'personal' AND personal_space_id IS NOT NULL)
@@ -3378,6 +3380,8 @@ CREATE INDEX ix_local_item_tag_links_tag
 CREATE INDEX ix_local_items_active_discovery
     ON local_items(library_id, hidden, archived_at, trashed_at, id);
 
+CREATE INDEX ix_local_items_added_by ON local_items (added_by_profile_id);
+
 CREATE INDEX ix_local_items_library_atlas_timeline
     ON local_items(library_id, hidden, archived_at, trashed_at, media_kind,
                    favorite, COALESCE(captured_at, created_at), id);
@@ -3545,6 +3549,14 @@ AFTER UPDATE OF search_text, artwork_asset_id ON artwork_asset_context BEGIN
     WHERE artwork_asset_id = old.artwork_asset_id AND search_text = old.search_text;
     INSERT INTO artwork_asset_search(artwork_asset_id, search_text)
     VALUES (new.artwork_asset_id, new.search_text);
+END;
+
+CREATE TRIGGER trg_local_items_content_kind_default AFTER INSERT ON local_items
+WHEN NEW.content_kind IS NULL AND NEW.media_kind IN ('image', 'video', 'document')
+BEGIN
+    UPDATE local_items SET content_kind = CASE NEW.media_kind
+            WHEN 'image' THEN 'photos' WHEN 'video' THEN 'personal_videos' ELSE 'documents' END
+     WHERE id = NEW.id;
 END;
 
 CREATE TRIGGER trg_local_items_delete_search

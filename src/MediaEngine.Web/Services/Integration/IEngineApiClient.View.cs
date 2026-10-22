@@ -24,6 +24,8 @@ public partial interface IEngineApiClient
     Task<ViewPreferencesDto?> UpdateViewPreferencesAsync(ViewScopeKind scope, Guid? scopeProfileId, ViewTimelineDensity timelineDensity, bool viewerInfoOpen = true, CancellationToken ct = default);
     Task<ViewAssetTimelinePageDto?> GetViewAssetsAsync(ViewAssetQueryOptions options, CancellationToken ct = default);
     Task<ViewTimelineIndexDto?> GetViewTimelineIndexAsync(ViewAssetQueryOptions options, CancellationToken ct = default);
+    /// <summary>The profiles that added items in the scope, with counts (the "added by" filter chips). Reads the scope, kinds and lifecycle of <paramref name="options"/>.</summary>
+    Task<IReadOnlyList<ViewAddedByDto>?> GetViewAssetsAddedByAsync(ViewAssetQueryOptions options, CancellationToken ct = default);
     Task<LocalAssetDto?> GetViewItemAsync(Guid itemId, ViewScopeKind scope, Guid? scopeProfileId = null, CancellationToken ct = default);
     Task<ViewDocumentTextDto?> GetViewDocumentTextAsync(Guid itemId, ViewScopeKind scope, Guid? scopeProfileId = null, CancellationToken ct = default);
     Task<ViewFolderPageDto?> GetViewFoldersAsync(ViewFolderQueryOptions options, CancellationToken ct = default);
@@ -86,7 +88,8 @@ public sealed record ViewAssetQueryOptions(
     string? PersonKey = null,
     DateTimeOffset? From = null,
     DateTimeOffset? To = null,
-    ViewDocumentFilterDto? Documents = null);
+    ViewDocumentFilterDto? Documents = null,
+    IReadOnlyList<Guid>? AddedBy = null);
 
 public sealed record ViewUploadResult(bool Success, ViewUploadResponseDto? Upload = null, string? ErrorMessage = null);
 

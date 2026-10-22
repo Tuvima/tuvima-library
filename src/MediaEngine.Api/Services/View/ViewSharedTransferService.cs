@@ -157,12 +157,26 @@ public sealed class ViewSharedTransferService(
                     var sharedItemId = connection.QuerySingleOrDefault<Guid?>(
                         "SELECT item_id FROM view_shared_assets WHERE origin_item_id=@itemId;",
                         new { itemId }, transaction) ?? Guid.NewGuid();
+                    // Who the copy is recorded as added by: the person whose space the item came from (the same profile
+                    // kept as original_profile_id), else the contributor, else the person who moved it in.
+                    var addedBy = item.OwnerProfileId
+                        ?? (contributionItemId is { } contributionItem
+                            ? connection.QuerySingleOrDefault<Guid?>("""
+                                SELECT c.submitted_by_profile_id
+                                  FROM view_shared_contribution_items ci
+                                  JOIN view_shared_contributions c ON c.id = ci.contribution_id
+                                 WHERE ci.id = @contributionItem;
+                                """, new { contributionItem }, transaction)
+                            : null)
+                        ?? actorProfileId;
                     connection.Execute("""
                         INSERT OR IGNORE INTO local_items
-                            (id,scope_kind,personal_space_id,owner_profile_id,library_id,media_kind,title,
+                            (id,scope_kind,personal_space_id,owner_profile_id,library_id,media_kind,content_kind,
+                             added_by_profile_id,title,
                              primary_file_name,primary_mime_type,captured_at,created_at,updated_at,
                              favorite,hidden,archived_at,trashed_at)
-                        SELECT @sharedItemId,'shared',NULL,NULL,@sharedLibraryId,media_kind,title,
+                        SELECT @sharedItemId,'shared',NULL,NULL,@sharedLibraryId,media_kind,content_kind,
+                               @addedBy,title,
                                primary_file_name,primary_mime_type,captured_at,@now,@now,0,0,NULL,NULL
                           FROM local_items WHERE id=@itemId;
                         INSERT OR IGNORE INTO local_item_metadata
@@ -187,7 +201,7 @@ public sealed class ViewSharedTransferService(
                         INSERT OR IGNORE INTO doc_item_field_sources(item_id,slot,field_id,set_by)
                         SELECT @sharedItemId,slot,field_id,set_by
                           FROM doc_item_field_sources WHERE item_id=@itemId;
-                        """, new { sharedItemId, sharedLibraryId, itemId, now }, transaction);
+                        """, new { sharedItemId, sharedLibraryId, itemId, addedBy, now }, transaction);
                     // The copy is found by its words, tags, correspondent, type and notes from the moment it exists.
                     LocalAssetRepository.RebuildSearchDocument(connection, transaction, sharedItemId);
                     foreach (var file in planned)

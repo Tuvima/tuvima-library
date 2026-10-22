@@ -277,6 +277,14 @@ public sealed class ViewQueryOrchestratorTests
             Plan = plan;
             return Task.FromResult(new ViewTimelineIndexDto([]));
         }
+
+        public Task<IReadOnlyList<ViewAddedByDto>> AddedByAsync(
+            ViewAssetQueryPlan plan,
+            CancellationToken ct = default)
+        {
+            Plan = plan;
+            return Task.FromResult<IReadOnlyList<ViewAddedByDto>>([]);
+        }
     }
 
     private sealed class StubSmartGalleryService(CollectionRuleDefinition? rule = null)

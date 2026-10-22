@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using MediaEngine.Contracts.LocalAssets;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Storage.Contracts;
 
@@ -40,8 +41,16 @@ public sealed class ViewDiscoveryService(
     IViewRequestProfileContext profileContext,
     IViewResourceAuthorizationService authorization,
     IViewDiscoveryRepository repository,
-    ILocalAssetRepository? assets = null)
+    ILocalAssetRepository? assets = null,
+    IViewProfileRepository? profiles = null)
 {
+    /// <summary>The View kinds the signed-in profile may not use: places, the atlas and people leave them out.</summary>
+    private async Task<IReadOnlyList<string>> BlockedKindsAsync(CancellationToken ct) =>
+        profiles is not null
+        && (await profileContext.ResolveAuthorityAsync(ct).ConfigureAwait(false)).ActiveProfileId is { } profileId
+            ? (await profiles.GetPolicyAsync(profileId, ct).ConfigureAwait(false)).BlockedContentKinds
+            : [];
+
     public async Task<ViewPlacesResult> GetPlacesAsync(
         ViewDiscoveryRequest request,
         CancellationToken ct = default)
@@ -59,7 +68,8 @@ public sealed class ViewDiscoveryService(
             request.Limit,
             request.Search,
             ViewDiscoveryCursorCodec.Decode(request.Cursor),
-            decision.Scope.Kind == ViewScopeKind.Shared), ct);
+            decision.Scope.Kind == ViewScopeKind.Shared,
+            await BlockedKindsAsync(ct).ConfigureAwait(false)), ct);
         var items = page.Items.Select(item => new ViewPlaceDto(
             item.Key,
             item.Name,
@@ -101,7 +111,8 @@ public sealed class ViewDiscoveryService(
             request.Limit,
             request.Search,
             ViewDiscoveryCursorCodec.Decode(request.Cursor),
-            decision.Scope.Kind == ViewScopeKind.Shared), ct);
+            decision.Scope.Kind == ViewScopeKind.Shared,
+            await BlockedKindsAsync(ct).ConfigureAwait(false)), ct);
         var items = page.Items.Select(item => new ViewPersonDto(
             item.Key,
             item.DisplayName,
@@ -153,7 +164,8 @@ public sealed class ViewDiscoveryService(
             From: from,
             To: to,
             TimelineResolution: timelineResolution ?? "year",
-            FavoritesOnly: favoritesOnly), ct);
+            FavoritesOnly: favoritesOnly,
+            ExcludedContentKinds: await BlockedKindsAsync(ct).ConfigureAwait(false)), ct);
         var hotspots = page.Hotspots.Select(item => new ViewAtlasHotspotDto(
             item.Key, item.Name, item.Latitude, item.Longitude, item.AssetCount,
             item.ImageCount, item.VideoCount, item.EarliestAt, item.LatestAt,
@@ -207,7 +219,8 @@ public sealed class ViewDiscoveryService(
             decision.Scope.Kind == ViewScopeKind.Shared,
             from,
             to,
-            favoritesOnly), ct);
+            favoritesOnly,
+            await BlockedKindsAsync(ct).ConfigureAwait(false)), ct);
         var viewerProfileId = (await profileContext.ResolveAuthorityAsync(ct).ConfigureAwait(false)).ActiveProfileId;
         var items = assets.FindMany(page.AssetIds, ct)
             .Select(item => ViewItemCapabilities.ForViewer(item, viewerProfileId))
