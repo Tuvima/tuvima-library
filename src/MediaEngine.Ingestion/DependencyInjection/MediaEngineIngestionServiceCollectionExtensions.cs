@@ -111,7 +111,8 @@ public static class MediaEngineIngestionServiceCollectionExtensions
             sp.GetService<IEntityAssetRepository>(),
             sp.GetService<AssetPathService>(),
             sp.GetService<IWorkRepository>(),
-            sp.GetService<IAssetExportService>()));
+            sp.GetService<IAssetExportService>(),
+            sp.GetService<IFileWriteQueue>()));
         services.TryAddSingleton(sp => new IdentityJobStageDependencies(
             sp.GetService<IIdentityPipelineSignal>()));
         services.TryAddSingleton<IEnrichmentConcurrencyLimiter>(sp =>

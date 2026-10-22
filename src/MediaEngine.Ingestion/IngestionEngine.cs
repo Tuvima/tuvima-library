@@ -100,6 +100,9 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     private readonly VideoStillFrameService? _videoFrames;
     private readonly IVideoOnlineLookup? _videoLookup;
     private readonly IProviderAudienceGate? _audienceGate;
+
+    // The waiting mark of a library move: events on the old or new place of a file being moved belong to the move (batched write-back D11).
+    private readonly IFileMoveInProgress? _moveInProgress;
     private readonly IVaultIngestionHook _vaultHook;
 
     // Paths of files being processed from a Vault library right now; their ingestion events are never published.
@@ -223,8 +226,10 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         IVideoLibraryReader? videoReader = null,
         VideoStillFrameService? videoFrames = null,
         IVideoOnlineLookup? videoLookup = null,
-        IProviderAudienceGate? audienceGate = null)
+        IProviderAudienceGate? audienceGate = null,
+        IFileMoveInProgress? moveInProgress = null)
     {
+        _moveInProgress = moveInProgress;
         _vaultHook = vaultHook;
         _audienceGate = audienceGate;
         _videoLookup = videoLookup;

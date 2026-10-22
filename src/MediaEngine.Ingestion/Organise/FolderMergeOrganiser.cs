@@ -34,7 +34,7 @@ public sealed class FolderMergeOrganiser
     private readonly ISourceMutationPolicyGate _policyGate;
     private readonly MergeFileTransfer _transfer;
     private readonly SidecarMover _sidecars;
-    private readonly IWriteBackOutcomeService? _writeBack;
+    private readonly IFileWriteQueue? _fileWrites;
     private readonly IFileHashCacheRepository? _hashCache;
     private readonly ILogger<FolderMergeOrganiser> _logger;
 
@@ -49,7 +49,7 @@ public sealed class FolderMergeOrganiser
         MergeFileTransfer transfer,
         SidecarMover sidecars,
         ILogger<FolderMergeOrganiser> logger,
-        IWriteBackOutcomeService? writeBack = null,
+        IFileWriteQueue? fileWrites = null,
         IFileHashCacheRepository? hashCache = null)
     {
         _naming = naming;
@@ -61,7 +61,7 @@ public sealed class FolderMergeOrganiser
         _policyGate = policyGate;
         _transfer = transfer;
         _sidecars = sidecars;
-        _writeBack = writeBack;
+        _fileWrites = fileWrites;
         _hashCache = hashCache;
         _logger = logger;
     }
@@ -803,7 +803,7 @@ public sealed class FolderMergeOrganiser
 
     private async Task WriteTagsAsync(Guid assetId, FolderMergeContext context, CancellationToken ct)
     {
-        if (!context.WriteTags || _writeBack is null)
+        if (!context.WriteTags || _fileWrites is null)
         {
             return;
         }
@@ -811,12 +811,13 @@ public sealed class FolderMergeOrganiser
         try
         {
             // The asset now points at the copy in the target, so tags are only ever written there, never into the original.
-            await _writeBack.WriteMetadataWithOutcomeAsync(assetId, "auto_match", ct).ConfigureAwait(false);
+            // The tags wait on the file write list and are written on the schedule.
+            await _fileWrites.EnqueueAssetAsync(assetId, "auto_match", ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // A file whose tags could not be written keeps its new place; the re-tag sweep raises a Review item for it.
-            _logger.LogDebug(ex, "Tags could not be written for asset {AssetId} after it was merged", assetId);
+            // A file whose tags could not be queued keeps its new place; the re-tag sweep raises a Review item for it.
+            _logger.LogDebug(ex, "Tags could not be queued for asset {AssetId} after it was merged", assetId);
         }
     }
 

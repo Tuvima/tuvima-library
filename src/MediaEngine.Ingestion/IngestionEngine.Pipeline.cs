@@ -94,6 +94,16 @@ public sealed partial class IngestionEngine
 
     private async Task ProcessCandidateCoreAsync(IngestionCandidate candidate, CancellationToken ct)
     {
+        // A file being moved by Library is the move lane's to look after: it is never marked missing, and its new place is never
+        // taken for a new file.
+        if (await IsMoveInProgressAsync(candidate.Path, candidate.OldPath, ct).ConfigureAwait(false))
+        {
+            _logger.LogInformation(
+                "Ignored {EventType} for \"{FileName}\": Library is moving it and will bring its record up to date.",
+                candidate.EventType, Path.GetFileName(candidate.Path));
+            return;
+        }
+
         var context = new IngestionPipelineContext(candidate);
         context.Library = candidate.Intake?.HasDestinationHint == true
             ? _libraryFolderResolver?.ResolveById(candidate.Intake.DestinationLibraryId!)
@@ -1168,10 +1178,10 @@ public sealed partial class IngestionEngine
             }
         }
 
-        // Step 12: write-back is deferred to promotion.
-        // Writing back to a file in the watch folder would change its content hash,
-        // causing the watcher to re-detect it as a new file.
-        // AutoOrganizeService handles write-back after promotion to the Library.
+        // Step 12: write-back. Nothing is written into the file now (batched write-back D1): a file in a library folder whose source
+        // policy allows tag write-back goes on the durable write list, and the scheduled run writes its tags (and, where switched on,
+        // its embedded cover) from Library's values at that moment, which is also after the retail match and Wikidata bridge have
+        // improved them. The run records the file's new fingerprint, so the watcher does not take its own write for a change.
         var effectiveLibraryRoot = !string.IsNullOrWhiteSpace(context.Library?.LibraryRoot)
             ? context.Library.LibraryRoot
             : _options.LibraryRoot;
@@ -1192,71 +1202,10 @@ public sealed partial class IngestionEngine
                     Path = currentPath,
                 }).Allowed == true;
 
-            if (_options.WriteBack && fileIsInLibrary && writebackAllowed && candidate.Metadata is not null)
+            if (_options.WriteBack && fileIsInLibrary && writebackAllowed && candidate.Metadata is not null
+                && _writeBackStageDependencies.FileWriteQueue is { } fileWrites)
             {
-                var tagger = _taggers.FirstOrDefault(t => t.CanHandle(currentPath));
-                if (tagger is not null)
-                {
-                    await tagger.WriteTagsAsync(currentPath, candidate.Metadata, ct)
-                                 .ConfigureAwait(false);
-                    tagsWritten = [.. candidate.Metadata.Keys];
-
-                    if (result.CoverImage is { Length: > 0 })
-                    {
-                        await tagger.WriteCoverArtAsync(currentPath, result.CoverImage, ct)
-                                     .ConfigureAwait(false);
-                        coverWritten = true;
-                    }
-
-                    await SafeActivityLogAsync(new Domain.Entities.SystemActivityEntry
-                    {
-                        ActionType = Domain.Constants.SystemActionType.MetadataTagsWritten,
-                        EntityId = assetId,
-                        EntityType = "MediaAsset",
-                        CollectionName = resolvedTitle,
-                        ChangesJson = JsonSerializer.Serialize(new
-                        {
-                            tags_written = tagsWritten,
-                            cover_written = coverWritten,
-                            file = Path.GetFileName(currentPath),
-                        }),
-                        Detail = $"Tags written back to file ({tagsWritten.Count} field(s){(coverWritten ? " + cover art" : "")})",
-                    }, ct).ConfigureAwait(false);
-
-                    // -- Timeline: sync writeback event ---------------------------
-                    try
-                    {
-                        var writebackEvent = new EntityEvent
-                        {
-                            EntityId = assetId,
-                            EntityType = "Work",
-                            EventType = "sync_writeback",
-                            Stage = null,
-                            Trigger = "ingestion",
-                            Detail = $"Metadata written back to file: {tagsWritten.Count} field(s){(coverWritten ? " + cover art" : "")}",
-                        };
-                        await _timelineRepo.InsertEventAsync(writebackEvent, ct).ConfigureAwait(false);
-
-                        // Record each written field as a field change.
-                        if (candidate.Metadata.Count > 0)
-                        {
-                            var fieldChanges = candidate.Metadata
-                                .Select(kvp => new EntityFieldChange
-                                {
-                                    EventId = writebackEvent.Id,
-                                    EntityId = assetId,
-                                    Field = kvp.Key,
-                                    NewValue = kvp.Value,
-                                })
-                                .ToList();
-                            await _timelineRepo.InsertFieldChangesAsync(fieldChanges, ct).ConfigureAwait(false);
-                        }
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        _logger.LogWarning(ex, "Failed to write sync writeback timeline event for asset {Id}", assetId);
-                    }
-                }
+                await fileWrites.EnqueueAssetAsync(assetId, "auto_match", ct).ConfigureAwait(false);
             }
         }
         catch (Exception ex)

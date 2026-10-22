@@ -86,10 +86,10 @@ public static class ViewClientEndpoints
             return Results.Ok(new ViewGalleryListResponse(
                 (await galleries.GetOwnedAsync(profileId, false, ct, blocked))
                     .Where(gallery => !ViewEndpoints.IsDocumentView(gallery))
-                    .Select(gallery => ToClient(gallery, profileId, assets)).ToList(),
+                    .Select(gallery => ToClient(gallery, profileId, blocked, assets)).ToList(),
                 (await galleries.GetSharedWithAsync(profileId, false, ct, blocked))
                     .Where(gallery => !ViewEndpoints.IsDocumentView(gallery))
-                    .Select(gallery => ToClient(gallery, profileId, assets)).ToList()));
+                    .Select(gallery => ToClient(gallery, profileId, blocked, assets)).ToList()));
         })
             .WithName("GetViewClientGalleries")
             .WithSummary("The paired person's Galleries, and Galleries shared with them, without document counts.")
@@ -465,9 +465,11 @@ public static class ViewClientEndpoints
     /// A Gallery someone else shared keeps its name, description and cover, but not the owner's space or the rule behind
     /// a Smart Gallery. The contract's ids are not nullable, so they read as empty.
     /// </summary>
-    private static ViewGalleryDto ToClient(ViewGallery gallery, Guid profileId, ILocalAssetRepository assets)
+    private static ViewGalleryDto ToClient(ViewGallery gallery, Guid profileId, IReadOnlyCollection<string> blocked,
+        ILocalAssetRepository assets)
     {
-        var dto = ViewEndpoints.ToContract(gallery, false, assets);
+        // Documents are never part of this surface, so a document cover is hidden whatever the person's own switches say.
+        var dto = ViewEndpoints.ToContract(gallery, [.. blocked.Append(ViewContentKinds.Documents).Distinct()], assets);
         return gallery.OwnerProfileId == profileId
             ? dto
             : dto with { OwnerProfileId = Guid.Empty, PersonalSpaceId = Guid.Empty, SmartRuleJson = null };

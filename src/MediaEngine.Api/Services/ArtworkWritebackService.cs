@@ -8,6 +8,7 @@ using MediaEngine.Ingestion;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Ingestion.Services;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services;
@@ -15,6 +16,8 @@ namespace MediaEngine.Api.Services;
 /// <summary>
 /// Synchronizes inherited preferred artwork to eligible audio files. Metadata
 /// retagging and sidecar export have separate state and cannot imply embedding.
+/// The sweep only puts files that need new artwork on the file write list; the scheduled
+/// run writes them (<see cref="ProcessAsync"/> is called by the media-asset file writer alone).
 /// </summary>
 public sealed class ArtworkWritebackService(
     IDatabaseConnection database,
@@ -24,6 +27,8 @@ public sealed class ArtworkWritebackService(
     ISourceMutationPolicyGate mutationGate,
     IEnumerable<IMetadataTagger> taggers,
     ISystemActivityRepository activity,
+    IFileWriteQueue fileWrites,
+    MediaFileWriteIntentRepository intents,
     ILogger<ArtworkWritebackService> logger)
 {
     private readonly SemaphoreSlim _writeGate = new(1, 1);
@@ -189,10 +194,23 @@ public sealed class ArtworkWritebackService(
             return 0;
         }
         _sweepCursor = ids[^1];
+        var needArtwork = new List<Guid>();
         foreach (var id in ids)
         {
             ct.ThrowIfCancellationRequested();
-            await ProcessAsync(id, retry: false, ct);
+            var status = await GetStatusAsync(id, ct);
+            if (status?.Status == "Pending")
+            {
+                needArtwork.Add(id);
+            }
+        }
+
+        // A file that is already waiting on the list is left alone, so the sweep does not bump the same entry every minute.
+        var alreadyWaiting = await intents.GetWaitingAssetIdsAsync(needArtwork, ct);
+        var toQueue = needArtwork.Where(id => !alreadyWaiting.Contains(id)).ToList();
+        if (toQueue.Count > 0)
+        {
+            await fileWrites.EnqueueAssetsAsync(toQueue, MediaFileWriteTriggers.Artwork, ct);
         }
         return ids.Count;
     }

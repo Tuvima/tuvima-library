@@ -9976,3 +9976,33 @@ MediaEngine.Contracts.Vault.MediaEngine.Contracts.Vault.VaultViewPreferences
   ShowQuickCheck: System.Boolean | nullability=not-null | accessors=get,init
   HoverStills: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.WriteBack.MediaEngine.Contracts.WriteBack.AssetFileWriteStatusDto
+  Waiting: System.Boolean | nullability=not-null | accessors=get,init
+  NextRunAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  LastError: System.String | nullability=nullable | accessors=get,init
+  LastWrittenAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.WriteBack.MediaEngine.Contracts.WriteBack.FailedFileWriteDto
+  TargetKind: System.String | nullability=not-null | accessors=get,init
+  AssetId: System.Guid? | nullability=nullable | accessors=get,init
+  LocalItemId: System.Guid? | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  Path: System.String | nullability=nullable | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+  Attempts: System.Int32 | nullability=not-null | accessors=get,init
+  UpdatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.WriteBack.MediaEngine.Contracts.WriteBack.FileWriteScheduleDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
+  IntervalMinutes: System.Int32 | nullability=not-null | accessors=get,init
+  WaitingCount: System.Int32 | nullability=not-null | accessors=get,init
+  FailedCount: System.Int32 | nullability=not-null | accessors=get,init
+  IsRunning: System.Boolean | nullability=not-null | accessors=get,init
+  RunTotal: System.Int32 | nullability=not-null | accessors=get,init
+  RunDone: System.Int32 | nullability=not-null | accessors=get,init
+  LastRunAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  NextRunAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.WriteBack.MediaEngine.Contracts.WriteBack.UpdateFileWriteScheduleDto
+  IntervalMinutes: System.Int32 | nullability=not-null | accessors=get,init
+

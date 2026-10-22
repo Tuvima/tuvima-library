@@ -297,6 +297,7 @@ None of these are kept.
 | `media_operations` | Media operation queue. |
 | `media_operation_events` | Media operation log. |
 | `media_file_write_intents` | Pending file write-back jobs. |
+| `file_write_runs` | When the file write-back schedule last ran. |
 | `encode_jobs` | Encode job queue. |
 | `alignment_jobs` | Book and audiobook alignment job queue. |
 | `adaptive_hls_packages` | Streaming copies prepared for playback. |
@@ -345,7 +346,7 @@ None of these are kept.
 
 ## The Vault
 
-The Vault keeps its settings and each person's own state in a backup, and never its catalogue (a rescan rebuilds it). There is no Vault-specific backup step: the Vault folds into the one mechanism above. A Vault video that a person's state points at is written to `titles.json` only as its ids, its Stash-box record (`stash_box_id`, written `server|record`), its running time, its edition and its file fingerprints, flagged `withheld`, with no name, parent name or year; the same Stash-box record is read from the live video, so after a rescan a Vault bookmark finds the same video even when the file (and so its fingerprint) is different, and with no Stash-box record the exact file fingerprint still decides. A person's corrections and choices on a Vault title are left out. A restore brings the Vault libraries back empty, with Vault mode settings, PIN hashes and grants. The saved Vault bookmarks wait like any other state, marked withheld, and are counted only when asked (the Vault settings page asks, through `GET /api/v1/vault/restored-bookmarks`, which counts the withheld waiting rows and never names a title). The earlier Vault-only scrub, restore note and bookmark re-link (and the `vault_pending_bookmarks` table, dropped by upgrade step 0039) are gone.
+The Vault keeps its settings and each person's own state in a backup, and never its catalogue (a rescan rebuilds it). There is no Vault-specific backup step: the Vault folds into the one mechanism above. A Vault video that a person's state points at is written to `titles.json` only as its ids, its Stash-box record (`stash_box_id`, written `server|record`), its running time, its edition and its file fingerprints, flagged `withheld`, with no name, parent name or year; the same Stash-box record is read from the live video, so after a rescan a Vault bookmark finds the same video even when the file (and so its fingerprint) is different, and with no Stash-box record the exact file fingerprint still decides. A person's corrections and choices on a Vault title are left out. A restore brings the Vault libraries back empty, with Vault mode settings, PIN hashes and grants. The saved Vault bookmarks wait like any other state, marked withheld, and are counted only when asked (the Vault settings page asks, through `GET /api/v1/vault/restored-bookmarks`, which counts the withheld waiting rows and never names a title). The earlier Vault-only scrub, restore note and bookmark re-link (and the `vault_pending_bookmarks` table, dropped by upgrade step 0040) are gone.
 
 | Table | Kind | Why |
 |---|---|---|

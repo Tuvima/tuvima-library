@@ -19,7 +19,7 @@ public sealed class EnrichmentService : IEnrichmentService
     private readonly DescriptionEnrichmentWorker _descriptions;
     private readonly TextTrackEnrichmentWorker _textTracks;
     private readonly IImageEnrichmentService _images;
-    private readonly IWriteBackService _writeBack;
+    private readonly IFileWriteQueue _fileWrites;
     private readonly ICollectionRepository _collectionRepo;
     private readonly IParentCollectionResolver _parentCollectionResolver;
     private readonly IEnrichmentConcurrencyLimiter _concurrency;
@@ -33,7 +33,7 @@ public sealed class EnrichmentService : IEnrichmentService
         DescriptionEnrichmentWorker descriptions,
         TextTrackEnrichmentWorker textTracks,
         IImageEnrichmentService images,
-        IWriteBackService writeBack,
+        IFileWriteQueue fileWrites,
         ICollectionRepository collectionRepo,
         IParentCollectionResolver parentCollectionResolver,
         ILogger<EnrichmentService> logger,
@@ -46,7 +46,7 @@ public sealed class EnrichmentService : IEnrichmentService
         _descriptions = descriptions;
         _textTracks = textTracks;
         _images = images;
-        _writeBack = writeBack;
+        _fileWrites = fileWrites;
         _collectionRepo = collectionRepo;
         _parentCollectionResolver = parentCollectionResolver;
         _concurrency = concurrencyLimiter ?? NoopEnrichmentConcurrencyLimiter.Instance;
@@ -76,7 +76,7 @@ public sealed class EnrichmentService : IEnrichmentService
                 entityId);
         }
 
-        await _writeBack.WriteMetadataAsync(entityId, "quick_hydration", ct);
+        await _fileWrites.EnqueueAssetAsync(entityId, "quick_hydration", ct);
         _logger.LogInformation("Quick pass completed for entity {Id}", entityId);
     }
 
@@ -120,7 +120,7 @@ public sealed class EnrichmentService : IEnrichmentService
             EnrichmentWorkKind.Wikidata,
             token => _descriptions.EnrichAsync(entityId, qid, token),
             ct);
-        await _writeBack.WriteMetadataAsync(entityId, "universe_enrichment", ct);
+        await _fileWrites.EnqueueAssetAsync(entityId, "universe_enrichment", ct);
     }
 
     public async Task RunSingleEnrichmentAsync(Guid entityId, string qid, EnrichmentType type, CancellationToken ct = default)
@@ -162,7 +162,7 @@ public sealed class EnrichmentService : IEnrichmentService
                     ct);
                 break;
             case EnrichmentType.WriteBack:
-                await _writeBack.WriteMetadataAsync(entityId, "manual_enrichment", ct);
+                await _fileWrites.EnqueueAssetAsync(entityId, "manual_enrichment", ct);
                 break;
             case EnrichmentType.TimedLyrics:
                 await _textTracks.EnrichAsync(entityId, TextTrackKind.Lyrics, ct);

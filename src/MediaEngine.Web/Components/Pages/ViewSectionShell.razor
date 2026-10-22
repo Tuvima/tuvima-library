@@ -85,13 +85,16 @@
     {
         get
         {
-            var items = new List<MediaSectionNavigationItem>
+            var items = new List<MediaSectionNavigationItem>();
+            // A profile that may use neither photos nor personal videos never sees the Photos entry; /view then says it is not available.
+            if (Workspace.CanViewPhotoTimeline)
             {
-                new("Photos", "/view", AppMaterialIcons.Outlined.PhotoLibrary, Exact: true),
-                new("Galleries", "/view/galleries", AppMaterialIcons.Outlined.Collections, Exact: true),
-                new("Folders", "/view/folders", AppMaterialIcons.Outlined.FolderOpen, Exact: true),
-            };
-            if (Workspace.Scopes?.CanViewDocuments != false)
+                items.Add(new("Photos", "/view", AppMaterialIcons.Outlined.PhotoLibrary, Exact: true));
+            }
+
+            items.Add(new("Galleries", "/view/galleries", AppMaterialIcons.Outlined.Collections, Exact: true));
+            items.Add(new("Folders", "/view/folders", AppMaterialIcons.Outlined.FolderOpen, Exact: true));
+            if (Workspace.CanViewDocuments)
             {
                 // Documents waiting in the person's own Inbox show as a count; nothing shows when there are none.
                 var waiting = Workspace.DocumentInboxCount;

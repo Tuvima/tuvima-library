@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Bunit;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Contracts.LocalAssets;
+using MediaEngine.Contracts.Profiles;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -32,6 +33,24 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     // The Engine's list of library kinds; a test adds a kind here the way a plugin would.
     private List<LibraryKindDto> _kinds = LibraryKindsTestData.BuiltIn();
     private bool _viewSourcesUnavailable;
+    // The profile's Personal Space; the View kind pages list a profile's folders only once it has one.
+    private ViewPersonalSpaceAdminDto? _personalSpace;
+    private static readonly ViewPersonalSpaceAdminDto TestSpace = new(Guid.NewGuid(), "C:\\View\\Profiles\\Test", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+    // What the View kind pages read and send: the profile's saved policy, the policy saves and the folders added.
+    private static readonly Guid TestProfileId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+    private ViewProfilePolicyDto _policy = new()
+    {
+        ProfileId = TestProfileId,
+        ViewEnabled = true,
+        AccessSharedLibrary = true,
+        SubmitToSharedLibrary = true,
+        AllowGallerySharing = true,
+        AllowPhotos = false,
+        AllowPersonalVideos = false,
+        AllowDocuments = true,
+    };
+    private readonly List<UpdateViewProfilePolicyRequest> _policySaves = [];
+    private readonly List<CreateViewSourceRequest> _createdSources = [];
 
     // Libraries has pages below it (a group, then a type), so its menu row matches them; every other row stays exact.
     [Fact]
@@ -97,12 +116,36 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryKindsAsync), _ => Task.FromResult<IReadOnlyList<LibraryKindDto>?>(_kinds));
             stub.SetHandler(nameof(IEngineApiClient.TestPathAsync), args => ProbeAsync((string)args![0]!));
             stub.SetHandler(nameof(IEngineApiClient.GetViewProfileSourcesAsync), args =>
-                Task.FromResult<ViewPersonalSpaceAdminReviewDto?>(_viewSourcesUnavailable ? null : new((Guid)args![0]!, null, _viewSources, [])));
+                Task.FromResult<ViewPersonalSpaceAdminReviewDto?>(_viewSourcesUnavailable ? null : new((Guid)args![0]!, _personalSpace, _viewSources, [])));
             // The client answers an empty list and records an error when the profiles cannot be read.
             stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(_profilesFail
                 ? new List<ProfileViewModel>()
                 : [new ProfileViewModel(Guid.Parse("00000000-0000-0000-0000-000000000001"), "Test User", "#C9922E", "Administrator", DateTimeOffset.UtcNow)]));
             stub.SetHandler("get_LastError", _ => _profilesFail ? "The Engine did not answer." : null);
+            stub.SetHandler(nameof(IEngineApiClient.GetViewProfilePolicyAsync), _ => Task.FromResult<ViewProfilePolicyDto?>(_policy));
+            stub.SetHandler(nameof(IEngineApiClient.UpdateViewProfilePolicyAsync), args =>
+            {
+                var request = (UpdateViewProfilePolicyRequest)args![1]!;
+                _policySaves.Add(request);
+                _policy = new ViewProfilePolicyDto
+                {
+                    ProfileId = TestProfileId,
+                    ViewEnabled = request.ViewEnabled,
+                    AccessSharedLibrary = request.AccessSharedLibrary,
+                    SubmitToSharedLibrary = request.SubmitToSharedLibrary,
+                    AllowGallerySharing = request.AllowGallerySharing,
+                    AllowPhotos = request.AllowPhotos ?? _policy.AllowPhotos,
+                    AllowPersonalVideos = request.AllowPersonalVideos ?? _policy.AllowPersonalVideos,
+                    AllowDocuments = request.AllowDocuments ?? _policy.AllowDocuments,
+                };
+                return Task.FromResult<ViewProfilePolicyDto?>(_policy);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.CreateViewProfileSourceAsync), args =>
+            {
+                var request = (CreateViewSourceRequest)args![1]!;
+                _createdSources.Add(request);
+                return Task.FromResult<ViewSourceAdminDto?>(ViewSource(request.Path ?? "C:\\New", request.Name, request.ContentKind ?? "photos"));
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetImportFolderWaitingAsync), _ => Task.FromResult<MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse?>(null));
             stub.SetHandler(nameof(IEngineApiClient.GetFolderJobsAsync), _ => Task.FromResult<IReadOnlyList<FolderJobStatusDto>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetExcludedFilesAsync), _ => Task.FromResult<IReadOnlyList<ExcludedFileDto>>([]));
@@ -128,6 +171,11 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
 
     private static ViewSourceAdminDto ViewSource(string location) =>
         new(Guid.NewGuid(), "local_folder", "Photos", "linked", location, true, true, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+
+    private static ViewSourceAdminDto ViewSource(
+        string location, string name, string kind, int skipped = 0, bool photosAndVideos = false) =>
+        new(Guid.NewGuid(), "local_folder", name, "linked", location, true, true, null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow,
+            ContentKind: kind, SkippedFileCount: skipped, AcceptsPhotosAndVideos: photosAndVideos);
 
     private IRenderedComponent<LibrariesTab> Open(string? subsection = null, string? detail = null)
     {
@@ -505,8 +553,10 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     public void ViewOpensItsGroupPageAndPhotosOpensTheViewSettings()
     {
         var group = Open("view");
-        Assert.Equal(["Photos & personal videos"], group.FindAll(".lib-page__row strong").Select(Text).ToArray());
-        Assert.Equal("/settings/libraries/view/photos", group.Find(".lib-page__row").GetAttribute("href"));
+        Assert.Equal(["Photos", "Personal videos", "Documents"], group.FindAll(".lib-page__row strong").Select(Text).ToArray());
+        Assert.Equal(
+            ["/settings/libraries/view/photos", "/settings/libraries/view/personal_videos", "/settings/libraries/view/documents"],
+            group.FindAll(".lib-page__row").Select(row => row.GetAttribute("href")!).ToArray());
         Assert.Empty(group.FindAll(".library-detail"));
 
         var photos = Open("view", "photos");
@@ -663,7 +713,10 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     [InlineData("WATCH", "Movies", "Movies", "Libraries>/settings/libraries|Watch>/settings/libraries/watch|Movies")]
     [InlineData("listen", "audiobooks", "Audiobooks", "Libraries>/settings/libraries|Listen>/settings/libraries/listen|Audiobooks")]
     [InlineData("view", null, "View", "Libraries>/settings/libraries|View")]
-    [InlineData("view", "photos", "Photos & personal videos", "Libraries>/settings/libraries|View>/settings/libraries/view|Photos & personal videos")]
+    [InlineData("view", "photos", "Photos", "Libraries>/settings/libraries|View>/settings/libraries/view|Photos")]
+    [InlineData("view", "personal_videos", "Personal videos", "Libraries>/settings/libraries|View>/settings/libraries/view|Personal videos")]
+    [InlineData("view", "documents", "Documents", "Libraries>/settings/libraries|View>/settings/libraries/view|Documents")]
+    [InlineData("view", "podcasts", "Libraries", "")]
     [InlineData("import", null, "Import folder", "Libraries>/settings/libraries|Import folder")]
     [InlineData("other", "other-abc", "Other library", "Libraries>/settings/libraries|Other library")]
     [InlineData("listen", "other-abc", "Other library", "Libraries>/settings/libraries|Listen>/settings/libraries/listen|Other library")]
@@ -744,5 +797,148 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.False(issues.ContainsKey("R:\\"));
         Assert.Equal("Folder unavailable", issues["G:\\"]);
         Assert.False(issues.ContainsKey("U:\\"));
+    }
+
+    // 9. View has a page per kind: Photos, Personal videos and Documents.
+    [Fact]
+    public void TheViewGroupPageShowsAPhotosPersonalVideosAndDocumentsRowEachWithItsOwnFolderCount()
+    {
+        _viewSources =
+        [
+            ViewSource("D:\\Pictures", "Pictures", "photos"),
+            ViewSource("E:\\Phone", "Phone", "photos"),
+            ViewSource("C:\\Paperwork", "Paperwork", "documents"),
+        ];
+        var group = Open("view");
+
+        group.WaitForAssertion(() => Assert.Equal(["2 folders", "Nothing added yet", "1 folder"],
+            group.FindAll(".lib-page__row").Select(row => Text(row.QuerySelector(".lib-page__counts")!)).ToArray()));
+        Assert.Equal(["Photos", "Personal videos", "Documents"], group.FindAll(".lib-page__row strong").Select(Text).ToArray());
+    }
+
+    [Fact]
+    public void TheDocumentsPageListsOnlyDocumentsFolders()
+    {
+        _personalSpace = TestSpace;
+        _viewSources =
+        [
+            ViewSource("D:\\Pictures", "Pictures", "photos"),
+            ViewSource("C:\\Paperwork", "Paperwork", "documents"),
+            ViewSource("C:\\Clips", "Clips", "personal_videos"),
+        ];
+        var page = Open("view", "documents");
+
+        page.WaitForAssertion(() => Assert.Equal(["Paperwork"], page.FindAll(".view-source-row strong").Select(Text).ToArray()));
+        Assert.Contains("Who can see documents", page.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AddingAFolderOnTheDocumentsPageSendsTheDocumentsKind()
+    {
+        var page = Render<ViewLibrarySettings>(parameters => parameters
+            .Add(x => x.Configuration, _configuration)
+            .Add(x => x.Kind, "documents")
+            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
+            .Add(x => x.StartAdding, true)
+            .Add(x => x.InitialPath, "F:\\Paperwork"));
+        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll(".libraries-form-grid")));
+        var owner = page.FindComponents<MediaEngine.Web.Components.Shared.AppSelect>().First(select => select.Instance.Label == "Owner profile");
+        await page.InvokeAsync(() => owner.Instance.ValueChanged.InvokeAsync(TestProfileId.ToString()));
+
+        page.FindAll("button").Last(button => Text(button) == "Add folder").Click();
+
+        page.WaitForAssertion(() => Assert.Single(_createdSources));
+        Assert.Equal("documents", _createdSources[0].ContentKind);
+        Assert.Equal("F:\\Paperwork", _createdSources[0].Path);
+    }
+
+    [Fact]
+    public void AFolderWithSkippedFilesSaysSoWithATooltipAndOneWithNoneSaysNothing()
+    {
+        _personalSpace = TestSpace;
+        _viewSources =
+        [
+            ViewSource("D:\\Pictures", "Pictures", "photos", skipped: 12),
+            ViewSource("E:\\Phone", "Phone", "photos"),
+        ];
+        var page = Open("view", "photos");
+
+        page.WaitForAssertion(() => Assert.Equal(2, page.FindAll(".view-source-row").Count));
+        var rows = page.FindAll(".view-source-row");
+        var skipped = rows[0].QuerySelector("small")!;
+        Assert.Equal("12 files skipped", Text(skipped));
+        Assert.Equal("These files aren't photos, so this folder leaves them out. They stay where they are.",
+            skipped.ParentElement!.GetAttribute("data-playback-tooltip"));
+        Assert.DoesNotContain("skipped", Text(rows[1]), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ThePhoneBackupSourceShowsOnPhotosAndPersonalVideosMarkedPhotosAndVideosAndNotOnDocuments()
+    {
+        _personalSpace = TestSpace;
+        _viewSources =
+        [
+            ViewSource("D:\\Backup", "Phone backup", "photos", photosAndVideos: true),
+            ViewSource("C:\\Paperwork", "Paperwork", "documents"),
+        ];
+
+        foreach (var (kind, expected) in new[] { ("photos", new[] { "Phone backup" }), ("personal_videos", ["Phone backup"]), ("documents", ["Paperwork"]) })
+        {
+            var page = Open("view", kind);
+            page.WaitForAssertion(() => Assert.Equal(expected, page.FindAll(".view-source-row strong").Select(Text).ToArray()));
+            Assert.Equal(kind != "documents", Text(page.Find(".view-source-row")).Contains("Photos and videos", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void ThePermissionSwitchOnThePersonalVideosPageSendsPersonalVideosAndKeepsTheOtherFlags()
+    {
+        var page = Open("view", "personal_videos");
+        page.WaitForAssertion(() => Assert.Contains("Who can see personal videos", page.Markup, StringComparison.Ordinal));
+        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll(".view-kind-access__list input[role=switch]")));
+        Assert.False(page.Find(".view-kind-access__list input[role=switch]").HasAttribute("checked"));
+
+        page.Find(".view-kind-access__list input[role=switch]").Change(true);
+
+        page.WaitForAssertion(() => Assert.Single(_policySaves));
+        var saved = _policySaves[0];
+        Assert.True(saved.AllowPersonalVideos);
+        // The photos and documents flags are sent back as they were saved.
+        Assert.False(saved.AllowPhotos);
+        Assert.True(saved.AllowDocuments);
+        Assert.True(saved.ViewEnabled && saved.AccessSharedLibrary && saved.SubmitToSharedLibrary && saved.AllowGallerySharing);
+    }
+
+    [Fact]
+    public void AViewKindThatDoesNotExistShowsTheNotFoundPage()
+    {
+        var page = Open("view", "recordings");
+
+        Assert.Contains("This library page does not exist", page.Markup, StringComparison.Ordinal);
+        Assert.Empty(page.FindAll(".library-detail"));
+    }
+
+    [Fact]
+    public void TheDocumentsPageHasTheDocumentPanelsAndNoTimelineSwitch()
+    {
+        _personalSpace = TestSpace;
+        _viewSources = [ViewSource("C:\\Paperwork", "Paperwork", "documents")];
+        var page = Open("view", "documents");
+
+        page.WaitForAssertion(() => Assert.Single(page.FindAll(".view-source-row")));
+        Assert.Contains("Auto-filing rules", page.Markup, StringComparison.Ordinal);
+        Assert.Empty(page.FindAll("input[role=switch][aria-label=Timeline]"));
+    }
+
+    [Fact]
+    public void ThePhotosPageHasTheTimelineSwitchAndNoDocumentPanels()
+    {
+        _personalSpace = TestSpace;
+        _viewSources = [ViewSource("D:\\Pictures", "Pictures", "photos")];
+        var page = Open("view", "photos");
+
+        page.WaitForAssertion(() => Assert.Single(page.FindAll(".view-source-row")));
+        Assert.Single(page.FindAll("input[role=switch][aria-label=Timeline]"));
+        Assert.DoesNotContain("Auto-filing rules", page.Markup, StringComparison.Ordinal);
     }
 }

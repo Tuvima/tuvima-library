@@ -812,7 +812,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [InlineData("watch", null, "Watch - Library")]
     [InlineData("watch", "movies", "Movies - Watch - Library")]
     [InlineData("view", null, "View - Library")]
-    [InlineData("view", "photos", "Photos & personal videos - View - Library")]
+    [InlineData("view", "photos", "Photos - View - Library")]
     [InlineData("import", null, "Import folder - Library")]
     [InlineData("vault", null, "Libraries - Library")]
     public void SettingsPage_OnALibrariesAddress_TitlesTheTabFromTheGroupsThatAreShown(string subsection, string? detail, string expectedTitle)
@@ -828,7 +828,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [InlineData(null, null, "Libraries", "Libraries", true)]
     [InlineData("watch", null, "Watch", "Libraries|Watch", false)]
     [InlineData("watch", "movies", "Movies", "Libraries|Watch|Movies", false)]
-    [InlineData("view", "photos", "Photos & personal videos", "Libraries|View|Photos & personal videos", false)]
+    [InlineData("view", "photos", "Photos", "Libraries|View|Photos", false)]
     [InlineData("import", null, "Import folder", "Libraries|Import folder", false)]
     public void SettingsPage_OnALibrariesAddress_ShowsTheLevelInItsFrameBreadcrumbAndTitle(string? subsection, string? detail, string title, string trail, bool hasSubtitle)
     {

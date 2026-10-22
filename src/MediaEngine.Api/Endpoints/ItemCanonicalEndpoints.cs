@@ -64,7 +64,7 @@ public static class ItemCanonicalEndpoints
             IMetadataClaimRepository claimRepo,
             ICanonicalValueRepository canonicalRepo,
             ISystemActivityRepository activityRepo,
-            IWriteBackService writeBack,
+            IFileWriteQueue fileWrites,
             IEventPublisher publisher,
             IWorkRepository workRepo,
             IItemCanonicalRepository itemCanonicalData,
@@ -199,7 +199,7 @@ public static class ItemCanonicalEndpoints
             {
                 if (canonicalUpdatedKeys.Count > 0)
                 {
-                    await writeBack.WriteMetadataAsync(context.AssetId, "item_preferences", ct);
+                    await fileWrites.EnqueueAssetAsync(context.AssetId, "item_preferences", ct);
                 }
             }
             catch (Exception ex)
@@ -952,7 +952,7 @@ public static class ItemCanonicalEndpoints
             ICanonicalValueRepository canonicalRepo,
             IBridgeIdRepository bridgeIdRepo,
             ISystemActivityRepository activityRepo,
-            IWriteBackService writeBack,
+            IFileWriteQueue fileWrites,
             IEventPublisher publisher,
             ICollectionRepository collectionRepo,
             IWorkRepository workRepo,
@@ -1160,7 +1160,7 @@ public static class ItemCanonicalEndpoints
 
             try
             {
-                await writeBack.WriteMetadataAsync(context.AssetId, "item_canonical_apply", ct);
+                await fileWrites.EnqueueAssetAsync(context.AssetId, "item_canonical_apply", ct);
             }
             catch (Exception ex)
             {

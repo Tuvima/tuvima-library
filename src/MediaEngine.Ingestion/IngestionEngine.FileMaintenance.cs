@@ -27,6 +27,39 @@ namespace MediaEngine.Ingestion;
 
 public sealed partial class IngestionEngine
 {
+    /// <summary>
+    /// The full paths (old and new place) of files with a library move in progress. Empty when nothing is moving. A failure to ask is
+    /// logged and treated as nothing moving, so ingestion carries on as it did before the mark existed.
+    /// </summary>
+    private async Task<IReadOnlySet<string>> LoadMovePathsAsync(CancellationToken ct)
+    {
+        if (_moveInProgress is null)
+        {
+            return EmptyPaths;
+        }
+
+        try
+        {
+            return await _moveInProgress.GetPathsAsync(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Could not ask which files are being moved; carrying on as if none are.");
+            return EmptyPaths;
+        }
+    }
+
+    private static readonly IReadOnlySet<string> EmptyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>True when the path, or the place a rename came from, is the old or new place of a file being moved.</summary>
+    private async Task<bool> IsMoveInProgressAsync(string path, string? oldPath, CancellationToken ct)
+    {
+        var moving = await LoadMovePathsAsync(ct).ConfigureAwait(false);
+        return moving.Count > 0
+            && (moving.Contains(Path.GetFullPath(path))
+                || (!string.IsNullOrWhiteSpace(oldPath) && moving.Contains(Path.GetFullPath(oldPath))));
+    }
+
     private async Task HandleDeletedAsync(IngestionCandidate candidate, CancellationToken ct)
     {
         _logger.LogInformation("File deleted: {Path}", candidate.Path);
