@@ -67,6 +67,21 @@ Sizes: 12 · 13 (secondary) · 14 · 16 · 18 · 24 px. Weights: 400 body, 500 l
 
 New CSS may only break at **600 / 840 / 1180 px** (plus the touch query at 1023px); `ResponsiveBreakpointGuardrailTests` enforces this. Touch targets are at least **44 × 44 px** (48px on the bottom dock). Use `100dvh`, not bare `100vh`.
 
+## Pictures
+
+Every picture asks the Engine for the copy that fits its drawn size, never the original (spec: [Right-sized pictures](../specs/archive/right-sized-pictures.md)). Copies, by long side: **tiny 96**, **small 320**, **medium 960**, **large 2160**. Rule: the smallest copy at least the drawn size; fixed-size pictures add a 1x/2x/3x list, screen-wide ones a width list so phones take medium and desktop/TV take large. In code: `ArtworkSize`, `MediaTileArtworkUrl.ForDrawnSize`, `SrcSetForDrawnSize`, `SrcSetByLongSide`; shared primitives (`PersonAvatar`, `AppAvatar`, `AppMediaArtwork`, `AppImage`) size themselves and take `DrawnPx` when drawn larger. Lists and rows load pictures lazily; heroes never do.
+
+| Surface | Drawn (CSS px, long side) | Copy asked for |
+|---|---|---|
+| People list, Universe cast lists, family tree, Events/Added rows, table and song-row covers, Continue strip | 32-64 | tiny (96); small on sharp screens |
+| Now playing bar, queue and history rows, editor thumbnails | 48-128 | tiny or small by drawn size; next copy up on sharp screens |
+| Credit card faces and character pictures | up to 140 | small |
+| Home, Watch, Listen, Read tiles and shelves | 128-342 | small; medium on sharp screens (browser choice) |
+| Search results, Listen album/artist art, Series and album rails | 160-400 | small or medium by drawn size |
+| Tile hover panel, details cover, person portrait, full player, editor artwork preview | 320-640 | medium |
+| Hero carousel, details and phone hero backgrounds | full width | medium on phones, large on desktop and TV (browser choice) |
+| Artwork picker "full view" and downloads | full | original |
+
 ## Components and conventions
 
 - Use the first-party **`App*` components** in `src/MediaEngine.Web/Components/Shared/` — AppButton, AppIconButton, AppTextField, AppSelect, AppSwitchRow, AppChoiceRow, AppCheckbox, AppDialog, AppTable, AppTabs, AppCard, AppAlert, AppStatusBadge, AppTooltip, AppProgressBar, AppSpinner, AppMediaArtwork, and the page-state trio AppPageState / AppEmptyState / AppErrorState. Don't build one-off controls.

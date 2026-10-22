@@ -107,7 +107,7 @@ public sealed class ViewDiscoveryServiceTests
         var authorization = new ViewResourceAuthorizationService(
             new ViewScopeResolver(new ViewScopeResolverTests.ScopeStore(profiles)),
             new UnusedResourceStore(), new TestAllowAuthorizationEvaluator());
-        return new ViewDiscoveryService(context, authorization, repository);
+        return new ViewDiscoveryService(context, authorization, repository, new TestViewProfileRepository());
     }
 
     private static ViewScopeStoreEntry State(bool access, bool include)

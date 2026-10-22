@@ -392,7 +392,7 @@ public sealed class ImportFolderPipelineTests : IDisposable
             operationRepo,
             new MediaOperationEventRepository(db),
             publisher,
-            NullLogger<MediaOperationTracker>.Instance);
+            NullLogger<MediaOperationTracker>.Instance, new VaultLibraryRepository(db));
         var options = h.Options;
         options.LockProbeRetryMaxAttempts = 10;
         options.LockProbeRetryBaseDelaySeconds = 1;
@@ -450,6 +450,7 @@ public sealed class ImportFolderPipelineTests : IDisposable
             new OrganizeStageDependencies(null),
             new WriteBackStageDependencies(new EntityAssetRepository(db), new AssetPathService(h.LibraryRoot), workRepo, null),
             new IdentityJobStageDependencies(new IdentityPipelineSignal()),
+            new NoVaultIngestionHook(),
             operationTracker: tracker,
             operationRepository: operationRepo,
             libraryFolderResolver: new LibraryFolderResolver(monitor),

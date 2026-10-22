@@ -102,6 +102,9 @@ public sealed partial class EngineApiClient
     public Task<LibrariesConfigurationDto?> GetSetupLibrariesAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<LibrariesConfigurationDto>(HttpMethod.Get, "/setup/v1/libraries", null, setupSession, ct);
 
+    public async Task<IReadOnlyList<LibraryKindDto>?> GetSetupLibraryKindsAsync(string? setupSession, CancellationToken ct = default) =>
+        await SetupSendAsync<List<LibraryKindDto>>(HttpMethod.Get, "/setup/v1/library-kinds", null, setupSession, ct);
+
     public Task<LibrariesConfigurationDto?> UpdateSetupLibrariesAsync(UpdateLibrariesRequest request, string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<LibrariesConfigurationDto>(HttpMethod.Put, "/setup/v1/libraries", JsonContent.Create(request), setupSession, ct);
 
@@ -148,7 +151,9 @@ public sealed partial class EngineApiClient
         var file = new StreamContent(stream);
         file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
         content.Add(file, "backup", fileName);
-        return await SetupSendAsync<SetupBackupInspectionDto>(HttpMethod.Post, "/setup/v1/restore/upload", content, setupSession, ct);
+        // A file the Engine refuses (an older layout, a damaged file) comes back as one plain sentence, left in LastError as it is.
+        _failureState.SetError(null);
+        return await SetupSendAsync<SetupBackupInspectionDto>(HttpMethod.Post, "/setup/v1/restore/upload", content, setupSession, ct, keepRefusalSentence: true);
     }
 
     public Task<SetupRestoreConfirmationDto?> ConfirmSetupRestoreAsync(Guid operationId, string setupSession, CancellationToken ct = default) =>
@@ -160,7 +165,7 @@ public sealed partial class EngineApiClient
     public Task<SetupStatusDto?> CompleteSetupAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<SetupStatusDto>(HttpMethod.Post, "/setup/v1/complete", JsonContent.Create(new { }), setupSession, ct);
 
-    private async Task<T?> SetupSendAsync<T>(HttpMethod method, string path, HttpContent? content, string? setupSession, CancellationToken ct)
+    private async Task<T?> SetupSendAsync<T>(HttpMethod method, string path, HttpContent? content, string? setupSession, CancellationToken ct, bool keepRefusalSentence = false)
     {
         try
         {
@@ -179,6 +184,11 @@ public sealed partial class EngineApiClient
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Setup request {Method} {Path} failed with {Status}", method, path, response.StatusCode);
+                if (keepRefusalSentence && response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    _failureState.SetError(await ReadProblemDetailAsync(response, ct));
+                }
+
                 return default;
             }
             return await response.Content.ReadFromJsonAsync<T>(cancellationToken: ct);

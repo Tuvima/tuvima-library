@@ -87,7 +87,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             profileId, profileId, true, true, 1, 1, true, true, null, 1,
             [new MediaEngine.Contracts.Authentication.AccountProfileGrantDto(profileId, profileId, "Test User", null,
                 true, true, true, new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(
-                    false, "None", null, 1, false, null), 1, DateTimeOffset.UtcNow)],
+                    false, "None", null, 1), 1, DateTimeOffset.UtcNow)],
             ["settings.administration"], ["access.manage"]);
         var session = new DashboardSessionAccessor();
         session.Set("test-session-token", profileId, profileId, Guid.NewGuid(), authority);
@@ -96,6 +96,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.DevelopmentToolsState>();
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         Services.AddScoped<ConfirmedActionRunner>();
@@ -628,7 +629,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
             profile, profile, true, true, 1, 1, true, true, null, 1,
             [new MediaEngine.Contracts.Authentication.AccountProfileGrantDto(profile, profile, "Profile", null, true, true, true,
-                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(true, "LockOnLeave", 30, 1, false, null), 1, DateTimeOffset.UtcNow)],
+                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(true, "LockOnLeave", 30, 1), 1, DateTimeOffset.UtcNow)],
             ["settings.administration"], ["access.manage", "administrator.lock"]);
         var session = new DashboardSessionAccessor();
         session.Set("session", profile, profile, Guid.NewGuid(), authority);
@@ -637,6 +638,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
         Services.AddScoped(_ => session);
 
         var host = Render(builder =>
@@ -665,7 +667,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
             profile, profile, true, true, 1, 1, true, false, null, 1,
             [new MediaEngine.Contracts.Authentication.AccountProfileGrantDto(profile, profile, "Profile", null, true, true, true,
-                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(false, "None", null, 1, false, null), 1, DateTimeOffset.UtcNow)],
+                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow)],
             ["settings.administration"], []);
         var session = new DashboardSessionAccessor();
         var handler = new DelayedLockHandler(authority, session);
@@ -673,6 +675,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
         Services.AddScoped(_ => session);
 
         var cut = Render(builder =>
@@ -702,7 +705,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
             profile, profile, true, true, 1, 1, true, false, null, 1,
             [new MediaEngine.Contracts.Authentication.AccountProfileGrantDto(profile, profile, "Profile", null, true, true, true,
-                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(false, "None", null, 1, false, null), 1, DateTimeOffset.UtcNow)],
+                new MediaEngine.Contracts.Authentication.GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow)],
             ["settings.administration"], []);
         var session = new DashboardSessionAccessor();
         var handler = new DelayedLockHandler(authority, session);
@@ -710,6 +713,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
         Services.AddScoped(_ => session);
 
         var cut = Render<MainLayout>(parameters => parameters.Add(layout => layout.Body, builder =>
@@ -776,6 +780,104 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         await Task.Delay(1500);
 
         Assert.Equal("http://localhost/settings/profiles", navigation.Uri);
+    }
+
+    // The Libraries levels are real addresses: a type page (group and type) must not be redirected to the front door or /not-found.
+    [Theory]
+    [InlineData("/settings/libraries/watch/movies", "watch", "movies")]
+    [InlineData("/settings/libraries/watch", "watch", null)]
+    [InlineData("/settings/libraries/import", "import", null)]
+    [InlineData("/settings/libraries/view/photos", "view", "photos")]
+    public async Task SettingsPage_OnALibrariesLevelAddress_StaysOnThatAddress(string address, string subsection, string? detail)
+    {
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo(address);
+
+        var cut = Render<Settings>(parameters =>
+        {
+            parameters.Add(page => page.Section, "libraries").Add(page => page.Subsection, subsection);
+            if (detail is not null)
+            {
+                parameters.Add(page => page.Detail, detail);
+            }
+        });
+        await Task.Delay(1500);
+
+        Assert.Equal($"http://localhost{address}", navigation.Uri);
+        Assert.NotEmpty(cut.FindAll(".libraries"));
+    }
+
+    // The tab title names a Libraries group only when the page shows it: with the private group off, its address never reaches the title.
+    [Theory]
+    [InlineData("watch", null, "Watch - Library")]
+    [InlineData("watch", "movies", "Movies - Watch - Library")]
+    [InlineData("view", null, "View - Library")]
+    [InlineData("view", "photos", "Photos - View - Library")]
+    [InlineData("import", null, "Import folder - Library")]
+    [InlineData("vault", null, "Libraries - Library")]
+    public void SettingsPage_OnALibrariesAddress_TitlesTheTabFromTheGroupsThatAreShown(string subsection, string? detail, string expectedTitle)
+    {
+        var cut = RenderLibraries(subsection, detail);
+
+        var title = (string)typeof(Settings).GetProperty("BrowserTitle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cut.Instance)!;
+        Assert.Equal(expectedTitle, title);
+    }
+
+    // The Settings frame carries each Libraries level: one breadcrumb, one title, and no second heading or breadcrumb in the page.
+    [Theory]
+    [InlineData(null, null, "Libraries", "Libraries", true)]
+    [InlineData("watch", null, "Watch", "Libraries|Watch", false)]
+    [InlineData("watch", "movies", "Movies", "Libraries|Watch|Movies", false)]
+    [InlineData("view", "photos", "Photos", "Libraries|View|Photos", false)]
+    [InlineData("import", null, "Import folder", "Libraries|Import folder", false)]
+    public void SettingsPage_OnALibrariesAddress_ShowsTheLevelInItsFrameBreadcrumbAndTitle(string? subsection, string? detail, string title, string trail, bool hasSubtitle)
+    {
+        var cut = RenderLibraries(subsection, detail);
+
+        var expected = trail.Split('|');
+        // The frame redraws once the kinds have arrived, so wait for the trail rather than reading it once.
+        cut.WaitForAssertion(() =>
+        {
+            var steps = cut.FindAll(".settings-breadcrumbs a, .settings-breadcrumbs span[aria-current]").Select(step => step.TextContent.Trim()).ToArray();
+            Assert.Equal(expected, steps[^expected.Length..]);
+        });
+        Assert.Equal(title, cut.Find(".app-page-header__title").TextContent.Trim());
+        Assert.Equal(hasSubtitle, cut.FindAll(".app-page-header p").Count > 0);
+        if (subsection is not null)
+        {
+            Assert.Equal("/settings/libraries", cut.FindAll(".settings-breadcrumbs a").Last(link => link.TextContent.Trim() == "Libraries").GetAttribute("href"));
+        }
+
+        Assert.Empty(cut.FindAll(".libraries nav[aria-label=Breadcrumb]"));
+        // The Import folder panel and View's settings are unchanged panels with headings of their own; every other level has none.
+        if (subsection != "import" && detail != "photos")
+        {
+            Assert.Empty(cut.FindAll(".libraries h1, .libraries h2, .libraries h3"));
+        }
+    }
+
+    private IRenderedComponent<Settings> RenderLibraries(string? subsection, string? detail)
+    {
+        var address = "/settings/libraries" + (subsection is null ? string.Empty : "/" + subsection) + (detail is null ? string.Empty : "/" + detail);
+        Services.GetRequiredService<NavigationManager>().NavigateTo(address);
+
+        var cut = Render<Settings>(parameters =>
+        {
+            parameters.Add(page => page.Section, "libraries");
+            if (subsection is not null)
+            {
+                parameters.Add(page => page.Subsection, subsection);
+            }
+
+            if (detail is not null)
+            {
+                parameters.Add(page => page.Detail, detail);
+            }
+        });
+        cut.WaitForElement(".libraries");
+        // The title and breadcrumb name the group and kind, which arrive with the list of library kinds.
+        cut.WaitForState(() => Services.GetRequiredService<MediaEngine.Web.Services.Settings.LibraryKindsState>().Loaded);
+        return cut;
     }
 
     [Theory]
@@ -859,6 +961,53 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains("width:25%", segments[2].GetAttribute("style"), StringComparison.Ordinal);
             Assert.Contains("Books 2, 50%", cut.Find(".library-summary__composition").GetAttribute("aria-label"), StringComparison.Ordinal);
         });
+    }
+
+    [Fact]
+    public void LibrarySummary_ShowsItsTilesWithoutWaitingForTheStorageChecks_AndAsksOnlyForTheStorageChecks()
+    {
+        // Bug B17: the tiles waited for the full readiness report, which scans the whole data store.
+        var storageChecks = new TaskCompletionSource<MediaEngine.Contracts.System.StartupReadinessResponse?>();
+        EngineApiClientStub? stub = null;
+        var apiClient = EngineApiClientStub.Create(configured =>
+        {
+            stub = configured;
+            configured.SetHandler(nameof(IEngineApiClient.GetLibraryOverviewAsync), _ =>
+                Task.FromResult<LibraryOverviewDto?>(new LibraryOverviewDto
+                {
+                    TotalItems = 3,
+                    MediaTypeCounts = new Dictionary<string, int> { ["Books"] = 2, ["Movies"] = 1 },
+                }));
+            configured.SetHandler(nameof(IEngineApiClient.GetStorageReadinessAsync), _ => storageChecks.Task);
+        });
+        Services.AddSingleton<IEngineApiClient>(apiClient);
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<LibrarySummary>(0);
+            builder.CloseComponent();
+        });
+
+        cut.WaitForAssertion(() => Assert.Equal(7, cut.FindAll(".library-summary__media").Count));
+        Assert.Empty(cut.FindAll("[data-testid='library-summary-storage']"));
+
+        storageChecks.SetResult(new MediaEngine.Contracts.System.StartupReadinessResponse
+        {
+            Status = "degraded",
+            Checks =
+            [
+                new MediaEngine.Contracts.System.StartupReadinessCheckResponse
+                {
+                    Name = "watch_folders",
+                    Category = "storage",
+                    Status = "degraded",
+                    Description = "A watch folder is missing.",
+                },
+            ],
+        });
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid='library-summary-storage'] .library-summary__issue")));
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetStartupReadinessAsync), stub!.Calls);
     }
 
     [Fact]
@@ -1173,6 +1322,74 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Empty(cut.FindAll(".media-tile"));
             Assert.Empty(cut.FindAll(".media-group-tile"));
         });
+    }
+
+    [Fact]
+    public void CollectionsPeople_ShowsThePeopleWithoutWaitingForTheCollectionCatalog()
+    {
+        // Bug B31: People waited for the collection catalog, which takes seconds on a large library and is not shown there.
+        var catalog = new TaskCompletionSource<List<CollectionManagementCatalogViewModel>>();
+        Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetCollectionCatalogAsync), _ => catalog.Task)));
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<AppPopoverHost>(0);
+            builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1);
+            builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2);
+            builder.CloseComponent();
+            builder.OpenComponent<CollectionsPage>(3);
+            builder.AddAttribute(4, nameof(CollectionsPage.Section), "people");
+            builder.CloseComponent();
+        });
+
+        cut.WaitForAssertion(() => Assert.Contains("Octavia Butler", cut.Markup));
+        Assert.False(catalog.Task.IsCompleted);
+
+        catalog.SetResult([]);
+        cut.WaitForAssertion(() => Assert.Contains("Octavia Butler", cut.Markup));
+    }
+
+    [Fact]
+    public void Collections_ASectionChosenDuringTheFirstLoad_SaysLoadingUntilItsOwnDataArrives()
+    {
+        // A replaced load's cancelled catalog read comes back empty, later than the newer load; it must not mark the
+        // collections as loaded.
+        var catalogs = new List<TaskCompletionSource<List<CollectionManagementCatalogViewModel>>>();
+        Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetCollectionCatalogAsync), _ =>
+            {
+                var catalog = new TaskCompletionSource<List<CollectionManagementCatalogViewModel>>();
+                catalogs.Add(catalog);
+                return catalog.Task;
+            })));
+
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<AppPopoverHost>(0);
+            builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1);
+            builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2);
+            builder.CloseComponent();
+            builder.OpenComponent<CollectionsPage>(3);
+            builder.AddAttribute(4, nameof(CollectionsPage.Section), "automatic");
+            builder.CloseComponent();
+        });
+        var page = cut.FindComponent<CollectionsPage>();
+        cut.WaitForAssertion(() => Assert.Single(catalogs));
+
+        // People is chosen before the first catalog arrives: a second load starts, people first, and replaces the first.
+        page.Render(parameters => parameters.Add(component => component.Section, "people"));
+        cut.WaitForAssertion(() => Assert.Contains("Octavia Butler", cut.Markup));
+        Assert.Equal(2, catalogs.Count);
+        cut.InvokeAsync(() => catalogs[0].SetResult([]));
+
+        // Back to a collection section while the second catalog is still out: it says Loading, not an empty grid.
+        page.Render(parameters => parameters.Add(component => component.Section, "automatic"));
+        cut.WaitForAssertion(() => Assert.Contains("Loading collections", cut.Markup));
     }
 
     [Fact]

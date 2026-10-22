@@ -1,0 +1,280 @@
+@namespace MediaEngine.Web.Components.Vault
+@using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Vault
+@inject NsfwModeState Nsfw
+@inject IEngineApiClient ApiClient
+@inject DeviceContextService Device
+
+@* Identify for a Vault video (Videos spec D38): find the right record by hand, see the current values beside the proposed ones with a
+   tick per field, and apply exactly the ticked fields. A value you edited yourself is shown but cannot be ticked. "None of these"
+   makes no request: the video simply stays Unmatched. Editing is desktop-only like every other editor, and the panel draws only
+   while Vault mode is on. What is applied is read again from the server by the Engine, not taken from this screen. *@
+@if (Nsfw.Unlocked && EditorDeviceRule.CanEdit(Device))
+{
+    <section class="vault-identify" data-vault-identify aria-label="Identify this video">
+        <h2 class="vault-identify__title">Identify</h2>
+
+        <div class="vault-identify__search">
+            <AppSearchField Label="Search for this video" HideLabel="true" Placeholder="Title, or leave empty to use the file name"
+                            Value="@_text" ValueChanged="@(value => { _text = value ?? string.Empty; return Task.CompletedTask; })" />
+            <AppButton Label="Search" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@_busy" OnClick="SearchAsync" />
+        </div>
+
+        @if (_message is not null)
+        {
+            <AppAlert Severity="@_messageSeverity" Variant="AppVariant.Outlined" Dense="true">@_message</AppAlert>
+        }
+
+        @if (_busy)
+        {
+            <AppSkeleton Height="72px" />
+        }
+
+        @if (_preview is not null)
+        {
+            <div class="vault-identify__preview" data-vault-identify-preview>
+                <p class="vault-identify__record">
+                    @(_preview.RecordTitle ?? "This record")
+                    @if (!_preview.LengthAgrees)
+                    {
+                        <span class="vault-identify__warn"> Its length differs from this file.</span>
+                    }
+                </p>
+                <table class="vault-identify__table">
+                    <thead>
+                        <tr><th scope="col">Apply</th><th scope="col">Field</th><th scope="col">Now</th><th scope="col">From the record</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in _preview.Fields)
+                        {
+                            <tr @key="row.Field" data-field="@row.Field">
+                                <td>
+                                    <AppCheckbox Value="@_ticked.Contains(row.Field)"
+                                                 ValueChanged="@(on => Tick(row.Field, on))"
+                                                 Disabled="@(row.PersonsOwn || !row.Changes || _busy)"
+                                                 aria-label="@($"Apply {FieldLabel(row.Field)}")" />
+                                </td>
+                                <th scope="row">@FieldLabel(row.Field)</th>
+                                <td>@(row.Current ?? "Nothing")</td>
+                                <td>
+                                    @(row.Proposed ?? "Nothing to apply")
+                                    @if (row.PersonsOwn)
+                                    {
+                                        <small class="vault-identify__note"> You edited this yourself, so it stays.</small>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <div class="vault-identify__actions">
+                    <AppButton Label="Apply ticked fields" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
+                               Disabled="@(_busy || _ticked.Count == 0)" OnClick="ApplyAsync" />
+                    <AppButton Label="Back to the list" Disabled="@_busy" OnClick="BackToList" />
+                </div>
+            </div>
+        }
+        else if (_candidates is not null)
+        {
+            @if (_candidates.Count == 0)
+            {
+                <p class="vault-identify__empty">Nothing found. Try other words, or leave it as it is: it stays Unmatched.</p>
+            }
+            else
+            {
+                <ul class="vault-identify__candidates" aria-label="Records that might be this video">
+                    @foreach (var candidate in _candidates)
+                    {
+                        <li @key="candidate.RecordId" class="vault-identify__candidate">
+                            <div class="vault-identify__candidate-text">
+                                <strong>@(candidate.Title ?? "Untitled")</strong>
+                                <span>@CandidateLine(candidate)</span>
+                                <span class="@(candidate.LengthAgrees ? "vault-identify__ok" : "vault-identify__warn")">
+                                    @(candidate.LengthAgrees ? "Length matches this file" : "Length differs from this file")
+                                </span>
+                            </div>
+                            <AppButton Label="Choose" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => ChooseAsync(candidate))" />
+                        </li>
+                    }
+                </ul>
+            }
+            <AppButton Label="None of these" Disabled="@_busy" OnClick="NoneOfThese" />
+        }
+    </section>
+}
+
+@code {
+    private string _text = string.Empty;
+    private bool _busy;
+    private string? _message;
+    private AppSeverity _messageSeverity = AppSeverity.Info;
+    private IReadOnlyList<VaultCandidateDto>? _candidates;
+    private VaultIdentifyPreviewDto? _preview;
+    private readonly HashSet<string> _ticked = new(StringComparer.Ordinal);
+
+    /// <summary>The Vault video to identify.</summary>
+    [Parameter, EditorRequired] public Guid AssetId { get; set; }
+
+    /// <summary>Raised after fields were applied, so the page can reload the video's details.</summary>
+    [Parameter] public EventCallback OnApplied { get; set; }
+
+    private async Task SearchAsync()
+    {
+        _busy = true;
+        _message = null;
+        _preview = null;
+        try
+        {
+            var call = await ApiClient.SearchVaultIdentifyAsync(AssetId, string.IsNullOrWhiteSpace(_text) ? null : _text.Trim());
+            if (!call.Succeeded || call.Value is not { } list)
+            {
+                Say(VaultMessages.For(call) ?? VaultMessages.Unreachable, AppSeverity.Warning);
+                return;
+            }
+
+            switch (list.Status)
+            {
+                case "ok":
+                    _candidates = [.. list.Candidates];
+                    break;
+                case "not_connected":
+                    _candidates = null;
+                    Say("Not connected. Add your Stash-box key in Settings, Providers, then try again.", AppSeverity.Info);
+                    break;
+                case "lookup_off":
+                    _candidates = null;
+                    Say("This Vault library does not look videos up. Change that in the Vault's Library settings.", AppSeverity.Info);
+                    break;
+                default:
+                    _candidates = null;
+                    Say(VaultMessages.NotAvailable, AppSeverity.Warning);
+                    break;
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ChooseAsync(VaultCandidateDto candidate)
+    {
+        _busy = true;
+        _message = null;
+        try
+        {
+            var call = await ApiClient.PreviewVaultIdentifyAsync(AssetId, new VaultIdentifyPreviewRequest { ServerId = candidate.ServerId, RecordId = candidate.RecordId });
+            if (!call.Succeeded || call.Value is not { Status: "ok" } preview)
+            {
+                Say(VaultMessages.For(call) ?? "That record could not be read from the server.", AppSeverity.Warning);
+                return;
+            }
+
+            _preview = preview;
+            _ticked.Clear();
+            foreach (var row in preview.Fields.Where(f => f.Ticked && !f.PersonsOwn))
+            {
+                _ticked.Add(row.Field);
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ApplyAsync()
+    {
+        if (_preview is null || _ticked.Count == 0)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var call = await ApiClient.ApplyVaultIdentifyAsync(AssetId, new VaultIdentifyApplyRequest
+            {
+                ServerId = _preview.ServerId,
+                RecordId = _preview.RecordId,
+                Fields = [.. _ticked],
+            });
+            if (!call.Succeeded || call.Value is not { Status: "ok" } result)
+            {
+                Say(VaultMessages.For(call) ?? "That could not be applied.", AppSeverity.Warning);
+                return;
+            }
+
+            var applied = result.Applied.Count == 0
+                ? "Nothing changed."
+                : $"Applied: {string.Join(", ", result.Applied.Select(FieldLabel).Select(label => label.ToLowerInvariant()))}.";
+            var refused = result.Refused.Count == 0
+                ? string.Empty
+                : $" Not applied because they did not pass the checks: {string.Join(", ", result.Refused.Select(FieldLabel).Select(label => label.ToLowerInvariant()))}.";
+            Say(applied + refused, result.Applied.Count == 0 ? AppSeverity.Info : AppSeverity.Success);
+            _preview = null;
+            _candidates = null;
+            await OnApplied.InvokeAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void Tick(string field, bool on)
+    {
+        if (on)
+        {
+            _ticked.Add(field);
+        }
+        else
+        {
+            _ticked.Remove(field);
+        }
+    }
+
+    private void BackToList()
+    {
+        _preview = null;
+        _message = null;
+    }
+
+    private void NoneOfThese()
+    {
+        _candidates = null;
+        _preview = null;
+        Say("Left as it is. The video stays Unmatched and nothing is sent anywhere.", AppSeverity.Info);
+    }
+
+    private void Say(string text, AppSeverity severity)
+    {
+        _message = text;
+        _messageSeverity = severity;
+    }
+
+    private static string CandidateLine(VaultCandidateDto candidate) =>
+        string.Join(" · ", new[] { candidate.Studio, candidate.ReleaseDate, candidate.ProductCode, Duration(candidate.DurationSeconds), Performers(candidate) }
+            .Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    private static string? Duration(int? seconds) =>
+        seconds is > 0 ? TimeSpan.FromSeconds(seconds.Value).ToString(seconds >= 3600 ? @"h\:mm\:ss" : @"m\:ss") : null;
+
+    private static string? Performers(VaultCandidateDto candidate) =>
+        candidate.Performers.Count == 0 ? null : string.Join(", ", candidate.Performers);
+
+    private static string FieldLabel(string field) => field switch
+    {
+        "title" => "Title",
+        "description" => "Description",
+        "release_date" => "Release date",
+        "cover" => "Cover",
+        "studio" => "Studio",
+        "performers" => "Performers",
+        "tags" => "Tags",
+        _ => field,
+    };
+}

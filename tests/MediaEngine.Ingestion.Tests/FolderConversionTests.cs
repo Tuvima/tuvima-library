@@ -71,6 +71,20 @@ public sealed class FolderConversionTests : IDisposable
     }
 
     [Fact]
+    public async Task A_renamed_files_tags_are_put_on_the_write_list_not_written_during_the_conversion()
+    {
+        var h = NewHarness();
+        var dune = h.Write("Dune.2021.1080p.mkv", "dune");
+        var duneId = await h.RegisterAsync(dune, "Dune", "2021");
+
+        await h.RunAsync();
+
+        var queued = Assert.Single(h.FileWrites.Queued);
+        Assert.Equal(duneId, queued.AssetId);
+        Assert.Equal("auto_match", queued.Trigger);
+    }
+
+    [Fact]
     public async Task A_file_that_already_has_the_standard_name_is_left_alone_and_logged()
     {
         var h = NewHarness();

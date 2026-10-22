@@ -69,6 +69,7 @@ public sealed partial class RetailMatchWorker
     private readonly IMediaOperationRepository? _operations;
     private readonly ImageDownloadCoordinator _imageDownloadCoordinator;
     private readonly ILogger<RetailMatchWorker> _logger;
+    private readonly IExternalLookupGuard? _lookupGuard;
 
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(5);
 
@@ -116,8 +117,10 @@ public sealed partial class RetailMatchWorker
         ProviderApiClient? tvdbClient = null,
         TmdbTvSuggestionService? tvSuggestions = null,
         IMediaAssetCoverageRepository? coverageRepo = null,
-        ITvEpisodeRangeCatalogue? rangeCatalogue = null)
+        ITvEpisodeRangeCatalogue? rangeCatalogue = null,
+        IExternalLookupGuard? lookupGuard = null)
     {
+        _lookupGuard = lookupGuard;
         _jobRepo = jobRepo;
         _candidateRepo = candidateRepo;
         _outcomeFactory = outcomeFactory;
@@ -227,12 +230,15 @@ public sealed partial class RetailMatchWorker
     /// </summary>
     public async Task<int> PollAsync(CancellationToken ct)
     {
-        var jobs = await _jobRepo.LeaseNextAsync(
+        var leased = await _jobRepo.LeaseNextAsync(
             "RetailMatchWorker",
             [IdentityJobState.Queued],
             GetBatchSize(),
             LeaseDuration,
             ct: ct);
+
+        // A file in a library that never looks anything up is closed here, before any provider is asked (Library setup D38).
+        var jobs = await _lookupGuard.SettleBlockedJobsAsync(_jobRepo, leased, _logger, ct).ConfigureAwait(false);
 
         // Separate Music and TV jobs for group processing; everything else is per-item.
         var musicJobs = new List<IdentityJob>();
@@ -294,7 +300,7 @@ public sealed partial class RetailMatchWorker
 
         await Task.WhenAll(work).ConfigureAwait(false);
 
-        return jobs.Count;
+        return leased.Count;
     }
 
 }

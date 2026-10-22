@@ -85,7 +85,7 @@ public sealed class ProfileOverviewReadService(
     {
         using var conn = db.CreateConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
+        cmd.CommandText = $"""
             -- readiness: a profile's own progress rows; they exist only for items that were played
             SELECT
                 us.asset_id,
@@ -123,6 +123,7 @@ public sealed class ProfileOverviewReadService(
             LEFT JOIN works gpw ON gpw.id = pw.parent_work_id
             LEFT JOIN collections h ON h.id = w.collection_id
             WHERE us.user_id = @profileId
+              AND {VaultSql.NotVaultAsset("ma.id")}
             ORDER BY us.last_accessed DESC
             LIMIT @limit;
             """;
@@ -200,6 +201,7 @@ public sealed class ProfileOverviewReadService(
             LEFT JOIN metadata_claims mc ON mc.entity_id IN (ma.id, e.id, w.id, COALESCE(gpw.id, pw.id, w.id))
             WHERE COALESCE(w.ownership, 'Owned') = 'Owned'
               AND {WorkReadinessSql.ReadyWorkPredicate("w")}
+              AND {VaultSql.NotVaultAsset("ma.id")}
             GROUP BY ma.id, w.id, w.media_type, ma.file_path_root, h.display_name
             ORDER BY added_at DESC
             LIMIT @limit;
@@ -248,6 +250,7 @@ public sealed class ProfileOverviewReadService(
             JOIN works w ON w.id = e.work_id
             WHERE COALESCE(w.ownership, 'Owned') = 'Owned'
               AND {WorkReadinessSql.ReadyWorkPredicate("w")}
+              AND {VaultSql.NotVaultAsset("ma.id")}
             GROUP BY media_type
             ORDER BY total DESC;
             """;

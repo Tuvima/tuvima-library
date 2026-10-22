@@ -19,13 +19,13 @@
                 <span class="@("activity-row__collage activity-row__collage--" + CollageColumns)" data-activity-collage>
                     @foreach (var cover in Covers)
                     {
-                        <img class="activity-row__cover" src="@cover" alt="" loading="lazy" decoding="async" />
+                        <img class="activity-row__cover" src="@MediaTileArtworkUrl.ForDrawnSize(cover, 52)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(cover, 52)" alt="" loading="lazy" decoding="async" />
                     }
                 </span>
             }
             else if (!string.IsNullOrWhiteSpace(Item.ArtworkUrl))
             {
-                <img class="activity-row__image" src="@Item.ArtworkUrl" alt="" loading="lazy" decoding="async" />
+                <img class="activity-row__image" src="@MediaTileArtworkUrl.ForDrawnSize(Item.ArtworkUrl, 52)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Item.ArtworkUrl, 52)" alt="" loading="lazy" decoding="async" />
             }
             else
             {

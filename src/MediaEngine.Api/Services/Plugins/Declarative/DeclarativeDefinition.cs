@@ -1,14 +1,16 @@
 using System.Text.Json;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Plugins;
 
 namespace MediaEngine.Api.Services.Plugins.Declarative;
 
-/// <summary>What a plugin that is only JSON describes: AI steps, channel and guide sources, and metadata sources.</summary>
+/// <summary>What a plugin that is only JSON describes: AI steps, channel and guide sources, metadata sources, notification channels and library kinds.</summary>
 internal sealed record DeclarativeDefinition(
     IReadOnlyList<DeclarativeAiStep> AiSteps,
     IReadOnlyList<DeclarativeChannelSource> ChannelSources,
     IReadOnlyList<DeclarativeMetadataSource> MetadataSources,
-    IReadOnlyList<DeclarativeNotificationChannel> NotificationChannels);
+    IReadOnlyList<DeclarativeNotificationChannel> NotificationChannels,
+    IReadOnlyList<DeclarativeLibraryKind> LibraryKinds);
 
 /// <summary>A step that sends a prompt (with <c>{name}</c> placeholders) to Local AI and returns the answer.</summary>
 internal sealed record DeclarativeAiStep(
@@ -46,5 +48,11 @@ internal sealed record DeclarativeNotificationChannel(
     IReadOnlyDictionary<string, string> Headers,
     string BodyTemplate);
 
-/// <summary>A metadata source in the provider-configuration format. It is checked here; the Library starts using it when providers move under Plugins (WP20).</summary>
+/// <summary>A metadata source in the provider-configuration format. It is checked here, and the Library takes it in as a source of its own (see <c>PluginMetadataSourceFiles</c>).</summary>
 internal sealed record DeclarativeMetadataSource(string Name, JsonElement Configuration);
+
+/// <summary>
+/// A library kind a plugin adds to the Library's list of kinds: its area, label, icon, format, lookup, and the grouping and
+/// naming rules it chooses from the built-in ones. It is data only; the Library supplies all the behaviour.
+/// </summary>
+internal sealed record DeclarativeLibraryKind(LibraryKindDefinition Kind);

@@ -37,7 +37,7 @@ The EPUB reader opens supported ebooks in the browser. Reading tools and progres
 4. Use bookmarks and History to return to saved or past positions.
 5. Change **Speed** or set **Sleep** when needed.
 
-Audiobooks keep track progress and offer bookmarks, speed, history, and sleep tools. Chapter titles come from the source unless you edit them. Chapter times and boundaries stay file facts.
+Audiobooks keep track progress and offer bookmarks, speed, history, and sleep tools. Videos have the same Bookmarks panel (see below). Chapter titles come from the source unless you edit them. Chapter times and boundaries stay file facts.
 
 Sleep offers timed choices and chapter ends that the player can verify. A chapter option may be disabled if its end cannot be checked.
 
@@ -53,6 +53,16 @@ On desktop, **Close player** saves a checked, paused position and ends the audio
 Episode lists and Up Next use episodes you own. A provider listing alone is not playable. Audio tracks, subtitles, and quality depend on the file and server.
 
 Video can play directly when the client supports the source. Other files may need browser-ready delivery first. That can delay playback.
+
+## Bookmarks in videos and audiobooks
+
+Choose **Bookmarks** in the video player (or the audiobook player) to open one panel with **Add** and **Saved**. Add captures the moment the panel opens, so it is not lost while you type. It shows the chapter name when there is one, lets you preview the captured spot, and takes a short note (up to 200 characters) and, in a video, an optional longer description (up to 4,000). Saved lists the title's bookmarks, newest first, with jump-to and delete.
+
+Each bookmark is a tick on the progress rail beside the file's own chapters. Point at a tick (or tap it on a touch screen) to see its short note; if it has a longer description, choose **More**. Bookmarks are personal to the profile that made them. A server administrator can switch on **Share with everyone** when adding, which makes a shared bookmark with a different tick shade and a small "Everyone" label; everyone who can see the title sees it, and only administrators can delete it. Adding a bookmark works on a phone or tablet and does not need Editing Mode.
+
+### Bookmark packs
+
+At the bottom of **Saved** in the video player, **Export** lets you pick some of your own bookmarks, review them and save a small pack file you can give to someone else; **Import** reads a pack someone gave you. The pack holds only how to recognise the film or show and each bookmark's time, end, chapter name, short note and longer description: no file paths, no profile names and nothing about what you watched. If the pack is for a different title it is refused; if it was made on a different cut (another running time or edition) you can **Align by chapter** or **Skip**. Imported bookmarks are read-only **pack bookmarks**, shown with the pack's name and author and their own tick shade on the progress rail, and each pack can be switched off or removed. They belong to your profile, are included in your library backups, and are not offered in the Vault.
 
 ## Resume and save separately
 

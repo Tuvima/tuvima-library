@@ -14,7 +14,8 @@ public sealed class WorkDetailReadService(IDatabaseConnection db) : IWorkDetailR
         using var connection = db.CreateConnection();
         workId = WorkRedirects.Resolve(connection, workId);
 
-        var row = await connection.QuerySingleOrDefaultAsync<WorkDetailRow>(new CommandDefinition("""
+        // A work with any file in a Vault library does not exist here (Videos spec D17): it answers like an unknown id.
+        var row = await connection.QuerySingleOrDefaultAsync<WorkDetailRow>(new CommandDefinition($"""
             -- readiness: lookup of one work by id
             SELECT id AS Id,
                    collection_id AS CollectionId,
@@ -26,6 +27,7 @@ public sealed class WorkDetailReadService(IDatabaseConnection db) : IWorkDetailR
                    wikidata_qid AS WikidataQid
             FROM works
             WHERE id = @workId
+              AND {VaultSql.NotVaultEntity("works.id")}
             LIMIT 1;
             """, new { workId }, cancellationToken: ct));
 
@@ -59,7 +61,7 @@ public sealed class WorkDetailReadService(IDatabaseConnection db) : IWorkDetailR
 
         List<EditionAssetRow> assetRows = editionRows.Count == 0
             ? []
-            : (await connection.QueryAsync<EditionAssetRow>(new CommandDefinition("""
+            : (await connection.QueryAsync<EditionAssetRow>(new CommandDefinition($"""
                 SELECT id AS Id,
                        edition_id AS EditionId,
                        file_path_root AS FilePathRoot,
@@ -68,6 +70,7 @@ public sealed class WorkDetailReadService(IDatabaseConnection db) : IWorkDetailR
                 WHERE edition_id IN @editionIds
                   AND status = 'Normal'
                   AND is_orphaned = 0
+                  AND {VaultSql.NotVaultAsset("media_assets.id")}
                 ORDER BY file_path_root;
                 """, new { editionIds = editionRows.Select(edition => GuidSql.ToBlob(edition.Id)).ToArray() }, cancellationToken: ct))).ToList();
 

@@ -1,0 +1,25 @@
+# Pictures exempt from PictureSizeGuardrailTests (right-sized pictures spec D6).
+# One per line: file under src/MediaEngine.Web|src expression exactly as in the markup|reason.
+# Prefer sizing the picture over adding a line here.
+# WP4b
+Components/MediaEditor/Sections/EditorDetailsSection.razor|@DetailsImageUrl|Already the medium copy: SharedMediaEditorShell.DetailsPresentation.cs builds it with MediaTileArtworkUrl.Sized(..., "m") plus a width list; drawn up to 340px.
+Components/MediaEditor/Sections/EditorHeaderSection.razor|@HeaderProviderLogoUrl(selectedIdentity.ProviderName)|Static provider icon file from the provider catalogue (wwwroot), not an Engine picture.
+Components/MediaEditor/Sections/EditorHeaderSection.razor|@(HeaderProviderLogoUrl(|Static provider icon file (Wikidata) from the provider catalogue (wwwroot), not an Engine picture.
+Components/MediaTiles/MediaGroupTile.razor|@Item.LogoUrl|Brand logo: logos have no size copies (the Engine serves them as stored).
+Components/MediaTiles/MediaTile.razor|@Item.LogoUrl|Title logo: logos have no size copies (the Engine serves them as stored).
+Components/MediaTiles/RecentMediaFeed.razor|@ViewAdapter.ThumbnailUrl(asset, profile)|Photo (View) thumbnail: photos keep their own sized copies and are out of this rule's scope.
+
+# WP4a
+Components/Cinematic/PhoneHeroCard.razor|@Art.ImageUrl|Already sized upstream: PhoneHeroPresentation.ResolveArt (PhoneHeroPresentation.cs) returns the medium copy; phone-only screen-wide picture.
+Components/Cinematic/PhoneHeroCard.razor|@Art.LogoUrl|Already sized upstream: PhoneHeroPresentation.ResolveArt returns the logo address (logos have no copies, or the medium copy where they do).
+Components/Details/HeroBackdrop.razor|@HeroImageUrl|Already sized upstream: the HeroImageUrl property in this file asks for the medium copy and the srcset adds the large one for wide screens.
+Components/Details/HeroBackdrop.razor|@ForegroundArtworkUrl|Already sized upstream: the ForegroundArtworkUrl property in this file asks for the medium copy (cover drawn up to 512px tall).
+Components/Pages/PluginPage.razor|@item.ImageUrl|Not an Engine picture: plugin-supplied external image address (loaded with no-referrer), the Engine has no copies of it.
+Components/Shared/AppProviderLogo.razor|@ImageUrl|Not an Engine picture: provider logos and plugin icons are static Dashboard files or provider assets.
+Components/Shared/ProfileAvatar.razor|@ImageUrl|Not an Engine artwork picture: a profile's uploaded avatar (/profiles/{id}/avatar), stored once at 256px and has no copies.
+Components/Shared/MediaViewerShell.razor|@Item.PreviewUrl|Full view: the viewer shows the original on purpose (spec section 5), and plays audio, video and photos from the same address.
+Components/Collections/CollectionEditorShell.razor|@playlistPreview|Not an Engine picture: the just-chosen upload shown as a data: address before it is saved.
+Components/Collections/CollectionEditorShell.razor|@SelectedArtworkPreviewUrl|Not an Engine picture: the just-chosen upload shown as a data: address before it is saved.
+Components/Vault/VaultCover.razor|@CoverUrl|Vault picture: served only by the Vault routes (404 without an unlocked session, never cached), which keep their own sized copies and give the sizes through srcset.
+Components/Vault/VaultCover.razor|@HoverUrls[index]|Vault picture: the hover stills come from the Vault routes and stay at the one size the Vault makes for them; the shared sized-artwork addresses must never be used for Vault items.
+Components/Vault/VaultImageViewer.razor|@VaultArtworkUrls.ImagePreview(imageId)|Vault picture: the Vault image viewer shows the Vault route preview, not a shared artwork address.

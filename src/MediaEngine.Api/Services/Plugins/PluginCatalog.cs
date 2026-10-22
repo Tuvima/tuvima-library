@@ -5,8 +5,10 @@ using MediaEngine.Api.Services.Plugins.Declarative;
 using MediaEngine.Api.Services.Plugins.Sandbox;
 using MediaEngine.Api.Services.Plugins.Service;
 using MediaEngine.Api.Services.Plugins.Sources;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
+using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.Plugins;
@@ -33,6 +35,7 @@ public sealed class PluginCatalog
     private readonly IReadOnlyList<ITuvimaPlugin> _builtInPlugins;
     private readonly PluginSettingsService _settingsService;
     private readonly IPluginApprovalCheck _approvals;
+    private readonly IConfigurationLoader _configurationLoader;
     private readonly ILogger<PluginCatalog> _logger;
     private readonly string _pluginRoot;
     private readonly string _installRecordRoot;
@@ -50,6 +53,9 @@ public sealed class PluginCatalog
     /// about the plugin (limit stops, pauses), which is how a plugin stopped for going over a limit starts again.
     /// </summary>
     public event Action<string>? EnabledChanged;
+
+    /// <summary>Raised after the catalog is read again (a plugin switched on or off, installed, removed or changed), so what is drawn from the plugins' kinds can refresh.</summary>
+    public event Action? Changed;
 
     public PluginCatalog(
         IEnumerable<ITuvimaPlugin> builtInPlugins,
@@ -86,6 +92,7 @@ public sealed class PluginCatalog
         _builtInPlugins = builtInPlugins.ToList();
         _settingsService = settingsService;
         _approvals = approvals;
+        _configurationLoader = configurationLoader;
         _logger = logger;
         _libraryVersion = libraryVersion;
         _platform = platform;
@@ -285,6 +292,7 @@ public sealed class PluginCatalog
 
         // Metadata sources supplied by switched-on JSON plugins live in the providers folder; keep it in step.
         _sourceFiles?.Reconcile(List());
+        Changed?.Invoke();
     }
 
     private void EnsureLoaded()
@@ -303,12 +311,87 @@ public sealed class PluginCatalog
             }
 
             registrations.AddRange(LoadFilePlugins());
-            _registrations = registrations
+            _registrations = RefuseCollidingLibraryKinds(registrations
                 .GroupBy(r => r.Manifest.Id, StringComparer.OrdinalIgnoreCase)
                 .Select(g => g.First())
                 .OrderBy(r => r.Manifest.Name)
-                .ToList();
+                .ToList());
             _loaded = true;
+        }
+    }
+
+    /// <summary>
+    /// A library kind's key must be one nothing else uses: not a kind that ships with the Library and not a kind of another plugin.
+    /// A plugin whose kind collides is refused with a plain sentence that shows on the Plugins page. Switched-on plugins keep their
+    /// keys first, so switching one on never takes a key from another plugin that is already running; a switched-off plugin
+    /// that would collide is refused too, so it cannot be switched on over a running one.
+    /// </summary>
+    private List<PluginRegistration> RefuseCollidingLibraryKinds(List<PluginRegistration> registrations)
+    {
+        if (!registrations.Any(r => r.Capabilities.OfType<DeclarativeLibraryKindCapability>().Any()))
+        {
+            return registrations;
+        }
+
+        var taken = new Dictionary<string, string>(StringComparer.Ordinal);
+        try
+        {
+            foreach (var kind in _configurationLoader.LoadLibraryKinds().Kinds)
+            {
+                taken[kind.Key] = "the Library";
+            }
+        }
+        catch (Exception ex) when (ex is IOException or ConfigValidationException or JsonException or NotSupportedException)
+        {
+            _logger.LogWarning(ex, "The Library's own kinds could not be read, so plugin library kinds were not checked against them");
+        }
+
+        var refused = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var registration in registrations.Where(r => r.LoadError is null).OrderByDescending(r => r.Enabled))
+        {
+            var keys = registration.Capabilities.OfType<DeclarativeLibraryKindCapability>().Select(c => c.LibraryKind.Kind.Key).ToList();
+            var clash = keys.FirstOrDefault(taken.ContainsKey);
+            if (clash is not null)
+            {
+                var owner = taken[clash] == "the Library" ? "a kind that ships with the Library" : $"the plugin \"{taken[clash]}\"";
+                refused[registration.Manifest.Id] = $"This plugin adds the library kind \"{clash}\", but {owner} already uses that key. Rename the key in the plugin's library_kinds.";
+            }
+            else if (registration.Enabled)
+            {
+                foreach (var key in keys)
+                {
+                    taken[key] = registration.Manifest.Name;
+                }
+            }
+        }
+
+        return refused.Count == 0
+            ? registrations
+            : [.. registrations.Select(r => refused.TryGetValue(r.Manifest.Id, out var problem)
+                ? CreateRegistration(r.Manifest, _settingsService.Load(r.Manifest), r.IsBuiltIn, [], problem, null, r.ManifestPath)
+                : r)];
+    }
+
+    /// <summary>What a plugin's library kinds may refer to outside the plugin; null when the manifest adds no kinds or the Library's own lists cannot be read.</summary>
+    private LibraryKindKnowledge? KnowledgeFor(PluginManifest manifest)
+    {
+        if (manifest.Declarative is not { ValueKind: JsonValueKind.Object } root || !root.TryGetProperty("library_kinds", out _))
+        {
+            return null;
+        }
+
+        try
+        {
+            var providers = _configurationLoader.LoadAllProviders().Where(p => p.PluginId is null).Select(p => p.Name);
+            var templates = _configurationLoader.LoadCore().OrganizationTemplates.Keys;
+            return new LibraryKindKnowledge(
+                new HashSet<string>(providers, StringComparer.Ordinal),
+                new HashSet<string>(templates, StringComparer.OrdinalIgnoreCase));
+        }
+        catch (Exception ex) when (ex is IOException or ConfigValidationException or JsonException or NotSupportedException)
+        {
+            _logger.LogWarning(ex, "The Library's metadata sources and naming templates could not be read, so the library kinds of plugin {PluginId} were not checked against them", manifest.Id);
+            return null;
         }
     }
 
@@ -598,7 +681,7 @@ public sealed class PluginCatalog
                 if (manifest is not null && manifest.Kind == PluginKind.Declarative)
                 {
                     // A plugin that is only JSON: no code is loaded; the Library reads the description and checks it.
-                    var (declarative, problem) = DeclarativePlugin.TryCreate(manifest);
+                    var (declarative, problem) = DeclarativePlugin.TryCreate(manifest, KnowledgeFor(manifest));
                     results.Add(declarative is null
                         ? LoadFailure(manifest, problem ?? "The plugin description could not be read.", manifestPath)
                         : BuildRegistration(declarative, manifest, isBuiltIn: false, loadError: null, manifestPath: manifestPath));

@@ -16,10 +16,17 @@ public sealed class ViewTrashRepository(IDatabaseConnection database) : IViewTra
     private const int PathSliceSize = 400;
 
     public Task<ViewTrashTotals> GetTotalsAsync(
-        Guid personalSpaceId, Guid ownerProfileId, bool includeDocuments, CancellationToken ct = default)
+        Guid personalSpaceId, Guid ownerProfileId, IReadOnlyCollection<string> blockedKinds, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
+        var blocked = new
+        {
+            personalSpaceId,
+            ownerProfileId,
+            hasBlockedKinds = blockedKinds.Count == 0 ? 0 : 1,
+            blockedKinds = blockedKinds.Count == 0 ? new[] { "photos" } : blockedKinds.ToArray(),
+        };
         var counts = connection.QuerySingle<TotalsRow>(new CommandDefinition("""
             SELECT COUNT(*) AS ItemCount,
                    COALESCE(SUM(CASE WHEN media_kind = 'image' THEN 1 ELSE 0 END), 0) AS ImageCount,
@@ -29,8 +36,8 @@ public sealed class ViewTrashRepository(IDatabaseConnection database) : IViewTra
               FROM local_items
              WHERE personal_space_id = @personalSpaceId AND owner_profile_id = @ownerProfileId
                AND scope_kind = 'personal' AND trashed_at IS NOT NULL
-               AND (@includeDocuments = 1 OR media_kind <> 'document');
-            """, new { personalSpaceId, ownerProfileId, includeDocuments = includeDocuments ? 1 : 0 }, cancellationToken: ct));
+               AND (@hasBlockedKinds = 0 OR content_kind IS NULL OR content_kind NOT IN @blockedKinds);
+            """, blocked, cancellationToken: ct));
 
         // A file record used by several trashed items is counted once.
         var bytes = connection.ExecuteScalar<long>(new CommandDefinition("""
@@ -41,8 +48,8 @@ public sealed class ViewTrashRepository(IDatabaseConnection database) : IViewTra
                                JOIN local_items li ON li.id = lif.item_id
                               WHERE li.personal_space_id = @personalSpaceId AND li.owner_profile_id = @ownerProfileId
                                 AND li.scope_kind = 'personal' AND li.trashed_at IS NOT NULL
-                                AND (@includeDocuments = 1 OR li.media_kind <> 'document'));
-            """, new { personalSpaceId, ownerProfileId, includeDocuments = includeDocuments ? 1 : 0 }, cancellationToken: ct));
+                                AND (@hasBlockedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @blockedKinds));
+            """, blocked, cancellationToken: ct));
 
         return Task.FromResult(new ViewTrashTotals(
             (int)counts.ItemCount, (int)counts.ImageCount, (int)counts.VideoCount,
@@ -57,7 +64,7 @@ public sealed class ViewTrashRepository(IDatabaseConnection database) : IViewTra
 
         // LEFT joins: an item with no file link, or a file with no indexed place, must still come back (with nothing under it).
         var rows = connection.Query<ItemFileRow>(new CommandDefinition("""
-            SELECT li.id AS ItemId, li.media_kind AS MediaKind, li.library_id AS LibraryId,
+            SELECT li.id AS ItemId, li.media_kind AS MediaKind, li.content_kind AS ContentKind, li.library_id AS LibraryId,
                    lif.file_id AS FileId, lif.role AS Role, lf.byte_size AS ByteSize,
                    lfs.id AS SourceRowId, lfs.source_id AS SourceId, lfs.file_path AS FilePath
               FROM local_items li
@@ -85,7 +92,7 @@ public sealed class ViewTrashRepository(IDatabaseConnection database) : IViewTra
                     fileGroup.Key.FileId, fileGroup.Key.Role ?? string.Empty, fileGroup.First().ByteSize ?? 0, sources));
             }
 
-            items.Add(new ViewTrashItem(first.ItemId, first.MediaKind, first.LibraryId, files));
+            items.Add(new ViewTrashItem(first.ItemId, first.MediaKind, first.LibraryId, files, first.ContentKind));
         }
 
         return Task.FromResult<IReadOnlyList<ViewTrashItem>>(items);
@@ -212,6 +219,7 @@ public sealed class ViewTrashRepository(IDatabaseConnection database) : IViewTra
     {
         public Guid ItemId { get; init; }
         public string MediaKind { get; init; } = string.Empty;
+        public string? ContentKind { get; init; }
         public Guid LibraryId { get; init; }
         public Guid? FileId { get; init; }
         public string? Role { get; init; }

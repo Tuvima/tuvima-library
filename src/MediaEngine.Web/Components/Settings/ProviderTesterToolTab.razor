@@ -170,7 +170,7 @@
                         <div class="tl-u-width-60px tl-u-height-60px tl-u-border-radius-8px tl-u-overflow-hidden tl-u-flex-shrink-0 tl-u-background-tl-divider">
                             @if (!string.IsNullOrEmpty(result.CoverUrl))
                             {
-                                <img src="@result.CoverUrl" alt="" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" loading="lazy" />
+                                <img src="@MediaTileArtworkUrl.ForDrawnSize(result.CoverUrl, 60)" alt="" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" loading="lazy" />
                             }
                             else
                             {
@@ -335,7 +335,7 @@
                             <div class="tl-u-width-60px tl-u-height-60px tl-u-border-radius-8px tl-u-overflow-hidden tl-u-flex-shrink-0 tl-u-background-tl-divider">
                                 @if (!string.IsNullOrEmpty(result.CoverUrl))
                                 {
-                                    <img src="@result.CoverUrl" alt="" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" loading="lazy" />
+                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(result.CoverUrl, 60)" alt="" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" loading="lazy" />
                                 }
                                 else
                                 {

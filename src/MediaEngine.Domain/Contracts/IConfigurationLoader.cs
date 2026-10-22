@@ -125,6 +125,14 @@ public interface IConfigurationLoader
     /// <summary>Persist media type definitions to <c>config/media_types.json</c>.</summary>
     void SaveMediaTypes(MediaTypeConfiguration config);
 
+    // ── Library Kinds ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Load the list of library kinds ("recipes") from <c>config/library_kinds.json</c>. A missing file means the kinds that ship
+    /// with the Library. Kinds a plugin adds are not part of this list; the Engine merges them in when it serves the list.
+    /// </summary>
+    LibraryKindsConfiguration LoadLibraryKinds() => new();
+
     // ── Library Folders ───────────────────────────────────────────────────
 
     /// <summary>Load library folder definitions from <c>config/libraries.json</c>.</summary>
@@ -192,6 +200,15 @@ public interface IConfigurationLoader
     /// <param name="subdirectory">Subdirectory within the config root (e.g. <c>"universe"</c>).</param>
     /// <param name="name">Filename stem without extension (e.g. <c>"wikidata"</c>).</param>
     T? LoadConfig<T>(string subdirectory, string name) where T : class;
+
+    /// <summary>
+    /// Load the library display preferences: this computer's <c>config/ui/library-preferences.json</c> when it has one,
+    /// otherwise the shipped <c>config/ui/library-preferences.defaults.json</c> (every media type offers "Show missing",
+    /// hidden until ticked). Returns <c>null</c> only when neither file exists.
+    /// </summary>
+    LibraryPreferencesSettings? LoadLibraryPreferences()
+        => LoadConfig<LibraryPreferencesSettings>("ui", "library-preferences")
+           ?? LoadConfig<LibraryPreferencesSettings>("ui", "library-preferences.defaults");
 
     /// <summary>
     /// Persist a typed configuration to a named subdirectory.

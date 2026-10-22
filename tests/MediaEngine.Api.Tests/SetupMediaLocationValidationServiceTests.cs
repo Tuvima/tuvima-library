@@ -186,6 +186,7 @@ public sealed class SetupMediaLocationValidationServiceTests
                         Name = "Media",
                         Category = "Movies",
                         Kind = LibraryKinds.Catalogued,
+                        KindKey = "movies",
                         Area = LibraryAreas.Watch,
                         Presentation = LibraryPresentations.Catalogue,
                         MetadataPolicy = LibraryMetadataPolicies.Enriched,

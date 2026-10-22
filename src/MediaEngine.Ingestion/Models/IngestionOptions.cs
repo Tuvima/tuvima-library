@@ -25,8 +25,22 @@ public sealed class LibraryFolderEntry
 
     public string MetadataPolicy { get; init; } = LibraryMetadataPolicies.Enriched;
 
-    /// <summary>Videos libraries: ask YouTube (by video ID only) about videos named with a YouTube ID.</summary>
+    /// <summary>The library kind (<c>library_kinds.json</c>) this library holds; empty for the Vault's own entries.</summary>
+    public string KindKey { get; init; } = string.Empty;
+
+    /// <summary>How the kind decides lookup: a plain kind never contacts anything, the YouTube kind asks YouTube, anything else follows the fields below.</summary>
+    public LibraryLookupMode LookupMode { get; init; } = LibraryLookupMode.FromFields;
+
+    /// <summary>Videos libraries with no kind: ask YouTube (by video ID only) about videos named with a YouTube ID. A kind overrides this (see <see cref="AsksYoutube"/>).</summary>
     public bool YoutubeLookup { get; init; } = true;
+
+    /// <summary>True when this library's videos may be looked up on YouTube: only the YouTube kind, or a library with no deciding kind whose own switch is on. Never a plain kind.</summary>
+    public bool AsksYoutube => LookupMode switch
+    {
+        LibraryLookupMode.Plain => false,
+        LibraryLookupMode.YouTube => true,
+        _ => YoutubeLookup,
+    };
 
     /// <summary>Deleting a title moves its files to the recycle bin instead of removing them from disk.</summary>
     public bool RecycleBin { get; init; }
@@ -86,8 +100,10 @@ public sealed class LibraryFolderEntry
     /// </summary>
     public bool ReadOnly => Sources.Count == 0 || Sources.All(source => !source.AllowsFileMutation);
 
+    /// <summary>True when no identity job, retail search, Wikidata bridge or artwork lookup may run for this library's files (a plain or YouTube kind, or a local-only or manual policy).</summary>
     public bool BypassesExternalIdentity =>
-        LibraryMetadataPolicies.BypassesExternalIdentity(MetadataPolicy);
+        LookupMode != LibraryLookupMode.FromFields
+        || LibraryMetadataPolicies.BypassesExternalIdentity(MetadataPolicy);
 }
 
 /// <summary>Runtime projection of one stable configured library source.</summary>

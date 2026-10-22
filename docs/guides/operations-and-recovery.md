@@ -49,26 +49,48 @@ A settled file count measures file work. It does not mean the whole run is finis
 2. Create a recovery point.
 3. Download a copy to another device or backup system.
 4. Choose **Test restore** for that point.
-5. Confirm the database and configuration archive passed validation.
+5. Confirm the test passed: it reads the whole recovery point and checks it, and it does not change anything.
 
 Above the recovery points, administrators see a read-only line such as "Data store version: step 3, upgraded on 2026-10-18". It names the latest upgrade step applied to the data store, which helps when asking for support. On a brand-new install it briefly says "setting up", and it is hidden when the Dashboard cannot reach the Engine.
 
-The archive contains a consistent SQLite snapshot, a manifest, and non-secret configuration. It excludes provider credentials, data-protection secrets, model files, artwork cache, transcodes, and original media. Back up originals and required host secrets separately.
+**What a recovery point holds.** Your settings and access (accounts, passkeys, profiles, grants, preferences, notification and backup settings, the collections and playlists you built), each person's own state (reading and watching positions, bookmarks, favourites, saved items) and the corrections you typed yourself, plus a manifest and the safe configuration files. It does **not** hold your media files or folders, artwork, the catalogue the Library rebuilds by scanning, provider credentials, the Engine's own encryption keys, model files or the adult-video catalogue. Back up your originals with your computer's own backup tool. A recovery point is not a copy of the data store file, and making one does not pause the Library.
 
-Test restore uses temporary storage, checks archive boundaries and SQLite integrity, then removes temporary files. It does not schedule or apply a restore.
+**What you see on the screen.** Under **Create backup** a plain note repeats what a backup holds and says media files and folders are not included, and one line says to keep the file somewhere safe because anyone with it can see your settings and sign in as you. There is no password option. When some of your items are known by their exact file only (no external ID), a warning bubble says how many ("38 items are matched by exact file only and may lose progress if the file changes."); it is hidden when there are none. After a backup is made the screen shows its file name and size. **Test restore** shows a short first look from the backup's own counts: how many profiles and your settings, how many items of progress, bookmarks and favourites (which come back as their titles are found again), and that media files and folders are not included. First-run setup shows the same first look when you choose a file. A file the Library refuses (an older layout, a damaged file) is explained in one sentence, as it is.
+
+**Keep the file safe.** Recovery points are never encrypted and have no password. Because the two-step sign-in secret and webhook secrets are kept readable (so a restore works on a new computer), a recovery point can be used to sign in as you. Keep it, and any destination you copy it to, as private as the Library itself.
+
+**The Vault catalogue is never in a recovery point.** A recovery point never holds a Vault library's videos, images, titles, file names, performers, studios, tags, artwork, matches or activity, and no log, activity note or search entry naming them. It keeps what you set up and what is personal to each person: which Vault libraries exist and their settings, each profile's Vault access mode and PIN (as a one-way hash, never the digits), account access grants, each person's view preferences, and each person's saved Vault bookmarks (kept against how to recognise the video, never its name). `libraries.json` is kept as it is, so the Vault library's name and folders come back and can be scanned again; that file therefore still names those folders.
+
+Test restore uses temporary storage, checks the recovery point exactly as a real restore would, then removes the temporary files. It does not schedule or apply a restore.
+
+**A recovery point from an older version can't be restored.** You will see "This backup is from an older version of the Library and can't be restored. Make a new backup with this version." A file that is damaged says "This backup file is damaged and can't be restored."
+
+## Bookmark pack files
+
+A bookmark pack is a small `.zip` file made from **Bookmarks → Saved → Export** in the video player. It follows the same conventions as a recovery point: a ZIP with a `manifest.json` (`schema_version`, `created_at`, `includes_secrets: false`) and one `pack/bookmarks.json`, and it is checked on the way in with the same refusals (unexpected entries, unsafe paths, oversized or over-compressed contents). Like a recovery point it has no password, because it holds nothing secret: only how to recognise the title (IMDb, TMDB, TVDB, Wikidata or YouTube IDs, running time and edition) and, for each bookmark you choose, its time, optional end, chapter name, short note and longer description. It never holds file paths, profile names or what anyone watched, and a Vault title cannot be exported at all. **Import** (in the same Saved list) checks the pack is for the title, tells you when it was made on a different cut and offers **Align by chapter** or **Skip**, then adds read-only pack bookmarks labelled with the pack's name and author. Each pack can be switched off or removed on its own.
 
 ## Copy backups to other places
 
-Under **Settings → Backup and recovery → Where backups go**, **Add a destination** copies each backup somewhere besides this computer: **Another folder** (such as an external drive), a **Network share** (a path such as `\\nas\backups`, or a mounted folder), **S3-compatible storage** (Amazon S3, MinIO, Backblaze B2, Wasabi) or **WebDAV** (Nextcloud and many NAS devices). Every copy that leaves this computer is encrypted with your backup passphrase first, so the destination only ever holds a sealed file, and each copy is read back and checked. A web destination asks you to agree to the exact address backups will be sent to. Its login is kept encrypted on this computer and is never shown again. Press **Test** to check a destination; for a network share the Library uses the access your computer already has, so mount or sign in to the share first.
+Under **Settings → Backup and recovery → Where backups go**, **Add a destination** copies each backup somewhere besides this computer: **Another folder** (such as an external drive), a **Network share** (a path such as `\\nas\backups`, or a mounted folder), **S3-compatible storage** (Amazon S3, MinIO, Backblaze B2, Wasabi) or **WebDAV** (Nextcloud and many NAS devices). Each destination receives the same plain backup file and each copy is read back and checked. Backups are never encrypted, so keep the destination somewhere only you can reach. A copy made by an older version (a `.tvbk` file) can no longer be restored. A web destination asks you to agree to the exact address backups will be sent to ("Send backups to ..."). Its login is kept encrypted on this computer and is never shown again. Press **Test** to check a destination; for a network share the Library uses the access your computer already has, so mount or sign in to the share first.
 
 ## Restore a recovery point
 
-1. Choose **Restore** and confirm the recovery point.
-2. Wait for validation and staging to succeed.
+1. Choose **Restore** and confirm the recovery point. The Library checks it first; nothing changes yet.
+2. Wait for "Restore checked and scheduled".
 3. Restart the Engine or container.
 4. Check the Dashboard, library access, and Operations.
 
-The staged restore applies before the data store opens at restart. Pre-restore database and configuration copies are retained beside replaced files. A restore does not replace the media files excluded from its archive.
+**What happens at the restart.** Your current Library is never deleted: the Engine puts its data store aside as a `pre-restore` copy beside the original (the file name ends `.pre-restore-<time>.bak`), puts back the safe configuration (each file it replaces is kept as `.pre-restore-<time>.bak`), starts a fresh Library and fills it from the recovery point. If filling it fails, the Engine still starts on the fresh Library, the log says where your previous data store was put aside, and the recovery point is kept so it can be tried again; nothing is lost.
+
+**What comes back at once.** Your settings, accounts, profiles, grants, PIN hashes, Vault libraries (empty) and preferences, and the people who can sign in, including two-step sign-in on a new computer.
+
+**What comes back as the titles come back.** Your progress, bookmarks, favourites, saved items and the corrections you typed belong to titles, and the restored Library has no titles until it has scanned your folders. The Engine keeps this state in a **waiting area** and, after each scan, puts it back on a title only when that title is clearly the same one (by its IDs, then by the exact file when it has no IDs). Nothing is guessed: a title that is not found, or that could be two things, keeps waiting. Saved Vault bookmarks wait the same way, by the video's Stash-box record or its exact file, and the Vault settings page (administrator, Vault mode on) shows how many still wait, never which. Imported bookmark packs on Vault videos are not kept (a pack can be imported again from its file). Vault mode being on is not kept, so everyone starts with it off after a restore.
+
+**After a restore.** Backup status shows one line while anything is still waiting and for a week after a restore: "12 items got their progress and bookmarks back. 4 are waiting for their files; they'll return if the files do, and are cleared after 90 days." When nothing is waiting it says only how many items got their progress back, and when nothing has come back yet it says only how many are waiting ("3 items are waiting for their files; they'll return if the files do, and are cleared after 90 days."). When both are zero there is no line. It never lists items. It stays quiet about the Vault: the counts are totals.
+
+**The waiting period.** State that is still waiting after 90 days is cleared (the same setting as Safer deleting, `missing_file_retention_days`; changing it affects state already waiting). Administrators on a computer or tablet can change it under **Settings → Backup and recovery → Restored progress → Keep restored progress waiting for**: 30, 60, 90 (the default), 180 or 365 days, saved as soon as you choose. A value set another way (7 to 3650 days) is shown as one more choice. A recovery point made while state is still waiting keeps it, with the time it started waiting, so a second restore does not restart the clock.
+
+A restore does not replace the media files excluded from the recovery point.
 
 ## When Tuvima upgrades its data store
 

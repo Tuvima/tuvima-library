@@ -14,13 +14,22 @@ internal sealed class CatalogueResourceAuthorizationService(
     IRequestAuthorityResolver authorities,
     IAccountAccessDecisionService accounts,
     IAuthorizationEvaluator evaluator,
-    IConfigurationLoader? configuration = null)
+    IConfigurationLoader? configuration = null,
+    TimeProvider? clock = null)
 {
-    // Built from the same data store connection, so every host that can authorize a catalogue request can also enforce the limit.
+    // Built from the same data store connection, so every host that can authorize a catalogue request can also enforce the
+    // limit and keep the Vault out of view.
     private ContentLimitPolicy? _contentLimits;
+    private VaultAccessResolver? _vaultAccess;
 
-    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database), configuration);
+    private VaultAccessResolver VaultAccess => _vaultAccess ??=
+        new(new VaultLibraryRepository(database), new NsfwAccessRepository(database), clock ?? TimeProvider.System);
 
+    private NsfwIdleKeeper? _idleKeeper;
+
+    private NsfwIdleKeeper IdleKeeper => _idleKeeper ??= new(new NsfwAccessRepository(database), clock ?? TimeProvider.System);
+
+    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database), VaultAccess, configuration);
 
     public async ValueTask<CatalogueResourceAccess> EvaluateArtworkLinkAsync(
         HttpContext context, Guid linkId, ApplicationPermissionId permission, CancellationToken ct = default)
@@ -86,15 +95,21 @@ internal sealed class CatalogueResourceAuthorizationService(
             return CatalogueResourceAccess.NotFound;
         }
 
+        // Files the request cannot know about (a Vault file without an unlocked Vault mode session) answer "not found". An entity whose
+        // files are all like that is itself not found, never forbidden.
+        var sawDenied = false;
         foreach (var assetId in candidates)
         {
-            if (await EvaluateAssetAsync(authority, assetId, applicationPermission, ct).ConfigureAwait(false) ==
-                CatalogueResourceAccess.Allowed)
+            var access = await EvaluateAssetAsync(authority, assetId, applicationPermission, ct).ConfigureAwait(false);
+            if (access == CatalogueResourceAccess.Allowed)
             {
+                await MarkVaultResponsePrivateAsync(context, authority, assetId, ct).ConfigureAwait(false);
                 return CatalogueResourceAccess.Allowed;
             }
+
+            sawDenied |= access == CatalogueResourceAccess.Denied;
         }
-        return CatalogueResourceAccess.Denied;
+        return sawDenied ? CatalogueResourceAccess.Denied : CatalogueResourceAccess.NotFound;
     }
 
     public async ValueTask<Guid?> FindAuthorizedAssetForWorkAsync(
@@ -156,7 +171,80 @@ internal sealed class CatalogueResourceAuthorizationService(
         CancellationToken ct = default)
     {
         var authority = await authorities.ResolveAsync(context, ct).ConfigureAwait(false);
-        return await EvaluateAssetAsync(authority, assetId, applicationPermission, ct).ConfigureAwait(false);
+        var access = await EvaluateAssetAsync(authority, assetId, applicationPermission, ct).ConfigureAwait(false);
+        if (access == CatalogueResourceAccess.Allowed)
+        {
+            await MarkVaultResponsePrivateAsync(context, authority, assetId, ct).ConfigureAwait(false);
+        }
+
+        return access;
+    }
+
+    /// <summary>The Cache-Control a response about a Vault item carries: never kept by a browser, proxy or device cache.</summary>
+    internal const string VaultCacheControl = "private, no-store";
+
+    /// <summary>
+    /// The central place the Vault's responses become uncacheable: every route that clears a request to reach a file asks here
+    /// first, so a stream, cover, page or detail served for a Vault file leaves nothing in a shared or disk cache that would
+    /// outlive the Vault mode session. The header is set now and again just before the response starts, so a route that sets its own
+    /// caching later cannot undo it.
+    /// </summary>
+    private async ValueTask MarkVaultResponsePrivateAsync(HttpContext context, RequestAuthority authority, Guid assetId, CancellationToken ct)
+    {
+        var vault = await VaultAccess.ResolveAsync(authority, ct).ConfigureAwait(false);
+        if (vault.VaultLibraryIds.Count == 0
+            || !await new VaultLibraryRepository(database).IsInVaultAsync(assetId, ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        // Real use of a Vault file (a stream range, a playback heartbeat, a cover, a detail read) keeps the unlocked session awake, so
+        // the idle lock never interrupts a video that is playing (Videos spec D33). Only a cleared, unlocked session gets here.
+        await KeepAwakeAsync(vault, authority, ct).ConfigureAwait(false);
+
+        ApplyVaultCacheControl(context.Response);
+        context.Response.OnStarting(static state =>
+        {
+            ApplyVaultCacheControl((HttpResponse)state);
+            return Task.CompletedTask;
+        }, context.Response);
+    }
+
+    /// <summary>
+    /// Real use of a Vault file that is not cleared through a request's own session, such as an adaptive-stream segment fetched with a
+    /// path-scoped grant, restarts the unlocked session's idle timer the same way (Videos spec D33). It does nothing for an ordinary
+    /// file, a locked session or any caller that is not a person on their own Dashboard session.
+    /// </summary>
+    public async ValueTask KeepVaultSessionAwakeAsync(RequestAuthority authority, Guid assetId, CancellationToken ct = default)
+    {
+        var vault = await VaultAccess.ResolveAsync(authority, ct).ConfigureAwait(false);
+        if (vault.VaultLibraryIds.Count == 0
+            || !await new VaultLibraryRepository(database).IsInVaultAsync(assetId, ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        await KeepAwakeAsync(vault, authority, ct).ConfigureAwait(false);
+    }
+
+    private async ValueTask KeepAwakeAsync(VaultVisibility vault, RequestAuthority authority, CancellationToken ct)
+    {
+        if (vault.Unlocked && authority.SessionId is { } sessionId && authority.ActiveProfileId is { } profileId)
+        {
+            await IdleKeeper.KeepAwakeAsync(sessionId, profileId, ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Marks one response as private and uncacheable. Used by every Vault-only route.</summary>
+    internal static void ApplyVaultCacheControl(HttpResponse response)
+    {
+        if (response.HasStarted)
+        {
+            return;
+        }
+
+        response.Headers.CacheControl = VaultCacheControl;
+        response.Headers.Pragma = "no-cache";
     }
 
     public async ValueTask<CatalogueResourceAccess> EvaluateAnyEntityAsync(
@@ -272,6 +360,14 @@ internal sealed class CatalogueResourceAuthorizationService(
             return CatalogueResourceAccess.NotFound;
         }
 
+        // A Vault file is absent, not forbidden, for anyone without an unlocked Vault mode session (Videos spec D17): the answer is the
+        // same one a file that does not exist gets, before any grant, feature or application permission is looked at.
+        var vault = await VaultAccess.ResolveAsync(authority, ct).ConfigureAwait(false);
+        if (vault.HidesLibrary(resource.LibraryId))
+        {
+            return CatalogueResourceAccess.NotFound;
+        }
+
         if (!Guid.TryParse(resource.LibraryId, out var libraryId) || libraryId == Guid.Empty)
         {
             return CatalogueResourceAccess.Denied;
@@ -311,10 +407,13 @@ internal sealed class CatalogueResourceAuthorizationService(
         if (feature is null || !(await accounts.EvaluateFeatureAsync(
                 authority, feature.Value, ct).ConfigureAwait(false)).IsAllowed)
         {
-            return CatalogueResourceAccess.Denied;
+            // A Vault file never confirms it exists to a caller who may not watch: same answer as a missing file.
+            return vault.IsVaultLibrary(resource.LibraryId) ? CatalogueResourceAccess.NotFound : CatalogueResourceAccess.Denied;
         }
 
-        if (!(await accounts.EvaluateLibraryAsync(authority, libraryId, ct).ConfigureAwait(false)).IsAllowed)
+        // Vault access is the device session's Vault mode (already checked above), not an account's library grants.
+        if (!vault.IsVaultLibrary(resource.LibraryId)
+            && !(await accounts.EvaluateLibraryAsync(authority, libraryId, ct).ConfigureAwait(false)).IsAllowed)
         {
             return CatalogueResourceAccess.Denied;
         }

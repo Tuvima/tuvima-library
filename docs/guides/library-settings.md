@@ -13,20 +13,22 @@ Use Settings in Tuvima Library to add folders and check background work. This fi
 
 ## Choose how a folder is handled
 
-Libraries is one screen: **Settings > Libraries**. The seven media types (Books, Audiobooks, Movies, TV Shows, Music, Comics, Videos) are always listed, with the Import folder as an extra entry. There is no separate Library settings page.
+Libraries is **Settings > Libraries**, in three levels: Watch, Listen, Read and View, then the types in each (Books, Audiobooks, Movies, TV Shows, Music, Comics, Videos, Photos, Personal videos and Documents), with the Import folder as an extra entry. There is no separate Library settings page.
 
-1. Open **Settings > Libraries** with admin access and choose a media type.
-2. Choose **Add folder** and pick the folder.
-   - Paste or type a path into the full-width path box, then press Enter or **Go**.
+1. Open **Settings > Libraries** with admin access and choose **+ Add folder** (on the front door, on a group's page, or **Add Folder** on a type's page). A short three-step dialog opens: **What is it?**, **Folder**, then **How**. Opening it from a type's page skips the first step.
+   - **What is it?** Pick Watch, Listen, Read or View, then the kind. The (i) beside each kind says what belongs there. Choosing View takes you to View's own add-folder form.
+2. In the **Folder** step, pick the folder.
+   - The address bar shows the folder as clickable names. Click a name to go there, or the small arrow after it to jump to a folder inside it. Click the empty end of the bar to type or paste a full path instead, then press Enter (Esc puts the names back).
    - Single-click a folder to select it, and double-click to open it.
-   - Use **Back**, **Forward**, **Up** or the breadcrumbs to move around, and the folder search to find a folder by name.
+   - Use **Back**, **Forward**, **Up** and the folder search to find a folder by name.
    - **Selected path** shows what you picked, with a copy button.
-   - Media locations are listed before drives. Only folders are listed, the Library's own folders never appear, and **Add** turns on when the folder is valid.
+   - Media locations are listed before drives. Only folders are listed, the Library's own folders never appear, and **Next** turns on when the folder is valid.
+   - A Watch folder that looks like untouched phone footage (for example `DCIM` with `IMG_` files) gets a hint with **Add to View instead**. Nothing is saved until the last step.
    - Paths are shown as the server sees them. On Docker that means paths inside the container, such as `/library`, not paths on your computer.
    - If a path does not exist, the picker says so in plain words.
-   - Every folder asks **Videos (Watch)** or **Photos and videos (View)**. A folder that looks like untouched phone footage (for example `DCIM` with `IMG_` files) is suggested for View. Choosing Videos turns on the optional YouTube lookup and the **OK for limited profiles** switch; removing a Videos folder never touches the files.
+   - Choosing the YouTube kind looks videos up on YouTube by their ID; the Videos (Other videos) kind never looks anything up. There is no YouTube switch: the kind decides. Videos libraries also have the **OK for limited profiles** switch; removing a Videos folder never touches the files.
    - Every library type has a **Recycle bin** switch (on for Videos). With it on, a deleted file is kept in Library's own data folder instead of being removed straight away. Settings lists what is waiting there; **Put back** returns a file to where it was (nothing is ever overwritten) and **Empty recycle bin** removes everything for good.
-3. If the folder already has files, choose **Use read-only** (recommended), **Merge into** a managed folder, or **Let Tuvima manage it**.
+3. In the **How** step, if the folder already has files, choose **Read-only** (recommended), **Merge into your managed folder**, or **Let Library manage it**. An empty folder only asks whether new media should go there. **Add folder** saves it; the dialog then offers **Go to** the type or **Add another**.
 
 Every folder is handled one of two ways:
 
@@ -42,6 +44,32 @@ Keep music album folders intact. Tuvima uses tags or fingerprints to identify mu
 ## Advanced settings
 
 Each type has an **Advanced** section with its naming template (**Naming template**, **Apply template**) and **Update tags inside files** (only affects managed folders). The section **File handling for every type** holds the library-wide rules **When the same file arrives twice** (**Keep one copy** or **Keep both**) and **Embed artwork in files**.
+
+### When changes reach your files
+
+Library saves every change straight away, so what you see in Library is always up to date. Writing those changes into the files themselves (tags in music, books, comics and videos, embedded artwork, and the profile name in View files) waits for one to-do list. Library works through that list in one pass on a schedule: every **60 minutes** by default. You can change the interval in **Settings > Libraries > Advanced** ("Write changes into files every [60] minutes", from 1 to 1,440 minutes).
+
+A later change to the same file replaces the earlier one, so each file is written once per run with its final values.
+
+The panel shows:
+
+- **N files waiting · Last run 10:00 · Next run 11:00**, or **All files are up to date** when the list is empty.
+- **Writing 240 of 1,200 files…** while a run is going.
+- **3 files couldn't be written**, with the list of files and the reason for each.
+- **Write now** (administrators, on a desktop) starts a run at once. Phones show the status only.
+
+If ExifTool is missing, the panel says **Photos, videos and PDFs in View are waiting for ExifTool**, with a link to **Settings > Tools and requirements**. With **Update tags inside files** (or write-back) turned off, nothing is queued and the schedule is hidden.
+
+- A file that is busy, on an unplugged drive or read-only stays on the list for the next run.
+- A file that can't hold tags is **kept in Library only** and is not retried.
+- Restarting the Engine loses nothing. The list is kept.
+- A file you copy out of Library before the next run may not carry the latest tags yet. This is the accepted cost of batching.
+
+**Moving a title** to another library moves its file straight away, so folders always match Library. Only its tags wait for the run. A move interrupted by a crash or power cut is finished or undone at the next start, so the file is never in two places or in none. If the drive is unplugged, the move waits until the drive is back. See [how libraries and intake work](../architecture/library-model-and-intake.md).
+
+If a file was edited in another app after its write was queued, Library reads it again first. Your own locked fields still win.
+
+The editor's **Files** card shows **Changes waiting to be written to the file · next run 11:00**, or the reason the last write failed.
 
 ## Convert a folder to Managed
 

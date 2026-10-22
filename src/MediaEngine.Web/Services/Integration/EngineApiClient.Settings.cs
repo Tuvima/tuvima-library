@@ -11,6 +11,7 @@ using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Profiles;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Contracts.WriteBack;
 using MediaEngine.Domain.Models;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Branding;
@@ -29,6 +30,46 @@ public sealed partial class EngineApiClient
 
     public Task<ToolRequirementsDto?> CheckToolRequirementsAsync(CancellationToken ct = default) =>
         PostAsync<object?, ToolRequirementsDto>("POST /settings/tools/check", "/settings/tools/check", null, ct: ct);
+
+    // -- /settings/writeback (batched file writes) ----------------------------------
+
+    public Task<FileWriteScheduleDto?> GetFileWriteScheduleAsync(CancellationToken ct = default) =>
+        GetAsync<FileWriteScheduleDto>("GET /settings/writeback/schedule", "/settings/writeback/schedule", ct: ct);
+
+    public Task<FileWriteScheduleDto?> UpdateFileWriteScheduleAsync(int intervalMinutes, CancellationToken ct = default) =>
+        PutAsync<UpdateFileWriteScheduleDto, FileWriteScheduleDto>(
+            "PUT /settings/writeback/schedule", "/settings/writeback/schedule",
+            new UpdateFileWriteScheduleDto { IntervalMinutes = intervalMinutes }, ct: ct);
+
+    public async Task<FileWriteRunResult> StartFileWriteRunAsync(CancellationToken ct = default)
+    {
+        const string path = "/settings/writeback/run";
+        try
+        {
+            using var response = await _http.PostAsync(path, null, ct);
+            if (response.IsSuccessStatusCode)
+            {
+                return new(true, await response.Content.ReadFromJsonAsync<FileWriteScheduleDto>(cancellationToken: ct));
+            }
+
+            // 409 (already running, or write-back off) carries a plain sentence for the person; 403 means not an administrator.
+            return new(false, Message: response.StatusCode == HttpStatusCode.Forbidden
+                ? "Only an administrator can write changes into files now."
+                : await ReadViewErrorAsync(response, ct));
+        }
+        catch (OperationCanceledException) { return new(false, Message: "That was canceled."); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST {Path} failed", path);
+            return new(false, Message: "The Library could not start writing. Check that the server is online and try again.");
+        }
+    }
+
+    public Task<IReadOnlyList<FailedFileWriteDto>> GetFailedFileWritesAsync(CancellationToken ct = default) =>
+        GetAsync<IReadOnlyList<FailedFileWriteDto>>("GET /settings/writeback/failed", "/settings/writeback/failed", () => [], ct: ct);
+
+    public Task<AssetFileWriteStatusDto?> GetAssetFileWriteStatusAsync(Guid assetId, CancellationToken ct = default) =>
+        GetAsync<AssetFileWriteStatusDto>("GET /metadata/assets/{assetId}/file-write", $"/metadata/assets/{assetId}/file-write", ct: ct);
 
     // -- /settings/notices -------------------------------------------------------
 
@@ -409,6 +450,9 @@ public sealed partial class EngineApiClient
 
     public Task<LibrariesConfigurationDto?> MutateLibraryAsync(LibraryMutationRequest request, CancellationToken ct = default) =>
         PostAsync<LibraryMutationRequest, LibrariesConfigurationDto>("POST /settings/libraries/mutations", "/settings/libraries/mutations", request, ct: ct);
+
+    public async Task<IReadOnlyList<LibraryKindDto>?> GetLibraryKindsAsync(CancellationToken ct = default) =>
+        await GetAsync<List<LibraryKindDto>>("GET /settings/library-kinds", "/settings/library-kinds", ct: ct);
 
     public Task<ViewStorageSummaryDto?> GetViewStorageSummaryAsync(CancellationToken ct = default) =>
         GetAsync<ViewStorageSummaryDto>("GET /settings/libraries/view-summary", "/settings/libraries/view-summary", ct: ct);

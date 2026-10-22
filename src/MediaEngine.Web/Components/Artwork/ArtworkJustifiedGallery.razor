@@ -47,11 +47,11 @@
                 }
                 @if (!string.IsNullOrWhiteSpace(ImageUrl(item)) && !_failedPreviews.Contains(ImageUrl(item)))
                 {
-                <img src="@ImageUrl(item)"
+                <img src="@MediaTileArtworkUrl.ForDrawnSize(ImageUrl(item), DrawnPx(item))"
+                     srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ImageUrl(item), DrawnPx(item))"
                      alt="" @onerror="@(() => _failedPreviews.Add(ImageUrl(item)))"
                      loading="lazy"
                      decoding="async"
-                     sizes="(max-width: 720px) 42vw, (max-width: 1400px) 32vw, 480px"
                      data-image-display="artwork-justified-gallery" />
                 }
                 else { <span class="artwork-justified-gallery__no-preview"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />Preview unavailable</span> }
@@ -96,6 +96,9 @@
     private bool IsPanorama(TItem item) => AspectRatio(item) >= 2.75;
 
     private string CardStyle(TItem item) => $"--artwork-gallery-aspect:{AspectRatio(item).ToString("0.###", CultureInfo.InvariantCulture)}";
+
+    // Card height is 11.5rem (184px) and its width follows the aspect up to 36rem (576px), so the long side is the wider of the two (ArtworkJustifiedGallery.razor.css).
+    private int DrawnPx(TItem item) => (int)Math.Min(576d, Math.Ceiling(184d * Math.Max(1d, AspectRatio(item))));
 
     private double AspectRatio(TItem item)
     {

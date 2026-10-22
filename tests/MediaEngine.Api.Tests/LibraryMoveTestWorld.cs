@@ -319,6 +319,7 @@ internal sealed class LibraryMoveTestWorld : IDisposable
 
     public void Dispose()
     {
+        Files?.Dispose();
         Cache.Dispose();
         try { Directory.Delete(Root, recursive: true); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { _ = ex; }
         TestTemp.ReleaseSqlitePool(_databasePath);

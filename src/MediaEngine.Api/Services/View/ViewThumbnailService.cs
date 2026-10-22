@@ -54,13 +54,40 @@ public sealed class ViewThumbnailService(
             itemId, source, maximumEdge, maximumEdge <= MaximumEdge ? "thumbnail" : "preview", ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// The same managed derivatives for a Vault image (Videos spec D44), kept in a folder of their own apart from View's. It makes only
+    /// the sizes in <see cref="ThumbnailEdges"/> and <see cref="PreviewEdges"/>, never uses FFmpeg (whose messages can name a file), and
+    /// logs only the item id and the kind of error, never a file name or path.
+    /// </summary>
+    public async Task<string?> GetOrCreateVaultSizedAsync(
+        Guid itemId,
+        LocalAssetContentLocation source,
+        int maximumEdge,
+        CancellationToken ct = default)
+    {
+        if (!ThumbnailEdges.Contains(maximumEdge) && !PreviewEdges.Contains(maximumEdge))
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumEdge), "That derivative size is not offered.");
+        }
+
+        return await GetOrCreateAsync(
+            itemId, source, maximumEdge, maximumEdge <= MaximumEdge ? "thumbnail" : "preview", ct, VaultArea).ConfigureAwait(false);
+    }
+
+    /// <summary>The folder name Vault derivatives are kept under.</summary>
+    public const string VaultArea = "vault-image";
+
+    private const string ViewArea = "local-item";
+
     private async Task<string?> GetOrCreateAsync(
         Guid itemId,
         LocalAssetContentLocation source,
         int maximumEdge,
         string purpose,
-        CancellationToken ct)
+        CancellationToken ct,
+        string area = ViewArea)
     {
+        var isVault = area == VaultArea;
         if (itemId == Guid.Empty
             || (!source.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
                 && !source.MimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
@@ -71,7 +98,7 @@ public sealed class ViewThumbnailService(
         }
 
         var target = assetPaths.GetCentralDerivedPath(
-            "local-item",
+            area,
             itemId,
             purpose,
             $"{purpose}-{maximumEdge}.jpg");
@@ -110,19 +137,37 @@ public sealed class ViewThumbnailService(
             var decoded = false;
             try { decoded = await Task.Run(() => GenerateImage(source.FilePath, target, maximumEdge), ct).ConfigureAwait(false); }
             catch (Exception ex) when (ex is not OperationCanceledException)
-            { logger.LogDebug(ex, "Native decoder could not read View item {ItemId}; trying FFmpeg", itemId); }
+            {
+                if (isVault)
+                {
+                    logger.LogDebug("Native decoder could not read Vault image {ItemId} ({Kind})", itemId, ex.GetType().Name);
+                }
+                else
+                {
+                    logger.LogDebug(ex, "Native decoder could not read View item {ItemId}; trying FFmpeg", itemId);
+                }
+            }
             if (decoded)
             {
                 return target;
             }
 
-            return await GenerateImageWithFfmpegAsync(source.FilePath, target, maximumEdge, ct).ConfigureAwait(false)
+            // FFmpeg's own messages can carry the file's name, so a Vault image never goes through it.
+            return !isVault && await GenerateImageWithFfmpegAsync(source.FilePath, target, maximumEdge, ct).ConfigureAwait(false)
                 ? target
                 : null;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            logger.LogWarning(exception, "Could not create the managed View thumbnail for item {ItemId}.", itemId);
+            if (isVault)
+            {
+                logger.LogWarning("Could not create the managed Vault thumbnail for item {ItemId} ({Kind}).", itemId, exception.GetType().Name);
+            }
+            else
+            {
+                logger.LogWarning(exception, "Could not create the managed View thumbnail for item {ItemId}.", itemId);
+            }
+
             return null;
         }
         finally

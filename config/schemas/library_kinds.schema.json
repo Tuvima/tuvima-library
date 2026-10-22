@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tuvima library kinds",
+  "description": "The one list of library kinds (types of library) every screen is drawn from. Plugins can add kinds; see docs/guides/building-a-plugin.md.",
+  "type": "object",
+  "required": ["version", "kinds"],
+  "properties": {
+    "version": { "type": "string", "minLength": 1 },
+    "kinds": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/kind" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "kind": {
+      "type": "object",
+      "required": ["key", "area", "label", "icon", "format", "lookup", "grouping", "misfit", "default_handling", "tooltip", "order"],
+      "properties": {
+        "key": { "type": "string", "maxLength": 64, "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$" },
+        "area": { "enum": ["watch", "listen", "read", "view", "vault"] },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "icon": { "type": "string", "minLength": 1 },
+        "format": { "enum": ["Movies", "TV", "Videos", "Music", "Audiobooks", "Books", "Comics", null] },
+        "lookup": {
+          "oneOf": [
+            { "const": "none" },
+            {
+              "type": "object",
+              "required": ["providers"],
+              "properties": {
+                "providers": { "type": "array", "maxItems": 12, "items": { "type": "string", "minLength": 1 } }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "grouping": {
+          "enum": ["movie", "tv_show_season", "music_album", "audiobook", "book_series", "comic_series", "video_series_folder", "folder_and_tags", "view_gallery"]
+        },
+        "naming_template": { "type": ["string", "null"] },
+        "misfit": { "enum": ["unmatched", "keep"] },
+        "default_handling": { "enum": ["read_only", "managed"] },
+        "tooltip": { "type": "string", "maxLength": 300 },
+        "order": { "type": "integer", "minimum": 0 },
+        "built_in": { "type": "boolean" },
+        "available": { "type": "boolean" },
+        "allows_multiple": { "type": "boolean" },
+        "max_libraries": { "type": "integer", "minimum": 1, "maximum": 20 }
+      },
+      "if": { "properties": { "format": { "type": "string" } }, "required": ["format"] },
+      "then": { "required": ["naming_template"], "properties": { "naming_template": { "type": "string", "minLength": 1 } } },
+      "additionalProperties": true
+    }
+  }
+}

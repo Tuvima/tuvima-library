@@ -1,0 +1,14 @@
+.vault-scene { display: grid; gap: 16px; padding: 24px 16px; max-width: 1100px; margin: 0 auto; }
+.vault-scene__back { color: inherit; display: inline-flex; align-items: center; min-height: 44px; }
+.vault-scene__top { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.vault-scene__facts { display: grid; gap: 12px; align-content: start; }
+.vault-scene__title { margin: 0; overflow-wrap: anywhere; }
+.vault-scene__list { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; }
+.vault-scene__list dt { color: var(--tl-text-muted); }
+.vault-scene__list dd { margin: 0; overflow-wrap: anywhere; }
+.vault-scene__description, .vault-scene__note { margin: 0; max-width: 70ch; }
+.vault-scene__note { color: var(--tl-text-muted); }
+.vault-scene__names h2 { margin: 0 0 4px; font-size: 1rem; }
+.vault-scene__names p { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.vault-scene__name { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid currentColor; color: inherit; text-decoration: none; }
+@media (min-width: 840px) { .vault-scene__top { grid-template-columns: minmax(0, 480px) minmax(0, 1fr); } }

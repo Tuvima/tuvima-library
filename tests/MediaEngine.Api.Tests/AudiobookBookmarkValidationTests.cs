@@ -34,4 +34,33 @@ public sealed class AudiobookBookmarkValidationTests
         Assert.False(PlayerService.TryNormalizeAudiobookBookmarkRequest(
             request with { Note = new string('x', 201) }, out _, out _));
     }
+
+    [Fact]
+    public void RequestNormalization_TrimsTheLongerDescriptionAndRefusesMoreThanFourThousandCharacters()
+    {
+        var request = new CreateAudiobookBookmarkRequestDto
+        {
+            AssetId = Guid.NewGuid(),
+            PositionSeconds = 750,
+            DurationSeconds = 7200,
+            Note = "short",
+            Description = "  A longer description.\nWith two lines.  ",
+            IsGlobal = true,
+        };
+
+        Assert.True(PlayerService.TryNormalizeAudiobookBookmarkRequest(request, out var normalized, out var error));
+        Assert.Null(error);
+        Assert.Equal("A longer description.\nWith two lines.", normalized!.Description);
+        Assert.True(normalized.IsGlobal);
+
+        Assert.True(PlayerService.TryNormalizeAudiobookBookmarkRequest(
+            request with { Description = new string('d', 4000) }, out _, out _));
+        Assert.False(PlayerService.TryNormalizeAudiobookBookmarkRequest(
+            request with { Description = new string('d', 4001) }, out _, out var tooLong));
+        Assert.Contains("4000", tooLong);
+
+        Assert.True(PlayerService.TryNormalizeAudiobookBookmarkRequest(
+            request with { Description = "   " }, out var blank, out _));
+        Assert.Null(blank!.Description);
+    }
 }

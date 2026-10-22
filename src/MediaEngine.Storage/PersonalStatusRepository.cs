@@ -56,7 +56,7 @@ public sealed class PersonalStatusRepository(IDatabaseConnection db) : IPersonal
             JOIN media_assets ma ON ma.id=woa.asset_id
             LEFT JOIN user_states us ON us.asset_id=ma.id AND us.user_id=@profile
             WHERE ma.status='Normal' AND ma.is_orphaned=0
-            AND (@unrestricted=1 OR ma.id IN @allowedAssets) AND (
+            AND (@unrestricted=1 OR ma.id IN (SELECT unhex(value) FROM json_each(@allowedAssets))) AND (
                 (@media NOT IN ('Books','Audiobooks') AND w.media_type=@media)
                 OR (@media IN ('Books','Audiobooks') AND w.media_type IN ('Books','Audiobooks')
                     AND CASE WHEN lower(ma.file_path_root) LIKE '%.m4b' OR lower(ma.file_path_root) LIKE '%.m4a'
@@ -71,7 +71,9 @@ public sealed class PersonalStatusRepository(IDatabaseConnection db) : IPersonal
             profile,
             media = target.MediaType.ToString(),
             unrestricted = target.AuthorizedAssetIds is null ? 1 : 0,
-            allowedAssets = (target.AuthorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
+            // One JSON list, not one parameter per file: a show, album or series page passes every file the profile may see,
+            // and binding thousands of values took 0.4 s at 4,000 works (B29).
+            allowedAssets = GuidSql.ToJsonHexArray(target.AuthorizedAssetIds ?? new HashSet<Guid>())
         }, tx).ToList();
     }
     private static string Revision(IEnumerable<UserState> states) => Convert.ToHexString(SHA256.HashData(

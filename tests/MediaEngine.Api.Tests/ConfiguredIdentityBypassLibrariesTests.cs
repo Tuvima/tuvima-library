@@ -35,6 +35,19 @@ public sealed class ConfiguredIdentityBypassLibrariesTests
         Assert.Empty(resolver.GetLibraryIds());
     }
 
+    [Fact]
+    public void APlainKindLibrary_IsListedWhateverItsPolicyField_AndALookupKindIsNot()
+    {
+        var loader = new LibrariesOnlyLoader(
+            new LibraryFolderConfig { Id = "audio", Name = "Recordings", KindKey = "other_audio", MetadataPolicy = LibraryMetadataPolicies.Enriched },
+            new LibraryFolderConfig { Id = "reading", Name = "Loose books", KindKey = "other_reading", MetadataPolicy = LibraryMetadataPolicies.Enriched },
+            new LibraryFolderConfig { Id = "movies", Name = "Movies", KindKey = "movies", MetadataPolicy = LibraryMetadataPolicies.Enriched });
+
+        var ids = new ConfiguredIdentityBypassLibraries(loader).GetLibraryIds();
+
+        Assert.Equal(["audio", "reading"], ids.Order().ToArray());
+    }
+
     private static LibraryFolderConfig Library(string id, string policy) =>
         new() { Id = id, Name = id, MetadataPolicy = policy };
 

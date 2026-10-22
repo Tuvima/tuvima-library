@@ -73,7 +73,60 @@ public sealed class MetadataClaimHistoryReadServiceTests : IDisposable
         Assert.Empty(result);
     }
 
-    private Guid SeedAsset(Guid workId)
+    // WP17 part C: the claims of a Vault file or of a work with a file in the Vault are never shown; the answer is the one an unknown id gets.
+    [Fact]
+    public async Task GetClaimHistoryAsync_AnswersAVaultAssetAndItsWorkLikeAnUnknownId()
+    {
+        var vaultWork = Guid.NewGuid();
+        var vaultAsset = SeedVaultAsset(vaultWork);
+        await AddClaimAsync(vaultAsset, "title", "Secret title", 0.9, DateTimeOffset.UtcNow);
+        var ordinaryWork = Guid.NewGuid();
+        var ordinaryAsset = SeedAsset(ordinaryWork);
+        await AddClaimAsync(ordinaryAsset, "title", "Ordinary title", 0.9, DateTimeOffset.UtcNow);
+        var service = new MetadataClaimHistoryReadService(_claimRepo, _db);
+
+        Assert.Empty(await service.GetClaimHistoryAsync(vaultAsset, CancellationToken.None));
+        Assert.Empty(await service.GetClaimHistoryAsync(vaultWork, CancellationToken.None));
+        Assert.Empty(await service.GetClaimHistoryAsync(Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal("Ordinary title", Assert.Single(await service.GetClaimHistoryAsync(ordinaryAsset, CancellationToken.None)).ClaimValue);
+        Assert.Equal("Ordinary title", Assert.Single(await service.GetClaimHistoryAsync(ordinaryWork, CancellationToken.None)).ClaimValue);
+    }
+
+    [Fact]
+    public async Task GetClaimHistoryAsync_AWorkWithOneFileInTheVault_IsHiddenAsAWhole()
+    {
+        var mixedWork = Guid.NewGuid();
+        var ordinaryAsset = SeedAsset(mixedWork);
+        var vaultAsset = SeedVaultAsset(mixedWork);
+        await AddClaimAsync(ordinaryAsset, "title", "Shared work title", 0.9, DateTimeOffset.UtcNow);
+        await AddClaimAsync(vaultAsset, "title", "Secret file title", 0.9, DateTimeOffset.UtcNow);
+        var service = new MetadataClaimHistoryReadService(_claimRepo, _db);
+
+        Assert.Empty(await service.GetClaimHistoryAsync(mixedWork, CancellationToken.None));
+        Assert.Empty(await service.GetClaimHistoryAsync(vaultAsset, CancellationToken.None));
+    }
+
+    private const string VaultLibraryId = "vault-library-for-claims";
+
+    private void EnsureVaultLibrary()
+    {
+        const string vaultLibrary = VaultLibraryId;
+        using var conn = _db.CreateConnection();
+        Dapper.SqlMapper.Execute(conn,
+            """
+            INSERT OR IGNORE INTO vault_libraries (library_id, lookup_source, adults_confirmed_at, created_at, updated_at)
+            VALUES (@vaultLibrary, 'none', '2026-10-21T12:00:00Z', '2026-10-21T12:00:00Z', '2026-10-21T12:00:00Z');
+            """,
+            new { vaultLibrary });
+    }
+
+    private Guid SeedVaultAsset(Guid workId)
+    {
+        EnsureVaultLibrary();
+        return SeedAsset(workId, VaultLibraryId);
+    }
+
+    private Guid SeedAsset(Guid workId, string? libraryId = null)
     {
         using var conn = _db.CreateConnection();
         using var cmd = conn.CreateCommand();
@@ -84,14 +137,15 @@ public sealed class MetadataClaimHistoryReadServiceTests : IDisposable
             VALUES ($workId, 'Books', 'standalone');
             INSERT INTO editions (id, work_id)
             VALUES ($editionId, $workId);
-            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
-            VALUES ($assetId, $editionId, $hash, $path);
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, library_id)
+            VALUES ($assetId, $editionId, $hash, $path, $library);
             """;
         AddGuid(cmd, "$workId", workId);
         AddGuid(cmd, "$editionId", editionId);
         AddGuid(cmd, "$assetId", assetId);
         cmd.Parameters.AddWithValue("$hash", Guid.NewGuid().ToString("N"));
         cmd.Parameters.AddWithValue("$path", $"C:/library/{assetId:N}.epub");
+        cmd.Parameters.AddWithValue("$library", (object?)libraryId ?? DBNull.Value);
         cmd.ExecuteNonQuery();
         return assetId;
     }

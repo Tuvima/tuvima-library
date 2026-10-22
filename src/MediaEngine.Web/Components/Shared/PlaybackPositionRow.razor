@@ -16,7 +16,7 @@
             <span class="playback-position-row__leading" aria-hidden="true">
                 @if (!string.IsNullOrWhiteSpace(ArtworkUrl))
                 {
-                    <img src="@SizedArtwork" srcset="@ArtworkSrcSet" sizes="54px" alt="" loading="lazy" data-image-display="playback-position-thumbnail" />
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(ArtworkUrl, LeadingArtworkPx)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ArtworkUrl, LeadingArtworkPx)" alt="" loading="lazy" decoding="async" data-image-display="playback-position-thumbnail" />
                     @if (IsCurrent) { <span class="playback-position-row__activity"><PlaybackActivityMark IsPlaying="@IsPlaying" /></span> }
                 }
                 else if (!string.IsNullOrWhiteSpace(LeadingText))
@@ -139,8 +139,8 @@
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private bool HasLeading => !string.IsNullOrWhiteSpace(LeadingIcon) || !string.IsNullOrWhiteSpace(ArtworkUrl) || !string.IsNullOrWhiteSpace(LeadingText) || IsCurrent;
-    private string? SizedArtwork => MediaTileArtworkUrl.Sized(ArtworkUrl, "s") ?? ArtworkUrl;
-    private string? ArtworkSrcSet => MediaTileArtworkUrl.SrcSet(MediaTileArtworkUrl.Sized(ArtworkUrl, "s"), MediaTileArtworkUrl.Sized(ArtworkUrl, "m"));
+    // The thumbnail is drawn 48px square (PlaybackPositionRow.razor.css).
+    private const int LeadingArtworkPx = 48;
 
     private bool HasSecondaryAction => OnSecondaryActionClick.HasDelegate;
 

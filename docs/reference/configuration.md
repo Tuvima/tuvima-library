@@ -177,7 +177,7 @@ Default strategies:
 - **Cascade:** Books
 - **Sequential:** Audiobooks, Music
 
-The catalogued media types (Books, Audiobooks, Movies, TV, Music, Comics) must have at least one provider entry. Videos needs none: it is identified from local files, and its optional YouTube lookup is the `youtube` provider.
+The catalogued media types (Books, Audiobooks, Movies, TV, Music, Comics) must have at least one provider entry. Videos needs none: it is identified from local files, and the YouTube lookup (the `youtube` provider) runs only for a library of the YouTube kind. Plain kinds (Other videos, Other audio, Other reading) never contact any outside service: no retail search, Wikidata, artwork, lyrics, subtitle or YouTube request is made for their files.
 
 Music is configured as a sequential Stage 1 chain: MusicBrainz has `purpose: "identity"` and Apple API has `purpose: "enrichment"`. That means MusicBrainz owns track, album, artist, release, and recording identity fields when available, while Apple can still win configured enrichment fields such as cover art, genre, storefront IDs, year, and retail metadata. This is a configuration rule, not a music-specific provider-order branch in orchestration code.
 
@@ -233,10 +233,12 @@ Defines the clean schema 7 library model used by **Settings > Libraries**. The r
 | `name` | string | Configuration/admin name. For View, the profile-facing identity is the Personal Space, not this library record. |
 | `category` | string? | Structured subtype such as Books, Movies, TV, Music, Audiobooks, or Comics. Personal libraries may omit it. |
 | `kind` | string | Exactly `catalogued` or `personal`. |
-| `area` | string | `read`, `watch`, `listen`, or `view`. |
+| `kind_key` | string | The library kind (an entry in `config/library_kinds.json`, for example `movies` or `other_videos`) this library holds. Required for catalogued libraries; it must name a kind that exists, and `media_types` must include that kind's `format`. Kinds a plugin supplies are checked by the Engine against the full list (plugin kinds included) where a library is saved. |
+| `area` | string | `read`, `watch`, `listen`, `view`, or `vault`. |
 | `presentation` | string | Catalogue, gallery, mixed gallery, timeline, video, documents, audio, or mixed presentation. |
-| `metadata_policy` | string | `enriched`, `local_preferred`, `local_only`, or `manual`. The last two bypass external identity/provider work. |
-| `media_types` | string[] | Structured media types expected by catalogued libraries. A View Personal Space may index mixed local media through its backing personal library. Each media type may belong to only one catalogued library; the Engine rejects a change that adds a second one (older duplicates already saved are tolerated). |
+| `metadata_policy` | string | `enriched`, `local_preferred`, `local_only`, or `manual`. The last two bypass external identity/provider work. **The library's kind decides what it looks up**: a lookup kind (Movies, TV Shows, Music, Audiobooks, Books, Comics) follows this field as it always has, a plain kind (Other videos, Other audio, Other reading, or a plugin kind whose `lookup` is `"none"`) and the YouTube kind are always local identity only, whatever this field says. The field only decides for a library with no `kind_key`, such as the Vault's own entries. The kind always wins: a save writes the kind's value into the file, and a file already on disk that says otherwise loads with the kind winning and one warning in the Engine log naming the library. |
+| `youtube_lookup` | boolean | Ask YouTube (by video ID only) about videos named with a YouTube ID. **The kind decides**: the YouTube kind always asks, and a plain kind such as Other videos never does and must say `false` here. The field only decides for a library with no `kind_key`, such as the Vault's own entries (which say `false`). A save writes the kind's value into the file; a file already on disk that says otherwise loads with the kind winning and one warning is logged. There is no on/off switch in Add folder or Settings; choose the kind instead. |
+| `media_types` | string[] | Structured media types expected by catalogued libraries. A View Personal Space may index mixed local media through its backing personal library. How many catalogued libraries may hold the same media type is decided by their kinds, not by the media type: a kind that looks details up holds one library, a plain kind holds up to its `max_libraries`, and kinds that share a format (for example a plugin's Podcasts and Music, both `Music`) each have their own libraries. The Engine rejects a change that breaks a kind's limit (see `config/library_kinds.json`). |
 | `sources` | object[] | Stable source objects; see below. Array order has no meaning. |
 | `primary_destination_source_id` | GUID string? | The one folder new media is filed into: a managed source of this library, or `null` when there is none. A read-only folder is never a destination. On save the first managed folder added becomes the destination; if it is removed or switched to read-only, the earliest-added remaining managed folder takes over, and with none left it is `null`. If the destination is unavailable, files wait in Import; there is no fallback to another folder. |
 | `owner_profile_id` | GUID string? | Owning profile for personal access decisions. |
@@ -294,13 +296,41 @@ Gallery, scope-profile, or asset ID authoritative.
 
 ---
 
+## config/library_kinds.json
+
+The one list of **library kinds** ("recipes"): every type of library the Library can hold. The Libraries front door, group pages, Add folder and the import folder are all drawn from this list, so a kind added here (or by a declarative plugin, see [Building a plugin](../guides/building-a-plugin.md)) appears everywhere with no screen changes. A missing file means the kinds that ship with the Library. The Engine serves the list, plugin kinds included, at `GET /settings/library-kinds`.
+
+| Field | Type | Description |
+|---|---|---|
+| `kinds[].key` | string | Stable identifier in lower_snake case (`movies`, `other_videos`). Also the address of the kind's page (`/settings/libraries/watch/movies`). |
+| `kinds[].area` | string | `watch`, `listen`, `read`, `view` or `vault`. |
+| `kinds[].label` | string | What a person sees. |
+| `kinds[].icon` | string | An `AppMaterialIcons` name the Dashboard draws (`MenuBook`, `Tv`); an unknown name draws the folder icon. |
+| `kinds[].format` | string? | The Engine media type the kind's files are filed under: `Movies`, `TV`, `Videos`, `Music`, `Audiobooks`, `Books` or `Comics`. `null` only for View kinds. |
+| `kinds[].lookup` | `"none"` or `{ "providers": [...] }` | Where details come from. A kind with `"none"` is a **plain kind**: its libraries are local identity only and never contact any outside service, whatever their own `metadata_policy` or `youtube_lookup` say. For a kind with providers the list is recorded for display; it does not change which provider is used. The `youtube` kind lists the YouTube provider and looks videos up on YouTube by their ID and nowhere else. |
+| `kinds[].grouping` | string | One of the grouping rules already in code: `movie`, `tv_show_season`, `music_album`, `audiobook`, `book_series`, `comic_series`, `video_series_folder`, `folder_and_tags`, `view_gallery`. A new way of grouping files needs a Library release. |
+| `kinds[].naming_template` | string? | The `organization_templates` key in `config/core.json` that names the kind's files and folders. |
+| `kinds[].misfit` | string | `unmatched` (a file that does not fit goes to Needs Review; needs a `lookup`) or `keep` (it stays as it is). |
+| `kinds[].default_handling` | string | `read_only` or `managed`: the default for a new folder of this kind. |
+| `kinds[].tooltip` | string | The (i) text beside the kind in Add folder. |
+| `kinds[].order` | integer | Position among the kinds of its area. |
+| `kinds[].built_in` | boolean | True for the kinds that ship with the Library. |
+| `kinds[].available` | boolean | False while a kind is defined but not offered on any screen. Every kind that ships is available. Defaults to true. |
+| `kinds[].allows_multiple` | boolean | True when a person may keep several named libraries of this kind (for example "Lectures" and "Family recordings" under Other videos). Defaults to false, which means one library. |
+| `kinds[].max_libraries` | integer | The most libraries of this kind (1 to 20). Defaults to 1; above 1 only when `allows_multiple` is true. The kinds that ship with `allows_multiple` allow 5. |
+
+The kinds that ship, in order: Watch has `movies`, `tv`, `youtube`, `other_videos` (labelled "Videos"); Listen has `music`, `audiobooks`, `other_audio`; Read has `books`, `comics`, `other_reading`; View has `photos`. Each library in `config/libraries.json` names its kind with `kind_key`. A kind that does not allow several holds one library; a kind that does holds up to `max_libraries`, each with its own name, unique (ignoring case) among the libraries of its area and never another kind's label. Several kinds may share a format. The file is described by `config/schemas/library_kinds.schema.json`. Each kind's lookup providers and naming template are checked against `config/providers/` and `config/core.json` when the Engine starts and when the file is edited, so a typo is reported with the file and the kind it is in; the import folder's media types and folders are read from this file too.
+
+---
+
 ## config/media_types.json
 
 Declares supported extensions by media type. The scanner, initial sweep, generic processor fallback, media-type resolver, and playback fallback read this catalog so extension behavior stays consistent across ingestion and Dashboard playback.
 
 | Field | Type | Description |
 |---|---|---|
-| `{MediaType}.extensions` | string[] | File extensions associated with the media type. Extensions can include or omit the leading dot. |
+| `types[].key` | string | Media type key (`books`, `tv_shows`, `videos`). The `videos` key maps to the Videos media type. |
+| `types[].extensions` | string[] | File extensions associated with the media type. Extensions can include or omit the leading dot. |
 | `{MediaType}.aliases` | string[] | Alternate labels normalized to the media type where present. |
 
 Ambiguous extensions can appear in more than one media type. The resolver uses folder context, embedded metadata, filename patterns, and stronger extension rules to pick a media type. Current governance rules treat `.m4b` as an audiobook fallback, `.mp3` as music when no stronger audiobook evidence exists, and video containers such as `.mkv` as movie fallbacks unless TV evidence is present.
@@ -317,6 +347,7 @@ Scheduled maintenance task configuration.
 | `activity_max_events` | int | `500000` | The most system activity entries kept. Once exceeded, the nightly prune removes the oldest first (after the day limit is applied). 1,000 to 10,000,000. Personal activity is not covered. |
 | `log_retention_days` | int | `90` | How long the Engine's log files (`tuvima-*.log`) are kept. 1 to 3650. Serilog's own 14-file limit is off, so this and `log_max_total_mb` are the only rules. |
 | `log_max_total_mb` | int | `1024` | Total size of all Engine log files together, in megabytes. Once exceeded, the nightly clean-up removes the oldest files first; the file being written is never removed. 100 to 102,400. |
+| `missing_file_retention_days` | int | `90` | How many days a person's restored progress, bookmarks and corrections wait for their file to come back after a restore before they are cleared. 7 to 3650. Read each time the Engine looks for returning files, so changing it also changes the wait for rows already waiting. The one waiting period for missing files: Safer deleting uses it for Missing files too. |
 | `vacuum_interval_hours` | int | `168` | How often SQLite VACUUM runs to reclaim disk space (default: weekly). |
 | `sync_interval_hours` | int | `24` | How often metadata writeback sync runs for pending changes. |
 | `reconciliation_interval_hours` | int | `24` | How often the Wikidata reconciliation refresh cycle runs. |
@@ -353,6 +384,7 @@ Controls how resolved metadata is written back into file tags.
 | `write_on_manual_override` | bool | `true` | Write tags when a user manually resolves a conflict or selects a QID. |
 | `write_on_universe_enrichment` | bool | `true` | Write tags after Wikidata/universe enrichment completes. |
 | `backup_before_write` | bool | `false` | Create a `.bak` sidecar before modifying any file tags. Disabled by the standing pre-beta no-backup rule. |
+| `run_interval_minutes` | int | `60` | How often the waiting file writes are worked through, 1 to 1440 minutes. Changes are saved in Library at once; each file is written on the next run (or when an administrator uses Write now). A change to the same file before a run replaces the earlier one. Runs keep a regular rhythm: after a quiet spell a new change waits for the next slot rather than being written within seconds. A file changed by another program after it was queued is read again first and written on the following run. Write now is refused while write-back is off. |
 | `fields_to_write` | string | `"all"` | Which fields to include in writeback. `"all"` writes every resolved canonical value. Can be set to a comma-separated list of field keys to restrict scope. |
 | `exclude_fields` | string[] | `[]` | Fields excluded from writeback even when `fields_to_write` is `"all"`. |
 
@@ -443,7 +475,7 @@ Names are lower-case letters, digits, `-`, `_` and `.`. The Dashboard writes the
 |---|---|---|
 | `TUVIMA_INSTALL_KIND` | `windows_installer`, `docker`, `source` | Tells the tools list how this install was set up, so the fix for a missing tool reads right (reinstall with the Windows installer, update the Docker image, or a package-manager command). The Windows installer sets `windows_installer` on the Engine service and the Docker image sets `docker`. When unset, a container is `docker` and anything else is `source`. |
 
-The Engine keeps one catalogue of tools (FFmpeg, smooth streaming, Tesseract, the image engine, the local AI engine and each AI model). FFmpeg is always **required**, because every Library starts with Movies, TV, Music and Audiobooks set up. The catalogue drives the setup server check, `GET /settings/tools`, one summary line in the Engine log at start-up, and the `media_runtime` and `ai_models` health checks. A missing tool is reported and never blocks setup.
+The Engine keeps one catalogue of tools (FFmpeg, smooth streaming, Tesseract, ExifTool, the image engine, the local AI engine and each AI model). FFmpeg is always **required**, because every Library starts with Movies, TV, Music and Audiobooks set up. The catalogue drives the setup server check, `GET /settings/tools`, one summary line in the Engine log at start-up, and the `media_runtime` and `ai_models` health checks. A missing tool is reported and never blocks setup.
 
 ## config/transcoding.json
 
@@ -498,7 +530,7 @@ The helper is found in this order: `tesseract_binary_path` when set, then `tools
 
 ## config/tool_downloads.json
 
-The exact builds of FFmpeg and Tesseract the Library may fetch when an administrator presses **Install for me** or **Download again** under **Settings > Tools and requirements** (the same builds as `tools/Download-FFmpeg.ps1` and `tools/Download-Tesseract.ps1`). Only FFmpeg is ever downloaded by itself, while it is missing and `auto_install_required` is true; Tesseract and every repair start only when a person asks. A missing file means the values below. The Local AI models and extra OCR languages keep their own download settings (`config/ai.json`, `language_download_url` in `config/ocr.json`).
+The exact builds of FFmpeg, Tesseract and ExifTool the Library may fetch when an administrator presses **Install for me** or **Download again** under **Settings > Tools and requirements** (the same builds as `tools/Download-FFmpeg.ps1` and `tools/Download-Tesseract.ps1`). Only FFmpeg is ever downloaded by itself, while it is missing and `auto_install_required` is true; Tesseract and every repair start only when a person asks. A missing file means the values below. The Local AI models and extra OCR languages keep their own download settings (`config/ai.json`, `language_download_url` in `config/ocr.json`).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -509,6 +541,9 @@ The exact builds of FFmpeg and Tesseract the Library may fetch when an administr
 | `ffmpeg.sha256` | string | pinned | SHA-256 of the whole archive. |
 | `ffmpeg.files[]` | object[] | `ffmpeg.exe`, `ffprobe.exe` | `name` and `sha256` of each program taken out of the archive by file name. Nothing else is unpacked and archive paths are never used to place a file. |
 | `ffmpeg.license_names[]` | string[] | `LICENSE.txt`, `COPYING.GPLv3` | The licence file to keep, saved as `LICENSE.txt` beside the programs. |
+| `exiftool.version` | string | `"13.59"` | Shown in the activity log. |
+| `exiftool.auto_install` | bool | `true` | ExifTool is Optional (only writing the profile name into View files needs it), but while this is true and `auto_install_required` is true the Library fetches it by itself whenever it is missing. No other Optional tool is ever fetched by itself. |
+| `exiftool.builds[]` | object[] | Windows zip; Linux Perl distribution | Each build has `platforms[]` (`win-x64`, `linux-x64`, `linux-arm64`), `url` (a `.zip` or `.tar.gz` on `github.com`: the Library's own `exiftool-13.59` release holding unmodified copies of the official files, see `.github/workflows/mirror-exiftool.yml`), `sha256` of the archive, and `files[]` (`path` inside the archive without its top folder, plus `sha256`) checked after unpacking. The whole archive is unpacked into `{DataRoot}/tools/exiftool` so its licence and readme stay beside it; paths that leave the folder and links are refused. The Linux build is a Perl script, so it is offered only when Perl is installed. Containers bring their own copy (`TUVIMA_EXIFTOOL_PATH`) and never download. |
 | `tesseract.platform` / `version` | string | `"win-x64"` / `"5.4.0"` | As above. |
 | `tesseract.installer` | object | pinned UB Mannheim setup | `name`, `url` and `sha256` of the setup program. It is downloaded to `{DataRoot}/tools/installers/`, checked again just before it runs, and deleted afterwards. Never unpacked. |
 | `tesseract.executable_sha256` | string | pinned | The program the setup installs; recorded for reference, not checked. |
@@ -548,11 +583,11 @@ Per-user UI preference overrides. Stored server-side and merged into the resolve
 
 ### config/ui/library-preferences.json
 
-Library display preferences used by browse and discovery surfaces.
+Library display preferences used by browse and discovery surfaces. This file is per computer (gitignored) and written by the Engine's library-preferences action. When it is absent, the Engine reads the shipped `config/ui/library-preferences.defaults.json` instead: every media type offers **Show missing** (`enabled: true`) with missing entries hidden until the person ticks it (`default_visibility: hidden`), comics page their missing entries, and the Watch and Read lane group shelves keep their usual settings. A file of this computer's own always replaces the defaults as a whole. Docker seeds `/config` from the image only when the volume is empty, so an existing volume gets the defaults file by copying it from the image's `default-config/ui/` folder (or by a fresh volume).
 
 | Field | Type | Description |
 |---|---|---|
-| `missing_item_display` | object | Required per-media missing-member display policy. Each registered media type is configured explicitly; there are no runtime display defaults. |
+| `missing_item_display` | object | Required per-media missing-member display policy. Each registered media type is configured explicitly; the shipped defaults file supplies them when this computer has no file of its own. |
 | `view_modes` | object | Per-tab default groupings, such as `tv: "shows"` or `comics: "series"`. |
 | `lane_group_display` | object | Per-lane display policy for lane group shelves. Watch configures the movie-only `Series` shelf (TV shows use their own fixed shelf), and Read defaults to `Series & Reading Lists`; these are lane groups, not top-level Collections tiles. |
 
@@ -589,3 +624,27 @@ Browser playback mechanics for the Dashboard Listen host. These are not user lis
 ### Retail matrix follow-up
 
 Retail identity confidence uses typed per-media `scoring.scopes` in `config/pipelines.json` and synchronized settings defaults. Eight scopes replace the global retail weights: books, audiobooks, movies, TV series, TV episodes, music tracks, music albums and comic issues. Missing optional values redistribute their weight and show Not provided; required creator evidence fails closed. Genre contributes nothing. Wrong-kind and structural gates apply after bonuses. Additive nullable `field_scores` exposes the complete durable breakdown. Accept/review thresholds remain 0.90/0.65. See `docs/architecture/scoring-and-cascade.md` for the normative matrices and the distinction from canonical trust scoring. No legacy fallback or data conversion is supported.
+
+### Adult-only providers and the Stash-box plugin
+
+Two optional flags on a provider file (`config/providers/*.json`) decide who may be asked about what.
+
+| Field | What it does |
+|---|---|
+| `adult_only` | The provider is asked only about Vault items (files in a Vault library). Every other provider, YouTube included, is never asked about a Vault item. The Library enforces this in one place (`IProviderAudienceGate`), so a provider cannot opt out. |
+| `file_fingerprint` | The provider can also match a file by a fingerprint of it. That sends a fingerprint of the file, so it is a separate permission an administrator turns on ("Sends a fingerprint of your file"); it is off by default and nothing about the file leaves the machine without it. |
+
+The Official Stash-box plugin (`config/providers/stashbox.json`) speaks the open stash-box GraphQL standard and contacts a stash-box server. It ships enabled and does nothing without an account key. The default server is StashDB (`endpoints.api`). An administrator can add other servers by address (https only, except a server on the same computer) and set the order they are tried in; this list and the fingerprint permission are saved in `config/stashbox_servers.json`, which holds no keys. Each account key is kept in the secrets store (`config/secrets/stashbox.json` for the default server, `config/secrets/plugins/stashbox-servers.json` for added ones), is sent only in an `ApiKey` header to that server's own address, is never logged, and is never shown again after saving; the Dashboard shows only "connected" or "not connected". Redirects are not followed and replies and cover images are size-limited. A video is matched only by a strong signal, strongest first: an exact fingerprint of the file (only with the fingerprint permission), then a product code whose record has the same length (and date, when both are known), then an equal title whose record has the same length (and date). A name alone, signals that point at different records, or two records that fit equally well leave the video Unmatched and queue nothing in Needs Review; Identify on the video finds it by hand, with a tick per field. A match fills the title, description, date, cover, studio, performers and tags; a value a person edited is never replaced. Every field is cleaned first (markup, links and hidden characters removed, lengths limited), a picture must open as a JPEG, PNG or WebP of a sensible size and shape (otherwise the video's own still frame stays), and where each field came from is recorded. Only the title leaves the machine unless the fingerprint permission is on.
+
+### Vault file names (`config/vault_naming.json`)
+
+How a Vault file's name is read before it is looked up. A missing file means the defaults below. Changes apply without a restart. The same settings apply to every Vault library.
+
+| Field | What it does |
+|---|---|
+| `patterns` | Name patterns made of parts in square brackets (`[studio]`, `[date]`, `[title]`, `[performer]`, `[code]`), tried in order; the first that fits the whole name wins. A space in a pattern matches any run of spaces. |
+| `ignored_words` | Release words left out before a name is read (for example `1080p`, `x264`, `web-dl`). |
+| `space_characters` | Characters read as spaces (default `.` and `_`). |
+| `product_code.pattern` | A regular expression with the named groups `letters` and `digits`; the default reads codes such as `ABC-123` and `IPX001`. It must finish within 250 ms or the name is read without a code. |
+| `product_code.ignored_prefixes` | Letter groups that look like a code but are not (`hd`, `mp`, `part`, `dvd` and so on). |
+| `duration_tolerance` | How closely a file's length must agree with a record's for a code or a title to count: the larger of `seconds` (default 5) and `percent` (default 1.5) of the longer length. |

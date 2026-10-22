@@ -762,56 +762,28 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         return Task.FromResult<LibraryItemDetail?>(detail);
     }
 
-    public Task<LibraryItemProjectionSummary> GetProjectionSummaryAsync(CancellationToken ct = default)
+    public async Task<LibraryItemProjectionSummary> GetProjectionSummaryAsync(CancellationToken ct = default)
+        => (await GetOverviewCountsAsync(ct).ConfigureAwait(false)).Projection;
+
+    public async Task<LibraryItemLifecycleCounts> GetFourStateCountsAsync(CancellationToken ct = default)
+        => (await GetOverviewCountsAsync(ct).ConfigureAwait(false)).Lifecycle;
+
+    // The projection builds every display field of every item, so it is built once here and every count is read from that
+    // one pass (it was built three times: about 0.9 s per pass at 4,000 works, B17). Only the columns the counts need are kept.
+    public Task<LibraryItemOverviewCounts> GetOverviewCountsAsync(CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
         var staleThreshold = DateTimeOffset.UtcNow.AddDays(-30).ToString("o");
-        var row = conn.QueryFirst<ProjectionSummaryRow>(BuildProjectionSql() + """
+        var row = conn.QueryFirst<OverviewCountsRow>(BuildProjectionSql(countsOnly: true) + """
+            ,
+            overview_rows AS MATERIALIZED (
+                SELECT status, library_visibility, review_trigger, wikidata_qid, pipeline_step,
+                       universe_assigned, artwork_settled_at, artwork_state
+                FROM full_data
+            )
             SELECT
                 COUNT(*) AS TotalItems,
-                SUM(CASE WHEN fd.wikidata_qid IS NOT NULL AND fd.wikidata_qid != '' AND fd.wikidata_qid NOT LIKE 'NF%' THEN 1 ELSE 0 END) AS WithQid,
-                SUM(CASE WHEN fd.wikidata_qid IS NULL OR fd.wikidata_qid = '' OR fd.wikidata_qid LIKE 'NF%' THEN 1 ELSE 0 END) AS WithoutQid,
-                SUM(CASE WHEN fd.pipeline_step = 'Enrichment' THEN 1 ELSE 0 END) AS EnrichedStage3,
-                SUM(CASE WHEN fd.pipeline_step != 'Enrichment' THEN 1 ELSE 0 END) AS NotEnrichedStage3,
-                SUM(CASE WHEN fd.universe_assigned = 1 THEN 1 ELSE 0 END) AS UniverseAssigned,
-                SUM(CASE WHEN fd.universe_assigned = 0 THEN 1 ELSE 0 END) AS UniverseUnassigned,
-                SUM(CASE WHEN fd.artwork_settled_at IS NOT NULL
-                           AND fd.artwork_settled_at < @staleThreshold
-                           AND fd.wikidata_qid IS NOT NULL
-                           AND fd.wikidata_qid != ''
-                           AND fd.wikidata_qid NOT LIKE 'NF%'
-                         THEN 1 ELSE 0 END) AS StaleItems,
-                SUM(CASE WHEN fd.library_visibility = 'hidden' THEN 1 ELSE 0 END) AS HiddenByQualityGate,
-                SUM(CASE WHEN fd.artwork_state = 'pending' THEN 1 ELSE 0 END) AS ArtPending,
-                SUM(CASE WHEN fd.library_visibility = 'review_only' AND fd.pipeline_step = 'Retail' THEN 1 ELSE 0 END) AS RetailNeedsReview,
-                SUM(CASE WHEN fd.status = 'QidNoMatch' THEN 1 ELSE 0 END) AS QidNoMatch,
-                SUM(CASE WHEN fd.library_visibility = 'visible' AND fd.artwork_state = 'present' THEN 1 ELSE 0 END) AS CompletedWithArt
-            FROM full_data fd;
-            """, new { staleThreshold });
-
-        return Task.FromResult(new LibraryItemProjectionSummary(
-            row.TotalItems,
-            row.WithQid,
-            row.WithoutQid,
-            row.EnrichedStage3,
-            row.NotEnrichedStage3,
-            row.UniverseAssigned,
-            row.UniverseUnassigned,
-            row.StaleItems,
-            row.HiddenByQualityGate,
-            row.ArtPending,
-            row.RetailNeedsReview,
-            row.QidNoMatch,
-            row.CompletedWithArt));
-    }
-
-    public Task<LibraryItemLifecycleCounts> GetFourStateCountsAsync(CancellationToken ct = default)
-    {
-        using var conn = _db.CreateConnection();
-
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = BuildProjectionSql() + """
-            SELECT
                 COALESCE(SUM(CASE
                         WHEN fd.status IN ('Identified', 'Confirmed', 'RetailMatched', 'QidNoMatch', 'Edited')
                              AND fd.library_visibility = 'visible'
@@ -822,43 +794,64 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 COALESCE(SUM(CASE WHEN fd.status = 'Provisional' THEN 1 ELSE 0 END), 0) AS Provisional,
                 COALESCE(SUM(CASE WHEN fd.status = 'Rejected' THEN 1 ELSE 0 END), 0) AS Rejected,
                 (SELECT COUNT(*) FROM persons) AS PersonCount,
-                (SELECT COUNT(DISTINCT id) FROM collections) AS CollectionCount
-            FROM full_data fd;
-            """;
+                (SELECT COUNT(DISTINCT id) FROM collections) AS CollectionCount,
+                (SELECT json_group_object(trigger_counts.review_trigger, trigger_counts.item_count)
+                 FROM (
+                     SELECT review_trigger, COUNT(*) AS item_count
+                     FROM overview_rows
+                     WHERE status = 'InReview'
+                       AND review_trigger IS NOT NULL
+                       AND review_trigger != ''
+                     GROUP BY review_trigger
+                     ORDER BY item_count DESC
+                 ) trigger_counts) AS TriggerCountsJson,
+                COALESCE(SUM(CASE WHEN fd.wikidata_qid IS NOT NULL AND fd.wikidata_qid != '' AND fd.wikidata_qid NOT LIKE 'NF%' THEN 1 ELSE 0 END), 0) AS WithQid,
+                COALESCE(SUM(CASE WHEN fd.wikidata_qid IS NULL OR fd.wikidata_qid = '' OR fd.wikidata_qid LIKE 'NF%' THEN 1 ELSE 0 END), 0) AS WithoutQid,
+                COALESCE(SUM(CASE WHEN fd.pipeline_step = 'Enrichment' THEN 1 ELSE 0 END), 0) AS EnrichedStage3,
+                COALESCE(SUM(CASE WHEN fd.pipeline_step != 'Enrichment' THEN 1 ELSE 0 END), 0) AS NotEnrichedStage3,
+                COALESCE(SUM(CASE WHEN fd.universe_assigned = 1 THEN 1 ELSE 0 END), 0) AS UniverseAssigned,
+                COALESCE(SUM(CASE WHEN fd.universe_assigned = 0 THEN 1 ELSE 0 END), 0) AS UniverseUnassigned,
+                COALESCE(SUM(CASE WHEN fd.artwork_settled_at IS NOT NULL
+                           AND fd.artwork_settled_at < @staleThreshold
+                           AND fd.wikidata_qid IS NOT NULL
+                           AND fd.wikidata_qid != ''
+                           AND fd.wikidata_qid NOT LIKE 'NF%'
+                         THEN 1 ELSE 0 END), 0) AS StaleItems,
+                COALESCE(SUM(CASE WHEN fd.library_visibility = 'hidden' THEN 1 ELSE 0 END), 0) AS HiddenByQualityGate,
+                COALESCE(SUM(CASE WHEN fd.artwork_state = 'pending' THEN 1 ELSE 0 END), 0) AS ArtPending,
+                COALESCE(SUM(CASE WHEN fd.library_visibility = 'review_only' AND fd.pipeline_step = 'Retail' THEN 1 ELSE 0 END), 0) AS RetailNeedsReview,
+                COALESCE(SUM(CASE WHEN fd.status = 'QidNoMatch' THEN 1 ELSE 0 END), 0) AS QidNoMatch,
+                COALESCE(SUM(CASE WHEN fd.library_visibility = 'visible' AND fd.artwork_state = 'present' THEN 1 ELSE 0 END), 0) AS CompletedWithArt
+            FROM overview_rows fd;
+            """, new { staleThreshold });
 
-        int identified = 0, inReview = 0, provisional = 0, rejected = 0, personCount = 0, collectionCount = 0;
-        using (var reader = cmd.ExecuteReader())
-        {
-            if (reader.Read())
-            {
-                identified = reader.GetInt32(0);
-                inReview = reader.GetInt32(1);
-                provisional = reader.GetInt32(2);
-                rejected = reader.GetInt32(3);
-                personCount = reader.GetInt32(4);
-                collectionCount = reader.GetInt32(5);
-            }
-        }
+        var triggerCounts = string.IsNullOrEmpty(row.TriggerCountsJson)
+            ? new Dictionary<string, int>()
+            : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, int>>(row.TriggerCountsJson) ?? [];
 
-        var triggerCounts = conn.Query<(string Trigger, int Count)>(BuildProjectionSql() + """
-            SELECT fd.review_trigger AS Trigger, COUNT(*) AS Count
-            FROM full_data fd
-            WHERE fd.status = 'InReview'
-              AND fd.review_trigger IS NOT NULL
-              AND fd.review_trigger != ''
-            GROUP BY fd.review_trigger
-            ORDER BY Count DESC;
-            """)
-            .ToDictionary(r => r.Trigger, r => r.Count);
-
-        return Task.FromResult(new LibraryItemLifecycleCounts(
-            identified, inReview, provisional, rejected, personCount, collectionCount, triggerCounts));
+        return Task.FromResult(new LibraryItemOverviewCounts(
+            new LibraryItemLifecycleCounts(
+                row.Identified, row.InReview, row.Provisional, row.Rejected, row.PersonCount, row.CollectionCount, triggerCounts),
+            new LibraryItemProjectionSummary(
+                row.TotalItems,
+                row.WithQid,
+                row.WithoutQid,
+                row.EnrichedStage3,
+                row.NotEnrichedStage3,
+                row.UniverseAssigned,
+                row.UniverseUnassigned,
+                row.StaleItems,
+                row.HiddenByQualityGate,
+                row.ArtPending,
+                row.RetailNeedsReview,
+                row.QidNoMatch,
+                row.CompletedWithArt)));
     }
 
     public Task<Dictionary<string, int>> GetOwnedMediaTypeCountsAsync(CancellationToken ct = default)
     {
         using var conn = _db.CreateConnection();
-        var rows = conn.Query<(string MediaType, int Count)>("""
+        var rows = conn.Query<(string MediaType, int Count)>($"""
             -- readiness: administrator count of the files in the library
             SELECT w.media_type AS MediaType,
                    COUNT(DISTINCT CASE WHEN LOWER(w.media_type) IN ('audiobook', 'audiobooks')
@@ -869,12 +862,13 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             WHERE w.media_type IS NOT NULL
               AND w.media_type != ''
               AND w.media_type != 'Unknown'
+              AND {VaultSql.NotVaultAsset("ma.id")}
             GROUP BY w.media_type;
             """);
         return Task.FromResult(rows.ToDictionary(r => r.MediaType, r => r.Count));
     }
 
-    private static string BuildProjectionSql(bool preferAsset = false)
+    private static string BuildProjectionSql(bool preferAsset = false, bool countsOnly = false)
     {
         var wikidataId = SqlGuidLiteral(WellKnownProviders.Wikidata);
         var localProcessorId = SqlGuidLiteral(WellKnownProviders.LocalProcessor);
@@ -901,85 +895,9 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         var primaryAssetOrder = preferAsset
             ? "CASE WHEN ma.id=@preferredAssetId THEN 0 ELSE 1 END, ma.id"
             : "CASE WHEN LOWER(ma.file_path_root) LIKE '%.epub' THEN 0 ELSE 1 END, ma.id";
-        var sql = $"""
-            WITH ranked_primary_assets AS (
-                SELECT
-                    e.work_id,
-                    ma.id AS asset_id,
-                    ma.file_path_root,
-                    ma.status AS asset_status,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY e.work_id
-                        ORDER BY {primaryAssetOrder}) AS asset_rank
-                FROM editions e
-                INNER JOIN media_assets ma ON ma.edition_id = e.id
-            ),
-            primary_asset_data AS (
-                SELECT work_id, asset_id, file_path_root, asset_status
-                FROM ranked_primary_assets
-                WHERE asset_rank=1
-            ),
-            {relatedBookYearCte},
-            root_work_data AS (
-                SELECT
-                    w.id AS work_id,
-                    COALESCE(gp.id, p.id, w.id) AS root_work_id
-                FROM works w
-                LEFT JOIN works p ON p.id = w.parent_work_id
-                LEFT JOIN works gp ON gp.id = p.parent_work_id
-            ),
-            asset_cv AS (
-                SELECT
-                    pad.work_id,
-                    cv.key,
-                    cv.value,
-                    cv.winning_provider_id,
-                    cv.is_conflicted,
-                    cv.last_scored_at
-                FROM primary_asset_data pad
-                INNER JOIN canonical_values cv ON cv.entity_id = pad.asset_id
-            ),
-            work_cv AS (
-                SELECT
-                    rwd.work_id,
-                    cv.key,
-                    cv.value,
-                    cv.last_scored_at
-                FROM root_work_data rwd
-                INNER JOIN canonical_values cv ON cv.entity_id = rwd.root_work_id
-            ),
-            work_data AS (
-                SELECT
-                    w.id AS entity_id,
-                    w.media_type,
-                    w.wikidata_status,
-                    w.curator_state,
-                    w.ready_at,
-                    CASE WHEN w.collection_id IS NOT NULL THEN 1 ELSE 0 END AS universe_assigned,
-                    MAX(CASE WHEN acv.key = 'title' THEN acv.value END) AS title,
-                    MAX(CASE WHEN acv.key = 'issue_title' THEN acv.value END) AS issue_title,
-                    MAX(CASE WHEN acv.key = 'issue_number' THEN acv.value END) AS issue_number,
-                    MAX(CASE WHEN acv.key = 'series_position' THEN acv.value END) AS series_position,
-                    MAX(CASE WHEN acv.key = 'rating' THEN acv.value END) AS rating,
-                    MAX(CASE WHEN acv.key = 'track_number' THEN acv.value END) AS track_number,
-                    MAX(CASE WHEN acv.key = 'season_number' THEN acv.value END) AS season_number,
-                    MAX(CASE WHEN acv.key = 'episode_number' THEN acv.value END) AS episode_number,
-                    MAX(CASE WHEN acv.key = 'episode_title' THEN acv.value END) AS episode_title,
-                    MAX(CASE WHEN acv.key = 'duration' THEN acv.value END) AS duration,
-                    MAX(CASE WHEN acv.key = 'file_name' THEN acv.value END) AS file_name,
-                    MAX(CASE WHEN acv.key = 'language' THEN acv.value END) AS language,
-                    MAX(CASE WHEN acv.key = 'title' THEN acv.winning_provider_id END) AS title_provider_id,
-                    MAX(CASE WHEN acv.key = 'wikidata_qid' THEN acv.value END) AS wikidata_qid,
-                    MAX(CASE WHEN acv.key = 'qid_resolution_method' THEN acv.value END) AS qid_resolution_method,
-                    MAX(CASE WHEN acv.key = 'cover_state' THEN acv.value END) AS self_cover_state,
-                    MAX(CASE WHEN acv.key = 'cover_source' THEN acv.value END) AS self_cover_source,
-                    MAX(CASE WHEN acv.key = 'hero_state' THEN acv.value END) AS self_hero_state,
-                    MAX(CASE WHEN acv.key = 'artwork_settled_at' THEN acv.value END) AS self_artwork_settled_at,
-                    MAX(CASE WHEN acv.key = 'cover_url' THEN acv.value END) AS self_cover_url,
-                    MAX(CASE WHEN acv.key = 'cover_url' THEN acv.last_scored_at END) AS self_cover_last_scored_at,
-                    MAX(CASE WHEN acv.key = 'hero' THEN acv.value END) AS self_hero_url,
-                    MAX(CASE WHEN acv.key = 'background' THEN acv.value END) AS self_background_url,
-                    MAX(CASE WHEN acv.key = 'banner' THEN acv.value END) AS self_banner_url,
+        // Display-only columns. A count of the projection (countsOnly) never reads them, so they become NULL there: they are
+        // most of the projection's cost (the year look-up alone is most of the statement), and no state rule reads them (B17).
+        var yearSql = countsOnly ? "NULL" : $"""
                     CASE
                         WHEN LOWER(w.media_type) LIKE '%audio%'
                         THEN COALESCE(
@@ -998,7 +916,9 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                           OR LOWER(w.media_type) LIKE '%television%'
                         THEN COALESCE({workYearSql}, {assetYearSql})
                         ELSE COALESCE({assetYearSql}, {workYearSql})
-                    END AS year,
+                    END
+            """;
+        var authorSql = countsOnly ? "NULL" : $"""
                     COALESCE(
                         CASE WHEN w.media_type = 'Comics' THEN (
                             SELECT CASE
@@ -1086,10 +1006,9 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                             ) a2 ON cnt.total >= 2
                             WHERE cnt.total >= 1
                         )
-                    ) AS author,
-                    -- Each credit look-up resolves its one target id first (the show or album, or the main file) so the
-                    -- (entity_id, key) index applies. Finding the target through a join instead reads every credit of
-                    -- that key in the library for each work, which grows with the square of the library.
+                    )
+            """;
+        var artistSql = countsOnly ? "NULL" : $"""
                     (
                         SELECT value
                         FROM canonical_value_arrays cva_artist
@@ -1098,8 +1017,9 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                         ORDER BY CASE cva_artist.key WHEN 'album_artist' THEN 0 WHEN 'artist' THEN 1 ELSE 2 END,
                                  cva_artist.ordinal
                         LIMIT 1
-                    ) AS artist,
-                    MAX(CASE WHEN wcv.key = 'series' THEN wcv.value END) AS series,
+                    )
+            """;
+        var narratorSql = countsOnly ? "NULL" : $"""
                     (
                         SELECT value
                         FROM canonical_value_arrays cva_narrator
@@ -1107,7 +1027,9 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                           AND cva_narrator.key = 'narrator'
                         ORDER BY cva_narrator.ordinal
                         LIMIT 1
-                    ) AS narrator,
+                    )
+            """;
+        var genreSql = countsOnly ? "NULL" : $"""
                     (
                     SELECT GROUP_CONCAT(value, '; ')
                         FROM (
@@ -1117,20 +1039,9 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                               AND cva_genre.key = 'genre'
                             ORDER BY cva_genre.ordinal
                         )
-                    ) AS genre,
-                    MAX(CASE WHEN wcv.key = 'album' THEN wcv.value END) AS album,
-                    MAX(CASE WHEN wcv.key = 'show_name' THEN wcv.value END) AS show_name,
-                    MAX(CASE WHEN wcv.key = 'network' THEN wcv.value END) AS network,
-                    MAX(CASE WHEN wcv.key = 'description' THEN wcv.value END) AS description,
-                    MAX(CASE WHEN wcv.key = 'cover_state' THEN wcv.value END) AS parent_cover_state,
-                    MAX(CASE WHEN wcv.key = 'cover_source' THEN wcv.value END) AS parent_cover_source,
-                    MAX(CASE WHEN wcv.key = 'hero_state' THEN wcv.value END) AS parent_hero_state,
-                    MAX(CASE WHEN wcv.key = 'artwork_settled_at' THEN wcv.value END) AS parent_artwork_settled_at,
-                    MAX(CASE WHEN wcv.key = 'cover_url' THEN wcv.value END) AS parent_cover_url,
-                    MAX(CASE WHEN wcv.key = 'cover_url' THEN wcv.last_scored_at END) AS parent_cover_last_scored_at,
-                    MAX(CASE WHEN wcv.key = 'hero' THEN wcv.value END) AS parent_hero_url,
-                    MAX(CASE WHEN wcv.key = 'background' THEN wcv.value END) AS parent_background_url,
-                    MAX(CASE WHEN wcv.key = 'banner' THEN wcv.value END) AS parent_banner_url,
+                    )
+            """;
+        var topCastSql = countsOnly ? "NULL" : $"""
                     (
                         SELECT GROUP_CONCAT(sub.value, ', ')
                         FROM (
@@ -1141,7 +1052,9 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                             ORDER BY cva.ordinal
                             LIMIT 3
                         ) sub
-                    ) AS top_cast,
+                    )
+            """;
+        var directorSql = countsOnly ? "NULL" : $"""
                     COALESCE(
                         (
                     SELECT GROUP_CONCAT(value, '; ')
@@ -1163,11 +1076,15 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                                 ORDER BY cva_director_asset.ordinal
                             )
                         )
-                    ) AS director,
+                    )
+            """;
+        var runtimeSql = countsOnly ? "NULL" : $"""
                     CASE
                         WHEN w.media_type = 'Movies' THEN MAX(CASE WHEN wcv.key = 'runtime' THEN wcv.value END)
                         ELSE MAX(CASE WHEN acv.key = 'runtime' THEN acv.value END)
-                    END AS runtime,
+                    END
+            """;
+        var retailMatchDetailSql = countsOnly ? "NULL" : $"""
                     (
                         SELECT pr.name || ': ' || mc_rt.claim_value
                         FROM metadata_claims mc_rt
@@ -1182,11 +1099,119 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                           AND mc_rt.provider_id != {libraryScanId}
                         ORDER BY mc_rt.confidence DESC
                         LIMIT 1
-                    ) AS retail_match_detail
+                    )
+            """;
+        var sql = $"""
+            WITH ranked_primary_assets AS (
+                SELECT
+                    e.work_id,
+                    ma.id AS asset_id,
+                    ma.file_path_root,
+                    ma.status AS asset_status,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY e.work_id
+                        ORDER BY {primaryAssetOrder}) AS asset_rank
+                FROM editions e
+                INNER JOIN media_assets ma ON ma.edition_id = e.id
+            ),
+            primary_asset_data AS (
+                SELECT work_id, asset_id, file_path_root, asset_status
+                FROM ranked_primary_assets
+                WHERE asset_rank=1
+            ),
+            {relatedBookYearCte},
+            root_work_data AS (
+                SELECT
+                    w.id AS work_id,
+                    COALESCE(gp.id, p.id, w.id) AS root_work_id
+                FROM works w
+                LEFT JOIN works p ON p.id = w.parent_work_id
+                LEFT JOIN works gp ON gp.id = p.parent_work_id
+            ),
+            asset_cv AS (
+                SELECT
+                    pad.work_id,
+                    cv.key,
+                    cv.value,
+                    cv.winning_provider_id,
+                    cv.is_conflicted,
+                    cv.last_scored_at
+                FROM primary_asset_data pad
+                INNER JOIN canonical_values cv ON cv.entity_id = pad.asset_id
+            ),
+            work_cv AS (
+                SELECT
+                    rwd.work_id,
+                    cv.key,
+                    cv.value,
+                    cv.last_scored_at
+                FROM root_work_data rwd
+                INNER JOIN canonical_values cv ON cv.entity_id = rwd.root_work_id
+            ),
+            work_data AS (
+                SELECT
+                    w.id AS entity_id,
+                    w.media_type,
+                    w.wikidata_status,
+                    w.curator_state,
+                    w.ready_at,
+                    CASE WHEN w.collection_id IS NOT NULL THEN 1 ELSE 0 END AS universe_assigned,
+                    MAX(CASE WHEN acv.key = 'title' THEN acv.value END) AS title,
+                    MAX(CASE WHEN acv.key = 'issue_title' THEN acv.value END) AS issue_title,
+                    MAX(CASE WHEN acv.key = 'issue_number' THEN acv.value END) AS issue_number,
+                    MAX(CASE WHEN acv.key = 'series_position' THEN acv.value END) AS series_position,
+                    MAX(CASE WHEN acv.key = 'rating' THEN acv.value END) AS rating,
+                    MAX(CASE WHEN acv.key = 'track_number' THEN acv.value END) AS track_number,
+                    MAX(CASE WHEN acv.key = 'season_number' THEN acv.value END) AS season_number,
+                    MAX(CASE WHEN acv.key = 'episode_number' THEN acv.value END) AS episode_number,
+                    MAX(CASE WHEN acv.key = 'episode_title' THEN acv.value END) AS episode_title,
+                    MAX(CASE WHEN acv.key = 'duration' THEN acv.value END) AS duration,
+                    MAX(CASE WHEN acv.key = 'file_name' THEN acv.value END) AS file_name,
+                    MAX(CASE WHEN acv.key = 'language' THEN acv.value END) AS language,
+                    MAX(CASE WHEN acv.key = 'title' THEN acv.winning_provider_id END) AS title_provider_id,
+                    MAX(CASE WHEN acv.key = 'wikidata_qid' THEN acv.value END) AS wikidata_qid,
+                    MAX(CASE WHEN acv.key = 'qid_resolution_method' THEN acv.value END) AS qid_resolution_method,
+                    MAX(CASE WHEN acv.key = 'cover_state' THEN acv.value END) AS self_cover_state,
+                    MAX(CASE WHEN acv.key = 'cover_source' THEN acv.value END) AS self_cover_source,
+                    MAX(CASE WHEN acv.key = 'hero_state' THEN acv.value END) AS self_hero_state,
+                    MAX(CASE WHEN acv.key = 'artwork_settled_at' THEN acv.value END) AS self_artwork_settled_at,
+                    MAX(CASE WHEN acv.key = 'cover_url' THEN acv.value END) AS self_cover_url,
+                    MAX(CASE WHEN acv.key = 'cover_url' THEN acv.last_scored_at END) AS self_cover_last_scored_at,
+                    MAX(CASE WHEN acv.key = 'hero' THEN acv.value END) AS self_hero_url,
+                    MAX(CASE WHEN acv.key = 'background' THEN acv.value END) AS self_background_url,
+                    MAX(CASE WHEN acv.key = 'banner' THEN acv.value END) AS self_banner_url,
+                    {yearSql} AS year,
+                    {authorSql} AS author,
+                    -- Each credit look-up resolves its one target id first (the show or album, or the main file) so the
+                    -- (entity_id, key) index applies. Finding the target through a join instead reads every credit of
+                    -- that key in the library for each work, which grows with the square of the library.
+                    {artistSql} AS artist,
+                    MAX(CASE WHEN wcv.key = 'series' THEN wcv.value END) AS series,
+                    {narratorSql} AS narrator,
+                    {genreSql} AS genre,
+                    MAX(CASE WHEN wcv.key = 'album' THEN wcv.value END) AS album,
+                    MAX(CASE WHEN wcv.key = 'show_name' THEN wcv.value END) AS show_name,
+                    MAX(CASE WHEN wcv.key = 'network' THEN wcv.value END) AS network,
+                    MAX(CASE WHEN wcv.key = 'description' THEN wcv.value END) AS description,
+                    MAX(CASE WHEN wcv.key = 'cover_state' THEN wcv.value END) AS parent_cover_state,
+                    MAX(CASE WHEN wcv.key = 'cover_source' THEN wcv.value END) AS parent_cover_source,
+                    MAX(CASE WHEN wcv.key = 'hero_state' THEN wcv.value END) AS parent_hero_state,
+                    MAX(CASE WHEN wcv.key = 'artwork_settled_at' THEN wcv.value END) AS parent_artwork_settled_at,
+                    MAX(CASE WHEN wcv.key = 'cover_url' THEN wcv.value END) AS parent_cover_url,
+                    MAX(CASE WHEN wcv.key = 'cover_url' THEN wcv.last_scored_at END) AS parent_cover_last_scored_at,
+                    MAX(CASE WHEN wcv.key = 'hero' THEN wcv.value END) AS parent_hero_url,
+                    MAX(CASE WHEN wcv.key = 'background' THEN wcv.value END) AS parent_background_url,
+                    MAX(CASE WHEN wcv.key = 'banner' THEN wcv.value END) AS parent_banner_url,
+                    {topCastSql} AS top_cast,
+                    {directorSql} AS director,
+                    {runtimeSql} AS runtime,
+                    {retailMatchDetailSql} AS retail_match_detail
                 FROM works w
                 LEFT JOIN asset_cv acv ON acv.work_id = w.id
                 LEFT JOIN work_cv wcv ON wcv.work_id = w.id
+                -- A work with any file in a Vault library is not here for anyone (Videos spec D17): not as an item, not in any count.
                 WHERE w.work_kind != 'parent'
+                  AND {VaultSql.NotVaultEntity("w.id")}
                 GROUP BY w.id, w.media_type, w.wikidata_status, w.curator_state, w.ready_at, w.collection_id
             )
             """;
@@ -1985,8 +2010,15 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         public string? QidResolutionMethod { get; set; }
     }
 
-    private sealed class ProjectionSummaryRow
+    private sealed class OverviewCountsRow
     {
+        public int Identified { get; set; }
+        public int InReview { get; set; }
+        public int Provisional { get; set; }
+        public int Rejected { get; set; }
+        public int PersonCount { get; set; }
+        public int CollectionCount { get; set; }
+        public string? TriggerCountsJson { get; set; }
         public int TotalItems { get; set; }
         public int WithQid { get; set; }
         public int WithoutQid { get; set; }

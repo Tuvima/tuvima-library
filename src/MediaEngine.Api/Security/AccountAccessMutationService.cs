@@ -18,7 +18,6 @@ public sealed class AccountAccessMutationService(
     IConfigurationLoader configuration,
     IAccountAccessDecisionService accountDecisions,
     IAuthorizationEvaluator evaluator,
-    IPasswordHasher<GrantAdminProtection> pinHasher,
     IAuthorizationInvalidationService invalidation,
     IAuthorizationAuditWriter audit,
     IFirstPartyIdentityService firstParty,
@@ -1023,12 +1022,11 @@ public sealed class AccountAccessMutationService(
             throw new ArgumentException("Unknown administrator unlock mode.");
         }
 
+        // One PIN: the question can only be switched on for a profile that has a PIN to ask for.
         if (command.Enabled &&
-            (string.IsNullOrWhiteSpace(command.Pin) ||
-             command.Pin.Length is < 4 or > 12 ||
-             command.Pin.Any(character => !char.IsAsciiDigit(character))))
+            await identities.GetCredentialAsync(profileId, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is null)
         {
-            throw new ArgumentException("PIN must contain 4 to 12 digits.");
+            throw new InvalidOperationException("Set a PIN on this profile first. Admin pages ask for the same PIN as the profile.");
         }
 
         var protection = new GrantAdminProtection
@@ -1043,12 +1041,6 @@ public sealed class AccountAccessMutationService(
             ProtectionVersion = 1,
             UpdatedAt = clock.GetUtcNow(),
         };
-        if (command.Enabled)
-        {
-            protection.HashScheme = "aspnet-passwordhasher-v3";
-            protection.PinHash = pinHasher.HashPassword(protection, command.Pin!);
-        }
-
         await accounts.SetAdminProtectionAsync(protection, ct).ConfigureAwait(false);
         await ChangedAsync(actor, "grant.admin_protection_changed", "grant",
             $"{accountId:D}/{profileId:D}", accountId, profileId, ct).ConfigureAwait(false);

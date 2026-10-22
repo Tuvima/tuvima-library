@@ -6,13 +6,18 @@ public interface IViewGalleryRepository
 {
     /// <remarks>
     /// <c>includeDocuments</c> is false for a viewer whose profile may not use Documents: the item count then leaves
-    /// documents out, so a Gallery never tells that profile how many documents it holds.
+    /// documents out, so a Gallery never tells that profile how many documents it holds. <c>blockedKinds</c> does the
+    /// same for any View kind (<c>photos</c>, <c>personal_videos</c>, <c>documents</c>) the viewer may not use.
     /// </remarks>
-    Task<ViewGallery?> GetAsync(Guid galleryId, bool includeDocuments = true, CancellationToken ct = default);
+    Task<ViewGallery?> GetAsync(
+        Guid galleryId, bool includeDocuments = true, CancellationToken ct = default,
+        IReadOnlyCollection<string>? blockedKinds = null);
     Task<IReadOnlyList<ViewGallery>> GetOwnedAsync(
-        Guid ownerProfileId, bool includeDocuments = true, CancellationToken ct = default);
+        Guid ownerProfileId, bool includeDocuments = true, CancellationToken ct = default,
+        IReadOnlyCollection<string>? blockedKinds = null);
     Task<IReadOnlyList<ViewGallery>> GetSharedWithAsync(
-        Guid profileId, bool includeDocuments = true, CancellationToken ct = default);
+        Guid profileId, bool includeDocuments = true, CancellationToken ct = default,
+        IReadOnlyCollection<string>? blockedKinds = null);
     Task<ViewGallery> CreateAsync(CreateViewGalleryCommand command, CancellationToken ct = default);
     Task<ViewGallery?> UpdateAsync(UpdateViewGalleryCommand command, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid galleryId, CancellationToken ct = default);
@@ -23,15 +28,16 @@ public interface IViewGalleryRepository
         Guid? afterItemId = null,
         int limit = 100,
         bool includeDocuments = true,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        IReadOnlyCollection<string>? blockedKinds = null);
     /// <remarks>
-    /// Without <c>includeDocuments</c> a document is refused with <see cref="UnauthorizedAccessException"/>, after the
-    /// check that every item belongs to the Gallery owner's Personal Space.
+    /// An item whose View kind is in <c>blockedKinds</c> is refused with <see cref="UnauthorizedAccessException"/>, after
+    /// the check that every item belongs to the Gallery owner's Personal Space.
     /// </remarks>
     Task<AddViewGalleryItemsResult> AddItemsAsync(
         Guid galleryId,
         IReadOnlyCollection<Guid> itemIds,
-        bool includeDocuments = true,
+        IReadOnlyCollection<string>? blockedKinds = null,
         CancellationToken ct = default);
     /// <remarks>Without <c>includeDocuments</c> a document is left alone and not counted.</remarks>
     Task<int> RemoveItemsAsync(

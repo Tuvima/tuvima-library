@@ -9,3 +9,5 @@
 src/MediaEngine.Storage/DatabaseIntegrityChecker.cs | Writable probe: creates a uniquely named table in a transaction that is rolled back, to prove the file accepts writes. It leaves no structure behind.
 src/MediaEngine.Api/Services/HealthChecks/SqliteHealthCheck.cs | Health probe: creates and drops a uniquely named throwaway table in a rolled-back transaction to prove the data store is writable.
 src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs | Development harness reset: drops tables to clear a disposable dev data store. It does not define or change the production structure.
+src/MediaEngine.Storage/Backup/PersonalStateBackupRepository.cs | Backup export: reads the live table and column structure (names, NOT NULL, defaults) with a read-only pragma_table_info query, so it never selects a column that does not exist. It changes no structure.
+src/MediaEngine.Storage/Backup/RestoredRowSql.cs | Restore: reads the live table and column structure (names, NOT NULL, defaults, key columns) with a read-only pragma_table_info query, so a restore writes only columns that exist and follows the live foreign keys. It changes no structure.

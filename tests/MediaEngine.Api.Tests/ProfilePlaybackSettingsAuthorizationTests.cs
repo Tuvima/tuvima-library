@@ -54,7 +54,7 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
 
         var decisions = new AccountAccessDecisionService(
             _accounts,
-            new GrantAdminUnlockService(_accounts, new PasswordHasher<GrantAdminProtection>(), TimeProvider.System));
+            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System));
         _services = new ServiceCollection()
             .AddSingleton<IRequestAuthorityResolver>(
                 new RequestAuthorityResolver(_accounts, new ApplicationRepository(_database), _profileRepository))
@@ -142,8 +142,6 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
             IsEnabled = true,
             UnlockMode = "FixedDuration",
             UnlockMinutes = 30,
-            PinHash = "not-used",
-            HashScheme = "test",
             ProtectionVersion = 1,
             UpdatedAt = Now,
         });

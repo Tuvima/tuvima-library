@@ -320,7 +320,11 @@ The underlying title independent of file, edition, or format.
 
 ### Writeback
 
-Writing resolved metadata back into supported file tags after enrichment or user correction.
+Writing Library's metadata (tags, embedded artwork, and the profile name in View files) back into the files themselves. Changes are saved in Library at once; the files are written together on a schedule (every 60 minutes by default) or when an administrator presses **Write now**.
+
+### Kept in Library only
+
+A file whose format cannot hold a field, or that Library must not change (a signed or encrypted file, a read-only file, anything in a Read-only folder). Its details live in Library's data store only, and the file is never written. View folder rows show how many files are kept this way.
 
 
 ## Personal and shared experiences
@@ -383,7 +387,7 @@ The administrator destination for current ingestion work, waits, outcomes, and r
 
 ### Plugin
 
-Optional compiled code loaded by the Engine to add behavior. Plugins run in-process and are not sandboxed; administrators install and manage trusted plugins.
+An optional add-on that extends the Library. There are four kinds: Official plugins (compiled code that ships with the Library and runs inside the Engine with its trust), JSON-only plugins (a manifest the Library runs for them, no code), separate-program plugins (a program the Library starts and watches, talking through a local door), and sandboxed plugins (WebAssembly with strict limits). Nothing switches on until an administrator has approved what it can do.
 
 ## Retired Terms
 

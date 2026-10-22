@@ -5,6 +5,7 @@ using Dapper;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.View;
@@ -40,12 +41,12 @@ public sealed class ViewSharedContributionService(
     {
         var (actorProfileId, _) = await RequireActorAsync(authority, review: false, lookupReviewer: false, ct);
         await RequireSubmitAsync(actorProfileId, ct);
-        return PreviewForActor(actorProfileId, await MayUseDocumentsAsync(actorProfileId, ct), request, ct);
+        return PreviewForActor(actorProfileId, await BlockedKindsAsync(actorProfileId, ct), request, ct);
     }
 
     private ViewSharedContributionPreviewDto PreviewForActor(
         Guid actorProfileId,
-        bool documentsAllowed,
+        IReadOnlyList<string> blockedKinds,
         ViewSharedContributionPreviewRequest request,
         CancellationToken ct)
     {
@@ -59,12 +60,13 @@ public sealed class ViewSharedContributionService(
                 throw new KeyNotFoundException("A selected View item was not found.");
             }
 
-            // A profile without Documents cannot send one. Only the owner is told why (the item is theirs); anyone
-            // else in the household gets the same answer as for an item that does not exist.
-            if (!documentsAllowed && item.MediaKind == LocalAssetMediaKinds.Document)
+            // A profile without a kind (Photos, Personal videos or Documents) cannot send an item of that kind. Only the
+            // owner is told why (the item is theirs); anyone else in the household gets the same answer as for an item
+            // that does not exist.
+            if (item.ContentKind is { } itemKind && blockedKinds.Contains(itemKind))
             {
                 throw item.OwnerProfileId == actorProfileId
-                    ? new UnauthorizedAccessException(DocumentsNotAvailable)
+                    ? new UnauthorizedAccessException(KindNotAvailable(itemKind))
                     : new KeyNotFoundException("A selected View item was not found.");
             }
 
@@ -112,7 +114,7 @@ public sealed class ViewSharedContributionService(
             await RequireSubmitAsync(actorProfileId, ct);
         }
 
-        var preview = PreviewForActor(actorProfileId, await MayUseDocumentsAsync(actorProfileId, ct), previewRequest, ct);
+        var preview = PreviewForActor(actorProfileId, await BlockedKindsAsync(actorProfileId, ct), previewRequest, ct);
         if (!CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(preview.PreviewRevision),
                 Encoding.UTF8.GetBytes(request.PreviewRevision ?? string.Empty)))
@@ -197,7 +199,7 @@ public sealed class ViewSharedContributionService(
         RequestAuthority authority, ViewSharedDirectAddRequest request, CancellationToken ct = default)
     {
         var (actorProfileId, reviewer) = await RequireActorAsync(authority, review: true, lookupReviewer: true, ct);
-        var preview = PreviewForActor(actorProfileId, await MayUseDocumentsAsync(actorProfileId, ct),
+        var preview = PreviewForActor(actorProfileId, await BlockedKindsAsync(actorProfileId, ct),
             new ViewSharedContributionPreviewRequest(request.ItemIds, request.DestinationKind, request.FolderName), ct);
         var key = string.IsNullOrWhiteSpace(request.IdempotencyKey) ? Guid.NewGuid().ToString("N") : request.IdempotencyKey.Trim();
         var pending = await SubmitCoreAsync(actorProfileId, new ViewSharedContributionSubmitRequest(
@@ -235,7 +237,7 @@ public sealed class ViewSharedContributionService(
         var policy = await policies.GetPolicyAsync(actorProfileId, ct);
 
         var normalizedStatus = NormalizeStatusFilter(status);
-        var documentsAllowed = policy.DocumentsEnabled;
+        var blockedKinds = policy.BlockedContentKinds;
         using var connection = database.CreateConnection();
         var ids = connection.Query<Guid>(new CommandDefinition("""
             SELECT id FROM view_shared_contributions
@@ -246,12 +248,15 @@ public sealed class ViewSharedContributionService(
                            AND submitter.household_id = @reviewerHousehold)))
                     OR submitted_by_profile_id = @actorProfileId)
                AND (@status IS NULL OR status = @status)
-               -- Without Documents, a contribution that holds only documents is left out entirely.
-               AND (@documentsAllowed = 1 OR EXISTS (
+               -- Without a kind, a contribution that holds only items of the kinds the profile may not use is left out entirely.
+               AND (@hasBlockedKinds = 0 OR EXISTS (
                         SELECT 1 FROM view_shared_contribution_items ci
                           LEFT JOIN local_items li ON li.id = ci.item_id
-                         -- An item removed by Empty Trash leaves its history row with no item; that row is not a document.
-                         WHERE ci.contribution_id = view_shared_contributions.id AND (li.id IS NULL OR li.media_kind <> 'document')))
+                         -- An item removed by Empty Trash leaves its history row with no item; that row is not a hidden kind.
+                         WHERE ci.contribution_id = view_shared_contributions.id
+                           AND (li.id IS NULL
+                                OR ((@documentsAllowed = 1 OR li.media_kind <> 'document')
+                                    AND (li.content_kind IS NULL OR li.content_kind NOT IN @blockedKinds)))))
              ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, submitted_at DESC
              LIMIT @take OFFSET @offset;
             """, new
@@ -261,7 +266,9 @@ public sealed class ViewSharedContributionService(
             reviewerHousehold = reviewer.HouseholdId,
             actorProfileId,
             status = normalizedStatus,
-            documentsAllowed = documentsAllowed ? 1 : 0,
+            documentsAllowed = blockedKinds.Contains(ViewContentKinds.Documents) ? 0 : 1,
+            hasBlockedKinds = blockedKinds.Count == 0 ? 0 : 1,
+            blockedKinds = blockedKinds.Count == 0 ? new[] { ViewContentKinds.Photos } : blockedKinds.ToArray(),
             take = limit + 1,
             offset,
         },
@@ -275,7 +282,7 @@ public sealed class ViewSharedContributionService(
         var rows = new List<ViewSharedContributionDto>(ids.Count);
         foreach (var id in ids)
         {
-            if (Read(connection, id, documentsAllowed, ct) is { } row)
+            if (Read(connection, id, blockedKinds, ct) is { } row)
             {
                 rows.Add(row);
             }
@@ -302,10 +309,10 @@ public sealed class ViewSharedContributionService(
         (RequestAuthority Authority, string Action)? audited = null)
     {
         ct.ThrowIfCancellationRequested();
-        var documentsAllowed = await MayUseDocumentsAsync(actorProfileId, ct);
+        var blockedKinds = await BlockedKindsAsync(actorProfileId, ct);
         using var connection = database.CreateConnection();
-        // A contribution that holds only documents does not exist as far as a profile without Documents can tell.
-        var contribution = Read(connection, contributionId, documentsAllowed, ct) ?? throw new KeyNotFoundException();
+        // A contribution that holds only items of a kind the profile may not use does not exist as far as it can tell.
+        var contribution = Read(connection, contributionId, blockedKinds, ct) ?? throw new KeyNotFoundException();
         var submitterHousehold = contribution.SubmittedByProfileId is { } submitter
             ? connection.QuerySingleOrDefault<Guid?>(
                 "SELECT household_id FROM profiles WHERE id = @submitter;", new { submitter })
@@ -504,7 +511,7 @@ public sealed class ViewSharedContributionService(
     public async Task ProcessAsync(Guid contributionId, CancellationToken ct = default)
     {
         using var readConnection = database.CreateConnection();
-        var batch = Read(readConnection, contributionId, includeDocuments: true, ct)!;
+        var batch = Read(readConnection, contributionId, blockedKinds: [], ct)!;
         var actorProfileId = readConnection.QuerySingle<Guid?>(new CommandDefinition(
             "SELECT decided_by_profile_id FROM view_shared_contributions WHERE id = @contributionId;",
             new { contributionId }, cancellationToken: ct))
@@ -531,8 +538,15 @@ public sealed class ViewSharedContributionService(
 
     private const string DocumentsNotAvailable = "Documents are not available for this profile.";
 
-    private async Task<bool> MayUseDocumentsAsync(Guid profileId, CancellationToken ct) =>
-        (await policies.GetPolicyAsync(profileId, ct)).DocumentsEnabled;
+    private async Task<IReadOnlyList<string>> BlockedKindsAsync(Guid profileId, CancellationToken ct) =>
+        (await policies.GetPolicyAsync(profileId, ct)).BlockedContentKinds;
+
+    private static string KindNotAvailable(string kind) => kind switch
+    {
+        ViewContentKinds.Documents => DocumentsNotAvailable,
+        ViewContentKinds.PersonalVideos => "Personal videos are not available for this profile.",
+        _ => "Photos are not available for this profile.",
+    };
 
     private async Task RequireSubmitAsync(Guid profileId, CancellationToken ct)
     {
@@ -672,12 +686,12 @@ public sealed class ViewSharedContributionService(
     }
 
     /// <summary>
-    /// Reads one contribution. Without <paramref name="includeDocuments"/> its documents are left out of the items,
+    /// Reads one contribution. Items of a kind in <paramref name="blockedKinds"/> are left out of the items,
     /// the item count and the log, and <c>IncludesHiddenItems</c> says only that something was left out (never how
     /// many); a contribution that holds nothing else comes back as null.
     /// </summary>
     private static ViewSharedContributionDto? Read(
-        System.Data.IDbConnection connection, Guid id, bool includeDocuments, CancellationToken ct)
+        System.Data.IDbConnection connection, Guid id, IReadOnlyCollection<string> blockedKinds, CancellationToken ct)
     {
         var row = connection.QuerySingleOrDefault<ContributionRow>(new CommandDefinition("""
             SELECT id AS Id, submitted_by_profile_id AS SubmittedByProfileId,
@@ -696,19 +710,25 @@ public sealed class ViewSharedContributionService(
         var items = connection.Query<ContributionItemRow>(new CommandDefinition("""
             SELECT sci.id AS Id, sci.item_id AS ItemId,
                    CASE WHEN li.id IS NULL THEN 'Removed item' ELSE COALESCE(li.title, li.primary_file_name) END AS Title,
-                   COALESCE(li.media_kind, 'other') AS MediaKind, sci.operation AS Operation,
+                   COALESCE(li.media_kind, 'other') AS MediaKind, li.content_kind AS ContentKind,
+                   sci.operation AS Operation,
                    sci.execution_state AS ExecutionState, sci.error AS Error
               FROM view_shared_contribution_items sci
               LEFT JOIN local_items li ON li.id = sci.item_id
              WHERE sci.contribution_id = @id ORDER BY sci.position;
             """, new { id }, cancellationToken: ct)).ToList();
-        var hidden = includeDocuments ? 0 : items.Count(value => value.MediaKind == LocalAssetMediaKinds.Document);
+        // Hidden by its View kind (a picture of paper in a Documents folder counts as a document), or by being a document.
+        var includeDocuments = !blockedKinds.Contains(ViewContentKinds.Documents);
+        bool IsHidden(ContributionItemRow value) =>
+            (!includeDocuments && value.MediaKind == LocalAssetMediaKinds.Document)
+            || (value.ContentKind is { } kind && blockedKinds.Contains(kind));
+        var hidden = blockedKinds.Count == 0 ? 0 : items.Count(IsHidden);
         if (hidden > 0 && hidden == items.Count)
         {
             return null;
         }
 
-        var visibleItems = items.Where(value => includeDocuments || value.MediaKind != LocalAssetMediaKinds.Document)
+        var visibleItems = items.Where(value => !IsHidden(value))
             .Select(value => new ViewSharedContributionItemDto(
                 value.Id, value.ItemId ?? Guid.Empty, value.Title ?? "Untitled", value.MediaKind, value.Operation,
                 value.ExecutionState, value.Error)).ToList();
@@ -795,6 +815,7 @@ public sealed class ViewSharedContributionService(
         public Guid? ItemId { get; init; }
         public string? Title { get; init; }
         public string MediaKind { get; init; } = "";
+        public string? ContentKind { get; init; }
         public string Operation { get; init; } = "";
         public string ExecutionState { get; init; } = "";
         public string? Error { get; init; }

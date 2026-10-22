@@ -1,0 +1,16 @@
+.vault-viewer { position: fixed; inset: 0; z-index: 1200; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 20rem); background: var(--tl-bg-surface); outline: none; }
+.vault-viewer__stage { display: grid; place-items: center; min-width: 0; min-height: 0; padding: 16px; box-sizing: border-box; background: var(--tl-bg-surface-raised); }
+.vault-viewer__stage img { max-width: 100%; max-height: 100%; object-fit: contain; transition: filter 0.15s ease; }
+.vault-viewer__stage--blur img { filter: blur(24px); }
+.vault-viewer__stage--blur img:hover, .vault-viewer__stage--blur img:focus-visible { filter: none; }
+.vault-viewer__hidden { color: var(--tl-text-muted); }
+.vault-viewer__panel { display: grid; align-content: start; gap: 12px; padding: 16px; overflow: auto; }
+.vault-viewer__bar, .vault-viewer__nav, .vault-viewer__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.vault-viewer__title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.vault-viewer__title--hidden:not(:hover) { color: transparent; user-select: none; }
+.vault-viewer__count { color: var(--tl-text-muted); font-size: 0.8125rem; }
+.vault-viewer__facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
+.vault-viewer__facts dt { color: var(--tl-text-muted); }
+.vault-viewer__facts dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 840px) { .vault-viewer { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; } }
+@media (prefers-reduced-motion: reduce) { .vault-viewer__stage img { transition: none; } }

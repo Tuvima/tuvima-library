@@ -163,7 +163,7 @@ else
                         <div class="listen-song-table__art @(track.IsUpdatingDetails ? "is-updating" : null)" title="@(track.IsUpdatingDetails ? "Details are being updated; playback is available" : null)">
                             @if (!string.IsNullOrWhiteSpace(track.CoverUrl))
                             {
-                                <img src="@track.CoverUrl" alt="" loading="lazy" decoding="async" />
+                                <img src="@MediaTileArtworkUrl.ForDrawnSize(track.CoverUrl, 36)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(track.CoverUrl, 36)" alt="" loading="lazy" decoding="async" />
                             }
                             else
                             {

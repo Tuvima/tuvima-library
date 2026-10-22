@@ -24,10 +24,8 @@ public sealed class UiCompositionGuardrailTests
         "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor",
     ];
 
-    private static readonly string RemovedRouteSegment = "/" + "va" + "ult";
-    private static readonly string RemovedProductLabel = "Va" + "ult";
-    private static readonly string RemovedWorkspaceLabel = "Library " + RemovedProductLabel;
-    private static readonly string RemovedCssPrefix = "va" + "ult-";
+    // Only the old workspace name (the word Library before the area name) stays retired; the plain area name is the adult-video area (Videos spec D15).
+    private static readonly string RemovedWorkspaceLabel = "Library " + "Va" + "ult";
     private static readonly string RemovedPageComponent = "Library" + "Page";
     private static readonly string RemovedSurfaceType = "LibrarySurface" + "Preset";
 
@@ -341,10 +339,7 @@ public sealed class UiCompositionGuardrailTests
 
     private static bool ContainsRemovedWorkspaceLanguage(string contents)
     {
-        return contents.Contains(RemovedRouteSegment, StringComparison.OrdinalIgnoreCase)
-            || contents.Contains(RemovedProductLabel, StringComparison.OrdinalIgnoreCase)
-            || contents.Contains(RemovedWorkspaceLabel, StringComparison.OrdinalIgnoreCase)
-            || contents.Contains(RemovedCssPrefix, StringComparison.OrdinalIgnoreCase)
+        return contents.Contains(RemovedWorkspaceLabel, StringComparison.OrdinalIgnoreCase)
             || contents.Contains(RemovedPageComponent, StringComparison.OrdinalIgnoreCase)
             || contents.Contains(RemovedSurfaceType, StringComparison.OrdinalIgnoreCase);
     }

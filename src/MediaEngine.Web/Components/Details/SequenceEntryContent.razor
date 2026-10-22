@@ -18,7 +18,8 @@
             <div class="tl-series-item__art">
                 @if (Item.IsOwned && !string.IsNullOrWhiteSpace(Item.ArtworkUrl))
                 {
-                    <img src="@Item.ArtworkUrl" alt="@Item.Title" loading="lazy" decoding="async" />
+                    @* Drawn up to about 270x400px (SequencePlacementPanel.razor.css). *@
+                    <img src="@MediaTileArtworkUrl.ForDrawnSize(Item.ArtworkUrl, 400)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Item.ArtworkUrl, 400)" alt="@Item.Title" loading="lazy" decoding="async" />
                 }
                 else
                 {

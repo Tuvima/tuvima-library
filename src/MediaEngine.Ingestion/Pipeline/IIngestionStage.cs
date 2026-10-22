@@ -44,6 +44,11 @@ internal sealed class IngestionPipelineContext(IngestionCandidate candidate)
 
     /// <summary>The thumbnail an online lookup returned, used when the video has no picture of its own.</summary>
     public FolderCoverImage? LookupThumbnail { get; set; }
+    /// <summary>True when the file is in a Vault library (Videos spec WP12). Its artwork never reaches the shared artwork tables.</summary>
+    public bool IsVault { get; set; }
+
+    /// <summary>The picture a Vault file has (embedded, in its folder, or a still frame), kept with the Vault's own artwork.</summary>
+    public FolderCoverImage? VaultStill { get; set; }
     public Guid AssetId { get; set; }
     public IReadOnlyList<MetadataClaim> Claims { get; set; } = [];
     public ScoringResult? Scored { get; set; }

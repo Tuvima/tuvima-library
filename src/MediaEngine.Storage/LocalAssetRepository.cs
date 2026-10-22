@@ -2,6 +2,7 @@ using System.Text.Json;
 using Dapper;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Data.Sqlite;
 
@@ -22,6 +23,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         public Guid? PersonalSpaceId { get; init; }
         public Guid? OwnerProfileId { get; init; }
         public string MediaKind { get; init; } = string.Empty;
+        public string? ContentKind { get; init; }
+        public Guid? AddedByProfileId { get; init; }
+        public string? AddedByName { get; init; }
         public string? Title { get; init; }
         public string FileName { get; init; } = string.Empty;
         public string MimeType { get; init; } = string.Empty;
@@ -172,6 +176,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    li.personal_space_id AS PersonalSpaceId,
                    li.owner_profile_id AS OwnerProfileId,
                    li.media_kind AS MediaKind,
+                   li.content_kind AS ContentKind, li.added_by_profile_id AS AddedByProfileId,
+                   abp.display_name AS AddedByName,
                    li.title AS Title,
                    li.primary_file_name AS FileName,
                    li.primary_mime_type AS MimeType,
@@ -219,7 +225,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
               LEFT JOIN doc_item_details dd ON dd.item_id = li.id
               LEFT JOIN doc_correspondents dc ON dc.id = dd.correspondent_id
               LEFT JOIN doc_types dt ON dt.id = dd.doc_type_id
+              LEFT JOIN profiles abp ON abp.id = li.added_by_profile_id
              WHERE li.library_id = @LibraryId
+               AND NOT EXISTS (SELECT 1 FROM vault_image_items vx WHERE vx.item_id = li.id)
                AND ((@HiddenOnly = 1 AND li.hidden = 1)
                     OR (@HiddenOnly = 0 AND (@IncludeHidden = 1 OR li.hidden = 0)))
                AND (@FavoritesOnly = 0 OR li.favorite = 1)
@@ -305,10 +313,11 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         // household's shared assets.
         var parameters = new DynamicParameters();
         var libraryPredicate = ViewCatalogueSql.LibraryPredicate("li", libraryIds, parameters);
+        var vaultPredicate = VaultPredicate(query.Vault, parameters);
 
         var smartRule = query.SmartRule is null
             ? new LocalAssetSmartRuleSql("1 = 1", new DynamicParameters())
-            : LocalAssetSmartRuleSqlCompiler.Compile(query.SmartRule);
+            : query.Vault is null ? LocalAssetSmartRuleSqlCompiler.Compile(query.SmartRule) : LocalAssetSmartRuleSqlCompiler.CompileForVault(query.SmartRule);
         parameters.AddDynamicParams(new
         {
             query.IncludeHidden,
@@ -332,6 +341,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             query.TimelineEligibleOnly,
             Take = query.Limit + 1,
         });
+        AddKindAndAddedByParameters(parameters, query);
         parameters.AddDynamicParams(smartRule.Parameters);
         var documentFilterPredicate = BuildDocumentFilter(query.DocumentFilter, parameters);
 
@@ -349,6 +359,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             SELECT li.id AS Id, li.scope_kind AS ScopeKind, li.library_id AS LibraryId,
                    li.personal_space_id AS PersonalSpaceId, li.owner_profile_id AS OwnerProfileId,
                    li.media_kind AS MediaKind, li.title AS Title,
+                   li.content_kind AS ContentKind, li.added_by_profile_id AS AddedByProfileId,
+                   abp.display_name AS AddedByName,
                    li.primary_file_name AS FileName, li.primary_mime_type AS MimeType,
                    li.captured_at AS CapturedAt, li.embedded_captured_at AS EmbeddedCapturedAt,
                    li.captured_at_user_override AS CapturedAtUserOverride, li.created_at AS CreatedAt,
@@ -386,8 +398,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
               LEFT JOIN doc_item_details dd ON dd.item_id = li.id
               LEFT JOIN doc_correspondents dc ON dc.id = dd.correspondent_id
               LEFT JOIN doc_types dt ON dt.id = dd.doc_type_id
+              LEFT JOIN profiles abp ON abp.id = li.added_by_profile_id
               LEFT JOIN view_shared_assets vsa ON vsa.item_id = li.id
-             WHERE ({{libraryPredicate}})
+             WHERE ({{libraryPredicate}}) AND ({{vaultPredicate}})
                AND ((@HiddenOnly = 1 AND li.hidden = 1)
                     OR (@HiddenOnly = 0 AND (@IncludeHidden = 1 OR li.hidden = 0)))
                AND (@FavoritesOnly = 0 OR li.favorite = 1)
@@ -396,27 +409,12 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     OR (@Lifecycle = 1 AND li.archived_at IS NOT NULL AND li.trashed_at IS NULL)
                     OR (@Lifecycle = 2 AND li.trashed_at IS NOT NULL))
                AND (@HasMediaKinds = 0 OR li.media_kind IN @MediaKinds)
+               AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
+               AND (@HasAddedBy = 0 OR li.added_by_profile_id IN @AddedByIds)
                AND (@GalleryId IS NULL OR EXISTS (
                     SELECT 1 FROM view_gallery_items vgi
                      WHERE vgi.gallery_id = @GalleryId AND vgi.item_id = li.id))
-               AND (@TimelineEligibleOnly = 0 OR EXISTS (
-                    SELECT 1
-                      FROM local_item_files tlif
-                      JOIN local_file_sources tlfs ON tlfs.file_id = tlif.file_id AND tlfs.library_id = li.library_id
-                      LEFT JOIN view_sources tvs ON tvs.id = tlfs.source_id
-                      LEFT JOIN view_source_policies tvsp ON tvsp.source_id = tvs.id
-                     WHERE tlif.item_id = li.id
-                       AND (vsa.item_id IS NOT NULL OR COALESCE((
-                           SELECT vftp.include_in_timeline
-                             FROM view_folder_timeline_policies vftp
-                            WHERE vftp.source_id = tvs.id
-                              AND (tlfs.file_path = vftp.absolute_path COLLATE NOCASE
-                                   OR (substr(tlfs.file_path, 1, length(vftp.absolute_path)) = vftp.absolute_path COLLATE NOCASE
-                                       AND substr(tlfs.file_path, length(vftp.absolute_path) + 1, 1) IN ('/', '\')))
-                            ORDER BY length(vftp.absolute_path) DESC
-                            LIMIT 1), tvsp.include_in_timeline,
-                           CASE WHEN tvs.source_type = 'browser_upload' THEN 1 ELSE 0 END) = 1))
-               )
+               AND {{TimelineEligiblePredicate}}
                AND ({{smartRule.Predicate}})
                AND ({{documentFilterPredicate}})
                AND (@SearchExpression IS NULL OR EXISTS (
@@ -501,10 +499,11 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         // household's shared assets.
         var parameters = new DynamicParameters();
         var libraryPredicate = ViewCatalogueSql.LibraryPredicate("li", libraryIds, parameters);
+        var vaultPredicate = VaultPredicate(query.Vault, parameters);
 
         var smartRule = query.SmartRule is null
             ? new LocalAssetSmartRuleSql("1 = 1", new DynamicParameters())
-            : LocalAssetSmartRuleSqlCompiler.Compile(query.SmartRule);
+            : query.Vault is null ? LocalAssetSmartRuleSqlCompiler.Compile(query.SmartRule) : LocalAssetSmartRuleSqlCompiler.CompileForVault(query.SmartRule);
         parameters.AddDynamicParams(new
         {
             query.IncludeHidden,
@@ -517,11 +516,14 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             SearchExpression = searchExpression,
             query.TimelineEligibleOnly,
         });
+        AddKindAndAddedByParameters(parameters, query);
         if (query.WithoutLocation)
         {
             parameters.Add("SearchExpression", null);
         }
         parameters.AddDynamicParams(smartRule.Parameters);
+        // Tag filters count the same rows the list shows when a tag chip is on.
+        var documentFilterPredicate = BuildDocumentFilter(query.DocumentFilter, parameters);
 
         using var connection = database.CreateConnection();
         var rows = connection.Query<TimelineBucketRow>(new CommandDefinition($$"""
@@ -533,7 +535,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
               FROM local_items li
               LEFT JOIN local_item_metadata lm ON lm.item_id = li.id
               LEFT JOIN view_shared_assets vsa ON vsa.item_id = li.id
-             WHERE ({{libraryPredicate}})
+             WHERE ({{libraryPredicate}}) AND ({{vaultPredicate}})
                AND ((@HiddenOnly = 1 AND li.hidden = 1)
                     OR (@HiddenOnly = 0 AND (@IncludeHidden = 1 OR li.hidden = 0)))
                AND (@FavoritesOnly = 0 OR li.favorite = 1)
@@ -542,28 +544,14 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     OR (@Lifecycle = 1 AND li.archived_at IS NOT NULL AND li.trashed_at IS NULL)
                     OR (@Lifecycle = 2 AND li.trashed_at IS NOT NULL))
                AND (@HasMediaKinds = 0 OR li.media_kind IN @MediaKinds)
+               AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
+               AND (@HasAddedBy = 0 OR li.added_by_profile_id IN @AddedByIds)
                AND (@GalleryId IS NULL OR EXISTS (
                     SELECT 1 FROM view_gallery_items vgi
                      WHERE vgi.gallery_id = @GalleryId AND vgi.item_id = li.id))
-               AND (@TimelineEligibleOnly = 0 OR EXISTS (
-                    SELECT 1
-                      FROM local_item_files tlif
-                      JOIN local_file_sources tlfs ON tlfs.file_id = tlif.file_id AND tlfs.library_id = li.library_id
-                      LEFT JOIN view_sources tvs ON tvs.id = tlfs.source_id
-                      LEFT JOIN view_source_policies tvsp ON tvsp.source_id = tvs.id
-                     WHERE tlif.item_id = li.id
-                       AND (vsa.item_id IS NOT NULL OR COALESCE((
-                           SELECT vftp.include_in_timeline
-                             FROM view_folder_timeline_policies vftp
-                            WHERE vftp.source_id = tvs.id
-                              AND (tlfs.file_path = vftp.absolute_path COLLATE NOCASE
-                                   OR (substr(tlfs.file_path, 1, length(vftp.absolute_path)) = vftp.absolute_path COLLATE NOCASE
-                                       AND substr(tlfs.file_path, length(vftp.absolute_path) + 1, 1) IN ('/', '\')))
-                            ORDER BY length(vftp.absolute_path) DESC
-                            LIMIT 1), tvsp.include_in_timeline,
-                           CASE WHEN tvs.source_type = 'browser_upload' THEN 1 ELSE 0 END) = 1))
-               )
+               AND {{TimelineEligiblePredicate}}
                AND ({{smartRule.Predicate}})
+               AND ({{documentFilterPredicate}})
                AND (@SearchExpression IS NULL OR EXISTS (
                     SELECT 1 FROM local_item_search lis
                       JOIN local_item_search_keys lsk ON lsk.rowid = lis.rowid
@@ -577,6 +565,117 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             checked((int)row.AssetCount),
             row.EarliestAt,
             row.LatestAt)).ToList();
+    }
+
+    /// <summary>The "belongs in the timeline" test, shared by the timeline, its index and the added-by counts.</summary>
+    private const string TimelineEligiblePredicate = """
+        (@TimelineEligibleOnly = 0 OR EXISTS (
+             SELECT 1
+               FROM local_item_files tlif
+               JOIN local_file_sources tlfs ON tlfs.file_id = tlif.file_id AND tlfs.library_id = li.library_id
+               LEFT JOIN view_sources tvs ON tvs.id = tlfs.source_id
+               LEFT JOIN view_source_policies tvsp ON tvsp.source_id = tvs.id
+              WHERE tlif.item_id = li.id
+                AND (vsa.item_id IS NOT NULL OR COALESCE((
+                    SELECT vftp.include_in_timeline
+                      FROM view_folder_timeline_policies vftp
+                     WHERE vftp.source_id = tvs.id
+                       AND (tlfs.file_path = vftp.absolute_path COLLATE NOCASE
+                            OR (substr(tlfs.file_path, 1, length(vftp.absolute_path)) = vftp.absolute_path COLLATE NOCASE
+                                AND substr(tlfs.file_path, length(vftp.absolute_path) + 1, 1) IN ('/', '\')))
+                     ORDER BY length(vftp.absolute_path) DESC
+                     LIMIT 1), tvsp.include_in_timeline,
+                    CASE WHEN tvs.source_type = 'browser_upload' THEN 1 ELSE 0 END) = 1))
+        )
+        """;
+
+    private static void AddKindAndAddedByParameters(DynamicParameters parameters, LocalAssetTimelineQuery query)
+    {
+        var excluded = query.ExcludedContentKinds?
+            .Where(kind => !string.IsNullOrWhiteSpace(kind))
+            .Select(kind => kind.Trim().ToLowerInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .ToArray() ?? [];
+        var addedBy = query.AddedByProfileIds?
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .Select(GuidSql.ToBlob)
+            .ToArray() ?? [];
+        parameters.Add("HasExcludedKinds", excluded.Length == 0 ? 0 : 1);
+        parameters.Add("ExcludedKinds", excluded.Length == 0 ? new[] { ViewContentKinds.Photos } : excluded);
+        parameters.Add("HasAddedBy", query.AddedByProfileIds is null ? 0 : 1);
+        // An added_by filter that names only unknown ids matches nothing, rather than silently matching everything.
+        parameters.Add("AddedByIds", addedBy.Length == 0 ? new[] { GuidSql.ToBlob(Guid.Empty) } : addedBy);
+    }
+
+    public string? GetContentKind(Guid itemId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        return connection.ExecuteScalar<string?>(new CommandDefinition(
+            "SELECT content_kind FROM local_items WHERE id = @itemId;",
+            new { itemId }, cancellationToken: ct));
+    }
+
+    public IReadOnlyList<LocalAssetAddedByCount> QueryAddedBy(LocalAssetTimelineQuery query, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        if ((query.AuthorizedLibraryIds is null || query.AuthorizedLibraryIds.Count == 0)
+            && !query.IncludeSharedLibraryAssets)
+        {
+            throw new ArgumentException("At least one resolver-authorized library is required.", nameof(query));
+        }
+        if (query.AuthorizedLibraryIds?.Any(id => id == Guid.Empty) == true)
+        {
+            throw new ArgumentException("Authorized library IDs cannot be empty.", nameof(query));
+        }
+
+        ct.ThrowIfCancellationRequested();
+        var libraryIds = query.AuthorizedLibraryIds?.Distinct().ToArray() ?? [];
+        var mediaKinds = query.MediaKinds?
+            .Where(kind => !string.IsNullOrWhiteSpace(kind))
+            .Select(NormalizeMediaKind)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray() ?? [];
+        var parameters = new DynamicParameters();
+        var libraryPredicate = ViewCatalogueSql.LibraryPredicate("li", libraryIds, parameters);
+        parameters.AddDynamicParams(new
+        {
+            query.IncludeHidden,
+            query.HiddenOnly,
+            Lifecycle = (int)query.Lifecycle,
+            HasMediaKinds = mediaKinds.Length == 0 ? 0 : 1,
+            MediaKinds = mediaKinds.Length == 0 ? [LocalAssetMediaKinds.Other] : mediaKinds,
+            query.TimelineEligibleOnly,
+        });
+        AddKindAndAddedByParameters(parameters, query);
+        using var connection = database.CreateConnection();
+        var rows = connection.Query<AddedByRow>(new CommandDefinition($$"""
+            SELECT p.id AS ProfileId, p.display_name AS Name, COUNT(*) AS ItemCount
+              FROM local_items li
+              JOIN profiles p ON p.id = li.added_by_profile_id
+              LEFT JOIN view_shared_assets vsa ON vsa.item_id = li.id
+             WHERE ({{libraryPredicate}})
+               AND ((@HiddenOnly = 1 AND li.hidden = 1)
+                    OR (@HiddenOnly = 0 AND (@IncludeHidden = 1 OR li.hidden = 0)))
+               AND (@Lifecycle = 3
+                    OR (@Lifecycle = 0 AND li.archived_at IS NULL AND li.trashed_at IS NULL)
+                    OR (@Lifecycle = 1 AND li.archived_at IS NOT NULL AND li.trashed_at IS NULL)
+                    OR (@Lifecycle = 2 AND li.trashed_at IS NOT NULL))
+               AND (@HasMediaKinds = 0 OR li.media_kind IN @MediaKinds)
+               AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
+               AND {{TimelineEligiblePredicate}}
+             GROUP BY p.id, p.display_name
+             ORDER BY COUNT(*) DESC, p.display_name COLLATE NOCASE, p.id;
+            """, parameters, cancellationToken: ct)).ToList();
+        return rows.Select(row => new LocalAssetAddedByCount(row.ProfileId, row.Name, checked((int)row.ItemCount))).ToList();
+    }
+
+    private sealed class AddedByRow
+    {
+        public Guid ProfileId { get; init; }
+        public string Name { get; init; } = string.Empty;
+        public long ItemCount { get; init; }
     }
 
     public bool IsDocument(Guid itemId, CancellationToken ct = default)
@@ -605,6 +704,31 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         }
 
         return kinds;
+    }
+
+    public IReadOnlyDictionary<Guid, string> GetContentKinds(IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(itemIds);
+        var kinds = new Dictionary<Guid, string>();
+        using var connection = database.CreateConnection();
+        foreach (var chunk in itemIds.Where(id => id != Guid.Empty).Distinct().Chunk(500))
+        {
+            ct.ThrowIfCancellationRequested();
+            foreach (var row in connection.Query<ContentKindRow>(new CommandDefinition(
+                         "SELECT id AS Id, content_kind AS ContentKind FROM local_items WHERE id IN @ids AND content_kind IS NOT NULL;",
+                         new { ids = chunk.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct)))
+            {
+                kinds[row.Id] = row.ContentKind;
+            }
+        }
+
+        return kinds;
+    }
+
+    private sealed class ContentKindRow
+    {
+        public Guid Id { get; init; }
+        public string ContentKind { get; init; } = string.Empty;
     }
 
     private sealed class MediaKindRow
@@ -704,6 +828,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         using var connection = database.CreateConnection();
         var row = connection.QuerySingleOrDefault<ItemRow>("""
             SELECT li.id AS Id, li.scope_kind AS ScopeKind, li.library_id AS LibraryId, li.media_kind AS MediaKind,
+                   li.content_kind AS ContentKind, li.added_by_profile_id AS AddedByProfileId,
+                   abp.display_name AS AddedByName,
                    li.personal_space_id AS PersonalSpaceId, li.owner_profile_id AS OwnerProfileId,
                    li.title AS Title, li.primary_file_name AS FileName,
                    li.primary_mime_type AS MimeType, li.captured_at AS CapturedAt,
@@ -744,6 +870,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
               LEFT JOIN doc_item_details dd ON dd.item_id = li.id
               LEFT JOIN doc_correspondents dc ON dc.id = dd.correspondent_id
               LEFT JOIN doc_types dt ON dt.id = dd.doc_type_id
+              LEFT JOIN profiles abp ON abp.id = li.added_by_profile_id
              WHERE li.id = @itemId;
             """, new { itemId });
         return row is null ? null : MapItem(connection, row, knownReadOnly);
@@ -806,6 +933,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             var now = DateTimeOffset.UtcNow;
             var normalizedKind = NormalizeMediaKind(registration.MediaKind);
             var scopeKind = NormalizeScopeKind(registration.ScopeKind);
+            var isVault = string.Equals(registration.ScopeKind, LocalAssetScopeKinds.Vault, StringComparison.Ordinal);
             if (scopeKind == LocalAssetScopeKinds.Personal)
             {
                 var spaceOwner = connection.QuerySingleOrDefault<(Guid OwnerProfileId, Guid LibraryId)>("""
@@ -820,6 +948,14 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                 if (spaceOwner.OwnerProfileId != registration.OwnerProfileId || spaceOwner.LibraryId != registration.LibraryId)
                 {
                     throw new InvalidOperationException("Asset owner, Personal Space, and configured library must identify the same ownership boundary.");
+                }
+            }
+            else if (isVault)
+            {
+                if (connection.ExecuteScalar<long>(
+                        "SELECT COUNT(*) FROM vault_image_libraries WHERE library_id=@LibraryId;", registration, transaction) == 0)
+                {
+                    throw new InvalidOperationException("A Vault image must use a Vault image library.");
                 }
             }
             else if (connection.ExecuteScalar<long>("""
@@ -896,11 +1032,13 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             {
                 connection.Execute("""
                     INSERT INTO local_items
-                        (id, scope_kind, personal_space_id, owner_profile_id, library_id, media_kind, title, primary_file_name,
+                        (id, scope_kind, personal_space_id, owner_profile_id, library_id, media_kind, content_kind,
+                         added_by_profile_id, title, primary_file_name,
                          primary_mime_type, captured_at, embedded_captured_at, captured_at_user_override,
                          created_at, updated_at, favorite, hidden)
                     VALUES
-                        (@itemId, @scopeKind, @PersonalSpaceId, @OwnerProfileId, @LibraryId, @MediaKind, @Title, @FileName,
+                        (@itemId, @scopeKind, @PersonalSpaceId, @OwnerProfileId, @LibraryId, @MediaKind, @ContentKind,
+                         @AddedByProfileId, @Title, @FileName,
                          @MimeType, @CapturedAt, @CapturedAt, 0, @now, @now, 0, 0);
                     """, new
                 {
@@ -910,6 +1048,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     registration.OwnerProfileId,
                     registration.LibraryId,
                     MediaKind = normalizedKind,
+                    // A row written without a kind takes the one that matches its file type (a data store rule).
+                    registration.ContentKind,
+                    registration.AddedByProfileId,
                     registration.Title,
                     FileName = primary!.FileName.Trim(),
                     MimeType = primary.MimeType.Trim().ToLowerInvariant(),
@@ -949,13 +1090,14 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
 
                 connection.Execute("""
                     UPDATE local_items
-                       SET title = COALESCE(@Title, title),
+                       SET added_by_profile_id = COALESCE(added_by_profile_id, @AddedByProfileId),
+                           title = COALESCE(@Title, title),
                            embedded_captured_at = COALESCE(@CapturedAt, embedded_captured_at),
                            captured_at = CASE WHEN captured_at_user_override = 1
                                THEN captured_at ELSE COALESCE(@CapturedAt, captured_at) END,
                            updated_at = @now
                      WHERE id = @itemId;
-                    """, new { itemId, registration.Title, registration.CapturedAt, now }, transaction);
+                    """, new { itemId, registration.Title, registration.CapturedAt, registration.AddedByProfileId, now }, transaction);
             }
 
             connection.Execute("""
@@ -1039,7 +1181,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             foreach (var file in registration.Files)
             {
                 token.ThrowIfCancellationRequested();
-                ValidateSourceIdentity(connection, transaction, registration, scopeKind, file);
+                ValidateSourceIdentity(connection, transaction, registration, scopeKind, isVault, file);
                 var hash = NormalizeHash(file.ContentHash);
                 var role = NormalizeRole(file.Role);
                 var fileId = connection.QuerySingleOrDefault<Guid?>(
@@ -1212,6 +1354,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
               JOIN local_file_sources lfs ON lfs.file_id = lf.id AND lfs.library_id = li.library_id
              WHERE li.media_kind IN ('document', 'image')
                AND li.trashed_at IS NULL
+               AND NOT EXISTS (SELECT 1 FROM vault_image_items vx WHERE vx.item_id = li.id)
                AND (@after IS NULL OR li.id > @after)
                AND (m.text_source IS NULL OR m.text_source = 'none')
                AND CASE WHEN m.metadata_json IS NOT NULL AND json_valid(m.metadata_json)
@@ -1725,7 +1868,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             DocumentInfo: MapDocumentInfo(row, tags, fieldValues),
             // Shared Library items and items in a linked (read-only) folder never go to Trash; whether the caller
             // owns the item is decided by the Engine connection point that sends it.
-            CanTrash: row.ScopeKind == LocalAssetScopeKinds.Personal && !readOnly);
+            CanTrash: row.ScopeKind == LocalAssetScopeKinds.Personal && !readOnly,
+            ContentKind: row.ContentKind,
+            AddedByProfileId: row.AddedByName is null ? null : row.AddedByProfileId,
+            AddedByName: row.AddedByName);
 
     private static LocalAssetDocumentInfoDto? MapDocumentInfo(
         ItemRow row,
@@ -1778,8 +1924,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                         || COALESCE(lm.location_region, '') || ' ' || COALESCE(lm.location_country, '') || ' '
                         || COALESCE(lm.location_country_code, '')) AS Location,
                    trim(COALESCE(lm.description, '') || ' ' || COALESCE(lm.document_text, '')) AS DocumentText,
-                   (SELECT group_concat(tg.name, ' ') FROM local_item_tag_links tl
-                      JOIN tags tg ON tg.id = tl.tag_id WHERE tl.item_id = li.id) AS Tags,
+                   trim(COALESCE((SELECT group_concat(tg.name, ' ') FROM local_item_tag_links tl
+                      JOIN tags tg ON tg.id = tl.tag_id WHERE tl.item_id = li.id), '') || ' '
+                      || COALESCE((SELECT group_concat(vt.name, ' ') FROM vault_image_tags vit
+                      JOIN vault_tags vt ON vt.id = vit.tag_id WHERE vit.item_id = li.id), '')) AS Tags,
                    (SELECT trim(COALESCE(dc.name, '') || ' ' || COALESCE(dt.name, '') || ' ' || COALESCE(dd.archive_number, ''))
                       FROM doc_item_details dd
                       LEFT JOIN doc_correspondents dc ON dc.id = dd.correspondent_id
@@ -1981,6 +2129,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         }
 
         NormalizeMediaKind(registration.MediaKind);
+        if (registration.ContentKind is not null && !ViewContentKinds.IsValid(registration.ContentKind))
+        {
+            throw new ArgumentException("The View kind must be photos, personal_videos or documents.", nameof(registration));
+        }
         if (registration.Files is null || registration.Files.Count == 0)
         {
             throw new ArgumentException("At least one physical file is required.", nameof(registration));
@@ -2096,6 +2248,30 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         return normalized;
     }
 
+    /// <summary>
+    /// The one test that keeps Vault images and View items apart (Videos spec D44). A query without a Vault scope never returns a
+    /// Vault image, even if it is handed a Vault library; a query with one returns only Vault images, optionally of one folder
+    /// gallery or one hand-made Vault gallery.
+    /// </summary>
+    private static string VaultPredicate(LocalAssetVaultScope? vault, DynamicParameters parameters)
+    {
+        if (vault is null)
+        {
+            return "NOT EXISTS (SELECT 1 FROM vault_image_items vx WHERE vx.item_id = li.id)";
+        }
+
+        parameters.Add("VaultFolderId", vault.FolderId is { } folder ? GuidSql.ToBlob(folder) : null, System.Data.DbType.Binary);
+        parameters.Add("VaultGalleryId", vault.GalleryId is { } gallery ? GuidSql.ToBlob(gallery) : null, System.Data.DbType.Binary);
+        return """
+            EXISTS (SELECT 1 FROM vault_image_items vx
+                     WHERE vx.item_id = li.id
+                       AND (@VaultFolderId IS NULL OR vx.folder_id = @VaultFolderId)
+                       AND (@VaultGalleryId IS NULL OR EXISTS (
+                            SELECT 1 FROM vault_gallery_items vgx
+                             WHERE vgx.gallery_id = @VaultGalleryId AND vgx.item_id = vx.item_id)))
+            """;
+    }
+
     private static string? BuildSearchExpression(string? search)
     {
         if (string.IsNullOrWhiteSpace(search))
@@ -2119,6 +2295,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
     {
         LocalAssetScopeKinds.Personal => LocalAssetScopeKinds.Personal,
         LocalAssetScopeKinds.Shared => LocalAssetScopeKinds.Shared,
+        // A Vault image is stored as a shared item with no owner; the Vault image library it sits in is what makes it Vault.
+        LocalAssetScopeKinds.Vault => LocalAssetScopeKinds.Shared,
         _ => throw new ArgumentException("Local item scope must be personal or shared.", nameof(value)),
     };
 
@@ -2127,8 +2305,20 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         System.Data.IDbTransaction transaction,
         LocalAssetRegistration registration,
         string scopeKind,
+        bool isVault,
         LocalAssetFileRegistration file)
     {
+        if (isVault)
+        {
+            // A Vault image has no View source or device: it is never part of a Personal Space, the Shared library or a source policy.
+            if (file.SourceId is not null || file.DeviceId is not null)
+            {
+                throw new InvalidOperationException("A Vault image cannot belong to a View source or device.");
+            }
+
+            return;
+        }
+
         if (file.SourceId.HasValue && connection.ExecuteScalar<long>("""
                 SELECT COUNT(1) FROM view_sources
                  WHERE id=@SourceId AND scope_kind=@scopeKind AND library_id=@LibraryId

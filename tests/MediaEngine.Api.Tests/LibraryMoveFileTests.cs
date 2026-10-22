@@ -452,7 +452,7 @@ public sealed class LibraryMoveFileTests : IDisposable
         await CommitAsync(preview, Match(song, preview.Rows[0].SuggestedEntryKey!));
 
         // The Engine claimed the row and stopped before doing anything; its lease runs out.
-        var claimed = await Files.Intents.ClaimNextAsync(TimeSpan.FromMinutes(5));
+        var claimed = await Files.Intents.ClaimNextMoveAsync(TimeSpan.FromMinutes(5));
         Assert.Equal(asset, claimed!.AssetId);
         Files.Execute("UPDATE media_file_write_intents SET lease_expires_at = '2000-01-01T00:00:00.0000000+00:00' WHERE status = 'writing';");
         Assert.True(File.Exists(oldPath));
@@ -460,8 +460,8 @@ public sealed class LibraryMoveFileTests : IDisposable
         var handled = await Files.DrainQueueAsync();
         var again = await Files.DrainQueueAsync();
 
-        Assert.Equal(1, handled);
-        Assert.Equal(0, again);
+        Assert.True(handled);
+        Assert.False(again);
         Assert.False(File.Exists(oldPath));
         Assert.EndsWith("02 - Paranoid Android.flac", Files.StoredPath(asset), StringComparison.Ordinal);
         Assert.Equal("verified", Files.Intent(asset).Status);
@@ -475,17 +475,18 @@ public sealed class LibraryMoveFileTests : IDisposable
         var preview = await PreviewAsync([song], okComputer);
         await CommitAsync(preview, Match(song, preview.Rows[0].SuggestedEntryKey!));
         var flaky = new MoveFileWorld.FlakyFileOrganizer(new FileOrganizer(NullLogger<FileOrganizer>.Instance), failures: 1);
-        var dispatcher = new MediaFileWriteIntentDispatcher(
-            Files.Intents, Files.WriteBack, Files.CreateOrganizer(flaky), NullLogger<MediaFileWriteIntentDispatcher>.Instance);
+        var scheduler = Files.CreateScheduler(Files.CreateOrganizer(flaky));
 
-        await dispatcher.DispatchOnceAsync();
+        await scheduler.RunMoveLaneAsync(CancellationToken.None);
         var afterFirst = Files.Intent(asset);
 
         Assert.True(File.Exists(oldPath));
         Assert.Equal("pending", afterFirst.Status);
         Assert.Contains("could not be renamed and moved", afterFirst.Error, StringComparison.Ordinal);
 
-        await dispatcher.DispatchOnceAsync();
+        // The wait before the next try passes.
+        Files.Execute("UPDATE media_file_write_intents SET next_attempt_at = NULL;");
+        await Files.DrainQueueAsync(scheduler);
 
         Assert.False(File.Exists(oldPath));
         Assert.EndsWith("02 - Paranoid Android.flac", Files.StoredPath(asset), StringComparison.Ordinal);

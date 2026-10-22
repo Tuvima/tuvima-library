@@ -12,10 +12,10 @@
             <div class="playback-desktop__left">
                 <div class="playback-desktop__stack">
                 <div class="playback-desktop__art">
-                    @if (PlaybackArtworkUrl.ForItem(item) is { } artwork)
+                    @if (PlaybackArtworkUrl.ForItem(item) is not null)
                     {
-                        <img src="@artwork" srcset="@PlaybackArtworkUrl.SrcSet(item)"
-                             sizes="@(IsBook ? "(max-height:760px) 220px, 340px" : "(max-height:760px) 320px, 520px")"
+                        @* Drawn up to 520px (medium copy) *@
+                        <img src="@PlaybackArtworkUrl.ForItem(item)"
                              data-image-display="desktop-now-playing-artwork" alt="" decoding="async" />
                     }
                     else { <AppMaterialIcon Icon="@(IsBook ? AppMaterialIcons.Outlined.MenuBook : AppMaterialIcons.Outlined.MusicNote)" /> }

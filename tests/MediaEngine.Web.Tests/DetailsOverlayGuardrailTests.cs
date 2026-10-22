@@ -78,6 +78,7 @@ public sealed partial class DetailsOverlayGuardrailTests
     // changed count, fails until it is reviewed and listed here.
     private static readonly Dictionary<string, (int Count, string Reason)> ReplacingNavigationAllowlist = new(StringComparer.Ordinal)
     {
+        ["Services/Vault/VaultExit.cs"] = (1, "Locking returns Home, and a Vault address for anyone not unlocked goes to /not-found; neither can reach a /details/ address."),
         ["Components/Browse/MediaBrowseShell.razor"] = (1, "The lane rewriting its own filter address (a browse route)."),
         ["Components/Navigation/TopNavProfileSwitcher.razor"] = (1, "Full reload to Home after switching profile."),
         ["Components/Pages/BookReader.razor"] = (1, "The reader's no-title exit to the literal Home address; a title exit goes through DetailsOverlayNavigation."),
@@ -90,6 +91,7 @@ public sealed partial class DetailsOverlayGuardrailTests
         ["Components/Pages/SetupPage.razor"] = (1, "Full reload to Home or the sign-in page when setup ends."),
         ["Components/Pages/ShelfGridPage.razor.cs"] = (4, "The View all grid rewriting its own sort and filter address."),
         ["Components/Settings/IngestionTasksTab.razor"] = (1, "Redirect to the Activity log route."),
+        ["Components/Settings/LibrariesTab.razor"] = (2, "A saved /settings/libraries?type= link redirects to that library type's own Settings address; and View's add form, once opened from ?add=folder, drops that hand-over query from the same Libraries address."),
         ["Components/Settings/ProfileDetailPage.razor"] = (2, "Redirect to the Settings profiles list."),
         ["Shared/MainLayout.razor"] = (1, "Full reload to the profile picker."),
         ["Services/Navigation/DetailsOverlayState.cs"] = (4, "The overlay's own replaces (DetailsOverlayNavigation and dismissal), which carry their history state."),

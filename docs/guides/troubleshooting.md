@@ -107,11 +107,20 @@ Optional lyrics, subtitles, or commercial detection returning no result usually 
 
 Long-lived keys belong in `config/secrets/`. A blank key in the public provider definition may have an effective secret overlay. Do not include keys in logs or support reports.
 
+## Tags or the profile name haven't reached a file yet
+
+Library saves changes at once, but writes them into files on a schedule, every 60 minutes by default. A change is usually in the file after the next run.
+
+1. Wait for the next run. The editor's **Files** card and the write panel in [Settings > Libraries > Advanced](library-settings.md#when-changes-reach-your-files) show **Next run**.
+2. To write now, press **Write now** (administrators, on a desktop).
+3. If the panel says **files couldn't be written**, open the list and read the reason for each file. A file that is busy, on an unplugged drive or read-only is tried again on the next run. A file that can't hold tags is **kept in Library only** and is not retried.
+4. If the panel says **Photos, videos and PDFs in View are waiting for ExifTool**, check **Settings > Tools and requirements**. Library fetches ExifTool by itself when it is missing. Use **Download again** there if it did not finish.
+
 ## Local AI is unavailable
 
 Open **Settings → Tools and requirements**. Check whether a model is missing, downloading, ready or failed, and use **Download again** if a download did not finish. Loading and unloading a model are on the same page; the runtime limits are on **Settings → Local AI → Runtime**.
 
-Confirm model storage, native runtime availability, and capability gates. Saved feature flags do not make missing dependencies ready. Local AI is optional for initial catalogue setup.
+Confirm model storage, native runtime availability, and capability gates. Switching an AI plugin on does not make missing dependencies ready. Local AI is optional for initial catalogue setup.
 
 ## Sending logs with a bug report
 

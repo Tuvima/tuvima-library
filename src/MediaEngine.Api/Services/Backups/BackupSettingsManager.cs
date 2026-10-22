@@ -7,8 +7,8 @@ using MediaEngine.Storage.Contracts;
 namespace MediaEngine.Api.Services.Backups;
 
 /// <summary>
-/// Backup schedule, retention, destination choices and the backup passphrase (Developer tools spec WP25). The passphrase is only
-/// ever used to make the key pair and to prove a change is allowed; it is never stored or logged.
+/// Backup schedule, retention and destination choices (Developer tools spec WP25). Backups are never encrypted (Backup and restore
+/// spec D15); a destination's own login is stored through the secret store.
 /// </summary>
 internal sealed class BackupSettingsManager(
     BackupSettingsAccessor accessor,
@@ -31,7 +31,6 @@ internal sealed class BackupSettingsManager(
                 Weekday = settings.Weekday,
             },
             KeepLast = settings.KeepLast,
-            PassphraseSet = settings.PassphraseSet,
             NextRunAt = NextRun(settings),
             LastRestoreCheckAt = settings.LastRestoreCheckAt,
             LastRestoreCheckResult = settings.LastRestoreCheckResult,
@@ -257,36 +256,6 @@ internal sealed class BackupSettingsManager(
             settings.EnabledDestinations.RemoveAll(item => item == id);
         }, ct).ConfigureAwait(false);
         return removed;
-    }
-
-    /// <summary>Sets or changes the passphrase. Returns a plain-words problem, or null on success.</summary>
-    public async Task<string?> SetPassphraseAsync(SetBackupPassphraseRequest request, CancellationToken ct)
-    {
-        if (string.IsNullOrEmpty(request.Passphrase) || request.Passphrase.Length < BackupEncryption.MinimumPassphraseLength)
-        {
-            return $"The passphrase needs at least {BackupEncryption.MinimumPassphraseLength} characters.";
-        }
-
-        await accessor.Gate.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            var settings = await accessor.LoadAsync(ct).ConfigureAwait(false);
-            if (settings.Keys is { } existing
-                && (string.IsNullOrEmpty(request.CurrentPassphrase) || !BackupEncryption.CheckPassphrase(request.CurrentPassphrase, existing.EncryptedPrivateKey)))
-            {
-                return "The current passphrase is not right. Enter it to change the passphrase.";
-            }
-
-            var material = await Task.Run(() => BackupEncryption.CreateKeyMaterial(request.Passphrase), ct).ConfigureAwait(false);
-            settings.PublicKey = Convert.ToBase64String(material.PublicKey);
-            settings.EncryptedPrivateKey = Convert.ToBase64String(material.EncryptedPrivateKey);
-            await accessor.SaveAsync(settings, ct).ConfigureAwait(false);
-            return null;
-        }
-        finally
-        {
-            accessor.Gate.Release();
-        }
     }
 
     private DateTimeOffset? NextRun(BackupSettingsDocument settings)

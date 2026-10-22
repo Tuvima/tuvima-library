@@ -25,7 +25,7 @@ You need:
 
 ## Download the installer
 
-Installers are attached to tagged releases on the [GitHub Releases page](https://github.com/Tuvima/tuvima-library/releases). Download the newest `TuvimaLibrary-Setup-<version>.exe` and read that release's notes.
+Installers are attached to tagged releases on the [GitHub Releases page](https://github.com/Tuvima/tuvima-library/releases). Download the newest `TuvimaLibrary-Setup-<version>.exe` and read that release's notes. Releases named `exiftool-<version>` are not installers: they hold the unmodified ExifTool files the Library fetches for itself, so you can ignore them.
 
 If no release is listed yet, use [Docker Compose](docker.md), or build the installer yourself (see **Technical details** at the end of this page).
 
@@ -53,7 +53,7 @@ The Engine listens only on this computer, so other devices reach Tuvima Library 
 
 ## Helper tools
 
-The installer includes FFmpeg, FFprobe and Tesseract, so the Library normally shows every tool as **Ready**. To see them, open **Settings > Tools and requirements** in the Dashboard. The Library also checks the tools at first run and at every start-up.
+The installer includes FFmpeg, FFprobe and Tesseract, so the Library normally shows every tool as **Ready**. ExifTool is not in the installer. The Library fetches it by itself the first time, from Tuvima's own GitHub copy of the official release, and then shows it **Ready**. To see them, open **Settings > Tools and requirements** in the Dashboard. The Library also checks the tools at first run and at every start-up.
 
 If FFmpeg is missing or broken, open **Settings > Tools and requirements** and choose **Download again** on that page to repair it. Until FFmpeg is found, video and audio files show **Waiting for media tools** and finish by themselves; nothing fails. Tesseract is optional. Without it, scanned pages and photos of paper are not searchable.
 

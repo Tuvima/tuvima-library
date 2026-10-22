@@ -634,6 +634,24 @@ public sealed partial class ViewTrashDeletionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AProfileWithoutPhotos_NeverSeesPhotosInItsTrash_AndKeepsItsVideos()
+    {
+        var alice = await CreatePerson();
+        await AddPhoto(alice, "pic");
+        var video = await AddItem(alice, LocalAssetMediaKinds.Video, "clip", Part(alice, "clip.mp4", 800, LocalAssetFileRoles.Primary, alice.Upload));
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(alice.ProfileId) with { PhotosEnabled = false });
+
+        var plan = await PlanAsync(alice);
+        _actor.Current = alice.Authority;
+        var summary = await _client.GetFromJsonAsync<ViewTrashSummaryDto>("/view/trash/summary");
+
+        Assert.Equal([video.ItemId], plan.Items.Select(item => item.ItemId).ToArray());
+        Assert.Equal(1, summary!.ItemCount);
+        Assert.Equal(0, summary.PhotoCount);
+        Assert.Equal(1, summary.VideoCount);
+    }
+
+    [Fact]
     public async Task ManualGalleriesThatLoseItems_AreListedAToZWithHowManyOfTheirItemsGo()
     {
         var alice = await CreatePerson();

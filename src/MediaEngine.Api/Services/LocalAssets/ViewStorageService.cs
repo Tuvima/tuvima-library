@@ -23,8 +23,15 @@ public sealed class ViewStorageService(
     public const string StagingFolderName = ".tuvima-staging";
 
     /// <summary>
-    /// True when the path is inside the staging folder of a profile folder (<c>Profiles/{label}/.tuvima-staging</c>), so scans and
-    /// watchers can skip it. A folder that merely has the same name somewhere else is an ordinary folder.
+    /// What the hidden temporary copy of a file starts with while Library writes the profile name into it (batched write-back D9). The
+    /// copy sits beside the file so it can replace the file in one step; scans and watchers never index a file named like this.
+    /// </summary>
+    public const string WriteCopyPrefix = ".tuvima-write-";
+
+    /// <summary>
+    /// True when the path is inside the staging folder of a profile folder (<c>Profiles/{label}/.tuvima-staging</c>), or is the hidden
+    /// temporary copy of a file being written (<see cref="WriteCopyPrefix"/>), so scans and watchers can skip it. A folder that merely
+    /// has the same name somewhere else is an ordinary folder.
     /// </summary>
     /// <remarks>
     /// This reads the path as written and does not follow links, on purpose (it runs for every file of every scan). A managed source
@@ -40,6 +47,11 @@ public sealed class ViewStorageService(
         }
 
         var segments = path.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length > 0 && segments[^1].StartsWith(WriteCopyPrefix, PathComparison))
+        {
+            return true;
+        }
+
         for (var index = 2; index < segments.Length; index++)
         {
             if (string.Equals(segments[index], StagingFolderName, PathComparison)
@@ -196,7 +208,9 @@ public sealed class ViewStorageService(
         string name,
         ViewSourceType sourceType,
         string sourceKey,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string contentKind = ViewContentKinds.Photos,
+        Guid? addedByProfileId = null)
     {
         await ManagedSourceGate.WaitAsync(ct);
         try
@@ -228,7 +242,9 @@ public sealed class ViewStorageService(
                 ExternalPath: null,
                 IncludeSubdirectories: true,
                 Enabled: true,
-                IncludeInTimeline: sourceType == ViewSourceType.BrowserUpload);
+                IncludeInTimeline: sourceType == ViewSourceType.BrowserUpload,
+                ContentKind: contentKind,
+                AddedByProfileId: addedByProfileId);
             source = await spaces.UpsertSourceAsync(source, ct);
             return source;
         }
@@ -240,7 +256,9 @@ public sealed class ViewStorageService(
         string name,
         string path,
         bool includeSubdirectories,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string contentKind = ViewContentKinds.Photos,
+        Guid? addedByProfileId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -278,7 +296,8 @@ public sealed class ViewStorageService(
         return await spaces.UpsertSourceAsync(new ViewSource(
             Guid.NewGuid(), space.Id, ViewSourceType.Folder, name.Trim(), $"linked:{Guid.NewGuid():N}",
             null, now, now, ViewSourceStorageMode.Linked, RelativePath: null, ExternalPath: fullPath,
-            IncludeSubdirectories: includeSubdirectories, Enabled: true, IncludeInTimeline: false), ct);
+            IncludeSubdirectories: includeSubdirectories, Enabled: true, IncludeInTimeline: false,
+            ContentKind: contentKind, AddedByProfileId: addedByProfileId), ct);
     }
 
     public Task<ViewSource> UpdateSourceAsync(
@@ -298,7 +317,9 @@ public sealed class ViewStorageService(
         ViewPersonalSpace space,
         string name,
         string sourcePath,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string contentKind = ViewContentKinds.Photos,
+        Guid? addedByProfileId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         if (!configuration.LoadLibraries().PersonalLibraryPolicy.AllowManagedStorage)
@@ -319,7 +340,7 @@ public sealed class ViewStorageService(
         }
 
         var source = await EnsureManagedSourceAsync(
-            space, name, ViewSourceType.Folder, $"import:{Guid.NewGuid():N}", ct);
+            space, name, ViewSourceType.Folder, $"import:{Guid.NewGuid():N}", ct, contentKind, addedByProfileId);
         var destination = GetSourcePath(space, source);
         foreach (var file in Directory.EnumerateFiles(origin, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = false }))
         {

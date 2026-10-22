@@ -1,13 +1,17 @@
 @namespace MediaEngine.Web.Components.Shared
-<img src="@Src" alt="@Alt" width="@Width" height="@Height" class="tl-image @Class" style="object-fit:@ObjectFitCss;@Style" loading="lazy" decoding="async" @attributes="AdditionalAttributes" />
+<img src="@MediaTileArtworkUrl.ForDrawnSize(Src, ResolvedDrawnPx)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Src, ResolvedDrawnPx)" alt="@Alt" width="@Width" height="@Height" class="tl-image @Class" style="object-fit:@ObjectFitCss;@Style" loading="lazy" decoding="async" @attributes="AdditionalAttributes" />
 @code {
     [Parameter] public string? Src { get; set; }
     [Parameter] public string? Alt { get; set; }
     [Parameter] public int? Width { get; set; }
     [Parameter] public int? Height { get; set; }
+
+    /// <summary>The long side the picture is drawn at, in CSS pixels. 0 uses the larger of Width and Height, or the small copy when neither is set.</summary>
+    [Parameter] public int DrawnPx { get; set; }
     [Parameter] public AppObjectFit ObjectFit { get; set; } = AppObjectFit.Fill;
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Style { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    private int ResolvedDrawnPx => DrawnPx > 0 ? DrawnPx : Math.Max(Width ?? 0, Height ?? 0) is > 0 and var drawn ? drawn : ArtworkSize.SmallPx;
     private string ObjectFitCss => ObjectFit == AppObjectFit.ScaleDown ? "scale-down" : ObjectFit.ToString().ToLowerInvariant();
 }

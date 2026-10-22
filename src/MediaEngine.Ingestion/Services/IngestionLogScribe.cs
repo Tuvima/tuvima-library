@@ -26,7 +26,8 @@ public sealed class IngestionLogScribe : IIngestionLogScribe
 
     public async Task<Guid> InsertDetectedAsync(
         IngestionCandidate candidate,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool quiet = false)
     {
         var logEntryId = Guid.NewGuid();
 
@@ -39,7 +40,7 @@ public sealed class IngestionLogScribe : IIngestionLogScribe
                 Status = "detected",
             }, ct).ConfigureAwait(false);
 
-            await PublishProgressAsync(candidate, logEntryId, "detected", 5, false, ct)
+            await PublishProgressAsync(candidate, logEntryId, "detected", 5, false, ct, quiet: quiet)
                 .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -65,7 +66,8 @@ public sealed class IngestionLogScribe : IIngestionLogScribe
         string? wikidataQid = null,
         Guid? mediaAssetId = null,
         string? errorDetail = null,
-        string? title = null)
+        string? title = null,
+        bool quiet = false)
     {
         try
         {
@@ -91,7 +93,8 @@ public sealed class IngestionLogScribe : IIngestionLogScribe
                 ct,
                 mediaAssetId,
                 title ?? detectedTitle,
-                mediaType).ConfigureAwait(false);
+                mediaType,
+                quiet).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -103,7 +106,8 @@ public sealed class IngestionLogScribe : IIngestionLogScribe
         IngestionCandidate candidate,
         string status,
         string detail,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool quiet = false)
     {
         try
         {
@@ -116,7 +120,7 @@ public sealed class IngestionLogScribe : IIngestionLogScribe
                 ErrorDetail = detail,
             }, ct).ConfigureAwait(false);
 
-            await PublishProgressAsync(candidate, logEntryId, status, 100, true, ct)
+            await PublishProgressAsync(candidate, logEntryId, status, 100, true, ct, quiet: quiet)
                 .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -134,8 +138,15 @@ public sealed class IngestionLogScribe : IIngestionLogScribe
         CancellationToken ct = default,
         Guid? mediaAssetId = null,
         string? title = null,
-        string? mediaType = null)
+        string? mediaType = null,
+        bool quiet = false)
     {
+        // A file in a Vault library is never announced to open screens (Videos spec D17, D32).
+        if (quiet)
+        {
+            return Task.CompletedTask;
+        }
+
         return SafePublishAsync(
             SignalREvents.IngestionItemProgress,
             new IngestionItemProgressEvent(

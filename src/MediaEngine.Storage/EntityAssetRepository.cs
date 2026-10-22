@@ -44,6 +44,7 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
         """ + LinkedArtworkImageUrlProjection + """
                          AS ImageUrl,
         local_image_path AS LocalImagePath,
+        local_image_path_t AS LocalImagePathTiny,
         local_image_path_s AS LocalImagePathSmall,
         local_image_path_m AS LocalImagePathMedium,
         local_image_path_l AS LocalImagePathLarge,
@@ -178,19 +179,20 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
         conn.Execute("""
             INSERT INTO entity_assets
                 (id, entity_id, entity_type, asset_type, image_url,
-                 local_image_path, local_image_path_s, local_image_path_m, local_image_path_l,
+                 local_image_path, local_image_path_t, local_image_path_s, local_image_path_m, local_image_path_l,
                  source_provider, width_px, height_px, aspect_class, primary_hex, secondary_hex, accent_hex,
                  asset_class, storage_location, owner_scope,
                  is_preferred, is_user_override, is_locally_exported, is_preferred_exported, created_at)
             VALUES
                 (@Id, @EntityId, @EntityType, @AssetTypeValue, @ImageUrl,
-                 @LocalImagePath, @LocalImagePathSmall, @LocalImagePathMedium, @LocalImagePathLarge,
+                 @LocalImagePath, @LocalImagePathTiny, @LocalImagePathSmall, @LocalImagePathMedium, @LocalImagePathLarge,
                  @SourceProvider, @WidthPx, @HeightPx, @AspectClass, @PrimaryHex, @SecondaryHex, @AccentHex,
                  @AssetClassValue, @StorageLocationValue, @OwnerScope,
                  @IsPreferred, @IsUserOverride, @IsLocallyExported, @IsPreferredExported, @CreatedAt)
             ON CONFLICT(id) DO UPDATE SET
                 image_url        = excluded.image_url,
                 local_image_path = excluded.local_image_path,
+                local_image_path_t = excluded.local_image_path_t,
                 local_image_path_s = excluded.local_image_path_s,
                 local_image_path_m = excluded.local_image_path_m,
                 local_image_path_l = excluded.local_image_path_l,
@@ -217,6 +219,7 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
                 asset.AssetTypeValue,
                 asset.ImageUrl,
                 asset.LocalImagePath,
+                asset.LocalImagePathTiny,
                 asset.LocalImagePathSmall,
                 asset.LocalImagePathMedium,
                 asset.LocalImagePathLarge,
@@ -543,6 +546,7 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
         {
             var candidates = conn.Query<string?>("""
                 SELECT local_image_path FROM entity_assets WHERE id = @assetId
+                UNION ALL SELECT local_image_path_t FROM entity_assets WHERE id = @assetId
                 UNION ALL SELECT local_image_path_s FROM entity_assets WHERE id = @assetId
                 UNION ALL SELECT local_image_path_m FROM entity_assets WHERE id = @assetId
                 UNION ALL SELECT local_image_path_l FROM entity_assets WHERE id = @assetId;
@@ -658,6 +662,33 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
             DELETE FROM entity_assets
             WHERE  id = @assetId;
             """, new { assetId });
+
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    public Task UpdateRenditionPathsAsync(
+        Guid assetId,
+        string? originalPath,
+        string? tinyPath,
+        string? smallPath,
+        string? mediumPath,
+        string? largePath,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        using var conn = _db.CreateConnection();
+        conn.Execute("""
+            UPDATE entity_assets
+            SET    local_image_path_t = @tinyPath,
+                   local_image_path_s = @smallPath,
+                   local_image_path_m = @mediumPath,
+                   local_image_path_l = @largePath,
+                   updated_at = datetime('now')
+            WHERE  id = @assetId
+              AND  local_image_path IS @originalPath;
+            """, new { assetId, originalPath, tinyPath, smallPath, mediumPath, largePath });
 
         return Task.CompletedTask;
     }

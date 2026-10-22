@@ -5,10 +5,27 @@ namespace MediaEngine.Api.Services;
 
 public sealed class StartupReadinessService(HealthCheckService healthChecks)
 {
-    public async Task<StartupReadinessResponse> GetAsync(CancellationToken ct = default)
+    /// <summary>The check categories a caller may ask for on their own (the tags given to the readiness checks in Program.cs).</summary>
+    public static readonly IReadOnlySet<string> Categories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
+        "database", "configuration", "storage", "models", "providers", "media", "workers",
+    };
+
+    /// <summary>
+    /// Runs the readiness checks. With a <paramref name="category"/> (a check tag such as "storage"), only that category's
+    /// checks run, so a screen that shows only folder problems never waits for the data store integrity scan.
+    /// </summary>
+    public async Task<StartupReadinessResponse> GetAsync(string? category = null, CancellationToken ct = default)
+    {
+        // An unknown category would match no check and read as "ready", so it is refused rather than answered.
+        if (!string.IsNullOrWhiteSpace(category) && !Categories.Contains(category.Trim()))
+        {
+            throw new ArgumentException($"Unknown readiness category '{category}'.", nameof(category));
+        }
+
         var report = await healthChecks.CheckHealthAsync(
-            registration => registration.Tags.Contains("readiness"),
+            registration => registration.Tags.Contains("readiness")
+                            && (string.IsNullOrWhiteSpace(category) || registration.Tags.Contains(category.Trim().ToLowerInvariant())),
             ct).ConfigureAwait(false);
 
         var checks = report.Entries

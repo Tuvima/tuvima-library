@@ -69,6 +69,7 @@ internal sealed class FolderMergeHarness : IDisposable
                     Id = LibraryId,
                     Name = "Movies",
                     Kind = LibraryKinds.Catalogued,
+                    KindKey = "movies",
                     MediaTypes = ["Movies"],
                     Sources =
                     [

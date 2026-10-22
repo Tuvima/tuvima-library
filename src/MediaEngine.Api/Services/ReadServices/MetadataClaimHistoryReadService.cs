@@ -3,6 +3,7 @@ using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.ReadServices;
@@ -13,6 +14,12 @@ public sealed class MetadataClaimHistoryReadService(
 {
     public async Task<List<ClaimDto>> GetClaimHistoryAsync(Guid entityId, CancellationToken ct)
     {
+        // The claims of anything in a Vault library are not shown here: the answer is the one an unknown id gets (Videos spec D17).
+        if (await IsVaultEntityAsync(entityId, ct).ConfigureAwait(false))
+        {
+            return [];
+        }
+
         var claims = (await claimRepo.GetByEntityAsync(entityId, ct)).ToList();
 
         if (claims.Count == 0)
@@ -55,5 +62,14 @@ public sealed class MetadataClaimHistoryReadService(
             IsUserLocked = claim.IsUserLocked,
             ClaimedAt = claim.ClaimedAt,
         }).ToList();
+    }
+
+    private async Task<bool> IsVaultEntityAsync(Guid entityId, CancellationToken ct)
+    {
+        using var conn = db.CreateConnection();
+        return await conn.ExecuteScalarAsync<bool>(new CommandDefinition(
+            $"SELECT NOT ({VaultSql.NotVaultAnyEntity("@EntityId")});",
+            new { EntityId = GuidSql.ToBlob(entityId) },
+            cancellationToken: ct)).ConfigureAwait(false);
     }
 }

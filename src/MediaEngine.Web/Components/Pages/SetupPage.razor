@@ -53,7 +53,7 @@
                     <SetupServerStage ServerName="@_serverName" ServerNameChanged="@((string value) => _serverName = value)"
                                       HostName="@_hostName" HostNameChanged="@((string value) => _hostName = value)"
                                       Busy="@_busy" Save="SaveServerIdentityAsync"
-                                      Backup="@_backup" ShowRestore="@_showRestore" OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore"
+                                      Backup="@_backup" BackupError="@_backupError" ShowRestore="@_showRestore" OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore"
                                       UploadBackup="UploadBackupAsync" ConfirmRestore="ConfirmRestoreAsync"
                                       ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
@@ -103,6 +103,7 @@
     private SetupPreflightDto? _preflight;
     private string? _preflightError;
     private SetupBackupInspectionDto? _backup;
+    private string? _backupError;
     private SetupMediaLocationsDto? _media;
     private LibrariesConfigurationDto? _setupLibraries;
     private SetupReadinessDto? _readiness;
@@ -452,8 +453,8 @@
         else
             await RunPreflightAsync(automaticallyAdvance: WorkflowStep == "preflight");
     }
-    private void CancelRestore() { _showRestore = false; _backup = null; }
-    private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) Snackbar.Add("The backup failed validation.", AppSeverity.Error); } finally { _busy = false; } }
+    private void CancelRestore() { _showRestore = false; _backup = null; _backupError = null; }
+    private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backupError = null; _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) { _backupError = ApiClient.LastError is { Length: > 0 } sentence ? sentence : "The backup failed validation."; Snackbar.Add(_backupError, AppSeverity.Error); } } finally { _busy = false; } }
     private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error); else Snackbar.Add("Restore scheduled. Library is restarting.", AppSeverity.Info); }
     // The no-password start is offered to a visitor on this computer or the home network, never to one a tunnel or
     // proxy may be relaying. The Engine checks all of this again.

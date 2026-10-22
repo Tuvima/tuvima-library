@@ -8,6 +8,7 @@ using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Universe;
+using MediaEngine.Contracts.WriteBack;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Artwork;
@@ -16,6 +17,7 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
+using MediaEngine.Web.Services.Formatting;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.MediaTiles;
 using MediaEngine.Web.Services.Ui;
@@ -106,6 +108,7 @@ public partial class SharedMediaEditorShell
     private ArtworkEditorDto? _artwork;
     private ArtworkWritebackSettingsDto? _writebackSettings;
     private ArtworkWritebackStatusDto? _writebackStatus;
+    private AssetFileWriteStatusDto? _fileWriteStatus;
     private MediaEditorContextDto? _editorContext;
     private MediaEditorNavigatorDto? _navigator;
     private MediaEditorWorkVersionSelectorDto? _workVersions;
@@ -1171,15 +1174,18 @@ public partial class SharedMediaEditorShell
     {
         var assetId = SelectedNavigatorNode?.PrimaryAssetId;
         _writebackStatus = null;
+        _fileWriteStatus = null;
         if (assetId is null)
         {
             return;
         }
 
         var status = await ApiClient.GetArtworkWritebackStatusAsync(assetId.Value);
+        var fileWrite = await ApiClient.GetAssetFileWriteStatusAsync(assetId.Value);
         if (SelectedNavigatorNode?.PrimaryAssetId == assetId)
         {
             _writebackStatus = status;
+            _fileWriteStatus = fileWrite;
         }
     }
 
@@ -3001,14 +3007,6 @@ public partial class SharedMediaEditorShell
         GetCurrentArtworkEditor()?.Slots.FirstOrDefault(slot =>
             string.Equals(slot.AssetType, assetType, StringComparison.OrdinalIgnoreCase))?.Variants
         ?? [];
-
-    protected static string? GetArtworkThumbnailUrl(ArtworkVariantDisplayItem item)
-    {
-        return MediaTileArtworkUrl.Sized(item.ImageUrl, "s") ?? item.ImageUrl;
-    }
-
-    protected static string? GetArtworkThumbnailSrcSet(ArtworkVariantDisplayItem item) => MediaTileArtworkUrl.SrcSet(
-        MediaTileArtworkUrl.Sized(item.ImageUrl, "s"), MediaTileArtworkUrl.Sized(item.ImageUrl, "m"));
 
     protected ArtworkVariantDto? GetPreferredArtworkVariant(string assetType) =>
         GetArtworkVariants(assetType)
@@ -5899,6 +5897,11 @@ public partial class SharedMediaEditorShell
         while (value >= 1024 && unit < units.Length - 1) { value /= 1024; unit++; }
         return $"{value:0.##} {units[unit]}";
     }
+
+    // Read-only notes for the File card: changes saved in Library that the next scheduled write will put into the file, or why the last write failed.
+    protected string? FileWriteWaitingNote => FileWriteStatusText.WaitingNote(_fileWriteStatus);
+
+    protected string? FileWriteFailureNote => FileWriteStatusText.FailureNote(_fileWriteStatus);
 
     protected string FormatLastFileActivity() =>
         _history.OrderByDescending(entry => entry.OccurredAt).FirstOrDefault() is { } entry

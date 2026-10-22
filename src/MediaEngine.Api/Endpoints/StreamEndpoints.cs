@@ -1,9 +1,11 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Artwork;
 using MediaEngine.Api.Services.Details;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Capabilities;
 using MediaEngine.Domain.Contracts;
@@ -19,22 +21,6 @@ namespace MediaEngine.Api.Endpoints;
 
 public static class StreamEndpoints
 {
-    private const string ArtworkPlaceholderSvg = """
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 480" role="img" aria-label="Artwork unavailable">
-          <defs>
-            <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#1f2937"/>
-              <stop offset="0.55" stop-color="#334155"/>
-              <stop offset="1" stop-color="#0f172a"/>
-            </linearGradient>
-          </defs>
-          <rect width="320" height="480" rx="16" fill="url(#bg)"/>
-          <rect x="68" y="146" width="184" height="188" rx="12" fill="none" stroke="#94a3b8" stroke-width="10" opacity="0.72"/>
-          <circle cx="124" cy="204" r="24" fill="#cbd5e1" opacity="0.78"/>
-          <path d="M82 308l56-62 38 42 24-28 38 48z" fill="#cbd5e1" opacity="0.78"/>
-        </svg>
-        """;
-
     private static readonly Dictionary<string, string> MimeMap =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -99,7 +85,9 @@ public static class StreamEndpoints
         group.MapGet("/artwork/{variantId:guid}", async (
             Guid variantId,
             string? size,
+            HttpContext httpContext,
             IEntityAssetRepository entityAssetRepo,
+            IArtworkRenditionService renditions,
             IHttpClientFactory httpFactory,
             CancellationToken ct) =>
         {
@@ -113,11 +101,18 @@ public static class StreamEndpoints
             var normalizedSize = NormalizeArtworkSize(size);
             if (hasRequestedSize && normalizedSize is null)
             {
-                return ApiErrors.BadRequest("Artwork size must be one of 's', 'm', or 'l'.");
+                return ApiErrors.BadRequest("Artwork size must be one of 't', 's', 'm', or 'l'.");
             }
 
-            var renditionPath = ResolveArtworkPath(variant, normalizedSize);
-            var localArtworkResult = CreateLocalArtworkResult(renditionPath);
+            var resolved = await renditions.ResolveAsync(variant, normalizedSize, ct);
+            var localArtworkResult = resolved is null
+                ? null
+                : ArtworkFileResults.Local(
+                    resolved.Path,
+                    ArtworkFileResults.ModeFor(
+                        httpContext.Request,
+                        ArtworkVersionMarker.ForFile(variant.LocalImagePath),
+                        resolved.IsRequestedSize));
             if (localArtworkResult is not null)
             {
                 return localArtworkResult;
@@ -165,6 +160,7 @@ public static class StreamEndpoints
             Guid entityId,
             string? size,
             IEntityAssetRepository entityAssetRepo,
+            IArtworkRenditionService renditions,
             DetailComposerService detailComposer,
             ICanonicalValueRepository canonicalRepo,
             IHttpClientFactory httpFactory,
@@ -176,9 +172,7 @@ public static class StreamEndpoints
             }
 
             var preferredVariant = await entityAssetRepo.GetPreferredAsync(entityId.ToString(), "CoverArt", ct);
-            var localArtworkResult = preferredVariant is null
-                ? null
-                : CreateLocalArtworkResult(ResolveArtworkPath(preferredVariant, NormalizeArtworkSize(size)));
+            var localArtworkResult = await ServeStableAsync(renditions, preferredVariant, size, ct);
             if (localArtworkResult is not null)
             {
                 return localArtworkResult;
@@ -240,9 +234,11 @@ public static class StreamEndpoints
 
         group.MapGet("/{assetId:guid}/cover", async (
             Guid assetId,
+            string? size,
             IMediaAssetRepository assetRepo,
             IWorkRepository workRepo,
             IEntityAssetRepository entityAssetRepo,
+            IArtworkRenditionService renditions,
             CancellationToken ct) =>
         {
             var asset = await assetRepo.FindByIdAsync(assetId, ct);
@@ -253,7 +249,7 @@ public static class StreamEndpoints
 
             var ownerEntityId = await ResolveArtworkOwnerEntityIdAsync(assetId, workRepo, ct);
             var preferredVariant = await entityAssetRepo.GetPreferredAsync(ownerEntityId.ToString(), "CoverArt", ct);
-            var localArtworkResult = CreateLocalArtworkResult(preferredVariant?.LocalImagePath);
+            var localArtworkResult = await ServeStableAsync(renditions, preferredVariant, size, ct);
             if (localArtworkResult is not null)
             {
                 return localArtworkResult;
@@ -557,6 +553,7 @@ public static class StreamEndpoints
             IMediaAssetRepository assetRepo,
             IWorkRepository workRepo,
             IEntityAssetRepository entityAssetRepo,
+            IArtworkRenditionService renditions,
             CancellationToken ct) =>
         {
             var asset = await assetRepo.FindByIdAsync(assetId, ct);
@@ -567,8 +564,7 @@ public static class StreamEndpoints
 
             var ownerEntityId = await ResolveArtworkOwnerEntityIdAsync(assetId, workRepo, ct);
             var preferredVariant = await entityAssetRepo.GetPreferredAsync(ownerEntityId.ToString(), "CoverArt", ct);
-            var thumbPath = preferredVariant is null ? null : ResolveArtworkPath(preferredVariant, "s");
-            var localArtworkResult = CreateLocalArtworkResult(thumbPath);
+            var localArtworkResult = await ServeStableAsync(renditions, preferredVariant, "s", ct);
             if (localArtworkResult is not null)
             {
                 return localArtworkResult;
@@ -587,9 +583,11 @@ public static class StreamEndpoints
 
         group.MapGet("/{assetId:guid}/background", async (
             Guid assetId,
+            string? size,
             IMediaAssetRepository assetRepo,
             IWorkRepository workRepo,
             IEntityAssetRepository entityAssetRepo,
+            IArtworkRenditionService renditions,
             CancellationToken ct) =>
         {
             var asset = await assetRepo.FindByIdAsync(assetId, ct);
@@ -600,8 +598,7 @@ public static class StreamEndpoints
 
             var ownerEntityId = await ResolveArtworkOwnerEntityIdAsync(assetId, workRepo, ct);
             var preferredVariant = await entityAssetRepo.GetPreferredAsync(ownerEntityId.ToString(), "Background", ct);
-            var backgroundPath = preferredVariant is null ? null : ResolveArtworkPath(preferredVariant, null);
-            var localArtworkResult = CreateLocalArtworkResult(backgroundPath);
+            var localArtworkResult = await ServeStableAsync(renditions, preferredVariant, size, ct);
             if (localArtworkResult is not null)
             {
                 return localArtworkResult;
@@ -631,8 +628,7 @@ public static class StreamEndpoints
 
             var ownerEntityId = await ResolveArtworkOwnerEntityIdAsync(assetId, workRepo, ct);
             var preferredVariant = await entityAssetRepo.GetPreferredAsync(ownerEntityId.ToString(), "Logo", ct);
-            var logoPath = preferredVariant is null ? null : ResolveArtworkPath(preferredVariant, null);
-            var localArtworkResult = CreateLocalArtworkResult(logoPath);
+            var localArtworkResult = CreateLocalArtworkResult(preferredVariant?.LocalImagePath);
             if (localArtworkResult is not null)
             {
                 return localArtworkResult;
@@ -671,99 +667,34 @@ public static class StreamEndpoints
         };
     }
 
-    private static string? NormalizeArtworkSize(string? size)
-    {
-        var normalized = (size ?? string.Empty).Trim().ToLowerInvariant();
-        return normalized is "s" or "m" or "l" ? normalized : null;
-    }
+    private static string? NormalizeArtworkSize(string? size) =>
+        ArtworkVariantHelper.TryParseRenditionSize(size, out var key) ? key : null;
 
-    private static string? ResolveArtworkPath(EntityAsset asset, string? size)
+    /// <summary>
+    /// Serves the picture at a size for an address that stays the same when the picture changes (an entity's or
+    /// a file's current cover, background). These are never kept for a year: the browser checks each use. An
+    /// unrecognised size means the original, as it always has on these addresses.
+    /// </summary>
+    private static async Task<IResult?> ServeStableAsync(
+        IArtworkRenditionService renditions,
+        EntityAsset? variant,
+        string? size,
+        CancellationToken ct)
     {
-        var requestedPath = (size ?? string.Empty).Trim().ToLowerInvariant() switch
-        {
-            "s" => asset.LocalImagePathSmall,
-            "m" => asset.LocalImagePathMedium,
-            "l" => asset.LocalImagePathLarge,
-            _ => asset.LocalImagePath,
-        };
-
-        return !string.IsNullOrWhiteSpace(requestedPath) && File.Exists(requestedPath)
-            ? requestedPath
-            : asset.LocalImagePath;
-    }
-
-    private static IResult? CreateLocalArtworkResult(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (variant is null)
         {
             return null;
         }
 
-        if (!HasRecognizedImageSignature(path))
-        {
-            return CreateArtworkPlaceholderResult();
-        }
-
-        return new CacheableArtworkFileResult(path, GetArtworkContentType(path));
+        var resolved = await renditions.ResolveAsync(variant, NormalizeArtworkSize(size), ct);
+        return resolved is null ? null : ArtworkFileResults.Local(resolved.Path, ArtworkCacheMode.Revalidate);
     }
 
-    internal static bool HasRecognizedImageSignature(string path)
-    {
-        try
-        {
-            Span<byte> header = stackalloc byte[12];
-            using var stream = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.ReadWrite | FileShare.Delete,
-                header.Length,
-                FileOptions.SequentialScan);
-            var read = stream.Read(header);
-            return read >= 2 && header[0] == 0xFF && header[1] == 0xD8
-                || read >= 8 && header[..8].SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A })
-                || read >= 6 && (header[..6].SequenceEqual("GIF87a"u8) || header[..6].SequenceEqual("GIF89a"u8))
-                || read >= 12 && header[..4].SequenceEqual("RIFF"u8) && header[8..12].SequenceEqual("WEBP"u8)
-                || read >= 2 && header[0] == (byte)'B' && header[1] == (byte)'M';
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    private static IResult? CreateLocalArtworkResult(string? path) => ArtworkFileResults.Local(path);
 
-    internal static string GetArtworkContentType(string path) =>
-        Path.GetExtension(path).ToLowerInvariant() switch
-        {
-            ".png" => "image/png",
-            ".gif" => "image/gif",
-            ".webp" => "image/webp",
-            ".bmp" => "image/bmp",
-            _ => "image/jpeg",
-        };
+    internal static bool HasRecognizedImageSignature(string path) => ArtworkFileResults.HasRecognizedImageSignature(path);
 
-    internal static IResult CreateArtworkPlaceholderResult() =>
-        Results.Text(ArtworkPlaceholderSvg, "image/svg+xml");
+    internal static string GetArtworkContentType(string path) => ArtworkFileResults.GetArtworkContentType(path);
 
-    private sealed class CacheableArtworkFileResult(string path, string contentType) : IResult
-    {
-        public Task ExecuteAsync(HttpContext httpContext)
-        {
-            var file = new FileInfo(path);
-            var modified = new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero);
-            var tag = new EntityTagHeaderValue($"\"{file.Length:x}-{file.LastWriteTimeUtc.Ticks:x}\"");
-            httpContext.Response.GetTypedHeaders().CacheControl = new CacheControlHeaderValue
-            {
-                Public = true,
-                MaxAge = TimeSpan.FromDays(1),
-            };
-            return Results.File(
-                    path,
-                    contentType,
-                    lastModified: modified,
-                    entityTag: tag,
-                    enableRangeProcessing: false)
-                .ExecuteAsync(httpContext);
-        }
-    }
+    internal static IResult CreateArtworkPlaceholderResult() => ArtworkFileResults.Placeholder();
 }

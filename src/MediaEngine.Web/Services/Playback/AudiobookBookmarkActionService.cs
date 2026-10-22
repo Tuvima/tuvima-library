@@ -20,6 +20,9 @@ public sealed record AudiobookBookmarkActionSnapshot(
     string? Message,
     bool SaveOutcomeUnknown = false);
 
+/// <summary>What a person typed when saving: the short note, the optional longer description, and whether to share with everyone.</summary>
+public sealed record AudiobookBookmarkSaveFields(string? Note, string? Description = null, bool ShareWithEveryone = false);
+
 /// <summary>
 /// The shared main-window bookmark owner. Popup hosts will later adapt this interface
 /// through the serialized owner command channel and must not call the Engine directly.
@@ -43,6 +46,18 @@ public interface IAudiobookBookmarkActions
         IReadOnlySet<Guid> authorizedAssetIds,
         string? note,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Saves with the longer description and the share switch (videos). An owner that only knows the short note, such as the
+    /// audiobook popup channel, keeps this default and saves the note alone, exactly as before.
+    /// </summary>
+    Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> SaveWithFieldsAsync(
+        AudiobookBookmarkActionContext context,
+        long draftGeneration,
+        IReadOnlySet<Guid> authorizedAssetIds,
+        AudiobookBookmarkSaveFields fields,
+        CancellationToken ct = default) =>
+        SaveAsync(context, draftGeneration, authorizedAssetIds, fields.Note, ct);
 
     Task<AudiobookBookmarkOperationResult<bool>> PreviewCapturedDraftAsync(
         AudiobookBookmarkActionContext context,
@@ -97,12 +112,17 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
     private readonly Func<AudiobookBookmarkActionContext, CapturedAudiobookBookmarkDraft, CancellationToken,
         Task<AudiobookBookmarkOperationResult<bool>>>? _previewCapturedDraft;
 
+    /// <summary>Called once a saved bookmark has been chosen for replay, so a host that owns the player (the video player) can jump to it.</summary>
+    private readonly Func<AudiobookBookmarkDto, CancellationToken, Task>? _replayed;
+
     public AudiobookBookmarkActionService(IEngineApiClient api,
         Func<AudiobookBookmarkActionContext, CapturedAudiobookBookmarkDraft, CancellationToken,
-            Task<AudiobookBookmarkOperationResult<bool>>>? previewCapturedDraft = null)
+            Task<AudiobookBookmarkOperationResult<bool>>>? previewCapturedDraft = null,
+        Func<AudiobookBookmarkDto, CancellationToken, Task>? replayed = null)
     {
         _api = api;
         _previewCapturedDraft = previewCapturedDraft;
+        _replayed = replayed;
     }
 
     public event Action<Guid>? Changed;
@@ -156,7 +176,7 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
             else if (!state.DraftLease.TryCapture(context.ProfileId, context.WorkId, context.SessionLeaseId,
                          assetId, positionSeconds, durationSeconds, chapter, out var draft))
             {
-                state.Message = "The listening position could not be captured for this source.";
+                state.Message = "The playback position could not be captured for this source.";
             }
             else
             {
@@ -272,13 +292,22 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
         return result;
     }
 
-    public async Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> SaveAsync(
+    public Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> SaveAsync(
         AudiobookBookmarkActionContext context,
         long draftGeneration,
         IReadOnlySet<Guid> authorizedAssetIds,
         string? note,
+        CancellationToken ct = default) =>
+        SaveWithFieldsAsync(context, draftGeneration, authorizedAssetIds, new AudiobookBookmarkSaveFields(note), ct);
+
+    public async Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> SaveWithFieldsAsync(
+        AudiobookBookmarkActionContext context,
+        long draftGeneration,
+        IReadOnlySet<Guid> authorizedAssetIds,
+        AudiobookBookmarkSaveFields fields,
         CancellationToken ct = default)
     {
+        var note = fields.Note;
         DialogState state;
         AudiobookBookmarkSaveAttempt? attempt;
         long operationGeneration;
@@ -296,7 +325,7 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
             }
 
             if (!state.DraftLease.TryBeginSave(draftGeneration, context.ProfileId, context.WorkId,
-                    context.SessionLeaseId, authorizedAssetIds, note, out attempt))
+                    context.SessionLeaseId, authorizedAssetIds, note, out attempt, fields.Description, fields.ShareWithEveryone))
             {
                 return AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Failed(
                     "The captured bookmark is no longer valid or is already being saved.");
@@ -319,6 +348,8 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
             PositionSeconds = draft.PositionSeconds,
             DurationSeconds = draft.DurationSeconds,
             Note = attempt.Note,
+            Description = attempt.Description,
+            IsGlobal = attempt.IsGlobal,
         };
         var result = await _api.CreateAudiobookBookmarkWithOutcomeAsync(context.WorkId, request, context.ProfileId, ct)
             .ConfigureAwait(false);
@@ -419,21 +450,27 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
             }
 
             var bookmark = state.Saved.FirstOrDefault(item => item.Id == bookmarkId
-                && item.ProfileId == context.ProfileId
+                && (item.ProfileId == context.ProfileId || item.IsGlobal)
                 && item.WorkId == context.WorkId
                 && authorizedAssetIds.Contains(item.AssetId));
             return bookmark is null
                 ? new AudiobookBookmarkReplayResult(AudiobookBookmarkOperationOutcome.DefiniteFailure,
-                    Message: "That bookmark is no longer available for this audiobook.")
+                    Message: "That bookmark is no longer available for this title.")
                 : new AudiobookBookmarkReplayResult(AudiobookBookmarkOperationOutcome.Success, bookmark);
         }
     }
 
-    public Task<AudiobookBookmarkReplayResult> ReplayAsync(AudiobookBookmarkActionContext context, Guid bookmarkId,
+    public async Task<AudiobookBookmarkReplayResult> ReplayAsync(AudiobookBookmarkActionContext context, Guid bookmarkId,
         IReadOnlySet<Guid> authorizedAssetIds, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        return Task.FromResult(Replay(context, bookmarkId, authorizedAssetIds));
+        var result = Replay(context, bookmarkId, authorizedAssetIds);
+        if (result is { Outcome: AudiobookBookmarkOperationOutcome.Success, Bookmark: { } bookmark } && _replayed is not null)
+        {
+            await _replayed(bookmark, ct).ConfigureAwait(false);
+        }
+
+        return result;
     }
 
     public bool RequestDelete(AudiobookBookmarkActionContext context, Guid bookmarkId, IReadOnlySet<Guid> authorizedAssetIds)
@@ -442,7 +479,7 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
         {
             if (!TryGetCurrent(context, out var state)
                 || state.IsDeleting
-                || !state.Saved.Any(item => item.Id == bookmarkId && item.ProfileId == context.ProfileId
+                || !state.Saved.Any(item => item.Id == bookmarkId && (item.ProfileId == context.ProfileId || item.IsGlobal)
                     && item.WorkId == context.WorkId && authorizedAssetIds.Contains(item.AssetId)))
             {
                 return false;
@@ -474,7 +511,7 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
         lock (_sync)
         {
             if (!TryGetCurrent(context, out state) || state.IsDeleting || state.DeleteConfirmationBookmarkId is not Guid selectedId
-                || !state.Saved.Any(item => item.Id == selectedId && item.ProfileId == context.ProfileId
+                || !state.Saved.Any(item => item.Id == selectedId && (item.ProfileId == context.ProfileId || item.IsGlobal)
                     && item.WorkId == context.WorkId && authorizedAssetIds.Contains(item.AssetId)))
             {
                 return AudiobookBookmarkOperationResult<bool>.Failed("The selected bookmark is no longer available.");
@@ -692,7 +729,7 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
         IEnumerable<AudiobookBookmarkDto> bookmarks,
         AudiobookBookmarkActionContext context,
         IReadOnlySet<Guid> authorizedAssetIds) => bookmarks
-        .Where(bookmark => bookmark.ProfileId == context.ProfileId
+        .Where(bookmark => (bookmark.ProfileId == context.ProfileId || bookmark.IsGlobal)
             && bookmark.WorkId == context.WorkId
             && authorizedAssetIds.Contains(bookmark.AssetId))
         .OrderByDescending(bookmark => bookmark.CreatedAt)

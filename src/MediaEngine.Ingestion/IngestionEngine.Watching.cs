@@ -76,6 +76,7 @@ public sealed partial class IngestionEngine
             knownPaths = [];
         }
 
+        var movingPaths = await LoadMovePathsAsync(ct).ConfigureAwait(false);
         var newEvents = new List<FileEvent>();
         var resumedEvents = new List<FileEvent>();
         var acceptedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -112,6 +113,14 @@ public sealed partial class IngestionEngine
                     // Seed the polling fingerprint cache during the initial scan so the
                     // fallback sweep does not immediately reconsider settled files.
                     var normalizedPath = Path.GetFullPath(filePath);
+
+                    // A file Library is moving right now is not a new file; the move brings its record up to date.
+                    if (movingPaths.Contains(normalizedPath))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
                     TrackPollFingerprint(normalizedPath, GetPollFingerprint(filePath));
 
                     if (!acceptedPaths.Add(normalizedPath))
@@ -333,6 +342,7 @@ public sealed partial class IngestionEngine
             }
 
             var seenPollPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var movingPaths = await LoadMovePathsAsync(ct).ConfigureAwait(false);
 
             var rawKnownPaths = await _assetRepo.GetAllFilePathsAsync(ct).ConfigureAwait(false);
             var knownPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -387,6 +397,13 @@ public sealed partial class IngestionEngine
 
                         var normalizedPath = Path.GetFullPath(filePath);
                         seenPollPaths.Add(normalizedPath);
+                        if (movingPaths.Contains(normalizedPath))
+                        {
+                            // Library is moving this file; the move brings its record up to date.
+                            ignored++;
+                            continue;
+                        }
+
                         var fingerprint = GetPollFingerprint(filePath);
                         var trackedInDb = knownPaths.Contains(normalizedPath);
                         var hasPreviousFingerprint = TryGetPollFingerprint(normalizedPath, out var previousFingerprint);
@@ -696,6 +713,7 @@ public sealed partial class IngestionEngine
             _fswFlushTimer = null;
         }
 
+        var movingPaths = await LoadMovePathsAsync(ct).ConfigureAwait(false);
         var newEvents = new List<FileEvent>();
         var resumedEvents = new List<FileEvent>();
         foreach (var evt in snapshot)
@@ -703,6 +721,14 @@ public sealed partial class IngestionEngine
             var normalizedPath = Path.GetFullPath(evt.Path);
             var extension = Path.GetExtension(normalizedPath);
             if (string.IsNullOrWhiteSpace(extension) || IsIgnoredScanFile(normalizedPath))
+            {
+                ReleaseActivePath(evt.Path);
+                continue;
+            }
+
+            // The old or new place of a file Library is moving: the move lane owns it, so it is neither missing nor new.
+            if (movingPaths.Contains(normalizedPath)
+                || (!string.IsNullOrWhiteSpace(evt.OldPath) && movingPaths.Contains(Path.GetFullPath(evt.OldPath))))
             {
                 ReleaseActivePath(evt.Path);
                 continue;

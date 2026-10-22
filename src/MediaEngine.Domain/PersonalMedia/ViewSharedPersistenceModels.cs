@@ -22,4 +22,8 @@ public sealed record ViewSharedSource(
     string? ExternalPath = null,
     bool IncludeSubdirectories = true,
     bool Enabled = true,
-    bool IncludeInTimeline = false);
+    bool IncludeInTimeline = false,
+    string ContentKind = ViewContentKinds.Photos,
+    Guid? AddedByProfileId = null,
+    int SkippedFileCount = 0,
+    int KeptInLibraryCount = 0);

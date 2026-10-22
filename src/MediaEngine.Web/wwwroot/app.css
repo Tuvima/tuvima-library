@@ -2130,6 +2130,14 @@ input.app-control.tl-input-slot,
     color: var(--tl-text-secondary) !important;
 }
 
+/* The series Jump to picker is as wide as its longest entry, so each entry stays on one line; one wider than the
+   screen ends in an ellipsis and keeps its full name as its tooltip. */
+.tl-series-jump-popover .tl-list-item {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .app-select__popover .tl-list-item:hover,
 .app-select__popover .tl-list-item:focus-visible,
 .app-overflow-menu__popover .tl-list-item:hover,
@@ -4468,11 +4476,13 @@ input[type="reset"],
     outline-offset: var(--tl-focus-ring-offset, 2px);
 }
 
-/* Details overlay close button: global because AppNativeButton renders the element, which the overlay's scoped styles cannot reach. */
+/* Details overlay close button: global because AppNativeButton renders the element, which the overlay's scoped styles cannot reach.
+   The page's scroll bar (8-12px) runs down the window's right edge inside the frame, so the button sits 1.5rem in to keep a clear
+   gap from it (B29). The phone sheet keeps 0.75rem: its scroll bars overlay the page and its grip sits further in. */
 .tl-details-overlay__close {
     position: absolute;
     top: 0.75rem;
-    right: 0.75rem;
+    right: 1.5rem;
     z-index: 30;
     display: grid;
     place-items: center;
@@ -4488,6 +4498,10 @@ input[type="reset"],
     color: #f6f0e8;
     cursor: pointer;
     backdrop-filter: blur(0.75rem);
+}
+
+.tl-details-overlay--sheet .tl-details-overlay__close {
+    right: 0.75rem;
 }
 
 .tl-details-overlay__close:hover {
@@ -5447,10 +5461,23 @@ input[type="reset"],
 .merge-folder__option:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .merge-folder__option:disabled { cursor: wait; opacity: .65; }
 
-/* Add Folder > "This folder already has files in it": the three choice cards are AppChoiceCard roots, so their styles live here. */
-.add-folder-choice__card { display: grid; gap: 4px; justify-items: start; min-height: 44px; padding: 14px 16px; color: var(--tl-text-primary); text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; font: inherit; cursor: pointer; }
-.add-folder-choice__card span { color: var(--tl-text-muted); font-size: 0.88rem; line-height: 1.4; }
-.add-folder-choice__card:hover, .add-folder-choice__card:focus-visible { border-color: var(--tl-accent-primary); outline: none; background: var(--tl-accent-primary-soft); }
+/* Add folder wizard: the group tiles, kind options and treatment choices are AppNativeButton roots, so their styles live here. */
+.add-wizard__tile { display: grid; align-content: center; justify-items: center; gap: 12px; min-height: 140px; padding: 16px 8px; font-size: 1.05rem; color: inherit; font: inherit; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
+.add-wizard__tile--watch { --add-wizard-colour: #a16dff; }
+.add-wizard__tile--listen { --add-wizard-colour: #e76fce; }
+.add-wizard__tile--read { --add-wizard-colour: #61a8ff; }
+.add-wizard__tile--view { --add-wizard-colour: #2dd4bf; }
+.add-wizard__tile--vault { --add-wizard-colour: var(--tl-status-danger); }
+.add-wizard__kind-option, .add-wizard__choice { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 14px; color: var(--tl-text-primary); font: inherit; text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
+.add-wizard__tile:hover, .add-wizard__tile:focus-visible, .add-wizard__tile.is-selected,
+.add-wizard__kind-option:hover, .add-wizard__kind-option:focus-visible, .add-wizard__kind-option.is-selected,
+.add-wizard__choice:hover, .add-wizard__choice:focus-visible, .add-wizard__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
+
+/* First-run "What do you have?" tick cards (SetupMediaStage): AppNativeButton roots. */
+.setup-have__card { display: grid; align-content: center; justify-items: center; gap: 6px; min-height: 124px; padding: 14px 8px; color: inherit; font: inherit; text-align: center; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; cursor: pointer; }
+.setup-have__card small { color: var(--tl-text-muted); font-size: .78rem; }
+.setup-have__card:hover, .setup-have__card[aria-pressed="true"] { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
+.setup-have__card:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 
 /* Phone search: the visible Cancel button next to the full-screen search field. */
 .universal-search-overlay__cancel {
@@ -6001,6 +6028,7 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module {
     margin-inline: 0;
 }
 
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__frame,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__viewport {
     width: 100%;
     margin-inline: 0;

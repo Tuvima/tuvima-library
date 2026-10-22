@@ -420,7 +420,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
 
         private AccountProfileGrantDto Grant(Guid id, string name, bool isDefault) =>
             new(AccountId, id, name, null, isDefault, true, true,
-                new GrantAdminProtectionDto(false, "FixedDuration", 30, 1, false, null), 1, DateTimeOffset.UtcNow);
+                new GrantAdminProtectionDto(false, "FixedDuration", 30, 1), 1, DateTimeOffset.UtcNow);
 
         private static HttpResponseMessage Json<T>(T value, HttpStatusCode status = HttpStatusCode.OK) =>
             new(status) { Content = JsonContent.Create(value) };

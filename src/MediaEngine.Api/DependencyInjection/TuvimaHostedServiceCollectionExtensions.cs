@@ -1,5 +1,7 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Artwork;
 using MediaEngine.Api.Services.EngineLogs;
+using MediaEngine.Api.Services.FileWrites;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.LocalAssets.Filing;
@@ -7,8 +9,10 @@ using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.ScheduledTasks;
+using MediaEngine.Api.Services.Vault;
 using MediaEngine.Api.Services.View;
 using MediaEngine.Providers.Services;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Services;
 
 namespace MediaEngine.Api.DependencyInjection;
@@ -18,6 +22,10 @@ public static class TuvimaHostedServiceCollectionExtensions
     public static IServiceCollection AddTuvimaHostedServices(this IServiceCollection services)
     {
         services.AddSingleton<EnrichmentPipelineExecutionGate>();
+
+        // The Vault's folder list for the logging and activity writers (Videos spec D17). Started first so no line is written before it is known.
+        services.AddSingleton<VaultLocationGuardRefreshService>();
+        services.AddHostedService(sp => sp.GetRequiredService<VaultLocationGuardRefreshService>());
 
         // Logs page and log/activity retention (recurring runs are recorded through the ScheduledTaskRunner).
         services.AddSingleton(EngineLogLocation.FromEnvironment());
@@ -44,7 +52,14 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<ActivityPruningService>();
         services.AddHostedService<MediaOperationRecoveryHostedService>();
         services.AddHostedService<FolderOrganiseJobWorker>();
-        services.AddHostedService<MediaFileWriteIntentDispatcher>();
+        services.AddSingleton<OutsideChangeGuard>();
+        services.AddSingleton<IAssetRereader, IngestionAssetRereader>();
+        services.AddSingleton<IFileWriteTargetWriter, MediaAssetFileWriter>();
+        // The profile name written into View files (batched write-back D7 to D9).
+        services.AddSingleton<IFileWriteTargetWriter, MediaEngine.Api.Services.LocalAssets.FileWrites.ViewItemFileWriter>();
+        services.AddSingleton<LibraryMoveRunner>();
+        services.AddSingleton<FileWriteScheduler>();
+        services.AddHostedService(sp => sp.GetRequiredService<FileWriteScheduler>());
         services.AddSingleton<IngestionQueueProgressService>();
         services.AddSingleton<IIngestionQueueProgressService>(sp => sp.GetRequiredService<IngestionQueueProgressService>());
         services.AddHostedService(sp => sp.GetRequiredService<IngestionQueueProgressService>());
@@ -61,6 +76,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<DocumentOcrService>();
         services.AddHostedService<DocumentOcrOperationWorker>();
         services.AddHostedService<ArtworkRenditionRepairStartupService>();
+        services.AddHostedService<ArtworkRenditionBackgroundService>();
         services.AddHostedService<RejectedFileCleanupService>();
         services.AddSingleton<ViewSourceIndexingOptions>();
         services.AddSingleton<IViewSourceWatcherFactory, FileSystemViewSourceWatcherFactory>();

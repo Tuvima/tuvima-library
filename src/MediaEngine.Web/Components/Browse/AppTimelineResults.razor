@@ -42,7 +42,7 @@
                                 <span class="app-timeline__artwork @ArtworkShapeClass(item.Shape)">
                                     @if (!string.IsNullOrWhiteSpace(ItemArtworkUrl(item)))
                                     {
-                                        <img src="@ItemArtworkUrl(item)"
+                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(ItemArtworkUrl(item), ArtworkWidth(item.Shape))"
                                              srcset="@item.TileImageSrcSet"
                                              sizes="@($"{ArtworkWidth(item.Shape)}px")"
                                              alt=""

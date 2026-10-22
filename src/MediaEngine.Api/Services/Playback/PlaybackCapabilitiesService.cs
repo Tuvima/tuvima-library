@@ -189,6 +189,7 @@ public sealed class PlaybackCapabilitiesService
         {
             DurationSeconds = durationSeconds,
             AssetId = assetId,
+            IsVault = IsVaultAsset(assetId),
             Client = normalizedClient,
             MediaType = mediaType,
             SourceExtension = extension,
@@ -446,6 +447,18 @@ public sealed class PlaybackCapabilitiesService
         Guid? ownerDeviceId = null,
         CancellationToken ct = default) =>
         _playbackState.GetOfflineVariantFileAsync(assetId, variantId, ownerProfileId, ownerDeviceId, ct);
+
+    /// <summary>
+    /// True when the file sits in a Vault library. The manifest tells the player so it can show a generic title in the browser
+    /// tab and in the phone or computer's media controls, and keep the Vault mode idle timer alive while the video plays (Videos spec D33).
+    /// </summary>
+    private bool IsVaultAsset(Guid assetId)
+    {
+        using var conn = _db.CreateConnection();
+        return conn.ExecuteScalar<long>(
+            $"SELECT CASE WHEN {MediaEngine.Storage.VaultSql.NotVaultAsset("@assetId")} THEN 0 ELSE 1 END;",
+            new { assetId }) == 1;
+    }
 
     private async Task<string> ResolveMediaTypeAsync(MediaAsset asset, string extension, CancellationToken ct)
     {

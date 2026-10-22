@@ -42,12 +42,17 @@ internal static class ViewCatalogueSql
     /// on documents. Needs the parameters added by <see cref="AddViewer"/>.
     /// </summary>
     public const string ItemVisibleToViewer =
-        "(li.hidden = 0 OR li.owner_profile_id = @viewer) AND (@includeDocuments = 1 OR li.media_kind <> 'document')";
+        "(li.hidden = 0 OR li.owner_profile_id = @viewer) AND (@includeDocuments = 1 OR li.media_kind <> 'document')"
+        + " AND (@hasBlockedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @blockedKinds)";
 
     public static void AddViewer(DynamicParameters parameters, ViewCatalogueViewer viewer)
     {
         parameters.Add("viewer", GuidSql.ToBlob(viewer.ProfileId), System.Data.DbType.Binary);
         parameters.Add("includeDocuments", viewer.IncludeDocuments ? 1 : 0);
+        var blocked = viewer.BlockedContentKinds ?? [];
+        parameters.Add("hasBlockedKinds", blocked.Count == 0 ? 0 : 1);
+        // An empty list would make the SQL invalid, so a placeholder stands in while hasBlockedKinds is 0.
+        parameters.Add("blockedKinds", blocked.Count == 0 ? new[] { "photos" } : blocked.ToArray());
     }
 
     /// <summary>
