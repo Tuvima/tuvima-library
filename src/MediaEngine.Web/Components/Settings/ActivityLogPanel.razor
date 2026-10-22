@@ -88,11 +88,13 @@
                         <AppMediaArtwork ImageUrl="@newest.CoverUrl" AspectRatio="1 / 1" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(newest.MediaType)" />
                     </span>
                     <div class="activity-log__body">
-                        <button type="button" class="activity-log__group-toggle" aria-expanded="@(open ? "true" : "false")" @onclick="@(() => ToggleGroup(row.Key))">
-                            <AppMaterialIcon Icon="@(open ? AppMaterialIcons.Outlined.ExpandMore : AppMaterialIcons.Outlined.ChevronRight)" Size="AppSize.Small" />
-                            <strong class="activity-log__title">@row.Title</strong>
-                            <span class="activity-log__time">@GroupSummary(row)</span>
-                        </button>
+                        <AppButton ButtonStyle="AppButtonStyle.Text"
+                                   Size="AppControlSize.Compact"
+                                   Class="activity-log__group-toggle"
+                                   StartIcon="@(open ? AppMaterialIcons.Outlined.ExpandMore : AppMaterialIcons.Outlined.ChevronRight)"
+                                   Label="@($"{row.Title} · {GroupSummary(row)}")"
+                                   aria-expanded="@(open ? "true" : "false")"
+                                   OnClick="@(() => ToggleGroup(row.Key))" />
                         @if (open)
                         {
                             <ol class="activity-log__children" aria-label="@($"Added to {row.Title}")">

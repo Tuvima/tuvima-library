@@ -200,18 +200,6 @@
 }
 
 /* A show or album row folds the episodes or songs added to it. */
-.activity-log__group-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--tl-space-2);
-    padding: 0;
-    border: 0;
-    background: none;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-}
-
 .activity-log__children {
     margin: var(--tl-space-2) 0 0;
     padding: 0 0 0 var(--tl-space-3);
