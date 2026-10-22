@@ -180,9 +180,10 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
         using var connection = _database.CreateConnection();
         connection.Execute("""
             INSERT INTO media_file_write_intents
-                (id, target_kind, asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at, move_step)
+                (id, target_kind, asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at, move_step, move_origin)
             VALUES (@id, 'media_asset', @asset, 1, 'move:seed', @trigger, @status, 0,
-                    '2026-10-20T00:00:00.0000000+00:00', '2026-10-20T00:00:00.0000000+00:00', @moveStep);
+                    '2026-10-20T00:00:00.0000000+00:00', '2026-10-20T00:00:00.0000000+00:00', @moveStep,
+                    CASE WHEN @moveStep IS NULL THEN NULL ELSE 'person' END);
             """, new { id = Guid.NewGuid(), asset = _asset, trigger, status, moveStep });
     }
 

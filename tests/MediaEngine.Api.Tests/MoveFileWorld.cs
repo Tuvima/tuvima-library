@@ -46,6 +46,7 @@ internal sealed class MoveFileWorld : IDisposable
         HashCache = new FileHashCacheRepository(database);
         Organizer = CreateOrganizer(new FileOrganizer(NullLogger<FileOrganizer>.Instance, HashCache));
         Intents = new MediaFileWriteIntentRepository(database);
+        FilingOrganizer = CreateFilingOrganizer();
         WriteBack = new SpyWriteBack();
         Configuration = new ConfigurationDirectoryLoader(Path.Combine(root, "config"));
         Scheduler = CreateScheduler(Organizer);
@@ -60,6 +61,12 @@ internal sealed class MoveFileWorld : IDisposable
     public SystemActivityRepository Activity { get; }
     public FileHashCacheRepository HashCache { get; }
     public AutoOrganizeService Organizer { get; }
+
+    /// <summary>
+    /// The organiser as the Engine runs it: Library's own filing is recorded on the durable list and waits for the next run, instead of
+    /// moving the file at once (Library setup D62).
+    /// </summary>
+    public AutoOrganizeService FilingOrganizer { get; }
     public MediaFileWriteIntentRepository Intents { get; }
     public SpyWriteBack WriteBack { get; }
     public ConfigurationDirectoryLoader Configuration { get; }
@@ -82,7 +89,10 @@ internal sealed class MoveFileWorld : IDisposable
         new LibraryFolderResolver(new StaticMonitor(Options)));
 
     /// <summary>The real organiser over a file organiser of the test's choosing (one that fails a move, say).</summary>
-    public AutoOrganizeService CreateOrganizer(IFileOrganizer fileOrganizer) => new(
+    public AutoOrganizeService CreateFilingOrganizer(IFilingHold? hold = null) =>
+        CreateOrganizer(new FileOrganizer(NullLogger<FileOrganizer>.Instance, HashCache), Intents, hold);
+
+    public AutoOrganizeService CreateOrganizer(IFileOrganizer fileOrganizer, IFilingQueue? filingQueue = null, IFilingHold? filingHold = null) => new(
         new MediaAssetRepository(Database),
         new CanonicalValueRepository(Database),
         fileOrganizer,
@@ -95,7 +105,9 @@ internal sealed class MoveFileWorld : IDisposable
         workRepo: new WorkRepository(Database),
         libraryResolver: new LibraryFolderResolver(new StaticMonitor(Options)),
         sourceMutationGate: new SourceMutationPolicyGate(MergeLedger),
-        sidecars: new SidecarMover(new SystemOrganiseFileMover(), NullLogger<SidecarMover>.Instance));
+        sidecars: new SidecarMover(new SystemOrganiseFileMover(), NullLogger<SidecarMover>.Instance),
+        filingQueue: filingQueue,
+        filingHold: filingHold);
 
     /// <summary>Writes a real file (and its folders) and returns its full path.</summary>
     public static string WriteFile(string folder, string relativePath, string content = "audio bytes")
@@ -154,6 +166,19 @@ internal sealed class MoveFileWorld : IDisposable
             "SELECT status AS Status, trigger AS Trigger, last_error AS Error FROM media_file_write_intents WHERE asset_id = @assetId;",
             new { assetId });
     }
+
+    public IntentRow Row(Guid assetId)
+    {
+        using var connection = Database.CreateConnection();
+        return connection.QuerySingle<IntentRow>(
+            """
+            SELECT move_step AS MoveStep, status AS Status, attempts AS Attempts, last_error AS LastError
+            FROM media_file_write_intents WHERE asset_id = @assetId;
+            """,
+            new { assetId });
+    }
+
+    public sealed record IntentRow(string? MoveStep, string Status, long Attempts, string? LastError);
 
     public IReadOnlyList<string> ActivityDetails(Guid assetId)
     {

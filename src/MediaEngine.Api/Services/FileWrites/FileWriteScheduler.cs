@@ -143,6 +143,10 @@ public sealed class FileWriteScheduler(
         }
     }
 
+    /// <summary>True when a file is waiting to be filed. Filing does not depend on the tag-writing switch, so Write now may run for it.</summary>
+    public async Task<bool> HasFilingWaitingAsync(CancellationToken ct = default) =>
+        (await intents.GetCountsAsync(ct: ct)).FilingWaiting > 0;
+
     public FileWriteProgress GetProgress()
     {
         lock (_stateLock)
@@ -356,14 +360,12 @@ public sealed class FileWriteScheduler(
     /// <summary>Writes everything that is waiting, once. Returns false when another run is going or nothing was waiting.</summary>
     public async Task<bool> RunBatchAsync(CancellationToken ct = default)
     {
-        bool manual;
         lock (_stateLock)
         {
             if (_running)
             {
                 return false;
             }
-            manual = _runRequested;
             _running = true;
             _runRequested = false;
             _runDone = 0;
@@ -393,9 +395,9 @@ public sealed class FileWriteScheduler(
             // What the moves just changed is part of this run, so its tags are taken now rather than at the next run.
             var claimBefore = clock.GetUtcNow();
 
-            // Tag writing follows its switch: with write-back off a scheduled run only files (Write now still goes through the writers,
-            // which decide for each file).
-            var tagsAllowed = manual || LoadSettings().Enabled;
+            // Tag writing follows its switch: with write-back off a run only files, and what is waiting for a tag write stays until it
+            // is turned back on.
+            var tagsAllowed = LoadSettings().Enabled;
 
             // Rows are marked with this run as they are claimed, so no file is taken twice however many chunks the run needs.
             var runId = Guid.NewGuid().ToString("N");
