@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using MediaEngine.Api.Services.FileWrites;
 using MediaEngine.Api.Services.Tools.ExifTool;
 using MediaEngine.Domain.Configuration;
@@ -19,13 +20,14 @@ namespace MediaEngine.Api.Services.LocalAssets.FileWrites;
 ///   <item>JPEG, PNG, TIFF, GIF, WebP, HEIC, AVIF, camera RAW, MP4/MOV/M4V and PDF go through ExifTool, one started process for the whole
 ///   run. Word, Excel and PowerPoint go through Open XML. Every other kind, and a signed or encrypted PDF or Office file, is kept in
 ///   Library only and the file is not opened for writing.</item>
-///   <item>The write goes to a hidden temporary copy beside the file. The copy is read back, and only then does it replace the original in
-///   one step. On any failure the copy is deleted and the original is exactly as it was.</item>
+///   <item>The write goes to a hidden temporary copy beside the file. The copy is read back, and only then does it replace the original
+///   (a rename in the same folder, so one step). A file that changed while the copy was written is left alone. On any failure the copy is
+///   deleted and the original is exactly as it was; the copy is never deleted while the original is missing.</item>
 ///   <item>Afterwards the file's new fingerprint and size are recorded, so the file is not read as a new or changed one. A file that
 ///   changed outside Library since it was indexed is not written: it is indexed again first and written on the next run.</item>
 /// </list>
 /// </summary>
-public sealed class ViewItemFileWriter(
+public sealed partial class ViewItemFileWriter(
     ViewItemFileWriteRepository files,
     IProfileRepository profiles,
     IViewPersonalSpaceRepository spaces,
@@ -41,11 +43,19 @@ public sealed class ViewItemFileWriter(
     internal const string FileChangedReason = "The file changed outside Library; it will be read again before writing.";
     internal const string WriteBackOffReason = "Write-back is off, so the profile name was not written.";
     internal const string NotManagedReason = "This file is not in a folder Library manages.";
+    internal const string TransferNotFinishedReason = "The file is part of a Shared Library transfer that has not finished; it waits for the next run.";
+
+    /// <summary>How old a leftover hidden copy must be before it is cleared away (a crash left it; no write takes this long to start).</summary>
+    internal static readonly TimeSpan StaleCopyAge = TimeSpan.FromHours(1);
 
     private static readonly TimeSpan SameTimeTolerance = TimeSpan.FromSeconds(2);
 
     private IExifToolSession? _session;
     private bool _exifToolUnavailable;
+    private readonly HashSet<string> _foldersChecked = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>How the verified copy takes the original's place. A seam so a test can make the swap fail after the original is gone.</summary>
+    internal IViewFileSwap FileSwap { get; set; } = new MoveViewFileSwap();
 
     public string TargetKind => MediaFileWriteIntentRepository.ViewItemKind;
 
@@ -53,12 +63,14 @@ public sealed class ViewItemFileWriter(
     {
         await CloseSessionAsync();
         _exifToolUnavailable = false;
+        _foldersChecked.Clear();
     }
 
     public async Task EndRunAsync(CancellationToken ct)
     {
         await CloseSessionAsync();
         _exifToolUnavailable = false;
+        _foldersChecked.Clear();
     }
 
     public async Task<IReadOnlyList<FileWriteResult>> WriteBatchAsync(IReadOnlyList<MediaFileWriteIntent> intents, CancellationToken ct)
@@ -134,13 +146,13 @@ public sealed class ViewItemFileWriter(
             return Done(WriteBackOutcome.Blocked(refusal.Reason));
         }
 
-        var path = refusal.Path!;
-        if (target.SourceCount > 1)
+        if (target.TransferNotFinished)
         {
-            // One file record at two places (a copy kept in the shared library): the new fingerprint could be recorded for only one.
-            return Done(WriteBackOutcome.Unsupported(ViewProfileNameFormats.KeptCopiedReason));
+            // A move to the Shared Library checks the bytes of both copies before it removes the original; writing now would break that.
+            return new FileWriteResult(intent.Id, WriteBackOutcome.Failed(TransferNotFinishedReason), ReadAgainFirst: true);
         }
 
+        var path = refusal.Path!;
         if (!File.Exists(path))
         {
             return Done(WriteBackOutcome.Failed("The file is no longer where Library recorded it."));
@@ -153,29 +165,45 @@ public sealed class ViewItemFileWriter(
 
         var keep = kind == ViewProfileNameWriter.OpenXml
             ? OfficeProfileName.Inspect(path)
-            : string.Equals(Path.GetExtension(path), ".pdf", StringComparison.OrdinalIgnoreCase) ? PdfWriteSafety.Inspect(path) : null;
+            : string.Equals(Path.GetExtension(path), ".pdf", StringComparison.OrdinalIgnoreCase) ? PdfWriteSafety.Inspect(path, logger) : null;
         if (keep is not null)
         {
             return Done(WriteBackOutcome.Unsupported(keep));
         }
 
+        if ((target.PlacesInLibrary > 1 || target.PlacesElsewhere > 0) && await CarriesNameAsync(kind, path, name, ct))
+        {
+            // A copy of a file that was already written (a shared copy of a named photo) has nothing left to write.
+            return Done(WriteBackOutcome.Verified());
+        }
+
+        if (target.PlacesInLibrary > 1)
+        {
+            // One file record at two places in this library: the new fingerprint could be recorded for only one of them.
+            return Done(WriteBackOutcome.Unsupported(ViewProfileNameFormats.KeptCopiedReason));
+        }
+
+        var original = new FileInfo(path);
+        var snapshot = new OriginalSnapshot(original.Length, original.LastWriteTimeUtc);
+        ClearStaleCopies(Path.GetDirectoryName(path)!);
         var temporary = Path.Combine(
             Path.GetDirectoryName(path)!, ViewStorageService.WriteCopyPrefix + Guid.NewGuid().ToString("N") + Path.GetExtension(path));
+        var attempt = new SwapAttempt();
         try
         {
             var early = kind == ViewProfileNameWriter.ExifTool
-                ? await WriteCopyWithExifToolAsync(intent, path, temporary, name, ct)
+                ? await WriteCopyWithExifToolAsync(intent, path, temporary, name, snapshot.Length, ct)
                 : WriteCopyWithOpenXml(intent, path, temporary, name);
             if (early is not null)
             {
                 return early;
             }
 
-            return await ReplaceOriginalAsync(intent, target, fileId, path, temporary, ct);
+            return await ReplaceOriginalAsync(intent, target, fileId, path, temporary, snapshot, attempt, ct);
         }
         finally
         {
-            DeleteTemporaryCopy(temporary);
+            FinishTemporaryCopy(temporary, path, attempt);
         }
     }
 
@@ -299,7 +327,7 @@ public sealed class ViewItemFileWriter(
     // ----- Writing the copy (D9) --------------------------------------------------------------------------------------------
 
     private async Task<FileWriteResult?> WriteCopyWithExifToolAsync(
-        MediaFileWriteIntent intent, string path, string temporary, string name, CancellationToken ct)
+        MediaFileWriteIntent intent, string path, string temporary, string name, long fileBytes, CancellationToken ct)
     {
         var session = await GetSessionAsync(ct);
         if (session is null)
@@ -316,7 +344,7 @@ public sealed class ViewItemFileWriter(
         var write = await session.WriteAsync(
             path,
             new Dictionary<string, string> { [ViewProfileNameFormats.ExifToolTag] = name },
-            ExifToolWriteOptions.ToCopy(temporary),
+            ExifToolWriteOptions.ToCopy(temporary, fileBytes),
             ct);
         if (write.Outcome == ExifToolWriteOutcome.Unsupported)
         {
@@ -349,24 +377,32 @@ public sealed class ViewItemFileWriter(
             : new FileWriteResult(intent.Id, WriteBackOutcome.Failed("The profile name could not be read back from the new copy of the file."));
     }
 
-    /// <summary>Swaps the verified copy in for the original in one step, then records the file as Library left it (D8).</summary>
+    /// <summary>
+    /// Swaps the verified copy in for the original, then records the file as Library left it (D8). The original is only replaced if it is
+    /// still the file the copy was made from; an edit made while the copy was written is never overwritten.
+    /// </summary>
     private async Task<FileWriteResult> ReplaceOriginalAsync(
-        MediaFileWriteIntent intent, ViewItemWriteTarget target, Guid fileId, string path, string temporary, CancellationToken ct)
+        MediaFileWriteIntent intent, ViewItemWriteTarget target, Guid fileId, string path, string temporary,
+        OriginalSnapshot snapshot, SwapAttempt attempt, CancellationToken ct)
     {
         var hash = await HashAsync(temporary, ct);
-        var lastWrite = File.GetLastWriteTimeUtc(path);
-        if (!OperatingSystem.IsWindows())
+        CarryOverFileProperties(path, temporary, snapshot);
+
+        if (!snapshot.Matches(path))
         {
-            File.SetUnixFileMode(temporary, File.GetUnixFileMode(path));
+            logger.LogInformation(
+                "The file of View item {ItemId} changed while its copy was being written; the copy was dropped and the file is read again.",
+                intent.LocalItemId);
+            return await ReadAgainFirstAsync(intent, target, ct);
         }
 
-        File.Replace(temporary, path, null, ignoreMetadataErrors: true);
+        attempt.Started = true;
+        FileSwap.Replace(temporary, path);
 
-        // The file keeps the modified time it had, so a photo does not move on the Timeline and an outside edit is still noticed.
-        File.SetLastWriteTimeUtc(path, lastWrite);
         var size = new FileInfo(path).Length;
         var recorded = await files.RecordOwnWriteAsync(
-            fileId, target.LibraryId, target.FilePath!, hash, size, new DateTimeOffset(lastWrite, TimeSpan.Zero), ct);
+            intent.LocalItemId!.Value, fileId, target.LibraryId, target.FilePath!, hash, size,
+            new DateTimeOffset(snapshot.LastWriteUtc, TimeSpan.Zero), ct);
         if (!recorded)
         {
             logger.LogInformation(
@@ -377,20 +413,137 @@ public sealed class ViewItemFileWriter(
         return new FileWriteResult(intent.Id, WriteBackOutcome.Verified());
     }
 
-    private void DeleteTemporaryCopy(string temporary)
+    /// <summary>
+    /// Gives the copy the original's creation time, attributes, permissions and modified time, so the swap changes the bytes and nothing
+    /// else (a photo does not move on the Timeline, and an outside edit is still noticed by its modified time).
+    /// </summary>
+    private void CarryOverFileProperties(string path, string temporary, OriginalSnapshot snapshot)
     {
         try
         {
-            if (File.Exists(temporary))
+            if (!OperatingSystem.IsWindows())
             {
-                File.Delete(temporary);
+                File.SetUnixFileMode(temporary, File.GetUnixFileMode(path));
+            }
+
+            File.SetCreationTimeUtc(temporary, File.GetCreationTimeUtc(path));
+            File.SetAttributes(temporary, File.GetAttributes(path));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            // Cosmetic details only: the file is still replaced with the right bytes.
+            logger.LogDebug(ex, "Some properties of a View file could not be carried over to its new copy.");
+        }
+
+        File.SetLastWriteTimeUtc(temporary, snapshot.LastWriteUtc);
+    }
+
+    /// <summary>
+    /// Removes the hidden copy once the write is over. The one rule that never bends: the copy is not deleted while the original is
+    /// missing after a swap was started, because then it is the only copy of the file. It is moved into place instead.
+    /// </summary>
+    private void FinishTemporaryCopy(string temporary, string path, SwapAttempt attempt)
+    {
+        try
+        {
+            if (!File.Exists(temporary))
+            {
+                return;
+            }
+
+            if (attempt.Started && !File.Exists(path))
+            {
+                File.Move(temporary, path);
+                logger.LogWarning(
+                    "Replacing a View file failed after the original was gone; the new copy was put in its place so the file is not lost.");
+                return;
+            }
+
+            File.Delete(temporary);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The hidden copy is left where it is (a later scan ignores it, and the next write clears it once it is old).
+            logger.LogWarning(ex, "A temporary copy beside a View file could not be removed or put in place.");
+        }
+    }
+
+    /// <summary>Clears hidden copies a crash left in this folder: only files of exactly the hidden-copy name, over an hour old, never through a link.</summary>
+    private void ClearStaleCopies(string folder)
+    {
+        if (!_foldersChecked.Add(folder))
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (var candidate in Directory.EnumerateFiles(folder, ViewStorageService.WriteCopyPrefix + "*"))
+            {
+                var info = new FileInfo(candidate);
+                if (info.LinkTarget is not null || info.Attributes.HasFlag(FileAttributes.ReparsePoint)
+                    || !StaleCopyName().IsMatch(info.Name))
+                {
+                    continue;
+                }
+
+                var newest = info.LastWriteTimeUtc > info.CreationTimeUtc ? info.LastWriteTimeUtc : info.CreationTimeUtc;
+                if (DateTime.UtcNow - newest > StaleCopyAge)
+                {
+                    info.Delete();
+                    logger.LogInformation("Removed a leftover temporary copy beside a View file.");
+                }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // The original is untouched; only a hidden temporary file is left behind, which a later scan ignores.
-            logger.LogWarning(ex, "A temporary copy beside a View file could not be removed.");
+            logger.LogDebug(ex, "Leftover temporary copies in a View folder could not be cleared.");
         }
+    }
+
+    [GeneratedRegex(@"^\.tuvima-write-[0-9a-f]{32}(\.[A-Za-z0-9]+)?$")]
+    private static partial Regex StaleCopyName();
+
+    /// <summary>True when the file already holds exactly this profile name.</summary>
+    private async Task<bool> CarriesNameAsync(ViewProfileNameWriter kind, string path, string name, CancellationToken ct)
+    {
+        try
+        {
+            if (kind == ViewProfileNameWriter.OpenXml)
+            {
+                return string.Equals(OfficeProfileName.Read(path), name, StringComparison.Ordinal);
+            }
+
+            var session = await GetSessionAsync(ct);
+            if (session is null || !session.IsRunning)
+            {
+                return false;
+            }
+
+            var read = await session.ReadAsync(path, [ViewProfileNameFormats.ExifToolTag], ct);
+            return read.TryGetValue(ViewProfileNameFormats.ExifToolTag, out var value) && string.Equals(value.Trim(), name, StringComparison.Ordinal);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogDebug(ex, "Whether a View file already carries the profile name could not be read; it is treated as not carrying it.");
+            return false;
+        }
+    }
+
+    /// <summary>The length and modified time the original had when it was checked, to notice an edit made while the copy was written.</summary>
+    private sealed record OriginalSnapshot(long Length, DateTime LastWriteUtc)
+    {
+        public bool Matches(string path)
+        {
+            var now = new FileInfo(path);
+            return now.Exists && now.Length == Length && now.LastWriteTimeUtc == LastWriteUtc;
+        }
+    }
+
+    /// <summary>Whether the swap of the copy for the original was begun, so clean-up knows the original may have been taken away.</summary>
+    private sealed class SwapAttempt
+    {
+        public bool Started { get; set; }
     }
 
     // ----- ExifTool session (D6) --------------------------------------------------------------------------------------------
@@ -437,4 +590,19 @@ public sealed class ViewItemFileWriter(
             path, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
         return Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, ct));
     }
+}
+
+/// <summary>How a verified copy takes an original's place (batched write-back D9).</summary>
+internal interface IViewFileSwap
+{
+    void Replace(string temporary, string path);
+}
+
+/// <summary>
+/// A rename over the original. The copy is beside the original, so on the same volume this is one step and keeps the folder entry; it
+/// never needs a backup file. (<c>File.Replace</c> without a backup can, on Windows, leave only the copy when it fails part-way.)
+/// </summary>
+internal sealed class MoveViewFileSwap : IViewFileSwap
+{
+    public void Replace(string temporary, string path) => File.Move(temporary, path, overwrite: true);
 }

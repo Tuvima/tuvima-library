@@ -153,7 +153,7 @@
     private string KindDescription => KindOption?.Tooltip is { Length: > 0 } tooltip ? tooltip : "Personal photos, videos, documents, and recordings · Local files";
     private string SkippedTooltip => $"These files aren't {KindNoun}, so this folder leaves them out. They stay where they are.";
     private static string SkippedText(int count) => count == 1 ? "1 file skipped" : $"{count:N0} files skipped";
-    private const string KeptInLibraryTooltip = "These files can't hold the profile name (or are signed or locked), so the name is kept in Library only. The files themselves are never changed.";
+    private const string KeptInLibraryTooltip = "These files can't hold the profile name (a kind of file with no room for it, a signed or locked file, or a file kept at two places in this folder), so the name is kept in Library only. The files themselves are never changed.";
     private static string KeptInLibraryText(int count) => count == 1 ? "1 file kept in Library only" : $"{count:N0} files kept in Library only";
     private string RootPath => Path.Combine(Configuration.StorageLocations.FirstOrDefault(x => x.Id == Configuration.ViewStorage.StorageLocationId)?.Path ?? "", Configuration.ViewStorage.RelativeRoot);
     private IReadOnlyList<AppSelectOption> OwnerOptions => _profiles.Select(p => new AppSelectOption(p.Id.ToString(), p.DisplayName)).ToList();

@@ -1,4 +1,6 @@
 using System.IO.Compression;
+using System.Xml;
+using System.Xml.Linq;
 using DocumentFormat.OpenXml.CustomProperties;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.VariantTypes;
@@ -11,12 +13,16 @@ namespace MediaEngine.Api.Services.LocalAssets.FileWrites;
 /// </summary>
 public static class OfficeProfileName
 {
+    private const string DigitalSignatureOriginType = "http://schemas.openxmlformats.org/package/2006/relationships/digital-signature/origin";
+    private const string StrictNamespacePrefix = "http://purl.oclc.org/ooxml/";
+
     // The format id every custom document property carries.
     private const string CustomPropertyFormatId = "{D5CDD505-2E9C-101B-9397-08002B2CF9AE}";
 
     /// <summary>
-    /// Null when the file is an ordinary Open XML package that may be written to. A file that is not a zip package (an encrypted Office
-    /// file is a different container) or that carries a digital signature is kept as it is, with the reason.
+    /// Null when the file is an ordinary (Transitional) Open XML package that may be written to. A file that is not a zip package (an
+    /// encrypted Office file is a different container), that carries a digital signature, or that is Strict Open XML is kept as it is,
+    /// with the reason.
     /// </summary>
     public static string? Inspect(string path)
     {
@@ -29,15 +35,81 @@ public static class OfficeProfileName
                 return ViewProfileNameFormats.KeptSignedOfficeReason;
             }
 
-            // A signed package keeps its signatures beside the document parts; changing any part would break them.
-            return package.Entries.Any(entry => entry.FullName.StartsWith("_xmlsignatures/", StringComparison.OrdinalIgnoreCase))
-                ? ViewProfileNameFormats.KeptSignedOfficeReason
-                : null;
+            // A signed package keeps its signatures beside the document parts (and says so in the package relationships); changing
+            // any part would break them.
+            if (package.Entries.Any(entry => entry.FullName.StartsWith("_xmlsignatures/", StringComparison.OrdinalIgnoreCase)))
+            {
+                return ViewProfileNameFormats.KeptSignedOfficeReason;
+            }
+
+            var relationships = ReadRelationships(package);
+            if (relationships.Any(relationship => string.Equals(relationship.Type, DigitalSignatureOriginType, StringComparison.OrdinalIgnoreCase)))
+            {
+                return ViewProfileNameFormats.KeptSignedOfficeReason;
+            }
+
+            return IsStrict(package, relationships) ? ViewProfileNameFormats.KeptStrictOfficeReason : null;
         }
-        catch (InvalidDataException)
+        catch (Exception ex) when (ex is InvalidDataException or XmlException)
         {
+            // Anything that cannot be read cleanly is not written to.
             return ViewProfileNameFormats.KeptSignedOfficeReason;
         }
+    }
+
+    private static List<(string Type, string Target)> ReadRelationships(ZipArchive package)
+    {
+        var entry = package.GetEntry("_rels/.rels");
+        if (entry is null)
+        {
+            return [];
+        }
+
+        using var stream = entry.Open();
+        return XDocument.Load(stream).Descendants()
+            .Where(element => element.Name.LocalName == "Relationship")
+            .Select(element => (Type: (string?)element.Attribute("Type") ?? string.Empty, Target: (string?)element.Attribute("Target") ?? string.Empty))
+            .ToList();
+    }
+
+    /// <summary>Strict Open XML uses other namespaces and marks its main part <c>conformance="strict"</c>; the writer only knows the Transitional form.</summary>
+    private static bool IsStrict(ZipArchive package, List<(string Type, string Target)> relationships)
+    {
+        var main = relationships.FirstOrDefault(relationship => relationship.Type.EndsWith("/officeDocument", StringComparison.OrdinalIgnoreCase));
+        if (main.Target.Length == 0)
+        {
+            return false;
+        }
+
+        if (main.Type.StartsWith(StrictNamespacePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var entry = package.GetEntry(main.Target.TrimStart('/')) ?? package.Entries.FirstOrDefault(candidate =>
+            string.Equals(candidate.FullName, main.Target.TrimStart('/'), StringComparison.OrdinalIgnoreCase));
+        if (entry is null)
+        {
+            return false;
+        }
+
+        using var stream = entry.Open();
+        using var reader = XmlReader.Create(stream, new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null });
+        reader.MoveToContent();
+        if (reader.NamespaceURI.StartsWith(StrictNamespacePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        while (reader.MoveToNextAttribute())
+        {
+            if (reader.LocalName == "conformance" && string.Equals(reader.Value, "strict", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Sets the property on the document at <paramref name="path"/> (a copy the caller owns).</summary>

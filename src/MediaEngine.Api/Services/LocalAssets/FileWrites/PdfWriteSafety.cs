@@ -15,7 +15,7 @@ public static class PdfWriteSafety
     private static readonly byte[][] Markers = [Encoding.ASCII.GetBytes("/ByteRange"), Encoding.ASCII.GetBytes("/Encrypt")];
 
     /// <summary>Null when the PDF may be written to, else why it is kept as it is.</summary>
-    public static string? Inspect(string path)
+    public static string? Inspect(string path, ILogger? logger = null)
     {
         if (ContainsMarker(path))
         {
@@ -49,7 +49,7 @@ public static class PdfWriteSafety
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // A PDF that cannot be read cleanly is not written to; it stays as it is and is counted as kept.
-            _ = ex;
+            logger?.LogDebug(ex, "The PDF {Path} could not be checked, so it is kept in Library only.", path);
             return "Kept in Library only: the PDF could not be checked.";
         }
     }

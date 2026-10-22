@@ -25,6 +25,7 @@ public static class ViewProfileNameFormats
     public const string KeptFormatReason = "Kept in Library only: this kind of file can't hold the profile name.";
     public const string KeptSignedPdfReason = "Kept in Library only: the PDF is signed or encrypted.";
     public const string KeptSignedOfficeReason = "Kept in Library only: the Office file is signed or encrypted.";
+    public const string KeptStrictOfficeReason = "Kept in Library only: the Office file uses the Strict Open XML format.";
     public const string KeptCopiedReason = "Kept in Library only: another copy of this file is also in Library.";
 
     private static readonly HashSet<string> ExifToolExtensions = new(StringComparer.OrdinalIgnoreCase)
