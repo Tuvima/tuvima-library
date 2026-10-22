@@ -185,10 +185,10 @@ internal sealed partial class ExifToolSession : IExifToolSession
         return true;
     }
 
-    /// <summary>A tag such as <c>XMP-tuvima:AddedBy</c>: letters, digits and a few separators, never a leading dash or a space.</summary>
+    /// <summary>A tag such as <c>XMP-tuvima:AddedBy</c>: letters, digits and a few separators, never a leading dash or a space, and never ending in ExifTool's -, + or < operators (which would delete or append instead of set).</summary>
     private static bool IsTagName(string tag) => TagName().IsMatch(tag);
 
-    [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9:_\-\.]*$")]
+    [GeneratedRegex(@"^[A-Za-z0-9](?:[A-Za-z0-9:_\-\.]*[A-Za-z0-9])?$")]
     private static partial Regex TagName();
 
     /// <summary>ExifTool's argument file takes one argument per line, so a line break would start another argument.</summary>

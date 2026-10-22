@@ -145,6 +145,27 @@ public sealed class ExifToolRunnerTests : IDisposable
     }
 
     [RealExifToolFact]
+    public async Task WritingToACopy_WithNothingToChange_StillMakesTheCopy_AndSucceeds()
+    {
+        var source = MakeBatch(1)[0];
+        var first = Path.Combine(_root, "first.jpg");
+        var second = Path.Combine(_root, "second.jpg");
+        var runner = RealRunner();
+        await using var session = await runner.OpenSessionAsync(CancellationToken.None);
+        Assert.NotNull(session);
+
+        var tagged = await session.WriteAsync(
+            source, new Dictionary<string, string> { [AddedBy] = "Shy" }, ExifToolWriteOptions.ToCopy(first), CancellationToken.None);
+        var sameAgain = await session.WriteAsync(
+            first, new Dictionary<string, string> { [AddedBy] = "Shy" }, ExifToolWriteOptions.ToCopy(second), CancellationToken.None);
+
+        Assert.True(tagged.IsSuccess, tagged.Reason);
+        Assert.True(sameAgain.IsSuccess, sameAgain.Reason);
+        Assert.True(File.Exists(second));
+        Assert.Equal("Shy", (await session.ReadAsync(second, [AddedBy], CancellationToken.None))[AddedBy]);
+    }
+
+    [RealExifToolFact]
     public async Task AValueWithALineBreak_ARelativePath_OrABadTagName_IsRefusedAndTheSessionKeepsWorking()
     {
         var path = MakeBatch(1)[0];
@@ -155,10 +176,11 @@ public sealed class ExifToolRunnerTests : IDisposable
         var lineBreak = await session.WriteAsync(path, new Dictionary<string, string> { [AddedBy] = "two\nlines" }, ExifToolWriteOptions.InPlace(), CancellationToken.None);
         var relative = await session.WriteAsync("picture.jpg", new Dictionary<string, string> { [AddedBy] = "Shy" }, ExifToolWriteOptions.InPlace(), CancellationToken.None);
         var badTag = await session.WriteAsync(path, new Dictionary<string, string> { ["-overwrite_original"] = "x" }, ExifToolWriteOptions.InPlace(), CancellationToken.None);
+        var deletingOperator = await session.WriteAsync(path, new Dictionary<string, string> { [AddedBy + "-"] = "Shy" }, ExifToolWriteOptions.InPlace(), CancellationToken.None);
         var noDestination = await session.WriteAsync(path, new Dictionary<string, string> { [AddedBy] = "Shy" }, new ExifToolWriteOptions(), CancellationToken.None);
         var fine = await session.WriteAsync(path, new Dictionary<string, string> { [AddedBy] = "Shy" }, ExifToolWriteOptions.InPlace(), CancellationToken.None);
 
-        Assert.All(new[] { lineBreak, relative, badTag, noDestination }, result => Assert.Equal(ExifToolWriteOutcome.Failed, result.Outcome));
+        Assert.All(new[] { lineBreak, relative, badTag, deletingOperator, noDestination }, result => Assert.Equal(ExifToolWriteOutcome.Failed, result.Outcome));
         Assert.True(fine.IsSuccess, fine.Reason);
     }
 

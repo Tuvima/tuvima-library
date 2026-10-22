@@ -9,8 +9,8 @@ namespace MediaEngine.Api.Services.Tools.ExifTool;
 /// </summary>
 internal static partial class ExifToolOutputParser
 {
-    /// <summary>"    1 image files updated", "1 image files created" or "1 image files unchanged".</summary>
-    [GeneratedRegex(@"^\s*(?<count>\d+)\s+(?:image\s+)?files?\s+(?<what>updated|created|unchanged)\s*$", RegexOptions.IgnoreCase)]
+    /// <summary>"    1 image files updated", "1 image files created", "1 image files copied" (a copy with nothing to change) or "1 image files unchanged".</summary>
+    [GeneratedRegex(@"^\s*(?<count>\d+)\s+(?:image\s+)?files?\s+(?<what>updated|created|copied|unchanged)\s*$", RegexOptions.IgnoreCase)]
     private static partial Regex WrittenLine();
 
     public static ExifToolFileResult ParseWrite(IReadOnlyList<string> output, IReadOnlyList<string> errors)
