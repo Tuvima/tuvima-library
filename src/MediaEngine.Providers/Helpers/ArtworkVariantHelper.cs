@@ -53,9 +53,16 @@ public static class ArtworkVariantHelper
     /// </summary>
     public static bool TryParseRenditionSize(string? size, out string key)
     {
-        var normalized = (size ?? string.Empty).Trim().ToLowerInvariant();
-        key = normalized;
-        return normalized is "t" or "s" or "m" or "l";
+        // The key is one of our own constants, never the request's text, so it is safe to log and to put in a path.
+        key = (size ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "t" => "t",
+            "s" => "s",
+            "m" => "m",
+            "l" => "l",
+            _ => string.Empty,
+        };
+        return key.Length > 0;
     }
 
     /// <summary>The long-edge pixel size of a copy, or 0 for an unknown key.</summary>
