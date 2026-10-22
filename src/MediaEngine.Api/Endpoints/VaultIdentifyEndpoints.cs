@@ -175,6 +175,7 @@ public static class VaultIdentifyEndpoints
                     : $"{waiting} saved bookmark{(waiting == 1 ? " is" : "s are")} still waiting for a matching video. They are re-linked when a scan of the Vault folders finds the video; any that never find one cannot be restored.",
             });
         })
+        .WithMetadata(VaultGatedRoute.Instance)
         .WithName("GetVaultRestoredBookmarks")
         .WithSummary("How many saved Vault bookmarks from a restored backup still wait for their video. Only inside Vault mode, only for an administrator.")
         .Produces<VaultRestoredBookmarksDto>()

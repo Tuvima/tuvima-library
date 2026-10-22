@@ -79,7 +79,7 @@ public sealed class VaultBackupTests : IDisposable
 
         using var copy = OpenBackup(archivePath);
         Assert.Equal(1, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM vault_libraries;"));
-        Assert.Equal(1, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_nsfw_pins WHERE secret_hash = 'hash-only-value';"));
+        Assert.Equal(1, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_credentials WHERE secret_hash = 'hash-only-value';"));
         Assert.Equal("pin", copy.ExecuteScalar<string>("SELECT access_mode FROM profile_nsfw_settings;"));
         Assert.Equal(1, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM account_library_grants;"));
         Assert.Equal(OrdinaryTitle, copy.ExecuteScalar<string>("SELECT value FROM canonical_values WHERE key = 'title';"));
@@ -258,9 +258,9 @@ public sealed class VaultBackupTests : IDisposable
             INSERT INTO profiles(id,display_name,avatar_color,role,content_limit,created_at) VALUES(@admin,'Admin','#7C4DFF','Administrator',NULL,@now);
             INSERT INTO vault_libraries(library_id, lookup_source, lookup_server_id, adults_confirmed_at, created_by_profile_id, created_at, updated_at)
                 VALUES(@vault,'none',NULL,@now,@admin,@now,@now);
+            INSERT INTO profile_credentials(id, profile_id, credential_kind, secret_hash, hash_scheme, hash_version, security_stamp, created_at, updated_at)
+                VALUES(@pin,@admin,'ProfilePin','hash-only-value','pbkdf2',1,'stamp',@now,@now);
             INSERT INTO profile_nsfw_settings(profile_id, access_mode, updated_at) VALUES(@admin,'pin',@now);
-            INSERT INTO profile_nsfw_pins(id, profile_id, secret_hash, hash_scheme, hash_version, security_stamp, created_at, updated_at)
-                VALUES(@pin,@admin,'hash-only-value','pbkdf2',1,'stamp',@now,@now);
             """,
             new { admin = _admin, vault = _vaultLibrary, pin = Guid.NewGuid(), now = _now });
 

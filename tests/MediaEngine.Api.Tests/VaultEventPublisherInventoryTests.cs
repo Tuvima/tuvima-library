@@ -40,6 +40,7 @@ public sealed class VaultEventPublisherInventoryTests : IDisposable
         ["src/MediaEngine.Storage/ApplicationEventRepository.cs"] = "The only writer; trg_application_events_no_vault runs on its insert.",
         ["src/MediaEngine.Api/Services/Plugins/PluginEventDispatcher.cs"] = "Reads the outbox for plugins; it cannot see a row the trigger ignored.",
         ["src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs"] = "Development reset only; it deletes rows.",
+        ["src/MediaEngine.Storage/Backup/BackupTableClassification.cs"] = "Names the table in the backup list only (marked as not backed up); it reads and writes nothing.",
     };
 
     private static readonly Dictionary<string, string> DirectProducers = new(StringComparer.Ordinal)
@@ -48,6 +49,7 @@ public sealed class VaultEventPublisherInventoryTests : IDisposable
         ["src/MediaEngine.Api/Services/Events/ApplicationEventProducer.cs"] = "Drops any draft whose library is a Vault library before it is stored.",
         ["src/MediaEngine.Storage/Playback/PlaybackTelemetryRepository.cs"] = "Playback of a Vault asset records no session and no event (checked by NotVaultAsset first).",
         ["src/MediaEngine.Api/Endpoints/PluginEndpoints.cs"] = "Publishes plugin job events with a fixed subject (a job name), never an item.",
+        ["src/MediaEngine.Api/Services/Notifications/NotificationService.cs"] = "Publishes system notices with a fixed subject (a system component) through the producer, which drops any draft whose library is a Vault library; notices name no item.",
         ["src/MediaEngine.Api/DependencyInjection/ApplicationEventServiceCollectionExtensions.cs"] = "Registration only.",
         ["src/MediaEngine.Domain/Events/ApplicationEvents.cs"] = "The contract itself.",
     };

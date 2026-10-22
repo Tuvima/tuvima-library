@@ -23,7 +23,7 @@ public static partial class ViewEndpoints
 
         group.MapGet("/library-capacity", async (string? area, IConfigurationLoader configuration,
             IViewRequestProfileContext identity, IAccountAccessDecisionService accounts,
-            IVaultLibraryRepository vaultLibraries, HttpContext http, CancellationToken ct) =>
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, HttpContext http, CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
             if (!authority.IsAuthenticated)
