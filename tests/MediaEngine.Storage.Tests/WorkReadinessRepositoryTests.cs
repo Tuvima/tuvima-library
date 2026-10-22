@@ -651,6 +651,19 @@ public sealed class WorkReadinessRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task FindTouched_ReturnsTheWork_WhenItsFileIsMarkedUnmatchedAfterTheWatermark_EvenWithNoIdentityJob()
+    {
+        var (workId, assetId) = NewWork("Videos");
+        var (_, watermark) = await _repo.FindTouchedWorkIdsAsync(WorkReadinessWatermark.Empty);
+
+        var now = DateTimeOffset.UtcNow;
+        await new UnmatchedAssetRepository(_db).MarkUnmatchedAsync(assetId, "youtube", "no_youtube_id", now, now.AddDays(7));
+        var (touched, _) = await _repo.FindTouchedWorkIdsAsync(watermark);
+
+        Assert.Equal(new[] { workId }, touched);
+    }
+
+    [Fact]
     public async Task FindTouched_ReturnsTheEpisodes_WhenACoverIsWrittenOnTheirShow()
     {
         var showId = NewParent("TV");
