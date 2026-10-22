@@ -97,7 +97,7 @@ public sealed class WaitingPersonalStateRepository
     /// personal state, never a row on a title a backup may not name (a Vault video), and only titles that are a Work, Edition or
     /// Media Asset (never a View item). Once a title's rows are written back they are gone from the waiting area, so it stops appearing.
     /// </summary>
-    public async Task<IReadOnlyList<WaitingTitle>> SearchWaitingTitlesAsync(Guid profileId, string query, int take, CancellationToken ct = default)
+    public IReadOnlyList<WaitingTitle> SearchWaitingTitles(Guid profileId, string query, int take, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         if (take < 1 || string.IsNullOrWhiteSpace(query))
@@ -106,7 +106,7 @@ public sealed class WaitingPersonalStateRepository
         }
 
         using var connection = _db.CreateConnection();
-        var rows = await connection.QueryAsync<WaitingTitleRow>(new CommandDefinition(
+        var rows = connection.Query<WaitingTitleRow>(new CommandDefinition(
             $"""
             SELECT DISTINCT
                    json_extract(title.value, '$.name') AS Name,
@@ -131,7 +131,7 @@ public sealed class WaitingPersonalStateRepository
                 Like = "%" + query.Trim().Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal) + "%",
                 Take = take,
             },
-            cancellationToken: ct)).ConfigureAwait(false);
+            cancellationToken: ct));
         return rows.Select(row => new WaitingTitle(row.Name, row.ParentName, row.Year, row.MediaType)).ToList();
     }
 

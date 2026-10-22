@@ -27,14 +27,14 @@ public sealed class WaitingTitleSearchTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchWaitingTitles_FindsAProfilesWaitingTitle_ByNameOrParentName_IgnoringCase()
+    public void SearchWaitingTitles_FindsAProfilesWaitingTitle_ByNameOrParentName_IgnoringCase()
     {
         var maya = AddProfile("Maya");
         Wait(maya, Title("Pilot", "Severance", 2022, "TV"));
         Wait(maya, Title("Dune", null, 2021, "Movies"));
 
-        var byName = await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(maya), "dUNE", 10);
-        var byParent = await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(maya), "severance", 10);
+        var byName = _repository.SearchWaitingTitles(GuidSql.FromDb(maya), "dUNE", 10);
+        var byParent = _repository.SearchWaitingTitles(GuidSql.FromDb(maya), "severance", 10);
 
         var dune = Assert.Single(byName);
         Assert.Equal(new WaitingTitle("Dune", null, 2021, "Movies"), dune);
@@ -43,18 +43,18 @@ public sealed class WaitingTitleSearchTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchWaitingTitles_DoesNotShowAnotherProfilesTitle()
+    public void SearchWaitingTitles_DoesNotShowAnotherProfilesTitle()
     {
         var maya = AddProfile("Maya");
         var theo = AddProfile("Theo");
         Wait(maya, Title("Dune", null, 2021, "Movies"));
 
-        Assert.Empty(await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(theo), "Dune", 10));
-        Assert.Empty(await _repository.SearchWaitingTitlesAsync(Guid.NewGuid(), "Dune", 10));
+        Assert.Empty(_repository.SearchWaitingTitles(GuidSql.FromDb(theo), "Dune", 10));
+        Assert.Empty(_repository.SearchWaitingTitles(Guid.NewGuid(), "Dune", 10));
     }
 
     [Fact]
-    public async Task SearchWaitingTitles_NeverShowsAWithheldRow()
+    public void SearchWaitingTitles_NeverShowsAWithheldRow()
     {
         var maya = AddProfile("Maya");
         Wait(maya, Title("Dune", null, 2021, "Movies") with { Withheld = true });
@@ -65,7 +65,7 @@ public sealed class WaitingTitleSearchTests : IDisposable
             connection.Execute("UPDATE waiting_personal_state SET is_withheld = 1 WHERE titles_json LIKE '%Dunes of Mars%'");
         }
 
-        Assert.Empty(await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(maya), "Dune", 10));
+        Assert.Empty(_repository.SearchWaitingTitles(GuidSql.FromDb(maya), "Dune", 10));
     }
 
     [Theory]
@@ -75,28 +75,28 @@ public sealed class WaitingTitleSearchTests : IDisposable
     [InlineData("FictionalEntity")]
     [InlineData("ArtworkAsset")]
     [InlineData("Other")]
-    public async Task SearchWaitingTitles_OnlyListsWorkEditionAndMediaAssetTitles(string target)
+    public void SearchWaitingTitles_OnlyListsWorkEditionAndMediaAssetTitles(string target)
     {
         var maya = AddProfile("Maya");
         Wait(maya, Title("Dune", null, 2021, "Movies") with { Target = target });
 
-        Assert.Empty(await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(maya), "Dune", 10));
+        Assert.Empty(_repository.SearchWaitingTitles(GuidSql.FromDb(maya), "Dune", 10));
     }
 
     [Theory]
     [InlineData("Work")]
     [InlineData("Edition")]
     [InlineData("MediaAsset")]
-    public async Task SearchWaitingTitles_ListsTitlesOnAWorkEditionOrMediaAsset(string target)
+    public void SearchWaitingTitles_ListsTitlesOnAWorkEditionOrMediaAsset(string target)
     {
         var maya = AddProfile("Maya");
         Wait(maya, Title("Dune", null, 2021, "Movies") with { Target = target });
 
-        Assert.Single(await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(maya), "Dune", 10));
+        Assert.Single(_repository.SearchWaitingTitles(GuidSql.FromDb(maya), "Dune", 10));
     }
 
     [Fact]
-    public async Task SearchWaitingTitles_ListsATitleOnce_AndNoMoreThanTheLimit()
+    public void SearchWaitingTitles_ListsATitleOnce_AndNoMoreThanTheLimit()
     {
         var maya = AddProfile("Maya");
         Wait(maya, Title("Dune", null, 2021, "Movies"));
@@ -106,8 +106,8 @@ public sealed class WaitingTitleSearchTests : IDisposable
             Wait(maya, Title("Dune " + i.ToString("00"), null, 2000 + i, "Movies"));
         }
 
-        var all = await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(maya), "Dune", 50);
-        var capped = await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(maya), "Dune", 10);
+        var all = _repository.SearchWaitingTitles(GuidSql.FromDb(maya), "Dune", 50);
+        var capped = _repository.SearchWaitingTitles(GuidSql.FromDb(maya), "Dune", 10);
 
         Assert.Equal(13, all.Count);
         Assert.Equal(1, all.Count(title => title.Name == "Dune"));
@@ -115,30 +115,30 @@ public sealed class WaitingTitleSearchTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchWaitingTitles_TreatsPercentAndUnderscoreAsPlainText()
+    public void SearchWaitingTitles_TreatsPercentAndUnderscoreAsPlainText()
     {
         var maya = AddProfile("Maya");
         Wait(maya, Title("Dune", null, 2021, "Movies"));
         Wait(maya, Title("100% Wolf", null, 2020, "Movies"));
 
-        Assert.Equal("100% Wolf", Assert.Single(await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(maya), "%", 10)).Name);
-        Assert.Empty(await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(maya), "D_ne", 10));
-        Assert.Single(await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(maya), "100%", 10));
+        Assert.Equal("100% Wolf", Assert.Single(_repository.SearchWaitingTitles(GuidSql.FromDb(maya), "%", 10)).Name);
+        Assert.Empty(_repository.SearchWaitingTitles(GuidSql.FromDb(maya), "D_ne", 10));
+        Assert.Single(_repository.SearchWaitingTitles(GuidSql.FromDb(maya), "100%", 10));
     }
 
     [Fact]
-    public async Task SearchWaitingTitles_StopsListingATitle_OnceItsRowsAreGone()
+    public void SearchWaitingTitles_StopsListingATitle_OnceItsRowsAreGone()
     {
         var maya = AddProfile("Maya");
         Wait(maya, Title("Dune", null, 2021, "Movies"));
-        Assert.Single(await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(maya), "Dune", 10));
+        Assert.Single(_repository.SearchWaitingTitles(GuidSql.FromDb(maya), "Dune", 10));
 
         using (var connection = _database.CreateConnection())
         {
             connection.Execute("DELETE FROM waiting_personal_state");
         }
 
-        Assert.Empty(await _repository.SearchWaitingTitlesAsync(GuidSql.FromDb(maya), "Dune", 10));
+        Assert.Empty(_repository.SearchWaitingTitles(GuidSql.FromDb(maya), "Dune", 10));
     }
 
     private static BackupTitle Title(string name, string? parent, int? year, string mediaType) =>
