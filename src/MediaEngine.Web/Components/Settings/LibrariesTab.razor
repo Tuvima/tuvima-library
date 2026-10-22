@@ -1,12 +1,16 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Web.Services.Navigation
+@using MediaEngine.Contracts.Vault
 @using Microsoft.AspNetCore.WebUtilities
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject MediaEngine.Web.Services.Settings.LibraryKindsState LibraryKinds
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Navigation
+@inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
+@inject DashboardSessionAccessor Session
+@implements IDisposable
 
 @{
     var readOnly = DeviceContext.IsMobile;
@@ -60,7 +64,7 @@
         @switch (level.Kind)
         {
             case LevelKind.Front:
-                @* The Vault card follows the Vault's privacy rules; Vault mode does not exist yet, so it is never drawn. A later packet wires this. *@
+                @* The Vault card follows the Vault's privacy rules (LibraryVaultAccess): drawn only while it may be shown, else no trace. *@
                 <LibraryFrontDoor Configuration="@_configuration"
                                   Kinds="@Kinds"
                                   Overview="@_overview"
@@ -77,6 +81,7 @@
                                   Overview="@_overview"
                                   ViewFolders="@_viewFolders"
                                   PathIssues="@_pathIssues"
+                                  VaultLibraries="@_vaultLibraries"
                                   ReadOnly="@readOnly"
                                   FolderAdded="FolderAddedAsync" />
                 break;
@@ -138,12 +143,18 @@
     private bool _engineUnavailable;
     private string? _routeKey;
 
-    // The Vault card is drawn only for an administrator with Vault mode on. Vault mode does not exist yet.
-    private bool VaultVisible => false;
+    // The Vault's libraries for its group page; null until they are read (or when the Engine could not say).
+    private IReadOnlyList<VaultLibraryDto>? _vaultLibraries;
+    private bool _isKids;
+
+    // The Vault card is drawn only for an administrator with Vault mode on, never on a Kids profile (Library setup D13).
+    private bool VaultVisible => LibraryVaultAccess.CanShow(Nsfw, Session, _isKids);
 
     protected override async Task OnInitializedAsync()
     {
         _routeKey = $"{Subsection}/{Detail}";
+        Nsfw.Changed += OnVaultModeChanged;
+        _isKids = (await Orchestrator.GetActiveProfileAsync())?.IsRestricted == true;
         // The list of kinds is read again on each visit, since a plugin may have been switched on or off; the list read
         // before stays if the Engine cannot answer.
         await LibraryKinds.RefreshAsync();
@@ -152,6 +163,19 @@
         await InvokeAsync(StateHasChanged);
         await LoadSummaryAsync();
     }
+
+    // Vault mode switching on or off draws or removes the Vault card at once; the Vault's own address then reads as not found.
+    private void OnVaultModeChanged() => _ = InvokeAsync(async () =>
+    {
+        if (VaultVisible && CurrentLevel.Group?.Key == LibraryGroupCatalog.VaultKey)
+        {
+            await LoadVaultLibrariesAsync();
+        }
+
+        StateHasChanged();
+    });
+
+    public void Dispose() => Nsfw.Changed -= OnVaultModeChanged;
 
     // The hand-over to View's add form (?add=folder) is read once; the address then drops it, so a reload or Back does not reopen the form.
     private bool _addAddressCleared;
@@ -239,6 +263,13 @@
     private async Task LoadSummaryAsync()
     {
         if (_configuration is null || DeviceContext.IsTelevision || CurrentLevel.Kind is not (LevelKind.Front or LevelKind.Group)) return;
+        if (CurrentLevel.Group?.Key == LibraryGroupCatalog.VaultKey)
+        {
+            await LoadVaultLibrariesAsync();
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
         var configuration = _configuration;
         var overview = ApiClient.GetLibraryOverviewAsync();
         var issues = LibraryFolderHealth.CheckAsync(configuration, path => Orchestrator.TestPathAsync(path));
@@ -250,6 +281,13 @@
         await InvokeAsync(StateHasChanged);
         _viewFolders = await viewFolders;
         await InvokeAsync(StateHasChanged);
+    }
+
+    // The Vault's library, read through the Vault's own client (an unlocked administrator only). A failed read leaves it unknown, never "none".
+    private async Task LoadVaultLibrariesAsync()
+    {
+        var call = await ApiClient.GetVaultLibrariesAsync();
+        _vaultLibraries = call.Succeeded ? call.Value : null;
     }
 
     // View keeps its folders per profile, outside the library list: the distinct folders of each View kind across every profile's

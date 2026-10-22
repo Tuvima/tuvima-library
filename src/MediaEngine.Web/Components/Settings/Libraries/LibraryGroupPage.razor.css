@@ -78,10 +78,17 @@
 .lib-page__icon--comics { color: #7de568; }
 .lib-page__icon--photos, .lib-page__icon--personal_videos, .lib-page__icon--documents { color: #2dd4bf; }
 .lib-page__icon--other { color: var(--tl-text-muted); }
+.lib-page__icon--vault { color: var(--tl-status-danger); }
 
 .lib-page__counts {
     color: var(--tl-text-secondary, var(--tl-text-muted));
     font-size: 0.9rem;
+}
+
+.lib-page__empty {
+    margin: 0;
+    padding: 12px 14px;
+    color: var(--tl-text-muted);
 }
 
 .lib-page__status {
