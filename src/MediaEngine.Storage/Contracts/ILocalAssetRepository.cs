@@ -33,6 +33,9 @@ public interface ILocalAssetRepository
     /// </summary>
     IReadOnlyList<LocalAssetAddedByCount> QueryAddedBy(LocalAssetTimelineQuery query, CancellationToken ct = default);
 
+    /// <summary>The View kind of each id that has one; unknown ids and items without a kind are absent. Read in chunks.</summary>
+    IReadOnlyDictionary<Guid, string> GetContentKinds(IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default);
+
     /// <summary>The media kind (<c>image</c>, <c>video</c>, <c>document</c>, ...) of each id that exists; unknown ids are absent. Read in chunks, a few queries for any number of ids.</summary>
     IReadOnlyDictionary<Guid, string> GetMediaKinds(IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default);
 

@@ -80,6 +80,70 @@ public sealed class ViewKindsServiceTests
     }
 
     [Fact]
+    public async Task ChangingAPhotosFolderToDocumentsMakesItsPicturesDocumentsAndLeavesTheFilesOnDisk()
+    {
+        using var fixture = new ViewFixture();
+        var first = fixture.WritePersonal("one.jpg", Jpeg);
+        var second = fixture.WritePersonal("two.jpeg", [0xFF, 0xD8, 0xFF, 0xD9, 1]);
+        var before = new[] { first, second }.ToDictionary(path => path, System.IO.File.ReadAllBytes);
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+        Assert.All(Items(fixture), item => Assert.Equal(ViewContentKinds.Photos, item.ContentKind));
+
+        await fixture.Spaces.UpsertSourceAsync((await FolderAsync(fixture)) with { ContentKind = ViewContentKinds.Documents });
+
+        var items = Items(fixture);
+        Assert.Equal(2, items.Length);
+        Assert.All(items, item => Assert.Equal(ViewContentKinds.Documents, item.ContentKind));
+        Assert.Equal(0, (await FolderAsync(fixture)).SkippedFileCount);
+        foreach (var (path, bytes) in before)
+        {
+            Assert.Equal(bytes, System.IO.File.ReadAllBytes(path));
+        }
+    }
+
+    [Fact]
+    public async Task ChangingAPhotosFolderToPersonalVideosRemovesItsPicturesFromTheIndexOnlyAndCountsThemAsSkipped()
+    {
+        using var fixture = new ViewFixture();
+        var first = fixture.WritePersonal("one.jpg", Jpeg);
+        var second = fixture.WritePersonal("two.jpeg", [0xFF, 0xD8, 0xFF, 0xD9, 1]);
+        var before = new[] { first, second }.ToDictionary(path => path, System.IO.File.ReadAllBytes);
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+        Assert.Equal(2, Items(fixture).Length);
+
+        await fixture.Spaces.UpsertSourceAsync((await FolderAsync(fixture)) with { ContentKind = ViewContentKinds.PersonalVideos });
+
+        Assert.Empty(Items(fixture));
+        Assert.Equal(2, (await FolderAsync(fixture)).SkippedFileCount);
+        foreach (var (path, bytes) in before)
+        {
+            Assert.Equal(bytes, System.IO.File.ReadAllBytes(path));
+        }
+
+        // The next full scan agrees: the same two files are skipped, and nothing is indexed again.
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+        Assert.Empty(Items(fixture));
+        Assert.Equal(2, (await FolderAsync(fixture)).SkippedFileCount);
+    }
+
+    [Fact]
+    public async Task ChangingAFoldersKindKeepsItemsTheNewKindStillAcceptsAndOnlyRemovesTheOthers()
+    {
+        using var fixture = new ViewFixture(contentKind: ViewContentKinds.Documents);
+        fixture.WritePersonal("lease.pdf", DocumentFixtures.Pdf("lease"));
+        fixture.WritePersonal("receipt.jpg", Jpeg);
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+        Assert.Equal(2, Items(fixture).Length);
+
+        await fixture.Spaces.UpsertSourceAsync((await FolderAsync(fixture)) with { ContentKind = ViewContentKinds.Photos });
+
+        var item = Assert.Single(Items(fixture));
+        Assert.Equal(LocalAssetMediaKinds.Image, item.MediaKind);
+        Assert.Equal(ViewContentKinds.Photos, item.ContentKind);
+        Assert.Equal(1, (await FolderAsync(fixture)).SkippedFileCount);
+    }
+
+    [Fact]
     public async Task TheBuiltInUploadSourceTakesVideosAsPersonalVideosAndPicturesAsPhotos_ButNeverAudio()
     {
         using var fixture = new ViewFixture();

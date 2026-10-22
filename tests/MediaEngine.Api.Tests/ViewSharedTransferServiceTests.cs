@@ -1034,10 +1034,10 @@ public sealed class ViewSharedTransferServiceTests
             Authorization);
 
         public ViewQueryOrchestrator NewOrchestrator(IViewRequestProfileContext context) =>
-            new(context, NewAuthorization(), new ViewAssetQueryService(_assets));
+            new(context, NewAuthorization(), new ViewAssetQueryService(_assets), Policies);
 
         public ViewDiscoveryService NewDiscovery(IViewRequestProfileContext context) =>
-            new(context, NewAuthorization(), new ViewDiscoveryRepository(_database), _assets);
+            new(context, NewAuthorization(), new ViewDiscoveryRepository(_database), Policies, _assets);
 
         public string WriteManagedFor(ViewPersonalSpace space, string name, byte[] bytes)
         {

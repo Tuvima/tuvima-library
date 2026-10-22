@@ -144,6 +144,8 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
             var id = source.Id == Guid.Empty ? Guid.NewGuid() : source.Id;
             var now = DateTimeOffset.UtcNow;
             var createdAt = source.CreatedAt == default ? now : source.CreatedAt;
+            var previousKind = connection.ExecuteScalar<string?>(new CommandDefinition(
+                "SELECT content_kind FROM view_sources WHERE id = @id;", new { id }, transaction, cancellationToken: token));
             var changed = connection.Execute(new CommandDefinition("""
                 INSERT INTO view_sources
                     (id, scope_kind, personal_space_id, library_id, source_type, name, source_key, storage_mode,
@@ -194,6 +196,12 @@ public sealed class ViewPersonalSpaceRepository(IDatabaseConnection database) : 
                     include_in_timeline = excluded.include_in_timeline,
                     updated_at = excluded.updated_at;
                 """, new { id, source.IncludeInTimeline, now }, transaction, cancellationToken: token));
+            if (previousKind is not null && !string.Equals(previousKind, source.ContentKind, StringComparison.Ordinal))
+            {
+                // Changing what a folder holds re-applies it to what is already indexed, in this same transaction.
+                ViewSourceKindReapplication.Apply(connection, transaction, id, source.SourceKey, source.ContentKind, token);
+            }
+
             return source with { Id = id, Name = source.Name.Trim(), CreatedAt = createdAt, UpdatedAt = now };
         }, ct);
     }

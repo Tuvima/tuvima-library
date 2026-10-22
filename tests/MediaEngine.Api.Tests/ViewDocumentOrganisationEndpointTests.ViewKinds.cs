@@ -143,9 +143,9 @@ public sealed partial class ViewDocumentOrganisationEndpointTests
         var listed = await ListAsync("/view/assets?scope=mine&q=Receipt");
         Assert.Equal(photo, Assert.Single(listed).Id);
         using var read = await _client.GetAsync($"/view/items/{receipt:D}?scope=mine");
-        Assert.Equal(HttpStatusCode.Forbidden, read.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, read.StatusCode);
         using var content = await _client.GetAsync($"/view/items/{receipt:D}/content?scope=mine");
-        Assert.Equal(HttpStatusCode.Forbidden, content.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, content.StatusCode);
     }
 
     [Fact]

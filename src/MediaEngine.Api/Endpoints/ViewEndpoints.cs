@@ -108,14 +108,22 @@ public static partial class ViewEndpoints
 
             var result = await resolver.ResolveAsync(authority, requested,
                 allowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope), ct);
-            return result is null ? Missing() : Results.Ok(ToContract(result) with
+            if (result is null)
+            {
+                return Missing();
+            }
+
+            // The profile's policy is read once for all three kind switches.
+            var blocked = await BlockedKindsAsync(authority, preferences, ct);
+            var canViewDocuments = !blocked.Contains(ViewContentKinds.Documents);
+            return Results.Ok(ToContract(result) with
             {
                 // Only a server administrator signed in as a person sees "Other people" in the scope picker.
                 CanBrowseOtherPeople = authority.PrincipalKind == PrincipalKind.Human && authority.IsEffectiveAdministrator,
-                CanViewDocuments = await MayUseDocumentsAsync(authority, preferences, ct),
-                CanFileSharedInbox = ViewSharedInboxAccess.CanFile(authority) && await MayUseDocumentsAsync(authority, preferences, ct),
-                CanViewPhotos = !(await BlockedKindsAsync(authority, preferences, ct)).Contains(ViewContentKinds.Photos),
-                CanViewPersonalVideos = !(await BlockedKindsAsync(authority, preferences, ct)).Contains(ViewContentKinds.PersonalVideos),
+                CanViewDocuments = canViewDocuments,
+                CanFileSharedInbox = ViewSharedInboxAccess.CanFile(authority) && canViewDocuments,
+                CanViewPhotos = !blocked.Contains(ViewContentKinds.Photos),
+                CanViewPersonalVideos = !blocked.Contains(ViewContentKinds.PersonalVideos),
             });
         }).WithName("GetViewScopes").Produces<ViewScopeResolutionDto>();
 
@@ -522,7 +530,7 @@ public static partial class ViewEndpoints
                 scope, scopeProfileId, identity, preferences, authorization, ct);
             if (decision.IsAllowed && await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (decision.IsAllowed && await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
@@ -549,7 +557,7 @@ public static partial class ViewEndpoints
 
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
@@ -582,7 +590,7 @@ public static partial class ViewEndpoints
 
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
@@ -615,7 +623,7 @@ public static partial class ViewEndpoints
 
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
@@ -648,7 +656,7 @@ public static partial class ViewEndpoints
 
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
@@ -683,7 +691,7 @@ public static partial class ViewEndpoints
             }
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
@@ -713,7 +721,7 @@ public static partial class ViewEndpoints
             }
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
@@ -749,7 +757,7 @@ public static partial class ViewEndpoints
             }
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
@@ -789,7 +797,7 @@ public static partial class ViewEndpoints
             }
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
@@ -1144,7 +1152,8 @@ public static partial class ViewEndpoints
             await indexing.RefreshSourcesAsync(ct);
             if (kindChanged)
             {
-                // The next scan applies the new kind to what it finds; files already indexed stay as they are.
+                // Items already indexed were re-sorted by the update itself (accepted ones took the new kind, the rest left
+                // the index; files on disk are untouched). A scan picks up files the new kind now accepts.
                 indexing.RequestReconcile(space.LibraryId);
             }
 
@@ -1700,7 +1709,7 @@ public static partial class ViewEndpoints
             // Favouriting or hiding a document would change what the Documents page shows, so it needs Documents.
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
@@ -1726,7 +1735,7 @@ public static partial class ViewEndpoints
             // Archive, trash and restore move a document in or out of the Documents page, so they need Documents.
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
@@ -1769,7 +1778,8 @@ public static partial class ViewEndpoints
 
     /// <summary>
     /// True for a Documents item the profile may not use. Gated by the item's View kind, so a picture of paper kept in a
-    /// Documents folder is hidden from a profile without Documents.
+    /// Documents folder is hidden from a profile without Documents. Callers answer "not found", like for Photos and
+    /// Personal videos, so a profile without Documents never learns that an item exists.
     /// </summary>
     private static async Task<bool> DocumentsBlockedAsync(Guid id, ILocalAssetRepository assets,
         IViewRequestProfileContext identity, IViewProfileRepository preferences, CancellationToken ct) =>
