@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using UglyToad.PdfPig.Core;
@@ -56,6 +57,25 @@ internal static class DocumentFixtures
                 Name = "Sheet1",
             }));
             workbook.Workbook.Save();
+        }
+
+        return stream.ToArray();
+    }
+
+    /// <summary>A minimal OpenDocument package (.ods or .odp style): a zip holding only content.xml with the text in one paragraph.</summary>
+    public static byte[] OpenDocument(string text)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var entry = archive.CreateEntry("content.xml");
+            using var writer = new StreamWriter(entry.Open());
+            writer.Write(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\""
+                + " xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\">"
+                + "<office:body><office:spreadsheet><text:p>" + System.Security.SecurityElement.Escape(text) + "</text:p>"
+                + "</office:spreadsheet></office:body></office:document-content>");
         }
 
         return stream.ToArray();
