@@ -3,7 +3,7 @@
 @inject IJSRuntime JS
 @if (IsTemporary)
 {
-    <dialog @ref="_dialog" class="@RootClass" style="width:@Width;@Style" aria-label="@Label" @oncancel="CloseAsync" @oncancel:preventDefault @onclick="BackdropClickAsync" @attributes="AdditionalAttributes">
+    <dialog @ref="_dialog" class="@RootClass" style="width:@Width;@Style" aria-label="@Label" @onclick="BackdropClickAsync" @attributes="AdditionalAttributes">
         <div class="tl-drawer-content" @onclick:stopPropagation>@ChildContent</div>
     </dialog>
 }
@@ -27,19 +27,23 @@ else if (Open)
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
     private ElementReference _dialog;
     private IJSObjectReference? _module;
+    private DotNetObjectReference<AppDrawer>? _self;
     private bool IsTemporary => Variant == AppDrawerVariant.Temporary;
     private string RootClass => $"tl-drawer tl-drawer-anchor-{Anchor.ToString().ToLowerInvariant()} tl-drawer-{Variant.ToString().ToLowerInvariant()} {(Overlay ? "tl-drawer-with-overlay" : "")} {Class}";
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!IsTemporary) return;
-        try { _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./native-structure.js"); await _module.InvokeVoidAsync("setDrawerOpen",_dialog,Open); }
+        try { _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./native-structure.js"); _self ??= DotNetObjectReference.Create(this); await _module.InvokeVoidAsync("setDrawerOpen",_dialog,Open,_self); }
         catch (JSDisconnectedException) { }
     }
     private async Task CloseAsync() { Open = false; await OpenChanged.InvokeAsync(false); }
+    // Escape: native-structure.js cancels the browser's own close and calls this, so the drawer closes through the same path as a backdrop click.
+    [JSInvokable] public Task CloseFromEscapeAsync() => InvokeAsync(async () => { await CloseAsync(); StateHasChanged(); });
     private Task BackdropClickAsync() => OverlayAutoClose ? CloseAsync() : Task.CompletedTask;
     public async ValueTask DisposeAsync()
     {
-        if (_module is null) return;
+        if (_module is null) { _self?.Dispose(); return; }
         try { await _module.InvokeVoidAsync("disposeDrawer",_dialog); await _module.DisposeAsync(); } catch (JSDisconnectedException) { }
+        _self?.Dispose();
     }
 }
