@@ -24,6 +24,9 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private LibrariesConfigurationDto _configuration = BuildConfiguration();
     private int _saves;
     private LibraryFolderDto? _lastLibrary;
+    private LibraryMutationRequest? _lastRequest;
+    // Holds the Retry now answer open, to press the button again while the first request is still running.
+    private TaskCompletionSource? _retryGate;
     private UpdateLibrariesRequest? _lastUpdate;
     private MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse? _waiting;
     private Func<string, PathTestResultDto> _pathProbe = _ => new() { Exists = true, HasRead = true, HasWrite = true };
@@ -131,11 +134,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
                 return Task.FromResult<LibrariesConfigurationDto?>(_configuration);
             });
             stub.SetHandler("get_LastError", _ => _lastError);
-            stub.SetHandler(nameof(IEngineApiClient.RetryUnmatchedLibraryAsync), args =>
-            {
-                _unmatchedActions.Add(("retry", (string)args![0]!));
-                return Task.FromResult<MediaEngine.Contracts.Library.UnmatchedActionResultDto?>(new() { Affected = _unmatchedAffected });
-            });
+            stub.SetHandler(nameof(IEngineApiClient.RetryUnmatchedLibraryAsync), args => RetryAnswerAsync((string)args![0]!));
             stub.SetHandler(nameof(IEngineApiClient.KeepAllUnmatchedLibraryAsync), args =>
             {
                 _unmatchedActions.Add(("keep", (string)args![0]!));
@@ -150,7 +149,8 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
                 }
 
                 _saves++;
-                _lastLibrary = ((LibraryMutationRequest)args![0]!).Library;
+                _lastRequest = (LibraryMutationRequest)args![0]!;
+                _lastLibrary = _lastRequest.Library;
                 // Mimic the Engine's Normalize: keep a managed marker, else the earliest managed folder, else none.
                 var managed = _lastLibrary!.Sources.Where(x => x.ManagementMode == "managed_by_tuvima").ToList();
                 if (!managed.Any(x => x.Id == _lastLibrary.PrimaryDestinationSourceId))
@@ -248,6 +248,17 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, "import"));
         cut.WaitForElement("#library-import-title");
         return cut;
+    }
+
+    private async Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryAnswerAsync(string libraryId)
+    {
+        _unmatchedActions.Add(("retry", libraryId));
+        if (_retryGate is not null)
+        {
+            await _retryGate.Task;
+        }
+
+        return new MediaEngine.Contracts.Library.UnmatchedActionResultDto { Affected = _unmatchedAffected };
     }
 
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
@@ -1231,6 +1242,11 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal("Open lectures", _lastLibrary?.Name));
         Assert.Equal("55555555-5555-4555-8555-555555555555", _lastLibrary!.Id);
+        // The rename keeps the library's folders and is guarded by the copy that was read.
+        Assert.Equal(["lec-1"], _lastLibrary.Sources.Select(source => source.Id).ToArray());
+        Assert.NotNull(_lastRequest!.ExpectedLibrary);
+        Assert.Equal("Lectures", _lastRequest.ExpectedLibrary!.Name);
+        Assert.Equal(["lec-1"], _lastRequest.ExpectedLibrary.Sources.Select(source => source.Id).ToArray());
         cut.WaitForAssertion(() => Assert.Contains("Open lectures", cut.FindAll(".library-folders__library h3").Select(Text)));
     }
 
@@ -1301,6 +1317,56 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal([("keep", MoviesId)], _unmatchedActions));
         toasts.WaitForAssertion(() => Assert.Contains("3 files", toasts.Markup));
+    }
+
+    // In setup's type list a kind with several named libraries counts the folders of all of them, and the first kind shown has folders in any of them.
+    [Fact]
+    public void TheTypeListCountsTheFoldersOfAllTheNamedLibrariesOfAKind()
+    {
+        AddNamedVideoLibraries();
+
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        cut.WaitForElement(".library-folders__type");
+
+        Assert.Contains("3 folders", Text(cut.FindAll(".library-folders__type").Single(type => Text(type).Contains("Videos"))));
+    }
+
+    [Fact]
+    public void TheFirstSelectionInSetupIsTheFirstKindWithFoldersInAnyOfItsNamedLibraries()
+    {
+        _configuration.Libraries.Clear();
+        AddNamedVideoLibraries();
+
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+
+        cut.WaitForAssertion(() => Assert.Contains("Videos", Text(cut.Find(".library-folders__type[aria-current=true]"))));
+    }
+
+    [Fact]
+    public void ADoubleClickOnRetryNowSendsOneRequest()
+    {
+        _configuration.Libraries[0].UnmatchedCount = 3;
+        _retryGate = new TaskCompletionSource();
+        var cut = Open("Movies");
+
+        cut.FindAll("button").Single(button => Text(button) == "Retry now").Click();
+        cut.WaitForAssertion(() => Assert.True(cut.FindAll("button").Single(button => Text(button) == "Retry now").HasAttribute("disabled")));
+        _retryGate.SetResult();
+
+        cut.WaitForAssertion(() => Assert.Equal([("retry", MoviesId)], _unmatchedActions));
+        Assert.Single(_unmatchedActions);
+    }
+
+    [Fact]
+    public void FirstRunSetupDrawsNoEmptyActionsWrapperForTheUnmatchedBar()
+    {
+        _configuration.Libraries[0].UnmatchedCount = 3;
+
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        cut.WaitForElement(".library-folders__detail");
+
+        Assert.Empty(cut.FindAll(".lib-unmatched"));
+        Assert.All(cut.FindAll(".library-folders__detail-actions"), actions => Assert.NotEmpty(actions.Children));
     }
 
     // D23: under the one card breakpoint (840px of viewport width, so portrait tablets too) folders are read-only, in Settings and

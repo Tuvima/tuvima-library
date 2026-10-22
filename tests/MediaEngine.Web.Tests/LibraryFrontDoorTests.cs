@@ -393,7 +393,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.Null(Card(cut, "listen").ParentElement!.GetAttribute("data-playback-tooltip"));
 
         var group = Open("watch");
-        group.WaitForAssertion(() => Assert.Equal("1 folder unavailable", group.Find(".lib-page__row[data-type=movies] .lib-health").ParentElement!.GetAttribute("data-playback-tooltip")));
+        group.WaitForAssertion(() => Assert.Equal("1 folder unavailable", group.Find(".lib-page__row[data-type=movies] .lib-page__status [tabindex='0']").ParentElement!.GetAttribute("data-playback-tooltip")));
     }
 
     // The View folder count is unknown (no counts line), never "Nothing added yet", when it could not be read.
@@ -677,8 +677,10 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         var cut = Open("watch");
 
         var tmdb = cut.Find(".lib-page__row[data-type=movies] .lib-meta__icon[data-provider=tmdb]");
-        Assert.Equal("tmdb", tmdb.GetAttribute("aria-label"));
+        Assert.Equal("Tmdb", tmdb.GetAttribute("aria-label"));
         Assert.Empty(tmdb.QuerySelectorAll("img"));
+        // A key with an underscore reads as words.
+        Assert.Equal("Apple api", Open("listen").Find(".lib-page__row[data-type=audiobooks] .lib-meta__icon[data-provider=apple_api]").GetAttribute("aria-label"));
     }
 
     [Fact]
@@ -754,7 +756,11 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".lib-page__row[data-type=movies] .lib-health--warning")));
         var row = cut.Find(".lib-page__row[data-type=movies]");
         Assert.Null(row.ParentElement!.GetAttribute("data-playback-tooltip"));
-        Assert.Equal("1 folder unavailable", cut.Find(".lib-page__row[data-type=movies] .lib-page__status .lib-health").ParentElement!.GetAttribute("data-playback-tooltip"));
+        // The warning is a focusable stop of its own, and its words are the tooltip on it (opened on hover and keyboard focus).
+        var stop = cut.Find(".lib-page__row[data-type=movies] .lib-page__status [tabindex='0']");
+        Assert.NotNull(stop.QuerySelector(".lib-health--warning"));
+        Assert.Equal("1 folder unavailable", stop.ParentElement!.GetAttribute("data-playback-tooltip"));
+        Assert.Equal("1 folder unavailable", stop.QuerySelector(".lib-health")!.GetAttribute("aria-label"));
     }
 
     [Fact]

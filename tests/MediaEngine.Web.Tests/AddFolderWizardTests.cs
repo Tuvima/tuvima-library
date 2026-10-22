@@ -502,6 +502,41 @@ public sealed class AddFolderWizardTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task MergeIsOfferedForAnExistingLibraryWithAManagedFolderButNeverForANewCustomLibrary()
+    {
+        _configuration.Libraries.Add(new()
+        {
+            Id = "77777777-7777-4777-8777-777777777777",
+            Name = "Podcasts",
+            Kind = "catalogued",
+            KindKey = "other_audio",
+            Area = "listen",
+            MediaTypes = ["Music"],
+            PrimaryDestinationSourceId = "pod-main",
+            Sources = [new() { Id = "pod-main", Path = "E:\\Library\\Podcasts", ManagementMode = "managed_by_tuvima", AccessMode = "writable" }],
+        });
+        await OpenWizardAsync(type: "other_audio", kinds: EveryKind());
+
+        // The existing library is chosen first: its managed folder is a place to merge into.
+        Click("Next");
+        _dialogs.WaitForElement(".server-folder-picker");
+        PickFolder(path: "E:\\Loose podcasts");
+        GoToHow();
+        Assert.NotEmpty(_dialogs.FindAll("[data-handling=merge]"));
+        Click("Back");
+        Click("Back");
+
+        _dialogs.Find("[data-library=new]").Click();
+        _dialogs.Find(".add-wizard__field input").Input("Lectures");
+        Click("Next");
+        _dialogs.WaitForElement(".server-folder-picker");
+        PickFolder(path: "E:\\Loose lectures");
+        GoToHow();
+        Assert.Empty(_dialogs.FindAll("[data-handling=merge]"));
+        Assert.NotEmpty(_dialogs.FindAll("[data-handling=readonly]"));
+    }
+
+    [Fact]
     public async Task ChoosingAnExistingLibraryAddsTheFolderToThatLibrary()
     {
         AddOtherAudioLibraries("Vinyl rips", "Voice notes");

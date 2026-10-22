@@ -357,7 +357,8 @@
     private bool InWatch => string.Equals(_type?.Area, "watch", StringComparison.OrdinalIgnoreCase);
     private bool LooksLikeFootage => InWatch && _folder is { LooksLikePhoneFootage: true };
     private bool CanGoBack => _step is WizardStep.How or WizardStep.Vault || (_step == WizardStep.Library && !_typeKnown) || (_step == WizardStep.Folder && (!_typeKnown || HasLibraryStep));
-    private LibraryFolderDto? TypeLibrary => _type is null ? null : ChosenLibrary ?? LibraryRollup.LibraryFor(_configuration, _type);
+    // A kind that holds several libraries merges only into the library the person chose; a new custom library has no folder to merge into yet.
+    private LibraryFolderDto? TypeLibrary => _type is null ? null : _type.AllowsMultiple ? ChosenLibrary : LibraryRollup.LibraryFor(_configuration, _type);
 
     // Several named libraries (D51): the plain kinds ask which library, up to the kind's limit; the other kinds hold one library.
     private bool HasLibraryStep => _type is { AllowsMultiple: true } && !LibraryTypeCatalog.IsViewKind(_type);

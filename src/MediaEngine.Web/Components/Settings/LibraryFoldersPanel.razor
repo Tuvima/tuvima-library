@@ -231,7 +231,7 @@
                 }
                 else
                 {
-                    @if (SelectedLibrary is { UnmatchedCount: > 0 })
+                    @if (!Embedded && SelectedLibrary is { UnmatchedCount: > 0 })
                     {
                         <div class="library-folders__detail-actions">@UnmatchedBar(SelectedLibrary)</div>
                     }
@@ -380,7 +380,10 @@
             ?? OtherLibraries.FirstOrDefault(type => string.Equals(type.Key, key, StringComparison.OrdinalIgnoreCase));
     }
 
-    private int FolderCount(LibraryTypeOption type) => LibraryFor(type)?.Sources.Count ?? 0;
+    // A kind that holds several named libraries counts the folders of all of them.
+    private int FolderCount(LibraryTypeOption type) => type.LibraryId is null
+        ? LibraryRollup.LibrariesOf(_configuration, type).Sum(library => library.Sources.Count)
+        : LibraryFor(type)?.Sources.Count ?? 0;
     private static string FolderCountText(int count) => count == 1 ? "1 folder" : $"{count} folders";
     private string TypeClass(LibraryTypeOption type) => $"library-folders__type{(type.Key == _selected.Key ? " is-active" : string.Empty)}";
     private void Select(LibraryTypeOption type) { _selected = type; _notice = null; _highlightAdd = false; }
@@ -1084,21 +1087,33 @@
     private async Task RetryUnmatchedAsync(LibraryFolderDto library)
     {
         if (_saving) return;
-        var result = await ApiClient.RetryUnmatchedLibraryAsync(library.Id);
-        await AfterUnmatchedActionAsync(result, affected => $"Trying {affected} again in {NameOf(library)}.");
+        // Busy while the request runs, so a double click sends one.
+        _saving = true;
+        try
+        {
+            var result = await ApiClient.RetryUnmatchedLibraryAsync(library.Id);
+            await AfterUnmatchedActionAsync(result, affected => $"Trying {affected} again in {NameOf(library)}.");
+        }
+        finally { _saving = false; }
     }
 
     // Keep all as they are stops the retries and clears them from the count; it asks first, because it ends the lookups for those files.
     private async Task KeepAllUnmatchedAsync(LibraryFolderDto library)
     {
         if (_saving) return;
-        var confirmed = await DialogService.ShowMessageBoxAsync(
-            $"Stop trying to match {FilesText(library.UnmatchedCount)} in {NameOf(library)}?",
-            "You can look them up again later.",
-            yesText: "Keep all as they are", cancelText: "Cancel");
-        if (confirmed != true) return;
-        var result = await ApiClient.KeepAllUnmatchedLibraryAsync(library.Id);
-        await AfterUnmatchedActionAsync(result, affected => $"Kept {affected} in {NameOf(library)} as they are.");
+        // Busy from the question to the answer, so a double click asks and sends once.
+        _saving = true;
+        try
+        {
+            var confirmed = await DialogService.ShowMessageBoxAsync(
+                $"Stop trying to match {FilesText(library.UnmatchedCount)} in {NameOf(library)}?",
+                "You can look them up again later.",
+                yesText: "Keep all as they are", cancelText: "Cancel");
+            if (confirmed != true) return;
+            var result = await ApiClient.KeepAllUnmatchedLibraryAsync(library.Id);
+            await AfterUnmatchedActionAsync(result, affected => $"Kept {affected} in {NameOf(library)} as they are.");
+        }
+        finally { _saving = false; }
     }
 
     // The toast says how many files the action touched; the counts are read again.

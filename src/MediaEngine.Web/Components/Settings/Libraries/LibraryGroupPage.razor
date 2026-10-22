@@ -87,7 +87,8 @@
             {
                 var type = row.Type;
                 @* Only the library's name is the link; the Metadata icons, the Unmatched count and the health warning are their own tab stops
-                   after it, so no interactive content sits inside a link. The warning's words open on hover and focus of the icon. *@
+                   after it, so no interactive content sits inside a link. The warning icon is a focusable stop of its own (tabindex 0) and its
+                   words open as a tooltip on hover and keyboard focus. *@
                 <div class="lib-page__row" data-type="@type.Key" data-library="@type.LibraryId">
                     <span class="lib-page__name">
                         <span class="@LibraryKindLook.TileClass(type)"><AppMaterialIcon Icon="@type.Icon" /></span>
@@ -101,7 +102,7 @@
                     <span class="lib-page__status">
                         @if (row.Health is { Healthy: false })
                         {
-                            <AppTooltip Text="@row.Health.Text"><LibraryHealthIcon Health="@row.Health" /></AppTooltip>
+                            <AppTooltip Text="@row.Health.Text"><span class="lib-meta__icon" tabindex="0"><LibraryHealthIcon Health="@row.Health" /></span></AppTooltip>
                         }
                         else
                         {

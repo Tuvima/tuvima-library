@@ -10,7 +10,7 @@
         @foreach (var key in Type.LookupProviders!)
         {
             var entry = Find(key);
-            var text = entry is null ? key : LibraryKindLook.ProviderText(string.IsNullOrWhiteSpace(entry.DisplayName) ? key : entry.DisplayName, entry.Capabilities);
+            var text = entry is null ? ReadableName(key) : LibraryKindLook.ProviderText(string.IsNullOrWhiteSpace(entry.DisplayName) ? key : entry.DisplayName, entry.Capabilities);
             <AppTooltip Text="@text" Placement="AppPlacement.Top">
                 <span class="lib-meta__icon" role="img" tabindex="0" aria-label="@text" data-provider="@key">
                     <AppProviderLogo ImageUrl="@LogoOf(entry)"
@@ -42,6 +42,13 @@
     // The catalogue's icon path is relative to the site root ("images/providers/tmdb.svg").
     private static string? LogoOf(ProviderCatalogueDto? entry) =>
         string.IsNullOrWhiteSpace(entry?.IconPath) ? null : "/" + entry.IconPath.TrimStart('/');
+
+    // A provider the catalogue does not list reads by its key made readable: "apple_api" is "Apple api".
+    private static string ReadableName(string key)
+    {
+        var words = key.Replace('_', ' ').Trim();
+        return words.Length == 0 ? key : char.ToUpperInvariant(words[0]) + words[1..];
+    }
 
     private static string Initials(string key) => key.Length == 0 ? "?" : char.ToUpperInvariant(key[0]).ToString();
 }
