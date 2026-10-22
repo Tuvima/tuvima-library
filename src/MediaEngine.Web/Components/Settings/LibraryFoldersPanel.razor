@@ -206,67 +206,37 @@
                     <AppAlert Tone="AppUiTone.Warning">@_notice</AppAlert>
                 }
 
-                @if (SelectedLibrary is null || SelectedLibrary.Sources.Count == 0)
+                @if (ShowNamedLibraries)
                 {
-                    <div class="library-folders__empty">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
-                        <strong>No folders yet</strong>
-                        <span class="library-folders__empty-action">Choose Add Folder to point Library at where your @Selected.PluralLabel live.</span>
-                    </div>
+                    @* A kind that holds several named libraries (D51): one section each, its name with a pencil to rename it, then its folders. *@
+                    @foreach (var library in NamedLibraries)
+                    {
+                        <section class="library-folders__library" data-library="@library.Id" aria-label="@NameOf(library)">
+                            <header class="library-folders__detail-header">
+                                <div>
+                                    <h3>@NameOf(library)</h3>
+                                </div>
+                                <div class="library-folders__detail-actions">
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit"
+                                                   Tooltip="Rename"
+                                                   AriaLabel="@($"Rename {NameOf(library)}")"
+                                                   Disabled="@(_saving || ReadOnly)"
+                                                   OnClick="@(() => RenameLibraryAsync(library))" />
+                                    @UnmatchedBar(library)
+                                </div>
+                            </header>
+                            @LibraryBody(library, library.Id == BinLibraryId)
+                        </section>
+                    }
                 }
                 else
                 {
-                    <LibraryFolderTable Library="@SelectedLibrary"
-                                        TypeLabel="@Selected.Label"
-                                        PluralLabel="@Selected.PluralLabel"
-                                        ReadOnly="@ReadOnly"
-                                        Busy="@_saving"
-                                        PathIssues="@_pathIssues"
-                                        ShowAdvancedHint="@(!Embedded)"
-                                        OnChangeHandling="ChangeModeAsync"
-                                        OnSetDestination="SetDestinationAsync"
-                                        OnLabel="LabelFolderAsync"
-                                        OnRemove="RemoveFolderAsync"
-                                        Jobs="@_jobs"
-                                        OnJobControl="ControlJobAsync"
-                                        OnOrganiseNow="OrganiseNowAsync"
-                                        OnMerge="MergeIntoAsync" />
-                    @if (!SelectedLibrary.Sources.Any(IsManaged))
+                    @if (!Embedded && SelectedLibrary is { UnmatchedCount: > 0 })
                     {
-                        <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>
+                        <div class="library-folders__detail-actions">@UnmatchedBar(SelectedLibrary)</div>
                     }
-                }
 
-                @if (IsVideosSelected && SelectedLibrary is not null)
-                {
-                    <AppSwitchRow Label="OK for limited profiles"
-                                  Description="Saved videos have no age ratings, so profiles with a content limit (G to R) don't see Videos until you turn this on. Profiles set to Everything always see them."
-                                  Value="@SelectedLibrary.OkForLimitedProfiles"
-                                  Disabled="@(_saving || ReadOnly)"
-                                  ValueChanged="@((bool value) => SetOkForLimitedProfilesAsync(value))" />
-                }
-
-                @* Shown even when the last folder has been removed: files that stayed on disk can still be listed and added back. *@
-                @if (!Embedded && SelectedLibrary is not null)
-                {
-                    <ExcludedFilesSection LibraryId="@SelectedLibrary.Id" ReadOnly="@ReadOnly" />
-                }
-
-                @* Pinned to the bottom of the pane, so the switch sits in the same place for every library. What is in the bin lists above it. *@
-                @if (SelectedLibrary is not null)
-                {
-                    <div class="library-folders__recycle">
-                        @if (SelectedLibrary.RecycleBin && !Embedded)
-                        {
-                            <RecycleBinSection />
-                        }
-                        <AppSwitchRow Label="Recycle bin"
-                                      Icon="@AppMaterialIcons.Outlined.DeleteOutline"
-                                      Description="Deleted files wait in a recycle bin inside Library's data folder instead of being removed straight away. You can put them back, or empty the bin."
-                                      Value="@SelectedLibrary.RecycleBin"
-                                      Disabled="@(_saving || ReadOnly)"
-                                      ValueChanged="@((bool value) => SetRecycleBinAsync(value))" />
-                    </div>
+                    @LibraryBody(SelectedLibrary, true)
                 }
             </AppCard>
         }
@@ -410,7 +380,10 @@
             ?? OtherLibraries.FirstOrDefault(type => string.Equals(type.Key, key, StringComparison.OrdinalIgnoreCase));
     }
 
-    private int FolderCount(LibraryTypeOption type) => LibraryFor(type)?.Sources.Count ?? 0;
+    // A kind that holds several named libraries counts the folders of all of them.
+    private int FolderCount(LibraryTypeOption type) => type.LibraryId is null
+        ? LibraryRollup.LibrariesOf(_configuration, type).Sum(library => library.Sources.Count)
+        : LibraryFor(type)?.Sources.Count ?? 0;
     private static string FolderCountText(int count) => count == 1 ? "1 folder" : $"{count} folders";
     private string TypeClass(LibraryTypeOption type) => $"library-folders__type{(type.Key == _selected.Key ? " is-active" : string.Empty)}";
     private void Select(LibraryTypeOption type) { _selected = type; _notice = null; _highlightAdd = false; }
@@ -515,7 +488,7 @@
     // Row menu "Merge into": choose the managed folder and Copy or Move, look at a preview, then queue the merge job.
     private async Task MergeIntoAsync(LibrarySourceDto source)
     {
-        var library = SelectedLibrary;
+        var library = LibraryHolding(source);
         if (library is null || _saving || Embedded) return;
         await AfterFollowUpAsync(await AddService.MergeIntoAsync(Scope, library, source));
     }
@@ -534,7 +507,7 @@
     // organise yet, so it keeps the plain switch); Managed to Read-only also asks, and stops any job that is running.
     private async Task ChangeModeAsync(LibrarySourceDto source)
     {
-        var library = Clone(SelectedLibrary);
+        var library = Clone(LibraryHolding(source));
         var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
         if (library is null || target is null || _saving) return;
         var managed = !IsManaged(target);
@@ -634,7 +607,7 @@
     // Tapping the New media radio on another managed folder moves the marker. It only affects future imports and uploads.
     private async Task SetDestinationAsync(LibrarySourceDto source)
     {
-        var current = SelectedLibrary;
+        var current = LibraryHolding(source);
         var target = current?.Sources.FirstOrDefault(item => item.Id == source.Id);
         if (current is null || target is null || _saving || !IsManaged(target)) return;
         await SaveAsync(LibraryFolderAddService.WithDestination(current, target.Id), $"New {Selected.PluralLabel} will go to {target.DisplayName()}.");
@@ -642,7 +615,7 @@
 
     private async Task LabelFolderAsync(LibrarySourceDto source)
     {
-        var library = Clone(SelectedLibrary);
+        var library = Clone(LibraryHolding(source));
         var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
         if (library is null || target is null || _saving) return;
         var dialog = await DialogService.ShowAsync<LibraryTextEditDialog>(string.Empty, new AppDialogParameters<LibraryTextEditDialog>
@@ -806,11 +779,11 @@
 
     private async Task RemoveFolderAsync(LibrarySourceDto source)
     {
-        var library = Clone(SelectedLibrary);
+        var library = Clone(LibraryHolding(source));
         if (library is null || _saving) return;
         var confirmed = await DialogService.ShowMessageBoxAsync(
             "Remove this folder?",
-            $"{source.DisplayName()} stops being part of {_selected.Label}. Your files stay on disk."
+            $"{source.DisplayName()} stops being part of {NameOf(library)}. Your files stay on disk."
                 + (IsVideosSelected ? " To move it to Photos and personal videos, remove it here and add it again there; folders are never moved automatically." : string.Empty),
             yesText: "Remove", cancelText: "Keep");
         if (confirmed != true) return;
@@ -818,17 +791,17 @@
         await SaveAsync(library, "Folder removed.");
     }
 
-    private async Task SetOkForLimitedProfilesAsync(bool value)
+    private async Task SetOkForLimitedProfilesAsync(LibraryFolderDto source, bool value)
     {
-        var library = Clone(SelectedLibrary);
+        var library = Clone(source);
         if (library is null || _saving) return;
         library.OkForLimitedProfiles = value;
         await SaveAsync(library, value ? "Limited profiles can now see Videos." : "Videos are hidden from limited profiles.");
     }
 
-    private async Task SetRecycleBinAsync(bool value)
+    private async Task SetRecycleBinAsync(LibraryFolderDto source, bool value)
     {
-        var library = Clone(SelectedLibrary);
+        var library = Clone(source);
         if (library is null || _saving) return;
         library.RecycleBin = value;
         await SaveAsync(library, value ? "Deleted files now go to the recycle bin." : "Deleted files are removed straight away.");
@@ -992,6 +965,172 @@
         _pollCancellation?.Dispose();
     }
 
+
+    // One library's folders and settings: its folder table (or the empty state), then the switches and lists under it.
+    // The recycle bin list is not per library, so it is drawn once, with the first library that has the bin on (showBin).
+    private RenderFragment LibraryBody(LibraryFolderDto? library, bool showBin) => __builder =>
+    {
+        if (library is null || library.Sources.Count == 0)
+        {
+            <div class="library-folders__empty">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
+                <strong>No folders yet</strong>
+                <span class="library-folders__empty-action">Choose Add Folder to point Library at where your @Selected.PluralLabel live.</span>
+            </div>
+        }
+        else
+        {
+            <LibraryFolderTable Library="@library"
+                                TypeLabel="@Selected.Label"
+                                PluralLabel="@Selected.PluralLabel"
+                                ReadOnly="@ReadOnly"
+                                Busy="@_saving"
+                                PathIssues="@_pathIssues"
+                                ShowAdvancedHint="@(!Embedded)"
+                                OnChangeHandling="ChangeModeAsync"
+                                OnSetDestination="SetDestinationAsync"
+                                OnLabel="LabelFolderAsync"
+                                OnRemove="RemoveFolderAsync"
+                                Jobs="@_jobs"
+                                OnJobControl="ControlJobAsync"
+                                OnOrganiseNow="OrganiseNowAsync"
+                                OnMerge="MergeIntoAsync" />
+            if (!library.Sources.Any(IsManaged))
+            {
+                <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>
+            }
+        }
+
+        if (IsVideosSelected && library is not null)
+        {
+            <AppSwitchRow Label="OK for limited profiles"
+                          Description="Saved videos have no age ratings, so profiles with a content limit (G to R) don't see Videos until you turn this on. Profiles set to Everything always see them."
+                          Value="@library.OkForLimitedProfiles"
+                          Disabled="@(_saving || ReadOnly)"
+                          ValueChanged="@((bool value) => SetOkForLimitedProfilesAsync(library, value))" />
+        }
+
+        // Shown even when the last folder has been removed: files that stayed on disk can still be listed and added back.
+        if (!Embedded && library is not null)
+        {
+            <ExcludedFilesSection LibraryId="@library.Id" ReadOnly="@ReadOnly" />
+        }
+
+        // Pinned to the bottom of the pane, so the switch sits in the same place for every library. What is in the bin lists above it.
+        if (library is not null)
+        {
+            <div class="library-folders__recycle">
+                @if (library.RecycleBin && !Embedded && showBin)
+                {
+                    <RecycleBinSection />
+                }
+                <AppSwitchRow Label="Recycle bin"
+                              Icon="@AppMaterialIcons.Outlined.DeleteOutline"
+                              Description="Deleted files wait in a recycle bin inside Library's data folder instead of being removed straight away. You can put them back, or empty the bin."
+                              Value="@library.RecycleBin"
+                              Disabled="@(_saving || ReadOnly)"
+                              ValueChanged="@((bool value) => SetRecycleBinAsync(library, value))" />
+            </div>
+        }
+    };
+
+    // The amber Unmatched count with Retry now and Keep all as they are. Unmatched is the signed-in administrator's, so first-run setup shows none.
+    private RenderFragment UnmatchedBar(LibraryFolderDto library) => __builder =>
+    {
+        if (Embedded || library.UnmatchedCount <= 0) return;
+        <LibraryUnmatchedCount Count="@library.UnmatchedCount" />
+        <AppButton Label="Retry now"
+                   ButtonStyle="AppButtonStyle.Outlined"
+                   Disabled="@(_saving || ReadOnly)"
+                   aria-label="@($"Retry now for {NameOf(library)}")"
+                   OnClick="@(() => RetryUnmatchedAsync(library))" />
+        <AppButton Label="Keep all as they are"
+                   ButtonStyle="AppButtonStyle.Text"
+                   Disabled="@(_saving || ReadOnly)"
+                   aria-label="@($"Keep all unmatched files in {NameOf(library)} as they are")"
+                   OnClick="@(() => KeepAllUnmatchedAsync(library))" />
+    };
+
+    // The libraries of the selected kind when it holds several named ones and has any; otherwise the one library (or none yet).
+    private IReadOnlyList<LibraryFolderDto> NamedLibraries => _selected.AllowsMultiple && _selected.LibraryId is null && !ImportSelected
+        ? LibraryRollup.LibrariesOf(_configuration, _selected)
+        : [];
+    private bool ShowNamedLibraries => NamedLibraries.Count > 0;
+    private string? BinLibraryId => NamedLibraries.FirstOrDefault(library => library.RecycleBin)?.Id;
+
+    // A named library reads by its own name; every other library by the type's name, as before.
+    private string NameOf(LibraryFolderDto library) => _selected.AllowsMultiple && !string.IsNullOrWhiteSpace(library.Name) ? library.Name : _selected.Label;
+
+    // The library that holds a folder, so every folder action works on its own library when a kind holds several.
+    private LibraryFolderDto? LibraryHolding(LibrarySourceDto source) =>
+        _configuration?.Libraries.FirstOrDefault(library => library.Sources.Any(item => item.Id == source.Id)) ?? SelectedLibrary;
+
+    // The pencil beside a library's name: the new name is saved through the library change the folders use, and the Engine's refusal
+    // (a name already in use, a name that reads as another kind) is shown as it comes.
+    private async Task RenameLibraryAsync(LibraryFolderDto library)
+    {
+        if (_saving) return;
+        var copy = Clone(library);
+        if (copy is null) return;
+        var dialog = await DialogService.ShowAsync<LibraryTextEditDialog>(string.Empty, new AppDialogParameters<LibraryTextEditDialog>
+        {
+            { component => component.Label, "Library name" },
+            { component => component.Value, NameOf(library) },
+        }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
+        if (await dialog.Result is not { Canceled: false, Data: string name } || string.Equals(name, library.Name, StringComparison.Ordinal)) return;
+        _notice = null;
+        copy.Name = name;
+        await SaveAsync(copy, "Library renamed.");
+    }
+
+    // Retry now: the Engine makes the library's Unmatched files due and looks them up in the background.
+    private async Task RetryUnmatchedAsync(LibraryFolderDto library)
+    {
+        if (_saving) return;
+        // Busy while the request runs, so a double click sends one.
+        _saving = true;
+        try
+        {
+            var result = await ApiClient.RetryUnmatchedLibraryAsync(library.Id);
+            await AfterUnmatchedActionAsync(result, affected => $"Trying {affected} again in {NameOf(library)}.");
+        }
+        finally { _saving = false; }
+    }
+
+    // Keep all as they are stops the retries and clears them from the count; it asks first, because it ends the lookups for those files.
+    private async Task KeepAllUnmatchedAsync(LibraryFolderDto library)
+    {
+        if (_saving) return;
+        // Busy from the question to the answer, so a double click asks and sends once.
+        _saving = true;
+        try
+        {
+            var confirmed = await DialogService.ShowMessageBoxAsync(
+                $"Stop trying to match {FilesText(library.UnmatchedCount)} in {NameOf(library)}?",
+                "You can look them up again later.",
+                yesText: "Keep all as they are", cancelText: "Cancel");
+            if (confirmed != true) return;
+            var result = await ApiClient.KeepAllUnmatchedLibraryAsync(library.Id);
+            await AfterUnmatchedActionAsync(result, affected => $"Kept {affected} in {NameOf(library)} as they are.");
+        }
+        finally { _saving = false; }
+    }
+
+    // The toast says how many files the action touched; the counts are read again.
+    private async Task AfterUnmatchedActionAsync(MediaEngine.Contracts.Library.UnmatchedActionResultDto? result, Func<string, string> message)
+    {
+        if (result is null)
+        {
+            _notice = ApiClient.LastError ?? "That could not be done. Try again in a moment.";
+            return;
+        }
+
+        Snackbar.Add(message(FilesText(result.Affected)), AppSeverity.Success);
+        await ReloadConfigurationAsync();
+        await Changed.InvokeAsync();
+    }
+
+    private static string FilesText(int count) => count == 1 ? "1 file" : $"{DisplayFormat.FormatCount(count)} files";
 
     private static LibraryFolderDto? Clone(LibraryFolderDto? library) => library is null
         ? null

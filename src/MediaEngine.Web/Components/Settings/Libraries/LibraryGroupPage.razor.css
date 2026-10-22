@@ -27,7 +27,7 @@
 .lib-page__head,
 .lib-page__row {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.4fr) auto;
+    grid-template-columns: minmax(0, 1.4fr) 112px minmax(0, 1.2fr) auto;
     align-items: center;
     gap: 12px;
     padding: 8px 14px;
@@ -48,13 +48,20 @@
     text-decoration: none;
 }
 
-.lib-page__row:is(:hover, :focus-visible) {
+.lib-page__row:is(:hover, :focus-within) {
     background: var(--tl-accent-primary-soft);
 }
 
-/* The tooltip wrapper adds no box of its own; the link inside stays the list row. */
-.lib-page__tip {
-    display: contents;
+.lib-page__link {
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+.lib-page__folders {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .lib-page__name {
@@ -63,21 +70,6 @@
     gap: 12px;
     min-width: 0;
 }
-
-.lib-page__icon {
-    display: inline-flex;
-    flex: 0 0 auto;
-    font-size: 1.6rem;
-}
-
-.lib-page__icon--books { color: #61a8ff; }
-.lib-page__icon--audiobooks { color: #f1b95b; }
-.lib-page__icon--movies { color: #a16dff; }
-.lib-page__icon--tv { color: #49a7ff; }
-.lib-page__icon--music { color: #e76fce; }
-.lib-page__icon--comics { color: #7de568; }
-.lib-page__icon--photos, .lib-page__icon--personal_videos, .lib-page__icon--documents { color: #2dd4bf; }
-.lib-page__icon--other { color: var(--tl-text-muted); }
 
 .lib-page__counts {
     color: var(--tl-text-secondary, var(--tl-text-muted));
@@ -99,12 +91,17 @@
         grid-template-columns: minmax(0, 1fr) auto;
     }
 
-    .lib-page__head span:nth-child(2) {
+    .lib-page__head span:nth-child(2),
+    .lib-page__head span:nth-child(3) {
         display: none;
     }
 
-    .lib-page__counts {
+    .lib-page__meta,
+    .lib-page__folders {
         grid-column: 1 / -1;
-        grid-row: 2;
     }
+
+    .lib-page__meta { grid-row: 2; }
+    .lib-page__folders { grid-row: 3; }
+    .lib-page__status { grid-column: 2; grid-row: 1; }
 }
