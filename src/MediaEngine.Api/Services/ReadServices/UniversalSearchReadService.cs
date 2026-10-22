@@ -8,6 +8,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Backup;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.ReadServices;
@@ -18,7 +19,8 @@ public sealed class UniversalSearchReadService(
     IHttpContextAccessor http,
     IRequestAuthorityResolver authorities,
     CharacterSpoilerService spoilers,
-    IProfileRepository profiles) : IUniversalSearchReadService
+    IProfileRepository profiles,
+    WaitingPersonalStateRepository waiting) : IUniversalSearchReadService
 {
     public async Task<UniversalSearchResponseDto> SearchAsync(string? query, int limit, CancellationToken ct)
     {
@@ -69,8 +71,54 @@ public sealed class UniversalSearchReadService(
             .Take(take)
             .ToList();
 
-        var sections = BuildSections(results, trimmed);
+        var sections = BuildSections(results, trimmed).ToList();
+        // The profile's own items still waiting for their file after a restore: a section of its own, always last, never the top
+        // result and not counted in the response total (that total is the titles the person can open).
+        var fileMissing = SearchFileMissing(trimmed, profileId, ct);
+        if (fileMissing.Count > 0)
+        {
+            sections.Add(new UniversalSearchSectionDto(FileMissingKey, "File missing", fileMissing, fileMissing.Count, null));
+        }
+
         return new UniversalSearchResponseDto(trimmed, results.FirstOrDefault(), sections, results.Count);
+    }
+
+    /// <summary>The section key of items waiting for their file after a restore (no link, no artwork, no play).</summary>
+    public const string FileMissingKey = "file-missing";
+
+    private const int FileMissingLimit = 10;
+
+    // A restored item whose file has not come back yet is listed by name only, for the searching profile alone. The waiting area
+    // holds no View items to leak (the query takes Work, Edition and Media Asset titles only) and never a withheld (Vault) title.
+    private IReadOnlyList<UniversalSearchResultDto> SearchFileMissing(string query, Guid? profileId, CancellationToken ct)
+    {
+        if (profileId is not { } profile || profile == Guid.Empty)
+        {
+            return [];
+        }
+
+        return waiting.SearchWaitingTitles(profile, query, FileMissingLimit, ct)
+            .Select(title =>
+            {
+                var year = title.Year?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                var mediaType = string.IsNullOrWhiteSpace(title.MediaType) ? null : NormalizeMediaType(title.MediaType);
+                var identity = $"{title.Name}|{title.ParentName}|{year}|{mediaType}";
+                return new UniversalSearchResultDto(
+                    new Guid(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity))[..16]),
+                    FileMissingKey,
+                    mediaType,
+                    title.Name,
+                    string.IsNullOrWhiteSpace(title.ParentName) ? null : title.ParentName,
+                    null,
+                    year,
+                    null,
+                    null,
+                    string.Empty,
+                    string.Empty,
+                    "File missing",
+                    0);
+            })
+            .ToList();
     }
 
     private async Task<IReadOnlyList<UniversalSearchResultDto>> SearchPeopleAsync(

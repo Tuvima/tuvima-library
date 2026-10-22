@@ -203,6 +203,47 @@
     font-size: var(--tl-font-size-xs);
 }
 
+.universal-results__missing {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* Not a link: no hover, no pointer, no focus ring. Same 44px row as the touch-target rule. */
+.universal-results__missing-row {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 2px;
+    border-bottom: 1px solid rgba(128, 146, 180, 0.1);
+    cursor: default;
+}
+
+.universal-results__missing-copy {
+    display: grid;
+    min-width: 0;
+}
+
+.universal-results__missing-copy strong,
+.universal-results__missing-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.universal-results__missing-copy strong {
+    color: var(--tl-text-primary);
+    font-size: 0.86rem;
+}
+
+.universal-results__missing-copy small {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+}
+
 .universal-results__preview {
     position: sticky;
     top: 0;

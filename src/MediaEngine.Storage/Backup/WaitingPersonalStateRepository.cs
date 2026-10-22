@@ -31,6 +31,13 @@ public sealed record ReattachResult(
     public IReadOnlyList<string> FailedTables { get; init; } = FailedTables ?? [];
 }
 
+/// <summary>One title a profile's restored state is still waiting for, as global search lists it ("File missing").</summary>
+/// <param name="Name">The title's name.</param>
+/// <param name="ParentName">The show, album or series it belongs to, when there is one.</param>
+/// <param name="Year">The release year, when known.</param>
+/// <param name="MediaType">The media type of the title as the Library stored it, when known.</param>
+public sealed record WaitingTitle(string Name, string? ParentName, int? Year, string? MediaType);
+
 /// <summary>The latest restore, in counts.</summary>
 public sealed record RestoreSummary(
     Guid Id,
@@ -81,6 +88,60 @@ public sealed class WaitingPersonalStateRepository
         using var command = connection.CreateCommand();
         command.CommandText = $"SELECT COUNT(*) FROM {WaitingTable} WHERE is_withheld = 1";
         return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// The titles one profile's restored personal state is still waiting for whose name or parent name contains
+    /// <paramref name="query"/> (case-insensitive), at most <paramref name="take"/>, each once. Only rows of that profile, only
+    /// personal state, never a row on a title a backup may not name (a Vault video), and only titles that are a Work, Edition or
+    /// Media Asset (never a View item). Once a title's rows are written back they are gone from the waiting area, so it stops appearing.
+    /// </summary>
+    public IReadOnlyList<WaitingTitle> SearchWaitingTitles(Guid profileId, string query, int take, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (take < 1 || string.IsNullOrWhiteSpace(query))
+        {
+            return [];
+        }
+
+        using var connection = _db.CreateConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            $"""
+            SELECT DISTINCT
+                   json_extract(title.value, '$.name'),
+                   json_extract(title.value, '$.parent_name'),
+                   json_extract(title.value, '$.year'),
+                   json_extract(title.value, '$.media_type')
+            FROM {WaitingTable} waiting, json_each(waiting.titles_json, '$.titles') title
+            WHERE waiting.profile_id = $profile
+              AND waiting.group_kind = 'personal'
+              AND waiting.is_withheld = 0
+              AND json_extract(title.value, '$.target') IN ('Work', 'Edition', 'MediaAsset')
+              AND COALESCE(json_extract(title.value, '$.withheld'), 0) = 0
+              AND json_extract(title.value, '$.name') IS NOT NULL
+              AND (json_extract(title.value, '$.name') LIKE $like ESCAPE '\'
+                   OR COALESCE(json_extract(title.value, '$.parent_name'), '') LIKE $like ESCAPE '\')
+            ORDER BY json_extract(title.value, '$.name') COLLATE NOCASE, json_extract(title.value, '$.parent_name') COLLATE NOCASE
+            LIMIT $take
+            """;
+        command.Parameters.AddWithValue("$profile", GuidSql.ToBlob(profileId));
+        command.Parameters.AddWithValue(
+            "$like",
+            "%" + query.Trim().Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal) + "%");
+        command.Parameters.AddWithValue("$take", (long)take);
+        using var reader = command.ExecuteReader();
+        var titles = new List<WaitingTitle>();
+        while (reader.Read())
+        {
+            titles.Add(new WaitingTitle(
+                reader.GetString(0),
+                reader.IsDBNull(1) ? null : reader.GetString(1),
+                reader.IsDBNull(2) ? null : Convert.ToInt32(reader.GetValue(2), CultureInfo.InvariantCulture),
+                reader.IsDBNull(3) ? null : reader.GetString(3)));
+        }
+
+        return titles;
     }
 
     /// <summary>The most recent restore with what it put back, what is waiting and what has attached or been cleared since; null if nothing was ever restored.</summary>

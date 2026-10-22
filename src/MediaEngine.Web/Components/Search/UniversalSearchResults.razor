@@ -1,10 +1,12 @@
 @using MediaEngine.Contracts.Display
 @namespace MediaEngine.Web.Components.Search
 
-@if (Response is not null && Response.TopResult is not null)
+@if (Response is not null && (Response.TopResult is not null || Response.Sections.Count > 0))
 {
     <div class="universal-results @(Compact ? "universal-results--compact" : null)">
         <div class="universal-results__content">
+            @if (Response.TopResult is not null)
+            {
             <section class="universal-results__top" aria-labelledby="universal-top-result">
                 <span id="universal-top-result" class="universal-results__eyebrow">Top result</span>
                 <article class="universal-results__top-card"
@@ -50,43 +52,71 @@
                     </div>
                 </article>
             </section>
+            }
 
             @foreach (var resultSection in Response.Sections)
             {
-                <section class="universal-results__section" aria-labelledby="@SectionId(resultSection)">
-                    <header>
-                        <h2 id="@SectionId(resultSection)">@resultSection.Title</h2>
-                        <a href="@resultSection.SeeAllRoute">See all</a>
-                    </header>
-                    <div class="universal-results__grid">
-                        @foreach (var result in resultSection.Results)
-                        {
-                            <a @key="@($"{result.EntityType}:{result.Id}")"
-                               href="@result.DetailRoute"
-                               class="universal-results__card @(IsSelected(result) ? "is-selected" : null)"
-                               @onfocus="@(() => SelectAsync(result))"
-                               @onmouseenter="@(() => SelectAsync(result))">
-                                <span class="@ArtworkClass("universal-results__card-art", result)">
-                                    @if (!string.IsNullOrWhiteSpace(result.ArtworkUrl))
+                if (IsFileMissing(resultSection))
+                {
+                    @* Restored items still waiting for their file: names only, no link, artwork or play (backup and restore spec D18). *@
+                    <section class="universal-results__section" aria-labelledby="@SectionId(resultSection)">
+                        <header>
+                            <h2 id="@SectionId(resultSection)">@resultSection.Title</h2>
+                        </header>
+                        <ul class="universal-results__missing">
+                            @foreach (var result in resultSection.Results)
+                            {
+                                <li @key="@($"{result.EntityType}:{result.Id}")" class="universal-results__missing-row">
+                                    <span class="universal-results__missing-copy">
+                                        <strong>@result.Title</strong>
+                                        @if (!string.IsNullOrWhiteSpace(result.Subtitle) || !string.IsNullOrWhiteSpace(result.Year))
+                                        {
+                                            <small>@string.Join("  •  ", new[] { result.Subtitle, result.Year }.Where(value => !string.IsNullOrWhiteSpace(value)))</small>
+                                        }
+                                    </span>
+                                    <AppStatusBadge Text="@result.MatchReason" Tone="AppUiTone.Warning" />
+                                </li>
+                            }
+                        </ul>
+                    </section>
+                }
+                else
+                {
+                    <section class="universal-results__section" aria-labelledby="@SectionId(resultSection)">
+                        <header>
+                            <h2 id="@SectionId(resultSection)">@resultSection.Title</h2>
+                            <a href="@resultSection.SeeAllRoute">See all</a>
+                        </header>
+                        <div class="universal-results__grid">
+                            @foreach (var result in resultSection.Results)
+                            {
+                                <a @key="@($"{result.EntityType}:{result.Id}")"
+                                   href="@result.DetailRoute"
+                                   class="universal-results__card @(IsSelected(result) ? "is-selected" : null)"
+                                   @onfocus="@(() => SelectAsync(result))"
+                                   @onmouseenter="@(() => SelectAsync(result))">
+                                    <span class="@ArtworkClass("universal-results__card-art", result)">
+                                        @if (!string.IsNullOrWhiteSpace(result.ArtworkUrl))
+                                        {
+                                            @* A five-column grid of cards, portrait up to about 200x300px (UniversalSearchResults.razor.css). *@
+                                            <img src="@MediaTileArtworkUrl.ForDrawnSize(result.ArtworkUrl, 300)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(result.ArtworkUrl, 300)" alt="" loading="lazy" decoding="async" />
+                                        }
+                                        else
+                                        {
+                                            <AppMaterialIcon Icon="@IconFor(result)" />
+                                        }
+                                        <span class="universal-results__type">@TypeLabel(result)</span>
+                                    </span>
+                                    <strong>@result.Title</strong>
+                                    @if (!string.IsNullOrWhiteSpace(result.Subtitle))
                                     {
-                                        @* A five-column grid of cards, portrait up to about 200x300px (UniversalSearchResults.razor.css). *@
-                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(result.ArtworkUrl, 300)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(result.ArtworkUrl, 300)" alt="" loading="lazy" decoding="async" />
+                                        <small>@result.Subtitle</small>
                                     }
-                                    else
-                                    {
-                                        <AppMaterialIcon Icon="@IconFor(result)" />
-                                    }
-                                    <span class="universal-results__type">@TypeLabel(result)</span>
-                                </span>
-                                <strong>@result.Title</strong>
-                                @if (!string.IsNullOrWhiteSpace(result.Subtitle))
-                                {
-                                    <small>@result.Subtitle</small>
-                                }
-                            </a>
-                        }
-                    </div>
-                </section>
+                                </a>
+                            }
+                        </div>
+                    </section>
+                }
             }
         </div>
 
@@ -161,6 +191,7 @@
 
     private Task SelectAsync(UniversalSearchResultDto result) => SelectedResultChanged.InvokeAsync(result);
     private Task ClearSelectionAsync() => SelectedResultChanged.InvokeAsync(null);
+    private static bool IsFileMissing(UniversalSearchSectionDto section) => section.Key == "file-missing";
     private static string SectionId(UniversalSearchSectionDto item) => $"search-section-{item.Key}";
     private bool IsSelected(UniversalSearchResultDto result) => ActiveResult?.Id == result.Id && ActiveResult.EntityType == result.EntityType;
 

@@ -90,6 +90,8 @@ Under **Settings → Backup and recovery → Where backups go**, **Add a destina
 
 **The waiting period.** State that is still waiting after 90 days is cleared (the same setting as Safer deleting, `missing_file_retention_days`; changing it affects state already waiting). Administrators on a computer or tablet can change it under **Settings → Backup and recovery → Restored progress → Keep restored progress waiting for**: 30, 60, 90 (the default), 180 or 365 days, saved as soon as you choose. A value set another way (7 to 3650 days) is shown as one more choice. A recovery point made while state is still waiting keeps it, with the time it started waiting, so a second restore does not restart the clock.
 
+**Finding what is waiting.** Search for a title in global search: items still waiting for their files appear in a **File missing** section at the end of the results, with their name, where they belong, their year and a "File missing" note. They cannot be opened; they are only a reminder, and they disappear when the file returns. You see your own items only.
+
 A restore does not replace the media files excluded from the recovery point.
 
 ## When Tuvima upgrades its data store

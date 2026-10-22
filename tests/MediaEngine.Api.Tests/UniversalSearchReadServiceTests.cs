@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Search;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Backup;
 using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
@@ -741,6 +742,181 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         return (collectionId, projection, allowedCover);
     }
 
+    [Fact]
+    public async Task SearchAsync_ListsAWaitingTitleAsFileMissing_ForItsOwnProfile_WithNoLinkOrArtwork()
+    {
+        Wait(Profile.SeedProfileId, WaitingTitle("Pilot", "Severance", 2022, "TV"));
+        var service = CreateService(new StubDisplayProjection(Array.Empty<DisplayWorkRow>()));
+
+        var response = await service.SearchAsync("Severance", 20, CancellationToken.None);
+
+        var section = Assert.Single(response.Sections);
+        Assert.Equal("file-missing", section.Key);
+        Assert.Equal("File missing", section.Title);
+        Assert.Null(section.SeeAllRoute);
+        var row = Assert.Single(section.Results);
+        Assert.Equal("file-missing", row.EntityType);
+        Assert.Equal("TV", row.MediaType);
+        Assert.Equal("Pilot", row.Title);
+        Assert.Equal("Severance", row.Subtitle);
+        Assert.Equal("2022", row.Year);
+        Assert.Equal("File missing", row.MatchReason);
+        Assert.Equal(string.Empty, row.DetailRoute);
+        Assert.Null(row.ArtworkUrl);
+    }
+
+    [Fact]
+    public async Task SearchAsync_DoesNotListAnotherProfilesWaitingTitle()
+    {
+        var other = AddProfile("Theo");
+        Wait(other, WaitingTitle("Dune", null, 2021, "Movies"));
+        var service = CreateService(new StubDisplayProjection(Array.Empty<DisplayWorkRow>()));
+
+        var response = await service.SearchAsync("Dune", 20, CancellationToken.None);
+
+        Assert.Empty(response.Sections);
+    }
+
+    [Fact]
+    public async Task SearchAsync_NeverListsAWithheldWaitingTitle()
+    {
+        Wait(Profile.SeedProfileId, WaitingTitle("Dune", null, 2021, "Videos") with { Withheld = true });
+        var service = CreateService(new StubDisplayProjection(Array.Empty<DisplayWorkRow>()));
+
+        var response = await service.SearchAsync("Dune", 20, CancellationToken.None);
+
+        Assert.Empty(response.Sections);
+    }
+
+    [Fact]
+    public async Task SearchAsync_NeverListsAViewItemWaitingForItsFile()
+    {
+        Wait(Profile.SeedProfileId, WaitingTitle("Holiday photo", null, 2020, "Photos") with { Target = "LocalItem" });
+        var service = CreateService(new StubDisplayProjection(Array.Empty<DisplayWorkRow>()));
+
+        var response = await service.SearchAsync("Holiday", 20, CancellationToken.None);
+
+        Assert.Empty(response.Sections);
+    }
+
+    [Fact]
+    public async Task SearchAsync_PutsFileMissingLast_NeverAsTheTopResult_AndCountsOnlyTitlesYouCanOpen()
+    {
+        Wait(Profile.SeedProfileId, WaitingTitle("Dune Part Two", null, 2024, "Movies"));
+        var service = CreateService(new StubDisplayProjection(
+        [
+            new DisplayWorkRow { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Movies", Title = "Dune" },
+        ]));
+
+        var response = await service.SearchAsync("Dune", 20, CancellationToken.None);
+
+        Assert.Equal(1, response.TotalCount);
+        Assert.Equal("movie", response.TopResult?.EntityType);
+        Assert.Equal(["watch", "file-missing"], response.Sections.Select(section => section.Key));
+        Assert.Equal(1, response.Sections[^1].TotalCount);
+    }
+
+    [Fact]
+    public async Task SearchAsync_OnlyFileMissingMatches_HasNoTopResultAndNoOpenableTitles()
+    {
+        Wait(Profile.SeedProfileId, WaitingTitle("Dune", null, 2021, "Movies"));
+        var service = CreateService(new StubDisplayProjection(Array.Empty<DisplayWorkRow>()));
+
+        var response = await service.SearchAsync("Dune", 20, CancellationToken.None);
+
+        Assert.Null(response.TopResult);
+        Assert.Equal(0, response.TotalCount);
+        Assert.Equal("file-missing", Assert.Single(response.Sections).Key);
+    }
+
+    [Fact]
+    public async Task SearchAsync_StopsListingAFileMissingTitle_OnceItsStateIsReAttached()
+    {
+        Wait(Profile.SeedProfileId, WaitingTitle("Dune", null, 2021, "Movies"));
+        var service = CreateService(new StubDisplayProjection(Array.Empty<DisplayWorkRow>()));
+        Assert.Single((await service.SearchAsync("Dune", 20, CancellationToken.None)).Sections);
+
+        AddMovie("tt1160419", "returned-hash");
+        var pass = new WaitingPersonalStateRepository(_db).RunPass(DateTimeOffset.UtcNow.AddMinutes(1), 100, 90);
+
+        Assert.Equal(1, pass.Attached);
+        Assert.Empty((await service.SearchAsync("Dune", 20, CancellationToken.None)).Sections);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ListsAtMostTenFileMissingTitles()
+    {
+        for (var i = 0; i < 12; i++)
+        {
+            Wait(Profile.SeedProfileId, WaitingTitle("Dune " + i.ToString("00"), null, 2000 + i, "Movies"));
+        }
+
+        var service = CreateService(new StubDisplayProjection(Array.Empty<DisplayWorkRow>()));
+
+        var response = await service.SearchAsync("Dune", 20, CancellationToken.None);
+
+        Assert.Equal(10, Assert.Single(response.Sections).Results.Count);
+    }
+
+    private static BackupTitle WaitingTitle(string name, string? parent, int year, string mediaType) =>
+        BackupTitle.Empty("t1", "MediaAsset") with
+        {
+            Ids = new Dictionary<string, string> { ["imdb_id"] = "tt1160419" },
+            FileHashes = ["original-hash"],
+            Edition = "4K Remux",
+            Name = name,
+            ParentName = parent,
+            Year = year,
+            MediaType = mediaType,
+        };
+
+    private byte[] AddProfile(string name)
+    {
+        var id = GuidSql.ToBlob(Guid.NewGuid());
+        using var conn = _db.CreateConnection();
+        conn.Execute(
+            "INSERT INTO profiles (id, display_name, created_at) VALUES (@id, @name, @now)",
+            new { id, name, now = DateTimeOffset.UtcNow.ToString("O") });
+        return id;
+    }
+
+    // Restores one progress entry for the profile on a title the Library does not have yet.
+    private void Wait(Guid profileId, BackupTitle title) => Wait(GuidSql.ToBlob(profileId), title);
+
+    private void Wait(byte[] profile, BackupTitle title)
+    {
+        var stamp = "2026-10-21T10:00:00Z";
+        var table = new BackupExportTable(
+            "user_states",
+            BackupDataKind.PersonalState,
+            ["user_id", "asset_id", "progress_pct", "last_accessed"],
+            [[BackupValue.FromBlob(profile), BackupValue.FromTitleRef("t1"), BackupValue.FromReal(10), BackupValue.FromText(stamp)]]);
+        var export = new BackupExport(
+            [table],
+            [],
+            [title],
+            new BackupExportContents(BackupScope.WholeLibrary, 0, 0, 1, 0, 1, 0, 1, 0),
+            []);
+
+        new BackupRestoreRepository(_db).Import(export, "backup.zip", null, null, DateTimeOffset.UtcNow);
+    }
+
+    private void AddMovie(string imdb, string hash)
+    {
+        var work = GuidSql.ToBlob(Guid.NewGuid());
+        var edition = GuidSql.ToBlob(Guid.NewGuid());
+        var asset = GuidSql.ToBlob(Guid.NewGuid());
+        using var conn = _db.CreateConnection();
+        conn.Execute("INSERT INTO works (id, media_type) VALUES (@work, 'Movies')", new { work });
+        conn.Execute("INSERT INTO editions (id, work_id, format_label) VALUES (@edition, @work, '4K Remux')", new { edition, work });
+        conn.Execute(
+            "INSERT INTO media_assets (id, edition_id, content_hash, file_path_root) VALUES (@asset, @edition, @hash, @path)",
+            new { asset, edition, hash, path = $"/media/{hash}.mkv" });
+        conn.Execute(
+            "INSERT INTO bridge_ids (id, entity_id, id_type, id_value) VALUES (@id, @work, 'imdb_id', @imdb)",
+            new { id = GuidSql.ToBlob(Guid.NewGuid()), work, imdb });
+    }
+
     // A paired Kids TV: a delegated device token on a restricted profile (never a signed-in person).
     private UniversalSearchReadService CreateAppService(IDisplayProjectionReadService display) => new(
         _db,
@@ -750,7 +926,8 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
             PrincipalKind.DelegatedUserClient, true, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, Guid.NewGuid(),
             AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true, ActiveProfileIsRestricted: true)),
         SpoilerTestKit.Create(display, _db),
-        new ProfileRepository(_db));
+        new ProfileRepository(_db),
+        new WaitingPersonalStateRepository(_db));
 
     private UniversalSearchReadService CreateService(IDisplayProjectionReadService display)
     {
@@ -761,7 +938,8 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
             new HttpContextAccessor { HttpContext = context },
             TestViewAuthorityResolver.Human(Profile.SeedProfileId),
             SpoilerTestKit.Create(display, _db),
-            new ProfileRepository(_db));
+            new ProfileRepository(_db),
+            new WaitingPersonalStateRepository(_db));
     }
 
     private sealed class StubDisplayProjection : IDisplayProjectionReadService
