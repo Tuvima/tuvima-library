@@ -244,7 +244,10 @@
     protected override void OnInitialized()
     {
         _configuration = Configuration;
-        if (LibraryFolderAddService.ResolveType(_configuration, StartTypeKey) is { } known)
+        var known = LibraryFolderAddService.ResolveType(_configuration, StartTypeKey);
+        // View's folders cannot be added in setup, so a View type there starts at step 1 like no type at all.
+        if (Embedded && known is not null && LibraryGroupCatalog.GroupFor(known.Key)?.Key == "view") known = null;
+        if (known is not null)
         {
             _typeKnown = true;
             _type = known;
