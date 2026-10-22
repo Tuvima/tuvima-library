@@ -9000,6 +9000,7 @@ MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupBackupInspectionDto
   EntryCount: System.Int32 | nullability=not-null | accessors=get,init
   ConfigurationFiles: System.Int32 | nullability=not-null | accessors=get,init
   Warning: System.String | nullability=not-null | accessors=get,init
+  Contents: MediaEngine.Contracts.System.BackupContentsDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupBeginRefusalDto
   Reason: System.String | nullability=not-null | accessors=get,init
@@ -9105,6 +9106,19 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupArchiveDto
   SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
   IncludesSecrets: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupContentsDto
+  Profiles: System.Int32 | nullability=not-null | accessors=get,init
+  ConfigurationRows: System.Int32 | nullability=not-null | accessors=get,init
+  PersonalItems: System.Int32 | nullability=not-null | accessors=get,init
+  Titles: System.Int32 | nullability=not-null | accessors=get,init
+  FileOnlyTitles: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupStateDto
+  FileOnlyTitles: System.Int32 | nullability=not-null | accessors=get,init
+  WaitingPeriodDays: System.Int32 | nullability=not-null | accessors=get,init
+  StillWaiting: System.Int32 | nullability=not-null | accessors=get,init
+  LatestRestore: MediaEngine.Contracts.System.LatestRestoreDto | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.CreateBackupRequest
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.DataStoreVersionDto
@@ -9115,6 +9129,14 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.DataStoreVersionDto
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.DevelopmentToolsResponse
   EnrichmentTester: System.Boolean | nullability=not-null | accessors=get,init
   DevelopmentData: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.LatestRestoreDto
+  RestoredAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  BackupFileName: System.String | nullability=not-null | accessors=get,init
+  Applied: System.Int32 | nullability=not-null | accessors=get,init
+  Attached: System.Int32 | nullability=not-null | accessors=get,init
+  Yielded: System.Int32 | nullability=not-null | accessors=get,init
+  Purged: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.LogExportLevels
 
@@ -9152,6 +9174,7 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.RestoreValidationResul
   FileName: System.String | nullability=not-null | accessors=get,init
   ValidatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   Message: System.String | nullability=not-null | accessors=get,init
+  Contents: MediaEngine.Contracts.System.BackupContentsDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduleRestoreRequest
   FileName: System.String | nullability=not-null | accessors=get,init
@@ -9220,6 +9243,9 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.TechnicalLogLineDto
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.TechnicalLogPageDto
   Lines: System.Collections.Generic.List<MediaEngine.Contracts.System.TechnicalLogLineDto> | nullability=not-null | accessors=get,init
   NextCursor: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.UpdateWaitingPeriodRequest
+  Days: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Taste.MediaEngine.Contracts.Taste.AddTasteItemRequest
   Group: System.String | nullability=not-null | accessors=get,init

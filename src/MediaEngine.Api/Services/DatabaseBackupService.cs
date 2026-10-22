@@ -191,12 +191,13 @@ public sealed class DatabaseBackupService
         Directory.CreateDirectory(stagingDirectory);
         try
         {
-            ValidateAndStageArchive(archivePath, stagingDirectory);
+            var info = ValidateAndStageArchive(archivePath, stagingDirectory);
             return new RestoreValidationResultDto(
                 true,
                 Path.GetFileName(archivePath),
                 DateTimeOffset.UtcNow,
-                "Restore test passed. The settings and personal state in this backup can be read; no restore was scheduled.");
+                "Restore test passed. The settings and personal state in this backup can be read; no restore was scheduled.",
+                ContentsOf(info));
         }
         finally
         {
@@ -229,8 +230,13 @@ public sealed class DatabaseBackupService
             operationId, Path.GetFileName(originalFileName), info.CreatedAt, info.ManifestVersion,
             info.DatabaseEpoch, new FileInfo(archivePath).Length, info.UncompressedBytes, info.EntryCount,
             info.ConfigurationFileCount,
-            Summarise(info));
+            Summarise(info),
+            ContentsOf(info));
     }
+
+    /// <summary>The manifest's counts for the first look at a backup. Totals only: it names no title, no profile and no kind of title.</summary>
+    internal static BackupContentsDto ContentsOf(RestoreArchiveInfo info) =>
+        new(info.Profiles, info.ConfigurationRows, info.ItemsOfPersonalState, info.Titles, info.FileOnlyTitles);
 
     /// <summary>A plain sentence about what the backup holds, from the manifest's counts. It names no title and no profile.</summary>
     internal static string Summarise(RestoreArchiveInfo info)

@@ -1,0 +1,26 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.System
+
+@* The first look at a backup: counts only, never a title, a profile name or a kind of title. *@
+<div data-testid="backup-contents">
+    <div data-testid="backup-contents-profiles">@ProfilesLine</div>
+    @if (Contents.PersonalItems > 0)
+    {
+        <div data-testid="backup-contents-items">@ItemsLine</div>
+    }
+    <div data-testid="backup-contents-media">Media files and folders are not included.</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public BackupContentsDto Contents { get; set; } = null!;
+
+    private string ProfilesLine => Contents.Profiles > 0
+        ? $"{Format(Contents.Profiles)} {(Contents.Profiles == 1 ? "profile" : "profiles")} and your settings"
+        : "Your settings";
+
+    private string ItemsLine => Contents.PersonalItems == 1
+        ? "1 item of progress, bookmarks and favourites, which comes back as its title is found again"
+        : $"{Format(Contents.PersonalItems)} items of progress, bookmarks and favourites, which come back as their titles are found again";
+
+    private static string Format(int count) => count.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+}

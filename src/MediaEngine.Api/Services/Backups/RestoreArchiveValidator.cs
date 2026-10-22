@@ -13,6 +13,9 @@ namespace MediaEngine.Api.Services.Backups;
 /// <param name="EntryCount">Entries in the zip file.</param>
 /// <param name="ConfigurationFileCount">Configuration files in the zip file.</param>
 /// <param name="UncompressedBytes">Size of everything once unpacked.</param>
+/// <param name="ConfigurationRows">Settings rows in the backup.</param>
+/// <param name="Titles">Titles the personal state is about.</param>
+/// <param name="FileOnlyTitles">Titles a restore can match by exact file only.</param>
 internal sealed record RestoreArchiveInfo(
     string ManifestVersion,
     string DatabaseEpoch,
@@ -21,7 +24,10 @@ internal sealed record RestoreArchiveInfo(
     int ItemsOfPersonalState,
     int EntryCount,
     int ConfigurationFileCount,
-    long UncompressedBytes);
+    long UncompressedBytes,
+    int ConfigurationRows = 0,
+    int Titles = 0,
+    int FileOnlyTitles = 0);
 
 /// <summary>
 /// The one check every route into a restore uses (scheduling it, the monthly restore check, the test restore, a setup upload and a
@@ -200,7 +206,10 @@ internal static class RestoreArchiveValidator
                 OptionalCount(root, "personal_rows") + OptionalCount(root, "choice_rows") + OptionalCount(root, "correction_rows"),
                 0,
                 0,
-                0);
+                0,
+                OptionalCount(root, "configuration_rows"),
+                OptionalCount(root, "titles"),
+                OptionalCount(root, "titles_recognised_by_file_only"));
         }
     }
 
