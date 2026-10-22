@@ -43,6 +43,7 @@ public sealed partial class ViewItemFileWriter(
     internal const string FileChangedReason = "The file changed outside Library; it will be read again before writing.";
     internal const string WriteBackOffReason = "Write-back is off, so the profile name was not written.";
     internal const string NotManagedReason = "This file is not in a folder Library manages.";
+    internal const string ReadOnlyFileReason = "Kept in Library only: the file is read-only.";
     internal const string TransferNotFinishedReason = "The file is part of a Shared Library transfer that has not finished; it waits for the next run.";
 
     /// <summary>How old a leftover hidden copy must be before it is cleared away (a crash left it; no write takes this long to start).</summary>
@@ -53,6 +54,15 @@ public sealed partial class ViewItemFileWriter(
     private IExifToolSession? _session;
     private bool _exifToolUnavailable;
     private readonly HashSet<string> _foldersChecked = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Hidden copies that could not be put in place or renamed after a failed swap took the original away. They are the only copy of
+    /// the file, so the sweep never deletes them (kept for the life of the Engine, across runs).
+    /// </summary>
+    private readonly HashSet<string> _strandedCopies = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>How a hidden copy is deleted. A seam so a test can make one leftover impossible to delete.</summary>
+    internal Action<string> DeleteCopy { get; set; } = DeleteHiddenCopy;
 
     /// <summary>How the verified copy takes the original's place. A seam so a test can make the swap fail after the original is gone.</summary>
     internal IViewFileSwap FileSwap { get; set; } = new MoveViewFileSwap();
@@ -158,6 +168,12 @@ public sealed partial class ViewItemFileWriter(
             return Done(WriteBackOutcome.Failed("The file is no longer where Library recorded it."));
         }
 
+        if (IsReadOnly(path))
+        {
+            // Nothing is opened or copied: a read-only original is a decision somebody made about the file.
+            return Done(WriteBackOutcome.Unsupported(ReadOnlyFileReason));
+        }
+
         if (await ChangedOutsideAsync(target, path, ct))
         {
             return await ReadAgainFirstAsync(intent, target, ct);
@@ -184,7 +200,7 @@ public sealed partial class ViewItemFileWriter(
         }
 
         var original = new FileInfo(path);
-        var snapshot = new OriginalSnapshot(original.Length, original.LastWriteTimeUtc);
+        var snapshot = new OriginalSnapshot(original.Length, original.LastWriteTimeUtc, original.CreationTimeUtc, original.Attributes);
         ClearStaleCopies(Path.GetDirectoryName(path)!);
         var temporary = Path.Combine(
             Path.GetDirectoryName(path)!, ViewStorageService.WriteCopyPrefix + Guid.NewGuid().ToString("N") + Path.GetExtension(path));
@@ -386,7 +402,7 @@ public sealed partial class ViewItemFileWriter(
         OriginalSnapshot snapshot, SwapAttempt attempt, CancellationToken ct)
     {
         var hash = await HashAsync(temporary, ct);
-        CarryOverFileProperties(path, temporary, snapshot);
+        CarryOverFileProperties(path, temporary);
 
         if (!snapshot.Matches(path))
         {
@@ -398,6 +414,7 @@ public sealed partial class ViewItemFileWriter(
 
         attempt.Started = true;
         FileSwap.Replace(temporary, path);
+        CarryOverTimesAndAttributes(path, snapshot);
 
         var size = new FileInfo(path).Length;
         var recorded = await files.RecordOwnWriteAsync(
@@ -406,7 +423,7 @@ public sealed partial class ViewItemFileWriter(
         if (!recorded)
         {
             logger.LogInformation(
-                "The file of View item {ItemId} now matches another file Library already knows; its record keeps the old fingerprint until the folder is looked at again.",
+                "The file of View item {ItemId} is also kept at another place in the same library; its record keeps the old fingerprint until the folder is looked at again.",
                 intent.LocalItemId);
         }
 
@@ -414,10 +431,11 @@ public sealed partial class ViewItemFileWriter(
     }
 
     /// <summary>
-    /// Gives the copy the original's creation time, attributes, permissions and modified time, so the swap changes the bytes and nothing
-    /// else (a photo does not move on the Timeline, and an outside edit is still noticed by its modified time).
+    /// Gives the copy the original's permissions before the swap, so the new file can be opened by the same people. No time or attribute
+    /// of the original rides on the copy: the copy is stamped with the time it was made, so the stale sweep (which judges a hidden copy by its
+    /// times) always sees a copy that was just made as new, and a read-only attribute cannot stop the swap.
     /// </summary>
-    private void CarryOverFileProperties(string path, string temporary, OriginalSnapshot snapshot)
+    private void CarryOverFileProperties(string path, string temporary)
     {
         try
         {
@@ -425,22 +443,52 @@ public sealed partial class ViewItemFileWriter(
             {
                 File.SetUnixFileMode(temporary, File.GetUnixFileMode(path));
             }
-
-            File.SetCreationTimeUtc(temporary, File.GetCreationTimeUtc(path));
-            File.SetAttributes(temporary, File.GetAttributes(path));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
             // Cosmetic details only: the file is still replaced with the right bytes.
-            logger.LogDebug(ex, "Some properties of a View file could not be carried over to its new copy.");
+            logger.LogDebug(ex, "The permissions of a View file could not be carried over to its new copy.");
         }
 
-        File.SetLastWriteTimeUtc(temporary, snapshot.LastWriteUtc);
+        // A copy made by copying the original (Office files) keeps the original's old modified time; the sweep must see it as new.
+        File.SetLastWriteTimeUtc(temporary, DateTime.UtcNow);
     }
 
     /// <summary>
+    /// After the swap: the original's attributes, creation time and modified time, so the swap changes the bytes and nothing else (a
+    /// photo does not move on the Timeline, and an outside edit is still noticed by its modified time). Best effort and logged; if the
+    /// modified time is not restored the next look sees a newer time with the same fingerprint, and reads nothing again. The modified
+    /// time goes last because setting a creation time can move it.
+    /// </summary>
+    private void CarryOverTimesAndAttributes(string path, OriginalSnapshot snapshot)
+    {
+        try
+        {
+            File.SetAttributes(path, snapshot.Attributes);
+            File.SetCreationTimeUtc(path, snapshot.CreationUtc);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            logger.LogDebug(ex, "The creation time or attributes of a written View file could not be restored.");
+        }
+
+        try
+        {
+            File.SetLastWriteTimeUtc(path, snapshot.LastWriteUtc);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "The modified time of a written View file could not be restored.");
+        }
+    }
+
+    /// <summary>True when the file carries the read-only attribute (on Windows, or no write permission for the user elsewhere).</summary>
+    private static bool IsReadOnly(string path) => File.GetAttributes(path).HasFlag(FileAttributes.ReadOnly);
+
+    /// <summary>
     /// Removes the hidden copy once the write is over. The one rule that never bends: the copy is not deleted while the original is
-    /// missing after a swap was started, because then it is the only copy of the file. It is moved into place instead.
+    /// missing after a swap was started, because then it is the only copy of the file. It is moved into place instead, and if that
+    /// fails too it is renamed to a name the sweep never matches.
     /// </summary>
     private void FinishTemporaryCopy(string temporary, string path, SwapAttempt attempt)
     {
@@ -453,19 +501,58 @@ public sealed partial class ViewItemFileWriter(
 
             if (attempt.Started && !File.Exists(path))
             {
-                File.Move(temporary, path);
-                logger.LogWarning(
-                    "Replacing a View file failed after the original was gone; the new copy was put in its place so the file is not lost.");
+                PutStrandedCopyInPlace(temporary, path);
                 return;
             }
 
-            File.Delete(temporary);
+            DeleteCopy(temporary);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // The hidden copy is left where it is (a later scan ignores it, and the next write clears it once it is old).
-            logger.LogWarning(ex, "A temporary copy beside a View file could not be removed or put in place.");
+            logger.LogWarning(ex, "A temporary copy beside a View file could not be removed.");
         }
+    }
+
+    private void PutStrandedCopyInPlace(string temporary, string path)
+    {
+        try
+        {
+            File.Move(temporary, path);
+            logger.LogWarning(
+                "Replacing a View file failed after the original was gone; the new copy was put in its place so the file is not lost.");
+            return;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "The new copy of a View file could not be put in the original's place; it is kept under another name.");
+        }
+
+        var folder = Path.GetDirectoryName(path)!;
+        var stem = Path.GetFileNameWithoutExtension(path);
+        var extension = Path.GetExtension(path);
+        for (var number = 1; number <= 100; number++)
+        {
+            var name = stem + ".tuvima-recovered" + (number == 1 ? "" : "-" + number) + extension;
+            var recovered = Path.Combine(folder, name);
+            try
+            {
+                File.Move(temporary, recovered);
+                logger.LogError(
+                    "Replacing a View file failed after the original was gone, and the new copy could not be put in its place. Its content is kept at {RecoveredPath} (the file was {OriginalPath}).",
+                    recovered, path);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogDebug(ex, "{RecoveredPath} could not be used to keep a recovered View file.", recovered);
+            }
+        }
+
+        _strandedCopies.Add(Path.GetFullPath(temporary));
+        logger.LogError(
+            "Replacing a View file failed after the original was gone, and its new copy could not be moved or renamed. The only copy of the content stays at {CopyPath} (the file was {OriginalPath}) and is never cleared away.",
+            temporary, path);
     }
 
     /// <summary>Clears hidden copies a crash left in this folder: only files of exactly the hidden-copy name, over an hour old, never through a link.</summary>
@@ -476,13 +563,25 @@ public sealed partial class ViewItemFileWriter(
             return;
         }
 
+        IEnumerable<string> candidates;
         try
         {
-            foreach (var candidate in Directory.EnumerateFiles(folder, ViewStorageService.WriteCopyPrefix + "*"))
+            candidates = Directory.EnumerateFiles(folder, ViewStorageService.WriteCopyPrefix + "*").ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Leftover temporary copies in a View folder could not be listed.");
+            return;
+        }
+
+        foreach (var candidate in candidates)
+        {
+            // One leftover that cannot be removed must not stop the others from being cleared.
+            try
             {
                 var info = new FileInfo(candidate);
                 if (info.LinkTarget is not null || info.Attributes.HasFlag(FileAttributes.ReparsePoint)
-                    || !StaleCopyName().IsMatch(info.Name))
+                    || !StaleCopyName().IsMatch(info.Name) || _strandedCopies.Contains(Path.GetFullPath(candidate)))
                 {
                     continue;
                 }
@@ -490,15 +589,27 @@ public sealed partial class ViewItemFileWriter(
                 var newest = info.LastWriteTimeUtc > info.CreationTimeUtc ? info.LastWriteTimeUtc : info.CreationTimeUtc;
                 if (DateTime.UtcNow - newest > StaleCopyAge)
                 {
-                    info.Delete();
+                    DeleteCopy(candidate);
                     logger.LogInformation("Removed a leftover temporary copy beside a View file.");
                 }
             }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "A leftover temporary copy beside a View file could not be removed; the others were still cleared.");
+            }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+    }
+
+    /// <summary>Deletes a hidden copy, clearing the read-only attribute first (a read-only file cannot be deleted on Windows).</summary>
+    private static void DeleteHiddenCopy(string path)
+    {
+        var attributes = File.GetAttributes(path);
+        if (attributes.HasFlag(FileAttributes.ReadOnly))
         {
-            logger.LogDebug(ex, "Leftover temporary copies in a View folder could not be cleared.");
+            File.SetAttributes(path, attributes & ~FileAttributes.ReadOnly);
         }
+
+        File.Delete(path);
     }
 
     [GeneratedRegex(@"^\.tuvima-write-[0-9a-f]{32}(\.[A-Za-z0-9]+)?$")]
@@ -530,8 +641,8 @@ public sealed partial class ViewItemFileWriter(
         }
     }
 
-    /// <summary>The length and modified time the original had when it was checked, to notice an edit made while the copy was written.</summary>
-    private sealed record OriginalSnapshot(long Length, DateTime LastWriteUtc)
+    /// <summary>The length and modified time the original had when it was checked, to notice an edit made while the copy was written; and the creation time and attributes to give the file back after the swap.</summary>
+    private sealed record OriginalSnapshot(long Length, DateTime LastWriteUtc, DateTime CreationUtc, FileAttributes Attributes)
     {
         public bool Matches(string path)
         {

@@ -18,6 +18,7 @@ using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion;
 using MediaEngine.Storage;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using SkiaSharp;
 using UglyToad.PdfPig;
@@ -162,6 +163,47 @@ internal sealed class DeletingThenFailingSwap : IViewFileSwap
         File.Delete(path);
         throw new IOException("simulated failure after the original was removed");
     }
+}
+
+/// <summary>
+/// A swap that takes the original away and leaves a folder in its place, so the copy can be neither moved into the original's place
+/// nor left alone: the last-resort rename is the only way to keep the content.
+/// </summary>
+internal sealed class DeletingThenBlockingSwap : IViewFileSwap
+{
+    public void Replace(string temporary, string path)
+    {
+        File.Delete(path);
+        Directory.CreateDirectory(path);
+        throw new IOException("simulated failure after the original was removed");
+    }
+}
+
+/// <summary>A swap that records what the copy looked like just before it took the original's place, then does the ordinary move.</summary>
+internal sealed class RecordingSwap : IViewFileSwap
+{
+    public DateTime CopyCreationUtc { get; private set; }
+    public FileAttributes CopyAttributes { get; private set; }
+
+    public void Replace(string temporary, string path)
+    {
+        CopyCreationUtc = File.GetCreationTimeUtc(temporary);
+        CopyAttributes = File.GetAttributes(temporary);
+        File.Move(temporary, path, overwrite: true);
+    }
+}
+
+/// <summary>Remembers what was logged, so a test can see that a failure was reported in words.</summary>
+internal sealed class ListLogger : ILogger<ViewItemFileWriter>
+{
+    public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+        Entries.Add((logLevel, formatter(state, exception)));
 }
 
 /// <summary>A swap that fails before touching anything.</summary>
@@ -601,6 +643,200 @@ public sealed class ViewItemFileWriterTests : IDisposable
     }
 
     [Fact]
+    public async Task WhenTheSwapFailsAndTheCopyCannotBePutInPlace_ItIsKeptUnderARecoveredName_AnErrorNamesBothPaths_AndTheSweepNeverClearsIt()
+    {
+        var runner = new MarkerExifToolRunner();
+        _h.UseRunner(runner);
+        var (itemId, path) = await _h.AddAsync("blocked.jpg", ViewWriteHarness.Jpeg(36));
+        var (otherId, _) = await _h.AddAsync("neighbour.jpg", ViewWriteHarness.Jpeg(37));
+        var folder = Path.GetDirectoryName(path)!;
+        var taken = Path.Combine(folder, "blocked.tuvima-recovered.jpg");
+        File.WriteAllBytes(taken, [9, 9, 9]);
+        _h.Writer.FileSwap = new DeletingThenBlockingSwap();
+
+        var result = Assert.Single(await _h.RunAsync(itemId));
+
+        Assert.Equal(WriteBackOutcomeKind.Failed, result.Outcome.Kind);
+        var recovered = Path.Combine(folder, "blocked.tuvima-recovered-2.jpg");
+        Assert.True(File.Exists(recovered), "The only copy of the content must be kept beside the original.");
+        Assert.True(MarkerExifToolRunner.Carries(recovered, ViewWriteHarness.OwnerName));
+        Assert.Equal(new byte[] { 9, 9, 9 }, File.ReadAllBytes(taken));
+        Assert.Empty(_h.TemporaryCopiesBeside(path));
+        var error = Assert.Single(_h.Logger.Entries, entry => entry.Level == LogLevel.Error);
+        Assert.Contains(recovered, error.Message);
+        Assert.Contains(path, error.Message);
+
+        // A later run in the same folder, long after: the recovered copy has a name the sweep never matches.
+        Directory.Delete(path);
+        File.SetLastWriteTimeUtc(recovered, DateTime.UtcNow.AddDays(-3));
+        File.SetCreationTimeUtc(recovered, DateTime.UtcNow.AddDays(-3));
+        _h.Writer.FileSwap = new MoveViewFileSwap();
+        Assert.Equal(WriteBackOutcomeKind.Verified, Assert.Single(await _h.RunAsync(otherId)).Outcome.Kind);
+        Assert.True(File.Exists(recovered));
+    }
+
+    [Fact]
+    public async Task TheCopyDoesNotCarryTheOriginalsOldCreationTimeIntoTheSwap_AndTheFileGetsItBackAfterTheSwap()
+    {
+        var runner = new MarkerExifToolRunner();
+        _h.UseRunner(runner);
+        var (itemId, path) = await _h.AddAsync("aged.jpg", ViewWriteHarness.Jpeg(38));
+        var old = DateTime.UtcNow.AddDays(-30);
+        File.SetCreationTimeUtc(path, old);
+        await _h.Fixture.Service.IndexPathAsync(_h.Fixture.PersonalLibraryId, path, _h.Fixture.OwnerProfileId);
+        var creationCanBeSet = (File.GetCreationTimeUtc(path) - old).Duration() < TimeSpan.FromMinutes(1);
+        var expected = File.GetCreationTimeUtc(path);
+        var swap = new RecordingSwap();
+        _h.Writer.FileSwap = swap;
+
+        var result = Assert.Single(await _h.RunAsync(itemId));
+
+        Assert.Equal(WriteBackOutcomeKind.Verified, result.Outcome.Kind);
+
+        // A copy that looked old at once would be swept as stale while it was the only copy of the file (Windows).
+        Assert.True(DateTime.UtcNow - swap.CopyCreationUtc < ViewItemFileWriter.StaleCopyAge);
+        if (creationCanBeSet)
+        {
+            // Linux cannot set a creation time, so only Windows and macOS check that it is given back.
+            Assert.True((File.GetCreationTimeUtc(path) - expected).Duration() < TimeSpan.FromSeconds(2));
+        }
+    }
+
+    [Fact]
+    public async Task AReadOnlyOriginal_IsKeptInLibraryOnly_WithAPlainReason_AndNeverOpenedForWriting()
+    {
+        var runner = new MarkerExifToolRunner();
+        _h.UseRunner(runner);
+        var (itemId, path) = await _h.AddAsync("locked.jpg", ViewWriteHarness.Jpeg(39));
+        var before = File.ReadAllBytes(path);
+        File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.ReadOnly);
+        try
+        {
+            var result = Assert.Single(await _h.RunAsync(itemId));
+
+            Assert.Equal(WriteBackOutcomeKind.Unsupported, result.Outcome.Kind);
+            Assert.Equal("Kept in Library only: the file is read-only.", result.Outcome.Reason);
+            Assert.Empty(runner.Writes);
+            Assert.Equal(before, File.ReadAllBytes(path));
+            Assert.Empty(_h.TemporaryCopiesBeside(path));
+        }
+        finally
+        {
+            File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly);
+        }
+    }
+
+    [Fact]
+    public async Task AReadOnlyLeftoverCopy_IsStillClearedWhenItIsOld()
+    {
+        var runner = new MarkerExifToolRunner();
+        _h.UseRunner(runner);
+        var (itemId, path) = await _h.AddAsync("sweep.jpg", ViewWriteHarness.Jpeg(42));
+        var leftover = Path.Combine(Path.GetDirectoryName(path)!, ViewStorageService.WriteCopyPrefix + new string('d', 32) + ".jpg");
+        File.WriteAllBytes(leftover, [1, 2, 3]);
+        File.SetLastWriteTimeUtc(leftover, DateTime.UtcNow.AddHours(-3));
+        File.SetCreationTimeUtc(leftover, DateTime.UtcNow.AddHours(-3));
+        File.SetAttributes(leftover, File.GetAttributes(leftover) | FileAttributes.ReadOnly);
+
+        Assert.Equal(WriteBackOutcomeKind.Verified, Assert.Single(await _h.RunAsync(itemId)).Outcome.Kind);
+
+        Assert.False(File.Exists(leftover));
+    }
+
+    [Fact]
+    public async Task OneLeftoverThatCannotBeDeleted_DoesNotStopTheOthersBeingCleared_AndIsReported()
+    {
+        var runner = new MarkerExifToolRunner();
+        _h.UseRunner(runner);
+        var (itemId, path) = await _h.AddAsync("sweep2.jpg", ViewWriteHarness.Jpeg(43));
+        var folder = Path.GetDirectoryName(path)!;
+        var stuck = Path.Combine(folder, ViewStorageService.WriteCopyPrefix + new string('e', 32) + ".jpg");
+        var others = new[] { 'a', 'b', 'c' }
+            .Select(letter => Path.Combine(folder, ViewStorageService.WriteCopyPrefix + new string(letter, 32) + ".jpg"))
+            .ToList();
+        foreach (var file in others.Append(stuck))
+        {
+            File.WriteAllBytes(file, [1, 2, 3]);
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddHours(-3));
+            File.SetCreationTimeUtc(file, DateTime.UtcNow.AddHours(-3));
+        }
+
+        _h.Writer.DeleteCopy = candidate =>
+        {
+            if (string.Equals(candidate, stuck, StringComparison.Ordinal))
+            {
+                throw new UnauthorizedAccessException("simulated: this leftover cannot be deleted");
+            }
+
+            File.Delete(candidate);
+        };
+
+        Assert.Equal(WriteBackOutcomeKind.Verified, Assert.Single(await _h.RunAsync(itemId)).Outcome.Kind);
+
+        Assert.True(File.Exists(stuck));
+        Assert.All(others, file => Assert.False(File.Exists(file)));
+        Assert.Contains(_h.Logger.Entries, entry => entry.Level == LogLevel.Warning && entry.Message.Contains("could not be removed"));
+    }
+
+    [Theory]
+    [InlineData("failed", false)]
+    [InlineData("planned", true)]
+    [InlineData("transferring", true)]
+    [InlineData("cleanup_pending", true)]
+    public async Task OnlyATransferStillInFlightMakesTheFileWait_AFailedOneNeverBlocksTheWrite(string state, bool waits)
+    {
+        var runner = new MarkerExifToolRunner();
+        _h.UseRunner(runner);
+        var (personalId, _) = await _h.AddAsync("flight.jpg", ViewWriteHarness.Jpeg(44));
+        await _h.Transfers.ExecuteAsync(personalId, _h.Fixture.OwnerProfileId, "timeline", null, copyOnly: true);
+        var sharedId = _h.SharedItemOf(personalId);
+        _h.SetTransferState(personalId, state);
+
+        var result = Assert.Single(await _h.RunAsync(sharedId));
+
+        Assert.Equal(waits, result.ReadAgainFirst);
+        Assert.Equal(waits ? WriteBackOutcomeKind.Failed : WriteBackOutcomeKind.Verified, result.Outcome.Kind);
+        Assert.Equal(waits ? 0 : 1, runner.Writes.Count);
+    }
+
+    [Fact]
+    public async Task AnotherItemOfTheSameLibraryThatUsesTheSameFile_FollowsTheWrittenFile_WhenTheRecordIsSplit()
+    {
+        var runner = new MarkerExifToolRunner();
+        _h.UseRunner(runner);
+        var (stillId, _) = await _h.AddAsync("live.jpg", ViewWriteHarness.Jpeg(45));
+        var (videoId, videoPath) = await _h.AddAsync("live-video.jpg", ViewWriteHarness.Jpeg(46));
+        var otherLibrary = _h.AddSecondPlaceFor(videoId, Path.Combine(Path.GetDirectoryName(videoPath)!, "elsewhere.jpg"));
+        var oldHash = _h.RecordedHash(videoId);
+        using (var connection = _h.Fixture.Database.CreateConnection())
+        {
+            // The still holds the video's file as its Live Photo video, as well as the video being an item of its own.
+            connection.Execute("""
+                INSERT INTO local_item_files (item_id, file_id, role, position, added_at)
+                SELECT @stillId, file_id, 'live_photo_video', 0, @now FROM local_item_files WHERE item_id = @videoId AND role = 'primary';
+                """, new { stillId, videoId, now = DateTimeOffset.UtcNow });
+        }
+
+        var result = Assert.Single(await _h.RunAsync(videoId));
+
+        Assert.Equal(WriteBackOutcomeKind.Verified, result.Outcome.Kind);
+        var writtenHash = ViewWriteHarness.Sha256(videoPath);
+        Assert.Equal(writtenHash, _h.RecordedHash(videoId));
+        using var check = _h.Fixture.Database.CreateConnection();
+        var stillsRecord = check.QuerySingle<Guid>(
+            "SELECT file_id FROM local_item_files WHERE item_id = @stillId AND role = 'live_photo_video';", new { stillId });
+        Assert.Equal(
+            writtenHash,
+            check.ExecuteScalar<string>("SELECT content_hash FROM local_files WHERE id = @stillsRecord;", new { stillsRecord }));
+        Assert.Equal(
+            1,
+            check.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM local_file_sources WHERE file_id = @stillsRecord AND library_id = @library;",
+                new { stillsRecord, library = _h.Fixture.PersonalLibraryId }));
+        Assert.Equal(oldHash, _h.HashRecordedForPlace(otherLibrary, Path.Combine(Path.GetDirectoryName(videoPath)!, "elsewhere.jpg")));
+    }
+
+    [Fact]
     public async Task AFileEditedWhileItsCopyIsBeingWritten_IsNeverOverwritten_AndIsReadAgainFirst()
     {
         var runner = new MarkerExifToolRunner();
@@ -825,7 +1061,7 @@ public sealed class ViewItemFileWriterTests : IDisposable
     }
 
     [Fact]
-    public async Task WhenAnotherFileAlreadyHasTheNewFingerprint_TheOldOneIsKeptAndThePathIsStillMarkedAsSeen()
+    public async Task WhenAnotherFileAlreadyHasTheNewFingerprint_ThePathJoinsThatRecord_AndTheUnusedOldRecordIsDeleted()
     {
         var (firstId, _) = await _h.AddAsync("one.docx", OfficeFiles.Make("docx", "One"));
         var (secondId, _) = await _h.AddAsync("two.docx", OfficeFiles.Make("docx", "Two"));
@@ -837,10 +1073,37 @@ public sealed class ViewItemFileWriterTests : IDisposable
         var recorded = await _h.Files.RecordOwnWriteAsync(
             firstId, target!.FileId!.Value, target.LibraryId, target.FilePath!, otherHash, 123, newTime);
 
-        Assert.False(recorded);
-        Assert.Equal(oldHash, _h.RecordedHash(firstId));
+        Assert.True(recorded);
+        Assert.Equal(otherHash, _h.RecordedHash(firstId));
         Assert.Equal(otherHash, _h.RecordedHash(secondId));
+        Assert.Equal(0, _h.FileRecordsWithHash(oldHash));
+        Assert.Equal(1, _h.FileRecordsWithHash(otherHash));
         Assert.Equal(newTime.ToUnixTimeSeconds(), (await _h.Files.GetTargetAsync(firstId))!.ModifiedAt!.Value.ToUnixTimeSeconds());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task APhotoAndItsSharedCopyWrittenInOneRun_BothEndOnRecordsThatMatchTheirFiles(bool sharedFirst)
+    {
+        var runner = new MarkerExifToolRunner();
+        _h.UseRunner(runner);
+        var (personalId, personalPath) = await _h.AddAsync("pair.jpg", ViewWriteHarness.Jpeg(41));
+        var originalHash = _h.RecordedHash(personalId);
+        await _h.Transfers.ExecuteAsync(personalId, _h.Fixture.OwnerProfileId, "timeline", null, copyOnly: true);
+        var sharedId = _h.SharedItemOf(personalId);
+        var sharedPath = (await _h.Files.GetTargetAsync(sharedId))!.FilePath!;
+
+        var results = sharedFirst ? await _h.RunAsync(sharedId, personalId) : await _h.RunAsync(personalId, sharedId);
+
+        Assert.All(results, result => Assert.Equal(WriteBackOutcomeKind.Verified, result.Outcome.Kind));
+        Assert.True(MarkerExifToolRunner.Carries(personalPath, ViewWriteHarness.OwnerName));
+        Assert.True(MarkerExifToolRunner.Carries(sharedPath, ViewWriteHarness.OwnerName));
+        Assert.Equal(ViewWriteHarness.Sha256(personalPath), _h.RecordedHash(personalId));
+        Assert.Equal(ViewWriteHarness.Sha256(sharedPath), _h.RecordedHash(sharedId));
+        Assert.Equal(new FileInfo(personalPath).Length, _h.RecordedSize(personalId));
+        Assert.Equal(new FileInfo(sharedPath).Length, _h.RecordedSize(sharedId));
+        Assert.Equal(0, _h.FileRecordsWithHash(originalHash));
     }
 
     [Theory]
@@ -944,6 +1207,7 @@ internal sealed class ViewWriteHarness : IDisposable
     }
 
     public ViewLibraryServiceTests.ViewFixture Fixture { get; }
+    public ListLogger Logger { get; } = new();
     public RecordingFileWriteQueue Queue { get; }
     public ViewItemFileWriteRepository Files { get; }
 
@@ -956,7 +1220,7 @@ internal sealed class ViewWriteHarness : IDisposable
         _runner,
         Fixture.Service,
         Fixture.Configuration,
-        NullLogger<ViewItemFileWriter>.Instance);
+        Logger);
 
     public void Dispose()
     {
@@ -1039,6 +1303,21 @@ internal sealed class ViewWriteHarness : IDisposable
             SELECT lf.content_hash FROM local_item_files lif JOIN local_files lf ON lf.id = lif.file_id
              WHERE lif.item_id = @itemId AND lif.role = 'primary';
             """, new { itemId })!;
+    }
+
+    public long RecordedSize(Guid itemId)
+    {
+        using var connection = Fixture.Database.CreateConnection();
+        return connection.ExecuteScalar<long>("""
+            SELECT lf.byte_size FROM local_item_files lif JOIN local_files lf ON lf.id = lif.file_id
+             WHERE lif.item_id = @itemId AND lif.role = 'primary';
+            """, new { itemId });
+    }
+
+    public int FileRecordsWithHash(string hash)
+    {
+        using var connection = Fixture.Database.CreateConnection();
+        return connection.ExecuteScalar<int>("SELECT COUNT(*) FROM local_files WHERE content_hash = @hash COLLATE NOCASE;", new { hash });
     }
 
     public IReadOnlyList<Guid> AllItemIds()

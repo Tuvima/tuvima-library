@@ -1,5 +1,7 @@
 using Dapper;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Storage;
 
@@ -8,8 +10,11 @@ namespace MediaEngine.Storage;
 /// and library it sits in, who added it, and the fingerprint Library recorded for it. After Library writes into the file it records
 /// the new fingerprint here (D8), so the file is not taken for a new or changed one.
 /// </summary>
-public sealed class ViewItemFileWriteRepository(IDatabaseConnection database)
+public sealed class ViewItemFileWriteRepository(
+    IDatabaseConnection database, ILogger<ViewItemFileWriteRepository>? logger = null)
 {
+    private readonly ILogger _logger = (ILogger?)logger ?? NullLogger.Instance;
+
     /// <summary>
     /// SQL for the number of items in a folder whose file was left as it is because its kind cannot hold the profile name. The column
     /// to compare with is the folder's <c>view_sources.id</c>.
@@ -37,7 +42,7 @@ public sealed class ViewItemFileWriteRepository(IDatabaseConnection database)
                    (SELECT COUNT(*) FROM local_file_sources own WHERE own.file_id = lf.id AND own.library_id = li.library_id) AS PlacesInLibrary,
                    (SELECT COUNT(*) FROM local_file_sources away WHERE away.file_id = lf.id AND away.library_id <> li.library_id) AS PlacesElsewhere,
                    EXISTS (SELECT 1 FROM view_shared_transfers t
-                            WHERE t.state <> 'completed'
+                            WHERE t.state IN ('planned', 'transferring', 'cleanup_pending')
                               AND (t.item_id = li.id
                                    OR t.item_id IN (SELECT sa.origin_item_id FROM view_shared_assets sa WHERE sa.item_id = li.id))) AS TransferNotFinished
               FROM local_items li
@@ -56,11 +61,12 @@ public sealed class ViewItemFileWriteRepository(IDatabaseConnection database)
     /// always updated, so the file is not read again as a changed one.
     /// <list type="bullet">
     ///   <item>When this path is the file record's only place, the record takes the new fingerprint. If another record already holds
-    ///   that fingerprint (the file is now byte for byte a file Library already knows) the record keeps its old one and this returns false;
-    ///   the next look at the folder joins the path to the other record through the ordinary duplicate handling.</item>
+    ///   that fingerprint (the file is now byte for byte a file Library already knows, as the second copy of a shared photo is) this
+    ///   path and this library's items move to that record, and the old record is deleted once nothing uses it.</item>
     ///   <item>When the record's other places are all in other libraries (a shared copy of a personal photo, a photo shared from a
-    ///   Read-only folder), the record is split: this path and this item move to a record with the new fingerprint (the one that already
-    ///   has it, or a new one), and the other libraries keep the old record and the old bytes they still have.</item>
+    ///   Read-only folder), the record is split: this path and every item of this library that uses the record (the item itself, and an
+    ///   item that holds the same file in another role, such as a Live Photo's video) move to a record with the new fingerprint (the
+    ///   one that already has it, or a new one), and the other libraries keep the old record and the old bytes they still have.</item>
     ///   <item>When another place is in the same library, nothing is changed (the file is a duplicate Library keeps as it is) and this
     ///   returns false.</item>
     /// </list>
@@ -83,26 +89,25 @@ public sealed class ViewItemFileWriteRepository(IDatabaseConnection database)
                 """, new { fileId, libraryId, filePath }, transaction).ToList();
             if (places.Contains(libraryId))
             {
+                _logger.LogInformation(
+                    "The file of View item {ItemId} is also kept at another place in the same library, so its record keeps the old fingerprint.",
+                    itemId);
                 return false;
             }
 
             var holder = connection.QueryFirstOrDefault<Guid?>(
                 "SELECT id FROM local_files WHERE content_hash = @hash COLLATE NOCASE AND id <> @fileId;",
                 new { hash, fileId }, transaction);
-            if (places.Count == 0)
+            if (places.Count == 0 && holder is null)
             {
-                if (holder is not null)
-                {
-                    return false;
-                }
-
                 connection.Execute(
                     "UPDATE local_files SET content_hash = @hash, byte_size = @byteSize WHERE id = @fileId;",
                     new { hash, byteSize, fileId }, transaction);
                 return true;
             }
 
-            // The other places are in other libraries: they keep the old record (and the old bytes they hold); this path moves on.
+            // Either the new fingerprint is already a record of its own, or the other places are in other libraries (they keep the old
+            // record and the old bytes they hold). This path moves on to the record that has the new fingerprint.
             var target = holder;
             if (target is null)
             {
@@ -117,9 +122,31 @@ public sealed class ViewItemFileWriteRepository(IDatabaseConnection database)
                 UPDATE local_file_sources SET file_id = @target
                  WHERE file_id = @fileId AND library_id = @libraryId AND file_path = @filePath COLLATE NOCASE;
                 """, new { target, fileId, libraryId, filePath }, transaction);
-            connection.Execute(
-                "UPDATE OR IGNORE local_item_files SET file_id = @target WHERE item_id = @itemId AND file_id = @fileId;",
-                new { target, itemId, fileId }, transaction);
+
+            // Every item of this library that uses the old record follows the path (a Live Photo's video that is also its own item), or
+            // it would be left holding a record with no place in this library.
+            connection.Execute("""
+                UPDATE OR IGNORE local_item_files SET file_id = @target
+                 WHERE file_id = @fileId
+                   AND item_id IN (SELECT id FROM local_items WHERE library_id = @libraryId);
+                """, new { target, fileId, libraryId }, transaction);
+            var leftBehind = connection.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM local_item_files WHERE item_id = @itemId AND file_id = @fileId;",
+                new { itemId, fileId }, transaction);
+            if (leftBehind > 0)
+            {
+                _logger.LogWarning(
+                    "The file of View item {ItemId} could not be moved to its new record because the item already holds that record in the same role; the item keeps the old record.",
+                    itemId);
+            }
+
+            // The old record goes once nothing uses it (the second copy of a shared photo leaves the first one's record unused).
+            connection.Execute("""
+                DELETE FROM local_files
+                 WHERE id = @fileId
+                   AND NOT EXISTS (SELECT 1 FROM local_file_sources WHERE file_id = @fileId)
+                   AND NOT EXISTS (SELECT 1 FROM local_item_files WHERE file_id = @fileId);
+                """, new { fileId }, transaction);
             return true;
         }, ct);
 }
