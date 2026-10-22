@@ -1384,8 +1384,8 @@ public static partial class ViewEndpoints
             var documents = await MayUseDocumentsAsync(authority, preferences, ct);
             var blocked = await BlockedKindsAsync(authority, preferences, ct);
             return Results.Ok(new ViewGalleryListResponse(
-                (await repository.GetOwnedAsync(profileId, documents, ct, blocked)).Where(gallery => documents || !IsDocumentView(gallery)).Select(gallery => ToContract(gallery, documents, assets)).ToList(),
-                (await repository.GetSharedWithAsync(profileId, documents, ct, blocked)).Where(gallery => documents || !IsDocumentView(gallery)).Select(gallery => ToContract(gallery, documents, assets)).ToList()));
+                (await repository.GetOwnedAsync(profileId, documents, ct, blocked)).Where(gallery => documents || !IsDocumentView(gallery)).Select(gallery => ToContract(gallery, blocked, assets)).ToList(),
+                (await repository.GetSharedWithAsync(profileId, documents, ct, blocked)).Where(gallery => documents || !IsDocumentView(gallery)).Select(gallery => ToContract(gallery, blocked, assets)).ToList()));
         }).WithName("GetViewGalleries").Produces<ViewGalleryListResponse>();
 
         group.MapPost("/galleries", async (ViewGalleryRequest request,
@@ -1405,7 +1405,8 @@ public static partial class ViewEndpoints
                 return DocumentsNotAllowed();
             }
 
-            if (!documents && DocumentCoverRefusal(assets, request.CoverItemId, profileId) is { } coverRefusal)
+            var blocked = await BlockedKindsAsync(authority, preferences, ct);
+            if (BlockedCoverRefusal(assets, request.CoverItemId, blocked) is { } coverRefusal)
             {
                 return coverRefusal;
             }
@@ -1430,7 +1431,7 @@ public static partial class ViewEndpoints
                     profileId, space.Id, request.Name, request.Kind,
                     request.Description, request.SmartRuleJson, request.CoverItemId,
                     request.SortOrder, request.SoundtrackPlaylistId), ct);
-                return Results.Created($"/view/galleries/{gallery.Id:D}", ToContract(gallery, documents, assets));
+                return Results.Created($"/view/galleries/{gallery.Id:D}", ToContract(gallery, blocked, assets));
             }
             catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
             {
@@ -1448,11 +1449,12 @@ public static partial class ViewEndpoints
             {
                 var galleryAuthority = await identity.ResolveAuthorityAsync(ct);
                 var documents = await MayUseDocumentsAsync(galleryAuthority, preferences, ct);
-                if (await repository.GetAsync(id, documents, ct, await BlockedKindsAsync(galleryAuthority, preferences, ct)) is { } gallery)
+                var blocked = await BlockedKindsAsync(galleryAuthority, preferences, ct);
+                if (await repository.GetAsync(id, documents, ct, blocked) is { } gallery)
                 {
                     return IsDocumentView(gallery) && !documents
                         ? DocumentsNotAllowed()
-                        : Results.Ok(ToContract(gallery, documents, assets));
+                        : Results.Ok(ToContract(gallery, blocked, assets));
                 }
             }
 
@@ -1472,27 +1474,26 @@ public static partial class ViewEndpoints
 
             var authority = await identity.ResolveAuthorityAsync(ct);
             var documents = await MayUseDocumentsAsync(authority, preferences, ct);
+            var blocked = await BlockedKindsAsync(authority, preferences, ct);
             var existing = await repository.GetAsync(id, documents, ct);
             var coverItemId = request.CoverItemId;
-            if (!documents)
+            if (!documents
+                && (request.Kind == ViewGalleryKind.Smart && ViewSmartGalleryRules.IsDocumentView(request.SmartRuleJson)
+                    || existing is not null && IsDocumentView(existing)))
             {
-                if (request.Kind == ViewGalleryKind.Smart && ViewSmartGalleryRules.IsDocumentView(request.SmartRuleJson)
-                    || existing is not null && IsDocumentView(existing))
-                {
-                    return DocumentsNotAllowed();
-                }
+                return DocumentsNotAllowed();
+            }
 
-                if (DocumentCoverRefusal(assets, coverItemId, authority.ActiveProfileId ?? Guid.Empty) is { } coverRefusal)
-                {
-                    return coverRefusal;
-                }
+            if (BlockedCoverRefusal(assets, coverItemId, blocked) is { } coverRefusal)
+            {
+                return coverRefusal;
+            }
 
-                // This profile is never told about a document cover (it reads as none), so saving the Gallery with
-                // "no cover" must not wipe the one the owner chose.
-                if (coverItemId is null && existing?.CoverItemId is { } stored && assets.IsDocument(stored))
-                {
-                    coverItemId = stored;
-                }
+            // This profile is never told about a cover of a kind it may not use (it reads as none), so saving the
+            // Gallery with "no cover" must not wipe the one the owner chose.
+            if (coverItemId is null && existing?.CoverItemId is { } stored && IsBlockedKind(assets, stored, blocked))
+            {
+                coverItemId = stored;
             }
 
             try
@@ -1503,8 +1504,9 @@ public static partial class ViewEndpoints
                     request.SortOrder, request.SoundtrackPlaylistId), ct);
                 // The answer counts only what this profile may see, like every other read of the Gallery.
                 return gallery is null ? Missing()
-                    : Results.Ok(ToContract(documents ? gallery : await repository.GetAsync(id, documents, ct) ?? gallery,
-                        documents, assets));
+                    : Results.Ok(ToContract(documents && blocked.Count == 0
+                        ? gallery
+                        : await repository.GetAsync(id, documents, ct, blocked) ?? gallery, blocked, assets));
             }
             catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
             {
@@ -1553,16 +1555,14 @@ public static partial class ViewEndpoints
             }
 
             var authority = await identity.ResolveAuthorityAsync(ct);
-            var documents = await MayUseDocumentsAsync(authority, preferences, ct);
-            try { return Results.Ok(ToContract(await repository.AddItemsAsync(id, request.ItemIds, documents, ct))); }
+            var blocked = await BlockedKindsAsync(authority, preferences, ct);
+            try { return Results.Ok(ToContract(await repository.AddItemsAsync(id, request.ItemIds, blocked, ct))); }
             catch (UnauthorizedAccessException)
             {
-                // Only the Gallery's owner is told why their own document is refused. Anyone else with Contribute or
-                // Manage gets the answer they would get for an id that is not in the owner's space, so the answer
-                // never confirms that an id is a document.
-                return await repository.GetAsync(id, documents, ct) is { } gallery && gallery.OwnerProfileId == authority.ActiveProfileId
-                    ? DocumentsNotAllowed()
-                    : ApiErrors.BadRequest(UnknownGalleryItemMessage);
+                // An item of a kind this profile may not use (Photos, Personal videos or Documents) gets the answer for
+                // an id that is not in the owner's space, for everyone including the owner, so the answer never
+                // confirms that an id is of that kind.
+                return ApiErrors.BadRequest(UnknownGalleryItemMessage);
             }
             catch (InvalidOperationException exception) { return ApiErrors.BadRequest(exception.Message); }
         }).WithName("AddViewGalleryItems").Produces<AddViewGalleryItemsResponseDto>();
@@ -1963,27 +1963,36 @@ public static partial class ViewEndpoints
             value.DocumentsSort);
 
     /// <summary>
-    /// A Gallery's cover is an item id. A profile that may not use Documents is never handed the id of a document
-    /// (the Dashboard would fall back to the Gallery's first photo).
+    /// A Gallery's cover is an item id. A profile is never handed the id of an item whose View kind it may not use
+    /// (the Dashboard would fall back to the Gallery's first visible item).
     /// </summary>
-    internal static ViewGalleryDto ToContract(ViewGallery value, bool documents, ILocalAssetRepository assets) =>
+    internal static ViewGalleryDto ToContract(ViewGallery value, IReadOnlyCollection<string> blockedKinds, ILocalAssetRepository assets) =>
         new(value.Id, value.OwnerProfileId, value.PersonalSpaceId, value.Name,
             value.Description, value.Kind, value.SmartRuleJson,
-            !documents && value.CoverItemId is { } cover && assets.IsDocument(cover) ? null : value.CoverItemId,
+            value.CoverItemId is { } cover && IsBlockedKind(assets, cover, blockedKinds) ? null : value.CoverItemId,
             value.SortOrder, value.ItemCount, value.CreatedAt, value.UpdatedAt, value.SoundtrackPlaylistId);
 
     /// <summary>What a Gallery add answers (400) for an id that is not in the Gallery owner's Personal Space.</summary>
     private const string UnknownGalleryItemMessage = "Every Gallery item must belong to the Gallery owner's Personal Space.";
 
     /// <summary>
-    /// A profile without Documents cannot name a document as a Gallery cover. The person whose document it is is told
-    /// plainly (403); anyone else gets the answer for a cover that is not in the owner's space (400).
+    /// True when the item's View kind is one the profile may not use. An item with no kind yet counts as Documents when
+    /// it is a document.
     /// </summary>
-    private static IResult? DocumentCoverRefusal(ILocalAssetRepository assets, Guid? coverItemId, Guid actorProfileId) =>
-        coverItemId is { } cover && assets.Find(cover) is { MediaKind: LocalAssetMediaKinds.Document } item
-            ? item.OwnerProfileId == actorProfileId
-                ? DocumentsNotAllowed()
-                : ApiErrors.BadRequest("Gallery cover must belong to its owner's Personal Space.")
+    private static bool IsBlockedKind(ILocalAssetRepository assets, Guid itemId, IReadOnlyCollection<string> blockedKinds) =>
+        blockedKinds.Count > 0
+        && (assets.GetContentKind(itemId) is { } kind
+            ? blockedKinds.Contains(kind)
+            : blockedKinds.Contains(ViewContentKinds.Documents) && assets.IsDocument(itemId));
+
+    /// <summary>
+    /// A profile cannot name an item of a kind it may not use as a Gallery cover. Everyone, the item's owner included,
+    /// gets the answer for a cover that is not in the owner's space (400), so the answer never confirms the item's kind.
+    /// </summary>
+    private static IResult? BlockedCoverRefusal(ILocalAssetRepository assets, Guid? coverItemId,
+        IReadOnlyCollection<string> blockedKinds) =>
+        coverItemId is { } cover && IsBlockedKind(assets, cover, blockedKinds)
+            ? ApiErrors.BadRequest("Gallery cover must belong to its owner's Personal Space.")
             : null;
 
     private static ViewGalleryItemPageDto ToContract(ViewGalleryItemPage value) =>
