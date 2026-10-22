@@ -112,6 +112,9 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<IReadOnlyList<BrowseLibraryDto>?> GetBrowseLibrariesAsync(CancellationToken ct = default) =>
+        await GetAsync<List<BrowseLibraryDto>>("GET /api/v1/display/browse/libraries", "/api/v1/display/browse/libraries", ct: ct);
+
     public async Task<DisplayPageDto?> GetDisplayContinueAsync(
         string? lane = null,
         string? mediaType = null,

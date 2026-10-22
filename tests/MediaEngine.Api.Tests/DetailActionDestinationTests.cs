@@ -28,6 +28,7 @@ public sealed class DetailActionDestinationTests : IDisposable
         "status-complete", "status-reset", "status-hide", "status-show", "status-history",
         "edit", "edit-media", "my-list",
         "reaction-dislike", "reaction-like", "reaction-love", "details", "identify", "change-thumbnail", "delete-from-library",
+        "unmatched-retry", "unmatched-keep", "unmatched-look-up-again",
     ];
 
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_detail_actions_{Guid.NewGuid():N}.db");

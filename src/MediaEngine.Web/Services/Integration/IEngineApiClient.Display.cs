@@ -37,6 +37,12 @@ public partial interface IEngineApiClient
         bool? unmatched = null);
 
     /// <summary>
+    /// GET /api/v1/display/browse/libraries - the libraries the signed-in profile may browse, one browse tab each (Watch, Listen and Read only).
+    /// Returns null when the list cannot be read, so the lanes fall back to their fixed tabs.
+    /// </summary>
+    Task<IReadOnlyList<BrowseLibraryDto>?> GetBrowseLibrariesAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// GET /api/v1/display/continue - compact in-progress cards for one lane and optional media type.
     /// </summary>
     Task<DisplayPageDto?> GetDisplayContinueAsync(
