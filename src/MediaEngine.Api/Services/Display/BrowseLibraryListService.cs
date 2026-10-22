@@ -5,8 +5,9 @@ using MediaEngine.Domain.Contracts;
 namespace MediaEngine.Api.Services.Display;
 
 /// <summary>
-/// The libraries the signed-in profile may browse, one per browse tab (Library setup spec D54). The profile's own library grants decide
-/// (an administrator holds every library), the same rule the catalogue read applies to works; the Vault and the View area are never listed.
+/// The libraries the signed-in profile may browse, one per browse tab (Library setup spec D54). The catalogue read decides, with the same
+/// rule it applies to works: library grants (an administrator holds every library), the lane's feature (Watch, Listen or Read), the
+/// content limit's video rule and the Vault. The View area is never listed.
 /// </summary>
 public sealed class BrowseLibraryListService(
     IDisplayProjectionReadService display,
@@ -19,13 +20,7 @@ public sealed class BrowseLibraryListService(
 
     public async Task<IReadOnlyList<BrowseLibraryDto>> ListAsync(CancellationToken ct)
     {
-        // Scope first: a caller who may browse nothing never causes the library list to be read.
-        var scope = await display.LoadLibraryScopeAsync(ct).ConfigureAwait(false);
-        if (!scope.AllLibraries && scope.Libraries.Count == 0)
-        {
-            return [];
-        }
-
+        var access = await display.LoadLibraryAccessAsync(ct).ConfigureAwait(false);
         var vaultIds = await vault.GetIdsAsync(ct).ConfigureAwait(false);
         var kinds = (kindSource?.GetKinds() ?? configuration.LoadLibraryKinds().Kinds)
             .GroupBy(kind => kind.Key, StringComparer.Ordinal)
@@ -35,13 +30,13 @@ public sealed class BrowseLibraryListService(
             .Where(library => library.Kind == LibraryKinds.Catalogued
                 && Array.IndexOf(Areas, library.Area) >= 0
                 && !vaultIds.Contains(library.Id)
-                && Guid.TryParse(library.Id, out var id)
-                && (scope.AllLibraries || scope.Libraries.Contains(id)))
+                && Guid.TryParse(library.Id, out _))
             .Select(library =>
             {
                 kinds.TryGetValue(library.KindKey, out var kind);
-                return (Library: library, Kind: kind);
+                return (Library: library, Kind: kind, MediaType: kind?.Format ?? library.MediaTypes.FirstOrDefault() ?? string.Empty);
             })
+            .Where(entry => access.Allows(entry.Library.Id, entry.MediaType))
             .OrderBy(entry => Array.IndexOf(Areas, entry.Library.Area))
             .ThenBy(entry => entry.Kind?.Order ?? int.MaxValue)
             .ThenBy(entry => entry.Library.Name, StringComparer.CurrentCultureIgnoreCase)
@@ -50,7 +45,7 @@ public sealed class BrowseLibraryListService(
                 entry.Library.Name,
                 entry.Library.KindKey,
                 entry.Library.Area,
-                entry.Kind?.Format ?? entry.Library.MediaTypes.FirstOrDefault() ?? string.Empty,
+                entry.MediaType,
                 entry.Library.ScannableSources.Any()))
             .ToList();
     }

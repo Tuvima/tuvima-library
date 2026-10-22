@@ -31,6 +31,22 @@ public interface IDisplayProjectionReadService
 
     /// <summary>Which libraries the current request may see files from. Unscoped sources allow every library.</summary>
     Task<DisplayLibraryScope> LoadLibraryScopeAsync(CancellationToken ct) => Task.FromResult(DisplayLibraryScope.All);
+
+    /// <summary>
+    /// Which libraries the current request may browse: the same rule that decides which works it sees (library grants, the lane's feature,
+    /// the content limit's video rule, the Vault), asked of a whole library instead of one work. Unscoped sources allow every library.
+    /// </summary>
+    Task<DisplayLibraryAccess> LoadLibraryAccessAsync(CancellationToken ct) => Task.FromResult(DisplayLibraryAccess.Everything);
+}
+
+/// <summary>Whether a request may browse a library, given the library's id and the media type it holds.</summary>
+public sealed class DisplayLibraryAccess(Func<string, string, bool> allows)
+{
+    public static readonly DisplayLibraryAccess Everything = new((_, _) => true);
+
+    public static readonly DisplayLibraryAccess Nothing = new((_, _) => false);
+
+    public bool Allows(string libraryId, string mediaType) => allows(libraryId, mediaType);
 }
 
 /// <summary>The libraries a request may see: every library, or exactly the granted ones.</summary>

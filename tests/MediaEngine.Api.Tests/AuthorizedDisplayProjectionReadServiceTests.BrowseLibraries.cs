@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
@@ -93,6 +94,21 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         Assert.DoesNotContain(libraries, library => library.Id == HiddenVaultLibrary);
         Assert.DoesNotContain(libraries, library => library.Name == "Private");
+    }
+
+    [Fact]
+    public async Task BrowseLibraries_AProfileWithoutTheListenFeature_GetsNoListenLibraries_ButKeepsTheOtherLanes()
+    {
+        var account = Guid.NewGuid();
+        await CreateHumanAsync(
+            account,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Watch, AccountFeatureId.Read },
+            new HashSet<Guid> { MoviesLibrary, MusicLibrary, BooksLibrary });
+
+        var libraries = await CreateBrowseLibraryList(account).ListAsync(default);
+
+        Assert.DoesNotContain(libraries, library => library.Area == "listen");
+        Assert.Equal([MoviesLibrary, BooksLibrary], libraries.Select(library => library.Id).ToArray());
     }
 
     [Fact]

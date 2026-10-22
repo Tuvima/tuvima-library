@@ -63,6 +63,15 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         return scope.IsValid ? new DisplayLibraryScope(scope.AllLibraries, scope.Libraries) : new DisplayLibraryScope(false, new HashSet<Guid>());
     }
 
+    public async Task<DisplayLibraryAccess> LoadLibraryAccessAsync(CancellationToken ct)
+    {
+        var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
+        return scope.IsValid
+            ? new DisplayLibraryAccess((libraryId, mediaType) =>
+                !scope.Content.IsVaultLibrary(libraryId) && AllowsLibraryFile(libraryId, mediaType, scope))
+            : DisplayLibraryAccess.Nothing;
+    }
+
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadDetailWorksAsync(Guid id, CancellationToken ct) =>
         FilterWorks(await inner.LoadDetailWorksAsync(id, ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
 
@@ -284,8 +293,11 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     /// Watch feature, so a person can play what they find in the Vault area.
     /// </summary>
     private static bool AllowsFile(string? libraryId, string mediaType, string? contentRating, CatalogueScope scope) =>
+        scope.Content.Allows(contentRating) && AllowsLibraryFile(libraryId, mediaType, scope);
+
+    /// <summary>The part of <see cref="AllowsFile"/> that depends on the library, not the file's rating: also what decides whether a library may be listed.</summary>
+    private static bool AllowsLibraryFile(string? libraryId, string mediaType, CatalogueScope scope) =>
         !scope.Content.HidesLibrary(libraryId)
-        && scope.Content.Allows(contentRating)
         && scope.Content.AllowsVideo(libraryId, mediaType)
         && AllowsLibraryAndFeature(libraryId, mediaType, scope);
 
