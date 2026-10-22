@@ -61,8 +61,8 @@ Never guess silently. Name the options and the trade-off, and ask which matters 
 
 ## Asking Shy questions (Shy, 2026-10-22)
 
-When a message ends with questions or decisions, structure it so each can be settled quickly:
+When a message ends with questions or decisions, Shy should never have to scroll back to find the context:
 
-1. **Questions first.** A short numbered list, one line per question, each with lettered options (A, B, C) and the recommended one marked, so Shy can answer with codes like "1A, 2B, 3a-A". Split a question with several independent choices into sub-questions (3a, 3b). Say which work each question blocks.
-2. **Details after, one section per question.** What it is about and why it came up, what each option looks like to the person using Library (a concrete example or user journey), the trade-off in product terms, and why the recommendation. If a recommendation changed from an earlier message, say so and why.
-3. Keep the details plain English, no code names unless needed to find something.
+1. **Context first, short.** One brief paragraph per question, numbered to match: what it is about, what each option means for the person using Library (one concrete example), the trade-off, and the recommendation with its reason. If a recommendation changed from an earlier message, say so.
+2. **Questions at the very end, succinct.** The last thing in the message is a numbered list, one line per question, each with lettered options (A, B, C) of a few words and the recommended one marked, so Shy can answer with codes like "1A, 2B". Split independent choices into sub-questions (3a, 3b). Nothing follows the list.
+3. Plain English throughout; no code names unless needed to find something.
