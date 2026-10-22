@@ -388,6 +388,61 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal(0, await TotalAsync($"?lane=watch&mediaType=Movie&libraryId={LecturesLibrary:D}&unmatched=true"));
     }
 
+    // Not async: the request context lives in an async-local the service reads later, so it must be set in the caller's own flow.
+    private Task<IReadOnlySet<Guid>> NarrowedWorkIdsAsync(Guid account, Guid? library, bool unmatchedOnly) =>
+        BrowseNarrowing.VisibleWorkIdsAsync(
+            CreateService(HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId), RealReaders()),
+            new UnmatchedAssetRepository(_database),
+            library,
+            unmatchedOnly,
+            default);
+
+    [Fact]
+    public async Task GroupNarrowing_TheLibraryFilter_KeepsOnlyThatLibrarysWorks_AndOnlyOnesTheProfileMaySee()
+    {
+        var admin = Guid.NewGuid();
+        await CreateHumanAsync(admin, EveryFeature, new HashSet<Guid>(), administrator: true);
+        var inMovies = await InsertOwnedWorkWithIdAsync(MoviesLibrary, "Film", "Movie");
+        var inLectures = await InsertOwnedWorkWithIdAsync(LecturesLibrary, "Lecture", "Movie");
+
+        Assert.Equal(new[] { inMovies.WorkId, inLectures.WorkId }.Order(), (await NarrowedWorkIdsAsync(admin, null, false)).Order());
+        Assert.Equal([inMovies.WorkId], (await NarrowedWorkIdsAsync(admin, MoviesLibrary, false)).ToArray());
+        Assert.Equal([inLectures.WorkId], (await NarrowedWorkIdsAsync(admin, LecturesLibrary, false)).ToArray());
+
+        var limited = Guid.NewGuid();
+        await CreateHumanAsync(limited, EveryFeature, new HashSet<Guid> { MoviesLibrary });
+        Assert.Empty(await NarrowedWorkIdsAsync(limited, LecturesLibrary, false));
+    }
+
+    [Fact]
+    public async Task GroupNarrowing_TheUnmatchedFilter_KeepsWorksWithAnOpenUnmatchedFileInThatLibraryOnly()
+    {
+        var admin = Guid.NewGuid();
+        await CreateHumanAsync(admin, EveryFeature, new HashSet<Guid>(), administrator: true);
+        var open = await InsertOwnedWorkWithIdAsync(MoviesLibrary, "Open", "Movie");
+        var kept = await InsertOwnedWorkWithIdAsync(MoviesLibrary, "Kept", "Movie");
+        await InsertOwnedWorkWithIdAsync(MoviesLibrary, "Matched", "Movie");
+        await MarkUnmatchedAsync(open.AssetId, MoviesLibrary, keep: false);
+        await MarkUnmatchedAsync(kept.AssetId, MoviesLibrary, keep: true);
+
+        Assert.Equal([open.WorkId], (await NarrowedWorkIdsAsync(admin, null, true)).ToArray());
+        Assert.Equal([open.WorkId], (await NarrowedWorkIdsAsync(admin, MoviesLibrary, true)).ToArray());
+        Assert.Empty(await NarrowedWorkIdsAsync(admin, LecturesLibrary, true));
+    }
+
+    [Fact]
+    public async Task GroupNarrowing_ALibraryWithMoreThanTwoHundredWorksKeepsEveryOne()
+    {
+        var admin = Guid.NewGuid();
+        await CreateHumanAsync(admin, EveryFeature, new HashSet<Guid>(), administrator: true);
+        for (var index = 0; index < 230; index++)
+        {
+            await InsertOwnedWorkWithIdAsync(LecturesLibrary, $"Video {index:000}", "Movie");
+        }
+
+        Assert.Equal(230, (await NarrowedWorkIdsAsync(admin, LecturesLibrary, false)).Count);
+    }
+
     private async Task MarkUnmatchedAsync(Guid assetId, Guid library, bool keep)
     {
         var unmatched = new UnmatchedAssetRepository(_database);

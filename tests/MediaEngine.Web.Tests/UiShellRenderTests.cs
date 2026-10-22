@@ -58,6 +58,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<UIOrchestratorService>();
         Services.AddScoped<CollectionEditorLauncherService>();
         Services.AddScoped<MediaTileComposerService>();
+        Services.AddScoped<MediaEngine.Web.Services.MediaTiles.BrowseLibrariesState>();
         Services.AddSingleton(new ListenPlaybackClientSettings());
         Services.AddScoped<PlaybackSessionController>();
         Services.AddScoped<PlaybackTransientToolCoordinator>();

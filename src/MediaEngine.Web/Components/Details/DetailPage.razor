@@ -818,9 +818,13 @@ else if (Model is not null)
                 if (result is null) failed++;
             }
 
-            if (failed > 0)
+            if (failed == targets.Count)
             {
                 Snackbar.Add("That could not be done. Try again in a moment.", AppSeverity.Warning);
+            }
+            else if (failed > 0)
+            {
+                Snackbar.Add($"Done for {targets.Count - failed} of {targets.Count} files; {failed} could not be changed.", AppSeverity.Warning);
             }
             else
             {

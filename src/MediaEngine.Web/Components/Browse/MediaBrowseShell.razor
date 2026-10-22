@@ -494,7 +494,8 @@
     private bool ShowTabs => ShowTabNavigation && Preset.Tabs.Count > 1;
     private bool ShowHeaderRow => ShowTitleBlock || ShowTabs;
     private int ActiveBrowseTabIndex => GetSelectedIndex(Preset.Tabs.Select(tab => tab.Id), _activeTabId);
-    private bool IsContainerGrouping => BrowseQueryBuilder.IsContainerGrouping(_grouping);
+    // Unmatched files have no series, show or album to sit in, so the Unmatched filter always lists them flat, whatever the grouping chip says.
+    private bool IsContainerGrouping => !_unmatched && BrowseQueryBuilder.IsContainerGrouping(_grouping);
     private bool IsMusicTab => string.Equals(CurrentTab.MediaType, "Music", StringComparison.OrdinalIgnoreCase);
     private bool IsAudiobookTab => string.Equals(CurrentTab.MediaType, "Audiobooks", StringComparison.OrdinalIgnoreCase);
     private bool UsesAlbumTimeline => IsTimelineGrouping
@@ -517,7 +518,10 @@
     private bool UseListLayout => !IsPlaylistGrouping
                                   && (_layout == LibraryLayoutMode.List || _grouping is "tracks" or "songs");
     private bool SupportsLayoutToggle => _grouping is not ("tracks" or "songs" or "playlists");
-    private bool IsTimelineGrouping => string.Equals(_grouping, "timeline", StringComparison.OrdinalIgnoreCase);
+    private bool IsTimelineGrouping => !_unmatched && string.Equals(_grouping, "timeline", StringComparison.OrdinalIgnoreCase);
+
+    // The grouping the Engine is asked for: the Unmatched filter is always a flat list of files (see IsContainerGrouping).
+    private string BrowseGrouping => _unmatched ? "all" : _grouping;
     private bool IsInProgressOnly => string.Equals(_status, "in-progress", StringComparison.OrdinalIgnoreCase);
     private bool IsSecondaryQuickFilterSelected => string.Equals(_status, SecondaryQuickFilterValue, StringComparison.OrdinalIgnoreCase);
     private bool IsFinishedOnly => string.Equals(_status, "finished", StringComparison.OrdinalIgnoreCase);
@@ -947,7 +951,7 @@
         var requestedOffset = timelineOffset ?? (append ? _timelineOffset + _cards.Count : 0);
         var page = await ApiClient.GetDisplayBrowseAsync(
             mediaType: CurrentTab.MediaType,
-            grouping: _grouping,
+            grouping: BrowseGrouping,
             search: string.IsNullOrWhiteSpace(_searchText) ? null : _searchText,
             offset: requestedOffset,
             limit: PageSize,
@@ -1011,7 +1015,7 @@
         var ct = BeginBrowseRequest();
         var response = await ApiClient.GetDisplayBrowseAsync(
             mediaType: CurrentTab.MediaType,
-            grouping: _grouping,
+            grouping: BrowseGrouping,
             search: string.IsNullOrWhiteSpace(_searchText) ? null : _searchText,
             offset: requestedOffset,
             limit: PageSize,
@@ -1087,8 +1091,8 @@
         var mediaType = CurrentTab.MediaType;
 
         var groups = systemGroupField is not null
-            ? await ApiClient.GetSystemViewGroupsAsync(mediaType, systemGroupField)
-            : await ApiClient.GetContentGroupsAsync();
+            ? await ApiClient.GetSystemViewGroupsAsync(mediaType, systemGroupField, libraryId: CurrentTab.LibraryId, unmatched: _unmatched ? true : null)
+            : await ApiClient.GetContentGroupsAsync(libraryId: CurrentTab.LibraryId, unmatched: _unmatched ? true : null);
         if (systemGroupField is null)
         {
             groups = groups
@@ -1103,8 +1107,7 @@
             || _selectedVibes.Count > 0
             || _selectedThemes.Count > 0
             || !string.IsNullOrWhiteSpace(_status)
-            || _unmatched
-            || CurrentTab.NarrowToLibrary)
+            || _unmatched)
         {
             var qualifyingPage = await ApiClient.GetDisplayBrowseAsync(
                 mediaType: CurrentTab.MediaType,
@@ -1230,7 +1233,9 @@
             grouping: "all",
             offset: 0,
             limit: 1,
-            profileId: _activeProfileId);
+            profileId: _activeProfileId,
+            libraryId: CurrentTab.LibraryId,
+            unmatched: _unmatched ? true : null);
         _facets = facetPage?.Facets;
     }
 
@@ -1847,11 +1852,13 @@
         else if (key == "unmatched")
             _unmatched = false;
 
-        await NavigateAndReloadAsync();
+        // Like the toggle, taking the Unmatched filter off replaces the address entry instead of adding one.
+        await NavigateAndReloadAsync(replace: key == "unmatched");
     }
 
     private async Task ClearFiltersAsync()
     {
+        var hadUnmatched = _unmatched;
         _selectedGenres.Clear();
         _selectedCreators.Clear();
         _status = string.Empty;
@@ -1860,7 +1867,7 @@
         _selectedVibes.Clear();
         _selectedThemes.Clear();
 
-        await NavigateAndReloadAsync();
+        await NavigateAndReloadAsync(replace: hadUnmatched);
     }
 
     private async Task LoadMoreAsync()

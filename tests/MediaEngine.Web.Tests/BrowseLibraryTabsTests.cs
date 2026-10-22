@@ -51,16 +51,21 @@ public sealed class BrowseLibraryTabsTests
         Assert.Equal("videos", lectures.DefaultGrouping);
         Assert.Equal("Series and videos", Assert.Single(lectures.GroupingOptions).Label);
         Assert.Equal("videos", lectures.EffectiveBehaviourId);
-        Assert.True(lectures.NarrowToLibrary);
         Assert.Null(preset.Tabs[2].LibraryId);
     }
 
     [Fact]
-    public void AnEmptyListOrNoLibraryForTheAreaKeepsTheFixedTabs()
+    public void AListThatCouldNotBeReadKeepsTheFixedTabs()
     {
-        Assert.Same(Fixed, BrowseLibraryTabs.Build(Fixed, "watch", [], FixedTabs));
-        Assert.Same(Fixed, BrowseLibraryTabs.Build(Fixed, "watch", [new(Music, "Music", "music", "listen", "Music", true)], FixedTabs));
         Assert.Same(Fixed, BrowseLibraryTabs.Build(Fixed, "watch", null, FixedTabs));
+    }
+
+    [Fact]
+    public void AListThatWasReadButHoldsNothingUsableForTheAreaGivesNoTabsAtAll()
+    {
+        Assert.Empty(BrowseLibraryTabs.Build(Fixed, "watch", [], FixedTabs).Tabs);
+        Assert.Empty(BrowseLibraryTabs.Build(Fixed, "watch", [new(Music, "Music", "music", "listen", "Music", true)], FixedTabs).Tabs);
+        Assert.Empty(BrowseLibraryTabs.Build(Fixed, "watch", [new(Lectures, "Lectures", "other_videos", "watch", "Videos", false)], FixedTabs).Tabs);
     }
 
     [Fact]

@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
@@ -32,26 +33,47 @@ public sealed partial class UiShellRenderTests
     ];
 
     private readonly List<object?[]> _browseCalls = [];
+    private readonly List<object?[]> _groupCalls = [];
+    private EngineApiClientStub? _browseStub;
 
     // Replaces the Engine stub: the browse library list is what the test gives (null = it could not be read), and every browse call is kept.
-    private void UseBrowseLibraries(IReadOnlyList<BrowseLibraryDto>? libraries)
+    private void UseBrowseLibraries(IReadOnlyList<BrowseLibraryDto>? libraries, TaskCompletionSource<IReadOnlyList<BrowseLibraryDto>?>? pending = null)
     {
-        Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
+        var client = EngineApiClientStub.Create(stub =>
         {
+            stub.SetHandler(nameof(IEngineApiClient.GetSystemViewGroupsAsync), args =>
+            {
+                _groupCalls.Add(args ?? []);
+                return Task.FromResult(Enumerable.Range(0, 250).Select(index => new ContentGroupViewModel
+                {
+                    CollectionId = Guid.NewGuid(),
+                    DisplayName = $"Series {index:000}",
+                    PrimaryMediaType = "Books",
+                    WorkCount = 1,
+                }).ToList());
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetBrowseLibrariesAsync), _ =>
-                Task.FromResult<IReadOnlyList<BrowseLibraryDto>?>(libraries));
+                pending?.Task ?? Task.FromResult<IReadOnlyList<BrowseLibraryDto>?>(libraries));
             stub.SetHandler(nameof(IEngineApiClient.GetDisplayBrowseAsync), args =>
             {
                 _browseCalls.Add(args ?? []);
                 return Task.FromResult<DisplayPageDto?>(new DisplayPageDto("browse", "Browse", null, null, [], []));
             });
-        }));
+        });
+        _browseStub = (EngineApiClientStub)(object)client;
+        Services.AddSingleton(client);
     }
 
     // The positional arguments of IEngineApiClient.GetDisplayBrowseAsync.
     private const int BrowseMediaTypeArgument = 1;
     private const int BrowseLibraryIdArgument = 16;
     private const int BrowseUnmatchedArgument = 17;
+    private const int BrowseGroupingArgument = 2;
+    private const int BrowseLimitArgument = 5;
+
+    // The positional arguments of IEngineApiClient.GetSystemViewGroupsAsync.
+    private const int GroupLibraryIdArgument = 3;
+    private const int GroupUnmatchedArgument = 4;
 
     private IRenderedComponent<IComponent> RenderLanePage<TPage>(string route, string? tab) where TPage : IComponent
     {
@@ -209,6 +231,170 @@ public sealed partial class UiShellRenderTests
         cut.WaitForAssertion(() => Assert.Equal(
             ["/listen/music", "/listen/lib-b0000000000000000000000000000003", "/listen/playlists"],
             TabRoutes(cut, "/listen").Where(route => !route.StartsWith("/listen/music/", StringComparison.Ordinal)).ToArray()));
+    }
+
+    [Fact]
+    public void Watch_AProfileWithOnlyListenLibrariesSeesTheEmptyStateNotEmptyTabs()
+    {
+        UseBrowseLibraries([new(Guid.Parse("b0000000-0000-0000-0000-000000000001"), "Music", "music", "listen", "Music", true)]);
+
+        var cut = RenderLanePage<WatchPage>("/watch", null);
+
+        cut.WaitForAssertion(() => Assert.Contains("No movies or shows yet", cut.Markup));
+        Assert.Empty(TabRoutes(cut, "/watch"));
+        Assert.Empty(cut.FindAll(".media-section-shell__rail-item"));
+        Assert.Empty(cut.FindAll(".browse-shell"));
+    }
+
+    [Fact]
+    public void Watch_ASeeingNothingProfileOpeningATabRouteSeesTheEmptyStateToo()
+    {
+        UseBrowseLibraries([]);
+
+        var cut = RenderLanePage<WatchPage>("/watch/movies", "movies");
+
+        cut.WaitForAssertion(() => Assert.Contains("No movies or shows yet", cut.Markup));
+        Assert.Empty(cut.FindAll(".browse-shell"));
+        Assert.Empty(_browseCalls);
+    }
+
+    [Fact]
+    public void Watch_DrawsTheHeaderAndATabSkeletonAtOnce_AndLoadsTheLandingWhileTheLibraryListIsStillBeingRead()
+    {
+        var list = new TaskCompletionSource<IReadOnlyList<BrowseLibraryDto>?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        UseBrowseLibraries(null, list);
+
+        var cut = RenderLanePage<WatchPage>("/watch", null);
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Single(cut.FindAll(".library-section-header"));
+            Assert.Single(cut.FindAll("[aria-label='Loading tabs']"));
+            Assert.Contains(_browseCalls, call => Equals(call[0], "watch"));
+        });
+        Assert.Empty(TabRoutes(cut, "/watch"));
+
+        list.SetResult(WatchLibraries());
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Empty(cut.FindAll("[aria-label='Loading tabs']"));
+            Assert.Contains("/watch/youtube", TabRoutes(cut, "/watch"));
+        });
+    }
+
+    [Fact]
+    public void Watch_ShortcutsOpenTheFirstTabWhenThereIsNoMoviesTab()
+    {
+        UseBrowseLibraries([WatchLibraries()[3]]);
+
+        var cut = RenderLanePage<WatchPage>("/watch", null);
+
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("a"), link =>
+            link.GetAttribute("href") == $"/watch/lib-{LecturesLibrary:N}?status=in-progress"));
+        Assert.DoesNotContain(cut.FindAll("a"), link => link.GetAttribute("href")?.StartsWith("/watch/movies", StringComparison.Ordinal) == true);
+    }
+
+    [Fact]
+    public void Listen_ShortcutsFollowTheMusicTabAndAreLeftOutWithoutOne()
+    {
+        UseBrowseLibraries(
+        [
+            new(Guid.Parse("b0000000-0000-0000-0000-000000000002"), "Audiobooks", "audiobooks", "listen", "Audiobooks", true),
+        ]);
+
+        var cut = RenderLanePage<ListenBrowsePage>("/listen", null);
+
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/listen/audiobooks?status=in-progress"));
+        Assert.DoesNotContain(">Recently Played<", cut.Markup);
+        Assert.DoesNotContain(">Recently Added<", cut.Markup);
+        Assert.DoesNotContain(cut.FindAll("a"), link => link.GetAttribute("href") is "/listen/music" || link.GetAttribute("href")?.StartsWith("/listen/music?", StringComparison.Ordinal) == true);
+    }
+
+    [Fact]
+    public void Listen_RecentlyPlayedAndAddedOpenTheFirstMusicTypeLibraryTab()
+    {
+        UseBrowseLibraries(
+        [
+            new(Guid.Parse("b0000000-0000-0000-0000-000000000003"), "Family recordings", "other_audio", "listen", "Music", true),
+        ]);
+
+        var cut = RenderLanePage<ListenBrowsePage>("/listen", null);
+
+        cut.WaitForAssertion(() =>
+        {
+            var hrefs = cut.FindAll("a").Select(link => link.GetAttribute("href")).ToList();
+            Assert.Contains("/listen/lib-b0000000000000000000000000000003?sort=recently-played", hrefs);
+            Assert.Contains("/listen/lib-b0000000000000000000000000000003?sort=newest", hrefs);
+        });
+    }
+
+    [Fact]
+    public void Watch_TakingTheUnmatchedFilterOffWithItsChipOrClearAllReplacesTheAddress()
+    {
+        UseBrowseLibraries(WatchLibraries());
+        var navigation = (Bunit.TestDoubles.BunitNavigationManager)Services.GetRequiredService<NavigationManager>();
+        var cut = RenderLanePage<WatchPage>($"/watch/lib-{LecturesLibrary:N}?unmatched=true", $"lib-{LecturesLibrary:N}");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Remove Unmatched filter']")));
+
+        cut.Find("button[aria-label='Remove Unmatched filter']").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.DoesNotContain("unmatched", navigation.Uri);
+            Assert.True(navigation.History.First().Options.ReplaceHistoryEntry);
+        });
+
+        navigation.NavigateTo($"/watch/lib-{LecturesLibrary:N}?unmatched=true");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".app-active-filter-summary__clear")));
+        cut.Find(".app-active-filter-summary__clear").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.DoesNotContain("unmatched", navigation.Uri);
+            Assert.True(navigation.History.First().Options.ReplaceHistoryEntry);
+        });
+    }
+
+    private static readonly Guid EssaysLibrary = Guid.Parse("c0000000-0000-0000-0000-000000000003");
+
+    private static BrowseLibraryDto[] ReadLibraries() =>
+    [
+        new(Guid.Parse("c0000000-0000-0000-0000-000000000001"), "Books", "books", "read", "Books", true),
+        new(EssaysLibrary, "Essays", "other_reading", "read", "Books", true),
+    ];
+
+    [Fact]
+    public void Read_AGroupedLibraryTabAsksForThatLibrarysGroupsAndKeepsEveryOneOfThemPastTwoHundred()
+    {
+        UseBrowseLibraries(ReadLibraries());
+
+        var cut = RenderLanePage<ReadPage>($"/read/lib-{EssaysLibrary:N}?browse=series", $"lib-{EssaysLibrary:N}");
+
+        cut.WaitForAssertion(() => Assert.Contains("250 items", cut.Markup));
+        Assert.Equal(EssaysLibrary, _groupCalls[0][GroupLibraryIdArgument]);
+        Assert.Null(_groupCalls[0][GroupUnmatchedArgument]);
+        // No 200-card page is read to cut the groups down, and the filter options come from the same library.
+        Assert.DoesNotContain(_browseCalls, call => Equals(call[BrowseLimitArgument], 200));
+        Assert.All(_browseCalls.Where(call => Equals(call[BrowseLimitArgument], 1)), call => Assert.Equal(EssaysLibrary, call[BrowseLibraryIdArgument]));
+    }
+
+    [Fact]
+    public void Read_TheUnmatchedFilterListsFilesFlatEvenWhenTheViewIsGrouped()
+    {
+        UseBrowseLibraries(ReadLibraries());
+
+        var cut = RenderLanePage<ReadPage>($"/read/lib-{EssaysLibrary:N}?browse=series&unmatched=true", $"lib-{EssaysLibrary:N}");
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(_browseCalls));
+        Assert.All(_browseCalls, call =>
+        {
+            Assert.Equal("all", call[BrowseGroupingArgument]);
+            Assert.Equal(true, call[BrowseUnmatchedArgument]);
+            Assert.Equal(EssaysLibrary, call[BrowseLibraryIdArgument]);
+        });
+        Assert.Empty(_groupCalls);
+        Assert.DoesNotContain("GetContentGroupsAsync", _browseStub!.Calls);
     }
 
     [Fact]

@@ -3,15 +3,12 @@
 @using MediaEngine.Web.Components.Browse
 @using MediaEngine.Web.Components.MediaHub
 @using MediaEngine.Web.Models.ViewDTOs
-@using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.MediaTiles
 @inject MediaTileComposerService MediaTiles
-@inject IEngineApiClient ApiClient
+@inject BrowseLibrariesState LibraryList
 
 @namespace MediaEngine.Web.Components.Pages
 
-@if (_tabsLoaded)
-{
 <MediaLanePage Title="Read"
                RouteBase="/read"
                Subtitle="Books and comics from your local library"
@@ -22,6 +19,7 @@
                NavigationGroups="@ReadNavigationGroups"
                ActiveMode="@ActiveReadMode"
                Tab="@Tab"
+               TabsLoading="@(!_tabsLoaded)"
                LandingPage="@_landingPage"
                Shelves="@ReadHubShelves"
                Loading="@_loading"
@@ -31,7 +29,6 @@
                EmptyTitle="No books or comics yet"
                EmptyMessage="Add reading material to your library to populate this lane."
                Retry="LoadLandingAsync" />
-}
 
 @code {
     [Parameter] public string? Tab { get; set; }
@@ -40,9 +37,11 @@
     private bool _loading = true;
     private bool _loadFailed;
 
-    // The tabs follow the Engine's library list (one per library with folders); the fixed tabs stand in when it cannot be read.
+    // The tabs follow the Engine's library list (one per library with folders); the fixed tabs stand in when it cannot be read, and the
+    // page draws its header and a tab-strip skeleton while the list and the landing load side by side.
     private LibraryBrowsePreset Preset = StaticPreset;
     private bool _tabsLoaded;
+    private bool _landingAttempted;
 
     private string ActiveReadMode => BrowseQueryBuilder.FindTab(Preset, Tab)?.Id ?? "all";
 
@@ -52,11 +51,19 @@
         new("Reading",
         [
             new("My List", "/for-me?view=my-list&area=read", AppMaterialIcons.Outlined.FavoriteBorder, Exact: true),
-            new("In Progress", "/read/books?status=in-progress", AppMaterialIcons.Outlined.Timelapse, Exact: true),
-            new("Unread", "/read/books?status=not-started", AppMaterialIcons.Outlined.MarkEmailUnread, Exact: true),
-            new("Recently Added", "/read/books?sort=newest", AppMaterialIcons.Outlined.Schedule, Exact: true),
+            .. ShortcutTab is { } tab
+                ? new MediaSectionNavigationItem[]
+                {
+                    new("In Progress", $"/read/{tab.Id}?status=in-progress", AppMaterialIcons.Outlined.Timelapse, Exact: true),
+                    new("Unread", $"/read/{tab.Id}?status=not-started", AppMaterialIcons.Outlined.MarkEmailUnread, Exact: true),
+                    new("Recently Added", $"/read/{tab.Id}?sort=newest", AppMaterialIcons.Outlined.Schedule, Exact: true),
+                }
+                : [],
         ]),
     ];
+
+    // The tab the "Reading" shortcuts open: the Books tab, or the first tab when this profile has none.
+    private BrowseTabPreset? ShortcutTab => BrowseQueryBuilder.FindTab(Preset, "books") ?? Preset.Tabs.FirstOrDefault();
 
     private IReadOnlyList<MediaHubModeViewModel> ReadModes =>
         MediaLaneConfigurationBuilder.BuildModes(Preset);
@@ -67,7 +74,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Preset = await BrowseLibraryTabs.LoadAsync(ApiClient, StaticPreset, "read");
+        var tabs = LoadTabsAsync();
+        var landing = string.IsNullOrWhiteSpace(Tab) ? LoadLandingAsync() : Task.CompletedTask;
+        await Task.WhenAll(tabs, landing);
+    }
+
+    private async Task LoadTabsAsync()
+    {
+        Preset = BrowseLibraryTabs.Build(StaticPreset, "read", await LibraryList.GetAsync());
         _tabsLoaded = true;
     }
 
@@ -79,11 +93,15 @@
             return;
         }
 
-        await LoadLandingAsync();
+        if (!_landingAttempted)
+        {
+            await LoadLandingAsync();
+        }
     }
 
     private async Task LoadLandingAsync()
     {
+        _landingAttempted = true;
         _loading = true;
         _loadFailed = false;
 

@@ -732,6 +732,8 @@
   response | shape=20f14bf782d664f3fcc2aaa49121f353edeaa9bcbdb60ae24993298cb0843fd7
 
 [method] GetContentGroupsAsync
+  input libraryId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
+  input unmatched | default=null | shape=3f6d9badbf3cab35c37c41dfbfa8ea9f49b716db983fff10c8d3b66b7d03abbf
   response | shape=7cb822e59bc12f5ef9f77029e154b0562d9d1f4ac2aeae5f6a90e0e4f03499eb
 
 [method] GetContributorShelvesAsync
@@ -1444,6 +1446,8 @@
 [method] GetSystemViewGroupsAsync
   input mediaType | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   input groupField | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+  input libraryId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
+  input unmatched | default=null | shape=3f6d9badbf3cab35c37c41dfbfa8ea9f49b716db983fff10c8d3b66b7d03abbf
   response | shape=7cb822e59bc12f5ef9f77029e154b0562d9d1f4ac2aeae5f6a90e0e4f03499eb
 
 [method] GetTableOfContentsAsync

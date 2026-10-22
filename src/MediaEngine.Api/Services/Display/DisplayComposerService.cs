@@ -406,31 +406,9 @@ public sealed partial class DisplayComposerService
         };
     }
 
-    // The works that have a file the profile may see in the library asked for (any library when none is) and, when asked, a file that is
-    // Unmatched and not kept in that same library. Only the works in view are looked up.
-    private async Task<HashSet<Guid>> WorksInNarrowingAsync(Guid? libraryId, bool unmatchedOnly, CancellationToken ct)
-    {
-        var library = libraryId?.ToString("D");
-        var pairs = (await _readService.LoadWorkLibraryRowsAsync(ct))
-            .Where(row => library is null || string.Equals(row.LibraryId, library, StringComparison.OrdinalIgnoreCase))
-            .Select(row => (row.WorkId, Library: (row.LibraryId ?? string.Empty).ToUpperInvariant()))
-            .Distinct()
-            .ToList();
-        if (!unmatchedOnly)
-        {
-            return pairs.Select(pair => pair.WorkId).ToHashSet();
-        }
-
-        if (_unmatched is null || pairs.Count == 0)
-        {
-            return [];
-        }
-
-        var open = (await _unmatched.ListOpenByWorksAsync(pairs.Select(pair => pair.WorkId).Distinct().ToList(), ct))
-            .Select(file => (file.WorkId, Library: file.LibraryId.ToUpperInvariant()))
-            .ToHashSet();
-        return pairs.Where(open.Contains).Select(pair => pair.WorkId).ToHashSet();
-    }
+    // The works that qualify for the library and Unmatched narrowing; the rule lives in BrowseNarrowing so the group reads share it.
+    private Task<HashSet<Guid>> WorksInNarrowingAsync(Guid? libraryId, bool unmatchedOnly, CancellationToken ct) =>
+        BrowseNarrowing.WorksInAsync(_readService, _unmatched, libraryId, unmatchedOnly, ct);
 
     public async Task<DisplayPageDto> BuildContinueAsync(
         string? lane,

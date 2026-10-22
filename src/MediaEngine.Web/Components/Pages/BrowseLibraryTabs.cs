@@ -1,6 +1,5 @@
 using MediaEngine.Contracts.Display;
 using MediaEngine.Web.Models.ViewDTOs;
-using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Components.Pages;
 
@@ -9,7 +8,8 @@ namespace MediaEngine.Web.Components.Pages;
 /// list's order. A lookup kind (Movies, TV Shows, YouTube, Music, Audiobooks, Books, Comics) has one library, so its tab is named for the
 /// kind and keeps the kind's key as its id; a plain kind's named libraries ("Lectures") each get a tab named for the library, with an id
 /// built from the library id. Every tab reuses the fixed tab of its media type for grouping and layout and adds its library to the browse
-/// query. When the list cannot be read, or yields no tab, the lane keeps its fixed tabs so browse never breaks.
+/// query. When the list cannot be read the lane keeps its fixed tabs so browse never breaks; when it was read and holds nothing for the area
+/// the lane has no tabs.
 /// </summary>
 public static class BrowseLibraryTabs
 {
@@ -25,16 +25,12 @@ public static class BrowseLibraryTabs
         ["comics"] = "Comics",
     };
 
-    /// <summary>Reads the library list and builds the lane's preset; the fixed preset when the list cannot be read.</summary>
+    /// <summary>
+    /// The lane's preset for the library list the Engine gave. <c>null</c> means the list could not be read, so the fixed tabs stand in;
+    /// a list that was read but holds no usable library for the area means the profile has nothing there, so the preset has no tabs at all
+    /// (the lane then shows its empty state, never empty tabs).
+    /// </summary>
     /// <param name="fixedTabIds">Tabs of the fixed preset that are not libraries (Listen's Playlists); they stay, after the library tabs.</param>
-    public static async Task<LibraryBrowsePreset> LoadAsync(
-        IEngineApiClient api,
-        LibraryBrowsePreset fixedPreset,
-        string area,
-        IReadOnlySet<string>? fixedTabIds = null,
-        CancellationToken ct = default) =>
-        Build(fixedPreset, area, await api.GetBrowseLibrariesAsync(ct), fixedTabIds);
-
     public static LibraryBrowsePreset Build(
         LibraryBrowsePreset fixedPreset,
         string area,
@@ -64,7 +60,6 @@ public static class BrowseLibraryTabs
                 Label = isLookupKind ? kindLabel! : library.Name,
                 LibraryId = library.Id,
                 BehaviourId = template.EffectiveBehaviourId,
-                NarrowToLibrary = inArea.Count(other => string.Equals(other.MediaType, library.MediaType, StringComparison.OrdinalIgnoreCase)) > 1,
             };
             if (tabs.All(existing => !string.Equals(existing.Id, tab.Id, StringComparison.OrdinalIgnoreCase)))
             {
@@ -74,7 +69,7 @@ public static class BrowseLibraryTabs
 
         if (tabs.Count == 0)
         {
-            return fixedPreset;
+            return fixedPreset with { Tabs = [] };
         }
 
         tabs.AddRange(fixedPreset.Tabs.Where(tab => fixedTabIds is not null && fixedTabIds.Contains(tab.Id)));

@@ -45,9 +45,6 @@ public sealed record BrowseTabPreset
     /// <summary>The fixed tab whose per-tab rules (sort, columns, links) this library tab follows; null means this tab's own <see cref="Id"/>.</summary>
     public string? BehaviourId { get; init; }
 
-    /// <summary>True when another library of the same media type is listed, so group views must narrow to <see cref="LibraryId"/> themselves.</summary>
-    public bool NarrowToLibrary { get; init; }
-
     public string EffectiveBehaviourId => BehaviourId ?? Id;
 }
 
