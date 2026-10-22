@@ -90,7 +90,7 @@ public static partial class ViewEndpoints
 
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))
@@ -156,7 +156,7 @@ public static partial class ViewEndpoints
 
             if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
             {
-                return DocumentsNotAllowed();
+                return Missing();
             }
 
             if (await OtherKindBlockedAsync(id, assets, identity, preferences, ct))

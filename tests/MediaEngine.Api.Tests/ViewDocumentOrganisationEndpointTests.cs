@@ -244,8 +244,14 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         {
             using var request = new HttpRequestMessage(method, route) { Content = content };
             using var response = await _client.SendAsync(request);
-            Assert.True(response.StatusCode == HttpStatusCode.Forbidden,
-                $"{method} {route} should be refused for a profile without Documents, but returned {(int)response.StatusCode}.");
+            // A single document is answered like an id nobody has (404) so its existence is never confirmed; everything
+            // that is not about one item (and the document-details save, which is refused as a whole feature) is 403.
+            var expected = route.StartsWith(itemRoute, StringComparison.Ordinal)
+                && !route.Contains("/inbox/", StringComparison.Ordinal)
+                && !(method == HttpMethod.Put && route.EndsWith("/document-details", StringComparison.Ordinal))
+                ? HttpStatusCode.NotFound : HttpStatusCode.Forbidden;
+            Assert.True(response.StatusCode == expected,
+                $"{method} {route} should be {(int)expected} for a profile without Documents, but returned {(int)response.StatusCode}.");
         }
 
         // Folders still opens, but never lists a document.
@@ -1214,7 +1220,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         {
             using var request = new HttpRequestMessage(method, route) { Content = content };
             using var response = await _client.SendAsync(request);
-            Assert.True(response.StatusCode == HttpStatusCode.Forbidden, $"{method} {route} returned {(int)response.StatusCode}.");
+            Assert.True(response.StatusCode == HttpStatusCode.NotFound, $"{method} {route} returned {(int)response.StatusCode}.");
         }
 
         var unchanged = _assets.Find(document)!;

@@ -57,7 +57,11 @@ public static class ViewKindAcceptance
     /// An intake source takes pictures and videos (a camera roll is both) and the documents people already send it
     /// (uploads and backups of pictures and documents, Library setup D47). Audio and other files are never taken.
     /// </summary>
-    public static bool IntakeAccepts(string? mediaKind) => mediaKind is Image or Video or Document;
+    public static bool IntakeAccepts(string? mediaKind) =>
+        // Documents are accepted here because every profile can add documents to its own space and to Shared (D47),
+        // whatever its Photos and Personal videos switches say. Camera-roll photos and videos go together (D53); a
+        // profile with either kind off is turned away at the upload route, not by this check.
+        mediaKind is Image or Video or Document;
 
     /// <summary>Whether a file of <paramref name="mediaKind"/> belongs in the source with this kind and key.</summary>
     public static bool SourceAccepts(string? contentKind, string? sourceKey, string? mediaKind) =>
