@@ -780,71 +780,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal([("merge-1", "cancel")], _controls));
     }
 
-    [Fact]
-    public async Task AddingAFolderThatHasFilesOffersThreeChoicesAndMergeOnlyWhenAManagedFolderExists()
-    {
-        var dialogs = Render<AppDialogHost>();
-        var service = Services.GetRequiredService<IAppDialogService>();
-
-        async Task<(string[] Labels, object? Data)> AskAsync(bool canMerge, string pick)
-        {
-            var parameters = new AppDialogParameters<AddFolderChoiceDialog>
-            {
-                { component => component.TypeLabel, "Movies" },
-                { component => component.CanMerge, canMerge },
-            };
-            var reference = await service.ShowAsync<AddFolderChoiceDialog>(string.Empty, parameters, new AppDialogOptions());
-            dialogs.WaitForAssertion(() => Assert.Contains("This folder already has files in it", dialogs.Markup));
-            var labels = dialogs.FindAll(".add-folder-choice button").Select(x => Text(x.QuerySelector("strong")!)).ToArray();
-            dialogs.FindAll(".add-folder-choice button").Single(x => Text(x.QuerySelector("strong")!) == pick).Click();
-            var result = await reference.Result;
-            return (labels, result?.Data);
-        }
-
-        var with = await AskAsync(canMerge: true, pick: "Merge into Movies");
-        Assert.Equal(["Use read-only (recommended)", "Merge into Movies", "Let Library manage it"], with.Labels);
-        Assert.Equal(AddFolderChoiceDialog.Merge, with.Data);
-
-        var without = await AskAsync(canMerge: false, pick: "Use read-only (recommended)");
-        Assert.Equal(["Use read-only (recommended)", "Let Library manage it"], without.Labels);
-        Assert.Equal(AddFolderChoiceDialog.AsIs, without.Data);
-
-        var managed = await AskAsync(canMerge: true, pick: "Let Library manage it");
-        Assert.Equal(AddFolderChoiceDialog.Managed, managed.Data);
-    }
-
-    [Fact]
-    public async Task AddingAVideosFolderAlwaysAsksWatchOrViewAndOnlySuggestsViewForPhoneFootage()
-    {
-        var dialogs = Render<AppDialogHost>();
-        var service = Services.GetRequiredService<IAppDialogService>();
-
-        async Task<(bool Hint, AddFolderPlaceDialog.AddFolderPlaceAnswer? Answer)> AskAsync(bool phone, string pick, bool lookup = true)
-        {
-            var parameters = new AppDialogParameters<AddFolderPlaceDialog>
-            {
-                { component => component.LooksLikePhoneFootage, phone },
-                { component => component.YoutubeLookup, lookup },
-            };
-            var reference = await service.ShowAsync<AddFolderPlaceDialog>(string.Empty, parameters, new AppDialogOptions());
-            dialogs.WaitForAssertion(() => Assert.Contains("Where does this folder belong?", dialogs.Markup));
-            var hint = dialogs.FindAll(".add-folder-place__hint").Count > 0;
-            Assert.Contains("contacts YouTube", dialogs.Markup);
-            dialogs.FindAll(".add-folder-place button").Single(x => Text(x.QuerySelector("strong")!) == pick).Click();
-            var result = await reference.Result;
-            return (hint, result?.Data as AddFolderPlaceDialog.AddFolderPlaceAnswer);
-        }
-
-        var ordinary = await AskAsync(phone: false, pick: "Videos (Watch)");
-        Assert.False(ordinary.Hint);
-        Assert.True(ordinary.Answer!.Watch);
-        Assert.True(ordinary.Answer.YoutubeLookup);
-
-        var phoneFolder = await AskAsync(phone: true, pick: "Photos and personal videos (View)", lookup: false);
-        Assert.True(phoneFolder.Hint);
-        Assert.False(phoneFolder.Answer!.Watch);
-        Assert.False(phoneFolder.Answer.YoutubeLookup);
-    }
+    // Adding a folder (read-only, merge and managed, the Videos YouTube switch and the phone-footage hint) is tested in AddFolderWizardTests.
 
     // Changing a naming preset asks before touching existing files; Only new files keeps today's behaviour.
     [Fact]
