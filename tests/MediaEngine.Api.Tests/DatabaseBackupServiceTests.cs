@@ -373,7 +373,7 @@ public sealed class DatabaseBackupServiceTests : IDisposable
             }
         }
 
-        var expected = "This backup is from an older version of Tuvima Library and can't be restored. Make a new backup with this version.";
+        var expected = "This backup is from an older version of the Library and can't be restored. Make a new backup with this version.";
         Assert.Equal(expected, Assert.Throws<InvalidDataException>(() => service.ScheduleRestore(name)).Message);
         Assert.Equal(expected, Assert.Throws<InvalidDataException>(() => service.ValidateRestore(name)).Message);
         await using var upload = File.OpenRead(Path.Combine(backup, name));

@@ -30,7 +30,7 @@ internal sealed record RestoreArchiveInfo(
 /// </summary>
 internal static class RestoreArchiveValidator
 {
-    public const string OlderVersionMessage = "This backup is from an older version of Tuvima Library and can't be restored. Make a new backup with this version.";
+    public const string OlderVersionMessage = "This backup is from an older version of the Library and can't be restored. Make a new backup with this version.";
     public const string DamagedMessage = "This backup file is damaged and can't be restored.";
     public const string CurrentManifestVersion = "3.0";
 
@@ -178,7 +178,7 @@ internal static class RestoreArchiveValidator
             if (!string.Equals(version, CurrentManifestVersion, StringComparison.Ordinal)
                 || !string.Equals(kind, BackupArchiveFormat.ContentsKind, StringComparison.Ordinal))
             {
-                throw new InvalidDataException("This backup was made by a different version of Tuvima Library and can't be restored.");
+                throw new InvalidDataException("This backup was made by a different version of the Library and can't be restored.");
             }
 
             if (root.TryGetProperty("includes_secrets", out var includesSecrets) && includesSecrets.ValueKind == JsonValueKind.True)

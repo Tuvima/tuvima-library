@@ -61,7 +61,7 @@ Above the recovery points, administrators see a read-only line such as "Data sto
 
 Test restore uses temporary storage, checks the recovery point exactly as a real restore would, then removes the temporary files. It does not schedule or apply a restore.
 
-**A recovery point from an older version can't be restored.** You will see "This backup is from an older version of Tuvima Library and can't be restored. Make a new backup with this version." A file that is damaged says "This backup file is damaged and can't be restored."
+**A recovery point from an older version can't be restored.** You will see "This backup is from an older version of the Library and can't be restored. Make a new backup with this version." A file that is damaged says "This backup file is damaged and can't be restored."
 
 ## Bookmark pack files
 

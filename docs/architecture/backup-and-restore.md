@@ -70,7 +70,7 @@ A backup is one zip file, `tuvima-backup-<time>.zip`, with three parts:
 - `config/**`: the safe configuration files, as before (never `config/secrets`, `config/.keys`, backups, `.bak` and `.tmp` files, restore markers).
 - `data/**`: the export described above, written by `BackupArchiveFormat`.
 
-There is no copy of the data store file and no write lock: the export reads its own consistent snapshot, so a backup does not pause the Library. A backup of the earlier layout (manifest version `1.0` or `2.0`, no `kind`, or a `database/library.db` entry) is refused everywhere with "This backup is from an older version of Tuvima Library and can't be restored. Make a new backup with this version."; a backup whose data cannot be read is refused with "This backup file is damaged and can't be restored.".
+There is no copy of the data store file and no write lock: the export reads its own consistent snapshot, so a backup does not pause the Library. A backup of the earlier layout (manifest version `1.0` or `2.0`, no `kind`, or a `database/library.db` entry) is refused everywhere with "This backup is from an older version of the Library and can't be restored. Make a new backup with this version."; a backup whose data cannot be read is refused with "This backup file is damaged and can't be restored.".
 
 ## How a restore runs
 

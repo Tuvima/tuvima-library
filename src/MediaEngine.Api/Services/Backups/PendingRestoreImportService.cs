@@ -17,13 +17,6 @@ public enum PendingRestoreImportOutcome
     Failed,
 }
 
-/// <summary>Runs the import of a restored backup once, after the fresh data store has been built (backup and restore spec D3, D7).</summary>
-public interface IPendingRestoreImportService
-{
-    /// <summary>Imports the staged backup if a restore is waiting. Never throws for a failed import; it logs, keeps the staged file and carries on.</summary>
-    PendingRestoreImportOutcome ImportIfPending(CancellationToken ct = default);
-}
-
 /// <summary>
 /// After <see cref="DatabaseBackupService.ApplyPendingRestore"/> has put the old data store aside, the Engine starts on a fresh one. This
 /// reads the staged backup file and puts it into that store (<see cref="BackupRestoreRepository.Import"/>): settings straight back, a
