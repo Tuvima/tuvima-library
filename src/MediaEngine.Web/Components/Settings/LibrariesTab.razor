@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.WebUtilities
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
+@inject MediaEngine.Web.Services.Settings.LibraryKindsState LibraryKinds
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Navigation
 
@@ -60,6 +61,7 @@
             case LevelKind.Front:
                 @* The Vault card follows the Vault's privacy rules; Vault mode does not exist yet, so it is never drawn. A later packet wires this. *@
                 <LibraryFrontDoor Configuration="@_configuration"
+                                  Kinds="@Kinds"
                                   Overview="@_overview"
                                   ViewFolders="@_viewFolders"
                                   PathIssues="@_pathIssues"
@@ -70,6 +72,7 @@
             case LevelKind.Group:
                 <LibraryGroupPage Group="@(level.Group!)"
                                   Configuration="@_configuration"
+                                  Kinds="@Kinds"
                                   Overview="@_overview"
                                   ViewFolders="@_viewFolders"
                                   PathIssues="@_pathIssues"
@@ -87,6 +90,7 @@
                 <LibraryFoldersPanel @key="@level.TypeKey"
                                      ShowTypeNav="false"
                                      TypeKey="@level.TypeKey"
+                                     Kinds="@Kinds"
                                      HighlightAddFolder="@HighlightAdd"
                                      ReadOnly="@(readOnly || _engineUnavailable)"
                                      Changed="RefreshConfigurationAsync" />
@@ -120,6 +124,7 @@
     private sealed record Level(LevelKind Kind, LibraryGroup? Group = null, string? TypeKey = null);
 
     private LibrariesConfigurationDto? _configuration;
+    private LibraryKindCatalog Kinds => LibraryKinds.Catalog;
     private LibraryOverviewDto? _overview;
     private int? _viewFolders;
     // Null until the folder checks finish: no health icon is shown before then.
@@ -135,6 +140,9 @@
     protected override async Task OnInitializedAsync()
     {
         _routeKey = $"{Subsection}/{Detail}";
+        // The list of kinds is read again on each visit, since a plugin may have been switched on or off; the list read
+        // before stays if the Engine cannot answer.
+        await LibraryKinds.RefreshAsync();
         if (RedirectSavedLink()) return;
         await LoadAsync();
         await InvokeAsync(StateHasChanged);
@@ -169,18 +177,46 @@
         }
     }
 
+    // Type pages whose key changed with the kinds list: a bookmark to the old address lands on the page that replaced it.
+    private static readonly Dictionary<string, string> RenamedTypeKeys = new(StringComparer.OrdinalIgnoreCase) { ["videos"] = "other_videos" };
+
+    private string? RenamedTypeAddress()
+    {
+        if (string.IsNullOrWhiteSpace(Subsection)
+            || string.IsNullOrWhiteSpace(Detail)
+            || !RenamedTypeKeys.TryGetValue(Detail.Trim(), out var current)
+            || Kinds.TryGetVisibleGroup(Subsection.Trim(), VaultVisible) is not { } group
+            || !group.TypeKeys.Contains(current, StringComparer.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return LibraryGroupCatalog.TypeAddress(group, current);
+    }
+
     // Saved links to /settings/libraries?type=movies still work: they land on that type's own address.
     private bool RedirectSavedLink()
     {
-        if (!string.IsNullOrWhiteSpace(Subsection)
-            || LibraryTypeCatalog.Find(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("type")) is not { } type
-            || LibraryGroupCatalog.GroupFor(type.Key) is not { } group)
+        var address = RenamedTypeAddress() ?? TypeQueryAddress();
+        if (address is null)
         {
             return false;
         }
 
-        Navigation.NavigateTo(LibraryGroupCatalog.TypeAddress(group, type.Key), replace: true);
+        Navigation.NavigateTo(address, replace: true);
         return true;
+    }
+
+    private string? TypeQueryAddress()
+    {
+        if (!string.IsNullOrWhiteSpace(Subsection)
+            || Kinds.Find(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("type")) is not { } type
+            || Kinds.GroupFor(type.Key) is not { } group)
+        {
+            return null;
+        }
+
+        return LibraryGroupCatalog.TypeAddress(group, type.Key);
     }
 
     private async Task LoadAsync()
@@ -190,6 +226,7 @@
         _configuration = await Orchestrator.GetLibrariesAsync();
         _engineUnavailable = _configuration is null;
         if (_configuration is null) _loadError = ApiClient.LastError;
+        else if (!LibraryKinds.Loaded) _loadError = "The list of library kinds could not be loaded, so the kinds of library are missing from this page. Try again in a moment.";
         _loading = false;
     }
 
@@ -266,11 +303,11 @@
         // A catalogued library with no known area has no group; it opens as /settings/libraries/other/other-{id}.
         if (string.Equals(subsection, "other", StringComparison.OrdinalIgnoreCase))
         {
-            var orphan = LibraryRollup.OthersWithoutGroup(_configuration).FirstOrDefault(other => string.Equals(other.Key, detail, StringComparison.OrdinalIgnoreCase));
+            var orphan = LibraryRollup.OthersWithoutGroup(Kinds, _configuration).FirstOrDefault(other => string.Equals(other.Key, detail, StringComparison.OrdinalIgnoreCase));
             return orphan is null ? new Level(LevelKind.NotFound) : new Level(LevelKind.Type, null, orphan.Key);
         }
 
-        var group = LibraryGroupCatalog.TryGetVisibleGroup(subsection, VaultVisible);
+        var group = Kinds.TryGetVisibleGroup(subsection, VaultVisible);
         if (group is null) return new Level(LevelKind.NotFound);
         if (string.IsNullOrEmpty(detail)) return new Level(LevelKind.Group, group);
 
@@ -284,7 +321,7 @@
         var standard = group.TypeKeys.FirstOrDefault(key => string.Equals(key, detail, StringComparison.OrdinalIgnoreCase));
         if (standard is not null) return new Level(LevelKind.Type, group, standard);
 
-        var other = LibraryRollup.OthersIn(_configuration, group).FirstOrDefault(item => string.Equals(item.Key, detail, StringComparison.OrdinalIgnoreCase));
+        var other = LibraryRollup.OthersIn(Kinds, _configuration, group).FirstOrDefault(item => string.Equals(item.Key, detail, StringComparison.OrdinalIgnoreCase));
         return other is null ? new Level(LevelKind.NotFound) : new Level(LevelKind.Type, group, other.Key);
     }
 }

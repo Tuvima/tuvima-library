@@ -47,7 +47,7 @@ public sealed class MappedEndpointInventoryTests
             [ApplicationPermissionIds.AiManage] = ["StartAiModelDownload", "CancelAiModelDownload", "LoadAiModel", "UnloadAiModel", "GetAiConfig", "SaveAiConfig", "RunAiHardwareBenchmark", "InvalidateAiHardwareBenchmark"],
             [ApplicationPermissionIds.NetworkStatusRead] = ["GetNetworkSettings", "GetNetworkRuntimeStatus"],
             [ApplicationPermissionIds.NetworkConfigWrite] = ["UpdateNetworkSettings", "TestLocalNetworkConnection", "TestRemoteNetworkConnection", "TestNetworkUploadBandwidth", "CheckNetworkPortAvailability", "ApplyNetworkPortChange", "RenewNetworkRouterMapping", "ResetNetworkSettings"],
-            [ApplicationPermissionIds.StorageStatusRead] = ["GetLibraries", "GetOrganizationTemplate"],
+            [ApplicationPermissionIds.StorageStatusRead] = ["GetLibraries", "GetLibraryKinds", "GetOrganizationTemplate"],
             [ApplicationPermissionIds.StorageConfigWrite] = ["UpdateLibraries", "TestPath", "PreviewOrganizationTemplate", "UpdateOrganizationTemplate", "RunStorageMaintenance"],
             [ApplicationPermissionIds.MetadataEnrichmentRead] = ["GetHydrationSettings", "GetAiEnrichmentProgress", "GetAssetCapabilities", "GetCapabilitySummary", "GetRetagSweepState"],
             [ApplicationPermissionIds.MetadataWrite] = ["ApplyRetagSweepPending", "RunRetagSweepNow", "RetryRetagForAsset"],

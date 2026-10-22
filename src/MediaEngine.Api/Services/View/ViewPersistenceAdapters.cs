@@ -307,7 +307,9 @@ public sealed class ViewAssetQueryService(ILocalAssetRepository assets) : IViewA
             plan.TimelineEligibleOnly,
             plan.IncludeSharedLibraryAssets,
             plan.AnchorBefore, plan.WithoutLocation, plan.PersonKey, plan.From, plan.To, plan.SortByAddedAt, plan.AddedBefore, plan.AddedAfterKey,
-            documentFilter), ct);
+            documentFilter,
+            plan.ExcludedContentKinds,
+            plan.AddedByProfileIds), ct);
         return Task.FromResult(new ViewAssetTimelinePageDto(
             page.Items,
             plan.SortByAddedAt ? null
@@ -332,13 +334,33 @@ public sealed class ViewAssetQueryService(ILocalAssetRepository assets) : IViewA
             Lifecycle: plan.Lifecycle,
             SmartRule: plan.SmartRule,
             TimelineEligibleOnly: plan.TimelineEligibleOnly,
-            IncludeSharedLibraryAssets: plan.IncludeSharedLibraryAssets), ct);
+            IncludeSharedLibraryAssets: plan.IncludeSharedLibraryAssets,
+            DocumentFilter: plan.DocumentFilter,
+            ExcludedContentKinds: plan.ExcludedContentKinds,
+            AddedByProfileIds: plan.AddedByProfileIds), ct);
         return Task.FromResult(new ViewTimelineIndexDto(buckets.Select(bucket => new ViewTimelineBucketDto(
             bucket.Year,
             bucket.Month,
             bucket.AssetCount,
             bucket.EarliestAt,
             bucket.LatestAt)).ToList()));
+    }
+
+    public Task<IReadOnlyList<ViewAddedByDto>> AddedByAsync(
+        ViewAssetQueryPlan plan,
+        CancellationToken ct = default)
+    {
+        var counts = assets.QueryAddedBy(new LocalAssetTimelineQuery(
+            plan.Scope.LibraryIds,
+            MediaKinds: plan.MediaKinds,
+            IncludeHidden: plan.IncludeHidden,
+            HiddenOnly: plan.HiddenOnly,
+            Lifecycle: plan.Lifecycle,
+            TimelineEligibleOnly: plan.TimelineEligibleOnly,
+            IncludeSharedLibraryAssets: plan.IncludeSharedLibraryAssets,
+            ExcludedContentKinds: plan.ExcludedContentKinds), ct);
+        return Task.FromResult<IReadOnlyList<ViewAddedByDto>>(
+            counts.Select(count => new ViewAddedByDto(count.ProfileId, count.Name, count.ItemCount)).ToList());
     }
 }
 

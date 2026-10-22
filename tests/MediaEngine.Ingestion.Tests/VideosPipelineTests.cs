@@ -41,6 +41,7 @@ public sealed class VideosPipelineTests : IDisposable
             Id = "bbbbbbbb-0000-4000-8000-000000000001",
             Name = "Videos",
             Kind = LibraryKinds.Catalogued,
+            KindKey = "other_videos",
             Area = LibraryAreas.Watch,
             MetadataPolicy = LibraryMetadataPolicies.LocalOnly,
             MediaTypes = ["Videos"],

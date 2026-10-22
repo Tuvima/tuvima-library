@@ -96,6 +96,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.DevelopmentToolsState>();
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         Services.AddScoped<ConfirmedActionRunner>();
@@ -637,6 +638,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
         Services.AddScoped(_ => session);
 
         var host = Render(builder =>
@@ -673,6 +675,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
         Services.AddScoped(_ => session);
 
         var cut = Render(builder =>
@@ -710,6 +713,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
         Services.AddScoped(_ => session);
 
         var cut = Render<MainLayout>(parameters => parameters.Add(layout => layout.Body, builder =>
@@ -830,9 +834,13 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     {
         var cut = RenderLibraries(subsection, detail);
 
-        var steps = cut.FindAll(".settings-breadcrumbs a, .settings-breadcrumbs span[aria-current]").Select(step => step.TextContent.Trim()).ToArray();
         var expected = trail.Split('|');
-        Assert.Equal(expected, steps[^expected.Length..]);
+        // The frame redraws once the kinds have arrived, so wait for the trail rather than reading it once.
+        cut.WaitForAssertion(() =>
+        {
+            var steps = cut.FindAll(".settings-breadcrumbs a, .settings-breadcrumbs span[aria-current]").Select(step => step.TextContent.Trim()).ToArray();
+            Assert.Equal(expected, steps[^expected.Length..]);
+        });
         Assert.Equal(title, cut.Find(".app-page-header__title").TextContent.Trim());
         Assert.Equal(hasSubtitle, cut.FindAll(".app-page-header p").Count > 0);
         if (subsection is not null)
@@ -867,6 +875,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             }
         });
         cut.WaitForElement(".libraries");
+        // The title and breadcrumb name the group and kind, which arrive with the list of library kinds.
+        cut.WaitForState(() => Services.GetRequiredService<MediaEngine.Web.Services.Settings.LibraryKindsState>().Loaded);
         return cut;
     }
 

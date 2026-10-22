@@ -108,6 +108,13 @@ public sealed partial class PluginMetadataSourceFiles(IConfigurationLoader loade
 
     private const string NamePrefix = "plugin_";
 
+    /// <summary>The name a plugin's source goes by once the Library has taken it in. The plugin's identity in the name is a hash of its id, so two different ids can never produce the same file name.</summary>
+    public static string ProviderNameFor(string pluginId, string sourceName)
+    {
+        var idHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(pluginId.ToLowerInvariant())))[..8].ToLowerInvariant();
+        return $"{NamePrefix}{idHash}_{sourceName}";
+    }
+
     private static bool IsSourcePlugin(PluginRegistration registration) =>
         registration is { Enabled: true, IsBuiltIn: false, LoadError: null }
         && registration.Manifest.Kind == PluginKind.Declarative
@@ -163,9 +170,7 @@ public sealed partial class PluginMetadataSourceFiles(IConfigurationLoader loade
             }
         }
 
-        // The plugin's identity in the name is a hash of its id, so two different ids can never produce the same file name.
-        var idHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(manifest.Id.ToLowerInvariant())))[..8].ToLowerInvariant();
-        config.Name = $"{NamePrefix}{idHash}_{source.Name}";
+        config.Name = ProviderNameFor(manifest.Id, source.Name);
         config.PluginId = manifest.Id;
         config.ProviderId = StableGuid($"tuvima-plugin-source:{manifest.Id.ToLowerInvariant()}:{source.Name}").ToString();
         config.Enabled = true;

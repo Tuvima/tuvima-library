@@ -19,14 +19,16 @@ public sealed record ViewPlaceDiscoveryQuery(
     int Limit = 50,
     string? Search = null,
     ViewDiscoveryCursor? Cursor = null,
-    bool IncludeSharedLibraryAssets = false);
+    bool IncludeSharedLibraryAssets = false,
+    IReadOnlyCollection<string>? ExcludedContentKinds = null);
 
 public sealed record ViewPeopleDiscoveryQuery(
     IReadOnlyCollection<Guid> AuthorizedLibraryIds,
     int Limit = 100,
     string? Search = null,
     ViewDiscoveryCursor? Cursor = null,
-    bool IncludeSharedLibraryAssets = false);
+    bool IncludeSharedLibraryAssets = false,
+    IReadOnlyCollection<string>? ExcludedContentKinds = null);
 
 public sealed record ViewAtlasDiscoveryQuery(
     IReadOnlyCollection<Guid> AuthorizedLibraryIds,
@@ -38,7 +40,8 @@ public sealed record ViewAtlasDiscoveryQuery(
     DateTimeOffset? From = null,
     DateTimeOffset? To = null,
     string TimelineResolution = "year",
-    bool FavoritesOnly = false);
+    bool FavoritesOnly = false,
+    IReadOnlyCollection<string>? ExcludedContentKinds = null);
 
 public sealed record ViewPlaceAssetDiscoveryQuery(
     IReadOnlyCollection<Guid> AuthorizedLibraryIds,
@@ -50,7 +53,8 @@ public sealed record ViewPlaceAssetDiscoveryQuery(
     bool IncludeSharedLibraryAssets = false,
     DateTimeOffset? From = null,
     DateTimeOffset? To = null,
-    bool FavoritesOnly = false);
+    bool FavoritesOnly = false,
+    IReadOnlyCollection<string>? ExcludedContentKinds = null);
 
 public sealed record ViewDiscoveryCursor(int AssetCount, string Key);
 

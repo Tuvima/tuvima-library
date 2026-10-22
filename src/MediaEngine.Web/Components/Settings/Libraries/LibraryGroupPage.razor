@@ -57,6 +57,8 @@
 @code {
     [Parameter, EditorRequired] public LibraryGroup Group { get; set; } = default!;
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    /// <summary>The Engine's list of library kinds; the rows are the available kinds of this group.</summary>
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
     [Parameter] public LibraryOverviewDto? Overview { get; set; }
     [Parameter] public int? ViewFolders { get; set; }
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
@@ -71,12 +73,13 @@
         {
             { component => component.StartGroupKey, Group.Key },
             { component => component.Configuration, Configuration },
+            { component => component.Kinds, Kinds },
             { component => component.OnFolderAdded, (Func<string?, Task>)(_ => FolderAdded.InvokeAsync()) },
         };
         await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
     }
 
-    private IReadOnlyList<LibraryRowSummary> Rows => LibraryRollup.RowsFor(Group, Configuration, Overview, ViewFolders, PathIssues);
+    private IReadOnlyList<LibraryRowSummary> Rows => LibraryRollup.RowsFor(Kinds, Group, Configuration, Overview, ViewFolders, PathIssues);
 
     private string AddressFor(LibraryTypeOption type) => LibraryGroupCatalog.TypeAddress(Group, type.Key);
 

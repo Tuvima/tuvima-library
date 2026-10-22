@@ -266,6 +266,19 @@ optional stable `source_key`, managed/linked storage mode, a managed relative
 path or external path, recursion and enabled flags, activity time, and timestamps.
 Managed paths resolve beneath the single View root; linked paths remain external
 and read-only.
+Every source also has a kind, set when it is added: `content_kind` (`photos`,
+`personal_videos` or `documents`, default `photos`) decides what the folder
+accepts (Photos take pictures, Personal videos take videos, Documents take
+documents and pictures of paper; audio and other files are never taken). A file
+the folder does not accept is skipped, never moved, deleted or changed, and
+`skipped_file_count` records how many the folder's last full scan skipped (reset
+by every full scan). `added_by_profile_id` (nullable FK to `profiles.id`, set to
+null if that profile is removed) is the profile that added the folder; the files
+found in it are tagged with that profile. The built-in upload/backup source of a
+personal space and the Shared Library's own intake folders (`shared:timeline`,
+`shared:folder:*`) take pictures, videos and documents whatever their stored
+kind says, and each item then takes the kind of its own type. Added by upgrade
+step `0037_view_kinds_and_added_by`.
 `view_devices` stores the Personal Space, optional source, stable client-device
 ID, display/device facts, last-backup time, and a modeled backup state. The
 mobile/device producer itself is not implemented merely because these rows
@@ -288,6 +301,8 @@ personal asset. Compound files share one item.
 | `owner_profile_id` | BLOB | Owning profile; indexed access boundary. |
 | `library_id` | BLOB | Internal intake/configuration bridge. |
 | `media_kind` | TEXT | `image`, `video`, `document`, `audio`, or `other`. |
+| `content_kind` | TEXT | The View kind: `photos`, `personal_videos` or `documents` (NULL only for audio and other files). A folder's items take the folder's kind (a picture of paper in a Documents folder is `documents`); uploads, backups and Shared Library intake items take the kind of their own type. Every permission check gates on this column, not on `media_kind`. A row written without one takes the kind that matches its file type (trigger `trg_local_items_content_kind_default`). Added by upgrade step `0037_view_kinds_and_added_by`. |
+| `added_by_profile_id` | BLOB | The profile that added the item, shown as that profile's current name (nullable FK to `profiles.id`, set to null if the profile is removed). Folder files take the profile that added the folder; uploads and backups take the profile that made the request; a copy in the Shared Library takes the profile whose space the item came from (else the contributor, else whoever moved it in). Indexed by `ix_local_items_added_by`. Added by upgrade step `0037_view_kinds_and_added_by`. |
 | `title`, `primary_file_name`, `primary_mime_type` | TEXT | Local display identity. |
 | `captured_at`, `created_at`, `updated_at` | TEXT | Timeline values and timestamps. |
 | `favorite`, `hidden` | INTEGER | Profile-owned logical flags. |
@@ -474,7 +489,11 @@ reapplies View authorization.
 
 `profile_view_policies` stores independent administrator-managed capabilities:
 View enabled, open the household's Shared Library, send items to it, share
-Galleries, and see Documents (`documents_enabled`). Opening and sending default
+Galleries, and see Documents (`documents_enabled`), Photos (`photos_enabled`) and
+Personal videos (`personal_videos_enabled`). The two newest switches default on
+for everyone; a kind that is off is simply not granted: its items, counts,
+folders, search text, places and people never reach that profile, and a single
+item answers "not found". Opening and sending default
 on (sending stays off for a child profile until a household administrator allows
 it). Documents default on for everyone except a child profile, which starts with
 it off; the Documents page, its Engine list and open actions, and the document

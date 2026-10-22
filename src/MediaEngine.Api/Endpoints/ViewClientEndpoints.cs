@@ -65,7 +65,7 @@ public static class ViewClientEndpoints
 
         group.MapGet("/galleries", async (IViewRequestProfileContext identity,
             IViewResourceAuthorizationService authorization, IViewGalleryRepository galleries,
-            ILocalAssetRepository assets, CancellationToken ct) =>
+            IViewProfileRepository policies, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var (authority, refusal) = await ResolvePairedAppAsync(identity, ct);
             if (refusal is not null)
@@ -82,11 +82,12 @@ public static class ViewClientEndpoints
 
             // Documents are never part of this surface: counts leave them out and a saved Documents view is not listed.
             var profileId = authority!.ActiveProfileId!.Value;
+            var blocked = (await policies.GetPolicyAsync(profileId, ct)).BlockedContentKinds;
             return Results.Ok(new ViewGalleryListResponse(
-                (await galleries.GetOwnedAsync(profileId, false, ct))
+                (await galleries.GetOwnedAsync(profileId, false, ct, blocked))
                     .Where(gallery => !ViewEndpoints.IsDocumentView(gallery))
                     .Select(gallery => ToClient(gallery, profileId, assets)).ToList(),
-                (await galleries.GetSharedWithAsync(profileId, false, ct))
+                (await galleries.GetSharedWithAsync(profileId, false, ct, blocked))
                     .Where(gallery => !ViewEndpoints.IsDocumentView(gallery))
                     .Select(gallery => ToClient(gallery, profileId, assets)).ToList()));
         })
@@ -206,7 +207,8 @@ public static class ViewClientEndpoints
             .RequireClientScope(ApplicationPermissionIds.ViewPersonalRead.Value);
 
         group.MapGet("/items/{id:guid}", async (Guid id, IViewRequestProfileContext identity,
-            IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct) =>
+            IViewResourceAuthorizationService authorization, ILocalAssetRepository assets,
+            IViewProfileRepository policies, CancellationToken ct) =>
         {
             var (authority, refusal) = await ResolvePairedAppAsync(identity, ct);
             if (refusal is not null)
@@ -222,6 +224,7 @@ public static class ViewClientEndpoints
             }
 
             return assets.Find(id, ct) is { } item && IsPhotoOrVideo(item.MediaKind)
+                && !await KindBlockedAsync(id, authority!.ActiveProfileId!.Value, assets, policies, ct)
                 ? Results.Ok(ToClient(item, authority!.ActiveProfileId!.Value)) : Missing();
         })
             .WithName("GetViewClientItem")
@@ -233,7 +236,7 @@ public static class ViewClientEndpoints
         group.MapGet("/items/{id:guid}/thumbnail", async (Guid id, int? size, HttpResponse response,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
             IViewResourceStore resources, ViewThumbnailService thumbnails, ILocalAssetRepository assets,
-            CancellationToken ct) =>
+            IViewProfileRepository policies, CancellationToken ct) =>
         {
             var edge = size ?? ViewThumbnailService.ThumbnailEdges[^1];
             if (!ViewThumbnailService.ThumbnailEdges.Contains(edge))
@@ -242,7 +245,7 @@ public static class ViewClientEndpoints
             }
 
             var (file, refusal) = await ResolveFileAsync(
-                id, ViewResourceKind.Thumbnail, identity, authorization, resources, assets, ct);
+                id, ViewResourceKind.Thumbnail, identity, authorization, resources, assets, policies, ct);
             if (refusal is not null)
             {
                 return refusal;
@@ -263,7 +266,7 @@ public static class ViewClientEndpoints
         group.MapGet("/items/{id:guid}/preview", async (Guid id, int? size, HttpResponse response,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
             IViewResourceStore resources, ViewThumbnailService thumbnails, ILocalAssetRepository assets,
-            CancellationToken ct) =>
+            IViewProfileRepository policies, CancellationToken ct) =>
         {
             var edge = size ?? ViewThumbnailService.PreviewEdges[^1];
             if (!ViewThumbnailService.PreviewEdges.Contains(edge))
@@ -272,7 +275,7 @@ public static class ViewClientEndpoints
             }
 
             var (file, refusal) = await ResolveFileAsync(
-                id, ViewResourceKind.Thumbnail, identity, authorization, resources, assets, ct);
+                id, ViewResourceKind.Thumbnail, identity, authorization, resources, assets, policies, ct);
             if (refusal is not null)
             {
                 return refusal;
@@ -295,10 +298,11 @@ public static class ViewClientEndpoints
         // address that works without that token.
         group.MapGet("/items/{id:guid}/original", async (Guid id, HttpResponse response,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
-            IViewResourceStore resources, ILocalAssetRepository assets, CancellationToken ct) =>
+            IViewResourceStore resources, ILocalAssetRepository assets, IViewProfileRepository policies,
+            CancellationToken ct) =>
         {
             var (file, refusal) = await ResolveFileAsync(
-                id, ViewResourceKind.Original, identity, authorization, resources, assets, ct);
+                id, ViewResourceKind.Original, identity, authorization, resources, assets, policies, ct);
             if (refusal is not null)
             {
                 return refusal;
@@ -320,10 +324,11 @@ public static class ViewClientEndpoints
         // involved; this answers the same manifest shape with the one delivery a personal video has.
         group.MapGet("/items/{id:guid}/playback", async (Guid id, ClaimsPrincipal user,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
-            IViewResourceStore resources, ILocalAssetRepository assets, CancellationToken ct) =>
+            IViewResourceStore resources, ILocalAssetRepository assets, IViewProfileRepository policies,
+            CancellationToken ct) =>
         {
             var (file, refusal) = await ResolveFileAsync(
-                id, ViewResourceKind.Original, identity, authorization, resources, assets, ct);
+                id, ViewResourceKind.Original, identity, authorization, resources, assets, policies, ct);
             if (refusal is not null)
             {
                 return refusal;
@@ -351,7 +356,7 @@ public static class ViewClientEndpoints
     private static async Task<(LocalAssetContentLocation? File, IResult? Refusal)> ResolveFileAsync(
         Guid id, ViewResourceKind kind, IViewRequestProfileContext identity,
         IViewResourceAuthorizationService authorization, IViewResourceStore resources,
-        ILocalAssetRepository assets, CancellationToken ct)
+        ILocalAssetRepository assets, IViewProfileRepository policies, CancellationToken ct)
     {
         var (authority, refusal) = await ResolvePairedAppAsync(identity, ct);
         if (refusal is not null)
@@ -366,7 +371,8 @@ public static class ViewClientEndpoints
             return (null, Refuse(decision.Outcome));
         }
 
-        if (decision.Scope is null || assets.IsDocument(id, ct))
+        if (decision.Scope is null || assets.IsDocument(id, ct)
+            || await KindBlockedAsync(id, authority!.ActiveProfileId!.Value, assets, policies, ct))
         {
             return (null, Missing());
         }
@@ -376,6 +382,15 @@ public static class ViewClientEndpoints
             ? (null, Missing())
             : (file, null);
     }
+
+    /// <summary>
+    /// True when the item's View kind (photos, personal_videos, documents) is one the person has switched off. It gates by
+    /// the item's kind, not its file type, so a JPEG kept in a Documents folder is hidden from a profile without Documents.
+    /// </summary>
+    private static async Task<bool> KindBlockedAsync(Guid id, Guid profileId, ILocalAssetRepository assets,
+        IViewProfileRepository policies, CancellationToken ct) =>
+        assets.GetContentKind(id, ct) is { } kind
+        && (await policies.GetPolicyAsync(profileId, ct)).BlockedContentKinds.Contains(kind);
 
     /// <summary>Only a live paired app (a device token bound to a person) may use this surface.</summary>
     private static async Task<(RequestAuthority? Authority, IResult? Refusal)> ResolvePairedAppAsync(

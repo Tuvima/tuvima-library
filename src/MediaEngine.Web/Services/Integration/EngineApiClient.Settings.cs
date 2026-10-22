@@ -410,6 +410,9 @@ public sealed partial class EngineApiClient
     public Task<LibrariesConfigurationDto?> MutateLibraryAsync(LibraryMutationRequest request, CancellationToken ct = default) =>
         PostAsync<LibraryMutationRequest, LibrariesConfigurationDto>("POST /settings/libraries/mutations", "/settings/libraries/mutations", request, ct: ct);
 
+    public async Task<IReadOnlyList<LibraryKindDto>?> GetLibraryKindsAsync(CancellationToken ct = default) =>
+        await GetAsync<List<LibraryKindDto>>("GET /settings/library-kinds", "/settings/library-kinds", ct: ct);
+
     public Task<ViewStorageSummaryDto?> GetViewStorageSummaryAsync(CancellationToken ct = default) =>
         GetAsync<ViewStorageSummaryDto>("GET /settings/libraries/view-summary", "/settings/libraries/view-summary", ct: ct);
 

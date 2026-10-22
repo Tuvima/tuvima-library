@@ -29,6 +29,8 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     // Holds every folder check open until released, to look at the page while the checks are still running.
     private TaskCompletionSource? _pathGate;
     private bool _profilesFail;
+    // The Engine's list of library kinds; a test adds a kind here the way a plugin would.
+    private List<LibraryKindDto> _kinds = LibraryKindsTestData.BuiltIn();
     private bool _viewSourcesUnavailable;
 
     // Libraries has pages below it (a group, then a type), so its menu row matches them; every other row stays exact.
@@ -66,7 +68,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         [
             new()
             {
-                Id = MoviesId, Name = "Movies", Area = "watch", MediaTypes = ["Movies"],
+                Id = MoviesId, Name = "Movies", KindKey = "movies", Area = "watch", MediaTypes = ["Movies"],
                 PrimaryDestinationSourceId = "movies-main",
                 Sources =
                 [
@@ -76,7 +78,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
             },
             new()
             {
-                Id = AudiobooksId, Name = "Audiobooks", Area = "listen", MediaTypes = ["Audiobooks"],
+                Id = AudiobooksId, Name = "Audiobooks", KindKey = "audiobooks", Area = "listen", MediaTypes = ["Audiobooks"],
                 Sources = [new() { Id = "audio-old", Path = "C:\\media\\Audiobooks", ManagementMode = "existing_library", AccessMode = "read_only" }],
             },
         ],
@@ -92,6 +94,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryOverviewAsync), _ => Task.FromResult(_overview));
+            stub.SetHandler(nameof(IEngineApiClient.GetLibraryKindsAsync), _ => Task.FromResult<IReadOnlyList<LibraryKindDto>?>(_kinds));
             stub.SetHandler(nameof(IEngineApiClient.TestPathAsync), args => ProbeAsync((string)args![0]!));
             stub.SetHandler(nameof(IEngineApiClient.GetViewProfileSourcesAsync), args =>
                 Task.FromResult<ViewPersonalSpaceAdminReviewDto?>(_viewSourcesUnavailable ? null : new((Guid)args![0]!, null, _viewSources, [])));
@@ -108,6 +111,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
+        Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
     }
 
     private async Task<PathTestResultDto?> ProbeAsync(string path)
@@ -162,11 +166,72 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.DoesNotContain("Vault", cut.Markup);
     }
 
+    // A kind a plugin adds is just another entry in the list, so every screen drawn from the list shows it with no code change.
+    [Fact]
+    public void AKindFromAPluginShowsOnTheFrontDoorCardAndTheGroupPageAndOpensItsOwnAddress()
+    {
+        _kinds = LibraryKindsTestData.BuiltIn(LibraryKindsTestData.Podcasts());
+
+        var door = Open();
+        Assert.Equal("Music · Audiobooks · Podcasts", Text(Card(door, "listen").QuerySelector(".lib-door__types")!));
+        Assert.Equal("Movies · TV Shows · Videos", Text(Card(door, "watch").QuerySelector(".lib-door__types")!));
+
+        var group = Open("listen");
+        Assert.Equal(["Music", "Audiobooks", "Podcasts"], group.FindAll(".lib-page__row strong").Select(Text).ToArray());
+        Assert.Equal("/settings/libraries/listen/podcasts", group.Find(".lib-page__row[data-type=podcasts]").GetAttribute("href"));
+
+        var page = Open("listen", "podcasts");
+        Assert.Empty(page.FindAll(".lib-page__row"));
+        Assert.DoesNotContain("This library page does not exist", page.Markup);
+    }
+
+    // The kinds that are defined but not offered yet (YouTube, Other audio, Other reading) appear on no screen.
+    [Fact]
+    public void KindsMarkedUnavailableAreOfferedOnNoScreen()
+    {
+        var door = Open();
+        var group = Open("listen");
+
+        foreach (var hidden in new[] { "YouTube", "Other audio", "Other reading" })
+        {
+            Assert.DoesNotContain(hidden, door.Markup);
+            Assert.DoesNotContain(hidden, group.Markup);
+        }
+
+        Assert.Equal(["Music", "Audiobooks"], group.FindAll(".lib-page__row strong").Select(Text).ToArray());
+    }
+
+    [Fact]
+    public void WhenTheListOfKindsCannotBeReadThePageSaysSoInsteadOfShowingAnEmptyLibrary()
+    {
+        Services.AddSingleton(EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
+            stub.SetHandler(nameof(IEngineApiClient.GetLibraryKindsAsync), _ => Task.FromResult<IReadOnlyList<LibraryKindDto>?>(null));
+        }));
+
+        var cut = Open();
+
+        Assert.Contains("list of library kinds could not be loaded", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheTitleAndBreadcrumbOfAKindFromAPluginComeFromTheList()
+    {
+        var kinds = new LibraryKindCatalog(LibraryKindsTestData.BuiltIn(LibraryKindsTestData.Podcasts()));
+
+        var level = LibraryAddress.Describe(kinds, "listen", "podcasts", showVault: false);
+
+        Assert.Equal("Podcasts", level.Title);
+        Assert.Equal(["Libraries", "Listen", "Podcasts"], level.Crumbs.Select(crumb => crumb.Label).ToArray());
+        Assert.Equal("Libraries", LibraryAddress.Describe(LibraryKindsTestData.Catalog, "listen", "podcasts", showVault: false).Title);
+    }
+
     [Fact]
     public void FrontDoorDrawsTheVaultLastAsAStripOnlyWhenTheHostAllowsIt()
     {
-        var withVault = Render<LibraryFrontDoor>(parameters => parameters.Add(x => x.Configuration, _configuration).Add(x => x.ShowVault, true));
-        var without = Render<LibraryFrontDoor>(parameters => parameters.Add(x => x.Configuration, _configuration));
+        var withVault = Render<LibraryFrontDoor>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.ShowVault, true));
+        var without = Render<LibraryFrontDoor>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration));
 
         Assert.Equal(["watch", "listen", "read", "view", "vault"], withVault.FindAll(".lib-door__group").Select(card => card.GetAttribute("data-group")!).ToArray());
         Assert.Contains("lib-door__group--strip", withVault.FindAll(".lib-door__group").Last().ClassName);
@@ -401,6 +466,29 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AnOldBookmarkToTheVideosTypePageLandsOnTheOtherVideosPage()
+    {
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/settings/libraries/watch/videos");
+
+        Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, "watch").Add(x => x.Detail, "videos"));
+
+        Assert.Equal("http://localhost/settings/libraries/watch/other_videos", navigation.Uri);
+    }
+
+    [Fact]
+    public void AnOldVideosAddressUnderAnotherGroupIsNotRedirected()
+    {
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/settings/libraries/listen/videos");
+
+        var cut = Open("listen", "videos");
+
+        Assert.Equal("http://localhost/settings/libraries/listen/videos", navigation.Uri);
+        Assert.Contains("This library page does not exist", cut.Markup);
+    }
+
+    [Fact]
     public void ASavedLinkToAnUnknownTypeStaysOnTheFrontDoor()
     {
         var navigation = Services.GetRequiredService<NavigationManager>();
@@ -460,6 +548,35 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     }
 
     [Fact]
+    public void SeveralNamedLibrariesOfAPlainKindAreEachARowOnTheWatchGroupPage()
+    {
+        _configuration.Libraries.Add(new()
+        {
+            Id = "55555555-5555-4555-8555-555555555555",
+            Name = "Lectures",
+            Kind = "catalogued",
+            KindKey = "other_videos",
+            Area = "watch",
+            MediaTypes = ["Videos"],
+            Sources = [new() { Id = "lec-1", Path = "C:\\media\\Lectures", ManagementMode = "existing_library", AccessMode = "read_only" }],
+        });
+        _configuration.Libraries.Add(new()
+        {
+            Id = OtherId,
+            Name = "Family recordings",
+            Kind = "catalogued",
+            KindKey = "other_videos",
+            Area = "watch",
+            MediaTypes = ["Videos"],
+            Sources = [new() { Id = "fam-1", Path = "C:\\media\\Family", ManagementMode = "existing_library", AccessMode = "read_only" }],
+        });
+        var cut = Open("watch");
+
+        Assert.Equal(["Movies", "TV Shows", "Lectures", "Family recordings"], cut.FindAll(".lib-page__row strong").Select(Text).ToArray());
+        Assert.Equal($"/settings/libraries/watch/other-{OtherId}", cut.Find($".lib-page__row[data-type=other-{OtherId}]").GetAttribute("href"));
+    }
+
+    [Fact]
     public void AnOtherLibraryWithNoKnownAreaIsARowUnderTheImportFolderOnTheFrontDoor()
     {
         _configuration.Libraries.Add(new()
@@ -500,7 +617,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     [Fact]
     public void ThePanelOnAnUnknownTypeKeyShowsASmallStateWithALinkBack()
     {
-        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.ShowTypeNav, false).Add(x => x.TypeKey, "podcasts"));
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.ShowTypeNav, false).Add(x => x.TypeKey, "podcasts"));
 
         cut.WaitForAssertion(() => Assert.Contains("This library type does not exist", cut.Markup));
         Assert.Equal("/settings/libraries", cut.Find("a[href='/settings/libraries']").GetAttribute("href"));
@@ -511,22 +628,23 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     [Fact]
     public void EveryStandardTypeBelongsToExactlyOneGroupAndMatchesItsArea()
     {
-        foreach (var type in LibraryTypeCatalog.Types)
+        var kinds = LibraryKindsTestData.Catalog;
+        foreach (var type in kinds.Types)
         {
-            var owners = LibraryGroupCatalog.Groups.Where(group => group.TypeKeys.Contains(type.Key)).ToList();
+            var owners = kinds.Groups.Where(group => group.TypeKeys.Contains(type.Key)).ToList();
             var owner = Assert.Single(owners);
             Assert.Equal(type.Area, owner.Key);
         }
 
-        Assert.Equal(["watch", "listen", "read", "view", "vault"], LibraryGroupCatalog.Groups.Select(group => group.Key).ToArray());
-        Assert.Equal("view", LibraryGroupCatalog.GroupFor("photos")!.Key);
-        Assert.Equal(["watch", "listen", "read", "view"], LibraryGroupCatalog.Visible(false).Select(group => group.Key).ToArray());
+        Assert.Equal(["watch", "listen", "read", "view", "vault"], kinds.Groups.Select(group => group.Key).ToArray());
+        Assert.Equal("view", kinds.GroupFor("photos")!.Key);
+        Assert.Equal(["watch", "listen", "read", "view"], kinds.Visible(false).Select(group => group.Key).ToArray());
     }
 
     [Fact]
     public void EveryGroupKeyIsAnAddressTheSettingsPageAndPhonesAccept()
     {
-        foreach (var group in LibraryGroupCatalog.Groups)
+        foreach (var group in LibraryKindsTestData.Catalog.Groups)
         {
             Assert.True(SettingsNav.IsLibraryRouteSegment(group.Key), group.Key);
         }
@@ -556,7 +674,7 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     [InlineData("vault", null, "Libraries", "")]
     public void AnAddressDescribesItsTitleAndBreadcrumbForTheSettingsFrame(string? subsection, string? detail, string title, string crumbs)
     {
-        var level = LibraryAddress.Describe(subsection, detail, showVault: false);
+        var level = LibraryAddress.Describe(LibraryKindsTestData.Catalog, subsection, detail, showVault: false);
 
         Assert.Equal(title, level.Title);
         Assert.Equal(crumbs, string.Join("|", level.Crumbs.Select(crumb => crumb.Href is null ? crumb.Label : $"{crumb.Label}>{crumb.Href}")));
@@ -565,9 +683,9 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
     [Fact]
     public void TheVaultAddressHasATitleAndBreadcrumbOnlyWhenTheVaultMayBeShown()
     {
-        Assert.Equal("Vault", LibraryAddress.Describe("vault", null, showVault: true).Title);
-        Assert.Equal("Libraries", LibraryAddress.Describe("vault", null, showVault: false).Title);
-        Assert.Empty(LibraryAddress.Describe("vault", null, showVault: false).Crumbs);
+        Assert.Equal("Vault", LibraryAddress.Describe(LibraryKindsTestData.Catalog, "vault", null, showVault: true).Title);
+        Assert.Equal("Libraries", LibraryAddress.Describe(LibraryKindsTestData.Catalog, "vault", null, showVault: false).Title);
+        Assert.Empty(LibraryAddress.Describe(LibraryKindsTestData.Catalog, "vault", null, showVault: false).Crumbs);
     }
 
     [Fact]

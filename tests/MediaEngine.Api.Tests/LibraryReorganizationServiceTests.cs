@@ -137,6 +137,8 @@ public sealed class LibraryReorganizationServiceTests
                         OrganizationPolicy = new LibraryOrganizationPolicyConfig(),
                         Category = "Movies",
                         Kind = LibraryKinds.Catalogued,
+                        KindKey = "movies",
+                        MediaTypes = ["Movies"],
                         Area = LibraryAreas.Watch,
                         Presentation = LibraryPresentations.Catalogue,
                         MetadataPolicy = LibraryMetadataPolicies.Enriched,

@@ -12,7 +12,13 @@ public static class JsonConfigValidator
     private static readonly Regex HexColorRegex = new("^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$", RegexOptions.Compiled);
     private static readonly Regex AuthProviderIdRegex = new("^[a-z][a-z0-9-]{1,39}$", RegexOptions.Compiled);
 
-    public static IReadOnlyList<string> Validate<T>(T config, string relativePath)
+    /// <param name="config">The configuration to check.</param>
+    /// <param name="relativePath">The file it belongs to, used in messages and to pick provider rules.</param>
+    /// <param name="libraryKinds">
+    /// The loaded <c>library_kinds.json</c> kinds that a libraries file is checked against. Left out, the kinds that ship with the
+    /// Library are used (what the loader itself falls back to when the file is missing).
+    /// </param>
+    public static IReadOnlyList<string> Validate<T>(T config, string relativePath, IReadOnlyList<LibraryKindDefinition>? libraryKinds = null)
         where T : class
     {
         var errors = new List<string>();
@@ -52,6 +58,9 @@ public static class JsonConfigValidator
             case MediaTypeConfiguration mediaTypes:
                 ValidateMediaTypes(mediaTypes, errors);
                 break;
+            case LibraryKindsConfiguration kinds:
+                ValidateLibraryKinds(kinds, errors);
+                break;
             case Dictionary<string, MediaTypePipeline> pipelines:
                 ValidatePipelines(pipelines, errors);
                 break;
@@ -62,7 +71,7 @@ public static class JsonConfigValidator
                 ValidateLibraryPreferences(preferences, errors);
                 break;
             case LibrariesConfiguration libraries:
-                ValidateLibraries(libraries, errors);
+                ValidateLibraries(libraries, errors, libraryKinds);
                 break;
             case NetworkSettings network:
                 ValidateNetwork(network, errors);
@@ -313,7 +322,7 @@ public static class JsonConfigValidator
         }
     }
 
-    private static void ValidateLibraries(LibrariesConfiguration config, List<string> errors)
+    private static void ValidateLibraries(LibrariesConfiguration config, List<string> errors, IReadOnlyList<LibraryKindDefinition>? libraryKinds)
     {
         if (!string.Equals(config.SchemaVersion, LibrariesConfiguration.CurrentSchemaVersion, StringComparison.Ordinal))
         {
@@ -451,7 +460,7 @@ public static class JsonConfigValidator
 
             if (!LibraryAreas.IsValid(library.Area))
             {
-                errors.Add($"{prefix}.area must be one of read, watch, listen, view.");
+                errors.Add($"{prefix}.area must be one of read, watch, listen, view, vault.");
             }
 
             if (!LibraryPresentations.IsValid(library.Presentation))
@@ -505,6 +514,11 @@ public static class JsonConfigValidator
 
             ValidatePrimaryDestination(library, prefix, errors);
         }
+
+        // A library's kind_key must name a kind in library_kinds.json. A key that is not in that file may belong to a plugin, which
+        // this file cannot see; the Engine checks those against the full list where it saves a library.
+        // The file also holds the Vault's own entries, which have no kind (Videos spec D45).
+        errors.AddRange(LibraryKindRules.LibraryProblems(config, libraryKinds ?? LibraryKindsConfiguration.BuiltIn(), allowUnknownKeys: true, allowMissingKeys: true));
 
         for (var left = 0; left < normalizedPaths.Count; left++)
         {
@@ -1072,12 +1086,24 @@ public static class JsonConfigValidator
         {
             AddRequired(errors, type.Key, "types[].key");
             AddRequired(errors, type.DisplayName, "types[].display_name");
-            AddRequired(errors, type.CategoryFolder, "types[].category_folder");
             if (type.Extensions.Any(extension => !extension.StartsWith('.')))
             {
                 errors.Add("types[].extensions values must start with '.'.");
             }
         }
+    }
+
+    private static void ValidateLibraryKinds(LibraryKindsConfiguration config, List<string> errors)
+    {
+        AddRequired(errors, config.Version, "version");
+        if (config.Kinds.Count == 0)
+        {
+            errors.Add("kinds must contain at least one library kind.");
+        }
+
+        // Whether a provider or naming template exists lives in other files (providers/ and core.json), so those two checks are not
+        // made here; ConfigurationDirectoryLoader.CheckLibraryKindReferences makes them at start-up and when the file is edited.
+        errors.AddRange(LibraryKindRules.Problems(config.Kinds));
     }
 
     private static void ValidatePipelines(Dictionary<string, MediaTypePipeline> pipelines, List<string> errors)

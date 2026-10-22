@@ -40,7 +40,7 @@ namespace MediaEngine.Api.Tests;
 /// The real View routes, wired to a real data store and a signed-in person who can be swapped between calls. These
 /// tests cover who may use the Documents routes and who may rename or delete a shared name.
 /// </summary>
-public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
+public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
 {
     private readonly string _path = Path.Combine(Path.GetTempPath(), $"tuvima-view-routes-{Guid.NewGuid():N}.db");
     private readonly string _thumbnailRoot = Path.Combine(Path.GetTempPath(), $"tuvima-view-thumbs-{Guid.NewGuid():N}");
@@ -244,8 +244,14 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         {
             using var request = new HttpRequestMessage(method, route) { Content = content };
             using var response = await _client.SendAsync(request);
-            Assert.True(response.StatusCode == HttpStatusCode.Forbidden,
-                $"{method} {route} should be refused for a profile without Documents, but returned {(int)response.StatusCode}.");
+            // A single document is answered like an id nobody has (404) so its existence is never confirmed; everything
+            // that is not about one item (and the document-details save, which is refused as a whole feature) is 403.
+            var expected = route.StartsWith(itemRoute, StringComparison.Ordinal)
+                && !route.Contains("/inbox/", StringComparison.Ordinal)
+                && !(method == HttpMethod.Put && route.EndsWith("/document-details", StringComparison.Ordinal))
+                ? HttpStatusCode.NotFound : HttpStatusCode.Forbidden;
+            Assert.True(response.StatusCode == expected,
+                $"{method} {route} should be {(int)expected} for a profile without Documents, but returned {(int)response.StatusCode}.");
         }
 
         // Folders still opens, but never lists a document.
@@ -1214,7 +1220,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         {
             using var request = new HttpRequestMessage(method, route) { Content = content };
             using var response = await _client.SendAsync(request);
-            Assert.True(response.StatusCode == HttpStatusCode.Forbidden, $"{method} {route} returned {(int)response.StatusCode}.");
+            Assert.True(response.StatusCode == HttpStatusCode.NotFound, $"{method} {route} returned {(int)response.StatusCode}.");
         }
 
         var unchanged = _assets.Find(document)!;
@@ -1683,6 +1689,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["GET /view/admin/profiles/{profileId:guid}/sources"] = NoItems + "administrator source settings, no items",
         ["GET /view/admin/shared/sources"] = NoItems + "administrator source settings, no items",
         ["GET /view/assets"] = Refused,
+        ["GET /view/assets/added-by"] = Covers(AddedByCounts, "/view/assets/added-by"),
         ["GET /view/assets/timeline-index"] = Covers(TimelineIndex, "timeline-index"),
         ["GET /view/catalogue"] = Refused,
         ["GET /view/document-rules"] = Refused,

@@ -51,6 +51,81 @@ public sealed class ViewSharedTransferServiceTests
     }
 
     [Fact]
+    public async Task AnAcceptedContributionRecordsTheContributorOnEachItemItBringsInAndKeepsItsKind()
+    {
+        using var fixture = new Fixture();
+        await fixture.Policies.SavePolicyAsync(new ViewProfilePolicy(
+            fixture.ProfileId, true, true, true, true, null));
+        var photo = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, fixture.WriteManaged("tag-photo.jpg", [51, 52, 53]));
+        var video = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, fixture.WriteManaged("tag-video.mp4", [61, 62, 63]));
+        Assert.Equal(ViewContentKinds.Photos, fixture.Assets.Find(photo!.ItemId)!.ContentKind);
+        Assert.Equal(ViewContentKinds.PersonalVideos, fixture.Assets.Find(video!.ItemId)!.ContentKind);
+        var preview = await fixture.Contributions.PreviewAsync(fixture.Authority,
+            new ViewSharedContributionPreviewRequest([photo.ItemId, video.ItemId]));
+        var pending = await fixture.Contributions.SubmitAsync(fixture.Authority,
+            new ViewSharedContributionSubmitRequest([photo.ItemId, video.ItemId], "timeline", null, null, preview.PreviewRevision, "tag-request"));
+
+        await fixture.Contributions.DecideAsync(fixture.Authority, pending.Id,
+            new ViewSharedContributionDecisionRequest("accepted", pending.Revision));
+        await fixture.Contributions.ProcessAsync(pending.Id);
+
+        foreach (var (origin, kind) in new[] { (photo.ItemId, ViewContentKinds.Photos), (video.ItemId, ViewContentKinds.PersonalVideos) })
+        {
+            var copy = fixture.Assets.Find(fixture.SharedItemId(origin))!;
+            Assert.Equal(fixture.ProfileId, copy.AddedByProfileId);
+            Assert.Equal("Household administrator", copy.AddedByName);
+            Assert.Equal(kind, copy.ContentKind);
+        }
+    }
+
+    [Fact]
+    public async Task PhotosAContributorSendsStayTaggedWithTheContributorNotTheAdministratorWhoAcceptedThem_AndFilterByThemAndByTag()
+    {
+        using var fixture = new Fixture();
+        var bobId = Guid.NewGuid();
+        await fixture.InsertProfileAsync(new Profile { Id = bobId, DisplayName = "Bob", Role = ProfileRole.StandardUser });
+        var bobSpace = await fixture.Storage.EnsurePersonalSpaceAsync(bobId);
+        var first = await fixture.Library.IndexPathAsync(bobSpace.LibraryId, fixture.WriteManagedFor(bobSpace, "bob-one.jpg", [71, 72, 73]));
+        var second = await fixture.Library.IndexPathAsync(bobSpace.LibraryId, fixture.WriteManagedFor(bobSpace, "bob-two.jpg", [74, 75, 76]));
+        await fixture.Assets.ReplaceTagsAsync(first!.ItemId, ["Holiday"]);
+        var bob = fixture.Person(bobId);
+        var preview = await fixture.Contributions.PreviewAsync(bob,
+            new ViewSharedContributionPreviewRequest([first.ItemId, second!.ItemId]));
+        var pending = await fixture.Contributions.SubmitAsync(bob, new ViewSharedContributionSubmitRequest(
+            [first.ItemId, second.ItemId], "timeline", null, null, preview.PreviewRevision, "bob-sends-two"));
+
+        var administrator = fixture.HouseholdAdministrator(ProfileTestData.TestHouseholdId);
+        await fixture.Contributions.DecideAsync(administrator, pending.Id,
+            new ViewSharedContributionDecisionRequest("accepted", pending.Revision));
+        await fixture.Contributions.ProcessAsync(pending.Id);
+
+        foreach (var origin in new[] { first.ItemId, second.ItemId })
+        {
+            var copy = fixture.Assets.Find(fixture.SharedItemId(origin))!;
+            Assert.Equal(bobId, copy.AddedByProfileId);
+            Assert.Equal("Bob", copy.AddedByName);
+        }
+
+        var orchestrator = fixture.NewOrchestrator(new StubProfileContext(administrator));
+        var byBob = await orchestrator.QueryAsync(new ViewAssetQueryRequest(
+            ViewScopeRequest.Shared, AddedByProfileIds: [bobId]));
+        Assert.Equal(2, Assert.IsType<ViewAssetTimelinePageDto>(byBob.Page).Items.Count);
+        var byAnyoneElse = await orchestrator.QueryAsync(new ViewAssetQueryRequest(
+            ViewScopeRequest.Shared, AddedByProfileIds: [administrator.ActiveProfileId!.Value]));
+        Assert.Empty(Assert.IsType<ViewAssetTimelinePageDto>(byAnyoneElse.Page).Items);
+
+        // The tag filter and the added-by filter combine: only Bob's tagged photo remains.
+        var tagged = await orchestrator.QueryAsync(new ViewAssetQueryRequest(
+            ViewScopeRequest.Shared, AddedByProfileIds: [bobId],
+            DocumentFilter: new LocalAssetDocumentFilter([fixture.TagId("Holiday")])));
+        Assert.Equal(fixture.SharedItemId(first.ItemId), Assert.Single(Assert.IsType<ViewAssetTimelinePageDto>(tagged.Page).Items).Id);
+        var index = await orchestrator.IndexAsync(new ViewAssetQueryRequest(
+            ViewScopeRequest.Shared, AddedByProfileIds: [bobId],
+            DocumentFilter: new LocalAssetDocumentFilter([fixture.TagId("Holiday")])));
+        Assert.Equal(1, Assert.IsType<ViewTimelineIndexDto>(index.Index).Buckets.Sum(bucket => bucket.AssetCount));
+    }
+
+    [Fact]
     public async Task HouseholdAdministratorCanAddOwnedItemDirectlyWithoutSubmitGrant()
     {
         using var fixture = new Fixture();
@@ -228,7 +303,7 @@ public sealed class ViewSharedTransferServiceTests
     {
         using var fixture = new Fixture();
         var linkedRoot = Directory.CreateDirectory(Path.Combine(fixture.Root, "linked"));
-        await fixture.Storage.AddLinkedSourceAsync(fixture.Space, "Home Movies", linkedRoot.FullName, true);
+        await fixture.Storage.AddLinkedSourceAsync(fixture.Space, "Home Movies", linkedRoot.FullName, true, contentKind: ViewContentKinds.PersonalVideos);
         var original = Path.Combine(linkedRoot.FullName, "home-movie.mp4");
         await File.WriteAllBytesAsync(original, [8, 9, 10]);
         var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
@@ -257,7 +332,7 @@ public sealed class ViewSharedTransferServiceTests
     {
         using var fixture = new Fixture();
         var linkedRoot = Directory.CreateDirectory(Path.Combine(fixture.Root, "linked-docs"));
-        await fixture.Storage.AddLinkedSourceAsync(fixture.Space, "Paperwork", linkedRoot.FullName, true);
+        await fixture.Storage.AddLinkedSourceAsync(fixture.Space, "Paperwork", linkedRoot.FullName, true, contentKind: ViewContentKinds.Documents);
         var original = Path.Combine(linkedRoot.FullName, "water-bill.txt");
         await File.WriteAllTextAsync(original, "Water bill for the house");
         var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
@@ -377,6 +452,43 @@ public sealed class ViewSharedTransferServiceTests
         Assert.False(page.HasMore);
         var unfiltered = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, source.Id, "Trip", false, null, 0, 1);
         Assert.True(unfiltered.HasMore);
+    }
+
+    [Fact]
+    public async Task FolderCountsPagesAndListsLeaveOutAKindTheProfileMayNotUse()
+    {
+        using var fixture = new Fixture();
+        var photo = fixture.WriteManaged(Path.Combine("Trip", "photo.jpg"), [1, 2, 3, 4]);
+        var video = fixture.WriteManaged(Path.Combine("Trip", "clip.mp4"), [5, 6, 7]);
+        var document = fixture.WriteManaged(Path.Combine("Trip", "passport.pdf"), DocumentFixtures.Pdf("passport words"));
+        await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, photo);
+        await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, video);
+        await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, document);
+        var linkedRoot = Directory.CreateDirectory(Path.Combine(fixture.Root, "linked-pictures"));
+        await fixture.Storage.AddLinkedSourceAsync(fixture.Space, "Pictures", linkedRoot.FullName, true,
+            contentKind: ViewContentKinds.Photos);
+        var uploads = Assert.Single(await fixture.Sources.GetSourcesAsync(fixture.Space.Id), source => source.SourceType == ViewSourceType.BrowserUpload);
+        var scope = new ResolvedViewScope(ViewScopeKind.Mine, fixture.ProfileId, new HashSet<Guid> { fixture.Space.LibraryId });
+
+        var everything = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, null, null, false, null, 0, 100);
+        Assert.Equal(2, everything.Sources.Count);
+        Assert.Equal(3, everything.Sources.Single(source => source.SourceId == uploads.Id).ItemCount);
+
+        // Without Photos: the photo is gone from the counts and the page, and so is the folder that holds only photos.
+        var withoutPhotos = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, null, null, false, null, 0, 100,
+            blockedKinds: [ViewContentKinds.Photos]);
+        var remaining = Assert.Single(withoutPhotos.Sources);
+        Assert.Equal(uploads.Id, remaining.SourceId);
+        Assert.Equal(2, remaining.ItemCount);
+        var page = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, uploads.Id, "Trip", false, null, 0, 100,
+            blockedKinds: [ViewContentKinds.Photos]);
+        Assert.DoesNotContain(page.Items, item => item.FileName == "photo.jpg");
+        Assert.Equal(2, page.Items.Count);
+
+        var withoutVideos = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, uploads.Id, "Trip", false, null, 0, 100,
+            blockedKinds: [ViewContentKinds.PersonalVideos]);
+        Assert.DoesNotContain(withoutVideos.Items, item => item.FileName == "clip.mp4");
+        Assert.Equal(2, withoutVideos.Items.Count);
     }
 
     [Fact]
@@ -922,10 +1034,10 @@ public sealed class ViewSharedTransferServiceTests
             Authorization);
 
         public ViewQueryOrchestrator NewOrchestrator(IViewRequestProfileContext context) =>
-            new(context, NewAuthorization(), new ViewAssetQueryService(_assets));
+            new(context, NewAuthorization(), new ViewAssetQueryService(_assets), Policies);
 
         public ViewDiscoveryService NewDiscovery(IViewRequestProfileContext context) =>
-            new(context, NewAuthorization(), new ViewDiscoveryRepository(_database), _assets);
+            new(context, NewAuthorization(), new ViewDiscoveryRepository(_database), Policies, _assets);
 
         public string WriteManagedFor(ViewPersonalSpace space, string name, byte[] bytes)
         {
@@ -970,6 +1082,12 @@ public sealed class ViewSharedTransferServiceTests
             return connection.QuerySingle<Guid?>(
                 "SELECT origin_item_id FROM view_shared_assets WHERE item_id=@sharedItemId;",
                 new { sharedItemId });
+        }
+
+        public Guid TagId(string name)
+        {
+            using var connection = _database.CreateConnection();
+            return connection.QuerySingle<Guid>("SELECT id FROM tags WHERE name = @name;", new { name });
         }
 
         public Guid SharedItemId(Guid originItemId)

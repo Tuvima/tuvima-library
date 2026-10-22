@@ -3691,6 +3691,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.CreateViewSo
   Path: System.String | nullability=nullable | accessors=get,init
   IncludeSubdirectories: System.Boolean | nullability=not-null | accessors=get,init
   IncludeInTimeline: System.Boolean | nullability=not-null | accessors=get,init
+  ContentKind: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.FileViewDocumentFromInboxRequest
   AcceptSuggestions: System.Boolean | nullability=not-null | accessors=get,init
@@ -3778,6 +3779,9 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetDt
   Snippet: System.String | nullability=nullable | accessors=get,init
   DocumentInfo: MediaEngine.Contracts.LocalAssets.LocalAssetDocumentInfoDto | nullability=nullable | accessors=get,init
   CanTrash: System.Boolean | nullability=not-null | accessors=get,init
+  ContentKind: System.String | nullability=nullable | accessors=get,init
+  AddedByProfileId: System.Guid? | nullability=nullable | accessors=get,init
+  AddedByName: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetFileDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -3859,6 +3863,12 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.UpdateViewSo
   Name: System.String | nullability=not-null | accessors=get,init
   Enabled: System.Boolean | nullability=not-null | accessors=get,init
   IncludeInTimeline: System.Boolean | nullability=not-null | accessors=get,init
+  ContentKind: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewAddedByDto
+  ProfileId: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewAssetTimelinePageDto
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.LocalAssetDto> | nullability=not-null | accessors=get,init
@@ -4347,6 +4357,8 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewScopeRes
   CanBrowseOtherPeople: System.Boolean | nullability=not-null | accessors=get,init
   CanViewDocuments: System.Boolean | nullability=not-null | accessors=get,init
   CanFileSharedInbox: System.Boolean | nullability=not-null | accessors=get,init
+  CanViewPhotos: System.Boolean | nullability=not-null | accessors=get,init
+  CanViewPersonalVideos: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewSharedContributionDecisionRequest
   Decision: System.String | nullability=not-null | accessors=get,init
@@ -4462,6 +4474,10 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewSourceAd
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   UpdatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   IncludeInTimeline: System.Boolean | nullability=not-null | accessors=get,init
+  ContentKind: System.String | nullability=not-null | accessors=get,init
+  SkippedFileCount: System.Int32 | nullability=not-null | accessors=get,init
+  AddedByProfileId: System.Guid? | nullability=nullable | accessors=get,init
+  AcceptsPhotosAndVideos: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTagDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -7216,6 +7232,8 @@ MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.UpdateViewProfileP
   SubmitToSharedLibrary: System.Boolean | nullability=not-null | accessors=get,init
   AllowGallerySharing: System.Boolean | nullability=not-null | accessors=get,init
   AllowDocuments: System.Boolean? | nullability=nullable | accessors=get,init
+  AllowPhotos: System.Boolean? | nullability=nullable | accessors=get,init
+  AllowPersonalVideos: System.Boolean? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ViewProfilePolicyDto
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
@@ -7224,6 +7242,8 @@ MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ViewProfilePolicyD
   SubmitToSharedLibrary: System.Boolean | nullability=not-null | accessors=get,init
   AllowGallerySharing: System.Boolean | nullability=not-null | accessors=get,init
   AllowDocuments: System.Boolean | nullability=not-null | accessors=get,init
+  AllowPhotos: System.Boolean | nullability=not-null | accessors=get,init
+  AllowPersonalVideos: System.Boolean | nullability=not-null | accessors=get,init
   UpdatedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Progress.MediaEngine.Contracts.Progress.JourneyItemDto
@@ -8126,6 +8146,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   Name: System.String | nullability=not-null | accessors=get,set
   Category: System.String | nullability=nullable | accessors=get,set
   Kind: System.String | nullability=not-null | accessors=get,set
+  KindKey: System.String | nullability=not-null | accessors=get,set
   Area: System.String | nullability=not-null | accessors=get,set
   Presentation: System.String | nullability=not-null | accessors=get,set
   MetadataPolicy: System.String | nullability=not-null | accessors=get,set
@@ -8141,6 +8162,24 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   AcceptedIntakeModes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   OrganizationPolicy: MediaEngine.Contracts.Settings.LibraryOrganizationPolicyDto | nullability=not-null | accessors=get,set
   Notes: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryKindDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Area: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Icon: System.String | nullability=not-null | accessors=get,set
+  Format: System.String | nullability=nullable | accessors=get,set
+  LookupProviders: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  NamingTemplate: System.String | nullability=nullable | accessors=get,set
+  Misfit: System.String | nullability=not-null | accessors=get,set
+  DefaultHandling: System.String | nullability=not-null | accessors=get,set
+  Tooltip: System.String | nullability=not-null | accessors=get,set
+  Order: System.Int32 | nullability=not-null | accessors=get,set
+  BuiltIn: System.Boolean | nullability=not-null | accessors=get,set
+  PluginId: System.String | nullability=nullable | accessors=get,set
+  Available: System.Boolean | nullability=not-null | accessors=get,set
+  AllowsMultiple: System.Boolean | nullability=not-null | accessors=get,set
+  MaxLibraries: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryLaneGroupDisplaySettings
   Enabled: System.Boolean? | nullability=nullable | accessors=get,set
@@ -8208,7 +8247,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.MediaTypeDefinitio
   DisplayName: System.String | nullability=not-null | accessors=get,set
   Icon: System.String | nullability=not-null | accessors=get,set
   Extensions: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
-  CategoryFolder: System.String | nullability=not-null | accessors=get,set
   BuiltIn: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.MediaTypePipeline

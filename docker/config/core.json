@@ -10,8 +10,9 @@
     "Audiobooks": "Audiobooks/{Author}/{Title} ({Year})/{Title}{Ext}",
     "Movies": "Movies/{Title} ({Year})/{Title} ({Year}){Ext}",
     "TV": "TV/{Series} ({Year})/Season {Season}/{Series} - {EpisodeCode?} - {EpisodeTitle}{Ext}",
-    "Comic": "Comics/{Series}/{Series} - {IssueNumber} ({Year}){Ext}",
-    "Music": "Music/{Artist}/{Album} ({Year})/{TrackNumber?} - {Title}{Ext}"
+    "Comics": "Comics/{Series}/{Series} - {IssueNumber} ({Year}){Ext}",
+    "Music": "Music/{Artist}/{Album} ({Year})/{TrackNumber?} - {Title}{Ext}",
+    "Videos": "Videos/{Title}{Ext}"
   },
   "server_name": "Tuvima Library",
   "language": {

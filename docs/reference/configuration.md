@@ -233,10 +233,11 @@ Defines the clean schema 7 library model used by **Settings > Libraries**. The r
 | `name` | string | Configuration/admin name. For View, the profile-facing identity is the Personal Space, not this library record. |
 | `category` | string? | Structured subtype such as Books, Movies, TV, Music, Audiobooks, or Comics. Personal libraries may omit it. |
 | `kind` | string | Exactly `catalogued` or `personal`. |
-| `area` | string | `read`, `watch`, `listen`, or `view`. |
+| `kind_key` | string | The library kind (an entry in `config/library_kinds.json`, for example `movies` or `other_videos`) this library holds. Required for catalogued libraries; it must name a kind that exists, and `media_types` must include that kind's `format`. Kinds a plugin supplies are checked by the Engine against the full list (plugin kinds included) where a library is saved. |
+| `area` | string | `read`, `watch`, `listen`, `view`, or `vault`. |
 | `presentation` | string | Catalogue, gallery, mixed gallery, timeline, video, documents, audio, or mixed presentation. |
 | `metadata_policy` | string | `enriched`, `local_preferred`, `local_only`, or `manual`. The last two bypass external identity/provider work. |
-| `media_types` | string[] | Structured media types expected by catalogued libraries. A View Personal Space may index mixed local media through its backing personal library. Each media type may belong to only one catalogued library; the Engine rejects a change that adds a second one (older duplicates already saved are tolerated). |
+| `media_types` | string[] | Structured media types expected by catalogued libraries. A View Personal Space may index mixed local media through its backing personal library. How many catalogued libraries may hold the same media type is decided by their kinds, not by the media type: a kind that looks details up holds one library, a plain kind holds up to its `max_libraries`, and kinds that share a format (for example a plugin's Podcasts and Music, both `Music`) each have their own libraries. The Engine rejects a change that breaks a kind's limit (see `config/library_kinds.json`). |
 | `sources` | object[] | Stable source objects; see below. Array order has no meaning. |
 | `primary_destination_source_id` | GUID string? | The one folder new media is filed into: a managed source of this library, or `null` when there is none. A read-only folder is never a destination. On save the first managed folder added becomes the destination; if it is removed or switched to read-only, the earliest-added remaining managed folder takes over, and with none left it is `null`. If the destination is unavailable, files wait in Import; there is no fallback to another folder. |
 | `owner_profile_id` | GUID string? | Owning profile for personal access decisions. |
@@ -294,13 +295,41 @@ Gallery, scope-profile, or asset ID authoritative.
 
 ---
 
+## config/library_kinds.json
+
+The one list of **library kinds** ("recipes"): every type of library the Library can hold. The Libraries front door, group pages, Add folder and the import folder are all drawn from this list, so a kind added here (or by a declarative plugin, see [Building a plugin](../guides/building-a-plugin.md)) appears everywhere with no screen changes. A missing file means the kinds that ship with the Library. The Engine serves the list, plugin kinds included, at `GET /settings/library-kinds`.
+
+| Field | Type | Description |
+|---|---|---|
+| `kinds[].key` | string | Stable identifier in lower_snake case (`movies`, `other_videos`). Also the address of the kind's page (`/settings/libraries/watch/movies`). |
+| `kinds[].area` | string | `watch`, `listen`, `read`, `view` or `vault`. |
+| `kinds[].label` | string | What a person sees. |
+| `kinds[].icon` | string | An `AppMaterialIcons` name the Dashboard draws (`MenuBook`, `Tv`); an unknown name draws the folder icon. |
+| `kinds[].format` | string? | The Engine media type the kind's files are filed under: `Movies`, `TV`, `Videos`, `Music`, `Audiobooks`, `Books` or `Comics`. `null` only for View kinds. |
+| `kinds[].lookup` | `"none"` or `{ "providers": [...] }` | Where details come from. Recorded for display; it does not change which provider is used. |
+| `kinds[].grouping` | string | One of the grouping rules already in code: `movie`, `tv_show_season`, `music_album`, `audiobook`, `book_series`, `comic_series`, `video_series_folder`, `folder_and_tags`, `view_gallery`. A new way of grouping files needs a Library release. |
+| `kinds[].naming_template` | string? | The `organization_templates` key in `config/core.json` that names the kind's files and folders. |
+| `kinds[].misfit` | string | `unmatched` (a file that does not fit goes to Needs Review; needs a `lookup`) or `keep` (it stays as it is). |
+| `kinds[].default_handling` | string | `read_only` or `managed`: the default for a new folder of this kind. |
+| `kinds[].tooltip` | string | The (i) text beside the kind in Add folder. |
+| `kinds[].order` | integer | Position among the kinds of its area. |
+| `kinds[].built_in` | boolean | True for the kinds that ship with the Library. |
+| `kinds[].available` | boolean | False while a kind is defined but not offered on any screen (YouTube, Other audio and Other reading, until they work). Defaults to true. |
+| `kinds[].allows_multiple` | boolean | True when a person may keep several named libraries of this kind (for example "Lectures" and "Family recordings" under Other videos). Defaults to false, which means one library. |
+| `kinds[].max_libraries` | integer | The most libraries of this kind (1 to 20). Defaults to 1; above 1 only when `allows_multiple` is true. The kinds that ship with `allows_multiple` allow 5. |
+
+The kinds that ship, in order: Watch has `movies`, `tv`, `youtube`, `other_videos` (labelled "Videos"); Listen has `music`, `audiobooks`, `other_audio`; Read has `books`, `comics`, `other_reading`; View has `photos`. Each library in `config/libraries.json` names its kind with `kind_key`. A kind that does not allow several holds one library; a kind that does holds up to `max_libraries`, each with its own name, unique (ignoring case) among the libraries of its area and never another kind's label. Several kinds may share a format. The file is described by `config/schemas/library_kinds.schema.json`. Each kind's lookup providers and naming template are checked against `config/providers/` and `config/core.json` when the Engine starts and when the file is edited, so a typo is reported with the file and the kind it is in; the import folder's media types and folders are read from this file too.
+
+---
+
 ## config/media_types.json
 
 Declares supported extensions by media type. The scanner, initial sweep, generic processor fallback, media-type resolver, and playback fallback read this catalog so extension behavior stays consistent across ingestion and Dashboard playback.
 
 | Field | Type | Description |
 |---|---|---|
-| `{MediaType}.extensions` | string[] | File extensions associated with the media type. Extensions can include or omit the leading dot. |
+| `types[].key` | string | Media type key (`books`, `tv_shows`, `videos`). The `videos` key maps to the Videos media type. |
+| `types[].extensions` | string[] | File extensions associated with the media type. Extensions can include or omit the leading dot. |
 | `{MediaType}.aliases` | string[] | Alternate labels normalized to the media type where present. |
 
 Ambiguous extensions can appear in more than one media type. The resolver uses folder context, embedded metadata, filename patterns, and stronger extension rules to pick a media type. Current governance rules treat `.m4b` as an audiobook fallback, `.mp3` as music when no stronger audiobook evidence exists, and video containers such as `.mkv` as movie fallbacks unless TV evidence is present.

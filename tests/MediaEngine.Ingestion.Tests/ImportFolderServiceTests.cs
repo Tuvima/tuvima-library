@@ -74,6 +74,21 @@ public sealed class ImportFolderServiceTests : IDisposable
     }
 
     [Fact]
+    public void The_per_type_folders_and_type_priors_follow_the_loaded_kinds_list_not_the_built_in_one()
+    {
+        var magazines = LibraryKindsConfiguration.BuiltIn().Single(kind => kind.Key == "comics");
+        magazines.Label = "Manga";
+        _h.Config.LibraryKinds = new LibraryKindsConfiguration { Kinds = [.. LibraryKindsConfiguration.BuiltIn().Where(kind => kind.Key != "comics"), magazines] };
+
+        var created = _h.Importer.EnsureSubfolders();
+
+        Assert.True(Directory.Exists(Path.Combine(_h.ImportDir, "Manga")));
+        Assert.Equal(MediaType.Comics, _h.Importer.ResolveTypePrior(Path.Combine(_h.ImportDir, "Manga", "Akira", "v1.cbz")));
+        Assert.Null(_h.Importer.ResolveTypePrior(Path.Combine(_h.ImportDir, "Notes", "v1.cbz")));
+        Assert.Contains(Path.Combine(_h.ImportDir, "Manga"), created);
+    }
+
+    [Fact]
     public void The_Import_folder_itself_is_only_created_when_asked_so_an_offline_drive_is_never_replaced()
     {
         Directory.Delete(_h.ImportDir, recursive: true);
@@ -248,6 +263,7 @@ public sealed class ImportFolderServiceTests : IDisposable
                     Name = "Movies",
                     Category = "Movies",
                     Kind = LibraryKinds.Catalogued,
+                    KindKey = "movies",
                     MediaTypes = ["Movies"],
                     Sources =
                     [

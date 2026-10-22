@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
 using ContractLibraryPreferences = MediaEngine.Contracts.Settings.LibraryPreferencesSettings;
 using ContractPipelineConfiguration = MediaEngine.Contracts.Settings.PipelineConfiguration;
 using ContractTranscodingSettings = MediaEngine.Contracts.Settings.TranscodingSettings;
@@ -68,10 +69,12 @@ internal static class SettingsContractMapper
     internal static ResolvedUISettingsDto ToContract(ResolvedUISettings value) =>
         Convert<ResolvedUISettingsDto>(value);
 
-    internal static LibrariesConfigurationDto ToContract(LibrariesConfiguration value)
+    /// <param name="value">The libraries configuration.</param>
+    /// <param name="kinds">Where the import folder's media types are read from (the kinds list); without it the kinds that ship are used.</param>
+    internal static LibrariesConfigurationDto ToContract(LibrariesConfiguration value, IConfigurationLoader? kinds = null)
     {
         var result = Convert<LibrariesConfigurationDto>(value);
-        var status = ImportFolderRules.Evaluate(value);
+        var status = ImportFolderRules.Evaluate(value, kinds is null ? null : ImportFolderRules.TypesFrom(kinds.LoadLibraryKinds().Kinds));
         result.ImportFolderStatus = new ImportFolderStatusDto
         {
             Configured = status.Configured,

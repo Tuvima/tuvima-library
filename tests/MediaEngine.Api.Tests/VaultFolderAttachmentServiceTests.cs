@@ -282,11 +282,11 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
         // A settings screen sends back what it was shown (even with a Videos library of its own); the Vault entry survives untouched.
         var sent = VaultLibrarySettings.WithoutVault(current, ids);
         sent = new LibrariesConfiguration { StorageLocations = sent.StorageLocations, Libraries = [.. sent.Libraries] };
-        sent.Libraries.Add(new LibraryFolderConfig { Id = Guid.NewGuid().ToString("D"), Name = "Videos", Category = "Videos", MediaTypes = ["Videos"] });
+        sent.Libraries.Add(new LibraryFolderConfig { Id = Guid.NewGuid().ToString("D"), Name = "Videos", Category = "Videos", KindKey = "other_videos", MediaTypes = ["Videos"] });
         VaultLibrarySettings.KeepVault(current, sent, ids);
         Assert.Equal(3, sent.Libraries.Count);
         Assert.Single(sent.Libraries, library => library.Id == vault.LibraryId && library.Sources.Count == 1);
-        Assert.Null(LibraryTypeRules.ValidateOneLibraryPerType(VaultLibrarySettings.WithoutVault(current, ids), VaultLibrarySettings.WithoutVault(sent, ids)));
+        Assert.Empty(LibraryKindRules.LibraryProblems(VaultLibrarySettings.WithoutVault(sent, ids), LibraryKindsConfiguration.BuiltIn()));
     }
 
     // ── Setup ───────────────────────────────────────────────────────────────────────────────────
@@ -305,6 +305,7 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
             Id = MoviesLibraryId,
             Name = "Movies",
             Category = "Movies",
+            KindKey = "movies",
             Area = LibraryAreas.Watch,
             MediaTypes = ["Movies"],
             Sources = [new LibrarySourceConfig { Id = Guid.NewGuid().ToString("D"), Path = _moviesFolder, ManagementMode = LibrarySourceManagementModes.ExistingLibrary }],

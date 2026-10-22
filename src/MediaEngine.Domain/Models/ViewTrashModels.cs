@@ -18,7 +18,8 @@ public sealed record ViewTrashItem(
     Guid ItemId,
     string MediaKind,
     Guid LibraryId,
-    IReadOnlyList<ViewTrashFile> Files);
+    IReadOnlyList<ViewTrashFile> Files,
+    string? ContentKind = null);
 
 /// <summary>A file path of a trashed item that another item also uses (the same path, in the other item's own library).</summary>
 public sealed record ViewTrashPathUse(Guid ItemId, string FilePath, Guid OtherItemId);

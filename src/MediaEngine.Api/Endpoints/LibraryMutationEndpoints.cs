@@ -25,7 +25,7 @@ internal static class LibraryMutationEndpoints
         }).WithName("GetViewStorageSummary").Produces<ViewStorageSummaryDto>().RequireAdmin();
 
         group.MapPost("/libraries/mutations", async (LibraryMutationRequest request,
-            IConfigurationLoader configuration, ServerFolderBrowserService folders, HttpContext http,
+            IConfigurationLoader configuration, ServerFolderBrowserService folders, [Microsoft.AspNetCore.Mvc.FromServices] LibraryKindListService libraryKinds, HttpContext http,
             IFileOrganizer organizer, ViewStorageService storage, IProfileRepository profiles,
             IViewProfileRepository policies, ImportFolderApplier importFolder, FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
         {
@@ -41,7 +41,7 @@ internal static class LibraryMutationEndpoints
                 }
 
                 var current = configuration.LoadLibraries();
-                var dto = SettingsContractMapper.ToContract(current);
+                var dto = SettingsContractMapper.ToContract(current, configuration);
                 var conflict = ApplyEdit(dto, request);
                 if (conflict is not null)
                 {
@@ -61,15 +61,14 @@ internal static class LibraryMutationEndpoints
                 FolderJobService.KeepEngineOwnedConversionState(current, proposed);
                 var error = SettingsEndpoints.ValidateViewStorage(proposed)
                     ?? SettingsEndpoints.ValidateViewRootChange(current, proposed)
-                    ?? LibraryTypeRules.ValidateOneLibraryPerType(
-                        VaultLibrarySettings.WithoutVault(current, vaultIds), VaultLibrarySettings.WithoutVault(proposed, vaultIds))
-                    ?? ImportFolderValidation.Validate(proposed);
+                    ?? ImportFolderValidation.Validate(proposed)
+                    ?? libraryKinds.ValidateLibraries(VaultLibrarySettings.WithoutVault(proposed, vaultIds));
                 if (error is not null)
                 {
                     return ApiErrors.BadRequest(error);
                 }
 
-                var errors = JsonConfigValidator.Validate(proposed, "libraries.json");
+                var errors = JsonConfigValidator.Validate(proposed, "libraries.json", configuration.LoadLibraryKinds().Kinds);
                 if (errors.Count > 0)
                 {
                     return ApiErrors.BadRequest(string.Join(" ", errors));
@@ -128,7 +127,7 @@ internal static class LibraryMutationEndpoints
                     }
                 }
 
-                return Results.Ok(SettingsContractMapper.ToContract(VaultLibrarySettings.WithoutVault(proposed, vaultIds)));
+                return Results.Ok(SettingsContractMapper.ToContract(VaultLibrarySettings.WithoutVault(proposed, vaultIds), configuration));
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException or ServerFolderAccessException)
             {

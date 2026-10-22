@@ -27,7 +27,8 @@ public sealed class ViewFolderService(
         int offset,
         int limit,
         bool includeDocuments = true,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        IReadOnlyCollection<string>? blockedKinds = null)
     {
         if (offset < 0)
         {
@@ -39,8 +40,15 @@ public sealed class ViewFolderService(
             throw new ArgumentOutOfRangeException(nameof(limit));
         }
 
-        // A profile without Documents never sees a document in a count, a folder node or a page.
-        var configured = await ConfiguredSourcesAsync(scope, includeDocuments, ct);
+        // A profile without a kind (Photos, Personal videos or Documents) never sees an item of that kind in a count,
+        // a folder node or a page, nor a folder that holds only that kind.
+        var blocked = new List<string>(blockedKinds ?? []);
+        if (!includeDocuments && !blocked.Contains(ViewContentKinds.Documents))
+        {
+            blocked.Add(ViewContentKinds.Documents);
+        }
+
+        var configured = await ConfiguredSourcesAsync(scope, blocked, ct);
         if (sourceId is null)
         {
             return new ViewFolderPageDto(configured.Select(value => value.Dto).ToList(),
@@ -59,7 +67,7 @@ public sealed class ViewFolderService(
 
         var separator = Path.DirectorySeparatorChar.ToString();
         var prefix = Path.TrimEndingDirectorySeparator(absolute) + Path.DirectorySeparatorChar;
-        var paths = QueryPaths(selected.LibraryId, selected.SourceId, prefix, search, selected.SharedOnly, includeDocuments, ct);
+        var paths = QueryPaths(selected.LibraryId, selected.SourceId, prefix, search, selected.SharedOnly, blocked, ct);
         var folderPreferences = GetFolderPreferences(viewerProfileId, selected.SourceId, ct);
         var folders = paths
             .Select(row => new { row.ItemId, Suffix = row.FilePath[prefix.Length..] })
@@ -77,7 +85,7 @@ public sealed class ViewFolderService(
             .ToList();
 
         var itemIds = QueryItemIds(selected.LibraryId, selected.SourceId, prefix,
-            includeDescendants, search, offset, limit + 1, selected.SharedOnly, includeDocuments, ct);
+            includeDescendants, search, offset, limit + 1, selected.SharedOnly, blocked, ct);
         var hasMore = itemIds.Count > limit;
         if (hasMore)
         {
@@ -99,7 +107,7 @@ public sealed class ViewFolderService(
     public async Task SetPinAsync(Guid viewerProfileId, ResolvedViewScope scope, Guid sourceId,
         string? relativePath, bool pinned, CancellationToken ct = default)
     {
-        var selected = (await ConfiguredSourcesAsync(scope, true, ct)).SingleOrDefault(value => value.SourceId == sourceId)
+        var selected = (await ConfiguredSourcesAsync(scope, [], ct)).SingleOrDefault(value => value.SourceId == sourceId)
             ?? throw new KeyNotFoundException("The folder source is unavailable in this View scope.");
         if (selected.SharedOnly)
         {
@@ -135,7 +143,7 @@ public sealed class ViewFolderService(
         ResolvedViewScope scope, Guid sourceId, string? relativePath, bool? includeInTimeline,
         CancellationToken ct = default)
     {
-        var selected = (await ConfiguredSourcesAsync(scope, true, ct)).SingleOrDefault(value => value.SourceId == sourceId)
+        var selected = (await ConfiguredSourcesAsync(scope, [], ct)).SingleOrDefault(value => value.SourceId == sourceId)
             ?? throw new KeyNotFoundException("The folder source is unavailable in this View scope.");
         if (selected.SharedOnly)
         {
@@ -187,7 +195,7 @@ public sealed class ViewFolderService(
     }
 
     private async Task<IReadOnlyList<ConfiguredSource>> ConfiguredSourcesAsync(
-        ResolvedViewScope scope, bool includeDocuments, CancellationToken ct)
+        ResolvedViewScope scope, IReadOnlyCollection<string> blocked, CancellationToken ct)
     {
         var result = new List<ConfiguredSource>();
         if (scope.Kind == ViewScopeKind.Shared)
@@ -198,6 +206,7 @@ public sealed class ViewFolderService(
                        vs.storage_mode AS StorageMode, vs.relative_path AS RelativePath,
                        vs.external_path AS ExternalPath,
                        vs.include_subdirectories AS IncludeSubdirectories,
+                       vs.content_kind AS ContentKind, vs.source_key AS SourceKey,
                        COALESCE(vsp.include_in_timeline, 0) AS IncludeInTimeline
                  FROM view_sources vs
                  LEFT JOIN view_source_policies vsp ON vsp.source_id = vs.id
@@ -206,7 +215,7 @@ public sealed class ViewFolderService(
                 """, cancellationToken: ct));
             foreach (var source in sharedSources)
             {
-                if (!scope.ContainsLibrary(source.LibraryId))
+                if (!scope.ContainsLibrary(source.LibraryId) || IsHiddenKind(source.ContentKind, source.SourceKey, blocked))
                 {
                     continue;
                 }
@@ -229,7 +238,7 @@ public sealed class ViewFolderService(
                 result.Add(new ConfiguredSource(source.LibraryId, source.Id, root, SharedOnly: true,
                     new ViewFolderSourceDto(source.Id, source.Name, Guid.Empty, "Server",
                         linked ? "linked" : "managed", source.IncludeInTimeline,
-                        CountItems(source.LibraryId, source.Id, true, includeDocuments, ct), Directory.Exists(root))));
+                        CountItems(source.LibraryId, source.Id, true, blocked, ct), Directory.Exists(root))));
             }
         }
 
@@ -241,10 +250,11 @@ public sealed class ViewFolderService(
             }
 
             var profile = await profiles.GetByIdAsync(space.OwnerProfileId, ct);
-            foreach (var source in (await spaces.GetSourcesAsync(space.Id, ct)).Where(value => value.Enabled))
+            foreach (var source in (await spaces.GetSourcesAsync(space.Id, ct))
+                         .Where(value => value.Enabled && !IsHiddenKind(value.ContentKind, value.SourceKey, blocked)))
             {
                 var root = storage.GetSourcePath(space, source);
-                var count = CountItems(space.LibraryId, source.Id, false, includeDocuments, ct);
+                var count = CountItems(space.LibraryId, source.Id, false, blocked, ct);
                 result.Add(new ConfiguredSource(space.LibraryId, source.Id, root, SharedOnly: false, new ViewFolderSourceDto(
                     source.Id, source.Name, space.OwnerProfileId, profile?.DisplayName ?? "Profile",
                     source.StorageMode == ViewSourceStorageMode.Linked ? "linked" : "managed",
@@ -255,7 +265,11 @@ public sealed class ViewFolderService(
             .ThenBy(value => value.Dto.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private int CountItems(Guid libraryId, Guid sourceId, bool sharedOnly, bool includeDocuments, CancellationToken ct)
+    /// <summary>A folder of a blocked kind is not listed. The intake folders take every kind, so they always are.</summary>
+    private static bool IsHiddenKind(string contentKind, string? sourceKey, IReadOnlyCollection<string> blocked) =>
+        blocked.Count > 0 && !ViewKindAcceptance.IsIntakeSource(sourceKey) && blocked.Contains(contentKind);
+
+    private int CountItems(Guid libraryId, Guid sourceId, bool sharedOnly, IReadOnlyCollection<string> blocked, CancellationToken ct)
     {
         using var connection = database.CreateConnection();
         return connection.ExecuteScalar<int>(new CommandDefinition("""
@@ -265,9 +279,9 @@ public sealed class ViewFolderService(
               JOIN local_items li ON li.id = lif.item_id
              WHERE lfs.library_id = @libraryId AND lfs.source_id = @sourceId
                AND li.trashed_at IS NULL AND li.hidden = 0
-               AND (@includeDocuments = 1 OR li.media_kind <> @documentKind)
+               AND (@hasBlockedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @blockedKinds)
                AND (@sharedOnly = 0 OR EXISTS (SELECT 1 FROM view_shared_assets vsa WHERE vsa.item_id = li.id));
-            """, new { libraryId, sourceId, sharedOnly, includeDocuments, documentKind = LocalAssetMediaKinds.Document }, cancellationToken: ct));
+            """, new DynamicParameters(new { libraryId, sourceId, sharedOnly }).AddBlockedKinds(blocked), cancellationToken: ct));
     }
 
     private IReadOnlyList<ViewFolderPinDto> GetPins(Guid viewerProfileId,
@@ -340,7 +354,7 @@ public sealed class ViewFolderService(
 
     private sealed record FolderItemPath(Guid ItemId, string FilePath);
     private List<FolderItemPath> QueryPaths(Guid libraryId, Guid sourceId, string prefix, string? search,
-        bool sharedOnly, bool includeDocuments, CancellationToken ct)
+        bool sharedOnly, IReadOnlyCollection<string> blocked, CancellationToken ct)
     {
         using var connection = database.CreateConnection();
         return connection.Query<FolderItemPath>(new CommandDefinition("""
@@ -350,28 +364,26 @@ public sealed class ViewFolderService(
               JOIN local_items li ON li.id = lif.item_id
              WHERE lfs.library_id = @libraryId AND lfs.source_id = @sourceId
                AND li.trashed_at IS NULL AND li.hidden = 0
-               AND (@includeDocuments = 1 OR li.media_kind <> @documentKind)
+               AND (@hasBlockedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @blockedKinds)
                AND (@sharedOnly = 0 OR EXISTS (
                     SELECT 1 FROM view_shared_assets vsa WHERE vsa.item_id = lif.item_id))
                AND lfs.file_path LIKE @pathPrefix ESCAPE '~'
                AND (@search IS NULL OR li.title LIKE @searchLike ESCAPE '~'
                     OR li.primary_file_name LIKE @searchLike ESCAPE '~')
              ORDER BY lfs.file_path COLLATE NOCASE;
-            """, new
+            """, new DynamicParameters(new
         {
             libraryId,
             sourceId,
             sharedOnly = sharedOnly ? 1 : 0,
-            includeDocuments = includeDocuments ? 1 : 0,
-            documentKind = LocalAssetMediaKinds.Document,
             pathPrefix = EscapeLike(prefix) + "%",
             search = NullIfWhiteSpace(search),
             searchLike = "%" + EscapeLike(search?.Trim() ?? string.Empty) + "%",
-        }, cancellationToken: ct)).ToList();
+        }).AddBlockedKinds(blocked), cancellationToken: ct)).ToList();
     }
 
     private List<Guid> QueryItemIds(Guid libraryId, Guid sourceId, string prefix,
-        bool recursive, string? search, int offset, int take, bool sharedOnly, bool includeDocuments, CancellationToken ct)
+        bool recursive, string? search, int offset, int take, bool sharedOnly, IReadOnlyCollection<string> blocked, CancellationToken ct)
     {
         using var connection = database.CreateConnection();
         return connection.Query<Guid>(new CommandDefinition("""
@@ -387,16 +399,14 @@ public sealed class ViewFolderService(
                AND (@search IS NULL OR li.title LIKE @searchLike ESCAPE '~'
                     OR li.primary_file_name LIKE @searchLike ESCAPE '~')
                AND li.trashed_at IS NULL AND li.hidden = 0
-               AND (@includeDocuments = 1 OR li.media_kind <> @documentKind)
+               AND (@hasBlockedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @blockedKinds)
              ORDER BY COALESCE(li.captured_at, li.created_at) DESC, li.id DESC
              LIMIT @take OFFSET @offset;
-            """, new
+            """, new DynamicParameters(new
         {
             libraryId,
             sourceId,
             sharedOnly = sharedOnly ? 1 : 0,
-            includeDocuments = includeDocuments ? 1 : 0,
-            documentKind = LocalAssetMediaKinds.Document,
             prefix,
             pathPrefix = EscapeLike(prefix) + "%",
             recursive = recursive ? 1 : 0,
@@ -405,7 +415,7 @@ public sealed class ViewFolderService(
             searchLike = "%" + EscapeLike(search?.Trim() ?? string.Empty) + "%",
             take,
             offset,
-        }, cancellationToken: ct)).ToList();
+        }).AddBlockedKinds(blocked), cancellationToken: ct)).ToList();
     }
 
     private static IReadOnlyList<ViewFolderBreadcrumbDto> Breadcrumbs(string sourceName, string relative)
@@ -456,5 +466,19 @@ public sealed class ViewFolderService(
         public string? ExternalPath { get; init; }
         public bool IncludeSubdirectories { get; init; }
         public bool IncludeInTimeline { get; init; }
+        public string ContentKind { get; init; } = ViewContentKinds.Photos;
+        public string? SourceKey { get; init; }
+    }
+}
+
+/// <summary>The SQL parameters that go with <c>li.content_kind NOT IN @blockedKinds</c>.</summary>
+internal static class ViewKindSqlParameters
+{
+    public static DynamicParameters AddBlockedKinds(this DynamicParameters parameters, IReadOnlyCollection<string> blocked)
+    {
+        parameters.Add("hasBlockedKinds", blocked.Count == 0 ? 0 : 1);
+        // An empty list would make the SQL invalid, so a placeholder stands in while hasBlockedKinds is 0.
+        parameters.Add("blockedKinds", blocked.Count == 0 ? new[] { ViewContentKinds.Photos } : blocked.ToArray());
+        return parameters;
     }
 }

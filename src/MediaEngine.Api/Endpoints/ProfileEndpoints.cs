@@ -176,9 +176,10 @@ public static class ProfileEndpoints
                 return ApiErrors.Forbidden("Only a server administrator can manage this profile.");
             }
 
-            // A request that leaves allow_documents out keeps the saved switch (a child profile's default is off).
+            // A request that leaves a kind's switch out keeps the saved one (a child profile's Documents default is off).
+            var current = await viewProfiles.GetPolicyAsync(id, ct);
             var policy = ProfileContractMapper.ToDomain(
-                id, request, (await viewProfiles.GetPolicyAsync(id, ct)).DocumentsEnabled);
+                id, request, current.DocumentsEnabled, current.PhotosEnabled, current.PersonalVideosEnabled);
             if (!await viewProfiles.SavePolicyAsync(policy, ct))
             {
                 return ApiErrors.NotFound($"Profile '{id}' not found.");
