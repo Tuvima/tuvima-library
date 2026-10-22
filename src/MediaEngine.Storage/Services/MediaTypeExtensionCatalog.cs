@@ -180,6 +180,7 @@ public sealed class MediaTypeExtensionCatalog : IMediaTypeExtensionCatalog
             "movies" => MediaType.Movies,
             "tv" or "tvshows" => MediaType.TV,
             "music" => MediaType.Music,
+            "videos" => MediaType.Videos,
             _ => display switch
             {
                 "books" => MediaType.Books,
@@ -188,6 +189,7 @@ public sealed class MediaTypeExtensionCatalog : IMediaTypeExtensionCatalog
                 "movies" => MediaType.Movies,
                 "tv" or "tvshows" => MediaType.TV,
                 "music" => MediaType.Music,
+                "videos" => MediaType.Videos,
                 _ => MediaType.Unknown
             }
         };

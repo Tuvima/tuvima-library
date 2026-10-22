@@ -6,7 +6,6 @@
       "display_name": "Books",
       "icon": "MenuBook",
       "extensions": [".epub", ".pdf", ".azw3"],
-      "category_folder": "Audiobooks",
       "built_in": true
     },
     {
@@ -14,7 +13,6 @@
       "display_name": "Audiobooks",
       "icon": "Headphones",
       "extensions": [".m4b", ".mp3", ".m4a"],
-      "category_folder": "Books",
       "built_in": true
     },
     {
@@ -22,7 +20,6 @@
       "display_name": "Comics",
       "icon": "AutoStories",
       "extensions": [".cbz", ".cbr", ".cb7"],
-      "category_folder": "Comics",
       "built_in": true
     },
     {
@@ -30,7 +27,6 @@
       "display_name": "Movies",
       "icon": "Movie",
       "extensions": [".mp4", ".mkv", ".webm", ".avi", ".m4v", ".mov", ".wmv", ".ts", ".mpeg", ".mpg", ".m2ts", ".iso"],
-      "category_folder": "Videos",
       "built_in": true
     },
     {
@@ -38,7 +34,6 @@
       "display_name": "TV Shows",
       "icon": "Tv",
       "extensions": [".mp4", ".mkv", ".webm", ".avi", ".m4v", ".mov", ".wmv", ".ts", ".mpeg", ".mpg", ".m2ts"],
-      "category_folder": "TV Shows",
       "built_in": true
     },
     {
@@ -46,7 +41,6 @@
       "display_name": "Music",
       "icon": "MusicNote",
       "extensions": [".mp3", ".flac", ".ogg", ".m4a", ".aac", ".wav", ".opus", ".wma"],
-      "category_folder": "Music",
       "built_in": true
     },
     {
@@ -54,7 +48,6 @@
       "display_name": "Videos",
       "icon": "VideoLibrary",
       "extensions": [".mp4", ".mkv", ".webm", ".avi", ".m4v", ".mov", ".wmv", ".ts", ".mpeg", ".mpg", ".m2ts"],
-      "category_folder": "Videos",
       "built_in": true
     }
   ]

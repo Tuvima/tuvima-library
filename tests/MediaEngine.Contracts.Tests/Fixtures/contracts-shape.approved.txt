@@ -8079,6 +8079,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   Name: System.String | nullability=not-null | accessors=get,set
   Category: System.String | nullability=nullable | accessors=get,set
   Kind: System.String | nullability=not-null | accessors=get,set
+  KindKey: System.String | nullability=not-null | accessors=get,set
   Area: System.String | nullability=not-null | accessors=get,set
   Presentation: System.String | nullability=not-null | accessors=get,set
   MetadataPolicy: System.String | nullability=not-null | accessors=get,set
@@ -8094,6 +8095,24 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   AcceptedIntakeModes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   OrganizationPolicy: MediaEngine.Contracts.Settings.LibraryOrganizationPolicyDto | nullability=not-null | accessors=get,set
   Notes: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryKindDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Area: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Icon: System.String | nullability=not-null | accessors=get,set
+  Format: System.String | nullability=nullable | accessors=get,set
+  LookupProviders: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  NamingTemplate: System.String | nullability=nullable | accessors=get,set
+  Misfit: System.String | nullability=not-null | accessors=get,set
+  DefaultHandling: System.String | nullability=not-null | accessors=get,set
+  Tooltip: System.String | nullability=not-null | accessors=get,set
+  Order: System.Int32 | nullability=not-null | accessors=get,set
+  BuiltIn: System.Boolean | nullability=not-null | accessors=get,set
+  PluginId: System.String | nullability=nullable | accessors=get,set
+  Available: System.Boolean | nullability=not-null | accessors=get,set
+  AllowsMultiple: System.Boolean | nullability=not-null | accessors=get,set
+  MaxLibraries: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryLaneGroupDisplaySettings
   Enabled: System.Boolean? | nullability=nullable | accessors=get,set
@@ -8161,7 +8180,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.MediaTypeDefinitio
   DisplayName: System.String | nullability=not-null | accessors=get,set
   Icon: System.String | nullability=not-null | accessors=get,set
   Extensions: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
-  CategoryFolder: System.String | nullability=not-null | accessors=get,set
   BuiltIn: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.MediaTypePipeline

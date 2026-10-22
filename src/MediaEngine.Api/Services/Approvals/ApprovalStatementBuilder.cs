@@ -129,6 +129,7 @@ internal static class ApprovalStatementBuilder
         // Who sees each page is part of what the administrator approves, so widening an audience asks again.
         lines.AddRange(PluginPageDeclarations.Read(manifest).Pages.Select(page =>
             $"Shows the page '{page.Title}' to {PluginPageDeclarations.AudienceWords(page.Audience)}"));
+        lines.AddRange(LibraryKindLines(manifest));
         lines.AddRange(manifest.AiPermissions
             .Select(permission => $"{UsesLocalAi}: {AiRoleName(permission.Role)}")
             .Distinct(StringComparer.Ordinal)
@@ -146,6 +147,38 @@ internal static class ApprovalStatementBuilder
 
         lines.Add($"{RunsAs}: {PluginKindName(manifest.Kind)}");
         return lines.Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    /// <summary>
+    /// The library kinds a JSON plugin adds, in plain words: its name, where it appears and where its details come from. Read
+    /// leniently from the manifest (a malformed entry is described as far as it goes; the plugin is refused when it loads).
+    /// </summary>
+    private static IEnumerable<string> LibraryKindLines(PluginManifest manifest)
+    {
+        if (manifest.Declarative is not { ValueKind: JsonValueKind.Object } declarative
+            || !declarative.TryGetProperty("library_kinds", out var kinds)
+            || kinds.ValueKind != JsonValueKind.Array)
+        {
+            yield break;
+        }
+
+        static string? Text(JsonElement element, string name) =>
+            element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+
+        foreach (var kind in kinds.EnumerateArray())
+        {
+            var label = Text(kind, "label") ?? Text(kind, "key") ?? "(unnamed)";
+            var area = Text(kind, "area") is { Length: > 0 } areaName ? char.ToUpperInvariant(areaName[0]) + areaName[1..].ToLowerInvariant() : "a library group";
+            var providers = kind.ValueKind == JsonValueKind.Object && kind.TryGetProperty("lookup", out var lookup)
+                && lookup.ValueKind == JsonValueKind.Object && lookup.TryGetProperty("providers", out var named) && named.ValueKind == JsonValueKind.Array
+                    ? named.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString()!).ToList()
+                    : [];
+            yield return providers.Count == 0
+                ? $"Adds the library type '{label}' under {area}, with no lookup (files are shown by folder and file name)"
+                : $"Adds the library type '{label}' under {area}, looking details up from {string.Join(", ", providers)}";
+        }
     }
 
     /// <summary>

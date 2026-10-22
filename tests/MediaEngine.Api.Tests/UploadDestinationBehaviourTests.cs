@@ -104,6 +104,7 @@ public sealed class UploadDestinationBehaviourTests : IDisposable
         Name = "Books",
         Category = "Books",
         Kind = LibraryKinds.Catalogued,
+        KindKey = "books",
         Area = LibraryAreas.Read,
         MediaTypes = ["Books"],
         AcceptedIntakeModes = [LibraryIntakeModes.BrowserUpload],

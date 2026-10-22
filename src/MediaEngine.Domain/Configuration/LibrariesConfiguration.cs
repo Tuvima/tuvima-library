@@ -139,6 +139,10 @@ public sealed class LibraryFolderConfig
     [JsonPropertyName("kind")]
     public string Kind { get; set; } = LibraryKinds.Catalogued;
 
+    /// <summary>The library kind (<c>library_kinds.json</c>) this library holds, for example <c>movies</c> or <c>other_videos</c>. Required for catalogued libraries.</summary>
+    [JsonPropertyName("kind_key")]
+    public string KindKey { get; set; } = string.Empty;
+
     [JsonPropertyName("area")]
     public string Area { get; set; } = LibraryAreas.Read;
 

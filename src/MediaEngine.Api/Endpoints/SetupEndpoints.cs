@@ -262,9 +262,21 @@ public static class SetupEndpoints
             return Results.Ok(SettingsContractMapper.ToContract(configuration.LoadLibraries()));
         }).Produces<LibrariesConfigurationDto>();
 
+        group.MapGet("/library-kinds", async (
+            HttpContext context, ClaimsPrincipal user, SetupSessionService sessions,
+            [FromServices] LibraryKindListService kinds, CancellationToken ct) =>
+        {
+            if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
+            {
+                return Results.Unauthorized();
+            }
+
+            return Results.Ok(kinds.GetDtos());
+        }).Produces<IReadOnlyList<LibraryKindDto>>();
+
         group.MapPut("/libraries", async (
             UpdateLibrariesRequest request, HttpContext context, ClaimsPrincipal user,
-            SetupSessionService sessions, IConfigurationLoader configuration, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, CancellationToken ct) =>
+            SetupSessionService sessions, IConfigurationLoader configuration, [FromServices] LibraryKindListService libraryKinds, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, CancellationToken ct) =>
         {
             if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
             {
@@ -276,6 +288,7 @@ public static class SetupEndpoints
                 ?? SettingsEndpoints.ValidateViewRootChange(configuration.LoadLibraries(), config)
                 ?? LibraryTypeRules.ValidateOneLibraryPerType(configuration.LoadLibraries(), config)
                 ?? ImportFolderValidation.Validate(config)
+                ?? libraryKinds.ValidateLibraries(config)
                 ?? SettingsEndpoints.ValidateConfiguredPaths(config);
             if (error is not null)
             {

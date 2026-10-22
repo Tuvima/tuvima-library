@@ -69,6 +69,7 @@ namespace MediaEngine.Api.Endpoints;
 ///
 /// <list type="bullet">
 ///   <item><c>GET/PUT /settings/libraries</c> — complete library and approved server-root configuration</item>
+///   <item><c>GET /settings/library-kinds</c> — the list of library kinds (built in and from switched-on plugins)</item>
 ///   <item><c>POST   /settings/test-path</c> — probe a path for existence / read / write access</item>
 ///   <item><c>GET    /settings/providers</c> — enabled state + async reachability for each provider</item>
 /// </list>
@@ -362,7 +363,17 @@ public static class SettingsEndpoints
         .Produces<LibrariesConfigurationSettingsDto>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageStatusRead);
 
-        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, CancellationToken ct) =>
+        // ── GET /settings/library-kinds ───────────────────────────────────────
+        grp.MapGet("/library-kinds", ([FromServices] MediaEngine.Api.Services.Settings.LibraryKindListService kinds) =>
+        {
+            return Results.Ok(kinds.GetDtos());
+        })
+        .WithName("GetLibraryKinds")
+        .WithSummary("Returns every library kind (type of library) in order: the built-in ones and those of switched-on plugins, each with an available flag.")
+        .Produces<IReadOnlyList<MediaEngine.Contracts.Settings.LibraryKindDto>>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageStatusRead);
+
+        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, [FromServices] MediaEngine.Api.Services.Settings.LibraryKindListService libraryKinds, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, CancellationToken ct) =>
         {
             await LibraryMutationEndpoints.WriteGate.WaitAsync(ct);
             try
@@ -372,7 +383,8 @@ public static class SettingsEndpoints
                 var viewError = ValidateViewStorage(config)
                     ?? ValidateViewRootChange(configLoader.LoadLibraries(), config)
                     ?? MediaEngine.Api.Services.Settings.LibraryTypeRules.ValidateOneLibraryPerType(configLoader.LoadLibraries(), config)
-                    ?? MediaEngine.Api.Services.Settings.ImportFolderValidation.Validate(config);
+                    ?? MediaEngine.Api.Services.Settings.ImportFolderValidation.Validate(config)
+                    ?? libraryKinds.ValidateLibraries(config);
                 if (viewError is not null)
                 {
                     return ApiErrors.BadRequest(viewError);

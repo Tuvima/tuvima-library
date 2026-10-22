@@ -125,6 +125,14 @@ public interface IConfigurationLoader
     /// <summary>Persist media type definitions to <c>config/media_types.json</c>.</summary>
     void SaveMediaTypes(MediaTypeConfiguration config);
 
+    // ── Library Kinds ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Load the list of library kinds ("recipes") from <c>config/library_kinds.json</c>. A missing file means the kinds that ship
+    /// with the Library. Kinds a plugin adds are not part of this list; the Engine merges them in when it serves the list.
+    /// </summary>
+    LibraryKindsConfiguration LoadLibraryKinds() => new();
+
     // ── Library Folders ───────────────────────────────────────────────────
 
     /// <summary>Load library folder definitions from <c>config/libraries.json</c>.</summary>

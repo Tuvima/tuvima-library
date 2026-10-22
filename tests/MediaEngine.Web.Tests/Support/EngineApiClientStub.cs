@@ -69,6 +69,12 @@ internal class EngineApiClientStub : DispatchProxy
         _handlers[nameof(IEngineApiClient.GetSeriesPlacementAsync)] =
             _ => Task.FromResult<SeriesPlacementDto?>(new SeriesPlacementDto { SupportsSeries = false });
 
+        // The Libraries screens draw their types from the Engine's list of library kinds; by default it holds the built-in ones.
+        _handlers[nameof(IEngineApiClient.GetLibraryKindsAsync)] =
+            _ => Task.FromResult<IReadOnlyList<LibraryKindDto>?>(LibraryKindsTestData.BuiltIn());
+        _handlers[nameof(IEngineApiClient.GetSetupLibraryKindsAsync)] =
+            _ => Task.FromResult<IReadOnlyList<LibraryKindDto>?>(LibraryKindsTestData.BuiltIn());
+
         _handlers[nameof(IEngineApiClient.ToAbsoluteEngineUrl)] =
             args => args?[0]?.ToString() ?? string.Empty;
 

@@ -93,7 +93,7 @@
         @if (_showPanel)
         {
             @* Remounted after every wizard add: setup saves replace the whole list, so a panel still holding the old copy would drop the new folder. *@
-            <LibraryFoldersPanel Embedded="true" @key="_panelVersion" SetupSession="@SetupSession" Changed="PanelChangedAsync" />
+            <LibraryFoldersPanel Embedded="true" Kinds="@_kinds" @key="_panelVersion" SetupSession="@SetupSession" Changed="PanelChangedAsync" />
         }
     </div>
 
@@ -138,8 +138,11 @@
     // Setup saves replace the whole list, so the wizard must never start from a copy that could not be refreshed.
     private bool CanAddFolders => _configuration is not null && !_reloadFailed;
 
+    // The list of library kinds the setup session can read; the groups, their types and the wizard are drawn from it.
+    private LibraryKindCatalog _kinds = LibraryKindCatalog.Empty;
+
     // The Vault is never offered in setup.
-    private static IReadOnlyList<LibraryGroup> Groups { get; } = LibraryGroupCatalog.Visible(showVault: false);
+    private IReadOnlyList<LibraryGroup> Groups => _kinds.Visible(showVault: false);
 
     private string PhoneNote => HasLibraries
         ? "Add folders on a computer or tablet. You can continue and set them up later."
@@ -157,6 +160,16 @@
             return;
         }
 
+        var kinds = await ApiClient.GetSetupLibraryKindsAsync(SetupSession);
+        if (kinds is null)
+        {
+            _reloadFailed = true;
+            _loadError = ApiClient.LastError ?? "The kinds of library could not be loaded.";
+            return;
+        }
+
+        _kinds = new LibraryKindCatalog(kinds);
+
         _configuration = fresh;
         _loadError = null;
         _reloadFailed = false;
@@ -172,14 +185,14 @@
         if (!_ticked.Remove(group.Key)) _ticked.Add(group.Key);
     }
 
-    private static string TypesText(LibraryGroup group) =>
-        string.Join(", ", group.TypeKeys.Select(LibraryTypeCatalog.Find).OfType<LibraryTypeOption>().Select(type => type.Label));
+    private string TypesText(LibraryGroup group) =>
+        string.Join(", ", group.TypeKeys.Select(_kinds.Find).OfType<LibraryTypeOption>().Select(type => type.Label));
 
     // The group's standard types, then any older library in the same area, so none of its folders hides.
     private IReadOnlyList<LibraryTypeOption> TypesOf(LibraryGroup group) =>
     [
-        .. group.TypeKeys.Select(LibraryTypeCatalog.Find).OfType<LibraryTypeOption>().Where(type => type.Key != LibraryTypeCatalog.PhotosKey),
-        .. LibraryRollup.OthersIn(_configuration, group),
+        .. group.TypeKeys.Select(_kinds.Find).OfType<LibraryTypeOption>().Where(type => type.Key != LibraryTypeCatalog.PhotosKey),
+        .. LibraryRollup.OthersIn(_kinds, _configuration, group),
     ];
 
     private IReadOnlyList<LibrarySourceDto> FoldersOf(LibraryTypeOption type) =>
@@ -196,6 +209,7 @@
             { component => component.SetupSession, SetupSession },
             { component => component.Embedded, true },
             { component => component.Configuration, _configuration },
+            { component => component.Kinds, _kinds },
             { component => component.OnFolderAdded, (Func<string?, Task>)FolderAddedAsync },
         };
         await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);

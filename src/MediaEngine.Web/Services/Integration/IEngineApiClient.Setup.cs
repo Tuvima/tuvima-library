@@ -22,6 +22,9 @@ public partial interface IEngineApiClient
     Task<SetupAdministratorOutcome> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default);
     Task<SetupMediaLocationsDto?> ValidateSetupMediaLocationsAsync(string? setupSession, CancellationToken ct = default);
     Task<LibrariesConfigurationDto?> GetSetupLibrariesAsync(string? setupSession, CancellationToken ct = default);
+
+    /// <summary>GET /setup/v1/library-kinds — the list of library kinds, readable with a setup session.</summary>
+    Task<IReadOnlyList<LibraryKindDto>?> GetSetupLibraryKindsAsync(string? setupSession, CancellationToken ct = default);
     Task<LibrariesConfigurationDto?> UpdateSetupLibrariesAsync(UpdateLibrariesRequest request, string? setupSession, CancellationToken ct = default);
     /// <summary>The server folder roots during setup, or null when the Engine could not be reached.</summary>
     Task<IReadOnlyList<ServerStorageLocationDto>?> GetSetupServerFolderRootsAsync(string? setupSession, CancellationToken ct = default);

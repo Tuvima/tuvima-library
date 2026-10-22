@@ -53,8 +53,8 @@ public sealed class ReviewMoveToTvServiceTests : IDisposable
 
         _configuration = new ConfigurationDirectoryLoader(Path.Combine(_root, "config"));
         _configuration.SaveLibraries(Libraries(
-            new LibraryFolderConfig { Id = MoviesLibraryId, Name = "Movies", Category = "Movies", MediaTypes = ["Movies"] },
-            new LibraryFolderConfig { Id = TvLibraryId, Name = "TV Shows", Category = "TV", MediaTypes = ["TV"] }));
+            new LibraryFolderConfig { Id = MoviesLibraryId, Name = "Movies", Category = "Movies", KindKey = "movies", MediaTypes = ["Movies"] },
+            new LibraryFolderConfig { Id = TvLibraryId, Name = "TV Shows", Category = "TV", KindKey = "tv", MediaTypes = ["TV"] }));
 
         var resolver = new HierarchyResolver(new WorkRepository(_db));
         _factory = new MediaEntityChainFactory(_db, resolver);
@@ -382,7 +382,7 @@ public sealed class ReviewMoveToTvServiceTests : IDisposable
     {
         var (assetId, movieWorkId, reviewId) = await SeedPendingSuggestionAsync();
         _configuration.SaveLibraries(Libraries(
-            new LibraryFolderConfig { Id = MoviesLibraryId, Name = "Movies", Category = "Movies", MediaTypes = ["Movies"] }));
+            new LibraryFolderConfig { Id = MoviesLibraryId, Name = "Movies", Category = "Movies", KindKey = "movies", MediaTypes = ["Movies"] }));
 
         var result = await _service.MoveAsync(reviewId, "user");
 

@@ -415,6 +415,10 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public Task<LibrariesConfigurationDto?> GetLibrariesAsync(CancellationToken ct = default)
         => _api.GetLibrariesAsync(ct);
 
+    /// <summary>The list of library kinds (types of library), in order, for the Libraries screens and Add folder.</summary>
+    public Task<IReadOnlyList<LibraryKindDto>?> GetLibraryKindsAsync(CancellationToken ct = default)
+        => _api.GetLibraryKindsAsync(ct);
+
     /// <summary>Replaces complete schema 4 library, server-root, and incoming-source configuration.</summary>
     public Task<LibrariesConfigurationDto?> UpdateLibrariesAsync(UpdateLibrariesRequest request, CancellationToken ct = default)
         => _api.UpdateLibrariesAsync(request, ct);

@@ -10,12 +10,11 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["key", "display_name", "extensions", "category_folder"],
+        "required": ["key", "display_name", "extensions"],
         "properties": {
           "key": { "type": "string", "minLength": 1 },
           "display_name": { "type": "string", "minLength": 1 },
-          "extensions": { "type": "array", "items": { "type": "string", "pattern": "^\\." } },
-          "category_folder": { "type": "string", "minLength": 1 }
+          "extensions": { "type": "array", "items": { "type": "string", "pattern": "^\\." } }
         },
         "additionalProperties": true
       }

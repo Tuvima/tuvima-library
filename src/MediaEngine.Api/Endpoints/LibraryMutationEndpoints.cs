@@ -24,7 +24,7 @@ internal static class LibraryMutationEndpoints
         }).WithName("GetViewStorageSummary").Produces<ViewStorageSummaryDto>().RequireAdmin();
 
         group.MapPost("/libraries/mutations", async (LibraryMutationRequest request,
-            IConfigurationLoader configuration, ServerFolderBrowserService folders,
+            IConfigurationLoader configuration, ServerFolderBrowserService folders, [Microsoft.AspNetCore.Mvc.FromServices] LibraryKindListService libraryKinds,
             IFileOrganizer organizer, ViewStorageService storage, IProfileRepository profiles,
             IViewProfileRepository policies, ImportFolderApplier importFolder, FolderJobService folderJobs, CancellationToken ct) =>
         {
@@ -53,7 +53,8 @@ internal static class LibraryMutationEndpoints
                 var error = SettingsEndpoints.ValidateViewStorage(proposed)
                     ?? SettingsEndpoints.ValidateViewRootChange(current, proposed)
                     ?? LibraryTypeRules.ValidateOneLibraryPerType(current, proposed)
-                    ?? ImportFolderValidation.Validate(proposed);
+                    ?? ImportFolderValidation.Validate(proposed)
+                    ?? libraryKinds.ValidateLibraries(proposed);
                 if (error is not null)
                 {
                     return ApiErrors.BadRequest(error);

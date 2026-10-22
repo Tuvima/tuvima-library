@@ -226,14 +226,15 @@ public sealed partial class DevHarnessResetServiceTests
                 :
                 [
                     Library("Books", layout.Books, LibrarySourceManagementModes.ManagedByTuvima),
-                    Library("Shelf", layout.Shelf, LibrarySourceManagementModes.ExistingLibrary),
+                    Library("Shelf", layout.Shelf, LibrarySourceManagementModes.ExistingLibrary, "other_reading"),
                 ],
         });
 
         return layout;
     }
 
-    private static LibraryFolderConfig Library(string name, string path, string managementMode)
+    // Books holds one library, so the as-is Shelf is a plain reading library.
+    private static LibraryFolderConfig Library(string name, string path, string managementMode, string kindKey = "books")
     {
         var sourceId = Guid.NewGuid().ToString("D");
         return new LibraryFolderConfig
@@ -242,6 +243,8 @@ public sealed partial class DevHarnessResetServiceTests
             Name = name,
             Category = "Books",
             Kind = LibraryKinds.Catalogued,
+            KindKey = kindKey,
+            MediaTypes = ["Books"],
             Area = LibraryAreas.Read,
             Presentation = LibraryPresentations.Catalogue,
             MetadataPolicy = LibraryMetadataPolicies.Enriched,

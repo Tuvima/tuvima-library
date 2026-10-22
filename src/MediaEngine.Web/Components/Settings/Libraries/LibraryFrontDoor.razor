@@ -46,7 +46,7 @@
         <span class="lib-door__chevron"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
     </a>
 
-    @foreach (var other in LibraryRollup.OthersWithoutGroup(Configuration))
+    @foreach (var other in LibraryRollup.OthersWithoutGroup(Kinds, Configuration))
     {
         var row = LibraryRollup.RowFor(other, Configuration, Overview, ViewFolders, PathIssues);
         <a class="lib-door__import" href="@($"/settings/libraries/other/{other.Key}")" aria-label="@($"{other.Label}, {LibraryRollup.CountsText(row.Folders, row.Titles)}")">
@@ -75,6 +75,8 @@
 
 @code {
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    /// <summary>The Engine's list of library kinds; the groups, their types and Add folder's first step are drawn from it.</summary>
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
     /// <summary>The Engine's overview counts; null when they could not be read (only folder counts show then).</summary>
     [Parameter] public LibraryOverviewDto? Overview { get; set; }
     /// <summary>View's own folder count; null while it is not known (the card shows no count rather than a guess).</summary>
@@ -100,18 +102,19 @@
         {
             { component => component.ShowVault, ShowVault },
             { component => component.Configuration, Configuration },
+            { component => component.Kinds, Kinds },
             { component => component.OnFolderAdded, (Func<string?, Task>)(_ => FolderAdded.InvokeAsync()) },
         };
         await DialogService.ShowAsync<AddFolderWizard>(string.Empty, parameters, AddFolderWizard.DialogOptions);
     }
 
-    private IReadOnlyList<LibraryGroupSummary> Summaries => [.. LibraryGroupCatalog.Visible(ShowVault)
-        .Select(group => LibraryRollup.SummaryFor(group, Configuration, Overview, ViewFolders, PathIssues))];
+    private IReadOnlyList<LibraryGroupSummary> Summaries => [.. Kinds.Visible(ShowVault)
+        .Select(group => LibraryRollup.SummaryFor(Kinds, group, Configuration, Overview, ViewFolders, PathIssues))];
 
     private string ImportText => Configuration.ImportFolderStatus?.Configured == true ? "Set" : "Not set";
 
-    private static string TypeNames(LibraryGroup group) => string.Join(" · ", group.TypeKeys
-        .Select(LibraryTypeCatalog.Find)
+    private string TypeNames(LibraryGroup group) => string.Join(" · ", group.TypeKeys
+        .Select(Kinds.Find)
         .OfType<LibraryTypeOption>()
         .Select(type => type.Label));
 
