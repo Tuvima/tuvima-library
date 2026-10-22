@@ -3,104 +3,65 @@
 
 @if (Model.PrimaryModule.Kind != DetailPrimaryModuleKind.None)
 {
-    <section id="detail-primary-module" class="@RootClass" aria-labelledby="detail-primary-module-title">
-        @if (ShowHeader)
-        {
-            <header class="tl-detail-primary-module__header">
-                <div class="tl-detail-primary-module__title">
-                    <AppMaterialIcon Icon="@ModuleIcon" Size="AppSize.Small" />
-                    <h2 id="detail-primary-module-title">@Model.PrimaryModule.Title</h2>
-                </div>
-
-                @if (ShowModuleControls)
-                {
-                    <div class="tl-detail-primary-module__controls">
-                        @if (ShowRoleFilter)
-                        {
-                            <AppSegmentedControl Options="@RoleOptions.Select(role => new AppSelectOption(role.Key, role.Label, RoleIcon(role.Key))).ToList()"
-                                                 Value="@_selectedRole" ValueChanged="SelectRole"
-                                                 AriaLabel="Filter works by role" />
-                        }
-
-                        @if (ShowRoleFilter && ShowLaneFilters)
-                        {
-                            <span class="tl-detail-primary-module__filter-separator" aria-hidden="true"></span>
-                        }
-
-                        @if (ShowLaneFilters)
-                        {
-                            <div class="tl-detail-primary-module__filters" aria-label="Filter works by library lane">
-                                @foreach (var lane in DisplayedLaneOptions)
-                                {
-                                    <AppNativeButton Type="button"
-                                                     Class="@FilterClass(_selectedLane, lane.Key)"
-                                                     Disabled="@(lane.Count == 0)"
-                                                     OnClick="@(() => SelectLane(lane.Key))"
-                                                     aria-pressed="@(_selectedLane == lane.Key)"
-                                                     title="@($"{lane.Label} ({lane.Count})")">
-                                        @if (LaneIcon(lane.Key) is { } icon)
-                                        {
-                                            <AppMaterialIcon Icon="@icon" Size="AppSize.Small" />
-                                        }
-                                        <span class="tl-detail-primary-module__filter-label">@lane.Label</span>
-                                        <span class="tl-detail-primary-module__filter-count">@lane.Count</span>
-                                    </AppNativeButton>
-                                }
-                            </div>
-                        }
-                    </div>
-                }
-            </header>
-        }
-
-        <div class="tl-detail-primary-module__viewport">
-            @if (Model.PrimaryModule.Kind is DetailPrimaryModuleKind.Sequence or DetailPrimaryModuleKind.Episodes
-                 && Model.SequencePlacement is not null)
-            {
-                <SequencePlacementPanel Placement="Model.SequencePlacement"
-                                        DetailSurface="true"
-                                        RequestedSeasonId="SelectedSeasonId"
-                                        OnSeasonSelected="OnSeasonSelected"
-                                        OnContainerSelected="OnContainerSelected"
-                                        OnEditItem="OnEditItem" />
-            }
-            else if (FilteredItems.Count == 0)
-            {
-                <p class="tl-detail-primary-module__empty">No owned library items are available for this section.</p>
-            }
-            else
-            {
-                <div class="tl-detail-primary-module__rail">
-                    @foreach (var item in FilteredItems)
+    <div id="detail-primary-module" class="@RootClass">
+        @* One shared collapse arrow heads the row (AppCollapsibleRow); its filters sit at the end of that heading. *@
+        <div class="tl-detail-primary-module__frame">
+            <AppCollapsibleRow Title="@RowTitle"
+                               Summary="@RowSummary"
+                               RowKind="@RowKind"
+                               StartCollapsed="@StartsCollapsed"
+                               Actions="@ModuleControls">
+                <div class="tl-detail-primary-module__viewport">
+                    @if (Model.PrimaryModule.Kind is DetailPrimaryModuleKind.Sequence or DetailPrimaryModuleKind.Episodes
+                         && Model.SequencePlacement is not null)
                     {
-                        <a class="@ItemClass(item)" href="@ResolveRoute(item)">
-                            <span class="tl-detail-primary-module__art">
-                                @if (!string.IsNullOrWhiteSpace(item.ArtworkUrl))
-                                {
-                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(item.ArtworkUrl, RailDrawnPx(item))" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(item.ArtworkUrl, RailDrawnPx(item))" alt="" loading="lazy" decoding="async" />
-                                }
-                                else
-                                {
-                                    <GeneratedIdentity Name="@item.Title" />
-                                }
-                                <span class="@MediaTypeBadgeClass(item)">
-                                    <AppMaterialIcon Icon="@MediaTypeIcon(item.EntityType)" Size="AppSize.Small" />
-                                    @MediaTypeLabel(item.EntityType)
-                                </span>
-                            </span>
-                            <span class="tl-detail-primary-module__copy">
-                                <strong>@item.Title</strong>
-                                @if (!string.IsNullOrWhiteSpace(item.Subtitle))
-                                {
-                                    <small>@item.Subtitle</small>
-                                }
-                            </span>
-                        </a>
+                        <SequencePlacementPanel Placement="Model.SequencePlacement"
+                                                DetailSurface="true"
+                                                ShowIdentity="false"
+                                                RequestedSeasonId="SelectedSeasonId"
+                                                OnSeasonSelected="OnSeasonSelected"
+                                                OnContainerSelected="OnContainerSelected"
+                                                OnEditItem="OnEditItem" />
+                    }
+                    else if (FilteredItems.Count == 0)
+                    {
+                        <p class="tl-detail-primary-module__empty">No owned library items are available for this section.</p>
+                    }
+                    else
+                    {
+                        <div class="tl-detail-primary-module__rail">
+                            @foreach (var item in FilteredItems)
+                            {
+                                <a class="@ItemClass(item)" href="@ResolveRoute(item)">
+                                    <span class="tl-detail-primary-module__art">
+                                        @if (!string.IsNullOrWhiteSpace(item.ArtworkUrl))
+                                        {
+                                            <img src="@MediaTileArtworkUrl.ForDrawnSize(item.ArtworkUrl, RailDrawnPx(item))" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(item.ArtworkUrl, RailDrawnPx(item))" alt="" loading="lazy" decoding="async" />
+                                        }
+                                        else
+                                        {
+                                            <GeneratedIdentity Name="@item.Title" />
+                                        }
+                                        <span class="@MediaTypeBadgeClass(item)">
+                                            <AppMaterialIcon Icon="@MediaTypeIcon(item.EntityType)" Size="AppSize.Small" />
+                                            @MediaTypeLabel(item.EntityType)
+                                        </span>
+                                    </span>
+                                    <span class="tl-detail-primary-module__copy">
+                                        <strong>@item.Title</strong>
+                                        @if (!string.IsNullOrWhiteSpace(item.Subtitle))
+                                        {
+                                            <small>@item.Subtitle</small>
+                                        }
+                                    </span>
+                                </a>
+                            }
+                        </div>
                     }
                 </div>
-            }
+            </AppCollapsibleRow>
         </div>
-    </section>
+    </div>
 }
 
 @code {
@@ -215,15 +176,82 @@
         && HasMultipleOwnedLanes;
     private bool ShowModuleControls => ShowRoleFilter || ShowLaneFilters;
 
+    private RenderFragment? ModuleControls => !ShowHeader || !ShowModuleControls ? null : __builder =>
+    {
+        <div class="tl-detail-primary-module__controls">
+            @if (ShowRoleFilter)
+            {
+                <AppSegmentedControl Options="@RoleOptions.Select(role => new AppSelectOption(role.Key, role.Label, RoleIcon(role.Key))).ToList()"
+                                     Value="@_selectedRole" ValueChanged="SelectRole"
+                                     AriaLabel="Filter works by role" />
+            }
+
+            @if (ShowRoleFilter && ShowLaneFilters)
+            {
+                <span class="tl-detail-primary-module__filter-separator" aria-hidden="true"></span>
+            }
+
+            @if (ShowLaneFilters)
+            {
+                <div class="tl-detail-primary-module__filters" aria-label="Filter works by library lane">
+                    @foreach (var lane in DisplayedLaneOptions)
+                    {
+                        <AppNativeButton Type="button"
+                                         Class="@FilterClass(_selectedLane, lane.Key)"
+                                         Disabled="@(lane.Count == 0)"
+                                         OnClick="@(() => SelectLane(lane.Key))"
+                                         aria-pressed="@(_selectedLane == lane.Key)"
+                                         title="@($"{lane.Label} ({lane.Count})")">
+                            @if (LaneIcon(lane.Key) is { } icon)
+                            {
+                                <AppMaterialIcon Icon="@icon" Size="AppSize.Small" />
+                            }
+                            <span class="tl-detail-primary-module__filter-label">@lane.Label</span>
+                            <span class="tl-detail-primary-module__filter-count">@lane.Count</span>
+                        </AppNativeButton>
+                    }
+                </div>
+            }
+        </div>
+    };
+
+    private string RowTitle => Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Sequence
+        ? StringHelpers.FirstNonBlank(Model.SequencePlacement?.ContainerTitle, Model.PrimaryModule.Title, "Series")!
+        : StringHelpers.FirstNonBlank(Model.PrimaryModule.Title, "Library")!;
+
+    // The person's open or closed choice is kept per kind of row: every Series row shares one, every episode row another.
+    private string RowKind => Model.PrimaryModule.Kind switch
+    {
+        DetailPrimaryModuleKind.Sequence => "series",
+        DetailPrimaryModuleKind.Episodes => "episodes",
+        _ => "library-items",
+    };
+
+    private bool StartsCollapsed => Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Sequence
+        && DetailSequenceRowRule.StartsCollapsed(Model.EntityType, Model.SequencePlacement);
+
+    private string? RowSummary
+    {
+        get
+        {
+            if (Model.SequencePlacement is { } placement
+                && Model.PrimaryModule.Kind is DetailPrimaryModuleKind.Sequence or DetailPrimaryModuleKind.Episodes)
+            {
+                var owned = placement.Groups.Count > 0
+                    ? placement.Groups.Sum(group => group.OwnedCount)
+                    : placement.OrderedItems.Count(item => item.IsOwned);
+                var noun = owned == 1 ? placement.ItemLabel : placement.ItemPluralLabel;
+                return $"{owned} {noun.ToLowerInvariant()} owned";
+            }
+
+            var count = FilteredItems.Count;
+            return count == 0 ? null : $"{count} {(count == 1 ? "title" : "titles")}";
+        }
+    }
+
     private bool ShowHeader => Model.PrimaryModule.Kind is not DetailPrimaryModuleKind.Chapters
         and not DetailPrimaryModuleKind.Sequence
         and not DetailPrimaryModuleKind.Episodes;
-
-    private string ModuleIcon => Model.EntityType == DetailEntityType.Person
-        ? AppMaterialIcons.Outlined.Workspaces
-        : Model.EntityType == DetailEntityType.Collection
-            ? AppMaterialIcons.Outlined.CollectionsBookmark
-            : AppMaterialIcons.Outlined.AccountTree;
 
     private string? ArtworkUrl => Model.Artwork.CoverUrl ?? Model.Artwork.PosterUrl ?? Model.Artwork.HeroArtwork.Url;
 

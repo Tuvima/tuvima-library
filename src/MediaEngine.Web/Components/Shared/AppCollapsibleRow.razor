@@ -1,0 +1,130 @@
+@namespace MediaEngine.Web.Components.Shared
+@inject IJSRuntime JS
+@inject ILogger<AppCollapsibleRow> Logger
+
+@* One collapse arrow for every row under a details page's hero: a heading holding one button (the WAI-ARIA accordion
+   pattern). Collapsed, the row is a slim bar with its title and summary; the person's choice is kept per kind of row in
+   this browser and wins over the row's own starting state. *@
+<section class="@RootClass" aria-labelledby="@_headingId">
+    <div class="app-collapsible-row__header">
+        @if (HeadingLevel == 3)
+        {
+            <h3 class="app-collapsible-row__heading">@Toggle</h3>
+        }
+        else
+        {
+            <h2 class="app-collapsible-row__heading">@Toggle</h2>
+        }
+        @if (IsOpen && Actions is not null)
+        {
+            <div class="app-collapsible-row__actions">@Actions</div>
+        }
+    </div>
+    @if (IsOpen)
+    {
+        <div id="@_bodyId" class="app-collapsible-row__body">@ChildContent</div>
+    }
+</section>
+
+@code {
+    private readonly string _headingId = "collapsible-row-" + Guid.NewGuid().ToString("N");
+    private readonly string _bodyId = "collapsible-row-body-" + Guid.NewGuid().ToString("N");
+    private string? _readKind;
+    private bool? _remembered;
+
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>A short count or fact shown beside the title, collapsed or open ("1 movie owned").</summary>
+    [Parameter] public string? Summary { get; set; }
+
+    /// <summary>The kind of row the person's open or closed choice is kept for ("series", "cast", "tracks").</summary>
+    [Parameter, EditorRequired] public string RowKind { get; set; } = string.Empty;
+
+    /// <summary>Where the row starts when the person has made no choice for its kind.</summary>
+    [Parameter] public bool StartCollapsed { get; set; }
+
+    [Parameter] public int HeadingLevel { get; set; } = 2;
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Controls that belong at the end of the heading while the row is open (Jump to, Show missing).</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool IsOpen => _remembered ?? !StartCollapsed;
+
+    private string RootClass => $"app-collapsible-row{(IsOpen ? string.Empty : " is-collapsed")}{(string.IsNullOrWhiteSpace(Class) ? string.Empty : $" {Class}")}";
+
+    private RenderFragment Toggle => __builder =>
+    {
+        <button type="button"
+                class="app-collapsible-row__toggle"
+                aria-expanded="@(IsOpen ? "true" : "false")"
+                aria-controls="@(IsOpen ? _bodyId : null)"
+                title="@(IsOpen ? $"Collapse {Title}" : $"Expand {Title}")"
+                @onclick="ToggleAsync">
+            @* The span is this component's own markup, so its scoped style can turn the arrow. *@
+            <span class="app-collapsible-row__chevron" aria-hidden="true">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppSize.Small" />
+            </span>
+            <span id="@_headingId" class="app-collapsible-row__title">@Title</span>
+            @if (!string.IsNullOrWhiteSpace(Summary))
+            {
+                <span class="app-collapsible-row__summary">@Summary</span>
+            }
+        </button>
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (!string.Equals(_readKind, RowKind, StringComparison.Ordinal))
+        {
+            _remembered = null;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (string.Equals(_readKind, RowKind, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _readKind = RowKind;
+        var stored = await ReadRememberedAsync();
+        if (stored != _remembered)
+        {
+            _remembered = stored;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleAsync()
+    {
+        var open = !IsOpen;
+        _remembered = open;
+        try
+        {
+            await JS.InvokeVoidAsync("detailRowState.set", RowKind, open);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException)
+        {
+            // Remembering is a convenience: the row still opens or closes for this visit.
+            Logger.LogDebug(ex, "The open or closed choice for {RowKind} rows could not be remembered.", RowKind);
+        }
+    }
+
+    private async Task<bool?> ReadRememberedAsync()
+    {
+        try
+        {
+            return await JS.InvokeAsync<bool?>("detailRowState.get", RowKind);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException)
+        {
+            // No stored choice can be read (a private window, blocked storage): the row keeps its starting state.
+            Logger.LogDebug(ex, "The open or closed choice for {RowKind} rows could not be read.", RowKind);
+            return null;
+        }
+    }
+}

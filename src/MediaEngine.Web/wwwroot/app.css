@@ -6028,6 +6028,7 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module {
     margin-inline: 0;
 }
 
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__frame,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__viewport {
     width: 100%;
     margin-inline: 0;

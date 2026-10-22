@@ -16,8 +16,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// A movie's Series row on its details page: it shows only when another movie of the Series is in the library, and it is
-/// one full-width rail of every movie rather than a window of six.
+/// A movie's Series row on its details page: it starts as a collapsed bar when it has nothing else to show, and it is one
+/// full-width rail of every movie rather than a window of six.
 /// </summary>
 public sealed class MovieSeriesRowTests : AsyncBunitContext
 {
@@ -36,28 +36,36 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AMovieWhoseSeriesHasNoOtherOwnedMovie_GetsNoSeriesRow()
+    public void AMovieAloneInItsSeries_StartsWithTheRowCollapsed()
+    {
+        var placement = Placement(DetailEntityType.Movie, Item(DetailEntityType.Movie, 3, "28 Years Later", current: true));
+
+        Assert.True(DetailSequenceRowRule.StartsCollapsed(DetailEntityType.Movie, placement));
+    }
+
+    [Fact]
+    public void AMovieWhoseOtherMoviesAreKnownMissing_KeepsTheRowOpenForShowMissing()
     {
         var placement = Placement(DetailEntityType.Movie,
             Item(DetailEntityType.Movie, 1, "28 Days Later", owned: false),
             Item(DetailEntityType.Movie, 2, "28 Weeks Later", owned: false),
             Item(DetailEntityType.Movie, 3, "28 Years Later", current: true));
 
-        Assert.False(DetailSequenceRowRule.ShowsRow(DetailEntityType.Movie, placement));
+        Assert.False(DetailSequenceRowRule.StartsCollapsed(DetailEntityType.Movie, placement));
     }
 
     [Fact]
-    public void AMovieWithAnotherOwnedMovieInItsSeries_KeepsTheRow()
+    public void AMovieWithAnotherOwnedMovieInItsSeries_KeepsTheRowOpen()
     {
         var placement = Placement(DetailEntityType.Movie,
             Item(DetailEntityType.Movie, 1, "28 Days Later"),
             Item(DetailEntityType.Movie, 3, "28 Years Later", current: true));
 
-        Assert.True(DetailSequenceRowRule.ShowsRow(DetailEntityType.Movie, placement));
+        Assert.False(DetailSequenceRowRule.StartsCollapsed(DetailEntityType.Movie, placement));
     }
 
     [Fact]
-    public void AMovieThatCanSwitchToAnotherSeries_KeepsTheRowForTheSelector()
+    public void AMovieThatCanSwitchToAnotherSeries_KeepsTheRowOpenForTheSelector()
     {
         var placement = Placement(DetailEntityType.Movie, Item(DetailEntityType.Movie, 3, "28 Years Later", current: true));
         placement = new SequencePlacementViewModel
@@ -74,28 +82,17 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
             ],
         };
 
-        Assert.True(DetailSequenceRowRule.ShowsRow(DetailEntityType.Movie, placement));
+        Assert.False(DetailSequenceRowRule.StartsCollapsed(DetailEntityType.Movie, placement));
     }
 
-    [Fact]
-    public void AMovieSeriesPageHoldingOneMovie_StillListsIt()
+    [Theory]
+    [InlineData(DetailEntityType.MovieSeries)]
+    [InlineData(DetailEntityType.Book)]
+    public void OnlyAMoviesOwnPage_StartsItsSeriesRowCollapsed(DetailEntityType pageType)
     {
-        // On a Series' own page the placement's current item is its first owned movie, not the page itself.
-        var placement = Placement(DetailEntityType.Movie,
-            Item(DetailEntityType.Movie, 1, "28 Days Later", owned: false),
-            Item(DetailEntityType.Movie, 3, "28 Years Later", current: true));
+        var placement = Placement(DetailEntityType.Movie, Item(DetailEntityType.Movie, 3, "28 Years Later", current: true));
 
-        Assert.True(DetailSequenceRowRule.ShowsRow(DetailEntityType.MovieSeries, placement));
-    }
-
-    [Fact]
-    public void ABookAloneInItsSeries_KeepsItsRow()
-    {
-        var placement = Placement(DetailEntityType.Book,
-            Item(DetailEntityType.Book, 1, "Leviathan Wakes", current: true),
-            Item(DetailEntityType.Book, 2, "Caliban's War", owned: false));
-
-        Assert.True(DetailSequenceRowRule.ShowsRow(DetailEntityType.Book, placement));
+        Assert.False(DetailSequenceRowRule.StartsCollapsed(pageType, placement));
     }
 
     [Fact]
@@ -112,6 +109,22 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
         Assert.Contains("is-scrolling-rail", cut.Find("section.tl-series-detail").ClassList);
         Assert.Equal(8, cut.Find(".tl-series-detail__strip").Children.Length);
         Assert.Contains(JSInterop.Invocations, call => call.Identifier == "registerMediaShelfBoundaries");
+    }
+
+    [Fact]
+    public void UnderTheSharedRowHeading_JumpToSitsInTheControlsRowAndFitsItsEntries()
+    {
+        var movies = Enumerable.Range(1, 12)
+            .Select(number => Item(DetailEntityType.Movie, number, $"Movie {number}", current: number == 3))
+            .ToArray();
+
+        var cut = Render<SequencePlacementPanel>(p => p
+            .Add(c => c.Placement, Placement(DetailEntityType.Movie, movies))
+            .Add(c => c.DetailSurface, true)
+            .Add(c => c.ShowIdentity, false));
+
+        Assert.Empty(cut.FindAll(".tl-series-detail__heading"));
+        Assert.Single(cut.FindAll(".tl-series-detail__controls .tl-series-detail__jump--fit"));
     }
 
     [Fact]
@@ -132,7 +145,7 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void AMoviePage_DropsTheSeriesRowAndKeepsTheWholeStage_WhenNoOtherMovieIsOwned(bool otherMovieOwned)
+    public void AMoviePage_ShowsItsSeriesRowAsACollapsedBar_WhenNothingElseCanBeShown(bool otherMovieOwned)
     {
         var api = EngineApiClientStub.CreateDefault();
         Services.AddSingleton<IDetailsOverlayHistory>(new NoHistory());
@@ -156,17 +169,18 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
             Title = current.Title,
             Tabs = [new DetailTab { Key = "overview", Label = "Overview" }],
             PrimaryModule = new DetailPrimaryModuleViewModel { Kind = DetailPrimaryModuleKind.Sequence, Title = "28 Days Later" },
-            SequencePlacement = Placement(DetailEntityType.Movie,
-                Item(DetailEntityType.Movie, 1, "28 Days Later", owned: otherMovieOwned),
-                current),
+            SequencePlacement = otherMovieOwned
+                ? Placement(DetailEntityType.Movie, Item(DetailEntityType.Movie, 1, "28 Days Later"), current)
+                : Placement(DetailEntityType.Movie, current),
         };
 
         var cut = Render<DetailPage>(p => p.Add(page => page.Model, model));
 
-        var stage = cut.Find("section.tl-detail-stage").ClassList;
-        Assert.Equal(otherMovieOwned, stage.Contains("tl-detail-stage--with-primary"));
-        Assert.Equal(!otherMovieOwned, stage.Contains("tl-detail-stage--identity-only"));
-        Assert.Equal(otherMovieOwned ? 1 : 0, cut.FindAll("#detail-primary-module").Count);
+        var row = cut.Find("#detail-primary-module .app-collapsible-row");
+        Assert.Equal(!otherMovieOwned, row.ClassList.Contains("is-collapsed"));
+        Assert.Equal(otherMovieOwned ? "true" : "false", row.QuerySelector(".app-collapsible-row__toggle")!.GetAttribute("aria-expanded"));
+        Assert.Equal("28 Days Later", row.QuerySelector(".app-collapsible-row__title")!.TextContent);
+        Assert.Equal(otherMovieOwned, cut.FindAll(".tl-series-detail__strip").Count > 0);
     }
 
     private sealed class NoHistory : IDetailsOverlayHistory
