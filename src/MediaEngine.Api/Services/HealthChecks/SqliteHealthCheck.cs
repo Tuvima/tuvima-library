@@ -28,12 +28,15 @@ public sealed class SqliteHealthCheck(IDatabaseConnection db) : IHealthCheck
                     data: DatabaseData(("integrity", "ok"), ("foreign_keys", "failed")));
             }
 
+            // The probe is a TEMP table so it never bumps the main schema version. A main-schema
+            // CREATE/DROP made concurrent readers of the FTS5 search_index fail with SQLite error 17
+            // ("vtable constructor failed"), which reported the whole data store as unhealthy.
             var probeTable = $"__tuvima_readiness_write_probe_{Guid.NewGuid():N}";
             await db.ExecuteWriteAsync((writeConnection, transaction, innerCt) =>
             {
                 innerCt.ThrowIfCancellationRequested();
-                writeConnection.Execute($"CREATE TABLE [{probeTable}] (id INTEGER);", transaction: transaction);
-                writeConnection.Execute($"DROP TABLE [{probeTable}];", transaction: transaction);
+                writeConnection.Execute($"CREATE TEMP TABLE [{probeTable}] (id INTEGER);", transaction: transaction);
+                writeConnection.Execute($"DROP TABLE temp.[{probeTable}];", transaction: transaction);
             }, cancellationToken).ConfigureAwait(false);
 
             return HealthCheckResult.Healthy(
