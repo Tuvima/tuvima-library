@@ -1,13 +1,20 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Contracts.Vault
 @using MediaEngine.Domain.PersonalMedia
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Ui
+@using MediaEngine.Web.Services.Vault
+@implements IDisposable
 @inject LibraryFolderAddService AddService
 @inject NavigationManager Navigation
+@inject NsfwModeState Nsfw
+@inject VaultLibraryOnboarding VaultOnboarding
+@inject IEngineApiClient VaultApi
 
 @* Adding a folder, in up to three steps: what is it, which folder, how should Library treat it. Nothing is created until
-   "Add folder" on the last step. A level that already knows the type (its own page) starts at the folder step. *@
+   "Add folder" on the last step. A level that already knows the type (its own page) starts at the folder step. The Vault tile
+   (only while the Vault may be shown) has no kinds, so it goes straight to the folder step, and its last step is "Vault". *@
 <AppDialogShell Title="Add folder" Size="Large" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         <div class="add-wizard">
@@ -41,7 +48,7 @@
                     }
                 </div>
 
-                @if (CurrentGroup is { } shown)
+                @if (CurrentGroup is { } shown && !IsVault)
                 {
                     <div class="add-wizard__kinds" role="group" aria-label="@($"{shown.Label} kinds")">
                         @foreach (var kind in KindsOf(shown))
@@ -116,6 +123,50 @@
                     <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
                 }
             }
+            else if (_step == WizardStep.Vault && _folder is not null)
+            {
+                <p class="add-wizard__lead"><code class="add-wizard__path" title="@_folder.Path">@_folder.Path</code></p>
+                @if (!Nsfw.HasPin)
+                {
+                    <AppAlert Tone="AppUiTone.Warning">@VaultMessages.SetProfilePinFirst</AppAlert>
+                }
+                else if (_vaultLoading)
+                {
+                    <AppSkeleton Height="96px" />
+                }
+                else if (_vaultReadFailed)
+                {
+                    @* Without a clear answer the wizard neither creates a library (there may already be one) nor adds to one. *@
+                    <AppAlert Tone="AppUiTone.Error">@VaultMessages.Unreachable</AppAlert>
+                    <div><AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="RetryVaultReadAsync" /></div>
+                }
+                else if (_vaultLibrary is null)
+                {
+                    @* The first Vault folder creates the library: where details come from, then the adults-only confirmation (D34). The PIN is asked on the number pad when Add folder is pressed. *@
+                    <label class="add-wizard__field">
+                        <span>Where details come from</span>
+                        <AppNativeSelect Value="@_vaultLookup"
+                                         OnChange="@(e => _vaultLookup = e.Value?.ToString() ?? "none")"
+                                         Disabled="@_saving"
+                                         aria-label="Where details for this library come from">
+                            <option value="none">Nowhere: file names only</option>
+                            <option value="stash_box">A Stash-box server</option>
+                        </AppNativeSelect>
+                        @if (_vaultLookup == "stash_box")
+                        {
+                            <small>Choosing a server and entering its key arrives with the Vault lookup update. Until then details stay file-name based.</small>
+                        }
+                    </label>
+                    <AppCheckbox Value="@_adultsConfirmed" ValueChanged="@(value => _adultsConfirmed = value)" Disabled="@_saving" data-vault-adults>
+                        @VaultLibraryOnboarding.AdultsConfirmationText
+                    </AppCheckbox>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+                }
+            }
             else if (_step == WizardStep.Done && _type is not null)
             {
                 <div class="add-wizard__done" role="status">
@@ -151,13 +202,17 @@
                 {
                     <AppButton Label="Add folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@_saving" OnClick="AddAsync" />
                 }
+                else if (_step == WizardStep.Vault)
+                {
+                    <AppButton Label="Add folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(_saving || !CanAddToVault)" OnClick="AddToVaultAsync" />
+                }
             }
         </AppActionBar>
     </FooterContent>
 </AppDialogShell>
 
 @code {
-    private enum WizardStep { Kind, Folder, How, Done }
+    private enum WizardStep { Kind, Folder, How, Vault, Done }
 
     private const string ReadOnlyTip = "Library reads the files and never changes them. Best for folders other apps also use.";
     private const string MergeTip = "Library moves these files into your managed folder, renamed and tagged.";
@@ -182,7 +237,7 @@
     [Parameter] public string? SetupSession { get; set; }
     /// <summary>True in the first-run setup, which has no files to merge and no signed-in session.</summary>
     [Parameter] public bool Embedded { get; set; }
-    /// <summary>Offers the Vault tile. False until Vault mode exists.</summary>
+    /// <summary>Offers the Vault tile. The host sets it only while the Vault may be shown (see <see cref="LibraryVaultAccess"/>); setup never does.</summary>
     [Parameter] public bool ShowVault { get; set; }
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
     /// <summary>The Engine's list of library kinds; step 1 offers each group's available kinds from it.</summary>
@@ -204,25 +259,42 @@
     private string? _error;
     private string? _notice;
     private LibrariesConfigurationDto _configuration = default!;
+    // The Vault step: the Vault's library if there already is one, else what a new one is created with.
+    private VaultLibraryDto? _vaultLibrary;
+    private bool _vaultLoading;
+    // The Vault library could not be read, so it is unknown: not "none". Only a successful, empty answer means there is no library.
+    private bool _vaultReadFailed;
+    private string _vaultLookup = "none";
+    private bool _adultsConfirmed;
+
+    // The Vault is offered only while the host allows it and Vault mode is still on; setup never shows it.
+    private bool VaultOffered => ShowVault && !Embedded && Nsfw.Unlocked;
+    private bool IsVault => _groupKey == LibraryGroupCatalog.VaultKey && VaultOffered;
+    private bool CanAddToVault => Nsfw.HasPin && !_vaultLoading && !_vaultReadFailed && (_vaultLibrary is not null || _adultsConfirmed);
+
+    // The Vault has no kinds, so the wizard carries this stand-in where it carries a kind: its name, no media type, the lock icon.
+    private static readonly LibraryTypeOption VaultType = new(
+        LibraryGroupCatalog.VaultKey, "Vault", "Vault videos and images", LibraryGroupCatalog.VaultKey, [], AppMaterialIcons.Outlined.Lock);
 
     // First-run setup has no way into View's settings, so View is not offered there.
-    private IEnumerable<LibraryGroup> OfferedGroups => Kinds.Visible(ShowVault).Where(group => !Embedded || group.Key != "view");
+    private IEnumerable<LibraryGroup> OfferedGroups => Kinds.Visible(VaultOffered).Where(group => !Embedded || group.Key != "view");
 
     private FolderAddScope Scope => new(Embedded, SetupSession);
     private LibraryGroup? CurrentGroup => OfferedGroups.FirstOrDefault(group => group.Key == _groupKey);
     // The phone-footage hint is for Watch kinds, so it follows the area of the chosen kind rather than a particular kind.
     private bool InWatch => string.Equals(_type?.Area, "watch", StringComparison.OrdinalIgnoreCase);
     private bool LooksLikeFootage => InWatch && _folder is { LooksLikePhoneFootage: true };
-    private bool CanGoBack => _step == WizardStep.How || (_step == WizardStep.Folder && !_typeKnown);
+    private bool CanGoBack => _step is WizardStep.How or WizardStep.Vault || (_step == WizardStep.Folder && !_typeKnown);
     private LibraryFolderDto? TypeLibrary => _type is null ? null : LibraryRollup.LibraryFor(_configuration, _type);
     private bool CanMerge => !Embedded && _folder?.ContainsFiles == true && TypeLibrary?.Sources.Any(source => source.ManagementMode == "managed_by_tuvima") == true;
 
-    // "1 What is it? · 2 Folder · 3 How", or "1 Folder · 2 How" when the type is already known.
-    private IReadOnlyList<string> StepLabels => _typeKnown ? ["Folder", "How"] : ["What is it?", "Folder", "How"];
+    // "1 What is it? · 2 Folder · 3 How" ("3 Vault" for the Vault), or "1 Folder · 2 How" when the type is already known.
+    private IReadOnlyList<string> StepLabels => _typeKnown ? ["Folder", "How"] : ["What is it?", "Folder", IsVault ? "Vault" : "How"];
     private int CurrentStepIndex => (_step switch { WizardStep.Kind => 0, WizardStep.Folder => 1, _ => 2 }) - (_typeKnown ? 1 : 0);
 
     protected override void OnInitialized()
     {
+        Nsfw.Changed += OnVaultModeChanged;
         _configuration = Configuration;
         var known = LibraryFolderAddService.ResolveType(Kinds, _configuration, StartTypeKey);
         // View's folders cannot be added in setup, so a View type there starts at step 1 like no type at all.
@@ -238,8 +310,28 @@
         {
             // Only a group the wizard offers can start it, so setup can never open on View (and so never hand off to it).
             _groupKey = OfferedGroups.FirstOrDefault(group => string.Equals(group.Key, StartGroupKey?.Trim(), StringComparison.OrdinalIgnoreCase))?.Key;
+            // The Vault has no kinds to choose, so its own page opens the wizard on the folder step.
+            if (IsVault)
+            {
+                _type = VaultType;
+                _step = WizardStep.Folder;
+            }
         }
     }
+
+    // Vault mode switching off while the wizard is open takes the Vault tile off step 1 at once and closes the wizard if the Vault was picked.
+    private void OnVaultModeChanged() => _ = InvokeAsync(() =>
+    {
+        if (!Nsfw.Unlocked && _groupKey == LibraryGroupCatalog.VaultKey)
+        {
+            Dialog.Cancel();
+            return;
+        }
+
+        StateHasChanged();
+    });
+
+    public void Dispose() => Nsfw.Changed -= OnVaultModeChanged;
 
     private IEnumerable<LibraryTypeOption> KindsOf(LibraryGroup group) =>
         group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>();
@@ -249,6 +341,16 @@
 
     private void ChooseGroup(LibraryGroup group)
     {
+        // The Vault has no kinds: choosing its tile goes straight to the folder step.
+        if (group.Key == LibraryGroupCatalog.VaultKey)
+        {
+            if (_type != VaultType) _folder = null;
+            _groupKey = group.Key;
+            _type = VaultType;
+            GoTo(WizardStep.Folder);
+            return;
+        }
+
         if (_groupKey == group.Key) return;
         _groupKey = group.Key;
         _type = null;
@@ -283,11 +385,11 @@
         _step = step;
     }
 
-    private void Back() => GoTo(_step == WizardStep.How ? WizardStep.Folder : WizardStep.Kind);
+    private void Back() => GoTo(_step is WizardStep.How or WizardStep.Vault ? WizardStep.Folder : WizardStep.Kind);
 
     // Step 2 embeds the shared folder picker; its Next button confirms the folder. Phone or camera footage in a Watch kind
     // pauses here with a hint before moving on.
-    private void OnFolderConfirmed(ServerFolderValidationResultDto selected)
+    private async Task OnFolderConfirmed(ServerFolderValidationResultDto selected)
     {
         _folder = selected;
         _error = null;
@@ -297,7 +399,72 @@
             return;
         }
 
+        if (IsVault)
+        {
+            await EnterVaultStepAsync();
+            return;
+        }
+
         GoTo(WizardStep.How);
+    }
+
+    // The Vault step needs to know whether the Vault library exists yet (then only the PIN is asked) or this folder creates it.
+    private async Task EnterVaultStepAsync()
+    {
+        GoTo(WizardStep.Vault);
+        await RetryVaultReadAsync();
+    }
+
+    private async Task RetryVaultReadAsync()
+    {
+        _vaultLoading = true;
+        try
+        {
+            await LoadVaultLibraryAsync();
+        }
+        finally
+        {
+            _vaultLoading = false;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadVaultLibraryAsync()
+    {
+        var call = await VaultApi.GetVaultLibrariesAsync();
+        _vaultReadFailed = !call.Succeeded;
+        _vaultLibrary = call.Succeeded ? call.Value?.FirstOrDefault() : null;
+    }
+
+    // The PIN comes on the number pad, never typed into the page. The Engine's refusals (a wrong PIN, a folder that holds ordinary files) are shown as they come.
+    private async Task AddToVaultAsync()
+    {
+        if (_saving || _folder is null || !CanAddToVault) return;
+        _saving = true;
+        _error = null;
+        try
+        {
+            var created = _vaultLibrary is null ? new NewVaultLibrary(_vaultLookup, null, _adultsConfirmed) : null;
+            var result = await VaultOnboarding.AddFolderAsync(_folder.Path, _vaultLibrary, created);
+            switch (result.Outcome)
+            {
+                case VaultOnboardingOutcome.FolderAttached:
+                    _notice = null;
+                    _step = WizardStep.Done;
+                    if (OnFolderAdded is not null) await OnFolderAdded(null);
+                    break;
+                case VaultOnboardingOutcome.FolderNotAdded:
+                    _error = result.Message;
+                    // A first folder that is refused still leaves the (empty) library behind, so the next try only asks for the PIN.
+                    await LoadVaultLibraryAsync();
+                    break;
+                case VaultOnboardingOutcome.NotAvailable:
+                    _error = VaultMessages.NotAvailable;
+                    break;
+            }
+        }
+        finally { _saving = false; }
     }
 
     // View's own add form for the kind takes over (its address reads ?add=folder); nothing has been saved by the wizard.
@@ -369,6 +536,8 @@
         _notice = null;
         _handling = AddFolderHandling.ReadOnly;
         _markNewMediaHere = true;
+        _vaultLookup = "none";
+        _adultsConfirmed = false;
         if (_typeKnown)
         {
             _step = WizardStep.Folder;
@@ -383,6 +552,7 @@
     {
         get
         {
+            if (IsVault) return LibraryGroupCatalog.GroupAddress(Kinds.TryGetGroup(LibraryGroupCatalog.VaultKey)!);
             if (_type is null) return null;
             var group = Kinds.GroupFor(_type.Key) ?? Kinds.ForArea(_type.Area);
             return group is not null

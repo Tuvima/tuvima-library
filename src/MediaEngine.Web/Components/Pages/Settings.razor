@@ -14,6 +14,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject MediaEngine.Web.Services.Settings.LibraryKindsState LibraryKinds
 @inject DashboardSessionAccessor Session
+@inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 @inject DashboardIdentityClient Identity
 @inject AccountNoticeState Notices
 @inject SettingsAttentionState Attention
@@ -368,8 +369,9 @@ else
         : CurrentLocation?.Parent is { } parent
         ? $"{GetHeroTitle()} - {parent.Label} - Library"
         : $"{GetHeroTitle()} - Library";
-    // Vault mode does not exist yet, so the Vault is never shown (the same rule the Libraries page uses).
-    private LibraryLevelDescription LibrariesLevel => LibraryAddress.Describe(LibraryKinds.Catalog, _activeSubsection, Detail, showVault: false);
+    // The Vault's title and breadcrumb follow the same rule as the Libraries page itself (an administrator with Vault mode on).
+    private LibraryLevelDescription LibrariesLevel => LibraryAddress.Describe(
+        LibraryKinds.Catalog, _activeSubsection, Detail, LibraryVaultAccess.CanShow(Nsfw, Session, _kidsBlocked));
     // "Movies - Watch - Library", "Watch - Library" or "Libraries - Library".
     private string LibrariesBrowserTitle =>
         LibrariesLevel.Crumbs.Count >= 3
@@ -458,6 +460,7 @@ else
 
         Attention.Changed += OnAttentionChanged;
         LibraryKinds.Changed += OnAttentionChanged;
+        Nsfw.Changed += OnAttentionChanged;
         Notices.Changed += OnNoticesChanged;
         Orchestrator.OnProfileChanged += OnProfileChanged;
         DeviceContext.OnChanged += OnDeviceContextChanged;
@@ -507,6 +510,7 @@ else
         Notices.Changed -= OnNoticesChanged;
         Attention.Changed -= OnAttentionChanged;
         LibraryKinds.Changed -= OnAttentionChanged;
+        Nsfw.Changed -= OnAttentionChanged;
         Attention.Stop();
         Orchestrator.OnProfileChanged -= OnProfileChanged;
         DeviceContext.OnChanged -= OnDeviceContextChanged;
