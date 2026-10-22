@@ -246,11 +246,77 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     {
         var cut = RenderUsers();
         OpenAction(cut, "Delete user");
-        Assert.Contains("Personal media files are kept", cut.Markup);
+        Assert.Contains("Media files are kept", cut.Markup);
         cut.FindAll("button").Last(button => button.TextContent.Trim() == "Delete user").Click();
 
-        cut.WaitForAssertion(() => Assert.Contains("was deleted. Personal media files were kept.", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Contains("was deleted. Media files were kept.", cut.Markup));
         Assert.Contains(_handler.Requests, request => request.Method == HttpMethod.Delete && request.Path == $"/access/accounts/{_handler.AccountId:D}");
+    }
+
+    [Fact]
+    public void DeleteAccount_ConfirmationNamesTheProfilesThatWillBeDeletedWithTheUser()
+    {
+        _handler.DeletionProfileNames = ["Sam", "Sam (Kids)"];
+        var cut = RenderUsers();
+
+        OpenAction(cut, "Delete user");
+
+        var text = cut.Find("[data-user-deletion] .app-alert, [data-user-deletion] [role='alert']").TextContent;
+        Assert.Contains("Delete owner@example.test? This removes owner@example.test's sign-in and their profiles Sam and Sam (Kids), with their progress, bookmarks and lists. Media files are kept.", text);
+        Assert.Contains(_handler.Requests, request => request.Method == HttpMethod.Get && request.Path == $"/access/accounts/{_handler.AccountId:D}/deletion-preview");
+    }
+
+    [Fact]
+    public void DeleteAccount_MovesThePhotosToSharedByDefault()
+    {
+        var cut = RenderUsers();
+        OpenAction(cut, "Delete user");
+
+        Assert.True(cut.Find("input[aria-label='Move their photos to Shared']").HasAttribute("checked"));
+        cut.FindAll("button").Last(button => button.TextContent.Trim() == "Delete user").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("was deleted", cut.Markup));
+        Assert.Equal("?photos=move", Assert.Single(_handler.DeleteQueries));
+    }
+
+    [Fact]
+    public void DeleteAccount_DeletesThePhotosWhenAsked()
+    {
+        var cut = RenderUsers();
+        OpenAction(cut, "Delete user");
+
+        cut.Find("input[aria-label='Delete their photos']").Change(true);
+        cut.FindAll("button").Last(button => button.TextContent.Trim() == "Delete user").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("was deleted", cut.Markup));
+        Assert.Equal("?photos=delete", Assert.Single(_handler.DeleteQueries));
+    }
+
+    [Fact]
+    public void DeleteAccount_ShowsTheEnginesRefusalSentenceAsItIs_AndKeepsTheUser()
+    {
+        _handler.DeleteStatus = HttpStatusCode.Conflict;
+        _handler.DeleteDetail = "Alex is the last owner of this household. Make someone else an owner first.";
+        var cut = RenderUsers();
+        OpenAction(cut, "Delete user");
+
+        cut.FindAll("button").Last(button => button.TextContent.Trim() == "Delete user").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Alex is the last owner of this household. Make someone else an owner first.", cut.Markup));
+        Assert.DoesNotContain("was deleted", cut.Markup);
+    }
+
+    [Fact]
+    public void DeleteAccount_WhenTheEngineRefusesBeforehand_ShowsItsSentenceAndOffersNoDelete()
+    {
+        _handler.PreviewStatus = HttpStatusCode.Conflict;
+        _handler.PreviewDetail = "mia@example.com can only open this profile. Give mia@example.com another profile first.";
+        var cut = RenderUsers();
+
+        OpenAction(cut, "Delete user");
+
+        Assert.Contains("mia@example.com can only open this profile. Give mia@example.com another profile first.", cut.Markup);
+        Assert.True(cut.FindAll("button").Last(button => button.TextContent.Trim() == "Delete user").HasAttribute("disabled"));
     }
 
     [Fact]
@@ -339,6 +405,17 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         public int ProfileCount { get; set; } = 1;
         public List<RequestRecord> Requests { get; } = [];
 
+        /// <summary>The profiles the Engine says go with the user.</summary>
+        public string[] DeletionProfileNames { get; set; } = ["Owner"];
+        public HttpStatusCode PreviewStatus { get; set; } = HttpStatusCode.OK;
+        public string? PreviewDetail { get; set; }
+        public HttpStatusCode DeleteStatus { get; set; } = HttpStatusCode.NoContent;
+        public string? DeleteDetail { get; set; }
+
+        /// <summary>The query string of each delete request ("?photos=move").</summary>
+        public List<string> DeleteQueries { get; } = [];
+
+
         private const string ProfileName = "Owner";
         private bool _deleted;
         private readonly Guid[] _extraProfileIds = Enumerable.Range(0, 7).Select(_ => Guid.NewGuid()).ToArray();
@@ -388,8 +465,21 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
                 return Json(Account());
             }
 
+            if (request.Method == HttpMethod.Get && path == $"/access/accounts/{AccountId:D}/deletion-preview")
+            {
+                return PreviewStatus == HttpStatusCode.OK
+                    ? Json(new AccountDeletionPreviewResponse(DeletionProfileNames.Select(name => new AccountDeletionProfileDto(Guid.NewGuid(), name)).ToList()))
+                    : new HttpResponseMessage(PreviewStatus) { Content = JsonContent.Create(new { detail = PreviewDetail }) };
+            }
+
             if (request.Method == HttpMethod.Delete && path == $"/access/accounts/{AccountId:D}")
             {
+                DeleteQueries.Add(request.RequestUri.Query);
+                if (DeleteStatus != HttpStatusCode.NoContent)
+                {
+                    return new HttpResponseMessage(DeleteStatus) { Content = JsonContent.Create(new { detail = DeleteDetail }) };
+                }
+
                 _deleted = true;
                 return new HttpResponseMessage(HttpStatusCode.NoContent);
             }

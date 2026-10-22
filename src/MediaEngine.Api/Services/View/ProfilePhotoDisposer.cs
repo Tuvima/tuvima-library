@@ -2,11 +2,15 @@ using System.Globalization;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Services.View;
 
-/// <summary>What is left to clean up on disk once the person has been removed.</summary>
-public sealed record ProfilePhotoPlan(IReadOnlyList<ProfilePersonalFile> FilesToDelete);
+/// <summary>
+/// What is left to clean up on disk once the person has been removed: their personal files and their profile picture
+/// (<paramref name="AvatarPath"/>, deleted only when it lives in the Library's own avatar folder).
+/// </summary>
+public sealed record ProfilePhotoPlan(IReadOnlyList<ProfilePersonalFile> FilesToDelete, string? AvatarPath = null);
 
 /// <summary>Looks after a removed person's personal photos: keeps them in the Shared Library or deletes them.</summary>
 public interface IProfilePhotoDisposer
@@ -19,7 +23,7 @@ public interface IProfilePhotoDisposer
     Task<ProfilePhotoPlan> PrepareAsync(
         Profile profile, ProfilePhotoDisposition photos, Guid actorProfileId, CancellationToken ct = default);
 
-    /// <summary>Runs after the person is removed: deletes the files they no longer have anything pointing at.</summary>
+    /// <summary>Runs after the person is removed: deletes the files they no longer have anything pointing at, and their profile picture.</summary>
     Task CompleteAsync(ProfilePhotoPlan plan, CancellationToken ct = default);
 }
 
@@ -27,6 +31,7 @@ public sealed class ProfilePhotoDisposer(
     IProfilePersonalMediaRepository media,
     ViewSharedTransferService transfers,
     ViewStorageService storage,
+    TuvimaDataPaths dataPaths,
     TimeProvider clock,
     ILogger<ProfilePhotoDisposer> logger) : IProfilePhotoDisposer
 {
@@ -53,7 +58,7 @@ public sealed class ProfilePhotoDisposer(
         var remaining = (await media.GetPersonalFilesAsync(profile.Id, ct).ConfigureAwait(false))
             .Where(file => file.IsManaged)
             .ToList();
-        return new ProfilePhotoPlan(remaining);
+        return new ProfilePhotoPlan(remaining, profile.AvatarImagePath);
     }
 
     public async Task CompleteAsync(ProfilePhotoPlan plan, CancellationToken ct = default)
@@ -81,6 +86,45 @@ public sealed class ProfilePhotoDisposer(
 
         await media.DeleteUnusedFilesAsync(plan.FilesToDelete.Select(file => file.FileId).Distinct().ToList(), ct)
             .ConfigureAwait(false);
+        DeleteAvatar(plan.AvatarPath, AvatarFolder(dataPaths), logger);
+    }
+
+    /// <summary>The Library's own avatar folder: every uploaded profile picture lives in <c>{data folder}/profiles/{profile id}/</c>.</summary>
+    internal static string AvatarFolder(TuvimaDataPaths dataPaths) => Path.Combine(dataPaths.Root, "profiles");
+
+    /// <summary>
+    /// Deletes a removed person's uploaded profile picture, and its per-person folder once empty. Only a file inside
+    /// <paramref name="avatarFolder"/> is ever deleted; a path anywhere else is left alone. A picture that cannot be deleted is
+    /// logged as a warning: the person is already gone.
+    /// </summary>
+    internal static void DeleteAvatar(string? avatarPath, string avatarFolder, ILogger logger)
+    {
+        if (string.IsNullOrWhiteSpace(avatarPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(avatarFolder)) + Path.DirectorySeparatorChar;
+            var path = Path.GetFullPath(avatarPath);
+            if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            File.Delete(path);
+            var folder = Path.GetDirectoryName(path);
+            if (folder is not null && !string.Equals(folder + Path.DirectorySeparatorChar, root, StringComparison.OrdinalIgnoreCase)
+                && Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
+            {
+                Directory.Delete(folder);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            logger.LogWarning(exception, "Could not delete a removed profile's picture {Path}.", avatarPath);
+        }
     }
 
     /// <summary>"From Alex 2026-10-10": the Shared Library folder and tag the kept photos carry.</summary>

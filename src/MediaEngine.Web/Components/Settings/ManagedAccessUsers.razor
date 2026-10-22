@@ -280,7 +280,8 @@
             }
             else if (_mode == UserDrawerMode.Delete && _editing is not null)
             {
-                <AppAlert Severity="AppSeverity.Warning">Delete @AccountLabel(_editing)? This revokes the account and its profile grants. Personal media files are kept.</AppAlert>
+                <UserDeletionConfirmation Label="@AccountLabel(_editing)" ProfileNames="_deletionProfiles"
+                                          @bind-KeepPhotos="_keepDeletedPhotos" Busy="@_saving" CanDelete="@_deletionLoaded" />
                 <p>This action cannot be undone from the Dashboard.</p>
             }
         </div>
@@ -292,7 +293,7 @@
             else if (_mode == UserDrawerMode.TemporaryPassword && string.IsNullOrEmpty(_issuedTemporaryPassword)) { <AppButton Label="Set temporary password" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_temporaryPassword))" OnClick="SetTemporaryPassword" /> }
             else if (_mode == UserDrawerMode.Permissions) { <AppButton Label="Save permissions" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="SavePermissions" /> }
             else if (_mode == UserDrawerMode.Invitation && _invitation is null) { <AppButton Label="Create invitation" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_email) || _invitationProfiles.Count == 0)" OnClick="CreateInvitation" /> }
-            else if (_mode == UserDrawerMode.Delete) { <AppButton Label="Delete user" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="DeleteAccount" /> }
+            else if (_mode == UserDrawerMode.Delete) { <AppButton Label="Delete user" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || !_deletionLoaded)" OnClick="DeleteAccount" /> }
         </footer>
         }
     </div>
@@ -324,6 +325,10 @@
     private string _profileColor = "#7C4DFF";
     private string _grantProfile = string.Empty;
     private string _error = string.Empty;
+    private List<string> _deletionProfiles = [];
+    private List<Guid> _deletionProfileIds = [];
+    private bool _deletionLoaded;
+    private bool _keepDeletedPhotos = true;
     private string _drawerMessage = string.Empty;
     private string _notice = string.Empty;
     private string _exportError = string.Empty;
@@ -497,10 +502,21 @@
         _libraryIds.UnionWith(_libraries.Select(library => library.Id));
         _open = true;
     }
-    private void ConfirmDelete(AccountAccessResponse account)
+    private async Task ConfirmDelete(AccountAccessResponse account)
     {
+        // The Engine names the profiles that go with the user, so the confirmation says exactly what will be deleted.
+        var preview = await Identity.GetAccountDeletionPreviewResultAsync(account.Id);
         ResetDrawer(UserDrawerMode.Delete);
         LoadAccount(account);
+        _deletionLoaded = preview.Succeeded;
+        _deletionProfiles = preview.Value?.Profiles.Select(profile => profile.DisplayName).ToList() ?? [];
+        _deletionProfileIds = preview.Value?.Profiles.Select(profile => profile.Id).ToList() ?? [];
+        _keepDeletedPhotos = true;
+        if (!preview.Succeeded)
+        {
+            _error = Message(preview.Failure, preview.Message);
+        }
+
         _open = true;
     }
 
@@ -919,7 +935,10 @@
         {
             ClearMessages();
             var label = EditingLabel;
-            var result = await Identity.DeleteManagedAccountResultAsync(_editing.Id);
+            var accountId = _editing.Id;
+            var keepPhotos = _keepDeletedPhotos;
+            var profileIds = _deletionProfileIds;
+            var result = await Confirmed.RunAsync(() => Identity.DeleteManagedAccountResultAsync(accountId, keepPhotos, profileIds));
             if (!IsCurrentMutation(generation))
                 return;
             if (result.Succeeded)
@@ -927,7 +946,7 @@
                 await ReloadAll(generation);
                 if (!IsCurrentMutation(generation))
                     return;
-                _notice = $"{label} was deleted. Personal media files were kept.";
+                _notice = UserDeletionText.Done(label);
                 Close();
             }
             else

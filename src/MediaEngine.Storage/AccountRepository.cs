@@ -3,8 +3,10 @@ using System.Text.Json;
 using Dapper;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Enums;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Data.Sqlite;
 
@@ -269,35 +271,79 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
-            var account = connection.QuerySingleOrDefault<AccountRow>(
-                Select + " WHERE id=@accountId;", new { accountId }, transaction)
-                ?? throw new KeyNotFoundException("Account not found.");
-            if (account.IsEnabled && account.IsAdministrator &&
-                !HasOtherUsableAdministratorAccount(connection, transaction, accountId))
+            DeleteAccountRows(connection, transaction, accountId);
+        }, ct);
+
+    public Task<AccountRemovalPlan> PlanAccountRemovalAsync(Guid accountId, CancellationToken ct = default) =>
+        db.ExecuteReadAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            return new AccountRemovalPlan(PlanAccountRemoval(connection, transaction, accountId));
+        }, ct);
+
+    public Task<AccountRemovalOutcome> DeleteAccountWithOwnProfilesAsync(Guid accountId, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            // Worked out inside the transaction that deletes, so the profiles that go are exactly the ones just checked.
+            var profiles = PlanAccountRemoval(connection, transaction, accountId);
+            var profileIds = profiles.Select(profile => profile.Id).ToArray();
+            var affected = profileIds.Length == 0
+                ? []
+                : connection.Query<Guid>(
+                    "SELECT DISTINCT account_id FROM account_profile_grants WHERE profile_id IN @ids AND account_id<>@accountId;",
+                    new { ids = profileIds.Select(GuidSql.ToBlob).ToArray(), accountId }, transaction).ToList();
+            DeleteAccountRows(connection, transaction, accountId);
+            foreach (var profileId in profileIds)
             {
-                throw new InvalidOperationException("The final effective administrator account cannot be deleted.");
+                RequireNotFinalAdministratorProfile(connection, transaction, profileId);
+                DeleteProfileRows(connection, transaction, profileId);
             }
 
-            // People whose access followed this account follow the household's next main sign-in instead.
-            connection.Execute("""
-                UPDATE accounts SET grants_inherit_from_account_id=(
-                    SELECT other.id FROM accounts other
-                    WHERE other.household_id=accounts.household_id AND other.id<>@accountId
-                      AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
-                    ORDER BY other.created_at LIMIT 1)
-                WHERE grants_inherit_from_account_id=@accountId;
-                """, new { accountId }, transaction);
-            // A household whose main sign-in goes away hands "primary" to its next main sign-in (or none).
-            connection.Execute("""
-                UPDATE households SET primary_account_id=(
-                    SELECT other.id FROM accounts other
-                    WHERE other.household_id=households.id AND other.id<>@accountId
-                      AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
-                    ORDER BY other.created_at LIMIT 1)
-                WHERE primary_account_id=@accountId;
-                """, new { accountId }, transaction);
-            connection.Execute("DELETE FROM accounts WHERE id=@accountId;", new { accountId }, transaction);
+            // A sign-in that used one of these profiles as its default moves to its next enabled profile.
+            foreach (var other in affected)
+            {
+                EnsureEnabledDefault(connection, transaction, other);
+                connection.Execute("""
+                    UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now WHERE id=@other;
+                    """, new { other, now = Iso(DateTimeOffset.UtcNow) }, transaction);
+            }
+
+            return new AccountRemovalOutcome(profileIds, affected);
         }, ct);
+
+    /// <summary>The account row's own work: the last-administrator backstop, handing its followers on, and removing it.</summary>
+    private static void DeleteAccountRows(SqliteConnection connection, SqliteTransaction transaction, Guid accountId)
+    {
+        var account = connection.QuerySingleOrDefault<AccountRow>(
+            Select + " WHERE id=@accountId;", new { accountId }, transaction)
+            ?? throw new KeyNotFoundException("Account not found.");
+        if (account.IsEnabled && account.IsAdministrator &&
+            !HasOtherUsableAdministratorAccount(connection, transaction, accountId))
+        {
+            throw new InvalidOperationException("The final effective administrator account cannot be deleted.");
+        }
+
+        // People whose access followed this account follow the household's next main sign-in instead.
+        connection.Execute("""
+            UPDATE accounts SET grants_inherit_from_account_id=(
+                SELECT other.id FROM accounts other
+                WHERE other.household_id=accounts.household_id AND other.id<>@accountId
+                  AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
+                ORDER BY other.created_at LIMIT 1)
+            WHERE grants_inherit_from_account_id=@accountId;
+            """, new { accountId }, transaction);
+        // A household whose main sign-in goes away hands "primary" to its next main sign-in (or none).
+        connection.Execute("""
+            UPDATE households SET primary_account_id=(
+                SELECT other.id FROM accounts other
+                WHERE other.household_id=households.id AND other.id<>@accountId
+                  AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
+                ORDER BY other.created_at LIMIT 1)
+            WHERE primary_account_id=@accountId;
+            """, new { accountId }, transaction);
+        connection.Execute("DELETE FROM accounts WHERE id=@accountId;", new { accountId }, transaction);
+    }
 
     public Task<IReadOnlyList<AccountProfileGrant>> GetGrantsAsync(Guid accountId, CancellationToken ct = default)
     {
@@ -576,10 +622,159 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         {
             token.ThrowIfCancellationRequested();
             RequireProfileRemovable(connection, transaction, profileId);
-            // Same transaction as the delete: if the delete fails, the person's photo records stay exactly as they were.
-            ProfilePersonalMediaRepository.ReleaseForRemoval(connection, transaction, profileId);
-            connection.Execute("DELETE FROM profiles WHERE id=@profileId;", new { profileId }, transaction);
+            DeleteProfileRows(connection, transaction, profileId);
         }, ct);
+
+    /// <summary>
+    /// Removes a profile and everything personal it left behind, in the caller's transaction (if anything fails, all of it is
+    /// undone). Tables that point at a profile through a foreign key go with the profile row. The tables below have no foreign
+    /// key, so they are cleared by hand. What stays: audit and approval history (<c>application_events</c>,
+    /// <c>approval_records</c>, <c>authorization_audit_events</c>, <c>identity_audit_events</c>), the library activity log
+    /// (<c>system_activity</c>, apart from the person's Trash-emptied entries), and the reserved View storage label
+    /// (<c>view_storage_labels</c>). A guardrail test lists every table with a profile column and no foreign key, so a new one
+    /// has to be decided here.
+    /// </summary>
+    private static void DeleteProfileRows(SqliteConnection connection, SqliteTransaction transaction, Guid profileId)
+    {
+        // The share records and file locations of the person's photos are released first (their files are handled by the caller).
+        ProfilePersonalMediaRepository.ReleaseForRemoval(connection, transaction, profileId);
+        connection.Execute("""
+            DELETE FROM consumption_history WHERE profile_id=@profileId;
+            DELETE FROM personal_status_commands WHERE profile_id=@profileId;
+            DELETE FROM waiting_personal_state WHERE profile_id=@profileId;
+            DELETE FROM system_activity WHERE profile_id=@profileId AND action_type=@trashEmptied;
+            DELETE FROM encode_jobs WHERE owner_profile_id=@profileId;
+            DELETE FROM offline_variants WHERE owner_profile_id=@profileId;
+            DELETE FROM user_states WHERE user_id=@profileId;
+            DELETE FROM user_taste_profiles WHERE user_id=@profileId;
+            DELETE FROM reader_bookmarks WHERE user_id=@profileText;
+            DELETE FROM reader_highlights WHERE user_id=@profileText;
+            DELETE FROM reader_statistics WHERE user_id=@profileText;
+            """, new { profileId, profileText = profileId.ToString("D"), trashEmptied = SystemActionType.PersonalTrashEmptied }, transaction);
+        connection.Execute("DELETE FROM profiles WHERE id=@profileId;", new { profileId }, transaction);
+    }
+
+    /// <summary>
+    /// The profiles that go with a sign-in. This is the one rule for "a user's own profiles" (Shy, 2026-10-22), worked out from
+    /// grants alone because nothing records who created a profile:
+    /// <list type="bullet">
+    /// <item>A sign-in owns the profile it signs in as: its enabled default grant. That holds whether or not other sign-ins can
+    /// also open the profile (a household's main sign-ins hold a non-default grant on its people, and a second adult may be
+    /// invited into a profile another sign-in also signs in as). It holds for a person's own sign-in too
+    /// (<c>grants_inherit_from_account_id</c> set), whose default grant is the one person it opens, so deleting that sign-in
+    /// through Delete user deletes the person.</item>
+    /// <item>A sign-in also owns every profile that only it holds a grant on (enabled or not): profiles created for that account
+    /// (<c>CreateManagedProfileAsync</c>, the old default after a new default was chosen). Anyone else holding a grant on it,
+    /// even a disabled one, makes it shared, and it stays.</item>
+    /// <item>A profile must be in the sign-in's household (or have none) to count. Nothing else is ever a sign-in's own. People made
+    /// for the household with no sign-in of their own (<c>CreateHouseholdPersonAsync</c>: granted to every main sign-in, default
+    /// for none) are held by every main sign-in, so with two or more main sign-ins they stay with the household. In a household
+    /// with a single main sign-in the data cannot tell such a person from a profile created for that account: both are held
+    /// only by it, so both go with it (the confirmation names every profile that will go, and the last owner of a household
+    /// cannot be deleted, so this only happens once someone else owns the household).</item>
+    /// </list>
+    /// Throws when the delete would strand someone: the Owner profile is never deleted, and no other enabled sign-in may be left
+    /// able to open only profiles that are going.
+    /// </summary>
+    private static IReadOnlyList<Profile> PlanAccountRemoval(SqliteConnection connection, SqliteTransaction transaction, Guid accountId)
+    {
+        var account = connection.QuerySingleOrDefault<AccountRow>(
+            Select + " WHERE id=@accountId;", new { accountId }, transaction)
+            ?? throw new KeyNotFoundException("Account not found.");
+        var profileIds = OwnProfileIds(connection, transaction, account);
+        if (profileIds.Count == 0)
+        {
+            return [];
+        }
+
+        if (profileIds.Contains(Profile.SeedProfileId))
+        {
+            throw new InvalidOperationException(
+                "This sign-in signs in as the Owner profile, which is never deleted. Choose a different profile for it first.");
+        }
+
+        var blobs = profileIds.Select(GuidSql.ToBlob).ToArray();
+        var stranded = connection.QueryFirstOrDefault<StrandedRow>("""
+            SELECT a.id AS AccountId, a.email AS Email,
+                   (SELECT p.display_name FROM account_profile_grants own JOIN profiles p ON p.id=own.profile_id
+                    WHERE own.account_id=a.id AND own.is_enabled=1
+                    ORDER BY own.is_default DESC, own.granted_at LIMIT 1) AS PersonName
+            FROM accounts a
+            WHERE a.id<>@accountId AND a.is_enabled=1
+              AND EXISTS (SELECT 1 FROM account_profile_grants g
+                          WHERE g.account_id=a.id AND g.is_enabled=1 AND g.profile_id IN @blobs)
+              AND NOT EXISTS (SELECT 1 FROM account_profile_grants rest
+                              WHERE rest.account_id=a.id AND rest.is_enabled=1 AND rest.profile_id NOT IN @blobs)
+            ORDER BY a.created_at, a.id LIMIT 1;
+            """, new { accountId, blobs }, transaction);
+        if (stranded is not null)
+        {
+            // The sign-in is named by its email (its identity); the person's name only when it has no email.
+            var name = !string.IsNullOrWhiteSpace(stranded.Email) ? stranded.Email
+                : !string.IsNullOrWhiteSpace(stranded.PersonName) ? stranded.PersonName
+                : "Someone";
+            throw new InvalidOperationException($"{name} can only open this profile. Give {name} another profile first.");
+        }
+
+        return connection.Query<OwnProfileRow>("""
+            SELECT id AS Id, display_name AS DisplayName, avatar_color AS AvatarColor, avatar_image_path AS AvatarImagePath,
+                   avatar_icon AS AvatarIcon, household_id AS HouseholdId, role AS Role, created_at AS CreatedAt
+            FROM profiles WHERE id IN @blobs ORDER BY created_at, id;
+            """, new { blobs }, transaction)
+            .Select(row => new Profile
+            {
+                Id = row.Id,
+                DisplayName = row.DisplayName,
+                AvatarColor = row.AvatarColor,
+                AvatarImagePath = row.AvatarImagePath,
+                AvatarIcon = row.AvatarIcon,
+                HouseholdId = row.HouseholdId,
+                Role = Enum.Parse<ProfileRole>(row.Role),
+                CreatedAt = DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
+            }).ToList();
+    }
+
+    /// <summary>The ids of the profiles that are this sign-in's own (see <see cref="PlanAccountRemoval"/> for the rule).</summary>
+    private static List<Guid> OwnProfileIds(SqliteConnection connection, SqliteTransaction transaction, AccountRow account)
+    {
+        var candidates = new List<Guid>();
+        if (connection.Query<GrantRow>(
+                GrantSelect + " WHERE account_id=@Id AND is_enabled=1 AND is_default=1;", new { account.Id }, transaction)
+            .FirstOrDefault() is { } signInGrant)
+        {
+            candidates.Add(signInGrant.ProfileId);
+        }
+
+        candidates.AddRange(connection.Query<Guid>("""
+            SELECT g.profile_id FROM account_profile_grants g
+            WHERE g.account_id=@Id
+              AND NOT EXISTS (SELECT 1 FROM account_profile_grants other
+                              WHERE other.profile_id=g.profile_id AND other.account_id<>@Id)
+            ORDER BY g.granted_at, g.profile_id;
+            """, new { account.Id }, transaction));
+        return candidates
+            .Distinct()
+            .Where(profileId =>
+            {
+                var profileHousehold = HouseholdOfProfile(connection, transaction, profileId);
+                return profileHousehold is null || account.HouseholdId is null || profileHousehold == account.HouseholdId;
+            })
+            .ToList();
+    }
+
+    private sealed class StrandedRow { public Guid AccountId { get; set; } public string? Email { get; set; } public string? PersonName { get; set; } }
+
+    private sealed class OwnProfileRow
+    {
+        public Guid Id { get; set; }
+        public string DisplayName { get; set; } = "";
+        public string AvatarColor { get; set; } = "";
+        public string? AvatarImagePath { get; set; }
+        public string? AvatarIcon { get; set; }
+        public Guid? HouseholdId { get; set; }
+        public string Role { get; set; } = "";
+        public string CreatedAt { get; set; } = "";
+    }
 
     private static void RequireProfileRemovable(SqliteConnection connection, SqliteTransaction transaction, Guid profileId)
     {
@@ -605,6 +800,12 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             throw new InvalidOperationException("Remove or move this person's sign-in before deleting them. A sign-in that opens only this profile must be removed, or moved to another profile, first.");
         }
 
+        RequireNotFinalAdministratorProfile(connection, transaction, profileId);
+    }
+
+    /// <summary>Backstop: the last profile an administrator can sign in with cannot be deleted.</summary>
+    private static void RequireNotFinalAdministratorProfile(SqliteConnection connection, SqliteTransaction transaction, Guid profileId)
+    {
         var removesAdministrator = connection.ExecuteScalar<int>("""
             SELECT COUNT(*) FROM account_profile_grants g JOIN accounts a ON a.id=g.account_id
             WHERE g.profile_id=@profileId AND g.is_enabled=1 AND g.admin_enabled=1

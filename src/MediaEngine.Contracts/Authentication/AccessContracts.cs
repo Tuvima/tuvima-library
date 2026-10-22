@@ -24,6 +24,17 @@ public sealed record AccountAccessResponse(
 public sealed record SetHouseholdAdminRequest(
     [property: JsonPropertyName("household_admin")] bool HouseholdAdmin);
 
+/// <summary>
+/// What deleting a user (<c>DELETE /access/accounts/{id}</c>) takes with their sign-in: the profiles that are their own, so the
+/// confirmation can name them before anything is deleted. The Engine decides which profiles those are.
+/// </summary>
+public sealed record AccountDeletionPreviewResponse(
+    [property: JsonPropertyName("profiles")] IReadOnlyList<AccountDeletionProfileDto> Profiles);
+
+public sealed record AccountDeletionProfileDto(
+    [property: JsonPropertyName("id")] Guid Id,
+    [property: JsonPropertyName("display_name")] string DisplayName);
+
 public sealed record AccountFeatureGrantDto(
     [property: JsonPropertyName("feature")] string Feature,
     [property: JsonPropertyName("allowed")] bool Allowed);

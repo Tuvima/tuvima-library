@@ -59,6 +59,17 @@ public sealed class AccessContractTests
     }
 
     [Fact]
+    public void TheDeletionPreviewNamesTheProfilesThatWouldGo_UnderStableWireNames()
+    {
+        var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+        var json = JsonSerializer.Serialize(new AccountDeletionPreviewResponse([new AccountDeletionProfileDto(id, "Sam")]));
+
+        Assert.Equal("{\"profiles\":[{\"id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":\"Sam\"}]}", json);
+        Assert.Equal("Sam", JsonSerializer.Deserialize<AccountDeletionPreviewResponse>(json)!.Profiles.Single().DisplayName);
+    }
+
+    [Fact]
     public void SignInRequestsDefaultToATemporaryPasswordAndNoInvite()
     {
         var give = JsonSerializer.Deserialize<GiveOwnSignInRequest>("{\"email\":\"sam@home.test\"}")!;

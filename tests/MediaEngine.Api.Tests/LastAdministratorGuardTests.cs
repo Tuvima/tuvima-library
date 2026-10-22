@@ -143,6 +143,9 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
         Assert.NotNull(await _accounts.GetByIdAsync(first.Id));
 
         var second = await CreateAdministratorAsync();
+        // Each administrator here starts a household of their own and is its owner; a household's last owner has its own rule
+        // (HouseholdOwnerDeletionTests), so the first one stops being an owner before they are deleted.
+        await _mutations.SetHouseholdAdminAsync(_actor, first.Id, false);
         await _mutations.DeleteAsync(_actor, first.Id);
 
         Assert.Null(await _accounts.GetByIdAsync(first.Id));
@@ -159,6 +162,8 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
             NewProfile: new NewAccountProfileCommand("Member", "#112233"),
             Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
             Libraries: new HashSet<Guid>(), TemporaryPassword: Password));
+        // The member starts a household of their own and is its owner; keeping a household's last owner is a separate rule.
+        await _mutations.SetHouseholdAdminAsync(_actor, member.Id, false);
 
         await _mutations.DeleteAsync(_actor, member.Id);
 

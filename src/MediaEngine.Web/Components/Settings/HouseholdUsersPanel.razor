@@ -1,0 +1,174 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Theming
+@inject DashboardIdentityClient Identity
+@inject DashboardSessionAccessor Session
+@inject ConfirmedActionRunner Confirmed
+@inject DeviceContextService DeviceContext
+@inject ILogger<HouseholdUsersPanel> Logger
+
+@* Settings > Personal > Profiles, for a household owner: the other users who sign in to their household, each with Delete user. A user is
+   deleted with their own sign-in and profiles (the Engine decides which, and the confirmation names them). The Engine decides who may
+   be deleted; this panel only hides what it would refuse: yourself, a server administrator and the household's last owner. Computer
+   or tablet only, like the other management actions. *@
+@if (IsOwner && !DeviceContext.IsPhone && !_loading && Others.Count > 0)
+{
+    <div class="household-users" data-household-users>
+        <SettingsSectionPanel Title="Users in your household"
+                              Description="Deleting a user removes their sign-in and their own profiles. Media files are kept."
+                              Icon="@AppMaterialIcons.Outlined.Group">
+            @if (!string.IsNullOrWhiteSpace(_notice))
+            {
+                <AppAlert Severity="AppSeverity.Success" Class="household-users__notice" data-household-users-notice>@_notice</AppAlert>
+            }
+            <ul class="household-users__list" role="list" aria-label="Users in your household">
+                @foreach (var user in Others)
+                {
+                    <li class="household-users__item" data-household-user="@user.Id" @key="user.Id">
+                        <div class="household-users__line">
+                            <span class="household-users__name">@Label(user)</span>
+                            @if (user.HouseholdAdmin)
+                            {
+                                <span class="household-users__badge">Owner</span>
+                            }
+                            @if (CanDelete(user))
+                            {
+                                <AppButton Label="Delete user" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
+                                           Disabled="@(_busy || _asking == user.Id)" aria-label="@($"Delete user {Label(user)}")"
+                                           OnClick="@(() => AskAsync(user))" />
+                            }
+                        </div>
+                        @if (_asking == user.Id)
+                        {
+                            <UserDeletionConfirmation Label="@Label(user)" ProfileNames="_profileNames" @bind-KeepPhotos="_keepPhotos"
+                                                      Busy="@_busy" Error="@_error" CanDelete="@_loadedPreview" ShowActions="true"
+                                                      OnConfirm="@(() => DeleteAsync(user))" OnCancel="Cancel" />
+                        }
+                    </li>
+                }
+            </ul>
+        </SettingsSectionPanel>
+    </div>
+}
+
+@code {
+    private List<AccountAccessResponse> _users = [];
+    private bool _loading = true;
+    private bool _busy;
+    private bool _loadedPreview;
+    private bool _keepPhotos = true;
+    private Guid? _asking;
+    private List<string> _profileNames = [];
+    private List<Guid> _profileIds = [];
+    private string? _notice;
+    private string? _error;
+
+    private bool IsOwner => Session.HasAction("household.manage");
+
+    private IReadOnlyList<AccountAccessResponse> Others => _users.Where(user => user.Id != Session.AccountId).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IsOwner)
+        {
+            await LoadAsync();
+        }
+        else
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _users = await Identity.GetManagedAccountsAsync();
+        }
+        catch (Exception exception) when (exception is System.Text.Json.JsonException or HttpRequestException or NotSupportedException or AggregateException)
+        {
+            // The panel is an extra on the Profiles page: without the list it simply isn't drawn.
+            Logger.LogWarning(exception, "The household's users could not be loaded for the Profiles page.");
+            _users = [];
+        }
+
+        _loading = false;
+    }
+
+    private static string Label(AccountAccessResponse user) =>
+        string.IsNullOrWhiteSpace(user.Email) ? user.ProfileGrants.FirstOrDefault(grant => grant.IsDefault)?.DisplayName ?? "No email" : user.Email;
+
+    private bool CanDelete(AccountAccessResponse target) => HouseholdUserRules.CanDelete(target, Session.AccountId, _users);
+
+    private async Task AskAsync(AccountAccessResponse user)
+    {
+        _error = null;
+        _notice = null;
+        _busy = true;
+        try
+        {
+            var preview = await Identity.GetAccountDeletionPreviewResultAsync(user.Id);
+            _loadedPreview = preview.Succeeded;
+            _profileNames = preview.Value?.Profiles.Select(profile => profile.DisplayName).ToList() ?? [];
+            _profileIds = preview.Value?.Profiles.Select(profile => profile.Id).ToList() ?? [];
+            _keepPhotos = true;
+            _error = preview.Succeeded ? null : Reason(preview.Failure, preview.Message);
+            _asking = user.Id;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        _asking = null;
+        _error = null;
+    }
+
+    private async Task DeleteAsync(AccountAccessResponse user)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var keepPhotos = _keepPhotos;
+            var profileIds = _profileIds;
+            var label = Label(user);
+            var result = await Confirmed.RunAsync(() => Identity.DeleteManagedAccountResultAsync(user.Id, keepPhotos, profileIds));
+            if (result.Succeeded)
+            {
+                _asking = null;
+                _notice = UserDeletionText.Done(label);
+                await LoadAsync();
+            }
+            else
+            {
+                _error = Reason(result.Failure, result.Message);
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // The Engine's own sentence for a refusal (the household's last owner, a profile another sign-in needs); otherwise a plain line.
+    private static string Reason(DashboardAccessMutationFailure failure, string? message) =>
+        !string.IsNullOrWhiteSpace(message) ? message
+        : failure switch
+        {
+            DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was deleted. Confirm it's you to continue.",
+            DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+            DashboardAccessMutationFailure.Forbidden or DashboardAccessMutationFailure.Unauthorized => "You can't delete this user.",
+            DashboardAccessMutationFailure.NotFound => "That user is no longer in your household.",
+            _ => "The user couldn't be deleted. Try again.",
+        };
+}

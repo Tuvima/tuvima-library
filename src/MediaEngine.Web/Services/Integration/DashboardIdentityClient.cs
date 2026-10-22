@@ -571,14 +571,56 @@ public sealed class DashboardIdentityClient(
     }
 
     public async Task<bool> DeleteManagedAccountAsync(Guid accountId, CancellationToken ct = default) =>
-        (await DeleteManagedAccountResultAsync(accountId, ct).ConfigureAwait(false)).Succeeded;
+        (await DeleteManagedAccountResultAsync(accountId, ct: ct).ConfigureAwait(false)).Succeeded;
 
-    public async Task<DashboardAccessMutationResult> DeleteManagedAccountResultAsync(Guid accountId, CancellationToken ct = default)
+    /// <summary>
+    /// What Delete user would delete with this user (their own profiles), for the confirmation. The Engine decides which
+    /// profiles those are; a refusal (the Owner profile, another sign-in left with nothing to open) comes back as its sentence.
+    /// </summary>
+    public async Task<DashboardAccessMutationResult<AccountDeletionPreviewResponse>> GetAccountDeletionPreviewResultAsync(
+        Guid accountId, CancellationToken ct = default)
     {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}", ct, includeMessage: true).ConfigureAwait(false);
+        try
+        {
+            using var response = await Client.GetAsync($"/access/accounts/{accountId:D}/deletion-preview", ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return await ReadMutationFailureAsync<AccountDeletionPreviewResponse>(response, ct, includeMessage: true).ConfigureAwait(false);
+            }
+
+            var value = await response.Content.ReadFromJsonAsync<AccountDeletionPreviewResponse>(cancellationToken: ct).ConfigureAwait(false);
+            return value is null
+                ? DashboardAccessMutationResult<AccountDeletionPreviewResponse>.FailureResult(
+                    DashboardAccessMutationFailure.InvalidResponse, response.StatusCode)
+                : DashboardAccessMutationResult<AccountDeletionPreviewResponse>.Success(value);
+        }
+        catch (Exception exception) when (exception is JsonException or NotSupportedException)
+        {
+            return DashboardAccessMutationResult<AccountDeletionPreviewResponse>.FailureResult(DashboardAccessMutationFailure.InvalidResponse);
+        }
+        catch (HttpRequestException)
+        {
+            return DashboardAccessMutationResult<AccountDeletionPreviewResponse>.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return DashboardAccessMutationResult<AccountDeletionPreviewResponse>.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+    }
+
+    /// <summary>
+    /// Deletes a user: their sign-in and their own profiles. <paramref name="keepPhotos"/> moves the deleted profiles' personal
+    /// photos to the Shared Library (true) or deletes them (false). Screens open on the sign-in, or on a profile that went with
+    /// it (<paramref name="deletedProfileIds"/>), close.
+    /// </summary>
+    public async Task<DashboardAccessMutationResult> DeleteManagedAccountResultAsync(
+        Guid accountId, bool keepPhotos = true, IReadOnlyCollection<Guid>? deletedProfileIds = null, CancellationToken ct = default)
+    {
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}?photos={(keepPhotos ? "move" : "delete")}", ct, includeMessage: true).ConfigureAwait(false);
         if (result.Succeeded)
         {
-            openScreens?.CloseWhere(screen => screen.AccountId == accountId);
+            openScreens?.CloseWhere(screen => screen.AccountId == accountId
+                || (deletedProfileIds is not null && screen.ProfileId is { } profileId && deletedProfileIds.Contains(profileId)));
         }
 
         return result;

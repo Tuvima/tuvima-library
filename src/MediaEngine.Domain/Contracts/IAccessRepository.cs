@@ -36,6 +36,18 @@ public interface IAccountAccessMutationRepository
         MediaEngine.Domain.Aggregates.Profile? newProfile = null);
     Task UpdateAccountAsync(Account account, CancellationToken ct = default);
     Task DeleteAccountAsync(Guid accountId, CancellationToken ct = default);
+    /// <summary>
+    /// Works out which profiles go with this sign-in when it is deleted (<see cref="AccountRemovalPlan"/>) and refuses a delete
+    /// that would strand someone: the Owner profile can never go, and no other sign-in may be left able to open only a
+    /// profile that is going. Changes nothing.
+    /// </summary>
+    Task<AccountRemovalPlan> PlanAccountRemovalAsync(Guid accountId, CancellationToken ct = default);
+    /// <summary>
+    /// Deletes the sign-in and its own profiles in one transaction, with the same refusals as
+    /// <see cref="PlanAccountRemovalAsync"/> and the last-administrator backstop. A sign-in that used a deleted profile as its
+    /// default is moved to its next enabled profile. Everything personal the profiles left behind goes with them.
+    /// </summary>
+    Task<AccountRemovalOutcome> DeleteAccountWithOwnProfilesAsync(Guid accountId, CancellationToken ct = default);
     Task CreateInvitedAccountAsync(
         Account account,
         IReadOnlyList<AccountProfileGrant> grants,
@@ -179,7 +191,23 @@ public interface IAccountAccessMutationService
     Task<Account> ChangeEmailAsync(RequestAuthority actor, Guid accountId, string email, CancellationToken ct = default);
     /// <summary>Turns two-step codes off for someone who lost their authenticator app and recovery codes. Audited.</summary>
     Task ResetTwoStepAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
-    Task DeleteAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
+    /// <summary>
+    /// Deletes a user: their sign-in and their own profiles (see <see cref="AccountRemovalPlan"/>), with <paramref name="photos"/>
+    /// applied to every profile that goes. A server administrator may delete anyone but the last server administrator and a
+    /// household's last owner; a household owner may delete another user in their own household (another owner included) but
+    /// never a server administrator, themselves, anyone outside the household, or the household's last owner.
+    /// </summary>
+    Task DeleteAsync(
+        RequestAuthority actor,
+        Guid accountId,
+        ProfilePhotoDisposition photos = ProfilePhotoDisposition.MoveToShared,
+        CancellationToken ct = default);
+    /// <summary>
+    /// The profiles <see cref="DeleteAsync"/> would delete with this user, for the confirmation. Changes nothing. Open to
+    /// whoever may delete the user; another household's user looks missing to a household owner.
+    /// </summary>
+    Task<IReadOnlyList<MediaEngine.Domain.Aggregates.Profile>> PreviewDeleteAsync(
+        RequestAuthority actor, Guid accountId, CancellationToken ct = default);
     Task<IssuedAccountInvitation> IssueInvitationAsync(
         RequestAuthority actor,
         IssueAccountInvitationCommand command,

@@ -578,6 +578,13 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
   GrantsInheritFromAccountId: System.Guid? | nullability=nullable | accessors=get,init
   HouseholdAdmin: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountDeletionPreviewResponse
+  Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountDeletionProfileDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountDeletionProfileDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  DisplayName: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountExternalLoginDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   AccountId: System.Guid | nullability=not-null | accessors=get,init

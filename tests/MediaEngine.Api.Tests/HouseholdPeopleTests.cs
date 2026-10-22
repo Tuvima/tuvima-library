@@ -249,6 +249,9 @@ public sealed class HouseholdPeopleTests
             new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long temporary password"));
         Assert.Equal(owner.Id, given.Account.GrantsInheritFromAccountId);
 
+        // Spouse is made an owner too, so the household keeps one when the first owner goes.
+        await mutations.SetHouseholdAdminAsync(actor, spouse.Id, true);
+
         await mutations.DeleteAsync(fixture.Actor, owner.Id);
 
         var follower = (await accounts.GetByIdAsync(given.Account.Id))!;
@@ -294,6 +297,9 @@ public sealed class HouseholdPeopleTests
         Assert.NotNull(await accounts.GetByIdAsync(owner.Id));
 
         await mutations.RemoveOwnSignInAsync(actor, given.Id);
+        // The household's only owner stays until someone else is an owner; a server administrator can take the role away first.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.DeleteAsync(actor, owner.Id));
+        await mutations.SetHouseholdAdminAsync(actor, owner.Id, false);
         await mutations.DeleteAsync(actor, owner.Id);
         Assert.Null(await accounts.GetByIdAsync(owner.Id));
     }

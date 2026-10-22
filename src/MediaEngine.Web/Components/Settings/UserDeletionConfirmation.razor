@@ -1,0 +1,61 @@
+@namespace MediaEngine.Web.Components.Settings
+@* What Delete user says before it deletes: the user, the profiles that go with them (the Engine decides which), and what happens to
+   those profiles' personal photos. It only gathers the choice; the screen that shows it talks to the Engine and shows the
+   Engine's refusal sentence as it is. *@
+<div class="user-deletion" data-user-deletion>
+    <AppAlert Severity="AppSeverity.Warning">@UserDeletionText.Confirmation(Label, ProfileNames)</AppAlert>
+    @if (ProfileNames.Count > 0)
+    {
+        <fieldset class="profile-editor__photos" disabled="@Busy" data-user-deletion-photos>
+            <legend>Their photos</legend>
+            <label class="profile-editor__choice">
+                <AppNativeInput Type="radio" Name="user-deletion-photos" Class="who-check__box" Checked="@KeepPhotos" AriaLabel="Move their photos to Shared" Disabled="@Busy" OnChange="Keep" />
+                <span><strong>Move to Shared</strong><small>Kept in the household's Shared Library, tagged with their name and today's date.</small></span>
+            </label>
+            <label class="profile-editor__choice">
+                <AppNativeInput Type="radio" Name="user-deletion-photos" Class="who-check__box" Checked="@(!KeepPhotos)" AriaLabel="Delete their photos" Disabled="@Busy" OnChange="Delete" />
+                <span><strong>Delete</strong><small>This can't be undone.</small></span>
+            </label>
+        </fieldset>
+    }
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <AppAlert Severity="AppSeverity.Error" data-user-deletion-error>@Error</AppAlert>
+    }
+    @if (ShowActions)
+    {
+        <div class="user-deletion__actions">
+            <AppButton Label="Keep user" Disabled="@Busy" OnClick="@(() => OnCancel.InvokeAsync())" />
+            <AppButton Label="Delete user" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@(Busy || !CanDelete)" OnClick="@(() => OnConfirm.InvokeAsync())" />
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>How the user is named on screen (the Users page names people by email).</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+
+    /// <summary>The profiles that go with the user, as the Engine reported them.</summary>
+    [Parameter] public IReadOnlyList<string> ProfileNames { get; set; } = [];
+
+    /// <summary>True (the default) moves the deleted profiles' photos to the Shared Library; false deletes them.</summary>
+    [Parameter] public bool KeepPhotos { get; set; } = true;
+    [Parameter] public EventCallback<bool> KeepPhotosChanged { get; set; }
+
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>The Engine's sentence for a refusal, shown as it is.</summary>
+    [Parameter] public string? Error { get; set; }
+
+    /// <summary>False when the profiles to delete could not be worked out, so nothing is offered to confirm.</summary>
+    [Parameter] public bool CanDelete { get; set; } = true;
+
+    /// <summary>True when this component draws its own Keep and Delete buttons (the Users page drawer has its own footer).</summary>
+    [Parameter] public bool ShowActions { get; set; }
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private Task Keep() => KeepPhotosChanged.InvokeAsync(true);
+
+    private Task Delete() => KeepPhotosChanged.InvokeAsync(false);
+}

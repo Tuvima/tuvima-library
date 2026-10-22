@@ -466,7 +466,22 @@ public static class AccountEndpoints
         })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces<AccountAccessResponse>();
 
-        group.MapDelete("/{accountId:guid}", async (Guid accountId, HttpContext http,
+        // The profiles Delete user would take with this user, so the confirmation can name them. Changes nothing.
+        group.MapGet("/{accountId:guid}/deletion-preview", async (Guid accountId, HttpContext http,
+            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
+            CancellationToken ct) => await ExecuteAsync(async () =>
+            Results.Ok(new AccountDeletionPreviewResponse(
+                (await mutations.PreviewDeleteAsync(await resolver.ResolveAsync(http, ct), accountId, ct))
+                .Select(profile => new AccountDeletionProfileDto(profile.Id, profile.DisplayName)).ToList()))))
+            .RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+            .WithName("PreviewAccountDeletion")
+            .Produces<AccountDeletionPreviewResponse>();
+
+        // Deletes a user: their sign-in and their own profiles. A server administrator (or a trusted application) may delete
+        // anyone but the last server administrator and a household's last owner; a household owner only a user of their own
+        // household. ?photos=move (the default, also for a missing or unknown value) keeps the deleted profiles' personal
+        // photos in the household's Shared Library; ?photos=delete removes them.
+        group.MapDelete("/{accountId:guid}", async (Guid accountId, [FromQuery] string? photos, HttpContext http,
             IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
             [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(async () =>
@@ -476,9 +491,13 @@ public static class AccountEndpoints
                 return stale;
             }
 
-            await mutations.DeleteAsync(await resolver.ResolveAsync(http, ct), accountId, ct);
+            var disposition = string.Equals(photos?.Trim(), "delete", StringComparison.OrdinalIgnoreCase)
+                ? ProfilePhotoDisposition.Delete
+                : ProfilePhotoDisposition.MoveToShared;
+            await mutations.DeleteAsync(await resolver.ResolveAsync(http, ct), accountId, disposition, ct);
             return Results.NoContent();
-        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("DeleteAccount")
            .Produces(StatusCodes.Status204NoContent);
 
         // Only a server administrator decides who looks after a household.

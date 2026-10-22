@@ -164,6 +164,8 @@ public sealed class HouseholdAdministratorTests
             "second.adult@example.com", [world.A.Person.Id], null));
 
         await world.Mutations.RemoveOwnSignInAsync(world.ServerAdmin, world.A.OwnSignIn.Id);
+        // The household keeps an owner: the second adult is made one before the first goes.
+        await world.Mutations.SetHouseholdAdminAsync(world.ServerAdmin, invitation.AccountId, true);
         await world.Mutations.DeleteAsync(world.ServerAdmin, world.A.Owner.Id);
 
         var household = (await world.Households.GetByIdAsync(world.A.Household.Id))!;

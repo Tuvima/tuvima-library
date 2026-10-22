@@ -176,6 +176,30 @@ public sealed class UserExportImportTests : IDisposable
     }
 
     [Fact]
+    public async Task RoundTrip_AfterTheUserIsDeleted_TheSameFileImportsAgainWithNothingLeftToClash()
+    {
+        var store = NewStore();
+        var maya = store.AddUser("maya@example.com", ["Maya", "Maya (kids)"], administrator: false);
+        var movie = store.AddMovie("Dune", "tt1160419", "aaaa1111");
+        store.AddUserState(maya.Profiles[0], movie.Asset, 42.5);
+        store.Execute($"INSERT INTO user_taste_profiles (user_id, profile_json) VALUES ({Blob(maya.Profiles[0])}, '{{}}')");
+        var export = Export(store, maya);
+
+        // Delete user takes the sign-in and its own profiles, with the rows no foreign key would have cleared.
+        await new AccountRepository(store.Database).DeleteAccountWithOwnProfilesAsync(maya.Account);
+        Assert.Equal(0, store.Scalar("SELECT COUNT(*) FROM accounts"));
+        Assert.Equal(0, store.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
+        Assert.Equal(0, store.Scalar("SELECT COUNT(*) FROM user_states"));
+        Assert.Equal(0, store.Scalar("SELECT COUNT(*) FROM user_taste_profiles"));
+
+        var result = ImportInto(store, export);
+
+        Assert.Equal(maya.Account, result.AccountId);
+        Assert.Equal(1, store.Scalar("SELECT COUNT(*) FROM accounts"));
+        Assert.Equal(2, store.Scalar("SELECT COUNT(*) FROM profiles WHERE display_name LIKE 'Maya%'"));
+    }
+
+    [Fact]
     public void RoundTrip_TheProfilesKeepTheirPinPreferencesAndSettings_ButVaultAccessIsSwitchedOff()
     {
         var source = NewStore();

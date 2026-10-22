@@ -332,23 +332,146 @@ public sealed class AccountAccessMutationService(
     public async Task DeleteAsync(
         RequestAuthority actor,
         Guid accountId,
+        ProfilePhotoDisposition photos = ProfilePhotoDisposition.MoveToShared,
         CancellationToken ct = default)
     {
-        // Held across the last-administrator check and the save, so two administrators removing each other cannot both pass.
+        // Held across the last-administrator and last-owner checks and the save, so two people removing each other cannot both pass.
         using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
-        await RequireWriteAsync(actor, ct).ConfigureAwait(false);
-        if (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) is { } doomed)
+        var doomed = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
+        var householdOnly = await RequireAccountDeleteScopeAsync(actor, doomed, ct).ConfigureAwait(false);
+        if (doomed is null)
         {
-            await RequireNotLastMainSignInAsync(doomed, ct).ConfigureAwait(false);
-            if (doomed.IsEnabled && doomed.IsAdministrator)
+            throw new KeyNotFoundException("Account not found.");
+        }
+
+        if (householdOnly)
+        {
+            // A household owner can delete another user of their household, another owner included, but never a server
+            // administrator, and never their own sign-in (another owner does that).
+            if (doomed.IsAdministrator)
             {
-                await RequireAdministratorRemainsAsync(AdministratorSignInLoss.OfAccount(accountId), ct).ConfigureAwait(false);
+                throw new UnauthorizedAccessException("Only a server administrator can delete an administrator's sign-in.");
+            }
+
+            if (actor.AccountId == accountId)
+            {
+                throw new InvalidOperationException("Ask another owner of the household to delete your sign-in.");
             }
         }
 
-        await accounts.DeleteAccountAsync(accountId, ct).ConfigureAwait(false);
+        await RequireNotLastMainSignInAsync(doomed, ct).ConfigureAwait(false);
+        if (doomed.IsEnabled && doomed.IsAdministrator)
+        {
+            await RequireAdministratorRemainsAsync(AdministratorSignInLoss.OfAccount(accountId), ct).ConfigureAwait(false);
+        }
+
+        await RequireNotLastOwnerAsync(doomed, ct).ConfigureAwait(false);
+
+        // The user's own profiles go with them (see AccountRemovalPlan). Every rule is checked before any photo moves.
+        var plan = await accounts.PlanAccountRemovalAsync(accountId, ct).ConfigureAwait(false);
+        foreach (var profile in plan.OwnProfiles)
+        {
+            if (householdOnly)
+            {
+                if (actor.ActiveProfileId == profile.Id)
+                {
+                    throw new InvalidOperationException("Switch to another person before deleting this user.");
+                }
+
+                await RequireNotAdministratorProfileAsync(profile, actor, ct, ignoring: accountId).ConfigureAwait(false);
+            }
+
+            if (await HoldsAdministratorAccessAsync(profile.Id, ct).ConfigureAwait(false))
+            {
+                await RequireAdministratorRemainsAsync(AdministratorSignInLoss.OfProfile(profile.Id), ct).ConfigureAwait(false);
+            }
+        }
+
+        var photoPlans = new List<ProfilePhotoPlan>();
+        foreach (var profile in plan.OwnProfiles)
+        {
+            photoPlans.Add(await photoDisposer.PrepareAsync(profile, photos, actor.ActiveProfileId ?? profile.Id, ct).ConfigureAwait(false));
+        }
+
+        var outcome = await accounts.DeleteAccountWithOwnProfilesAsync(accountId, ct).ConfigureAwait(false);
+        foreach (var photoPlan in photoPlans)
+        {
+            await photoDisposer.CompleteAsync(photoPlan, ct).ConfigureAwait(false);
+        }
+
+        // Anyone who lost a grant to a deleted profile has their open sessions re-checked.
+        foreach (var affected in outcome.AffectedAccountIds)
+        {
+            await invalidation.InvalidateAccountAsync(affected, ct).ConfigureAwait(false);
+        }
+
+        // How many profiles went is recorded; never their names.
         await ChangedAsync(actor, "account.deleted", "account", accountId.ToString("D"),
-            accountId, null, ct).ConfigureAwait(false);
+            accountId, null, ct,
+            new Dictionary<string, string?> { ["profiles_deleted"] = outcome.DeletedProfileIds.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) })
+            .ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<Profile>> PreviewDeleteAsync(
+        RequestAuthority actor,
+        Guid accountId,
+        CancellationToken ct = default)
+    {
+        var doomed = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
+        await RequireAccountDeleteScopeAsync(actor, doomed, ct).ConfigureAwait(false);
+        if (doomed is null)
+        {
+            throw new KeyNotFoundException("Account not found.");
+        }
+
+        return (await accounts.PlanAccountRemovalAsync(accountId, ct).ConfigureAwait(false)).OwnProfiles;
+    }
+
+    /// <summary>
+    /// Who may delete this sign-in: a server administrator or a trusted application anywhere, a household owner only inside their
+    /// own household. Another household's sign-in answers exactly like a missing one, so it cannot be discovered. Returns true when
+    /// the actor is limited to their own household.
+    /// </summary>
+    private async Task<bool> RequireAccountDeleteScopeAsync(RequestAuthority actor, Account? target, CancellationToken ct)
+    {
+        if (actor.PrincipalKind == PrincipalKind.Human && !actor.IsEffectiveAdministrator && actor.IsEffectiveHouseholdAdministrator
+            && (target is null || target.HouseholdId != actor.AccountHouseholdId))
+        {
+            throw new KeyNotFoundException("Account not found.");
+        }
+
+        return await RequireHouseholdWriteAsync(actor, target?.HouseholdId, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// A household that has an enabled owner (<c>household_admin</c>) keeps one: its last enabled owner cannot be deleted.
+    /// Anyone, a server administrator included, is held to this.
+    /// </summary>
+    private async Task RequireNotLastOwnerAsync(Account doomed, CancellationToken ct)
+    {
+        if (!doomed.HouseholdAdmin || !doomed.IsEnabled || doomed.HouseholdId is not { } household)
+        {
+            return;
+        }
+
+        var otherOwner = (await accounts.GetAllAsync(ct).ConfigureAwait(false))
+            .Any(other => other.Id != doomed.Id && other.HouseholdId == household && other.HouseholdAdmin && other.IsEnabled);
+        if (!otherOwner)
+        {
+            var name = await DisplayNameAsync(doomed, ct).ConfigureAwait(false);
+            throw new InvalidOperationException($"{name} is the last owner of this household. Make someone else an owner first.");
+        }
+    }
+
+    /// <summary>The name a sentence uses for a user: the person they sign in as, else their email.</summary>
+    private async Task<string> DisplayNameAsync(Account account, CancellationToken ct)
+    {
+        var grants = (await accounts.GetGrantsAsync(account.Id, ct).ConfigureAwait(false)).Where(grant => grant.IsEnabled).ToArray();
+        var grant = grants.FirstOrDefault(candidate => candidate.IsDefault) ?? grants.FirstOrDefault();
+        var profile = grant is null ? null : await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false);
+        return !string.IsNullOrWhiteSpace(profile?.DisplayName) ? profile!.DisplayName
+            : !string.IsNullOrWhiteSpace(account.Email) ? account.Email!
+            : "This user";
     }
 
     public async Task<IssuedAccountInvitation> IssueInvitationAsync(
@@ -1154,14 +1277,15 @@ public sealed class AccountAccessMutationService(
     }
 
     /// <summary>A household administrator can't touch a person that a server administrator uses as an administrator.</summary>
-    private async Task RequireNotAdministratorProfileAsync(Profile profile, RequestAuthority actor, CancellationToken ct)
+    private async Task RequireNotAdministratorProfileAsync(
+        Profile profile, RequestAuthority actor, CancellationToken ct, Guid? ignoring = null)
     {
         // An administrator (server or household) other than the actor owns the person they sign in as: it is their default
         // person, or the one they administer with. Every main sign-in can open every person of its household, so only
         // those two kinds of grant count as "belongs to an administrator".
         foreach (var account in (await accounts.GetAllAsync(ct).ConfigureAwait(false))
             .Where(account => account.HouseholdId == profile.HouseholdId && account.Id != actor.AccountId &&
-                              (account.IsAdministrator || account.HouseholdAdmin)))
+                              account.Id != ignoring && (account.IsAdministrator || account.HouseholdAdmin)))
         {
             if (await accounts.GetGrantAsync(account.Id, profile.Id, ct).ConfigureAwait(false) is { IsEnabled: true } grant &&
                 (grant.AdminEnabled || grant.IsDefault))
@@ -1262,7 +1386,8 @@ public sealed class AccountAccessMutationService(
         string subjectId,
         Guid accountId,
         Guid? profileId,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyDictionary<string, string?>? details = null)
     {
         await invalidation.InvalidateAccountAsync(accountId, ct).ConfigureAwait(false);
         if (profileId is { } profile)
@@ -1278,7 +1403,9 @@ public sealed class AccountAccessMutationService(
             actor.ApplicationId,
             subjectType,
             subjectId,
-            new Dictionary<string, string?> { ["changed"] = "true" }), ct).ConfigureAwait(false);
+            details is null
+                ? new Dictionary<string, string?> { ["changed"] = "true" }
+                : new Dictionary<string, string?>(details) { ["changed"] = "true" }), ct).ConfigureAwait(false);
     }
 
     private static string NormalizeEmail(string? raw)

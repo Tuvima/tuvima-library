@@ -95,6 +95,11 @@ else
                         </SettingsSectionPanel>
                     </div>
                 }
+
+                @if (!IsServerAdministrator)
+                {
+                    <HouseholdUsersPanel />
+                }
             }
         </section>
     </div>
