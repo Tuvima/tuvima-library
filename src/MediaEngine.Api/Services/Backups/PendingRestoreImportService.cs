@@ -17,7 +17,7 @@ public enum PendingRestoreImportOutcome
     Failed,
 }
 
-/// <summary>Runs the import of a restored backup once, after the fresh data store has been built (backup and restore spec D3, D16).</summary>
+/// <summary>Runs the import of a restored backup once, after the fresh data store has been built (backup and restore spec D3, D7).</summary>
 public interface IPendingRestoreImportService
 {
     /// <summary>Imports the staged backup if a restore is waiting. Never throws for a failed import; it logs, keeps the staged file and carries on.</summary>
@@ -37,14 +37,18 @@ public sealed class PendingRestoreImportService : IPendingRestoreImportService
     private readonly string _configDirectory;
     private readonly TimeProvider _clock;
     private readonly ILogger<PendingRestoreImportService> _logger;
+    private readonly Action<string> _removeStagedFolder;
 
+    /// <param name="removeStagedFolder">A test seam: removes the staged folder after a committed import. Defaults to deleting it.</param>
     public PendingRestoreImportService(
         BackupRestoreRepository restore,
         IBackupPortableValueCodec codec,
         string configDirectory,
         TimeProvider clock,
-        ILogger<PendingRestoreImportService> logger)
+        ILogger<PendingRestoreImportService> logger,
+        Action<string>? removeStagedFolder = null)
     {
+        _removeStagedFolder = removeStagedFolder ?? (folder => Directory.Delete(folder, recursive: true));
         _restore = restore;
         _codec = codec;
         _configDirectory = Path.GetFullPath(configDirectory);
@@ -61,20 +65,19 @@ public sealed class PendingRestoreImportService : IPendingRestoreImportService
             return PendingRestoreImportOutcome.NothingPending;
         }
 
+        // Everything up to and including the import's commit: a failure here is a failed import.
         PendingRestoreImport? marker = null;
+        BackupRestoreResult? result;
         try
         {
             marker = JsonSerializer.Deserialize<PendingRestoreImport>(File.ReadAllText(markerPath))
                 ?? throw new InvalidDataException("The restore marker is empty.");
-            var result = ImportStaged(marker, ct);
-            CleanUp(marker, markerPath);
-            _logger.LogInformation(
-                "Restore imported: {Applied} settings and rows put back, {Waiting} items waiting for their titles, {Dropped} rows left out, {Portable} protected values sealed again.",
-                result.AppliedRows,
-                result.WaitingRows,
-                result.RowsDropped,
-                result.PortableValuesRestored);
-            return PendingRestoreImportOutcome.Imported;
+
+            // The import is one transaction under the restore's own id. When that id is already recorded, an earlier start committed
+            // it and stopped before cleaning up, so it is not imported twice.
+            result = marker.RestoreId != Guid.Empty && _restore.HasRestore(marker.RestoreId)
+                ? null
+                : ImportStaged(marker, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -82,10 +85,28 @@ public sealed class PendingRestoreImportService : IPendingRestoreImportService
             _logger.LogError(
                 "Restore import failed ({Type}). Your previous Library data was put aside at {PreRestoreCopy}; the Engine started on a fresh Library. The staged backup was kept.",
                 ex.GetType().Name,
-                marker?.PreRestoreCopy ?? "(there was none)");
+                marker is null ? "(unknown: the restore marker could not be read)" : marker.PreRestoreCopy ?? "(there was none)");
             KeepMarkerAsFailed(markerPath);
             return PendingRestoreImportOutcome.Failed;
         }
+
+        // The import is committed. Clearing up is its own step: failing to remove the staged copy does not undo the restore.
+        CleanUp(marker, markerPath);
+        if (result is null)
+        {
+            _logger.LogInformation("Restore was already imported before the last stop; nothing was imported again.");
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Restore imported: {Applied} settings and rows put back, {Waiting} items waiting for their titles, {Dropped} rows left out, {Portable} protected values sealed again.",
+                result.AppliedRows,
+                result.WaitingRows,
+                result.RowsDropped,
+                result.PortableValuesRestored);
+        }
+
+        return PendingRestoreImportOutcome.Imported;
     }
 
     private BackupRestoreResult ImportStaged(PendingRestoreImport marker, CancellationToken ct)
@@ -98,26 +119,41 @@ public sealed class PendingRestoreImportService : IPendingRestoreImportService
         using var archive = ZipFile.OpenRead(marker.StagedArchive);
         var export = BackupArchiveFormat.ReadBackupFile(archive);
         var createdAt = RestoreArchiveValidator.ReadCreatedAt(archive);
-        return _restore.Import(export, marker.BackupFileName, createdAt, _codec, _clock.GetUtcNow(), ct);
+        return _restore.Import(export, marker.BackupFileName, createdAt, _codec, _clock.GetUtcNow(), ct, marker.RestoreId == Guid.Empty ? null : marker.RestoreId);
     }
 
     private void CleanUp(PendingRestoreImport marker, string markerPath)
     {
         var stagingDirectory = Path.GetDirectoryName(Path.GetFullPath(marker.StagedArchive));
-        File.Delete(markerPath);
-
-        // Only a staging folder this feature made is removed.
-        if (stagingDirectory is not null
-            && string.Equals(Path.GetFileName(marker.StagedArchive), RestoreMarkers.StagedArchiveFileName, StringComparison.Ordinal)
-            && Path.GetFileName(stagingDirectory).StartsWith("pending-", StringComparison.Ordinal)
-            && Directory.Exists(stagingDirectory))
+        try
         {
-            Directory.Delete(stagingDirectory, recursive: true);
+            File.Delete(markerPath);
+
+            // Only a staging folder this feature made is removed.
+            if (stagingDirectory is not null
+                && string.Equals(Path.GetFileName(marker.StagedArchive), RestoreMarkers.StagedArchiveFileName, StringComparison.Ordinal)
+                && Path.GetFileName(stagingDirectory).StartsWith("pending-", StringComparison.Ordinal)
+                && Directory.Exists(stagingDirectory))
+            {
+                _removeStagedFolder(stagingDirectory);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(
+                "Restore finished; couldn't remove the staged copy at {StagedPath} ({Type}). It is safe to delete.",
+                stagingDirectory ?? marker.StagedArchive,
+                ex.GetType().Name);
         }
     }
 
     private void KeepMarkerAsFailed(string markerPath)
     {
+        if (!File.Exists(markerPath))
+        {
+            return;
+        }
+
         var failedPath = Path.Combine(_configDirectory, RestoreMarkers.ImportFailedFileName);
         try
         {

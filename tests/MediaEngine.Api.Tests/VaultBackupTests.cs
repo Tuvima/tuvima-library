@@ -28,9 +28,11 @@ public sealed class VaultBackupTests : IDisposable
     private const string VaultFolder = "secretfolderxyz";
     private const string OrdinaryTitle = "Ordinary Moviename";
 
+    // What must never appear in a backup. The Vault folder is not in the list: config/libraries.json keeps it on purpose, because a
+    // restore needs it to scan the Vault again (Vault decision D55).
     private static readonly string[] Secrets =
     [
-        VaultTitle, VaultFileName, PerformerName, StudioName, TagName, ImageTitle, ImageFileName, GalleryName, VaultFolder,
+        VaultTitle, VaultFileName, PerformerName, StudioName, TagName, ImageTitle, ImageFileName, GalleryName,
     ];
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"tuvima-vault-backup-{Guid.NewGuid():N}");
@@ -46,7 +48,7 @@ public sealed class VaultBackupTests : IDisposable
     }
 
     [Fact]
-    public async Task Backup_ContainsNoVaultTitleFileNameOrName_InAnyDataEntryOrTheManifestOrTheFileBytes()
+    public async Task Backup_ContainsNoVaultTitleFileNamePerformerStudioOrName_InAnyDecompressedEntry()
     {
         var (config, database) = Prepare("secrets");
         using var _ = database;
@@ -56,18 +58,21 @@ public sealed class VaultBackupTests : IDisposable
         var archivePath = await service.CreateAsync(CancellationToken.None);
 
         using var archive = ZipFile.OpenRead(archivePath);
-        var entries = archive.Entries
-            .Where(entry => entry.FullName == "manifest.json" || entry.FullName.StartsWith("data/", StringComparison.Ordinal))
-            .ToDictionary(entry => entry.FullName, entry => ReadEntryAsText(archive, entry.FullName));
+        // Every entry, decompressed: the manifest, the data and the configuration files.
+        var entries = archive.Entries.ToDictionary(entry => entry.FullName, entry => ReadEntryAsText(archive, entry.FullName));
+        Assert.Contains(entries.Keys, name => name.StartsWith("config/", StringComparison.Ordinal));
+        Assert.Contains(entries.Keys, name => name.StartsWith("data/", StringComparison.Ordinal));
         var everything = string.Concat(entries.Values);
-        // The search is not vacuous: an ordinary title is found in the very same entries.
+        // The search is not vacuous: an ordinary title is found in the very same entries, and the Vault folder (kept on purpose) is too.
         Assert.Contains(OrdinaryTitle.ToLowerInvariant(), everything, StringComparison.Ordinal);
-        var fileBytes = Encoding.Latin1.GetString(File.ReadAllBytes(archivePath)).ToLowerInvariant();
+        Assert.Contains(VaultFolder, entries["config/libraries.json"], StringComparison.Ordinal);
         foreach (var secret in Secrets)
         {
             var needle = secret.ToLowerInvariant();
-            Assert.DoesNotContain(needle, everything, StringComparison.Ordinal);
-            Assert.DoesNotContain(needle, fileBytes, StringComparison.Ordinal);
+            foreach (var (name, text) in entries)
+            {
+                Assert.DoesNotContain(needle, text, StringComparison.Ordinal);
+            }
         }
 
         // The manifest carries no Vault field at all.

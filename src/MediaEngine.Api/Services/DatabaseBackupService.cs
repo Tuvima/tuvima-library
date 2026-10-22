@@ -105,7 +105,8 @@ public sealed class DatabaseBackupService
             File.WriteAllText(markerPath, JsonSerializer.Serialize(new PendingRestore(
                 Path.GetFullPath(stagingDirectory),
                 Path.GetFileName(archivePath),
-                DateTimeOffset.UtcNow)));
+                DateTimeOffset.UtcNow,
+                Guid.NewGuid())));
             return new ScheduleRestoreResultDto(
                 true,
                 true,
@@ -291,75 +292,144 @@ public sealed class DatabaseBackupService
         DatabaseConnection.ReleasePooledConnections(databasePath);
         var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
 
-        // The current data store is put aside whole (file, write-ahead log and shared memory), never deleted; the start-up then builds a fresh one.
-        var preRestoreCopy = PutDataStoreAside(targetDatabase, stamp);
-
-        var stagedConfig = Path.Combine(stagedDirectory, "config");
-        if (Directory.Exists(stagedConfig))
+        // Where the current data store goes is written into the marker before anything is moved, so a crash at any point still says
+        // where the person's Library is. A name already in the marker is reused: an earlier attempt may have moved part of the store.
+        var preRestoreCopy = marker.PreRestoreCopy
+            ?? (File.Exists(targetDatabase) ? UniquePath($"{targetDatabase}.pre-restore-{stamp}.bak") : null);
+        if (preRestoreCopy is not null && !string.Equals(preRestoreCopy, marker.PreRestoreCopy, StringComparison.Ordinal))
         {
-            foreach (var source in Directory.EnumerateFiles(stagedConfig, "*", SearchOption.AllDirectories))
-            {
-                var relative = Path.GetRelativePath(stagedConfig, source);
-                var destination = SafeChildPath(fullConfigDirectory, relative);
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                if (File.Exists(destination))
-                {
-                    File.Copy(destination, $"{destination}.pre-restore-{stamp}.bak", overwrite: false);
-                }
-
-                File.Copy(source, destination, overwrite: true);
-            }
+            marker = marker with { PreRestoreCopy = preRestoreCopy };
+            WriteMarker(markerPath, JsonSerializer.Serialize(marker));
         }
 
-        // The marker is replaced, not deleted, so a stop before the import still imports it at the next start.
-        File.WriteAllText(
-            Path.Combine(fullConfigDirectory, RestoreMarkers.ImportFileName),
-            JsonSerializer.Serialize(new PendingRestoreImport(stagedArchive, marker.BackupFileName, marker.ScheduledAt, preRestoreCopy)));
+        // The current data store is put aside whole (file, write-ahead log and shared memory), never deleted; the start-up then builds a fresh one.
+        // Write-ahead log or shared-memory files left behind by a store that is gone are put aside too, so SQLite never replays them into the new store.
+        var aside = preRestoreCopy ?? $"{targetDatabase}.orphaned-{stamp}";
+        var moves = PutDataStoreAside(targetDatabase, aside);
+
+        var configCopies = new List<(string Destination, string? Original)>();
+        try
+        {
+            var stagedConfig = Path.Combine(stagedDirectory, "config");
+            if (Directory.Exists(stagedConfig))
+            {
+                foreach (var source in Directory.EnumerateFiles(stagedConfig, "*", SearchOption.AllDirectories).OrderBy(path => path, StringComparer.Ordinal))
+                {
+                    var relative = Path.GetRelativePath(stagedConfig, source);
+                    var destination = SafeChildPath(fullConfigDirectory, relative);
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    if (File.Exists(destination))
+                    {
+                        var original = $"{destination}.pre-restore-{stamp}.bak";
+                        File.Copy(destination, original, overwrite: false);
+                        configCopies.Add((destination, original));
+                        File.Copy(source, destination, overwrite: true);
+                    }
+                    else
+                    {
+                        File.Copy(source, destination, overwrite: false);
+                        configCopies.Add((destination, null));
+                    }
+                }
+            }
+
+            // The marker is replaced, not deleted, so a stop before the import still imports it at the next start.
+            WriteMarker(
+                Path.Combine(fullConfigDirectory, RestoreMarkers.ImportFileName),
+                JsonSerializer.Serialize(new PendingRestoreImport(stagedArchive, marker.BackupFileName, marker.ScheduledAt, preRestoreCopy, marker.RestoreId)));
+        }
+        catch
+        {
+            // Put everything back as it was: the configuration files already replaced, then the data store. The pending marker stays.
+            UndoRestore(fullConfigDirectory, configCopies, moves, preRestoreCopy);
+            throw;
+        }
+
         File.Delete(markerPath);
     }
 
     /// <summary>
-    /// Moves the data store file and its write-ahead log and shared-memory files to <c>&lt;db&gt;.pre-restore-&lt;stamp&gt;.bak</c> (and the
-    /// same name with <c>-wal</c> and <c>-shm</c>). If any move fails the ones already made are undone and the exception is thrown, so
-    /// the data store is left exactly as it was. Returns the path of the copy, or null when there was no data store.
+    /// Moves the data store file and its write-ahead log and shared-memory files to <paramref name="aside"/> (and the same name with
+    /// <c>-wal</c> and <c>-shm</c>). A file whose source is missing or whose target already exists is left alone, so running it again after
+    /// a stop part-way finishes the job. If a move fails the ones made are undone and the exception is thrown, so the data store is
+    /// left exactly as it was. Returns the moves made.
     /// </summary>
-    private static string? PutDataStoreAside(string targetDatabase, string stamp)
+    private static List<(string From, string To)> PutDataStoreAside(string targetDatabase, string aside)
     {
-        if (!File.Exists(targetDatabase))
-        {
-            return null;
-        }
-
-        var copy = UniquePath($"{targetDatabase}.pre-restore-{stamp}.bak");
-        var moves = new List<(string From, string To)> { (targetDatabase, copy) };
-        foreach (var suffix in new[] { "-wal", "-shm" })
-        {
-            if (File.Exists(targetDatabase + suffix))
-            {
-                moves.Add((targetDatabase + suffix, copy + suffix));
-            }
-        }
-
         var done = new List<(string From, string To)>();
         try
         {
-            foreach (var move in moves)
+            foreach (var suffix in new[] { string.Empty, "-wal", "-shm" })
             {
-                File.Move(move.From, move.To, overwrite: false);
-                done.Add(move);
+                var from = targetDatabase + suffix;
+                var to = aside + suffix;
+                if (File.Exists(from) && !File.Exists(to))
+                {
+                    File.Move(from, to, overwrite: false);
+                    done.Add((from, to));
+                }
             }
         }
         catch
         {
-            for (var i = done.Count - 1; i >= 0; i--)
-            {
-                File.Move(done[i].To, done[i].From, overwrite: false);
-            }
-
+            MoveBack(done);
             throw;
         }
 
-        return copy;
+        return done;
+    }
+
+    private static void MoveBack(List<(string From, string To)> moves)
+    {
+        for (var i = moves.Count - 1; i >= 0; i--)
+        {
+            File.Move(moves[i].To, moves[i].From, overwrite: false);
+        }
+    }
+
+    /// <summary>
+    /// Undoes a restore that failed after the data store was put aside: replaced configuration files go back from their
+    /// <c>.pre-restore</c> copies (files the restore created are removed) and the data store moves back. A failure here is reported with
+    /// where the Library's data is, so nothing is silently lost.
+    /// </summary>
+    private static void UndoRestore(
+        string configDirectory,
+        List<(string Destination, string? Original)> configCopies,
+        List<(string From, string To)> moves,
+        string? preRestoreCopy)
+    {
+        try
+        {
+            for (var i = configCopies.Count - 1; i >= 0; i--)
+            {
+                var (destination, original) = configCopies[i];
+                if (original is null)
+                {
+                    File.Delete(destination);
+                }
+                else if (File.Exists(original))
+                {
+                    File.Move(original, destination, overwrite: true);
+                }
+            }
+
+            MoveBack(moves);
+            File.Delete(Path.Combine(configDirectory, RestoreMarkers.ImportFileName));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new IOException(
+                $"The restore could not be undone after it failed. Your previous Library data is at {preRestoreCopy ?? "(there was none)"}, and replaced configuration files are kept beside the originals as .pre-restore copies.",
+                ex);
+        }
+    }
+
+    /// <summary>Writes a marker so a stop in the middle never leaves half of one.</summary>
+    private static void WriteMarker(string path, string json)
+    {
+        var temporary = path + ".tmp";
+        File.WriteAllText(temporary, json);
+        File.Move(temporary, path, overwrite: true);
     }
 
     private IEnumerable<string> EnumerateSafeConfigFiles() =>

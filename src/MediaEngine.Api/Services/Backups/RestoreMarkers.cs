@@ -16,11 +16,17 @@ internal static class RestoreMarkers
 }
 
 /// <summary>A scheduled restore: the staging folder holding the checked backup file and its configuration files.</summary>
-internal sealed record PendingRestore(string StagingDirectory, string BackupFileName, DateTimeOffset ScheduledAt);
+/// <param name="StagingDirectory">The staging folder.</param>
+/// <param name="BackupFileName">The file name the person chose, recorded with the restore.</param>
+/// <param name="ScheduledAt">When the restore was scheduled.</param>
+/// <param name="RestoreId">The id the restore is recorded under once imported, so an import that committed before a crash is recognised.</param>
+/// <param name="PreRestoreCopy">Where the current data store will be put aside; written before anything is moved. Null while it is not yet decided or when there is no data store.</param>
+internal sealed record PendingRestore(string StagingDirectory, string BackupFileName, DateTimeOffset ScheduledAt, Guid RestoreId = default, string? PreRestoreCopy = null);
 
 /// <summary>A restore whose settings are in place and whose data still has to be imported into the fresh data store.</summary>
 /// <param name="StagedArchive">The checked backup file.</param>
 /// <param name="BackupFileName">The file name the person chose, recorded with the restore.</param>
 /// <param name="ScheduledAt">When the restore was scheduled.</param>
 /// <param name="PreRestoreCopy">The previous data store, put aside as a copy; null when there was none.</param>
-internal sealed record PendingRestoreImport(string StagedArchive, string BackupFileName, DateTimeOffset ScheduledAt, string? PreRestoreCopy);
+/// <param name="RestoreId">The id the restore is recorded under; when it already exists in the data store the import committed earlier.</param>
+internal sealed record PendingRestoreImport(string StagedArchive, string BackupFileName, DateTimeOffset ScheduledAt, string? PreRestoreCopy, Guid RestoreId = default);

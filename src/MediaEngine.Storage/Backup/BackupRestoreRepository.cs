@@ -53,6 +53,7 @@ public sealed class BackupRestoreRepository
     /// <param name="codec">Protects portable values with this computer's key; null when none is available.</param>
     /// <param name="now">The time of the restore, which is when each waiting row starts waiting.</param>
     /// <param name="ct">Cancels the import; nothing is written.</param>
+    /// <param name="restoreId">The id to record the restore under (a restore that is staged first carries its own id, so a crash after the import committed is recognised); a new id when null.</param>
     /// <exception cref="InvalidOperationException">The backup holds a portable value and no codec was given, or a table the backup holds is not classified.</exception>
     public BackupRestoreResult Import(
         BackupExport export,
@@ -60,15 +61,26 @@ public sealed class BackupRestoreRepository
         DateTimeOffset? backupCreatedAt,
         IBackupPortableValueCodec? codec,
         DateTimeOffset now,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        Guid? restoreId = null)
     {
         ArgumentNullException.ThrowIfNull(export);
         ArgumentException.ThrowIfNullOrWhiteSpace(backupFileName);
 
         // The write lock is taken by the data store's own helper, like every other write; the work inside is synchronous.
         return _db.ExecuteWriteAsync(
-            (connection, transaction, token) => ImportCore(connection, transaction, export, backupFileName, backupCreatedAt, codec, now, token),
+            (connection, transaction, token) => ImportCore(connection, transaction, export, backupFileName, backupCreatedAt, codec, now, restoreId ?? Guid.NewGuid(), token),
             ct).GetAwaiter().GetResult();
+    }
+
+    /// <summary>True when a restore with this id has been recorded, which means its import committed.</summary>
+    public bool HasRestore(Guid restoreId)
+    {
+        using var connection = _db.CreateConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT COUNT(*) FROM {RestoresTable} WHERE id = $id";
+        command.Parameters.AddWithValue("$id", GuidSql.ToBlob(restoreId));
+        return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
     }
 
     private static BackupRestoreResult ImportCore(
@@ -79,6 +91,7 @@ public sealed class BackupRestoreRepository
         DateTimeOffset? backupCreatedAt,
         IBackupPortableValueCodec? codec,
         DateTimeOffset now,
+        Guid restoreIdValue,
         CancellationToken ct)
     {
         // Parents are written first, but the check waits for the end, so the rows of a table cycle can go in any order.
@@ -86,7 +99,7 @@ public sealed class BackupRestoreRepository
 
         var structure = RestoredRowSql.ReadStructure(connection, transaction);
         var foreignKeys = RestoredRowSql.ReadForeignKeys(connection, transaction, structure);
-        var restoreId = GuidSql.ToBlob(Guid.NewGuid());
+        var restoreId = GuidSql.ToBlob(restoreIdValue);
         var createdAt = RestoredRowSql.Timestamp(now);
 
         Execute(

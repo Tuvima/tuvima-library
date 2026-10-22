@@ -32,8 +32,8 @@ internal static class BackupTestKit
         new(new PersonalStateBackupRepository(database, codec ?? Codec()), config, backup);
 
     public static PendingRestoreImportService Importer(
-        DatabaseConnection database, string config, IBackupPortableValueCodec? codec = null, ILogger<PendingRestoreImportService>? logger = null) =>
-        new(new BackupRestoreRepository(database), codec ?? Codec(), config, TimeProvider.System, logger ?? NullLogger<PendingRestoreImportService>.Instance);
+        DatabaseConnection database, string config, IBackupPortableValueCodec? codec = null, ILogger<PendingRestoreImportService>? logger = null, Action<string>? removeStagedFolder = null) =>
+        new(new BackupRestoreRepository(database), codec ?? Codec(), config, TimeProvider.System, logger ?? NullLogger<PendingRestoreImportService>.Instance, removeStagedFolder);
 
     /// <summary>Keeps what is logged, so a test can say what a log line named and what it left out.</summary>
     public sealed class ListLogger<T> : ILogger<T>
