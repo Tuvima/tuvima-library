@@ -184,7 +184,10 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         Area = area,
         MediaTypes = [mediaType],
         // Videos libraries are always local only (see the libraries file check).
-        MetadataPolicy = mediaType == "Videos" ? LibraryMetadataPolicies.LocalOnly : LibraryMetadataPolicies.Enriched,
+        // Videos, and the plain kinds (Other videos, and the Podcasts kind a plugin adds with no lookup), are local only.
+        MetadataPolicy = mediaType == "Videos" || kindKey == "podcasts" ? LibraryMetadataPolicies.LocalOnly : LibraryMetadataPolicies.Enriched,
+        // A plain kind never asks YouTube, and the file check says so when it is left on.
+        YoutubeLookup = false,
     };
 
     private void AddPodcastsPlugin(bool enabled = true)

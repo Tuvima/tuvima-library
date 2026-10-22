@@ -323,7 +323,7 @@ public sealed class VaultFolderAttachmentServiceTests : IDisposable
         // A settings screen sends back what it was shown (even with a Videos library of its own); the Vault entry survives untouched.
         var sent = VaultLibrarySettings.WithoutVault(current, ids);
         sent = new LibrariesConfiguration { StorageLocations = sent.StorageLocations, Libraries = [.. sent.Libraries] };
-        sent.Libraries.Add(new LibraryFolderConfig { Id = Guid.NewGuid().ToString("D"), Name = "Videos", Category = "Videos", KindKey = "other_videos", MediaTypes = ["Videos"] });
+        sent.Libraries.Add(new LibraryFolderConfig { Id = Guid.NewGuid().ToString("D"), Name = "Videos", Category = "Videos", KindKey = "other_videos", MediaTypes = ["Videos"], MetadataPolicy = LibraryMetadataPolicies.LocalOnly, YoutubeLookup = false });
         VaultLibrarySettings.KeepVault(current, sent, ids);
         Assert.Equal(3, sent.Libraries.Count);
         Assert.Single(sent.Libraries, library => library.Id == vault.LibraryId && library.Sources.Count == 1);

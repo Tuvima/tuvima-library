@@ -98,6 +98,17 @@ public sealed class LibraryKindLookupValidationTests
     }
 
     [Fact]
+    public void ALibraryOfAKindOnlyAPluginCouldSupply_IsNotHeldToEnrichedByThisFile()
+    {
+        // The file cannot see a plugin's kinds; the Engine checks the library against the full list where it is saved.
+        var library = Plain("podcasts", "Music", LibraryAreas.Listen, "Shows");
+
+        var errors = Errors(ShippedWith(library));
+
+        Assert.DoesNotContain(errors, error => !error.Contains("absolute path"));
+    }
+
+    [Fact]
     public void ALookupKindStillNeedsEnrichedMetadata()
     {
         var config = Load("config", "libraries.json");
