@@ -131,6 +131,15 @@ public sealed partial class EngineApiClient
             : VaultCall<IReadOnlyList<VaultActivityItemDto>>.Ok(lines);
     }
 
+    public async Task<VaultCall<VaultRestoredBookmarksDto>> GetVaultRestoredBookmarksAsync(CancellationToken ct = default)
+    {
+        var waiting = await GetAsync<VaultRestoredBookmarksDto>(
+            "GET /api/v1/vault/restored-bookmarks", "/api/v1/vault/restored-bookmarks", logAsWarning: false, ct: ct);
+        return waiting is null
+            ? VaultCall<VaultRestoredBookmarksDto>.Of(VaultOutcome.NotAvailable)
+            : VaultCall<VaultRestoredBookmarksDto>.Ok(waiting);
+    }
+
     // -- Browsing (/api/v1/vault/scenes, /folders, /performers, /studios, /tags, /search) ----------------------------
     // Every read answers "not found" for a locked session, so an empty answer here is "not available", never "empty".
 

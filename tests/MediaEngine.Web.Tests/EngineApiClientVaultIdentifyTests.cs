@@ -84,6 +84,24 @@ public sealed class EngineApiClientVaultIdentifyTests
     }
 
     [Fact]
+    public async Task RestoredBookmarks_ReadsTheCount_AndNotFoundMeansNotAvailable()
+    {
+        var (ok, requests, _) = Client(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = JsonContent.Create(new VaultRestoredBookmarksDto { Waiting = 2, Message = "2 saved bookmarks are still waiting." }),
+        });
+
+        var call = await ok.GetVaultRestoredBookmarksAsync();
+
+        Assert.Equal(VaultOutcome.Ok, call.Outcome);
+        Assert.Equal(2, call.Value!.Waiting);
+        Assert.Equal("/api/v1/vault/restored-bookmarks", Assert.Single(requests).Path);
+
+        var (hidden, _, _) = Client(_ => NotFound());
+        Assert.Equal(VaultOutcome.NotAvailable, (await hidden.GetVaultRestoredBookmarksAsync()).Outcome);
+    }
+
+    [Fact]
     public async Task Activity_ReadsTheList_AndNotFoundMeansNotAvailable()
     {
         var line = new VaultActivityItemDto { Id = Guid.NewGuid(), AssetId = Asset, Kind = "added", FileName = "a.mp4", At = DateTimeOffset.UtcNow };
