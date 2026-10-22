@@ -871,6 +871,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             }
         });
         cut.WaitForElement(".libraries");
+        // The title and breadcrumb name the group and kind, which arrive with the list of library kinds.
+        cut.WaitForState(() => Services.GetRequiredService<MediaEngine.Web.Services.Settings.LibraryKindsState>().Loaded);
         return cut;
     }
 
