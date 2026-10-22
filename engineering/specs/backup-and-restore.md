@@ -1,8 +1,8 @@
 # Spec: Backup and restore (settings and personal state)
 
-> **Status:** In progress · **Version:** 7 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../product/overview.md) · [Videos spec](videos.md) D43, D46 (bookmark packs) · [Developer tools spec](developer-tools.md) D-P, WP25, WP26 (destinations, schedule, passphrase) · [Encrypted plugin keys](encrypted-plugin-keys.md) EK2 · [Delete groups](delete-groups.md) · [Safer deleting in View](safer-deleting-in-view.md)
+> **Status:** Built, awaiting your Local checks · **Version:** 8 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../product/overview.md) · [Videos spec](videos.md) D43, D46 (bookmark packs) · [Developer tools spec](developer-tools.md) D-P, WP25, WP26 (destinations, schedule, passphrase) · [Encrypted plugin keys](encrypted-plugin-keys.md) EK2 · [Delete groups](delete-groups.md) · [Safer deleting in View](safer-deleting-in-view.md)
 
-> **Build note (2026-10-22):** WP1, WP2 (#397), WP2b (#405), WP3 (#421) and WP4 (#424) are built and merged: backups hold settings, personal state and typed corrections against recognition data, with no encryption; restore loads a fresh Library and re-attaches state automatically; the screens in section 4 are in place. Since then Shy decided: no warning for destination copies (D17); the "File missing" search result is built here (D18, WP5); "Export my data" becomes an export of one user (their sign-in and every profile under it), whose contents are being agreed. Local checks L1 to L4 (plus the waiting-period check) are in `engineering/validation/batch.md`.
+> **Build note (2026-10-22):** Every packet is built and merged: WP1, WP2 (#397), WP2b (#405), WP3 (#421), WP4 (#424), WP5 "File missing" in search (#428) and WP6 export and import of a user (#431, with D20). Backups hold settings, personal state and typed corrections against recognition data, with no encryption; restore loads a fresh Library and re-attaches state automatically; a person can move to another Library with their sign-in, profiles and progress. Local checks L1 to L6 are in `engineering/validation/batch.md`.
 
 ## 1. Goal
 
@@ -118,6 +118,8 @@ A backup should hold what is hard to recreate: your settings, preferences and yo
 - **L2.** A Vault test folder: after restore the Vault is empty until rescanned, then Vault progress returns.
 - **L3.** Restore a backup with no password on a second Windows account or computer: signing in with two-step works; corrections (a locked title, a renamed chapter) come back after a rescan.
 - **L4.** A copy sent to another folder or a network share is a plain backup: it restores without any passphrase, and the Backup screen shows no password option.
+- **L5.** The waiting period choice and the file-only warning on the Backup screen (WP4).
+- **L6.** Move a person between two small test Libraries (WP6): export yourself and, as an administrator, another person; import both on the second Library; they sign in with the same password, see nothing until access is given, then find their progress on matching titles; the person exported by an administrator is told to set up two-step again; a second import of the same email is refused.
 
 ## 8. Risks and open questions
 
