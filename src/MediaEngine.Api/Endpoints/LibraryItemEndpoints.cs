@@ -1,5 +1,6 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.FileWrites;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.Libraries.Moves;
 using MediaEngine.Api.Services.Matching;
@@ -140,14 +141,26 @@ public static class LibraryItemEndpoints
         .RequireEffectiveAdministratorInPerson();
 
         group.MapPost("/recycle-bin/{id:guid}/restore", async (Guid id, HttpContext http, IRequestAuthorityResolver authorities,
-            [FromServices] VaultAccessResolver vaultAccess, [FromServices] RecycleBinService bin, CancellationToken ct) =>
-            bin.Restore(id, await HiddenLibrariesAsync(http, authorities, vaultAccess, ct)) switch
+            [FromServices] VaultAccessResolver vaultAccess, [FromServices] RecycleBinService bin,
+            [FromServices] RestoredFileWriteQueuer restoredWrites, CancellationToken ct) =>
+        {
+            var hidden = await HiddenLibrariesAsync(http, authorities, vaultAccess, ct);
+            var originalPath = bin.List(hidden).FirstOrDefault(entry => entry.Id == id)?.OriginalPath;
+            var result = bin.Restore(id, hidden);
+            if (result == RecycleBinRestoreResult.Restored && originalPath is not null)
+            {
+                // A restored file whose item is still in the library gets a fresh entry on the file write list.
+                await restoredWrites.QueueAsync(originalPath, ct);
+            }
+
+            return result switch
             {
                 RecycleBinRestoreResult.Restored => Results.NoContent(),
                 RecycleBinRestoreResult.NotFound => ApiErrors.NotFound("That file is no longer in the recycle bin."),
                 RecycleBinRestoreResult.PlaceTaken => ApiErrors.Conflict("Something is already at that place, so nothing was put back."),
                 _ => ApiErrors.BadRequest("The file could not be put back. It is still in the recycle bin."),
-            })
+            };
+        })
         .WithName("RestoreFromRecycleBin")
         .WithSummary("Put a file from the recycle bin back where it was. Nothing is overwritten.")
         .Produces(StatusCodes.Status204NoContent)

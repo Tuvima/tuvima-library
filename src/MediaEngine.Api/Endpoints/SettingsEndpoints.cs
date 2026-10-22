@@ -3,8 +3,10 @@ using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.FileWrites;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Artwork;
+using MediaEngine.Contracts.WriteBack;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
@@ -17,6 +19,7 @@ using MediaEngine.Providers;
 using MediaEngine.Providers.Contracts;
 using MediaEngine.Providers.Models;
 using MediaEngine.Providers.Services;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
 using Microsoft.AspNetCore.Mvc;
@@ -453,6 +456,63 @@ public static class SettingsEndpoints
         .WithName("UpdateArtworkWritebackSettings")
         .Produces<ArtworkWritebackSettingsDto>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageConfigWrite);
+
+        // ── Batched write-back: schedule, status, Write now, failures ───────────────
+
+        grp.MapGet("/writeback/schedule", async (FileWriteScheduler scheduler, CancellationToken ct) =>
+            Results.Ok(await scheduler.GetScheduleAsync(ct)))
+        .WithName("GetFileWriteSchedule")
+        .WithSummary("How often waiting file writes are worked through, how many are waiting or failed, the progress of a run in flight, and the last and next run.")
+        .Produces<FileWriteScheduleDto>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageStatusRead);
+
+        grp.MapPut("/writeback/schedule", async (UpdateFileWriteScheduleDto request,
+            IConfigurationLoader configLoader, FileWriteScheduler scheduler, CancellationToken ct) =>
+        {
+            if (!WriteBackConfiguration.IsValidRunInterval(request.IntervalMinutes))
+            {
+                return ApiErrors.BadRequest(
+                    $"The time between runs must be between {WriteBackConfiguration.MinRunIntervalMinutes} and {WriteBackConfiguration.MaxRunIntervalMinutes} minutes.");
+            }
+
+            var settings = configLoader.LoadConfig<WriteBackConfiguration>(string.Empty, "writeback")
+                ?? new WriteBackConfiguration();
+            settings.RunIntervalMinutes = request.IntervalMinutes;
+            configLoader.SaveConfig(string.Empty, "writeback", settings);
+            return Results.Ok(await scheduler.GetScheduleAsync(ct));
+        })
+        .WithName("UpdateFileWriteSchedule")
+        .WithSummary("Saves the number of minutes between scheduled file write runs (1 to 1440). The scheduler reads it again on its next pass.")
+        .Produces<FileWriteScheduleDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageConfigWrite);
+
+        grp.MapPost("/writeback/run", async (FileWriteScheduler scheduler, CancellationToken ct) =>
+            scheduler.RequestRun()
+                ? Results.Accepted("/settings/writeback/schedule", await scheduler.GetScheduleAsync(ct))
+                : ApiErrors.Conflict("A write run is already going."))
+        .WithName("StartFileWriteRun")
+        .WithSummary("Write now: starts a run over everything waiting. 202 when it was started, 409 when a run is already going.")
+        .Produces<FileWriteScheduleDto>(StatusCodes.Status202Accepted)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageConfigWrite);
+
+        grp.MapGet("/writeback/failed", async (MediaFileWriteIntentRepository intents, CancellationToken ct) =>
+            Results.Ok((await intents.GetFailedAsync(ct: ct)).Select(row => new FailedFileWriteDto
+            {
+                TargetKind = row.TargetKind,
+                AssetId = row.AssetId,
+                LocalItemId = row.LocalItemId,
+                Title = row.Title,
+                Path = row.Path,
+                Reason = row.Reason,
+                Attempts = row.Attempts,
+                UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt, System.Globalization.CultureInfo.InvariantCulture),
+            }).ToList()))
+        .WithName("GetFailedFileWrites")
+        .WithSummary("The files that could not be written, with the reason.")
+        .Produces<IReadOnlyList<FailedFileWriteDto>>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageStatusRead);
 
         // ── POST /settings/test-path ────────────────────────────────────────────
 

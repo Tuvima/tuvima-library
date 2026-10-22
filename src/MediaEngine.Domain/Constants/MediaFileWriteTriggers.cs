@@ -15,4 +15,13 @@ public static class MediaFileWriteTriggers
     /// a row that was being worked on when the Engine stopped is picked up again, and doing the work twice changes nothing.
     /// </summary>
     public const string LibraryMove = "library_move";
+
+    /// <summary>Embedded artwork for a Music or Audiobooks file needs bringing up to date.</summary>
+    public const string Artwork = "artwork";
+
+    /// <summary>An administrator asked for a failed artwork embed to be tried again.</summary>
+    public const string ArtworkRetry = "artwork_retry";
+
+    /// <summary>The file was put back from the Recycle bin.</summary>
+    public const string Restore = "restore";
 }

@@ -90,14 +90,7 @@ public sealed class WriteBackService : IWriteBackOutcomeService
         // Check trigger-specific flags. The "config_change" trigger is the
         // auto re-tag sweep — defaults to enabled (mirrors WriteOnAutoMatch)
         // because the user has just edited writeback-fields.json and clicked Apply.
-        var allowed = trigger switch
-        {
-            "auto_match" => config.WriteOnAutoMatch,
-            "manual_override" => config.WriteOnManualOverride,
-            "universe_enrichment" => config.WriteOnUniverseEnrichment,
-            "config_change" => config.WriteOnAutoMatch,
-            _ => config.Enabled,
-        };
+        var allowed = config.AllowsTrigger(trigger);
 
         if (!allowed)
         {

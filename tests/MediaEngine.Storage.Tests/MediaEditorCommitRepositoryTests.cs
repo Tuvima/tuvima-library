@@ -118,18 +118,21 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
     [Theory]
     [InlineData("pending")]
     [InlineData("writing")]
-    public async Task ASaveMadeWhileALibraryMoveStillWaitsForItsFileRename_KeepsTheMovesTrigger(string status)
+    public async Task ASaveMadeWhileALibraryMoveStillWaitsForItsFileRename_KeepsTheMovesTriggerAndStep(string status)
     {
-        SeedIntent("library_move", status);
+        SeedIntent("library_move", status, moveStep: "requested");
 
         var committed = await new MediaEditorCommitRepository(_database).CommitVerifiedTvEpisodeMoveAsync(Move());
 
         Assert.Equal(MediaEditorCommitOutcome.Committed, committed.Outcome);
         using var connection = _database.CreateConnection();
-        var intent = connection.QuerySingle<(string Trigger, string Status)>(
-            "SELECT trigger AS Trigger, status AS Status FROM media_file_write_intents WHERE asset_id = @asset;", new { asset = _asset });
+        var intent = connection.QuerySingle<(string Trigger, string Status, string? MoveStep, long Generation)>(
+            "SELECT trigger AS Trigger, status AS Status, move_step AS MoveStep, generation AS Generation FROM media_file_write_intents WHERE asset_id = @asset;",
+            new { asset = _asset });
         Assert.Equal("library_move", intent.Trigger);
         Assert.Equal("pending", intent.Status);
+        Assert.Equal("requested", intent.MoveStep);
+        Assert.Equal(2, intent.Generation);
     }
 
     [Theory]
@@ -148,13 +151,15 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
             "SELECT trigger FROM media_file_write_intents WHERE asset_id = @asset;", new { asset = _asset }));
     }
 
-    private void SeedIntent(string trigger, string status)
+    private void SeedIntent(string trigger, string status, string? moveStep = null)
     {
         using var connection = _database.CreateConnection();
         connection.Execute("""
-            INSERT INTO media_file_write_intents (asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at)
-            VALUES (@asset, 1, 'move:seed', @trigger, @status, 0, '2026-10-20T00:00:00.0000000+00:00', '2026-10-20T00:00:00.0000000+00:00');
-            """, new { asset = _asset, trigger, status });
+            INSERT INTO media_file_write_intents
+                (id, target_kind, asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at, move_step)
+            VALUES (@id, 'media_asset', @asset, 1, 'move:seed', @trigger, @status, 0,
+                    '2026-10-20T00:00:00.0000000+00:00', '2026-10-20T00:00:00.0000000+00:00', @moveStep);
+            """, new { id = Guid.NewGuid(), asset = _asset, trigger, status, moveStep });
     }
 
     [Fact]

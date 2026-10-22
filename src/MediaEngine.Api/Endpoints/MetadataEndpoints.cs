@@ -355,7 +355,7 @@ public static partial class MetadataEndpoints
             IMetadataClaimRepository claimRepo,
             ICanonicalValueRepository canonicalRepo,
             ISystemActivityRepository activityRepo,
-            IWriteBackService writeBack,
+            IFileWriteQueue fileWrites,
             IEventPublisher publisher,
             CancellationToken ct) =>
         {
@@ -446,10 +446,10 @@ public static partial class MetadataEndpoints
                     updatedKeys.ToArray()),
                 ct);
 
-            // 5. Write-back: write manual overrides to the physical file.
+            // 5. Write-back: the override is already saved in Library; the file catches up on the next scheduled write run.
             try
             {
-                await writeBack.WriteMetadataAsync(entityId, "manual_override", ct);
+                await fileWrites.EnqueueAssetAsync(entityId, "manual_override", ct);
             }
             catch
             {

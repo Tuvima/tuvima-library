@@ -1,6 +1,7 @@
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Artwork;
 using MediaEngine.Api.Services.EngineLogs;
+using MediaEngine.Api.Services.FileWrites;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.LocalAssets.Filing;
@@ -56,7 +57,9 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<ActivityPruningService>();
         services.AddHostedService<MediaOperationRecoveryHostedService>();
         services.AddHostedService<FolderOrganiseJobWorker>();
-        services.AddHostedService<MediaFileWriteIntentDispatcher>();
+        services.AddSingleton<IFileWriteTargetWriter, MediaAssetFileWriter>();
+        services.AddSingleton<FileWriteScheduler>();
+        services.AddHostedService(sp => sp.GetRequiredService<FileWriteScheduler>());
         services.AddSingleton<IngestionQueueProgressService>();
         services.AddSingleton<IIngestionQueueProgressService>(sp => sp.GetRequiredService<IngestionQueueProgressService>());
         services.AddHostedService(sp => sp.GetRequiredService<IngestionQueueProgressService>());

@@ -13,7 +13,7 @@ public sealed class ReviewRemediationOrderingTests
         var retryEndpoint = maintenance[retryStart..retryEnd];
 
         Assert.DoesNotContain("UpdateStatusAsync", retryEndpoint, StringComparison.Ordinal);
-        Assert.Contains("await _writeBackService.WriteMetadataAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("await _fileWrites.EnqueueAssetAsync", worker, StringComparison.Ordinal);
         // The adapter currently cannot prove a complete physical round trip for
         // every format. An attempted write must leave the review unresolved.
         Assert.DoesNotContain("ResolveWritebackReviewsAsync(stale.AssetId, ct)", worker, StringComparison.Ordinal);

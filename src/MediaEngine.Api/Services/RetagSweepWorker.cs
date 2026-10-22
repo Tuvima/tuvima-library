@@ -33,7 +33,7 @@ namespace MediaEngine.Api.Services;
 public sealed class RetagSweepWorker : BackgroundService
 {
     private readonly IMediaAssetRepository _assetRepo;
-    private readonly IWriteBackService _writeBackService;
+    private readonly IFileWriteQueue _fileWrites;
     private readonly IReviewQueueRepository _reviewRepo;
     private readonly IConfigurationLoader _configLoader;
     private readonly IEventPublisher _eventPublisher;
@@ -49,7 +49,7 @@ public sealed class RetagSweepWorker : BackgroundService
 
     public RetagSweepWorker(
         IMediaAssetRepository assetRepo,
-        IWriteBackService writeBackService,
+        IFileWriteQueue fileWrites,
         IReviewQueueRepository reviewRepo,
         IConfigurationLoader configLoader,
         IEventPublisher eventPublisher,
@@ -59,7 +59,7 @@ public sealed class RetagSweepWorker : BackgroundService
     {
         ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(assetRepo);
-        ArgumentNullException.ThrowIfNull(writeBackService);
+        ArgumentNullException.ThrowIfNull(fileWrites);
         ArgumentNullException.ThrowIfNull(reviewRepo);
         ArgumentNullException.ThrowIfNull(configLoader);
         ArgumentNullException.ThrowIfNull(eventPublisher);
@@ -68,7 +68,7 @@ public sealed class RetagSweepWorker : BackgroundService
 
         _runner = runner;
         _assetRepo = assetRepo;
-        _writeBackService = writeBackService;
+        _fileWrites = fileWrites;
         _reviewRepo = reviewRepo;
         _configLoader = configLoader;
         _eventPublisher = eventPublisher;
@@ -184,9 +184,9 @@ public sealed class RetagSweepWorker : BackgroundService
 
                 try
                 {
-                    await _writeBackService.WriteMetadataAsync(stale.AssetId, "config_change", ct);
-                    // A completed adapter call lacks complete metadata read-back;
-                    // it cannot resolve a failure review or count as verified.
+                    // The file joins the write list and is written on the next scheduled run. Queueing proves nothing about
+                    // the file itself, so it cannot resolve a failure review or count as verified.
+                    await _fileWrites.EnqueueAssetAsync(stale.AssetId, "config_change", ct);
                     totalCompletedUnverified++;
                 }
                 catch (OperationCanceledException)

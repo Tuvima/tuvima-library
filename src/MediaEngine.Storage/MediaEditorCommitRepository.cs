@@ -422,29 +422,9 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                         writeback_attempts=0, writeback_next_retry_at=NULL
                     WHERE id=@assetId;
                     """, new { assetId, pendingHash = "editor:pending:" + tokenValue }, transaction);
-                // A library move still waiting for its file rename keeps its trigger: this save must not drop the rename.
-                connection.Execute("""
-                    INSERT INTO media_file_write_intents
-                        (asset_id, generation, operation_token, trigger, status, attempts,
-                         lease_expires_at, last_error, created_at, updated_at)
-                    VALUES (@assetId, 1, @tokenValue, 'editor_commit', 'pending', 0,
-                            NULL, NULL, @intentNow, @intentNow)
-                    ON CONFLICT(asset_id) DO UPDATE SET
-                        generation = media_file_write_intents.generation + 1,
-                        operation_token = excluded.operation_token,
-                        trigger = CASE
-                            WHEN media_file_write_intents.trigger = 'library_move'
-                                 AND media_file_write_intents.status IN ('pending', 'writing')
-                            THEN media_file_write_intents.trigger
-                            ELSE excluded.trigger END,
-                        status = 'pending', attempts = 0, lease_expires_at = NULL,
-                        last_error = NULL, updated_at = excluded.updated_at;
-                    """, new
-                {
-                    assetId,
-                    tokenValue,
-                    intentNow = DateTimeOffset.UtcNow.ToString("O")
-                }, transaction);
+                // A library move still waiting for its file rename keeps its move step and trigger: this save must not drop the rename.
+                MediaFileWriteIntentRepository.UpsertAsset(
+                    connection, transaction, assetId, "editor_commit", tokenValue, DateTimeOffset.UtcNow);
             }
 
             var first = ordered[0];
