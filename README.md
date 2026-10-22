@@ -106,6 +106,30 @@ Some features, such as maps in View, can load data from the internet. [Privacy a
 
 Both are built by volunteers. You can [contribute to Wikipedia](https://en.wikipedia.org/wiki/Wikipedia:Contributing_to_Wikipedia), [help with Wikidata](https://www.wikidata.org/wiki/Wikidata:Contribute) or [support Wikimedia](https://donate.wikimedia.org/).
 
+## Built on open-source software
+
+Tuvima Library stands on the work of many open-source projects. Thank you to everyone who builds and maintains them.
+
+| Project | What it does in Tuvima Library |
+|---|---|
+| [.NET, ASP.NET Core and Blazor](https://dotnet.microsoft.com/) | The Engine, the Dashboard and live updates (SignalR) |
+| [SQLite](https://sqlite.org/) and [Dapper](https://github.com/DapperLib/Dapper) | The local data store |
+| [FFmpeg](https://ffmpeg.org/) | Reads, streams and converts video and audio |
+| [TagLibSharp](https://github.com/mono/taglib-sharp) | Reads and writes music, audiobook and video tags |
+| [SkiaSharp](https://github.com/mono/SkiaSharp) | Thumbnails, artwork and image processing |
+| [VersOne.Epub](https://github.com/vers-one/EpubReader) and [SharpCompress](https://github.com/adamhathcock/sharpcompress) | Reads books and comic archives |
+| [foliate-js](https://github.com/johnfactotum/foliate-js) | The in-browser book and comic reader |
+| [PDF.js](https://mozilla.github.io/pdf.js/), [PdfPig](https://github.com/UglyToad/PdfPig), [PDFtoImage](https://github.com/sungaila/PDFtoImage) and [PDFium](https://pdfium.googlesource.com/pdfium/) | Shows and searches PDF documents |
+| [Open XML SDK](https://github.com/dotnet/Open-XML-SDK) | Searches Word, Excel and PowerPoint files |
+| [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) | Reads scanned pages and photos of paper |
+| [hls.js](https://github.com/video-dev/hls.js) | Adaptive video playback in the browser |
+| [LLamaSharp](https://github.com/SciSharp/LLamaSharp) with [llama.cpp](https://github.com/ggml-org/llama.cpp), and [Whisper.net](https://github.com/sandrohanea/whisper.net) with [whisper.cpp](https://github.com/ggml-org/whisper.cpp) | Optional local AI and speech-to-text, all on your own computer |
+| [Wasmtime](https://wasmtime.dev/) | Runs plugins safely in a sandbox |
+| [Serilog](https://serilog.net/), [Polly](https://github.com/App-vNext/Polly), [Cronos](https://github.com/HangfireIO/Cronos) and [QRCoder](https://github.com/codebude/QRCoder) | Logging, reliable connections, schedules and invitation QR codes |
+| [Astro](https://astro.build/) and [Starlight](https://starlight.astro.build/) | The documentation site |
+
+Every project keeps its own licence. The full list, with versions and licences, is on the [Attributions](https://tuvima.github.io/tuvima-library/reference/attributions/) page, and the notices each licence requires are in [third-party notices](THIRD-PARTY-NOTICES.md).
+
 ## Why I built Tuvima Library
 
 I loved Plex, Audiobookshelf and the other tools in my setup, but I was still the one who had to remember how everything connected. The book was in one app, its audiobook in another, the film adaptation somewhere else and the soundtrack somewhere else again. I wanted to read a few chapters at home and pick up the audiobook in the car, the way Kindle and Audible do for the books they sell, but for media I owned myself.
