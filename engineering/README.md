@@ -32,7 +32,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Simpler library setup (Watch, Listen, Read, View, Vault)](specs/library-setup-groups.md) | In progress (v21; WP11, WP1 to WP5 merged 2026-10-21/22; WP7 and WP8 wait on Shy's decisions, WP6 on the Videos Vault wave, WP9, WP12 and WP10 after them) |
 | [Spec: Encrypted plugin and integration keys](specs/encrypted-plugin-keys.md) | Locked (v1, 2026-10-21, change note 2026-10-22; EK1 and EK3 before plugin install WP19, EK2 with a 4-digit PIN after Backup and restore WP3) |
 | [Spec: Backup and restore (settings and personal state)](specs/backup-and-restore.md) | In progress (v5, 2026-10-22; [handoff](handoffs/2026-10-21-backup-and-restore.md); WP1, WP2 (#397) and WP2b (#405) built; WP3 waits for the bookmark pack matcher in Videos Wave 3, #374) |
-| [Spec: Right-sized pictures on every screen](specs/archive/right-sized-pictures.md) | Built (v1, archived 2026-10-22; awaiting Local checks L1-L4; follow-up in its section 12, B9) |
+| [Spec: Right-sized pictures on every screen](specs/archive/right-sized-pictures.md) | Built (v1, archived 2026-10-22; awaiting Local checks L1-L4; features to consider later (WebP, F1-F3) in its section 13) |
 | [Spec: Person credits and series search without the whole-library credit list](specs/archive/person-credits-and-series-search-speed.md) | Built (v2, archived 2026-10-21; follow-ups R1 and R2 in its section 8) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: The live ingestion page and when items appear](specs/archive/ingestion-and-readiness.md) | Built (v4, archived 2026-10-20; bug 13 still needs the log line from that moment) |
