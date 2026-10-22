@@ -44,6 +44,30 @@ public sealed class EngineApiClientViewAddedByTests
     }
 
     [Fact]
+    public async Task TheTimelineIndexSendsTheTagFiltersAlongsideAddedBy()
+    {
+        string? path = null;
+        using var http = CreateHttpClient(request =>
+        {
+            path = request.RequestUri!.PathAndQuery;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"buckets":[]}""", Encoding.UTF8, "application/json"),
+            });
+        });
+        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+        var tag = Guid.Parse("0f5c5d0c-1a4a-4b5e-8c3e-3b5a0f6f1c11");
+
+        await client.GetViewTimelineIndexAsync(new ViewAssetQueryOptions(
+            ViewScopeKind.Shared,
+            Documents: new MediaEngine.Contracts.LocalAssets.ViewDocumentFilterDto([tag]),
+            AddedBy: [Alice]));
+
+        Assert.Contains($"tag={tag:D}", path, StringComparison.Ordinal);
+        Assert.Contains($"added_by={Alice:D}", path, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task TheAddedByListAsksForTheSameScopeAndKindsAndReadsProfilesWithCounts()
     {
         string? path = null;

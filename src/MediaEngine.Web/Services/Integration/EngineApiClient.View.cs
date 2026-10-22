@@ -228,6 +228,11 @@ public sealed partial class EngineApiClient
         AddQuery(query, "lifecycle", options.Lifecycle);
         AddQuery(query, "galleryId", options.GalleryId?.ToString("D"));
         AddAddedByQuery(query, options.AddedBy);
+        foreach (var tag in options.Documents?.TagIds ?? [])
+        {
+            AddQuery(query, "tag", tag.ToString("D"));
+        }
+
         return GetAsync<ViewTimelineIndexDto>("GET /view/assets/timeline-index", $"/view/assets/timeline-index?{string.Join('&', query)}", ct: ct);
     }
 

@@ -79,6 +79,53 @@ public sealed class ViewSharedTransferServiceTests
     }
 
     [Fact]
+    public async Task PhotosAContributorSendsStayTaggedWithTheContributorNotTheAdministratorWhoAcceptedThem_AndFilterByThemAndByTag()
+    {
+        using var fixture = new Fixture();
+        var bobId = Guid.NewGuid();
+        await fixture.InsertProfileAsync(new Profile { Id = bobId, DisplayName = "Bob", Role = ProfileRole.StandardUser });
+        var bobSpace = await fixture.Storage.EnsurePersonalSpaceAsync(bobId);
+        var first = await fixture.Library.IndexPathAsync(bobSpace.LibraryId, fixture.WriteManagedFor(bobSpace, "bob-one.jpg", [71, 72, 73]));
+        var second = await fixture.Library.IndexPathAsync(bobSpace.LibraryId, fixture.WriteManagedFor(bobSpace, "bob-two.jpg", [74, 75, 76]));
+        await fixture.Assets.ReplaceTagsAsync(first!.ItemId, ["Holiday"]);
+        var bob = fixture.Person(bobId);
+        var preview = await fixture.Contributions.PreviewAsync(bob,
+            new ViewSharedContributionPreviewRequest([first.ItemId, second!.ItemId]));
+        var pending = await fixture.Contributions.SubmitAsync(bob, new ViewSharedContributionSubmitRequest(
+            [first.ItemId, second.ItemId], "timeline", null, null, preview.PreviewRevision, "bob-sends-two"));
+
+        var administrator = fixture.HouseholdAdministrator(ProfileTestData.TestHouseholdId);
+        await fixture.Contributions.DecideAsync(administrator, pending.Id,
+            new ViewSharedContributionDecisionRequest("accepted", pending.Revision));
+        await fixture.Contributions.ProcessAsync(pending.Id);
+
+        foreach (var origin in new[] { first.ItemId, second.ItemId })
+        {
+            var copy = fixture.Assets.Find(fixture.SharedItemId(origin))!;
+            Assert.Equal(bobId, copy.AddedByProfileId);
+            Assert.Equal("Bob", copy.AddedByName);
+        }
+
+        var orchestrator = fixture.NewOrchestrator(new StubProfileContext(administrator));
+        var byBob = await orchestrator.QueryAsync(new ViewAssetQueryRequest(
+            ViewScopeRequest.Shared, AddedByProfileIds: [bobId]));
+        Assert.Equal(2, Assert.IsType<ViewAssetTimelinePageDto>(byBob.Page).Items.Count);
+        var byAnyoneElse = await orchestrator.QueryAsync(new ViewAssetQueryRequest(
+            ViewScopeRequest.Shared, AddedByProfileIds: [administrator.ActiveProfileId!.Value]));
+        Assert.Empty(Assert.IsType<ViewAssetTimelinePageDto>(byAnyoneElse.Page).Items);
+
+        // The tag filter and the added-by filter combine: only Bob's tagged photo remains.
+        var tagged = await orchestrator.QueryAsync(new ViewAssetQueryRequest(
+            ViewScopeRequest.Shared, AddedByProfileIds: [bobId],
+            DocumentFilter: new LocalAssetDocumentFilter([fixture.TagId("Holiday")])));
+        Assert.Equal(fixture.SharedItemId(first.ItemId), Assert.Single(Assert.IsType<ViewAssetTimelinePageDto>(tagged.Page).Items).Id);
+        var index = await orchestrator.IndexAsync(new ViewAssetQueryRequest(
+            ViewScopeRequest.Shared, AddedByProfileIds: [bobId],
+            DocumentFilter: new LocalAssetDocumentFilter([fixture.TagId("Holiday")])));
+        Assert.Equal(1, Assert.IsType<ViewTimelineIndexDto>(index.Index).Buckets.Sum(bucket => bucket.AssetCount));
+    }
+
+    [Fact]
     public async Task HouseholdAdministratorCanAddOwnedItemDirectlyWithoutSubmitGrant()
     {
         using var fixture = new Fixture();
@@ -1035,6 +1082,12 @@ public sealed class ViewSharedTransferServiceTests
             return connection.QuerySingle<Guid?>(
                 "SELECT origin_item_id FROM view_shared_assets WHERE item_id=@sharedItemId;",
                 new { sharedItemId });
+        }
+
+        public Guid TagId(string name)
+        {
+            using var connection = _database.CreateConnection();
+            return connection.QuerySingle<Guid>("SELECT id FROM tags WHERE name = @name;", new { name });
         }
 
         public Guid SharedItemId(Guid originItemId)

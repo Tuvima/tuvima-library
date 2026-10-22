@@ -212,6 +212,7 @@ public sealed class ViewQueryOrchestrator(
             request.GalleryId is null && string.IsNullOrWhiteSpace(request.Search),
             decision.Scope.Kind == ViewScopeKind.Shared,
             null,
+            DocumentFilter: request.DocumentFilter,
             ExcludedContentKinds: await BlockedKindsAsync(ct).ConfigureAwait(false),
             AddedByProfileIds: request.AddedByProfileIds);
         var index = await backend.IndexAsync(plan, ct).ConfigureAwait(false);

@@ -519,6 +519,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             parameters.Add("SearchExpression", null);
         }
         parameters.AddDynamicParams(smartRule.Parameters);
+        // Tag filters count the same rows the list shows when a tag chip is on.
+        var documentFilterPredicate = BuildDocumentFilter(query.DocumentFilter, parameters);
 
         using var connection = database.CreateConnection();
         var rows = connection.Query<TimelineBucketRow>(new CommandDefinition($$"""
@@ -546,6 +548,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                      WHERE vgi.gallery_id = @GalleryId AND vgi.item_id = li.id))
                AND {{TimelineEligiblePredicate}}
                AND ({{smartRule.Predicate}})
+               AND ({{documentFilterPredicate}})
                AND (@SearchExpression IS NULL OR EXISTS (
                     SELECT 1 FROM local_item_search lis
                       JOIN local_item_search_keys lsk ON lsk.rowid = lis.rowid

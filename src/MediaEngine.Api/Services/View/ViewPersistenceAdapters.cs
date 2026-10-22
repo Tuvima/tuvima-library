@@ -335,6 +335,7 @@ public sealed class ViewAssetQueryService(ILocalAssetRepository assets) : IViewA
             SmartRule: plan.SmartRule,
             TimelineEligibleOnly: plan.TimelineEligibleOnly,
             IncludeSharedLibraryAssets: plan.IncludeSharedLibraryAssets,
+            DocumentFilter: plan.DocumentFilter,
             ExcludedContentKinds: plan.ExcludedContentKinds,
             AddedByProfileIds: plan.AddedByProfileIds), ct);
         return Task.FromResult(new ViewTimelineIndexDto(buckets.Select(bucket => new ViewTimelineBucketDto(

@@ -236,7 +236,7 @@ public static partial class ViewEndpoints
 
         group.MapGet("/assets/timeline-index", async (string? scope, Guid? scopeProfileId,
             string? q, string[]? kind, bool? favorite, bool? hidden, Guid? galleryId, string? lifecycle,
-            [FromQuery(Name = "added_by")] Guid[]? addedBy,
+            [FromQuery(Name = "added_by")] Guid[]? addedBy, Guid[]? tag,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization,
             IViewQueryOrchestrator queries, CancellationToken ct) =>
@@ -275,6 +275,7 @@ public static partial class ViewEndpoints
                     GalleryId: galleryId,
                     Lifecycle: ParseLifecycle(lifecycle),
                     AllowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope),
+                    DocumentFilter: BuildDocumentFilter(tag, null, null, null, null, null, null),
                     AddedByProfileIds: addedBy is { Length: > 0 } ? addedBy : null), ct);
                 return Access(result.Outcome, result.Index);
             }
