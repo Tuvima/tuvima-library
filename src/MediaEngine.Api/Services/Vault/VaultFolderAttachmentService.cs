@@ -45,6 +45,8 @@ public sealed class VaultFolderAttachmentService(
 {
     public const string FolderNotFoundMessage = "That folder wasn't found on the server, so nothing was added.";
     public const string FolderNotAllowedMessage = "That folder can't be used for the Vault, so nothing was added.";
+    public const string FolderHoldsOrdinaryFilesMessage =
+        "That folder already holds files that are in your normal libraries, so nothing was added. Put the Vault videos in a folder of their own first.";
 
     /// <summary>Name of the settings entry that holds the Vault's folders. Never shown in a library list.</summary>
     public const string LibraryName = "Vault";
@@ -73,6 +75,12 @@ public sealed class VaultFolderAttachmentService(
             if (check.Outcome is not null)
             {
                 return check.Outcome;
+            }
+
+            // Vault and ordinary files are kept in separate folders: adding a folder that already holds ordinary files would turn them into Vault files.
+            if (await libraries.HoldsOrdinaryFilesAsync(check.Path!, ct).ConfigureAwait(false))
+            {
+                return new VaultFolderAttachmentOutcome(VaultFolderAttachmentStatus.NotAllowed, FolderHoldsOrdinaryFilesMessage);
             }
 
             var library = settings.Libraries.FirstOrDefault(entry => string.Equals(entry.Id, libraryId, StringComparison.OrdinalIgnoreCase));

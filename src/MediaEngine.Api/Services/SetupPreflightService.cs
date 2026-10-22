@@ -58,7 +58,7 @@ public sealed class SetupPreflightService(
         // A missing Required tool the Library can fetch (FFmpeg) starts downloading here, so a first run needs no manual install;
         // the list then shows it as downloading and setup follows its progress.
         var tools = await toolRequirements.CheckAsync(ct).ConfigureAwait(false);
-        if (autoInstaller is not null && tools.NeedsAttention && checks.All(check => check.Status == "passed"))
+        if (autoInstaller is not null && tools.MayHaveAutoInstallWork() && checks.All(check => check.Status == "passed"))
         {
             tools = await autoInstaller.StartMissingRequiredAsync(tools, ct).ConfigureAwait(false);
         }

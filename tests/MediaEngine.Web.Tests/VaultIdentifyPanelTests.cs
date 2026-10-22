@@ -24,6 +24,7 @@ public sealed class VaultIdentifyPanelTests : AsyncBunitContext
     private string _searchStatus = "ok";
     private VaultOutcome _activityOutcome = VaultOutcome.Ok;
     private IReadOnlyList<VaultActivityItemDto> _activity = [];
+    private int _waitingBookmarks;
     private readonly List<string?> _searches = [];
     private readonly List<VaultIdentifyPreviewRequest> _previews = [];
     private readonly List<VaultIdentifyApplyRequest> _applies = [];
@@ -90,6 +91,12 @@ public sealed class VaultIdentifyPanelTests : AsyncBunitContext
                     Applied = [.. request.Fields],
                 }));
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetVaultRestoredBookmarksAsync), _ =>
+                Task.FromResult(VaultCall<VaultRestoredBookmarksDto>.Ok(new VaultRestoredBookmarksDto
+                {
+                    Waiting = _waitingBookmarks,
+                    Message = _waitingBookmarks == 0 ? string.Empty : $"{_waitingBookmarks} saved bookmarks are still waiting for a matching video.",
+                })));
             stub.SetHandler(nameof(IEngineApiClient.GetVaultActivityAsync), _ =>
                 Task.FromResult(_activityOutcome == VaultOutcome.Ok
                     ? VaultCall<IReadOnlyList<VaultActivityItemDto>>.Ok(_activity)
@@ -207,6 +214,18 @@ public sealed class VaultIdentifyPanelTests : AsyncBunitContext
         _unlocked = false;
         await Services.GetRequiredService<NsfwModeState>().RefreshAsync(Me, isKids: false);
         Assert.Equal(string.Empty, Render<VaultActivityList>().Markup.Trim());
+    }
+
+    [Fact]
+    public async Task TheActivityList_SaysHowManyRestoredBookmarksStillWaitForAVideo_AndNothingWhenNoneDo()
+    {
+        await UseEngineAsync();
+        Assert.Empty(Render<VaultActivityList>().FindAll("[data-vault-waiting-bookmarks]"));
+
+        _waitingBookmarks = 3;
+        var cut = Render<VaultActivityList>();
+
+        Assert.Contains("3 saved bookmarks are still waiting", Assert.Single(cut.FindAll("[data-vault-waiting-bookmarks]")).TextContent);
     }
 
     [Fact]

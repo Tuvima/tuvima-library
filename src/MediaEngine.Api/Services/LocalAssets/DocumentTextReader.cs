@@ -39,7 +39,7 @@ public static class DocumentTextReader
 {
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".rtf",
+        ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp", ".rtf",
     };
 
     // Encrypted Office files are stored in an OLE container rather than a zip package.
@@ -76,7 +76,9 @@ public static class DocumentTextReader
                     ReadPptx(stream, text, token);
                     break;
                 case ".odt":
-                    ReadOdt(stream, text, token);
+                case ".ods":
+                case ".odp":
+                    ReadOpenDocument(stream, text, token);
                     break;
                 case ".rtf":
                     ReadRtf(stream, text, token);
@@ -250,7 +252,8 @@ public static class DocumentTextReader
         }
     }
 
-    private static void ReadOdt(Stream stream, CappedText text, CancellationToken ct)
+    // One reader for .odt, .ods and .odp: all keep their words in content.xml as text nodes inside paragraphs and headings.
+    private static void ReadOpenDocument(Stream stream, CappedText text, CancellationToken ct)
     {
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
         var entry = archive.GetEntry("content.xml") ?? throw new InvalidDataException("content.xml is missing.");

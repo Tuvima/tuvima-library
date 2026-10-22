@@ -8,7 +8,8 @@ namespace MediaEngine.Api.Tests;
 
 /// <summary>
 /// A Required tool the Library can fetch (FFmpeg) is downloaded by itself when it is missing, at start-up and at first-run
-/// setup; nothing else is, and a person can turn it off in <c>config/tool_downloads.json</c>.
+/// setup, and so is ExifTool (Optional, marked <c>auto_install</c>); no other Optional tool is, and a person can turn it
+/// off in <c>config/tool_downloads.json</c>.
 /// </summary>
 public sealed class ToolAutoInstallerTests : IDisposable
 {
@@ -40,6 +41,54 @@ public sealed class ToolAutoInstallerTests : IDisposable
 
         Assert.Empty(_installer.Started);
         Assert.Same(missing, result);
+    }
+
+    [Fact]
+    public async Task AMissingExifToolThatIsOffered_IsStartedByItself_EvenThoughItIsOptional()
+    {
+        var missing = Tools(
+            Tool(ToolRequirementIds.Ffmpeg, ToolRequirementStates.Ready, canInstall: false),
+            Tool(ToolRequirementIds.ExifTool, ToolRequirementStates.Missing, canInstall: true, requirement: ToolRequirementLevels.Optional));
+
+        await Service().StartMissingRequiredAsync(missing, CancellationToken.None);
+
+        Assert.Equal([ToolRequirementIds.ExifTool], _installer.Started);
+    }
+
+    [Fact]
+    public async Task AMissingExifToolIsStarted_ButTesseractBesideItIsNot()
+    {
+        var missing = Tools(
+            Tool(ToolRequirementIds.Tesseract, ToolRequirementStates.Missing, canInstall: true, requirement: ToolRequirementLevels.Optional),
+            Tool(ToolRequirementIds.ExifTool, ToolRequirementStates.Missing, canInstall: true, requirement: ToolRequirementLevels.Optional));
+
+        await Service().StartMissingRequiredAsync(missing, CancellationToken.None);
+
+        Assert.Equal([ToolRequirementIds.ExifTool], _installer.Started);
+    }
+
+    [Fact]
+    public async Task ExifToolWithAutoInstallTurnedOffForIt_IsLeftForThePersonToStart()
+    {
+        File.WriteAllText(Path.Combine(_root, "config", "tool_downloads.json"), "{ \"exiftool\": { \"auto_install\": false } }");
+        var missing = Tools(Tool(ToolRequirementIds.ExifTool, ToolRequirementStates.Missing, canInstall: true, requirement: ToolRequirementLevels.Optional));
+
+        var result = await Service().StartMissingRequiredAsync(missing, CancellationToken.None);
+
+        Assert.Empty(_installer.Started);
+        Assert.Same(missing, result);
+    }
+
+    [Fact]
+    public async Task ExifToolThatIsNotOfferedHere_OrIsAlreadyReady_IsNotStarted()
+    {
+        var notOffered = Tools(Tool(ToolRequirementIds.ExifTool, ToolRequirementStates.Missing, canInstall: false, requirement: ToolRequirementLevels.Optional));
+        var ready = Tools(Tool(ToolRequirementIds.ExifTool, ToolRequirementStates.Ready, canInstall: true, requirement: ToolRequirementLevels.Optional));
+
+        await Service().StartMissingRequiredAsync(notOffered, CancellationToken.None);
+        await Service().StartMissingRequiredAsync(ready, CancellationToken.None);
+
+        Assert.Empty(_installer.Started);
     }
 
     [Fact]
@@ -127,6 +176,21 @@ public sealed class ToolAutoInstallerTests : IDisposable
         Assert.Equal(0, auto.Calls);
     }
 
+    [Fact]
+    public async Task StartUp_WithEveryRequiredToolReadyButExifToolMissing_StillGivesTheAutoInstallerALook()
+    {
+        var tools = Tools(
+            Tool(ToolRequirementIds.Ffmpeg, ToolRequirementStates.Ready, canInstall: false),
+            Tool(ToolRequirementIds.ExifTool, ToolRequirementStates.Missing, canInstall: true, requirement: ToolRequirementLevels.Optional));
+        var auto = new SpyAutoInstaller();
+        using var startup = new ToolRequirementsStartupService(new FixedTools(tools), auto, new NullNotificationPublisher(), NullLogger<ToolRequirementsStartupService>.Instance);
+
+        await startup.StartAsync(CancellationToken.None);
+        await startup.ExecuteTask!;
+
+        Assert.Equal(1, auto.Calls);
+    }
+
     private ToolAutoInstaller Service() =>
         new(_installer, _tools, new ConfigurationDirectoryLoader(Path.Combine(_root, "config")), NullLogger<ToolAutoInstaller>.Instance);
 
@@ -138,7 +202,7 @@ public sealed class ToolAutoInstallerTests : IDisposable
 
     private static ToolRequirementDto Tool(
         string id, string state, bool canInstall, string requirement = ToolRequirementLevels.Required) =>
-        new(id, id == ToolRequirementIds.Ffmpeg ? "FFmpeg" : "Tesseract", "tool", requirement, state,
+        new(id, id == ToolRequirementIds.Ffmpeg ? "FFmpeg" : id == ToolRequirementIds.ExifTool ? "ExifTool" : "Tesseract", "tool", requirement, state,
             "Videos, music and audiobooks wait until FFmpeg is available.", null, "Install it.",
             null, 0, false, canInstall, false, state == ToolRequirementStates.Downloading ? 10 : null);
 

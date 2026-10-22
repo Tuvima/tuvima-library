@@ -1536,6 +1536,9 @@
   input descending | default=required | shape=3f6d9badbf3cab35c37c41dfbfa8ea9f49b716db983fff10c8d3b66b7d03abbf
   response | shape=10da26e68424cf57d06c6cd9a7022ff7fcca19467b5db25b2156681032334ab8
 
+[method] GetVaultRestoredBookmarksAsync
+  response | shape=be56d34acda9ff6fd55c76fb73d0c9f499e6eb0344e80dbd9d6d2470b8a673c8
+
 [method] GetVaultSceneAsync
   input assetId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
   response | shape=1f3f3e02f094fceed86abe7a8f330ab04cbdeb329e32b89963e6d0e48b7097a4
@@ -4273,6 +4276,11 @@ property=source_label | nullability=not-null | accessors=get,set | required=no |
 property=facts | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=4397cbebf9e2de5070dd9e57a3271140cf9af180d57359b83109341c65a61955
 property=items | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=480da6e4870dabd6f0581509b2c786d78d58aeb70a0fd27d00670f25321de982
 property=unavailable_message | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+
+[shape] 20dd65f0c70acb2d8e641464d291e271220ddd04846ae7c50cf77f9ce45176b6
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=waiting | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+property=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 
 [shape] 20de027befae22a905101d5d0703b88023733c4f9afb780c61c81bf4851a3c95
 direction=read | kind=array | item=9fc022473a6b17c1c589a6a02f1cad3695743d7f832f437ed8bf62550e6e3630
@@ -10645,6 +10653,12 @@ direction=read | kind=object | converter=default | number-handling=default | unm
 property=parent_entity_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=c053966c6e811a8ce84683726714ab2f84f40fd250c6cd58763ff6b03e191115
 property=count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
 property=items | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=afe90c697c09399b9da68cc03f81cd2eb9d91c0e9629d9398b36454f6cd7ba2e
+
+[shape] be56d34acda9ff6fd55c76fb73d0c9f499e6eb0344e80dbd9d6d2470b8a673c8
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=value | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=20dd65f0c70acb2d8e641464d291e271220ddd04846ae7c50cf77f9ce45176b6
+property=outcome | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=0334ba156ab6c03d06c6006ab86cb226a9d1855959886c5b8f712d89261b2c91
+property=message | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 
 [shape] bea07fe49f7418f64e9a8fa189bed4b5b91ba13a0e563e6e29992df391ad1de9
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none

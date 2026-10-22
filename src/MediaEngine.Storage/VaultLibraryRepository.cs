@@ -41,6 +41,28 @@ public sealed class VaultLibraryRepository(IDatabaseConnection database) : IVaul
         return Task.FromResult(found != 0);
     }
 
+    public Task<bool> HoldsOrdinaryFilesAsync(string folderPath, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var folder = Normalize(folderPath);
+        if (folder.Length == 0)
+        {
+            return Task.FromResult(false);
+        }
+
+        using var connection = database.CreateConnection();
+        var found = connection.ExecuteScalar<int>(
+            """
+            SELECT EXISTS(
+                SELECT 1 FROM media_assets a
+                WHERE (REPLACE(a.file_path_root, '\', '/') = @exact COLLATE NOCASE
+                       OR REPLACE(a.file_path_root, '\', '/') LIKE @under ESCAPE '\')
+                  AND NOT EXISTS (SELECT 1 FROM vault_libraries v WHERE v.library_id = a.library_id COLLATE NOCASE));
+            """,
+            new { exact = folder, under = EscapeLike(folder) + "/%" });
+        return Task.FromResult(found == 1);
+    }
+
     public Task<VaultLibrary?> GetAsync(string libraryId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

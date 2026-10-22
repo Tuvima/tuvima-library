@@ -88,17 +88,35 @@ RUN case "$TARGETARCH" in \
       fi; \
     done
 
-# ── Stage 2: Runtime ─────────────────────────────────────────────────────────
+# ── Stage 2: ExifTool ────────────────────────────────────────────────────────
+# ExifTool (Phil Harvey; Perl Artistic License or GPL, used under the GPL) writes the
+# profile name into View files. Cloned from the official source tag and checked against
+# the tag's commit, so the image never trusts a moving download. The files are plain Perl
+# and run on any architecture. Credits: THIRD-PARTY-NOTICES.md.
+FROM --platform=$BUILDPLATFORM debian:stable-slim AS exiftool
+ARG EXIFTOOL_VERSION=13.59
+ARG EXIFTOOL_COMMIT=2200871d9cef988051d2a99d67df3bda6cbb30a8
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates git \
+ && rm -rf /var/lib/apt/lists/* \
+ && git clone --depth 1 --branch "$EXIFTOOL_VERSION" https://github.com/exiftool/exiftool /opt/exiftool \
+ && test "$(git -C /opt/exiftool rev-parse HEAD)" = "$EXIFTOOL_COMMIT" \
+ && rm -rf /opt/exiftool/.git
+
+# ── Stage 3: Runtime ─────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 ARG TARGETARCH
 WORKDIR /app
 ENV TUVIMA_AI_RUNTIME_DIR=bundled
-# Tells the tools list which fix text to show: this image already includes FFmpeg and Tesseract.
+# Tells the tools list which fix text to show: this image already includes FFmpeg, Tesseract and ExifTool.
 ENV TUVIMA_INSTALL_KIND=docker
+# ExifTool is a Perl script copied from the exiftool stage; the Engine finds it through this variable.
+ENV TUVIMA_EXIFTOOL_PATH=/opt/exiftool/exiftool
 
 # FFmpeg/FFprobe provide probing, thumbnails and transcodes. libfontconfig and
 # libgomp are required by the bundled SkiaSharp and LLamaSharp CPU runtimes.
 # tesseract-ocr (with its English data) reads scanned documents; it is the distro package, found on PATH.
+# perl (the full package: ExifTool needs Perl's core modules, which perl-base alone lacks) runs ExifTool.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates \
@@ -106,6 +124,7 @@ RUN apt-get update \
       gosu \
       libfontconfig1 \
       libgomp1 \
+      perl \
       tesseract-ocr \
       tesseract-ocr-eng \
       xz-utils \
@@ -130,7 +149,10 @@ RUN case "$TARGETARCH" in \
  && install -m 0644 "$(find /tmp/tuvima-ffmpeg-extract -type f -name 'LICENSE.txt' -print -quit)" /usr/share/licenses/tuvima-ffmpeg/LICENSE.txt \
  && rm -rf /tmp/tuvima-ffmpeg.tar.xz /tmp/tuvima-ffmpeg-extract
 
+COPY --from=exiftool /opt/exiftool /opt/exiftool
+
 RUN tesseract --version >/dev/null \
+ && perl /opt/exiftool/exiftool -ver >/dev/null \
  && ffmpeg -version >/dev/null \
  && ffprobe -version >/dev/null \
  && ffmpeg -hide_banner -encoders 2>&1 | grep -q 'libx264' \
