@@ -2,6 +2,8 @@
 
 > **Status:** In progress · **Version:** 5 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../product/overview.md) · [Videos spec](videos.md) D43, D46 (bookmark packs) · [Developer tools spec](developer-tools.md) D-P, WP25, WP26 (destinations, schedule, passphrase) · [Encrypted plugin keys](encrypted-plugin-keys.md) EK2 · [Delete groups](delete-groups.md) · [Safer deleting in View](safer-deleting-in-view.md)
 
+> **Build note (2026-10-22):** WP1, WP2 (#397), WP2b (#405), WP3 (#421) and WP4 (#424) are built and merged: backups hold settings, personal state and typed corrections against recognition data, with no encryption; restore loads a fresh Library and re-attaches state automatically; the screens in section 4 are in place. Not yet built, waiting on Shy: a warning when restoring a destination copy this Library did not record making, the "File missing" search result for waiting items (D5a, D5b; the Safer deleting Missing filter does not exist yet), and "Export my data" for one profile (D10) with a way for another Library to take it in. Local checks L1 to L4 (plus the waiting-period check) are in `engineering/validation/batch.md`.
+
 ## 1. Goal
 
 A backup should hold what is hard to recreate: your settings, preferences and your own state (reading and watching positions, bookmarks, favourites). It should not hold your library's catalogue or your files. After a restore and a rescan, your personal state finds its way back to the right titles, even if a file has since changed (different encoding, file type or edition).
