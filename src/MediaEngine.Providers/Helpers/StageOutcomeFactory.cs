@@ -78,6 +78,7 @@ public sealed class StageOutcomeFactory
                     now,
                     UnmatchedRetryLimits.NextRetryAt(now, days),
                     ct).ConfigureAwait(false);
+                await SettleArtworkSearchAsync(asset.Id, now, ct).ConfigureAwait(false);
                 _logger.LogInformation(
                     "No retail match for asset {AssetId} in library {LibraryId}: marked Unmatched, left in place, no review item created",
                     asset.Id,
@@ -87,6 +88,23 @@ public sealed class StageOutcomeFactory
         }
 
         return await CreateRetailFailedAsync(entityId, mediaType, ct).ConfigureAwait(false);
+    }
+
+    // An Unmatched file is shown in the library (it browses with its file name and tags), and the display rule wants the artwork search to
+    // be settled. No provider will supply a picture for a file nothing matched, so a file with no picture of its own is settled as it is.
+    private async Task SettleArtworkSearchAsync(Guid assetId, DateTimeOffset now, CancellationToken ct)
+    {
+        var values = await _canonicalRepo.GetByEntityAsync(assetId, ct).ConfigureAwait(false);
+        var hasPictureOrSettled = values.Any(value =>
+            !string.IsNullOrWhiteSpace(value.Value)
+            && (value.Key is MetadataFieldConstants.CoverUrl or MetadataFieldConstants.ArtworkSettledAt
+                || (value.Key == MetadataFieldConstants.CoverState && value.Value == "present")));
+        if (!hasPictureOrSettled)
+        {
+            await _canonicalRepo.UpsertBatchAsync(
+                [ArtworkCanonicalHelper.Create(assetId, MetadataFieldConstants.ArtworkSettledAt, now.ToString("o"), now)],
+                ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>

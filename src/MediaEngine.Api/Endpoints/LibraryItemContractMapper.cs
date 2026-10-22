@@ -7,8 +7,9 @@ namespace MediaEngine.Api.Endpoints;
 
 internal static class LibraryItemContractMapper
 {
-    public static LibraryItemDetailDto ToContract(this LibraryItemDetail source) => new()
+    public static LibraryItemDetailDto ToContract(this LibraryItemDetail source, string lookupState = ItemLookupStates.Matched) => new()
     {
+        LookupState = lookupState,
         EntityId = source.EntityId,
         Title = source.Title,
         Year = source.Year,

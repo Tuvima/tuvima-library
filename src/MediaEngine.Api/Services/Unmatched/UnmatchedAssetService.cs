@@ -191,7 +191,9 @@ public sealed class UnmatchedAssetService
     }
 
     // A YouTube library file with no ID has no lookup to repeat. Its tags and file are read again, which picks up a .info.json (or a new
-    // file name) that now carries the ID; with an ID it is no longer Unmatched. The file is never moved or renamed.
+    // file name) that now carries the ID, and the normal YouTube lookup then runs on that ID under the same gates ingestion uses (the YouTube
+    // kind, and the Vault and adult-content gate). Once the lookup has succeeded the file is no longer Unmatched; an ID the lookup could not
+    // confirm (YouTube unreachable, the video gone, a gate saying no) leaves it Unmatched for the next retry. The file is never moved or renamed.
     private async Task<bool> RecheckYoutubeFileAsync(UnmatchedAsset item, string libraryId, CancellationToken ct)
     {
         if (!IsYoutubeLibrary(libraryId))
@@ -207,10 +209,10 @@ public sealed class UnmatchedAssetService
             return false;
         }
 
-        var hasId = (await _canonicals.GetByEntityAsync(item.AssetId, ct).ConfigureAwait(false))
-            .Any(value => string.Equals(value.Key, MetadataFieldConstants.YoutubeVideoId, StringComparison.OrdinalIgnoreCase)
-                          && !string.IsNullOrWhiteSpace(value.Value));
-        if (hasId)
+        var lookedUp = (await _canonicals.GetByEntityAsync(item.AssetId, ct).ConfigureAwait(false))
+            .Any(value => string.Equals(value.Key, MetadataFieldConstants.VideoLookupSource, StringComparison.OrdinalIgnoreCase)
+                          && string.Equals(value.Value, "youtube", StringComparison.OrdinalIgnoreCase));
+        if (lookedUp)
         {
             await _unmatched.ClearAsync(item.AssetId, ct).ConfigureAwait(false);
         }

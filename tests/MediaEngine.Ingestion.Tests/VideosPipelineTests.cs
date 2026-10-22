@@ -266,6 +266,31 @@ public sealed class VideosPipelineTests : IDisposable
         Assert.Null(await new UnmatchedAssetRepository(_h.Db.Connection).GetAsync(asset.Id));
     }
 
+    [Theory]
+    [InlineData(true, 1, "youtube")]
+    [InlineData(false, 0, null)]
+    public async Task ReadingAYoutubeFileAgainOnceItHasAnId_RunsTheYoutubeLookup_OnlyWhenTheGateAllows(bool gateAllows, int expectedCalls, string? expectedSource)
+    {
+        UseKind("youtube", youtubeLookupField: true);
+        var path = Write("Holiday clip.mp4");
+        var lookup = new CountingLookup(new VideoOnlineInfo("Holiday clip online", "A channel", null, null, null, null));
+        var gate = new FixedGate(allowed: gateAllows);
+        Guid assetId = Guid.Empty;
+
+        await RunAsync(1, lookup, gate, marker: NewMarker(), probe: async engine =>
+        {
+            assetId = (await _h.Assets.FindByPathRootAsync(path))!.Id;
+            // The ID arrives later, in a new .info.json beside the file.
+            File.WriteAllText(Path.ChangeExtension(path, ".info.json"), "{\"id\":\"dQw4w9WgXcQ\",\"title\":\"Holiday clip\"}");
+            await engine.RereadAssetMetadataAsync(assetId);
+        });
+
+        Assert.Equal(expectedCalls, lookup.Calls);
+        var values = await _h.Canonicals.GetByEntityAsync(assetId);
+        Assert.Equal("dQw4w9WgXcQ", values.First(v => v.Key == "youtube_video_id").Value);
+        Assert.Equal(expectedSource, values.FirstOrDefault(v => v.Key == "video_lookup_source")?.Value);
+    }
+
     private UnmatchedFileMarker NewMarker() =>
         new(new UnmatchedAssetRepository(_h.Db.Connection), _h.Config, NullLogger<UnmatchedFileMarker>.Instance);
 
@@ -361,14 +386,14 @@ public sealed class VideosPipelineTests : IDisposable
         }
     }
 
-    private sealed class CountingLookup : IVideoOnlineLookup
+    private sealed class CountingLookup(VideoOnlineInfo? answer = null) : IVideoOnlineLookup
     {
         public int Calls { get; private set; }
 
         public Task<VideoOnlineInfo?> LookupAsync(string youtubeVideoId, CancellationToken ct = default)
         {
             Calls++;
-            return Task.FromResult<VideoOnlineInfo?>(null);
+            return Task.FromResult(answer);
         }
     }
 

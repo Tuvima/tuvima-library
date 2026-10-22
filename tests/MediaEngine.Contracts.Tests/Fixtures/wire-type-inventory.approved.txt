@@ -4107,6 +4107,7 @@
   ArtworkSource: System.String | json=artwork_source | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ArtworkSettledAt: System.DateTimeOffset? | json=artwork_settled_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UniverseSummary: MediaEngine.Contracts.Items.LibraryItemUniverseSummaryDto | json=universe_summary | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LookupState: System.String | json=lookup_state | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Items.LibraryItemHistoryDto
   kind=class | converter=default | number-handling=default | unmapped=default

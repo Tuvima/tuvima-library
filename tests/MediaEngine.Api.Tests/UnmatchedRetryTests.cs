@@ -273,15 +273,31 @@ public sealed class UnmatchedRetryTests : IDisposable
     }
 
     [Fact]
-    public async Task ARetryOfAYoutubeFileWhoseInfoJsonNowCarriesAnId_TakesItOutOfUnmatched()
+    public async Task ARetryOfAYoutubeFileWhoseInfoJsonNowCarriesAnId_TakesItOutOfUnmatched_OnceTheYoutubeLookupSucceeds()
     {
         var asset = await SeedUnmatchedAsync(YoutubeLibrary, "Videos", due: Now.AddMinutes(-1), reason: UnmatchedReasons.NoYoutubeId, withJob: false);
         _rereader.IdFoundOnReread = "dQw4w9WgXcQ";
+        _rereader.LookupSucceeds = true;
 
         await _service.RetryDueAsync(CancellationToken.None);
 
         Assert.Null(await _unmatched.GetAsync(asset));
         Assert.Null(await _jobs.GetByEntityAsync(asset));
+    }
+
+    [Fact]
+    public async Task ARetryOfAYoutubeFileWithAnIdTheLookupCouldNotConfirm_LeavesItUnmatchedForTheNextRetry()
+    {
+        // The ID is there now, but YouTube was unreachable (or a Vault or adult-content gate said no), so nothing was looked up.
+        var asset = await SeedUnmatchedAsync(YoutubeLibrary, "Videos", due: Now.AddMinutes(-1), reason: UnmatchedReasons.NoYoutubeId, withJob: false);
+        _rereader.IdFoundOnReread = "dQw4w9WgXcQ";
+        _rereader.LookupSucceeds = false;
+
+        await _service.RetryDueAsync(CancellationToken.None);
+
+        var row = await _unmatched.GetAsync(asset);
+        Assert.NotNull(row);
+        Assert.Equal(Now.AddDays(7), row.NextRetryAt);
     }
 
     // ── Counts and scope ──────────────────────────────────────────────────────
@@ -314,6 +330,31 @@ public sealed class UnmatchedRetryTests : IDisposable
         Assert.Empty(ordinary);
         Assert.Empty(signedOut);
         Assert.Equal([MoviesLibrary], onlyMovies.Keys.ToArray());
+    }
+
+    // ── lookup_state of one item ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task TheLookupStateOfAnItem_SaysMatchedUnmatchedKeptAsIsOrNotLookedUp()
+    {
+        var lookupStates = new ItemLookupStateService(_unmatched, new MediaAssetRepository(_database), _loader);
+        var matched = await SeedUnmatchedAsync(MoviesLibrary, "Movies", due: Now, withJob: false);
+        await _unmatched.ClearAsync(matched);
+        var unmatched = await SeedUnmatchedAsync(MoviesLibrary, "Movies", due: Now);
+        var kept = await SeedUnmatchedAsync(MoviesLibrary, "Movies", due: Now);
+        await _service.KeepAsIsAsync(kept, CancellationToken.None);
+        var plain = await SeedUnmatchedAsync(HomeVideosLibrary, "Videos", due: Now, withJob: false);
+        await _unmatched.ClearAsync(plain);
+        var youtube = await SeedUnmatchedAsync(YoutubeLibrary, "Videos", due: Now, withJob: false);
+        await _unmatched.ClearAsync(youtube);
+
+        Assert.Equal(ItemLookupStates.Matched, await lookupStates.GetAsync(matched, CancellationToken.None));
+        Assert.Equal(ItemLookupStates.Unmatched, await lookupStates.GetAsync(unmatched, CancellationToken.None));
+        Assert.Equal(ItemLookupStates.KeptAsIs, await lookupStates.GetAsync(kept, CancellationToken.None));
+        Assert.Equal(ItemLookupStates.NotLookedUp, await lookupStates.GetAsync(plain, CancellationToken.None));
+        // A YouTube video is looked up by its ID, so it is not "not looked up".
+        Assert.Equal(ItemLookupStates.Matched, await lookupStates.GetAsync(youtube, CancellationToken.None));
+        Assert.Equal(ItemLookupStates.Matched, await lookupStates.GetAsync(Guid.NewGuid(), CancellationToken.None));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -404,15 +445,24 @@ public sealed class UnmatchedRetryTests : IDisposable
         /// <summary>When set, the re-read finds this YouTube ID (a new .info.json beside the file).</summary>
         public string? IdFoundOnReread { get; set; }
 
+        /// <summary>Whether the YouTube lookup that follows an ID found on a re-read succeeds (it records <c>video_lookup_source</c>).</summary>
+        public bool LookupSucceeds { get; set; }
+
         public async Task<FileMetadataRereadResult> RereadAsync(Guid assetId, CancellationToken ct)
         {
             Reread.Add(assetId);
             if (IdFoundOnReread is not null)
             {
-                await canonicals.UpsertBatchAsync(
-                [
-                    new CanonicalValue { EntityId = assetId, Key = MetadataFieldConstants.YoutubeVideoId, Value = IdFoundOnReread, LastScoredAt = Now },
-                ], ct);
+                var found = new List<CanonicalValue>
+                {
+                    new() { EntityId = assetId, Key = MetadataFieldConstants.YoutubeVideoId, Value = IdFoundOnReread, LastScoredAt = Now },
+                };
+                if (LookupSucceeds)
+                {
+                    found.Add(new CanonicalValue { EntityId = assetId, Key = MetadataFieldConstants.VideoLookupSource, Value = "youtube", LastScoredAt = Now });
+                }
+
+                await canonicals.UpsertBatchAsync(found, ct);
             }
 
             return new FileMetadataRereadResult(assetId, "Updated", true, false, "Re-read.");

@@ -112,6 +112,8 @@ public sealed class UnmatchedNoMatchTests : IDisposable
         Assert.False(row.KeptAsIs);
         Assert.NotNull(row.NextRetryAt);
         Assert.Empty(await _reviews.GetPendingByEntityAsync(movie.AssetId));
+        // So it can be shown in the library, its artwork search is settled as it is (nothing matched, so no provider will supply a picture).
+        Assert.Contains(await _canonicals.GetByEntityAsync(movie.AssetId), value => value.Key == MetadataFieldConstants.ArtworkSettledAt);
         Assert.True(File.Exists(movie.Path), "the file is not moved or renamed");
         Assert.Equal(movie.Path, (await new MediaAssetRepository(_db).FindByIdAsync(movie.AssetId))!.FilePathRoot);
     }

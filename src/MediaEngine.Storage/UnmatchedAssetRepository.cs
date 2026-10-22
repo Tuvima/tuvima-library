@@ -45,6 +45,12 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
                 next_retry_at = CASE WHEN unmatched_assets.kept_as_is = 1 THEN NULL ELSE excluded.next_retry_at END;
             """,
             new { assetId, libraryId, reason, now = Format(now), nextRetryAt = Format(nextRetryAt) });
+
+        // The file's work is shown once it is Unmatched (the readiness rule counts it as matched). The readiness pass finds the works to
+        // look at by their jobs' change times, and the job reached no-match just before this mark, so touch it to be sure the pass looks again.
+        connection.Execute(
+            "UPDATE identity_jobs SET updated_at = @at WHERE entity_id = @assetId AND state = 'RetailNoMatch';",
+            new { assetId, at = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture) });
         return Task.CompletedTask;
     }
 

@@ -3412,6 +3412,7 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDetailDto
   ArtworkSource: System.String | nullability=nullable | accessors=get,init
   ArtworkSettledAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   UniverseSummary: MediaEngine.Contracts.Items.LibraryItemUniverseSummaryDto | nullability=nullable | accessors=get,init
+  LookupState: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemHistoryDto
   Id: System.String | nullability=not-null | accessors=get,init

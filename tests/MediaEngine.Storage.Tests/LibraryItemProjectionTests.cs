@@ -291,6 +291,55 @@ public sealed class LibraryItemProjectionTests : IDisposable
         Assert.Equal("NoMatch", item.Status);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LibraryItemProjection_AnUnmatchedMoviesFileBrowsesWithItsFileNameTitle_AndIsNotInNeedsReview(bool keptAsIs)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var (workId, assetId) = await BuildStandaloneWorkAsync("Movies");
+        await InsertCanonicalAsync(assetId, "title", "Dune 1984 rip");
+        // No provider will ever supply a picture for a file nothing matched, so its artwork search is settled as it is.
+        await InsertCanonicalAsync(assetId, "artwork_settled_at", now.ToString("O"));
+        await CreateIdentityJobAsync(assetId, IdentityJobState.RetailNoMatch);
+        var unmatched = new UnmatchedAssetRepository(_db);
+        await unmatched.MarkUnmatchedAsync(assetId, "movies-library", UnmatchedReasons.NoMatch, now, now.AddDays(7));
+        if (keptAsIs)
+        {
+            await unmatched.KeepAsIsAsync(assetId, now);
+        }
+
+        await new WorkReadinessRepository(_db).RefreshAsync([workId], []);
+
+        var repo = new LibraryItemRepository(_db);
+        var browse = await repo.GetPageAsync(new LibraryItemQuery());
+        var item = Assert.Single(browse.Items, candidate => candidate.EntityId == workId);
+        Assert.Equal("Dune 1984 rip", item.Title);
+        Assert.Equal("visible", item.LibraryVisibility);
+        Assert.True(item.IsReadyForLibrary);
+        Assert.NotEqual("InReview", item.Status);
+        Assert.Null(item.ReviewTrigger);
+        Assert.Equal(0, (await repo.GetOverviewCountsAsync()).Lifecycle.InReview);
+    }
+
+    [Fact]
+    public async Task LibraryItemProjection_ANoMatchFileThatIsNotUnmatched_StillStaysOutOfTheVisibleLibrary()
+    {
+        // A no-match job with no Unmatched mark (a file with no library, which gets a review item instead) behaves as it always did.
+        var now = DateTimeOffset.UtcNow;
+        var (workId, assetId) = await BuildStandaloneWorkAsync("Movies");
+        await InsertCanonicalAsync(assetId, "title", "Loose file");
+        await InsertCanonicalAsync(assetId, "artwork_settled_at", now.ToString("O"));
+        await CreateIdentityJobAsync(assetId, IdentityJobState.RetailNoMatch);
+
+        await new WorkReadinessRepository(_db).RefreshAsync([workId], []);
+
+        var repo = new LibraryItemRepository(_db);
+        Assert.DoesNotContain((await repo.GetPageAsync(new LibraryItemQuery())).Items, item => item.EntityId == workId);
+        var all = await repo.GetPageAsync(new LibraryItemQuery(IncludeAll: true));
+        Assert.Equal("review_only", Assert.Single(all.Items, item => item.EntityId == workId).LibraryVisibility);
+    }
+
     [Fact]
     public async Task LibraryItemProjection_WorkScopedPendingReviewStaysOutOfVisibleLibrary()
     {

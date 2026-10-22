@@ -45,6 +45,54 @@ public sealed class WorkReadinessRepositoryTests : IDisposable
         Assert.Null(ReadyAt(workId));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Work_IsReady_WhenItsFileIsUnmatched_KeptAsItIsOrNot_OnceItsArtworkSearchIsSettled(bool keptAsIs)
+    {
+        // An Unmatched file stays in the library and browses with its file name and tags (Library setup spec D34, D40).
+        var (workId, assetId) = NewWork("Movies");
+        SetJob(assetId, IdentityJobState.RetailNoMatch);
+        SetCanonical(assetId, "artwork_settled_at", DateTimeOffset.UtcNow.ToString("O"));
+        MarkUnmatched(assetId, keptAsIs);
+
+        await _repo.RefreshAsync([workId], NoBypass);
+
+        Assert.NotNull(ReadyAt(workId));
+    }
+
+    [Fact]
+    public async Task UnmatchedWork_IsNotReadyWhileItsArtworkSearchIsStillOpen_AndNoMatchWithoutTheMarkIsNeverReady()
+    {
+        var (unsettledWork, unsettledAsset) = NewWork("Movies");
+        SetJob(unsettledAsset, IdentityJobState.RetailNoMatch);
+        MarkUnmatched(unsettledAsset, keptAsIs: false);
+        var (unmarkedWork, unmarkedAsset) = NewWork("Movies");
+        SetJob(unmarkedAsset, IdentityJobState.RetailNoMatch);
+        SetCanonical(unmarkedAsset, "artwork_settled_at", DateTimeOffset.UtcNow.ToString("O"));
+
+        await _repo.RefreshAsync([unsettledWork, unmarkedWork], NoBypass);
+
+        Assert.Null(ReadyAt(unsettledWork));
+        Assert.Null(ReadyAt(unmarkedWork));
+    }
+
+    [Fact]
+    public async Task Work_LeavesTheLibraryAgain_WhenItsUnmatchedMarkGoesAndItsLatestJobIsStillNoMatch()
+    {
+        var (workId, assetId) = NewWork("Movies");
+        SetJob(assetId, IdentityJobState.RetailNoMatch);
+        SetCanonical(assetId, "artwork_settled_at", DateTimeOffset.UtcNow.ToString("O"));
+        MarkUnmatched(assetId, keptAsIs: false);
+        await _repo.RefreshAsync([workId], NoBypass);
+        Assert.NotNull(ReadyAt(workId));
+
+        Execute("DELETE FROM unmatched_assets WHERE asset_id = @assetId", new { assetId });
+        await _repo.RefreshAsync([workId], NoBypass);
+
+        Assert.Null(ReadyAt(workId));
+    }
+
     [Fact]
     public async Task Work_IsNotReady_WhenItHasNoIdentityJob()
     {
@@ -772,6 +820,13 @@ public sealed class WorkReadinessRepositoryTests : IDisposable
             VALUES (@entityId, @key, @value, @at)
             """,
             new { entityId, key, value, at = (at ?? DateTimeOffset.UtcNow).ToString("O") });
+
+    private void MarkUnmatched(Guid assetId, bool keptAsIs) =>
+        Execute("""
+            INSERT INTO unmatched_assets (asset_id, library_id, reason, first_unmatched_at, last_tried_at, next_retry_at, kept_as_is, kept_at)
+            VALUES (@assetId, 'movies-library', 'no_match', @at, @at, @at, @kept, @keptAt)
+            """,
+            new { assetId, at = DateTimeOffset.UtcNow.ToString("o"), kept = keptAsIs ? 1 : 0, keptAt = keptAsIs ? DateTimeOffset.UtcNow.ToString("o") : null });
 
     private void AddReview(Guid entityId, string trigger, string status) =>
         Execute("""
