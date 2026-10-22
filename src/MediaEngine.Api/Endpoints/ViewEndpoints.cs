@@ -108,14 +108,22 @@ public static partial class ViewEndpoints
 
             var result = await resolver.ResolveAsync(authority, requested,
                 allowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope), ct);
-            return result is null ? Missing() : Results.Ok(ToContract(result) with
+            if (result is null)
+            {
+                return Missing();
+            }
+
+            // The profile's policy is read once for all three kind switches.
+            var blocked = await BlockedKindsAsync(authority, preferences, ct);
+            var canViewDocuments = !blocked.Contains(ViewContentKinds.Documents);
+            return Results.Ok(ToContract(result) with
             {
                 // Only a server administrator signed in as a person sees "Other people" in the scope picker.
                 CanBrowseOtherPeople = authority.PrincipalKind == PrincipalKind.Human && authority.IsEffectiveAdministrator,
-                CanViewDocuments = await MayUseDocumentsAsync(authority, preferences, ct),
-                CanFileSharedInbox = ViewSharedInboxAccess.CanFile(authority) && await MayUseDocumentsAsync(authority, preferences, ct),
-                CanViewPhotos = !(await BlockedKindsAsync(authority, preferences, ct)).Contains(ViewContentKinds.Photos),
-                CanViewPersonalVideos = !(await BlockedKindsAsync(authority, preferences, ct)).Contains(ViewContentKinds.PersonalVideos),
+                CanViewDocuments = canViewDocuments,
+                CanFileSharedInbox = ViewSharedInboxAccess.CanFile(authority) && canViewDocuments,
+                CanViewPhotos = !blocked.Contains(ViewContentKinds.Photos),
+                CanViewPersonalVideos = !blocked.Contains(ViewContentKinds.PersonalVideos),
             });
         }).WithName("GetViewScopes").Produces<ViewScopeResolutionDto>();
 
