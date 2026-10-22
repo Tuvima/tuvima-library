@@ -27,7 +27,7 @@ internal static class LibraryMutationEndpoints
         group.MapPost("/libraries/mutations", async (LibraryMutationRequest request,
             IConfigurationLoader configuration, ServerFolderBrowserService folders, [Microsoft.AspNetCore.Mvc.FromServices] LibraryKindListService libraryKinds, HttpContext http,
             IFileOrganizer organizer, ViewStorageService storage, IProfileRepository profiles,
-            IViewProfileRepository policies, ImportFolderApplier importFolder, FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
+            IViewProfileRepository policies, ImportFolderApplier importFolder, FolderJobService folderJobs, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, [Microsoft.AspNetCore.Mvc.FromServices] FolderFirstCheckService firstChecks, CancellationToken ct) =>
         {
             await WriteGate.WaitAsync(ct);
             try
@@ -114,7 +114,7 @@ internal static class LibraryMutationEndpoints
                         return ApiErrors.BadRequest(result.Issues.First(x => x.Severity == "error").Message);
                     }
                 }
-                configuration.SaveLibraries(proposed);
+                await firstChecks.SaveLibrariesWithFirstChecksAsync(configuration, current, proposed, vaultIds, ct);
                 await folderJobs.StopJobsForUnmanagedFoldersAsync(proposed, ct);
                 await importFolder.ApplyAsync(ct);
                 if (request.ViewStorage is not null)
@@ -150,9 +150,11 @@ internal static class LibraryMutationEndpoints
             // The Unmatched count is read-only and changes without anyone editing the library, so it never counts as "changed in another
             // session": the copy the screen read carries the count it saw, and the current library here carries none.
             edited.UnmatchedCount = 0;
+            SettingsContractMapper.ClearFirstChecks(edited);
             if (request.ExpectedLibrary is { } expectedLibrary)
             {
                 expectedLibrary.UnmatchedCount = 0;
+                SettingsContractMapper.ClearFirstChecks(expectedLibrary);
             }
 
             var index = dto.Libraries.FindIndex(x => x.Id == edited.Id);

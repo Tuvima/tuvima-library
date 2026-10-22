@@ -254,6 +254,36 @@ The media files the Engine could not match (Library setup spec D34). A file with
 
 Indexes: `ix_unmatched_assets_library (library_id, kept_as_is, first_unmatched_at)` for the per-library count and list, and the partial `ix_unmatched_assets_due (next_retry_at) WHERE kept_as_is = 0` for the scan of due items.
 
+### folder_first_checks
+
+The first check of a newly added folder (Library setup spec D35, D61; added by upgrade step `0043_folder_first_checks`). A folder added to a library whose kind looks details up (plain kinds and Vault libraries never get one; a folder that existed before never does) is checked before the Engine changes anything in it: its first files are identified as normal, but nothing in it is renamed, moved or tagged. When more than the configured share of the first files are Unmatched (`first_check_files` and `first_check_unmatched_share` in `config/maintenance.json`) the folder is paused: its remaining identity jobs are not claimed and the filing rows held for it stay held until an administrator chooses Keep going or removes the folder. Otherwise the check passes and the held rows become `waiting`, to be filed in the next run with their tags. One row per folder (source).
+
+| Column | Type | Notes |
+|---|---|---|
+| `source_id` | TEXT | Primary key; the folder's stable ID in `libraries.json` |
+| `library_id` | TEXT | The library the folder belongs to |
+| `path` | TEXT | The folder as configured |
+| `path_key` | TEXT | The path with every separator as `/`, no trailing separator and ASCII letters lower-cased. A file is in the folder when `lower(replace(its path, '\', '/'))` starts with `path_key || '/'` |
+| `state` | TEXT | `checking` (nothing in the folder is touched), `passed`, `paused` (claims stop, nothing is touched) or `kept_going` (an administrator chose Keep going) |
+| `tried` / `unmatched` | INTEGER | Files with a final outcome among the first files, and how many of them are Unmatched. Live while checking is shown from `folder_first_check_files`; these hold the counts the check ended or paused on |
+| `started_at` / `ended_at` | TEXT | UTC; `ended_at` is null while checking or paused |
+
+Indexes: the partial `ix_folder_first_checks_held (state, path_key) WHERE state IN ('checking', 'paused')`, asked by every identity-job claim and file-write claim, and `ix_folder_first_checks_library (library_id)`.
+
+### folder_first_check_files
+
+The files that reached a final identification outcome (matched, Unmatched or needs review) while their folder was being checked, in the order they did (`seq`). A file counts once; a later outcome for it replaces the earlier one. The rows go when the check passes or the administrator chooses Keep going, and with the check when the folder is removed.
+
+| Column | Type | Notes |
+|---|---|---|
+| `seq` | INTEGER | Primary key (autoincrement); the order the outcomes arrived |
+| `source_id` | TEXT | FK -> `folder_first_checks.source_id` (cascade) |
+| `asset_id` | BLOB | FK -> `media_assets.id` (cascade) |
+| `outcome` | TEXT | `matched`, `unmatched` (a YouTube file with no video ID counts) or `needs_review` |
+| `recorded_at` | TEXT | UTC |
+
+Unique on `(source_id, asset_id)`.
+
 ---
 
 ## View Personal Media

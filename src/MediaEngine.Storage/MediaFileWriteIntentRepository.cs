@@ -251,6 +251,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                 WHERE i.target_kind = @targetKind AND i.move_step IS NULL
                   AND (i.status = 'pending' OR (i.status = 'writing' AND i.lease_expires_at < @now))
                   AND i.updated_at <= @changedBefore AND (i.claimed_run_id IS NULL OR i.claimed_run_id <> @runId)
+                  AND NOT ({FolderFirstCheckRepository.FileInHeldFolder("ma")})
                 ORDER BY i.updated_at, i.id
                 LIMIT @limit;
                 """, new
@@ -690,12 +691,14 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
         ct.ThrowIfCancellationRequested();
         var hidden = hiddenLibraryIds is { Count: > 0 };
         using var connection = database.CreateConnection();
-        return Task.FromResult(connection.QuerySingle<FileWriteCounts>("""
+        // A tag write for a file in a folder whose first check is running or paused is waiting, but cannot be claimed yet (Library setup D61).
+        return Task.FromResult(connection.QuerySingle<FileWriteCounts>($"""
             SELECT COALESCE(SUM(CASE WHEN i.status IN ('pending', 'writing') THEN 1 ELSE 0 END), 0) AS Waiting,
                    COALESCE(SUM(CASE WHEN i.status = 'failed' THEN 1 ELSE 0 END), 0) AS Failed,
                    COALESCE(SUM(CASE WHEN i.move_step IS NULL
                                       AND (i.status = 'pending' OR (i.status = 'writing' AND i.lease_expires_at < @now))
                                       AND (i.next_attempt_at IS NULL OR i.next_attempt_at <= @now)
+                                      AND NOT ({FolderFirstCheckRepository.FileInHeldFolder("ma")})
                                      THEN 1 ELSE 0 END), 0)
                    + COALESCE(SUM(CASE WHEN i.move_step = 'waiting' AND i.status = 'pending' THEN 1 ELSE 0 END), 0) AS Claimable,
                    COALESCE(SUM(CASE WHEN i.move_step = 'waiting' AND i.status = 'pending' THEN 1 ELSE 0 END), 0) AS FilingWaiting

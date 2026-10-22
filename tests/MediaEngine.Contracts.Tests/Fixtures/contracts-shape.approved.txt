@@ -3528,6 +3528,24 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoSeriesTargetDto
   Title: System.String | nullability=not-null | accessors=get,init
   VideoCount: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.FolderFirstCheckDto
+  State: System.String | nullability=not-null | accessors=get,set
+  Tried: System.Int32 | nullability=not-null | accessors=get,set
+  Unmatched: System.Int32 | nullability=not-null | accessors=get,set
+  TotalFiles: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.FolderFirstCheckItemDto
+  LibraryId: System.String | nullability=not-null | accessors=get,init
+  SourceId: System.String | nullability=not-null | accessors=get,init
+  Path: System.String | nullability=not-null | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  Tried: System.Int32 | nullability=not-null | accessors=get,init
+  Unmatched: System.Int32 | nullability=not-null | accessors=get,init
+  TotalFiles: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.FolderFirstChecksDto
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Library.FolderFirstCheckItemDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchDistinctValue
   Value: System.String | nullability=not-null | accessors=get,init
   Count: System.Int32 | nullability=not-null | accessors=get,init
@@ -8270,6 +8288,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrarySourceDto
   Notes: System.String | nullability=nullable | accessors=get,set
   DeviceId: System.String | nullability=nullable | accessors=get,set
   ProfileId: System.String | nullability=nullable | accessors=get,set
+  FirstCheck: MediaEngine.Contracts.Library.FolderFirstCheckDto | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LocalNetworkSettingsDto
   Port: System.Int32 | nullability=not-null | accessors=get,set

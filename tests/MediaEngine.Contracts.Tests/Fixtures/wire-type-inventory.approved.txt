@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1232; api=0; web-client=54
+# scopes: contracts=1235; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4259,6 +4259,30 @@
   Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   VideoCount: System.Int32 | json=video_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","title":"sample","video_count":7}
+
+[contracts] MediaEngine.Contracts.Library.FolderFirstCheckDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  State: System.String | json=state | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Tried: System.Int32 | json=tried | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Unmatched: System.Int32 | json=unmatched | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TotalFiles: System.Int32 | json=total_files | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"state":"sample","tried":7,"unmatched":7,"total_files":7}
+
+[contracts] MediaEngine.Contracts.Library.FolderFirstCheckItemDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  LibraryId: System.String | json=library_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SourceId: System.String | json=source_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Path: System.String | json=path | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  State: System.String | json=state | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Tried: System.Int32 | json=tried | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Unmatched: System.Int32 | json=unmatched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TotalFiles: System.Int32 | json=total_files | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"library_id":"sample","source_id":"sample","path":"sample","state":"sample","tried":7,"unmatched":7,"total_files":7}
+
+[contracts] MediaEngine.Contracts.Library.FolderFirstChecksDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Library.FolderFirstCheckItemDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"items":[]}
 
 [contracts] MediaEngine.Contracts.Library.LibraryBatchDistinctValue
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9744,6 +9768,7 @@
   Notes: System.String | json=notes | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DeviceId: System.String | json=device_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProfileId: System.String | json=profile_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FirstCheck: MediaEngine.Contracts.Library.FolderFirstCheckDto | json=first_check | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
   sample={"id":"sample","path":"sample","management_mode":"sample","source_type":"sample","include_subdirectories":true,"access_mode":"sample","conversion_state":"sample","conversion_operation_id":"sample","merge_state":"sample","merge_operation_id":"sample","merge_target_source_id":"sample","merge_mode":"sample","merged_at":"2025-01-02T03:04:05+00:00","notes":"sample","device_id":"sample","profile_id":"sample"}
 
 [contracts] MediaEngine.Contracts.Settings.LocalNetworkSettingsDto

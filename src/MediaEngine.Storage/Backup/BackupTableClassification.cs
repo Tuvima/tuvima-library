@@ -198,6 +198,8 @@ public static partial class BackupTableClassification
         Transient("media_operations", "Media operation queue."),
         Transient("media_operation_events", "Media operation log."),
         Transient("media_file_write_intents", "Pending file write-back jobs."),
+        Transient("folder_first_checks", "The first check of each newly added folder."),
+        Transient("folder_first_check_files", "The files counted in a folder's first check."),
         Transient("file_write_runs", "When the file write-back schedule last ran."),
         Transient("encode_jobs", "Encode job queue."),
         Transient("alignment_jobs", "Book and audiobook alignment job queue."),

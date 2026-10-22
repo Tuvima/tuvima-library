@@ -336,6 +336,8 @@ None of these are kept.
 | `media_operations` | Media operation queue. |
 | `media_operation_events` | Media operation log. |
 | `media_file_write_intents` | Pending file write-back jobs. |
+| `folder_first_checks` | The first check of each newly added folder. |
+| `folder_first_check_files` | The files counted in a folder's first check. |
 | `file_write_runs` | When the file write-back schedule last ran. |
 | `encode_jobs` | Encode job queue. |
 | `alignment_jobs` | Book and audiobook alignment job queue. |

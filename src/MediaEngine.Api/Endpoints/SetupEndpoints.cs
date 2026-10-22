@@ -310,7 +310,16 @@ public static class SetupEndpoints
                 return ApiErrors.BadRequest(sourceError);
             }
 
-            configuration.SaveLibraries(config);
+            // Folders chosen in setup are new folders too: their first check starts before they are saved (setup has no Vault libraries).
+            if (context.RequestServices.GetService<MediaEngine.Api.Services.Libraries.FolderFirstCheckService>() is { } firstChecks)
+            {
+                await firstChecks.SaveLibrariesWithFirstChecksAsync(
+                    configuration, configuration.LoadLibraries(), config, new HashSet<string>(StringComparer.OrdinalIgnoreCase), ct);
+            }
+            else
+            {
+                configuration.SaveLibraries(config);
+            }
 
             // Setup only prepares the folders; the engine starts watching once first-run setup is complete.
             context.RequestServices.GetService<MediaEngine.Api.Services.Settings.ImportFolderApplier>()?.CreateFolders();

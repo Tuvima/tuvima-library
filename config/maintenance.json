@@ -5,6 +5,8 @@
   "log_max_total_mb": 1024,
   "missing_file_retention_days": 90,
   "unmatched_retry_days": 7,
+  "first_check_files": 50,
+  "first_check_unmatched_share": 0.5,
   "vacuum_interval_hours": 168,
   "sync_interval_hours": 24,
   "retag_sweep": {
