@@ -1,6 +1,6 @@
 # Spec: Right-sized pictures on every screen
 
-> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-10-21 · **Related docs:** [Product overview](../product/overview.md) · [Design system](../design/design-system.md) · Local check bugs B31, B32, B23
+> **Status:** Built (2026-10-22, awaiting Local checks L1-L4 in [the batch list](../../validation/batch.md)) · **Version:** 1 · **Last updated:** 2026-10-22 · **Related docs:** [Product overview](../../product/overview.md) · [Design system: Pictures](../../design/design-system.md#pictures) · [Presentation rules: Picture sizes](../../../docs/product/presentation-rules.md#picture-sizes-right-sized-pictures-october-2026) · [Artwork architecture](../../../docs/architecture/artwork.md#picture-sizes-and-browser-keep) · Local check bugs B31, B32, B23
 
 ## 1. Goal
 
@@ -116,7 +116,7 @@ Sizes are estimates; WP1 replaced them with measured values in section 11.
 - **Files likely touched:** `engineering/design/design-system.md`, `docs/product/presentation-rules.md`
 - **Depends on:** WP4
 - **Size:** Mechanical
-- **Done when:** the table is published and linked from the spec.
+- **Done when:** the table is published and linked from the spec (header links: Design system and Presentation rules).
 
 ## 9. Local checks
 
