@@ -287,7 +287,7 @@ public sealed class UniversePageReadService(
     {
         try
         {
-            return configuration.LoadConfig<LibraryPreferencesSettings>("ui", "library-preferences");
+            return configuration.LoadLibraryPreferences();
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or System.Text.Json.JsonException
             or MediaEngine.Storage.Configuration.ConfigValidationException)

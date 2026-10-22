@@ -64,7 +64,7 @@ public sealed class DisplayLaneGroupPolicy
 
         try
         {
-            return _configLoader.LoadConfig<LibraryPreferencesSettings>("ui", "library-preferences")
+            return _configLoader.LoadLibraryPreferences()
                    ?? new LibraryPreferencesSettings();
         }
         catch

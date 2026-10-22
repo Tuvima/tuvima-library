@@ -102,7 +102,7 @@ public sealed class UISettingsCacheRepository
                     System.Text.Json.JsonSerializer.Serialize(global));
             }
 
-            var libraryPreferences = configLoader.LoadConfig<LibraryPreferencesSettings>("ui", "library-preferences");
+            var libraryPreferences = configLoader.LoadLibraryPreferences();
             if (libraryPreferences is not null)
             {
                 UpsertInTransaction(conn, transaction, "library-preferences",

@@ -214,8 +214,8 @@ public static class UISettingsEndpoints
         // ── Library Preferences ──────────────────────────────────────────────
         grp.MapGet("/library-preferences", (IConfigurationLoader configLoader) =>
         {
-            var prefs = configLoader.LoadConfig<LibraryPreferencesSettings>("ui", "library-preferences")
-                        ?? throw new InvalidOperationException("config/ui/library-preferences.json is required.");
+            var prefs = configLoader.LoadLibraryPreferences()
+                        ?? throw new InvalidOperationException("config/ui/library-preferences.json or its shipped defaults file is required.");
             return Results.Ok(SettingsContractMapper.ToContract(prefs));
         })
         .WithName("GetLibraryPreferences")
@@ -225,10 +225,16 @@ public static class UISettingsEndpoints
 
         grp.MapGet("/library-preferences/diagnostics", (IConfigurationLoader configLoader) =>
         {
+            // The file in effect: this computer's own, or the shipped defaults when it has none (LoadLibraryPreferences).
             var path = Path.Combine(configLoader.ConfigDirectoryPath, "ui", "library-preferences.json");
             if (!File.Exists(path))
             {
-                return ApiErrors.NotFound("config/ui/library-preferences.json was not found.");
+                path = Path.Combine(configLoader.ConfigDirectoryPath, "ui", "library-preferences.defaults.json");
+            }
+
+            if (!File.Exists(path))
+            {
+                return ApiErrors.NotFound("Neither config/ui/library-preferences.json nor its shipped defaults file was found.");
             }
 
             var bytes = File.ReadAllBytes(path);
@@ -237,8 +243,8 @@ public static class UISettingsEndpoints
                 sha256: Convert.ToHexStringLower(SHA256.HashData(bytes)),
                 last_modified_at: File.GetLastWriteTimeUtc(path),
                 settings: SettingsContractMapper.ToContract(
-                    configLoader.LoadConfig<LibraryPreferencesSettings>("ui", "library-preferences")
-                    ?? throw new InvalidOperationException("config/ui/library-preferences.json is required."))));
+                    configLoader.LoadLibraryPreferences()
+                    ?? throw new InvalidOperationException("config/ui/library-preferences.json or its shipped defaults file is required."))));
         })
         .WithName("GetLibraryPreferencesDiagnostics")
         .WithSummary("Returns the tracked source file, content hash, timestamp, and effective per-media library preferences.")

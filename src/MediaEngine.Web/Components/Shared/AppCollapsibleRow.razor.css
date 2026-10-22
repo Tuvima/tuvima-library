@@ -1,0 +1,112 @@
+/* The heading, its one button and the slim collapsed bar are rendered here, so their look belongs here. */
+.app-collapsible-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+    min-width: 0;
+}
+
+.app-collapsible-row__header {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-width: 0;
+}
+
+.app-collapsible-row__heading {
+    min-width: 0;
+    margin: 0;
+    font: inherit;
+}
+
+.app-collapsible-row__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    max-width: 100%;
+    min-height: var(--tl-tap-target-min, 2.75rem);
+    padding: 0 var(--tl-space-3) 0 var(--tl-space-1);
+    border: 1px solid transparent;
+    border-radius: var(--tl-radius-md);
+    background: transparent;
+    color: var(--tl-text-primary);
+    font: inherit;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.app-collapsible-row__toggle:hover {
+    background: var(--tl-bg-surface-raised);
+}
+
+.app-collapsible-row__toggle:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+.app-collapsible-row__chevron {
+    display: inline-flex;
+    flex: 0 0 auto;
+    transition: transform 160ms ease;
+}
+
+.app-collapsible-row.is-collapsed .app-collapsible-row__chevron {
+    transform: rotate(-90deg);
+}
+
+.app-collapsible-row__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-collapsible-row__summary {
+    flex: 0 0 auto;
+    color: var(--tl-text-secondary);
+    font-size: 0.82rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.app-collapsible-row__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-width: 0;
+    margin-left: auto;
+}
+
+.app-collapsible-row__body {
+    min-width: 0;
+}
+
+/* Collapsed, the row is one slim bar across the page. */
+.app-collapsible-row.is-collapsed .app-collapsible-row__heading {
+    flex: 1 1 auto;
+}
+
+.app-collapsible-row.is-collapsed .app-collapsible-row__toggle {
+    width: 100%;
+    border-color: var(--tl-border-subtle);
+    background: color-mix(in srgb, var(--tl-bg-surface-raised) 55%, transparent);
+}
+
+/* On narrow screens the row's controls drop below its title rather than squeezing it. */
+@media (width < 840px) {
+    .app-collapsible-row__header {
+        flex-wrap: wrap;
+    }
+
+    .app-collapsible-row__actions {
+        flex-wrap: wrap;
+        margin-left: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-collapsible-row__chevron {
+        transition: none;
+    }
+}

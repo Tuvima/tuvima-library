@@ -54,7 +54,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `Search/` | `UniversalSearchOverlay`, results |
 | `Settings/` | Settings pages inside the shared `Frame/SettingsPageFrame` (breadcrumb, title, attention notices, page notice, tabs, content) and the one menu tree (`SettingsNav.MenuGroups`, built by `Services/Navigation/SettingsMenuBuilder`): Personal (Overview with Activity, Taste and the off-menu Apps; Profiles with Households; Preferences; Security with Devices), Server (Library and Ingestion, Network and Remote Access, Streaming), Manage (Users and Sign-in, System with Tools, Logs, Backup), Developer (Local AI, Integrations, Plugins, Developer Tools). Register sections in `SettingsNav` |
 | `Setup/` | First-run setup stages |
-| `Shared/` | First-party `App*` design-system primitives (`AppPageState`, `AppErrorState`, `AppEmptyState`, `AppSkeleton`, `AppIcon`, `AppTable`, `AppDialog`, `AppSelect`, `AppTooltip`, …), `Playback*` control primitives, `TuvimaArtworkStack` |
+| `Shared/` | First-party `App*` design-system primitives (`AppPageState`, `AppErrorState`, `AppEmptyState`, `AppSkeleton`, `AppIcon`, `AppTable`, `AppDialog`, `AppSelect`, `AppTooltip`, `AppCollapsibleRow` (the one collapse arrow for detail page rows), …), `Playback*` control primitives, `TuvimaArtworkStack` |
 | `Universe/` | Universe surface components: the `/universe/{qid}` page pieces (`UniverseHero`, `UniverseSeriesShelf`, `UniverseConnections`, `UniverseCastList`, `UniverseAdaptationsList`, `UniversePageText`) and the explorer panels |
 | `View/` | Places map and timeline pieces |
 | `Watch/` | `VideoPlaybackHost`, `VideoContextPanel`, `OwnedEpisodeQueuePlanner` |
