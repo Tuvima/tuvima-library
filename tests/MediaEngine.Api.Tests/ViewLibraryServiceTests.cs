@@ -297,6 +297,49 @@ public sealed class ViewLibraryServiceTests
         Assert.Equal(100, result.Text!.Length);
     }
 
+    [Theory]
+    [InlineData("sheet.ods")]
+    [InlineData("slides.odp")]
+    public async Task OpenDocumentSpreadsheetsAndPresentations_ReturnTheirWordsToSearch(string name)
+    {
+        using var fixture = new ViewFixture();
+        var path = fixture.WritePersonal(name, DocumentFixtures.OpenDocument("quokka budget"));
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+
+        var result = DocumentTextReader.Read(path, new DocumentTextReadLimits(1000, 10, TimeSpan.FromSeconds(30)), CancellationToken.None);
+
+        Assert.True(DocumentTextReader.IsSupported(Path.GetExtension(name)));
+        Assert.False(result.Failed);
+        Assert.Contains("quokka", result.Text);
+    }
+
+    [Fact]
+    public async Task DamagedOpenDocumentFile_ReturnsFailedNotEncryptedAndDoesNotThrow()
+    {
+        using var fixture = new ViewFixture();
+        var path = fixture.WritePersonal("broken.ods", new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+
+        var result = DocumentTextReader.Read(path, new DocumentTextReadLimits(1000, 10, TimeSpan.FromSeconds(30)), CancellationToken.None);
+
+        Assert.True(result.Failed);
+        Assert.False(result.Encrypted);
+        Assert.False(result.HasText);
+    }
+
+    [Fact]
+    public async Task LargeOpenDocumentSpreadsheet_IsCappedByTheCharacterLimit()
+    {
+        using var fixture = new ViewFixture();
+        var path = fixture.WritePersonal("big.ods", DocumentFixtures.OpenDocument(string.Join(' ', Enumerable.Repeat("filler", 400))));
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+
+        var result = DocumentTextReader.Read(path, new DocumentTextReadLimits(100, 10, TimeSpan.FromSeconds(30)), CancellationToken.None);
+
+        Assert.True(result.Truncated);
+        Assert.Equal(100, result.Text!.Length);
+    }
+
     [Fact]
     public void StartupChecksCanRunTwiceAndLeaveTheTextSourceColumn()
     {
