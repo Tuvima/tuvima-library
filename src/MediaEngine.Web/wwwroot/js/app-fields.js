@@ -36,3 +36,4 @@ export function scrollActive(root) {
     else if (box.bottom > bounds.bottom) list.scrollTop += box.bottom - bounds.bottom;
 }
 export function openFilePicker(input) { if (input && !input.disabled) input.click(); }
+export function selectText(input) { if (!input) return; input.focus(); input.select(); }
