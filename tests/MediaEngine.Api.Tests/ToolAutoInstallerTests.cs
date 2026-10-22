@@ -35,6 +35,28 @@ public sealed class ToolAutoInstallerTests : IDisposable
     [Fact]
     public async Task AToolThatIsOptional_IsNeverStartedByItself()
     {
+        var missing = Tools(Tool(ToolRequirementIds.AdaptiveStreaming, ToolRequirementStates.Missing, canInstall: true, requirement: ToolRequirementLevels.Optional));
+
+        var result = await Service().StartMissingRequiredAsync(missing, CancellationToken.None);
+
+        Assert.Empty(_installer.Started);
+        Assert.Same(missing, result);
+    }
+
+    [Fact]
+    public async Task AMissingTesseractThatIsOffered_IsDownloadedByItself_EvenThoughItIsOptional()
+    {
+        var missing = Tools(Tool(ToolRequirementIds.Tesseract, ToolRequirementStates.Missing, canInstall: true, requirement: ToolRequirementLevels.Optional));
+
+        await Service().StartMissingRequiredAsync(missing, CancellationToken.None);
+
+        Assert.Equal([ToolRequirementIds.Tesseract], _installer.Started);
+    }
+
+    [Fact]
+    public async Task TesseractWithAutoInstallTurnedOffForIt_IsLeftForThePersonToStart()
+    {
+        File.WriteAllText(Path.Combine(_root, "config", "tool_downloads.json"), "{ \"tesseract\": { \"auto_install\": false } }");
         var missing = Tools(Tool(ToolRequirementIds.Tesseract, ToolRequirementStates.Missing, canInstall: true, requirement: ToolRequirementLevels.Optional));
 
         var result = await Service().StartMissingRequiredAsync(missing, CancellationToken.None);
@@ -56,7 +78,7 @@ public sealed class ToolAutoInstallerTests : IDisposable
     }
 
     [Fact]
-    public async Task AMissingExifToolIsStarted_ButTesseractBesideItIsNot()
+    public async Task AMissingExifToolAndAMissingTesseractAreBothStarted()
     {
         var missing = Tools(
             Tool(ToolRequirementIds.Tesseract, ToolRequirementStates.Missing, canInstall: true, requirement: ToolRequirementLevels.Optional),
@@ -64,7 +86,7 @@ public sealed class ToolAutoInstallerTests : IDisposable
 
         await Service().StartMissingRequiredAsync(missing, CancellationToken.None);
 
-        Assert.Equal([ToolRequirementIds.ExifTool], _installer.Started);
+        Assert.Equal([ToolRequirementIds.Tesseract, ToolRequirementIds.ExifTool], _installer.Started);
     }
 
     [Fact]

@@ -196,6 +196,14 @@ public sealed class TesseractDownload
     [JsonPropertyName("version")]
     public string Version { get; set; } = "5.4.0";
 
+    /// <summary>
+    /// When true, the Library downloads and checks Tesseract's setup program by itself whenever Tesseract is missing (and
+    /// <see cref="ToolDownloadSettings.AutoInstallRequired"/> is on), so it is ready at first run. A download alone changes
+    /// nothing on the machine: the person still runs the setup program.
+    /// </summary>
+    [JsonPropertyName("auto_install")]
+    public bool AutoInstall { get; set; } = true;
+
     /// <summary>Tesseract's setup program; it is downloaded and checked, then the person runs it.</summary>
     [JsonPropertyName("installer")]
     public DownloadFile Installer { get; set; } = new()
