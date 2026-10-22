@@ -376,6 +376,19 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
             .AddChildContent("<section>Settings content</section>"));
     }
 
+    [Fact]
+    public void ToolsRow_ShowsRedWithTheReasonWhenARequiredToolIsMissing_AndStaysPlainOtherwise()
+    {
+        var red = Flatten(SettingsMenuBuilder.Build(Context(administrator: true) with { ToolsMissingReason = "FFmpeg missing" }))
+            .Single(item => item.Route == "/settings/tools");
+        var plain = Flatten(SettingsMenuBuilder.Build(Context(administrator: true)))
+            .Single(item => item.Route == "/settings/tools");
+
+        Assert.Equal(MediaSectionAttentionLevel.Blocked, red.EffectiveAttention);
+        Assert.Equal("FFmpeg missing", red.AttentionLabel);
+        Assert.Equal(MediaSectionAttentionLevel.None, plain.EffectiveAttention);
+    }
+
     private static SettingsMenuContext Context(bool administrator) =>
         new(administrator, HouseholdAdministrator: false, IsMobile: false, ReviewCount: 0, SecurityNeedsAttention: false);
 

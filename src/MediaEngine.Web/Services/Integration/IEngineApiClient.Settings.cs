@@ -295,7 +295,7 @@ public partial interface IEngineApiClient
     Task<List<ActivityEntryResponse>> GetRecentActivityAsync(int limit = 50, CancellationToken ct = default);
 
     /// <summary>GET /activity/log?category=&amp;search=&amp;offset=&amp;limit= — the Events part of System &gt; Logs: one flat, newest-first, paged activity log (administrators only). Null when the Engine could not be asked.</summary>
-    Task<PagedResponse<ActivityLogEntryDto>?> GetActivityLogAsync(string category, string? search, int offset, int limit, CancellationToken ct = default);
+    Task<PagedResponse<ActivityLogEntryDto>?> GetActivityLogAsync(string category, string? search, int offset, int limit, string? mediaType = null, CancellationToken ct = default);
 
     /// <summary>GET /activity/stats — total entries and retention setting.</summary>
     Task<ActivityStatsResponse?> GetActivityStatsAsync(CancellationToken ct = default);

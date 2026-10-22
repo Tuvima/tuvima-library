@@ -253,6 +253,7 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
         string? search,
         int offset,
         int limit,
+        string? mediaType = null,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(actionTypes);
@@ -277,6 +278,12 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
                   AND  (collection_name LIKE @q ESCAPE '\'
                         OR detail LIKE @q ESCAPE '\')
                 """;
+        }
+
+        if (!string.IsNullOrWhiteSpace(mediaType))
+        {
+            parameters.Add("mt", mediaType.Trim());
+            searchClause += " AND CASE WHEN json_valid(changes_json) THEN json_extract(changes_json, '$.media_type') END = @mt COLLATE NOCASE";
         }
 
         using var conn = _db.CreateConnection();

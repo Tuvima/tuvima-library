@@ -88,7 +88,7 @@
                                          Back="@(() => { _languageConfirmed = false; return Task.CompletedTask; })" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 default:
-                    <SetupReadinessStage Readiness="@_readiness" Tools="@_preflight?.Tools" SampleScanDetail="@_sampleScanDetail" Busy="@_busy" SampleScan="SampleScanAsync" Complete="CompleteAsync"
+                    <SetupReadinessStage Readiness="@_readiness" Failed="@_readinessFailed" Retry="RetryReadinessAsync" InstallTool="InstallOptionalToolAsync" Tools="@_preflight?.Tools" SampleScanDetail="@_sampleScanDetail" Busy="@_busy" SampleScan="SampleScanAsync" Complete="CompleteAsync"
                                          Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
             }
@@ -107,6 +107,7 @@
     private SetupMediaLocationsDto? _media;
     private LibrariesConfigurationDto? _setupLibraries;
     private SetupReadinessDto? _readiness;
+    private bool _readinessFailed;
     private string? _setupSession;
     private string _email = string.Empty;
     private string _password = string.Empty;
@@ -517,10 +518,40 @@
     private async Task LoadReadinessAsync()
     {
         _busy = true;
-        // The notes about optional tools come from the check setup ran at the start; look again if the page was reloaded since.
-        _preflight ??= await ApiClient.RunSetupPreflightAsync(_setupSession);
-        _readiness = await ApiClient.GetSetupReadinessAsync(_setupSession);
-        _busy = false;
+        _readinessFailed = false;
+        try
+        {
+            // The notes about optional tools come from the check setup ran at the start; look again if the page was reloaded since.
+            _preflight ??= await ApiClient.RunSetupPreflightAsync(_setupSession);
+            _readiness = await ApiClient.GetSetupReadinessAsync(_setupSession);
+        }
+        catch (Exception)
+        {
+            _readiness = null;
+        }
+        finally { _busy = false; }
+
+        // Without an answer (a browser that is not signed in, or an Engine that did not reply) the page says so and offers a retry, never a spinner.
+        _readinessFailed = _readiness is null;
+    }
+    private async Task RetryReadinessAsync()
+    {
+        _readiness = null;
+        await LoadReadinessAsync();
+    }
+    private async Task InstallOptionalToolAsync(ToolRequirementDto tool)
+    {
+        bool started;
+        try
+        {
+            started = tool.Kind == "ai_model"
+                ? (await ApiClient.StartAiModelDownloadAsync(tool.Id[ToolRequirementIds.AiModelPrefix.Length..])).Succeeded
+                : (await ApiClient.InstallToolAsync(tool.Id)).Success;
+        }
+        catch (Exception) { started = false; }
+        if (started) Snackbar.Add($"Downloading {tool.Name}. Library finishes this in the background.", AppSeverity.Info);
+        else Snackbar.Add($"The download of {tool.Name} could not start. You can try again from Settings, Tools and requirements.", AppSeverity.Warning);
+        _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession) ?? _preflight;
     }
     private async Task SampleScanAsync() { _busy = true; var result = await ApiClient.TriggerScanAsync(); _busy = false; _sampleScanDetail = result is null ? "The dry-run scan could not start. Use the media-location repair link to check the configured source." : $"Dry run found {result.TotalCount} pending file operation{(result.TotalCount == 1 ? string.Empty : "s")}. No files were changed."; }
     private async Task CompleteAsync() { _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else Snackbar.Add("Required setup checks are still blocked.", AppSeverity.Error); }

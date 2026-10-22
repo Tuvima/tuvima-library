@@ -1710,12 +1710,16 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SettingsMenu_ShowsTheSecurityDotForAThisComputerOnlyAccountUntilNotNow()
+    public void SettingsMenu_ShowsSecurityRedWithItsReasonForAThisComputerOnlyAccountUntilNotNow()
     {
         var cut = RenderSettingsForAThisComputerOnlyAccount([]);
 
-        cut.WaitForAssertion(() => Assert.Single(
-            cut.Find("a.media-section-shell__tree-link[href='/settings/security']").QuerySelectorAll(".media-section-shell__attention-dot")));
+        cut.WaitForAssertion(() =>
+        {
+            var link = cut.Find("a.media-section-shell__tree-link[href='/settings/security']");
+            Assert.Equal("No password", link.QuerySelector(".media-section-shell__tree-attention-label")!.TextContent.Trim());
+            Assert.Contains("is-attention-blocked", link.ParentElement!.ClassList);
+        });
     }
 
     [Fact]

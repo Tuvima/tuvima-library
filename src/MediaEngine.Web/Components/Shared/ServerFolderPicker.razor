@@ -903,6 +903,10 @@ else
             if (_browse is null || _activeLocation is null) return [];
             var separator = _browse.DisplayPath.Contains('\\') ? '\\' : '/';
             var segments = _browse.RelativePath.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
+            var rootLabel = _activeLocation.Label.TrimEnd('\\', '/');
+            // A drive reports its letter as the location and sometimes again as the first folder; show it once.
+            var repeatsDrive = segments.Length > 0 && rootLabel.EndsWith(':')
+                && string.Equals(segments[0].TrimEnd('\\', '/'), rootLabel, StringComparison.OrdinalIgnoreCase);
             var crumbs = new List<(string Label, string Relative, bool IsCurrent)>
             {
                 (_activeLocation.Path is "/" ? "/" : _activeLocation.Label, string.Empty, segments.Length == 0),
@@ -911,6 +915,12 @@ else
             for (var index = 0; index < segments.Length; index++)
             {
                 relative = relative.Length == 0 ? segments[index] : relative + separator + segments[index];
+                if (index == 0 && repeatsDrive)
+                {
+                    if (segments.Length == 1) crumbs[0] = (crumbs[0].Label, crumbs[0].Relative, true);
+                    continue;
+                }
+
                 crumbs.Add((segments[index], relative, index == segments.Length - 1));
             }
 

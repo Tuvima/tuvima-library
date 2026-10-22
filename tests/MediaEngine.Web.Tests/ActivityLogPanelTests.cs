@@ -190,6 +190,27 @@ public sealed class ActivityLogPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task EpisodesOfOneShow_FoldUnderTheShow_AndExpandOnClick_WhileALoneEpisodeStaysARow()
+    {
+        ActivityLogEntryDto Episode(long id, string title, string show) { var entry = Entry(id, "added", title, "Added to TV", mediaType: "TV"); entry.GroupTitle = show; return entry; }
+        _onLog = (_, _, offset, limit) => Page(
+            [Episode(1, "Pilot", "The Expanse"), Episode(2, "Dulcinea", "The Expanse"), Episode(3, "Cold Open", "Severance"), Entry(4, "added", "Dune", null, mediaType: "Movies")],
+            offset, limit, hasMore: false, total: 4);
+
+        var cut = Render<ActivityLogPanel>();
+
+        var group = Assert.Single(cut.FindAll("[data-testid=activity-log-group]"));
+        Assert.Contains("The Expanse", group.TextContent, StringComparison.Ordinal);
+        Assert.Contains("2 episodes added", group.TextContent, StringComparison.Ordinal);
+        Assert.Equal(["Cold Open", "Dune"], RowTitles(cut));
+        Assert.Contains("Severance", cut.FindAll("[data-testid=activity-log-row]")[0].TextContent, StringComparison.Ordinal);
+
+        await cut.InvokeAsync(() => cut.Find(".activity-log__group-toggle").Click());
+
+        Assert.Equal(["Pilot", "Dulcinea", "Cold Open", "Dune"], RowTitles(cut));
+    }
+
+    [Fact]
     public async Task SortingByType_GroupsTheRowsByTypeKeepingNewestFirstWithinEach_AndNoTypeLast()
     {
         _onLog = (_, _, offset, limit) => Page(
@@ -204,12 +225,12 @@ public sealed class ActivityLogPanelTests : AsyncBunitContext
         var cut = Render<ActivityLogPanel>();
         Assert.Equal(["Dune", "The Library started", "Emma", "Heat", "Ulysses"], RowTitles(cut));
 
-        await cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync("type"));
+        await cut.InvokeAsync(() => cut.FindComponents<AppSelect>().Single(select => select.Instance.Label == "Sort by").Instance.ValueChanged.InvokeAsync("type"));
 
         Assert.Equal(["Emma", "Ulysses", "Dune", "Heat", "The Library started"], RowTitles(cut));
         Assert.Single(_requests);
 
-        await cut.InvokeAsync(() => cut.FindComponent<AppSelect>().Instance.ValueChanged.InvokeAsync("newest"));
+        await cut.InvokeAsync(() => cut.FindComponents<AppSelect>().Single(select => select.Instance.Label == "Sort by").Instance.ValueChanged.InvokeAsync("newest"));
 
         Assert.Equal(["Dune", "The Library started", "Emma", "Heat", "Ulysses"], RowTitles(cut));
     }

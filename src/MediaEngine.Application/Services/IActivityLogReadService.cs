@@ -8,12 +8,14 @@ public interface IActivityLogReadService
 {
     /// <summary>
     /// One page of events, newest first. <paramref name="category"/> is one of <c>added</c>, <c>review</c>, <c>failed</c>,
-    /// <c>system</c> or <c>all</c>; empty or unknown means all. <paramref name="search"/> matches names and details.
+    /// <c>system</c> or <c>all</c>; empty or unknown means all. A <paramref name="mediaType"/> (for example <c>TV</c>) keeps
+    /// only entries about that media type. <paramref name="search"/> matches names and details.
     /// </summary>
     Task<PagedResponse<ActivityLogEntryDto>> GetLogAsync(
         string? category,
         string? search,
         int offset,
         int limit,
+        string? mediaType = null,
         CancellationToken ct = default);
 }

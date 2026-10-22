@@ -807,7 +807,7 @@ public sealed partial class EngineApiClient
     }
 
     public async Task<PagedResponse<ActivityLogEntryDto>?> GetActivityLogAsync(
-        string category, string? search, int offset, int limit, CancellationToken ct = default)
+        string category, string? search, int offset, int limit, string? mediaType = null, CancellationToken ct = default)
     {
         try
         {
@@ -815,6 +815,11 @@ public sealed partial class EngineApiClient
             if (!string.IsNullOrWhiteSpace(search))
             {
                 path += $"&search={Uri.EscapeDataString(search)}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(mediaType))
+            {
+                path += $"&mediaType={Uri.EscapeDataString(mediaType)}";
             }
 
             var page = await _http.GetFromJsonAsync<PagedResponse<ActivityLogEntryDto>>(path, ct);

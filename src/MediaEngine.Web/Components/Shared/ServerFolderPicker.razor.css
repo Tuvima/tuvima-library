@@ -2,14 +2,15 @@
 .server-folder-picker {
     display: flex;
     flex-direction: column;
-    min-height: min(620px, 68vh);
+    min-height: min(680px, 72vh);
+    font-family: var(--app-font-sans);
 }
 
 /* The address bar spans the whole dialog above the location list and the browser. */
 .server-folder-picker__pathbar {
     display: grid;
     gap: 6px;
-    padding: 16px 20px;
+    padding: 20px 28px;
     border-bottom: 1px solid var(--tl-border-subtle);
 }
 
@@ -47,7 +48,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 .server-folder-picker__body {
     display: grid;
     flex: 1 1 auto;
-    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-columns: 300px minmax(0, 1fr);
     min-height: 0;
 }
 
@@ -120,8 +121,8 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     display: flex;
     min-width: 0;
     flex-direction: column;
-    gap: 14px;
-    padding: 20px;
+    gap: 16px;
+    padding: 24px 28px;
 }
 
 /* Back, Forward and Up, then the folder search. */
@@ -159,7 +160,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     align-items: center;
     padding: 0 8px;
     color: var(--tl-accent-primary);
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .server-folder-picker__search {
@@ -200,9 +201,9 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 
 .server-folder-picker__list-header {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 170px;
+    grid-template-columns: minmax(0, 1fr) 190px;
     align-items: center;
-    gap: 8px;
+    gap: 16px;
     min-height: 44px;
     padding: 0 60px 0 16px;
     border-bottom: 1px solid var(--tl-border-subtle);
@@ -211,9 +212,8 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     top: 0;
     background: rgba(17, 24, 39, 0.98);
     color: var(--tl-text-muted);
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
+    font-size: 0.8125rem;
+    font-weight: 500;
 }
 
 /* A folder row: the select button fills the row and a separate 44px button opens it, for touch and keyboard. */
@@ -226,9 +226,9 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 
 .server-folder-picker__folder {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 170px;
+    grid-template-columns: minmax(0, 1fr) 190px;
     align-items: center;
-    gap: 8px;
+    gap: 16px;
     width: 100%;
     min-height: 56px;
     padding: 0 16px;
@@ -264,15 +264,15 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 .server-folder-picker__folder-name strong {
     overflow: hidden;
     color: var(--tl-text-primary);
-    font-weight: 500;
+    font-weight: 400;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .server-folder-picker__modified {
     color: var(--tl-text-muted);
-    font-size: 0.82rem;
-    text-align: right;
+    font-size: 0.8125rem;
+    text-align: left;
 }
 
 .server-folder-picker__row ::deep .server-folder-picker__open {

@@ -337,7 +337,16 @@ else
         Attention.LocalAiBlocked,
         Attention.PluginsBroken,
         Attention.AiFeaturesOn,
-        Attention.IntegrationsBroken);
+        Attention.IntegrationsBroken,
+        ToolsMissingReason);
+
+    // Red on Tools and requirements only for a required tool that is missing or broken; one being downloaded is not a problem.
+    private string? ToolsMissingReason => Attention.MissingTools switch
+    {
+        { Count: 0 } => null,
+        { Count: 1 } one => $"{one[0].Name} missing",
+        var many => $"{many.Count} missing",
+    };
 
     // One menu tree: the desktop rail and the phone page selector are both built from it.
     private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups => SettingsMenuBuilder.Build(MenuContext);

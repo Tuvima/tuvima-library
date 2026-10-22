@@ -239,7 +239,7 @@ public sealed class ProfileOverviewReadServiceTests : IDisposable
         public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByProfileAsync(Guid profileId, int limit = 50, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<SystemActivityEntry>>(Entries.Where(entry => entry.ProfileId == profileId).Take(limit).ToList());
 
-        public Task<(IReadOnlyList<SystemActivityEntry> Items, int Total)> QueryAsync(IReadOnlyList<string> actionTypes, string? search, int offset, int limit, CancellationToken ct = default)
+        public Task<(IReadOnlyList<SystemActivityEntry> Items, int Total)> QueryAsync(IReadOnlyList<string> actionTypes, string? search, int offset, int limit, string? mediaType, CancellationToken ct = default)
             => Task.FromResult<(IReadOnlyList<SystemActivityEntry>, int)>(([], 0));
     }
 

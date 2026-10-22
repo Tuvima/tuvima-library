@@ -13,6 +13,7 @@ namespace MediaEngine.Web.Services.Navigation;
 /// <param name="LocalAiBlocked">Local AI cannot work until the tools and libraries it needs are downloaded.</param>
 /// <param name="AiFeaturesOn">An AI feature plugin is switched on. Local AI has no switch of its own, so its row shows red with "Broken" only when it is blocked while something switched on needs it; nothing switched off is ever red.</param>
 /// <param name="IntegrationsBroken">A webhook that is switched on keeps failing; the Applications row shows red with "Broken".</param>
+/// <param name="ToolsMissingReason">A required tool is missing or broken (not merely downloading): Tools and requirements shows red with this short reason, for example "FFmpeg missing".</param>
 /// <param name="PluginsBroken">A plugin that is switched on cannot do its job; the Plugins row shows red with "Broken". Nothing switched off counts.</param>
 public sealed record SettingsMenuContext(
     bool AdministrationAllowed,
@@ -24,7 +25,8 @@ public sealed record SettingsMenuContext(
     bool LocalAiBlocked = false,
     bool PluginsBroken = false,
     bool AiFeaturesOn = true,
-    bool IntegrationsBroken = false);
+    bool IntegrationsBroken = false,
+    string? ToolsMissingReason = null);
 
 /// <summary>One line of the phone page selector: a page and how deep it sits in the tree.</summary>
 public sealed record SettingsPhoneMenuOption(string Route, string Label, int Depth);
@@ -93,13 +95,17 @@ public static class SettingsMenuBuilder
         // Needs Review is reached from the Library and Ingestion page (Recently Added is no longer a menu row), so that
         // row carries the count and the amber "waiting" shading;
         // Local AI and Plugins show red with "Broken" while something switched on cannot work (Local AI: an AI feature is on and
-        // the tools are missing); a parent shows its most urgent child's level. Phones show
-        // plain rows, and Tools and requirements is never shaded.
+        // the tools are missing); Tools and requirements shows red with what is missing, and Security shows red with "No password"
+        // until the account is secured; a parent shows its most urgent child's level. Phones show plain rows.
         var showReview = node is { Section: SettingsSection.Ingestion, Subsection: null } && context.ReviewCount > 0;
         var count = showReview ? DisplayFormat.FormatCount(context.ReviewCount) : null;
         var localAiOff = node is { Section: SettingsSection.LocalAi, Subsection: null } && context.LocalAiBlocked && context.AiFeaturesOn && !context.IsMobile;
         var pluginsBroken = node is { Section: SettingsSection.Plugins, Subsection: null } && context.PluginsBroken && !context.IsMobile;
         var integrationsBroken = node is { Section: SettingsSection.Access, Subsection: "applications" } && context.IntegrationsBroken && !context.IsMobile;
+
+        var toolsMissing = node is { Section: SettingsSection.Tools, Subsection: null } && context.ToolsMissingReason is not null && !context.IsMobile;
+        // The Security row says why it is red: this-computer-only accounts have no password yet.
+        var securityRed = node is { Section: SettingsSection.Security, Subsection: null } && context.SecurityNeedsAttention && !context.IsMobile;
 
         return new MediaSectionNavigationItem(
             node.Label,
@@ -115,12 +121,15 @@ public static class SettingsMenuBuilder
             MetaAriaLabel: showReview
                 ? $"{count} item{(context.ReviewCount == 1 ? "" : "s")} need review"
                 : null,
-            AttentionDot: node is { Section: SettingsSection.Security, Subsection: null } && context.SecurityNeedsAttention,
-            Attention: localAiOff || pluginsBroken || integrationsBroken
+            // On a phone the row has no red shading, so it keeps the plain dot.
+            AttentionDot: node is { Section: SettingsSection.Security, Subsection: null } && context.SecurityNeedsAttention && !securityRed,
+            Attention: localAiOff || pluginsBroken || integrationsBroken || toolsMissing || securityRed
                 ? MediaSectionAttentionLevel.Blocked
                 : showReview && !context.IsMobile
                     ? MediaSectionAttentionLevel.Waiting
                     : MediaSectionAttentionLevel.None,
-            AttentionLabel: localAiOff || pluginsBroken || integrationsBroken ? "Broken" : null);
+            AttentionLabel: toolsMissing ? context.ToolsMissingReason
+                : securityRed ? "No password"
+                : localAiOff || pluginsBroken || integrationsBroken ? "Broken" : null);
     }
 }

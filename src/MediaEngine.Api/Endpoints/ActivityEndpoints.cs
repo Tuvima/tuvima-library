@@ -49,17 +49,18 @@ public static class ActivityEndpoints
         .Produces<List<ActivityEntryResponse>>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.SystemActivityRead);
 
-        // GET /activity/log?category=&search=&offset=&limit= — the Events part of System > Logs, already worded.
+        // GET /activity/log?category=&search=&mediaType=&offset=&limit= — the Events part of System > Logs, already worded.
         group.MapGet("/log", async (
             IActivityLogReadService readService,
             string? category,
             string? search,
+            string? mediaType,
             int? offset,
             int? limit,
             CancellationToken ct) =>
         {
             var page = PagedRequest.From(offset, limit, defaultLimit: 50);
-            return Results.Ok(await readService.GetLogAsync(category, search, page.Offset, page.Limit, ct));
+            return Results.Ok(await readService.GetLogAsync(category, search, page.Offset, page.Limit, mediaType, ct));
         })
         .WithName("GetActivityLog")
         .WithSummary("Returns one page of the Activity log (added media, Needs Review, failures and system events), newest first, in plain words.")

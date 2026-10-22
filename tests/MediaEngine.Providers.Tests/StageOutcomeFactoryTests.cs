@@ -230,7 +230,7 @@ public sealed class StageOutcomeFactoryTests
             => Task.FromResult<IReadOnlyList<SystemActivityEntry>>(
                 Entries.Where(e => e.ProfileId == profileId).Take(limit).ToList());
 
-        public Task<(IReadOnlyList<SystemActivityEntry> Items, int Total)> QueryAsync(IReadOnlyList<string> actionTypes, string? search, int offset, int limit, CancellationToken ct = default)
+        public Task<(IReadOnlyList<SystemActivityEntry> Items, int Total)> QueryAsync(IReadOnlyList<string> actionTypes, string? search, int offset, int limit, string? mediaType, CancellationToken ct = default)
             => Task.FromResult<(IReadOnlyList<SystemActivityEntry>, int)>(([], 0));
     }
 

@@ -3,7 +3,18 @@
 
 <div class="setup-stage-content">
     <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.TaskAlt" /><div><h2 id="setup-stage-title">@(Readiness?.CanComplete == true ? "You're all set" : "Almost there…")</h2><p>@Subtitle</p></div></div>
-    @if (Readiness is null || Busy && !Readiness.CanComplete)
+    @if (Readiness is null && Failed && !Busy)
+    {
+        <AppAlert Tone="AppUiTone.Warning">
+            <strong>Library could not finish checking your setup.</strong>
+            <p>This can happen when this browser is not signed in or the server did not answer. Sign in with the account you just created, or try again.</p>
+        </AppAlert>
+        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+            <AppButton Label="Try again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Retry" />
+            <AppButton Label="Sign in" ButtonStyle="AppButtonStyle.Outlined" Href="/auth/login" />
+        </SetupStageFooter>
+    }
+    else if (Readiness is null || Busy && !Readiness.CanComplete)
     {
         <div class="setup-preparing" role="status"><AppSpinner Indeterminate="true" Color="AppColor.Primary" /><span>Checking your account, libraries and providers…</span></div>
     }
@@ -38,15 +49,21 @@
                 <p><b>Next step:</b> @NextStep(tool)</p>
             </AppAlert>
         }
-        @if (OptionalToolNotes.Count > 0)
+        @* Optional tools never stop setup, so they are quiet info boxes (no warning colour), each with a way to get it now. *@
+        @foreach (var tool in OptionalTools)
         {
-            @* Quiet on purpose: optional tools never stop setup, so there is no warning colour. *@
-            <ul class="setup-tool-notes" aria-label="Optional tools">
-                @foreach (var note in OptionalToolNotes)
+            <AppAlert Tone="AppUiTone.Info" Class="setup-tool-info" data-tool-id="@tool.Id">
+                <strong>@OptionalHeadline(tool)</strong>
+                <p>@OptionalNote(tool)</p>
+                @if (tool.State == ToolRequirementStates.Downloading)
                 {
-                    <li>@note</li>
+                    <p>@(tool.DownloadPercent is { } percent ? $"Downloading ({percent}%). Library finishes this in the background." : "Downloading. Library finishes this in the background.")</p>
                 }
-            </ul>
+                else
+                {
+                    <p><AppButton Label="@($"Download {tool.Name}")" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => InstallTool.InvokeAsync(tool))" /> Or do it later in Settings, Tools and requirements.</p>
+                }
+            </AppAlert>
         }
         @if (!string.IsNullOrWhiteSpace(SampleScanDetail))
         {
@@ -63,6 +80,9 @@
     [Parameter] public ToolRequirementsDto? Tools { get; set; }
     [Parameter] public string? SampleScanDetail { get; set; }
     [Parameter] public bool Busy { get; set; }
+    [Parameter] public bool Failed { get; set; }
+    [Parameter] public EventCallback Retry { get; set; }
+    [Parameter] public EventCallback<ToolRequirementDto> InstallTool { get; set; }
     [Parameter] public EventCallback SampleScan { get; set; }
     [Parameter] public EventCallback Complete { get; set; }
     [Parameter] public EventCallback Back { get; set; }
@@ -91,10 +111,18 @@
         ? "None. Library finishes this in the background."
         : "Open your library, then go to Settings, Tools and requirements to install it.";
 
-    private IReadOnlyList<string> OptionalToolNotes => Tools?.Tools
-        .Where(tool => tool.Kind == "tool" && tool.Requirement == ToolRequirementLevels.Optional && tool.State != ToolRequirementStates.Ready)
-        .Select(tool => tool.Id == ToolRequirementIds.Tesseract ? TesseractNote : tool.Effect)
+    // Optional tools and the Local AI models are only offered; none of them blocks setup.
+    private IReadOnlyList<ToolRequirementDto> OptionalTools => Tools?.Tools
+        .Where(tool => tool.State != ToolRequirementStates.Ready
+            && (tool.Kind == "ai_model" || tool.Kind == "tool" && tool.Requirement == ToolRequirementLevels.Optional))
         .ToList() ?? [];
+
+    private static string OptionalHeadline(ToolRequirementDto tool) => tool.Kind == "ai_model" ? $"Local AI: {tool.Name}" : tool.Name;
+
+    private static string OptionalNote(ToolRequirementDto tool) =>
+        tool.Id == ToolRequirementIds.Tesseract ? TesseractNote
+        : tool.Kind == "ai_model" ? "Optional. Runs only on this computer and never sends your media anywhere. If the model file is already in the models folder, it is used instead of downloading it again."
+        : tool.Effect;
 
     private static bool ShowRow(SetupCapabilityDto item) => item.Key != "readiness" && (item.Key != "preflight" || item.Status == "blocked");
     private static string CapabilityLabel(string key) => key switch { "server" => "Server", "preflight" => "Server check", "administrator" => "Your Account", "media-locations" => "Libraries", "providers" => "Enhance your library", _ => key.Replace('-', ' ') };

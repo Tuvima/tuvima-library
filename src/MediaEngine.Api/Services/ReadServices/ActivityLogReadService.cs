@@ -22,11 +22,12 @@ public sealed class ActivityLogReadService : IActivityLogReadService
         string? search,
         int offset,
         int limit,
+        string? mediaType = null,
         CancellationToken ct = default)
     {
         var page = PagedRequest.From(offset, limit, DefaultLimit);
         var (entries, total) = await _activity
-            .QueryAsync(ActivityLogCategories.ActionTypesFor(category), search, page.Offset, page.Limit, ct)
+            .QueryAsync(ActivityLogCategories.ActionTypesFor(category), search, page.Offset, page.Limit, mediaType, ct)
             .ConfigureAwait(false);
 
         var items = new List<ActivityLogEntryDto>(entries.Count);
