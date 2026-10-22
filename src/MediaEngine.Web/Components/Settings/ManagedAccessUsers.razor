@@ -422,6 +422,8 @@
 
     private void OpenImport()
     {
+        if (!CanManage || DeviceContext.IsPhone)
+            return;
         ResetDrawer(UserDrawerMode.Import);
         _editing = null;
         _exportError = string.Empty;
@@ -435,7 +437,7 @@
     {
         await ReloadAll();
         var account = _accounts.FirstOrDefault(candidate => candidate.Id == added.AccountId);
-        if (account is null)
+        if (account is null || !CanManage || DeviceContext.IsPhone)
         {
             Close();
             _notice = $"{added.DisplayName} was added. Choose what they can see.";
@@ -450,7 +452,7 @@
     private async Task ExportAccount(AccountAccessResponse account)
     {
         _actionAccountId = null;
-        if (!TryBeginMutation(out var generation))
+        if (!CanManage || DeviceContext.IsPhone || !TryBeginMutation(out var generation))
             return;
         try
         {
@@ -471,6 +473,11 @@
                     : result.Failure == DashboardAccessMutationFailure.Transient ? "The Engine is unavailable. Try again."
                     : "The file couldn't be made. Try again.";
             }
+        }
+        catch (JSException)
+        {
+            // The browser refused the download (for example a blocked download): say so instead of losing the page.
+            _exportError = "The file couldn't be saved. Try again.";
         }
         finally
         {

@@ -13,6 +13,7 @@ using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Tests;
 
@@ -312,6 +313,19 @@ public sealed class UserTransferUsersTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("Another change is in progress. Try again in a moment.",
             cut.Find("[data-testid='access-export-error']").TextContent.Trim()));
         Assert.DoesNotContain(JSInterop.Invocations, call => call.Identifier == "tuvimaDownloads.fromStream");
+    }
+
+    [Fact]
+    public void ExportInTheRowMenu_WhenTheBrowserRefusesTheDownload_SaysSoAndKeepsThePage()
+    {
+        JSInterop.SetupVoid("tuvimaDownloads.fromStream", _ => true).SetException(new JSException("Download blocked"));
+        var cut = RenderUsers();
+        OpenMenu(cut);
+
+        ClickMenu(cut, "Export");
+
+        cut.WaitForAssertion(() => Assert.Equal("The file couldn't be saved. Try again.",
+            cut.Find("[data-testid='access-export-error']").TextContent.Trim()));
     }
 
     // ----- Import a user -----
