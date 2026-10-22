@@ -110,7 +110,11 @@ public sealed class RightSizedPictureEndpointTests : IDisposable
         using var response = await client.GetAsync($"/persons/{personId:D}/headshot?size=s&v={marker}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("private, no-cache", response.Headers.CacheControl?.ToString());
+        var cacheControl = response.Headers.CacheControl;
+        Assert.NotNull(cacheControl);
+        Assert.True(cacheControl.Private);
+        Assert.True(cacheControl.NoCache);
+        Assert.Null(cacheControl.MaxAge);
         Assert.NotNull(response.Headers.ETag);
     }
 
