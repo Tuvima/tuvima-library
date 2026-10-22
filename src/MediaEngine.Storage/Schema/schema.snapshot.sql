@@ -438,7 +438,8 @@ CREATE TABLE backup_restores (
     applied_rows      INTEGER NOT NULL,
     waiting_rows      INTEGER NOT NULL,
     attached_rows     INTEGER NOT NULL DEFAULT 0,
-    purged_rows       INTEGER NOT NULL DEFAULT 0
+    purged_rows       INTEGER NOT NULL DEFAULT 0,
+    yielded_rows      INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE backup_settings (
@@ -3149,6 +3150,8 @@ CREATE INDEX idx_device_photo_downloads_device_profile
 
 CREATE INDEX idx_device_photo_downloads_item
     ON device_photo_downloads(item_id);
+
+CREATE INDEX idx_editions_wikidata_qid ON editions(wikidata_qid);
 
 CREATE INDEX idx_editions_work_id
     ON editions(work_id);

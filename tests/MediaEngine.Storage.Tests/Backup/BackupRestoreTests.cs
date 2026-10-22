@@ -18,6 +18,9 @@ public sealed class BackupRestoreTests : IDisposable
     private static readonly DateTimeOffset RestoredAt = new(2026, 10, 22, 9, 0, 0, TimeSpan.Zero);
     private static readonly string Stamp = "2026-10-21T10:00:00Z";
 
+    /// <summary>What the player saves with a file's progress: where it stopped and the length of the cut, plus facts about the device.</summary>
+    private const string SavedTiming = """{"position_seconds":"4000.5","duration_seconds":"9300.5","playback_state":"paused","player_client":"web"}""";
+
     private readonly List<Store> _stores = [];
 
     // ---------------------------------------------------------------------------------------------------------
@@ -116,7 +119,7 @@ public sealed class BackupRestoreTests : IDisposable
         var target = NewStore();
         var profile = source.AddProfile("Maya");
         var movie = source.AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: "438631", hash: "aaaa1111", seconds: 9300.5);
-        source.AddUserState(profile, movie.Asset, 42.5);
+        source.AddUserState(profile, movie.Asset, 42.5, SavedTiming);
         source.AddAudiobookBookmark(profile, movie, 120.0, "Spice");
         source.AddDevicePosition(profile, movie, "living-room", 3000.0);
         Import(source, target);
@@ -131,7 +134,13 @@ public sealed class BackupRestoreTests : IDisposable
 
         Assert.Equal(3, pass.Attached);
         Assert.Equal(0, pass.StillWaiting);
-        Assert.Equal(42.5, target.Real("SELECT progress_pct FROM user_states", ("a", returned.Asset)));
+        Assert.Equal(42.5, target.Real("SELECT progress_pct FROM user_states WHERE asset_id = @a", ("a", returned.Asset)));
+
+        // The row carries the fingerprint of the file it now sits on, not the one the backup was made from.
+        Assert.Equal("bbbb2222", target.Text("SELECT content_hash FROM user_states WHERE asset_id = @a", ("a", returned.Asset)));
+
+        // On the same cut the saved timing comes back whole.
+        Assert.Equal(SavedTiming, target.Text("SELECT extended_properties FROM user_states WHERE asset_id = @a", ("a", returned.Asset)));
         Assert.Equal(120.0, target.Real("SELECT position_seconds FROM audiobook_bookmarks WHERE asset_id = @a AND work_id = @w", ("a", returned.Asset), ("w", returned.Work)));
         Assert.Equal(3000.0, target.Real("SELECT position_seconds FROM player_device_states WHERE asset_id = @a", ("a", returned.Asset)));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM waiting_personal_state"));
@@ -206,7 +215,7 @@ public sealed class BackupRestoreTests : IDisposable
         source.AddAudiobookBookmark(profile, movie, 100.0, "Chapter 2");
         source.AddAudiobookBookmark(profile, movie, 200.0, "A chapter this cut lacks");
         source.AddDevicePosition(profile, movie, "living-room", 3000.0);
-        source.AddUserState(profile, movie.Asset, 42.5);
+        source.AddUserState(profile, movie.Asset, 42.5, SavedTiming);
         source.AddConsumption(profile, movie.Asset, 30.0);
         Import(source, target);
 
@@ -215,16 +224,39 @@ public sealed class BackupRestoreTests : IDisposable
         target.AddChapter(cut.Asset, 1, "Chapter 2", 50_000);
         var pass = new WaitingPersonalStateRepository(target.Database).RunPass(RestoredAt.AddMinutes(1), 100, 90);
 
-        // The bookmark with a chapter this cut has lands in that chapter; a progress percent needs no alignment.
-        Assert.Equal(2, pass.Attached);
-        Assert.Equal(3, pass.StillWaiting);
+        // The bookmark with a chapter this cut has lands in that chapter; a progress percent needs no alignment, and the saved timing
+        // comes with its percent but without the seconds that belonged to the other cut.
+        Assert.Equal(3, pass.Attached);
+        Assert.Equal(2, pass.StillWaiting);
         Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM audiobook_bookmarks"));
         Assert.Equal(50.0, target.Real("SELECT position_seconds FROM audiobook_bookmarks WHERE chapter_title = 'Chapter 2'"));
         Assert.Equal(30.0, target.Real("SELECT progress_pct FROM consumption_history WHERE asset_id = @a", ("a", cut.Asset)));
 
-        // A position with no chapter name, and a saved timing, mean nothing on another cut: they keep waiting.
+        // A position with no chapter name means nothing on another cut: it keeps waiting.
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM player_device_states"));
-        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM user_states"));
+    }
+
+    [Fact]
+    public void Reattach_BringsProgressBackOnADifferentCut_WithoutTheSecondsOfTheOtherCut()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var profile = source.AddProfile("Maya");
+        var movie = source.AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: 9300.5);
+        source.AddUserState(profile, movie.Asset, 42.5, SavedTiming);
+        Import(source, target);
+
+        var cut = target.AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "bbbb2222", seconds: 8000.0);
+        var pass = new WaitingPersonalStateRepository(target.Database).RunPass(RestoredAt.AddMinutes(1), 100, 90);
+
+        Assert.Equal(1, pass.Attached);
+        Assert.Equal(0, pass.StillWaiting);
+        Assert.Equal(42.5, target.Real("SELECT progress_pct FROM user_states WHERE asset_id = @a", ("a", cut.Asset)));
+
+        // The seconds are gone; everything else the player saved stays.
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM user_states, json_each(extended_properties) WHERE key IN ('position_seconds', 'duration_seconds')"));
+        Assert.Equal("paused", target.Text("SELECT json_extract(extended_properties, '$.playback_state') FROM user_states WHERE asset_id = @a", ("a", cut.Asset)));
+        Assert.Equal("web", target.Text("SELECT json_extract(extended_properties, '$.player_client') FROM user_states WHERE asset_id = @a", ("a", cut.Asset)));
     }
 
     [Fact]
@@ -262,11 +294,64 @@ public sealed class BackupRestoreTests : IDisposable
         // The file returns and the person watches a little before the Library has looked for their old state.
         var returned = target.AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "bbbb2222", seconds: 9300.5);
         target.AddUserState(profile, returned.Asset, 7.0);
-        var pass = new WaitingPersonalStateRepository(target.Database).RunPass(RestoredAt.AddMinutes(1), 100, 90);
+        var repository = new WaitingPersonalStateRepository(target.Database);
+        var pass = repository.RunPass(RestoredAt.AddMinutes(1), 100, 90);
 
-        Assert.Equal(1, pass.Attached);
+        // Theirs stays, the waiting row is gone, and it is counted as yielded rather than attached.
+        Assert.Equal(0, pass.Attached);
+        Assert.Equal(1, pass.Yielded);
         Assert.Equal(7.0, target.Real("SELECT progress_pct FROM user_states WHERE asset_id = @a", ("a", returned.Asset)));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM waiting_personal_state"));
+        var summary = Assert.IsType<RestoreSummary>(repository.GetLatestRestore());
+        Assert.Equal(0, summary.AttachedRows);
+        Assert.Equal(1, summary.YieldedRows);
+    }
+
+    [Fact]
+    public void Reattach_YieldsAWaitingBookmarkPackWithItsItems_WhenThePackWasImportedAgainAfterTheRestore()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var profile = source.AddProfile("Maya");
+        var movie = source.AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: 9300.5);
+        source.AddBookmarkPack(profile, movie, itemCount: 2);
+        Import(source, target);
+
+        // The person imports the same pack again once the title is back: the same person, title and pack fingerprint.
+        var returned = target.AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "bbbb2222", seconds: 9300.5);
+        target.AddBookmarkPack(profile, returned, itemCount: 0);
+        var repository = new WaitingPersonalStateRepository(target.Database);
+        var pass = repository.RunPass(RestoredAt.AddMinutes(1), 100, 90);
+
+        // The waiting pack yields with its items (they would point at a pack that was never made): no failure, no retry.
+        Assert.Equal(0, pass.Attached);
+        Assert.Equal(1, pass.Yielded);
+        Assert.Equal(0, pass.FailedRows);
+        Assert.Equal(0, pass.StillWaiting);
+        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM bookmark_packs"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM bookmark_pack_items"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM waiting_personal_state"));
+        Assert.Equal(0, repository.RunPass(RestoredAt.AddMinutes(2), 100, 90).Checked);
+    }
+
+    [Fact]
+    public void Reattach_ReportsARowThatCouldNotBeWrittenByItsTable_AndKeepsItWaiting()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var profile = source.AddProfile("Maya");
+        var movie = source.AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: 9300.5);
+        source.AddUserState(profile, movie.Asset, 42.5);
+        Import(source, target);
+        target.AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "bbbb2222", seconds: 9300.5);
+        target.Execute("CREATE TRIGGER refuse_user_states BEFORE INSERT ON user_states BEGIN SELECT RAISE(ABORT, 'refused'); END");
+
+        var pass = new WaitingPersonalStateRepository(target.Database).RunPass(RestoredAt.AddMinutes(1), 100, 90);
+
+        Assert.Equal(0, pass.Attached);
+        Assert.Equal(1, pass.FailedRows);
+        Assert.Equal(["user_states"], pass.FailedTables);
+        Assert.Equal(1, pass.StillWaiting);
     }
 
     [Fact]
@@ -498,6 +583,54 @@ public sealed class BackupRestoreTests : IDisposable
     }
 
     // ---------------------------------------------------------------------------------------------------------
+    // Lookups use the indexes
+    // ---------------------------------------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData(LiveTitleResolver.AssetsByHashSql)]
+    [InlineData("DISTINCT_PARENTS_WORK")]
+    [InlineData("DISTINCT_PARENTS_EDITION")]
+    [InlineData(LiveTitleResolver.LocalItemsByHashSql)]
+    [InlineData(LiveTitleResolver.WorksByBridgeIdSql)]
+    [InlineData(LiveTitleResolver.WorksByEditionWikidataIdSql)]
+    [InlineData(LiveTitleResolver.WorksByWikidataIdSql)]
+    public void TitleLookups_UseAnIndex_NotAScanOfATable(string sql)
+    {
+        var store = NewStore();
+        sql = sql switch
+        {
+            "DISTINCT_PARENTS_WORK" => LiveTitleResolver.DistinctParentsSql("e.work_id"),
+            "DISTINCT_PARENTS_EDITION" => LiveTitleResolver.DistinctParentsSql("e.id"),
+            _ => sql,
+        };
+
+        var plan = store.Plan(sql);
+
+        // Every table is reached by a search on an index; nothing is read end to end.
+        var detail = string.Join(Environment.NewLine, plan);
+        Assert.DoesNotContain(plan, line => line.StartsWith("SCAN", StringComparison.OrdinalIgnoreCase));
+        Assert.True(plan.Any(line => line.Contains("USING INDEX", StringComparison.OrdinalIgnoreCase) || line.Contains("USING COVERING INDEX", StringComparison.OrdinalIgnoreCase)), detail);
+    }
+
+    [Fact]
+    public void TitleLookups_FindAFileWhateverCaseTheBackupWroteItsFingerprintIn()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var profile = source.AddProfile("Maya");
+        var scan = source.AddMovie("Family Scan", "2001", imdb: null, tmdb: null, hash: "ABCDEF12", seconds: 600.0);
+        source.AddUserState(profile, scan.Asset, 50.0);
+        Import(source, target);
+
+        // The Library stores fingerprints in lower case; the backup's capitals still find the same file.
+        var same = target.AddMovie("Family Scan", "2001", imdb: null, tmdb: null, hash: "abcdef12", seconds: 600.0);
+        var pass = new WaitingPersonalStateRepository(target.Database).RunPass(RestoredAt.AddMinutes(1), 100, 90);
+
+        Assert.Equal(1, pass.Attached);
+        Assert.Equal(50.0, target.Real("SELECT progress_pct FROM user_states WHERE asset_id = @a", ("a", same.Asset)));
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
     // Guardrails
     // ---------------------------------------------------------------------------------------------------------
 
@@ -644,10 +777,36 @@ public sealed class BackupRestoreTests : IDisposable
                 "INSERT INTO media_asset_chapters (asset_id, chapter_index, start_ms, title) VALUES (@asset, @index, @startMs, @title)",
                 new { asset, index, startMs, title });
 
-        public void AddUserState(byte[] profile, byte[] asset, double progress) =>
+        public void AddUserState(byte[] profile, byte[] asset, double progress, string? extendedProperties = null) =>
             Run(
-                "INSERT INTO user_states (user_id, asset_id, progress_pct, last_accessed) VALUES (@profile, @asset, @progress, @now)",
-                new { profile, asset, progress, now = Stamp });
+                "INSERT INTO user_states (user_id, asset_id, content_hash, progress_pct, last_accessed, extended_properties) VALUES (@profile, @asset, (SELECT content_hash FROM media_assets WHERE id = @asset), @progress, @now, COALESCE(@extended, '{}'))",
+                new { profile, asset, progress, now = Stamp, extended = extendedProperties });
+
+        public void Execute(string sql) => Run(sql, new { });
+
+        /// <summary>The rows of <c>EXPLAIN QUERY PLAN</c> for a query, as text. Parameters are bound to values that match nothing.</summary>
+        public List<string> Plan(string sql)
+        {
+            using var connection = Database.CreateConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = "EXPLAIN QUERY PLAN " + sql;
+            foreach (var name in new[] { "$hash", "$type", "$value" })
+            {
+                if (sql.Contains(name, StringComparison.Ordinal))
+                {
+                    command.Parameters.AddWithValue(name, "x");
+                }
+            }
+
+            using var reader = command.ExecuteReader();
+            var rows = new List<string>();
+            while (reader.Read())
+            {
+                rows.Add(reader.GetString(3));
+            }
+
+            return rows;
+        }
 
         /// <summary>A book: the work (with its Wikidata id when given), one edition carrying the ISBN, and its file.</summary>
         public Movie AddBook(string title, string? qid, string isbn, string hash, string edition)

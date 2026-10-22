@@ -5,7 +5,8 @@
 -- is written back and removed, and a row that has waited longer than the waiting period is cleared. Nothing is guessed: a row that matches more than one title keeps waiting.
 --
 -- backup_restores: one row per restore, with counts for the one-line summary. Rows put straight into place are applied_rows; rows that
--- started waiting are waiting_rows; attached_rows and purged_rows grow as the waiting area empties.
+-- started waiting are waiting_rows; attached_rows, yielded_rows and purged_rows grow as the waiting area empties. A row yields when the
+-- person made the same row in the Library since the restore: theirs stays, the waiting one is removed and it is not counted as attached.
 CREATE TABLE backup_restores (
     id                BLOB NOT NULL PRIMARY KEY,
     restored_at       TEXT NOT NULL,
@@ -14,7 +15,8 @@ CREATE TABLE backup_restores (
     applied_rows      INTEGER NOT NULL,
     waiting_rows      INTEGER NOT NULL,
     attached_rows     INTEGER NOT NULL DEFAULT 0,
-    purged_rows       INTEGER NOT NULL DEFAULT 0
+    purged_rows       INTEGER NOT NULL DEFAULT 0,
+    yielded_rows      INTEGER NOT NULL DEFAULT 0
 );
 
 -- waiting_personal_state: one parked row.
@@ -41,3 +43,6 @@ CREATE TABLE waiting_personal_state (
 
 CREATE INDEX idx_waiting_personal_state_created ON waiting_personal_state(created_at);
 CREATE INDEX idx_waiting_personal_state_profile ON waiting_personal_state(profile_id);
+
+-- The re-attach looks a title up by the Wikidata id of its edition (editions.wikidata_qid); without this it would scan every edition.
+CREATE INDEX IF NOT EXISTS idx_editions_wikidata_qid ON editions(wikidata_qid);
