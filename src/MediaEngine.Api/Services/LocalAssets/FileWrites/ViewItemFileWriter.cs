@@ -4,6 +4,7 @@ using MediaEngine.Api.Services.FileWrites;
 using MediaEngine.Api.Services.Tools.ExifTool;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Ingestion.Services;
@@ -36,6 +37,7 @@ public sealed partial class ViewItemFileWriter(
     IExifToolRunner exifTool,
     IViewPathIndexer indexer,
     IConfigurationLoader configuration,
+    TuvimaDataPaths paths,
     ILogger<ViewItemFileWriter> logger) : IFileWriteTargetWriter
 {
     internal const string WaitingForExifToolReason = "Waiting for ExifTool.";
@@ -57,9 +59,10 @@ public sealed partial class ViewItemFileWriter(
 
     /// <summary>
     /// Hidden copies that could not be put in place or renamed after a failed swap took the original away. They are the only copy of
-    /// the file, so the sweep never deletes them (kept for the life of the Engine, across runs).
+    /// the file, so the sweep never deletes them. The list is kept on disk and loaded when the writer is created, so it survives a restart.
     /// </summary>
-    private readonly HashSet<string> _strandedCopies = new(StringComparer.OrdinalIgnoreCase);
+    private readonly StrandedCopyRecord _strandedCopies = StrandedCopyRecord.Open(
+        Path.Combine(paths.Root, "file-writes", "stranded-copies.json"), logger);
 
     /// <summary>How a hidden copy is deleted. A seam so a test can make one leftover impossible to delete.</summary>
     internal Action<string> DeleteCopy { get; set; } = DeleteHiddenCopy;
@@ -72,6 +75,7 @@ public sealed partial class ViewItemFileWriter(
     public async Task BeginRunAsync(CancellationToken ct)
     {
         await CloseSessionAsync();
+        _strandedCopies.Refresh();
         _exifToolUnavailable = false;
         _foldersChecked.Clear();
     }
@@ -549,7 +553,7 @@ public sealed partial class ViewItemFileWriter(
             }
         }
 
-        _strandedCopies.Add(Path.GetFullPath(temporary));
+        _strandedCopies.Add(new StrandedCopy(Path.GetFullPath(temporary), path));
         logger.LogError(
             "Replacing a View file failed after the original was gone, and its new copy could not be moved or renamed. The only copy of the content stays at {CopyPath} (the file was {OriginalPath}) and is never cleared away.",
             temporary, path);
@@ -560,6 +564,13 @@ public sealed partial class ViewItemFileWriter(
     {
         if (!_foldersChecked.Add(folder))
         {
+            return;
+        }
+
+        if (!_strandedCopies.Readable)
+        {
+            // A stranded copy that cannot be seen might be among the candidates; clearing waits until the list can be read.
+            logger.LogWarning("Leftover temporary copies beside View files were not cleared, because the list of kept copies could not be read.");
             return;
         }
 

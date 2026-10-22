@@ -676,6 +676,53 @@ public sealed class ViewItemFileWriterTests : IDisposable
     }
 
     [Fact]
+    public async Task AStrandedCopy_IsRecordedOnDisk_AndAfterARestartTheSweepStillKeepsItWhenItIsOverAnHourOld()
+    {
+        var (neighbourId, path, copy) = await _h.StrandACopyAsync("stranded.jpg");
+        Assert.Contains(Path.GetFullPath(copy), File.ReadAllText(_h.StrandedRecordPath));
+
+        var restarted = _h.NewWriter();
+        var result = Assert.Single(await _h.RunWithAsync(restarted, neighbourId));
+
+        Assert.Equal(WriteBackOutcomeKind.Verified, result.Outcome.Kind);
+        Assert.True(File.Exists(copy), "The only copy of the content must survive the restart and the sweep.");
+        Assert.Contains(_h.Logger.Entries, entry => entry.Level == LogLevel.Error
+            && entry.Message.Contains(path) && entry.Message.Contains(copy) && entry.Message.Contains("nothing will delete it"));
+    }
+
+    [Fact]
+    public async Task WhenTheRecordOfStrandedCopiesCannotBeRead_TheSweepDeletesNothingThatRun()
+    {
+        var (neighbourId, _, copy) = await _h.StrandACopyAsync("unreadable.jpg");
+        var otherLeftover = Path.Combine(Path.GetDirectoryName(copy)!, ViewStorageService.WriteCopyPrefix + new string('a', 32) + ".jpg");
+        File.WriteAllBytes(otherLeftover, [1, 2, 3]);
+        File.SetLastWriteTimeUtc(otherLeftover, DateTime.UtcNow.AddDays(-3));
+        File.SetCreationTimeUtc(otherLeftover, DateTime.UtcNow.AddDays(-3));
+        File.WriteAllText(_h.StrandedRecordPath, "this is not a list {");
+
+        var restarted = _h.NewWriter();
+        var result = Assert.Single(await _h.RunWithAsync(restarted, neighbourId));
+
+        Assert.Equal(WriteBackOutcomeKind.Verified, result.Outcome.Kind);
+        Assert.True(File.Exists(copy));
+        Assert.True(File.Exists(otherLeftover), "With the record unreadable, no leftover is cleared.");
+        Assert.Contains(_h.Logger.Entries, entry => entry.Level == LogLevel.Warning && entry.Message.Contains("could not be read"));
+        Assert.Equal("this is not a list {", File.ReadAllText(_h.StrandedRecordPath));
+    }
+
+    [Fact]
+    public async Task ARecordedCopyWhoseFileIsGone_DropsOutOfTheRecord_WhenTheWriterStarts()
+    {
+        var (_, _, copy) = await _h.StrandACopyAsync("gone.jpg");
+        Assert.Contains(Path.GetFullPath(copy), File.ReadAllText(_h.StrandedRecordPath));
+        File.Delete(copy);
+
+        _ = _h.NewWriter();
+
+        Assert.DoesNotContain(Path.GetFullPath(copy), File.ReadAllText(_h.StrandedRecordPath));
+    }
+
+    [Fact]
     public async Task TheCopyDoesNotCarryTheOriginalsOldCreationTimeIntoTheSwap_AndTheFileGetsItBackAfterTheSwap()
     {
         var runner = new MarkerExifToolRunner();
@@ -1211,7 +1258,16 @@ internal sealed class ViewWriteHarness : IDisposable
     public RecordingFileWriteQueue Queue { get; }
     public ViewItemFileWriteRepository Files { get; }
 
-    public ViewItemFileWriter Writer => _writer ??= new ViewItemFileWriter(
+    public ViewItemFileWriter Writer => _writer ??= NewWriter();
+
+    /// <summary>Where the Engine's data folder is for this harness (the list of kept copies lives under it).</summary>
+    public string DataRoot => Path.Combine(_toolRoot, "data");
+
+    /// <summary>The file that lists the kept copies the sweep must never clear.</summary>
+    public string StrandedRecordPath => Path.Combine(DataRoot, "file-writes", "stranded-copies.json");
+
+    /// <summary>A new writer over the same files and data folder, as after an Engine restart.</summary>
+    public ViewItemFileWriter NewWriter() => new(
         Files,
         new ProfileRepository(Fixture.Database),
         Fixture.Spaces,
@@ -1220,6 +1276,7 @@ internal sealed class ViewWriteHarness : IDisposable
         _runner,
         Fixture.Service,
         Fixture.Configuration,
+        new TuvimaDataPaths(DataRoot),
         Logger);
 
     public void Dispose()
@@ -1241,7 +1298,7 @@ internal sealed class ViewWriteHarness : IDisposable
     public ExifToolRunner UseRealExifTool()
     {
         var locator = new ExifToolLocator(
-            new TuvimaDataPaths(Path.Combine(_toolRoot, "data")),
+            new TuvimaDataPaths(DataRoot),
             new MediaEngine.Storage.ConfigurationDirectoryLoader(Path.Combine(_toolRoot, "config")),
             NullLogger<ExifToolLocator>.Instance,
             name => name == ExifToolLocator.PathVariable ? RealExifTool.Find() : Environment.GetEnvironmentVariable(name));
@@ -1283,17 +1340,46 @@ internal sealed class ViewWriteHarness : IDisposable
         .ToList();
 
     /// <summary>One run, as the scheduler makes it: start, one batch, finish.</summary>
-    public async Task<IReadOnlyList<FileWriteResult>> RunAsync(params Guid[] itemIds)
+    public Task<IReadOnlyList<FileWriteResult>> RunAsync(params Guid[] itemIds) => RunWithAsync(Writer, itemIds);
+
+    /// <summary>One run through a given writer (for a writer made after a simulated restart).</summary>
+    public async Task<IReadOnlyList<FileWriteResult>> RunWithAsync(ViewItemFileWriter writer, params Guid[] itemIds)
     {
-        await Writer.BeginRunAsync(CancellationToken.None);
+        await writer.BeginRunAsync(CancellationToken.None);
         try
         {
-            return await Writer.WriteBatchAsync(Intents(itemIds), CancellationToken.None);
+            return await writer.WriteBatchAsync(Intents(itemIds), CancellationToken.None);
         }
         finally
         {
-            await Writer.EndRunAsync(CancellationToken.None);
+            await writer.EndRunAsync(CancellationToken.None);
         }
+    }
+
+    /// <summary>
+    /// Leaves the only copy of a file under its hidden name: the swap takes the original away and blocks its place, and every
+    /// recovered name is taken. Returns the neighbour item (to start a later run), the original's path, and the stranded copy.
+    /// </summary>
+    public async Task<(Guid NeighbourId, string OriginalPath, string Copy)> StrandACopyAsync(string name)
+    {
+        UseRunner(new MarkerExifToolRunner());
+        var (itemId, path) = await AddAsync(name, Jpeg(40));
+        var (neighbourId, _) = await AddAsync("neighbour-of-" + name, Jpeg(41));
+        var stem = Path.GetFileNameWithoutExtension(path);
+        for (var number = 1; number <= 100; number++)
+        {
+            File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(path)!, stem + ".tuvima-recovered" + (number == 1 ? "" : "-" + number) + ".jpg"), [9]);
+        }
+
+        Writer.FileSwap = new DeletingThenBlockingSwap();
+        var result = Assert.Single(await RunAsync(itemId));
+        Assert.Equal(WriteBackOutcomeKind.Failed, result.Outcome.Kind);
+        var copy = Assert.Single(TemporaryCopiesBeside(path));
+        File.SetLastWriteTimeUtc(copy, DateTime.UtcNow.AddDays(-3));
+        File.SetCreationTimeUtc(copy, DateTime.UtcNow.AddDays(-3));
+        Directory.Delete(path);
+        Writer.FileSwap = new MoveViewFileSwap();
+        return (neighbourId, path, copy);
     }
 
     public string RecordedHash(Guid itemId)
