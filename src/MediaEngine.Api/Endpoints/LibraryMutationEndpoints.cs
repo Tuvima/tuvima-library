@@ -32,7 +32,7 @@ internal static class LibraryMutationEndpoints
             try
             {
                 var current = configuration.LoadLibraries();
-                var dto = SettingsContractMapper.ToContract(current);
+                var dto = SettingsContractMapper.ToContract(current, configuration);
                 var conflict = ApplyEdit(dto, request);
                 if (conflict is not null)
                 {
@@ -52,7 +52,6 @@ internal static class LibraryMutationEndpoints
                 FolderJobService.KeepEngineOwnedConversionState(current, proposed);
                 var error = SettingsEndpoints.ValidateViewStorage(proposed)
                     ?? SettingsEndpoints.ValidateViewRootChange(current, proposed)
-                    ?? LibraryTypeRules.ValidateOneLibraryPerType(current, proposed)
                     ?? ImportFolderValidation.Validate(proposed)
                     ?? libraryKinds.ValidateLibraries(proposed);
                 if (error is not null)
@@ -60,7 +59,7 @@ internal static class LibraryMutationEndpoints
                     return ApiErrors.BadRequest(error);
                 }
 
-                var errors = JsonConfigValidator.Validate(proposed, "libraries.json");
+                var errors = JsonConfigValidator.Validate(proposed, "libraries.json", configuration.LoadLibraryKinds().Kinds);
                 if (errors.Count > 0)
                 {
                     return ApiErrors.BadRequest(string.Join(" ", errors));
@@ -119,7 +118,7 @@ internal static class LibraryMutationEndpoints
                     }
                 }
 
-                return Results.Ok(SettingsContractMapper.ToContract(proposed));
+                return Results.Ok(SettingsContractMapper.ToContract(proposed, configuration));
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException or ServerFolderAccessException)
             {

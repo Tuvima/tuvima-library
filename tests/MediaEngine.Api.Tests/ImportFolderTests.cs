@@ -56,8 +56,7 @@ public sealed class ImportFolderTests
 
         Assert.True(status.Configured);
         Assert.False(status.Ready);
-        // The types follow the order of the library kinds list: Watch, Listen, then Read.
-        Assert.Equal(["Movies", "TV Shows", "Videos", "Music", "Audiobooks", "Books", "Comics"], status.MissingTypes);
+        Assert.Equal(["Books", "Audiobooks", "Movies", "TV Shows", "Music", "Comics", "Videos"], status.MissingTypes);
     }
 
     [Fact]
@@ -68,7 +67,7 @@ public sealed class ImportFolderTests
         var status = ImportFolderRules.Evaluate(config);
 
         Assert.False(status.Ready);
-        Assert.Equal(["TV Shows", "Videos", "Music", "Audiobooks", "Comics"], status.MissingTypes);
+        Assert.Equal(["Audiobooks", "TV Shows", "Music", "Comics", "Videos"], status.MissingTypes);
     }
 
     [Fact]

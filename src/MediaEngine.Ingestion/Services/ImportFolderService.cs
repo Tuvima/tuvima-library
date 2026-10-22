@@ -22,6 +22,8 @@ public sealed class ImportFolderService : IImportFolderService
     private readonly object _cacheLock = new();
     private LibrariesConfiguration? _cached;
     private (DateTime LastWriteUtc, long Length)? _cachedStamp;
+    private IReadOnlyList<(string Label, string[] MediaTypes)>? _cachedTypes;
+    private (DateTime LastWriteUtc, long Length)? _cachedTypesStamp;
 
     public ImportFolderService(IConfigurationLoader configLoader, ILogger<ImportFolderService> logger)
     {
@@ -56,8 +58,8 @@ public sealed class ImportFolderService : IImportFolderService
             return null;
         }
 
-        var label = ImportFolderRules.LabelForSubfolder(Path.GetFileName(folder));
-        var type = ImportFolderRules.Types.FirstOrDefault(candidate =>
+        var label = ImportFolderRules.LabelForSubfolder(Path.GetFileName(folder), ImportTypes());
+        var type = ImportTypes().FirstOrDefault(candidate =>
             string.Equals(candidate.Label, label, StringComparison.OrdinalIgnoreCase));
         if (type.MediaTypes is null)
         {
@@ -82,7 +84,7 @@ public sealed class ImportFolderService : IImportFolderService
             .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
 
         // A file at the root has one segment (its own name); the per-type folder is the first of several.
-        return segments.Length >= 2 && ImportFolderRules.LabelForSubfolder(segments[0]) is not null
+        return segments.Length >= 2 && ImportFolderRules.LabelForSubfolder(segments[0], ImportTypes()) is not null
             ? Path.Combine(normalizedRoot!, segments[0])
             : null;
     }
@@ -97,7 +99,7 @@ public sealed class ImportFolderService : IImportFolderService
 
     public ImportDestination ResolveDestination(MediaType mediaType, long requiredBytes = 0)
     {
-        var type = ImportFolderRules.TypeForMediaType(mediaType.ToString());
+        var type = ImportFolderRules.TypeForMediaType(mediaType.ToString(), ImportTypes());
         if (type is null)
         {
             return new ImportDestination(mediaType.ToString(), ImportDestinationState.NoManagedFolder);
@@ -178,7 +180,7 @@ public sealed class ImportFolderService : IImportFolderService
                 Directory.CreateDirectory(normalizedRoot!);
             }
 
-            foreach (var name in ImportFolderRules.Subfolders)
+            foreach (var name in ImportFolderRules.SubfoldersFrom(LoadKinds()))
             {
                 var folder = Path.Combine(normalizedRoot!, name);
                 if (!Directory.Exists(folder))
@@ -214,7 +216,7 @@ public sealed class ImportFolderService : IImportFolderService
             var isProtected = IsWorkingPath(directory.FullName)
                 || (parent is not null
                     && PathSafety.Comparer.Equals(Path.TrimEndingDirectorySeparator(parent.FullName), normalizedRoot)
-                    && ImportFolderRules.LabelForSubfolder(directory.Name) is not null);
+                    && ImportFolderRules.LabelForSubfolder(directory.Name, ImportTypes()) is not null);
             if (isProtected || directory.EnumerateFileSystemInfos().Any())
             {
                 return;
@@ -267,6 +269,44 @@ public sealed class ImportFolderService : IImportFolderService
         }
     }
 
+    // The media types and per-type folders come from the kinds list in config/library_kinds.json (the built-in kinds when the file
+    // is missing). A kinds file that can't be read is reported and the kinds that ship are used, so a typo there can't stop imports.
+    private IReadOnlyList<LibraryKindDefinition> LoadKinds()
+    {
+        try
+        {
+            return _configLoader.LoadLibraryKinds().Kinds;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Could not read the library kinds for the import folder; using the kinds that ship with Library");
+            return LibraryKindsConfiguration.BuiltIn();
+        }
+    }
+
+    private IReadOnlyList<(string Label, string[] MediaTypes)> ImportTypes()
+    {
+        var directory = _configLoader.ConfigDirectoryPath;
+        var file = string.IsNullOrWhiteSpace(directory) ? null : new FileInfo(Path.Combine(directory, "library_kinds.json"));
+        (DateTime LastWriteUtc, long Length)? stamp = file is { Exists: true } ? (file.LastWriteTimeUtc, file.Length) : null;
+        lock (_cacheLock)
+        {
+            if (stamp is not null && _cachedTypes is not null && _cachedTypesStamp == stamp)
+            {
+                return _cachedTypes;
+            }
+        }
+
+        var types = ImportFolderRules.TypesFrom(LoadKinds());
+        lock (_cacheLock)
+        {
+            _cachedTypes = stamp is null ? null : types;
+            _cachedTypesStamp = stamp;
+        }
+
+        return types;
+    }
+
     private (DateTime LastWriteUtc, long Length)? ReadStamp()
     {
         var directory = _configLoader.ConfigDirectoryPath;
@@ -279,9 +319,9 @@ public sealed class ImportFolderService : IImportFolderService
         return file.Exists ? (file.LastWriteTimeUtc, file.Length) : null;
     }
 
-    private static LibraryFolderConfig? FindLibrary(LibrariesConfiguration configuration, MediaType mediaType)
+    private LibraryFolderConfig? FindLibrary(LibrariesConfiguration configuration, MediaType mediaType)
     {
-        var type = ImportFolderRules.TypeForMediaType(mediaType.ToString());
+        var type = ImportFolderRules.TypeForMediaType(mediaType.ToString(), ImportTypes());
         if (type is null)
         {
             return null;

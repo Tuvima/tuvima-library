@@ -237,7 +237,7 @@ Defines the clean schema 7 library model used by **Settings > Libraries**. The r
 | `area` | string | `read`, `watch`, `listen`, `view`, or `vault`. |
 | `presentation` | string | Catalogue, gallery, mixed gallery, timeline, video, documents, audio, or mixed presentation. |
 | `metadata_policy` | string | `enriched`, `local_preferred`, `local_only`, or `manual`. The last two bypass external identity/provider work. |
-| `media_types` | string[] | Structured media types expected by catalogued libraries. A View Personal Space may index mixed local media through its backing personal library. Each media type may belong to only one catalogued library; the Engine rejects a change that adds a second one (older duplicates already saved are tolerated). |
+| `media_types` | string[] | Structured media types expected by catalogued libraries. A View Personal Space may index mixed local media through its backing personal library. How many catalogued libraries may hold the same media type is decided by their kinds, not by the media type: a kind that looks details up holds one library, a plain kind holds up to its `max_libraries`, and kinds that share a format (for example a plugin's Podcasts and Music, both `Music`) each have their own libraries. The Engine rejects a change that breaks a kind's limit (see `config/library_kinds.json`). |
 | `sources` | object[] | Stable source objects; see below. Array order has no meaning. |
 | `primary_destination_source_id` | GUID string? | The one folder new media is filed into: a managed source of this library, or `null` when there is none. A read-only folder is never a destination. On save the first managed folder added becomes the destination; if it is removed or switched to read-only, the earliest-added remaining managed folder takes over, and with none left it is `null`. If the destination is unavailable, files wait in Import; there is no fallback to another folder. |
 | `owner_profile_id` | GUID string? | Owning profile for personal access decisions. |
@@ -315,8 +315,10 @@ The one list of **library kinds** ("recipes"): every type of library the Library
 | `kinds[].order` | integer | Position among the kinds of its area. |
 | `kinds[].built_in` | boolean | True for the kinds that ship with the Library. |
 | `kinds[].available` | boolean | False while a kind is defined but not offered on any screen (YouTube, Other audio and Other reading, until they work). Defaults to true. |
+| `kinds[].allows_multiple` | boolean | True when a person may keep several named libraries of this kind (for example "Lectures" and "Family recordings" under Other videos). Defaults to false, which means one library. |
+| `kinds[].max_libraries` | integer | The most libraries of this kind (1 to 20). Defaults to 1; above 1 only when `allows_multiple` is true. The kinds that ship with `allows_multiple` allow 5. |
 
-The kinds that ship, in order: Watch has `movies`, `tv`, `youtube`, `other_videos` (labelled "Videos"); Listen has `music`, `audiobooks`, `other_audio`; Read has `books`, `comics`, `other_reading`; View has `photos`. Each library in `config/libraries.json` names its kind with `kind_key`.
+The kinds that ship, in order: Watch has `movies`, `tv`, `youtube`, `other_videos` (labelled "Videos"); Listen has `music`, `audiobooks`, `other_audio`; Read has `books`, `comics`, `other_reading`; View has `photos`. Each library in `config/libraries.json` names its kind with `kind_key`. A kind that does not allow several holds one library; a kind that does holds up to `max_libraries`, each with its own name, unique (ignoring case) among the libraries of its area and never another kind's label. Several kinds may share a format. The file is described by `config/schemas/library_kinds.schema.json`. Each kind's lookup providers and naming template are checked against `config/providers/` and `config/core.json` when the Engine starts and when the file is edited, so a typo is reported with the file and the kind it is in; the import folder's media types and folders are read from this file too.
 
 ---
 

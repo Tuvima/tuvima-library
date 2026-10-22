@@ -177,18 +177,46 @@
         }
     }
 
+    // Type pages whose key changed with the kinds list: a bookmark to the old address lands on the page that replaced it.
+    private static readonly Dictionary<string, string> RenamedTypeKeys = new(StringComparer.OrdinalIgnoreCase) { ["videos"] = "other_videos" };
+
+    private string? RenamedTypeAddress()
+    {
+        if (string.IsNullOrWhiteSpace(Subsection)
+            || string.IsNullOrWhiteSpace(Detail)
+            || !RenamedTypeKeys.TryGetValue(Detail.Trim(), out var current)
+            || Kinds.TryGetVisibleGroup(Subsection.Trim(), VaultVisible) is not { } group
+            || !group.TypeKeys.Contains(current, StringComparer.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return LibraryGroupCatalog.TypeAddress(group, current);
+    }
+
     // Saved links to /settings/libraries?type=movies still work: they land on that type's own address.
     private bool RedirectSavedLink()
+    {
+        var address = RenamedTypeAddress() ?? TypeQueryAddress();
+        if (address is null)
+        {
+            return false;
+        }
+
+        Navigation.NavigateTo(address, replace: true);
+        return true;
+    }
+
+    private string? TypeQueryAddress()
     {
         if (!string.IsNullOrWhiteSpace(Subsection)
             || Kinds.Find(RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("type")) is not { } type
             || Kinds.GroupFor(type.Key) is not { } group)
         {
-            return false;
+            return null;
         }
 
-        Navigation.NavigateTo(LibraryGroupCatalog.TypeAddress(group, type.Key), replace: true);
-        return true;
+        return LibraryGroupCatalog.TypeAddress(group, type.Key);
     }
 
     private async Task LoadAsync()
