@@ -302,7 +302,7 @@ public static partial class BackupTableClassification
     }
 
     // Collections built by a person (custom collections and playlists). Rows for universes and series come from providers.
-    private const string PersonBuiltCollections = "collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart')";
+    internal const string PersonBuiltCollections = "collection_type IN ('Custom', 'Playlist', 'PlaylistFolder', 'Smart')";
 
     private const string InPersonBuiltCollection = "collection_id IN (SELECT id FROM collections WHERE " + PersonBuiltCollections + ")";
 
