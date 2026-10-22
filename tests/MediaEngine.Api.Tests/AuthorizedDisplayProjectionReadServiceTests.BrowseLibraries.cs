@@ -411,7 +411,32 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         var limited = Guid.NewGuid();
         await CreateHumanAsync(limited, EveryFeature, new HashSet<Guid> { MoviesLibrary });
+        // The limited profile still sees its own library's work, with the library given and with none, so an empty answer cannot pass for "narrowed".
+        Assert.Equal([inMovies.WorkId], (await NarrowedWorkIdsAsync(limited, MoviesLibrary, false)).ToArray());
+        Assert.Equal([inMovies.WorkId], (await NarrowedWorkIdsAsync(limited, null, false)).ToArray());
         Assert.Empty(await NarrowedWorkIdsAsync(limited, LecturesLibrary, false));
+    }
+
+    [Fact]
+    public async Task GroupNarrowing_TheUnmatchedFilter_ReturnsNothingForAProfileWithoutTheLibrarysGrant_EvenWhenTheLibraryHasUnmatchedFiles()
+    {
+        var admin = Guid.NewGuid();
+        await CreateHumanAsync(admin, EveryFeature, new HashSet<Guid>(), administrator: true);
+        var limited = Guid.NewGuid();
+        await CreateHumanAsync(limited, EveryFeature, new HashSet<Guid> { MoviesLibrary });
+        var matched = await InsertOwnedWorkWithIdAsync(MoviesLibrary, "Matched film", "Movie");
+        var lecture = await InsertOwnedWorkWithIdAsync(LecturesLibrary, "Unmatched lecture", "Movie");
+        await MarkUnmatchedAsync(lecture.AssetId, LecturesLibrary, keep: false);
+
+        // The administrator proves the file is there to be found.
+        Assert.Equal([lecture.WorkId], (await NarrowedWorkIdsAsync(admin, null, true)).ToArray());
+        Assert.Equal([lecture.WorkId], (await NarrowedWorkIdsAsync(admin, LecturesLibrary, true)).ToArray());
+
+        Assert.Empty(await NarrowedWorkIdsAsync(limited, null, true));
+        Assert.Empty(await NarrowedWorkIdsAsync(limited, LecturesLibrary, true));
+        Assert.Empty(await NarrowedWorkIdsAsync(limited, MoviesLibrary, true));
+        // And the limited profile still sees what it is granted.
+        Assert.Equal([matched.WorkId], (await NarrowedWorkIdsAsync(limited, MoviesLibrary, false)).ToArray());
     }
 
     [Fact]
