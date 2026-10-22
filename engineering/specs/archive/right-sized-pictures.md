@@ -185,6 +185,14 @@ Recorded by the building session. None changes what the person sees; each is the
 - **B8. Screens.** Fixed-size pictures (faces, rows, thumbnails) ask for one copy and offer the next copy up to sharper screens (a 1x/2x/3x list). Screen-wide pictures (heroes, backgrounds) let the browser choose between medium and large by screen width (D2).
 - **B9. Not yet marked.** About fifteen picture addresses are built by Engine lookups that know only the picture's id, not its file; they work and are re-checked on each use (no bytes when unchanged), but are not kept for a year. Adding the marker there means reading the file path in those lookups; listed as a follow-up.
 
+## 13. Features to consider later (Shy, 2026-10-22)
+
+Not scheduled. Each needs a plan and Shy's go-ahead before it is built.
+
+- **F1. WebP copies.** Save the tiny, small and medium copies as WebP instead of the source format (D7), roughly a quarter smaller again. Decide with the real byte counts from Local check L1.
+- **F2. Mark the remaining picture addresses.** About fifteen addresses on detail, collection and editor screens are built from the picture's id alone, so the browser re-checks them on each visit instead of keeping them (B9). Reading the picture's file in those lookups would let them be kept too.
+- **F3. Let faces be kept like covers.** Keep each person's stored face path in step with every way a face is changed (upload, editor pick, provider), then let faces be kept for a year (B5). In the same change, stop the administrator's "clean up stored files" action from deleting character-picture copies, which are otherwise remade on the next view.
+
 ## Plain English summary
 
 Today the app already makes smaller copies of most pictures, but people's faces skip that system and the browser is told nothing about keeping pictures, so the People list downloads full-size originals for tiny circles. The plan adds a very small size for faces and thumbnails, makes sure every picture has all its sizes, tells the browser to keep pictures it has seen, and fixes each screen to ask for the size it actually draws. A test then stops new screens from forgetting. Result: faster pages, less data on phones and TVs, and no change to how pictures look.
