@@ -15,8 +15,10 @@ public sealed class NsfwRequestBodyLoggingGuardrailTests
         "AddHttpLogging", "UseHttpLogging", "UseSerilogRequestLogging", "HttpLoggingFields", "EnableBuffering",
     ];
 
-    // The one place that reads a raw request body is the plugin application gateway, which is not a Vault mode route and logs no body.
-    private static readonly string[] RawBodyReadersAllowed = ["Endpoints/PluginApplicationServiceEndpoints.cs"];
+    // The two places that read a raw request body are plugin gateways: the application gateway, and the published plugin door for
+    // separately running plugins (Developer tools WP18; it reads a size-capped JSON body into memory). Neither is a Vault mode route
+    // and neither logs a body. Adding the plugin door was approved by the Product Owner on 2026-10-22.
+    private static readonly string[] RawBodyReadersAllowed = ["Endpoints/PluginApplicationServiceEndpoints.cs", "Endpoints/PluginHostEndpoints.cs"];
 
     [Fact]
     public void TheEngine_HasNoRequestBodyLoggingMachinery_AndReadsNoRawBodyOutsideTheAllowedGateway()
