@@ -12,9 +12,14 @@ namespace MediaEngine.Storage;
 /// </summary>
 public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatchedAssetRepository
 {
-    private const string SelectSql = """
+    // The library a file is in now: a file that moved to another library has its media asset updated, while the stored library_id is only
+    // what the row was marked with. Counts, lists and the library-wide actions all go by this, so a moved file follows its library.
+    private const string CurrentLibrary =
+        "COALESCE(NULLIF((SELECT ma.library_id FROM media_assets ma WHERE ma.id = unmatched_assets.asset_id), ''), unmatched_assets.library_id)";
+
+    private const string SelectSql = $"""
         SELECT asset_id AS AssetId,
-               library_id AS LibraryId,
+               {CurrentLibrary} AS LibraryId,
                reason AS Reason,
                first_unmatched_at AS FirstUnmatchedAt,
                last_tried_at AS LastTriedAt,
@@ -88,12 +93,12 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryId);
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
-        return Task.FromResult(connection.Execute("""
+        return Task.FromResult(connection.Execute($"""
             UPDATE unmatched_assets
             SET kept_as_is = 1,
                 kept_at = @now,
                 next_retry_at = NULL
-            WHERE library_id = @libraryId AND kept_as_is = 0;
+            WHERE kept_as_is = 0 AND {CurrentLibrary} = @libraryId;
             """,
             new { libraryId, now = Format(now) }));
     }
@@ -125,10 +130,10 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
     {
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
-        return Task.FromResult(connection.Execute("""
+        return Task.FromResult(connection.Execute($"""
             UPDATE unmatched_assets
             SET next_retry_at = @now
-            WHERE kept_as_is = 0 AND (@libraryId IS NULL OR library_id = @libraryId);
+            WHERE kept_as_is = 0 AND (@libraryId IS NULL OR {CurrentLibrary} = @libraryId);
             """,
             new { libraryId, now = Format(now) }));
     }
@@ -138,7 +143,7 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
         var rows = connection.Query<Row>(
-            $"{SelectSql} WHERE kept_as_is = 0 AND next_retry_at IS NOT NULL AND next_retry_at <= @now AND (@libraryId IS NULL OR library_id = @libraryId) ORDER BY next_retry_at, asset_id LIMIT @limit;",
+            $"{SelectSql} WHERE kept_as_is = 0 AND next_retry_at IS NOT NULL AND next_retry_at <= @now AND (@libraryId IS NULL OR {CurrentLibrary} = @libraryId) ORDER BY next_retry_at, asset_id LIMIT @limit;",
             new { now = Format(now), limit = Math.Max(1, limit), libraryId });
         return Task.FromResult<IReadOnlyList<UnmatchedAsset>>(rows.Select(row => row.ToModel()).ToList());
     }
@@ -162,7 +167,7 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
         var counts = connection.Query<CountRow>(
-            "SELECT library_id AS LibraryId, COUNT(*) AS Total FROM unmatched_assets WHERE kept_as_is = 0 GROUP BY library_id;");
+            $"SELECT {CurrentLibrary} AS LibraryId, COUNT(*) AS Total FROM unmatched_assets WHERE kept_as_is = 0 GROUP BY {CurrentLibrary};");
         return Task.FromResult<IReadOnlyDictionary<string, int>>(
             counts.ToDictionary(count => count.LibraryId, count => count.Total, StringComparer.OrdinalIgnoreCase));
     }
@@ -175,11 +180,11 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
         using var connection = db.CreateConnection();
         var keptFilter = includeKept ? 1 : 0;
         var total = connection.ExecuteScalar<int>(
-            "SELECT COUNT(*) FROM unmatched_assets WHERE library_id = @libraryId AND (@includeKept = 1 OR kept_as_is = 0);",
+            $"SELECT COUNT(*) FROM unmatched_assets WHERE {CurrentLibrary} = @libraryId AND (@includeKept = 1 OR kept_as_is = 0);",
             new { libraryId, includeKept = keptFilter });
         var rows = connection.Query<ListRow>("""
             SELECT u.asset_id AS AssetId,
-                   u.library_id AS LibraryId,
+                   COALESCE(NULLIF(a.library_id, ''), u.library_id) AS LibraryId,
                    u.reason AS Reason,
                    u.first_unmatched_at AS FirstUnmatchedAt,
                    u.last_tried_at AS LastTriedAt,
@@ -190,7 +195,7 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
                    (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = u.asset_id AND cv.key = 'title') AS Title
             FROM unmatched_assets u
             JOIN media_assets a ON a.id = u.asset_id
-            WHERE u.library_id = @libraryId AND (@includeKept = 1 OR u.kept_as_is = 0)
+            WHERE COALESCE(NULLIF(a.library_id, ''), u.library_id) = @libraryId AND (@includeKept = 1 OR u.kept_as_is = 0)
             ORDER BY u.first_unmatched_at DESC, u.asset_id
             LIMIT @take OFFSET @skip;
             """,

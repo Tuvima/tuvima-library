@@ -241,6 +241,31 @@ public sealed class UnmatchedAssetRepositoryTests : IDisposable
         Assert.Null(await _unmatched.GetAsync(asset));
     }
 
+    [Fact]
+    public async Task AFileThatMovedToAnotherLibrary_IsCountedListedAndActedOnUnderItsCurrentLibrary()
+    {
+        var moved = AddAsset("movies", "Dune.mkv");
+        var stayed = AddAsset("movies", "Arrival.mkv");
+        await _unmatched.MarkUnmatchedAsync(moved, "movies", UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+        await _unmatched.MarkUnmatchedAsync(stayed, "movies", UnmatchedReasons.NoMatch, Now, Now.AddDays(7));
+        await new MediaAssetRepository(_db).SetLibraryIdAsync(moved, "films", CancellationToken.None);
+
+        var counts = await _unmatched.CountByLibraryAsync();
+        var movies = await _unmatched.ListByLibraryAsync("movies", includeKept: false, skip: 0, take: 10);
+        var films = await _unmatched.ListByLibraryAsync("films", includeKept: false, skip: 0, take: 10);
+
+        Assert.Equal(1, counts["movies"]);
+        Assert.Equal(1, counts["films"]);
+        Assert.Equal([stayed], movies.Items.Select(item => item.Asset.AssetId).ToArray());
+        Assert.Equal([moved], films.Items.Select(item => item.Asset.AssetId).ToArray());
+        Assert.Equal("films", films.Items[0].Asset.LibraryId);
+        Assert.Equal("films", (await _unmatched.GetAsync(moved))!.LibraryId);
+        Assert.Equal(1, await _unmatched.MakeAllDueAsync("films", Now.AddDays(1)));
+        Assert.Equal([moved], (await _unmatched.ListDueAsync(Now.AddDays(1), 10, "films")).Select(item => item.AssetId).ToArray());
+        Assert.Equal(1, await _unmatched.KeepAllAsIsAsync("films", Now));
+        Assert.False((await _unmatched.CountByLibraryAsync()).ContainsKey("films"));
+    }
+
     private async Task<(Guid Asset, IdentityJob Job)> UnmatchedAssetWithJobAsync()
     {
         var asset = AddAsset("movies", "Dune.mkv");
