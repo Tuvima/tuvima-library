@@ -94,6 +94,13 @@ internal static class SettingsContractMapper
 
     internal static LibrariesConfiguration ToStorage(UpdateLibrariesRequest value)
     {
+        // The Unmatched count is read-only: a saved list may carry the count it was read with, which is never stored. It is zeroed (and so
+        // left out of the JSON) before the conversion, or the storage model would see it as a setting it does not know.
+        foreach (var library in value.Libraries)
+        {
+            library.UnmatchedCount = 0;
+        }
+
         var result = Convert<LibrariesConfiguration>(value);
         // Probe details belong to the response, never to persisted configuration.
         result.StorageLocations = value.StorageLocations.Select(location => new ServerStorageLocationConfig

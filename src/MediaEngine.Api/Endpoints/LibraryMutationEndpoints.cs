@@ -147,6 +147,14 @@ internal static class LibraryMutationEndpoints
 
         if (request.Library is { } edited)
         {
+            // The Unmatched count is read-only and changes without anyone editing the library, so it never counts as "changed in another
+            // session": the copy the screen read carries the count it saw, and the current library here carries none.
+            edited.UnmatchedCount = 0;
+            if (request.ExpectedLibrary is { } expectedLibrary)
+            {
+                expectedLibrary.UnmatchedCount = 0;
+            }
+
             var index = dto.Libraries.FindIndex(x => x.Id == edited.Id);
             var existing = index < 0 ? null : dto.Libraries[index];
             if (!Same(existing, request.ExpectedLibrary))

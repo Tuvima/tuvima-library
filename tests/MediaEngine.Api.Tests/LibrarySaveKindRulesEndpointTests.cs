@@ -43,6 +43,7 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
     private readonly PluginCatalog _catalog;
     private readonly LibraryKindListService _kinds;
     private WebApplication? _app;
+    private bool _asAdministrator;
 
     public LibrarySaveKindRulesEndpointTests()
     {
@@ -83,6 +84,24 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         {
             // A temp folder another process still holds is left for the OS to clean up.
         }
+    }
+
+    [Fact]
+    public async Task TheLibrariesList_GivesAnAdministratorEachLibrarysUnmatchedCount_AndAnyoneElseNone()
+    {
+        var baseline = _loader.LoadLibraries();
+        var movies = Standard("movies", "Movies", LibraryAreas.Watch, "Movies");
+        movies.Id = "dddddddd-0000-4000-8000-000000000001";
+        baseline.Libraries = [movies];
+        _loader.SaveLibraries(baseline);
+
+        _asAdministrator = true;
+        var asAdministrator = await ReadLibrariesAsync();
+        _asAdministrator = false;
+        var asSomeoneElse = await ReadLibrariesAsync();
+
+        Assert.Equal(4, Assert.Single(asAdministrator.Libraries).UnmatchedCount);
+        Assert.Equal(0, Assert.Single(asSomeoneElse.Libraries).UnmatchedCount);
     }
 
     [Theory]
@@ -268,6 +287,13 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         };
     }
 
+    private async Task<LibrariesConfigurationDto> ReadLibrariesAsync()
+    {
+        var read = await SendAsync("GET", "/settings/libraries", new object());
+        Assert.Equal(200, read.Status);
+        return JsonSerializer.Deserialize<LibrariesConfigurationDto>(read.Text)!;
+    }
+
     private static UpdateLibrariesRequest ToUpdate(LibrariesConfigurationDto dto) => new()
     {
         SchemaVersion = dto.SchemaVersion,
@@ -332,7 +358,8 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         // Only used to check a custom file naming template, which these libraries do not have.
         builder.Services.AddSingleton(NothingThere.Create<IFileOrganizer>());
         builder.Services.AddSingleton(new SetupSessionService(null!, null!, TimeProvider.System));
-        builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthority());
+        builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthority(() => _asAdministrator));
+        builder.Services.AddSingleton(new MediaEngine.Api.Services.Unmatched.UnmatchedCountService(new UnmatchedCountsSpy()));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new AllowEverything());
         var app = builder.Build();
         app.MapSettingsEndpoints();
@@ -356,9 +383,19 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         public bool CanHaveBody => true;
     }
 
-    private sealed class FixedAuthority : IRequestAuthorityResolver
+    private sealed class FixedAuthority(Func<bool> asAdministrator) : IRequestAuthorityResolver
     {
-        public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default) => ValueTask.FromResult(new RequestAuthority(
+        public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default) => ValueTask.FromResult(asAdministrator()
+            ? new RequestAuthority(
+                PrincipalKind.Human,
+                true,
+                AccountId: Guid.NewGuid(),
+                ActiveProfileId: MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
+                AccountEnabled: true,
+                GrantEnabled: true,
+                AccountIsAdministrator: true,
+                GrantAdminEnabled: true)
+            : new RequestAuthority(
             PrincipalKind.DelegatedUserClient,
             true,
             AccountId: Guid.NewGuid(),
@@ -371,6 +408,25 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
             AccountAuthorizationVersion: 1,
             GrantAuthorizationVersion: 1,
             ApplicationAuthorizationVersion: 1));
+    }
+
+    /// <summary>Two libraries with Unmatched files, as the data store would count them.</summary>
+    private sealed class UnmatchedCountsSpy : IUnmatchedAssetRepository
+    {
+        public Task<IReadOnlyDictionary<string, int>> CountByLibraryAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int> { ["dddddddd-0000-4000-8000-000000000001"] = 4, ["dddddddd-0000-4000-8000-000000000002"] = 9 });
+
+        public Task MarkUnmatchedAsync(Guid assetId, string libraryId, string reason, DateTimeOffset now, DateTimeOffset nextRetryAt, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<MediaEngine.Domain.Models.UnmatchedAsset?> GetAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> ClearAsync(Guid assetId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> KeepAsIsAsync(Guid assetId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<int> KeepAllAsIsAsync(string libraryId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> LookUpAgainAsync(Guid assetId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> MakeDueAsync(Guid assetId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<int> MakeAllDueAsync(string? libraryId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MediaEngine.Domain.Models.UnmatchedAsset>> ListDueAsync(DateTimeOffset now, int limit, string? libraryId = null, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task RecordTriedAsync(Guid assetId, DateTimeOffset now, DateTimeOffset nextRetryAt, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<MediaEngine.Domain.Models.UnmatchedAssetPage> ListByLibraryAsync(string libraryId, bool includeKept, int skip, int take, CancellationToken ct = default) => throw new NotSupportedException();
     }
 
     private sealed class AllowEverything : IAccountAccessDecisionService

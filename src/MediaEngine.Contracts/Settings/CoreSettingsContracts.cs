@@ -194,9 +194,11 @@ public sealed class LibraryFolderDto
 
     /// <summary>
     /// Read-only: how many files in this library the Engine could not match (Library setup spec D34), kept-as-is files excluded. Filled
-    /// on the list read for an administrator and ignored when the list is saved. Zero when none, and for anyone who may not see it.
+    /// on the list read for an administrator and ignored when the list is saved. Zero (and then left out of the JSON) when none, and for
+    /// anyone who may not see it.
     /// </summary>
     [JsonPropertyName("unmatched_count")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int UnmatchedCount { get; set; }
 }
 

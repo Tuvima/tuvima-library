@@ -133,7 +133,7 @@ public sealed class ScheduledTaskListEndpointTests : IDisposable
                 "activity_pruning", "adaptive_streaming_cleanup", "enrichment_refresh_schedule",
                 "folder_health_check", "library_reconciliation", "log_file_retention", "missing_universe_sweep",
                 "pass2_nightly_sweep", "playback_session_cleanup", "plugin_segment_detection", "provider_health_checks",
-                "rejected_file_cleanup", "retag_sweep", "storage_maintenance", "universe_enrichment",
+                "rejected_file_cleanup", "retag_sweep", "storage_maintenance", "universe_enrichment", "unmatched_retry",
                 "webhook_delivery",
             ],
             list.Tasks.Select(task => task.Key).Order(StringComparer.Ordinal));
