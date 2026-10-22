@@ -86,19 +86,19 @@ public sealed class FolderFirstCheckService(
     }
 
     /// <summary>
-    /// Saves the libraries with the first checks that go with the change: the checks of the new folders start before the file is saved (so the
+    /// Saves the libraries (<paramref name="save"/> is the loader's save) with the first checks that go with the change: the checks of the new folders start before the file is saved (so the
     /// hold is in place before a folder is first scanned), and the checks of removed folders are dropped after it. If the save fails the checks
     /// that were started are dropped again, so no check is left for a folder that was never added.
     /// </summary>
     public async Task SaveLibrariesWithFirstChecksAsync(
-        IConfigurationLoader loader, LibrariesConfiguration before, LibrariesConfiguration after, IReadOnlySet<string> vaultLibraryIds, CancellationToken ct)
+        Action<LibrariesConfiguration> save, LibrariesConfiguration before, LibrariesConfiguration after, IReadOnlySet<string> vaultLibraryIds, CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(loader);
+        ArgumentNullException.ThrowIfNull(save);
         await StartForAddedFoldersAsync(before, after, vaultLibraryIds, ct).ConfigureAwait(false);
         var saved = false;
         try
         {
-            loader.SaveLibraries(after);
+            save(after);
             saved = true;
         }
         finally

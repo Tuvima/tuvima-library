@@ -462,7 +462,7 @@ public static class SettingsEndpoints
                     return ApiErrors.BadRequest(sourceError);
                 }
 
-                await firstChecks.SaveLibrariesWithFirstChecksAsync(configLoader, configLoader.LoadLibraries(), config, vaultIds, ct);
+                await firstChecks.SaveLibrariesWithFirstChecksAsync(configLoader.SaveLibraries, configLoader.LoadLibraries(), config, vaultIds, ct);
                 await folderJobs.StopJobsForUnmanagedFoldersAsync(config, ct);
                 await importFolder.ApplyAsync(ct);
                 foreach (var profile in await profiles.GetAllAsync(ct))

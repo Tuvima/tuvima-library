@@ -114,7 +114,7 @@ internal static class LibraryMutationEndpoints
                         return ApiErrors.BadRequest(result.Issues.First(x => x.Severity == "error").Message);
                     }
                 }
-                await firstChecks.SaveLibrariesWithFirstChecksAsync(configuration, current, proposed, vaultIds, ct);
+                await firstChecks.SaveLibrariesWithFirstChecksAsync(configuration.SaveLibraries, current, proposed, vaultIds, ct);
                 await folderJobs.StopJobsForUnmanagedFoldersAsync(proposed, ct);
                 await importFolder.ApplyAsync(ct);
                 if (request.ViewStorage is not null)

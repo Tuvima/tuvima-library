@@ -314,7 +314,7 @@ public static class SetupEndpoints
             if (context.RequestServices.GetService<MediaEngine.Api.Services.Libraries.FolderFirstCheckService>() is { } firstChecks)
             {
                 await firstChecks.SaveLibrariesWithFirstChecksAsync(
-                    configuration, configuration.LoadLibraries(), config, new HashSet<string>(StringComparer.OrdinalIgnoreCase), ct);
+                    configuration.SaveLibraries, configuration.LoadLibraries(), config, new HashSet<string>(StringComparer.OrdinalIgnoreCase), ct);
             }
             else
             {
