@@ -214,11 +214,46 @@ public static partial class LibraryKindRules
             {
                 problems.Add($"{prefix}.media_types must include {kind.Format ?? "a format"}, the format of the library kind \"{kind.Key}\".");
             }
+
+            AddLookupContradiction(library, kind, prefix, problems);
         }
 
         AddCountAndNameProblems(libraries, kinds, problems);
 
         return problems;
+    }
+
+    // The kind decides what a library may look up (LibraryKindLookupPolicy), so a library whose own metadata_policy or youtube_lookup
+    // says otherwise is reported in plain words. Ingestion follows the kind either way; the message is so nobody is surprised.
+    private static void AddLookupContradiction(LibraryFolderConfig library, LibraryKindDefinition kind, string prefix, List<string> problems)
+    {
+        var mode = LibraryKindLookupPolicy.ModeOf(kind.Key, [kind]);
+        if (mode == LibraryLookupMode.Plain)
+        {
+            var never = $"{prefix} is an \"{kind.Label}\" library (the kind \"{kind.Key}\"), which never looks anything up";
+            if (!LibraryMetadataPolicies.BypassesExternalIdentity(library.MetadataPolicy))
+            {
+                problems.Add($"{never}, but metadata_policy is \"{library.MetadataPolicy}\". Use local_only.");
+            }
+
+            if (library.YoutubeLookup)
+            {
+                problems.Add($"{never}, but youtube_lookup is true. Set youtube_lookup to false.");
+            }
+        }
+        else if (mode == LibraryLookupMode.YouTube)
+        {
+            var youtube = $"{prefix} is a \"{kind.Label}\" library (the kind \"{kind.Key}\"), which looks videos up on YouTube by their ID and nowhere else";
+            if (!LibraryMetadataPolicies.BypassesExternalIdentity(library.MetadataPolicy))
+            {
+                problems.Add($"{youtube}, but metadata_policy is \"{library.MetadataPolicy}\". Use local_only.");
+            }
+
+            if (!library.YoutubeLookup)
+            {
+                problems.Add($"{youtube}, but youtube_lookup is false. Set youtube_lookup to true.");
+            }
+        }
     }
 
     // A kind without allows_multiple holds one library; a plain kind holds up to max_libraries, each with its own name. Names are unique

@@ -487,7 +487,7 @@ public static class JsonConfigValidator
                 ValidateOrganizationPolicy(library.OrganizationPolicy, $"{prefix}.organization_policy", errors);
             }
 
-            ValidateLibrarySemantics(library, prefix, errors);
+            ValidateLibrarySemantics(library, prefix, errors, libraryKinds ?? LibraryKindsConfiguration.BuiltIn());
             ValidateProfileIds(library, prefix, errors);
             var intakeModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var intakeMode in library.AcceptedIntakeModes)
@@ -534,7 +534,7 @@ public static class JsonConfigValidator
         }
     }
 
-    private static void ValidateLibrarySemantics(LibraryFolderConfig library, string prefix, List<string> errors)
+    private static void ValidateLibrarySemantics(LibraryFolderConfig library, string prefix, List<string> errors, IReadOnlyList<LibraryKindDefinition> libraryKinds)
     {
         if (library.Kind == LibraryKinds.Catalogued)
         {
@@ -568,7 +568,10 @@ public static class JsonConfigValidator
             {
                 errors.Add($"{prefix}.Videos must be a library of its own, with no other media type.");
             }
-            else if (library.MetadataPolicy != LibraryMetadataPolicies.Enriched)
+            // A plain kind (Other audio, Other reading) never looks anything up, so it is local_only rather than enriched. The link between
+            // the library and its kind (LibraryKindRules.LibraryProblems) says so when a library's own fields disagree.
+            else if (library.MetadataPolicy != LibraryMetadataPolicies.Enriched
+                && LibraryKindLookupPolicy.ModeOf(library.KindKey, libraryKinds) != LibraryLookupMode.Plain)
             {
                 errors.Add($"{prefix}.catalogued libraries must use enriched metadata.");
             }
