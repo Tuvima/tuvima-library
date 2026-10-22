@@ -236,6 +236,24 @@ The media files that stayed on disk when their title was deleted from the librar
 
 Index: `idx_excluded_source_files_library (library_id)`. Deleting a title also removes every row tied to its Work, editions and media assets (chosen values, metadata claims, jobs, Needs Review rows, artwork links and the artwork only it used, search entries, saved items and ratings, every profile's progress and bookmarks, and its own activity history). `personal_activity` is the one exception: it keeps its own snapshot of the title.
 
+
+### unmatched_assets
+
+The media files the Engine could not match (Library setup spec D34). A file with no retail match, or a file in a YouTube library with no YouTube ID, stays exactly where it is, plays and browses with its file name and tags, and is looked up again later (weekly by default, after a provider or plugin is switched on or updated, or on **Retry now**). One row per media asset; the row is removed when a lookup matches the file (the identity job leaves the no-match state, or a person picks the match) and when the file's asset is deleted. A file the Engine found a match for but is unsure about is not here: it is a Needs Review item.
+
+| Column | Type | Notes |
+|---|---|---|
+| `asset_id` | BLOB | Primary key; the media asset, which cascades on delete |
+| `library_id` | TEXT | The configured library the file sits in (the count and list are per library) |
+| `reason` | TEXT | `no_match` (a lookup found nothing) or `no_youtube_id` (a YouTube library file with no video ID in its name or `.info.json`; never looked up) |
+| `first_unmatched_at` | TEXT | When it first became Unmatched, ISO 8601 UTC. Kept across retries |
+| `last_tried_at` | TEXT | When a lookup last ran, ISO 8601 UTC |
+| `next_retry_at` | TEXT | When it is next due, ISO 8601 UTC; null for a kept item. A provider or plugin change and **Retry now** set it to now |
+| `kept_as_is` | INTEGER | 1 after **Keep as is**: no retries, and not in the Unmatched count or filter. **Look up again** sets it back to 0 and makes the item due |
+| `kept_at` | TEXT | When it was kept (nullable) |
+
+Indexes: `ix_unmatched_assets_library (library_id, kept_as_is, first_unmatched_at)` for the per-library count and list, and the partial `ix_unmatched_assets_due (next_retry_at) WHERE kept_as_is = 0` for the scan of due items.
+
 ---
 
 ## View Personal Media

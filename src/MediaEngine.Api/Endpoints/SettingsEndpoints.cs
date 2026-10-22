@@ -373,11 +373,28 @@ public static class SettingsEndpoints
         .RequireEffectiveAdministrator();
 
         // ── GET/PUT /settings/libraries ───────────────────────────────────────
-        grp.MapGet("/libraries", async (IConfigurationLoader configLoader, [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries, CancellationToken ct) =>
+        grp.MapGet("/libraries", async (
+            HttpContext http,
+            IConfigurationLoader configLoader,
+            [Microsoft.AspNetCore.Mvc.FromServices] IVaultLibraryRepository vaultLibraries,
+            [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Security.IRequestAuthorityResolver authorities,
+            [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Unmatched.UnmatchedCountService unmatchedCounts,
+            CancellationToken ct) =>
         {
             // Vault libraries are in no Libraries list (Videos spec D45).
-            return Results.Ok(SettingsContractMapper.ToContract(
-                MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(configLoader.LoadLibraries(), await vaultLibraries.GetIdsAsync(ct)), configLoader));
+            var result = SettingsContractMapper.ToContract(
+                MediaEngine.Api.Services.Vault.VaultLibrarySettings.WithoutVault(configLoader.LoadLibraries(), await vaultLibraries.GetIdsAsync(ct)), configLoader);
+
+            // Each library's Unmatched count (kept-as-is files excluded) is read only for a caller whose scope covers the library; anyone
+            // else gets none (Library setup spec D34, security rule: scope before counts).
+            var scope = MediaEngine.Api.Services.Unmatched.UnmatchedScope.For(await authorities.ResolveAsync(http, ct));
+            var counts = await unmatchedCounts.CountsAsync(scope, ct);
+            foreach (var library in result.Libraries)
+            {
+                library.UnmatchedCount = counts.GetValueOrDefault(library.Id);
+            }
+
+            return Results.Ok(result);
         })
         .WithName("GetLibraries")
         .WithSummary("Returns schema 7 catalogued libraries, the single View root, and approved storage.")

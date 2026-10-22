@@ -355,7 +355,7 @@ public sealed partial class RetailMatchWorker
         {
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailNoMatch, ct: ct);
             await EnrichPeopleWithoutMediaMatchAsync(job.EntityId, ct).ConfigureAwait(false);
-            await _outcomeFactory.CreateRetailFailedAsync(
+            await _outcomeFactory.RecordRetailNoMatchAsync(
                 job.EntityId, job.MediaType, ct);
             var titleHint = fileHints.GetValueOrDefault(MetadataFieldConstants.Title) ?? "(unknown)";
             await _timeline.RecordRetailNoMatchAsync(job.EntityId, titleHint, ct);
@@ -553,7 +553,7 @@ public sealed partial class RetailMatchWorker
         {
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailNoMatch, ct: ct);
             await EnrichPeopleWithoutMediaMatchAsync(job.EntityId, ct).ConfigureAwait(false);
-            await _outcomeFactory.CreateRetailFailedAsync(
+            await _outcomeFactory.RecordRetailNoMatchAsync(
                 job.EntityId, job.MediaType, ct);
             var titleHint = fileHints.GetValueOrDefault(MetadataFieldConstants.Title) ?? "(unknown)";
             await _timeline.RecordRetailNoMatchAsync(job.EntityId, titleHint, ct);

@@ -348,6 +348,7 @@ Scheduled maintenance task configuration.
 | `log_retention_days` | int | `90` | How long the Engine's log files (`tuvima-*.log`) are kept. 1 to 3650. Serilog's own 14-file limit is off, so this and `log_max_total_mb` are the only rules. |
 | `log_max_total_mb` | int | `1024` | Total size of all Engine log files together, in megabytes. Once exceeded, the nightly clean-up removes the oldest files first; the file being written is never removed. 100 to 102,400. |
 | `missing_file_retention_days` | int | `90` | How many days a person's restored progress, bookmarks and corrections wait for their file to come back after a restore before they are cleared. 7 to 3650. Read each time the Engine looks for returning files, so changing it also changes the wait for rows already waiting. The one waiting period for missing files: Safer deleting uses it for Missing files too. |
+| `unmatched_retry_days` | int | `7` | How many days a file the Engine could not match (Unmatched) waits before it is looked up again; weekly by default. 1 to 365. A provider or plugin being switched on or updated, and Retry now, look it up again sooner; a file kept as it is is never retried. |
 | `vacuum_interval_hours` | int | `168` | How often SQLite VACUUM runs to reclaim disk space (default: weekly). |
 | `sync_interval_hours` | int | `24` | How often metadata writeback sync runs for pending changes. |
 | `reconciliation_interval_hours` | int | `24` | How often the Wikidata reconciliation refresh cycle runs. |

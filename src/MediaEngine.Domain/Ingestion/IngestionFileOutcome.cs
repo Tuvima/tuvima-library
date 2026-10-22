@@ -17,4 +17,7 @@ public enum IngestionFileOutcome
 
     /// <summary>The file was skipped (a duplicate, not applicable, or no longer there).</summary>
     Skipped = 4,
+
+    /// <summary>The Engine could not match the file. It stays in the Library and is looked up again later; it is not a Needs Review item.</summary>
+    Unmatched = 5,
 }

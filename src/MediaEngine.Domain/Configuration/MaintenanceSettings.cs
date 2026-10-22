@@ -63,6 +63,13 @@ public sealed class MaintenanceSettings
     [JsonPropertyName("missing_file_retention_days")]
     public int MissingFileRetentionDays { get; set; } = MissingFileRetentionLimits.DefaultDays;
 
+    /// <summary>
+    /// How many days a file the Engine could not match waits before it is looked up again (Library setup spec D34). A provider or plugin
+    /// being switched on or updated, and Retry now, look it up again sooner. Weekly by default.
+    /// </summary>
+    [JsonPropertyName("unmatched_retry_days")]
+    public int UnmatchedRetryDays { get; set; } = UnmatchedRetryLimits.DefaultDays;
+
     /// <summary>Auto re-tag sweep parameters.</summary>
     [JsonPropertyName("retag_sweep")]
     public RetagSweepSettings RetagSweep { get; set; } = new();
@@ -99,6 +106,23 @@ public static class MissingFileRetentionLimits
 
     /// <summary>The longest waiting period.</summary>
     public const int MaxDays = 3650;
+}
+
+/// <summary>The limits of <see cref="MaintenanceSettings.UnmatchedRetryDays"/>.</summary>
+public static class UnmatchedRetryLimits
+{
+    /// <summary>The days between lookups of an Unmatched file when nothing is configured: weekly.</summary>
+    public const int DefaultDays = 7;
+
+    /// <summary>The shortest wait.</summary>
+    public const int MinDays = 1;
+
+    /// <summary>The longest wait.</summary>
+    public const int MaxDays = 365;
+
+    /// <summary>When an Unmatched file is next looked up, <paramref name="configuredDays"/> (clamped to the limits) after <paramref name="now"/>.</summary>
+    public static DateTimeOffset NextRetryAt(DateTimeOffset now, int configuredDays) =>
+        now.AddDays(Math.Clamp(configuredDays, MinDays, MaxDays));
 }
 
 public sealed class StorageMaintenanceSettings
