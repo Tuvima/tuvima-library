@@ -26,11 +26,6 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<VaultLocationGuardRefreshService>();
         services.AddHostedService(sp => sp.GetRequiredService<VaultLocationGuardRefreshService>());
 
-        // After a restore: re-links saved Vault bookmarks to their videos as the rescan finds them (WP17, backups).
-        services.AddSingleton<VaultBookmarkRelinkRepository>();
-        services.AddSingleton<VaultBookmarkRelinkService>();
-        services.AddHostedService<VaultBookmarkRelinkHostedService>();
-
         // Logs page and log/activity retention (recurring runs are recorded through the ScheduledTaskRunner).
         services.AddSingleton(EngineLogLocation.FromEnvironment());
         services.AddSingleton<ITechnicalLogService, TechnicalLogService>();

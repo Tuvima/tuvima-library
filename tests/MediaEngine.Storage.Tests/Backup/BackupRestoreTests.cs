@@ -467,6 +467,36 @@ public sealed class BackupRestoreTests : IDisposable
         Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM waiting_personal_state WHERE is_withheld = 1"));
     }
 
+    [Fact]
+    public void Reattach_BringsAVaultBookmarkBack_WhenTheSameStashBoxVideoReturnsWithADifferentFile_AndNotForAnotherRecord()
+    {
+        var source = NewStore();
+        var target = NewStore();
+        var profile = source.AddProfile("Maya");
+        source.AddVaultLibrary("vault-library");
+        target.AddVaultLibrary("vault-library");
+        var video = source.AddMovie("Hidden Vault Title", "2019", imdb: null, tmdb: null, hash: "ffff6666", seconds: 5400.0, libraryId: "vault-library");
+        source.AddVaultMatch(video.Asset, "stash-server", "record-77");
+        source.AddAudiobookBookmark(profile, video, 120.0, "Scene 2");
+        Import(source, target);
+        var repository = new WaitingPersonalStateRepository(target.Database);
+
+        // A video with another record is not this title: the bookmark keeps waiting.
+        var other = target.AddMovie("Other", "2020", imdb: null, tmdb: null, hash: "1111aaaa", seconds: 5400.0, libraryId: "vault-library");
+        target.AddVaultMatch(other.Asset, "stash-server", "record-99");
+        Assert.Equal(0, repository.RunPass(RestoredAt.AddMinutes(1), 100, 90).Attached);
+        Assert.Equal(1, repository.CountWithheldWaiting());
+
+        // The same record returns as a different file (another hash).
+        var returned = target.AddMovie("Renamed", "2019", imdb: null, tmdb: null, hash: "2222bbbb", seconds: 5400.0, libraryId: "vault-library");
+        target.AddVaultMatch(returned.Asset, "stash-server", "record-77");
+        var pass = repository.RunPass(RestoredAt.AddMinutes(2), 100, 90);
+
+        Assert.Equal(1, pass.Attached);
+        Assert.Equal(0, repository.CountWithheldWaiting());
+        Assert.Equal(120.0, target.Real("SELECT position_seconds FROM audiobook_bookmarks WHERE asset_id = @a", ("a", returned.Asset)));
+    }
+
     // ---------------------------------------------------------------------------------------------------------
     // Guardrails
     // ---------------------------------------------------------------------------------------------------------
@@ -542,9 +572,9 @@ public sealed class BackupRestoreTests : IDisposable
 
     private sealed class FakeCodec : IBackupPortableValueCodec
     {
-        public string? Export(string table, string column, string protectedValue) => "readable:" + protectedValue;
+        public string? Export(string table, string column, string protectedValue, IReadOnlyDictionary<string, BackupValue> row) => "readable:" + protectedValue;
 
-        public string Import(string table, string column, string portableValue) => "sealed:" + portableValue;
+        public string Import(string table, string column, string portableValue, IReadOnlyDictionary<string, BackupValue> row) => "sealed:" + portableValue;
     }
 
     private sealed record Movie(byte[] Work, byte[] Edition, byte[] Asset);

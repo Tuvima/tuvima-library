@@ -91,8 +91,15 @@ public static class BackupArchiveFormat
     /// </summary>
     public static BackupExport Read(ZipArchive archive) => Read(archive, MaxEntries, MaxEntryBytes, MaxTotalBytes);
 
+    /// <summary>
+    /// Reads the <c>data/</c> part of a whole backup file, which also holds <c>manifest.json</c> and the <c>config/</c> files. Those two
+    /// are not data and are left alone (the Engine checks and stages them itself); every other rule of <see cref="Read(ZipArchive)"/>
+    /// applies, including the limits on entries and size.
+    /// </summary>
+    public static BackupExport ReadBackupFile(ZipArchive archive) => Read(archive, MaxEntries, MaxEntryBytes, MaxTotalBytes, skipBackupFileParts: true);
+
     /// <summary><see cref="Read(ZipArchive)"/> with explicit limits, so a test can use small ones.</summary>
-    internal static BackupExport Read(ZipArchive archive, int maxEntries, long maxEntryBytes, long maxTotalBytes)
+    internal static BackupExport Read(ZipArchive archive, int maxEntries, long maxEntryBytes, long maxTotalBytes, bool skipBackupFileParts = false)
     {
         ArgumentNullException.ThrowIfNull(archive);
 
@@ -129,6 +136,12 @@ public static class BackupArchiveFormat
             {
                 var name = entry.FullName;
                 if (name.EndsWith('/'))
+                {
+                    continue;
+                }
+
+                if (skipBackupFileParts
+                    && (string.Equals(name, "manifest.json", StringComparison.Ordinal) || name.StartsWith("config/", StringComparison.Ordinal)))
                 {
                     continue;
                 }

@@ -58,6 +58,15 @@ public sealed class WaitingPersonalStateRepository
         return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
     }
 
+    /// <summary>How many rows are waiting on a title a backup may not name (a Vault video): the Vault's count of restored items still to come back. A count only.</summary>
+    public int CountWithheldWaiting()
+    {
+        using var connection = _db.CreateConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT COUNT(*) FROM {WaitingTable} WHERE is_withheld = 1";
+        return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+    }
+
     /// <summary>The most recent restore with what it put back, what is waiting and what has attached or been cleared since; null if nothing was ever restored.</summary>
     public RestoreSummary? GetLatestRestore()
     {

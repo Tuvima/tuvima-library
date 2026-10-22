@@ -2,16 +2,19 @@ using System.IO.Compression;
 using System.Text;
 using Dapper;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Backups;
 using MediaEngine.Api.Services.Vault;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Backup;
 using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
 
-// A backup never holds the Vault catalogue (Videos spec WP17, backups): the Vault libraries, their settings, Vault mode settings and PIN hashes,
-// access grants and each person's bookmarks come back, but nothing that names or describes a Vault video, image, performer, studio or tag.
+// A backup never holds the Vault catalogue (Videos spec WP17, backup and restore spec D16): the Vault libraries, their settings, Vault mode
+// settings and PIN hashes, access grants and each person's bookmarks (as rows on withheld titles) come back, but nothing that names or
+// describes a Vault video, image, performer, studio or tag. A restored Vault bookmark waits in the general waiting area and is re-attached
+// by the same pass as every other bookmark.
 public sealed class VaultBackupTests : IDisposable
 {
     private const string VaultTitle = "Zebrawork Vaultcinema";
@@ -43,63 +46,77 @@ public sealed class VaultBackupTests : IDisposable
     }
 
     [Fact]
-    public async Task Backup_ContainsNoVaultTitleFileNameOrName_InTheDataStoreOrTheManifest()
+    public async Task Backup_ContainsNoVaultTitleFileNameOrName_InAnyDataEntryOrTheManifestOrTheFileBytes()
     {
         var (config, database) = Prepare("secrets");
         using var _ = database;
         Seed(database, config);
-        var service = new DatabaseBackupService(database, config);
+        var service = BackupTestKit.Service(database, config);
 
         var archivePath = await service.CreateAsync(CancellationToken.None);
 
         using var archive = ZipFile.OpenRead(archivePath);
-        var databaseText = ReadEntryAsText(archive, "database/library.db");
-        var manifestText = ReadEntryAsText(archive, "manifest.json");
-        // The search is not vacuous: an ordinary title is found in the very same bytes.
-        Assert.Contains(OrdinaryTitle.ToLowerInvariant(), databaseText, StringComparison.Ordinal);
+        var entries = archive.Entries
+            .Where(entry => entry.FullName == "manifest.json" || entry.FullName.StartsWith("data/", StringComparison.Ordinal))
+            .ToDictionary(entry => entry.FullName, entry => ReadEntryAsText(archive, entry.FullName));
+        var everything = string.Concat(entries.Values);
+        // The search is not vacuous: an ordinary title is found in the very same entries.
+        Assert.Contains(OrdinaryTitle.ToLowerInvariant(), everything, StringComparison.Ordinal);
+        var fileBytes = Encoding.Latin1.GetString(File.ReadAllBytes(archivePath)).ToLowerInvariant();
         foreach (var secret in Secrets)
         {
-            Assert.DoesNotContain(secret.ToLowerInvariant(), databaseText, StringComparison.Ordinal);
-            Assert.DoesNotContain(secret.ToLowerInvariant(), manifestText, StringComparison.Ordinal);
+            var needle = secret.ToLowerInvariant();
+            Assert.DoesNotContain(needle, everything, StringComparison.Ordinal);
+            Assert.DoesNotContain(needle, fileBytes, StringComparison.Ordinal);
         }
 
-        Assert.Contains("\"vault_catalogue_excluded\": true".Replace(": ", ":"), manifestText.Replace(" ", string.Empty), StringComparison.Ordinal);
-        Assert.Contains("\"schema_version\":\"1.0\"", manifestText.Replace(" ", string.Empty), StringComparison.Ordinal);
+        // The manifest carries no Vault field at all.
+        Assert.DoesNotContain("vault", entries["manifest.json"], StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task Backup_KeepsOrdinaryContent_VaultSettings_PinHashes_Grants_AndBookmarks()
+    public async Task Backup_KeepsVaultSettings_PinHashes_Grants_AndBookmarks_AsRowsOnWithheldTitles_NeverTheCatalogue()
     {
         var (config, database) = Prepare("keeps");
         using var _ = database;
-        var ordinary = Seed(database, config);
-        var service = new DatabaseBackupService(database, config);
+        Seed(database, config);
+        var service = BackupTestKit.Service(database, config);
 
         var archivePath = await service.CreateAsync(CancellationToken.None);
 
-        using var copy = OpenBackup(archivePath);
-        Assert.Equal(1, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM vault_libraries;"));
-        Assert.Equal(1, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_credentials WHERE secret_hash = 'hash-only-value';"));
-        Assert.Equal("pin", copy.ExecuteScalar<string>("SELECT access_mode FROM profile_nsfw_settings;"));
-        Assert.Equal(1, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM account_library_grants;"));
-        Assert.Equal(OrdinaryTitle, copy.ExecuteScalar<string>("SELECT value FROM canonical_values WHERE key = 'title';"));
-        Assert.Equal(1, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM media_assets;"));
-        Assert.Equal(1, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM search_index;"));
-        Assert.Equal(1, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM audiobook_bookmarks WHERE label = 'ordinary bookmark';"));
-        Assert.Equal(0, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM audiobook_bookmarks WHERE label = 'vault bookmark';"));
-        Assert.Equal(1, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM vault_pending_bookmarks WHERE label = 'vault bookmark';"));
-        Assert.Equal(0, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM vault_matches;"));
-        Assert.Equal(0, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM vault_performers;"));
-        Assert.Equal(0, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM vault_image_items;"));
-        Assert.Equal(0, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM local_items;"));
-        Assert.Equal(0, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM vault_galleries;"));
-        Assert.Equal(1, copy.ExecuteScalar<int>("SELECT COUNT(*) FROM vault_image_libraries;"));
-        Assert.Equal("ok", copy.ExecuteScalar<string>("PRAGMA integrity_check;"));
-        Assert.Empty(copy.Query("PRAGMA foreign_key_check;"));
-        Assert.True(ordinary != Guid.Empty);
-
         using var archive = ZipFile.OpenRead(archivePath);
         Assert.NotNull(archive.GetEntry("config/libraries.json"));
+        var export = BackupArchiveFormat.ReadBackupFile(archive);
+        string[] Tables() => export.Tables.Select(table => table.Table).ToArray();
+
+        // Settings, PIN hashes and grants are kept.
+        Assert.Contains("vault_libraries", Tables());
+        Assert.Contains("profile_nsfw_settings", Tables());
+        Assert.Contains("account_library_grants", Tables());
+        var credentials = export.Tables.Single(table => table.Table == "profile_credentials");
+        var hashIndex = credentials.Columns.ToList().IndexOf("secret_hash");
+        Assert.Contains(credentials.Rows, row => row[hashIndex] is BackupValue.Text { Value: "hash-only-value" });
+        Assert.Equal("pin", ((BackupValue.Text)Single(export, "profile_nsfw_settings", "access_mode")).Value);
+
+        // Nothing of the catalogue travels, Vault or not.
+        Assert.DoesNotContain(Tables(), name => name.StartsWith("vault_", StringComparison.Ordinal) && name != "vault_libraries");
+        foreach (var catalogue in new[] { "media_assets", "works", "editions", "canonical_values", "search_index", "local_items", "vault_matches", "vault_performers", "vault_image_items" })
+        {
+            Assert.DoesNotContain(catalogue, Tables());
+        }
+
+        // Both bookmarks are personal rows. The Vault one is on a withheld title that has a Stash-box id and no name.
+        var bookmarks = export.Tables.Single(table => table.Table == "audiobook_bookmarks");
+        Assert.Equal(2, bookmarks.Rows.Count);
+        var withheld = export.Titles.Where(title => title.Withheld).ToList();
+        Assert.NotEmpty(withheld);
+        Assert.All(withheld, title =>
+        {
+            Assert.Equal("server-1|record-1", title.Ids["stash_box_id"]);
+            Assert.Null(title.Name);
+            Assert.Null(title.Year);
+        });
+        Assert.Contains(export.Titles, title => !title.Withheld && title.Name == OrdinaryTitle);
     }
 
     [Fact]
@@ -116,13 +133,13 @@ public sealed class VaultBackupTests : IDisposable
 
         var before = (Count("SELECT COUNT(*) FROM media_assets;"), Count("SELECT COUNT(*) FROM vault_matches;"),
             Count("SELECT COUNT(*) FROM audiobook_bookmarks;"), Count("SELECT COUNT(*) FROM local_items;"),
-            Count("SELECT COUNT(*) FROM search_index;"), Count("SELECT COUNT(*) FROM vault_pending_bookmarks;"));
+            Count("SELECT COUNT(*) FROM search_index;"), Count("SELECT COUNT(*) FROM waiting_personal_state;"));
 
-        await new DatabaseBackupService(database, config).CreateAsync(CancellationToken.None);
+        await BackupTestKit.Service(database, config).CreateAsync(CancellationToken.None);
 
         var after = (Count("SELECT COUNT(*) FROM media_assets;"), Count("SELECT COUNT(*) FROM vault_matches;"),
             Count("SELECT COUNT(*) FROM audiobook_bookmarks;"), Count("SELECT COUNT(*) FROM local_items;"),
-            Count("SELECT COUNT(*) FROM search_index;"), Count("SELECT COUNT(*) FROM vault_pending_bookmarks;"));
+            Count("SELECT COUNT(*) FROM search_index;"), Count("SELECT COUNT(*) FROM waiting_personal_state;"));
         Assert.Equal(before, after);
         Assert.Equal(2, before.Item1);
         Assert.Equal(2, Count($"SELECT COUNT(*) FROM canonical_values WHERE value = '{VaultTitle}';"));
@@ -130,107 +147,134 @@ public sealed class VaultBackupTests : IDisposable
     }
 
     [Fact]
-    public async Task Restore_BringsTheVaultLibrariesBackEmpty_AndARescanThenRelinksBookmarksWithoutCrashing()
+    public async Task Restore_BringsTheVaultLibrariesBackEmpty_AndTheVaultBookmarkWaitsOutOfSight()
     {
         var (config, database) = Prepare("restore");
-        string archiveName;
         string dbPath;
         using (database)
         {
             Seed(database, config);
-            var service = new DatabaseBackupService(database, config);
+            var service = BackupTestKit.Service(database, config);
             var archivePath = await service.CreateAsync(CancellationToken.None);
-            archiveName = Path.GetFileName(archivePath);
-            dbPath = Path.Combine(_root, "restore-target.db");
-            var result = service.ScheduleRestore(archiveName);
-            Assert.Contains("never holds the Vault catalogue", result.Message, StringComparison.Ordinal);
-            Assert.Contains("1 saved Vault bookmark is kept", result.Message, StringComparison.Ordinal);
+            dbPath = Path.Combine(_root, "restore.db");
+            var result = service.ScheduleRestore(Path.GetFileName(archivePath));
+            Assert.DoesNotContain("Vault", result.Message, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain(VaultTitle, result.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         DatabaseBackupService.ApplyPendingRestore(config, dbPath);
-        using var restored = new DatabaseConnection(dbPath);
-        restored.InitializeSchema();
-        restored.RunStartupChecks();
+        using var restored = BackupTestKit.OpenStore(dbPath);
+        Assert.Equal(PendingRestoreImportOutcome.Imported, BackupTestKit.Importer(restored, config).ImportIfPending());
 
-        var libraries = new VaultLibraryRepository(restored);
-        Assert.Single(await libraries.GetAllAsync());
-        var relinkRepository = new VaultBookmarkRelinkRepository(restored);
-        Assert.Equal(1, await relinkRepository.CountWaitingAsync());
-        Assert.Empty(await relinkRepository.GetVaultVideosAsync());
-        var relink = new VaultBookmarkRelinkService(relinkRepository, NullLogger<VaultBookmarkRelinkService>.Instance);
+        Assert.Single(await new VaultLibraryRepository(restored).GetAllAsync());
+        using (var connection = restored.CreateConnection())
+        {
+            Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM media_assets;"));
+            Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM vault_matches;"));
+            Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM vault_performers;"));
+            Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM vault_image_items;"));
+            Assert.Equal(1, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_credentials WHERE secret_hash = 'hash-only-value';"));
+            Assert.Equal("pin", connection.ExecuteScalar<string>("SELECT access_mode FROM profile_nsfw_settings;"));
+        }
 
-        // Nothing has been rescanned yet: nothing crashes and the bookmark waits.
-        Assert.Equal(0, await relink.RelinkAsync());
-        Assert.Equal(1, await relinkRepository.CountWaitingAsync());
+        // Both bookmarks wait. The ordinary one counts everywhere; the Vault one only for the Vault's own count.
+        var waiting = new WaitingPersonalStateRepository(restored);
+        Assert.Equal(1, waiting.CountWaiting(includeWithheld: false));
+        Assert.Equal(2, waiting.CountWaiting(includeWithheld: true));
+        Assert.Equal(1, waiting.CountWithheldWaiting());
+    }
 
-        // The rescan finds an unrelated video: still nothing to link to.
+    [Fact]
+    public async Task ReAttach_BringsTheVaultBookmarkBack_WhenTheSameStashBoxVideoIsAddedWithADifferentFileHash()
+    {
+        var (_, restored) = await RestoreAsync("reattach", withMatch: true);
+        using var __ = restored;
+        var waiting = new WaitingPersonalStateRepository(restored);
+        var clock = DateTimeOffset.UtcNow;
+
+        // A video that is not the bookmark's: nothing is guessed, the bookmark keeps waiting.
         AddVault(restored, "hash-unrelated", record: "other-record", runningMs: 1_000_000);
-        Assert.Equal(0, await relink.RelinkAsync());
-        Assert.Equal(1, await relinkRepository.CountWaitingAsync());
+        waiting.RunPass(clock.AddMinutes(1), 100, 90);
+        Assert.Equal(1, waiting.CountWithheldWaiting());
 
-        // The rescan finds the same title (the Stash-box record) in a different encoding with a different file hash.
+        // The same Stash-box record, re-encoded, with another file hash.
         var rescanned = AddVault(restored, "hash-reencoded", record: "record-1", runningMs: 3_600_000);
-        Assert.Equal(1, await relink.RelinkAsync());
+        waiting.RunPass(clock.AddMinutes(2), 100, 90);
 
-        Assert.Equal(0, await relinkRepository.CountWaitingAsync());
+        Assert.Equal(0, waiting.CountWithheldWaiting());
         using var connection = restored.CreateConnection();
-        var linked = connection.QuerySingle<(Guid AssetId, double Position, string Label)>(
-            "SELECT asset_id AS AssetId, position_seconds AS Position, label AS Label FROM audiobook_bookmarks WHERE label = 'vault bookmark';");
+        var linked = connection.QuerySingle<(Guid AssetId, double Position)>(
+            "SELECT asset_id AS AssetId, position_seconds AS Position FROM audiobook_bookmarks WHERE label = 'vault bookmark';");
         Assert.Equal(rescanned, linked.AssetId);
         Assert.Equal(125.5, linked.Position);
     }
 
     [Fact]
-    public async Task Relink_FallsBackToTheExactFileHash_WhenNoCanonicalDataExists()
+    public async Task ReAttach_FallsBackToTheExactFileHash_WhenTheVideoHadNoStashBoxId()
     {
-        var (config, database) = Prepare("hash");
-        string dbPath;
-        using (database)
-        {
-            Seed(database, config, withMatch: false);
-            var service = new DatabaseBackupService(database, config);
-            var archiveName = Path.GetFileName(await service.CreateAsync(CancellationToken.None));
-            dbPath = Path.Combine(_root, "hash-target.db");
-            service.ScheduleRestore(archiveName);
-        }
-
-        DatabaseBackupService.ApplyPendingRestore(config, dbPath);
-        using var restored = new DatabaseConnection(dbPath);
-        restored.InitializeSchema();
-        restored.RunStartupChecks();
-        var repository = new VaultBookmarkRelinkRepository(restored);
-        var relink = new VaultBookmarkRelinkService(repository, NullLogger<VaultBookmarkRelinkService>.Instance);
+        var (_, restored) = await RestoreAsync("hash", withMatch: false);
+        using var __ = restored;
+        var waiting = new WaitingPersonalStateRepository(restored);
+        var clock = DateTimeOffset.UtcNow;
 
         AddVault(restored, "hash-different", record: null, runningMs: 3_600_000);
-        Assert.Equal(0, await relink.RelinkAsync());
-        Assert.Equal(1, await repository.CountWaitingAsync());
+        waiting.RunPass(clock.AddMinutes(1), 100, 90);
+        Assert.Equal(1, waiting.CountWithheldWaiting());
 
-        AddVault(restored, "hash-vault-original", record: null, runningMs: 3_600_000);
-        Assert.Equal(1, await relink.RelinkAsync());
-        Assert.Equal(0, await repository.CountWaitingAsync());
+        var same = AddVault(restored, "hash-vault-original", record: null, runningMs: 3_600_000);
+        waiting.RunPass(clock.AddMinutes(2), 100, 90);
+
+        Assert.Equal(0, waiting.CountWithheldWaiting());
+        using var connection = restored.CreateConnection();
+        Assert.Equal(same, connection.ExecuteScalar<Guid>("SELECT asset_id FROM audiobook_bookmarks WHERE label = 'vault bookmark';"));
     }
 
     [Fact]
-    public async Task Backup_OfAStoreWithNoVault_IsUnchangedInContent_AndStillRestores()
+    public async Task Backup_OfAStoreWithNoVault_HasNoVaultNoteAnywhere_AndStillRestores()
     {
         var (config, database) = Prepare("novault");
         string dbPath;
         using (database)
         {
-            var service = new DatabaseBackupService(database, config);
+            var service = BackupTestKit.Service(database, config);
             var archivePath = await service.CreateAsync(CancellationToken.None);
             using var archive = ZipFile.OpenRead(archivePath);
-            Assert.Contains("\"vault_libraries_kept\":0", ReadEntryAsText(archive, "manifest.json").Replace(" ", string.Empty), StringComparison.Ordinal);
-            dbPath = Path.Combine(_root, "novault-target.db");
+            Assert.DoesNotContain("vault", ReadEntryAsText(archive, "manifest.json"), StringComparison.Ordinal);
+            dbPath = Path.Combine(_root, "novault.db");
             var result = service.ScheduleRestore(Path.GetFileName(archivePath));
             Assert.DoesNotContain("Vault", result.Message, StringComparison.Ordinal);
         }
 
         DatabaseBackupService.ApplyPendingRestore(config, dbPath);
-        using var restored = new DatabaseConnection(dbPath);
-        restored.InitializeSchema();
+        using var restored = BackupTestKit.OpenStore(dbPath);
+        Assert.Equal(PendingRestoreImportOutcome.Imported, BackupTestKit.Importer(restored, config).ImportIfPending());
         Assert.Empty(await new VaultLibraryRepository(restored).GetAllAsync());
+    }
+
+    /// <summary>Backs the seeded store up, restores it into a fresh one and imports it. The caller owns (disposes) the returned store.</summary>
+    private async Task<(string Config, DatabaseConnection Restored)> RestoreAsync(string name, bool withMatch)
+    {
+        var (config, database) = Prepare(name);
+        string dbPath;
+        using (database)
+        {
+            Seed(database, config, withMatch);
+            var service = BackupTestKit.Service(database, config);
+            var archiveName = Path.GetFileName(await service.CreateAsync(CancellationToken.None));
+            dbPath = Path.Combine(_root, name + ".db");
+            service.ScheduleRestore(archiveName);
+        }
+
+        DatabaseBackupService.ApplyPendingRestore(config, dbPath);
+        var restored = BackupTestKit.OpenStore(dbPath);
+        Assert.Equal(PendingRestoreImportOutcome.Imported, BackupTestKit.Importer(restored, config).ImportIfPending());
+        return (config, restored);
+    }
+
+    private static BackupValue Single(BackupExport export, string table, string column)
+    {
+        var data = export.Tables.Single(candidate => candidate.Table == table);
+        return Assert.Single(data.Rows)[data.Columns.ToList().IndexOf(column)];
     }
 
     private (string Config, DatabaseConnection Database) Prepare(string name)
@@ -242,10 +286,7 @@ public sealed class VaultBackupTests : IDisposable
             {"libraries":[{"id":"{{_vaultLibrary}}","name":"Private","sources":[{"id":"s1","path":"/mnt/{{VaultFolder}}"}]},
                           {"id":"{{_normalLibrary}}","name":"Movies","sources":[{"id":"s2","path":"/mnt/movies"}]}]}
             """);
-        var database = new DatabaseConnection(Path.Combine(_root, name + ".db"));
-        database.InitializeSchema();
-        database.RunStartupChecks();
-        return (config, database);
+        return (config, BackupTestKit.OpenStore(Path.Combine(_root, name + ".db")));
     }
 
     /// <summary>Fills the store with one ordinary movie and a Vault full of things that must never reach a backup. Returns the ordinary asset id.</summary>
@@ -274,6 +315,7 @@ public sealed class VaultBackupTests : IDisposable
         connection.Execute(
             """
             INSERT INTO search_index(entity_id, title, original_title, alternate_titles, author, description) VALUES(@ordinaryWork, @ordinaryTitle, '', '', '', '');
+            INSERT INTO canonical_values(entity_id, key, value, last_scored_at) VALUES(@ordinaryWork,'title',@ordinaryTitle,@now);
             INSERT INTO search_index(entity_id, title, original_title, alternate_titles, author, description) VALUES(@vaultWork, @vaultTitle, '', '', '', 'a description of vaultcinema');
             INSERT INTO media_asset_chapters(asset_id, chapter_index, start_ms, end_ms, title) VALUES(@vaultAsset, 0, 0, 3600000, NULL);
             INSERT INTO vault_file_fingerprints(asset_id, algorithm, hash, file_size, computed_at) VALUES(@vaultAsset,'OSHASH','oshash-vault-1',100,@now);
@@ -391,19 +433,6 @@ public sealed class VaultBackupTests : IDisposable
         }
 
         return asset;
-    }
-
-    private SqliteConnection OpenBackup(string archivePath)
-    {
-        var extracted = Path.Combine(_root, $"extract-{Guid.NewGuid():N}.db");
-        using (var archive = ZipFile.OpenRead(archivePath))
-        {
-            archive.GetEntry("database/library.db")!.ExtractToFile(extracted);
-        }
-
-        var connection = new SqliteConnection($"Data Source={extracted};Pooling=False");
-        connection.Open();
-        return connection;
     }
 
     private static string ReadEntryAsText(ZipArchive archive, string name)

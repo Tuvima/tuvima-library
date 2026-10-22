@@ -32,7 +32,7 @@ public sealed class BackupDestinationTests : IDisposable
         _db = new DatabaseConnection(Path.Combine(_root, "library.db"));
         _db.InitializeSchema();
         _db.RunStartupChecks();
-        _backups = new DatabaseBackupService(_db, Path.Combine(_root, "config"), Path.Combine(_root, "backups"));
+        _backups = BackupTestKit.Service(_db, Path.Combine(_root, "config"), Path.Combine(_root, "backups"));
         _repository = new BackupDestinationRepository(_db);
         _settings = new BackupSettingsAccessor(_repository, _clock);
         _orchestrator = new BackupOrchestrator(
@@ -135,18 +135,19 @@ public sealed class BackupDestinationTests : IDisposable
         await Assert.ThrowsAsync<BackupDestinationException>(() => _orchestrator.RestoreFromDestinationAsync(_remote, "../outside.zip", CancellationToken.None));
 
     [Fact]
-    public async Task ABackupHoldsOnlyTheDataStoreAndConfiguration_NeverMediaFiles()
+    public async Task ABackupHoldsOnlySettingsPersonalStateAndConfiguration_NeverMediaFilesOrAStoreCopy()
     {
         // Media files and folders are the operating system's job to back up (Shy, 2026-10-21): the archive carries the
-        // Library's own data (reading positions, bookmarks, preferences live in the data store) and safe configuration only.
+        // Library's settings and each person's own state (as data entries) and safe configuration only.
         var path = await _backups.CreateAsync(CancellationToken.None);
 
         using var archive = ZipFile.OpenRead(path);
         Assert.All(archive.Entries, entry => Assert.True(
             entry.FullName == "manifest.json"
-            || entry.FullName == "database/library.db"
+            || entry.FullName.StartsWith("data/", StringComparison.Ordinal)
             || entry.FullName.StartsWith("config/", StringComparison.Ordinal),
             entry.FullName));
+        Assert.Null(archive.GetEntry("database/library.db"));
     }
 
     [Fact]

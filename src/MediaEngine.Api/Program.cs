@@ -10,6 +10,7 @@ using MediaEngine.Api.Middleware;
 using MediaEngine.Api.Realtime;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Backups;
 using MediaEngine.Api.Services.EngineLogs;
 using MediaEngine.Api.Services.HealthChecks;
 using MediaEngine.Api.Services.Vault;
@@ -22,6 +23,7 @@ using MediaEngine.Ingestion.DependencyInjection;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Identity.Contracts;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Backup;
 using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage.Schema.Upgrades;
@@ -492,9 +494,15 @@ if (builder.Environment.IsDevelopment() && ProviderAnswerStore.FromEnvironment(c
 #endif
 builder.Services.AddSingleton<AssetStoreCleanupService>();
 builder.Services.AddSingleton(sp => new DatabaseBackupService(
-    sp.GetRequiredService<IDatabaseConnection>(),
+    sp.GetRequiredService<PersonalStateBackupRepository>(),
     configDirectory,
     backupDirectory));
+builder.Services.AddSingleton<IPendingRestoreImportService>(sp => new PendingRestoreImportService(
+    sp.GetRequiredService<BackupRestoreRepository>(),
+    sp.GetRequiredService<IBackupPortableValueCodec>(),
+    configDirectory,
+    sp.GetRequiredService<TimeProvider>(),
+    sp.GetRequiredService<ILogger<PendingRestoreImportService>>()));
 builder.Services.AddSingleton(sp => new SystemResourcesService(
     sp.GetRequiredService<ResourceMonitorService>(),
     sp.GetRequiredService<IOptions<IngestionOptions>>(),
@@ -548,6 +556,9 @@ catch (DataStoreUpgradeException exception)
     await app.DisposeAsync().ConfigureAwait(false);
     return;
 }
+
+// A restored backup is imported into the fresh data store before anything is served; the previous data store was put aside as a pre-restore copy.
+app.Services.GetRequiredService<IPendingRestoreImportService>().ImportIfPending();
 
 // The Vault's folders are known before anything is served, scanned or logged.
 await app.Services.GetRequiredService<VaultLocationGuardRefreshService>().RefreshAsync().ConfigureAwait(false);

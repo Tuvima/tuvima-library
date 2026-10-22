@@ -1,6 +1,6 @@
 using System.Globalization;
-using Microsoft.Data.Sqlite;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Backup;
 
@@ -151,7 +151,7 @@ public sealed class BackupRestoreRepository
                 var values = new List<object?>(row.Count);
                 for (var i = 0; i < row.Count; i++)
                 {
-                    values.Add(StoredValue(rule, table.Table, table.Columns[i], row[i], codec, ref portableRestored, ref portableSkipped));
+                    values.Add(StoredValue(rule, table.Table, table.Columns, row, i, codec, ref portableRestored, ref portableSkipped));
                 }
 
                 var verb = rule.Kind == BackupDataKind.Configuration ? "INSERT OR REPLACE" : "INSERT OR IGNORE";
@@ -407,12 +407,15 @@ public sealed class BackupRestoreRepository
     private static object? StoredValue(
         BackupTableRule rule,
         string table,
-        string column,
-        BackupValue value,
+        IReadOnlyList<string> columns,
+        IReadOnlyList<BackupValue> row,
+        int index,
         IBackupPortableValueCodec? codec,
         ref int portableRestored,
         ref int portableSkipped)
     {
+        var column = columns[index];
+        var value = row[index];
         switch (value)
         {
             case BackupValue.Portable portable:
@@ -423,7 +426,7 @@ public sealed class BackupRestoreRepository
                 }
 
                 portableRestored++;
-                return codec.Import(table, column, portable.Value);
+                return codec.Import(table, column, portable.Value, RowByColumn(columns, row));
             case BackupValue.Text when rule.PortableColumns.Contains(column, StringComparer.OrdinalIgnoreCase):
                 // The backup could not make this readable, so it only works on the computer that made it. It is kept as it was.
                 portableSkipped++;
@@ -431,6 +434,17 @@ public sealed class BackupRestoreRepository
             default:
                 return RestoredRowSql.ToSql(value);
         }
+    }
+
+    private static Dictionary<string, BackupValue> RowByColumn(IReadOnlyList<string> columns, IReadOnlyList<BackupValue> row)
+    {
+        var byColumn = new Dictionary<string, BackupValue>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < columns.Count; i++)
+        {
+            byColumn[columns[i]] = row[i];
+        }
+
+        return byColumn;
     }
 
     private static byte[]? OwnerOf(BackupValue? value) => value switch

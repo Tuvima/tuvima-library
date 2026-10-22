@@ -40,7 +40,7 @@ public sealed class BackupDestinationKindsTests : IDisposable
         _db = new DatabaseConnection(Path.Combine(_root, "library.db"));
         _db.InitializeSchema();
         _db.RunStartupChecks();
-        var backups = new DatabaseBackupService(_db, Path.Combine(_root, "config"), Path.Combine(_root, "backups"));
+        var backups = BackupTestKit.Service(_db, Path.Combine(_root, "config"), Path.Combine(_root, "backups"));
         _repository = new BackupDestinationRepository(_db);
         var clock = TimeProvider.System;
         _settings = new BackupSettingsAccessor(_repository, clock);

@@ -20,6 +20,7 @@ Every table in the Library's data store is classified as one of four kinds, in o
 - `tests/MediaEngine.Storage.Tests/BackupTableClassificationGuardrailTests.cs` (the guardrail)
 - `src/MediaEngine.Storage/Backup/PersonalStateBackupRepository.cs`, `TitleRecognitionReader.cs` and `BackupArchiveFormat.cs` (the exporter that follows the registry, the one place that reads a title's recognition data, and the file format it writes)
 - `src/MediaEngine.Storage/Backup/BackupRestoreRepository.cs` (puts an export into the data store), `WaitingPersonalStateRepository.cs` (the waiting area and the re-attach pass), `LiveTitleResolver.cs` (finds the live row a recorded title now is), `WaitingStateTimePositions.cs` (which tables hold time positions) and `src/MediaEngine.Domain/Services/RestoredTitleRules.cs` (the pure rules for which file is the same title and cut); `src/MediaEngine.Api/Services/Backups/WaitingStateReattachHostedService.cs` runs the pass
+- `src/MediaEngine.Api/Services/DatabaseBackupService.cs` (makes a backup file, stages a restore and, before the data store opens, puts the old store aside), `RestoreArchiveValidator.cs` (the one check every route into a restore uses), `RestoreMarkers.cs` and `PendingRestoreImportService.cs` (imports the staged backup into the fresh store at start-up), all under `src/MediaEngine.Api/Services/`
 - `src/MediaEngine.Storage/Backup/IBackupPortableValueCodec.cs` (the port that makes a machine-protected value readable for a backup) and `src/MediaEngine.Api/Security/DataProtectionBackupPortableValueCodec.cs` (the Engine's implementation for the two-step secret, registered with the exporter in `src/MediaEngine.Api/DependencyInjection/TuvimaBackupServiceCollectionExtensions.cs`)
 
 ## What a backup is for
@@ -42,7 +43,7 @@ Tables that mix kinds are split in three ways. By column, a rule can name catalo
 
 A catalogue reference is normally an id. A reference stored as text is treated the same way when it parses as an id; any other text (a Wikidata id, a provider key) is an external key and is kept as written. A reference whose catalogue row no longer exists drops the row, and the count of dropped rows is recorded.
 
-Secrets are never kept. Provider settings marked secret, webhook secrets and similar values are left out, in the same way as today's backups. The one deliberate exception is the two-step sign-in secret, which is kept readable so a restore works on a new computer (see "Portable sign-in data").
+Provider keys and the Engine's own encryption keys are never kept: provider settings marked secret, the `config/secrets` and `config/.keys` folders and plugin secrets are left out. The deliberate exceptions are the two values that are protected with one computer's key, the two-step sign-in secret and a webhook's signing secret. They are kept readable so a restore works on a new computer (see "Portable sign-in data"). Nothing in a backup file is treated as a secret: backups are never encrypted, and keeping the file safe is the person's job.
 
 ## A person's own choices and corrections
 
@@ -59,11 +60,27 @@ Artwork a person chose is kept only when it has a stable outside identity: a cov
 
 ## Portable sign-in data
 
-The two-step sign-in secret is stored sealed with this computer's Data Protection key, so on its own it would be useless on a new computer. The `account_two_step` rule names `secret_protected` as a portable column: the exporter asks the Engine's codec to unseal it and writes it readable, marked as portable in the file, and a restore seals it again with the new computer's key. Plainly: **backups are never encrypted, so the backup file can be used to sign in as you; keeping it safe is your job.** If the key is gone and the secret cannot be unsealed, it is kept as it is, counted in the backup's contents, and works only on this computer. Without a codec registered, portable columns are written unchanged. The codec handles exactly this one column and refuses any other.
+The two-step sign-in secret is stored sealed with this computer's Data Protection key, so on its own it would be useless on a new computer. The same goes for a webhook's signing secret (`application_webhooks.secret_ciphertext`, sealed for that webhook's id; the column cannot be empty, so a restored webhook row needs it). The `account_two_step` rule names `secret_protected` as a portable column, and the `application_webhooks` rule names `secret_ciphertext`: the exporter asks the Engine's codec to unseal it and writes it readable, marked as portable in the file, and a restore seals it again with the new computer's key. Plainly: **backups are never encrypted, so the backup file can be used to sign in as you; keeping it safe is your job.** If the key is gone and the secret cannot be unsealed, it is kept as it is, counted in the backup's contents, and works only on this computer. Without a codec registered, portable columns are written unchanged. The codec handles exactly these two columns, with the same protector and purpose the sign-in code and the webhook code use (it is given the row's values because a webhook secret is sealed for the webhook's id), and refuses any other.
+
+## What a backup file holds
+
+A backup is one zip file, `tuvima-backup-<time>.zip`, with three parts:
+
+- `manifest.json`: `schema_version` `3.0`, `kind` `settings-and-personal-state`, `created_at`, `database_epoch` (which data structure it was made on), `includes_secrets` and `includes_keys` (both `false`), `leaves_out` (media files, folders, artwork, catalogue, adult-video catalogue, secrets) and the counts of what it holds (profiles, configuration rows, personal rows, correction rows, choice rows, titles, titles recognised by file only). It holds no Vault field and names no title.
+- `config/**`: the safe configuration files, as before (never `config/secrets`, `config/.keys`, backups, `.bak` and `.tmp` files, restore markers).
+- `data/**`: the export described above, written by `BackupArchiveFormat`.
+
+There is no copy of the data store file and no write lock: the export reads its own consistent snapshot, so a backup does not pause the Library. A backup of the earlier layout (manifest version `1.0` or `2.0`, no `kind`, or a `database/library.db` entry) is refused everywhere with "This backup is from an older version of Tuvima Library and can't be restored. Make a new backup with this version."; a backup whose data cannot be read is refused with "This backup file is damaged and can't be restored.".
+
+## How a restore runs
+
+One check (`RestoreArchiveValidator`) is used by scheduling a restore, the monthly restore check, the test restore, a setup upload and a restore from a destination. It applies the zip safety rules (unsafe or duplicate paths, forbidden secret entries, compression ratio, entry count, size), then reads the manifest, then reads the whole `data/` part once. Scheduling copies the checked zip into a staging folder `pending-<id>` in the backup folder, unpacks its `config/` files beside it and writes `.restore-pending.json` in the configuration folder.
+
+At the next start-up, before the data store opens, `DatabaseBackupService.ApplyPendingRestore` checks the staged zip again and then puts the current data store aside, whole (the file and its `-wal` and `-shm` files), as `<db>.pre-restore-<time>.bak`; if any move fails the earlier moves are undone and the Engine stops with the error, so the Library is left exactly as it was. It then copies the staged configuration over (keeping each replaced file as `.pre-restore-<time>.bak`) and replaces the marker with `.restore-import.json`. The Engine builds a fresh data store, and `PendingRestoreImportService` (run once after the Engine is built, before anything is served) reads the staged zip and imports it as described below, then deletes the staged folder and the marker and logs one line of counts. If the import fails, it logs an error naming where the previous data store was put aside (never its contents), renames the marker to `.restore-import-failed.json` so it is not retried on every start, keeps the staged folder, and the Engine carries on with the fresh store. Your current Library is therefore never deleted by a restore.
 
 ## Restore and re-attach
 
-A restore imports an export into the current data store in one write transaction, so it either completes or leaves the data store as it was. It does three things.
+A restore imports an export into the fresh data store in one write transaction, so it either completes or leaves the data store as it was. It does three things.
 
 - **Settings go straight back.** A Configuration row that points at no title is written into its table, replacing the built-in row a fresh data store already holds (the default profile, the provider list). Values keep their storage class. A portable value (the two-step secret) is sealed again with this computer's key through the Engine's codec; with no codec the restore refuses rather than write it unsealed. A personal row that points at no title (a taste override) is written only if the Library does not already have it.
 - **State that points at a title waits.** Every row, in any group, that holds a reference to a title is parked in `waiting_personal_state` with the recognition data of its titles (ids, running time, edition, file fingerprints, name and year, copied into the row). Each row records when it started waiting. The waiting period (`missing_file_retention_days` in `config/maintenance.json`, 90 days by default; Safer deleting reuses the same setting) is read live when rows are cleared, so changing the setting affects rows already waiting. A row that hangs off a waiting row (the items of a bookmark pack) travels with it. A backup taken while rows still wait keeps them, with the time they started waiting, so restoring it does not restart the clock. Rows about a title a backup may not name (the Vault) are marked withheld and are not counted unless asked.
@@ -83,7 +100,7 @@ The Engine logs one line per pass that re-attached or cleared anything (counts o
 
 ## Backup contents (manifest)
 
-A backup's manifest will name its kind (`settings-and-personal-state`) and list what the backup leaves out: media files, folders, artwork, the catalogue, the adult-video catalogue and secrets. The export of kept rows (`PersonalStateBackupRepository`, `BackupArchiveFormat`) and the importer that restores it (`BackupRestoreRepository`) are built; wiring them into the backup file itself, the manifest and the restore screens comes in the next step.
+See "What a backup file holds" above. The restore screens come in the next step.
 
 ## Configuration tables (64)
 
@@ -114,7 +131,7 @@ A backup's manifest will name its kind (`settings-and-personal-state`) and list 
 | `application_client_bindings` | Which client ids belong to which application. | none | none | all rows |
 | `application_credentials` | Hashed application credentials, which are access settings. | none | none | all rows |
 | `application_permission_grants` | Which permissions an application has been granted. | none | none | all rows |
-| `application_webhooks` | Webhook destinations an application has registered. | none | `secret_ciphertext` | all rows |
+| `application_webhooks` | Webhook destinations an application has registered; the signing secret is protected with this computer's Data Protection key, so the export writes it readable (portable column `secret_ciphertext`), or keeps it as it is when it cannot be read. | none | none | all rows |
 | `approval_records` | Approvals an administrator has given, with the statement approved. | none | none | all rows |
 | `plugin_lore_sources` | Lore sources a person approved or rejected; sources only discovered but never decided on are rebuilt. | none | none | `approved_at IS NOT NULL OR rejected_at IS NOT NULL` |
 | `metadata_providers` | The list of metadata providers and whether each is switched on. | none | none | all rows |
@@ -328,7 +345,7 @@ None of these are kept.
 
 ## The Vault
 
-The Vault keeps its settings and each person's own state in a backup, and never its catalogue (a rescan rebuilds it). A Vault video that a person's state points at is written to `titles.json` only as its ids, its Stash-box record (`stash_box_id`, written `server|record`), its running time, its edition and its file fingerprints, flagged `withheld`, with no name, parent name or year. A person's corrections and choices on a Vault title are left out. After a restore the state waits like any other, marked withheld, and is counted only when asked.
+The Vault keeps its settings and each person's own state in a backup, and never its catalogue (a rescan rebuilds it). There is no Vault-specific backup step: the Vault folds into the one mechanism above. A Vault video that a person's state points at is written to `titles.json` only as its ids, its Stash-box record (`stash_box_id`, written `server|record`), its running time, its edition and its file fingerprints, flagged `withheld`, with no name, parent name or year; the same Stash-box record is read from the live video, so after a rescan a Vault bookmark finds the same video even when the file (and so its fingerprint) is different, and with no Stash-box record the exact file fingerprint still decides. A person's corrections and choices on a Vault title are left out. A restore brings the Vault libraries back empty, with Vault mode settings, PIN hashes and grants. The saved Vault bookmarks wait like any other state, marked withheld, and are counted only when asked (the Vault settings page asks, through `GET /api/v1/vault/restored-bookmarks`, which counts the withheld waiting rows and never names a title). The earlier Vault-only scrub, restore note and bookmark re-link (and the `vault_pending_bookmarks` table, dropped by upgrade step 0039) are gone.
 
 | Table | Kind | Why |
 |---|---|---|
@@ -336,7 +353,6 @@ The Vault keeps its settings and each person's own state in a backup, and never 
 | `vault_libraries` | Configuration | Which libraries are Vault libraries and how they look things up. |
 | `bookmark_packs` | Personal state | Bookmark packs a person imported for a title. |
 | `bookmark_pack_items` | Personal state | The bookmarks inside a pack (owned through the pack's profile). |
-| `vault_pending_bookmarks` | Personal state | Vault bookmarks waiting for their title after a restore. |
 | `nsfw_session_unlocks` | Transient | Temporary Vault mode sessions. |
 | `vault_activity` | Catalogue | Quiet list of Vault ingestion activity. |
 | `vault_artwork` | Catalogue | Vault artwork. |

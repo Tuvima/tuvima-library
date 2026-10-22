@@ -59,16 +59,44 @@ internal sealed class TitleRecognitionReader
             return null;
         }
 
-        if (!IsWithheld(target, id))
-        {
-            return title;
-        }
+        // A Vault video is recognised by its Stash-box record as well, on the live side too: only a Vault video has a match row, so
+        // this changes nothing for any other title, and it lets a backed-up Vault title find the same video after a rescan even
+        // though the file (and so its fingerprint) is different.
+        title = WithStashBoxId(target, id, title);
+        return IsWithheld(target, id)
+            ? Withhold(title) // Recognised by its ids, its Stash-box record and its file fingerprints, never by name.
+            : title;
+    }
 
-        // A Vault video is recognised by its ids, its Stash-box record and its file fingerprints, never by name.
-        var withheld = Withhold(title);
-        return target == CatalogueTarget.MediaAsset && ReadStashBoxId(id) is { } stashBoxId
-            ? withheld with { Ids = new Dictionary<string, string>(withheld.Ids, StringComparer.Ordinal) { [BookmarkPackMatcher.VaultStashBoxIdKey] = stashBoxId } }
-            : withheld;
+    private BackupTitle WithStashBoxId(CatalogueTarget target, byte[] id, BackupTitle title)
+    {
+        var stashBoxId = target switch
+        {
+            CatalogueTarget.MediaAsset => ReadStashBoxId(id),
+            CatalogueTarget.Edition => ReadStashBoxIdOf("ma.edition_id", id),
+            CatalogueTarget.Work => ReadStashBoxIdOf("e.work_id", id),
+            _ => null,
+        };
+
+        return stashBoxId is null
+            ? title
+            : title with { Ids = new Dictionary<string, string>(title.Ids, StringComparer.Ordinal) { [BookmarkPackMatcher.VaultStashBoxIdKey] = stashBoxId } };
+    }
+
+    /// <summary>The Stash-box record of the videos under an edition or work, when they all share the one record; null when there is none or they differ.</summary>
+    private string? ReadStashBoxIdOf(string ownerColumn, byte[] ownerId)
+    {
+        var rows = Query(
+            $"""
+            SELECT DISTINCT vm.server_id, vm.record_id FROM vault_matches vm
+            JOIN media_assets ma ON ma.id = vm.asset_id
+            JOIN editions e ON e.id = ma.edition_id
+            WHERE {ownerColumn} = $id
+            """,
+            ("$id", ownerId));
+        return rows.Count == 1 && Text(rows[0][0]) is { Length: > 0 } server && Text(rows[0][1]) is { Length: > 0 } record
+            ? $"{server}|{record}"
+            : null;
     }
 
     /// <summary>The Stash-box server and record of a matched Vault video, written <c>server|record</c>; null when it has no match.</summary>

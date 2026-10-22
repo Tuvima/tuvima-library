@@ -114,6 +114,8 @@ public sealed class EngineCompositionValidationTests
         // A restore puts settings back and parks a person's state; the worker puts it back on its title as the title arrives.
         Assert.NotNull(provider.GetRequiredService<MediaEngine.Storage.Backup.BackupRestoreRepository>());
         Assert.NotNull(provider.GetRequiredService<MediaEngine.Storage.Backup.WaitingPersonalStateRepository>());
+        Assert.NotNull(provider.GetRequiredService<MediaEngine.Api.Services.Backups.IPendingRestoreImportService>());
+        Assert.NotNull(provider.GetRequiredService<DatabaseBackupService>());
         Assert.Contains(
             services,
             descriptor => descriptor.ServiceType == typeof(IHostedService)
@@ -178,8 +180,14 @@ public sealed class EngineCompositionValidationTests
         services.AddTuvimaHostedServices();
         services.AddTuvimaToolRequirements();
         services.AddTuvimaNotifications();
-        services.AddSingleton(sp => new DatabaseBackupService(sp.GetRequiredService<IDatabaseConnection>(), Path.GetTempPath()));
         services.AddTuvimaBackupDestinations();
+        services.AddSingleton(sp => new DatabaseBackupService(sp.GetRequiredService<MediaEngine.Storage.Backup.PersonalStateBackupRepository>(), Path.GetTempPath()));
+        services.AddSingleton<MediaEngine.Api.Services.Backups.IPendingRestoreImportService>(sp => new MediaEngine.Api.Services.Backups.PendingRestoreImportService(
+            sp.GetRequiredService<MediaEngine.Storage.Backup.BackupRestoreRepository>(),
+            sp.GetRequiredService<MediaEngine.Storage.Backup.IBackupPortableValueCodec>(),
+            Path.GetTempPath(),
+            sp.GetRequiredService<TimeProvider>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MediaEngine.Api.Services.Backups.PendingRestoreImportService>>()));
 
         return services;
     }

@@ -316,6 +316,7 @@ public sealed class PersonalStateBackupRepository
 
                 if (portableValues is not null)
                 {
+                    var rowByColumn = RowByColumn(columns, row);
                     foreach (var index in portableIndexes)
                     {
                         if (row[index] is not BackupValue.Text protectedValue)
@@ -324,7 +325,7 @@ public sealed class PersonalStateBackupRepository
                         }
 
                         // Null means this computer's key cannot read it: keep it as it is, usable on this computer only.
-                        var readable = portableValues.Export(rule.Table, columns[index], protectedValue.Value);
+                        var readable = portableValues.Export(rule.Table, columns[index], protectedValue.Value, rowByColumn);
                         if (readable is null)
                         {
                             keptMachineBound++;
@@ -341,6 +342,17 @@ public sealed class PersonalStateBackupRepository
         }
 
         return new BackupExportTable(rule.Table, rule.Kind, columns, rows);
+    }
+
+    private static Dictionary<string, BackupValue> RowByColumn(IReadOnlyList<string> columns, IReadOnlyList<BackupValue> row)
+    {
+        var byColumn = new Dictionary<string, BackupValue>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < columns.Count; i++)
+        {
+            byColumn[columns[i]] = row[i];
+        }
+
+        return byColumn;
     }
 
     /// <summary>

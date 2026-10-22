@@ -2,18 +2,20 @@ using System.IO.Compression;
 using System.Text;
 using Dapper;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Backups;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Backup;
 using MediaEngine.Storage.Playback;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Api.Tests;
 
 // The bookmark pack file and its place in the library backup (Videos spec D46). The pack follows the backup's conventions (a ZIP with
-// a manifest, the same safe-entry checks, nothing secret), and a library backup already holds every kind of bookmark because it copies
-// the whole data store, so one restore brings personal, shared, scene and pack bookmarks back together.
+// a manifest, the same safe-entry checks, nothing secret), and a library backup already holds every kind of bookmark (as personal state
+// kept against how to recognise the title), so one restore brings personal, shared, scene and pack bookmarks back together once the title is back.
 public sealed class BookmarkPackFileTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"bookmark-pack-file-tests-{Guid.NewGuid():N}");
@@ -136,7 +138,7 @@ public sealed class BookmarkPackFileTests : IDisposable
     }
 
     [Fact]
-    public async Task ARestoredLibraryBackup_BringsBackPersonalSharedSceneAndPackBookmarksTogether()
+    public async Task ARestoredLibraryBackup_BringsBackPersonalSharedSceneAndPackBookmarksTogether_WhenTheTitleIsInTheLibraryAgain()
     {
         var config = Path.Combine(_root, "config");
         var dbPath = Path.Combine(_root, "library.db");
@@ -185,7 +187,7 @@ public sealed class BookmarkPackFileTests : IDisposable
             await packs.AddAsync(profile, workId, assetId, "Gondor", "A fan", "hash-1", 7200, null, false,
                 [new BookmarkPackBookmark(300, 360, "Opening", 0, "pack note", "pack description")]);
 
-            var service = new DatabaseBackupService(database, config);
+            var service = BackupTestKit.Service(database, config);
             var archivePath = await service.CreateAsync(CancellationToken.None);
             archiveName = Path.GetFileName(archivePath);
 
@@ -199,9 +201,22 @@ public sealed class BookmarkPackFileTests : IDisposable
         }
 
         DatabaseBackupService.ApplyPendingRestore(config, dbPath);
+        using var fresh = CreateDatabase(dbPath);
+        Assert.Equal(PendingRestoreImportOutcome.Imported, BackupTestKit.Importer(fresh, config).ImportIfPending());
 
-        using var restored = new SqliteConnection($"Data Source={dbPath};Pooling=False");
-        restored.Open();
+        // Nothing is guessed: until the title is in the Library the bookmarks wait. A rescan finds the same file again (new ids, same hash).
+        using var restored = fresh.CreateConnection();
+        Assert.Equal(0, restored.ExecuteScalar<int>("SELECT COUNT(*) FROM audiobook_bookmarks;"));
+        restored.Execute(
+            """
+            INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@workId, 'Videos', 'standalone', 'accepted');
+            INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at, library_id)
+            VALUES (@assetId, @editionId, 'hash-backup', 'D:/rescanned/film.mkv', CURRENT_TIMESTAMP, 'lib');
+            """,
+            new { workId = Guid.NewGuid(), editionId = Guid.NewGuid(), assetId = Guid.NewGuid() });
+        Assert.True(new WaitingPersonalStateRepository(fresh).RunPass(DateTimeOffset.UtcNow.AddMinutes(1), 100, 90).Attached >= 1);
+
         var rows = restored.Query<(double Position, double? End, string? Note, string? Description, long IsGlobal)>(
             "SELECT position_seconds, end_seconds, note, description, is_global FROM audiobook_bookmarks ORDER BY position_seconds;").ToList();
         Assert.Equal(2, rows.Count);
