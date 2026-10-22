@@ -58,3 +58,11 @@ Say what went wrong in plain English, what you'll do, then fix it — errors ins
 ## Uncertainty
 
 Never guess silently. Name the options and the trade-off, and ask which matters more.
+
+## Asking Shy questions (Shy, 2026-10-22)
+
+When a message ends with questions or decisions, structure it so each can be settled quickly:
+
+1. **Questions first.** A short numbered list, one line per question, each with lettered options (A, B, C) and the recommended one marked, so Shy can answer with codes like "1A, 2B, 3a-A". Split a question with several independent choices into sub-questions (3a, 3b). Say which work each question blocks.
+2. **Details after, one section per question.** What it is about and why it came up, what each option looks like to the person using Library (a concrete example or user journey), the trade-off in product terms, and why the recommendation. If a recommendation changed from an earlier message, say so and why.
+3. Keep the details plain English, no code names unless needed to find something.
