@@ -152,7 +152,7 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
                 MarkWorkOwned(connection, transaction, workId);
             }
 
-            var removed = moved && RemoveWorkIfEmpty(connection, transaction, current.WorkId, resolved.WorkId);
+            var removed = moved && RemoveWorkIfEmpty(connection, transaction, current.WorkId, resolved.WorkId, showWorkId);
             var placement = new TvReassignment(
                 assetId, current.EditionId, current.WorkId, removed, showWorkId, seasonWorkId, resolved.WorkId,
                 coveredWorkIds);
@@ -264,7 +264,7 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
     /// being emptied and removed.
     /// </summary>
     private static bool RemoveWorkIfEmpty(
-        SqliteConnection connection, SqliteTransaction transaction, Guid workId, Guid replacementWorkId)
+        SqliteConnection connection, SqliteTransaction transaction, Guid workId, Guid replacementWorkId, Guid showWorkId)
     {
         var removable = connection.ExecuteScalar<int>("""
             SELECT EXISTS (
@@ -283,13 +283,16 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
         // already holds the replacement keeps it once), saves, reactions, plays, listening history, bookmarks, queue places and personal tags.
         WorkPersonalStateMerge.Carry(connection, transaction, workId, replacementWorkId);
 
-        // The saves and reactions carried over were made on a movie; on the episode they are TV items, so they still resolve.
+        // The saves and reactions carried over were made on a movie; on TV the Dashboard reads them by the show, so they move to the show
+        // as TV items. A show the person already saved or reacted to keeps its own row and the duplicate is dropped.
         connection.Execute(
             """
-            UPDATE OR IGNORE profile_saved_items SET entity_kind = 'TvShow' WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
-            UPDATE OR IGNORE profile_reactions SET entity_kind = 'TvShow' WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
+            UPDATE OR IGNORE profile_saved_items SET entity_kind = 'TvShow', entity_id = @showWorkId WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
+            DELETE FROM profile_saved_items WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
+            UPDATE OR IGNORE profile_reactions SET entity_kind = 'TvShow', entity_id = @showWorkId WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
+            DELETE FROM profile_reactions WHERE entity_id = @replacementWorkId AND entity_kind = 'Movie';
             """,
-            new { replacementWorkId }, transaction);
+            new { replacementWorkId, showWorkId }, transaction);
 
         foreach (var statement in new[]
                  {

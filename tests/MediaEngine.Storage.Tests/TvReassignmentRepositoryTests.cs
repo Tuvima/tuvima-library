@@ -128,13 +128,36 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
         Assert.True(result.PreviousWorkRemoved);
         using var conn = _db.CreateConnection();
         var episode = result.EpisodeWorkId;
-        Assert.Equal(episode, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_saved_items WHERE profile_id = @person;", new { person }));
-        Assert.Equal(episode, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_reactions WHERE profile_id = @person;", new { person }));
-        // They were made on a movie; on the episode they are TV items.
+        // They were made on a movie; on TV the Dashboard reads them by the show, so they are TV items on the show.
+        Assert.Equal(result.ShowWorkId, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_saved_items WHERE profile_id = @person;", new { person }));
+        Assert.Equal(result.ShowWorkId, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_reactions WHERE profile_id = @person;", new { person }));
         Assert.Equal("TvShow", conn.ExecuteScalar<string>("SELECT entity_kind FROM profile_saved_items WHERE profile_id = @person;", new { person }));
         Assert.Equal("TvShow", conn.ExecuteScalar<string>("SELECT entity_kind FROM profile_reactions WHERE profile_id = @person;", new { person }));
         Assert.Equal("""["rewatch"]""", conn.ExecuteScalar<string>("SELECT local_tags_json FROM profile_work_preferences WHERE work_id = @episode;", new { episode }));
         Assert.Equal(40, conn.ExecuteScalar<int>("SELECT progress_pct FROM user_states WHERE user_id = @person AND asset_id = @assetId;", new { person, assetId }));
+    }
+
+    [Fact]
+    public async Task MovingAMovieToTv_WhenTheShowIsAlreadySavedAndReactedTo_KeepsOneRowOfEach()
+    {
+        var first = await IngestMovieAsync(@"C:\Temp\real_import\movies\a.mkv");
+        var second = await IngestMovieAsync(@"C:\Temp\real_import\movies\b.mkv");
+        var firstMove = await _repository.ReassignToTvShowSpecialAsync(first.AssetId, ShowName, null);
+        var person = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("""
+                INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, 'TvShow', @show, '2026-10-01T00:00:00Z'), (@person, 'Movie', @movie, '2026-10-02T00:00:00Z');
+                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'TvShow', @show, 'Like', '2026-10-01T00:00:00Z'), (@person, 'Movie', @movie, 'Love', '2026-10-02T00:00:00Z');
+                """, new { person, show = firstMove.ShowWorkId, movie = second.WorkId });
+        }
+
+        await _repository.ReassignToTvShowSpecialAsync(second.AssetId, ShowName, null);
+
+        using var conn = _db.CreateConnection();
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_saved_items WHERE profile_id = @person;", new { person }));
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_reactions WHERE profile_id = @person;", new { person }));
+        Assert.Equal("Like", conn.ExecuteScalar<string>("SELECT reaction FROM profile_reactions WHERE profile_id = @person;", new { person }));
     }
 
     [Fact]
