@@ -39,6 +39,10 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
     // watcher and reconciliation treat the file normally at its current path.
     private const string MoveInFlightFilter = "move_step IS NOT NULL AND move_step NOT IN ('waiting', 'held')";
 
+    // Library writes nothing into a file it could not match, kept as it is or not (Library setup D64, D34): its tag requests stay pending
+    // and are written once a lookup identifies the file and its Unmatched row goes. A row of a View item has no asset and is never held back.
+    private const string NoOpenUnmatchedRow = "NOT EXISTS (SELECT 1 FROM unmatched_assets um WHERE um.asset_id = i.asset_id)";
+
     // The one statement every place that asks for a file write uses. A newer ask for a file already on the list (whatever state it is
     // in, including being written right now) bumps the generation and puts it back to pending, so the write that is in flight cannot
     // mark the newer version done. A move in progress is never cleared: the first step recorded wins until the move is finished.
@@ -252,6 +256,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                   AND (i.status = 'pending' OR (i.status = 'writing' AND i.lease_expires_at < @now))
                   AND i.updated_at <= @changedBefore AND (i.claimed_run_id IS NULL OR i.claimed_run_id <> @runId)
                   AND NOT ({FolderFirstCheckRepository.FileInHeldFolder("ma")})
+                  AND {NoOpenUnmatchedRow}
                 ORDER BY i.updated_at, i.id
                 LIMIT @limit;
                 """, new
@@ -699,6 +704,7 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
                                       AND (i.status = 'pending' OR (i.status = 'writing' AND i.lease_expires_at < @now))
                                       AND (i.next_attempt_at IS NULL OR i.next_attempt_at <= @now)
                                       AND NOT ({FolderFirstCheckRepository.FileInHeldFolder("ma")})
+                                      AND {NoOpenUnmatchedRow}
                                      THEN 1 ELSE 0 END), 0)
                    + COALESCE(SUM(CASE WHEN i.move_step = 'waiting' AND i.status = 'pending' THEN 1 ELSE 0 END), 0) AS Claimable,
                    COALESCE(SUM(CASE WHEN i.move_step = 'waiting' AND i.status = 'pending' THEN 1 ELSE 0 END), 0) AS FilingWaiting

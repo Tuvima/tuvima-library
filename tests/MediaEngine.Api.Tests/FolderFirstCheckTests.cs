@@ -1,11 +1,15 @@
 using Dapper;
+using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion;
+using MediaEngine.Ingestion.Models;
+using MediaEngine.Ingestion.Services;
 using MediaEngine.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -254,6 +258,96 @@ public sealed class FolderFirstCheckTests : IDisposable
         Assert.Equal(UnmatchedReasons.NoYoutubeId, (await _unmatched.GetAsync(songs[0].Asset))!.Reason);
     }
 
+    // ----- nothing is written into an Unmatched file, and held subtitles are exported when the hold ends ------------------------
+
+    [Fact]
+    public async Task AnUnmatchedFilesTags_StayPending_InAnyManagedFolder_AndAreWrittenOnTheNextRunOnceItIsIdentified()
+    {
+        var songs = await AddSongsAsync(2);
+
+        // No first check runs here: the folder is an ordinary Managed folder.
+        await FinishAsync(songs, matched: index => index == 1);
+        await Files.Scheduler.RunBatchAsync();
+
+        Assert.Equal([songs[1].Asset], Files.WriteBack.Calls.Select(call => call.AssetId).ToArray());
+        Assert.Equal("pending", Files.Intent(songs[0].Asset).Status);
+
+        // A lookup identifies it: the Unmatched row clears and the tags that were waiting are written in the next run.
+        await _jobs.UpdateStateAsync(songs[0].Job, IdentityJobState.RetailMatched);
+        await Files.Scheduler.RunBatchAsync();
+
+        Assert.Contains(Files.WriteBack.Calls, call => call.AssetId == songs[0].Asset);
+        Assert.Equal("verified", Files.Intent(songs[0].Asset).Status);
+    }
+
+    [Fact]
+    public async Task AFileKeptAsItIs_GetsNoTagsEither_UntilALookIsAskedFor()
+    {
+        var songs = await AddSongsAsync(1);
+        await FinishAsync(songs, matched: _ => false);
+        await _unmatched.KeepAsIsAsync(songs[0].Asset, Now);
+
+        await Files.Scheduler.RunBatchAsync();
+        Assert.Empty(Files.WriteBack.Calls);
+
+        await _unmatched.LookUpAgainAsync(songs[0].Asset, Now);
+        await _jobs.UpdateStateAsync(songs[0].Job, IdentityJobState.RetailMatched);
+        await Files.Scheduler.RunBatchAsync();
+
+        Assert.Equal(songs[0].Asset, Assert.Single(Files.WriteBack.Calls).AssetId);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ASubtitleIsNotExportedBesideAFileInAHeldFolder_AndIsExportedWhenTheCheckPassesOrKeepGoingIsChosen(bool pausedThenKeepGoing)
+    {
+        var songs = await AddSongsAsync(pausedThenKeepGoing ? 8 : 1);
+        Files.Configuration.SaveConfig(string.Empty, "writeback", new WriteBackConfiguration { Enabled = true });
+        var tracks = new TextTrackRepository(Files.Database);
+        var assets = new MediaAssetRepository(Files.Database);
+        var resolver = new LibraryFolderResolver(new FixedMonitor(Files.Options));
+        var export = new TextTrackExportService(
+            resolver, new SourceMutationPolicyGate(Files.MergeLedger), Files.Configuration, NullLogger<TextTrackExportService>.Instance,
+            new FolderFirstCheckFilingHold(_checks));
+        var paths = new AssetPathService(Path.Combine(Files.Managed, ".library"), new LibraryStoragePolicy { SubtitleExport = true }, null);
+        var exporter = new HeldSubtitleExporter(tracks, assets, export, paths, NullLogger<HeldSubtitleExporter>.Instance);
+        var service = new FolderFirstCheckService(_checks, Files.Configuration, NullLogger<FolderFirstCheckService>.Instance, heldSubtitles: exporter);
+        await _checks.StartAsync(LibraryId, ManagedSource, Files.Managed, Now);
+        var song = songs[^1];
+        var download = MoveFileWorld.WriteFile(Path.Combine(Files.Managed, ".library"), "downloads/subtitle.vtt", "WEBVTT");
+        var track = new TextTrack
+        {
+            AssetId = song.Asset, Kind = TextTrackKind.Subtitles, Language = "en", Provider = "test", SourceFormat = "vtt",
+            NormalizedFormat = "vtt", LocalPath = download, IsPreferred = true,
+        };
+        await tracks.UpsertAsync(track);
+        var asset = (await assets.FindByIdAsync(song.Asset))!;
+        var sidecar = AssetPathService.BuildSubtitleSidecarPath(song.OldPath, "en", ".vtt");
+
+        // While the folder is held nothing is written beside the file.
+        Assert.Null(await export.ExportPreferredSubtitleAsync(asset, track));
+        Assert.False(File.Exists(sidecar));
+
+        if (pausedThenKeepGoing)
+        {
+            await FinishAsync(songs, matched: index => index >= 6);
+            await service.EvaluateAsync(CancellationToken.None);
+            Assert.Equal(FolderFirstCheckStates.Paused, (await _checks.GetAsync(ManagedSource))!.State);
+            Assert.False(File.Exists(sidecar));
+            Assert.True(await service.KeepGoingAsync(ManagedSource, CancellationToken.None));
+        }
+        else
+        {
+            await FinishAsync(songs, matched: _ => true);
+            Assert.Equal(1, await service.EvaluateAsync(CancellationToken.None));
+        }
+
+        // The hold ended: the subtitle is exported and remembered.
+        Assert.True(File.Exists(sidecar));
+        Assert.Equal(sidecar, (await tracks.FindByIdAsync(track.Id))!.SidecarPath);
+    }
+
     // ----- which folders get a check -------------------------------------------------------------------------------------------
 
     [Theory]
@@ -366,6 +460,15 @@ public sealed class FolderFirstCheckTests : IDisposable
     // ----- helpers -------------------------------------------------------------------------------------------------------------
 
     private sealed record Song(Guid Asset, Guid Job, string OldPath);
+
+    private sealed class FixedMonitor(IngestionOptions value) : Microsoft.Extensions.Options.IOptionsMonitor<IngestionOptions>
+    {
+        public IngestionOptions CurrentValue => value;
+
+        public IngestionOptions Get(string? name) => value;
+
+        public IDisposable? OnChange(Action<IngestionOptions, string?> listener) => null;
+    }
 
     private async Task<List<Song>> AddSongsAsync(int count, string? folder = null)
     {

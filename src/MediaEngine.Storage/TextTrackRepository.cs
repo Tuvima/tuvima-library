@@ -59,6 +59,23 @@ public sealed class TextTrackRepository : ITextTrackRepository
         return Task.FromResult<IReadOnlyList<TextTrack>>(rows.ToList());
     }
 
+    public Task<IReadOnlyList<TextTrack>> ListPreferredSubtitlesWithoutSidecarInFolderAsync(string folderPath, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(folderPath);
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var rows = conn.Query<TextTrack>($"""
+            SELECT {SelectColumns}
+            FROM text_tracks
+            WHERE kind = 'Subtitles' AND is_preferred = 1 AND is_user_owned = 0 AND sidecar_path IS NULL
+              AND asset_id NOT IN (SELECT asset_id FROM unmatched_assets)
+              AND asset_id IN (
+                  SELECT a.id FROM media_assets a
+                  WHERE substr(lower(replace(a.file_path_root, '\', '/')), 1, length(@pathKey) + 1) = @pathKey || '/');
+            """, new { pathKey = MediaEngine.Domain.Models.FolderFirstCheckPaths.Key(folderPath) });
+        return Task.FromResult<IReadOnlyList<TextTrack>>(rows.ToList());
+    }
+
     public Task<TextTrack?> FindByIdAsync(Guid id, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

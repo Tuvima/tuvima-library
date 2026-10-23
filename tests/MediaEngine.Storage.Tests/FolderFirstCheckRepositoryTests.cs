@@ -254,6 +254,37 @@ public sealed class FolderFirstCheckRepositoryTests : IDisposable
         Assert.Equal(inside, Assert.Single(later).AssetId);
     }
 
+    [Fact]
+    public async Task ATagWrite_ForAnUnmatchedFile_KeptOrNot_StaysPending_AndIsClaimedOnceItsRowClears()
+    {
+        var open = AddAsset("D:/Media/Movies/Open.mkv");
+        var kept = AddAsset("D:/Media/Music/Kept.flac");
+        var matched = AddAsset("D:/Media/Music/Matched.flac");
+        foreach (var asset in new[] { open, kept })
+        {
+            Execute("""
+                INSERT INTO unmatched_assets(asset_id,library_id,reason,first_unmatched_at,last_tried_at,next_retry_at,kept_as_is)
+                VALUES(@asset,'movies','no_match','2026-10-22T09:00:00.0000000Z','2026-10-22T09:00:00.0000000Z','2026-10-29T09:00:00.0000000Z',0);
+                """, new { asset });
+        }
+
+        Execute("UPDATE unmatched_assets SET kept_as_is = 1, next_retry_at = NULL WHERE asset_id = @kept;", new { kept });
+        await _intents.EnqueueAssetsAsync([open, kept, matched], "auto_match");
+
+        // Library writes nothing into a file it could not match; the others are written as normal.
+        Assert.Equal(1, (await _intents.GetCountsAsync()).Claimable);
+        var claimed = await _intents.ClaimBatchAsync("media_asset", 10, TimeSpan.FromMinutes(1), DateTimeOffset.UtcNow.AddHours(1));
+        Assert.Equal(matched, Assert.Single(claimed).AssetId);
+        Assert.Equal("pending", Scalar<string>("SELECT status FROM media_file_write_intents WHERE asset_id=@open;", new { open }));
+        Assert.Equal("pending", Scalar<string>("SELECT status FROM media_file_write_intents WHERE asset_id=@kept;", new { kept }));
+
+        // A lookup identifies the open one: its Unmatched row goes and its waiting tags are claimed on the next run.
+        var job = await QueueJobAsync(open);
+        await _jobs.UpdateStateAsync(job, IdentityJobState.RetailMatched);
+        var later = await _intents.ClaimBatchAsync("media_asset", 10, TimeSpan.FromMinutes(1), DateTimeOffset.UtcNow.AddHours(1));
+        Assert.Equal(open, Assert.Single(later).AssetId);
+    }
+
     // ----- ending a check and the held filing rows ------------------------------------------------------------------------------
 
     [Fact]

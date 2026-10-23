@@ -17,7 +17,8 @@ public sealed class FolderFirstCheckService(
     IFolderFirstCheckRepository checks,
     IConfigurationLoader configuration,
     ILogger<FolderFirstCheckService> logger,
-    TimeProvider? clock = null)
+    TimeProvider? clock = null,
+    HeldSubtitleExporter? heldSubtitles = null)
 {
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
 
@@ -181,6 +182,7 @@ public sealed class FolderFirstCheckService(
                 logger.LogInformation(
                     "First check passed for {Path}: {Unmatched} of {Tried} files did not match. Held moves and tags are released to the next run",
                     check.Path, progress.Unmatched, progress.Tried);
+                await ExportHeldSubtitlesAsync(check.Path, ct).ConfigureAwait(false);
             }
         }
 
@@ -197,13 +199,37 @@ public sealed class FolderFirstCheckService(
     /// </summary>
     public async Task<bool> KeepGoingAsync(string sourceId, CancellationToken ct)
     {
+        var check = await checks.GetAsync(sourceId, ct).ConfigureAwait(false);
         var kept = await checks.KeepGoingAsync(sourceId, _clock.GetUtcNow(), ct).ConfigureAwait(false);
         if (kept)
         {
             logger.LogInformation("An administrator chose Keep going for the paused folder {SourceId}: identification resumes", sourceId);
+            if (check is not null)
+            {
+                await ExportHeldSubtitlesAsync(check.Path, ct).ConfigureAwait(false);
+            }
         }
 
         return kept;
+    }
+
+    // The hold has ended: subtitles that were not exported beside their files while it lasted are exported now. A failure here is logged and
+    // never undoes the release.
+    private async Task ExportHeldSubtitlesAsync(string folderPath, CancellationToken ct)
+    {
+        if (heldSubtitles is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await heldSubtitles.ExportForFolderAsync(folderPath, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Held subtitles in {Path} could not be exported after its first check ended", folderPath);
+        }
     }
 
     /// <summary>
