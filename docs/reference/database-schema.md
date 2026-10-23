@@ -952,7 +952,7 @@ One row per person who signs in. A sign-in that works away from this computer ha
 | `authorization_version` | INTEGER | Bumped whenever access changes, so open sessions re-check |
 | `created_at`, `updated_at` | TEXT | Timestamps |
 | `household_id` | BLOB | The household the account belongs to (see `households`). Set by the repository when an account is saved, so it is set on every account the Engine writes. |
-| `grants_inherit_from_account_id` | BLOB | When set, the account has no feature or library grants of its own and follows those of the named account (a person's own sign-in follows the household's main sign-in). Read at use time, so changes to the main sign-in reach the person. Cleared to the household's next main sign-in when the named account is deleted. |
+| `grants_inherit_from_account_id` | BLOB | When set, the account has no feature grants of its own and follows those of the named account, and also hides the libraries that account hides (a person's own sign-in follows the household's main sign-in). Read at use time, so changes to the main sign-in reach the person. Cleared to the household's next main sign-in when the named account is deleted. |
 | `this_computer_only` | INTEGER | 1 for an account that was started on this computer without a password. It signs in without a password and, since Tuvima is open from the start, can be used from any device that reaches the server until a password or passkey is added (see Security). Defaults to 0. |
 | `must_change_password` | INTEGER | 1 while the password is one an administrator chose. The person can then do nothing except choose their own password, check their session and sign out; the Engine refuses everything else with 403 `password_change_required`. Defaults to 0. |
 | `temporary_password_expires_at` | TEXT | When an administrator-set temporary password stops working; null when none is set. Sessions of an account whose temporary password has run out stop validating. |
@@ -1073,9 +1073,9 @@ Which profiles an account may open: one row per account and profile (primary key
 
 The features an account may use: `account_id` and `feature_id` (`read`, `watch`, `listen` or `view`, primary key together) and `granted_at`.
 
-### account_library_grants
+### account_library_hidden
 
-The libraries an account may open: `account_id` and `library_id` (primary key together) and `granted_at`.
+The libraries an administrator hid from an account (simpler access): one row per hidden library, `account_id` and `library_id` (a 16-byte id, primary key together), `created_at` and `created_by_account_id` (the administrator who saved it; set to empty if that account is deleted). A person sees every library in the areas they have (`account_feature_grants`) unless a row hides it, so a new library needs no row. A household member also follows the rows of the account named in `accounts.grants_inherit_from_account_id`. A Vault library is never listed. Deleting the account removes its rows. Replaces `account_library_grants` (upgrade step 0045); nothing was carried across.
 
 ### grant_admin_protections
 

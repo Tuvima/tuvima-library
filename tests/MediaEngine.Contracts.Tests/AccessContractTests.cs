@@ -166,4 +166,35 @@ public sealed class AccessContractTests
         Assert.Contains("\"email\":\"owner@example.com\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("local_only", json, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void LibraryAccessIsTheListOfHiddenLibraries_NotAListOfGrantedOnes()
+    {
+        var hidden = Guid.NewGuid();
+        var response = new AccountAccessResponse(
+            Guid.NewGuid(), "sam@example.com", true, false, 1, [], [hidden], [],
+            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
+        var json = JsonSerializer.Serialize(response);
+
+        Assert.Contains($"\"hidden_library_ids\":[\"{hidden}\"]", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("library_grants", json, StringComparison.Ordinal);
+        Assert.Equal($"{{\"feature_ids\":[\"watch\"],\"hidden_library_ids\":[\"{hidden}\"]}}",
+            JsonSerializer.Serialize(new ReplaceAccountAccessRequest(["watch"], [hidden])));
+
+        var created = JsonSerializer.Serialize(new CreateManagedAccountRequest(null, false, null, null, [], [hidden]));
+        Assert.Contains("\"hidden_library_ids\":", created, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"library_ids\":", created, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheLibraryPickerNamesEachLibrarysAreaAndWhetherThePrimaryAccountHidesIt()
+    {
+        var id = Guid.NewGuid();
+        var json = JsonSerializer.Serialize(new AccessLibraryOptionDto(id, "Lectures", "videos", "watch", HiddenByPrimary: true));
+
+        Assert.Contains("\"area\":\"watch\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"hidden_by_primary\":true", json, StringComparison.Ordinal);
+        Assert.False(JsonSerializer.Deserialize<AccessLibraryOptionDto>(
+            $"{{\"id\":\"{id}\",\"display_name\":\"Books\",\"category\":null,\"area\":\"read\"}}")!.HiddenByPrimary);
+    }
 }

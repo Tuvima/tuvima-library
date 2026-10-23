@@ -131,6 +131,8 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
         builder.Services.AddSingleton<IPermissionRegistry>(new PermissionRegistry());
         builder.Services.AddSingleton<IGrantAdminUnlockService>(new GrantAdminUnlockService(
             _accounts, new StubProfilePins(), TimeProvider.System));
+        builder.Services.AddSingleton<IVaultLibraryRepository>(new VaultLibraryRepository(_database));
+        builder.Services.AddSingleton<LibraryVisibilityRule>();
         builder.Services.AddSingleton<IAccountAccessDecisionService, AccountAccessDecisionService>();
         builder.Services.AddSingleton<IAuthorizationAuditWriter, AuthorizationAuditWriter>();
         builder.Services.AddScoped<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AuthorizationEvaluator>();

@@ -103,13 +103,6 @@ public sealed class AccountFeatureGrant
     public DateTimeOffset GrantedAt { get; set; }
 }
 
-public sealed class AccountLibraryGrant
-{
-    public Guid AccountId { get; set; }
-    public Guid LibraryId { get; set; }
-    public DateTimeOffset GrantedAt { get; set; }
-}
-
 /// <summary>
 /// "Ask for my PIN on admin pages" for one sign-in's use of one profile. The PIN asked for is the profile's own PIN (one PIN per
 /// profile); this row only records that the question is switched on and how long the answer lasts.

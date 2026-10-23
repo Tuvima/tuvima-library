@@ -1,6 +1,7 @@
 using MediaEngine.Api.Security;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -114,6 +115,64 @@ public sealed class HouseholdAdministratorTests
         // The server administrator is not held to that ceiling.
         await mutations.ReplaceAccessAsync(world.ServerAdmin, secondAdult.Id,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch }, new HashSet<Guid>());
+    }
+
+    [Fact]
+    public async Task HouseholdAdministrator_CanNotShowAgainALibraryTheMainSignInHides_WhateverTheyPutInTheSave()
+    {
+        await using var world = await World.CreateAsync();
+        var mutations = world.Mutations;
+        var invitation = await mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
+            "second.adult@example.com", [world.A.Person.Id], null));
+        var secondAdult = (await world.Accounts.GetByIdAsync(invitation.AccountId))!;
+
+        // The server administrator hid a library from the household's main sign-in.
+        var hiddenByMain = Guid.NewGuid();
+        var main = world.A.Owner;
+        await world.Accounts.ReplaceAccountAccessAsync(
+            main.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { hiddenByMain }, DateTimeOffset.UtcNow);
+
+        // The household administrator saves a list that hides nothing: the main sign-in's hidden library stays hidden.
+        await mutations.ReplaceAccessAsync(world.AdminOfA, secondAdult.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>());
+        Assert.Equal([hiddenByMain], (await world.Accounts.GetHiddenLibrariesAsync(secondAdult.Id)).ToArray());
+        Assert.True(await world.Accounts.IsLibraryHiddenAsync(secondAdult.Id, hiddenByMain));
+
+        // Another household's main sign-in, and an account nobody hid anything from, are untouched.
+        Assert.Empty(await world.Accounts.GetHiddenLibrariesAsync(world.B.Owner.Id));
+    }
+
+    [Fact]
+    public async Task AHiddenLibraryThatLeftTheConfiguration_DoesNotBlockASave_ButANewUnknownOneIsStillRefused()
+    {
+        await using var world = await World.CreateAsync();
+        world.ConfigureOneCataloguedLibrary();
+        var gone = Guid.NewGuid();
+        var owner = world.A.Owner;
+        var read = new HashSet<AccountFeatureId> { AccountFeatureId.Read };
+        await world.Accounts.ReplaceAccountAccessAsync(owner.Id, read, new HashSet<Guid> { gone }, DateTimeOffset.UtcNow);
+
+        // Saving the list the page loaded (which still names the stale id) works, and the stale row goes.
+        await world.Mutations.ReplaceAccessAsync(world.ServerAdmin, owner.Id, read, new HashSet<Guid> { gone });
+        Assert.Empty(await world.Accounts.GetHiddenLibrariesAsync(owner.Id));
+
+        // An id nobody stored for this account, that is not configured, is refused.
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            world.Mutations.ReplaceAccessAsync(world.ServerAdmin, owner.Id, read, new HashSet<Guid> { Guid.NewGuid() }));
+    }
+
+    [Fact]
+    public async Task WithNoLibrariesConfiguredAtAll_StoredHiddenLibrariesAreKept_SoTheyStayHiddenWhenTheFileComesBack()
+    {
+        await using var world = await World.CreateAsync();
+        var hidden = Guid.NewGuid();
+        var owner = world.A.Owner;
+        var read = new HashSet<AccountFeatureId> { AccountFeatureId.Read };
+        await world.Accounts.ReplaceAccountAccessAsync(owner.Id, read, new HashSet<Guid> { hidden }, DateTimeOffset.UtcNow);
+
+        await world.Mutations.ReplaceAccessAsync(world.ServerAdmin, owner.Id, read, new HashSet<Guid> { hidden });
+
+        Assert.Equal([hidden], await world.Accounts.GetHiddenLibrariesAsync(owner.Id));
     }
 
     [Fact]
@@ -367,6 +426,27 @@ public sealed class HouseholdAdministratorTests
         public NoProfilePhotos Photos { get; } = new();
         public DatabaseConnection Database => _database;
 
+        /// <summary>Writes a libraries file with one catalogued library, so a save has a configuration to check hidden ids against.</summary>
+        public void ConfigureOneCataloguedLibrary() =>
+            _configuration.SaveLibraries(new LibrariesConfiguration
+            {
+                StorageLocations = [new ServerStorageLocationConfig { Id = "media", Label = "Library data", Path = _configPath, AllowWrite = true }],
+                ViewStorage = new ViewStorageConfig { StorageLocationId = "media", RelativeRoot = "View" },
+                Libraries =
+                [
+                    new LibraryFolderConfig
+                    {
+                        Id = Guid.NewGuid().ToString("D"),
+                        Name = "Books",
+                        Category = "Books",
+                        Kind = LibraryKinds.Catalogued,
+                        KindKey = "books",
+                        MediaTypes = ["Books"],
+                        Area = LibraryAreas.Read,
+                    },
+                ],
+            });
+
         public static async Task<World> CreateAsync(bool sharedLibraryFirst = false)
         {
             var world = new World();
@@ -410,7 +490,7 @@ public sealed class HouseholdAdministratorTests
                 "server@example.com", IsAdministrator: true, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Server", "#7C4DFF"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             var serverProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value;
             world.ServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, serverProfile);
 
@@ -483,7 +563,7 @@ public sealed class HouseholdAdministratorTests
                 email, IsAdministrator: false, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand(personName, "#112233"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             var household = (await Households.GetForAccountAsync(owner.Id))!;
             var person = await Mutations.AddHouseholdPersonAsync(ServerAdmin,
                 new AddHouseholdPersonCommand(household.Id, $"{personName}'s friend", null, false, null));

@@ -64,7 +64,7 @@ public sealed class AccountEmailRequiredTests
                             ProfileId: null,
                             NewProfile: new NewAccountProfileCommand("Nameless", "#7C4DFF"),
                             Features: new HashSet<AccountFeatureId>(),
-                            Libraries: new HashSet<Guid>())));
+                            HiddenLibraries: new HashSet<Guid>())));
                     }
 
                     var account = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
@@ -73,7 +73,7 @@ public sealed class AccountEmailRequiredTests
                         ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Household", "#7C4DFF"),
                         Features: new HashSet<AccountFeatureId>(),
-                        Libraries: new HashSet<Guid>()));
+                        HiddenLibraries: new HashSet<Guid>()));
                     var profileId = Assert.Single(await accounts.GetGrantsAsync(account.Id)).ProfileId;
                     var identity = new FirstPartyIdentityService(
                         identities,
@@ -174,7 +174,7 @@ public sealed class AccountEmailRequiredTests
                         ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Owner", "#7C4DFF"),
                         Features: new HashSet<AccountFeatureId>(),
-                        Libraries: new HashSet<Guid>()));
+                        HiddenLibraries: new HashSet<Guid>()));
                     var ownerHousehold = await households.GetForAccountAsync(owner.Id);
                     Assert.NotNull(ownerHousehold);
 
@@ -258,7 +258,7 @@ public sealed class AccountEmailRequiredTests
                     var child = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
                         "child@example.com", IsAdministrator: false, ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Child", "#7C4DFF"),
-                        Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
+                        Features: new HashSet<AccountFeatureId>(), HiddenLibraries: new HashSet<Guid>()));
                     var childProfileId = Assert.Single(await accounts.GetGrantsAsync(child.Id)).ProfileId;
                     Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile,
                         (await profiles.GetByIdAsync(childProfileId))!.Role);
@@ -283,7 +283,7 @@ public sealed class AccountEmailRequiredTests
                     var admin = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
                         "admin@example.com", IsAdministrator: true, ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Parent", "#7C4DFF"),
-                        Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
+                        Features: new HashSet<AccountFeatureId>(), HiddenLibraries: new HashSet<Guid>()));
                     var adminGrant = Assert.Single(await accounts.GetGrantsAsync(admin.Id));
                     Assert.True(adminGrant.AdminEnabled);
                     Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.StandardUser,

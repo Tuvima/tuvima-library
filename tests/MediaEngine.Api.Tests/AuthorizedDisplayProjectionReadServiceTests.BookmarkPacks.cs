@@ -69,7 +69,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task BookmarkPacks_ExportThenImport_RoundTripsTimesAndNotes_AsReadOnlyPackBookmarks()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (packs, bookmarks) = PackService(shape.Account, NewVaultSession(shape.Account));
         GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
         var copy = await InsertOwnedWorkWithIdAsync(shape.NormalLibrary, "Someone else's copy of the film", "Movie");
@@ -116,7 +116,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task BookmarkPacks_APackForAnotherTitle_IsRefused_AndAddsNothing()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (packs, bookmarks) = PackService(shape.Account, NewVaultSession(shape.Account));
         GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
         var other = await InsertOwnedWorkWithIdAsync(shape.NormalLibrary, "A different film", "Movie");
@@ -133,7 +133,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task BookmarkPacks_ADifferentCut_NeedsAlignByChapter_AndMovesBookmarksIntoTheSameNamedChapter()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (packs, bookmarks) = PackService(shape.Account, NewVaultSession(shape.Account));
         GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
         var extended = await InsertOwnedWorkWithIdAsync(shape.NormalLibrary, "Extended cut", "Movie");
@@ -159,7 +159,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task BookmarkPacks_AFileThatHoldsNoPathOrProfileName_IsAllThatLeavesTheLibrary()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var (packs, bookmarks) = PackService(shape.Account, NewVaultSession(shape.Account));
         GiveIds(shape.Normal.WorkId, ImdbOfTheFilm);
         var bookmark = await OwnBookmarkAsync(bookmarks, shape.Normal.WorkId, shape.Normal.AssetId, 600, chapter: "Opening");
@@ -199,7 +199,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task BookmarkPacks_AVaultTitle_IsNeverExportable_LockedOrUnlocked()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var (unlocked, bookmarks) = PackService(shape.Account, session);
@@ -221,7 +221,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task BookmarkPacks_OnAVaultTitle_AreNotFoundWhileLocked()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var (unlocked, _) = PackService(shape.Account, session);

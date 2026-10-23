@@ -39,7 +39,63 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
         var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
         Assert.Equal(["listen", "read", "view"], payload.FeatureIds.Order());
-        Assert.Equal([_handler.Library.Id], payload.LibraryIds);
+        Assert.Empty(payload.HiddenLibraryIds);
+    }
+
+    [Fact]
+    public void Permissions_UntickingALibrary_SavesItAsHiddenFromThePerson()
+    {
+        var cut = RenderUsers();
+        OpenAction(cut, "Edit permissions");
+
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find(".access-user-permissions__libraries input")));
+        cut.Find(".access-user-permissions__libraries input").Change(false);
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Permissions for owner@example.test were saved.", cut.Markup));
+        var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
+        var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
+        Assert.Equal([_handler.Library.Id], payload.HiddenLibraryIds);
+    }
+
+    [Fact]
+    public void AFailedLibraryListNeverUnhidesLibraries_WhenAnAreaIsChanged()
+    {
+        var hiddenAlready = Guid.NewGuid();
+        _handler.LibrariesFail = true;
+        _handler.HiddenIds = [hiddenAlready];
+        var cut = RenderUsers();
+        OpenAction(cut, "Edit permissions");
+
+        // The Libraries part says it could not load, and offers no ticks to change.
+        cut.WaitForAssertion(() => Assert.Contains("libraries could not be loaded", cut.Markup));
+        Assert.Empty(cut.FindAll(".access-user-permissions__libraries input"));
+        cut.Find("input[aria-label='Watch']").Change(false);
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Permissions for owner@example.test were saved.", cut.Markup));
+        var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
+        var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
+        Assert.Equal(["listen", "read", "view"], payload.FeatureIds.Order());
+        Assert.Equal([hiddenAlready], payload.HiddenLibraryIds);
+    }
+
+    [Fact]
+    public void AnUntickedLibrary_IsAddedToWhatIsAlreadyHidden_AndAHiddenIdTheListDidNotShowIsKept()
+    {
+        var hiddenAlready = Guid.NewGuid();
+        _handler.HiddenIds = [hiddenAlready];
+        var cut = RenderUsers();
+        OpenAction(cut, "Edit permissions");
+
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find(".access-user-permissions__libraries input")));
+        cut.Find(".access-user-permissions__libraries input").Change(false);
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Permissions for owner@example.test were saved.", cut.Markup));
+        var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
+        var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
+        Assert.Equal(new[] { hiddenAlready, _handler.Library.Id }.Order(), payload.HiddenLibraryIds.Order());
     }
 
     [Fact]
@@ -53,7 +109,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
         var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
         Assert.Equal(["listen", "read", "watch"], payload.FeatureIds.Order());
-        Assert.Equal([_handler.Library.Id], payload.LibraryIds);
+        Assert.Empty(payload.HiddenLibraryIds);
     }
 
     [Fact]
@@ -173,6 +229,25 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         cut.Find("button[aria-label='Actions for owner@example.test']").Click();
         cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Profile access"));
         Assert.DoesNotContain(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Manage profiles");
+    }
+
+    [Fact]
+    public void AnInvitationThatReusesAnAccount_KeepsItsHiddenLibraries_WhenTheLibraryListFailed()
+    {
+        var hiddenAlready = Guid.NewGuid();
+        _handler.LibrariesFail = true;
+        _handler.HiddenIds = [hiddenAlready];
+        _handler.InvitationReusesAccount = true;
+        var cut = RenderUsers();
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Invite user").Click();
+        cut.Find("input[type='text']").Input("owner@example.test");
+        cut.Find(".access-drawer__body input[type='checkbox']").Change(true);
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Create invitation").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal)));
+        var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
+        var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
+        Assert.Equal([hiddenAlready], payload.HiddenLibraryIds);
     }
 
     [Fact]
@@ -331,6 +406,15 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         public AccessLibraryOptionDto Library { get; } = new(Guid.NewGuid(), "Books", "Books", "read");
         public HttpStatusCode AccessStatus { get; set; } = HttpStatusCode.NoContent;
 
+        /// <summary>When true the Engine's library list can't be read (a server error, not an empty list).</summary>
+        public bool LibrariesFail { get; set; }
+
+        /// <summary>When true the invitation reuses the existing account (one with no password yet), as the Engine does for the same email.</summary>
+        public bool InvitationReusesAccount { get; set; }
+
+        /// <summary>The libraries the Engine already hides from the account.</summary>
+        public Guid[] HiddenIds { get; set; } = [];
+
         /// <summary>The Engine's plain sentence sent with a refusal of the access save, when a test wants one.</summary>
         public string? AccessDetail { get; set; }
         public TaskCompletionSource? AccessGate { get; set; }
@@ -361,6 +445,11 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
 
             if (request.Method == HttpMethod.Get && path == "/access/libraries")
             {
+                if (LibrariesFail)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                }
+
                 return Json(new[] { Library });
             }
 
@@ -379,7 +468,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
             }
             if (request.Method == HttpMethod.Post && path == "/access/invitations")
             {
-                return Json(new AccountInvitationResponse(Guid.NewGuid(), InvitationCode, DateTimeOffset.UtcNow.AddDays(1), "https://tuvima.example"));
+                return Json(new AccountInvitationResponse(InvitationReusesAccount ? AccountId : Guid.NewGuid(), InvitationCode, DateTimeOffset.UtcNow.AddDays(1), "https://tuvima.example"));
             }
 
             if (request.Method == HttpMethod.Post && path == $"/access/accounts/{AccountId:D}/temporary-password")
@@ -411,7 +500,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
 
             return new(AccountId, Email, true, true, 1,
                 [new("read", true), new("watch", true), new("listen", true), new("view", true)],
-                [new(Library.Id, Library.DisplayName, true)], grants,
+                HiddenIds, grants,
                 DateTimeOffset.UtcNow.AddYears(-1), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(-2),
                 MustChangePassword: TemporaryPasswordSet,
                 TemporaryPasswordExpiresAt: TemporaryPasswordSet ? DateTimeOffset.UtcNow.AddDays(7) : null,

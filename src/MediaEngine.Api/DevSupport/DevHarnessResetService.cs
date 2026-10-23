@@ -66,7 +66,7 @@ public sealed class DevHarnessResetService
         "account_profile_grants",
         "account_invitations",
         "account_feature_grants",
-        "account_library_grants",
+        "account_library_hidden",
         "grant_admin_protections",
         "account_external_logins",
         "account_credentials",

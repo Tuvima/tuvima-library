@@ -9,7 +9,7 @@ public sealed record AccountAccessResponse(
     [property: JsonPropertyName("is_administrator")] bool IsAdministrator,
     [property: JsonPropertyName("authorization_version")] long AuthorizationVersion,
     [property: JsonPropertyName("feature_grants")] IReadOnlyList<AccountFeatureGrantDto> FeatureGrants,
-    [property: JsonPropertyName("library_grants")] IReadOnlyList<AccountLibraryGrantDto> LibraryGrants,
+    [property: JsonPropertyName("hidden_library_ids")] IReadOnlyList<Guid> HiddenLibraryIds,
     [property: JsonPropertyName("profile_grants")] IReadOnlyList<AccountProfileGrantDto> ProfileGrants,
     [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
     [property: JsonPropertyName("updated_at")] DateTimeOffset UpdatedAt,
@@ -28,16 +28,17 @@ public sealed record AccountFeatureGrantDto(
     [property: JsonPropertyName("feature")] string Feature,
     [property: JsonPropertyName("allowed")] bool Allowed);
 
-public sealed record AccountLibraryGrantDto(
-    [property: JsonPropertyName("library_id")] Guid LibraryId,
-    [property: JsonPropertyName("display_name")] string DisplayName,
-    [property: JsonPropertyName("allowed")] bool Allowed);
-
+/// <summary>
+/// One library an administrator can hide from a person. <c>area</c> is <c>read</c>, <c>watch</c>, <c>listen</c> or <c>view</c>.
+/// <c>hidden_by_primary</c> is true only in a household administrator's view, when the household's main sign-in hides the library
+/// (it can't be shown again by the household administrator). A Vault library is never listed.
+/// </summary>
 public sealed record AccessLibraryOptionDto(
     [property: JsonPropertyName("id")] Guid Id,
     [property: JsonPropertyName("display_name")] string DisplayName,
     [property: JsonPropertyName("category")] string? Category,
-    [property: JsonPropertyName("area")] string Area);
+    [property: JsonPropertyName("area")] string Area,
+    [property: JsonPropertyName("hidden_by_primary")] bool HiddenByPrimary = false);
 
 public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("id")] Guid Id,
@@ -133,7 +134,7 @@ public sealed record CreateManagedAccountRequest(
     [property: JsonPropertyName("profile_id")] Guid? ProfileId,
     [property: JsonPropertyName("new_profile")] NewAccountProfileRequest? NewProfile,
     [property: JsonPropertyName("feature_ids")] IReadOnlyList<string> FeatureIds,
-    [property: JsonPropertyName("library_ids")] IReadOnlyList<Guid> LibraryIds,
+    [property: JsonPropertyName("hidden_library_ids")] IReadOnlyList<Guid> HiddenLibraryIds,
     [property: JsonPropertyName("temporary_password")] string? TemporaryPassword = null);
 
 /// <summary>
@@ -159,7 +160,7 @@ public sealed record UpdateManagedAccountRequest(
 
 public sealed record ReplaceAccountAccessRequest(
     [property: JsonPropertyName("feature_ids")] IReadOnlyList<string> FeatureIds,
-    [property: JsonPropertyName("library_ids")] IReadOnlyList<Guid> LibraryIds);
+    [property: JsonPropertyName("hidden_library_ids")] IReadOnlyList<Guid> HiddenLibraryIds);
 
 public sealed record SetAccountProfileGrantAccessRequest(
     [property: JsonPropertyName("is_default")] bool IsDefault,

@@ -25,9 +25,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData(false, true)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public async Task Vault_ALockedProfile_SeesNoVaultItemInAnyList_WhateverItsGrantsOrRole(bool administrator, bool grantedTheVaultLibrary)
+    public async Task Vault_ALockedProfile_SeesNoVaultItemInAnyList_WhateverItsHiddenRowsOrRole(bool administrator, bool hasAStaleHiddenRowOnTheVaultLibrary)
     {
-        var shape = await SeedVaultAsync(administrator, grantedTheVaultLibrary);
+        var shape = await SeedVaultAsync(administrator, hasAStaleHiddenRowOnTheVaultLibrary);
         var context = VaultContext(shape.Account, NewVaultSession(shape.Account));
         var service = CreateService(context, RealReaders());
 
@@ -42,11 +42,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData(false, false)]
     [InlineData(false, true)]
     [InlineData(true, false)]
-    public async Task Vault_AnUnlockedProfile_KeepsVaultItemsOutOfEverySharedList_ButCanOpenTheFile_EvenWithoutAGrantOnTheVaultLibrary(bool administrator, bool grantedTheVaultLibrary)
+    public async Task Vault_AnUnlockedProfile_KeepsVaultItemsOutOfEverySharedList_ButCanOpenTheFile_EvenWithAStaleHiddenRowOnTheVaultLibrary(bool administrator, bool hasAStaleHiddenRowOnTheVaultLibrary)
     {
         // Videos spec D20, D27, D45 (security review M2): the Vault is its own area with its own routes. An unlocked session does not
         // see Vault items mixed into the shared lists (works, visible ids, Home); it can still open a Vault file it found in the area.
-        var shape = await SeedVaultAsync(administrator, grantedTheVaultLibrary);
+        var shape = await SeedVaultAsync(administrator, hasAStaleHiddenRowOnTheVaultLibrary);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var service = CreateService(VaultContext(shape.Account, session), RealReaders());
@@ -60,7 +60,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_AnUnlockedProfileWithoutTheWatchFeature_StillSeesNothingOfTheVault()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false, features: new HashSet<AccountFeatureId> { AccountFeatureId.Read });
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false, features: new HashSet<AccountFeatureId> { AccountFeatureId.Read });
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var service = CreateService(VaultContext(shape.Account, session), RealReaders());
@@ -73,7 +73,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_AWorkWithAnyFileInTheVault_IsHiddenAsAWhole_FromALockedProfile()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         // One Work with a normal file and a Vault file: nothing about it may show while locked.
         var mixedWork = shape.Normal.WorkId;
         await InsertAssetForWorkAsync(mixedWork, Guid.NewGuid(), shape.VaultLibrary, "Mixed copy", createWork: false);
@@ -86,7 +86,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_ContinueWatchingAndStates_LeaveOutVaultRows_UntilUnlocked()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var raw = new StubRawProjection(
             [Work(shape.NormalLibrary, "Movie"), Work(shape.VaultLibrary, "Movie")],
             [Journey(shape.NormalLibrary, "Movie", VaultProfile), Journey(shape.VaultLibrary, "Movie", VaultProfile)]);
@@ -107,7 +107,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_RecentAdditions_LeaveOutVaultRows_UntilUnlocked()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var normalRow = Work(shape.NormalLibrary, "Movie");
         var vaultRow = Work(shape.VaultLibrary, "Movie");
         var candidates = new[]
@@ -132,7 +132,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_Favourites_LeaveOutVaultWorks_UntilUnlocked()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var normalRow = Work(shape.NormalLibrary, "Movie");
         var vaultRow = Work(shape.VaultLibrary, "Movie");
         var raw = new FavoritesProjection([normalRow, vaultRow], new HashSet<Guid> { normalRow.WorkId, vaultRow.WorkId });
@@ -149,7 +149,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_HomeCollections_AreBuiltOnlyFromWorksTheProfileMaySee()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var lockedRaw = RealReaders();
         var locked = CreateService(VaultContext(shape.Account, NewVaultSession(shape.Account)), lockedRaw);
         await locked.LoadHomeCollectionsAsync(VaultProfile, default);
@@ -173,7 +173,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
                 new { other, now = DateTimeOffset.UtcNow.ToString("O") });
         }
 
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var nsfw = new NsfwAccessRepository(_database);
 
         async Task<bool> SeesTheVaultAsync(Guid session) =>
@@ -242,7 +242,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_AKidsOrContentLimitedProfile_CanNeverUnlock_SoItNeverSeesTheVault()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
         using (var connection = _database.CreateConnection())
         {
@@ -258,7 +258,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_TheResolver_NeverUnlocksAnythingButAPersonOnTheirOwnDashboardSession()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var resolver = new VaultAccessResolver(new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), TimeProvider.System);
@@ -280,7 +280,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_AServiceApplicationAndAPairedApp_NeverSeeTheVault_EvenWithFullLibraryPermission()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var resolver = new VaultAccessResolver(new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), TimeProvider.System);
@@ -301,9 +301,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData(false, true)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public async Task Vault_ALockedProfile_GetsNotFound_NeverForbidden_ForAVaultFile_ForEveryPermission(bool administrator, bool grantedTheVaultLibrary)
+    public async Task Vault_ALockedProfile_GetsNotFound_NeverForbidden_ForAVaultFile_ForEveryPermission(bool administrator, bool hasAStaleHiddenRowOnTheVaultLibrary)
     {
-        var shape = await SeedVaultAsync(administrator, grantedTheVaultLibrary);
+        var shape = await SeedVaultAsync(administrator, hasAStaleHiddenRowOnTheVaultLibrary);
         var context = VaultContext(shape.Account, NewVaultSession(shape.Account));
         var resources = CreateResourceService(context);
 
@@ -329,7 +329,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_ALockedProfile_GetsExactlyTheAnswerAMissingFileGets()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var context = VaultContext(shape.Account, NewVaultSession(shape.Account));
         var resources = CreateResourceService(context);
         var missing = Guid.NewGuid();
@@ -354,7 +354,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_AnArtworkVariantOfAVaultItem_IsNeverServedToALockedProfile()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var variant = await InsertArtworkAsync(shape.Secret.WorkId, "Work");
         var context = VaultContext(shape.Account, NewVaultSession(shape.Account));
         var resources = CreateResourceService(context);
@@ -372,7 +372,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task Vault_AnUnlockedProfile_CanReachAVaultFile_WithoutAGrantOnTheVaultLibrary_ButOnlyWithTheWatchFeature()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var context = VaultContext(shape.Account, session);
@@ -388,11 +388,13 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task Vault_AFileOnTheOrdinaryLibraryTheAccountHasNoGrantFor_StillAnswersForbidden()
+    public async Task Vault_AFileOnAnOrdinaryLibraryHiddenFromTheAccount_StillAnswersForbidden()
     {
-        // Only the Vault answers "not found" for lack of access; the ordinary rule for a library with no grant is unchanged.
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
-        var other = await InsertOwnedWorkWithIdAsync(Guid.NewGuid(), "Not granted", "Movie");
+        // Only the Vault answers "not found" for lack of access; the ordinary rule for a hidden library is unchanged.
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        var hiddenLibrary = Guid.NewGuid();
+        await HideLibraryFromAsync(shape.Account, hiddenLibrary);
+        var other = await InsertOwnedWorkWithIdAsync(hiddenLibrary, "Hidden", "Movie");
         var context = VaultContext(shape.Account, NewVaultSession(shape.Account));
 
         Assert.Equal(CatalogueResourceAccess.Denied, await CreateResourceService(context).EvaluateAssetAsync(context, other.AssetId, ApplicationPermissionIds.PlaybackRead));
@@ -407,20 +409,21 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         (Guid WorkId, Guid AssetId) Normal,
         (Guid WorkId, Guid AssetId) Secret);
 
-    private async Task<VaultShape> SeedVaultAsync(bool administrator, bool grantedTheVaultLibrary, IReadOnlySet<AccountFeatureId>? features = null)
+    private async Task<VaultShape> SeedVaultAsync(bool administrator, bool hasAStaleHiddenRowOnTheVaultLibrary, IReadOnlySet<AccountFeatureId>? features = null)
     {
         var normalLibrary = Guid.NewGuid();
         var vaultLibrary = Guid.NewGuid();
         var normal = await InsertOwnedWorkWithIdAsync(normalLibrary, "Ordinary film", "Movie");
         var secret = await InsertOwnedWorkWithIdAsync(vaultLibrary, "Secret scene", "Movie");
         var account = Guid.NewGuid();
-        var libraries = new HashSet<Guid> { normalLibrary };
-        if (grantedTheVaultLibrary)
+        // A stale hidden row on what later becomes a Vault library must change nothing: the Vault is never ruled by hiding or showing.
+        var hiddenLibraries = new HashSet<Guid>();
+        if (hasAStaleHiddenRowOnTheVaultLibrary)
         {
-            libraries.Add(vaultLibrary);
+            hiddenLibraries.Add(vaultLibrary);
         }
 
-        await CreateHumanAsync(account, features ?? EveryFeature, libraries, administrator);
+        await CreateHumanAsync(account, features ?? EveryFeature, hiddenLibraries, administrator);
         using var connection = _database.CreateConnection();
         var now = DateTimeOffset.UtcNow.ToString("O");
         // The profile used by these tests is an adult with no content limit, so it can hold Vault access.

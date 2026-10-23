@@ -245,7 +245,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     private async Task<bool> AllowsAsync(AdministratorOrApplicationRequirement requirement, HttpContext http)
     {
         var decisions = new AccountAccessDecisionService(_accounts, new GrantAdminUnlockService(
-            _accounts, new StubProfilePins(), _clock));
+            _accounts, new StubProfilePins(), _clock), new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database)));
         var evaluator = new AuthorizationEvaluator(
             decisions, _applications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts),
             new HttpContextAccessor { HttpContext = http });

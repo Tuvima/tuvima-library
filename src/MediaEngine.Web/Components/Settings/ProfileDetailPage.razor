@@ -266,6 +266,7 @@
                     Saving="@_accessSaving"
                     Error="@_accessError"
                     Libraries="@_accessLibraries"
+                    LibrariesUnavailable="@_accessLibrariesUnavailable"
                     Account="@_access"
                     OnSave="SaveAccessAsync"
                     OnClose="CloseAccess" />
@@ -296,6 +297,7 @@
     private SignInIssued? _signInIssued;
     private AccountAccessResponse? _access;
     private List<AccessLibraryOptionDto> _accessLibraries = [];
+    private bool _accessLibrariesUnavailable;
     private bool _accessOpen;
     private bool _accessLoading;
     private bool _accessSaving;
@@ -359,9 +361,9 @@
                 .Where(feature => _access.FeatureGrants.Any(grant => grant.Allowed && grant.Feature == feature.Id))
                 .Select(feature => feature.Label)
                 .ToList();
-            var libraries = _access.LibraryGrants.Count(grant => grant.Allowed);
+            var hidden = _access.HiddenLibraryIds.Count;
             var laneText = lanes.Count == 0 ? "No lanes" : string.Join(", ", lanes);
-            return $"{laneText} · {libraries} {(libraries == 1 ? "library" : "libraries")}";
+            return hidden == 0 ? $"{laneText} · all libraries" : $"{laneText} · {hidden} hidden";
         }
     }
 
@@ -621,7 +623,9 @@
             // The list is what this administrator may hand out, so a Library the household lacks is never offered.
             var libraries = Identity.GetAccessLibrariesAsync();
             await LoadAccessAsync();
-            _accessLibraries = await libraries;
+            var loaded = await libraries;
+            _accessLibrariesUnavailable = loaded is null;
+            _accessLibraries = loaded ?? [];
             if (AccessFollowsHousehold)
             {
                 // Found out only now that this access follows the household: there is nothing to edit here.

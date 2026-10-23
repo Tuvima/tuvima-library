@@ -8,6 +8,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Identity.Contracts;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Security;
 
@@ -24,7 +25,8 @@ public sealed class AccountAccessMutationService(
     IProfilePhotoDisposer photoDisposer,
     TimeProvider clock,
     IUsableAdministratorService usableAdministrators,
-    AuthenticationPolicyMutationGate mutationGate) : IAccountAccessMutationService
+    AuthenticationPolicyMutationGate mutationGate,
+    ILogger<AccountAccessMutationService>? logger = null) : IAccountAccessMutationService
 {
     /// <summary>What a person is told when a change would leave nobody able to sign in as a server administrator.</summary>
     public const string LastAdministratorMessage =
@@ -64,7 +66,7 @@ public sealed class AccountAccessMutationService(
         {
             throw new InvalidOperationException("Child profiles can't be administrators.");
         }
-        ValidateLibraries(command.Libraries);
+        var hiddenLibraries = await ValidateLibrariesAsync(command.HiddenLibraries, null, ct).ConfigureAwait(false);
 
         var now = clock.GetUtcNow();
         var email = NormalizeEmail(command.Email);
@@ -90,7 +92,7 @@ public sealed class AccountAccessMutationService(
             GrantedAt = now,
         };
         await accounts.CreateAccountAsync(
-            account, grant, command.Features, command.Libraries, ct, newProfile).ConfigureAwait(false);
+            account, grant, command.Features, hiddenLibraries, ct, newProfile, actor.AccountId).ConfigureAwait(false);
         if (!string.IsNullOrEmpty(command.TemporaryPassword))
         {
             try
@@ -880,7 +882,7 @@ public sealed class AccountAccessMutationService(
         RequestAuthority actor,
         Guid accountId,
         IReadOnlySet<AccountFeatureId> features,
-        IReadOnlySet<Guid> libraries,
+        IReadOnlySet<Guid> hiddenLibraries,
         CancellationToken ct = default)
     {
         var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
@@ -889,7 +891,7 @@ public sealed class AccountAccessMutationService(
         {
             throw new KeyNotFoundException("Account not found.");
         }
-        ValidateLibraries(libraries);
+        hiddenLibraries = await ValidateLibrariesAsync(hiddenLibraries, accountId, ct).ConfigureAwait(false);
         if (target.GrantsInheritFromAccountId is not null)
         {
             throw new InvalidOperationException("This person's access follows the household. Change it on the household's main sign-in.");
@@ -898,11 +900,12 @@ public sealed class AccountAccessMutationService(
         if (householdOnly)
         {
             RequireNotAdministratorTarget(target, householdOnly);
-            await RequireWithinHouseholdAccessAsync(target, features, libraries, ct).ConfigureAwait(false);
+            // The main sign-in's hidden libraries always apply, whatever was sent (simpler access D4).
+            hiddenLibraries = await RequireWithinHouseholdAccessAsync(target, features, hiddenLibraries, ct).ConfigureAwait(false);
         }
 
         await accounts.ReplaceAccountAccessAsync(
-            accountId, features, libraries, clock.GetUtcNow(), ct).ConfigureAwait(false);
+            accountId, features, hiddenLibraries, clock.GetUtcNow(), ct, actor.AccountId).ConfigureAwait(false);
         await ChangedAsync(actor, "account.access_replaced", "account", accountId.ToString("D"),
             accountId, null, ct).ConfigureAwait(false);
     }
@@ -1172,13 +1175,14 @@ public sealed class AccountAccessMutationService(
     }
 
     /// <summary>
-    /// A household administrator hands out only what the household already has: nothing beyond the libraries and features of
-    /// the household's primary sign-in (the one the server administrator set up).
+    /// A household administrator hands out only what the household already has: no feature beyond those of the household's primary
+    /// sign-in (the one the server administrator set up), and never a library the primary sign-in hides. Returns the hidden libraries to
+    /// save: the ones sent plus every one the primary sign-in hides, so the inherited ones always apply.
     /// </summary>
-    private async Task RequireWithinHouseholdAccessAsync(
+    private async Task<IReadOnlySet<Guid>> RequireWithinHouseholdAccessAsync(
         Account target,
         IReadOnlySet<AccountFeatureId> features,
-        IReadOnlySet<Guid> libraries,
+        IReadOnlySet<Guid> hiddenLibraries,
         CancellationToken ct)
     {
         var primaryId = target.HouseholdId is { } household
@@ -1187,15 +1191,16 @@ public sealed class AccountAccessMutationService(
         var allowedFeatures = primaryId is { } featureSource
             ? (await accounts.GetFeatureGrantsAsync(featureSource, ct).ConfigureAwait(false)).Select(feature => feature.Value).ToHashSet()
             : [];
-        var allowedLibraries = primaryId is { } librarySource
-            ? (await accounts.GetLibraryGrantsAsync(librarySource, ct).ConfigureAwait(false)).ToHashSet()
-            : [];
-        if (features.Any(feature => !allowedFeatures.Contains(feature.Value)) ||
-            libraries.Any(library => !allowedLibraries.Contains(library)))
+        var hiddenByPrimary = primaryId is { } librarySource
+            ? await accounts.GetHiddenLibrariesAsync(librarySource, ct).ConfigureAwait(false)
+            : new HashSet<Guid>();
+        if (features.Any(feature => !allowedFeatures.Contains(feature.Value)))
         {
             throw new UnauthorizedAccessException(
-                "A household administrator can only hand out the libraries and features the household already has.");
+                "A household administrator can only hand out the features the household already has.");
         }
+
+        return hiddenLibraries.Union(hiddenByPrimary).ToHashSet();
     }
 
     private async Task RequireWriteAsync(RequestAuthority actor, CancellationToken ct)
@@ -1241,7 +1246,9 @@ public sealed class AccountAccessMutationService(
     /// <summary>A temporary password lasts seven days, independent of the invitation lifetime.</summary>
     private DateTimeOffset TemporaryPasswordExpiry() => clock.GetUtcNow().Add(TemporaryPasswordPolicy.Lifetime);
 
-    private void ValidateLibraries(IReadOnlySet<Guid> libraryIds)
+    // A hidden library must be a configured catalogued library. A library that is already stored as hidden for this account but has since
+    // left the configuration is dropped quietly (so it can't block a save); a new unknown id from a client is still refused.
+    private async Task<IReadOnlySet<Guid>> ValidateLibrariesAsync(IReadOnlySet<Guid> libraryIds, Guid? accountId, CancellationToken ct)
     {
         var known = configuration.LoadLibraries().Libraries
             .Where(library => library.Kind == LibraryKinds.Catalogued)
@@ -1249,10 +1256,30 @@ public sealed class AccountAccessMutationService(
             .Where(id => id != Guid.Empty)
             .ToHashSet();
         var unknown = libraryIds.Where(id => !known.Contains(id)).ToArray();
-        if (unknown.Length > 0)
+        if (unknown.Length == 0)
         {
-            throw new ArgumentException($"Unknown catalogued library '{unknown[0]:D}'.");
+            return libraryIds;
         }
+
+        var stored = accountId is { } account
+            ? await accounts.GetHiddenLibrariesAsync(account, ct).ConfigureAwait(false)
+            : new HashSet<Guid>();
+        var refused = unknown.Where(id => !stored.Contains(id)).ToArray();
+        if (refused.Length > 0)
+        {
+            throw new ArgumentException($"Unknown catalogued library '{refused[0]:D}'.");
+        }
+
+        if (known.Count == 0)
+        {
+            // No catalogued library is configured at all (a missing or unreadable libraries file): keep what is stored rather than
+            // dropping every hidden row, so the libraries stay hidden if the file comes back.
+            logger?.LogWarning("No catalogued libraries are configured; kept {Count} stored hidden librar(ies) for account {AccountId} unchanged.", unknown.Length, accountId);
+            return libraryIds;
+        }
+
+        logger?.LogDebug("Dropped {Count} hidden librar(ies) that are no longer configured while saving access for account {AccountId}.", unknown.Length, accountId);
+        return libraryIds.Where(known.Contains).ToHashSet();
     }
 
     private async Task ChangedAsync(

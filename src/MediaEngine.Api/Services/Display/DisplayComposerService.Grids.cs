@@ -529,8 +529,8 @@ public sealed partial class DisplayComposerService
         }
     }
 
-    // `formats` already holds only files in libraries the viewer may see: a 4K copy in a library they have no grant for
-    // must not be offered, counted or matched, while one in any granted library counts.
+    // `formats` already holds only files in libraries the viewer may see: a 4K copy in a library hidden from them
+    // must not be offered, counted or matched, while one in any visible library counts.
     private static IReadOnlySet<string> FormatsOf(GridEntry entry, IReadOnlyDictionary<Guid, IReadOnlySet<string>> formats)
     {
         if (entry.WorkIds.Count == 0

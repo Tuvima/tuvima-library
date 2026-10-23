@@ -14,7 +14,9 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
     IPermissionRegistry permissions,
     ApplicationEventRegistry registry,
     IApplicationEventDeliveryAuthorizer serviceAuthorization,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    LibraryVisibilityRule libraryVisibility,
+    IConfigurationLoader configuration)
 {
     internal async ValueTask<bool> CanDeliverServiceConnectionAsync(
         ApplicationEventSubscriber subscriber,
@@ -78,9 +80,24 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
                 return false;
             }
 
+            // A subscription names libraries the person may see: each must be a configured library, in an area the account has
+            // (administrators have them all), and not hidden. An unknown library or an area that can't be worked out fails closed.
+            var features = await accounts.GetFeatureGrantsAsync(authority.AccountId.Value, ct).ConfigureAwait(false);
+            var configured = configuration.LoadLibraries().Libraries;
             foreach (var id in libraryIds)
             {
-                if (!(await accounts.HasLibraryGrantAsync(authority.AccountId.Value, id, ct).ConfigureAwait(false)))
+                var library = configured.FirstOrDefault(item => string.Equals(item.Id, id.ToString("D"), StringComparison.OrdinalIgnoreCase));
+                var areaName = library?.Area?.ToLowerInvariant();
+                var areas = AccountFeatureId.All.Where(feature => feature.Value == areaName).ToList();
+                if (library is null || areas.Count != 1)
+                {
+                    return false;
+                }
+
+                var area = areas[0];
+                if (!await libraryVisibility.MaySeeAsync(
+                        authority.AccountId.Value, authority.IsEffectiveAdministrator, id,
+                        authority.IsEffectiveAdministrator || features.Contains(area), ct).ConfigureAwait(false))
                 {
                     return false;
                 }
@@ -88,7 +105,6 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
 
             if (eventTypes.Any(type => registry.TryGet(type, out var definition) && definition.IsLibraryScoped))
             {
-                var features = await accounts.GetFeatureGrantsAsync(authority.AccountId.Value, ct).ConfigureAwait(false);
                 if (!features.Contains(AccountFeatureId.Read) && !features.Contains(AccountFeatureId.Watch) &&
                     !features.Contains(AccountFeatureId.Listen))
                 {
@@ -156,7 +172,8 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
         if (definition.IsLibraryScoped)
         {
             if (value.Subject.LibraryId is not { } libraryId ||
-                !await accounts.HasLibraryGrantAsync(account.Id, libraryId, ct).ConfigureAwait(false))
+                !await libraryVisibility.MaySeeAsync(
+                    account.Id, authority.IsEffectiveAdministrator, libraryId, true, ct).ConfigureAwait(false))
             {
                 return false;
             }

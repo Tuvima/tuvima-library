@@ -33,6 +33,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private bool _samHasPin;
     private readonly List<AccountAccessResponse> _accounts = [];
     private readonly List<AccessLibraryOptionDto> _libraries = [];
+    private bool _librariesFail;
     private HttpStatusCode _accessSaveStatus = HttpStatusCode.OK;
     private HttpStatusCode _profileDeleteStatus = HttpStatusCode.NoContent;
     private string? _profileDeleteDetail;
@@ -77,18 +78,18 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
     // An own sign-in the Engine creates always follows the household's main sign-in (grants_inherit_from_account_id is set); the plain
     // account here keeps its own access, which is the only kind whose access is edited from the page.
-    private static AccountAccessResponse SamAccess(bool twoStep = true, string[]? lanes = null, Guid[]? libraries = null, bool inherits = false) =>
+    private static AccountAccessResponse SamAccess(bool twoStep = true, string[]? lanes = null, Guid[]? hidden = null, bool inherits = false) =>
         new(SamAccountId, "sam@home.test", true, false, 1,
             (lanes ?? ["read", "watch"]).Select(lane => new AccountFeatureGrantDto(lane, true)).ToList(),
-            (libraries ?? [LibraryA]).Select(id => new AccountLibraryGrantDto(id, id == LibraryA ? "Books" : "Films", true)).ToList(),
+            (hidden ?? []).ToList(),
             [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, HouseholdId, HasTwoStep: twoStep,
             GrantsInheritFromAccountId: inherits ? MainAccountId : null);
 
-    private void SamWithSignIn(bool twoStep = true, bool inherits = false, string[]? navigation = null)
+    private void SamWithSignIn(bool twoStep = true, bool inherits = false, string[]? navigation = null, Guid[]? hidden = null)
     {
         Setup(actions: ["household.manage"], navigation: navigation ?? []);
         _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false, new ManagedProfileSignInDto(SamAccountId, "sam@home.test", false, true))]);
-        _accounts.Add(SamAccess(twoStep, inherits: inherits));
+        _accounts.Add(SamAccess(twoStep, hidden: hidden, inherits: inherits));
         _libraries.AddRange([new AccessLibraryOptionDto(LibraryA, "Books", null, "Read")]);
     }
 
@@ -99,7 +100,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(SamId);
 
-        cut.WaitForAssertion(() => Assert.Contains("Read, Watch · 1 library", Row(cut, "access").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("Read, Watch · all libraries", Row(cut, "access").TextContent));
         var row = Row(cut, "access");
         Assert.Contains("Follows the household's access", row.TextContent);
         Assert.Equal("/settings/access/users", row.GetAttribute("href"));
@@ -123,7 +124,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         var row = Row(cut, "access");
         Assert.Equal("true", row.GetAttribute("aria-disabled"));
         Assert.Null(row.GetAttribute("href"));
-        Assert.Contains("Read, Watch · 1 library", row.TextContent);
+        Assert.Contains("Read, Watch · all libraries", row.TextContent);
     }
 
     [Fact]
@@ -133,7 +134,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(SamId);
 
-        cut.WaitForAssertion(() => Assert.Contains("Read, Watch · 1 library", Row(cut, "access").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("Read, Watch · all libraries", Row(cut, "access").TextContent));
         Assert.Single(cut.FindAll("[data-profile-section='household-access']"));
         Assert.Contains("On", Row(cut, "two-step").TextContent);
     }
@@ -197,7 +198,29 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/accounts/{SamAccountId:D}/access");
         using var body = System.Text.Json.JsonDocument.Parse(put.Body);
         Assert.Equal("listen,read,watch", string.Join(",", body.RootElement.GetProperty("feature_ids").EnumerateArray().Select(item => item.GetString())));
-        Assert.Equal(LibraryA.ToString("D"), string.Join(",", body.RootElement.GetProperty("library_ids").EnumerateArray().Select(item => item.GetString())));
+        // Nothing was unticked, so nothing is hidden (every library is visible unless an administrator unticks it).
+        Assert.Empty(body.RootElement.GetProperty("hidden_library_ids").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task AFailedLibraryListNeverUnhidesLibraries_WhenAnAreaIsChanged()
+    {
+        var hiddenAlready = Guid.NewGuid();
+        SamWithSignIn(hidden: [hiddenAlready]);
+        _librariesFail = true;
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
+        await cut.ClickAsync(page => Row(page, "access"));
+
+        cut.WaitForAssertion(() => Assert.Contains("libraries could not be loaded", cut.Markup));
+        Assert.Empty(cut.FindAll(".profile-access-sheet .access-user-permissions__libraries input"));
+        await cut.InvokeAsync(() => cut.FindAll(".profile-access-sheet input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Listen").Change(true));
+        await ClickSaveAsync(cut);
+
+        var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/accounts/{SamAccountId:D}/access");
+        using var body = System.Text.Json.JsonDocument.Parse(put.Body);
+        Assert.Equal("listen,read,watch", string.Join(",", body.RootElement.GetProperty("feature_ids").EnumerateArray().Select(item => item.GetString())));
+        Assert.Equal(hiddenAlready.ToString("D"), string.Join(",", body.RootElement.GetProperty("hidden_library_ids").EnumerateArray().Select(item => item.GetString())));
     }
 
     [Fact]
@@ -944,6 +967,11 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
             if (path == "/access/libraries" && request.Method == HttpMethod.Get)
             {
+                if (owner._librariesFail)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                }
+
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._libraries) };
             }
 

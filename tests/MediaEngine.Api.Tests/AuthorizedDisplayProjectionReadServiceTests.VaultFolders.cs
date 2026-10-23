@@ -12,7 +12,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultFolders_AnAdministratorWhoHasNotUnlocked_GetsNotFound_AndTheServiceIsNeverReached()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
 
         var result = await InvokeAsync(routes["AttachVaultFolder"], shape.Account, NewVaultSession(shape.Account), ("libraryId", shape.VaultLibrary.ToString("D")), AttachFolderBody);
@@ -24,7 +24,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultFolders_AnUnlockedPersonWhoIsNotAnAdministrator_GetsNotFound_AndTheServiceIsNeverReached()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());

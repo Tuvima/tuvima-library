@@ -311,17 +311,18 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         return Task.FromResult<IReadOnlySet<AccountFeatureId>>(conn.Query<string>("SELECT feature_id FROM account_feature_grants WHERE account_id=COALESCE((SELECT grants_inherit_from_account_id FROM accounts WHERE id=@accountId),@accountId);", new { accountId }).Select(x => new AccountFeatureId(x)).ToFrozenSet());
     }
 
-    public Task<IReadOnlySet<Guid>> GetLibraryGrantsAsync(Guid accountId, CancellationToken ct = default)
+    // The account's own hidden libraries plus those of the account it inherits from (simpler access D4); a NULL inherit-from matches nothing.
+    public Task<IReadOnlySet<Guid>> GetHiddenLibrariesAsync(Guid accountId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
-        return Task.FromResult<IReadOnlySet<Guid>>(conn.Query<Guid>("SELECT library_id FROM account_library_grants WHERE account_id=COALESCE((SELECT grants_inherit_from_account_id FROM accounts WHERE id=@accountId),@accountId);", new { accountId }).ToFrozenSet());
+        return Task.FromResult<IReadOnlySet<Guid>>(conn.Query<Guid>("SELECT DISTINCT library_id FROM account_library_hidden WHERE account_id=@accountId OR account_id=(SELECT grants_inherit_from_account_id FROM accounts WHERE id=@accountId);", new { accountId }).ToFrozenSet());
     }
 
     public async Task<bool> HasFeatureGrantAsync(Guid accountId, AccountFeatureId feature, CancellationToken ct = default) =>
         (await GetFeatureGrantsAsync(accountId, ct).ConfigureAwait(false)).Contains(feature);
 
-    public async Task<bool> HasLibraryGrantAsync(Guid accountId, Guid libraryId, CancellationToken ct = default) =>
-        (await GetLibraryGrantsAsync(accountId, ct).ConfigureAwait(false)).Contains(libraryId);
+    public async Task<bool> IsLibraryHiddenAsync(Guid accountId, Guid libraryId, CancellationToken ct = default) =>
+        (await GetHiddenLibrariesAsync(accountId, ct).ConfigureAwait(false)).Contains(libraryId);
 
     public Task<GrantAdminProtection?> GetAdminProtectionAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
     {
@@ -351,8 +352,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         conn.Execute("INSERT INTO authorization_audit_events(event_type,occurred_at,actor_account_id,actor_profile_id,actor_application_id,subject_type,subject_id,changes_json) VALUES(@EventType,@OccurredAt,@ActorAccountId,@ActorProfileId,@ActorApplicationId,@SubjectType,@SubjectId,@ChangesJson);", new { e.EventType, OccurredAt = Iso(e.OccurredAt), e.ActorAccountId, e.ActorProfileId, e.ActorApplicationId, e.SubjectType, e.SubjectId, ChangesJson = JsonSerializer.Serialize(e.Changes) }, tx);
 
     public Task CreateAccountAsync(Account account, AccountProfileGrant initialGrant,
-        IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries,
-        CancellationToken ct = default, Profile? newProfile = null) =>
+        IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries,
+        CancellationToken ct = default, Profile? newProfile = null, Guid? createdByAccountId = null) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -398,7 +399,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             }
             InsertAccount(connection, transaction, account);
             InsertGrant(connection, transaction, initialGrant);
-            ReplaceAccess(connection, transaction, account.Id, features, libraries, account.UpdatedAt);
+            ReplaceAccess(connection, transaction, account.Id, features, hiddenLibraries, account.UpdatedAt, createdByAccountId);
             EnsureHouseholdPrimary(connection, transaction, account.Id);
         }, ct);
 
@@ -767,11 +768,11 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }, ct);
 
     public Task ReplaceAccountAccessAsync(Guid accountId, IReadOnlySet<AccountFeatureId> features,
-        IReadOnlySet<Guid> libraries, DateTimeOffset changedAt, CancellationToken ct = default) =>
+        IReadOnlySet<Guid> hiddenLibraries, DateTimeOffset changedAt, CancellationToken ct = default, Guid? changedByAccountId = null) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
-            ReplaceAccess(connection, transaction, accountId, features, libraries, changedAt);
+            ReplaceAccess(connection, transaction, accountId, features, hiddenLibraries, changedAt, changedByAccountId);
             connection.Execute("""
                 UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
                 WHERE id=@accountId;
@@ -846,25 +847,25 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     }
 
     private static void InsertGrantRow(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g) => c.Execute("INSERT INTO account_profile_grants(account_id,profile_id,is_default,is_enabled,admin_enabled,authorization_version,granted_at) VALUES(@AccountId,@ProfileId,@IsDefault,@IsEnabled,@AdminEnabled,@AuthorizationVersion,@GrantedAt) ON CONFLICT(account_id,profile_id) DO UPDATE SET is_default=excluded.is_default,is_enabled=excluded.is_enabled,admin_enabled=excluded.admin_enabled,authorization_version=account_profile_grants.authorization_version+1;", new { g.AccountId, g.ProfileId, IsDefault = g.IsDefault ? 1 : 0, IsEnabled = g.IsEnabled ? 1 : 0, AdminEnabled = g.AdminEnabled ? 1 : 0, g.AuthorizationVersion, GrantedAt = Iso(g.GrantedAt) }, tx);
-    private static void ReplaceAccess(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset at)
+    private static void ReplaceAccess(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, DateTimeOffset at, Guid? changedByAccountId)
     {
-        c.Execute("DELETE FROM account_feature_grants WHERE account_id=@accountId;DELETE FROM account_library_grants WHERE account_id=@accountId;", new { accountId }, tx); foreach (var f in features)
+        c.Execute("DELETE FROM account_feature_grants WHERE account_id=@accountId;DELETE FROM account_library_hidden WHERE account_id=@accountId;", new { accountId }, tx); foreach (var f in features)
         {
             c.Execute("INSERT INTO account_feature_grants(account_id,feature_id,granted_at) VALUES(@accountId,@feature,@at);", new { accountId, feature = f.Value, at = Iso(at) }, tx);
         }
 
-        // The Vault is only ever opened through Vault mode, never through a library grant (owner decision 2026-10-22).
+        // The Vault is only ever opened through Vault mode, so it is never in the hidden list either (owner decision 2026-10-22; simpler access D9).
         var vaultIds = c.Query<string>("SELECT library_id FROM vault_libraries;", transaction: tx)
             .Select(text => Guid.TryParse(text, out var parsed) ? parsed : Guid.Empty)
             .ToHashSet();
-        if (libraries.Any(vaultIds.Contains))
+        if (hiddenLibraries.Any(vaultIds.Contains))
         {
-            throw new ArgumentException("The Vault can't be given to an account as a library. It opens only through Vault mode.");
+            throw new ArgumentException("The Vault can't be hidden from or shown to an account as a library. It opens only through Vault mode.");
         }
 
-        foreach (var id in libraries)
+        foreach (var id in hiddenLibraries)
         {
-            c.Execute("INSERT INTO account_library_grants(account_id,library_id,granted_at) VALUES(@accountId,@id,@at);", new { accountId, id, at = Iso(at) }, tx);
+            c.Execute("INSERT INTO account_library_hidden(account_id,library_id,created_at,created_by_account_id) VALUES(@accountId,@id,@at,@changedByAccountId);", new { accountId, id, at = Iso(at), changedByAccountId }, tx);
         }
     }
     private static void EnsureEnabledDefault(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId)

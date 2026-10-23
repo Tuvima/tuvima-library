@@ -735,7 +735,7 @@ public sealed class PermissionsGroundworkTests
                 "server@example.com", IsAdministrator: true, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand("Server", "#7C4DFF"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             var serverProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value;
             world.ServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, serverProfile);
             world.LockedServerAdmin = ServerAuthority(world.ServerAdminAccount.Id, serverProfile, world._lockedSession);
@@ -818,11 +818,11 @@ public sealed class PermissionsGroundworkTests
             var serverInA = await Mutations.CreateAsync(ServerAdmin, new CreateAccountAccessCommand(
                 "server.in.a@example.com", IsAdministrator: true, ProfileId: A.Spare.Id, NewProfile: null,
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             var otherAdmin = await Mutations.CreateAsync(ServerAdmin, new CreateAccountAccessCommand(
                 "other.admin.in.a@example.com", IsAdministrator: false, ProfileId: A.Kid.Id, NewProfile: null,
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             await Mutations.SetHouseholdAdminAsync(ServerAdmin, otherAdmin.Id, true);
             Assert.Equal(A.Id, (await Accounts.GetByIdAsync(serverInA.Id))!.HouseholdId);
             Assert.Equal(A.Id, (await Accounts.GetByIdAsync(otherAdmin.Id))!.HouseholdId);
@@ -873,7 +873,7 @@ public sealed class PermissionsGroundworkTests
                 email, IsAdministrator: false, ProfileId: null,
                 NewProfile: new NewAccountProfileCommand(personName, "#112233"),
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+                HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: null));
             var household = (await Households.GetForAccountAsync(owner.Id))!;
             var person = await Mutations.AddHouseholdPersonAsync(ServerAdmin,
                 new AddHouseholdPersonCommand(household.Id, $"{personName}'s friend", null, false, null));

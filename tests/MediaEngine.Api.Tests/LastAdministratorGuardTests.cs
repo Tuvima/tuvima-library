@@ -158,7 +158,7 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
             "member@example.com", IsAdministrator: false, ProfileId: null,
             NewProfile: new NewAccountProfileCommand("Member", "#112233"),
             Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            Libraries: new HashSet<Guid>(), TemporaryPassword: Password));
+            HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: Password));
 
         await _mutations.DeleteAsync(_actor, member.Id);
 
@@ -322,7 +322,7 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
             $"admin{number}@example.com", IsAdministrator: true, ProfileId: null,
             NewProfile: new NewAccountProfileCommand($"Admin {number}", "#7C4DFF"),
             Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            Libraries: new HashSet<Guid>(), TemporaryPassword: Password));
+            HiddenLibraries: new HashSet<Guid>(), TemporaryPassword: Password));
     }
 
     public ValueTask DisposeAsync()

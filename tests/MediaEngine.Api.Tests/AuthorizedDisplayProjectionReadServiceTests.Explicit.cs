@@ -20,7 +20,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         }
 
         var limited = Guid.NewGuid();
-        await CreateHumanAsync(limited, EveryFeature, new HashSet<Guid> { library });
+        await CreateHumanAsync(limited, EveryFeature, new HashSet<Guid>());
         SetContentLimit("R", allowUnrated: true);
         var visibleToLimited = await AssertVisibleIdsMatchFullReadAsync(HumanContext(limited, MediaEngine.Domain.Aggregates.Profile.SeedProfileId));
 

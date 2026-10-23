@@ -76,7 +76,7 @@ public static class UserExportScope
     public static IReadOnlyDictionary<string, string> NotInAUserExport { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["account_feature_grants"] = "Access rights: the receiving administrator chooses which features the person may use.",
-        ["account_library_grants"] = "Access rights: the receiving administrator chooses which libraries the person may use.",
+        ["account_library_hidden"] = "Access rights: the receiving administrator chooses which libraries are hidden from the person.",
         ["grant_admin_protections"] = "An administrator's extra lock on a grant; administrator settings are never carried.",
         ["device_profile_preferences"] = "Paired devices are not carried, so neither is which profile they open.",
         ["client_devices"] = "Paired devices sign in again on the new Library.",

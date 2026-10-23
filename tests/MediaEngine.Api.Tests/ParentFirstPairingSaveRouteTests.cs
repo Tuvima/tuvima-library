@@ -364,7 +364,7 @@ public sealed class ParentFirstPairingSaveRouteTests
             => ValueTask.FromResult(AuthorizationDecision.Allow());
         public ValueTask<AuthorizationDecision> EvaluateLibraryAsync(RequestAuthority authority, Guid requestedLibraryId, CancellationToken ct = default)
             => ValueTask.FromResult(requestedLibraryId == libraryId ? AuthorizationDecision.Allow()
-                : AuthorizationDecision.Deny(AuthorizationDenialReason.MissingLibraryGrant));
+                : AuthorizationDecision.Deny(AuthorizationDenialReason.LibraryNotVisible));
         public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(RequestAuthority authority, bool requireSurfaceUnlock, CancellationToken ct = default)
             => ValueTask.FromResult(AuthorizationDecision.Allow());
     }

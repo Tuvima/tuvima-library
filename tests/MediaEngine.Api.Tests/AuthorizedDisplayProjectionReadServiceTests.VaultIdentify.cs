@@ -96,7 +96,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [InlineData("GetVaultMatch", "GET", null)]
     public async Task VaultIdentify_ALockedSession_GetsExactlyTheAnswerAMissingFileGets_AndItIsNeverCached(string routeName, string method, string? body)
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
         var routes = await MapVaultIdentifyRoutesAsync(VaultContext(shape.Account, session));
 
@@ -112,7 +112,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultIdentify_AnUnlockedAdministrator_CanSeeHowAVaultVideoWasMatched_AndAnUnmatchedOneSaysSo()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var routes = await MapVaultIdentifyRoutesAsync(VaultContext(shape.Account, session));
@@ -141,7 +141,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultIdentify_ApplyingNoFieldsOrAnUnknownField_IsRefusedBeforeAnythingIsAsked()
     {
-        var shape = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var shape = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var routes = await MapVaultIdentifyRoutesAsync(VaultContext(shape.Account, session));
@@ -161,7 +161,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultActivity_IsOnlyForAnAdministratorWithNsfwModeOn_AndEveryoneElseGetsNotFound()
     {
-        var admin = await SeedVaultAsync(administrator: true, grantedTheVaultLibrary: true);
+        var admin = await SeedVaultAsync(administrator: true, hasAStaleHiddenRowOnTheVaultLibrary: true);
         var adminSession = NewVaultSession(admin.Account);
         var routes = await MapVaultIdentifyRoutesAsync(VaultContext(admin.Account, adminSession));
         await new VaultActivityRepository(_database).AddAsync(admin.Secret.AssetId, VaultActivityKinds.Unmatched, "clip.mkv", "No strong match was found.", DateTimeOffset.UtcNow);
@@ -182,7 +182,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     [Fact]
     public async Task VaultActivity_AnUnlockedPersonWhoIsNotAnAdministrator_GetsNotFound()
     {
-        var shape = await SeedVaultAsync(administrator: false, grantedTheVaultLibrary: false);
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
         var session = NewVaultSession(shape.Account);
         await UnlockVaultAsync(session);
         var routes = await MapVaultIdentifyRoutesAsync(VaultContext(shape.Account, session));

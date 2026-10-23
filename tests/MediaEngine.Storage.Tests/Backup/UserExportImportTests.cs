@@ -90,7 +90,7 @@ public sealed class UserExportImportTests : IDisposable
 
         var names = export.Tables.Select(table => table.Table).ToHashSet(StringComparer.OrdinalIgnoreCase);
         Assert.DoesNotContain("account_feature_grants", names);
-        Assert.DoesNotContain("account_library_grants", names);
+        Assert.DoesNotContain("account_library_hidden", names);
         Assert.DoesNotContain("auth_sessions", names);
         Assert.DoesNotContain("account_invitations", names);
         Assert.DoesNotContain("client_devices", names);
@@ -166,7 +166,7 @@ public sealed class UserExportImportTests : IDisposable
         Assert.Equal(1, source.Scalar("SELECT is_administrator FROM accounts"));
         Assert.Equal(0, target.Scalar("SELECT is_administrator FROM accounts"));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_feature_grants"));
-        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_library_grants"));
+        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_library_hidden"));
         Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM account_profile_grants WHERE admin_enabled = 1"));
         Assert.Equal(2, target.Scalar("SELECT COUNT(*) FROM account_profile_grants WHERE is_enabled = 1"));
         Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM account_profile_grants WHERE is_default = 1"));
@@ -708,7 +708,7 @@ public sealed class UserExportImportTests : IDisposable
                 new { id = GuidSql.ToBlob(Guid.NewGuid()), account = accountBlob, hash = "HASH-" + Guid.NewGuid().ToString("N"), now = Stamp });
             Run("INSERT INTO account_notice_dismissals (account_id, notice_key, dismissed_at) VALUES (@account, 'secure-account', @now)", new { account = accountBlob, now = Stamp });
             Run("INSERT INTO account_feature_grants (account_id, feature_id, granted_at) VALUES (@account, 'read', @now)", new { account = accountBlob, now = Stamp });
-            Run("INSERT INTO account_library_grants (account_id, library_id, granted_at) VALUES (@account, @library, @now)", new { account = accountBlob, library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
+            Run("INSERT INTO account_library_hidden (account_id, library_id, created_at) VALUES (@account, @library, @now)", new { account = accountBlob, library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
             if (twoStepSecret is not null)
             {
                 Run("INSERT INTO account_two_step (account_id, secret_protected, created_at) VALUES (@account, @secret, @now)", new { account = accountBlob, secret = twoStepSecret, now = Stamp });

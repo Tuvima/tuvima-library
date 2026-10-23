@@ -50,7 +50,7 @@ public sealed class ExcludedFileEndpointTests : IAsyncLifetime
         builder.Services.AddSingleton<IAuthorizationHandler, EffectiveAdministratorHandler>();
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new CallerResolver(this));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new AccountAccessDecisionService(
-            new AccountRepository(_world.Database), new UnlockState(_lockedSession)));
+            new AccountRepository(_world.Database), new UnlockState(_lockedSession), new LibraryVisibilityRule(new AccountRepository(_world.Database), new VaultLibraryRepository(_world.Database))));
         builder.Services.AddSingleton<IProfileRepository>(new ProfileRepository(_world.Database));
         builder.Services.AddSingleton(_world.Service);
         _app = builder.Build();
