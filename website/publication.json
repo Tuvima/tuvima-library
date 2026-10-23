@@ -247,6 +247,12 @@
       "section": "How it works"
     },
     {
+      "source": "explanation/vault.md",
+      "slug": "explanation/vault",
+      "group": "Guides",
+      "section": "How it works"
+    },
+    {
       "source": "develop/contributing.md",
       "slug": "develop/contributing",
       "group": "Develop",

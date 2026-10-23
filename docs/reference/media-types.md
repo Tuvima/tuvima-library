@@ -31,9 +31,10 @@ Provider stages are strict: Stage 1 provider metadata uses active configured pro
 
 ## Videos (home videos, clips and courses)
 
-**Library type:** Videos, in Watch. It is for files that are not films or TV shows: phone and camera footage, downloaded
-YouTube videos, lectures and courses. You add it by choosing Watch and then Videos in the Add folder dialog;
-phone and home footage belongs under View, and a folder of untouched phone footage is offered a switch to View.
+**Library kind:** Videos, in Watch. It is the plain Watch kind for files that are not films, TV shows or YouTube downloads:
+lectures, courses and talks, with nothing looked up. A kind can hold several named libraries (up to five). You add it by
+choosing Watch and then Videos in the Add folder dialog; saved YouTube channels are the YouTube kind, and phone and home
+footage belongs under View (Personal videos), where a folder of untouched phone footage is offered **Add to View instead**.
 
 ### Supported formats
 
@@ -64,11 +65,11 @@ the video (never a black one).
 
 ### YouTube lookup and privacy
 
-Only for a library of the YouTube kind (the kind decides; there is no switch), and only for files where a YouTube ID is found. Other videos libraries never contact YouTube. It contacts YouTube and
+Only for a library of the YouTube kind (the kind decides; there is no switch), and only for files where a YouTube ID is found. Videos libraries (the plain Watch kind) never contact YouTube. It contacts YouTube and
 sends **only that 11-character ID**, never your file or its path. Without a key it fills the title, channel and thumbnail;
 with your own free YouTube Data API key (kept in the secrets store, never shown again) it also fills the description
-and upload date. It fills what is missing and never replaces something you edited. To stop it, keep the folder in an
-Other videos library instead (**Settings > Libraries**, Add folder).
+and upload date. It fills what is missing and never replaces something you edited. To stop it, keep the folder in a
+Videos library instead (**Settings > Libraries**, Add folder).
 
 ### Ratings and the Explicit mark
 
