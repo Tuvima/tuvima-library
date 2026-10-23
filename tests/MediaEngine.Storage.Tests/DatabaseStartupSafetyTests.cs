@@ -743,6 +743,7 @@ public sealed class DatabaseStartupSafetyTests
             ("waiting_personal_state", "id"),
             ("waiting_personal_state", "restore_id"),
             ("waiting_personal_state", "profile_id"),
+            ("folder_first_check_files", "asset_id"),
             ("unmatched_assets", "asset_id"),
         ];
 

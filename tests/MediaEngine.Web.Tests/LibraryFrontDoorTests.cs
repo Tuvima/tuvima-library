@@ -729,6 +729,34 @@ public sealed class LibraryFrontDoorTests : AsyncBunitContext
         Assert.Empty(none.FindAll(".lib-unmatched"));
     }
 
+    // The first check of a newly added folder (D35): a paused folder is flagged on its library's row, beside the health icon.
+    [Fact]
+    public void ALibraryWithAPausedFolderShowsAShortAmberPausedNoteWithItsOwnTooltip_ReachableByKeyboard()
+    {
+        _configuration.Libraries[0].Sources[1].FirstCheck = new() { State = "paused", Tried = 50, Unmatched = 30, TotalFiles = 300 };
+
+        var cut = Open("watch");
+
+        var note = cut.Find(".lib-page__row[data-type=movies] .lib-page__status [data-paused]");
+        Assert.Equal("Paused", Text(note));
+        Assert.Equal("0", note.GetAttribute("tabindex"));
+        Assert.Contains("lib-unmatched", note.ClassList);
+        Assert.Equal("A folder is paused because most of its files aren't matching", note.ParentElement!.GetAttribute("data-playback-tooltip"));
+        Assert.Contains("a folder is paused", cut.Find(".lib-page__row[data-type=movies] a").GetAttribute("aria-label"));
+        Assert.Empty(cut.FindAll(".lib-page__row[data-type=tv] [data-paused]"));
+    }
+
+    [Fact]
+    public void AFolderStillBeingCheckedAddsNoPausedNote()
+    {
+        _configuration.Libraries[0].Sources[1].FirstCheck = new() { State = "checking", Tried = 3, Unmatched = 1, TotalFiles = 10 };
+
+        var cut = Open("watch");
+
+        cut.WaitForElement(".lib-page__row[data-type=movies]");
+        Assert.Empty(cut.FindAll("[data-paused]"));
+    }
+
     [Fact]
     public void OnlyTheNameIsTheLinkSoTheMetadataIconsAndTheUnmatchedCountSitOutsideItInKeyboardOrder()
     {

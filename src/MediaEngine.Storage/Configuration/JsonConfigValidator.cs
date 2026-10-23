@@ -53,6 +53,16 @@ public static class JsonConfigValidator
                 AddRange(errors, maintenance.LogMaxTotalMegabytes, "log_max_total_mb", LogRetentionLimits.MinLogTotalMegabytes, LogRetentionLimits.MaxLogTotalMegabytes);
                 AddRange(errors, maintenance.MissingFileRetentionDays, "missing_file_retention_days", MissingFileRetentionLimits.MinDays, MissingFileRetentionLimits.MaxDays);
                 AddRange(errors, maintenance.UnmatchedRetryDays, "unmatched_retry_days", UnmatchedRetryLimits.MinDays, UnmatchedRetryLimits.MaxDays);
+                if (maintenance.FirstCheckFiles < FirstCheckLimits.MinFiles)
+                {
+                    errors.Add($"first_check_files must be at least {FirstCheckLimits.MinFiles}.");
+                }
+
+                if (!FirstCheckLimits.IsValidShare(maintenance.FirstCheckUnmatchedShare))
+                {
+                    errors.Add("first_check_unmatched_share must be above 0 and below 1.");
+                }
+
                 AddPositive(errors, maintenance.MaxTransactionLogEntries, "max_transaction_log_entries");
                 AddPositive(errors, maintenance.WeeklySyncIntervalDays, "weekly_sync_interval_days");
                 AddPositive(errors, maintenance.WeeklySyncBatchSize, "weekly_sync_batch_size");

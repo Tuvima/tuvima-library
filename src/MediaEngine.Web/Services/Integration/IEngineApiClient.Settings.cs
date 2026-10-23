@@ -233,6 +233,12 @@ public partial interface IEngineApiClient
     /// <summary>POST /library/unmatched/items/{assetId}/look-up-again — Look up again for one kept Unmatched file (administrators); the files affected, or null when the Engine refused or could not be read.</summary>
     Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> LookUpUnmatchedItemAgainAsync(Guid assetId, CancellationToken ct = default);
 
+    /// <summary>GET /library/first-checks — the folders whose first check is running or paused (administrators); null when the Engine refused or could not be read.</summary>
+    Task<MediaEngine.Contracts.Library.FolderFirstChecksDto?> GetFirstChecksAsync(CancellationToken ct = default);
+
+    /// <summary>POST /library/first-checks/{sourceId}/keep-going — Keep going on a paused folder (administrators); true when the Engine accepted it, false when it refused (the folder is not being checked) or could not be read.</summary>
+    Task<bool> KeepGoingAsync(string sourceId, CancellationToken ct = default);
+
     /// <summary>PUT /settings/libraries — replace schema 4 library, storage-root, and incoming-source configuration.</summary>
     Task<LibrariesConfigurationDto?> UpdateLibrariesAsync(UpdateLibrariesRequest request, CancellationToken ct = default);
 

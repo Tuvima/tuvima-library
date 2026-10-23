@@ -9,7 +9,8 @@ namespace MediaEngine.Ingestion.Services;
 public sealed class UnmatchedFileMarker(
     IUnmatchedAssetRepository unmatched,
     IConfigurationLoader configuration,
-    ILogger<UnmatchedFileMarker> logger)
+    ILogger<UnmatchedFileMarker> logger,
+    IFolderFirstCheckRepository? firstChecks = null)
 {
     /// <summary>
     /// Marks a YouTube library file with no video ID Unmatched (<c>no_youtube_id</c>). Best effort: the file is already registered and plays,
@@ -28,6 +29,13 @@ public sealed class UnmatchedFileMarker(
                 now,
                 UnmatchedRetryLimits.NextRetryAt(now, days),
                 ct).ConfigureAwait(false);
+
+            // A file with no video ID has its outcome as soon as it is registered, and counts as Unmatched in its folder's first check.
+            if (firstChecks is not null)
+            {
+                await firstChecks.RecordOutcomeAsync(assetId, FolderFirstCheckOutcomes.Unmatched, ct).ConfigureAwait(false);
+            }
+
             logger.LogInformation(
                 "{Path} is in a YouTube library but has no YouTube ID: marked Unmatched and left in place ({AssetId12})",
                 path,
