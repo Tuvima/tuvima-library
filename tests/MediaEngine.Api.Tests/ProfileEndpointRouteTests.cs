@@ -62,7 +62,7 @@ public sealed class ProfileEndpointRouteTests
         Assert.Contains(".RequireEffectiveAdministratorOrHouseholdAdministrator();", source[getStart..putStart], StringComparison.Ordinal);
         Assert.Contains(".RequireEffectiveAdministratorOrHouseholdAdministrator();", source[putStart..playbackPut], StringComparison.Ordinal);
         // A household administrator only reaches profiles in their own household, and never an administrator's own person.
-        Assert.Contains("GetGrantAsync", source, StringComparison.Ordinal);
+        Assert.Contains("IsServerAdministrator", source, StringComparison.Ordinal);
         Assert.Contains("MayManageViewPolicyAsync", source[getStart..putStart], StringComparison.Ordinal);
         Assert.Contains("MayManageViewPolicyAsync", source[putStart..playbackPut], StringComparison.Ordinal);
         Assert.Contains("IViewProfileRepository viewProfiles", source[getStart..playbackPut], StringComparison.Ordinal);

@@ -7,15 +7,17 @@ namespace MediaEngine.Storage;
 
 /// <summary>
 /// Shared libraries: one per household, created the first time it is needed. The server's own Shared library is the
-/// one that belongs to the server administrator's household (else the oldest household).
+/// one that belongs to the default household (the server administrator's), else the household of a server administrator
+/// profile, else the oldest household.
 /// </summary>
 public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : IViewSharedLibraryRepository
 {
-    /// <summary>SQL for the server's own household: the server administrator's, else the oldest.</summary>
+    /// <summary>SQL for the server's own household: the default household, else a server administrator profile's, else the oldest.</summary>
     public const string ServerHouseholdSql = """
         COALESCE(
-            (SELECT household_id FROM accounts
-              WHERE is_administrator = 1 AND is_enabled = 1 AND household_id IS NOT NULL
+            (SELECT id FROM households WHERE is_default = 1),
+            (SELECT household_id FROM profiles
+              WHERE is_server_admin = 1 AND household_id IS NOT NULL
               ORDER BY created_at, id LIMIT 1),
             (SELECT id FROM households ORDER BY created_at, id LIMIT 1))
         """;
@@ -73,6 +75,8 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
         connection.Execute(
             "INSERT INTO households(id,name,created_at) VALUES(@created,'Household',@now);",
             new { created, now = DateTimeOffset.UtcNow.ToString("O") }, transaction);
+        // The server's own household is the default household until the server administrator's profile joins it.
+        ProfileAccessRepository.MarkDefaultHouseholdIfNone(connection, transaction, created);
         return created;
     }
 

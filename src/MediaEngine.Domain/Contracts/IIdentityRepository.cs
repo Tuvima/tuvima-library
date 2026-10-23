@@ -40,10 +40,6 @@ public interface IIdentityRepository
     /// <summary>Marks the session as still needing the person to pick who is using Tuvima; the next profile switch clears it.</summary>
     Task MarkSessionProfilePendingAsync(Guid sessionId, CancellationToken ct = default);
 
-    /// <summary>The profile this account always opens as on this device, or <c>null</c> when none is set.</summary>
-    Task<Guid?> GetDeviceProfilePreferenceAsync(Guid accountId, string deviceId, CancellationToken ct = default);
-    Task SetDeviceProfilePreferenceAsync(Guid accountId, string deviceId, Guid profileId, DateTimeOffset updatedAt, CancellationToken ct = default);
-    Task<bool> ClearDeviceProfilePreferenceAsync(Guid accountId, string deviceId, CancellationToken ct = default);
     /// <summary>The subset of the given profiles that have a PIN.</summary>
     Task<IReadOnlySet<Guid>> GetProfileIdsWithPinAsync(IReadOnlyCollection<Guid> profileIds, CancellationToken ct = default);
     Task<bool> RevokeSessionAsync(Guid sessionId, DateTimeOffset revokedAt, string reason, CancellationToken ct = default);

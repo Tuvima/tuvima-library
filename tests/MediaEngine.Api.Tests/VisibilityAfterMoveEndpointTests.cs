@@ -30,14 +30,14 @@ public sealed class VisibilityAfterMoveEndpointTests
     private static readonly IReadOnlyDictionary<string, RequestAuthority> Principals = new Dictionary<string, RequestAuthority>
     {
         ["server-admin"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true),
         ["household-member"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountHouseholdId: Household),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileHouseholdId: Household),
         // An application that is itself an administrator has no person behind it, so it is no effective administrator.
         ["administrator-application"] = new(PrincipalKind.ServiceApplication, true, null, null, Guid.NewGuid(), null, null,
             ApplicationEnabled: true, ApplicationIsAdministrator: true),
         ["household-admin"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountHouseholdId: Household, AccountIsHouseholdAdmin: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileHouseholdId: Household, ActiveProfileIsHouseholdAdministrator: true),
     };
 
     [Theory]
@@ -85,6 +85,7 @@ public sealed class VisibilityAfterMoveEndpointTests
         // The other access routes are mapped too, so what they need to be built is registered empty; this test never calls them.
         builder.Services.AddScoped<ISelfServiceAuthorizationService>(_ => null!);
         builder.Services.AddScoped<IAccountRepository>(_ => null!);
+        builder.Services.AddScoped<IProfileAccessRepository>(_ => null!);
         builder.Services.AddScoped<IIdentityRepository>(_ => null!);
         builder.Services.AddScoped<IProfileRepository>(_ => null!);
         builder.Services.AddScoped<IAccountExternalLoginService>(_ => null!);

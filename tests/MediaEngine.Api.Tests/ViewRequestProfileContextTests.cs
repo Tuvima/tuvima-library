@@ -16,7 +16,7 @@ public sealed class ViewRequestProfileContextTests
         http.Request.Headers["X-Tuvima-Profile"] = requested.ToString();
         var accessor = new HttpContextAccessor { HttpContext = http };
         var authority = new RequestAuthority(PrincipalKind.Human, true,
-            Guid.NewGuid(), Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true);
+            Guid.NewGuid(), Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true);
         var context = new HttpViewRequestProfileContext(accessor, new StubResolver(authority));
 
         Assert.Equal(authority, await context.ResolveAuthorityAsync());

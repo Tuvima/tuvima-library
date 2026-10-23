@@ -61,7 +61,9 @@ public sealed class HouseholdRepositoryTests : IDisposable
     [Fact]
     public async Task AHouseholdWhoseSharedLibraryHoldsNoPhotos_IsRemovedTogetherWithThatEmptyLibrary()
     {
-        var shared = await new ViewSharedLibraryRepository(_database).GetAsync();
+        // Not the Library's own (default) household, which is never removed.
+        var other = await _households.CreateAsync("Other", _now);
+        var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(other.Id);
         using (var connection = _database.CreateConnection())
         {
             connection.Execute("""
@@ -104,7 +106,9 @@ public sealed class HouseholdRepositoryTests : IDisposable
     [Fact]
     public async Task AHouseholdWhoseSharedLibraryStillHoldsPhotos_IsKeptWithEverythingInIt()
     {
-        var shared = await new ViewSharedLibraryRepository(_database).GetAsync();
+        // Not the Library's own (default) household, which is never removed.
+        var other = await _households.CreateAsync("Other", _now);
+        var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(other.Id);
         using (var connection = _database.CreateConnection())
         {
             connection.Execute("""

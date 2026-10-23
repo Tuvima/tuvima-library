@@ -38,12 +38,55 @@ public sealed class AccountEndpointContractTests
             .SelectMany(source => source.Endpoints)
             .OfType<RouteEndpoint>()
             .ToArray();
-        AssertPolicy(endpoints, "/access/accounts/", "GET", ApplicationPermissionIds.IdentityUsersRead);
-        AssertPolicy(endpoints, "/access/accounts/", "POST", ApplicationPermissionIds.IdentityUsersWrite);
-        AssertPolicy(endpoints, "/access/accounts/{accountId:guid}", "DELETE", ApplicationPermissionIds.IdentityUsersWrite);
-        AssertPolicy(endpoints, "/access/accounts/{accountId:guid}/email", "PUT", ApplicationPermissionIds.IdentityUsersWrite);
+        AssertPolicy(endpoints, "/access/users/", "GET", ApplicationPermissionIds.IdentityUsersRead);
+        AssertPolicy(endpoints, "/access/users/", "POST", ApplicationPermissionIds.IdentityUsersWrite);
+        AssertPolicy(endpoints, "/access/users/{userId:guid}", "DELETE", ApplicationPermissionIds.IdentityUsersWrite);
+        AssertPolicy(endpoints, "/access/users/{userId:guid}/email", "PUT", ApplicationPermissionIds.IdentityUsersWrite);
         AssertPolicy(endpoints, "/access/libraries", "GET", ApplicationPermissionIds.IdentityUsersRead);
-        AssertPolicy(endpoints, "/access/profiles/", "POST", ApplicationPermissionIds.IdentityUsersWrite);
+        AssertPolicy(endpoints, "/access/accounts/{accountId:guid}/temporary-password", "POST", ApplicationPermissionIds.IdentityUsersWrite);
+        AssertPolicy(endpoints, "/access/profiles/{profileId:guid}/admin-protection", "GET", ApplicationPermissionIds.IdentityUsersRead);
+        AssertPolicy(endpoints, "/access/profiles/{profileId:guid}/admin-protection", "PUT", ApplicationPermissionIds.IdentityUsersWrite);
+    }
+
+    [Fact]
+    public async Task TheUsersRoutes_AreForAServerAdministratorOrATrustedApplication_NeverAHouseholdAdministrator()
+    {
+        var builder = WebApplication.CreateBuilder();
+        AddEndpointServices(builder.Services);
+        await using var app = builder.Build();
+        app.MapAccountEndpoints();
+
+        var endpoints = ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .ToArray();
+        var users = new (string Route, string Method, ApplicationPermissionId Permission)[]
+        {
+            ("/access/users/", "GET", ApplicationPermissionIds.IdentityUsersRead),
+            ("/access/users/", "POST", ApplicationPermissionIds.IdentityUsersWrite),
+            ("/access/users/{userId:guid}/email", "PUT", ApplicationPermissionIds.IdentityUsersWrite),
+            ("/access/users/{userId:guid}/deletion-preview", "GET", ApplicationPermissionIds.IdentityUsersWrite),
+            ("/access/users/{userId:guid}", "DELETE", ApplicationPermissionIds.IdentityUsersWrite),
+        };
+        foreach (var (route, method, permission) in users)
+        {
+            AssertPolicy(endpoints, route, method, permission);
+            Assert.False(RequirementOf(endpoints, route, method).AllowHouseholdAdministrator, $"{method} {route}");
+        }
+
+        // Profiles are managed by a household administrator for their own household too (the service limits them to it).
+        var profiles = new (string Route, string Method)[]
+        {
+            ("/access/profiles/{profileId:guid}/access", "PUT"),
+            ("/access/profiles/{profileId:guid}/roles", "PUT"),
+            ("/access/profiles/{profileId:guid}/admin-protection", "PUT"),
+            ("/access/profiles/{profileId:guid}", "DELETE"),
+        };
+        foreach (var (route, method) in profiles)
+        {
+            AssertPolicy(endpoints, route, method, ApplicationPermissionIds.IdentityUsersWrite);
+            Assert.True(RequirementOf(endpoints, route, method).AllowHouseholdAdministrator, $"{method} {route}");
+        }
     }
 
     [Fact]
@@ -87,6 +130,15 @@ public sealed class AccountEndpointContractTests
         }
     }
 
+    private static AdministratorOrApplicationRequirement RequirementOf(RouteEndpoint[] endpoints, string route, string method)
+    {
+        var endpoint = Assert.Single(endpoints, candidate =>
+            candidate.RoutePattern.RawText == route && Methods(candidate).Contains(method));
+        var policy = Assert.IsType<AuthorizationPolicy>(
+            endpoint.Metadata.Single(metadata => metadata is AuthorizationPolicy));
+        return Assert.Single(policy.Requirements.OfType<AdministratorOrApplicationRequirement>());
+    }
+
     private static void AssertPolicy(RouteEndpoint[] endpoints, string route, string method,
         ApplicationPermissionId permission)
     {
@@ -101,12 +153,13 @@ public sealed class AccountEndpointContractTests
     private static IReadOnlyList<string> Methods(RouteEndpoint endpoint) =>
         endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? [];
 
-    private static void AddEndpointServices(IServiceCollection services)
+    internal static void AddEndpointServices(IServiceCollection services)
     {
         services.AddAuthorization();
         services.AddScoped<IRequestAuthorityResolver>(_ => null!);
         services.AddScoped<ISelfServiceAuthorizationService>(_ => null!);
         services.AddScoped<IAccountRepository>(_ => null!);
+        services.AddScoped<IProfileAccessRepository>(_ => null!);
         services.AddScoped<IIdentityRepository>(_ => null!);
         services.AddScoped<IProfileRepository>(_ => null!);
         services.AddScoped<IAccountExternalLoginService>(_ => null!);

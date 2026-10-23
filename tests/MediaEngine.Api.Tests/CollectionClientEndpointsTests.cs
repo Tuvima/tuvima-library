@@ -1104,15 +1104,7 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
-            new AccountProfileGrant
-            {
-                AccountId = _account,
-                ProfileId = MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AuthorizationVersion = 1,
-                GrantedAt = DateTimeOffset.UtcNow,
-            },
+            new TestGrant(_account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
             new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen },
             new HashSet<Guid>()).GetAwaiter().GetResult();
     }
@@ -1194,10 +1186,10 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
             ApplicationId: Guid.NewGuid(),
             DeviceId: Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
+            ActiveProfileInUserHousehold: true,
             ApplicationEnabled: true,
             AccountAuthorizationVersion: 1,
-            GrantAuthorizationVersion: 1,
+            ProfileAuthorizationVersion: 1,
             ApplicationAuthorizationVersion: 1);
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -1213,6 +1205,7 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AllowAuthorizationEvaluator>();
         builder.Services.AddScoped<CatalogueResourceAuthorizationService>();
         builder.Services.AddSingleton<IAccountRepository, AccountRepository>();
+        builder.Services.AddSingleton<IProfileAccessRepository, ProfileAccessRepository>();
         builder.Services.AddSingleton<IProfileRepository, ProfileRepository>();
         builder.Services.AddSingleton<ICollectionRepository, CollectionRepository>();
         builder.Services.AddSingleton<ISeriesManifestRepository, SeriesManifestRepository>();

@@ -133,9 +133,9 @@ public sealed class HlsAccessGrantServiceTests : IDisposable
         var grantRow = (await _accounts.GetGrantAsync(account.Id, Profile.SeedProfileId))!;
         var authority = new RequestAuthority(
             PrincipalKind.Human, true, account.Id, Profile.SeedProfileId, SessionId: session.Id,
-            AccountEnabled: true, GrantEnabled: true,
+            AccountEnabled: true, ActiveProfileInUserHousehold: true,
             AccountAuthorizationVersion: account.AuthorizationVersion,
-            GrantAuthorizationVersion: grantRow.AuthorizationVersion);
+            ProfileAuthorizationVersion: grantRow.AuthorizationVersion);
         var service = CreateService();
         var packageId = Guid.NewGuid();
         var grant = service.Create(Guid.NewGuid(), packageId, authority, null, []);
@@ -187,9 +187,9 @@ public sealed class HlsAccessGrantServiceTests : IDisposable
         await InsertClientAsync(device, token);
         var authority = new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, account.Id, Profile.SeedProfileId, application.Id,
-            DeviceId: device.Id, AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true,
+            DeviceId: device.Id, AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true,
             AccountAuthorizationVersion: account.AuthorizationVersion,
-            GrantAuthorizationVersion: accountGrant.AuthorizationVersion,
+            ProfileAuthorizationVersion: accountGrant.AuthorizationVersion,
             ApplicationAuthorizationVersion: application.AuthorizationVersion);
         var service = CreateService();
         var packageId = Guid.NewGuid();
@@ -242,15 +242,7 @@ public sealed class HlsAccessGrantServiceTests : IDisposable
         };
         await _accounts.CreateAccountAsync(
             account,
-            new AccountProfileGrant
-            {
-                AccountId = account.Id,
-                ProfileId = Profile.SeedProfileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AuthorizationVersion = 1,
-                GrantedAt = _clock.GetUtcNow(),
-            },
+            new TestGrant(account.Id, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
             new HashSet<Guid>());
         return account;

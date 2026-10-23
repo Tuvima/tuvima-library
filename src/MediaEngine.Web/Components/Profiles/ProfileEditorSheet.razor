@@ -113,16 +113,16 @@
             @if (_confirmingDelete)
             {
                 <div class="profile-editor__confirm" role="alertdialog" aria-label="Confirm delete">
-                    <p><strong>Delete @(string.IsNullOrWhiteSpace(Profile?.DisplayName) ? "this profile" : Profile!.DisplayName)?</strong> Their likes, My List, progress, bookmarks and taste picks are removed. Library files are never touched.</p>
+                    <p><strong>Delete @(string.IsNullOrWhiteSpace(Profile?.DisplayName) ? "this profile" : Profile!.DisplayName)?</strong> Everything personal in this profile goes: progress, bookmarks, lists and history.@SignInSentence Library files are never touched.</p>
                     <fieldset class="profile-editor__photos" disabled="@Saving">
                         <legend>What about their personal photos?</legend>
                         <label class="profile-editor__choice">
-                            <AppNativeInput Type="radio" Name="profile-photos" Class="who-check__box" Checked="@_keepPhotos" AriaLabel="Keep their photos in the Shared Library" Disabled="@Saving" OnChange="KeepPhotos" />
-                            <span><strong>Keep them in the Shared Library</strong><small>Tagged "From @(Profile?.DisplayName)" with today's date.</small></span>
+                            <AppNativeInput Type="radio" Name="profile-photos" Class="who-check__box" Checked="@_keepPhotos" AriaLabel="Move their photos to Shared" Disabled="@Saving" OnChange="KeepPhotos" />
+                            <span><strong>Move to Shared</strong><small>Tagged "From @(Profile?.DisplayName)" with today's date.</small></span>
                         </label>
                         <label class="profile-editor__choice">
                             <AppNativeInput Type="radio" Name="profile-photos" Class="who-check__box" Checked="@(!_keepPhotos)" AriaLabel="Delete their photos" Disabled="@Saving" OnChange="DeletePhotos" />
-                            <span><strong>Delete them</strong><small>This can't be undone.</small></span>
+                            <span><strong>Delete</strong><small>This can't be undone.</small></span>
                         </label>
                     </fieldset>
                     <div class="profile-editor__row">
@@ -196,6 +196,20 @@
     /// Delete stay with the administrators, who change them from the person's page in Profiles.
     /// </summary>
     [Parameter] public bool SelfEdit { get; set; }
+
+    /// <summary>Whether the profile has a sign-in that is removed with it; null when the page does not know.</summary>
+    [Parameter] public bool? HasSignIn { get; set; }
+
+    /// <summary>The email of that sign-in, when it has one.</summary>
+    [Parameter] public string? SignInEmail { get; set; }
+
+    // The sign-in goes with the person (a sign-in without a profile cannot exist), so the confirmation says so.
+    private string SignInSentence => HasSignIn switch
+    {
+        true => string.IsNullOrWhiteSpace(SignInEmail) ? " Their sign-in is removed too." : $" Their sign-in ({SignInEmail}) is removed too.",
+        null => " If they have a sign-in, it is removed too.",
+        false => string.Empty,
+    };
 
     /// <summary>Whether a Delete button is offered (the page decides: never the last profile).</summary>
     [Parameter] public bool CanDelete { get; set; }

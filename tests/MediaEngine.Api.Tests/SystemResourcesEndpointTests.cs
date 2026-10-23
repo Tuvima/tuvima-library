@@ -39,17 +39,17 @@ public sealed class SystemResourcesEndpointTests
     private static readonly IReadOnlyDictionary<string, RequestAuthority> Principals = new Dictionary<string, RequestAuthority>
     {
         ["server-admin"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true),
         ["household-member"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountHouseholdId: Household),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileHouseholdId: Household),
         ["household-admin"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountHouseholdId: Household, AccountIsHouseholdAdmin: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileHouseholdId: Household, ActiveProfileIsHouseholdAdministrator: true),
         // A paired native app for a signed-in administrator that was not granted system status read.
         ["native-app-without-status-read"] = new(PrincipalKind.DelegatedUserClient, true, Account, Profile, NativeApp, null, Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true, ActiveProfileIsServerAdministrator: true),
         // A paired native app that does hold the permission still acts for a person who is not an administrator.
         ["native-app-with-status-read"] = new(PrincipalKind.DelegatedUserClient, true, Account, Profile, StatusApp, null, Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true),
         ["service-without-status-read"] = new(PrincipalKind.ServiceApplication, true, null, null, PlainApp,
             ApplicationEnabled: true),
         ["service-with-status-read"] = new(PrincipalKind.ServiceApplication, true, null, null, StatusApp,

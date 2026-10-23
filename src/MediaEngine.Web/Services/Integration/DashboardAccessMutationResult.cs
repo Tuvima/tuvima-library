@@ -17,9 +17,16 @@ public sealed record DashboardAccessMutationResult(
     HttpStatusCode? StatusCode = null,
     IReadOnlyList<string>? ValidationFields = null,
     string? Message = null,
-    ApprovalRequiredResponse? Approval = null)
+    ApprovalRequiredResponse? Approval = null,
+    string? Code = null)
 {
     public bool Succeeded => Failure == DashboardAccessMutationFailure.None;
+
+    /// <summary>The Engine refused a second household because a server administrator has no email and password yet (<c>secure_administrators_first</c>).</summary>
+    public bool NeedsSecuredAdministrators => Failure == DashboardAccessMutationFailure.Conflict && Code == SecureAdministratorsFirstCode;
+
+    /// <summary>The stable <c>code</c> in the Engine's 409 problem body (<c>HouseholdRules.SecureAdministratorsFirstCode</c>).</summary>
+    public const string SecureAdministratorsFirstCode = "secure_administrators_first";
 
     public static DashboardAccessMutationResult Success() => new();
 
@@ -28,8 +35,9 @@ public sealed record DashboardAccessMutationResult(
         HttpStatusCode? statusCode = null,
         IReadOnlyList<string>? validationFields = null,
         string? message = null,
-        ApprovalRequiredResponse? approval = null) =>
-        new(failure, statusCode, validationFields ?? [], message, approval);
+        ApprovalRequiredResponse? approval = null,
+        string? code = null) =>
+        new(failure, statusCode, validationFields ?? [], message, approval, code);
 }
 
 public sealed record DashboardAccessMutationResult<T>(
@@ -38,9 +46,13 @@ public sealed record DashboardAccessMutationResult<T>(
     HttpStatusCode? StatusCode = null,
     IReadOnlyList<string>? ValidationFields = null,
     string? Message = null,
-    ApprovalRequiredResponse? Approval = null)
+    ApprovalRequiredResponse? Approval = null,
+    string? Code = null)
 {
     public bool Succeeded => Failure == DashboardAccessMutationFailure.None;
+
+    /// <summary>The Engine refused a second household because a server administrator has no email and password yet (<c>secure_administrators_first</c>).</summary>
+    public bool NeedsSecuredAdministrators => Failure == DashboardAccessMutationFailure.Conflict && Code == DashboardAccessMutationResult.SecureAdministratorsFirstCode;
 
     public static DashboardAccessMutationResult<T> Success(T value) => new(value);
 
@@ -49,8 +61,9 @@ public sealed record DashboardAccessMutationResult<T>(
         HttpStatusCode? statusCode = null,
         IReadOnlyList<string>? validationFields = null,
         string? message = null,
-        ApprovalRequiredResponse? approval = null) =>
-        new(default, failure, statusCode, validationFields ?? [], message, approval);
+        ApprovalRequiredResponse? approval = null,
+        string? code = null) =>
+        new(default, failure, statusCode, validationFields ?? [], message, approval, code);
 }
 
 public enum DashboardAccessMutationFailure

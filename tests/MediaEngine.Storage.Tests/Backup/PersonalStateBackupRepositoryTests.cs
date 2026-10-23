@@ -1104,7 +1104,8 @@ public sealed class PersonalStateBackupRepositoryTests : IDisposable
         using var connection = _database.CreateConnection();
         connection.Execute(
             """
-            INSERT INTO accounts (id, created_at, updated_at) VALUES (@account, @now, @now);
+            INSERT INTO profiles (id, display_name, created_at) VALUES (@account, 'Two-step person', @now);
+                INSERT INTO accounts (id, created_at, updated_at, profile_id) VALUES (@account, @now, @now, @account);
             INSERT INTO account_two_step (account_id, secret_protected, created_at) VALUES (@account, @secret, @now);
             """,
             new { account, secret = protectedValue, now = Now });

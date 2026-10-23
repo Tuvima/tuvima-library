@@ -1,0 +1,28 @@
+.invite-form {
+    display: grid;
+    gap: 1rem;
+}
+
+.invite-form__section {
+    display: grid;
+    gap: .75rem;
+}
+
+.invite-form__section + .invite-form__section {
+    padding-top: 1.15rem;
+    border-top: 1px solid var(--app-border);
+}
+
+.invite-form__section small {
+    display: block;
+    color: var(--app-text-muted);
+}
+
+.invite-form__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: .75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--app-border);
+}

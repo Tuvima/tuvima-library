@@ -240,7 +240,7 @@ public sealed class DashboardAuthoritySessionTests
         new(profile, profile, true, true, version, version, true, unlocked,
             unlocked ? null : DateTimeOffset.UtcNow.AddMinutes(-1), 1,
             [new AccountProfileGrantDto(profile, profile, "Profile", null, true, true, true,
-                new GrantAdminProtectionDto(true, mode, 30, 1), version, DateTimeOffset.UtcNow)],
+                new ProfileAdminProtectionResponse(true, mode, 30, 1), version, DateTimeOffset.UtcNow)],
             ["settings.administration"], actions);
 
     private static DashboardSessionAccessor AuthenticatedSession(string token)

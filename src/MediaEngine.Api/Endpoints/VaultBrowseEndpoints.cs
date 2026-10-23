@@ -164,8 +164,8 @@ public static class VaultBrowseEndpoints
         var authority = await services.GetRequiredService<IRequestAuthorityResolver>().ResolveAsync(http, ct);
         var access = services.GetRequiredService<VaultAccessResolver>();
         if (!await access.IsUnlockedAsync(authority, ct)
-            || authority.AccountId is not { } accountId
-            || !await services.GetRequiredService<IAccountRepository>().HasFeatureGrantAsync(accountId, AccountFeatureId.Watch, ct))
+            || authority.ActiveProfileId is not { } watchingProfile
+            || !(await services.GetRequiredService<IProfileAccessRepository>().GetFeatureGrantsAsync(watchingProfile, ct)).Contains(AccountFeatureId.Watch))
         {
             return false;
         }

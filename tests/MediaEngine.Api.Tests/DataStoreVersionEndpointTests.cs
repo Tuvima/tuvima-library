@@ -40,17 +40,17 @@ public sealed class DataStoreVersionEndpointTests : IDisposable
     private static readonly IReadOnlyDictionary<string, RequestAuthority> Principals = new Dictionary<string, RequestAuthority>
     {
         ["server-admin"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true),
         ["household-member"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountHouseholdId: Household),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileHouseholdId: Household),
         ["household-admin"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountHouseholdId: Household, AccountIsHouseholdAdmin: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileHouseholdId: Household, ActiveProfileIsHouseholdAdministrator: true),
         // A paired native app (a device token for a signed-in administrator) that was not granted backup.read.
         ["native-app-without-backup-read"] = new(PrincipalKind.DelegatedUserClient, true, Account, Profile, NativeApp, null, Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true, ActiveProfileIsServerAdministrator: true),
         // A paired native app that does hold backup.read still acts for a person who is not an administrator.
         ["native-app-with-backup-read"] = new(PrincipalKind.DelegatedUserClient, true, Account, Profile, BackupApp, null, Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true),
         ["service-without-backup-read"] = new(PrincipalKind.ServiceApplication, true, null, null, PlainApp,
             ApplicationEnabled: true),
         ["service-with-backup-read"] = new(PrincipalKind.ServiceApplication, true, null, null, BackupApp,

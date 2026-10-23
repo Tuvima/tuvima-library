@@ -14,6 +14,7 @@ namespace MediaEngine.Api.Security;
 /// </summary>
 public sealed class HouseholdManagementService(
     IHouseholdRepository households,
+    IAccountRepository accounts,
     IAccountAccessDecisionService accountDecisions,
     IAuthorizationEvaluator evaluator,
     IAuthorizationAuditWriter audit,
@@ -22,7 +23,8 @@ public sealed class HouseholdManagementService(
     public const int MaximumNameLength = 100;
 
     public const string NotEmptyMessage = "This household still has people or sign-ins, so it can't be removed. Nothing was changed.";
-    public const string HoldsSharedItemsMessage = "This household still has shared photos in View. Remove them first.";
+    public const string HoldsSharedItemsMessage = UserRemovalMessages.HouseholdHoldsSharedItems;
+    public const string DefaultHouseholdMessage = "This is the Library's own household and can't be removed.";
 
     public async Task<IReadOnlyList<HouseholdSummary>> ListAsync(RequestAuthority actor, CancellationToken ct = default)
     {
@@ -34,7 +36,7 @@ public sealed class HouseholdManagementService(
             }
 
             // A household administrator sees their own household only.
-            if (actor.AccountHouseholdId is { } own &&
+            if (actor.ActiveProfileHouseholdId is { } own &&
                 (await accountDecisions.EvaluateHouseholdAdministratorAsync(actor, true, ct).ConfigureAwait(false)).IsAllowed)
             {
                 return await households.GetSummaryAsync(own, ct).ConfigureAwait(false) is { } summary ? [summary] : [];
@@ -50,7 +52,14 @@ public sealed class HouseholdManagementService(
     public async Task<HouseholdSummary> CreateAsync(RequestAuthority actor, string name, CancellationToken ct = default)
     {
         await RequireServerWriteAsync(actor, ct).ConfigureAwait(false);
-        var household = await households.CreateAsync(NormalizeName(name), clock.GetUtcNow(), ct).ConfigureAwait(false);
+        var normalized = NormalizeName(name);
+        // D10: a second household is added only once every server administrator has an email and a password (or passkey).
+        if (!await accounts.AreServerAdministratorsSecuredAsync(ct).ConfigureAwait(false))
+        {
+            throw new SecureAdministratorsFirstException();
+        }
+
+        var household = await households.CreateAsync(normalized, clock.GetUtcNow(), ct).ConfigureAwait(false);
         await RecordAsync(actor, "household.created", household.Id, ct).ConfigureAwait(false);
         return new HouseholdSummary(household, 0, 0);
     }
@@ -83,6 +92,8 @@ public sealed class HouseholdManagementService(
                 throw new InvalidOperationException(NotEmptyMessage);
             case HouseholdDeleteOutcome.HoldsSharedItems:
                 throw new InvalidOperationException(HoldsSharedItemsMessage);
+            case HouseholdDeleteOutcome.IsDefaultHousehold:
+                throw new InvalidOperationException(DefaultHouseholdMessage);
             default:
                 throw new UnreachableException($"Unhandled household delete outcome: {outcome}.");
         }

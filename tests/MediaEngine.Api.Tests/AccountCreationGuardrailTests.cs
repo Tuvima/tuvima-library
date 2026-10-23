@@ -48,8 +48,7 @@ public sealed class AccountCreationGuardrailTests
     }
 
     [Theory]
-    [InlineData("src/MediaEngine.Api/Endpoints/AccountEndpoints.cs", "mutations.CreateAsync(")]
-    [InlineData("src/MediaEngine.Api/Endpoints/AccountEndpoints.cs", "mutations.IssueInvitationAsync(")]
+    [InlineData("src/MediaEngine.Api/Endpoints/AccountEndpoints.cs", "mutations.CreateUserAsync(")]
     [InlineData("src/MediaEngine.Api/Endpoints/AccountEndpoints.cs", "mutations.SetTemporaryPasswordAsync(")]
     public void AdministratorActionsThatMakeSignInsRequireAnAdministrator(string file, string call)
     {

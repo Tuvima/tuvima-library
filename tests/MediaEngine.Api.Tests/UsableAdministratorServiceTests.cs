@@ -126,21 +126,12 @@ public sealed class UsableAdministratorServiceTests
             Id = Guid.NewGuid(),
             Email = $"{Guid.NewGuid():N}@example.com",
             IsEnabled = isEnabled,
-            IsAdministrator = true,
             CreatedAt = Now,
             UpdatedAt = Now,
         };
         account.NormalizedEmail = account.Email!.ToUpperInvariant();
         var profileId = Guid.NewGuid();
-        await accounts.CreateAccountAsync(account, new AccountProfileGrant
-        {
-            AccountId = account.Id,
-            ProfileId = profileId,
-            IsDefault = true,
-            IsEnabled = true,
-            AdminEnabled = true,
-            GrantedAt = Now,
-        }, new HashSet<AccountFeatureId>(), new HashSet<Guid>(), CancellationToken.None, new Profile
+        await accounts.CreateAccountAsync(account, new TestGrant(account.Id, profileId, IsDefault: true, AdminEnabled: true), new HashSet<AccountFeatureId>(), new HashSet<Guid>(), CancellationToken.None, new Profile
         {
             Id = profileId,
             DisplayName = "Administrator",

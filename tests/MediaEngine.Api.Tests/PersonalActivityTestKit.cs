@@ -212,16 +212,15 @@ internal sealed class PersonalActivityWorld : IAsyncDisposable
         var profile = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow.ToString("O");
         connection.Execute("""
-            INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at)
-            VALUES(@account,@email,@normalized,1,@admin,1,@now,@now);
             INSERT INTO profiles (id, display_name, created_at, household_id) VALUES (@profile, @name, @now, @household);
+            INSERT INTO accounts(id,email,normalized_email,is_enabled,authorization_version,created_at,updated_at,profile_id)
+            VALUES(@account,@email,@normalized,1,1,@now,@now,@profile);
             """, new
         {
             account,
             profile,
             name,
             household,
-            admin = isServerAdmin ? 1 : 0,
             email = $"{account:N}@example.test",
             normalized = $"{account:N}@EXAMPLE.TEST",
             now,
@@ -235,12 +234,11 @@ internal sealed class PersonalActivityWorld : IAsyncDisposable
         ActiveProfileId: person.ProfileId,
         SessionId: session ?? Guid.NewGuid(),
         AccountEnabled: true,
-        GrantEnabled: true,
-        AccountIsAdministrator: person.IsServerAdmin,
-        GrantAdminEnabled: person.IsServerAdmin,
+        ActiveProfileInUserHousehold: true,
+        ActiveProfileIsServerAdministrator: person.IsServerAdmin,
         ActiveProfileIsRestricted: restricted,
-        AccountHouseholdId: person.Household,
-        AccountIsHouseholdAdmin: person.IsHouseholdAdmin);
+        ActiveProfileHouseholdId: person.Household,
+        ActiveProfileIsHouseholdAdministrator: person.IsHouseholdAdmin);
 
     internal sealed record Person(string Name, Guid AccountId, Guid ProfileId, Guid? Household, bool IsServerAdmin, bool IsHouseholdAdmin);
 

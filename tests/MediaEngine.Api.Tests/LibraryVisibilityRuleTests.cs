@@ -1,20 +1,21 @@
 using Dapper;
 using MediaEngine.Api.Security;
-using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Enums;
 using MediaEngine.Storage;
 using MediaEngine.TestSupport;
 
 namespace MediaEngine.Api.Tests;
 
-// The one rule that answers "may this account see this library" (simpler access D11), on real temp SQLite.
+// The one rule that answers "may this profile see this library" (simpler access D11, access held by the profile), on real temp SQLite.
 public sealed class LibraryVisibilityRuleTests : IDisposable
 {
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_library_visibility_{Guid.NewGuid():N}.db");
     private readonly DatabaseConnection _database;
     private readonly AccountRepository _accounts;
     private readonly LibraryVisibilityRule _rule;
+    private readonly ProfileAccessRepository _profileAccess;
     private readonly DateTimeOffset _now = new(2026, 10, 23, 9, 0, 0, TimeSpan.Zero);
 
     public LibraryVisibilityRuleTests()
@@ -24,7 +25,8 @@ public sealed class LibraryVisibilityRuleTests : IDisposable
         _database.InitializeSchema();
         _database.RunStartupChecks();
         _accounts = new AccountRepository(_database);
-        _rule = new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database));
+        _profileAccess = new ProfileAccessRepository(_database);
+        _rule = new LibraryVisibilityRule(_profileAccess, new VaultLibraryRepository(_database));
     }
 
     [Theory]
@@ -40,37 +42,37 @@ public sealed class LibraryVisibilityRuleTests : IDisposable
     [Fact]
     public async Task ANewLibrary_IsVisibleToAnAccountWithItsArea_WithNoRowWritten()
     {
-        var account = await CreateAccountAsync("area@example.test", new HashSet<Guid>());
+        var profile = await CreateProfileAsync("area@example.test", new HashSet<Guid>());
 
-        Assert.True(await _rule.MaySeeAsync(account.Id, false, Guid.NewGuid(), true));
+        Assert.True(await _rule.MaySeeAsync(profile, false, Guid.NewGuid(), true));
     }
 
     [Fact]
     public async Task ALibraryHiddenFromTheAccount_IsNotVisible_ButIsToAnotherAccount()
     {
         var hidden = Guid.NewGuid();
-        var sam = await CreateAccountAsync("sam@example.test", new HashSet<Guid> { hidden });
-        var other = await CreateAccountAsync("other@example.test", new HashSet<Guid>());
+        var sam = await CreateProfileAsync("sam@example.test", new HashSet<Guid> { hidden });
+        var other = await CreateProfileAsync("other@example.test", new HashSet<Guid>());
 
-        Assert.False(await _rule.MaySeeAsync(sam.Id, false, hidden, true));
-        Assert.True(await _rule.MaySeeAsync(other.Id, false, hidden, true));
+        Assert.False(await _rule.MaySeeAsync(sam, false, hidden, true));
+        Assert.True(await _rule.MaySeeAsync(other, false, hidden, true));
     }
 
     [Fact]
     public async Task WithoutTheArea_TheLibraryIsNotVisible_EvenWhenNothingIsHidden()
     {
-        var account = await CreateAccountAsync("noarea@example.test", new HashSet<Guid>());
+        var profile = await CreateProfileAsync("noarea@example.test", new HashSet<Guid>());
 
-        Assert.False(await _rule.MaySeeAsync(account.Id, false, Guid.NewGuid(), false));
+        Assert.False(await _rule.MaySeeAsync(profile, false, Guid.NewGuid(), false));
     }
 
     [Fact]
-    public async Task AnAdministrator_SeesALibraryEvenWhenAHiddenRowExists()
+    public async Task AServerAdministrator_SeesALibraryEvenWhenAHiddenRowExists()
     {
         var hidden = Guid.NewGuid();
-        var administrator = await CreateAccountAsync("admin@example.test", new HashSet<Guid> { hidden });
+        var administrator = await CreateProfileAsync("admin@example.test", new HashSet<Guid> { hidden });
 
-        Assert.True(await _rule.MaySeeAsync(administrator.Id, true, hidden, false));
+        Assert.True(await _rule.MaySeeAsync(administrator, true, hidden, false));
     }
 
     [Fact]
@@ -84,37 +86,40 @@ public sealed class LibraryVisibilityRuleTests : IDisposable
                 new { vault = vault.ToString("D"), now = _now.ToString("O") });
         }
 
-        var person = await CreateAccountAsync("vault@example.test", new HashSet<Guid>());
+        var person = await CreateProfileAsync("vault@example.test", new HashSet<Guid>());
 
-        Assert.False(await _rule.MaySeeAsync(person.Id, false, vault, true));
-        Assert.False(await _rule.MaySeeAsync(person.Id, true, vault, true));
+        Assert.False(await _rule.MaySeeAsync(person, false, vault, true));
+        Assert.False(await _rule.MaySeeAsync(person, true, vault, true));
     }
 
     [Fact]
     public async Task AnEmptyLibraryId_IsNeverVisible()
     {
-        var account = await CreateAccountAsync("empty@example.test", new HashSet<Guid>());
+        var profile = await CreateProfileAsync("empty@example.test", new HashSet<Guid>());
 
-        Assert.False(await _rule.MaySeeAsync(account.Id, true, Guid.Empty, true));
+        Assert.False(await _rule.MaySeeAsync(profile, true, Guid.Empty, true));
     }
 
     [Fact]
-    public async Task LoadHidden_ReturnsTheAccountsOwnAndTheInheritedLibraries()
+    public async Task LoadHidden_ReturnsOnlyTheProfilesOwnLibraries()
     {
-        var byPrimary = Guid.NewGuid();
-        var byMember = Guid.NewGuid();
-        var primary = await CreateAccountAsync("primary@example.test", new HashSet<Guid> { byPrimary });
-        var member = await CreateAccountAsync("member@example.test", new HashSet<Guid> { byMember });
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("UPDATE accounts SET grants_inherit_from_account_id=@primary WHERE id=@member;", new { primary = primary.Id, member = member.Id });
-        }
+        var byFirst = Guid.NewGuid();
+        var first = await CreateProfileAsync("first@example.test", new HashSet<Guid> { byFirst });
+        var second = await CreateProfileAsync("second@example.test", new HashSet<Guid>());
 
-        Assert.Equal(new HashSet<Guid> { byPrimary, byMember }, (await _rule.LoadHiddenAsync(member.Id)).ToHashSet());
+        Assert.Equal(new HashSet<Guid> { byFirst }, (await _rule.LoadHiddenAsync(first)).ToHashSet());
+        Assert.Empty(await _rule.LoadHiddenAsync(second));
     }
 
-    private async Task<Account> CreateAccountAsync(string email, IReadOnlySet<Guid> hidden)
+    private async Task<Guid> CreateProfileAsync(string email, IReadOnlySet<Guid> hidden)
     {
+        var profile = new MediaEngine.Domain.Aggregates.Profile
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = email,
+            Role = ProfileRole.StandardUser,
+            CreatedAt = _now,
+        };
         var account = new Account
         {
             Id = Guid.NewGuid(),
@@ -127,18 +132,12 @@ public sealed class LibraryVisibilityRuleTests : IDisposable
         };
         await _accounts.CreateAccountAsync(
             account,
-            new AccountProfileGrant
-            {
-                AccountId = account.Id,
-                ProfileId = Profile.SeedProfileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AuthorizationVersion = 1,
-                GrantedAt = _now,
-            },
+            new TestGrant(account.Id, profile.Id),
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            hidden);
-        return account;
+            hidden,
+            newProfile: profile,
+            newHouseholdName: $"{email} home");
+        return profile.Id;
     }
 
     public void Dispose()

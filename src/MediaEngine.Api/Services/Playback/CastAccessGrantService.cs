@@ -123,7 +123,7 @@ public sealed class CastAccessGrantService
                 deviceId,
                 token.TokenFamilyId,
                 authority.AccountAuthorizationVersion,
-                authority.GrantAuthorizationVersion,
+                authority.ProfileAuthorizationVersion,
                 authority.ApplicationAuthorizationVersion,
                 granted)));
         return new CastAccessGrant(_protector.Protect(payload), expiresAt);
@@ -131,7 +131,7 @@ public sealed class CastAccessGrantService
 
     /// <summary>
     /// Everything that must hold on EVERY request: the grant is intact and unexpired; the device is unrevoked, still on that
-    /// profile and the ids match; the token family is live; the account and grant are enabled with the same versions; the
+    /// profile and the ids match; the token family is live; the account is enabled and the profile is still in its household, both with the same versions; the
     /// application is enabled and still holds playback.read. Returns null on any failure (the caller answers 403). The asset
     /// and the catalogue's own limits (Kids) are checked by the caller against the returned authority.
     /// </summary>
@@ -146,21 +146,21 @@ public sealed class CastAccessGrantService
         var binding = payload.Binding;
         var now = _timeProvider.GetUtcNow();
         var accountTask = _accounts.GetByIdAsync(binding.AccountId, ct);
-        var grantTask = _accounts.GetGrantAsync(binding.AccountId, binding.ProfileId, ct);
+        var profileTask = _accounts.GetActiveProfileAccessAsync(binding.AccountId, binding.ProfileId, ct);
         var applicationTask = _applications.GetApplicationAsync(binding.ApplicationId, ct);
         var deviceTask = _clients.GetDeviceAsync(binding.DeviceId, ct);
         var familyTask = _clients.IsTokenFamilyLiveAsync(binding.TokenFamilyId, now, ct);
-        await Task.WhenAll(accountTask, grantTask, applicationTask, deviceTask, familyTask).ConfigureAwait(false);
+        await Task.WhenAll(accountTask, profileTask, applicationTask, deviceTask, familyTask).ConfigureAwait(false);
         var account = await accountTask.ConfigureAwait(false);
-        var profileGrant = await grantTask.ConfigureAwait(false);
+        var activeProfile = await profileTask.ConfigureAwait(false);
         var application = await applicationTask.ConfigureAwait(false);
         var device = await deviceTask.ConfigureAwait(false);
-        if (account?.IsEnabled != true || profileGrant?.IsEnabled != true || application?.IsEnabled != true ||
+        if (account?.IsEnabled != true || activeProfile is null || application?.IsEnabled != true ||
             device?.IsActive != true || !await familyTask.ConfigureAwait(false) ||
             device.AccountId != binding.AccountId || device.ProfileId != binding.ProfileId ||
             device.ApplicationId != binding.ApplicationId ||
             account.AuthorizationVersion != binding.AccountAuthorizationVersion ||
-            profileGrant.AuthorizationVersion != binding.GrantAuthorizationVersion ||
+            activeProfile.AuthorizationVersion != binding.ProfileAuthorizationVersion ||
             application.AuthorizationVersion != binding.ApplicationAuthorizationVersion ||
             !await HasLivePlaybackPermissionAsync(application, binding.Scopes, ct).ConfigureAwait(false))
         {
@@ -174,14 +174,11 @@ public sealed class CastAccessGrantService
         }
 
         var authority = new RequestAuthority(
-            PrincipalKind.DelegatedUserClient, true, account.Id, profileGrant.ProfileId, application.Id,
-            DeviceId: binding.DeviceId, AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true,
+            PrincipalKind.DelegatedUserClient, true, account.Id, activeProfile.ProfileId, application.Id,
+            DeviceId: binding.DeviceId, AccountEnabled: true, ApplicationEnabled: true,
             AccountAuthorizationVersion: account.AuthorizationVersion,
-            GrantAuthorizationVersion: profileGrant.AuthorizationVersion,
             ApplicationAuthorizationVersion: application.AuthorizationVersion,
-            AccountIsAdministrator: account.IsAdministrator,
-            GrantAdminEnabled: profileGrant.AdminEnabled,
-            ApplicationIsAdministrator: application.IsAdministrator);
+            ApplicationIsAdministrator: application.IsAdministrator).WithActiveProfile(activeProfile);
         return new CastGrantValidation(
             payload.AssetId,
             payload.PackageId,
@@ -254,7 +251,7 @@ public sealed class CastAccessGrantService
         Guid DeviceId,
         Guid TokenFamilyId,
         long AccountAuthorizationVersion,
-        long GrantAuthorizationVersion,
+        long ProfileAuthorizationVersion,
         long ApplicationAuthorizationVersion,
         IReadOnlyList<string> Scopes);
 }

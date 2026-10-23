@@ -63,7 +63,7 @@ public sealed class VaultAccessResolver(IVaultLibraryRepository libraries, INsfw
         if (authority.PrincipalKind != PrincipalKind.Human
             || !authority.IsAuthenticated
             || !authority.AccountEnabled
-            || !authority.GrantEnabled
+            || !authority.ActiveProfileInUserHousehold
             || authority.SessionId is not { } sessionId || sessionId == Guid.Empty
             || authority.ActiveProfileId is not { } profileId || profileId == Guid.Empty)
         {

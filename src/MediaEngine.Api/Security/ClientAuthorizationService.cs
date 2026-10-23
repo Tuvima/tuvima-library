@@ -8,7 +8,8 @@ using MediaEngine.Domain.Entities;
 
 namespace MediaEngine.Api.Security;
 
-public sealed record ClientAccessIdentity(ClientToken Token, ClientDevice Device, Account Account, AccountProfileGrant Grant, MediaEngine.Domain.Entities.Application Application);
+/// <summary>A live paired-app token with everything it is bound to. <paramref name="Profile"/> is the profile the device acts as, in the household of the user.</summary>
+public sealed record ClientAccessIdentity(ClientToken Token, ClientDevice Device, Account Account, ActiveProfileAccess Profile, MediaEngine.Domain.Entities.Application Application);
 
 public sealed record ClientTokenResult(OAuthTokenResponse? Success, OAuthErrorResponse? Error)
 {
@@ -154,9 +155,10 @@ public sealed class ClientAuthorizationService(
             ? []
             : NormalizeScopes(request.Scopes).Where(requested.Contains).ToArray();
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
-        var grant = await accounts.GetGrantAsync(accountId, profileId, ct).ConfigureAwait(false);
+        // The person approving acts as a profile of their own household (a profile of another household answers like a missing one).
+        var profile = await accounts.GetActiveProfileAccessAsync(accountId, profileId, ct).ConfigureAwait(false);
         var boundApplication = await applications.GetApplicationByClientIdAsync(pairing.ClientId, ct).ConfigureAwait(false);
-        if (account?.IsEnabled != true || grant?.IsEnabled != true ||
+        if (account?.IsEnabled != true || profile is null ||
             boundApplication?.IsEnabled != true || boundApplication.Id != pairing.ApplicationId ||
             boundApplication.ApplicationType != ApplicationType.UserClient)
         {
@@ -257,7 +259,8 @@ public sealed class ClientAuthorizationService(
         }
 
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
-        var grant = await accounts.GetGrantAsync(accountId, targetProfileId, ct).ConfigureAwait(false);
+        // Only a profile of the user's own household can be switched to; another household's profile and an unknown id answer the same.
+        var target = await accounts.GetActiveProfileAccessAsync(accountId, targetProfileId, ct).ConfigureAwait(false);
         var application = await applications.GetApplicationAsync(device.ApplicationId, ct).ConfigureAwait(false);
         var boundApplication = await applications.GetApplicationByClientIdAsync(device.ClientId, ct).ConfigureAwait(false);
         if (account?.IsEnabled != true || application?.IsEnabled != true ||
@@ -266,7 +269,7 @@ public sealed class ClientAuthorizationService(
             return ClientTokenResult.Failed("invalid_grant", "The account or Application is unavailable.");
         }
 
-        if (grant?.IsEnabled != true)
+        if (target is null)
         {
             return ClientTokenResult.Failed(ProfileNotAllowedError, "This account cannot use that profile.");
         }
@@ -278,8 +281,8 @@ public sealed class ClientAuthorizationService(
 
         var now = timeProvider.GetUtcNow();
         var familyId = Guid.NewGuid();
-        var access = NewToken(application.Id, accountId, deviceId, targetProfileId, familyId, "access", device.Scopes, account.AuthorizationVersion, grant.AuthorizationVersion, application.AuthorizationVersion, 0, AccessTokenLifetime, now);
-        var refresh = NewToken(application.Id, accountId, deviceId, targetProfileId, familyId, "refresh", device.Scopes, account.AuthorizationVersion, grant.AuthorizationVersion, application.AuthorizationVersion, 0, RefreshTokenLifetime, now);
+        var access = NewToken(application.Id, accountId, deviceId, targetProfileId, familyId, "access", device.Scopes, account.AuthorizationVersion, target.AuthorizationVersion, application.AuthorizationVersion, 0, AccessTokenLifetime, now);
+        var refresh = NewToken(application.Id, accountId, deviceId, targetProfileId, familyId, "refresh", device.Scopes, account.AuthorizationVersion, target.AuthorizationVersion, application.AuthorizationVersion, 0, RefreshTokenLifetime, now);
         if (!await repository.SwitchDeviceProfileAsync(
                 deviceId, accountId, expectedProfileId, callerTokenId, targetProfileId, access.Entity, refresh.Entity, now, "profile_switched", audit, ct).ConfigureAwait(false))
         {
@@ -330,12 +333,12 @@ public sealed class ClientAuthorizationService(
         }
 
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
-        var grant = await accounts.GetGrantAsync(accountId, profileId, ct).ConfigureAwait(false);
+        var profile = await accounts.GetActiveProfileAccessAsync(accountId, profileId, ct).ConfigureAwait(false);
         var application = await applications.GetApplicationByClientIdAsync(pairing.ClientId, ct).ConfigureAwait(false);
-        if (account?.IsEnabled != true || grant?.IsEnabled != true || application?.IsEnabled != true ||
+        if (account?.IsEnabled != true || profile is null || application?.IsEnabled != true ||
             application.Id != pairing.ApplicationId || application.ApplicationType != ApplicationType.UserClient)
         {
-            return ClientTokenResult.Failed("access_denied", "The approved account, profile grant, or Application is unavailable.");
+            return ClientTokenResult.Failed("access_denied", "The approved account, profile, or Application is unavailable.");
         }
 
         if (!await HasEffectivePermissionsAsync(application, SplitScopes(pairing.ApprovedScopes), ct).ConfigureAwait(false))
@@ -346,8 +349,8 @@ public sealed class ClientAuthorizationService(
         var deviceId = Guid.NewGuid();
         var familyId = Guid.NewGuid();
         var scopes = pairing.ApprovedScopes;
-        var access = NewToken(application.Id, accountId, deviceId, profileId, familyId, "access", scopes, account.AuthorizationVersion, grant.AuthorizationVersion, application.AuthorizationVersion, 0, AccessTokenLifetime, now);
-        var refresh = NewToken(application.Id, accountId, deviceId, profileId, familyId, "refresh", scopes, account.AuthorizationVersion, grant.AuthorizationVersion, application.AuthorizationVersion, 0, RefreshTokenLifetime, now);
+        var access = NewToken(application.Id, accountId, deviceId, profileId, familyId, "access", scopes, account.AuthorizationVersion, profile.AuthorizationVersion, application.AuthorizationVersion, 0, AccessTokenLifetime, now);
+        var refresh = NewToken(application.Id, accountId, deviceId, profileId, familyId, "refresh", scopes, account.AuthorizationVersion, profile.AuthorizationVersion, application.AuthorizationVersion, 0, RefreshTokenLifetime, now);
         var device = new ClientDevice
         {
             Id = deviceId,
@@ -401,12 +404,12 @@ public sealed class ClientAuthorizationService(
         var live = await ValidateBindingAsync(current, match.Value.Device, ct).ConfigureAwait(false);
         if (live is null)
         {
-            return ClientTokenResult.Failed("invalid_grant", "The account, profile grant, Application, or scope grant changed.");
+            return ClientTokenResult.Failed("invalid_grant", "The account, profile, Application, or scope grant changed.");
         }
 
         var nextGeneration = checked(current.Generation + 1);
-        var access = NewToken(current.ApplicationId, current.AccountId, current.DeviceId, current.ProfileId, current.TokenFamilyId, "access", current.Scopes, live.Account.AuthorizationVersion, live.Grant.AuthorizationVersion, live.Application.AuthorizationVersion, nextGeneration, AccessTokenLifetime, now);
-        var refresh = NewToken(current.ApplicationId, current.AccountId, current.DeviceId, current.ProfileId, current.TokenFamilyId, "refresh", current.Scopes, live.Account.AuthorizationVersion, live.Grant.AuthorizationVersion, live.Application.AuthorizationVersion, nextGeneration, RefreshTokenLifetime, now);
+        var access = NewToken(current.ApplicationId, current.AccountId, current.DeviceId, current.ProfileId, current.TokenFamilyId, "access", current.Scopes, live.Account.AuthorizationVersion, live.Profile.AuthorizationVersion, live.Application.AuthorizationVersion, nextGeneration, AccessTokenLifetime, now);
+        var refresh = NewToken(current.ApplicationId, current.AccountId, current.DeviceId, current.ProfileId, current.TokenFamilyId, "refresh", current.Scopes, live.Account.AuthorizationVersion, live.Profile.AuthorizationVersion, live.Application.AuthorizationVersion, nextGeneration, RefreshTokenLifetime, now);
         if (!await repository.RotateRefreshTokenAsync(current, access.Entity, refresh.Entity, now, ct).ConfigureAwait(false))
         {
             await repository.RevokeTokenFamilyAsync(current.TokenFamilyId, now, "refresh_token_replay", ct).ConfigureAwait(false);
@@ -436,7 +439,7 @@ public sealed class ClientAuthorizationService(
         string kind,
         string scopes,
         long accountVersion,
-        long grantVersion,
+        long profileVersion,
         long applicationVersion,
         int generation,
         TimeSpan lifetime,
@@ -455,7 +458,7 @@ public sealed class ClientAuthorizationService(
             TokenHash = Hash(plaintext),
             Scopes = scopes,
             AccountAuthorizationVersion = accountVersion,
-            GrantAuthorizationVersion = grantVersion,
+            GrantAuthorizationVersion = profileVersion, // the profile's version (the column keeps its earlier name)
             ApplicationAuthorizationVersion = applicationVersion,
             Generation = generation,
             CreatedAt = now,
@@ -471,9 +474,11 @@ public sealed class ClientAuthorizationService(
         }
 
         var account = await accounts.GetByIdAsync(token.AccountId, ct).ConfigureAwait(false);
-        var grant = await accounts.GetGrantAsync(token.AccountId, token.ProfileId, ct).ConfigureAwait(false);
+        // The profile must still be in the household of the user the app was paired for, and its version must be the one the token was
+        // made for (a change to that profile's access ends the token).
+        var profile = await accounts.GetActiveProfileAccessAsync(token.AccountId, token.ProfileId, ct).ConfigureAwait(false);
         var application = await applications.GetApplicationAsync(token.ApplicationId, ct).ConfigureAwait(false);
-        if (account?.IsEnabled != true || grant?.IsEnabled != true || application?.IsEnabled != true)
+        if (account?.IsEnabled != true || profile is null || application?.IsEnabled != true)
         {
             return null;
         }
@@ -484,7 +489,7 @@ public sealed class ClientAuthorizationService(
             return null;
         }
 
-        if (account.AuthorizationVersion != token.AccountAuthorizationVersion || grant.AuthorizationVersion != token.GrantAuthorizationVersion || application.AuthorizationVersion != token.ApplicationAuthorizationVersion)
+        if (account.AuthorizationVersion != token.AccountAuthorizationVersion || profile.AuthorizationVersion != token.GrantAuthorizationVersion || application.AuthorizationVersion != token.ApplicationAuthorizationVersion)
         {
             return null;
         }
@@ -494,7 +499,7 @@ public sealed class ClientAuthorizationService(
             return null;
         }
 
-        return new(token, device, account, grant, application);
+        return new(token, device, account, profile, application);
     }
 
     private async Task<bool> HasEffectivePermissionsAsync(

@@ -26,7 +26,7 @@ Inspect the database tables, columns, and relationships that back Tuvima Library
 
 SQLite database located at `.data/database/library.db` (path set in `config/core.json`).
 
-Latest storage epoch: **guid-blob-v11-upgrade-steps**. The data structure is built by numbered upgrade
+Latest storage epoch: **guid-blob-v13-profile-held-contract**. The data structure is built by numbered upgrade
 steps in `src/MediaEngine.Storage/Schema/Upgrades/`. Each step runs once at startup and is recorded in
 `data_store_upgrades`; a fresh data store runs them all, starting with `0001_baseline.sql`, which creates
 the whole structure. Every table below is created by that baseline step unless its notes say a later step
@@ -44,7 +44,7 @@ in place. To change the structure, see [Changing the data store](../develop/chan
 
 Startup safety:
 
-- Current databases record `storage_metadata.storage_epoch = guid-blob-v11-upgrade-steps`.
+- Current databases record `storage_metadata.storage_epoch = guid-blob-v13-profile-held-contract`.
 - `storage_metadata` also holds server-wide flags as `key`/`value` rows.
 - Older epochs, including the legacy TEXT-GUID database and every earlier `guid-blob-` epoch, are
   rejected on startup.
@@ -948,28 +948,25 @@ One row per person who signs in. A sign-in that works away from this computer ha
 | `email` | TEXT | Sign-in email as entered. Null only for a this-computer account that has not been secured yet. |
 | `normalized_email` | TEXT | Upper-cased form used for lookups. Unique; many rows may be null. |
 | `is_enabled` | INTEGER | 1 when the account can sign in |
-| `is_administrator` | INTEGER | 1 when the account is eligible for administration |
 | `authorization_version` | INTEGER | Bumped whenever access changes, so open sessions re-check |
 | `created_at`, `updated_at` | TEXT | Timestamps |
-| `household_id` | BLOB | The household the account belongs to (see `households`). Set by the repository when an account is saved, so it is set on every account the Engine writes. |
-| `grants_inherit_from_account_id` | BLOB | When set, the account has no feature grants of its own and follows those of the named account, and also hides the libraries that account hides (a person's own sign-in follows the household's main sign-in). Read at use time, so changes to the main sign-in reach the person. Cleared to the household's next main sign-in when the named account is deleted. |
 | `this_computer_only` | INTEGER | 1 for an account that was started on this computer without a password. It signs in without a password and, since Tuvima is open from the start, can be used from any device that reaches the server until a password or passkey is added (see Security). Defaults to 0. |
 | `must_change_password` | INTEGER | 1 while the password is one an administrator chose. The person can then do nothing except choose their own password, check their session and sign out; the Engine refuses everything else with 403 `password_change_required`. Defaults to 0. |
 | `temporary_password_expires_at` | TEXT | When an administrator-set temporary password stops working; null when none is set. Sessions of an account whose temporary password has run out stop validating. |
-| `household_admin` | INTEGER | 1 when the account looks after its own household (a **household administrator**). It never reaches another household or the server's settings. A person's own sign-in (`grants_inherit_from_account_id` set) can never have it. Defaults to 0, and a household's first main sign-in gets it when the household is created. |
+| `profile_id` | BLOB | NOT NULL. The profile this sign-in opens (a user is a sign-in attached to one profile and cannot exist without it; references `profiles`, deleting the profile deletes the sign-in). A unique index (`ux_accounts_profile`) allows exactly one sign-in per profile. Signing in always opens this profile, and the sign-in may switch to any other profile of the same household (never another household's). Its roles (server administrator, household administrator) and its Read/Watch/Listen/View and library access are the profile's, not the sign-in's (users, profiles and households spec, steps `0046_profile_held_access`, `0047_storage_epoch_profile_held_access` and `0048_drop_account_held_access`). |
 
 ### households
 
-A household is the group of people (profiles) who live together and the sign-ins (accounts) that open them. A profile and an account each belong to exactly one household. A household holds up to 8 profiles; the Engine refuses a ninth with "A household can have up to 8 people." A sign-in can only be granted profiles from its own household. Setup creates the first household with the administrator account; a new invitation for someone outside the household starts a new household for the new account.
+A household is the group of people (profiles) who live together and the sign-ins (accounts) that open them. A profile and an account each belong to exactly one household. A household holds up to 8 profiles; the Engine refuses a ninth with "A household can have up to 8 people." A sign-in opens one profile and can switch to the other profiles of that profile's household. Setup creates the first household with the administrator account; a new user for someone outside the household starts a new household for the new profile.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | BLOB | GUID, primary key |
 | `name` | TEXT | Display name, for example `Alex's household` |
 | `created_at` | TEXT | Timestamp |
-| `primary_account_id` | BLOB | The household's main sign-in (the one the server administrator set up; household administrators can only hand out what it holds). Set when the first main sign-in is saved; re-pointed to the next oldest enabled main sign-in when it is deleted. Null only for a household with no main sign-in. |
+| `is_default` | INTEGER | 1 for the server administrator's original household. At most one household has it (unique partial index `ux_households_default`); setup marks the first administrator's household. It is never deleted. Added by step `0046_profile_held_access`. |
 
-**Creation.** The baseline step creates `household_id` on `accounts` and `profiles`. Only the seeded Owner profile can be without a household, and only until the first administrator account is created.
+**Creation.** The baseline step creates `household_id` on `profiles`. Only the seeded Owner profile can be without a household, and only until the first administrator account is created.
 
 ### profiles
 
@@ -990,6 +987,11 @@ User profiles for multi-user support.
 | `display_name` | TEXT | Name shown on the profile picker and in Settings |
 | `role` | TEXT | `Administrator`, `StandardUser` or `RestrictedProfile` (a Kids profile) |
 | `created_at` | TEXT | Timestamp |
+| `is_server_admin` | INTEGER | 1 when the profile may look after the whole Library. Defaults to 0. Setup sets it on the first administrator's profile. |
+| `is_household_admin` | INTEGER | 1 when the profile looks after its own household. Defaults to 0. Setup sets it on the first administrator's profile. |
+| `authorization_version` | INTEGER | Above zero, starts at 1, bumped on every change to the profile's administrator roles, feature and library access or admin PIN question, so open sessions re-check. |
+
+These three columns (and the four `profile_*` access tables below) were added by upgrade step `0046_profile_held_access`: the profile holds the person's access and a user (`accounts`) is only a sign-in. Since step `0047_storage_epoch_profile_held_access` (storage epoch `guid-blob-v12-profile-held-access`) the Engine reads roles and access only from the profile being acted as, and writes them only there. Step `0048_drop_account_held_access` (storage epoch `guid-blob-v13-profile-held-contract`) then removed the earlier account-side model: the tables `account_profile_grants`, `account_feature_grants`, `account_library_hidden` (added by step 0045 and replaced by `profile_library_hidden`), `grant_admin_protections` and `grant_admin_unlocks`, and the columns `accounts.is_administrator`, `accounts.household_admin`, `accounts.household_id`, `accounts.grants_inherit_from_account_id` and `households.primary_account_id`. It rebuilt `accounts` so `profile_id` is NOT NULL. A user's household is its profile's household. A new sign-in's profile is set up once from how the sign-in was created, and a person who already exists is never changed by getting a sign-in. A user file never carries the administrator columns, and a user import forces them to 0 (the person who starts a household by being imported becomes its household administrator on the profile their sign-in opens).
 
 The PIN is not stored on this row. It is the `profile_credentials` row described below.
 
@@ -1017,17 +1019,7 @@ Revocable, device-scoped sign-in sessions. A session remembers where it started.
 | `created_at`, `last_seen_at`, `expires_at` | TEXT | Timestamps |
 | `first_used_at` | TEXT | When the session was first used after sign-in. NULL means never used. At the session limit (`maximum_active_sessions`), never-used sessions end first, then sessions idle for 10 minutes or more, then the least recently seen. |
 | `revoked_at`, `revoked_reason` | TEXT | NULL while active |
-
-### device_profile_preferences
-
-"Always open as this person on this device". At most one row per signed-in account and browser/device; the *Who's using Tuvima?* page writes it, and a new sign-in from that device starts in the saved profile (when that profile has a PIN, the picker asks for it instead).
-
-| Column | Type | Notes |
-|---|---|---|
-| `account_id` | BLOB | Owning account (primary key with `device_id`); deleting the account removes the row |
-| `device_id` | TEXT | The `Tuvima.Device` cookie value stored in `auth_sessions.device_id` |
-| `profile_id` | BLOB | The profile to open as; deleting the profile removes the row. A saved profile the account no longer has is ignored |
-| `updated_at` | TEXT | Timestamp |
+| `profile_pending` | INTEGER | 1 from an interactive sign-in until a profile of the household is chosen (the switch sets it back to 0). While 1 the Engine allows only the profile choice, a session check and sign-out |
 
 ### account_credentials
 
@@ -1065,25 +1057,21 @@ Email password-reset links, used only when email recovery is set up. `id`, `acco
 
 Invitation codes made by an administrator (**Users and Sign-in > Users**). `id`, `account_id`, `token_hash` (unique; only a fingerprint of the code is stored), `created_at`, `expires_at` (seven days) and `consumed_at`.
 
-### account_profile_grants
+### profile_feature_grants
 
-Which profiles an account may open: one row per account and profile (primary key `account_id` and `profile_id`). `is_default` (the profile the account opens to), `is_enabled`, `admin_enabled` (the grant opens the admin dashboard), `authorization_version` (bumped when access changes) and `granted_at`. Deleting either side removes the row.
+The features a profile may use: `profile_id` (references `profiles`, deleting the profile removes the rows) and `feature_id` (`read`, `watch`, `listen` or `view`, primary key together) and `granted_at`. Added by step `0046_profile_held_access`.
 
-### account_feature_grants
+### profile_library_hidden
 
-The features an account may use: `account_id` and `feature_id` (`read`, `watch`, `listen` or `view`, primary key together) and `granted_at`.
+The libraries an administrator hid from a profile (simpler access D2, D11; the profile holds the access): one row per hidden library, `profile_id` (references `profiles`, deleting the profile removes its rows) and `library_id` (a 16-byte id, no foreign key; primary key together), `created_at` and `created_by_profile_id` (the administrator's profile that saved it; set to empty if that profile is deleted). A profile sees every library in the areas it has (`profile_feature_grants`) unless a row hides it, so a new library needs no row. Nothing is inherited from another profile. A Vault library is never listed and the repository refuses one. Server administrator profiles see every library whatever the rows say. Created by upgrade step `0046_profile_held_access`; it replaces both the earlier per-profile library grants and `account_library_hidden` (step 0045), which step `0048_drop_account_held_access` drops. Nothing was carried across.
 
-### account_library_hidden
+### profile_admin_protections
 
-The libraries an administrator hid from an account (simpler access): one row per hidden library, `account_id` and `library_id` (a 16-byte id, primary key together), `created_at` and `created_by_account_id` (the administrator who saved it; set to empty if that account is deleted). A person sees every library in the areas they have (`account_feature_grants`) unless a row hides it, so a new library needs no row. A household member also follows the rows of the account named in `accounts.grants_inherit_from_account_id`. A Vault library is never listed. Deleting the account removes its rows. Replaces `account_library_grants` (upgrade step 0045); nothing was carried across.
+The "Ask for my PIN on admin pages" switch on one profile (off unless turned on). `profile_id` (primary key; references `profiles`), `is_enabled`, `unlock_mode` (`FixedDuration`, `UntilProfileSwitch` or `LockOnLeave`), `unlock_minutes`, `protection_version` and `updated_at`. The PIN asked for is the profile's own PIN; none is stored here.
 
-### grant_admin_protections
+### profile_admin_unlocks
 
-The "Ask for my PIN on admin pages" switch on one account-profile grant (off unless turned on). `account_id` and `profile_id` (primary key; references `account_profile_grants`), `is_enabled`, `unlock_mode` (`FixedDuration`, `UntilProfileSwitch` or `LockOnLeave`), `unlock_minutes`, `protection_version` and `updated_at`. The PIN asked for is the profile's own PIN (no PIN is stored here), so wrong tries count toward the profile PIN's one pause.
-
-### grant_admin_unlocks
-
-An administrator unlock held by one signed-in session. `session_id` (primary key, references `auth_sessions`), `account_id`, `profile_id`, `protection_version`, `method`, `granted_at` and `expires_at` (NULL when the unlock has no fixed end).
+An administrator unlock held by one signed-in session. `session_id` (primary key, references `auth_sessions`), `profile_id` (references `profiles`), `protection_version`, `method`, `granted_at` and `expires_at` (NULL when the unlock has no fixed end). Indexed by `ix_profile_admin_unlocks_profile`.
 
 ### client_devices
 

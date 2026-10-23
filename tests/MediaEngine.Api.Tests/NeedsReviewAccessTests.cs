@@ -38,6 +38,8 @@ public sealed class NeedsReviewAccessTests : IDisposable
     private readonly AccountRepository _accounts;
     private readonly ApplicationRepository _applications;
     private readonly ManualTimeProvider _clock = new(new DateTimeOffset(2026, 10, 17, 12, 0, 0, TimeSpan.Zero));
+    // Each user opens a profile of its own (a profile has at most one user); this remembers which.
+    private readonly Dictionary<Guid, Guid> _signInProfiles = [];
 
     public NeedsReviewAccessTests()
     {
@@ -88,7 +90,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     {
         var routes = await MapReviewRoutesAsync();
         var householdAdmin = await CreateAccountAsync(administrator: false);
-        await _accounts.SetHouseholdAdminAsync(householdAdmin, true, _clock.GetUtcNow());
+        await _accounts.SetHouseholdAdminAsync(_database, householdAdmin, true, _clock.GetUtcNow());
 
         // Prove the principal really is a household administrator, so the refusal below is not vacuous.
         var authority = await Resolver().ResolveAsync(ContextFor(householdAdmin));
@@ -112,7 +114,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     {
         var routes = await MapReviewRoutesAsync();
         var serverAdmin = await CreateAccountAsync(administrator: true);
-        var kidsProfile = await AddKidsProfileAsync(serverAdmin, adminEnabled: true);
+        var kidsProfile = await AddKidsProfileAsync(serverAdmin);
 
         var authority = await Resolver().ResolveAsync(ContextFor(serverAdmin, kidsProfile));
         Assert.True(authority.ActiveProfileIsRestricted);
@@ -156,9 +158,9 @@ public sealed class NeedsReviewAccessTests : IDisposable
             ApplicationType.UserClient, ApplicationPermissionIds.ReviewRead, ApplicationPermissionIds.ReviewResolve);
         var serverAdmin = await CreateAccountAsync(administrator: true);
         var householdAdmin = await CreateAccountAsync(administrator: false);
-        await _accounts.SetHouseholdAdminAsync(householdAdmin, true, _clock.GetUtcNow());
+        await _accounts.SetHouseholdAdminAsync(_database, householdAdmin, true, _clock.GetUtcNow());
         var person = await CreateAccountAsync(administrator: false);
-        var kidsProfile = await AddKidsProfileAsync(serverAdmin, adminEnabled: true);
+        var kidsProfile = await AddKidsProfileAsync(serverAdmin);
 
         await AssertAllRoutesAsync(routes, DelegatedContext(app, serverAdmin), allowed: true, "app for a server administrator");
         await AssertAllRoutesAsync(routes, DelegatedContext(app, householdAdmin), allowed: false, "app for a household administrator");
@@ -197,7 +199,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     {
         var serverAdmin = await CreateAccountAsync(administrator: true);
 
-        var projected = await Projector().ProjectAsync(serverAdmin, Profile.SeedProfileId, Guid.NewGuid());
+        var projected = await Projector().ProjectAsync(serverAdmin, SignInProfile(serverAdmin), Guid.NewGuid());
 
         Assert.True(projected.EffectiveAdministrator);
         Assert.Contains("settings.administration", projected.NavigationCapabilities);
@@ -207,9 +209,9 @@ public sealed class NeedsReviewAccessTests : IDisposable
     public async Task DashboardAuthority_GivesNothingForNeedsReviewToAHouseholdAdministrator()
     {
         var householdAdmin = await CreateAccountAsync(administrator: false);
-        await _accounts.SetHouseholdAdminAsync(householdAdmin, true, _clock.GetUtcNow());
+        await _accounts.SetHouseholdAdminAsync(_database, householdAdmin, true, _clock.GetUtcNow());
 
-        var projected = await Projector().ProjectAsync(householdAdmin, Profile.SeedProfileId, Guid.NewGuid());
+        var projected = await Projector().ProjectAsync(householdAdmin, SignInProfile(householdAdmin), Guid.NewGuid());
 
         Assert.False(projected.EffectiveAdministrator);
         Assert.Contains("household.manage", projected.ActionCapabilities);
@@ -222,7 +224,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     public async Task DashboardAuthority_GivesNothingForNeedsReviewToAKidsProfile_WhateverItsAccountIs(bool accountIsServerAdministrator)
     {
         var account = await CreateAccountAsync(administrator: accountIsServerAdministrator);
-        var kidsProfile = await AddKidsProfileAsync(account, adminEnabled: accountIsServerAdministrator);
+        var kidsProfile = await AddKidsProfileAsync(account);
 
         var projected = await Projector().ProjectAsync(account, kidsProfile, Guid.NewGuid());
 
@@ -244,8 +246,8 @@ public sealed class NeedsReviewAccessTests : IDisposable
 
     private async Task<bool> AllowsAsync(AdministratorOrApplicationRequirement requirement, HttpContext http)
     {
-        var decisions = new AccountAccessDecisionService(_accounts, new GrantAdminUnlockService(
-            _accounts, new StubProfilePins(), _clock), new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database)));
+        var decisions = new AccountAccessDecisionService(new ProfileAccessRepository(_database), new GrantAdminUnlockService(
+            new ProfileAccessRepository(_database), new StubProfilePins(), _clock), new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
         var evaluator = new AuthorizationEvaluator(
             decisions, _applications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts),
             new HttpContextAccessor { HttpContext = http });
@@ -258,9 +260,10 @@ public sealed class NeedsReviewAccessTests : IDisposable
     private DashboardAuthorityProjector Projector() => new(
         _accounts,
         new ProfileRepository(_database),
-        new GrantAdminUnlockService(_accounts, new StubProfilePins(), _clock));
+        new ProfileAccessRepository(_database),
+        new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), _clock));
 
-    private async Task<Guid> AddKidsProfileAsync(Guid accountId, bool adminEnabled)
+    private async Task<Guid> AddKidsProfileAsync(Guid accountId)
     {
         var kidsProfile = Guid.NewGuid();
         await ProfileTestData.InsertAsync(_database, new Profile
@@ -270,21 +273,12 @@ public sealed class NeedsReviewAccessTests : IDisposable
             AvatarColor = "#123456",
             Role = ProfileRole.RestrictedProfile,
             CreatedAt = _clock.GetUtcNow(),
-        }, (await _accounts.GetByIdAsync(accountId))!.HouseholdId);
-        await _accounts.UpsertGrantAsync(new AccountProfileGrant
-        {
-            AccountId = accountId,
-            ProfileId = kidsProfile,
-            IsEnabled = true,
-            AdminEnabled = adminEnabled,
-            AuthorizationVersion = 1,
-            GrantedAt = _clock.GetUtcNow(),
-        });
+        }, await _accounts.GetHouseholdIdAsync(_database, accountId));
         return kidsProfile;
     }
 
     private RequestAuthorityResolver Resolver() =>
-        new(_accounts, _applications, new ProfileRepository(_database));
+        new(_accounts, _applications);
 
     /// <summary>Maps the real review routes on a bare application and reads each route's own requirement.</summary>
     private static async Task<IReadOnlyDictionary<string, AdministratorOrApplicationRequirement>> MapReviewRoutesAsync()
@@ -320,9 +314,13 @@ public sealed class NeedsReviewAccessTests : IDisposable
         return routes;
     }
 
+    private Guid SignInProfile(Guid accountId) => _signInProfiles[accountId];
+
     private async Task<Guid> CreateAccountAsync(bool administrator)
     {
         var id = Guid.NewGuid();
+        var profile = new Profile { Id = Guid.NewGuid(), DisplayName = "Person", Role = ProfileRole.StandardUser, CreatedAt = _clock.GetUtcNow() };
+        _signInProfiles[id] = profile.Id;
         await _accounts.CreateAccountAsync(
             new Account
             {
@@ -330,23 +328,14 @@ public sealed class NeedsReviewAccessTests : IDisposable
                 Email = $"{id:N}@example.com",
                 NormalizedEmail = $"{id:N}@EXAMPLE.COM",
                 IsEnabled = true,
-                IsAdministrator = administrator,
                 AuthorizationVersion = 1,
                 CreatedAt = _clock.GetUtcNow(),
                 UpdatedAt = _clock.GetUtcNow(),
             },
-            new AccountProfileGrant
-            {
-                AccountId = id,
-                ProfileId = Profile.SeedProfileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AdminEnabled = administrator,
-                AuthorizationVersion = 1,
-                GrantedAt = _clock.GetUtcNow(),
-            },
+            new TestGrant(id, profile.Id, IsDefault: true, AdminEnabled: administrator),
             AccountFeatureId.All.ToHashSet(),
-            new HashSet<Guid>());
+            new HashSet<Guid>(),
+            newProfile: profile);
         return id;
     }
 
@@ -360,7 +349,6 @@ public sealed class NeedsReviewAccessTests : IDisposable
             Name = "Review test app",
             ApplicationType = type,
             IsEnabled = true,
-            IsAdministrator = false,
             AuthorizationVersion = 1,
             CreatedAt = _clock.GetUtcNow(),
             UpdatedAt = _clock.GetUtcNow(),
@@ -369,17 +357,17 @@ public sealed class NeedsReviewAccessTests : IDisposable
         return application;
     }
 
-    private static DefaultHttpContext ContextFor(Guid accountId, Guid? profileId = null) =>
-        ContextWithClaims(PrincipalKind.Human, accountId, profileId ?? Profile.SeedProfileId, null);
+    private DefaultHttpContext ContextFor(Guid accountId, Guid? profileId = null) =>
+        ContextWithClaims(PrincipalKind.Human, accountId, profileId ?? SignInProfile(accountId), null);
 
     private static DefaultHttpContext AppContext(MediaEngine.Domain.Entities.Application application) =>
         ContextWithClaims(PrincipalKind.ServiceApplication, Guid.Empty, Guid.Empty, application.Id);
 
-    private static DefaultHttpContext DelegatedContext(
+    private DefaultHttpContext DelegatedContext(
         MediaEngine.Domain.Entities.Application application, Guid accountId, Guid? profileId = null)
     {
         var http = ContextWithClaims(
-            PrincipalKind.DelegatedUserClient, accountId, profileId ?? Profile.SeedProfileId, application.Id);
+            PrincipalKind.DelegatedUserClient, accountId, profileId ?? SignInProfile(accountId), application.Id);
         // The person consented to both review scopes, so only the person's own standing decides.
         ((ClaimsIdentity)http.User.Identity!).AddClaims(
         [

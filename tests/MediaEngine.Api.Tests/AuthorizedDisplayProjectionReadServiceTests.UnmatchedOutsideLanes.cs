@@ -691,13 +691,13 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             app => app.MapDetailEndpoints(),
             services =>
             {
-                services.AddSingleton<IDisplayProjectionReadService>(CreateService(HumanContext(stranger, ProfileForLookups), RealReaders()));
+                services.AddSingleton<IDisplayProjectionReadService>(CreateService(HumanContext(stranger, ProfileOf(stranger)), RealReaders()));
                 foreach (var inferredOnly in new[] { typeof(MediaEngine.Api.Services.Details.DetailComposerService), typeof(MediaEngine.Api.Services.Details.ContributorReadiness), typeof(MediaEngine.Api.Services.Details.DetailUnmatchedStateService), typeof(MediaEngine.Domain.Contracts.ICanonicalValueRepository) })
                 {
                     services.AddSingleton(inferredOnly, _ => null!);
                 }
             },
-            "GetShowNextEpisodes", HumanContext(stranger, ProfileForLookups), "GET", new { id = world.Show }, $"?after={world.FirstAsset:D}");
+            "GetShowNextEpisodes", HumanContext(stranger, ProfileOf(stranger)), "GET", new { id = world.Show }, $"?after={world.FirstAsset:D}");
 
         Assert.Equal(StatusCodes.Status404NotFound, result.Status);
     }
@@ -727,9 +727,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             RealReaders(),
             new HttpContextAccessor { HttpContext = world.Context },
             Authorities(),
-            _accounts,
+            new ProfileAccessRepository(_database),
             new AuthorizationEvaluator(
-                new AccountAccessDecisionService(_accounts, new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System), new LibraryVisibilityRule(_accounts, new VaultLibraryRepository(_database))),
+                new AccountAccessDecisionService(new ProfileAccessRepository(_database), new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System), new LibraryVisibilityRule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database))),
                 _applications,
                 new PermissionRegistry(),
                 new AuthorizationAuditWriter(_accounts),

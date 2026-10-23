@@ -214,7 +214,7 @@ public sealed class DisplayGridPreferenceEndpointTests : IAsyncLifetime
         public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default) =>
             ValueTask.FromResult(new RequestAuthority(
                 PrincipalKind.Human, true, Guid.NewGuid(), Guid.NewGuid(), null, Guid.NewGuid(), null,
-                AccountEnabled: true, GrantEnabled: true,
+                AccountEnabled: true, ActiveProfileInUserHousehold: true,
                 ActiveProfileIsRestricted: context.Request.Headers.ContainsKey(KidsHeader)));
     }
 

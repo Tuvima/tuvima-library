@@ -599,10 +599,10 @@ public sealed class ViewSharedContributionService(
 
         if ((await decisions.EvaluateAdministratorAsync(authority, true, ct)).IsAllowed)
         {
-            return new(ReviewerKind.Server, authority.AccountHouseholdId);
+            return new(ReviewerKind.Server, authority.ActiveProfileHouseholdId);
         }
 
-        return !authority.IsEffectiveAdministrator && authority.AccountHouseholdId is { } household
+        return !authority.IsEffectiveAdministrator && authority.ActiveProfileHouseholdId is { } household
             && (await decisions.EvaluateHouseholdAdministratorAsync(authority, true, ct)).IsAllowed
             ? new(ReviewerKind.Household, household)
             : Reviewer.None;

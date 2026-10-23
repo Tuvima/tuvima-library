@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -43,7 +44,7 @@ public sealed class ManagedClientDeviceService(
             : RequiredAccountId(authority);
         var rows = await devices.GetActiveDevicesAsync(accountScope, ct).ConfigureAwait(false);
         var accountNames = new Dictionary<Guid, string>();
-        var accountRecords = new Dictionary<Guid, Account?>();
+        var accountProfiles = new Dictionary<Guid, Profile?>();
         var profileNames = new Dictionary<Guid, string>();
         var result = new List<ManagedClientDeviceDto>(rows.Count);
         foreach (var device in rows)
@@ -53,11 +54,13 @@ public sealed class ManagedClientDeviceService(
                 var account = await accounts.GetByIdAsync(device.AccountId, ct).ConfigureAwait(false);
                 accountName = account is null ? "Unknown account" : string.IsNullOrWhiteSpace(account.Email) ? "No email" : account.Email;
                 accountNames[device.AccountId] = accountName;
-                accountRecords[device.AccountId] = account;
+                accountProfiles[device.AccountId] = account is null
+                    ? null
+                    : await profiles.GetByIdAsync(account.ProfileId, ct).ConfigureAwait(false);
             }
 
             // A household administrator reaches only the devices of ordinary sign-ins in their own household.
-            if (householdScope is { } household && !InScope(household, authority, accountRecords[device.AccountId]))
+            if (householdScope is { } household && !InScope(household, authority, device.AccountId, accountProfiles[device.AccountId]))
             {
                 continue;
             }
@@ -92,7 +95,7 @@ public sealed class ManagedClientDeviceService(
                 PairedAt = device.CreatedAt,
                 LastSeenAt = device.LastSeenAt,
                 BackupProfileId = device.BackupProfileId,
-                HouseholdId = accountRecords[device.AccountId]?.HouseholdId,
+                HouseholdId = accountProfiles[device.AccountId]?.HouseholdId,
                 BacksUpTo = backupName,
             });
         }
@@ -138,19 +141,20 @@ public sealed class ManagedClientDeviceService(
     /// </summary>
     private async Task<Guid?> HouseholdScopeAsync(RequestAuthority authority, CancellationToken ct) =>
         authority.PrincipalKind == PrincipalKind.Human && !authority.IsEffectiveAdministrator &&
-        authority.AccountHouseholdId is { } household &&
+        authority.ActiveProfileHouseholdId is { } household &&
         (await decisions.EvaluateHouseholdAdministratorAsync(authority, true, ct).ConfigureAwait(false)).IsAllowed
             ? household
             : null;
 
     private async Task<bool> IsManagedByHouseholdAdministratorAsync(RequestAuthority authority, Guid accountId, CancellationToken ct) =>
         await HouseholdScopeAsync(authority, ct).ConfigureAwait(false) is { } household &&
-        InScope(household, authority, await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false));
+        await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) is { } owner &&
+        InScope(household, authority, accountId, await profiles.GetByIdAsync(owner.ProfileId, ct).ConfigureAwait(false));
 
     /// <summary>The same rule as the sessions list: another administrator's sign-in is not a household administrator's to manage.</summary>
-    private static bool InScope(Guid household, RequestAuthority actor, Account? account) =>
-        account is not null && account.HouseholdId == household &&
-        (account.Id == actor.AccountId || !(account.IsAdministrator || account.HouseholdAdmin));
+    private static bool InScope(Guid household, RequestAuthority actor, Guid accountId, Profile? profile) =>
+        profile is not null && profile.HouseholdId == household &&
+        (accountId == actor.AccountId || !(profile.IsServerAdministrator || profile.IsHouseholdAdministrator));
 
     private static Guid RequiredAccountId(RequestAuthority authority) =>
         authority.AccountId ?? throw new UnauthorizedAccessException();

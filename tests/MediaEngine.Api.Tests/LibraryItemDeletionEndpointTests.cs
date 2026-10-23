@@ -60,7 +60,7 @@ public sealed class LibraryItemDeletionEndpointTests : IAsyncLifetime
         builder.Services.AddSingleton<IAuthorizationHandler, EffectiveAdministratorHandler>();
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new CallerResolver(this));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new AccountAccessDecisionService(
-            new AccountRepository(_world.Database), new UnlockState(_lockedSession), new LibraryVisibilityRule(new AccountRepository(_world.Database), new VaultLibraryRepository(_world.Database))));
+            new ProfileAccessRepository(_world.Database), new UnlockState(_lockedSession), new LibraryVisibilityRule(new ProfileAccessRepository(_world.Database), new VaultLibraryRepository(_world.Database))));
         builder.Services.AddSingleton<IProfileRepository>(new ProfileRepository(_world.Database));
         builder.Services.AddSingleton(_world.Service);
         // The other routes in the group are mapped but never called here; their services are only named so the group can be built.
@@ -253,9 +253,8 @@ public sealed class LibraryItemDeletionEndpointTests : IAsyncLifetime
             ActiveProfileId: _adminProfile,
             SessionId: session ?? Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
-            AccountIsAdministrator: administrator,
-            GrantAdminEnabled: administrator);
+            ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: administrator);
 
         return caller switch
         {

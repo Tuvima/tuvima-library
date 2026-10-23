@@ -42,7 +42,7 @@ public sealed class ProfilePickerTests
     }
 
     [Fact]
-    public void PickerPage_ShowsLockAndChildTags_AsksForPins_AndRemembersPerDevice()
+    public void PickerPage_ShowsLockAndChildTags_AsksForPins_AndHasNoAlwaysOpenAs()
     {
         var page = Read("src/MediaEngine.Web/Components/Pages/ProfilePickerPage.razor");
 
@@ -51,8 +51,9 @@ public sealed class ProfilePickerTests
         Assert.Contains("profile.HasPin", page, StringComparison.Ordinal);
         Assert.Contains("profile.IsRestricted", page, StringComparison.Ordinal);
         Assert.Contains(">Kids<", page, StringComparison.Ordinal);
-        Assert.Contains("Always open as this person on this device", page, StringComparison.Ordinal);
-        Assert.Contains("Stop always opening as @preferred.DisplayName", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("Always open as", page, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DeviceProfilePreference", page, StringComparison.Ordinal);
+        Assert.Contains("is-preselected", page, StringComparison.Ordinal);
         Assert.Contains("Orchestrator.SetActiveProfileAsync(profile.Id, pin)", page, StringComparison.Ordinal);
         Assert.Contains("Set PINs on adult profiles so children can't switch into them.", page, StringComparison.Ordinal);
     }

@@ -69,27 +69,20 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
 
         _accounts = new AccountRepository(_database);
         _applications = new ApplicationRepository(_database);
-        await _accounts.InsertAsync(new Account
-        {
-            Id = Account.SeedAccountId,
-            Email = "owner@example.com",
-            NormalizedEmail = "OWNER@EXAMPLE.COM",
-            IsEnabled = true,
-            IsAdministrator = true,
-            AuthorizationVersion = 1,
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow,
-        });
-        await _accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = Account.SeedAccountId,
-            ProfileId = Profile.SeedProfileId,
-            IsDefault = true,
-            IsEnabled = true,
-            AdminEnabled = true,
-            AuthorizationVersion = 1,
-            GrantedAt = DateTimeOffset.UtcNow,
-        });
+        await _accounts.CreateAccountAsync(
+            new Account
+            {
+                Id = Account.SeedAccountId,
+                Email = "owner@example.com",
+                NormalizedEmail = "OWNER@EXAMPLE.COM",
+                IsEnabled = true,
+                AuthorizationVersion = 1,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            },
+            new TestGrant(Account.SeedAccountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: true),
+            new HashSet<AccountFeatureId>(),
+            new HashSet<Guid>());
         _authorization = new ClientAuthorizationService(
             new ClientAuthorizationRepository(_database), _accounts, _applications, new PermissionRegistry(), TimeProvider.System);
 
@@ -126,11 +119,12 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
         builder.Services.AddSingleton(_authorization);
         builder.Services.AddSingleton<IApplicationRepository>(_applications);
         builder.Services.AddSingleton<IAccountRepository>(_accounts);
+        builder.Services.AddSingleton<IProfileAccessRepository>(new ProfileAccessRepository(_database));
         builder.Services.AddSingleton<IProfileRepository, ProfileRepository>();
         builder.Services.AddSingleton<IRequestAuthorityResolver, RequestAuthorityResolver>();
         builder.Services.AddSingleton<IPermissionRegistry>(new PermissionRegistry());
         builder.Services.AddSingleton<IGrantAdminUnlockService>(new GrantAdminUnlockService(
-            _accounts, new StubProfilePins(), TimeProvider.System));
+            new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System));
         builder.Services.AddSingleton<IVaultLibraryRepository>(new VaultLibraryRepository(_database));
         builder.Services.AddSingleton<LibraryVisibilityRule>();
         builder.Services.AddSingleton<IAccountAccessDecisionService, AccountAccessDecisionService>();

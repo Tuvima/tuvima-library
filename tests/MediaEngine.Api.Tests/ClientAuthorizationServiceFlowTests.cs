@@ -24,27 +24,20 @@ public sealed class ClientAuthorizationServiceFlowTests : IDisposable
         _database.InitializeSchema();
         _database.RunStartupChecks();
         var accounts = new AccountRepository(_database);
-        accounts.InsertAsync(new Account
-        {
-            Id = Account.SeedAccountId,
-            Email = "owner@example.com",
-            NormalizedEmail = "OWNER@EXAMPLE.COM",
-            IsEnabled = true,
-            IsAdministrator = true,
-            AuthorizationVersion = 1,
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow,
-        }).GetAwaiter().GetResult();
-        accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = Account.SeedAccountId,
-            ProfileId = Profile.SeedProfileId,
-            IsDefault = true,
-            IsEnabled = true,
-            AdminEnabled = true,
-            AuthorizationVersion = 1,
-            GrantedAt = DateTimeOffset.UtcNow,
-        }).GetAwaiter().GetResult();
+        accounts.CreateAccountAsync(
+            new Account
+            {
+                Id = Account.SeedAccountId,
+                Email = "owner@example.com",
+                NormalizedEmail = "OWNER@EXAMPLE.COM",
+                IsEnabled = true,
+                AuthorizationVersion = 1,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            },
+            new TestGrant(Account.SeedAccountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: true),
+            new HashSet<AccountFeatureId>(),
+            new HashSet<Guid>()).GetAwaiter().GetResult();
         _authorization = new ClientAuthorizationService(
             new ClientAuthorizationRepository(_database),
             accounts,
@@ -79,7 +72,7 @@ public sealed class ClientAuthorizationServiceFlowTests : IDisposable
         var accountRepository = new AccountRepository(_database);
         var applicationRepository = new ApplicationRepository(_database);
         Assert.True((await accountRepository.GetByIdAsync(Account.SeedAccountId))?.IsEnabled);
-        Assert.True((await accountRepository.GetGrantAsync(Account.SeedAccountId, Profile.SeedProfileId))?.IsEnabled);
+        Assert.True(await accountRepository.HasProfileAccessAsync(Account.SeedAccountId, Profile.SeedProfileId));
         Assert.Equal(BuiltInApplicationIds.NativeClient,
             (await applicationRepository.GetApplicationByClientIdAsync("tuvima-tv"))?.Id);
         using (var connection = _database.CreateConnection())

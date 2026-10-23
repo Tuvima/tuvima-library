@@ -85,7 +85,7 @@ public sealed class PersonalScopeAuthorizer(
             };
         }
 
-        if (authority.IsEffectiveHouseholdAdministrator && authority.AccountHouseholdId is { } own)
+        if (authority.IsEffectiveHouseholdAdministrator && authority.ActiveProfileHouseholdId is { } own)
         {
             if (requested.Target == PersonalScopeTarget.Everyone)
             {

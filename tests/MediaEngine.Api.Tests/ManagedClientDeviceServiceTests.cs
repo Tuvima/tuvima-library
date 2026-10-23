@@ -148,11 +148,11 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
 
     private static RequestAuthority Administrator() => new(
         PrincipalKind.Human, true, Account.SeedAccountId, Profile.SeedProfileId,
-        AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true);
+        AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true);
 
     private static RequestAuthority Member() => new(
         PrincipalKind.Human, true, OtherAccountId, Profile.SeedProfileId,
-        AccountEnabled: true, GrantEnabled: true);
+        AccountEnabled: true, ActiveProfileInUserHousehold: true);
 
     private async Task<OAuthTokenResponse> PairAsync(Guid accountId, string deviceName, string deviceClass)
     {
@@ -166,9 +166,10 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
             Scope = "library.read",
             Capabilities = new ClientCapabilitiesDto { Containers = ["mp4"], VideoCodecs = ["h264"], AudioCodecs = ["aac"] },
         }, "https://library.example");
+        var ownProfile = (await new AccountRepository(_database).GetDefaultProfileIdAsync(accountId))!.Value;
         Assert.True(await _authorization.DecideAsync(
             new PairingDecisionRequest { UserCode = started.UserCode, Approved = true, Scopes = ["library.read"] },
-            accountId, Profile.SeedProfileId, Profile.SeedProfileId));
+            accountId, ownProfile, ownProfile));
         var issued = await _authorization.ExchangeAsync(new OAuthTokenRequest
         {
             GrantType = ClientAuthorizationService.DeviceGrantType,
@@ -180,27 +181,25 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
 
     private static void AddAccount(AccountRepository accounts, Guid id, string email, bool administrator)
     {
-        accounts.InsertAsync(new Account
-        {
-            Id = id,
-            Email = email,
-            NormalizedEmail = email.ToUpperInvariant(),
-            IsEnabled = true,
-            IsAdministrator = administrator,
-            AuthorizationVersion = 1,
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow,
-        }).GetAwaiter().GetResult();
-        accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = id,
-            ProfileId = Profile.SeedProfileId,
-            IsDefault = true,
-            IsEnabled = true,
-            AdminEnabled = administrator,
-            AuthorizationVersion = 1,
-            GrantedAt = DateTimeOffset.UtcNow,
-        }).GetAwaiter().GetResult();
+        // The seed account signs in as the seed person; every other sign-in opens a person of its own.
+        var ownProfile = id == Account.SeedAccountId
+            ? null
+            : new Profile { Id = Guid.NewGuid(), DisplayName = email, Role = MediaEngine.Domain.Enums.ProfileRole.StandardUser, CreatedAt = DateTimeOffset.UtcNow };
+        accounts.CreateAccountAsync(
+            new Account
+            {
+                Id = id,
+                Email = email,
+                NormalizedEmail = email.ToUpperInvariant(),
+                IsEnabled = true,
+                AuthorizationVersion = 1,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            },
+            new TestGrant(id, ownProfile?.Id ?? Profile.SeedProfileId, IsDefault: true, AdminEnabled: administrator),
+            new HashSet<AccountFeatureId>(),
+            new HashSet<Guid>(),
+            newProfile: ownProfile).GetAwaiter().GetResult();
     }
 
     /// <summary>The default rule: an effective administrator counts as unlocked, until a test locks the administrator PIN.</summary>

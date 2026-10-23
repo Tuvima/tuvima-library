@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.TestSupport;
@@ -10,8 +11,8 @@ using Microsoft.Data.Sqlite;
 namespace MediaEngine.Storage.Tests;
 
 /// <summary>
-/// Households: every account and every profile belongs to exactly one household, a household holds at most eight
-/// people, and a sign-in can only open people from its own household.
+/// Households: every profile belongs to exactly one household (a user belongs to the household of the profile it opens), a household
+/// holds at most eight people, and a user can only act as people of its own household.
 /// </summary>
 public sealed class HouseholdsTests : IDisposable
 {
@@ -36,7 +37,7 @@ public sealed class HouseholdsTests : IDisposable
     public async Task SetupCreatesTheFirstHouseholdWithTheAdministratorAccount()
     {
         using var fixture = NewFixture();
-        var admin = NewAccount("owner@example.com", isAdministrator: true);
+        var admin = NewAccount("owner@example.com");
 
         await fixture.Accounts.CreateAccountAsync(admin,
             Grant(admin.Id, Profile.SeedProfileId, isDefault: true, administrator: true),
@@ -44,7 +45,6 @@ public sealed class HouseholdsTests : IDisposable
 
         var household = await fixture.Households.GetForAccountAsync(admin.Id);
         Assert.NotNull(household);
-        Assert.Equal(household.Id, (await fixture.Accounts.GetByIdAsync(admin.Id))?.HouseholdId);
         Assert.Equal(household.Id, (await fixture.Profiles.GetByIdAsync(Profile.SeedProfileId))?.HouseholdId);
         Assert.Equal(Profile.SeedProfileId, Assert.Single(await fixture.Households.ListProfilesAsync(household.Id)).Id);
         Assert.Equal(admin.Id, Assert.Single(await fixture.Households.ListAccountsAsync(household.Id)).Id);
@@ -60,7 +60,7 @@ public sealed class HouseholdsTests : IDisposable
         for (var index = 0; index < 7; index++)
         {
             var profile = NewProfile($"Person {index}");
-            await fixture.Accounts.CreateManagedProfileAsync(profile, Grant(admin.Id, profile.Id));
+            await fixture.Accounts.CreateHouseholdPersonAsync(profile, household.Id);
             Assert.Equal(household.Id, profile.HouseholdId);
         }
 
@@ -68,38 +68,36 @@ public sealed class HouseholdsTests : IDisposable
 
         var ninth = NewProfile("Ninth");
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            fixture.Accounts.CreateManagedProfileAsync(ninth, Grant(admin.Id, ninth.Id)));
+            fixture.Accounts.CreateHouseholdPersonAsync(ninth, household.Id));
         Assert.Equal("A household can have up to 8 people.", failure.Message);
         Assert.Null(await fixture.Profiles.GetByIdAsync(ninth.Id));
     }
 
     [Fact]
-    public async Task AnotherSignInInTheHouseholdCannotBringTheNinthPersonInEither()
+    public async Task ANewUserWithANewPersonCannotBringTheNinthPersonIntoAFullHouseholdEither()
     {
         using var fixture = NewFixture();
         var admin = await CreateAdministratorAsync(fixture);
         var household = (await fixture.Households.GetForAccountAsync(admin.Id))!;
         for (var index = 0; index < 7; index++)
         {
-            var profile = NewProfile($"Person {index}");
-            await fixture.Accounts.CreateManagedProfileAsync(profile, Grant(admin.Id, profile.Id));
+            await fixture.Accounts.CreateHouseholdPersonAsync(NewProfile($"Person {index}"), household.Id);
         }
 
-        // A second sign-in in the same household, then a loose profile that has no household yet.
-        var member = NewAccount("member@example.com", householdId: household.Id);
-        await fixture.Accounts.InsertAsync(member);
-        await fixture.Accounts.UpsertGrantAsync(Grant(member.Id, Profile.SeedProfileId, isDefault: true));
-        var loose = NewProfile("Loose");
-        InsertLooseProfile(fixture, loose);
+        var member = NewAccount("member@example.com");
+        var ninth = NewProfile("Ninth");
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Accounts.CreateAccountAsync(member,
+            Grant(member.Id, ninth.Id, isDefault: true), new HashSet<AccountFeatureId>(), new HashSet<Guid>(),
+            newProfile: ninth, householdId: household.Id));
 
-        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            fixture.Accounts.UpsertGrantAsync(Grant(member.Id, loose.Id)));
         Assert.Equal("A household can have up to 8 people.", failure.Message);
         Assert.Equal(8, (await fixture.Households.ListProfilesAsync(household.Id)).Count);
+        Assert.Null(await fixture.Accounts.GetByIdAsync(member.Id));
+        Assert.Null(await fixture.Profiles.GetByIdAsync(ninth.Id));
     }
 
     [Fact]
-    public async Task AGrantAcrossHouseholdsIsRefused()
+    public async Task AUserCanOnlyActAsPeopleOfItsOwnHousehold()
     {
         using var fixture = NewFixture();
         var admin = await CreateAdministratorAsync(fixture);
@@ -113,11 +111,10 @@ public sealed class HouseholdsTests : IDisposable
             (await fixture.Households.GetForAccountAsync(admin.Id))!.Id,
             (await fixture.Households.GetForAccountAsync(outsider.Id))!.Id);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            fixture.Accounts.UpsertGrantAsync(Grant(admin.Id, outsiderProfile.Id)));
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            fixture.Accounts.GrantProfileAsync(Grant(outsider.Id, Profile.SeedProfileId)));
-        Assert.Null(await fixture.Accounts.GetGrantAsync(admin.Id, outsiderProfile.Id));
+        Assert.False(await fixture.Accounts.HasProfileAccessAsync(admin.Id, outsiderProfile.Id));
+        Assert.False(await fixture.Accounts.HasProfileAccessAsync(outsider.Id, Profile.SeedProfileId));
+        Assert.DoesNotContain(outsiderProfile.Id, (await fixture.Accounts.GetHouseholdProfilesAsync(admin.Id)).Select(entry => entry.ProfileId));
+        Assert.DoesNotContain(Profile.SeedProfileId, await fixture.Accounts.GetProfileIdsAsync(outsider.Id));
     }
 
     [Fact]
@@ -137,30 +134,23 @@ public sealed class HouseholdsTests : IDisposable
         Assert.Equal(guestHousehold.Id, guestProfile.HouseholdId);
         Assert.Equal(guestProfile.Id, Assert.Single(await fixture.Households.ListProfilesAsync(guestHousehold.Id)).Id);
 
-        // Inviting for existing people keeps them in their household; people from two households cannot share one.
-        var crossed = NewAccount("crossed@example.com");
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Accounts.CreateInvitedAccountAsync(crossed,
-            [Grant(crossed.Id, Profile.SeedProfileId, isDefault: true), Grant(crossed.Id, guestProfile.Id)],
-            NewInvitation(crossed.Id)));
-        Assert.Null(await fixture.Accounts.GetByIdAsync(crossed.Id));
-
+        var memberProfile = NewProfile("Member");
+        await fixture.Accounts.CreateHouseholdPersonAsync(memberProfile, adminHousehold.Id);
         var member = NewAccount("member@example.com");
         await fixture.Accounts.CreateInvitedAccountAsync(member,
-            [Grant(member.Id, Profile.SeedProfileId, isDefault: true)], NewInvitation(member.Id));
+            [Grant(member.Id, memberProfile.Id, isDefault: true)], NewInvitation(member.Id));
         Assert.Equal(adminHousehold.Id, (await fixture.Households.GetForAccountAsync(member.Id))!.Id);
 
         // Fill the admin household to eight, then a ninth person invited by another route is refused too.
-        for (var index = 0; index < 7; index++)
+        for (var index = 0; index < 6; index++)
         {
-            var profile = NewProfile($"Person {index}");
-            await fixture.Accounts.CreateManagedProfileAsync(profile, Grant(admin.Id, profile.Id));
+            await fixture.Accounts.CreateHouseholdPersonAsync(NewProfile($"Person {index}"), adminHousehold.Id);
         }
 
-        var loose = NewProfile("Loose");
-        InsertLooseProfile(fixture, loose);
-        var late = NewAccount("late@example.com", householdId: adminHousehold.Id);
+        var latePerson = NewProfile("Late");
+        var late = NewAccount("late@example.com");
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Accounts.CreateInvitedAccountAsync(late,
-            [Grant(late.Id, loose.Id, isDefault: true)], NewInvitation(late.Id)));
+            [Grant(late.Id, latePerson.Id, isDefault: true)], NewInvitation(late.Id), newProfile: latePerson, householdId: adminHousehold.Id));
         Assert.Equal("A household can have up to 8 people.", failure.Message);
     }
 
@@ -185,32 +175,22 @@ public sealed class HouseholdsTests : IDisposable
 
     private async Task<Account> CreateAdministratorAsync(Fixture fixture)
     {
-        var admin = NewAccount("owner@example.com", isAdministrator: true);
+        var admin = NewAccount("owner@example.com");
         await fixture.Accounts.CreateAccountAsync(admin,
             Grant(admin.Id, Profile.SeedProfileId, isDefault: true, administrator: true),
             AccountFeatureId.All.ToHashSet(), new HashSet<Guid>());
         return admin;
     }
 
-    private static void InsertLooseProfile(Fixture fixture, Profile profile)
-    {
-        using var connection = fixture.Database.CreateConnection();
-        Dapper.SqlMapper.Execute(connection,
-            "INSERT INTO profiles(id,display_name,avatar_color,role,created_at) VALUES(@Id,@DisplayName,@AvatarColor,'StandardUser',@Created);",
-            new { profile.Id, profile.DisplayName, profile.AvatarColor, Created = profile.CreatedAt.ToString("O") });
-    }
-
-    private Account NewAccount(string email, bool isAdministrator = false, Guid? householdId = null) => new()
+    private Account NewAccount(string email) => new()
     {
         Id = Guid.NewGuid(),
         Email = email,
         NormalizedEmail = email.ToUpperInvariant(),
         IsEnabled = true,
-        IsAdministrator = isAdministrator,
         AuthorizationVersion = 1,
         CreatedAt = _now,
         UpdatedAt = _now,
-        HouseholdId = householdId,
     };
 
     private Profile NewProfile(string name) => new()
@@ -222,16 +202,8 @@ public sealed class HouseholdsTests : IDisposable
         CreatedAt = _now,
     };
 
-    private AccountProfileGrant Grant(Guid accountId, Guid profileId, bool isDefault = false, bool administrator = false) => new()
-    {
-        AccountId = accountId,
-        ProfileId = profileId,
-        IsDefault = isDefault,
-        IsEnabled = true,
-        AdminEnabled = administrator,
-        AuthorizationVersion = 1,
-        GrantedAt = _now,
-    };
+    private static TestGrant Grant(Guid accountId, Guid profileId, bool isDefault = false, bool administrator = false) =>
+        new(accountId, profileId, isDefault, administrator);
 
     private AccountInvitation NewInvitation(Guid accountId) => new()
     {

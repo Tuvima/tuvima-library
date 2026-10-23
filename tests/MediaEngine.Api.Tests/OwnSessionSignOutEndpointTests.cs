@@ -143,13 +143,20 @@ public sealed class OwnSessionSignOutEndpointTests : IDisposable
 
     private async Task<Account> InsertMemberAsync(string email)
     {
+        var person = new MediaEngine.Domain.Aggregates.Profile
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = email,
+            CreatedAt = _clock.GetUtcNow(),
+        };
+        await ProfileTestData.InsertAsync(_database, person);
         var member = new Account
         {
+            ProfileId = person.Id,
             Id = Guid.NewGuid(),
             Email = email,
             NormalizedEmail = email.ToUpperInvariant(),
             IsEnabled = true,
-            IsAdministrator = false,
             CreatedAt = _clock.GetUtcNow(),
             UpdatedAt = _clock.GetUtcNow(),
         };
@@ -205,6 +212,7 @@ public sealed class OwnSessionSignOutEndpointTests : IDisposable
         builder.Services.AddSingleton<IAccountExternalLoginService>(_ => null!);
         builder.Services.AddSingleton<ISelfServiceAuthorizationService>(_ => null!);
         builder.Services.AddSingleton<IAccountRepository>(_ => null!);
+        builder.Services.AddSingleton<IProfileAccessRepository>(_ => null!);
         builder.Services.AddSingleton<IPasskeyHandler<Account>>(_ => null!);
         builder.Services.AddSingleton<UserManager<Account>>(_ => null!);
         builder.Services.AddSingleton<IAccountSignInMethodRepository>(_ => null!);

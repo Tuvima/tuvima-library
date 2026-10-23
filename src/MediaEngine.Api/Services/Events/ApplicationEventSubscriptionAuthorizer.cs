@@ -9,6 +9,7 @@ namespace MediaEngine.Api.Services.Events;
 public sealed class ApplicationEventSubscriptionAuthorizer(
     IAuthorizationEvaluator authorization,
     IAccountRepository accounts,
+    IProfileAccessRepository profileAccess,
     IApplicationRepository applications,
     IClientAuthorizationRepository clients,
     IPermissionRegistry permissions,
@@ -80,9 +81,15 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
                 return false;
             }
 
-            // A subscription names libraries the person may see: each must be a configured library, in an area the account has
+            // Access is the acting profile's, never the sign-in's.
+            if (authority.ActiveProfileId is not { } actingProfile)
+            {
+                return false;
+            }
+
+            // A subscription names libraries the person may see: each must be a configured library, in an area the profile has
             // (administrators have them all), and not hidden. An unknown library or an area that can't be worked out fails closed.
-            var features = await accounts.GetFeatureGrantsAsync(authority.AccountId.Value, ct).ConfigureAwait(false);
+            var features = await profileAccess.GetFeatureGrantsAsync(actingProfile, ct).ConfigureAwait(false);
             var configured = configuration.LoadLibraries().Libraries;
             foreach (var id in libraryIds)
             {
@@ -96,7 +103,7 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
 
                 var area = areas[0];
                 if (!await libraryVisibility.MaySeeAsync(
-                        authority.AccountId.Value, authority.IsEffectiveAdministrator, id,
+                        actingProfile, authority.IsEffectiveAdministrator, id,
                         authority.IsEffectiveAdministrator || features.Contains(area), ct).ConfigureAwait(false))
                 {
                     return false;
@@ -133,18 +140,18 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
         var deviceId = authority.DeviceId.Value;
         var tokenId = subscriber.TokenId.Value;
         var accountTask = accounts.GetByIdAsync(accountId, ct);
-        var grantTask = accounts.GetGrantAsync(accountId, profileId, ct);
+        var profileTask = accounts.GetActiveProfileAccessAsync(accountId, profileId, ct);
         var appTask = applications.GetApplicationAsync(subscriber.ApplicationId, ct);
         var deviceTask = clients.GetDeviceAsync(deviceId, ct);
         var tokenTask = clients.GetTokenByIdAsync(tokenId, ct);
-        await Task.WhenAll(accountTask, grantTask, appTask, deviceTask, tokenTask).ConfigureAwait(false);
+        await Task.WhenAll(accountTask, profileTask, appTask, deviceTask, tokenTask).ConfigureAwait(false);
         var account = await accountTask.ConfigureAwait(false);
-        var grant = await grantTask.ConfigureAwait(false);
+        var profile = await profileTask.ConfigureAwait(false);
         var app = await appTask.ConfigureAwait(false);
         var device = await deviceTask.ConfigureAwait(false);
         var token = await tokenTask.ConfigureAwait(false);
         var now = timeProvider.GetUtcNow();
-        if (account?.IsEnabled != true || grant?.IsEnabled != true || app?.IsEnabled != true ||
+        if (account?.IsEnabled != true || profile is null || app?.IsEnabled != true ||
             app.ApplicationType != ApplicationType.UserClient || device?.IsActive != true || token is null ||
             token.RevokedAt is not null || token.ExpiresAt <= now ||
             !string.Equals(token.Kind, "access", StringComparison.Ordinal) ||
@@ -152,10 +159,10 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
             token.ApplicationId != app.Id || token.AccountId != accountId || token.ProfileId != profileId ||
             token.DeviceId != deviceId ||
             account.AuthorizationVersion != authority.AccountAuthorizationVersion ||
-            grant.AuthorizationVersion != authority.GrantAuthorizationVersion ||
+            profile.AuthorizationVersion != authority.ProfileAuthorizationVersion ||
             app.AuthorizationVersion != authority.ApplicationAuthorizationVersion ||
             token.AccountAuthorizationVersion != authority.AccountAuthorizationVersion ||
-            token.GrantAuthorizationVersion != authority.GrantAuthorizationVersion ||
+            token.GrantAuthorizationVersion != authority.ProfileAuthorizationVersion ||
             token.ApplicationAuthorizationVersion != authority.ApplicationAuthorizationVersion ||
             !ScopesEqual(subscriber.Consent, ClientAuthorizationService.SplitScopes(token.Scopes)))
         {
@@ -173,13 +180,13 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
         {
             if (value.Subject.LibraryId is not { } libraryId ||
                 !await libraryVisibility.MaySeeAsync(
-                    account.Id, authority.IsEffectiveAdministrator, libraryId, true, ct).ConfigureAwait(false))
+                    profile.ProfileId, authority.IsEffectiveAdministrator, libraryId, true, ct).ConfigureAwait(false))
             {
                 return false;
             }
 
             if (value.Subject.FeatureId is not { } featureId ||
-                !await accounts.HasFeatureGrantAsync(account.Id, featureId, ct).ConfigureAwait(false))
+                !(await profileAccess.GetFeatureGrantsAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(featureId))
             {
                 return false;
             }

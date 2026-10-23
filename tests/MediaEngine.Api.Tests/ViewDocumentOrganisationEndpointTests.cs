@@ -1375,7 +1375,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
     private static RequestAuthority PairedApp(Person owner) => new(
         PrincipalKind.DelegatedUserClient, true, AccountId: owner.Authority.AccountId,
         ActiveProfileId: owner.ProfileId, ApplicationId: Guid.NewGuid(),
-        AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+        AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true);
 
     [Fact]
     public async Task TagTypeAheadNeverOffersATagThatOnlyDocumentsCarryToAProfileWithoutDocuments()
@@ -1873,10 +1873,10 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         await _spaces.CreateAsync(profileId, libraryId);
         var authority = new RequestAuthority(
             PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: profileId, SessionId: Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true,
-            AccountIsAdministrator: serverAdmin, GrantAdminEnabled: serverAdmin,
+            AccountEnabled: true, ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: serverAdmin,
             ActiveProfileIsRestricted: role == "RestrictedProfile",
-            AccountHouseholdId: household, AccountIsHouseholdAdmin: householdAdmin);
+            ActiveProfileHouseholdId: household, ActiveProfileIsHouseholdAdministrator: householdAdmin);
         return new Person(profileId, libraryId, authority);
     }
 

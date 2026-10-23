@@ -97,6 +97,7 @@ public sealed class AuthenticationEntryEndpointTests
         builder.Services.AddSingleton<IFirstPartyIdentityService>(identity);
         builder.Services.AddScoped<MediaEngine.Api.Services.Security.RecentSignInGuard>();
         builder.Services.AddSingleton<IAccountRepository>(_ => null!);
+        builder.Services.AddSingleton<IProfileAccessRepository>(_ => null!);
         builder.Services.AddSingleton<IIdentityRepository>(_ => null!);
         builder.Services.AddSingleton<IAccountExternalLoginService>(_ => null!);
         builder.Services.AddSingleton<IAccountSignInMethodRepository>(_ => null!);
@@ -104,7 +105,7 @@ public sealed class AuthenticationEntryEndpointTests
         builder.Services.AddSingleton<IRequestAuthorityResolver, AnonymousAuthorityResolver>();
         builder.Services.AddSingleton<IPasskeyHandler<Account>>(_ => null!);
         builder.Services.AddSingleton<UserManager<Account>>(_ => null!);
-        builder.Services.AddSingleton(new DashboardAuthorityProjector(null!, null!, null!));
+        builder.Services.AddSingleton(new DashboardAuthorityProjector(null!, null!, null!, null!));
         builder.Services.AddSingleton(new ExternalIdentityTransactionService(TimeProvider.System));
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<AuthenticationPolicyMutationGate>();
@@ -231,9 +232,6 @@ public sealed class AuthenticationEntryEndpointTests
         public Task<bool> ResetTwoStepAsync(Guid accountId, string reason, CancellationToken ct = default) => throw NotSupported();
         public Task<AuthenticationAttemptResult> CompleteTwoStepSignInAsync(string pendingToken, string codeOrRecoveryCode, CancellationToken ct = default, string ingress = ClientIngress.Remote) => throw NotSupported();
         public Task<bool> ConfirmSessionAsync(Guid accountId, Guid sessionId, string method, CancellationToken ct = default) => throw NotSupported();
-        public Task<Guid?> GetDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, CancellationToken ct = default) => throw NotSupported();
-        public Task SetDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, Guid profileId, CancellationToken ct = default) => throw NotSupported();
-        public Task<bool> ClearDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, CancellationToken ct = default) => throw NotSupported();
         public Task<IReadOnlySet<Guid>> GetProfileIdsWithPinAsync(IReadOnlyCollection<Guid> profileIds, CancellationToken ct = default) => throw NotSupported();
         public Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default) => throw NotSupported();
         public Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default) => throw NotSupported();

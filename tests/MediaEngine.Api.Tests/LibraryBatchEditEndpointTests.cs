@@ -304,10 +304,10 @@ public sealed class LibraryBatchEditEndpointTests : IDisposable
             ApplicationId: Guid.NewGuid(),
             DeviceId: Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
+            ActiveProfileInUserHousehold: true,
             ApplicationEnabled: true,
             AccountAuthorizationVersion: 1,
-            GrantAuthorizationVersion: 1,
+            ProfileAuthorizationVersion: 1,
             ApplicationAuthorizationVersion: 1);
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
         builder.WebHost.UseUrls("http://127.0.0.1:0");

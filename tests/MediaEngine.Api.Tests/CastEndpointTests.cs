@@ -411,15 +411,7 @@ internal sealed record PairedDevice(
         };
         await accounts.CreateAccountAsync(
             account,
-            new AccountProfileGrant
-            {
-                AccountId = account.Id,
-                ProfileId = Profile.SeedProfileId,
-                IsDefault = true,
-                IsEnabled = true,
-                AuthorizationVersion = 1,
-                GrantedAt = now,
-            },
+            new TestGrant(account.Id, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
             new HashSet<Guid>());
 
@@ -499,9 +491,9 @@ internal sealed record PairedDevice(
 
         var authority = new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, account.Id, Profile.SeedProfileId, application.Id,
-            DeviceId: device.Id, AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true,
+            DeviceId: device.Id, AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true,
             AccountAuthorizationVersion: account.AuthorizationVersion,
-            GrantAuthorizationVersion: accountGrant.AuthorizationVersion,
+            ProfileAuthorizationVersion: accountGrant.AuthorizationVersion,
             ApplicationAuthorizationVersion: application.AuthorizationVersion);
         return new PairedDevice(account, application, device, token, authority);
     }

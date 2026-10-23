@@ -29,8 +29,8 @@ public interface IIntercomAudienceAuthorizer
 public sealed class IntercomAudienceAuthorizer(
     IIdentityRepository identities,
     IAccountRepository accounts,
+    IProfileAccessRepository profileAccess,
     IApplicationEventResourceResolver resources,
-    IProfileRepository profiles,
     TimeProvider timeProvider,
     IVaultLibraryRepository vaultLibraries,
     INsfwAccessRepository nsfw,
@@ -93,20 +93,20 @@ public sealed class IntercomAudienceAuthorizer(
             return false;
         }
 
+        // Everything is read from the profile the session is acting as, and only while it is still in the user's own household.
         var accountTask = accounts.GetByIdAsync(connection.AccountId, ct);
-        var grantTask = accounts.GetGrantAsync(connection.AccountId, session.ActiveProfileId, ct);
-        await Task.WhenAll(accountTask, grantTask).ConfigureAwait(false);
+        var profileTask = accounts.GetActiveProfileAccessAsync(connection.AccountId, session.ActiveProfileId, ct);
+        await Task.WhenAll(accountTask, profileTask).ConfigureAwait(false);
         var account = await accountTask.ConfigureAwait(false);
-        var grant = await grantTask.ConfigureAwait(false);
-        if (account?.IsEnabled != true || grant?.IsEnabled != true)
+        var profile = await profileTask.ConfigureAwait(false);
+        if (account?.IsEnabled != true || profile is null)
         {
             return false;
         }
 
         // A child (restricted) profile never gets administrator authority, as on Engine requests.
-        var activeProfile = await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false);
-        var administrator = account.IsAdministrator && grant.AdminEnabled &&
-            activeProfile?.Role != ProfileRole.RestrictedProfile;
+        var administrator = new RequestAuthority(PrincipalKind.Human, true, account.Id, profile.ProfileId, AccountEnabled: true)
+            .WithActiveProfile(profile).IsEffectiveAdministrator;
 
         var assetId = AssetId(eventName, payload);
 
@@ -116,7 +116,7 @@ public sealed class IntercomAudienceAuthorizer(
         if (await IsAboutVaultAsync(payload, assetId, ct).ConfigureAwait(false))
         {
             return await nsfw.IsUnlockedAsync(session.Id, session.ActiveProfileId, timeProvider.GetUtcNow(), ct).ConfigureAwait(false)
-                && await accounts.HasFeatureGrantAsync(account.Id, AccountFeatureId.Watch, ct).ConfigureAwait(false);
+                && (await profileAccess.GetFeatureGrantsAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(AccountFeatureId.Watch);
         }
 
         // Titles deleted from the library carry only ids of things that no longer exist, so every signed-in person's open screens
@@ -141,9 +141,9 @@ public sealed class IntercomAudienceAuthorizer(
             }
 
             // The area first (cheap, and it decides whether hiding can matter), then the one library visibility rule.
-            var hasArea = await accounts.HasFeatureGrantAsync(account.Id, provenance.FeatureId, ct).ConfigureAwait(false);
+            var hasArea = (await profileAccess.GetFeatureGrantsAsync(profile.ProfileId, ct).ConfigureAwait(false)).Contains(provenance.FeatureId);
             var isVault = (await vaultLibraries.GetIdsAsync(ct).ConfigureAwait(false)).Contains(provenance.LibraryId.ToString("D"));
-            var isHidden = hasArea && !isVault && await accounts.IsLibraryHiddenAsync(account.Id, provenance.LibraryId, ct).ConfigureAwait(false);
+            var isHidden = hasArea && !isVault && await profileAccess.IsLibraryHiddenAsync(profile.ProfileId, provenance.LibraryId, ct).ConfigureAwait(false);
             return LibraryVisibilityRule.MaySee(false, isVault, hasArea, isHidden);
         }
 
@@ -152,14 +152,14 @@ public sealed class IntercomAudienceAuthorizer(
             return false;
         }
 
-        var protection = await accounts.GetAdminProtectionAsync(account.Id, grant.ProfileId, ct).ConfigureAwait(false);
+        var protection = await profileAccess.GetAdminProtectionAsync(profile.ProfileId, ct).ConfigureAwait(false);
         if (protection?.IsEnabled != true)
         {
             return true;
         }
 
-        var unlock = await accounts.GetAdminUnlockAsync(
-            session.Id, account.Id, grant.ProfileId, timeProvider.GetUtcNow(), ct).ConfigureAwait(false);
+        var unlock = await profileAccess.GetAdminUnlockAsync(
+            session.Id, profile.ProfileId, timeProvider.GetUtcNow(), ct).ConfigureAwait(false);
         return unlock is not null && unlock.ProtectionVersion == protection.ProtectionVersion;
     }
 

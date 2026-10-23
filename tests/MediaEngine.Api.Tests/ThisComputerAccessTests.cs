@@ -197,10 +197,11 @@ public sealed class ThisComputerAccessTests : IDisposable
         var issued = await _identity.BootstrapThisComputerAdministratorAsync(null, "Owner", "d", "Browser", "Dashboard");
         var now = DateTimeOffset.UtcNow;
         var otherId = Guid.NewGuid();
+        var otherProfile = new MediaEngine.Domain.Aggregates.Profile { Id = Guid.NewGuid(), DisplayName = "Other", CreatedAt = now };
         await _accounts.CreateAccountAsync(
             new Account { Id = otherId, Email = "taken@example.com", NormalizedEmail = "TAKEN@EXAMPLE.COM", IsEnabled = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now },
-            new AccountProfileGrant { AccountId = otherId, ProfileId = MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault = true, IsEnabled = true, AuthorizationVersion = 1, GrantedAt = now },
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+            new TestGrant(otherId, otherProfile.Id, IsDefault: true, AdminEnabled: false),
+            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: otherProfile);
         await using var app = BuildAuthenticationApplication();
 
         var response = await SendAsync(app, "POST", "/auth/account/secure",
@@ -430,6 +431,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddSingleton<IConfigurationLoader>(_configuration);
         builder.Services.AddSingleton<IFirstPartyIdentityService>(_identity);
         builder.Services.AddSingleton<IAccountRepository>(_accounts);
+        builder.Services.AddSingleton<IProfileAccessRepository>(new ProfileAccessRepository(_database));
         builder.Services.AddSingleton<IIdentityRepository>(_identities);
         builder.Services.AddSingleton<IAccountExternalLoginService>(_ => null!);
         builder.Services.AddSingleton<IAccountSignInMethodRepository>(_ => null!);
@@ -442,7 +444,8 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddSingleton(new DashboardAuthorityProjector(
             _accounts,
             new ProfileRepository(_database),
-            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System)));
+            new ProfileAccessRepository(_database),
+            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System)));
         builder.Services.AddSingleton(new ExternalIdentityTransactionService(TimeProvider.System));
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<AuthenticationPolicyMutationGate>();
@@ -493,6 +496,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddSingleton(Unused<IRequestAuthorityResolver>());
         builder.Services.AddSingleton<ISelfServiceAuthorizationService>(_ => null!);
         builder.Services.AddSingleton<IAccountRepository>(_accounts);
+        builder.Services.AddSingleton<IProfileAccessRepository>(new ProfileAccessRepository(_database));
         builder.Services.AddSingleton<IIdentityRepository>(_identities);
         builder.Services.AddSingleton<IProfileRepository>(new ProfileRepository(_database));
         builder.Services.AddSingleton<IAccountExternalLoginService>(_ => null!);

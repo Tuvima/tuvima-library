@@ -7,7 +7,7 @@ namespace MediaEngine.Api.Services.Details;
 /// <summary>
 /// Picks the owned episodes that follow a given episode file in a show's watch order. It uses the same ordering as
 /// the show page's "next episode" choice (<see cref="TvEpisodeContextResolver.Order"/>), over works the caller has
-/// already been authorized to see (library grants and the profile's content limit are applied before this runs).
+/// already been authorized to see (hidden libraries and the profile's content limit are applied before this runs).
 /// </summary>
 public static class NextEpisodesPlanner
 {

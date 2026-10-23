@@ -5,7 +5,7 @@ namespace MediaEngine.Web.Services.Integration;
 
 /// <summary>
 /// Streams one book or comic file from the Engine to the signed-in browser, with byte ranges.
-/// The Engine decides who may read the file (library grant, feature, profile content limit);
+/// The Engine decides who may read the file (hidden libraries, feature, profile content limit);
 /// this route only carries the request across with the Dashboard's credentials resolved at send
 /// time by the shared Engine client, and answers "not found" for anything the Engine refuses so
 /// a browser cannot probe which books exist.

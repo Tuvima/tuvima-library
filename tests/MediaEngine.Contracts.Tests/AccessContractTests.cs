@@ -59,41 +59,60 @@ public sealed class AccessContractTests
     }
 
     [Fact]
-    public void SignInRequestsDefaultToATemporaryPasswordAndNoInvite()
+    public void TheDeletionPreviewNamesTheProfilesThatWouldGo_UnderStableWireNames()
     {
-        var give = JsonSerializer.Deserialize<GiveOwnSignInRequest>("{\"email\":\"sam@home.test\"}")!;
-        Assert.True(give.MustChangePassword);
-        Assert.False(give.Invite);
-        Assert.Null(give.TemporaryPassword);
+        var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
+        var json = JsonSerializer.Serialize(new UserDeletionPreviewResponse(
+            Guid.Empty, null, null, true, "Sam's household", [new AccountDeletionProfileDto(id, "Sam")], null));
+
+        using var document = JsonDocument.Parse(json);
+        var profiles = document.RootElement.GetProperty("household_profiles");
+        Assert.Equal("{\"id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":\"Sam\"}", profiles[0].GetRawText());
+        Assert.Equal("Sam", JsonSerializer.Deserialize<UserDeletionPreviewResponse>(json)!.HouseholdProfiles.Single().DisplayName);
+    }
+
+    [Fact]
+    public void StartingPasswordRequestsDefaultToATemporaryPassword()
+    {
         var set = JsonSerializer.Deserialize<SetTemporaryPasswordRequest>("{\"temporary_password\":\"a long password here\"}")!;
         Assert.True(set.MustChangePassword);
 
-        var explicitOff = JsonSerializer.Deserialize<GiveOwnSignInRequest>(
-            "{\"email\":\"sam@home.test\",\"temporary_password\":\"a long password here\",\"must_change_password\":false,\"invite\":false}")!;
+        var explicitOff = JsonSerializer.Deserialize<SetTemporaryPasswordRequest>(
+            "{\"temporary_password\":\"a long password here\",\"must_change_password\":false}")!;
         Assert.False(explicitOff.MustChangePassword);
         Assert.Equal("{\"email\":\"new@home.test\"}", JsonSerializer.Serialize(new ChangeAccountEmailRequest("new@home.test")));
     }
 
     [Fact]
-    public void ManagedProfileCarriesTheOwnSignInWithoutAnySecret()
+    public void ManagedProfileCarriesItsUserWithoutAnySecret()
     {
-        var accountId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        var userId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         var profile = new ManagedProfileResponse(Guid.Empty, "Sam", "#112233", null, DateTimeOffset.UnixEpoch,
-            OwnSignIn: new ManagedProfileSignInDto(accountId, "sam@home.test", true, true));
+            User: new ManagedProfileUserDto(userId, "sam@home.test"));
 
         using var document = JsonDocument.Parse(JsonSerializer.Serialize(profile));
-        var signIn = document.RootElement.GetProperty("own_sign_in");
-        Assert.Equal(accountId, signIn.GetProperty("account_id").GetGuid());
-        Assert.Equal("sam@home.test", signIn.GetProperty("email").GetString());
-        Assert.True(signIn.GetProperty("must_change_password").GetBoolean());
-        Assert.True(signIn.GetProperty("is_enabled").GetBoolean());
-        Assert.DoesNotContain(typeof(ManagedProfileSignInDto).GetProperties(), property =>
+        var user = document.RootElement.GetProperty("user");
+        Assert.Equal(userId, user.GetProperty("id").GetGuid());
+        Assert.Equal("sam@home.test", user.GetProperty("email").GetString());
+        Assert.False(document.RootElement.TryGetProperty("own_sign_in", out _));
+        Assert.DoesNotContain(typeof(ManagedProfileUserDto).GetProperties(), property =>
             property.Name.Contains("Password", StringComparison.OrdinalIgnoreCase) && property.PropertyType == typeof(string));
 
         var without = JsonSerializer.Deserialize<ManagedProfileResponse>(
             "{\"id\":\"00000000-0000-0000-0000-000000000000\",\"display_name\":\"Sam\",\"avatar_color\":\"#112233\",\"avatar_path\":null,\"created_at\":\"1970-01-01T00:00:00+00:00\"}")!;
-        Assert.Null(without.OwnSignIn);
+        Assert.Null(without.User);
+    }
+
+    [Fact]
+    public void ManagedProfileCarriesItsAccessVersion_ThatTheAccessSaveSendsBack()
+    {
+        var profile = new ManagedProfileResponse(Guid.Empty, "Sam", "#112233", null, DateTimeOffset.UnixEpoch, AccessVersion: 5);
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(profile));
+        Assert.Equal(5, document.RootElement.GetProperty("access_version").GetInt64());
+        Assert.Equal(0, JsonSerializer.Deserialize<ManagedProfileResponse>(
+            "{\"id\":\"00000000-0000-0000-0000-000000000000\",\"display_name\":\"Sam\",\"avatar_color\":\"#112233\",\"avatar_path\":null,\"created_at\":\"1970-01-01T00:00:00+00:00\"}")!.AccessVersion);
     }
 
     [Fact]
@@ -101,7 +120,7 @@ public sealed class AccessContractTests
     {
         var responseTypes = new[]
         {
-            typeof(AccountAccessResponse), typeof(AccountProfileGrantDto), typeof(GrantAdminProtectionDto),
+            typeof(UserSummaryResponse), typeof(AccountProfileGrantDto), typeof(ProfileAdminProtectionResponse),
             typeof(AccountSelfServiceResponse), typeof(ApplicationResponse),
             typeof(ApplicationCredentialResponse), typeof(ApplicationPermissionDefinitionDto),
             typeof(AuthorizationAuditEntryResponse),
@@ -156,46 +175,167 @@ public sealed class AccessContractTests
     }
 
     [Fact]
-    public void AccountIdentityCarriesItsEmailAndNoLocalOnlyFlag()
+    public void ProfileAdminProtection_KeepsItsWireNames_AndNeverCarriesAPin()
     {
-        var response = new AccountAccessResponse(
-            Guid.NewGuid(), "owner@example.com", true, false, 1, [], [], [],
-            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
-        var json = JsonSerializer.Serialize(response);
+        var json = JsonSerializer.Serialize(new ProfileAdminProtectionResponse(true, "FixedDuration", 30, 4));
 
-        Assert.Contains("\"email\":\"owner@example.com\"", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("local_only", json, StringComparison.Ordinal);
+        Assert.Equal("{\"enabled\":true,\"unlock_mode\":\"FixedDuration\",\"unlock_minutes\":30,\"protection_version\":4}", json);
+        var request = JsonSerializer.Deserialize<SetProfileAdminProtectionRequest>(
+            "{\"enabled\":false,\"unlock_mode\":\"LockOnLeave\",\"unlock_minutes\":null}")!;
+        Assert.False(request.Enabled);
+        Assert.Equal("LockOnLeave", request.UnlockMode);
+        Assert.Null(request.UnlockMinutes);
+    }
+
+    [Fact]
+    public void TemporaryPasswordResponse_CarriesTheUserAndWhenThePasswordStopsWorking()
+    {
+        var userId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var expires = DateTimeOffset.Parse("2026-10-30T12:00:00Z");
+
+        var json = JsonSerializer.Serialize(new UserTemporaryPasswordResponse(
+            new UserSummaryResponse(userId, "mom@home.test", null, null, null, null, true, false, true, false), expires));
+
+        using var document = JsonDocument.Parse(json);
+        Assert.Equal(userId, document.RootElement.GetProperty("user").GetProperty("id").GetGuid());
+        Assert.Equal(expires, document.RootElement.GetProperty("temporary_password_expires_at").GetDateTimeOffset());
+        Assert.DoesNotContain("password\":\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UserSummary_KeepsItsWireNames_AndNeverCarriesASecret()
+    {
+        var id = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var profile = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var household = Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+        var json = JsonSerializer.Serialize(new UserSummaryResponse(
+            id, "mom@home.test", profile, "Mom", household, "Household 1", true, false, true, false));
+
+        Assert.Equal(
+            "{\"id\":\"11111111-1111-1111-1111-111111111111\",\"email\":\"mom@home.test\"," +
+            "\"profile_id\":\"22222222-2222-2222-2222-222222222222\",\"profile_name\":\"Mom\"," +
+            "\"household_id\":\"33333333-3333-3333-3333-333333333333\",\"household_name\":\"Household 1\"," +
+            "\"has_password\":true,\"has_two_step\":false,\"is_enabled\":true,\"this_computer_only\":false}",
+            json);
+        Assert.DoesNotContain("password\":\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CreateUserRequest_ReadsTheNewProfileChoices_AndKidsIsOffByDefault()
+    {
+        var request = JsonSerializer.Deserialize<CreateUserRequest>(
+            "{\"email\":\"pat@home.test\",\"method\":\"invitation\",\"new_profile\":{\"name\":\"Pat\",\"new_household_name\":\"Household 2\"}}")!;
+
+        Assert.Equal("invitation", request.Method);
+        Assert.Null(request.ProfileId);
+        Assert.Null(request.TemporaryPassword);
+        Assert.Equal("Pat", request.NewProfile!.Name);
+        Assert.Equal("Household 2", request.NewProfile.NewHouseholdName);
+        Assert.Null(request.NewProfile.HouseholdId);
+        Assert.False(request.NewProfile.IsKids);
+    }
+
+    [Fact]
+    public void CreateUserResponse_CarriesTheUserAndItsInvitation_UnderStableWireNames()
+    {
+        var user = new UserSummaryResponse(Guid.Empty, "pat@home.test", null, null, null, null, false, false, true, false);
+
+        var json = JsonSerializer.Serialize(new CreateUserResponse(
+            user, new AccountInvitationResponse(Guid.Empty, "ABCDE-FGHIJ", DateTimeOffset.UnixEpoch), null));
+
+        Assert.Contains("\"user\":{", json, StringComparison.Ordinal);
+        Assert.Contains("\"invitation\":{\"account_id\":", json, StringComparison.Ordinal);
+        Assert.Contains("\"temporary_password_expires_at\":null", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheUserDeletionPreview_NamesTheHouseholdProfilesAndAnyRefusal_UnderStableWireNames()
+    {
+        var user = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var pat = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+        var json = JsonSerializer.Serialize(new UserDeletionPreviewResponse(
+            user, "pat@home.test", "Pat", true, "Household 2", [new AccountDeletionProfileDto(pat, "Pat")], null, true, true));
+
+        Assert.Equal(
+            "{\"user_id\":\"11111111-1111-1111-1111-111111111111\",\"email\":\"pat@home.test\",\"profile_name\":\"Pat\"," +
+            "\"removes_household\":true,\"household_name\":\"Household 2\"," +
+            "\"household_profiles\":[{\"id\":\"22222222-2222-2222-2222-222222222222\",\"display_name\":\"Pat\"}]," +
+            "\"refused_reason\":null,\"has_personal_photos\":true,\"has_shared_photos\":true}",
+            json);
+        Assert.Equal("Pat", JsonSerializer.Deserialize<UserDeletionPreviewResponse>(json)!.HouseholdProfiles.Single().DisplayName);
+    }
+
+    [Fact]
+    public void TheProfileList_AddsRolesAccessAndUserWithoutChangingItsOlderMembers()
+    {
+        var older = JsonSerializer.Deserialize<ManagedProfileResponse>(
+            "{\"id\":\"11111111-1111-1111-1111-111111111111\",\"display_name\":\"Sam\",\"avatar_color\":\"#7C4DFF\",\"avatar_path\":null,\"created_at\":\"2026-01-01T00:00:00+00:00\"}")!;
+        Assert.False(older.IsServerAdmin);
+        Assert.False(older.IsHouseholdAdmin);
+        Assert.Null(older.FeatureIds);
+        Assert.Null(older.HiddenLibraryIds);
+        Assert.Null(older.User);
+
+        var userId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var library = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        var json = JsonSerializer.Serialize(older with
+        {
+            IsServerAdmin = true,
+            IsHouseholdAdmin = true,
+            FeatureIds = ["read", "watch"],
+            HiddenLibraryIds = [library],
+            User = new ManagedProfileUserDto(userId, "sam@home.test"),
+        });
+
+        Assert.Contains("\"is_server_admin\":true,\"is_household_admin\":true,\"feature_ids\":[\"read\",\"watch\"]," +
+            "\"hidden_library_ids\":[\"33333333-3333-3333-3333-333333333333\"]," +
+            "\"user\":{\"id\":\"22222222-2222-2222-2222-222222222222\",\"email\":\"sam@home.test\"}", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProfileAccessAndRoleRequests_KeepTheirWireNames()
+    {
+        var library = Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+        Assert.Equal(
+            "{\"feature_ids\":[\"read\"],\"hidden_library_ids\":[\"33333333-3333-3333-3333-333333333333\"],\"expected_access_version\":null}",
+            JsonSerializer.Serialize(new ReplaceProfileAccessRequest(["read"], [library])));
+        Assert.Equal(
+            "{\"feature_ids\":[],\"hidden_library_ids\":[],\"expected_access_version\":7}",
+            JsonSerializer.Serialize(new ReplaceProfileAccessRequest([], [], 7)));
+        Assert.Equal(7, JsonSerializer.Deserialize<ReplaceProfileAccessRequest>(
+            "{\"feature_ids\":[],\"hidden_library_ids\":[],\"expected_access_version\":7}")!.ExpectedAccessVersion);
+        Assert.Null(JsonSerializer.Deserialize<ReplaceProfileAccessRequest>("{\"feature_ids\":[],\"hidden_library_ids\":[]}")!.ExpectedAccessVersion);
+        Assert.Equal(
+            "{\"is_household_admin\":true,\"is_server_admin\":false}",
+            JsonSerializer.Serialize(new SetProfileRolesRequest(true, false)));
+        Assert.True(JsonSerializer.Deserialize<SetProfileRolesRequest>("{\"is_household_admin\":true,\"is_server_admin\":false}")!.IsHouseholdAdmin);
     }
 
     [Fact]
     public void LibraryAccessIsTheListOfHiddenLibraries_NotAListOfGrantedOnes()
     {
         var hidden = Guid.NewGuid();
-        var response = new AccountAccessResponse(
-            Guid.NewGuid(), "sam@example.com", true, false, 1, [], [hidden], [],
-            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
-        var json = JsonSerializer.Serialize(response);
+        var json = JsonSerializer.Serialize(new ReplaceProfileAccessRequest(["watch"], [hidden]));
 
-        Assert.Contains($"\"hidden_library_ids\":[\"{hidden}\"]", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("library_grants", json, StringComparison.Ordinal);
-        Assert.Equal($"{{\"feature_ids\":[\"watch\"],\"hidden_library_ids\":[\"{hidden}\"]}}",
-            JsonSerializer.Serialize(new ReplaceAccountAccessRequest(["watch"], [hidden])));
-
-        var created = JsonSerializer.Serialize(new CreateManagedAccountRequest(null, false, null, null, [], [hidden]));
-        Assert.Contains("\"hidden_library_ids\":", created, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"library_ids\":", created, StringComparison.Ordinal);
+        Assert.Equal($"{{\"feature_ids\":[\"watch\"],\"hidden_library_ids\":[\"{hidden}\"],\"expected_access_version\":null}}", json);
+        Assert.DoesNotContain("\"library_ids\":", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("library_grants", JsonSerializer.Serialize(new ManagedProfileResponse(
+            Guid.NewGuid(), "Sam", "#7C4DFF", null, DateTimeOffset.UtcNow, HiddenLibraryIds: [hidden])), StringComparison.Ordinal);
     }
 
     [Fact]
-    public void TheLibraryPickerNamesEachLibrarysAreaAndWhetherThePrimaryAccountHidesIt()
+    public void TheLibraryPickerNamesEachLibrarysAreaAndWhetherItIsHiddenFromTheAdministratorUsingTheScreen()
     {
         var id = Guid.NewGuid();
-        var json = JsonSerializer.Serialize(new AccessLibraryOptionDto(id, "Lectures", "videos", "watch", HiddenByPrimary: true));
+        var json = JsonSerializer.Serialize(new AccessLibraryOptionDto(id, "Lectures", "videos", "watch", HiddenFromYou: true));
 
         Assert.Contains("\"area\":\"watch\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"hidden_by_primary\":true", json, StringComparison.Ordinal);
+        Assert.Contains("\"hidden_from_you\":true", json, StringComparison.Ordinal);
         Assert.False(JsonSerializer.Deserialize<AccessLibraryOptionDto>(
-            $"{{\"id\":\"{id}\",\"display_name\":\"Books\",\"category\":null,\"area\":\"read\"}}")!.HiddenByPrimary);
+            $"{{\"id\":\"{id}\",\"display_name\":\"Books\",\"category\":null,\"area\":\"read\"}}")!.HiddenFromYou);
     }
 
     [Fact]
@@ -218,12 +358,12 @@ public sealed class AccessContractTests
     [Fact]
     public void TheVisibilityAfterMoveResponse_ListsEachPersonWithTheirFileCount_InSnakeCase()
     {
-        var account = Guid.NewGuid();
+        var profile = Guid.NewGuid();
 
-        var json = JsonSerializer.Serialize(new VisibilityAfterMoveResponse([new VisibilityLossDto(account, "Sam", 40)]));
+        var json = JsonSerializer.Serialize(new VisibilityAfterMoveResponse([new VisibilityLossDto(profile, "Sam", 40)]));
         var roundTrip = JsonSerializer.Deserialize<VisibilityAfterMoveResponse>(json)!;
 
-        Assert.Equal($"{{\"people\":[{{\"account_id\":\"{account}\",\"display_name\":\"Sam\",\"file_count\":40}}]}}", json);
+        Assert.Equal($"{{\"people\":[{{\"profile_id\":\"{profile}\",\"display_name\":\"Sam\",\"file_count\":40}}]}}", json);
         Assert.Equal(("Sam", 40), (roundTrip.People[0].DisplayName, roundTrip.People[0].FileCount));
     }
 }

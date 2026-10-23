@@ -44,8 +44,8 @@ public sealed class IntercomAudienceTests : IDisposable
     {
         await SeedHumanAsync();
         var authorizer = new IntercomAudienceAuthorizer(
-            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System,
+            _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            TimeProvider.System,
             new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var media = new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Visible", _assetId);
@@ -56,7 +56,7 @@ public sealed class IntercomAudienceTests : IDisposable
 
         using (var database = _database.CreateConnection())
         {
-            database.Execute("DELETE FROM account_feature_grants WHERE account_id=@accountId;", new { accountId = _accountId });
+            database.Execute("DELETE FROM profile_feature_grants WHERE profile_id=@profileId;", new { profileId = Profile.SeedProfileId });
         }
 
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
@@ -64,33 +64,30 @@ public sealed class IntercomAudienceTests : IDisposable
         using (var database = _database.CreateConnection())
         {
             database.Execute("""
-                UPDATE accounts SET is_administrator=1 WHERE id=@accountId;
-                UPDATE account_profile_grants SET admin_enabled=1 WHERE account_id=@accountId AND profile_id=@profileId;
-                """, new { accountId = _accountId, profileId = Profile.SeedProfileId });
+                UPDATE profiles SET is_server_admin=1 WHERE id=@profileId;
+                """, new { profileId = Profile.SeedProfileId });
         }
 
         Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.ProviderStatusChanged,
             new ProviderStatusChangedEvent("provider", "healthy", string.Empty)));
         Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
 
-        await _accounts.SetAdminProtectionAsync(new GrantAdminProtection
+        await new ProfileAccessRepository(_database).SetAdminProtectionAsync(new ProfileAdminProtection
         {
-            AccountId = _accountId,
             ProfileId = Profile.SeedProfileId,
             IsEnabled = true,
             UnlockMode = AdminUnlockMode.FixedDuration.ToString(),
             UnlockMinutes = 30,
-            ProtectionVersion = 2,
+            ProtectionVersion = 1,
             UpdatedAt = DateTimeOffset.UtcNow,
         });
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.ProviderStatusChanged,
             new ProviderStatusChangedEvent("provider", "healthy", string.Empty)));
-        await _accounts.SetAdminUnlockAsync(new GrantAdminUnlock
+        await new ProfileAccessRepository(_database).SetAdminUnlockAsync(new ProfileAdminUnlock
         {
             SessionId = _sessionId,
-            AccountId = _accountId,
             ProfileId = Profile.SeedProfileId,
-            ProtectionVersion = 2,
+            ProtectionVersion = 1,
             Method = "test",
             GrantedAt = DateTimeOffset.UtcNow,
             ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(30),
@@ -100,12 +97,12 @@ public sealed class IntercomAudienceTests : IDisposable
     }
 
     [Fact]
-    public async Task LiveAudience_NeverDeliversMediaOfALibraryHiddenFromTheAccount_AndDeliversItAgainOnceItIsShown()
+    public async Task LiveAudience_NeverDeliversMediaOfALibraryHiddenFromTheProfile_AndDeliversItAgainOnceItIsShown()
     {
         await SeedHumanAsync();
         var authorizer = new IntercomAudienceAuthorizer(
-            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System,
+            _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            TimeProvider.System,
             new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var media = new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Visible", _assetId);
@@ -114,10 +111,11 @@ public sealed class IntercomAudienceTests : IDisposable
         // Nothing is hidden, so a library nobody listed is still delivered through the Watch area.
         Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
 
-        await _accounts.ReplaceAccountAccessAsync(_accountId, watch, new HashSet<Guid> { _libraryId }, DateTimeOffset.UtcNow);
+        var profileAccess = new ProfileAccessRepository(_database);
+        await profileAccess.ReplaceAccessAsync(Profile.SeedProfileId, watch, new HashSet<Guid> { _libraryId }, DateTimeOffset.UtcNow);
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
 
-        await _accounts.ReplaceAccountAccessAsync(_accountId, watch, new HashSet<Guid>(), DateTimeOffset.UtcNow);
+        await profileAccess.ReplaceAccessAsync(Profile.SeedProfileId, watch, new HashSet<Guid>(), DateTimeOffset.UtcNow);
         Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
     }
 
@@ -128,15 +126,14 @@ public sealed class IntercomAudienceTests : IDisposable
         using (var database = _database.CreateConnection())
         {
             database.Execute("""
-                UPDATE accounts SET is_administrator=1 WHERE id=@accountId;
-                UPDATE account_profile_grants SET admin_enabled=1 WHERE account_id=@accountId AND profile_id=@profileId;
+                UPDATE profiles SET is_server_admin=1 WHERE id=@profileId;
                 UPDATE profiles SET role='RestrictedProfile' WHERE id=@profileId;
                 """, new { accountId = _accountId, profileId = Profile.SeedProfileId });
         }
 
         var authorizer = new IntercomAudienceAuthorizer(
-            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System,
+            _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            TimeProvider.System,
             new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
 
@@ -154,8 +151,8 @@ public sealed class IntercomAudienceTests : IDisposable
     {
         await SeedHumanAsync();
         var authorizer = new IntercomAudienceAuthorizer(
-            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System,
+            _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            TimeProvider.System,
             new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var removed = new LibraryItemsRemovedEvent([Guid.NewGuid()], [Guid.NewGuid()]);
@@ -192,8 +189,8 @@ public sealed class IntercomAudienceTests : IDisposable
         }
 
         var authorizer = new IntercomAudienceAuthorizer(
-            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System,
+            _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            TimeProvider.System,
             new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var media = new MediaAddedEvent(Guid.NewGuid(), null, "Videos", "Secret", _assetId);
@@ -202,7 +199,7 @@ public sealed class IntercomAudienceTests : IDisposable
 
         using (var database = _database.CreateConnection())
         {
-            database.Execute("UPDATE accounts SET is_administrator=1 WHERE id=@accountId;", new { accountId = _accountId });
+            database.Execute("UPDATE profiles SET is_server_admin=1 WHERE id=@profileId;", new { profileId = Profile.SeedProfileId });
         }
 
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
@@ -224,8 +221,8 @@ public sealed class IntercomAudienceTests : IDisposable
     {
         await SeedHumanAsync();
         var authorizer = new IntercomAudienceAuthorizer(
-            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            new ProfileRepository(_database), TimeProvider.System,
+            _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            TimeProvider.System,
             new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths());
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         await _identities.RevokeSessionAsync(_sessionId, DateTimeOffset.UtcNow, "test");
@@ -258,28 +255,19 @@ public sealed class IntercomAudienceTests : IDisposable
     private async Task SeedHumanAsync()
     {
         var now = DateTimeOffset.UtcNow;
-        await _accounts.InsertAsync(new Account
-        {
-            Id = _accountId,
-            Email = "viewer@example.com",
-            NormalizedEmail = "VIEWER@EXAMPLE.COM",
-            IsEnabled = true,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-        await _accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = _accountId,
-            ProfileId = Profile.SeedProfileId,
-            IsDefault = true,
-            IsEnabled = true,
-            GrantedAt = now,
-        });
-        await _accounts.ReplaceAccountAccessAsync(
-            _accountId,
+        await _accounts.CreateAccountAsync(
+            new Account
+            {
+                Id = _accountId,
+                Email = "viewer@example.com",
+                NormalizedEmail = "VIEWER@EXAMPLE.COM",
+                IsEnabled = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            },
+            new TestGrant(_accountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid>(),
-            now);
+            new HashSet<Guid>());
         await _identities.InsertSessionAsync(new AuthSession
         {
             Id = _sessionId,
