@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
-/// Converting a folder to Managed, or merging one into a managed folder: the honest preview, starting the job, pausing,
+/// Converting a folder to Managed, merging one into a managed folder, or changing what a folder is: the honest preview, starting the job, pausing,
 /// resuming and cancelling it, and reading or exporting the log of every move. The job itself is one durable operation on the
 /// folder-jobs queue.
 /// </summary>
@@ -96,6 +96,53 @@ public static class FolderJobEndpoints
         })
         .WithName("MergeFolderIntoManaged")
         .WithSummary("Queues the job that merges one existing folder, once, into a managed folder of the same library. Copy never writes the source.")
+        .Produces<FolderJobStatusDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/{sourceId}/change-kind/preview", async (
+            string sourceId,
+            [FromBody] FolderKindChangeRequest request,
+            FolderKindChangeService changes,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await changes.PreviewAsync(sourceId, request, ct));
+            }
+            catch (FolderJobException exception)
+            {
+                return Problem(exception);
+            }
+        })
+        .WithName("PreviewFolderKindChange")
+        .WithSummary("Counts what changing what a folder is would do (files, re-filing moves, dropped details, first check, other apps, who loses sight of the files). Changes nothing.")
+        .Produces<FolderKindChangePreviewResponse>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapPost("/{sourceId}/change-kind", async (
+            string sourceId,
+            [FromBody] FolderKindChangeRequest request,
+            FolderKindChangeService changes,
+            IRequestAuthorityResolver authorities,
+            HttpContext http,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var authority = await authorities.ResolveAsync(http, ct);
+                return Results.Ok(await changes.StartAsync(sourceId, request, ct, authority.ActiveProfileId));
+            }
+            catch (FolderJobException exception)
+            {
+                return Problem(exception);
+            }
+        })
+        .WithName("ChangeFolderKind")
+        .WithSummary("Queues the job that moves a folder to a library of another kind in the same area and identifies its files again under that kind.")
         .Produces<FolderJobStatusDto>()
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound)

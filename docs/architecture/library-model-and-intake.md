@@ -268,6 +268,87 @@ exportable log, pause, resume, cancel, restart-resume).
   could resume has its unfinished lines closed as `copied` (`KeepUnfinishedMergeCopiesAsync`)
   so the original beside a copy that landed is protected too. If the ledger cannot be read
   the gate refuses (fail closed).
+
+### Change-kind job (changing what a folder is)
+
+"Change what this folder is" (Library setup D40(c), D60 to D64, D69) moves one folder to a library of another kind in the same
+area (Movies to Videos, Music to Other audio, Other videos to YouTube). `POST /settings/libraries/folders/{sourceId}/change-kind/preview`
+and `POST .../change-kind` (`{kind_key, library_id?}`, administrators only) share `FolderKindChangeService`, which refuses a Vault
+folder or target, an unknown kind, the folder's current kind (unless an earlier change of the folder was cancelled or failed half way,
+when starting it again finishes the rest), a kind from another area, a library that is not a library of that kind, and a folder with
+any folder job already open. A new named library (Other videos, Other audio, Other reading allow up to five) is created first through
+the normal library action; the Engine never creates one here. A blank `library_id` means the same in the preview and the start: the one
+library of a kind that has exactly one; a kind that holds several named libraries is refused by the start ("Choose which ... library", it
+never quietly picks the single one that exists; the preview treats it as a new library); a kind with none is refused ("Create it first").
+
+The start writes the plan to `folder_kind_changes` (one row per job, before anything changes) and queues one `media_operations` row
+(`change_folder_kind`, the same `folder_jobs` queue, one job at a time). `FolderOrganiseJobWorker` runs it with
+`FolderKindChangeRunner`, which reuses the organising job's control, progress and ledger plumbing (`folder_organise_log`: an intent
+`moving` before each file and `kind_changed` or `failed` after it; pause, resume, cancel and restart-resume work as for the other
+folder jobs; the folder row shows the job's state). The folder row carries no extra state.
+
+- **Once, first.** The folder's `sources[]` entry moves to the target library in `libraries.json` (its management mode and access are
+  unchanged; the old library stays even if it is left with no folders). Its old first check and the filing moves held for it end
+  (`FolderFirstCheckService.EndBecauseKindChangedAsync`), and a target that looks details up starts a new first check
+  (`StartForKindChangeAsync`, D35, D61). The old check ends only after the libraries file has been saved, so a failed save leaves the
+  old check and its held moves in place. `config_applied_at` on the plan records that this is done, so it is never repeated; a repair
+  skips it (the folder is already in its library).
+- **Each file, recorded in the ledger, safe to repeat.**
+  1. If the file's Work has a different media type, it is placed again the way ingestion places a new file:
+     `HierarchyResolver.ResolveAsync` finds or makes the new Work and its parents (from the file's own canonical values),
+     the file's Edition moves under it, the file's media type is recorded as a current claim, what people did with the old
+     title (`WorkPersonalStateMerge.Carry`: plays, hearts, saves, bookmarks, queue places, collections, tags) and the details they
+     set on it (locked and manual claims) go to the new one (whose values are worked out again), and the old title is removed
+     (`LibraryItemDeletionRepository.DeleteWorksCore`, leaf only). The places it leaves empty go through the move's rule
+     (`WorkHierarchyMaintenanceService.CleanupEmptyParentsCore`): a show, season, album or series that someone saved, reacted to,
+     collected, tagged, or gave their own artwork or details stays. When this is the last file of a title that holds artwork a person
+     uploaded or chose, or details they typed, those follow it: the artwork link rows and records are re-pointed (the uploaded files stay
+     where they are), the person's preferred picture takes its slot (the new title's looked-up preferred picture for it is let go) and
+     `display_overrides_json` is copied, before the old title is removed. A looked-up copy of the same picture in the same place on the
+     new title (the table allows one) gives way to the person's own, which is preferred if the copy was. If the title it joins already
+     has its own such artwork or details, the file is left exactly as it was
+     and logged `kind_change_refused` with a sentence naming both titles ("\"A\" and \"B\" both have your own artwork or details. Remove
+     them from one of the two in Editing Mode, then start the change again."). That is final for the job (a resume does not retry it); the
+     job ends as failed with "Finished, but N files were not changed" and those sentences as its message (the folder row's job message), and
+     starting the same kind again looks at the file once more and refuses it once more. While such files remain, any kind other than the
+     folder's original one is refused with the same sentences; changing back to the original kind is allowed and ends with the folder whole.
+     A crash between the placement and the new title's values being worked out is finished on resume: the values are worked out again
+     (files Tuvima wrote for a removed title that a crash left behind are not found again). With the same media type (Music to Other audio, Other videos to YouTube) the Work stays where it is.
+     Asset-keyed state (watch progress) never moves because the asset row stays.
+  2. A plain target drops the details looked up for the file and its Work (D69): claims from providers, bridge ids, the Wikidata id,
+     external identifiers and provider artwork links. Claims from the file itself (tags, file name) and a person's own edits stay;
+     the canonical values of the keys that lost claims are worked out again from the claims that remain (`ScoringHelper`), so the file
+     shows by its file name and embedded tags and a refile plan still has a name to take. A YouTube target reads the file again so the
+     video-ID lookup runs under the new library. Any other lookup kind queues a new `Quick` identity job with the new media type, the
+     way the Unmatched retry does (once: a job a cut-short attempt already queued is not queued again, and a job still waiting under another
+     media type, left by an earlier stopped change, is closed first so only the one wanted now is open; a job a worker holds a lease on is left alone, the file is logged failed and the next run closes the job once the worker has let go). Picture files cached for the
+     dropped provider pictures (or the looked-up copies that gave way to a person's own) are queued for removal when nothing else uses
+     them, only inside the data folder, as the delete paths do.
+  3. In a Managed, writable folder the file's filing into the new kind's pattern is queued (`IFilingQueue.RequestFilingAsync`), held
+     while the first check runs. Filing waits for the batch (D62) and the file stays playable until then (D63); a file in use goes
+     to the retry batch as it does today. A Read-only folder changes kind with nothing queued and nothing moved.
+  4. `media_assets.library_id` becomes the target library after the steps that need not wait for it (the placement, the drop and the
+     YouTube re-read), so a file that failed on those is still wholly what it was. The identity job and the filing request are written
+     after it, never before (a worker that saw the file in the library it has left would close the lookup or hold the filing); the library,
+     the job and the filing request live in three repositories and cannot share one transaction. A file that fails is logged `failed` and
+     the job carries on. Every step can be repeated, and every run picks up every file of the folder whose latest ledger line, in this or
+     any earlier change of the folder, is not a finished one (failed, or cut short while moving): a resume, a repair (the same kind), a
+     change back and a new change after another all finish them first, whatever library the file is in, except a file inside a nested folder that is registered to another library, which belongs to that library
+     (only the libraries the folder has been in or out of across its changes count). A file already under a work of the
+     media type is left where it is (the places a stopped placement left empty are removed), the looked-up details are dropped only if
+     any are left, the new title's values (and the file's own) are always worked out again, the places left empty are tidied once at the end of a run, and a queued identity job or filing request is never doubled. A job that ends with any
+     failed file ends as failed ("Finished, but N files were not changed ..."), not as a success, and starting the same kind again
+     (the repair) retries exactly the files logged as failed and those still in the old library. A different kind is refused until
+     that is done.
+- **Re-filing template.** The refile planner takes its naming template from the file's media type (`AutoOrganizeService.PlanRefileAsync`),
+  not from the kind's `naming_template`. A change that keeps the media type therefore finds a file already fitting (nothing moves);
+  a change that re-places the file uses the new media type's template. The kind's `naming_template` is not yet read by the organiser.
+- **Activity.** One `FolderKindChanged` entry when the job finishes, naming the administrator who started it (`started_by_profile_id`):
+  "{folder} changed from {old kind} to {new kind}: {n} files".
+- **Preview.** `files_to_refile` is the number of files queued for the batch's re-filing pass (0 for a Read-only folder); the batch
+  moves only those not already at their planned path.
+- **Not covered.** Details dropped from a file's Work do not reach parents it shares with other files (an album, a show). A file whose canonical values hold no
+  show, album or series folder is placed under a stand-alone Work of the new type until identification fills it in.
 - **Known limits.** These are recorded, not fixed:
   - `AutoOrganizeService` still moves files out of a managed folder that is not the
     destination into the destination's root; a merge into such a target is unaffected by

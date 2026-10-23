@@ -107,6 +107,9 @@ public static class MediaOperationType
 
     /// <summary>Merges one existing folder, once, into a managed folder with the same naming, duplicate and tag rules.</summary>
     public const string MergeFolder = "merge_folder";
+
+    /// <summary>Changes what a folder is (Library setup D40(c)): moves it to a library of another kind in the same area and identifies its files again under that kind.</summary>
+    public const string ChangeFolderKind = "change_folder_kind";
 }
 
 /// <summary>Queue names for operations that need more than the default queue.</summary>
