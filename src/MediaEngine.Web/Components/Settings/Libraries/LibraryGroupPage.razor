@@ -12,6 +12,7 @@
    above carries the breadcrumb and the group's name as the page title. A kind that allows several named libraries (the plain kinds)
    has one row per library. The Metadata column shows each row's provider icons, or the "files as-is" icon. *@
 <div class="lib-page">
+    <LibraryUploadZone Kinds="@Kinds" Configuration="@Configuration" Group="@Group" ReadOnly="@ReadOnly" FolderAdded="FolderAdded">
     @if (ReadOnly)
     {
         <p class="lib-page__note">Use a desktop or tablet to change folders.</p>
@@ -26,6 +27,7 @@
                        Class="lib-page__add"
                        aria-label="@($"Add folder to {Group.Label}")"
                        OnClick="AddFolderAsync" />
+            <LibraryAddFilesButton Class="lib-page__add" />
         </div>
     }
 
@@ -120,6 +122,7 @@
 
         <LibraryIconLegend ShowHealth="true" />
     }
+    </LibraryUploadZone>
 </div>
 
 @code {

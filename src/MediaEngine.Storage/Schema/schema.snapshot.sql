@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0044 simpler_access_hidden_libraries).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0045 simpler_access_hidden_libraries).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1221,6 +1221,32 @@ CREATE TABLE image_cache_sources (
     content_hash  TEXT NOT NULL,
     first_seen_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     FOREIGN KEY(content_hash) REFERENCES image_cache(content_hash) ON DELETE CASCADE
+);
+
+CREATE TABLE import_upload_pieces (
+    upload_id   BLOB NOT NULL REFERENCES import_uploads(id) ON DELETE CASCADE,
+    piece_index INTEGER NOT NULL CHECK (piece_index >= 0),
+    received_at TEXT NOT NULL,               -- ISO 8601 UTC
+    PRIMARY KEY (upload_id, piece_index)
+) WITHOUT ROWID;
+
+CREATE TABLE import_uploads (
+    id                 BLOB NOT NULL PRIMARY KEY,
+    created_by         BLOB NOT NULL,        -- the administrator's profile id
+    kind_key           TEXT NOT NULL,        -- the library kind the file was dropped on (movies, music, ...)
+    library_id         TEXT,                 -- the library named for a kind that has several; null means the kind's own
+    type_label         TEXT NOT NULL,        -- the Import folder type the kind maps to (Movies, TV, Music, ...)
+    file_name          TEXT NOT NULL,        -- the cleaned name asked for; the saved name is chosen when the upload completes
+    total_bytes        INTEGER NOT NULL CHECK (total_bytes > 0),
+    piece_bytes        INTEGER NOT NULL CHECK (piece_bytes > 0),
+    piece_count        INTEGER NOT NULL CHECK (piece_count > 0),
+    working_path       TEXT NOT NULL,        -- the hidden working file, inside <Import folder>/.data/uploads
+    destination_folder TEXT NOT NULL,        -- the Import folder's sub-folder for the kind
+    state              TEXT NOT NULL DEFAULT 'open' CHECK (state IN ('open', 'completed', 'cancelled')),
+    final_path         TEXT,                 -- set when the upload completes
+    created_at         TEXT NOT NULL,        -- ISO 8601 UTC
+    last_piece_at      TEXT NOT NULL,        -- ISO 8601 UTC; starts as created_at, moves with every new piece
+    closed_at          TEXT                  -- ISO 8601 UTC; set when the upload completes or is cancelled
 );
 
 CREATE TABLE ingestion_log (
@@ -3320,6 +3346,8 @@ CREATE INDEX idx_identity_jobs_updated_at ON identity_jobs (updated_at);
 
 CREATE INDEX idx_image_cache_phash
     ON image_cache(phash) WHERE phash IS NOT NULL;
+
+CREATE INDEX idx_import_uploads_state_last_piece ON import_uploads (state, last_piece_at);
 
 CREATE INDEX idx_ingestion_log_media_asset ON ingestion_log(media_asset_id);
 

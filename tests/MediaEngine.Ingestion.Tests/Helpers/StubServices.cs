@@ -345,13 +345,14 @@ internal sealed class StubConfigurationLoader : IConfigurationLoader
     public CoreConfiguration Core { get; set; } = new();
     public LibrariesConfiguration Libraries { get; set; } = new();
     public LibraryKindsConfiguration LibraryKinds { get; set; } = new();
+    public MaintenanceSettings Maintenance { get; set; } = new();
     public WritebackFieldsConfiguration? WritebackFields { get; set; }
 
     public CoreConfiguration LoadCore() => Core;
     public void SaveCore(CoreConfiguration config) { }
     public ScoringSettings LoadScoring() => new();
     public void SaveScoring(ScoringSettings settings) { }
-    public MaintenanceSettings LoadMaintenance() => new();
+    public MaintenanceSettings LoadMaintenance() => Maintenance;
     public void SaveMaintenance(MaintenanceSettings settings) { }
     public HydrationSettings LoadHydration() => new();
     public void SaveHydration(HydrationSettings settings) { }

@@ -2987,6 +2987,39 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.UniversalSearchSecti
   TotalCount: System.Int32 | nullability=not-null | accessors=get,init
   SeeAllRoute: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Imports.MediaEngine.Contracts.Imports.ImportUploadCompleteResponse
+  UploadId: System.Guid | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  Renamed: System.Boolean | nullability=not-null | accessors=get,init
+  DestinationPath: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Imports.MediaEngine.Contracts.Imports.ImportUploadRefusalCodes
+
+MediaEngine.Contracts.Imports.MediaEngine.Contracts.Imports.ImportUploadStartRequest
+  KindKey: System.String | nullability=not-null | accessors=get,init
+  LibraryId: System.String | nullability=nullable | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  TotalBytes: System.Int64 | nullability=not-null | accessors=get,init
+  ConfirmLarge: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Imports.MediaEngine.Contracts.Imports.ImportUploadStartResponse
+  UploadId: System.Guid | nullability=not-null | accessors=get,init
+  PieceBytes: System.Int64 | nullability=not-null | accessors=get,init
+  PieceCount: System.Int32 | nullability=not-null | accessors=get,init
+  TotalBytes: System.Int64 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Imports.MediaEngine.Contracts.Imports.ImportUploadStates
+
+MediaEngine.Contracts.Imports.MediaEngine.Contracts.Imports.ImportUploadStatusResponse
+  UploadId: System.Guid | nullability=not-null | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  TotalBytes: System.Int64 | nullability=not-null | accessors=get,init
+  PieceBytes: System.Int64 | nullability=not-null | accessors=get,init
+  PieceCount: System.Int32 | nullability=not-null | accessors=get,init
+  ReceivedPieces: System.Collections.Generic.List<System.Int32> | nullability=not-null | accessors=get,init
+  ReceivedBytes: System.Int64 | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.ActivityHistorySummaryDto
   ItemsAddedToday: System.Int32 | nullability=not-null | accessors=get,set
   ItemsNeedingFollowUp: System.Int32 | nullability=not-null | accessors=get,set

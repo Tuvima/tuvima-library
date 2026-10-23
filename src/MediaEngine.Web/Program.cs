@@ -288,6 +288,7 @@ builder.Services.AddScoped<SettingsAttentionState>();
 builder.Services.AddScoped<DevelopmentToolsState>();
 builder.Services.AddScoped<MediaEngine.Web.Services.Settings.ApprovalFlow>();
 builder.Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();
+builder.Services.AddScoped<MediaEngine.Web.Services.Settings.ImportUploadState>();
 builder.Services.AddScoped<MediaEngine.Web.Services.MediaTiles.BrowseLibrariesState>();
 builder.Services.AddScoped<IItsYouConfirmer, DialogItsYouConfirmer>();
 builder.Services.AddScoped<ConfirmedActionRunner>();
@@ -324,6 +325,15 @@ builder.Services.AddScoped<ICollectionPersonalMediaClient>(services => services.
 // Used by ad-hoc pages (e.g. the Enrichment Tester) that need direct HttpClient access
 // without routing through IEngineApiClient.
 builder.Services.AddHttpClient("EngineApi", ConfigureEngineClient)
+    .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
+    .AddHttpMessageHandler<ViewProfileAssertionHandler>();
+// Resumable uploads into the Import folder (Library setup D44): the same sign-in handlers, but each piece has its own five-minute limit
+// (set per call by the relay) instead of the shared 100 seconds. No retry handler: a piece body is streamed once and sent again by the browser.
+builder.Services.AddHttpClient(ImportUploadRelayEndpoint.EngineClientName, client =>
+    {
+        ConfigureEngineClient(client);
+        client.Timeout = Timeout.InfiniteTimeSpan;
+    })
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
     .AddHttpMessageHandler<ViewProfileAssertionHandler>();
 // Artwork requests are already authorized at the same-origin Dashboard route.
@@ -593,6 +603,7 @@ app.MapMethods("/engine-image/{**enginePath}", [HttpMethods.Get, HttpMethods.Hea
     .RequireAuthorization();
 
 app.MapEngineBookProxy();
+app.MapImportUploadRelay();
 app.MapViewMediaProxy();
 
 app.MapDashboardAuthenticationEndpoints(registeredExternalProviders);

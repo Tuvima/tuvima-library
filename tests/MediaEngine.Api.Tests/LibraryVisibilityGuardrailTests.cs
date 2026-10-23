@@ -20,14 +20,14 @@ public sealed class LibraryVisibilityGuardrailTests
         ["src/MediaEngine.Storage/Backup/UserExportScope.cs"] = "every access table is named as left out of a user export",
         ["src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs"] = "the development reset lists every table it empties",
         ["src/MediaEngine.Storage/Schema/schema.snapshot.sql"] = "the generated data structure",
-        ["src/MediaEngine.Storage/Schema/Upgrades/0044_simpler_access_hidden_libraries.sql"] = "the step that creates the table",
+        ["src/MediaEngine.Storage/Schema/Upgrades/0045_simpler_access_hidden_libraries.sql"] = "the step that creates the table",
     };
 
     // The earlier per-library grants are gone; only the released steps that created and dropped the table may spell them.
     private static readonly HashSet<string> MayNameTheOldGrants = new(StringComparer.Ordinal)
     {
         "src/MediaEngine.Storage/Schema/Upgrades/0001_baseline.sql",
-        "src/MediaEngine.Storage/Schema/Upgrades/0044_simpler_access_hidden_libraries.sql",
+        "src/MediaEngine.Storage/Schema/Upgrades/0045_simpler_access_hidden_libraries.sql",
     };
 
     // The files that may ask for an account's hidden libraries, each a reviewed enforcement or administration site that uses the

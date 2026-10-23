@@ -411,7 +411,10 @@ builder.Services.AddSingleton<IConfigurationLoader>(configLoader);
                     path.Equals(exempt, StringComparison.OrdinalIgnoreCase))
                 || globalLimiterExemptPrefixes.Any(prefix =>
                     path.Equals(prefix, StringComparison.OrdinalIgnoreCase)
-                    || path.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase));
+                    || path.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase))
+                // One piece of a resumable upload into the Import folder: a big file is hundreds of these, and the sender is already an
+                // administrator (the other upload actions stay under the general limit).
+                || ImportUploadEndpoints.IsPieceRoute(context);
             if (isExempt)
             {
                 return RateLimitPartition.GetNoLimiter("exempt");

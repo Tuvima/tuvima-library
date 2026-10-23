@@ -78,6 +78,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<ArtworkRenditionRepairStartupService>();
         services.AddHostedService<ArtworkRenditionBackgroundService>();
         services.AddHostedService<RejectedFileCleanupService>();
+        services.AddHostedService<ImportUploadSweepHostedService>();
         services.AddSingleton<ViewSourceIndexingOptions>();
         services.AddSingleton<IViewSourceWatcherFactory, FileSystemViewSourceWatcherFactory>();
         services.AddSingleton<ViewSourceIndexingHostedService>();
