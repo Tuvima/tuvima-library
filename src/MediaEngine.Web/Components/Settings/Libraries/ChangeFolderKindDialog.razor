@@ -13,7 +13,7 @@
 <AppDialogShell Title="Change what this folder is" Size="Large" OnClose="@(() => Leave())">
     <ChildContent>
         <div class="add-wizard__options">
-            <p class="add-wizard__lead"><code class="add-wizard__path" title="@Source.Path">@Source.Path</code></p>
+            <p class="add-wizard__lead tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis"><code class="add-wizard__path" title="@Source.Path">@Source.Path</code></p>
             @if (_step == Step.Kind)
             {
                 <h3 class="add-wizard__question" id="change-kind-question">What is this folder?</h3>
@@ -268,13 +268,17 @@
         var named = !string.IsNullOrWhiteSpace(preview.ToLibraryName) && !string.Equals(preview.ToLibraryName, kind, StringComparison.OrdinalIgnoreCase)
             ? $"{kind} ({preview.ToLibraryName})"
             : kind;
-        yield return ("move", $"{Files(preview.FileCount)} will move to {named}.");
-        if (preview.FilesToRefile > 0)
+        // A folder with nothing in it yet only changes its kind: there is nothing to move, re-file or drop.
+        var empty = preview.FileCount == 0;
+        yield return ("move", empty
+            ? "This folder has no files yet, so only its kind changes."
+            : $"{Files(preview.FileCount)} will move to {named}.");
+        if (!empty && preview.FilesToRefile > 0)
         {
             yield return ("refile", $"Their files will be re-filed into {kind}'s folder pattern in the next batch.");
         }
 
-        if (preview.DropsDetails)
+        if (!empty && preview.DropsDetails)
         {
             yield return ("drops-details", "Details Library looked up online for these files will be removed. They'll show as they are, by file name and tags. Your own edits, progress and ratings stay.");
         }
@@ -295,7 +299,7 @@
             yield break;
         }
 
-        // Only the name and the count are read: who is meant is the Engine's business, and the id may be an account or a profile.
+        // Only the name and the count are read: who is meant is the Engine's business, and the id is a profile.
         foreach (var person in preview.VisibilityLoss.Take(MostNamesShown))
         {
             yield return ("visibility", person.FileCount == 1

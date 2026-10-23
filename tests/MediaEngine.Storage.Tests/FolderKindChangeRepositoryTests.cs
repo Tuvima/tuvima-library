@@ -541,13 +541,14 @@ public sealed class FolderKindChangeRepositoryTests : IDisposable
             seed.Execute("""
                 INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, source_provider, is_user_override, local_image_path, local_image_path_t) VALUES
                     (@a1, @work, 'Work', 'CoverArt', 'tmdb', 0, '/data/images/cover-tmdb.jpg', '/data/images/cover-tmdb-t.jpg'),
-                    (@a2, @work, 'Work', 'Banner', 'user_upload', 1, '/data/images/banner-mine.jpg', NULL);
+                    (@a2, @work, 'Work', 'Banner', 'user_upload', 1, '/data/images/banner-mine.jpg', '/data/images/cover-tmdb-t.jpg');
                 """, new { work, a1 = Guid.NewGuid(), a2 = Guid.NewGuid() });
         }
 
         var dropped = await _repository.DropProviderDetailsAsync(assetId);
 
-        Assert.Equivalent(new[] { "/data/images/cover-tmdb.jpg", "/data/images/cover-tmdb-t.jpg" }, dropped.OwnedFilesToRemove);
+        // The person's banner also uses the small cover's file, so that one is still in use and stays.
+        Assert.Equal(["/data/images/cover-tmdb.jpg"], dropped.OwnedFilesToRemove);
         using var conn = _db.CreateConnection();
         Assert.Equal(["/data/images/banner-mine.jpg"], conn.Query<string>("SELECT local_image_path FROM entity_assets WHERE entity_id = @work;", new { work }).ToList());
     }

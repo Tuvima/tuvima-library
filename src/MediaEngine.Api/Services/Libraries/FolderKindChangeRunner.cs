@@ -371,6 +371,14 @@ public sealed class FolderKindChangeRunner
                 var latest = await _identityJobs.GetByEntityAsync(file.AssetId, ct).ConfigureAwait(false);
                 if (latest is not null && IsUnfinished(latest.State) && !string.Equals(latest.MediaType, mediaType.ToString(), StringComparison.OrdinalIgnoreCase))
                 {
+                    // A worker is on it right now: its state is not ours to overwrite. The file stays unfinished (logged failed) and the next run
+                    // closes the job once the worker has let go of it.
+                    if (latest.LeaseOwner is not null && (latest.LeaseExpiresAt is null || latest.LeaseExpiresAt > DateTimeOffset.UtcNow))
+                    {
+                        throw new InvalidOperationException(
+                            $"A lookup of this file as {latest.MediaType} is running. Start the change again when it has finished.");
+                    }
+
                     // A job still waiting under another media type (an earlier change was stopped here) is closed, so only the one wanted now is open.
                     await _identityJobs.UpdateStateAsync(
                         latest.Id, IdentityJobState.Failed, $"Replaced: the file changed kind and is looked up as {mediaType}.", ct).ConfigureAwait(false);

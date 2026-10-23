@@ -321,7 +321,7 @@ folder jobs; the folder row shows the job's state). The folder row carries no ex
      shows by its file name and embedded tags and a refile plan still has a name to take. A YouTube target reads the file again so the
      video-ID lookup runs under the new library. Any other lookup kind queues a new `Quick` identity job with the new media type, the
      way the Unmatched retry does (once: a job a cut-short attempt already queued is not queued again, and a job still waiting under another
-     media type, left by an earlier stopped change, is closed first so only the one wanted now is open). Picture files cached for the
+     media type, left by an earlier stopped change, is closed first so only the one wanted now is open; a job a worker holds a lease on is left alone, the file is logged failed and the next run closes the job once the worker has let go). Picture files cached for the
      dropped provider pictures (or the looked-up copies that gave way to a person's own) are queued for removal when nothing else uses
      them, only inside the data folder, as the delete paths do.
   3. In a Managed, writable folder the file's filing into the new kind's pattern is queued (`IFilingQueue.RequestFilingAsync`), held

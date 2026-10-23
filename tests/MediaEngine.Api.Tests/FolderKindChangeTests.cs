@@ -641,6 +641,39 @@ public sealed class FolderKindChangeTests : IDisposable
     }
 
     [Fact]
+    public async Task A_file_whose_old_type_identity_job_is_being_worked_on_is_not_closed_stays_unfinished_and_a_later_run_finishes_it()
+    {
+        var folder = _w.AddFolder(_w.MoviesLibrary, "Films", managed: true);
+        var file = _w.AddFile(folder, "film.mkv", MediaType.Movies, "A film");
+        GivePersonalState(file);
+        _w.Filing.FailAfterRequest = 1;
+        var forward = await _w.Service.StartAsync(folder.Id, new() { KindKey = "tv" }, default);
+        await _w.RunWorkerUntilFinishedAsync(forward.OperationId);
+        // A worker takes the TV job before the folder is changed back.
+        var jobs = new IdentityJobRepository(_w.Database);
+        var leased = Assert.Single(await jobs.LeaseNextAsync("retail-worker", [IdentityJobState.Queued], 5, TimeSpan.FromMinutes(10)));
+
+        var back = await _w.Service.StartAsync(folder.Id, new() { KindKey = "movies" }, default);
+        await _w.RunWorkerUntilFinishedAsync(back.OperationId);
+
+        // The worker's job is untouched, and the file is logged as not changed so the next run takes it up.
+        var during = (await jobs.GetByEntityAsync(file.AssetId))!;
+        Assert.Equal((leased.Id, "TV", nameof(IdentityJobState.Queued), "retail-worker"), (during.Id, during.MediaType, during.State, during.LeaseOwner));
+        var done = await _w.Jobs.GetAsync(Guid.Parse(back.OperationId), default);
+        Assert.Equal(("failed", 1), (done!.State, done.ItemsFailed));
+        Assert.Equal(FolderOrganiseOutcomes.Failed, (await _w.Ledger.GetAsync(Guid.Parse(back.OperationId), file.Path))!.Outcome);
+        Assert.Equal(["TV"], UnfinishedJobTypes(file));
+
+        // The worker lets go; starting the same change again closes nothing it still holds and finishes the file.
+        await jobs.UpdateStateAsync(leased.Id, IdentityJobState.Ready);
+        var again = await _w.Service.StartAsync(folder.Id, new() { KindKey = "movies" }, default);
+        await _w.RunWorkerUntilFinishedAsync(again.OperationId);
+
+        Assert.Equal("completed", (await _w.Jobs.GetAsync(Guid.Parse(again.OperationId), default))!.State);
+        AssertFullyChanged(file, _w.MoviesLibrary, "Movies", plainTarget: false, managed: true);
+    }
+
+    [Fact]
     public async Task The_same_file_retried_after_its_identity_job_was_queued_still_has_only_one_identity_job()
     {
         var folder = _w.AddFolder(_w.VideosLibrary, "Films", managed: true);

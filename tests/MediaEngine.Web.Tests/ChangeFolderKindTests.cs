@@ -322,6 +322,26 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AFolderWithNoFilesSaysOnlyItsKindChangesAndLeavesOutTheMoveRefileAndDropLines()
+    {
+        _previewAnswer = new(Preview(p =>
+        {
+            p.FileCount = 0;
+            p.FilesToRefile = 0;
+            p.DropsDetails = true;
+            p.StartsFirstCheck = false;
+            p.OtherAppsWarning = false;
+            p.VisibilityLoss = [];
+        }));
+        _ = OpenDialog();
+
+        GoToImpact();
+
+        Assert.Equal(["This folder has no files yet, so only its kind changes."], Lines.ToArray());
+        Assert.Contains(_dialogs.FindAll("button"), x => Text(x) == "Change folder");
+    }
+
+    [Fact]
     public void ARefusalShowsItsSentenceWithNoChangeFolderButton()
     {
         _previewAnswer = new(null, Refusal: "This folder is being organised, merged or changed right now. Wait for that to finish first.");
