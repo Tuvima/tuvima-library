@@ -1265,6 +1265,7 @@
   FeatureIds: System.Collections.Generic.IReadOnlyList<System.String> | json=feature_ids | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=hidden_library_ids | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   User: MediaEngine.Contracts.Authentication.ManagedProfileUserDto | json=user | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AccessVersion: System.Int64 | json=access_version | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.ManagedProfileUserDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1370,6 +1371,7 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   FeatureIds: System.Collections.Generic.IReadOnlyList<System.String> | json=feature_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=hidden_library_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ExpectedAccessVersion: System.Int64? | json=expected_access_version | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.ResetPasswordTokenRequest
   kind=class | converter=default | number-handling=default | unmapped=default

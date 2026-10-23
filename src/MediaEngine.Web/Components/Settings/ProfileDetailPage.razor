@@ -312,6 +312,8 @@
     private bool _accessLibrariesUnavailable;
     private bool _accessOpen;
     private bool _accessLoading;
+    // The profile's access_version the open sheet's lanes were taken from; the Engine refuses a save made against an older one.
+    private long _accessLoadedVersion;
     private bool _accessSaving;
     private string? _accessError;
     private string? _accessMessage;
@@ -676,6 +678,7 @@
         {
             // The list shows every Library; the ones hidden from this administrator's own profile can't be shown again by them.
             await LoadLibrariesAsync();
+            _accessLoadedVersion = _managedPerson?.AccessVersion ?? 0;
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
@@ -735,15 +738,23 @@
         try
         {
             var lanes = (person.FeatureIds ?? []).Order().ToArray();
+            var loadedVersion = person.AccessVersion;
             var result = await Confirmed.RunAsync(() => Identity.ReplaceProfileAccessResultAsync(
-                ProfileId, new ReplaceProfileAccessRequest(lanes, nextHidden.Order().ToArray())));
+                ProfileId, new ReplaceProfileAccessRequest(lanes, nextHidden.Order().ToArray(), loadedVersion)));
             if (!result.Succeeded)
             {
-                _accessError = AccessFailureMessage(result.Failure, result.Message);
+                await HandleAccessRefusalAsync(result);
                 return false;
             }
 
             await ReloadManagedAsync();
+            // A save raises the profile's version by exactly one, so the lanes still waiting in the sheet stay current only when nothing
+            // else changed either; otherwise the next Save is refused and the person starts again from what is now saved.
+            if (_accessLoadedVersion == loadedVersion && _managedPerson?.AccessVersion == loadedVersion + 1)
+            {
+                _accessLoadedVersion = loadedVersion + 1;
+            }
+
             Toasts.Add(hidden ? $"Hidden from {PersonName}" : $"Shown to {PersonName}", AppSeverity.Success);
             return true;
         }
@@ -775,10 +786,11 @@
         _accessError = null;
         try
         {
-            var result = await Confirmed.RunAsync(() => Identity.ReplaceProfileAccessResultAsync(ProfileId, request));
+            var versioned = request with { ExpectedAccessVersion = _accessLoadedVersion };
+            var result = await Confirmed.RunAsync(() => Identity.ReplaceProfileAccessResultAsync(ProfileId, versioned));
             if (!result.Succeeded)
             {
-                _accessError = AccessFailureMessage(result.Failure, result.Message);
+                await HandleAccessRefusalAsync(result);
                 return;
             }
 
@@ -789,6 +801,32 @@
         finally
         {
             _accessSaving = false;
+        }
+    }
+
+    // A refused access save. When the profile's access changed since this page loaded (409), the Engine saved nothing: read the
+    // profile's access again, say so, and let the sheet start over from what is now saved (the person can tick again).
+    private async Task HandleAccessRefusalAsync(DashboardAccessMutationResult result)
+    {
+        if (result.Failure != DashboardAccessMutationFailure.Conflict)
+        {
+            _accessError = AccessFailureMessage(result.Failure, result.Message);
+            return;
+        }
+
+        _accessLoading = true;
+        StateHasChanged();
+        try
+        {
+            await ReloadManagedAsync();
+            _accessLoadedVersion = _managedPerson?.AccessVersion ?? 0;
+            _accessError = string.IsNullOrWhiteSpace(result.Message)
+                ? "Something changed since you looked. Check the list and try again."
+                : result.Message;
+        }
+        finally
+        {
+            _accessLoading = false;
         }
     }
 

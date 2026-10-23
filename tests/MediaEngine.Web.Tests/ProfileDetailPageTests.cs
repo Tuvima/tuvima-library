@@ -736,6 +736,66 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AccessEditor_SendsTheVersionItLoaded_WithEachTick_AndWithSaveAfterwards()
+    {
+        Setup(actions: ["access.manage"], navigation: ["settings.administration"]);
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, serverAdmin: true, signInEmail: "me@home.test"),
+            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read", "watch"]) with { AccessVersion = 7 }]);
+        TwoReadLibraries();
+        var cut = await OpenAccessSheetAsync();
+
+        await cut.InvokeAsync(() => LibraryTick(cut, LibraryA).Change(false));
+        cut.WaitForAssertion(() => Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/access", StringComparison.Ordinal)));
+        await ClickSaveAsync(cut);
+
+        cut.WaitForAssertion(() => Assert.Equal(2, _requests.Count(request => request.Method == HttpMethod.Put && request.Path.EndsWith("/access", StringComparison.Ordinal))));
+        var puts = _requests.Where(request => request.Method == HttpMethod.Put && request.Path.EndsWith("/access", StringComparison.Ordinal)).ToList();
+        using var tick = System.Text.Json.JsonDocument.Parse(puts[0].Body);
+        using var save = System.Text.Json.JsonDocument.Parse(puts[1].Body);
+        Assert.Equal(7, tick.RootElement.GetProperty("expected_access_version").GetInt64());
+        // The tick raised the version by one and nothing else changed, so the lanes in the sheet are still current.
+        Assert.Equal(8, save.RootElement.GetProperty("expected_access_version").GetInt64());
+    }
+
+    [Fact]
+    public async Task AccessEditor_WhenTheAccessChangedSinceItLoaded_ReloadsIt_SaysSo_AndLeavesTheTickUnapplied()
+    {
+        Setup(actions: ["access.manage"], navigation: ["settings.administration"]);
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true, serverAdmin: true, signInEmail: "me@home.test"),
+            Person(SamId, "Sam", false, signInEmail: "sam@home.test", features: ["read", "watch"]) with { AccessVersion = 7 }]);
+        TwoReadLibraries();
+        var cut = await OpenAccessSheetAsync();
+        Assert.True(LibraryTick(cut, LibraryB).HasAttribute("checked"));
+
+        // Someone else hid Comics after this page loaded; the Engine now refuses a save made against the old version.
+        var sam = _managed.FindIndex(person => person.Id == SamId);
+        _managed[sam] = _managed[sam] with { HiddenLibraryIds = [LibraryB], AccessVersion = 8 };
+        _accessSaveStatus = HttpStatusCode.Conflict;
+        _accessSaveDetail = "Something changed since you looked. Check the list and try again.";
+        var listReadsBefore = _requests.Count(request => request.Method == HttpMethod.Get && request.Path == "/access/profiles");
+
+        await cut.InvokeAsync(() => LibraryTick(cut, LibraryA).Change(false));
+
+        cut.WaitForAssertion(() => Assert.Contains("Something changed since you looked. Check the list and try again.",
+            cut.Find(".profile-access-sheet [role='alert']").TextContent));
+        Assert.True(_requests.Count(request => request.Method == HttpMethod.Get && request.Path == "/access/profiles") > listReadsBefore);
+        // The tick on Books was not applied (it shows as before) and Comics now shows what the other person saved.
+        cut.WaitForAssertion(() => Assert.False(LibraryTick(cut, LibraryB).HasAttribute("checked")));
+        Assert.True(LibraryTick(cut, LibraryA).HasAttribute("checked"));
+        Assert.NotEmpty(cut.FindAll(".profile-access-sheet"));
+        Assert.DoesNotContain(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Hidden from Sam");
+
+        // They can tick again once the Engine takes the current version.
+        _accessSaveStatus = HttpStatusCode.NoContent;
+        _accessSaveDetail = null;
+        await cut.InvokeAsync(() => LibraryTick(cut, LibraryA).Change(false));
+        cut.WaitForAssertion(() => Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Hidden from Sam"));
+        var lastPut = _requests.Last(request => request.Method == HttpMethod.Put && request.Path.EndsWith("/access", StringComparison.Ordinal));
+        using var body = System.Text.Json.JsonDocument.Parse(lastPut.Body);
+        Assert.Equal(8, body.RootElement.GetProperty("expected_access_version").GetInt64());
+    }
+
+    [Fact]
     public async Task AccessEditor_OffersEveryLane_ToAServerAdministrator()
     {
         Setup(actions: ["access.manage"], navigation: ["settings.administration"]);
@@ -1114,6 +1174,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         {
             FeatureIds = document.RootElement.GetProperty("feature_ids").EnumerateArray().Select(item => item.GetString()!).ToList(),
             HiddenLibraryIds = document.RootElement.GetProperty("hidden_library_ids").EnumerateArray().Select(item => item.GetGuid()).ToList(),
+            AccessVersion = _managed[index].AccessVersion + 1,
         };
     }
 

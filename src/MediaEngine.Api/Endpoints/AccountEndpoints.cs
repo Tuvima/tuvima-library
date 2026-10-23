@@ -643,7 +643,7 @@ public static class AccountEndpoints
 
             await mutations.ReplaceProfileAccessAsync(await resolver.ResolveAsync(http, ct), profileId,
                 request.FeatureIds.Select(id => new AccountFeatureId(id)).ToHashSet(),
-                request.HiddenLibraryIds.ToHashSet(), ct);
+                request.HiddenLibraryIds.ToHashSet(), request.ExpectedAccessVersion, ct);
             return Results.NoContent();
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("ReplaceProfileAccess")
@@ -849,7 +849,8 @@ public static class AccountEndpoints
             profile.CreatedAt, profile.HouseholdId,
             profile.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile,
             profile.AvatarIcon, profile.ContentLimit, profile.ContentLimitAllowUnrated,
-            profile.IsServerAdministrator, profile.IsHouseholdAdministrator);
+            profile.IsServerAdministrator, profile.IsHouseholdAdministrator,
+            AccessVersion: profile.AuthorizationVersion);
 
     /// <summary>A profile with its roles, what it may use and the user it opens, for the lists that manage profiles.</summary>
     private static async Task<ManagedProfileResponse> MapProfileDetailAsync(

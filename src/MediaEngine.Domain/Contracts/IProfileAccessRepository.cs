@@ -26,8 +26,11 @@ public interface IProfileAccessRepository
     /// Replaces the profile's feature access and its hidden libraries in one step and raises its authorization version. Returns
     /// <see langword="false"/> when the profile does not exist. The Vault can never be hidden or shown as a library.
     /// <paramref name="changedByProfileId"/> is the administrator's profile that saved it, kept on each hidden row.
+    /// <paramref name="expectedAuthorizationVersion"/> is the version the caller loaded; when it is not <see langword="null"/> and is no
+    /// longer the profile's version, <see cref="ProfileAccessChangedException"/> is thrown and nothing is changed (checked in the same
+    /// transaction as the write).
     /// </summary>
-    Task<bool> ReplaceAccessAsync(Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, DateTimeOffset changedAt, CancellationToken ct = default, Guid? changedByProfileId = null);
+    Task<bool> ReplaceAccessAsync(Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, DateTimeOffset changedAt, CancellationToken ct = default, Guid? changedByProfileId = null, long? expectedAuthorizationVersion = null);
 
     /// <summary>The profile's administrator roles, or <see langword="null"/> when the profile does not exist.</summary>
     Task<ProfileAdminFlags?> GetAdminFlagsAsync(Guid profileId, CancellationToken ct = default);

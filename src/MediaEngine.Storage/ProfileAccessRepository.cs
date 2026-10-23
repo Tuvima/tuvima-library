@@ -37,16 +37,24 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
 
     public Task<bool> ReplaceAccessAsync(
         Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, DateTimeOffset changedAt,
-        CancellationToken ct = default, Guid? changedByProfileId = null)
+        CancellationToken ct = default, Guid? changedByProfileId = null, long? expectedAuthorizationVersion = null)
     {
         ArgumentNullException.ThrowIfNull(features);
         ArgumentNullException.ThrowIfNull(hiddenLibraries);
         return db.ExecuteWriteAsync((conn, tx, token) =>
         {
             token.ThrowIfCancellationRequested();
-            if (!ProfileExists(conn, tx, profileId))
+            var currentVersion = conn.QueryFirstOrDefault<long?>(
+                "SELECT authorization_version FROM profiles WHERE id=@profileId;", new { profileId }, tx);
+            if (currentVersion is null)
             {
                 return false;
+            }
+
+            // Checked in the write transaction itself, so a change saved a moment ago is never silently undone.
+            if (expectedAuthorizationVersion is { } expected && expected != currentVersion)
+            {
+                throw new ProfileAccessChangedException();
             }
 
             WriteAccessRows(conn, tx, profileId, features, hiddenLibraries, changedAt, changedByProfileId);

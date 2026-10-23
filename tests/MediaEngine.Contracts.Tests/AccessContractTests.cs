@@ -105,6 +105,17 @@ public sealed class AccessContractTests
     }
 
     [Fact]
+    public void ManagedProfileCarriesItsAccessVersion_ThatTheAccessSaveSendsBack()
+    {
+        var profile = new ManagedProfileResponse(Guid.Empty, "Sam", "#112233", null, DateTimeOffset.UnixEpoch, AccessVersion: 5);
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(profile));
+        Assert.Equal(5, document.RootElement.GetProperty("access_version").GetInt64());
+        Assert.Equal(0, JsonSerializer.Deserialize<ManagedProfileResponse>(
+            "{\"id\":\"00000000-0000-0000-0000-000000000000\",\"display_name\":\"Sam\",\"avatar_color\":\"#112233\",\"avatar_path\":null,\"created_at\":\"1970-01-01T00:00:00+00:00\"}")!.AccessVersion);
+    }
+
+    [Fact]
     public void AccessResponsesContainNoSecretOrHashProperties()
     {
         var responseTypes = new[]
@@ -289,8 +300,14 @@ public sealed class AccessContractTests
         var library = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
         Assert.Equal(
-            "{\"feature_ids\":[\"read\"],\"hidden_library_ids\":[\"33333333-3333-3333-3333-333333333333\"]}",
+            "{\"feature_ids\":[\"read\"],\"hidden_library_ids\":[\"33333333-3333-3333-3333-333333333333\"],\"expected_access_version\":null}",
             JsonSerializer.Serialize(new ReplaceProfileAccessRequest(["read"], [library])));
+        Assert.Equal(
+            "{\"feature_ids\":[],\"hidden_library_ids\":[],\"expected_access_version\":7}",
+            JsonSerializer.Serialize(new ReplaceProfileAccessRequest([], [], 7)));
+        Assert.Equal(7, JsonSerializer.Deserialize<ReplaceProfileAccessRequest>(
+            "{\"feature_ids\":[],\"hidden_library_ids\":[],\"expected_access_version\":7}")!.ExpectedAccessVersion);
+        Assert.Null(JsonSerializer.Deserialize<ReplaceProfileAccessRequest>("{\"feature_ids\":[],\"hidden_library_ids\":[]}")!.ExpectedAccessVersion);
         Assert.Equal(
             "{\"is_household_admin\":true,\"is_server_admin\":false}",
             JsonSerializer.Serialize(new SetProfileRolesRequest(true, false)));
@@ -303,7 +320,7 @@ public sealed class AccessContractTests
         var hidden = Guid.NewGuid();
         var json = JsonSerializer.Serialize(new ReplaceProfileAccessRequest(["watch"], [hidden]));
 
-        Assert.Equal($"{{\"feature_ids\":[\"watch\"],\"hidden_library_ids\":[\"{hidden}\"]}}", json);
+        Assert.Equal($"{{\"feature_ids\":[\"watch\"],\"hidden_library_ids\":[\"{hidden}\"],\"expected_access_version\":null}}", json);
         Assert.DoesNotContain("\"library_ids\":", json, StringComparison.Ordinal);
         Assert.DoesNotContain("library_grants", JsonSerializer.Serialize(new ManagedProfileResponse(
             Guid.NewGuid(), "Sam", "#7C4DFF", null, DateTimeOffset.UtcNow, HiddenLibraryIds: [hidden])), StringComparison.Ordinal);

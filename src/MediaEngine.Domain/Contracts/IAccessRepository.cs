@@ -242,9 +242,11 @@ public interface IAccountAccessMutationService
     /// Replaces the Read/Watch/Listen/View access and the hidden libraries of a profile (every library in its areas is visible unless
     /// hidden, simpler access D2). A server administrator may set anything; a household administrator only within their own household,
     /// only features their own profile holds, only libraries visible to their own profile (they cannot show what is hidden from
-    /// themselves, simpler access D4), and never on a server administrator's profile.
+    /// themselves, simpler access D4), and never on a server administrator's profile. <paramref name="expectedAccessVersion"/> is the
+    /// version of the profile's access the caller loaded; when it is no longer current <see cref="ProfileAccessChangedException"/> is
+    /// thrown and nothing changes (<see langword="null"/>, for application callers, skips the check).
     /// </summary>
-    Task ReplaceProfileAccessAsync(RequestAuthority actor, Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, CancellationToken ct = default);
+    Task ReplaceProfileAccessAsync(RequestAuthority actor, Guid profileId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries, long? expectedAccessVersion = null, CancellationToken ct = default);
     /// <summary>
     /// Sets the household administrator and server administrator roles of a profile (D15, D17). A household administrator may change
     /// the household administrator role of profiles in their own household; only a server administrator changes the server

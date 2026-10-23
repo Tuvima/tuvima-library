@@ -765,6 +765,7 @@ public sealed class AccountAccessMutationService(
         Guid profileId,
         IReadOnlySet<AccountFeatureId> features,
         IReadOnlySet<Guid> hiddenLibraries,
+        long? expectedAccessVersion = null,
         CancellationToken ct = default)
     {
         // Held so the access a household administrator may hand out is the one they hold at the moment it is saved.
@@ -789,7 +790,8 @@ public sealed class AccountAccessMutationService(
         }
 
         // The profile's version goes up with the change, so its open sessions and paired apps check again.
-        if (!await profileAccess.ReplaceAccessAsync(profileId, features, hiddenLibraries, clock.GetUtcNow(), ct, actor.ActiveProfileId).ConfigureAwait(false))
+        // The version the caller loaded is checked in that same write, so a change made since then is refused, not undone.
+        if (!await profileAccess.ReplaceAccessAsync(profileId, features, hiddenLibraries, clock.GetUtcNow(), ct, actor.ActiveProfileId, expectedAccessVersion).ConfigureAwait(false))
         {
             throw new KeyNotFoundException("Profile not found.");
         }

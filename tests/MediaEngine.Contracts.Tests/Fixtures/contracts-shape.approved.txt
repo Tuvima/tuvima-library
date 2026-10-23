@@ -1079,6 +1079,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Manage
   FeatureIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
   HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=nullable | accessors=get,init
   User: MediaEngine.Contracts.Authentication.ManagedProfileUserDto | nullability=nullable | accessors=get,init
+  AccessVersion: System.Int64 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ManagedProfileUserDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -1163,6 +1164,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Rename
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ReplaceProfileAccessRequest
   FeatureIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   HiddenLibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+  ExpectedAccessVersion: System.Int64? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ResetPasswordTokenRequest
   Token: System.String | nullability=not-null | accessors=get,init

@@ -315,6 +315,87 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
         Assert.Equal(["read", "watch"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray());
     }
 
+    // ---- A stale access save never undoes a newer change ----
+
+    [Fact]
+    public async Task TheProfileList_CarriesEachProfilesAccessVersion_ThatTheNextSaveCanSendBack()
+    {
+        await using var world = await World.CreateAsync();
+        await using var host = EndpointHost.Create(world);
+
+        var listed = await host.InvokeAsync("/access/profiles/", "GET", new Dictionary<string, object>());
+
+        Assert.Equal(StatusCodes.Status200OK, listed.Status);
+        using var document = System.Text.Json.JsonDocument.Parse(listed.Body);
+        var kim = document.RootElement.EnumerateArray()
+            .Single(profile => profile.GetProperty("id").GetGuid() == world.KimProfile.Id);
+        Assert.Equal((await world.Access.GetAdminFlagsAsync(world.KimProfile.Id))!.AuthorizationVersion,
+            kim.GetProperty("access_version").GetInt64());
+    }
+
+    [Fact]
+    public async Task SavingAProfilesAccess_WithAStaleVersion_IsRefusedWithAConflict_AndChangesNothing()
+    {
+        await using var world = await World.CreateAsync();
+        await using var host = EndpointHost.Create(world);
+        var route = new Dictionary<string, object> { ["profileId"] = world.KimProfile.Id };
+        var hidden = Guid.NewGuid();
+        await world.Access.ReplaceAccessAsync(world.KimProfile.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>(), DateTimeOffset.UtcNow);
+        var loaded = (await world.Access.GetAdminFlagsAsync(world.KimProfile.Id))!.AuthorizationVersion;
+
+        // Someone else hides a library from the profile after this page loaded.
+        await world.Access.ReplaceAccessAsync(world.KimProfile.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { hidden }, DateTimeOffset.UtcNow);
+        var current = (await world.Access.GetAdminFlagsAsync(world.KimProfile.Id))!.AuthorizationVersion;
+
+        var stale = await host.InvokeAsync("/access/profiles/{profileId:guid}/access", "PUT", route,
+            body: $$"""{"feature_ids":["read","watch"],"hidden_library_ids":[],"expected_access_version":{{loaded}}}""");
+
+        Assert.Equal(StatusCodes.Status409Conflict, stale.Status);
+        Assert.Contains("Something changed since you looked. Check the list and try again.", stale.Body, StringComparison.Ordinal);
+        Assert.Equal(["read"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).ToArray());
+        Assert.Equal([hidden], (await world.Access.GetHiddenLibrariesAsync(world.KimProfile.Id)).ToArray());
+        Assert.Equal(current, (await world.Access.GetAdminFlagsAsync(world.KimProfile.Id))!.AuthorizationVersion);
+    }
+
+    [Fact]
+    public async Task SavingAProfilesAccess_WithTheCurrentVersion_Saves_AndRaisesTheVersion()
+    {
+        await using var world = await World.CreateAsync();
+        await using var host = EndpointHost.Create(world);
+        var route = new Dictionary<string, object> { ["profileId"] = world.KimProfile.Id };
+        var loaded = (await world.Access.GetAdminFlagsAsync(world.KimProfile.Id))!.AuthorizationVersion;
+
+        var saved = await host.InvokeAsync("/access/profiles/{profileId:guid}/access", "PUT", route,
+            body: $$"""{"feature_ids":["read","watch"],"hidden_library_ids":[],"expected_access_version":{{loaded}}}""");
+
+        Assert.Equal(StatusCodes.Status204NoContent, saved.Status);
+        Assert.Equal(["read", "watch"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray());
+        var afterSave = (await world.Access.GetAdminFlagsAsync(world.KimProfile.Id))!.AuthorizationVersion;
+        Assert.True(afterSave > loaded);
+
+        // The version the first save used is now old: a second save made from the same page is refused, not applied.
+        var again = await host.InvokeAsync("/access/profiles/{profileId:guid}/access", "PUT", route,
+            body: $$"""{"feature_ids":["read"],"hidden_library_ids":[],"expected_access_version":{{loaded}}}""");
+        Assert.Equal(StatusCodes.Status409Conflict, again.Status);
+        Assert.Equal(["read", "watch"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).Order().ToArray());
+    }
+
+    [Fact]
+    public async Task SavingAProfilesAccess_WithNoVersion_KeepsThePlainReplaceForApplications()
+    {
+        await using var world = await World.CreateAsync();
+        await using var host = EndpointHost.Create(world);
+        var route = new Dictionary<string, object> { ["profileId"] = world.KimProfile.Id };
+
+        var saved = await host.InvokeAsync("/access/profiles/{profileId:guid}/access", "PUT", route,
+            body: """{"feature_ids":["listen"],"hidden_library_ids":[]}""");
+
+        Assert.Equal(StatusCodes.Status204NoContent, saved.Status);
+        Assert.Equal(["listen"], (await world.Access.GetFeatureGrantsAsync(world.KimProfile.Id)).Select(feature => feature.Value).ToArray());
+    }
+
     // ---- Passwords before a second household carry a code ----
 
     [Fact]
@@ -367,6 +448,9 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
             builder.Services.AddSingleton(world.Management);
             builder.Services.AddSingleton<IAccountAccessMutationService>(world.Mutations);
             builder.Services.AddSingleton(new RecentSignInGuard(null!));
+            builder.Services.AddSingleton<IProfileRepository>(world.Profiles);
+            builder.Services.AddSingleton<IAccountRepository>(world.Accounts);
+            builder.Services.AddSingleton<IProfileAccessRepository>(world.Access);
 
             var app = builder.Build();
             app.MapAccountEndpoints();
