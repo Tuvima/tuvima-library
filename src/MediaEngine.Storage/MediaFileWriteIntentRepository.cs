@@ -42,8 +42,10 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
     // Library writes nothing into a file it could not match, kept as it is or not (Library setup D64, D34): its tag requests stay pending
     // and are written once a lookup identifies the file and its Unmatched row goes. A row of a View item has no asset and is never held back.
     // The rule is for Library's own automatic writes: a tag write a person asked for with an explicit edit (Editing Mode) is written as normal.
+    private static readonly string PersonsEditTriggers = string.Join(", ", MediaFileWriteTriggers.PersonsEdits.Select(trigger => $"'{trigger}'"));
+
     private static readonly string NoOpenUnmatchedRow = $"""
-        (i.trigger IN ({string.Join(", ", MediaFileWriteTriggers.PersonsEdits.Select(trigger => $"'{trigger}'"))})
+        (i.trigger IN ({PersonsEditTriggers})
          OR NOT EXISTS (SELECT 1 FROM unmatched_assets um WHERE um.asset_id = i.asset_id))
         """;
 
@@ -51,8 +53,9 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
     // in, including being written right now) bumps the generation and puts it back to pending, so the write that is in flight cannot
     // mark the newer version done. A move in progress is never cleared: the first step recorded wins until the move is finished.
     // The one exception is a person's own move asked for while an automatic filing waits or is held: theirs is done at once, so the
-    // row becomes a requested move of the person's. An id that is not a media asset adds nothing.
-    private const string UpsertAssetSql = """
+    // row becomes a requested move of the person's. An id that is not a media asset adds nothing. A person's edit that has not been written yet
+    // keeps its trigger when an automatic request lands on the row, so it is still written while its file is Unmatched.
+    private static readonly string UpsertAssetSql = $"""
         INSERT INTO media_file_write_intents
             (id, target_kind, asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at, move_step, move_origin)
         SELECT @id, 'media_asset', @assetId, 1, @token, @trigger, 'pending', 0, @now, @now, @moveStep,
@@ -63,6 +66,9 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database,
             operation_token = excluded.operation_token,
             trigger = CASE
                 WHEN media_file_write_intents.trigger = 'library_move' AND media_file_write_intents.move_step IS NOT NULL
+                THEN media_file_write_intents.trigger
+                WHEN media_file_write_intents.trigger IN ({PersonsEditTriggers}) AND excluded.trigger NOT IN ({PersonsEditTriggers})
+                     AND media_file_write_intents.status IN ('pending', 'writing')
                 THEN media_file_write_intents.trigger
                 ELSE excluded.trigger END,
             status = 'pending', attempts = 0, lease_expires_at = NULL, last_error = NULL, completed_at = NULL,

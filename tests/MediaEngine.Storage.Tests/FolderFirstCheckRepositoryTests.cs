@@ -351,6 +351,30 @@ public sealed class FolderFirstCheckRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task APersonsEditNotYetWritten_KeepsItsTrigger_WhenAnAutomaticRequestLandsOnTheSameRow()
+    {
+        var unmatched = AddAsset("D:/Media/Music/Edited.flac");
+        Execute("""
+            INSERT INTO unmatched_assets(asset_id,library_id,reason,first_unmatched_at,last_tried_at,next_retry_at,kept_as_is)
+            VALUES(@unmatched,'music','no_match','2026-10-22T09:00:00.0000000Z','2026-10-22T09:00:00.0000000Z',NULL,1);
+            """, new { unmatched });
+
+        await _intents.EnqueueAssetsAsync([unmatched], "editor_commit");
+        await _intents.EnqueueAssetsAsync([unmatched], "auto_match");
+
+        Assert.Equal("editor_commit", Scalar<string>("SELECT trigger FROM media_file_write_intents WHERE asset_id=@unmatched;", new { unmatched }));
+        var claimed = await _intents.ClaimBatchAsync("media_asset", 10, TimeSpan.FromMinutes(1), DateTimeOffset.UtcNow.AddHours(1));
+        var row = Assert.Single(claimed);
+        Assert.Equal(unmatched, row.AssetId);
+
+        // Once the edit is written, a later automatic request is an ordinary one again and waits for the file to be identified.
+        Assert.True(await _intents.CompleteByIdAsync(row.Id, row.Generation, "verified"));
+        await _intents.EnqueueAssetsAsync([unmatched], "auto_match");
+        Assert.Equal("auto_match", Scalar<string>("SELECT trigger FROM media_file_write_intents WHERE asset_id=@unmatched;", new { unmatched }));
+        Assert.Empty(await _intents.ClaimBatchAsync("media_asset", 10, TimeSpan.FromMinutes(1), DateTimeOffset.UtcNow.AddHours(1)));
+    }
+
+    [Fact]
     public async Task ARowHeldBackOnlyBecauseItsFileIsUnmatched_IsNotCountedAsWaiting_ButIsKept()
     {
         var kept = AddAsset("D:/Media/Music/Kept.flac");
