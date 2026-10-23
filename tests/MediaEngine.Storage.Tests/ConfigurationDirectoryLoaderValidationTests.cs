@@ -132,7 +132,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             {
                 AllowMobileBackup = false,
                 AllowConnectedDeviceImport = false,
-                DefaultVisibility = LibraryVisibility.Shared,
             },
             Libraries =
             [
@@ -165,7 +164,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                         },
                     ],
                     PrimaryDestinationSourceId = "44444444-aaaa-4444-8444-444444444444",
-                    Visibility = LibraryVisibility.Household,
                     AcceptedIntakeModes = [LibraryIntakeModes.DragAndDrop, LibraryIntakeModes.BrowserUpload],
                     OrganizationPolicy = new()
                     {
@@ -192,20 +190,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         Assert.False(roundTrip.Sources[1].AllowsFileMutation);
         Assert.False(loader.LoadLibraries().PersonalLibraryPolicy.AllowMobileBackup);
         Assert.False(loader.LoadLibraries().PersonalLibraryPolicy.AllowConnectedDeviceImport);
-        Assert.Equal(LibraryVisibility.Shared, loader.LoadLibraries().PersonalLibraryPolicy.DefaultVisibility);
-    }
-
-    [Fact]
-    public void SaveLibraries_RejectsUnsupportedPersonalLibraryDefaultVisibility()
-    {
-        using var temp = TempConfig.Create();
-        var loader = new ConfigurationDirectoryLoader(temp.Path);
-        var config = CreateValidCataloguedLibrary();
-        config.PersonalLibraryPolicy.DefaultVisibility = "organization_wide";
-
-        var ex = Assert.Throws<ConfigValidationException>(() => loader.SaveLibraries(config));
-
-        Assert.Contains("personal_library_policy.default_visibility", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -278,7 +262,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                     Area = LibraryAreas.View,
                     Presentation = LibraryPresentations.Video,
                     MetadataPolicy = "provider_guessing",
-                    OwnerProfileId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
                     Sources =
                     [
                         new LibrarySourceConfig
@@ -381,6 +364,49 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         Assert.Contains("intake_role is not supported", ex.Message);
         Assert.Contains("accepts_new_media is not supported", ex.Message);
         Assert.Contains("preserve_originals is not supported", ex.Message);
+    }
+
+    [Fact]
+    public void LoadLibraries_RefusesTheOlderSevenPointZeroFormatWithAPlainMessage()
+    {
+        using var temp = TempConfig.Create();
+        new ConfigurationDirectoryLoader(temp.Path).SaveLibraries(CreateValidCataloguedLibrary());
+        var path = System.IO.Path.Combine(temp.Path, "libraries.json");
+        File.WriteAllText(path, File.ReadAllText(path).Replace("\"8.0\"", "\"7.0\"", StringComparison.Ordinal));
+        File.Delete(path + ".bak");
+
+        var ex = Assert.Throws<ConfigValidationException>(() => new ConfigurationDirectoryLoader(temp.Path).LoadLibraries());
+
+        Assert.Contains("older 7.0 format", ex.Message);
+        Assert.Contains("fresh default", ex.Message);
+    }
+
+    [Fact]
+    public void LoadLibraries_AcceptsSuitableForLimitedProfilesOnAFolder_AndRoundTripsIt()
+    {
+        using var temp = TempConfig.Create();
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].Sources[0].OkForLimitedProfiles = true;
+
+        loader.SaveLibraries(config);
+
+        Assert.True(loader.LoadLibraries().Libraries[0].Sources[0].OkForLimitedProfiles);
+        Assert.Contains("\"ok_for_limited_profiles\": true", File.ReadAllText(System.IO.Path.Combine(temp.Path, "libraries.json")));
+    }
+
+    [Fact]
+    public void LoadLibraries_RejectsTheOldLibraryLevelSuitableForLimitedProfilesAsUnsupported()
+    {
+        using var temp = TempConfig.Create();
+        new ConfigurationDirectoryLoader(temp.Path).SaveLibraries(CreateValidCataloguedLibrary());
+        var path = System.IO.Path.Combine(temp.Path, "libraries.json");
+        File.WriteAllText(path, File.ReadAllText(path).Replace("\"youtube_lookup\"", "\"ok_for_limited_profiles\": true, \"youtube_lookup\"", StringComparison.Ordinal));
+        File.Delete(path + ".bak");
+
+        var ex = Assert.Throws<ConfigValidationException>(() => new ConfigurationDirectoryLoader(temp.Path).LoadLibraries());
+
+        Assert.Contains("ok_for_limited_profiles is not supported", ex.Message);
     }
 
     [Fact]
@@ -543,7 +569,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             Assert.DoesNotContain("\"role\"", json, StringComparison.Ordinal);
             Assert.DoesNotContain("preserve_originals", json, StringComparison.Ordinal);
             var parsed = System.Text.Json.JsonSerializer.Deserialize<LibrariesConfiguration>(json)!;
-            Assert.Equal("7.0", parsed.SchemaVersion);
+            Assert.Equal("8.0", parsed.SchemaVersion);
             Assert.Equal(LibraryDuplicatePolicies.KeepOne, parsed.FileHandling.DuplicatePolicy);
             Assert.NotEmpty(parsed.Libraries);
             Assert.All(parsed.Libraries, library => Assert.NotNull(library.PrimaryDestination));
@@ -915,7 +941,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                     },
                 ],
                 PrimaryDestinationSourceId = "aaaaaaaa-bbbb-4aaa-8aaa-aaaaaaaaaaaa",
-                Visibility = LibraryVisibility.Household,
                 AcceptedIntakeModes = [LibraryIntakeModes.IncomingFolder],
                 OrganizationPolicy = new()
                 {
@@ -947,8 +972,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             },
         ],
             PrimaryDestinationSourceId = sourceId,
-            OwnerProfileId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-            Visibility = LibraryVisibility.Private,
             AcceptedIntakeModes = [LibraryIntakeModes.BrowserUpload],
             OrganizationPolicy = new() { Mode = LibraryOrganizationModes.CaptureYearMonth },
         };

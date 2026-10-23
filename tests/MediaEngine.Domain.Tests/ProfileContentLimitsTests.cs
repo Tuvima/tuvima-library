@@ -86,6 +86,28 @@ public sealed class ProfileContentLimitsTests
     public void Allows_AppliesTheLimitAndTheUnratedChoice(string? limit, bool allowUnrated, string? rating, bool expected) =>
         Assert.Equal(expected, ProfileContentLimits.Allows(limit, allowUnrated, rating));
 
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("  ", true)]
+    [InlineData("NR", true)]
+    [InlineData("nr", true)]
+    [InlineData("Not Rated", true)]
+    [InlineData("NOT_RATED", true)]
+    [InlineData("not-rated", true)]
+    [InlineData("Unrated", true)]
+    [InlineData("NR|Unrated", true)]
+    [InlineData("PG", false)]
+    [InlineData("PG|NR", false)]
+    [InlineData("R18+", false)]
+    [InlineData("BBFC 18", false)]
+    [InlineData("R21", false)]
+    [InlineData("M18", false)]
+    [InlineData("III", false)]
+    [InlineData("something odd", false)]
+    public void IsUnrated_IsTrueOnlyForABlankOrAnOutrightNotRated(string? rating, bool expected) =>
+        Assert.Equal(expected, ProfileContentLimits.IsUnrated(rating));
+
     [Fact]
     public void NewKidsProfilesStartOnPg() => Assert.Equal("PG", ProfileContentLimits.KidsDefault);
 }

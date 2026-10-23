@@ -26,7 +26,8 @@ Libraries is **Settings > Libraries**, in three levels: Watch, Listen, Read and 
    - A Watch folder that looks like untouched phone footage (for example `DCIM` with `IMG_` files) gets a hint with **Add to View instead**. Nothing is saved until the last step.
    - Paths are shown as the server sees them. On Docker that means paths inside the container, such as `/library`, not paths on your computer.
    - If a path does not exist, the picker says so in plain words.
-   - Choosing the YouTube kind looks videos up on YouTube by their ID; the Videos (Other videos) kind never looks anything up. There is no YouTube switch: the kind decides. Videos libraries also have the **OK for limited profiles** switch; removing a Videos folder never touches the files.
+   - Choosing the YouTube kind looks videos up on YouTube by their ID; the Videos (Other videos) kind never looks anything up. There is no YouTube switch: the kind decides. Removing a Videos folder never touches the files.
+   - Every folder row has a **Suitable for limited profiles** switch (not on a Vault folder). Unrated items from that folder, such as saved videos or audiobooks with no rating, are then shown to profiles with a rating limit; rated items still follow each profile's limit. It saves straight away.
    - Every library type has a **Recycle bin** switch (on for Videos). With it on, a deleted file is kept in Library's own data folder instead of being removed straight away. Settings lists what is waiting there; **Put back** returns a file to where it was (nothing is ever overwritten) and **Empty recycle bin** removes everything for good.
 3. In the **How** step, if the folder already has files, choose **Read-only** (recommended), **Merge into your managed folder**, or **Let Library manage it**. An empty folder only asks whether new media should go there. **Add folder** saves it; the dialog then offers **Go to** the type or **Add another**.
 

@@ -1651,7 +1651,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     private AuthorizedDisplayProjectionReadService CreateService(
         DefaultHttpContext context,
         IRawDisplayProjectionReadService raw,
-        IConfigurationLoader? configuration = null)
+        IConfigurationLoader? configuration = null,
+        bool registerSuitableFolders = true)
     {
         var accessor = new HttpContextAccessor { HttpContext = context };
         var unlocks = new GrantAdminUnlockService(
@@ -1672,10 +1673,12 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             _accounts,
             evaluator,
             _database,
-            configuration);
+            configuration,
+            clock: null,
+            suitableFolders: registerSuitableFolders ? new SuitableFolderAssetRepository(_database) : null);
     }
 
-    private CatalogueResourceAuthorizationService CreateResourceService(DefaultHttpContext context)
+    private CatalogueResourceAuthorizationService CreateResourceService(DefaultHttpContext context, IConfigurationLoader? configuration = null)
     {
         var accessor = new HttpContextAccessor { HttpContext = context };
         var decisions = new AccountAccessDecisionService(
@@ -1694,7 +1697,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 _applications,
                 new PermissionRegistry(),
                 new AuthorizationAuditWriter(_accounts),
-                accessor));
+                accessor),
+            configuration);
     }
 
     private Task CreateHumanAsync(

@@ -986,6 +986,78 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Equal(footer.OuterHtml, cut.Find(".library-folders__detail .app-card__body").LastElementChild!.OuterHtml);
     }
 
+    // Simpler access D7: every folder row of every type carries the switch, with the same tooltip, and the old library-level switch is gone.
+    [Fact]
+    public void EveryFolderRowOfEveryTypeHasASuitableForLimitedProfilesSwitchWithItsTooltip()
+    {
+        AddNamedVideoLibraries();
+        _configuration.Libraries.Add(new() { Id = "77777777-7777-4777-8777-777777777771", Name = "Music", KindKey = "music", Area = "listen", MediaTypes = ["Music"], Sources = [new() { Id = "music-1", Path = "C:\\media\\Music" }] });
+        _configuration.Libraries.Add(new() { Id = "77777777-7777-4777-8777-777777777772", Name = "Books", KindKey = "books", Area = "read", MediaTypes = ["Books"], Sources = [new() { Id = "books-1", Path = "C:\\media\\Books" }] });
+        _configuration.Libraries.Add(new() { Id = "77777777-7777-4777-8777-777777777773", Name = "Comics", KindKey = "comics", Area = "read", MediaTypes = ["Comics"], Sources = [new() { Id = "comics-1", Path = "C:\\media\\Comics" }] });
+
+        foreach (var label in new[] { "Movies", "TV Shows", "Videos", "Music", "Audiobooks", "Books", "Comics" })
+        {
+            var cut = Open(label);
+            var rows = cut.FindAll(".folder-table__row");
+            Assert.NotEmpty(rows);
+            Assert.All(rows, row =>
+            {
+                var holder = row.QuerySelector(".folder-table__limited");
+                Assert.NotNull(holder);
+                Assert.Equal(LibraryFolderTable.SuitableForLimitedHint, holder!.GetAttribute("title"));
+                Assert.Contains("Suitable for limited profiles", Text(holder));
+            });
+            Assert.DoesNotContain("OK for limited profiles", cut.Markup);
+        }
+    }
+
+    [Fact]
+    public void TurningOnTheSwitchSavesThatFolderStraightAway_AndLeavesTheOthersAlone()
+    {
+        var cut = Open("Movies");
+        var row = cut.FindAll(".folder-table__row")[1];
+
+        row.QuerySelector(".folder-table__limited input[type=checkbox]")!.Change(true);
+
+        cut.WaitForAssertion(() => Assert.NotNull(_lastLibrary));
+        Assert.Equal(["movies-plex"], _lastLibrary!.Sources.Where(source => source.OkForLimitedProfiles).Select(source => source.Id).ToArray());
+        Assert.Equal(3, _lastLibrary.Sources.Count);
+        cut.WaitForAssertion(() => Assert.True(cut.FindAll(".folder-table__row")[1].QuerySelector(".folder-table__limited input[type=checkbox]")!.HasAttribute("checked")));
+    }
+
+    [Fact]
+    public void TurningOffTheSwitchSavesTheFolderAsNotSuitable()
+    {
+        _configuration.Libraries[0].Sources[2].OkForLimitedProfiles = true;
+        var cut = Open("Movies");
+
+        cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__limited input[type=checkbox]")!.Change(false);
+
+        cut.WaitForAssertion(() => Assert.NotNull(_lastLibrary));
+        Assert.DoesNotContain(_lastLibrary!.Sources, source => source.OkForLimitedProfiles);
+    }
+
+    [Fact]
+    public void FirstRunSetupDrawsNoSuitableForLimitedProfilesSwitch()
+    {
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        cut.WaitForElement(".folder-table");
+
+        Assert.Empty(cut.FindAll(".folder-table__limited"));
+        Assert.DoesNotContain("limited profiles", cut.Markup, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ReadOnlySettings_ShowTheSwitchButCannotChangeIt()
+    {
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.ReadOnly, true));
+        cut.WaitForElement(".folder-table");
+
+        var switches = cut.FindAll(".folder-table__limited input[type=checkbox]");
+        Assert.NotEmpty(switches);
+        Assert.All(switches, input => Assert.True(input.HasAttribute("disabled")));
+    }
+
     // A folder's icon is its state: a lock on the folder reads as read-only, and every icon carries the words as an accessible label and tooltip.
     [Fact]
     public void EachFolderIconSaysInWordsWhetherLibraryManagesOrOnlyReadsTheFolder()
