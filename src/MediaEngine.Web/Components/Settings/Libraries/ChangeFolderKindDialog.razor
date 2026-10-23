@@ -7,9 +7,9 @@
 @inject ILogger<ChangeFolderKindDialog> Logger
 
 @* "Change what this folder is" (Library setup D40(c), D60): what is the folder instead (the kinds of its own area), then the plain
-   impact worked out by the Engine before anything moves. Nothing is changed until "Change folder" is pressed. A new library for the
-   chosen kind is made when the person goes on to the impact, because the Engine can only count and check visibility against a library
-   that exists; nothing else is sent before the button. *@
+   impact worked out by the Engine before anything moves. Nothing is changed until "Change folder" is pressed. The impact of a kind with
+   no library yet is asked for with no library id (the Engine reads that as a new library); the library is made only when the button is
+   pressed, so cancelling never leaves an empty library behind. *@
 <AppDialogShell Title="Change what this folder is" Size="Large" OnClose="@(() => Leave())">
     <ChildContent>
         <div class="add-wizard__options">
@@ -74,7 +74,7 @@
             {
                 <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Leave())" />
                 <AppButton Label="Next" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                           Loading="@_creating" Disabled="@(!CanLeaveKindStep || _creating)" OnClick="NextAsync" />
+                           Disabled="@(!CanLeaveKindStep)" OnClick="NextAsync" />
             }
             else if (_preview is null)
             {
@@ -93,7 +93,7 @@
 </AppDialogShell>
 
 @code {
-    /// <summary>What the dialog hands back when it closes: the kind the folder is changing to (null when nothing was started) and the name of a library it created on the way (null when none).</summary>
+    /// <summary>What the dialog hands back when it closes: the kind the folder is changing to (null when nothing was started) and the name of a library it created but could not use (null when none).</summary>
     public sealed record Outcome(string? StartedKindLabel, string? CreatedLibraryName);
 
     private enum Step { Kind, Impact }
@@ -118,7 +118,8 @@
     private string? _refusal;
     private string? _error;
     private string? _createdLibraryName;
-    private bool _creating;
+    // True when the folder goes into a library that does not exist yet; it is made only when Change folder is pressed.
+    private bool _newLibrary;
     private bool _loading;
     private bool _starting;
 
@@ -174,34 +175,14 @@
         }
     }
 
-    // Step 1 to the impact. A library the kind does not have yet (a new custom library, or the first of a kind that holds one) is made first,
-    // through the same save the Add folder wizard uses, so the Engine has a library to count and check against.
+    // Step 1 to the impact. A kind that already has a library always names it in the request (a blank id means "a new library of this kind" to the
+    // Engine); a new custom library, or the first library of a kind, is asked about with no id and made only when Change folder is pressed.
     private async Task NextAsync()
     {
-        if (_kind is null || _creating) return;
+        if (_kind is null) return;
         _error = null;
-        var libraryId = _kind.AllowsMultiple && _libraryChoice != LibraryChoiceOptions.NewChoice ? _libraryChoice : null;
-        var needsLibrary = _kind.AllowsMultiple ? _libraryChoice == LibraryChoiceOptions.NewChoice : Held(_kind).Count == 0;
-        if (needsLibrary)
-        {
-            _creating = true;
-            try
-            {
-                var created = await AddService.CreateLibraryAsync(FolderAddScope.Settings, _kind, _newLibraryName, Current);
-                if (created is null)
-                {
-                    _error = Api.LastError ?? $"Library couldn't create the {(_kind.AllowsMultiple ? _newLibraryName.Trim() : _kind.Label)} library, so nothing was changed.";
-                    return;
-                }
-
-                _configuration = created.Configuration;
-                _createdLibraryName = created.Library.Name;
-                libraryId = created.Library.Id;
-                _libraryChoice = libraryId;
-            }
-            finally { _creating = false; }
-        }
-
+        _newLibrary = _kind.AllowsMultiple ? _libraryChoice == LibraryChoiceOptions.NewChoice : Held(_kind).Count == 0;
+        var libraryId = _newLibrary ? null : _kind.AllowsMultiple ? _libraryChoice : Held(_kind)[0].Id;
         _request = new FolderKindChangeRequest { KindKey = _kind.Key, LibraryId = libraryId };
         await LoadImpactAsync();
     }
@@ -231,24 +212,42 @@
 
     private async Task ChangeAsync()
     {
-        if (_request is null || _preview is null || _starting) return;
+        if (_kind is null || _request is null || _preview is null || _starting) return;
         _starting = true;
         _error = null;
         try
         {
+            // The library of a new kind is made first, through the same save the Add folder wizard uses; if that fails, nothing else is sent.
+            if (_newLibrary)
+            {
+                var created = await AddService.CreateLibraryAsync(FolderAddScope.Settings, _kind, _newLibraryName, Current);
+                if (created is null)
+                {
+                    _error = Api.LastError ?? $"Library couldn't create the {(_kind.AllowsMultiple ? _newLibraryName.Trim() : _kind.Label)} library, so nothing was changed.";
+                    return;
+                }
+
+                _configuration = created.Configuration;
+                _createdLibraryName = created.Library.Name;
+                _request = new FolderKindChangeRequest { KindKey = _kind.Key, LibraryId = created.Library.Id };
+                _newLibrary = false;
+            }
+
             var answer = await Api.ChangeFolderKindAsync(Source.Id, _request);
             if (!answer.Succeeded)
             {
-                _error = answer.Refusal ?? answer.Failure ?? "Library could not start changing this folder.";
+                var reason = answer.Refusal ?? answer.Failure ?? "Library could not start changing this folder.";
+                // The only way an empty library can remain: it was made, and then the change was refused or failed.
+                _error = _createdLibraryName is null ? reason : $"The {_createdLibraryName} library was created, but the folder could not be changed: {reason}";
                 return;
             }
 
-            Dialog.Close(AppDialogResult.Ok(new Outcome(_preview.ToKindLabel, _createdLibraryName)));
+            Dialog.Close(AppDialogResult.Ok(new Outcome(_preview.ToKindLabel, null)));
         }
         finally { _starting = false; }
     }
 
-    // Leaving without changing anything. A library made on the way stays (it is empty), so the host is told to read the libraries again.
+    // Leaving without changing anything. Only a library made and then left unused (the change failed after it) is still there, so the host reads the libraries again.
     private void Leave()
     {
         if (_createdLibraryName is null)

@@ -25,6 +25,7 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
     private readonly List<(string SourceId, FolderKindChangeRequest Request)> _starts = [];
     private readonly List<string> _order = [];
     private FolderKindChangeResult<FolderKindChangePreviewResponse> _previewAnswer = new(Preview());
+    private FolderKindChangeResult<FolderJobStatusDto>? _startAnswer;
     private string? _refuseCreate;
     private string? _lastError;
     private IRenderedComponent<AppDialogHost> _dialogs = null!;
@@ -116,7 +117,7 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
             {
                 _order.Add("start");
                 _starts.Add(((string)args![0]!, (FolderKindChangeRequest)args[1]!));
-                return Task.FromResult(new FolderKindChangeResult<FolderJobStatusDto>(
+                return Task.FromResult(_startAnswer ?? new FolderKindChangeResult<FolderJobStatusDto>(
                     new FolderJobStatusDto { OperationId = "change-1", SourceId = (string)args[0]!, State = "queued" }));
             });
         }));
@@ -368,7 +369,9 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
         var start = Assert.Single(_starts);
         Assert.Equal("music-old", start.SourceId);
         Assert.Equal("audiobooks", start.Request.KindKey);
-        Assert.Null(start.Request.LibraryId);
+        // A kind that already has its library always names it: a blank id would mean a new library.
+        Assert.Equal(AudiobooksId, start.Request.LibraryId);
+        Assert.Equal(AudiobooksId, Assert.Single(_previews).Request.LibraryId);
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".add-wizard__kinds")));
     }
 
@@ -417,9 +420,9 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
         var created = _configuration.Libraries.Single(library => library.Name == "Family recordings");
         Assert.Equal("other_audio", created.KindKey);
         Assert.Empty(created.Sources);
-        Assert.Equal(["create", "preview", "start"], _order);
+        Assert.Equal(["preview", "create", "start"], _order);
         Assert.Equal(created.Id, _starts[0].Request.LibraryId);
-        Assert.Equal(created.Id, _previews[0].Request.LibraryId);
+        Assert.Null(_previews[0].Request.LibraryId);
     }
 
     [Fact]
@@ -431,14 +434,34 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
         Click("Change folder");
 
         await followUp;
-        Assert.Equal(["create", "preview", "start"], _order);
+        Assert.Equal(["preview", "create", "start"], _order);
+        Assert.Null(_previews[0].Request.LibraryId);
         var created = _configuration.Libraries.Single(library => library.KindKey == "audiobooks");
         Assert.Equal("Audiobooks", created.Name);
         Assert.Equal(created.Id, _starts[0].Request.LibraryId);
     }
 
     [Fact]
-    public async Task IfCreatingTheLibraryFailsTheDialogSaysSoAndNothingIsPreviewedOrStarted()
+    public async Task CancellingAfterTheImpactOfANewLibraryCreatesNothing()
+    {
+        var followUp = OpenDialog();
+        ChooseKind("other_audio");
+        _dialogs.Find("[data-library=new]").Click();
+        _dialogs.Find(".add-wizard__field input").Input("Family recordings");
+        Click("Next");
+        _dialogs.WaitForAssertion(() => Assert.True(_dialogs.FindAll("[data-impact]").Count > 0));
+
+        Click("Cancel");
+
+        var result = await followUp;
+        Assert.False(result.Started);
+        Assert.Equal(["preview"], _order);
+        Assert.Null(_previews[0].Request.LibraryId);
+        Assert.DoesNotContain(_configuration.Libraries, library => library.Name == "Family recordings");
+    }
+
+    [Fact]
+    public async Task IfCreatingTheLibraryFailsTheDialogSaysSoAndNothingIsStarted()
     {
         _refuseCreate = "You already have a library with that name.";
         var followUp = OpenDialog();
@@ -446,14 +469,31 @@ public sealed class ChangeFolderKindTests : AsyncBunitContext
         _dialogs.Find("[data-library=new]").Click();
         _dialogs.Find(".add-wizard__field input").Input("Lectures");
         Click("Next");
+        _dialogs.WaitForAssertion(() => Assert.True(_dialogs.FindAll("[data-impact]").Count > 0));
+
+        Click("Change folder");
 
         _dialogs.WaitForAssertion(() => Assert.Contains("You already have a library with that name.", _dialogs.Markup));
-        Assert.Empty(_previews);
         Assert.Empty(_starts);
-        Assert.Empty(_dialogs.FindAll("[data-impact]"));
-
         Click("Cancel");
-        var result = await followUp;
-        Assert.False(result.Started);
+        Assert.False((await followUp).Started);
+    }
+
+    [Fact]
+    public async Task IfStartingFailsAfterTheLibraryWasCreatedItSaysTheLibraryWasCreatedButTheFolderWasNotChanged()
+    {
+        _startAnswer = new(null, Refusal: "This folder is being organised right now.");
+        var followUp = OpenDialog();
+        ChooseKind("other_audio");
+        _dialogs.Find("[data-library=new]").Click();
+        _dialogs.Find(".add-wizard__field input").Input("Family recordings");
+        Click("Next");
+        _dialogs.WaitForAssertion(() => Assert.True(_dialogs.FindAll("[data-impact]").Count > 0));
+
+        Click("Change folder");
+
+        _dialogs.WaitForAssertion(() => Assert.Contains("The Family recordings library was created, but the folder could not be changed: This folder is being organised right now.", _dialogs.Markup));
+        Click("Cancel");
+        Assert.True((await followUp).Started);
     }
 }

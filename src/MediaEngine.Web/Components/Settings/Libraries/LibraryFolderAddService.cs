@@ -331,7 +331,8 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
 
         if (outcome.StartedKindLabel is null)
         {
-            return new FolderFollowUp(true, $"The {outcome.CreatedLibraryName} library was created and has no folders yet.");
+            // A library was made and left unused; the dialog already said so, so the host only reads the libraries again.
+            return new FolderFollowUp(true, null);
         }
 
         toasts.Add($"Library is changing {source.DisplayName()} to {outcome.StartedKindLabel}. You can keep using Library meanwhile.", AppSeverity.Success);
