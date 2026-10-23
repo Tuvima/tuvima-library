@@ -35,7 +35,7 @@ Signing in opens the person's own profile, and from there they can switch to any
 
 ## Change what someone can open
 
-A person's access belongs to their profile. On their page, **Access → Libraries and lanes** opens a sheet where you choose which of Read, Watch, Listen and View they get and which Libraries they can open. A household administrator can give only what their own profile has, and only to people in their own household. A server administrator's profile can open everything.
+A person's access belongs to their profile. On their page, **Access → Libraries and lanes** opens a sheet where you choose which of Read, Watch, Listen and View they get and which Libraries they can open. Every library in an area a person has is visible to them, including libraries added later, until an administrator unticks it in that area's **Libraries** list (it saves at once and says "Hidden from {name}"; the list shows only when the area has more than one library, and phones show it read-only). A household administrator can give only what their own profile has, and only to people in their own household; they can hide more libraries from their household's people, but cannot show a library that is hidden from their own profile. A server administrator's profile can open everything.
 
 ## Roles on a profile
 
