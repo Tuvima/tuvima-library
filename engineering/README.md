@@ -65,6 +65,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Handoff: finish the Details overlay and Editing Mode spec (2026-10-21)](handoffs/2026-10-21-details-overlay-finish.md) | Current: WP8 per-type pass and docs, plus follow-ups |
 | [Handoff: Developer tools waves 4 to 8 and wave 3 follow-ups (2026-10-20)](handoffs/2026-10-20-developer-tools-waves-4-to-8.md) | Current |
 | [Handoff: finish the Universes spec (2026-10-20)](handoffs/2026-10-20-universe-remaining.md) | Current (threads A to G: U-WP3b, U-WP13, U-WP14, U-WP9 part 2, U-WP4 priority, U-WP15, closing the spec) |
+| [Handoff: follow-ups from library setup and Simpler access (2026-10-23)](handoffs/2026-10-23-library-setup-and-access-follow-ups.md) | Current: 11 threads (ratings, kind naming, kind cards and icon guide, change-kind edges, YouTube cover, counts per library, flaky tests, Docker templates, filing wording, drawer check, stray branch) |
 | [Handoff: library read speed follow-ups (2026-10-21)](handoffs/2026-10-21-library-read-speed-follow-ups.md) | Current — T1 to T7; T4 and T5 wait on Shy's decisions |
 | [Handoff: developer tools after wave 2, and the follow-ups it turned up (2026-10-21)](handoffs/2026-10-21-developer-tools-and-follow-ups.md) | Current |
 | [Handoff: stop filing media into a doubled category folder (2026-10-20)](handoffs/2026-10-20-doubled-category-folder.md) | Current |
