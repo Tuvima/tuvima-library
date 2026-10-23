@@ -43,15 +43,24 @@ else
                         <li>@large.Name (@(DisplayFormat.FormatFileSize(large.Size) ?? "large"))</li>
                     }
                 </ul>
+                @* One folder: Copy path sits in the action row. Several (files of different kinds): each path keeps its own Copy path. *@
                 @foreach (var path in warning.Paths)
                 {
                     <p>
                         <code>@path</code>
-                        <AppButton Label="Copy path" ButtonStyle="AppButtonStyle.Outlined" aria-label="@($"Copy {path}")" OnClick="@(() => CopyPathAsync(path))" />
+                        @if (warning.Paths.Count > 1)
+                        {
+                            <AppButton Label="Copy path" ButtonStyle="AppButtonStyle.Outlined" aria-label="@($"Copy {path}")" OnClick="@(() => CopyPathAsync(path))" />
+                        }
                     </p>
                 }
                 <AppActionBar Align="AppHorizontalAlignment.Start">
                     <AppButton Label="Upload anyway" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => UploadAnywayAsync(warning))" />
+                    @if (warning.Paths.Count == 1)
+                    {
+                        var only = warning.Paths[0];
+                        <AppButton Label="Copy path" ButtonStyle="AppButtonStyle.Outlined" aria-label="@($"Copy {only}")" OnClick="@(() => CopyPathAsync(only))" />
+                    }
                     <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" aria-label="Cancel adding the large files" OnClick="@(() => CancelWarningAsync(warning))" />
                 </AppActionBar>
             </AppAlert>

@@ -13,7 +13,8 @@
                 var section = Sections[index];
                 var headingId = $"upload-dialog-{index}";
                 <section class="upload-dialog__section" aria-labelledby="@headingId" data-class="@section.Class.ToString().ToLowerInvariant()">
-                    <h3 class="add-wizard__question" id="@headingId">@section.Heading</h3>
+                    @* With one group the dialog title already says it, so the heading stays for screen readers only. *@
+                    <h3 class="@(Sections.Count == 1 ? "sr-only" : "add-wizard__question")" id="@headingId">@section.Heading</h3>
                     <p class="add-wizard__lead">@Summary(section)</p>
                     <LibraryKindCards Kinds="@section.Kinds"
                                       Label="@($"Kinds for {UploadFileRules.Noun(section.Class)}")"
