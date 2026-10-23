@@ -318,8 +318,14 @@ public sealed class FolderFirstCheckTests : IDisposable
         var download = MoveFileWorld.WriteFile(Path.Combine(Files.Managed, ".library"), "downloads/subtitle.vtt", "WEBVTT");
         var track = new TextTrack
         {
-            AssetId = song.Asset, Kind = TextTrackKind.Subtitles, Language = "en", Provider = "test", SourceFormat = "vtt",
-            NormalizedFormat = "vtt", LocalPath = download, IsPreferred = true,
+            AssetId = song.Asset,
+            Kind = TextTrackKind.Subtitles,
+            Language = "en",
+            Provider = "test",
+            SourceFormat = "vtt",
+            NormalizedFormat = "vtt",
+            LocalPath = download,
+            IsPreferred = true,
         };
         await tracks.UpsertAsync(track);
         var asset = (await assets.FindByIdAsync(song.Asset))!;
