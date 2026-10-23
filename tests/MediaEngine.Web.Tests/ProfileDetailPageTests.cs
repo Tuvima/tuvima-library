@@ -7,6 +7,7 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
@@ -41,12 +42,14 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private int _confirmCount;
     private static readonly Guid LibraryA = Guid.Parse("00000000-0000-0000-0000-00000000000a");
     private static readonly Guid LibraryB = Guid.Parse("00000000-0000-0000-0000-00000000000b");
+    private static readonly Guid LibraryC = Guid.Parse("00000000-0000-0000-0000-00000000000c");
 
     public ProfileDetailPageTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddNativeUiServices();
+        Services.AddLocalization();
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
@@ -90,7 +93,12 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Setup(actions: ["household.manage"], navigation: navigation ?? []);
         _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false, new ManagedProfileSignInDto(SamAccountId, "sam@home.test", false, true))]);
         _accounts.Add(SamAccess(twoStep, hidden: hidden, inherits: inherits));
-        _libraries.AddRange([new AccessLibraryOptionDto(LibraryA, "Books", null, "Read")]);
+        // Read has two libraries (so it gets a list), Watch has one (so it does not).
+        _libraries.AddRange([
+            new AccessLibraryOptionDto(LibraryA, "Books", null, "Read"),
+            new AccessLibraryOptionDto(LibraryB, "Comics", null, "Read"),
+            new AccessLibraryOptionDto(LibraryC, "Movies", null, "Watch"),
+        ]);
     }
 
     [Fact]
@@ -185,9 +193,10 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         await cut.ClickAsync(page => Row(page, "access"));
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .access-user-permissions__libraries")));
-        var libraryLabels = cut.FindAll(".profile-access-sheet .access-user-permissions__libraries label").Select(label => label.TextContent.Trim()).ToList();
-        Assert.Equal(["Books"], libraryLabels);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .area-library-list")));
+        var libraryLabels = cut.FindAll(".profile-access-sheet .area-library-list label").Select(label => label.TextContent.Trim()).ToList();
+        Assert.Equal(["Books", "Comics"], libraryLabels);
+        Assert.Empty(cut.FindAll(".profile-access-sheet [data-area-libraries='watch']"));
         Assert.Contains(_requests, request => request.Method == HttpMethod.Get && request.Path == "/access/libraries");
 
         // Add the Listen lane; Read and Watch (and the Books library) were already on.
@@ -213,7 +222,8 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         await cut.ClickAsync(page => Row(page, "access"));
 
         cut.WaitForAssertion(() => Assert.Contains("libraries could not be loaded", cut.Markup));
-        Assert.Empty(cut.FindAll(".profile-access-sheet .access-user-permissions__libraries input"));
+        Assert.NotEmpty(cut.FindAll(".profile-access-sheet .app-error-state"));
+        Assert.Empty(cut.FindAll(".profile-access-sheet .area-library-list input"));
         await cut.InvokeAsync(() => cut.FindAll(".profile-access-sheet input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Listen").Change(true));
         await ClickSaveAsync(cut);
 
@@ -233,12 +243,145 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         await cut.ClickAsync(page => Row(page, "access"));
         // The sheet draws its buttons first and re-renders when the Engine's library list arrives, which hands them new
         // handler ids; the click waits for that list and is then made on the renderer thread.
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .access-user-permissions__libraries")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .area-library-list")));
 
         await ClickSaveAsync(cut);
 
         cut.WaitForAssertion(() => Assert.Contains("only give what your household has", cut.Find(".profile-access-sheet [role='alert']").TextContent));
         Assert.NotEmpty(cut.FindAll(".profile-access-sheet"));
+    }
+
+    [Fact]
+    public async Task LibrariesAndLanes_UntickingALibrary_SavesStraightAway_AndSaysItWasHiddenFromThePerson()
+    {
+        SamWithSignIn();
+        var cut = await OpenAccessSheetAsync();
+
+        await cut.InvokeAsync(() => LibraryTick(cut, LibraryA).Change(false));
+
+        // No Save click: the tick went to the Engine on its own, with the lanes as they were saved and the library added.
+        cut.WaitForAssertion(() => Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/access", StringComparison.Ordinal)));
+        var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/accounts/{SamAccountId:D}/access");
+        using var body = System.Text.Json.JsonDocument.Parse(put.Body);
+        Assert.Equal("read,watch", string.Join(",", body.RootElement.GetProperty("feature_ids").EnumerateArray().Select(item => item.GetString())));
+        Assert.Equal(LibraryA.ToString("D"), string.Join(",", body.RootElement.GetProperty("hidden_library_ids").EnumerateArray().Select(item => item.GetString())));
+        cut.WaitForAssertion(() => Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Hidden from Sam"));
+        // The sheet stays open for the other fields, and the library now shows unticked.
+        Assert.NotEmpty(cut.FindAll(".profile-access-sheet"));
+        cut.WaitForAssertion(() => Assert.False(LibraryTick(cut, LibraryA).HasAttribute("checked")));
+        Assert.Contains("Read: 1 hidden", Row(cut, "access").TextContent);
+    }
+
+    [Fact]
+    public async Task LibrariesAndLanes_TickingALibraryAgain_RemovesItFromTheHiddenSet()
+    {
+        SamWithSignIn(hidden: [LibraryA, LibraryB]);
+        var cut = await OpenAccessSheetAsync();
+        Assert.False(LibraryTick(cut, LibraryA).HasAttribute("checked"));
+
+        await cut.InvokeAsync(() => LibraryTick(cut, LibraryA).Change(true));
+
+        cut.WaitForAssertion(() => Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/access", StringComparison.Ordinal)));
+        var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/access", StringComparison.Ordinal));
+        using var body = System.Text.Json.JsonDocument.Parse(put.Body);
+        Assert.Equal(LibraryB.ToString("D"), string.Join(",", body.RootElement.GetProperty("hidden_library_ids").EnumerateArray().Select(item => item.GetString())));
+        cut.WaitForAssertion(() => Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "Shown to Sam"));
+    }
+
+    [Fact]
+    public async Task LibrariesAndLanes_ALibraryTheMainSignInHides_IsGreyedWithItsName_AndCannotBeTicked()
+    {
+        SamWithSignIn();
+        _accounts.Add(MainAccess());
+        _libraries[1] = _libraries[1] with { HiddenByPrimary = true };
+        var cut = await OpenAccessSheetAsync();
+
+        var row = cut.Find($".profile-access-sheet [data-library-id='{LibraryB}']");
+        Assert.Contains("Hidden by Alex", row.TextContent);
+        Assert.Contains("area-library-list__item--held", row.ClassName);
+        var tick = LibraryTick(cut, LibraryB);
+        Assert.True(tick.HasAttribute("disabled"));
+        Assert.False(tick.HasAttribute("checked"));
+        // The library the main sign-in leaves alone can still be ticked.
+        Assert.False(LibraryTick(cut, LibraryA).HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void LibrariesAndLanes_ForAnInheritingOwnSignIn_ShowsTheListsReadOnly_WithWhoItFollows()
+    {
+        SamWithSignIn(inherits: true, hidden: [LibraryB]);
+        _accounts.Add(MainAccess());
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-area-libraries='read']")));
+        var list = cut.Find("[data-area-libraries='read']");
+        Assert.Contains("Follows Alex's access.", list.TextContent);
+        Assert.All(list.QuerySelectorAll("input"), input => Assert.True(input.HasAttribute("disabled")));
+        Assert.True(list.QuerySelector($"[data-library-id='{LibraryA}'] input")!.HasAttribute("checked"));
+        Assert.False(list.QuerySelector($"[data-library-id='{LibraryB}'] input")!.HasAttribute("checked"));
+        Assert.Empty(cut.FindAll("[data-area-libraries='watch']"));
+        Assert.DoesNotContain(_requests, request => request.Method == HttpMethod.Put);
+    }
+
+    [Fact]
+    public void LibrariesAndLanes_ForAnInheritingOwnSignIn_WhenTheLibraryListFails_ShowsTheSharedErrorWithRetry()
+    {
+        SamWithSignIn(inherits: true);
+        _accounts.Add(MainAccess());
+        _librariesFail = true;
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='household-access'] .app-error-state")));
+        Assert.Contains("Retry", cut.Find("[data-profile-section='household-access'] .app-error-state").TextContent);
+        Assert.Empty(cut.FindAll("[data-area-libraries]"));
+    }
+
+    [Fact]
+    public async Task LibrariesAndLanes_OnAPhone_ShowsTheTicksButDisablesThem()
+    {
+        var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
+        await device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        Services.AddScoped(_ => device);
+        SamWithSignIn(hidden: [LibraryB]);
+        var cut = await OpenAccessSheetAsync();
+
+        var ticks = cut.FindAll(".profile-access-sheet .area-library-list input");
+        Assert.Equal(2, ticks.Count);
+        Assert.All(ticks, tick => Assert.True(tick.HasAttribute("disabled")));
+        Assert.True(LibraryTick(cut, LibraryA).HasAttribute("checked"));
+        Assert.False(LibraryTick(cut, LibraryB).HasAttribute("checked"));
+    }
+
+    [Fact]
+    public async Task LibrariesAndLanes_NoVaultLibraryIsEverShown_EvenIfOneWereListed()
+    {
+        SamWithSignIn();
+        // The Engine's picker leaves the Vault out; the lists also only draw the four areas, so a stray one would still not appear.
+        _libraries.AddRange([
+            new AccessLibraryOptionDto(Guid.NewGuid(), "Secret one", "Videos", "vault"),
+            new AccessLibraryOptionDto(Guid.NewGuid(), "Secret two", "Videos", "vault"),
+        ]);
+        var cut = await OpenAccessSheetAsync();
+
+        Assert.DoesNotContain("Secret", cut.Find(".profile-access-sheet").TextContent);
+        Assert.DoesNotContain("Vault", cut.Find(".profile-access-sheet").TextContent);
+    }
+
+    [Fact]
+    public async Task LibrariesAndLanes_AFailedLibraryList_CanBeRetried()
+    {
+        SamWithSignIn();
+        _librariesFail = true;
+        var cut = await OpenAccessSheetAsync(waitForLists: false);
+        cut.WaitForAssertion(() => Assert.Contains("libraries could not be loaded", cut.Markup));
+
+        _librariesFail = false;
+        await cut.ClickAsync(page => page.Find(".profile-access-sheet .app-error-state button"));
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .area-library-list")));
+        Assert.Empty(cut.FindAll(".profile-access-sheet .app-error-state"));
     }
 
     [Fact]
@@ -898,6 +1041,29 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
     private IRenderedComponent<ProfileDetailPage> RenderFor(Guid profileId) =>
         Render<ProfileDetailPage>(parameters => parameters.Add(page => page.ProfileId, profileId));
+
+    private async Task<IRenderedComponent<ProfileDetailPage>> OpenAccessSheetAsync(bool waitForLists = true)
+    {
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
+        await cut.ClickAsync(page => Row(page, "access"));
+        if (waitForLists)
+        {
+            cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .area-library-list")));
+        }
+
+        return cut;
+    }
+
+    private static AngleSharp.Dom.IElement LibraryTick(IRenderedComponent<ProfileDetailPage> cut, Guid libraryId) =>
+        cut.Find($".profile-access-sheet [data-library-id='{libraryId}'] input");
+
+    // The household's main sign-in, named by the profile it opens by default.
+    private static AccountAccessResponse MainAccess() =>
+        new(MainAccountId, "alex@home.test", true, true, 1, [new AccountFeatureGrantDto("read", true), new AccountFeatureGrantDto("watch", true)], [],
+            [new AccountProfileGrantDto(MainAccountId, OwnId, "Alex", null, true, true, true,
+                new GrantAdminProtectionDto(false, "None", null, 1), 1, DateTimeOffset.UtcNow)],
+            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, HouseholdId, HouseholdAdmin: true);
 
     private static AngleSharp.Dom.IElement AdminSwitch(IRenderedComponent<ProfileDetailPage> cut, string label) =>
         cut.FindAll("[data-profile-section='pin-protection'] input[role='switch']").Single(input => input.GetAttribute("aria-label") == label);

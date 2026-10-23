@@ -8,6 +8,7 @@
 @inject ConfirmedActionRunner Confirmed
 @inject IAppDialogService Dialogs
 @inject DeviceContextService DeviceContext
+@inject IAppToastService Toasts
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -197,7 +198,7 @@
                         <AppTextField @bind-Value="_profileName" Label="Profile name" FullWidth="true" />
                         <AppTextField @bind-Value="_profileColor" Label="Avatar color" HelpText="Use a color such as #7C4DFF." FullWidth="true" />
                     </section>
-                    <ManagedAccessUserPermissions ViewStartsOff="true" FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" LibrariesUnavailable="@(!_librariesLoaded)" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
+                    <ManagedAccessUserPermissions ViewStartsOff="true" FeatureIds="_featureIds" HiddenIds="_hiddenIds" Libraries="_libraries" LibrariesUnavailable="@(!_librariesLoaded)" PersonName="@EditingLabel" PrimaryName="@_primaryName" ReadOnly="@DeviceContext.IsPhone" LibrariesBusy="@_saving" FeatureChanged="ToggleFeature" OnHiddenChanged="HiddenChangedAsync" RetryLibraries="RetryLibraries" />
                 }
             }
             else if (_mode == UserDrawerMode.Permissions && _editing is not null)
@@ -206,7 +207,7 @@
                 {
                     <AppAlert Severity="AppSeverity.Info">Administrator access overrides normal content restrictions while an administrator-enabled profile is active. These permissions remain editable for other profiles.</AppAlert>
                 }
-                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" LibrariesUnavailable="@(!_librariesLoaded)" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
+                <ManagedAccessUserPermissions FeatureIds="_featureIds" HiddenIds="_hiddenIds" Libraries="_libraries" LibrariesUnavailable="@(!_librariesLoaded)" PersonName="@EditingLabel" PrimaryName="@_primaryName" ReadOnly="@DeviceContext.IsPhone" LibrariesBusy="@_saving" FeatureChanged="ToggleFeature" OnHiddenChanged="HiddenChangedAsync" RetryLibraries="RetryLibraries" />
             }
             else if (_mode == UserDrawerMode.Profiles && _editing is not null)
             {
@@ -256,7 +257,7 @@
                         </AppNativeSelect>
                     }
                 </section>
-                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" LibrariesUnavailable="@(!_librariesLoaded)" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
+                <ManagedAccessUserPermissions FeatureIds="_featureIds" HiddenIds="_hiddenIds" Libraries="_libraries" LibrariesUnavailable="@(!_librariesLoaded)" PersonName="@EditingLabel" PrimaryName="@_primaryName" ReadOnly="@DeviceContext.IsPhone" LibrariesBusy="@_saving" FeatureChanged="ToggleFeature" OnHiddenChanged="HiddenChangedAsync" RetryLibraries="RetryLibraries" />
                 @if (_invitation is not null)
                 {
                     <InvitationShare Code="@_invitation.Code" ExpiresAt="@_invitation.ExpiresAt" PublicAddress="@_invitation.PublicAddress" />
@@ -303,7 +304,8 @@
 
 @code {
     private readonly HashSet<string> _featureIds = new(StringComparer.Ordinal);
-    private readonly HashSet<Guid> _libraryIds = [];
+    private readonly HashSet<Guid> _hiddenIds = [];
+    private string? _primaryName;
     private readonly HashSet<Guid> _invitationProfiles = [];
     private List<AccountAccessResponse> _accounts = [];
     private List<ManagedProfileResponse> _profiles = [];
@@ -391,7 +393,6 @@
         _editing = null;
         // Someone outside your household starts with View off; switch it on from their row once you know them.
         _featureIds.UnionWith(ManagedAccessUserPermissions.Features.Select(feature => feature.Id).Where(id => id != "view"));
-        _libraryIds.UnionWith(_libraries.Select(library => library.Id));
         _open = true;
     }
 
@@ -496,7 +497,6 @@
         ResetDrawer(UserDrawerMode.Invitation);
         _editing = null;
         _featureIds.UnionWith(ManagedAccessUserPermissions.Features.Select(feature => feature.Id));
-        _libraryIds.UnionWith(_libraries.Select(library => library.Id));
         _open = true;
     }
     private void ConfirmDelete(AccountAccessResponse account)
@@ -513,12 +513,14 @@
         _administrator = account.IsAdministrator;
         _enabled = account.IsEnabled;
         _featureIds.UnionWith(account.FeatureGrants.Where(grant => grant.Allowed).Select(grant => grant.Feature));
-        // A ticked library is one that is not hidden from the person (everything is visible unless an administrator unticks it).
-        _libraryIds.UnionWith(_libraries.Select(library => library.Id).Where(id => !account.HiddenLibraryIds.Contains(id)));
+        // Everything is visible unless an administrator has hidden it from the person.
+        _hiddenIds.UnionWith(account.HiddenLibraryIds);
+        _primaryName = AccessPrimaryName.For(_accounts, account);
     }
 
-    // The Engine stores the libraries hidden from the person. Start from what is hidden now, hide the ones unticked here and show the
-    // ones ticked, and never touch an id the list didn't show (or any id at all when the list could not be loaded).
+    // The Engine stores the libraries hidden from the person. For a person who doesn't exist yet that is what was unticked in this
+    // drawer. For an account an invitation reused it starts from what is hidden now, hides what was unticked here and shows the
+    // rest of the libraries on the list, and never touches an id the list didn't show (or any id at all when the list could not be loaded).
     private Guid[] HiddenLibraryIds(IEnumerable<Guid>? currentlyHidden)
     {
         var hidden = (currentlyHidden ?? []).ToHashSet();
@@ -526,10 +528,10 @@
         {
             foreach (var library in _libraries)
             {
-                if (_libraryIds.Contains(library.Id))
-                    hidden.Remove(library.Id);
-                else
+                if (_hiddenIds.Contains(library.Id))
                     hidden.Add(library.Id);
+                else
+                    hidden.Remove(library.Id);
             }
         }
 
@@ -549,7 +551,8 @@
         _invitationProfiles.Clear();
         _invitationDefault = null;
         _featureIds.Clear();
-        _libraryIds.Clear();
+        _hiddenIds.Clear();
+        _primaryName = null;
         _email = _profileName = _grantProfile = _error = _drawerMessage = string.Empty;
         _profileColor = "#7C4DFF";
         _administrator = false;
@@ -645,7 +648,7 @@
             ClearMessages();
             var label = EditingLabel;
             var result = await Identity.ReplaceManagedAccountAccessResultAsync(_editing.Id,
-                new(_featureIds.Order().ToArray(), HiddenLibraryIds(_editing.HiddenLibraryIds)));
+                new(_featureIds.Order().ToArray(), _hiddenIds.Order().ToArray()));
             if (!IsCurrentMutation(generation))
                 return;
             if (result.Succeeded)
@@ -1005,12 +1008,64 @@
             _featureIds.Remove(change.Id);
     }
 
-    private void ToggleLibrary((Guid Id, bool Value) change)
+    // One tick on a lane's Libraries list. For a person who doesn't exist yet it is only remembered for the create or invite request.
+    // For an existing account it saves straight away: the lanes as they are saved now (the ones still waiting for "Save permissions"
+    // are not sent) and the hidden libraries with this one added or removed. Answers true when the Engine took it.
+    private async Task<bool> HiddenChangedAsync(Guid libraryId, bool hidden)
     {
-        if (change.Value)
-            _libraryIds.Add(change.Id);
-        else
-            _libraryIds.Remove(change.Id);
+        if (_editing is null)
+        {
+            if (hidden)
+                _hiddenIds.Add(libraryId);
+            else
+                _hiddenIds.Remove(libraryId);
+            return true;
+        }
+
+        if (!CanManage || DeviceContext.IsPhone || !_librariesLoaded || !TryBeginMutation(out var generation))
+            return false;
+        try
+        {
+            ClearMessages();
+            // Draw the busy state now, so the ticks and "Save permissions" read as disabled while this save is in flight.
+            StateHasChanged();
+            var account = _editing;
+            var next = _hiddenIds.ToHashSet();
+            if (hidden)
+                next.Add(libraryId);
+            else
+                next.Remove(libraryId);
+            var lanes = account.FeatureGrants.Where(grant => grant.Allowed).Select(grant => grant.Feature).Order().ToArray();
+            var result = await Identity.ReplaceManagedAccountAccessResultAsync(account.Id, new(lanes, next.Order().ToArray()));
+            if (!IsCurrentMutation(generation))
+                return false;
+            if (!result.Succeeded)
+            {
+                _error = Message(result.Failure, result.Message);
+                return false;
+            }
+
+            _hiddenIds.Clear();
+            _hiddenIds.UnionWith(next);
+            ReplaceAccount(account with { HiddenLibraryIds = next.Order().ToArray() });
+            var person = PersonLabel(account);
+            Toasts.Add(hidden ? $"Hidden from {person}" : $"Shown to {person}", AppSeverity.Success);
+            return true;
+        }
+        finally
+        {
+            EndMutation(generation);
+            // The tick was reported by the list, not by this page, so nothing else would draw the new saved state.
+            StateHasChanged();
+        }
+    }
+
+    // The library list failed to load: ask the Engine again. A failed read stays "unavailable", never "empty".
+    private async Task RetryLibraries()
+    {
+        var libraries = await Identity.GetAccessLibrariesAsync();
+        _librariesLoaded = libraries is not null;
+        _libraries = libraries ?? [];
     }
 
     private void ToggleInvitationProfile(Guid id, bool value)
@@ -1034,6 +1089,13 @@
     }
 
     private void ToggleActions(Guid id) => _actionAccountId = _actionAccountId == id ? null : id;
+    // The person the account opens by default, else the email: "Hidden from Sam".
+    private static string PersonLabel(AccountAccessResponse account)
+    {
+        var name = account.ProfileGrants.FirstOrDefault(grant => grant.IsDefault)?.DisplayName;
+        return string.IsNullOrWhiteSpace(name) ? AccountLabel(account) : name;
+    }
+
     private static string AccountLabel(AccountAccessResponse account) => string.IsNullOrWhiteSpace(account.Email) ? "No email" : account.Email;
     private static string Initials(string value) => string.Concat(value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => char.ToUpperInvariant(part[0])));
     private void ClearMessages() => _error = _drawerMessage = string.Empty;
