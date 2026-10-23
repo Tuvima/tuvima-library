@@ -16,6 +16,8 @@ public static class ImportUploadFileNames
     /// <summary>The longest name accepted, in UTF-8 bytes (file systems limit names in bytes, and 240 leaves room for " (9999)" before the usual 255).</summary>
     public const int MaxUtf8Bytes = 240;
 
+    private const int ZeroWidthJoiner = 0x200D;
+
     private static readonly char[] ForbiddenCharacters = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 
     private static readonly HashSet<string> ReservedNames = new(StringComparer.OrdinalIgnoreCase)
@@ -48,10 +50,11 @@ public static class ImportUploadFileNames
         }
 
         // Format characters (such as U+202E, which flips the order the rest of the name is shown in) can make "movie.exe" look like
-        // another name, so they are refused along with the control characters.
+        // another name, so they are refused along with the control characters. The zero-width joiner is the one exception: it is not a
+        // direction control, and emoji names (a family, a flag) are built with it.
         if (fileName.IndexOfAny(ForbiddenCharacters) >= 0
             || fileName.Any(char.IsControl)
-            || fileName.EnumerateRunes().Any(rune => Rune.GetUnicodeCategory(rune) == UnicodeCategory.Format))
+            || fileName.EnumerateRunes().Any(rune => Rune.GetUnicodeCategory(rune) == UnicodeCategory.Format && rune.Value != ZeroWidthJoiner))
         {
             problem = "The file name has characters a file name cannot hold, or path parts. Send the name only.";
             return false;

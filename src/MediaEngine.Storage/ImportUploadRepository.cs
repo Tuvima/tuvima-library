@@ -149,23 +149,6 @@ public sealed class ImportUploadRepository(IDatabaseConnection db) : IImportUplo
         return Task.FromResult<IReadOnlyList<ImportUpload>>([.. rows.Select(ToModel)]);
     }
 
-    public Task<long> SumOutstandingBytesAsync(CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        using var connection = db.CreateConnection();
-        // Bytes still to arrive: the whole file less the pieces already received (each counted at full piece size, which can
-        // only overstate what is left by the last piece's shortfall; a zero floor keeps that from going negative).
-        var outstanding = connection.ExecuteScalar<long?>(new CommandDefinition(
-            """
-            SELECT SUM(MAX(0, u.total_bytes - u.piece_bytes * (SELECT COUNT(*) FROM import_upload_pieces p WHERE p.upload_id = u.id)))
-            FROM import_uploads u
-            WHERE u.state = 'open';
-            """,
-            cancellationToken: ct));
-        return Task.FromResult(outstanding ?? 0L);
-    }
-
     public Task<int> DeleteClosedBeforeAsync(DateTimeOffset cutoff, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

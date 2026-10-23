@@ -179,6 +179,7 @@ public sealed class ImportUploadServiceTests : IDisposable
             string.Concat(Enumerable.Repeat("\U0001F3AC", 70)) + ".mkv",
             "film\u202Evkm.exe",
             "film\u200B.mkv",
+            "film\u2060.mkv",
             "\u2066film.mkv",
         };
 
@@ -193,7 +194,7 @@ public sealed class ImportUploadServiceTests : IDisposable
         Assert.True((await service.StartAsync(Owner, Request(new string('a', ImportUploadFileNames.MaxLength - 4) + ".mkv", MiB))).Succeeded);
     }
 
-    [Fact]
+    [SymbolicLinkFact]
     public async Task Start_WhenTheKindsSubfolderLeadsOutOfTheImportFolderThroughALink_IsRefused_AndNothingIsCreated()
     {
         var outside = Path.Combine(_h.Root, "elsewhere");
@@ -215,6 +216,17 @@ public sealed class ImportUploadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Start_WithAZeroWidthJoinerInTheName_IsAccepted_ForEmojiNames()
+    {
+        var service = NewService();
+
+        // A joiner is not a direction control, and emoji names (a family, a flag) are built with it.
+        var result = await service.StartAsync(Owner, Request("\U0001F468\u200D\U0001F469 home movie.mkv", MiB));
+
+        Assert.True(result.Succeeded, result.Refusal?.Message);
+    }
+
+    [SymbolicLinkFact]
     public async Task Complete_WhenTheKindsSubfolderWasPointedOutOfTheImportFolderMeanwhile_CancelsTheUploadWithAReason()
     {
         var service = NewService();

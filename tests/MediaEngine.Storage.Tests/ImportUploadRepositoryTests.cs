@@ -105,22 +105,6 @@ public sealed class ImportUploadRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task TheOutstandingBytes_AreWhatOpenUploadsStillHaveToSend()
-    {
-        var first = Row(pieceCount: 4, pieceBytes: 100) with { TotalBytes = 400 };
-        var second = Row(pieceCount: 2, pieceBytes: 100) with { TotalBytes = 150 };
-        var finished = Row(pieceCount: 1, pieceBytes: 100) with { TotalBytes = 100 };
-        await _uploads.CreateAsync(first);
-        await _uploads.CreateAsync(second);
-        await _uploads.CreateAsync(finished);
-        await _uploads.RecordPieceAsync(first.Id, 0, Start);
-        await _uploads.RecordPieceAsync(first.Id, 1, Start);
-        await _uploads.CloseAsync(finished.Id, ImportUpload.CompletedState, "/x", Start);
-
-        Assert.Equal(200 + 150, await _uploads.SumOutstandingBytesAsync());
-    }
-
-    [Fact]
     public async Task FinishedUploadsOlderThanTheCutoff_AreDeletedWithTheirPieces_AndOpenOnesNever()
     {
         var old = Row(pieceCount: 1);

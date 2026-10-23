@@ -28,9 +28,6 @@ public interface IImportUploadRepository
     /// <summary>The open uploads whose last piece (or start) is older than <paramref name="cutoff"/>.</summary>
     Task<IReadOnlyList<ImportUpload>> ListIdleOpenAsync(DateTimeOffset cutoff, CancellationToken ct = default);
 
-    /// <summary>The bytes still to arrive for every open upload together, so a new upload does not count the same free space twice.</summary>
-    Task<long> SumOutstandingBytesAsync(CancellationToken ct = default);
-
     /// <summary>Deletes the finished (completed or cancelled) uploads closed before <paramref name="cutoff"/>. Returns how many.</summary>
     Task<int> DeleteClosedBeforeAsync(DateTimeOffset cutoff, CancellationToken ct = default);
 }
