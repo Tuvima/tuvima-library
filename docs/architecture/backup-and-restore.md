@@ -310,7 +310,7 @@ The rows a rescan rebuilds are not kept; the tables below say where a person's o
 | `qid_labels` | Cached Wikidata labels. |
 | `search_index` | Search index over titles. |
 
-## Transient tables (65)
+## Transient tables (67)
 
 None of these are kept.
 
@@ -346,6 +346,8 @@ None of these are kept.
 | `playback_telemetry_sessions` | Playback telemetry. |
 | `audiobook_listen_active_segments` | Audiobook listening in progress. |
 | `music_play_active_segments` | Music playing in progress. |
+| `import_uploads` | Resumable uploads into the Import folder in progress, with the hidden working file each is written into. |
+| `import_upload_pieces` | Which pieces of each upload into the Import folder have arrived. |
 | `player_sessions` | Live player sessions. |
 | `player_queue_items` | Live player queues. |
 | `companion_sessions` | Companion screen sessions. |

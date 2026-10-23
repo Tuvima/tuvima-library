@@ -5,6 +5,9 @@
   "log_max_total_mb": 1024,
   "missing_file_retention_days": 90,
   "unmatched_retry_days": 7,
+  "upload_piece_bytes": 67108864,
+  "max_upload_bytes": 53687091200,
+  "upload_abandon_hours": 24,
   "vacuum_interval_hours": 168,
   "sync_interval_hours": 24,
   "retag_sweep": {

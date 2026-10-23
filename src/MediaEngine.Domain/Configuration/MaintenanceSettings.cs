@@ -70,6 +70,25 @@ public sealed class MaintenanceSettings
     [JsonPropertyName("unmatched_retry_days")]
     public int UnmatchedRetryDays { get; set; } = UnmatchedRetryLimits.DefaultDays;
 
+    /// <summary>
+    /// How big each piece of a resumable upload into the Import folder is, in bytes (Library setup spec D44). 64 MB by default: a dropped
+    /// connection costs at most one piece, and it still finishes inside the Dashboard's time limit on a slow link. The Engine's request
+    /// size limit for the piece action follows this value; every other action keeps the normal limit.
+    /// </summary>
+    [JsonPropertyName("upload_piece_bytes")]
+    public long UploadPieceBytes { get; set; } = ImportUploadLimits.DefaultPieceBytes;
+
+    /// <summary>
+    /// The biggest file a resumable upload into the Import folder accepts, in bytes. 50 GB by default, the largest size the upload spike
+    /// proved. A start call above it is refused before any bytes move.
+    /// </summary>
+    [JsonPropertyName("max_upload_bytes")]
+    public long MaxUploadBytes { get; set; } = ImportUploadLimits.DefaultMaxUploadBytes;
+
+    /// <summary>How many hours an upload may wait with no piece before it is abandoned and its hidden working file is deleted. 24 by default.</summary>
+    [JsonPropertyName("upload_abandon_hours")]
+    public int UploadAbandonHours { get; set; } = ImportUploadLimits.DefaultAbandonHours;
+
     /// <summary>Auto re-tag sweep parameters.</summary>
     [JsonPropertyName("retag_sweep")]
     public RetagSweepSettings RetagSweep { get; set; } = new();
@@ -123,6 +142,37 @@ public static class UnmatchedRetryLimits
     /// <summary>When an Unmatched file is next looked up, <paramref name="configuredDays"/> (clamped to the limits) after <paramref name="now"/>.</summary>
     public static DateTimeOffset NextRetryAt(DateTimeOffset now, int configuredDays) =>
         now.AddDays(Math.Clamp(configuredDays, MinDays, MaxDays));
+}
+
+/// <summary>The limits of the resumable upload settings (<see cref="MaintenanceSettings.UploadPieceBytes"/>, <see cref="MaintenanceSettings.MaxUploadBytes"/> and <see cref="MaintenanceSettings.UploadAbandonHours"/>).</summary>
+public static class ImportUploadLimits
+{
+    /// <summary>The piece size when nothing is configured: 64 MB.</summary>
+    public const long DefaultPieceBytes = 64L * 1024 * 1024;
+
+    /// <summary>The smallest piece size: 1 MB.</summary>
+    public const long MinPieceBytes = 1024L * 1024;
+
+    /// <summary>The largest piece size: 256 MB.</summary>
+    public const long MaxPieceBytes = 256L * 1024 * 1024;
+
+    /// <summary>The biggest file when nothing is configured: 50 GB.</summary>
+    public const long DefaultMaxUploadBytes = 50L * 1024 * 1024 * 1024;
+
+    /// <summary>The smallest file limit that can be set: 1 MB.</summary>
+    public const long MinMaxUploadBytes = 1024L * 1024;
+
+    /// <summary>The biggest file limit that can be set: 1 TB.</summary>
+    public const long MaxMaxUploadBytes = 1024L * 1024 * 1024 * 1024;
+
+    /// <summary>The wait before an idle upload is abandoned when nothing is configured: 24 hours.</summary>
+    public const int DefaultAbandonHours = 24;
+
+    /// <summary>The shortest wait: 1 hour.</summary>
+    public const int MinAbandonHours = 1;
+
+    /// <summary>The longest wait: 30 days.</summary>
+    public const int MaxAbandonHours = 720;
 }
 
 public sealed class StorageMaintenanceSettings
