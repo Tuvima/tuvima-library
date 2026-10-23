@@ -153,6 +153,57 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
     }
 
     /// <summary>
+    /// Deletes every shared photo and video of the household's Shared Library, on the caller's connection and transaction (users,
+    /// profiles and households D18: they go with the household and are never moved into another one). Releases the share records and
+    /// file locations that would otherwise hold them. Returns the files behind them, so the caller deletes the ones Tuvima owns from
+    /// disk once the removal has committed. Does nothing for a household with no Shared Library.
+    /// </summary>
+    internal static IReadOnlyList<ProfilePersonalFile> DeleteSharedItems(System.Data.IDbConnection conn, System.Data.IDbTransaction tx, Guid householdId)
+    {
+        var libraryId = conn.ExecuteScalar<Guid?>(
+            "SELECT library_id FROM view_shared_library WHERE household_id = @householdId;", new { householdId }, tx);
+        if (libraryId is null)
+        {
+            return [];
+        }
+
+        var files = conn.Query<SharedFileRow>("""
+            SELECT DISTINCT lf.id AS FileId, lfs.file_path AS FilePath,
+                   CASE WHEN COALESCE(vs.storage_mode, 'linked') = 'managed' THEN 1 ELSE 0 END AS IsManaged
+              FROM local_items li
+              JOIN local_item_files lif ON lif.item_id = li.id
+              JOIN local_files lf ON lf.id = lif.file_id
+              JOIN local_file_sources lfs ON lfs.file_id = lf.id AND lfs.library_id = li.library_id
+              LEFT JOIN view_sources vs ON vs.id = lfs.source_id
+             WHERE li.scope_kind = 'shared' AND li.library_id = @libraryId;
+            """, new { libraryId }, tx)
+            .Select(row => new ProfilePersonalFile(row.FileId, row.FilePath, row.IsManaged != 0))
+            .ToList();
+        conn.Execute("""
+            DELETE FROM view_shared_assets
+             WHERE item_id IN (SELECT id FROM local_items WHERE scope_kind = 'shared' AND library_id = @libraryId);
+            DELETE FROM local_items WHERE scope_kind = 'shared' AND library_id = @libraryId;
+            DELETE FROM local_file_sources WHERE library_id = @libraryId;
+            """, new { libraryId }, tx);
+        foreach (var fileId in files.Select(file => file.FileId).Distinct())
+        {
+            conn.Execute("""
+                DELETE FROM local_files
+                 WHERE id = @fileId AND NOT EXISTS (SELECT 1 FROM local_item_files WHERE file_id = @fileId);
+                """, new { fileId }, tx);
+        }
+
+        return files;
+    }
+
+    private sealed class SharedFileRow
+    {
+        public Guid FileId { get; init; }
+        public string FilePath { get; init; } = string.Empty;
+        public long IsManaged { get; init; }
+    }
+
+    /// <summary>
     /// The one removal rule for a household, on the caller's connection and transaction: never the default household, nothing may
     /// belong to it, and its Shared Library must hold no shared photos (an empty one goes with it). Used by
     /// <see cref="DeleteWhenEmptyAsync"/> and by the removal of a household with its last administrator's user.

@@ -949,17 +949,7 @@ Revocable, device-scoped sign-in sessions. A session remembers where it started.
 | `created_at`, `last_seen_at`, `expires_at` | TEXT | Timestamps |
 | `first_used_at` | TEXT | When the session was first used after sign-in. NULL means never used. At the session limit (`maximum_active_sessions`), never-used sessions end first, then sessions idle for 10 minutes or more, then the least recently seen. |
 | `revoked_at`, `revoked_reason` | TEXT | NULL while active |
-
-### device_profile_preferences
-
-"Always open as this person on this device". At most one row per signed-in account and browser/device; the *Who's using Tuvima?* page writes it, and a new sign-in from that device starts in the saved profile (when that profile has a PIN, the picker asks for it instead).
-
-| Column | Type | Notes |
-|---|---|---|
-| `account_id` | BLOB | Owning account (primary key with `device_id`); deleting the account removes the row |
-| `device_id` | TEXT | The `Tuvima.Device` cookie value stored in `auth_sessions.device_id` |
-| `profile_id` | BLOB | The profile to open as; deleting the profile removes the row. A saved profile the account no longer has is ignored |
-| `updated_at` | TEXT | Timestamp |
+| `profile_pending` | INTEGER | 1 from an interactive sign-in until a profile of the household is chosen (the switch sets it back to 0). While 1 the Engine allows only the profile choice, a session check and sign-out |
 
 ### account_credentials
 

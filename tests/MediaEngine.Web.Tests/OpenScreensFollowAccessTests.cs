@@ -192,7 +192,7 @@ public sealed class OpenScreensFollowAccessTests
     public async Task RemovingAPerson_ClosesThatAccountsScreens()
     {
         var f = new Fixture();
-        await f.Identity.DeleteUserResultAsync(f.AccountA, keepPhotos: true, confirmedProfileIds: []);
+        await f.Identity.DeleteUserResultAsync(f.AccountA, confirmedProfileIds: []);
         Assert.Equal(["a1", "a2"], f.Closed());
     }
 
@@ -233,7 +233,7 @@ public sealed class OpenScreensFollowAccessTests
     public async Task AFailedAction_ClosesNothing()
     {
         var f = new Fixture(status: HttpStatusCode.Forbidden);
-        await f.Identity.DeleteUserResultAsync(f.AccountA, keepPhotos: true, confirmedProfileIds: []);
+        await f.Identity.DeleteUserResultAsync(f.AccountA, confirmedProfileIds: []);
         await f.Identity.RevokeSessionResultAsync(f.SessionB);
         Assert.Empty(f.Closed());
     }

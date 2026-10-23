@@ -602,6 +602,7 @@ app.UseCors("BlazorWasm");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<PasswordChangeRequiredMiddleware>();
+app.UseMiddleware<ProfilePendingMiddleware>();
 app.UseAuthorization();
 #if DEBUG
 if (realMediaRun is not null)

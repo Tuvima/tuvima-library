@@ -390,7 +390,6 @@ public sealed class AccountAccessMutationService(
     public async Task DeleteUserAsync(
         RequestAuthority actor,
         Guid userId,
-        ProfilePhotoDisposition photos = ProfilePhotoDisposition.MoveToShared,
         IReadOnlyCollection<Guid>? confirmedProfileIds = null,
         CancellationToken ct = default)
     {
@@ -401,8 +400,8 @@ public sealed class AccountAccessMutationService(
             ?? throw new KeyNotFoundException("User not found.");
         var plan = await accounts.PlanUserRemovalAsync(userId, ct).ConfigureAwait(false);
 
-        // Every rule is checked before any photo moves.
-        if (await UserDeletionRefusalAsync(actor, doomed, plan, photos, ct).ConfigureAwait(false) is { } refusal)
+        // Every rule is checked before anything is deleted.
+        if (await UserDeletionRefusalAsync(actor, doomed, plan, ct).ConfigureAwait(false) is { } refusal)
         {
             throw new InvalidOperationException(refusal);
         }
@@ -418,28 +417,26 @@ public sealed class AccountAccessMutationService(
             throw new AccountRemovalChangedException();
         }
 
-        // Every refusal is behind us: only now do photos move, then the delete.
+        // Every refusal is behind us. A household removal deletes every profile's photos and videos with it (D18), never moves them:
+        // their file lists are taken first, and the files themselves go once the delete has committed.
         var photoPlans = new List<ProfilePhotoPlan>();
-        UserRemovalOutcome outcome;
-        try
+        foreach (var profile in goingProfiles)
         {
-            foreach (var profile in goingProfiles)
-            {
-                photoPlans.Add(await photoDisposer.PrepareAsync(profile, photos, actor.ActiveProfileId ?? profile.Id, ct).ConfigureAwait(false));
-            }
+            photoPlans.Add(await photoDisposer.PrepareAsync(profile, ProfilePhotoDisposition.Delete, actor.ActiveProfileId ?? profile.Id, ct).ConfigureAwait(false));
+        }
 
-            outcome = await accounts.DeleteUserAsync(
-                userId, goingProfiles.Select(profile => profile.Id).ToArray(), ct).ConfigureAwait(false);
-        }
-        catch (Exception)
-        {
-            LogPhotosLeftInShared(photoPlans);
-            throw;
-        }
+        var outcome = await accounts.DeleteUserAsync(
+            userId, goingProfiles.Select(profile => profile.Id).ToArray(), ct).ConfigureAwait(false);
 
         foreach (var photoPlan in photoPlans)
         {
             await photoDisposer.CompleteAsync(photoPlan, ct).ConfigureAwait(false);
+        }
+
+        // The removed household's Shared Library photos and videos went with it; their files follow.
+        if (outcome.SharedFilesToDelete is { Count: > 0 } sharedFiles)
+        {
+            await photoDisposer.CompleteAsync(new ProfilePhotoPlan(sharedFiles), ct).ConfigureAwait(false);
         }
 
         // Every user whose sign-in is gone has their open sessions ended and their paired apps re-checked.
@@ -463,12 +460,9 @@ public sealed class AccountAccessMutationService(
         }
     }
 
-    /// <summary>
-    /// The one sentence that explains why this user cannot be deleted, or <see langword="null"/> when it can. <paramref name="photos"/>
-    /// is the choice for a household removal's photos; <see langword="null"/> (a preview) leaves the photo choice out.
-    /// </summary>
+    /// <summary>The one sentence that explains why this user cannot be deleted, or <see langword="null"/> when it can.</summary>
     private async Task<string?> UserDeletionRefusalAsync(
-        RequestAuthority actor, Account doomed, UserRemovalPlan plan, ProfilePhotoDisposition? photos, CancellationToken ct)
+        RequestAuthority actor, Account doomed, UserRemovalPlan plan, CancellationToken ct)
     {
         if (actor.AccountId == doomed.Id)
         {
@@ -483,28 +477,9 @@ public sealed class AccountAccessMutationService(
             return LastAdministratorMessage;
         }
 
-        if (!plan.RemovesHousehold)
-        {
-            return null;
-        }
-
-        if (plan.HouseholdHoldsSharedItems)
-        {
-            return UserRemovalMessages.HouseholdHoldsSharedItems;
-        }
-
-        // Moving photos to the Shared Library would put them in the very household that is being removed.
-        if (photos == ProfilePhotoDisposition.MoveToShared && await AnyPersonalPhotosAsync(plan.HouseholdProfiles, ct).ConfigureAwait(false))
-        {
-            return PhotosCannotMoveIntoRemovedHouseholdMessage;
-        }
-
+        // A household removal deletes its photos and videos with it (D18), so photos never stand in the way.
         return null;
     }
-
-    /// <summary>What a person is told when a household's photos would have to move into the Shared Library of the household being removed.</summary>
-    public const string PhotosCannotMoveIntoRemovedHouseholdMessage =
-        "Some of these profiles have photos, and this household's Shared Library goes with the household. Choose Delete for their photos, or move the photos out first.";
 
     private async Task<bool> AnyPersonalPhotosAsync(IEnumerable<Profile> profilesToCheck, CancellationToken ct)
     {
@@ -544,8 +519,8 @@ public sealed class AccountAccessMutationService(
         var plan = await accounts.PlanUserRemovalAsync(userId, ct).ConfigureAwait(false);
         return new UserDeletionPreview(
             plan,
-            await UserDeletionRefusalAsync(actor, doomed, plan, null, ct).ConfigureAwait(false),
-            plan.RemovesHousehold && await AnyPersonalPhotosAsync(plan.HouseholdProfiles, ct).ConfigureAwait(false));
+            await UserDeletionRefusalAsync(actor, doomed, plan, ct).ConfigureAwait(false),
+            plan.RemovesHousehold && (plan.HouseholdHoldsSharedItems || await AnyPersonalPhotosAsync(plan.HouseholdProfiles, ct).ConfigureAwait(false)));
     }
 
     public async Task<Profile> AddHouseholdPersonAsync(

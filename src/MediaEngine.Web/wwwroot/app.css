@@ -4825,8 +4825,8 @@ input[type="reset"],
 @media (prefers-reduced-motion: reduce) { .who-grid, .who-skeleton__avatar, .who-skeleton__name { animation: none; } }
 .who-card { display: grid; justify-items: center; align-content: start; gap: 10px; width: 100%; padding: 12px; color: var(--tl-text-primary); border: 0; border-radius: 16px; background: transparent; font: inherit; cursor: pointer; transition: background-color 140ms ease, transform 140ms ease; }
 .who-card__picture { position: relative; display: block; width: 100%; max-width: 168px; aspect-ratio: 1; border-radius: 50%; transition: box-shadow 140ms ease; }
-.who-card:hover:not(:disabled), .who-card:focus-visible { background: color-mix(in srgb, var(--tl-bg-surface-elevated) 70%, transparent); outline: none; transform: scale(1.04); }
-.who-card:hover:not(:disabled) .who-card__picture, .who-card:focus-visible .who-card__picture { box-shadow: 0 0 0 4px var(--tl-accent-primary), 0 0 28px color-mix(in srgb, var(--tl-accent-primary) 55%, transparent); }
+.who-card:hover:not(:disabled), .who-card:focus-visible, .who-card.is-preselected { background: color-mix(in srgb, var(--tl-bg-surface-elevated) 70%, transparent); outline: none; transform: scale(1.04); }
+.who-card:hover:not(:disabled) .who-card__picture, .who-card:focus-visible .who-card__picture, .who-card.is-preselected .who-card__picture { box-shadow: 0 0 0 4px var(--tl-accent-primary), 0 0 28px color-mix(in srgb, var(--tl-accent-primary) 55%, transparent); }
 .who-card:disabled { cursor: wait; opacity: .6; }
 .who-card--add:disabled { cursor: not-allowed; opacity: .5; }
 .who-card__picture--add { display: grid; place-items: center; color: var(--tl-text-muted); border: 2px dashed var(--tl-border-strong); box-sizing: border-box; }

@@ -302,22 +302,34 @@ public sealed class MappedEndpointInventoryTests
     }
 
     [Fact]
-    public async Task UserTransfer_IsSelfServiceForYourOwnData_InPersonForAHouseholdAdministratorsOwnHousehold_AndInPersonServerAdministratorOnlyForEveryoneElse()
+    public async Task EveryEndpointAPendingSessionMayUse_ExistsUnderItsName_AndNoDeviceProfileRouteRemains()
     {
         await using var app = BuildEndpointOnlyApplication();
         var inventory = EndpointInventory.From(app);
 
-        // A person exports only themselves; the route takes no account from the request.
-        var mine = inventory.Require("/access/me/export", "POST");
-        Assert.Equal("ExportMyData", mine.Name);
-        mine.RequiresNamedPolicy(AuthPolicies.HumanSelfService);
-        Assert.DoesNotContain("{", mine.Pattern, StringComparison.Ordinal);
+        // The names the profile-choice limit allows must be real routes, or the picker would be refused at sign-in.
+        Assert.Equal(PasswordChangeRequiredMiddleware.ValidateSessionEndpoint, inventory.Require("/auth/session/validate", "POST").Name);
+        Assert.Equal(PasswordChangeRequiredMiddleware.RevokeSessionEndpoint, inventory.Require("/auth/sessions/{sessionId:guid}", "DELETE").Name);
+        Assert.Equal(ProfilePendingMiddleware.SwitchProfileEndpoint, inventory.Require("/auth/session/switch-profile", "POST").Name);
+        Assert.Equal(ProfilePendingMiddleware.ListProfilesEndpoint, inventory.Require("/profiles", "GET").Name);
+        Assert.Equal(ProfilePendingMiddleware.ProfileAvatarEndpoint, inventory.Require("/profiles/{id:guid}/avatar", "GET").Name);
+        // "Always open as" is gone (users, profiles and households spec D3): nothing is mapped at /auth/device-profile.
+        Assert.DoesNotContain(inventory.Endpoints, route => route.Pattern.Contains("device-profile", StringComparison.Ordinal) && route.Pattern.StartsWith("/auth", StringComparison.Ordinal));
+    }
 
-        // Anyone else's sign-in material, and every import, is for an administrator signed in at the Dashboard: no paired app, no
-        // service application, no household administrator.
+    [Fact]
+    public async Task UserTransfer_IsInPersonServerAdministratorOnly_OnEveryExportAndImportRoute()
+    {
+        await using var app = BuildEndpointOnlyApplication();
+        var inventory = EndpointInventory.From(app);
+
+        // Only the server administrator exports or imports anything (users spec D16): their own profile, anyone else's sign-in material
+        // and a whole household alike, in person at the Dashboard. No paired app, no service application, no household administrator.
         foreach (var (pattern, name) in new[]
         {
+            ("/access/me/export", "ExportMyData"),
             ("/access/accounts/{accountId:guid}/export", "ExportAccount"),
+            ("/access/households/{householdId:guid}/export", "ExportHousehold"),
             ("/access/accounts/import/inspect", "InspectUserImport"),
             ("/access/accounts/import/{operationId:guid}", "ImportUser"),
         })
@@ -331,15 +343,8 @@ public sealed class MappedEndpointInventoryTests
             Assert.False(requirement.AllowHouseholdAdministrator);
         }
 
-        // A household's own administrator may export their household (users spec D16), still only in person at the Dashboard; the action
-        // itself limits them to their own household.
-        var household = inventory.Require("/access/households/{householdId:guid}/export", "POST");
-        Assert.Equal("ExportHousehold", household.Name);
-        Assert.False(household.AllowsAnonymousEndpoint);
-        var householdRequirement = Assert.Single(Assert.Single(household.Policies).Requirements.OfType<EffectiveAdministratorRequirement>());
-        Assert.True(householdRequirement.HumanOnly);
-        Assert.True(householdRequirement.SurfaceUnlock);
-        Assert.True(householdRequirement.AllowHouseholdAdministrator);
+        // The route takes no account from the request: it exports the signed-in server administrator's own profile.
+        Assert.DoesNotContain("{", inventory.Require("/access/me/export", "POST").Pattern, StringComparison.Ordinal);
     }
 
     [Fact]

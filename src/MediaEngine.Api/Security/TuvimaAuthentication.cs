@@ -43,6 +43,9 @@ public static class TuvimaClaimTypes
 
     /// <summary>Present on a person's session while their password is an administrator-set temporary one.</summary>
     public const string PasswordChangeRequired = "tuvima:password_change_required";
+
+    /// <summary>Present on a person's session from sign-in until they choose a profile of their household (users, profiles and households spec D3).</summary>
+    public const string ProfilePending = "tuvima:profile_pending";
 }
 
 public static class AuthPolicies
@@ -209,6 +212,11 @@ public sealed class TuvimaAuthenticationHandler(
         if (result.Account.MustChangePassword)
         {
             claims.Add(new Claim(TuvimaClaimTypes.PasswordChangeRequired, "true"));
+        }
+
+        if (result.Session.ProfilePending)
+        {
+            claims.Add(new Claim(TuvimaClaimTypes.ProfilePending, "true"));
         }
     }
 

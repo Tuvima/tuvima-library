@@ -18,9 +18,10 @@ using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>Export my data, Export a user and Import people (backup and restore spec D19, WP6; users spec D9 and D16).</summary>
+/// <summary>Export my data, Export a user and Import people (backup and restore spec D19, WP6; users spec D9 and D16): only the server administrator exports.</summary>
 public sealed class UserTransferSecurityPageTests : AsyncBunitContext
 {
+    private readonly DashboardSessionAccessor _session = new();
     private const string HelpLine = "Download a file with your sign-in, profiles, progress, bookmarks and favourites. Anyone with this file can sign in as you. Keep it somewhere safe.";
     private readonly ExportHandler _handler = new();
     private readonly Confirmer _confirmer = new();
@@ -34,7 +35,8 @@ public sealed class UserTransferSecurityPageTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new Factory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<AccountNoticeState>();
-        Services.AddSingleton(new DashboardSessionAccessor());
+        UseSession(serverAdministrator: true);
+        Services.AddSingleton(_session);
         Services.AddSingleton<AuthenticationStateProvider>(new PasswordAccountState());
         Services.AddSingleton<IEngineApiClient>(System.Reflection.DispatchProxy.Create<IEngineApiClient, SecuritySettingsPageTests.PhotoViewsApiClient>());
         Services.AddScoped<IItsYouConfirmer>(_ => _confirmer);
@@ -143,6 +145,28 @@ public sealed class UserTransferSecurityPageTests : AsyncBunitContext
         var cut = Render<SecuritySettingsPage>();
         cut.WaitForElement("[data-testid='export-my-data-button']");
         return cut;
+    }
+
+    private void UseSession(bool serverAdministrator)
+    {
+        var accountId = Guid.NewGuid();
+        var profileId = Guid.NewGuid();
+        _session.Set("session", accountId, profileId, Guid.NewGuid(), new DashboardAuthorityResponse(
+            accountId, profileId, true, true, 1, 1, serverAdministrator, serverAdministrator, null, 1, [],
+            serverAdministrator ? ["settings.administration"] : [], serverAdministrator ? ["access.manage"] : ["household.manage"]));
+    }
+
+    [Fact]
+    public void ExportMyData_IsNotOffered_ToAnyoneButTheServerAdministrator_HouseholdAdministratorsIncluded()
+    {
+        UseSession(serverAdministrator: false);
+
+        var cut = Render<SecuritySettingsPage>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Account details", cut.Markup, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-testid='export-my-data']"));
+        Assert.DoesNotContain("Export my data", cut.Markup, StringComparison.Ordinal);
+        Assert.Equal(0, _handler.Exports);
     }
 
     private sealed class Confirmer : IItsYouConfirmer

@@ -470,38 +470,40 @@ public sealed class PermissionsGroundworkTests
         Assert.Equal(ManagedDeviceRevokeOutcome.Revoked, await world.Devices.RevokeAsync(world.LockedAdminOfA, devices.OwnerA));
     }
 
-    // ----- Starting profile and "always open as" -----
+    // ----- Starting profile and the profile choice -----
 
     [Fact]
-    public async Task AnOutOfHouseholdAlwaysOpenAs_IsRefusedWhenSet_AndAnInHouseholdOneIsKept()
+    public async Task AnOutOfHouseholdProfile_IsRefusedWhenChosenAfterSignIn_ForEveryone_AndTheSessionStaysPending()
     {
         await using var world = await World.CreateAsync();
-        var session = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-pref", "Test", "Dashboard");
+        var member = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-pick", "Test", "Dashboard");
+        var administrator = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-pick", "Test", "Dashboard");
 
+        Assert.True(member.Session.ProfilePending);
+        Assert.True(administrator.Session.ProfilePending);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            world.Identity.SetDeviceProfilePreferenceAsync(world.A.Owner.Id, session.Session.Id, world.B.Person.Id));
-        Assert.Null(await world.Identity.GetDeviceProfilePreferenceAsync(world.A.Owner.Id, session.Session.Id));
-
-        await world.Identity.SetDeviceProfilePreferenceAsync(world.A.Owner.Id, session.Session.Id, world.A.Person.Id);
-        Assert.Equal(world.A.Person.Id, await world.Identity.GetDeviceProfilePreferenceAsync(world.A.Owner.Id, session.Session.Id));
+            world.Identity.SwitchActiveProfileAsync(member.PlaintextToken, world.B.Person.Id, null));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            world.Identity.SwitchActiveProfileAsync(administrator.PlaintextToken, world.B.Person.Id, null));
+        Assert.True((await world.Identity.ValidateSessionAsync(member.PlaintextToken))!.Session.ProfilePending);
+        Assert.True((await world.Identity.ValidateSessionAsync(administrator.PlaintextToken))!.Session.ProfilePending);
     }
 
     [Fact]
-    public async Task AnOutOfHouseholdAlwaysOpenAs_IsIgnoredAtSignIn_ForEveryone_BecauseASignInOpensItsOwnProfile()
+    public async Task ASignIn_OpensItsOwnProfile_ForEveryone_UntilAProfileOfTheHouseholdIsChosen()
     {
         await using var world = await World.CreateAsync();
-        // Set directly, as a data store from before this rule could hold it.
-        await world.Identities.SetDeviceProfilePreferenceAsync(world.A.Owner.Id, "device-old", world.B.Person.Id, DateTimeOffset.UtcNow);
-        await world.Identities.SetDeviceProfilePreferenceAsync(world.ServerAdminAccount.Id, "device-old", world.B.Person.Id, DateTimeOffset.UtcNow);
 
-        var member = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-old", "Test", "Dashboard");
-        var administrator = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-old", "Test", "Dashboard");
+        var member = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-own", "Test", "Dashboard");
+        var administrator = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-own", "Test", "Dashboard");
 
         Assert.Equal((await world.Accounts.GetDefaultProfileIdAsync(world.A.Owner.Id))!.Value, member.ActiveProfile.Id);
         Assert.Equal(world.A.Id, member.ActiveProfile.HouseholdId);
-        Assert.Null(await world.Identity.GetDeviceProfilePreferenceAsync(world.A.Owner.Id, member.Session.Id));
         Assert.Equal((await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value, administrator.ActiveProfile.Id);
-        Assert.Null(await world.Identity.GetDeviceProfilePreferenceAsync(world.ServerAdminAccount.Id, administrator.Session.Id));
+
+        var chosen = await world.Identity.SwitchActiveProfileAsync(member.PlaintextToken, world.A.Person.Id, null);
+        Assert.Equal(world.A.Person.Id, chosen.ActiveProfile.Id);
+        Assert.False(chosen.Session.ProfilePending);
     }
 
     // ----- Profile list -----

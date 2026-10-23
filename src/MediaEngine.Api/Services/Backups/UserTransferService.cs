@@ -32,10 +32,7 @@ public sealed class UserTransferService(
     public const long MaxUploadBytes = 256L * 1024 * 1024;
 
     /// <summary>What an administrator who is not allowed to do this is told.</summary>
-    public const string AdministratorRequiredMessage = "Only an administrator can move another person.";
-
-    /// <summary>What a person is told when their sign-in is not a person's own sign-in.</summary>
-    public const string PersonRequiredMessage = "Only a signed-in person can export their own data.";
+    public const string AdministratorRequiredMessage = "Only the server administrator can export or import people.";
 
     /// <summary>What an administrator is told when the account has no email, so it could not be found again on import.</summary>
     public const string NoEmailMessage = "This person has no email address, so their data can't be exported.";
@@ -93,11 +90,8 @@ public sealed class UserTransferService(
     /// <inheritdoc/>
     public async Task<UserExportDownload> ExportOwnAsync(RequestAuthority actor, CancellationToken ct)
     {
-        if (actor.PrincipalKind != PrincipalKind.Human || actor.AccountId is not { } accountId)
-        {
-            throw new UnauthorizedAccessException(PersonRequiredMessage);
-        }
-
+        // Only the server administrator exports anything (users spec D16): their own profile included. Everyone else is just a user.
+        var accountId = await RequireAdministratorAsync(actor, ct).ConfigureAwait(false);
         return await ExportAccountCoreAsync(actor, accountId, ct).ConfigureAwait(false);
     }
 
@@ -111,27 +105,8 @@ public sealed class UserTransferService(
     /// <inheritdoc/>
     public async Task<UserExportDownload> ExportHouseholdAsync(RequestAuthority actor, Guid householdId, CancellationToken ct)
     {
-        if (actor.PrincipalKind != PrincipalKind.Human || actor.AccountId is not { } actorAccount)
-        {
-            throw new UnauthorizedAccessException(AdministratorRequiredMessage);
-        }
-
-        // The server administrator may export any household; a household administrator only their own. Someone who is neither is told no;
-        // a household administrator who names another household, or one that does not exist, is told it isn't there (ids cannot be probed).
-        var isServerAdministrator = (await decisions.EvaluateAdministratorAsync(actor, true, ct).ConfigureAwait(false)).IsAllowed;
-        if (!isServerAdministrator)
-        {
-            if (!(await decisions.EvaluateHouseholdAdministratorAsync(actor, true, ct).ConfigureAwait(false)).IsAllowed)
-            {
-                throw new UnauthorizedAccessException(AdministratorRequiredMessage);
-            }
-
-            if (actor.ActiveProfileHouseholdId != householdId)
-            {
-                throw new KeyNotFoundException(HouseholdNotFoundMessage);
-            }
-        }
-
+        // Only the server administrator exports a household (users spec D16); a household administrator is told no like anyone else.
+        var actorAccount = await RequireAdministratorAsync(actor, ct).ConfigureAwait(false);
         if (await households.GetByIdAsync(householdId, ct).ConfigureAwait(false) is null)
         {
             throw new KeyNotFoundException(HouseholdNotFoundMessage);

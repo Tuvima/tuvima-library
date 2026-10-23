@@ -742,16 +742,6 @@ public static class AuthorityEndpointExtensions
     public static RouteGroupBuilder RequireEffectiveAdministratorInPerson(this RouteGroupBuilder builder) =>
         builder.RequireAuthorization(InPersonAdministratorPolicy());
 
-    /// <summary>
-    /// A server administrator, or a household administrator, signed in at the Dashboard (no paired app or service application, even one
-    /// acting for them). The action itself limits a household administrator to their own household.
-    /// </summary>
-    public static RouteHandlerBuilder RequireEffectiveAdministratorOrHouseholdAdministratorInPerson(this RouteHandlerBuilder builder) =>
-        builder.RequireAuthorization(new AuthorizationPolicyBuilder()
-            .RequireAuthenticatedUser()
-            .AddRequirements(new EffectiveAdministratorRequirement(surfaceUnlock: true, allowHouseholdAdministrator: true, humanOnly: true))
-            .Build());
-
     private static AuthorizationPolicy InPersonAdministratorPolicy() =>
         new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()

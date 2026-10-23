@@ -185,7 +185,7 @@
                 @if (_preview is not null)
                 {
                     <SignInDeletionConfirmation Preview="_preview" Email="@UserLabel(_editing)" Household="@_editing.HouseholdName"
-                                              @bind-KeepPhotos="_keepDeletedPhotos" Busy="@_saving" Error="@_deleteError" />
+                                              Busy="@_saving" Error="@_deleteError" />
                 }
                 <div class="access-form-actions">
                     <AppButton Label="Keep sign-in" Disabled="@_saving" OnClick="Close" />
@@ -213,7 +213,6 @@
     private bool _loading = true;
     private bool _open;
     private bool _saving;
-    private bool _keepDeletedPhotos = true;
     private string _email = string.Empty;
     private string _error = string.Empty;
     private string _deleteError = string.Empty;
@@ -370,7 +369,6 @@
         ResetDrawer(UserDrawerMode.Delete);
         _editing = user;
         _preview = preview.Value;
-        _keepDeletedPhotos = true;
         if (!preview.Succeeded)
             _error = ManagedUserMessages.For(preview.Failure, preview.Message);
         _open = true;
@@ -388,7 +386,6 @@
         _temporaryPassword = _issuedTemporaryPassword = string.Empty;
         _issuedTemporaryPasswordExpiresAt = null;
         _email = _error = _deleteError = string.Empty;
-        _keepDeletedPhotos = true;
     }
 
     private async Task SaveEmail()
@@ -494,10 +491,9 @@
             _deleteError = string.Empty;
             var user = _editing;
             var preview = _preview;
-            var keepPhotos = _keepDeletedPhotos;
             // The profiles the person was shown travel with the delete, so the Engine refuses if what would go has changed.
             var shown = preview.HouseholdProfiles.Select(profile => profile.Id).ToList();
-            var result = await Confirmed.RunAsync(() => Identity.DeleteUserResultAsync(user.Id, keepPhotos, shown));
+            var result = await Confirmed.RunAsync(() => Identity.DeleteUserResultAsync(user.Id, shown));
             if (!IsCurrentMutation(generation))
                 return;
             if (result.Succeeded)

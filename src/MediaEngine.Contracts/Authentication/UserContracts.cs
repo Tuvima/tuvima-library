@@ -51,8 +51,8 @@ public sealed record CreateUserResponse(
 /// sign-in goes and the profile stays. When <c>removes_household</c> is set, the user is the last that can look after a household, so
 /// the household goes with every profile in <c>household_profiles</c> (their ids are what <c>DELETE /access/users/{id}?profiles=</c>
 /// confirms). <c>refused_reason</c> is one plain sentence when the delete would be refused, otherwise null.
-/// <c>has_personal_photos</c> says a household removal meets photos, which cannot move into the Shared Library of the household
-/// that is going.
+/// <c>has_personal_photos</c> says a household removal meets photos or videos (a profile's own or the household's Shared Library).
+/// They are deleted with the household and never moved, so the confirmation says so; there is no choice to make (D18).
 /// </summary>
 public sealed record UserDeletionPreviewResponse(
     [property: JsonPropertyName("user_id")] Guid UserId,

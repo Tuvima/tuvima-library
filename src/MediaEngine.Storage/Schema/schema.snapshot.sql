@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0043 drop_account_held_access).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0044 drop_device_profile_preferences).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -721,14 +721,6 @@ CREATE TABLE device_photo_downloads (
     stored_at    TEXT NOT NULL,
     updated_at   TEXT NOT NULL,
     PRIMARY KEY (device_id, profile_id, item_id)
-);
-
-CREATE TABLE device_profile_preferences (
-    account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    device_id  TEXT NOT NULL,
-    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    updated_at TEXT NOT NULL,
-    PRIMARY KEY (account_id, device_id)
 );
 
 CREATE TABLE doc_correspondents (

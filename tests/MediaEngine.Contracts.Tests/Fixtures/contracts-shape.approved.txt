@@ -964,9 +964,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Device
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.DeviceProfileListDto
   Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.DeviceProfileDto> | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.DeviceProfilePreferenceResponse
-  ProfileId: System.Guid? | nullability=nullable | accessors=get,init
-
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.DeviceSessionResponse
   Id: System.Guid | nullability=not-null | accessors=get,init
   AccountId: System.Guid | nullability=not-null | accessors=get,init
@@ -1218,9 +1215,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetApp
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetDeviceBackupProfileRequest
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
   Pin: System.String | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetDeviceProfilePreferenceRequest
-  ProfileId: System.Guid | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetManagedDeviceBackupProfileRequest
   ProfileId: System.Guid? | nullability=nullable | accessors=get,init

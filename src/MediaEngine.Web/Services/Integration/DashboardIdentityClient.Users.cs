@@ -60,15 +60,14 @@ public sealed partial class DashboardIdentityClient
 
     /// <summary>
     /// Deletes the sign-in only. When the preview said the household goes too, <paramref name="confirmedProfileIds"/> is the list
-    /// the person was shown (the Engine refuses and deletes nothing if what would go has changed since) and
-    /// <paramref name="keepPhotos"/> moves those profiles' personal photos to the Shared Library (true) or deletes them (false).
-    /// Screens open on the sign-in, or on a profile that went with it, close.
+    /// the person was shown (the Engine refuses and deletes nothing if what would go has changed since); their photos and videos, and the
+    /// household's shared ones, are deleted with them (never moved). Screens open on the sign-in, or on a profile that went with it, close.
     /// </summary>
     public async Task<DashboardAccessMutationResult> DeleteUserResultAsync(
-        Guid userId, bool keepPhotos, IReadOnlyCollection<Guid> confirmedProfileIds, CancellationToken ct = default)
+        Guid userId, IReadOnlyCollection<Guid> confirmedProfileIds, CancellationToken ct = default)
     {
         var confirmed = string.Join(',', confirmedProfileIds.Select(id => id.ToString("D")));
-        var path = $"/access/users/{userId:D}?photos={(keepPhotos ? "move" : "delete")}&profiles={confirmed}";
+        var path = $"/access/users/{userId:D}?profiles={confirmed}";
         var result = await SendUserMutationAsync(HttpMethod.Delete, path, ct).ConfigureAwait(false);
         if (result.Succeeded)
         {

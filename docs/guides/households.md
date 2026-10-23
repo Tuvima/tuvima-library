@@ -51,9 +51,8 @@ A server administrator can add someone who is not part of an existing household.
 
 ## The profile picker
 
-Signing in opens your own profile. Open the picker from the account menu's **Who's watching?** to switch to another profile of your household, or use the menu's quick list. Choose a person to open their profile; any profile can switch to any other unless it has a PIN. A profile with a PIN opens a number pad: tap the digits (or type them on a keyboard or remote), then choose **Continue**. The dots shake if the PIN is wrong, and too many wrong tries pause further attempts for a minute.
+Signing in shows your household's profiles with your own already selected, and nothing opens until you click a person or press **Continue** (or Enter). Open the picker again from the account menu's **Who's watching?** to switch to another profile of your household, or use the menu's quick list. Choose a person to open their profile; any profile can switch to any other unless it has a PIN. A profile with a PIN opens a number pad: tap the digits (or type them on a keyboard or remote), then choose **Continue**. The dots shake if the PIN is wrong, and too many wrong tries pause further attempts for a minute.
 
-On a device that only one person uses, tick **Always open as this person on this device** to open straight to that profile. **Stop always opening as** undoes it.
 
 ## Phone backup
 
@@ -72,7 +71,7 @@ Your private photo space stays private until you choose to submit something.
 
 ## Delete a profile
 
-On a person's page choose **Delete profile**. Tuvima lists what goes with it (progress, bookmarks, lists and history), tells you that their sign-in is removed too, and asks what to do with their personal photos: **Move to Shared** (the default) or **Delete**. Library files are never touched. You cannot delete the profile you are using, a household's last household administrator, or (as a household administrator) a server administrator's profile.
+On a person's page choose **Delete profile**. Tuvima lists what goes with it (progress, bookmarks, lists and history), tells you that their sign-in is removed too, and asks what to do with their personal photos: **Move to Shared** (the default) or **Delete**. (Deleting the last sign-in that can look after a household removes the whole household with all of its photos and videos instead, and says so first.) Library files are never touched. You cannot delete the profile you are using, a household's last household administrator, or (as a household administrator) a server administrator's profile.
 
 ## What a household administrator can and cannot do
 

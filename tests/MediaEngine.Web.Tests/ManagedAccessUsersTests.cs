@@ -349,7 +349,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         Click(cut, "Delete sign-in", last: true);
 
         cut.WaitForAssertion(() => Assert.Equal("The sign-in owner@example.test was deleted. Owner's profile was kept.", cut.Find("[data-testid='access-notice']").TextContent.Trim()));
-        Assert.Equal("?photos=move&profiles=", Assert.Single(_handler.DeleteQueries));
+        Assert.Equal("?profiles=", Assert.Single(_handler.DeleteQueries));
         Assert.Empty(cut.FindAll(".access-users__row"));
     }
 
@@ -362,51 +362,37 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         OpenAction(cut, "Delete sign-in");
 
         Assert.Equal(
-            "This is the last sign-in that can look after Household 2. Deleting it removes Household 2 and its profiles: Pat, Sam, Leo, with their progress, bookmarks and lists.",
+            "This is the last sign-in that can look after Household 2. Deleting it removes Household 2 and its profiles: Pat, Sam, Leo, with their progress, bookmarks, lists, photos and videos.",
             cut.Find("[data-user-deletion] [role='alert'], [data-user-deletion] .app-alert").TextContent.Trim());
     }
 
     [Fact]
-    public void DeleteSignIn_ForAHouseholdWithoutPhotos_OffersNoPhotoChoice()
+    public void DeleteSignIn_ForAHouseholdWithPhotos_SaysPhotosAndVideosGo_AndOffersNoPhotoChoice()
     {
         _handler.RemovesHousehold("Household 2", "Pat", "Sam");
+        _handler.PreviewHasPhotos = true;
         var cut = RenderUsers();
 
         OpenAction(cut, "Delete sign-in");
 
+        Assert.Contains("with their progress, bookmarks, lists, photos and videos.", cut.Find("[data-user-deletion] .app-alert").TextContent);
         Assert.Empty(cut.FindAll("[data-user-deletion-photos]"));
+        Assert.Empty(cut.FindAll("input[type='radio']"));
     }
 
     [Fact]
-    public void DeleteSignIn_ForAHouseholdWithPhotos_MovesThemToSharedUnlessTheAdministratorChoosesDelete()
+    public void DeleteSignIn_ForAHouseholdWithPhotos_SendsOnlyTheShownProfiles_NoPhotoChoice()
     {
         _handler.RemovesHousehold("Household 2", "Pat", "Sam");
         _handler.PreviewHasPhotos = true;
         var cut = RenderUsers();
         OpenAction(cut, "Delete sign-in");
 
-        Assert.True(cut.Find("input[aria-label='Move their photos to Shared']").HasAttribute("checked"));
         Click(cut, "Delete sign-in", last: true);
 
         cut.WaitForAssertion(() => Assert.Contains("Household 2 and its profiles were removed", cut.Find("[data-testid='access-notice']").TextContent));
         var shown = string.Join(',', _handler.PreviewIds.Select(id => id.ToString("D")));
-        Assert.Equal($"?photos=move&profiles={shown}", Assert.Single(_handler.DeleteQueries));
-    }
-
-    [Fact]
-    public void DeleteSignIn_WithThePhotosSetToDelete_SendsThatChoiceAndTheShownProfiles()
-    {
-        _handler.RemovesHousehold("Household 2", "Pat", "Sam");
-        _handler.PreviewHasPhotos = true;
-        var cut = RenderUsers();
-        OpenAction(cut, "Delete sign-in");
-
-        cut.Find("input[aria-label='Delete their photos']").Change(true);
-        Click(cut, "Delete sign-in", last: true);
-
-        cut.WaitForAssertion(() => Assert.Contains("was deleted", cut.Find("[data-testid='access-notice']").TextContent));
-        var shown = string.Join(',', _handler.PreviewIds.Select(id => id.ToString("D")));
-        Assert.Equal($"?photos=delete&profiles={shown}", Assert.Single(_handler.DeleteQueries));
+        Assert.Equal($"?profiles={shown}", Assert.Single(_handler.DeleteQueries));
     }
 
     [Fact]
@@ -602,7 +588,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         public HttpStatusCode DeleteStatus { get; set; } = HttpStatusCode.NoContent;
         public string? DeleteDetail { get; set; }
 
-        /// <summary>The query string of each delete request ("?photos=move&amp;profiles=").</summary>
+        /// <summary>The query string of each delete request ("?profiles=").</summary>
         public List<string> DeleteQueries { get; } = [];
 
         /// <summary>The preview will say the household goes too, with these profiles.</summary>

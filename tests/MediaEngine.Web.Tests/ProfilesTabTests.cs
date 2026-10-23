@@ -291,9 +291,24 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     private const string ExportHelp = "Download a file with this household's profiles, their sign-ins, progress, bookmarks and favourites. Anyone with this file can sign in as these people. Keep it somewhere safe.";
 
     [Fact]
-    public void HouseholdAdministrator_GetsOneExportButtonForTheirOwnHousehold_WithTheHelpText()
+    public void HouseholdAdministrator_IsNeverOfferedExport_OnlyTheServerAdministratorExports()
     {
         Setup(serverAdministrator: false, householdAdministrator: true);
+        _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
+        _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
+
+        var cut = Render<ProfilesTab>();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__line").Count));
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Export this household", StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll("[data-testid^='export-household-']"));
+        Assert.DoesNotContain("Anyone with this file can sign in", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ServerAdministrator_GetsOneExportButtonForAHousehold_WithTheHelpText()
+    {
+        Setup(serverAdministrator: true, householdAdministrator: false);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 2, 1, DateTimeOffset.UtcNow));
         _managed.AddRange([Person(OwnId, "Test User", false, householdAdmin: true), Person(SamId, "Sam", false)]);
 
@@ -341,7 +356,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     [Fact]
     public void ExportThisHousehold_HandsTheEnginesFileNameToTheBrowser()
     {
-        Setup(serverAdministrator: false, householdAdministrator: true);
+        Setup(serverAdministrator: true, householdAdministrator: false);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
         _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
 
@@ -362,7 +377,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     {
         _confirmer = new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: true);
         _staleExports = 1;
-        Setup(serverAdministrator: false, householdAdministrator: true);
+        Setup(serverAdministrator: true, householdAdministrator: false);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
         _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
 
@@ -380,7 +395,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     public void ExportThisHousehold_WhenTheyDoNotConfirmItsThem_DownloadsNothingAndSaysSo()
     {
         _staleExports = 5;
-        Setup(serverAdministrator: false, householdAdministrator: true);
+        Setup(serverAdministrator: true, householdAdministrator: false);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
         _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
 
@@ -397,7 +412,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     public void ExportThisHousehold_WhenTheEngineRefuses_ShowsItsSentenceAndDownloadsNothing()
     {
         _exportFailure = (HttpStatusCode.Conflict, "Another change is in progress. Try again in a moment.");
-        Setup(serverAdministrator: false, householdAdministrator: true);
+        Setup(serverAdministrator: true, householdAdministrator: false);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
         _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
 
@@ -414,7 +429,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     public void ExportThisHousehold_AfterAServerError_NeverShowsTheErrorsText_OnlyThePlainSentence()
     {
         _exportFailure = (HttpStatusCode.InternalServerError, "System.IO.IOException at C:\\data\\export.zip");
-        Setup(serverAdministrator: false, householdAdministrator: true);
+        Setup(serverAdministrator: true, householdAdministrator: false);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
         _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
 
@@ -431,7 +446,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     public void ExportThisHousehold_WhenTheBrowserRefusesTheDownload_SaysSo()
     {
         JSInterop.SetupVoid("tuvimaDownloads.fromStream", _ => true).SetException(new JSException("Download blocked"));
-        Setup(serverAdministrator: false, householdAdministrator: true);
+        Setup(serverAdministrator: true, householdAdministrator: false);
         _households.Add(new HouseholdResponse(HouseholdId, "Home", 1, 1, DateTimeOffset.UtcNow));
         _managed.Add(Person(OwnId, "Test User", false, householdAdmin: true));
 

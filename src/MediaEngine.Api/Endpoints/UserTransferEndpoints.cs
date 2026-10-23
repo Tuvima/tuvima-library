@@ -9,9 +9,9 @@ namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
 /// Moving people between Libraries (backup and restore spec D19, users spec D9 and D16). The file holds what is needed to sign in as each
-/// person in it, so every route asks the person to confirm it is them first (403 <c>confirm_its_you</c> for a stale sign-in), a person
-/// exports only their own profile, a household administrator also their own household, and only the server administrator signed in at the
-/// Dashboard exports anyone else, or imports.
+/// person in it, so every route asks the person to confirm it is them first (403 <c>confirm_its_you</c> for a stale sign-in), and only the
+/// server administrator signed in at the Dashboard exports (their own profile, anyone else, or a household) or imports. Everyone else,
+/// household administrators included, is just a user and is refused with 403.
 /// </summary>
 public static class UserTransferEndpoints
 {
@@ -19,7 +19,7 @@ public static class UserTransferEndpoints
     {
         var access = app.MapGroup("/access").WithTags("Access");
 
-        // The signed-in person's own account, never one named in the request.
+        // The signed-in server administrator's own account, never one named in the request.
         access.MapPost("/me/export", async (HttpContext http, IRequestAuthorityResolver resolver,
             [FromServices] IUserTransferService transfers, [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(http, async () =>
@@ -32,9 +32,9 @@ public static class UserTransferEndpoints
             var download = await transfers.ExportOwnAsync(await resolver.ResolveAsync(http, ct), ct);
             return Results.File(download.Content, "application/zip", download.FileName);
         }))
-            .RequireHumanSelfService()
+            .RequireEffectiveAdministratorInPerson()
             .WithName("ExportMyData")
-            .WithSummary("Downloads the signed-in person's own data as one file: their profile, the sign-in that opens it and the profile's own state.")
+            .WithSummary("Downloads the signed-in server administrator's own data as one file: their profile, the sign-in that opens it and the profile's own state. Only the server administrator exports.")
             .Produces(StatusCodes.Status200OK, contentType: "application/zip")
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
@@ -60,8 +60,8 @@ public static class UserTransferEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
-        // A whole household: every profile, their sign-ins and their own state. The household's own administrator, or the server
-        // administrator; the service refuses anyone else and gives another household and an unknown one the same answer.
+        // A whole household: every profile, their sign-ins and their own state. The server administrator only; a household administrator
+        // gets 403 like any other user.
         access.MapPost("/households/{householdId:guid}/export", async (Guid householdId, HttpContext http, IRequestAuthorityResolver resolver,
             [FromServices] IUserTransferService transfers, [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(http, async () =>
@@ -74,9 +74,9 @@ public static class UserTransferEndpoints
             var download = await transfers.ExportHouseholdAsync(await resolver.ResolveAsync(http, ct), householdId, ct);
             return Results.File(download.Content, "application/zip", download.FileName);
         }))
-            .RequireEffectiveAdministratorOrHouseholdAdministratorInPerson()
+            .RequireEffectiveAdministratorInPerson()
             .WithName("ExportHousehold")
-            .WithSummary("Downloads a whole household (every profile, their sign-ins and their own state) as a file another Library can import. For that household's administrator or the server administrator.")
+            .WithSummary("Downloads a whole household (every profile, their sign-ins and their own state) as a file another Library can import. For the server administrator only.")
             .Produces(StatusCodes.Status200OK, contentType: "application/zip")
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)

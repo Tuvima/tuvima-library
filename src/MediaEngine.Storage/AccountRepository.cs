@@ -316,12 +316,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 return new UserRemovalOutcome(null, [], [userId]);
             }
 
-            // D6: the household goes with every profile in it, unless its Shared Library still holds shared photos.
-            if (plan.HouseholdHoldsSharedItems)
-            {
-                throw new InvalidOperationException(UserRemovalMessages.HouseholdHoldsSharedItems);
-            }
-
+            // D6, D18: the household goes with every profile in it, and with every photo and video of theirs and of its Shared Library.
             var householdId = plan.HouseholdId!.Value;
             // A user belongs to the household of its profile.
             var userIds = connection.Query<Guid>("""
@@ -340,6 +335,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 DeleteProfileRows(connection, transaction, profileId);
             }
 
+            var sharedFiles = HouseholdRepository.DeleteSharedItems(connection, transaction, householdId);
             var removed = HouseholdRepository.DeleteEmptyHousehold(connection, transaction, householdId);
             if (removed != HouseholdDeleteOutcome.Deleted)
             {
@@ -349,7 +345,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                     : UserRemovalMessages.HouseholdCouldNotBeRemoved);
             }
 
-            return new UserRemovalOutcome(householdId, profileIds, userIds);
+            return new UserRemovalOutcome(householdId, profileIds, userIds, sharedFiles);
         }, ct);
 
     /// <summary>The account row's own work: the last-administrator backstop and removing it.</summary>
@@ -639,8 +635,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     /// <summary>
     /// What deleting a user does (D5, D6). Only the sign-in goes, unless it is the last enabled user attached to a
     /// household-administrator profile of a household that is not the default one: then the household goes with every profile in it.
-    /// Reads the household's profiles and whether its Shared Library holds shared photos, so the caller can refuse before it moves
-    /// anything. Throws when the user does not exist.
+    /// Reads the household's profiles and whether its Shared Library holds shared photos, so the confirmation can say they go
+    /// with the household (D18). Throws when the user does not exist.
     /// </summary>
     private static UserRemovalPlan PlanUserRemoval(SqliteConnection connection, SqliteTransaction transaction, Guid userId)
     {

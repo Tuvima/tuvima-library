@@ -463,11 +463,11 @@ public static class AccountEndpoints
            .Produces<UserDeletionPreviewResponse>();
 
         // Deletes the sign-in only (D5); the profile and everything in it stay. The last sign-in that can look after a household that is
-        // not the default one takes the household and every profile in it (D6). ?photos=move (the default) keeps the removed profiles'
-        // photos in the Shared Library; ?photos=delete removes them. ?profiles=<id>,<id> is the list shown by the preview (empty for a
+        // not the default one takes the household and every profile in it (D6), with every personal and shared photo and video (D18;
+        // photos are deleted, never moved, and there is no choice to make). ?profiles=<id>,<id> is the list shown by the preview (empty for a
         // sign-in-only delete): if what would go differs, the Engine refuses with 409 and deletes nothing.
         // A delete that would remove a household and sends no list is refused the same way.
-        group.MapDelete("/{userId:guid}", async (Guid userId, [FromQuery] string? photos, [FromQuery] string? profiles,
+        group.MapDelete("/{userId:guid}", async (Guid userId, [FromQuery] string? profiles,
             HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
             [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) => await ExecuteAsync(async () =>
         {
@@ -477,14 +477,8 @@ public static class AccountEndpoints
                 return stale;
             }
 
-            var disposition = photos?.Trim().ToLowerInvariant() switch
-            {
-                null or "" or "move" => ProfilePhotoDisposition.MoveToShared,
-                "delete" => ProfilePhotoDisposition.Delete,
-                _ => throw new ArgumentException("photos must be 'move' or 'delete'."),
-            };
             var confirmed = ParseConfirmedProfiles(profiles);
-            await mutations.DeleteUserAsync(await resolver.ResolveAsync(http, ct), userId, disposition, confirmed, ct);
+            await mutations.DeleteUserAsync(await resolver.ResolveAsync(http, ct), userId, confirmed, ct);
             return Results.NoContent();
         })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("DeleteUser")

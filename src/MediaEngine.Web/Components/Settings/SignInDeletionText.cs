@@ -18,7 +18,7 @@ internal static class SignInDeletionText
             var name = preview.HouseholdName ?? household ?? "this household";
             return $"This is the last sign-in that can look after {name}. Deleting it removes {name} and its profiles: "
                 + $"{string.Join(", ", preview.HouseholdProfiles.Select(profile => profile.DisplayName))}, "
-                + "with their progress, bookmarks and lists.";
+                + "with their progress, bookmarks, lists, photos and videos.";
         }
 
         var person = string.IsNullOrWhiteSpace(profileName) ? "Their" : $"{profileName}'s";

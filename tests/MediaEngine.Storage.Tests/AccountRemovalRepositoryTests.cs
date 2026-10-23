@@ -167,26 +167,64 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task ARemovedHouseholdThatStillHoldsSharedPhotos_IsRefusedAndNothingIsDeleted()
+    public async Task ARemovedHouseholdThatHoldsSharedPhotos_IsRemovedWithThem_AndOtherHouseholdsPhotosStay()
     {
         await AddServerAdministratorAsync("shy@example.com", "Shy");
         var pat = await AddMainSignInAsync("pat@example.com", "Pat");
-        var patProfile = await DefaultProfileAsync(pat);
-        var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(pat.HouseholdId!.Value);
-        Execute("""
-            INSERT INTO local_items (id, scope_kind, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
-            VALUES (@id, 'shared', @library, 'image', 'beach.jpg', 'image/jpeg', @now, @now);
-            """, new { id = Guid.NewGuid(), library = shared.LibraryId, now = _now.ToString("O") });
+        var bea = await AddMainSignInAsync("bea@example.com", "Bea");
+        var patShared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(pat.HouseholdId!.Value);
+        var beaShared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(bea.HouseholdId!.Value);
+        var patItem = AddSharedPhoto(patShared.LibraryId, "beach.jpg");
+        var beaItem = AddSharedPhoto(beaShared.LibraryId, "garden.jpg");
 
         var plan = await _accounts.PlanUserRemovalAsync(pat.Id);
-        var confirmed = await ConfirmedAsync(pat.Id);
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteUserAsync(pat.Id, confirmed));
+        var outcome = await _accounts.DeleteUserAsync(pat.Id, await ConfirmedAsync(pat.Id));
 
         Assert.True(plan.HouseholdHoldsSharedItems);
-        Assert.Equal(UserRemovalMessages.HouseholdHoldsSharedItems, refused.Message);
-        Assert.NotNull(await _accounts.GetByIdAsync(pat.Id));
-        Assert.NotNull(await _profiles.GetByIdAsync(patProfile));
-        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM households WHERE id=@household", new { household = pat.HouseholdId }));
+        Assert.Equal(pat.HouseholdId, outcome.RemovedHouseholdId);
+        Assert.Null(await _accounts.GetByIdAsync(pat.Id));
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM households WHERE id=@household", new { household = pat.HouseholdId }));
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM local_items WHERE library_id=@library", new { library = patShared.LibraryId }));
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM view_shared_assets WHERE item_id=@item", new { item = patItem.ItemId }));
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM local_files WHERE id=@file", new { file = patItem.FileId }));
+        Assert.Equal(0, Scalar("SELECT COUNT(*) FROM local_file_sources WHERE library_id=@library", new { library = patShared.LibraryId }));
+        var file = Assert.Single(outcome.SharedFilesToDelete!);
+        Assert.Equal(patItem.FileId, file.FileId);
+        Assert.Equal(patItem.Path, file.FilePath);
+        // Another household's Shared Library is untouched.
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM local_items WHERE id=@item", new { item = beaItem.ItemId }));
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM local_files WHERE id=@file", new { file = beaItem.FileId }));
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM view_shared_library WHERE library_id=@library", new { library = beaShared.LibraryId }));
+    }
+
+    [Fact]
+    public async Task AnEmptyHouseholdRemovedOnItsOwn_StillRefusesWhileItsSharedLibraryHoldsPhotos()
+    {
+        var households = new HouseholdRepository(_database);
+        var other = await households.CreateAsync("Other", _now);
+        var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(other.Id);
+        AddSharedPhoto(shared.LibraryId, "sea.jpg");
+
+        // Only a household that goes with its last household administrator's sign-in takes its photos with it (D18).
+        Assert.Equal(HouseholdDeleteOutcome.HoldsSharedItems, await households.DeleteWhenEmptyAsync(other.Id));
+    }
+
+    private (Guid ItemId, Guid FileId, string Path) AddSharedPhoto(Guid libraryId, string name)
+    {
+        var itemId = Guid.NewGuid();
+        var fileId = Guid.NewGuid();
+        var path = $"/view/shared/{name}";
+        Execute("""
+            INSERT INTO local_items (id, scope_kind, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
+            VALUES (@itemId, 'shared', @library, 'image', @name, 'image/jpeg', @now, @now);
+            INSERT INTO local_files (id, content_hash, byte_size, mime_type, extension, created_at)
+            VALUES (@fileId, @hash, 10, 'image/jpeg', '.jpg', @now);
+            INSERT INTO local_item_files (item_id, file_id, role, position, added_at) VALUES (@itemId, @fileId, 'primary', 0, @now);
+            INSERT INTO local_file_sources (id, file_id, library_id, file_path, modified_at, indexed_at)
+            VALUES (@sourceId, @fileId, @library, @path, @now, @now);
+            INSERT INTO view_shared_assets (item_id, destination_kind, promoted_at) VALUES (@itemId, 'timeline', @now);
+            """, new { itemId, fileId, library = libraryId, name, path, hash = Guid.NewGuid().ToString("N"), sourceId = Guid.NewGuid(), now = _now.ToString("O") });
+        return (itemId, fileId, path);
     }
 
     [Fact]

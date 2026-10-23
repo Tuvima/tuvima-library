@@ -59,7 +59,7 @@ public sealed class UserExportScopeGuardrailTests
     {
         var rights = new[]
         {
-            "profile_library_grants", "profile_admin_protections", "profile_admin_unlocks", "client_devices", "device_profile_preferences",
+            "profile_library_grants", "profile_admin_protections", "profile_admin_unlocks", "client_devices",
             "auth_sessions", "account_invitations", "password_recovery_codes", "applications", "provider_config", "backup_settings",
         };
 

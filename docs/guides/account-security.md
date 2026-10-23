@@ -57,6 +57,8 @@ On a person's page:
 4. **Profile details** sets the PIN asked before anyone switches into that person (4 to 12 digits). A new PIN replaces the old one.
 5. **Delete profile** removes the person and everything personal in it, and their sign-in too. You choose whether their photos **Move to Shared** (the default) or are deleted.
 
+When the last sign-in that can look after a household (other than the Library's own) is deleted, the household goes with it: its profiles, and every photo and video of theirs and of the household's Shared Library, are deleted, never moved. The confirmation says so first.
+
 If a household administrator turned on an administrator PIN, Tuvima asks for it the first time the Engine refuses a change.
 
 ## Protect admin settings
@@ -73,7 +75,9 @@ The PIN lock protects settings after sign-in. It is separate from the sign-in pa
 
 ## Manage your sign-in methods
 
-Open **Settings → Security**. **Password** changes your password. Once you have a password, **Extra protection** opens one sheet for passkeys, two-step codes, linked sign-ins and recovery codes. Everyone sees **Sign out everywhere else** under *Access*, which signs out your other sessions (for example a lost phone) and keeps the one you are using; administrators also see **Devices** there. Under *Your photos*, **Who viewed your photos** lists, read-only and newest first, each time a server administrator opened your photos (the household's own administrator also sees views of the household's Shared Library); the times are shown in UTC and nothing there can be deleted.
+Signing in shows your household's profiles with your own already selected; press **Continue** (or Enter) or click another person, with their PIN when they have one. Everyone signs in with their own email, so people never need to share a password.
+
+Open **Settings → Security**. **Password** changes your password. Only the server administrator sees **Export my data** there; exporting is for the server administrator alone. Once you have a password, **Extra protection** opens one sheet for passkeys, two-step codes, linked sign-ins and recovery codes. Everyone sees **Sign out everywhere else** under *Access*, which signs out your other sessions (for example a lost phone) and keeps the one you are using; administrators also see **Devices** there. Under *Your photos*, **Who viewed your photos** lists, read-only and newest first, each time a server administrator opened your photos (the household's own administrator also sees views of the household's Shared Library); the times are shown in UTC and nothing there can be deleted.
 
 Password resets revoke existing sessions. Tuvima prevents removal of the final usable authenticator.
 

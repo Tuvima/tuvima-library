@@ -187,7 +187,7 @@ else
     private string SignInText(Guid profileId) => Managed(profileId)?.User?.Email is { Length: > 0 } email ? email : "No sign-in";
 
     // A phone only reads the list, so the export is a computer or tablet action (checked again in the handler).
-    private bool CanExport(Household group) => IsAdministrator && !DeviceContext.IsPhone && group.Id != Guid.Empty;
+    private bool CanExport(Household group) => IsServerAdministrator && !DeviceContext.IsPhone && group.Id != Guid.Empty;
 
     private static string AddLabel(Household group) => $"Add profile to {group.Title}";
 
@@ -296,7 +296,7 @@ else
     // Hands the household file to the browser. A failure is told in one plain sentence, the Engine's own when it gives one.
     private async Task ExportHouseholdAsync(Guid householdId)
     {
-        if (_exportingHouseholdId is not null || !IsAdministrator || DeviceContext.IsPhone || householdId == Guid.Empty)
+        if (_exportingHouseholdId is not null || !IsServerAdministrator || DeviceContext.IsPhone || householdId == Guid.Empty)
         {
             return;
         }

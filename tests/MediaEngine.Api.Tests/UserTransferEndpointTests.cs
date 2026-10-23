@@ -32,8 +32,8 @@ namespace MediaEngine.Api.Tests;
 /// <summary>
 /// The routes that move people between Libraries (backup and restore spec D19, users spec D9 and D16), run in memory against a real data
 /// store and the real "confirm it's you" check: a stale sign-in is asked to confirm first on every route, application and service callers
-/// cannot export anyone's sign-in material, a household administrator exports only their own household, and only the server administrator
-/// exports another person or imports.
+/// cannot export anyone's sign-in material, and only the server administrator exports (their own profile, another person or a whole
+/// household) or imports; everyone else, household administrators included, is refused with 403.
 /// </summary>
 public sealed class UserTransferEndpointTests : IDisposable
 {
@@ -78,9 +78,10 @@ public sealed class UserTransferEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportMyData_AfterConfirming_ReturnsTheZipForTheSignedInPersonOnly()
+    public async Task ExportMyData_ForTheServerAdministratorAfterConfirming_ReturnsTheZipForTheirOwnProfileOnly()
     {
         var issued = await SignInAsync();
+        _administrator = issued.Account.Id;
         AddOtherPerson("other-person@example.com");
         await using var app = BuildApplication();
 
@@ -94,6 +95,26 @@ public sealed class UserTransferEndpointTests : IDisposable
         var exported = Assert.Single(_audit.Events);
         Assert.Equal("account.exported", exported.EventType);
         Assert.Equal(issued.Account.Id, exported.ActorAccountId);
+    }
+
+    [Fact]
+    public async Task ExportMyData_IsRefusedWith403_ForEveryoneButTheServerAdministrator_HouseholdAdministratorsIncluded()
+    {
+        var issued = await SignInAsync();
+        var home = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("INSERT INTO households (id, name, created_at) VALUES (@id, 'Home', '2026-10-21T10:00:00Z')", new { id = GuidSql.ToBlob(home) });
+        }
+
+        await using var app = BuildApplication();
+
+        var member = await SendAsync(app, "/access/me/export", HumanUser(issued));
+        var householdAdministrator = await SendAsync(app, "/access/me/export", HumanUser(issued), household: home, householdAdministratorOf: home);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, member.Status);
+        Assert.Equal(StatusCodes.Status403Forbidden, householdAdministrator.Status);
+        Assert.Empty(_audit.Events);
     }
 
     [Theory]
@@ -230,7 +251,7 @@ public sealed class UserTransferEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportHousehold_IsForTheServerAdministratorAndTheHouseholdsOwnAdministrator_AndNoOneElse()
+    public async Task ExportHousehold_IsForTheServerAdministratorOnly_AHouseholdAdministratorGets403LikeAnyoneElse()
     {
         var issued = await SignInAsync();
         var home = Guid.NewGuid();
@@ -243,41 +264,33 @@ public sealed class UserTransferEndpointTests : IDisposable
             }
         }
 
-        var mom = AddOtherPerson("mom@example.com", home);
+        AddOtherPerson("mom@example.com", home);
         AddOtherPerson("kid@example.com", home);
         AddOtherPerson("stranger@example.com", other);
         await using var app = BuildApplication();
 
-        // The household's own administrator gets their household and nothing of another one.
-        var given = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: home, householdAdministratorOf: home);
-        Assert.Equal(StatusCodes.Status200OK, given.Status);
-        Assert.Matches(@"^tuvima-household-\d{8}-\d{6}\.zip$", given.DownloadName);
-        Assert.Contains("mom@example.com", given.Text, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("kid@example.com", given.Text, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("stranger@example.com", given.Text, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("\"scope\":\"household\"", given.Text, StringComparison.Ordinal);
-        var exported = Assert.Single(_audit.Events);
-        Assert.Equal("household.exported", exported.EventType);
-        Assert.Equal(home.ToString("D"), exported.SubjectId);
-
-        // Another household, and one that does not exist, get the same answer.
-        _audit.Events.Clear();
-        var anotherHousehold = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: other, householdAdministratorOf: home);
+        // A household administrator is refused for their own household, for another one and for one that does not exist, alike.
+        var own = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: home, householdAdministratorOf: home);
+        var another = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: other, householdAdministratorOf: home);
         var unknown = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: Guid.NewGuid(), householdAdministratorOf: home);
-        Assert.Equal(StatusCodes.Status404NotFound, anotherHousehold.Status);
-        Assert.Equal(StatusCodes.Status404NotFound, unknown.Status);
-        Assert.Equal(anotherHousehold.Text, unknown.Text);
-
-        // A member who is not an administrator is refused; the server administrator may export any household.
         var member = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: home);
-        Assert.Equal(StatusCodes.Status403Forbidden, member.Status);
+        Assert.All(new[] { own, another, unknown, member }, reply => Assert.Equal(StatusCodes.Status403Forbidden, reply.Status));
         Assert.Empty(_audit.Events);
+
+        // The server administrator exports any household, and only that household's people are in the file.
         _administrator = issued.Account.Id;
         var any = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: other);
         Assert.Equal(StatusCodes.Status200OK, any.Status);
+        Assert.Matches(@"^tuvima-household-\d{8}-\d{6}\.zip$", any.DownloadName);
         Assert.Contains("stranger@example.com", any.Text, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("mom@example.com", any.Text, StringComparison.OrdinalIgnoreCase);
-        Assert.NotEqual(Guid.Empty, mom);
+        Assert.Contains("\"scope\":\"household\"", any.Text, StringComparison.Ordinal);
+        var exported = Assert.Single(_audit.Events);
+        Assert.Equal("household.exported", exported.EventType);
+        Assert.Equal(other.ToString("D"), exported.SubjectId);
+
+        var missing = await SendAsync(app, "/access/households/{householdId:guid}/export", HumanUser(issued), household: Guid.NewGuid());
+        Assert.Equal(StatusCodes.Status404NotFound, missing.Status);
     }
 
     [Theory]

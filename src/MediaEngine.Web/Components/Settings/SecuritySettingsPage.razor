@@ -58,7 +58,9 @@
                             <SettingsNavRow Key="extra-protection" Icon="@AppMaterialIcons.Outlined.Security" Title="Extra protection" Status="@ExtraProtectionStatus" OnClick="@(() => OpenSheet(SecuritySheet.ExtraProtection))" />
                         </li>
                     }
-                    @* A file that moves this person to another Library; anyone holding it can sign in as them, so the Engine asks to confirm it is them first. *@
+                    @* Only the server administrator exports (users spec D16); everyone else is just a user and is never offered this. A file that moves this person to another Library; anyone holding it can sign in as them, so the Engine asks to confirm it is them first. *@
+                    @if (IsServerAdministrator)
+                    {
                     <li class="security-settings__item security-settings__export" data-testid="export-my-data">
                         <div class="security-sheet__row">
                             <div>
@@ -72,6 +74,7 @@
                             <AppButton Label="Export" Loading="@_exporting" Disabled="@(_busy || _exporting)" OnClick="ExportMyDataAsync" data-testid="export-my-data-button" />
                         </div>
                     </li>
+                    }
                 </ul>
             </SettingsSectionPanel>
 
@@ -375,6 +378,7 @@
     private string _secureConfirm = string.Empty;
     private string _secureEmail = string.Empty;
     private bool _thisComputerOnly;
+    private bool IsServerAdministrator => Session.Authority?.EffectiveAdministrator == true || Session.HasNavigation("settings.administration");
     // After Not now on the profile menu card the reminder is a quiet note here instead of a dot and a card.
     private bool ShowAwayFromHomeNote => _thisComputerOnly && !Capabilities.HasPassword && Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
     private void OnNoticesChanged() => _ = InvokeAsync(StateHasChanged);
@@ -656,7 +660,7 @@
     // Hands the file to the browser. A failure is told in one plain sentence, the Engine's own when it gives one.
     private async Task ExportMyDataAsync()
     {
-        if (_busy || _exporting || _disposed) return;
+        if (_busy || _exporting || _disposed || !IsServerAdministrator) return;
         _exporting = true;
         _exportFailed = false;
         _exportResult = string.Empty;

@@ -32,7 +32,6 @@ public static partial class BackupTableClassification
         Config("profile_view_policies", "What a profile may do in View (access, sharing, documents)."),
         Config("profile_view_preferences", "A profile's View display preferences."),
         Config("user_playback_settings", "A profile's playback settings."),
-        Config("device_profile_preferences", "Which profile a device opens by default for an account."),
         Config("client_devices", "Paired devices and their capabilities (their tokens are not kept, so a device signs in again)."),
         Config("applications", "Registered outside applications and what kind of access each has."),
         Config("application_client_bindings", "Which client ids belong to which application."),

@@ -81,7 +81,7 @@ public sealed class UsersProfilesHouseholdsReviewFixTests
         var refused = await Assert.ThrowsAsync<AccountRemovalChangedException>(
             () => world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id));
         var emptyList = await Assert.ThrowsAsync<AccountRemovalChangedException>(
-            () => world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, ProfilePhotoDisposition.MoveToShared, []));
+            () => world.Mutations.DeleteUserAsync(world.ServerAdmin, world.Alex.Id, []));
 
         Assert.Equal("Something changed since you looked. Check the list and try again.", refused.Message);
         Assert.Equal(refused.Message, emptyList.Message);

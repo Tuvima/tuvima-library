@@ -44,35 +44,48 @@
         <ul class="who-grid">
             @foreach (var profile in _profiles)
             {
+                RenderFragment cardBody = @<text>
+                    <span class="who-card__picture">
+                        <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" Icon="@profile.AvatarIcon" />
+                        @if (_managing)
+                        {
+                            <span class="who-card__edit" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg>
+                            </span>
+                        }
+                        else if (profile.HasPin)
+                        {
+                            <span class="who-card__lock" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" /></svg>
+                            </span>
+                        }
+                    </span>
+                    <span class="who-card__name">@profile.DisplayName</span>
+                    <span class="who-card__tags">
+                        @if (profile.IsRestricted)
+                        {
+                            <span class="who-tag">Kids</span>
+                        }
+                    </span>
+                </text>;
                 <li @key="profile.Id">
-                    <AppNativeButton Type="button"
-                                     Class="who-card"
-                                     Disabled="@_busy"
-                                     AriaLabel="@CardLabel(profile)"
-                                     OnClick="@(() => PickAsync(profile))">
-                        <span class="who-card__picture">
-                            <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" Icon="@profile.AvatarIcon" />
-                            @if (_managing)
-                            {
-                                <span class="who-card__edit" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg>
-                                </span>
-                            }
-                            else if (profile.HasPin)
-                            {
-                                <span class="who-card__lock" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" /></svg>
-                                </span>
-                            }
-                        </span>
-                        <span class="who-card__name">@profile.DisplayName</span>
-                        <span class="who-card__tags">
-                            @if (profile.IsRestricted)
-                            {
-                                <span class="who-tag">Kids</span>
-                            }
-                        </span>
-                    </AppNativeButton>
+                    @if (PreselectedProfile?.Id == profile.Id)
+                    {
+                        <AppNativeButton @ref="_preselectedCard"
+                                         Type="button"
+                                         Class="who-card is-preselected"
+                                         Disabled="@_busy"
+                                         AriaLabel="@CardLabel(profile)"
+                                         OnClick="@(() => PickAsync(profile))">@cardBody</AppNativeButton>
+                    }
+                    else
+                    {
+                        <AppNativeButton Type="button"
+                                         Class="who-card"
+                                         Disabled="@_busy"
+                                         AriaLabel="@CardLabel(profile)"
+                                         OnClick="@(() => PickAsync(profile))">@cardBody</AppNativeButton>
+                    }
                 </li>
             }
             @if (ShowAddTile)
@@ -100,16 +113,10 @@
         }
         else
         {
-        <div class="who-options">
-            <label class="who-check">
-                <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_alwaysOpen" OnChange="OnAlwaysOpenChanged" Disabled="@_busy" />
-                <span>Always open as this person on this device</span>
-            </label>
-            @if (PreferredProfile is { } preferred)
-            {
-                <AppNativeButton Type="button" Class="who-link" Disabled="@_busy" OnClick="StopAlwaysOpeningAsync">Stop always opening as @preferred.DisplayName</AppNativeButton>
-            }
-        </div>
+        @if (PreselectedProfile is { } preselected)
+        {
+            <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@_busy" OnClick="@(() => ChooseAsync(preselected))">Continue as @preselected.DisplayName</AppNativeButton>
+        }
 
         <form method="post" action="/auth/logout" class="who-signout">
             <AntiforgeryToken />
@@ -201,11 +208,9 @@
     private List<ProfileViewModel> _profiles = [];
     private List<ManagedProfileResponse> _managedPeople = [];
     private ProfileViewModel? _active;
-    private Guid? _preferredId;
     private ProfileViewModel? _pending;
     private bool _loading = true;
     private bool _busy;
-    private bool _alwaysOpen;
     private bool _isAdministrator;
     private string _pin = string.Empty;
     private string? _error;
@@ -223,7 +228,12 @@
 
     private string Destination => ProfilePickerRoute.SafeReturnUrl(ReturnUrl) ?? "/";
 
-    private ProfileViewModel? PreferredProfile => _preferredId is { } id ? _profiles.FirstOrDefault(profile => profile.Id == id) : null;
+    private AppNativeButton? _preselectedCard;
+    private bool _focusPreselected;
+
+    // Signing in leaves no profile in use yet: the sign-in's own profile (the session's starting profile) is only pre-selected
+    // here, so nothing opens until someone clicks (or presses Enter on) a card. Never in Manage profiles mode.
+    private ProfileViewModel? PreselectedProfile => !_managing && _active is { } active ? _profiles.FirstOrDefault(profile => profile.Id == active.Id) : null;
 
     // Q4: a gentle reminder for administrators, never a block.
     private bool ShowPinReminder => _isAdministrator
@@ -261,15 +271,14 @@
             _isAdministrator = Session.Authority?.EffectiveAdministrator == true;
             _profiles = await Orchestrator.GetProfilesAsync();
             _active = await Orchestrator.GetActiveProfileAsync();
-            if (_profiles.Count == 1 && !WantsManage)
+            if (_profiles.Count == 1 && !WantsManage && !_profiles[0].HasPin)
             {
-                // Nobody to choose between.
-                Navigation.NavigateTo(Destination, forceLoad: true, replace: true);
+                // Nobody to choose between and no PIN to ask for: open the only profile (the Engine still needs to be told someone was picked).
+                await SwitchAsync(_profiles[0], null);
                 return;
             }
 
-            _preferredId = await Identity.GetDeviceProfilePreferenceAsync();
-            _alwaysOpen = _preferredId is not null;
+            _focusPreselected = !WantsManage;
             if (WantsManage && CanManage)
             {
                 // Before the list shows, so nobody can tap a profile in the moment between loading and Manage profiles mode.
@@ -296,12 +305,24 @@
 
             return;
         }
+    }
 
-        // This device always opens as someone with a PIN: ask for it once instead of skipping it.
-        if (PreferredProfile is { HasPin: true } preferred && preferred.Id != _active?.Id)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPreselected || _loading || _preselectedCard is not { } card)
         {
-            _alwaysOpen = true;
-            BeginPin(preferred);
+            return;
+        }
+
+        _focusPreselected = false;
+        try
+        {
+            // Enter opens the pre-selected profile (its PIN is asked for when it has one).
+            await card.FocusAsync();
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException or JSDisconnectedException)
+        {
+            Logger.LogDebug(exception, "Could not focus the pre-selected profile.");
         }
     }
 
@@ -385,7 +406,6 @@
                 return;
             }
 
-            await RememberChoiceAsync(profile);
             // A profile switch changes the signed-in role and every profile-scoped data source, so rebuild the circuit.
             Navigation.NavigateTo(Destination, forceLoad: true, replace: true);
         }
@@ -394,50 +414,6 @@
             _busy = false;
         }
     }
-
-    private async Task RememberChoiceAsync(ProfileViewModel profile)
-    {
-        try
-        {
-            if (_alwaysOpen)
-            {
-                await Identity.SetDeviceProfilePreferenceAsync(profile.Id);
-            }
-            else if (_preferredId is not null)
-            {
-                await Identity.ClearDeviceProfilePreferenceAsync();
-            }
-        }
-        catch (Exception exception)
-        {
-            // Failing to remember the choice must not stop someone from getting in.
-            Logger.LogWarning(exception, "Could not save the always-open-as choice for this device.");
-        }
-    }
-
-    private async Task StopAlwaysOpeningAsync()
-    {
-        _busy = true;
-        try
-        {
-            var cleared = await Identity.ClearDeviceProfilePreferenceAsync();
-            if (cleared.Succeeded)
-            {
-                _preferredId = null;
-                _alwaysOpen = false;
-            }
-            else
-            {
-                _error = "That couldn't be changed. Try again.";
-            }
-        }
-        finally
-        {
-            _busy = false;
-        }
-    }
-
-    private void OnAlwaysOpenChanged(ChangeEventArgs args) => _alwaysOpen = args.Value is true;
 
     private string CardLabel(ProfileViewModel profile)
     {
@@ -644,12 +620,6 @@
 
                 Fail(removed.Failure, () => RemoveAsync(keepPhotos));
                 return;
-            }
-
-            if (_preferredId == profile.Id)
-            {
-                _preferredId = null;
-                _alwaysOpen = false;
             }
 
             await ReloadProfilesAsync();

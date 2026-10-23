@@ -57,8 +57,8 @@ public interface IAccountAccessMutationRepository
     /// Deletes the user in one transaction. A sign-in-only delete leaves the profile and everything in it (the profile loses its
     /// administrator roles, because an administrator without a sign-in cannot exist) and keeps the last-administrator backstop. A
     /// household removal (see <see cref="PlanUserRemovalAsync"/>) deletes every user of the household, then every profile with
-    /// everything personal it left behind, then the household and its empty Shared Library; if the household's Shared Library holds
-    /// shared photos nothing is deleted. When <paramref name="confirmedProfileIds"/> is given, the profiles the household removal
+    /// everything personal it left behind, then the household's shared photos and videos, then the household and its Shared Library
+    /// (D18: photos are deleted with the household, never moved). When <paramref name="confirmedProfileIds"/> is given, the profiles the household removal
     /// would take (none for a sign-in-only delete), worked out inside the transaction, must be exactly those, or nothing is deleted
     /// and <see cref="AccountRemovalChangedException"/> is thrown; <see langword="null"/> skips the check.
     /// </summary>
@@ -223,7 +223,7 @@ public interface IAccountAccessMutationService
     /// <summary>
     /// Deletes a user (D5, D6), only for a server administrator (or a trusted application). Normally only the sign-in goes and the
     /// profile with everything in it stays. The last enabled user attached to a household-administrator profile of a non-default
-    /// household takes the household and every profile in it, with <paramref name="photos"/> applied to each profile. Never the
+    /// household takes the household and every profile in it, with every personal and shared photo and video deleted (D18). Never the
     /// actor's own user, a server administrator that would be the last one who can sign in, or the default household. A caller that
     /// confirmed a list of profiles (<paramref name="confirmedProfileIds"/>, empty for a sign-in-only delete) has it checked against
     /// what would go, before anything moves and again inside the delete: if they differ, nothing changes and
@@ -233,7 +233,6 @@ public interface IAccountAccessMutationService
     Task DeleteUserAsync(
         RequestAuthority actor,
         Guid userId,
-        ProfilePhotoDisposition photos = ProfilePhotoDisposition.MoveToShared,
         IReadOnlyCollection<Guid>? confirmedProfileIds = null,
         CancellationToken ct = default);
     /// <summary>What <see cref="DeleteUserAsync"/> would do, and whether it would be refused, for the confirmation. Changes nothing.</summary>

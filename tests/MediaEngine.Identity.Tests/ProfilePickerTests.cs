@@ -12,10 +12,9 @@ using Microsoft.AspNetCore.Identity;
 namespace MediaEngine.Identity.Tests;
 
 /// <summary>
-/// Signing in and switching people (users, profiles and households spec D3, D12, D13): a sign-in always opens the user's own
-/// profile, and the user switches from there to any profile of its own household. A profile with a PIN asks for it, one without
-/// opens freely (Kids included). The old "always open as" choice is still stored per account and device but no longer picks where a
-/// sign-in starts.
+/// Signing in and switching people (users, profiles and households spec D3, D12, D13): every interactive sign-in leaves the session
+/// "choose a profile" (pending) with the user's own profile as the one to pre-select; nothing is in use until the person picks a
+/// profile of the sign-in's own household (its PIN when set; Kids included). There is no per-device "always open as" any more.
 /// </summary>
 public sealed class ProfilePickerTests : IDisposable
 {
@@ -40,7 +39,7 @@ public sealed class ProfilePickerTests : IDisposable
     }
 
     [Fact]
-    public async Task ThisComputerSignIn_WithSeveralProfiles_OpensTheUsersOwnProfile_AndRecordsTheHomeNetwork()
+    public async Task ThisComputerSignIn_WithSeveralProfiles_LeavesTheSessionPending_WithTheUsersOwnProfileToPreSelect_AndRecordsTheHomeNetwork()
     {
         var owner = await _service.BootstrapThisComputerAdministratorAsync(Email, "Dad", "setup-device", "Setup", "Dashboard");
         var mary = new Profile
@@ -57,46 +56,93 @@ public sealed class ProfilePickerTests : IDisposable
         var signedIn = await _service.SignInThisComputerAccountAsync("laptop", "Laptop", "Dashboard", ClientIngress.HomeNetwork);
 
         Assert.NotNull(signedIn);
-        Assert.False(signedIn!.ChooseProfile);
+        Assert.True(signedIn!.ChooseProfile);
+        Assert.True(signedIn.Session.ProfilePending);
         Assert.Equal(owner.Profile.Id, signedIn.ActiveProfile.Id);
         Assert.Equal(ClientIngress.HomeNetwork, signedIn.Session.IssuedIngress);
     }
 
     [Fact]
-    public async Task SignIn_WithSeveralProfilesInTheHousehold_OpensTheUsersOwnProfile_WithoutAsking()
+    public async Task PasswordSignIn_WithSeveralProfilesInTheHousehold_LeavesTheSessionPending_WithTheUsersOwnProfileToPreSelect()
     {
         var owner = await BootstrapWithProfilesAsync(extraProfiles: 2);
 
         var signedIn = await SignInAsync("laptop");
 
-        Assert.False(signedIn.ChooseProfile);
+        Assert.True(signedIn.ChooseProfile);
+        Assert.True(signedIn.Session.ProfilePending);
         Assert.Equal(owner.Profile.Id, signedIn.ActiveProfile.Id);
+        Assert.True((await _service.ValidateSessionAsync(signedIn.PlaintextToken))!.Session.ProfilePending);
     }
 
     [Fact]
-    public async Task SignIn_WithOneProfile_GoesStraightIn()
+    public async Task PasswordSignIn_WithOneProfile_StillLeavesTheSessionPending()
     {
         await BootstrapWithProfilesAsync(extraProfiles: 0);
 
-        Assert.False((await SignInAsync("laptop")).ChooseProfile);
+        var signedIn = await SignInAsync("laptop");
+
+        Assert.True(signedIn.ChooseProfile);
+        Assert.True(signedIn.Session.ProfilePending);
     }
 
     [Fact]
-    public async Task AStoredAlwaysOpenAsChoice_NoLongerChangesWhichProfileASignInOpens()
+    public async Task EveryUsersSignIn_PreSelectsThatUsersOwnProfile_WhateverDeviceOrWayItSignedInBy()
     {
-        var owner = await BootstrapWithProfilesAsync(extraProfiles: 2);
+        var dad = await BootstrapWithProfilesAsync(extraProfiles: 1);
+        var mom = await AddUserInHouseholdOfAsync(dad.Account.Id, "Mom");
+
+        var dadPasskey = await _service.CreatePasskeySessionAsync(dad.Account.Id, "tv", "TV", "Dashboard");
+        var momPasskey = await _service.CreatePasskeySessionAsync(mom.Id, "tv", "TV", "Dashboard");
+        var momOutside = await _service.CreateExternalSessionAsync(mom.Id, "google", "phone", "Phone", "Dashboard");
+
+        Assert.All(new[] { dadPasskey, momPasskey, momOutside }, issued =>
+        {
+            Assert.True(issued.ChooseProfile);
+            Assert.True(issued.Session.ProfilePending);
+        });
+        Assert.Equal(dad.Profile.Id, dadPasskey.ActiveProfile.Id);
+        Assert.Equal(mom.ProfileId, momPasskey.ActiveProfile.Id);
+        Assert.Equal(mom.ProfileId, momOutside.ActiveProfile.Id);
+    }
+
+    [Fact]
+    public async Task ChoosingAProfile_EndsThePendingState_AndOnlyTheHouseholdsProfilesCanBeChosen()
+    {
+        var owner = await BootstrapWithProfilesAsync(extraProfiles: 1);
         var mary = (await ExtraProfilesAsync(owner.Account.Id))[0];
-        var laptop = await SignInAsync("laptop");
-        await _service.SetDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id, mary.Id);
+        var signedIn = await SignInAsync("laptop");
+        var outsider = new Profile { Id = Guid.NewGuid(), DisplayName = "Outsider", AvatarColor = "#111111", Role = ProfileRole.StandardUser, CreatedAt = DateTimeOffset.UtcNow };
+        await InsertProfileAsync(outsider);
 
-        var again = await SignInAsync("laptop");
-        var tv = await SignInAsync("living-room-tv");
+        // Another household's profile is refused exactly like an id that does not exist, and the session stays pending.
+        var other = await Assert.ThrowsAnyAsync<Exception>(() => _service.SwitchActiveProfileAsync(signedIn.PlaintextToken, outsider.Id, null));
+        var unknown = await Assert.ThrowsAnyAsync<Exception>(() => _service.SwitchActiveProfileAsync(signedIn.PlaintextToken, Guid.NewGuid(), null));
+        Assert.IsType<UnauthorizedAccessException>(other);
+        Assert.IsType<UnauthorizedAccessException>(unknown);
+        Assert.True((await _service.ValidateSessionAsync(signedIn.PlaintextToken))!.Session.ProfilePending);
 
-        Assert.False(again.ChooseProfile);
-        Assert.Equal(owner.Profile.Id, again.ActiveProfile.Id);
-        Assert.False(tv.ChooseProfile);
-        Assert.Equal(owner.Profile.Id, tv.ActiveProfile.Id);
-        Assert.Null(await _service.GetDeviceProfilePreferenceAsync(owner.Account.Id, tv.Session.Id));
+        var chosen = await _service.SwitchActiveProfileAsync(signedIn.PlaintextToken, mary.Id, null);
+
+        Assert.Equal(mary.Id, chosen.ActiveProfile.Id);
+        Assert.False(chosen.Session.ProfilePending);
+        Assert.False((await _service.ValidateSessionAsync(signedIn.PlaintextToken))!.Session.ProfilePending);
+    }
+
+    [Fact]
+    public async Task ChoosingTheUsersOwnPreSelectedProfile_WhenItHasAPin_AsksForThePinFirst()
+    {
+        var owner = await BootstrapWithProfilesAsync(extraProfiles: 0);
+        await _service.SetProfilePinAsync(owner.Profile.Id, "2468");
+        var signedIn = await SignInAsync("laptop");
+
+        await Assert.ThrowsAsync<ProfilePinRequiredException>(() =>
+            _service.SwitchActiveProfileAsync(signedIn.PlaintextToken, owner.Profile.Id, null));
+        Assert.True((await _service.ValidateSessionAsync(signedIn.PlaintextToken))!.Session.ProfilePending);
+
+        await _service.SwitchActiveProfileAsync(signedIn.PlaintextToken, owner.Profile.Id, "2468");
+
+        Assert.False((await _service.ValidateSessionAsync(signedIn.PlaintextToken))!.Session.ProfilePending);
     }
 
     [Fact]
@@ -124,71 +170,6 @@ public sealed class ProfilePickerTests : IDisposable
         await _service.SwitchActiveProfileAsync(signedIn.PlaintextToken, sue.Id, null);
         var adult = await _service.SwitchActiveProfileAsync(signedIn.PlaintextToken, owner.Profile.Id, null);
         Assert.Equal(owner.Profile.Id, adult.ActiveProfile.Id);
-    }
-
-    [Fact]
-    public async Task StopAlwaysOpeningAs_ClearsTheStoredChoice()
-    {
-        var owner = await BootstrapWithProfilesAsync(extraProfiles: 2);
-        var mary = (await ExtraProfilesAsync(owner.Account.Id))[0];
-        var laptop = await SignInAsync("laptop");
-        await _service.SetDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id, mary.Id);
-
-        Assert.True(await _service.ClearDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id));
-
-        Assert.Null(await _service.GetDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id));
-        Assert.Equal(owner.Profile.Id, (await SignInAsync("laptop")).ActiveProfile.Id);
-    }
-
-    [Fact]
-    public async Task AStoredChoiceForAPersonWhoLeftTheHousehold_ReadsAsNoChoice_AndSignInStillOpensTheUsersOwnProfile()
-    {
-        var owner = await BootstrapWithProfilesAsync(extraProfiles: 2);
-        var mary = (await ExtraProfilesAsync(owner.Account.Id))[0];
-        var laptop = await SignInAsync("laptop");
-        await _service.SetDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id, mary.Id);
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("UPDATE profiles SET household_id = NULL WHERE id = @id;", new { id = mary.Id });
-        }
-
-        var again = await SignInAsync("laptop");
-
-        Assert.False(again.ChooseProfile);
-        Assert.Equal(owner.Profile.Id, again.ActiveProfile.Id);
-        Assert.Null(await _service.GetDeviceProfilePreferenceAsync(owner.Account.Id, again.Session.Id));
-    }
-
-    [Fact]
-    public async Task PreferenceActions_CannotTouchAnotherAccountsSessionOrAnUngrantedProfile()
-    {
-        var owner = await BootstrapWithProfilesAsync(extraProfiles: 2);
-        var mary = (await ExtraProfilesAsync(owner.Account.Id))[0];
-        var laptop = await SignInAsync("laptop");
-        await _service.SetDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id, mary.Id);
-        var strangerProfile = new Profile { Id = Guid.NewGuid(), DisplayName = "Stranger", AvatarColor = "#222222", Role = ProfileRole.StandardUser, CreatedAt = DateTimeOffset.UtcNow };
-        await InsertProfileAsync(strangerProfile);
-        var stranger = new Account
-        {
-            Id = Guid.NewGuid(),
-            Email = "stranger@example.com",
-            NormalizedEmail = "STRANGER@EXAMPLE.COM",
-            IsEnabled = true,
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow,
-            ProfileId = strangerProfile.Id,
-        };
-        await _accounts.InsertAsync(stranger);
-        var outsider = new Profile { Id = Guid.NewGuid(), DisplayName = "Outsider", AvatarColor = "#111111", Role = ProfileRole.StandardUser, CreatedAt = DateTimeOffset.UtcNow };
-        await InsertProfileAsync(outsider);
-
-        // Another account naming the owner's session reads nothing and changes nothing.
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.GetDeviceProfilePreferenceAsync(stranger.Id, laptop.Session.Id));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.SetDeviceProfilePreferenceAsync(stranger.Id, laptop.Session.Id, mary.Id));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.ClearDeviceProfilePreferenceAsync(stranger.Id, laptop.Session.Id));
-        // The owner cannot point a device at a profile the account does not have.
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.SetDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id, outsider.Id));
-        Assert.Equal(mary.Id, await _service.GetDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id));
     }
 
     [Fact]
@@ -237,6 +218,26 @@ public sealed class ProfilePickerTests : IDisposable
         }
 
         return [.. result.OrderBy(profile => profile.DisplayName == "Mary" ? 0 : 1)];
+    }
+
+    /// <summary>A second sign-in whose own profile is in the household of the profile the given user opens (Mom beside Dad).</summary>
+    private async Task<Account> AddUserInHouseholdOfAsync(Guid accountId, string name)
+    {
+        var profile = new Profile { Id = Guid.NewGuid(), DisplayName = name, AvatarColor = "#222222", Role = ProfileRole.StandardUser, CreatedAt = DateTimeOffset.UtcNow };
+        await InsertProfileAsync(profile);
+        await JoinHouseholdOfAsync(accountId, profile.Id);
+        var account = new Account
+        {
+            Id = Guid.NewGuid(),
+            Email = $"{name.ToLowerInvariant()}@example.com",
+            NormalizedEmail = $"{name.ToUpperInvariant()}@EXAMPLE.COM",
+            IsEnabled = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+            ProfileId = profile.Id,
+        };
+        await _accounts.InsertAsync(account);
+        return account;
     }
 
     private async Task<SessionIssueResult> SignInAsync(string deviceId)

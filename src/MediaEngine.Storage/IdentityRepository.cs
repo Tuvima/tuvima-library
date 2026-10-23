@@ -202,36 +202,6 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
         return Task.CompletedTask;
     }
 
-    public Task<Guid?> GetDeviceProfilePreferenceAsync(Guid accountId, string deviceId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = db.CreateConnection();
-        return Task.FromResult(conn.QueryFirstOrDefault<Guid?>(
-            "SELECT profile_id FROM device_profile_preferences WHERE account_id = @accountId AND device_id = @deviceId LIMIT 1;",
-            new { accountId, deviceId }));
-    }
-
-    public Task SetDeviceProfilePreferenceAsync(Guid accountId, string deviceId, Guid profileId, DateTimeOffset updatedAt, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = db.CreateConnection();
-        conn.Execute("""
-            INSERT INTO device_profile_preferences (account_id, device_id, profile_id, updated_at)
-            VALUES (@accountId, @deviceId, @profileId, @updatedAt)
-            ON CONFLICT(account_id, device_id) DO UPDATE SET profile_id = excluded.profile_id, updated_at = excluded.updated_at;
-            """, new { accountId, deviceId, profileId, updatedAt = updatedAt.ToString("O") });
-        return Task.CompletedTask;
-    }
-
-    public Task<bool> ClearDeviceProfilePreferenceAsync(Guid accountId, string deviceId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = db.CreateConnection();
-        return Task.FromResult(conn.Execute(
-            "DELETE FROM device_profile_preferences WHERE account_id = @accountId AND device_id = @deviceId;",
-            new { accountId, deviceId }) > 0);
-    }
-
     public Task<IReadOnlySet<Guid>> GetProfileIdsWithPinAsync(IReadOnlyCollection<Guid> profileIds, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

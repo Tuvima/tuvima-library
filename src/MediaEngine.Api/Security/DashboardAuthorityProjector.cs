@@ -14,7 +14,8 @@ public sealed class DashboardAuthorityProjector(
         Guid accountId,
         Guid profileId,
         Guid sessionId,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool profilePending = false)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
             ?? throw new UnauthorizedAccessException("Account is unavailable.");
@@ -42,6 +43,26 @@ public sealed class DashboardAuthorityProjector(
             (unlock is null || !unlock.ProtectionEnabled || unlock.IsUnlocked);
 
         var grants = await HouseholdProfileProjection.MapAsync(accountId, accounts, profiles, profileAccess, ct).ConfigureAwait(false);
+
+        if (profilePending)
+        {
+            // Nobody is in use yet (spec D3): the session may list the household's profiles and choose one, and nothing else, so
+            // no roles, features or actions are shown until a profile is picked.
+            return new DashboardAuthorityResponse(
+                accountId,
+                profileId,
+                true,
+                true,
+                account.AuthorizationVersion,
+                activeProfile.AuthorizationVersion,
+                false,
+                false,
+                null,
+                0,
+                grants,
+                [],
+                ["profile.switch"]);
+        }
 
         var navigation = authority.IsEffectiveAdministrator
             ? AccountFeatureId.All.Select(feature => feature.Value).ToList()

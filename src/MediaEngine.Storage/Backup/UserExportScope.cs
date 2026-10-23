@@ -80,7 +80,6 @@ public static class UserExportScope
     {
         ["profile_library_grants"] = "Library ids differ between Libraries, so library access is never carried by a user file (users spec D9).",
         ["profile_admin_protections"] = "Administrator settings are never carried by a user file (users spec D9).",
-        ["device_profile_preferences"] = "Paired devices are not carried, so neither is which profile they open.",
         ["client_devices"] = "Paired devices sign in again on the new Library.",
         ["applications"] = "Server settings: outside applications belong to the Library.",
         ["application_client_bindings"] = "Server settings: outside applications belong to the Library.",
