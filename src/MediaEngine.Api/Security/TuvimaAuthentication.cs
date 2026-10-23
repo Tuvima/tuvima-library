@@ -38,7 +38,7 @@ public static class TuvimaClaimTypes
     public const string ApplicationId = "tuvima:application_id";
     public const string ApplicationCredentialId = "tuvima:application_credential_id";
     public const string AccountAuthorizationVersion = "tuvima:account_authorization_version";
-    public const string GrantAuthorizationVersion = "tuvima:grant_authorization_version";
+    public const string ProfileAuthorizationVersion = "tuvima:profile_authorization_version";
     public const string ApplicationAuthorizationVersion = "tuvima:application_authorization_version";
 
     /// <summary>Present on a person's session while their password is an administrator-set temporary one.</summary>
@@ -99,7 +99,7 @@ public sealed class TuvimaAuthenticationHandler(
                 new(TuvimaClaimTypes.TokenId, client.Token.Id.ToString("D")),
                 new(TuvimaClaimTypes.AuthenticationMethod, "device_bearer"),
                 new(TuvimaClaimTypes.AccountAuthorizationVersion, client.Account.AuthorizationVersion.ToString()),
-                new(TuvimaClaimTypes.GrantAuthorizationVersion, client.Grant.AuthorizationVersion.ToString()),
+                new(TuvimaClaimTypes.ProfileAuthorizationVersion, client.Profile.AuthorizationVersion.ToString()),
                 new(TuvimaClaimTypes.ApplicationAuthorizationVersion, client.Application.AuthorizationVersion.ToString()),
             };
             claims.AddRange(ClientAuthorizationService.SplitScopes(client.Token.Scopes)

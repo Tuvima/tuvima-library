@@ -69,12 +69,13 @@ public sealed class OutsideInvitationViewDefaultTests
             await accounts.CreateAccountAsync(account, grant,
                 AccountEndpoints.FeaturesForNewAccount(Everything, startsNewHousehold: true),
                 new HashSet<Guid>(), newProfile: profile);
-            Assert.DoesNotContain(AccountFeatureId.View, await accounts.GetFeatureGrantsAsync(account.Id));
+            var access = new ProfileAccessRepository(database);
+            Assert.DoesNotContain(AccountFeatureId.View, await access.GetFeatureGrantsAsync(profileId));
 
-            var features = (await accounts.GetFeatureGrantsAsync(account.Id)).Append(AccountFeatureId.View).ToHashSet();
-            await accounts.ReplaceAccountAccessAsync(account.Id, features, new HashSet<Guid>(), DateTimeOffset.UtcNow);
+            var features = (await access.GetFeatureGrantsAsync(profileId)).Append(AccountFeatureId.View).ToHashSet();
+            await access.ReplaceAccessAsync(profileId, features, new HashSet<Guid>(), DateTimeOffset.UtcNow);
 
-            Assert.Contains(AccountFeatureId.View, await accounts.GetFeatureGrantsAsync(account.Id));
+            Assert.Contains(AccountFeatureId.View, await access.GetFeatureGrantsAsync(profileId));
             TestTemp.ReleaseSqlitePoolsIn(root);
         }
         finally

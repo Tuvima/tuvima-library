@@ -82,7 +82,7 @@ public sealed class ProfileOperationAccessFilterTests
             AccountId: Guid.NewGuid(),
             ActiveProfileId: profileId,
             AccountEnabled: true,
-            GrantEnabled: true);
+            ActiveProfileInUserHousehold: true);
 
     private static DefaultHttpContext Context(
         RequestAuthority authority,

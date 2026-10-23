@@ -366,10 +366,10 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
             ApplicationId: Guid.NewGuid(),
             DeviceId: Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
+            ActiveProfileInUserHousehold: true,
             ApplicationEnabled: true,
             AccountAuthorizationVersion: 1,
-            GrantAuthorizationVersion: 1,
+            ProfileAuthorizationVersion: 1,
             ApplicationAuthorizationVersion: 1));
     }
 

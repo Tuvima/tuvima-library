@@ -57,7 +57,7 @@ public sealed class ViewOtherPeopleTests
         var resolver = new ViewScopeResolver(new ViewScopeResolverTests.ScopeStore(caller, stranger));
         var request = ViewScopeRequest.ForProfile(stranger.Policy.ProfileId);
 
-        var householdAdmin = Human(caller) with { AccountIsHouseholdAdmin = true, AccountHouseholdId = HomeHousehold };
+        var householdAdmin = Human(caller) with { ActiveProfileIsHouseholdAdministrator = true, ActiveProfileHouseholdId = HomeHousehold };
         Assert.Null(await resolver.ResolveAsync(householdAdmin, request));
         Assert.Null(await resolver.ResolveAsync(Human(caller), request));
         Assert.Null(await resolver.ResolveAsync(
@@ -243,7 +243,7 @@ public sealed class ViewOtherPeopleTests
         using var fixture = new Fixture();
         await fixture.Service.RecordOpenAsync(fixture.ServerAdmin, fixture.OtherSharedScope);
 
-        var otherHouseholdServerAdmin = fixture.OtherHousemate with { AccountIsAdministrator = true, GrantAdminEnabled = true };
+        var otherHouseholdServerAdmin = fixture.OtherHousemate with { ActiveProfileIsServerAdministrator = true };
         var page = await fixture.Service.ListViewsAsync(otherHouseholdServerAdmin, PagedRequest.From(0, 10));
 
         Assert.False(page.HouseholdWide);
@@ -315,10 +315,10 @@ public sealed class ViewOtherPeopleTests
 
     private static RequestAuthority Human(ViewScopeStoreEntry state) =>
         new(PrincipalKind.Human, true, Guid.NewGuid(), state.Policy.ProfileId,
-            AccountEnabled: true, GrantEnabled: true, AccountHouseholdId: state.HouseholdId);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileHouseholdId: state.HouseholdId);
 
     private static RequestAuthority ServerAdministrator(ViewScopeStoreEntry state) =>
-        Human(state) with { AccountIsAdministrator = true, GrantAdminEnabled = true };
+        Human(state) with { ActiveProfileIsServerAdministrator = true };
 
     private sealed class CapturingAuditor : IViewOtherPeopleAuditor
     {
@@ -377,11 +377,11 @@ public sealed class ViewOtherPeopleTests
             var otherAdminAccount = AddAccount("other@example.test", OtherHouseholdId);
 
             ServerAdmin = new RequestAuthority(PrincipalKind.Human, true, ServerAdminAccount, serverAdminProfile,
-                AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true,
-                AccountHouseholdId: HomeHouseholdId);
+                AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true,
+                ActiveProfileHouseholdId: HomeHouseholdId);
             HomeMember = Member(homeMember, HomeHouseholdId);
             OtherHouseholdAdmin = new RequestAuthority(PrincipalKind.Human, true, otherAdminAccount, otherAdminProfile,
-                AccountEnabled: true, GrantEnabled: true, AccountHouseholdId: OtherHouseholdId, AccountIsHouseholdAdmin: true);
+                AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileHouseholdId: OtherHouseholdId, ActiveProfileIsHouseholdAdministrator: true);
             OtherMember = Member(casey, OtherHouseholdId);
             OtherHousemate = Member(housemate, OtherHouseholdId);
             CaseyId = casey;
@@ -426,8 +426,8 @@ public sealed class ViewOtherPeopleTests
         }
 
         private RequestAuthority Member(Guid profile, Guid household) =>
-            new(PrincipalKind.Human, true, Guid.NewGuid(), profile, AccountEnabled: true, GrantEnabled: true,
-                AccountHouseholdId: household);
+            new(PrincipalKind.Human, true, Guid.NewGuid(), profile, AccountEnabled: true, ActiveProfileInUserHousehold: true,
+                ActiveProfileHouseholdId: household);
 
         private Guid AddProfile(string name, Guid household)
         {

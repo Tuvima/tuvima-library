@@ -28,7 +28,7 @@ public sealed class UserDeletionTests
         Assert.Null(await world.Accounts.GetByIdAsync(world.Sam.Id));
         Assert.Null(await world.Profiles.GetByIdAsync(world.SamProfile.Id));
         Assert.NotNull(await world.Profiles.GetByIdAsync(world.Mary.Id));
-        Assert.NotNull(await world.Accounts.GetGrantAsync(world.Alex.Id, world.Mary.Id));
+        Assert.True(await world.Accounts.HasProfileAccessAsync(world.Alex.Id, world.Mary.Id));
         Assert.NotNull(await world.Profiles.GetByIdAsync(await DefaultProfileAsync(world, world.Alex)));
     }
 
@@ -264,6 +264,8 @@ public sealed class UserDeletionTests
     public async Task AHouseholdOwner_CannotDeleteAServerAdministratorEvenInTheirOwnHousehold()
     {
         await using var world = await World.CreateAsync();
+        // A server administrator profile lives in the Library's own (default) household, so Alex's household is the one in question.
+        await world.Access.SetDefaultHouseholdAsync(world.Kim.HouseholdId!.Value);
         await world.Mutations.UpdateAsync(world.ServerAdmin, world.Kim.Id, new UpdateAccountAccessCommand(world.Kim.Email!, true, true));
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.DeleteAsync(world.AlexAuthority, world.Kim.Id));
@@ -470,6 +472,7 @@ public sealed class UserDeletionTests
         private ConfigurationDirectoryLoader _configuration = null!;
 
         public AccountRepository Accounts { get; private set; } = null!;
+        public ProfileAccessRepository Access { get; private set; } = null!;
         public ProfileRepository Profiles { get; private set; } = null!;
         public AccountAccessMutationService Mutations { get; private set; } = null!;
         public NoProfilePhotos Photos { get; } = new();
@@ -509,6 +512,7 @@ public sealed class UserDeletionTests
             world._configuration = new ConfigurationDirectoryLoader(world._configPath);
             world._database.InitializeSchema();
             world.Accounts = new AccountRepository(world._database);
+            world.Access = new ProfileAccessRepository(world._database);
             var identities = new IdentityRepository(world._database);
             world.Profiles = new ProfileRepository(world._database);
             var identity = new FirstPartyIdentityService(
@@ -516,7 +520,8 @@ public sealed class UserDeletionTests
                 new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
                 TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(world._configuration));
             world.Mutations = new AccountAccessMutationService(
-                world.Accounts, identities, world.Profiles, world._configuration,
+                world.Accounts,
+                        new ProfileAccessRepository(world._database), identities, world.Profiles, world._configuration,
                 new RealDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit,
                 identity, world.Photos, TimeProvider.System, new AlwaysUsableAdministrators(), gate ?? new AuthenticationPolicyMutationGate(), world.Log);
             var households = new HouseholdRepository(world._database);
@@ -575,9 +580,9 @@ public sealed class UserDeletionTests
                 ActiveProfileId: (await Accounts.GetDefaultProfileIdAsync(account.Id))!.Value,
                 SessionId: Guid.NewGuid(),
                 AccountEnabled: true,
-                GrantEnabled: true,
-                AccountHouseholdId: account.HouseholdId,
-                AccountIsHouseholdAdmin: isOwner);
+                ActiveProfileInUserHousehold: true,
+                ActiveProfileHouseholdId: account.HouseholdId,
+                ActiveProfileIsHouseholdAdministrator: isOwner);
 
         private static RequestAuthority ServerAuthority(Guid accountId, Guid profileId) =>
             new(PrincipalKind.Human, true,
@@ -585,9 +590,8 @@ public sealed class UserDeletionTests
                 ActiveProfileId: profileId,
                 SessionId: Guid.NewGuid(),
                 AccountEnabled: true,
-                GrantEnabled: true,
-                AccountIsAdministrator: true,
-                GrantAdminEnabled: true);
+                ActiveProfileInUserHousehold: true,
+                ActiveProfileIsServerAdministrator: true);
 
         public ValueTask DisposeAsync()
         {

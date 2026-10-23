@@ -264,7 +264,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var resolver = new VaultAccessResolver(new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), TimeProvider.System);
         RequestAuthority Authority(PrincipalKind kind, bool authenticated = true, Guid? sessionId = null, bool enabled = true) =>
             new(kind, authenticated, shape.Account, VaultProfile, Guid.NewGuid(), sessionId ?? session, Guid.NewGuid(),
-                AccountEnabled: enabled, GrantEnabled: enabled, ApplicationEnabled: true);
+                AccountEnabled: enabled, ActiveProfileInUserHousehold: enabled, ApplicationEnabled: true);
 
         Assert.True(await resolver.IsUnlockedAsync(Authority(PrincipalKind.Human)));
         Assert.False(await resolver.IsUnlockedAsync(Authority(PrincipalKind.DelegatedUserClient)));
@@ -383,7 +383,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Contains(shape.Secret.AssetId, await resources.GetAuthorizedAssetIdsForWorkAsync(context, shape.Secret.WorkId, VaultProfile, ApplicationPermissionIds.PlaybackRead));
 
         using var connection = _database.CreateConnection();
-        connection.Execute("DELETE FROM account_feature_grants WHERE account_id=@account AND feature_id='watch';", new { account = shape.Account });
+        connection.Execute("DELETE FROM profile_feature_grants WHERE profile_id=@profile AND feature_id='watch';", new { profile = VaultProfile });
         Assert.Equal(CatalogueResourceAccess.NotFound, await CreateResourceService(context).EvaluateAssetAsync(context, shape.Secret.AssetId, ApplicationPermissionIds.PlaybackRead));
     }
 

@@ -34,7 +34,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         var ordinaryProfileId = await CreateAccountWithOwnProfileAsync(Account(ordinaryId, administrator: false), AccountFeatureId.All.ToHashSet());
         var application = await CreateApplicationAsync(ApplicationType.ServerIntegration, administrator: false);
         await _applications.ReplacePermissionsAsync(application.Id, new HashSet<ApplicationPermissionId> { read }, _clock.GetUtcNow());
-        var handler = new AdministratorOrApplicationHandler(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)), CreateDecisions(), CreateEvaluator().Evaluator);
+        var handler = new AdministratorOrApplicationHandler(new RequestAuthorityResolver(_accounts, _applications), CreateDecisions(), CreateEvaluator().Evaluator);
         var service = ContextWithAuthority(PrincipalKind.ServiceApplication, Guid.Empty, Guid.Empty, application.Id);
         async Task<bool> Allows(HttpContext http, ApplicationPermissionId permission)
         {
@@ -85,7 +85,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         var ordinaryProfileId = await CreateAccountWithOwnProfileAsync(Account(ordinaryId, administrator: false), AccountFeatureId.All.ToHashSet());
         var application = await CreateApplicationAsync(ApplicationType.ServerIntegration, administrator: false);
         await _applications.ReplacePermissionsAsync(application.Id, new HashSet<ApplicationPermissionId> { ApplicationPermissionIds.MetadataRead }, _clock.GetUtcNow());
-        var resolver = new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database));
+        var resolver = new RequestAuthorityResolver(_accounts, _applications);
         var handler = new AdministratorOrApplicationHandler(resolver, CreateDecisions(), CreateEvaluator().Evaluator);
         var ordinary = ContextWithAuthority(PrincipalKind.Human, ordinaryId, ordinaryProfileId);
         var service = ContextWithAuthority(PrincipalKind.ServiceApplication, Guid.Empty, Guid.Empty, application.Id);
@@ -123,11 +123,11 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             ActiveProfileId: Guid.NewGuid(),
             SessionId: Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
+            ActiveProfileInUserHousehold: true,
             AccountAuthorizationVersion: 1,
-            GrantAuthorizationVersion: 1,
-            AccountHouseholdId: Guid.NewGuid(),
-            AccountIsHouseholdAdmin: true);
+            ProfileAuthorizationVersion: 1,
+            ActiveProfileHouseholdId: Guid.NewGuid(),
+            ActiveProfileIsHouseholdAdministrator: true);
         var handler = new AdministratorOrApplicationHandler(
             new FixedAuthorityResolver(householdAdmin), CreateDecisions(), CreateEvaluator().Evaluator);
         var http = ContextWithAuthority(PrincipalKind.Human, householdAdmin.AccountId!.Value, householdAdmin.ActiveProfileId!.Value);
@@ -199,9 +199,10 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     {
         var services = new ServiceCollection();
         services.AddSingleton<IRequestAuthorityResolver>(
-            new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)));
+            new RequestAuthorityResolver(_accounts, _applications));
         services.AddSingleton<ISelfServiceAuthorizationService>(CreateDecisions());
         services.AddSingleton<IAccountRepository>(_accounts);
+        services.AddSingleton<IProfileAccessRepository>(new ProfileAccessRepository(_database));
         using var provider = services.BuildServiceProvider();
 
         var human = ContextWithAuthority(PrincipalKind.Human, _accountId, Profile.SeedProfileId);
@@ -225,7 +226,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task ProfileIdentityRead_AllowsInactiveGrantedProfileButDeniesDisabledOrMissingGrant()
+    public async Task ProfileIdentityRead_AllowsAProfileOfTheUsersHouseholdButDeniesOneOutsideItOrMissing()
     {
         var profileId = Guid.NewGuid();
         await ProfileTestData.InsertAsync(_database, new Profile
@@ -246,8 +247,9 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         });
         var services = new ServiceCollection();
         services.AddSingleton<IRequestAuthorityResolver>(
-            new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)));
+            new RequestAuthorityResolver(_accounts, _applications));
         services.AddSingleton<IAccountRepository>(_accounts);
+        services.AddSingleton<IProfileAccessRepository>(new ProfileAccessRepository(_database));
         using var provider = services.BuildServiceProvider();
         var context = ContextWithAuthority(PrincipalKind.Human, _accountId, Profile.SeedProfileId);
         context.RequestServices = provider;
@@ -255,9 +257,12 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         Assert.True(await ProfileEndpoints.IsGrantedProfileIdentityAuthorizedAsync(context, profileId));
         Assert.False(await ProfileEndpoints.IsGrantedProfileIdentityAuthorizedAsync(context, Guid.NewGuid()));
 
-        var grant = (await _accounts.GetGrantAsync(_accountId, profileId))!;
-        grant.IsEnabled = false;
-        await _accounts.UpsertGrantAsync(grant);
+        // A profile that is no longer in the user's household is no longer one the user can act as.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE profiles SET household_id = NULL WHERE id = @profileId;", new { profileId });
+        }
+
         Assert.False(await ProfileEndpoints.IsGrantedProfileIdentityAuthorizedAsync(context, profileId));
     }
 
@@ -265,7 +270,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     public async Task HumanSelfServicePolicy_DeniesDelegatedClientWithoutADeclaredServicePermission()
     {
         var application = await CreateApplicationAsync(ApplicationType.UserClient, administrator: false);
-        var resolver = new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database));
+        var resolver = new RequestAuthorityResolver(_accounts, _applications);
         var requirement = new HumanSelfServiceRequirement();
         var handler = new HumanSelfServiceHandler(resolver);
         var delegated = ContextWithAuthority(
@@ -301,7 +306,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         var accessor = new HttpContextAccessor { HttpContext = delegated };
         var services = new ServiceCollection();
         services.AddSingleton<IRequestAuthorityResolver>(
-            new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)));
+            new RequestAuthorityResolver(_accounts, _applications));
         services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator>(
             CreateEvaluator(accessor).Evaluator);
         using var provider = services.BuildServiceProvider();
@@ -365,9 +370,8 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     [Fact]
     public async Task GrantPinUnlock_FailsClosed_ForAWrongPin_APausedPin_AndAProfileWithNoPin()
     {
-        await _accounts.SetAdminProtectionAsync(new GrantAdminProtection
+        await new ProfileAccessRepository(_database).SetAdminProtectionAsync(new ProfileAdminProtection
         {
-            AccountId = _accountId,
             ProfileId = Profile.SeedProfileId,
             IsEnabled = true,
             UnlockMode = AdminUnlockMode.FixedDuration.ToString(),
@@ -377,20 +381,20 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         });
         var authority = HumanAdministratorAuthority(Guid.NewGuid());
 
-        var noPin = new GrantAdminUnlockService(_accounts, new StubProfilePins(), _clock);
+        var noPin = new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), _clock);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => noPin.UnlockAsync(authority, "2468").AsTask());
 
-        var withPin = new GrantAdminUnlockService(_accounts, new StubProfilePins().With(Profile.SeedProfileId, "2468"), _clock);
+        var withPin = new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins().With(Profile.SeedProfileId, "2468"), _clock);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => withPin.UnlockAsync(authority, "0000").AsTask());
 
-        var paused = new GrantAdminUnlockService(_accounts, new PausedProfilePins(), _clock);
+        var paused = new GrantAdminUnlockService(new ProfileAccessRepository(_database), new PausedProfilePins(), _clock);
         await Assert.ThrowsAsync<InvalidOperationException>(() => paused.UnlockAsync(authority, "2468").AsTask());
     }
 
     [Fact]
     public async Task GrantPinUnlock_IsNotAsked_WhenTheSwitchIsOff_SoAdminFunctionsWorkWithoutAPin()
     {
-        var service = new GrantAdminUnlockService(_accounts, new StubProfilePins(), _clock);
+        var service = new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), _clock);
         var authority = HumanAdministratorAuthority(Guid.NewGuid());
 
         var state = await service.GetStateAsync(authority);
@@ -412,9 +416,8 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     [InlineData(AdminUnlockMode.LockOnLeave, 5)]
     public async Task GrantPinUnlock_UsesBoundedExpiry(AdminUnlockMode mode, int expectedMinutes)
     {
-        var protection = new GrantAdminProtection
+        var protection = new ProfileAdminProtection
         {
-            AccountId = _accountId,
             ProfileId = Profile.SeedProfileId,
             IsEnabled = true,
             UnlockMode = mode.ToString(),
@@ -422,7 +425,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             ProtectionVersion = 1,
             UpdatedAt = _clock.GetUtcNow(),
         };
-        await _accounts.SetAdminProtectionAsync(protection);
+        await new ProfileAccessRepository(_database).SetAdminProtectionAsync(protection);
         var sessionId = Guid.NewGuid();
         await new IdentityRepository(_database).InsertSessionAsync(new AuthSession
         {
@@ -439,7 +442,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             LastSeenAt = _clock.GetUtcNow(),
             ExpiresAt = _clock.GetUtcNow().AddHours(1),
         });
-        var service = new GrantAdminUnlockService(_accounts, new StubProfilePins().With(Profile.SeedProfileId, "2468"), _clock);
+        var service = new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins().With(Profile.SeedProfileId, "2468"), _clock);
         var authority = HumanAdministratorAuthority(sessionId);
 
         var unlocked = await service.UnlockAsync(authority, "2468");
@@ -453,9 +456,8 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     [Fact]
     public async Task DashboardProjection_DeniesDisabledBindingAndSeparatesEligibilityFromUnlock()
     {
-        var protection = new GrantAdminProtection
+        var protection = new ProfileAdminProtection
         {
-            AccountId = _accountId,
             ProfileId = Profile.SeedProfileId,
             IsEnabled = true,
             UnlockMode = AdminUnlockMode.FixedDuration.ToString(),
@@ -463,11 +465,12 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             ProtectionVersion = 1,
             UpdatedAt = _clock.GetUtcNow(),
         };
-        await _accounts.SetAdminProtectionAsync(protection);
+        await new ProfileAccessRepository(_database).SetAdminProtectionAsync(protection);
         var projector = new DashboardAuthorityProjector(
             _accounts,
             new ProfileRepository(_database),
-            new GrantAdminUnlockService(_accounts, new StubProfilePins(), _clock));
+            new ProfileAccessRepository(_database),
+            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), _clock));
 
         var projected = await projector.ProjectAsync(_accountId, Profile.SeedProfileId, Guid.NewGuid());
         Assert.True(projected.EffectiveAdministrator);
@@ -499,8 +502,8 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     }
 
     private AccountAccessDecisionService CreateDecisions() =>
-        new(_accounts, new GrantAdminUnlockService(
-            _accounts, new StubProfilePins(), _clock));
+        new(new ProfileAccessRepository(_database), new GrantAdminUnlockService(
+            new ProfileAccessRepository(_database), new StubProfilePins(), _clock));
 
     private async Task<MediaEngine.Domain.Entities.Application> CreateApplicationAsync(
         ApplicationType type,
@@ -542,10 +545,9 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             Profile.SeedProfileId,
             application.Id,
             AccountEnabled: true,
-            GrantEnabled: true,
+            ActiveProfileInUserHousehold: true,
             ApplicationEnabled: applicationEnabled,
-            AccountIsAdministrator: true,
-            GrantAdminEnabled: true,
+            ActiveProfileIsServerAdministrator: true,
             ApplicationIsAdministrator: application.IsAdministrator);
 
     private RequestAuthority HumanAdministratorAuthority(Guid sessionId) =>
@@ -556,9 +558,8 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             Profile.SeedProfileId,
             SessionId: sessionId,
             AccountEnabled: true,
-            GrantEnabled: true,
-            AccountIsAdministrator: true,
-            GrantAdminEnabled: true);
+            ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: true);
 
     private static DefaultHttpContext ContextWithScope(string scope) =>
         new()

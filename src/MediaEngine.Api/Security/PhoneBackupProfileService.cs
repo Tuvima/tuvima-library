@@ -157,7 +157,7 @@ public sealed class PhoneBackupProfileService(
             return;
         }
 
-        if (!actor.IsEffectiveAdministrator && householdId is { } household && actor.AccountHouseholdId == household &&
+        if (!actor.IsEffectiveAdministrator && householdId is { } household && actor.ActiveProfileHouseholdId == household &&
             (await decisions.EvaluateHouseholdAdministratorAsync(actor, true, ct).ConfigureAwait(false)).IsAllowed)
         {
             return;

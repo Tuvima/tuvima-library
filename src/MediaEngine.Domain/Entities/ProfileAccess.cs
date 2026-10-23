@@ -1,3 +1,5 @@
+using MediaEngine.Domain.Enums;
+
 namespace MediaEngine.Domain.Entities;
 
 /// <summary>
@@ -27,3 +29,17 @@ public sealed class ProfileAdminUnlock
 
 /// <summary>The administrator roles a profile holds and the version that changes whenever its access does.</summary>
 public sealed record ProfileAdminFlags(bool IsServerAdministrator, bool IsHouseholdAdministrator, long AuthorizationVersion);
+
+/// <summary>
+/// What the Engine needs to know about a profile a user is acting as, in one read: the profile's household, role, administrator roles,
+/// whether a user is attached to it, and its authorization version. Only ever returned for a profile in the same household as the
+/// profile the user signs in as (so a profile of another household, or one that does not exist, gives nothing).
+/// </summary>
+public sealed record ActiveProfileAccess(
+    Guid ProfileId,
+    Guid HouseholdId,
+    ProfileRole Role,
+    bool IsServerAdministrator,
+    bool IsHouseholdAdministrator,
+    bool HasEnabledUser,
+    long AuthorizationVersion);

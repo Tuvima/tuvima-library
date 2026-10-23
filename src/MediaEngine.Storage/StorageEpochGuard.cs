@@ -10,11 +10,13 @@ internal static class StorageEpochGuard
     // Pre-beta databases are rebuilt instead of being migrated in place.
     // v11 moves the data structure onto numbered upgrade steps (Schema/Upgrades). Data stores from before the
     // baseline step are backed up and reingested once; nothing recognises or adopts them.
+    // v12 moves roles and access from the sign-in to the profile (users, profiles and households spec D11: start fresh). A data store
+    // set up before profile-held access has no administrator profile, so it is reset instead of running with nobody in charge.
     /// <summary>
     /// The epoch this build creates and accepts. When you change it, add an upgrade step that updates
     /// <c>storage_metadata.storage_epoch</c> to the same value (the baseline step sets the first one).
     /// </summary>
-    public const string CurrentEpoch = "guid-blob-v11-upgrade-steps";
+    public const string CurrentEpoch = "guid-blob-v12-profile-held-access";
     public const string ResetEnvironmentVariable = "TUVIMA_STORAGE_RESET";
 
     public static void EnsureCurrentOrReset(string databasePath)

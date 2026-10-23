@@ -117,7 +117,7 @@ public sealed class HouseholdsTests : IDisposable
             fixture.Accounts.UpsertGrantAsync(Grant(admin.Id, outsiderProfile.Id)));
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             fixture.Accounts.GrantProfileAsync(Grant(outsider.Id, Profile.SeedProfileId)));
-        Assert.Null(await fixture.Accounts.GetGrantAsync(admin.Id, outsiderProfile.Id));
+        Assert.False(await fixture.Accounts.HasProfileAccessAsync(admin.Id, outsiderProfile.Id));
     }
 
     [Fact]

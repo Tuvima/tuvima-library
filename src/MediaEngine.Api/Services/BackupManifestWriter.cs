@@ -7,7 +7,7 @@ namespace MediaEngine.Api.Services;
 internal static class BackupManifestWriter
 {
     /// <summary>The data store epoch this build writes (DatabaseEpoch, which is internal to Storage); a test keeps the two equal.</summary>
-    internal const string DatabaseEpoch = "guid-blob-v11-upgrade-steps";
+    internal const string DatabaseEpoch = "guid-blob-v12-profile-held-access";
 
     /// <summary>
     /// The manifest of a user export: kind and scope <c>user</c>, the person's email and how many profiles they have (for the import

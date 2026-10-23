@@ -98,8 +98,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         });
         var services = new ServiceCollection()
             .AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance)
-            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)))
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications))
             .AddSingleton<IAccountRepository>(_accounts)
+            .AddSingleton<IProfileAccessRepository>(new ProfileAccessRepository(_database))
             .AddSingleton<IConfigurationLoader>(loader)
             .AddSingleton<IVaultLibraryRepository>(new VaultLibraryRepository(_database))
             .BuildServiceProvider();

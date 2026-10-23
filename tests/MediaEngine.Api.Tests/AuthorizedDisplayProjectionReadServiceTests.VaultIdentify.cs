@@ -33,7 +33,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<VaultAccessResolver>();
         builder.Services.AddSingleton(CreateResourceService(resourceContext));
-        builder.Services.AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)));
+        builder.Services.AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications));
         // Only here so mapping can infer each route's parameters; a locked request must never get as far as using it.
         builder.Services.AddSingleton(NewTouchFailsIdentifyService());
         var app = builder.Build();

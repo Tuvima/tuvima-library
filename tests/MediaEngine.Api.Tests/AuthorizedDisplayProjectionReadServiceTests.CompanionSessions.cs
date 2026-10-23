@@ -47,7 +47,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
         var context = HumanContext(account, profile);
         var services = new ServiceCollection()
-            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)))
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications))
             .AddSingleton(CreateService(context, new StubRawProjection([], [])))
             .BuildServiceProvider();
         context.RequestServices = services;

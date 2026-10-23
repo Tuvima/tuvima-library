@@ -52,6 +52,7 @@ public sealed class AccountNoticeEndpointTests : IAsyncLifetime
         services.AddScoped<ISelfServiceAuthorizationService, SelfAccountOnlyDecisions>();
         // The other self-service routes are mapped too; they are never called here.
         services.AddScoped<IAccountRepository>(_ => null!);
+        services.AddScoped<IProfileAccessRepository>(_ => null!);
         services.AddScoped<IIdentityRepository>(_ => null!);
         services.AddScoped<IProfileRepository>(_ => null!);
         services.AddScoped<IAccountExternalLoginService>(_ => null!);

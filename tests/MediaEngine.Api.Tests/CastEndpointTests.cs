@@ -499,9 +499,9 @@ internal sealed record PairedDevice(
 
         var authority = new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, account.Id, Profile.SeedProfileId, application.Id,
-            DeviceId: device.Id, AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true,
+            DeviceId: device.Id, AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true,
             AccountAuthorizationVersion: account.AuthorizationVersion,
-            GrantAuthorizationVersion: accountGrant.AuthorizationVersion,
+            ProfileAuthorizationVersion: accountGrant.AuthorizationVersion,
             ApplicationAuthorizationVersion: application.AuthorizationVersion);
         return new PairedDevice(account, application, device, token, authority);
     }

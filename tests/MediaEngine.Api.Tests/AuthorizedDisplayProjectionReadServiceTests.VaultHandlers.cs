@@ -142,7 +142,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var authorizer = new CatalogueCastAssetAuthorizer(CreateResourceService(locked));
         RequestAuthority Authority(PrincipalKind kind) =>
             new(kind, true, shape.Account, VaultProfile, Guid.NewGuid(), session, Guid.NewGuid(),
-                AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+                AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true);
 
         // Locked, a person (and so anything casting for them) gets no Vault file.
         Assert.False(await authorizer.AllowsPlaybackAsync(Authority(PrincipalKind.Human), shape.Secret.AssetId));

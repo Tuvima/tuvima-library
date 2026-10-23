@@ -48,7 +48,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         Assert.Equal([samProfile], outcome.DeletedProfileIds);
         Assert.Null(await _accounts.GetByIdAsync(sam.Id));
         Assert.Null(await _profiles.GetByIdAsync(samProfile));
-        Assert.Null(await _accounts.GetGrantAsync(owner.Id, samProfile));
+        Assert.False(await _accounts.HasProfileAccessAsync(owner.Id, samProfile));
         Assert.Equal([owner.Id], outcome.AffectedAccountIds);
         Assert.NotNull(await _profiles.GetByIdAsync(await DefaultProfileAsync(owner)));
     }
@@ -70,7 +70,7 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
         Assert.Equal(["Sam", "Sam (Kids)"], plan.OwnProfiles.Select(profile => profile.DisplayName).Order().ToArray());
         Assert.Null(await _profiles.GetByIdAsync(kids.Id));
         Assert.NotNull(await _profiles.GetByIdAsync(shared.Id));
-        Assert.NotNull(await _accounts.GetGrantAsync(owner.Id, shared.Id));
+        Assert.True(await _accounts.HasProfileAccessAsync(owner.Id, shared.Id));
     }
 
     [Fact]
@@ -86,8 +86,8 @@ public sealed class AccountRemovalRepositoryTests : IDisposable
 
         Assert.DoesNotContain(mary.Id, outcome.DeletedProfileIds);
         Assert.NotNull(await _profiles.GetByIdAsync(mary.Id));
-        Assert.NotNull(await _accounts.GetGrantAsync(owner.Id, mary.Id));
-        Assert.Null(await _accounts.GetGrantAsync(partner.Id, mary.Id));
+        Assert.True(await _accounts.HasProfileAccessAsync(owner.Id, mary.Id));
+        Assert.False(await _accounts.HasProfileAccessAsync(partner.Id, mary.Id));
     }
 
     [Fact]

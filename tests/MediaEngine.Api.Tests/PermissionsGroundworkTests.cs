@@ -182,15 +182,21 @@ public sealed class PermissionsGroundworkTests
     }
 
     [Fact]
-    public async Task AServerAdministrator_KeepsTheGrantBasedSwitch()
+    public async Task AServerAdministrator_SwitchesInsideTheirOwnHousehold_AndNeverIntoAnotherOne()
     {
         await using var world = await World.CreateAsync();
+        var home = (await world.Accounts.GetByIdAsync(world.ServerAdminAccount.Id))!.HouseholdId!.Value;
+        var housemate = await world.Mutations.AddHouseholdPersonAsync(world.ServerAdmin,
+            new AddHouseholdPersonCommand(home, "Housemate", null, false, null));
         world.GrantDirectly(world.ServerAdminAccount.Id, world.B.Person.Id);
 
         var session = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-admin", "Test", "Dashboard");
-        var switched = await world.Identity.SwitchActiveProfileAsync(session.PlaintextToken, world.B.Person.Id, null);
+        var switched = await world.Identity.SwitchActiveProfileAsync(session.PlaintextToken, housemate.Id, null);
 
-        Assert.Equal(world.B.Person.Id, switched.ActiveProfile.Id);
+        Assert.Equal(housemate.Id, switched.ActiveProfile.Id);
+        // Another household stays out of reach, whatever a grant row says.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            world.Identity.SwitchActiveProfileAsync(session.PlaintextToken, world.B.Person.Id, null));
     }
 
     // ----- Personal scope -----
@@ -205,7 +211,7 @@ public sealed class PermissionsGroundworkTests
             foreach (var actor in world.Actors)
             {
                 var own = actor.Authority.ActiveProfileId!.Value;
-                var inHome = actor.Authority.AccountHouseholdId;
+                var inHome = actor.Authority.ActiveProfileHouseholdId;
                 var scopes = new (string Name, PersonalScope Scope, bool Expected)[]
                 {
                     ("Me", PersonalScope.Self, true),
@@ -485,7 +491,7 @@ public sealed class PermissionsGroundworkTests
     }
 
     [Fact]
-    public async Task AnOutOfHouseholdAlwaysOpenAs_IsIgnoredAtSignIn_AndAServerAdministratorKeepsTheirs()
+    public async Task AnOutOfHouseholdAlwaysOpenAs_IsIgnoredAtSignIn_ForEveryone_BecauseASignInOpensItsOwnProfile()
     {
         await using var world = await World.CreateAsync();
         world.GrantDirectly(world.A.Owner.Id, world.B.Person.Id);
@@ -497,11 +503,11 @@ public sealed class PermissionsGroundworkTests
         var member = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-old", "Test", "Dashboard");
         var administrator = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-old", "Test", "Dashboard");
 
-        Assert.NotEqual(world.B.Person.Id, member.ActiveProfile.Id);
+        Assert.Equal((await world.Accounts.GetDefaultProfileIdAsync(world.A.Owner.Id))!.Value, member.ActiveProfile.Id);
         Assert.Equal(world.A.Id, member.ActiveProfile.HouseholdId);
-        Assert.True(member.ChooseProfile);
         Assert.Null(await world.Identity.GetDeviceProfilePreferenceAsync(world.A.Owner.Id, member.Session.Id));
-        Assert.Equal(world.B.Person.Id, administrator.ActiveProfile.Id);
+        Assert.Equal((await world.Accounts.GetDefaultProfileIdAsync(world.ServerAdminAccount.Id))!.Value, administrator.ActiveProfile.Id);
+        Assert.Null(await world.Identity.GetDeviceProfilePreferenceAsync(world.ServerAdminAccount.Id, administrator.Session.Id));
     }
 
     [Fact]
@@ -524,7 +530,7 @@ public sealed class PermissionsGroundworkTests
     // ----- Profile list -----
 
     [Fact]
-    public async Task TheProfileList_HoldsOnlyPeopleInTheCallersHousehold_ExceptForAServerAdministrator()
+    public async Task TheProfileList_HoldsOnlyPeopleInTheCallersHousehold_AServerAdministratorIncluded()
     {
         await using var world = await World.CreateAsync();
         world.GrantDirectly(world.A.Owner.Id, world.B.Person.Id);
@@ -537,7 +543,10 @@ public sealed class PermissionsGroundworkTests
         Assert.DoesNotContain(member, profile => profile.Id == world.B.Person.Id);
         Assert.Contains(member, profile => profile.Id == world.A.Person.Id);
         Assert.All(member, profile => Assert.Equal(world.A.Id, profile.HouseholdId));
-        Assert.Contains(administrator, profile => profile.Id == world.B.Person.Id);
+        var administratorHome = (await world.Accounts.GetByIdAsync(world.ServerAdminAccount.Id))!.HouseholdId;
+        Assert.DoesNotContain(administrator, profile => profile.Id == world.B.Person.Id);
+        Assert.NotEmpty(administrator);
+        Assert.All(administrator, profile => Assert.Equal(administratorHome, profile.HouseholdId));
         Assert.Empty(ProfileEndpoints.ProfilesForCaller(null, everyone, everyone.Select(profile => profile.Id).ToHashSet()));
     }
 
@@ -716,7 +725,7 @@ public sealed class PermissionsGroundworkTests
             world.Decisions = new Decisions(world._lockedSession);
             var audit = new AuthorizationAuditWriter(world.Accounts);
             world.Mutations = new AccountAccessMutationService(
-                world.Accounts, identities, profiles, world._configuration, world.Decisions, new AllowEvaluator(),
+                world.Accounts, new ProfileAccessRepository(world._database), identities, profiles, world._configuration, world.Decisions, new AllowEvaluator(),
                 new NoOpInvalidation(), new NoOpAudit(), world.Identity,
                 new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
             world.Management = new HouseholdManagementService(
@@ -815,10 +824,17 @@ public sealed class PermissionsGroundworkTests
         /// </summary>
         public async Task<(Guid ServerAdminInA, Guid OtherAdminInA)> PairOtherAdministratorsInAAsync()
         {
+            // The Engine never makes a server administrator outside the default household (D17); the flag is set
+            // directly so the household administrator's view of such a person is still tested.
             var serverInA = await Mutations.CreateAsync(ServerAdmin, new CreateAccountAccessCommand(
-                "server.in.a@example.com", IsAdministrator: true, ProfileId: A.Spare.Id, NewProfile: null,
+                "server.in.a@example.com", IsAdministrator: false, ProfileId: A.Spare.Id, NewProfile: null,
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
                 Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+            using (var connection = _database.CreateConnection())
+            {
+                connection.Execute("UPDATE profiles SET is_server_admin = 1 WHERE id = @profile;", new { profile = A.Spare.Id });
+            }
+
             var otherAdmin = await Mutations.CreateAsync(ServerAdmin, new CreateAccountAccessCommand(
                 "other.admin.in.a@example.com", IsAdministrator: false, ProfileId: A.Kid.Id, NewProfile: null,
                 Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
@@ -892,10 +908,10 @@ public sealed class PermissionsGroundworkTests
                 ActiveProfileId: profileId,
                 SessionId: sessionId ?? Guid.NewGuid(),
                 AccountEnabled: true,
-                GrantEnabled: true,
+                ActiveProfileInUserHousehold: true,
                 ActiveProfileIsRestricted: restricted,
-                AccountHouseholdId: account.HouseholdId,
-                AccountIsHouseholdAdmin: isHouseholdAdmin);
+                ActiveProfileHouseholdId: account.HouseholdId,
+                ActiveProfileIsHouseholdAdministrator: isHouseholdAdmin);
 
         private static RequestAuthority ServerAuthority(Guid accountId, Guid profileId, Guid? sessionId = null) =>
             new(PrincipalKind.Human, true,
@@ -903,9 +919,8 @@ public sealed class PermissionsGroundworkTests
                 ActiveProfileId: profileId,
                 SessionId: sessionId ?? Guid.NewGuid(),
                 AccountEnabled: true,
-                GrantEnabled: true,
-                AccountIsAdministrator: true,
-                GrantAdminEnabled: true);
+                ActiveProfileInUserHousehold: true,
+                ActiveProfileIsServerAdministrator: true);
 
         public ValueTask DisposeAsync()
         {

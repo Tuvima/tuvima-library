@@ -1111,7 +1111,7 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         await _spaces.CreateAsync(profileId, libraryId);
         var authority = new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, AccountId: Guid.NewGuid(), ActiveProfileId: profileId,
-            ApplicationId: AppId, DeviceId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+            ApplicationId: AppId, DeviceId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true);
         return new Person(profileId, libraryId, authority);
     }
 

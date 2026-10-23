@@ -35,7 +35,7 @@ public sealed class HouseholdManagementService(
             }
 
             // A household administrator sees their own household only.
-            if (actor.AccountHouseholdId is { } own &&
+            if (actor.ActiveProfileHouseholdId is { } own &&
                 (await accountDecisions.EvaluateHouseholdAdministratorAsync(actor, true, ct).ConfigureAwait(false)).IsAllowed)
             {
                 return await households.GetSummaryAsync(own, ct).ConfigureAwait(false) is { } summary ? [summary] : [];

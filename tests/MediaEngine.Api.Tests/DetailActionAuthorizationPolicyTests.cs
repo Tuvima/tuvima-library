@@ -50,7 +50,7 @@ public sealed class DetailActionAuthorizationPolicyTests
             ActiveProfileId: Guid.NewGuid(),
             ApplicationId: Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
+            ActiveProfileInUserHousehold: true,
             ApplicationEnabled: true);
 
         var missingConsent = await DetailActionAuthorizationPolicy.ResolveAsync(
@@ -93,7 +93,7 @@ public sealed class DetailActionAuthorizationPolicyTests
         AccountId: Guid.NewGuid(),
         ActiveProfileId: Guid.NewGuid(),
         AccountEnabled: true,
-        GrantEnabled: true);
+        ActiveProfileInUserHousehold: true);
 
     private sealed class AccountDecisions(AuthorizationDecision administrator) : IAccountAccessDecisionService
     {

@@ -12,6 +12,11 @@ public sealed class Account
     /// <summary>True when the account has an email to sign in with. Only a this-computer account made without one is false.</summary>
     public bool HasEmail => !string.IsNullOrWhiteSpace(Email) && !string.IsNullOrWhiteSpace(NormalizedEmail);
     public bool IsEnabled { get; set; } = true;
+
+    /// <summary>
+    /// True when the profile this sign-in opens is a server administrator. Read from that profile (the profile holds the role, the
+    /// sign-in only reflects it); writing it changes the profile.
+    /// </summary>
     public bool IsAdministrator { get; set; }
     public long AuthorizationVersion { get; set; } = 1;
     public DateTimeOffset CreatedAt { get; set; }
@@ -78,11 +83,11 @@ public sealed class Account
     public void RemoveHouseholdAdmin() => HouseholdAdmin = false;
 
     /// <summary>
-    /// Whether this sign-in may switch to <paramref name="profileHouseholdId"/>'s person. A server administrator keeps the
-    /// grant-based rule (the caller still checks the grant); anyone else switches only inside their own household.
+    /// Whether this sign-in may switch to a profile of <paramref name="profileHouseholdId"/>. Everyone, a server administrator
+    /// included, switches only inside their own household (users, profiles and households spec D12).
     /// </summary>
     public bool MaySwitchInto(Guid? profileHouseholdId) =>
-        IsAdministrator || (HouseholdId is { } own && profileHouseholdId == own);
+        HouseholdId is { } own && profileHouseholdId == own;
 
     /// <summary>Marks the account as usable only on this computer (no password has been set yet).</summary>
     public void MarkThisComputerOnly() => IsThisComputerOnly = true;
@@ -114,30 +119,4 @@ public sealed class AccountLibraryGrant
     public Guid AccountId { get; set; }
     public Guid LibraryId { get; set; }
     public DateTimeOffset GrantedAt { get; set; }
-}
-
-/// <summary>
-/// "Ask for my PIN on admin pages" for one sign-in's use of one profile. The PIN asked for is the profile's own PIN (one PIN per
-/// profile); this row only records that the question is switched on and how long the answer lasts.
-/// </summary>
-public sealed class GrantAdminProtection
-{
-    public Guid AccountId { get; set; }
-    public Guid ProfileId { get; set; }
-    public bool IsEnabled { get; set; }
-    public string UnlockMode { get; set; } = "FixedDuration";
-    public int? UnlockMinutes { get; set; }
-    public long ProtectionVersion { get; set; } = 1;
-    public DateTimeOffset UpdatedAt { get; set; }
-}
-
-public sealed class GrantAdminUnlock
-{
-    public Guid SessionId { get; set; }
-    public Guid AccountId { get; set; }
-    public Guid ProfileId { get; set; }
-    public long ProtectionVersion { get; set; }
-    public string Method { get; set; } = string.Empty;
-    public DateTimeOffset GrantedAt { get; set; }
-    public DateTimeOffset? ExpiresAt { get; set; }
 }

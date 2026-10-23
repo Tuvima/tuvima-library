@@ -132,6 +132,17 @@ public sealed class UserImportRepository
         var prepared = Prepare(export, summary, householdExists);
         var result = BackupRestoreRepository.ImportCore(connection, transaction, prepared, fileName, fileCreatedAt, codec, now, Guid.NewGuid(), ct, plainInsert: true);
 
+        // The person who starts a household by being imported looks after it, as before: the household administrator role now lives on
+        // the profile their sign-in opens (which has a user attached). Joining a household that already exists makes no one an administrator.
+        if (summary.HouseholdId is not null && !householdExists && summary.HouseholdName is not null && summary.HouseholdAdmin)
+        {
+            using var promote = connection.CreateCommand();
+            promote.Transaction = transaction;
+            promote.CommandText = "UPDATE profiles SET is_household_admin = 1 WHERE id = (SELECT profile_id FROM accounts WHERE id = $account)";
+            promote.Parameters.AddWithValue("$account", GuidSql.ToBlob(summary.AccountId));
+            promote.ExecuteNonQuery();
+        }
+
         // Nothing is removed quietly: a row left pointing at something that does not exist means the file was not a whole user.
         foreach (var table in prepared.Tables.Where(table => table.Rows.Count > 0))
         {

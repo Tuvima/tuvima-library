@@ -98,16 +98,19 @@ public sealed class HouseholdPeopleTests
     }
 
     [Fact]
-    public async Task OwnSignIn_OpensStraightIntoThePerson_FollowsHouseholdAccess_AndIsNeverAnAdministrator()
+    public async Task OwnSignIn_OpensStraightIntoThePerson_KeepsThePersonsOwnAccess_AndIsNeverAnAdministrator()
     {
         await using var fixture = await Fixture.CreateAsync();
-        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
+        var (mutations, accounts, households) = (fixture.Mutations, fixture.Accounts, fixture.Households);
         var owner = await fixture.CreateOwnerAsync(AccountFeatureId.Read, AccountFeatureId.Watch);
+        // Acting as the owner's profile: new people start with what that profile holds.
+        var actor = fixture.Actor with { ActiveProfileId = owner.ProfileId };
         var household = (await households.GetForAccountAsync(owner.Id))!;
         var mary = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Mary", null, true, null));
         var tom = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Tom", null, false, null));
+        var before = (await fixture.Access.GetAdminFlagsAsync(mary.Id))!.AuthorizationVersion;
 
         var given = await mutations.GiveOwnSignInAsync(actor,
             new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long temporary password"));
@@ -116,23 +119,25 @@ public sealed class HouseholdPeopleTests
         Assert.Equal(household.Id, maryAccount.HouseholdId);
         Assert.False(maryAccount.IsAdministrator);
         Assert.Equal(owner.Id, maryAccount.GrantsInheritFromAccountId);
-        var maryGrant = Assert.Single(await accounts.GetGrantsAsync(maryAccount.Id));
+        Assert.Equal(mary.Id, maryAccount.ProfileId);
+        var maryGrant = Assert.Single(await accounts.GetGrantsAsync(maryAccount.Id), grant => grant.IsDefault);
         Assert.Equal(mary.Id, maryGrant.ProfileId);
-        Assert.True(maryGrant.IsDefault);
         Assert.True(maryGrant.IsEnabled);
         Assert.False(maryGrant.AdminEnabled);
 
-        // Library and lane access follows the household, so later changes reach Mary without copying.
-        Assert.Equal(
-            new[] { AccountFeatureId.Read, AccountFeatureId.Watch }.Select(feature => feature.Value).Order(),
-            (await accounts.GetFeatureGrantsAsync(maryAccount.Id)).Select(feature => feature.Value).Order());
+        // Attaching a sign-in never changes the person: Mary keeps exactly the access she started with (and her version).
+        Assert.Equal(new[] { "read", "watch" }, (await fixture.Access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value).Order());
+        Assert.Equal(before, (await fixture.Access.GetAdminFlagsAsync(mary.Id))!.AuthorizationVersion);
+
+        // Each profile holds its own access: changing the owner's does not reach Mary.
         await mutations.ReplaceAccessAsync(actor, owner.Id,
             new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>());
-        Assert.Equal(new[] { "listen" }, (await accounts.GetFeatureGrantsAsync(maryAccount.Id)).Select(feature => feature.Value));
+        Assert.Equal(new[] { "read", "watch" }, (await fixture.Access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value).Order());
 
-        // Her access is not edited on her own; it is the household's.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.ReplaceAccessAsync(actor, maryAccount.Id,
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>()));
+        // Her access is edited on her own profile, through her sign-in.
+        await mutations.ReplaceAccessAsync(actor, maryAccount.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>());
+        Assert.Equal(new[] { "listen" }, (await fixture.Access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value));
 
         // An invitation works the same way and the new sign-in opens only that person.
         var invited = await mutations.GiveOwnSignInAsync(actor,
@@ -141,7 +146,7 @@ public sealed class HouseholdPeopleTests
         var accepted = await fixture.Identity.AcceptInvitationAsync(
             invited.Invitation.Code, "invited password", "browser", "Browser", "Dashboard");
         Assert.Equal(invited.Account.Id, accepted.Account.Id);
-        Assert.Equal(tom.Id, Assert.Single(await accounts.GetGrantsAsync(invited.Account.Id)).ProfileId);
+        Assert.Equal(tom.Id, Assert.Single(await accounts.GetGrantsAsync(invited.Account.Id), grant => grant.IsDefault).ProfileId);
 
         // One own sign-in per person, and an email only ever has one sign-in.
         await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.GiveOwnSignInAsync(actor,
@@ -153,12 +158,13 @@ public sealed class HouseholdPeopleTests
     }
 
     [Fact]
-    public async Task ReplaceAccess_ForAnOwnSignIn_IsStillRefusedAsAConflict_AndLeavesTheHouseholdsAccessAlone()
+    public async Task ReplaceAccess_ForAnOwnSignIn_ChangesOnlyThatPersonsProfile()
     {
-        // The Dashboard shows an own sign-in's access read-only because this rule stays: only the main sign-in's access is edited.
+        // A person's access lives on their profile (users, profiles and households spec D1): nothing follows the household's main sign-in.
         await using var fixture = await Fixture.CreateAsync();
-        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
+        var (mutations, accounts, households) = (fixture.Mutations, fixture.Accounts, fixture.Households);
         var owner = await fixture.CreateOwnerAsync(AccountFeatureId.Read, AccountFeatureId.Watch);
+        var actor = fixture.Actor with { ActiveProfileId = owner.ProfileId };
         var household = (await households.GetForAccountAsync(owner.Id))!;
         var mary = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
@@ -166,13 +172,11 @@ public sealed class HouseholdPeopleTests
             new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long temporary password"))).Account;
         Assert.Equal(owner.Id, maryAccount.GrantsInheritFromAccountId);
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.ReplaceAccessAsync(actor, maryAccount.Id,
-            new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>()));
+        await mutations.ReplaceAccessAsync(actor, maryAccount.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>());
 
-        // The endpoint maps InvalidOperationException to 409 Conflict.
-        Assert.Contains("follows the household", refused.Message, StringComparison.Ordinal);
-        Assert.Equal(new[] { "read", "watch" }, (await accounts.GetFeatureGrantsAsync(maryAccount.Id)).Select(feature => feature.Value).Order());
-        Assert.Equal(new[] { "read", "watch" }, (await accounts.GetFeatureGrantsAsync(owner.Id)).Select(feature => feature.Value).Order());
+        Assert.Equal(new[] { "listen" }, (await fixture.Access.GetFeatureGrantsAsync(mary.Id)).Select(feature => feature.Value));
+        Assert.Equal(new[] { "read", "watch" }, (await fixture.Access.GetFeatureGrantsAsync(owner.ProfileId!.Value)).Select(feature => feature.Value).Order());
     }
 
     [Fact]
@@ -228,7 +232,7 @@ public sealed class HouseholdPeopleTests
         // Mary and her place in the household stay, and the household's sign-in still opens her.
         Assert.NotNull(await fixture.Profiles.GetByIdAsync(mary.Id));
         Assert.Contains(await households.ListProfilesAsync(household.Id), person => person.Id == mary.Id);
-        Assert.NotNull(await accounts.GetGrantAsync(owner.Id, mary.Id));
+        Assert.True(await accounts.HasProfileAccessAsync(owner.Id, mary.Id));
 
         // Only a person's own sign-in can be removed this way.
         await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.RemoveOwnSignInAsync(actor, owner.Id));
@@ -241,6 +245,7 @@ public sealed class HouseholdPeopleTests
         await using var fixture = await Fixture.CreateAsync();
         var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
         var owner = await fixture.CreateOwnerAsync(AccountFeatureId.Read);
+        actor = actor with { ActiveProfileId = owner.ProfileId };
         var household = (await households.GetForAccountAsync(owner.Id))!;
         // A user opens a profile of its own: the spouse is a person of the household first, then gets a sign-in.
         var spouseProfile = await mutations.AddHouseholdPersonAsync(actor,
@@ -261,7 +266,8 @@ public sealed class HouseholdPeopleTests
 
         var follower = (await accounts.GetByIdAsync(given.Account.Id))!;
         Assert.Equal(spouse.Id, follower.GrantsInheritFromAccountId);
-        Assert.Equal(new[] { "watch" }, (await accounts.GetFeatureGrantsAsync(follower.Id)).Select(feature => feature.Value));
+        // Mary keeps the access her own profile holds; only the follow link moves on.
+        Assert.Equal(new[] { "read" }, (await fixture.Access.GetFeatureGrantsAsync(follower.ProfileId!.Value)).Select(feature => feature.Value));
     }
 
     [Fact]
@@ -553,7 +559,7 @@ public sealed class HouseholdPeopleTests
             "admin@example.com", IsAdministrator: true, ProfileId: null,
             NewProfile: new NewAccountProfileCommand("Admin", "#7C4DFF"),
             Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
-        var application = actor with { PrincipalKind = PrincipalKind.ServiceApplication, AccountIsAdministrator = false, GrantAdminEnabled = false };
+        var application = actor with { PrincipalKind = PrincipalKind.ServiceApplication, ActiveProfileIsServerAdministrator = false };
 
         // A trusted application with identity.users.write could otherwise move the address and then reset the password to it.
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.UpdateAsync(application, admin.Id,
@@ -620,6 +626,7 @@ public sealed class HouseholdPeopleTests
         public IdentityRepository Identities { get; private set; } = null!;
         public ProfileRepository Profiles { get; private set; } = null!;
         public HouseholdRepository Households { get; private set; } = null!;
+        public ProfileAccessRepository Access { get; private set; } = null!;
         public FirstPartyIdentityService Identity { get; private set; } = null!;
         public AccountAccessMutationService Mutations { get; private set; } = null!;
         public RecordingAudit Audit { get; } = new();
@@ -630,9 +637,8 @@ public sealed class HouseholdPeopleTests
             ActiveProfileId: Guid.NewGuid(),
             SessionId: Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
-            AccountIsAdministrator: true,
-            GrantAdminEnabled: true);
+            ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: true);
 
         public static Task<Fixture> CreateAsync()
         {
@@ -644,6 +650,7 @@ public sealed class HouseholdPeopleTests
             fixture.Identities = new IdentityRepository(fixture._database);
             fixture.Profiles = new ProfileRepository(fixture._database);
             fixture.Households = new HouseholdRepository(fixture._database);
+            fixture.Access = new ProfileAccessRepository(fixture._database);
             fixture.Identity = new FirstPartyIdentityService(
                 fixture.Identities,
                 fixture.Accounts,
@@ -654,6 +661,7 @@ public sealed class HouseholdPeopleTests
                 new ConfigurationAuthenticationPolicyProvider(fixture._configuration));
             fixture.Mutations = new AccountAccessMutationService(
                 fixture.Accounts,
+                fixture.Access,
                 fixture.Identities,
                 fixture.Profiles,
                 fixture._configuration,
@@ -679,6 +687,7 @@ public sealed class HouseholdPeopleTests
         /// <summary>The same service over another view of the accounts, to stage a race the real repository would not allow.</summary>
         public AccountAccessMutationService MutationsOver(IAccountRepository accountRepository) => new(
             accountRepository,
+            Access,
             Identities,
             Profiles,
             _configuration,

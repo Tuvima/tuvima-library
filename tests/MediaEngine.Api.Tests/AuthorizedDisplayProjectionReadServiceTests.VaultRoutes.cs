@@ -252,7 +252,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         }
 
         builder.Services.AddSingleton<IReviewMoveToTvService>(_moveToTv);
-        builder.Services.AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)));
+        builder.Services.AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications));
         // Only here so mapping can infer each route's parameters; the routes under test never ask for them.
         builder.Services.AddSingleton(typeof(MediaEngine.Api.Services.Vault.VaultAdministrationService), _ => throw new InvalidOperationException("Not used by these routes."));
         builder.Services.AddSingleton(typeof(MediaEngine.Api.Services.Security.RecentSignInGuard), _ => throw new InvalidOperationException("Not used by these routes."));
@@ -271,6 +271,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             _database,
             new MediaEngine.Storage.Secrets.ConfigFolderSecretsStore(Path.Combine(Path.GetTempPath(), "tuvima_route_cfg_" + Guid.NewGuid().ToString("N")))));
         builder.Services.AddSingleton<IAccountRepository>(_accounts);
+        builder.Services.AddSingleton<IProfileAccessRepository>(new ProfileAccessRepository(_database));
         // The images routes (WP16) go through one service over this test's data store.
         builder.Services.AddSingleton(_ => CreateVaultImageService());
         builder.Services.AddSingleton(NewTouchFailsIdentifyService());

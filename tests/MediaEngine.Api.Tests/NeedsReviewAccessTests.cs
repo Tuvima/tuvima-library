@@ -246,8 +246,8 @@ public sealed class NeedsReviewAccessTests : IDisposable
 
     private async Task<bool> AllowsAsync(AdministratorOrApplicationRequirement requirement, HttpContext http)
     {
-        var decisions = new AccountAccessDecisionService(_accounts, new GrantAdminUnlockService(
-            _accounts, new StubProfilePins(), _clock));
+        var decisions = new AccountAccessDecisionService(new ProfileAccessRepository(_database), new GrantAdminUnlockService(
+            new ProfileAccessRepository(_database), new StubProfilePins(), _clock));
         var evaluator = new AuthorizationEvaluator(
             decisions, _applications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts),
             new HttpContextAccessor { HttpContext = http });
@@ -260,7 +260,8 @@ public sealed class NeedsReviewAccessTests : IDisposable
     private DashboardAuthorityProjector Projector() => new(
         _accounts,
         new ProfileRepository(_database),
-        new GrantAdminUnlockService(_accounts, new StubProfilePins(), _clock));
+        new ProfileAccessRepository(_database),
+        new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), _clock));
 
     private async Task<Guid> AddKidsProfileAsync(Guid accountId, bool adminEnabled)
     {
@@ -286,7 +287,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     }
 
     private RequestAuthorityResolver Resolver() =>
-        new(_accounts, _applications, new ProfileRepository(_database));
+        new(_accounts, _applications);
 
     /// <summary>Maps the real review routes on a bare application and reads each route's own requirement.</summary>
     private static async Task<IReadOnlyDictionary<string, AdministratorOrApplicationRequirement>> MapReviewRoutesAsync()

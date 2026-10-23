@@ -107,6 +107,7 @@ public sealed class AccountEndpointContractTests
         services.AddScoped<IRequestAuthorityResolver>(_ => null!);
         services.AddScoped<ISelfServiceAuthorizationService>(_ => null!);
         services.AddScoped<IAccountRepository>(_ => null!);
+        services.AddScoped<IProfileAccessRepository>(_ => null!);
         services.AddScoped<IIdentityRepository>(_ => null!);
         services.AddScoped<IProfileRepository>(_ => null!);
         services.AddScoped<IAccountExternalLoginService>(_ => null!);

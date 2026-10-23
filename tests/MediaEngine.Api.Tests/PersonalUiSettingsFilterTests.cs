@@ -60,7 +60,7 @@ public sealed class PersonalUiSettingsFilterTests
     [InlineData(PrincipalKind.DelegatedUserClient, true)]
     public async Task RevokedGrantOrNonHumanCannotAccessPreferences(PrincipalKind kind, bool grantEnabled)
     {
-        using var services = Services(Human(Guid.NewGuid()) with { PrincipalKind = kind, GrantEnabled = grantEnabled });
+        using var services = Services(Human(Guid.NewGuid()) with { PrincipalKind = kind, ActiveProfileInUserHousehold = grantEnabled });
         var http = new DefaultHttpContext { RequestServices = services };
         var result = await Invoke(http, _ => throw new InvalidOperationException("Unusable identity reached preferences."));
         Assert.Equal(404, Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode);
@@ -70,7 +70,7 @@ public sealed class PersonalUiSettingsFilterTests
         new PersonalUiSettingsFilter().InvokeAsync(new DefaultEndpointFilterInvocationContext(http, []), next);
 
     private static RequestAuthority Human(Guid profile) => new(PrincipalKind.Human, true,
-        AccountId: Guid.NewGuid(), ActiveProfileId: profile, AccountEnabled: true, GrantEnabled: true);
+        AccountId: Guid.NewGuid(), ActiveProfileId: profile, AccountEnabled: true, ActiveProfileInUserHousehold: true);
 
     private static ServiceProvider Services(RequestAuthority authority) => new ServiceCollection()
         .AddSingleton<IRequestAuthorityResolver>(new Resolver(authority)).BuildServiceProvider();

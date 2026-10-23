@@ -11,7 +11,7 @@ public sealed record AuthorityRequirementMetadata(string Requirement);
 // ── Convenience extension methods ───────────────────────────────────────────
 
 /// <summary>
-/// Endpoint guards backed by live account and grant authority policies.
+/// Endpoint guards backed by live user and profile authority policies (roles and access come from the profile being acted as).
 /// </summary>
 public static class IdentityEndpointExtensions
 {

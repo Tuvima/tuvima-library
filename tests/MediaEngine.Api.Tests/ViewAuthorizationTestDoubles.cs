@@ -18,7 +18,7 @@ internal sealed class TestViewAuthorityResolver(RequestAuthority authority) : IR
 
     public static TestViewAuthorityResolver Human(Guid profileId) =>
         new(new RequestAuthority(PrincipalKind.Human, true, Guid.NewGuid(), profileId,
-            AccountEnabled: true, GrantEnabled: true));
+            AccountEnabled: true, ActiveProfileInUserHousehold: true));
 }
 
 /// <summary>
@@ -54,7 +54,7 @@ internal sealed class TestAllowAuthorizationEvaluator : IAuthorizationEvaluator
         LastRequirement = requirement;
         return ValueTask.FromResult(
             authority.IsAuthenticated
-                && (!authority.HasHumanContext || authority.AccountEnabled && authority.GrantEnabled)
+                && (!authority.HasHumanContext || authority.AccountEnabled && authority.ActiveProfileInUserHousehold)
                 && (!authority.HasApplicationContext || authority.ApplicationEnabled)
                 ? AuthorizationDecision.Allow()
                 : AuthorizationDecision.Deny(AuthorizationDenialReason.DisabledPrincipal));

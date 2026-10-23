@@ -61,7 +61,7 @@ public sealed class ViewDocumentRuleService(
         var canManageShared = CanManageShared(authority);
         if (canManageShared)
         {
-            var shared = await sharedLibraries.FindForHouseholdAsync(authority.AccountHouseholdId!.Value, ct).ConfigureAwait(false);
+            var shared = await sharedLibraries.FindForHouseholdAsync(authority.ActiveProfileHouseholdId!.Value, ct).ConfigureAwait(false);
             if (shared is not null)
             {
                 foreach (var source in await rules.ListSourcesAsync(shared.LibraryId, ct).ConfigureAwait(false))
@@ -222,7 +222,7 @@ public sealed class ViewDocumentRuleService(
             : throw new ViewDocumentRuleForbiddenException("Sign in as a person to use auto-filing rules.");
 
     private static bool CanManageShared(RequestAuthority authority) =>
-        authority.IsEffectiveHouseholdAdministrator && authority.AccountHouseholdId is { } household && household != Guid.Empty;
+        authority.IsEffectiveHouseholdAdministrator && authority.ActiveProfileHouseholdId is { } household && household != Guid.Empty;
 
     private async Task<Scope> ResolveScopeAsync(RequestAuthority authority, string? scope, CancellationToken ct)
     {
@@ -234,7 +234,7 @@ public sealed class ViewDocumentRuleService(
                 throw new ViewDocumentRuleForbiddenException("Only a household administrator can make rules for the Shared Library.");
             }
 
-            var shared = await sharedLibraries.EnsureForHouseholdAsync(authority.AccountHouseholdId!.Value, ct).ConfigureAwait(false);
+            var shared = await sharedLibraries.EnsureForHouseholdAsync(authority.ActiveProfileHouseholdId!.Value, ct).ConfigureAwait(false);
             return new Scope(ViewDocumentRuleScopes.Shared, null, shared.LibraryId);
         }
 

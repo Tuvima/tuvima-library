@@ -8,6 +8,7 @@ using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -76,8 +77,8 @@ public sealed class CastKidsLimitEndpointTests : IAsyncLifetime
         using (var connection = _database.CreateConnection())
         {
             await connection.ExecuteAsync(
-                "INSERT INTO account_library_grants (account_id, library_id, granted_at) VALUES (@accountId, @libraryId, @at);",
-                new { accountId = _paired.Account.Id, libraryId = _libraryId, at = DateTimeOffset.UtcNow.ToString("O") });
+                "INSERT INTO profile_library_grants (profile_id, library_id, granted_at) VALUES (@profileId, @libraryId, @at);",
+                new { profileId = Profile.SeedProfileId, libraryId = _libraryId, at = DateTimeOffset.UtcNow.ToString("O") });
         }
 
         _state = new PlaybackStateRepository(_database);
@@ -117,6 +118,7 @@ public sealed class CastKidsLimitEndpointTests : IAsyncLifetime
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver(_paired.Authority));
         // The real checks: account feature and library grants, application permissions, and the profile's content limit.
         builder.Services.AddSingleton<IAccountRepository>(accounts);
+        builder.Services.AddSingleton<IProfileAccessRepository>(new ProfileAccessRepository(_database));
         builder.Services.AddSingleton<IApplicationRepository>(applications);
         builder.Services.AddSingleton<IPermissionRegistry, PermissionRegistry>();
         builder.Services.AddSingleton<IAuthorizationAuditWriter, DiscardingAuditWriter>();

@@ -96,6 +96,93 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
                 """, new { profileId, server = isServerAdministrator ? 1 : 0, household = isHouseholdAdministrator ? 1 : 0 }, tx) > 0;
         }, ct);
 
+    public Task<bool> SetServerAdministratorAsync(Guid profileId, bool isServerAdministrator, DateTimeOffset changedAt, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((conn, tx, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            var current = conn.QueryFirstOrDefault<int?>("SELECT is_server_admin FROM profiles WHERE id=@profileId;", new { profileId }, tx);
+            if (current is null)
+            {
+                return false;
+            }
+
+            if ((current == 1) == isServerAdministrator)
+            {
+                return true;
+            }
+
+            if (!isServerAdministrator && IsUsableServerAdministrator(conn, tx, profileId)
+                && !HasAnotherUsableServerAdministrator(conn, tx, profileId))
+            {
+                throw new InvalidOperationException("The final effective administrator cannot be demoted.");
+            }
+
+            conn.Execute("UPDATE profiles SET is_server_admin=@value, authorization_version=authorization_version+1 WHERE id=@profileId;",
+                new { profileId, value = isServerAdministrator ? 1 : 0 }, tx);
+            if (isServerAdministrator
+                && conn.QueryFirstOrDefault<Guid?>("SELECT household_id FROM profiles WHERE id=@profileId;", new { profileId }, tx) is { } householdId)
+            {
+                MarkDefaultHouseholdIfNone(conn, tx, householdId);
+            }
+
+            return true;
+        }, ct);
+
+    public Task<bool> SetHouseholdAdministratorAsync(Guid profileId, bool isHouseholdAdministrator, DateTimeOffset changedAt, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((conn, tx, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            var current = conn.QueryFirstOrDefault<int?>("SELECT is_household_admin FROM profiles WHERE id=@profileId;", new { profileId }, tx);
+            if (current is null)
+            {
+                return false;
+            }
+
+            if ((current == 1) == isHouseholdAdministrator)
+            {
+                return true;
+            }
+
+            if (isHouseholdAdministrator && conn.ExecuteScalar<int>("SELECT COUNT(*) FROM accounts WHERE profile_id=@profileId;", new { profileId }, tx) == 0)
+            {
+                throw new InvalidOperationException("A household administrator needs a sign-in. Attach one to this profile first.");
+            }
+
+            conn.Execute("UPDATE profiles SET is_household_admin=@value, authorization_version=authorization_version+1 WHERE id=@profileId;",
+                new { profileId, value = isHouseholdAdministrator ? 1 : 0 }, tx);
+            return true;
+        }, ct);
+
+    /// <summary>
+    /// True when a server administrator profile other than <paramref name="profileId"/> has an enabled user that can sign in (a
+    /// password, a passkey or an outside sign-in). The last-administrator backstop for every way a server administrator can be lost.
+    /// </summary>
+    internal static bool HasAnotherUsableServerAdministrator(IDbConnection conn, IDbTransaction tx, Guid profileId) =>
+        conn.ExecuteScalar<int>(UsableServerAdministratorSql + " AND p.id<>@profileId;", new { profileId }, tx) > 0;
+
+    /// <summary>True when this profile is a server administrator with an enabled user that can sign in.</summary>
+    internal static bool IsUsableServerAdministrator(IDbConnection conn, IDbTransaction tx, Guid profileId) =>
+        conn.ExecuteScalar<int>(UsableServerAdministratorSql + " AND p.id=@profileId;", new { profileId }, tx) > 0;
+
+    /// <summary>
+    /// True when a server administrator profile has an enabled user that can sign in, leaving out the user
+    /// <paramref name="accountId"/> (whatever profile it is attached to).
+    /// </summary>
+    internal static bool HasUsableServerAdministratorWithoutAccount(IDbConnection conn, IDbTransaction tx, Guid accountId) =>
+        conn.ExecuteScalar<int>(UsableServerAdministratorSql + " AND a.id<>@accountId;", new { accountId }, tx) > 0;
+
+    private const string UsableServerAdministratorSql = """
+        SELECT COUNT(*)
+        FROM profiles p
+        JOIN accounts a ON a.profile_id=p.id
+        WHERE p.is_server_admin=1 AND a.is_enabled=1
+          AND (
+            EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
+            OR EXISTS(SELECT 1 FROM account_passkeys k WHERE k.account_id=a.id)
+            OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
+          )
+        """;
+
     public Task<ProfileAdminProtection?> GetAdminProtectionAsync(Guid profileId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -130,7 +217,7 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
             conn.Execute("""
                 INSERT INTO profile_admin_protections
                     (profile_id,is_enabled,unlock_mode,unlock_minutes,protection_version,updated_at)
-                VALUES(@ProfileId,@IsEnabled,@UnlockMode,@UnlockMinutes,1,@UpdatedAt)
+                VALUES(@ProfileId,@IsEnabled,@UnlockMode,@UnlockMinutes,@ProtectionVersion,@UpdatedAt)
                 ON CONFLICT(profile_id) DO UPDATE SET
                     is_enabled=excluded.is_enabled,unlock_mode=excluded.unlock_mode,
                     unlock_minutes=excluded.unlock_minutes,
@@ -142,6 +229,7 @@ public sealed class ProfileAccessRepository(IDatabaseConnection db) : IProfileAc
                 IsEnabled = protection.IsEnabled ? 1 : 0,
                 protection.UnlockMode,
                 protection.UnlockMinutes,
+                ProtectionVersion = Math.Max(1, protection.ProtectionVersion),
                 UpdatedAt = Iso(protection.UpdatedAt),
             }, tx);
             conn.Execute("DELETE FROM profile_admin_unlocks WHERE profile_id=@ProfileId;", new { protection.ProfileId }, tx);

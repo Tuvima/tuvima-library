@@ -107,7 +107,7 @@ public sealed class HouseholdAdministratorTests
         // The household has Read; handing out Read is fine, Watch (which the household lacks) is not.
         await mutations.ReplaceAccessAsync(world.AdminOfA, secondAdult.Id,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>());
-        Assert.Equal(new[] { "read" }, (await world.Accounts.GetFeatureGrantsAsync(secondAdult.Id)).Select(feature => feature.Value));
+        Assert.Equal(new[] { "read" }, (await new ProfileAccessRepository(world.Database).GetFeatureGrantsAsync(secondAdult.ProfileId!.Value)).Select(feature => feature.Value));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.ReplaceAccessAsync(world.AdminOfA,
             secondAdult.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch }, new HashSet<Guid>()));
 
@@ -172,16 +172,15 @@ public sealed class HouseholdAdministratorTests
         Assert.Equal(invitation.AccountId, household.PrimaryAccountId);
     }
 
-    // ---- Profile-held access: every change is also written to the person (users, profiles and households wave UPH1b-1) ----
+    // ---- Profile-held access: every access change is written on the profile (users, profiles and households wave UPH1b) ----
 
     [Fact]
-    public async Task EveryWayOfMakingASignIn_PointsItAtItsOwnPerson_AndTheTwoSidesAgree()
+    public async Task EveryWayOfMakingASignIn_PointsItAtItsOwnPerson()
     {
         await using var world = await World.CreateAsync();
         var mutations = world.Mutations;
 
         // The scene itself used a new person with a sign-in, a household person, and a person's own sign-in with a password.
-        AssertSidesAgree(world);
         Assert.All(await world.Accounts.GetAllAsync(), account => Assert.NotNull(account.ProfileId));
 
         // An invitation for a new person in the household, one that starts a household, and an own sign-in by invitation.
@@ -198,7 +197,6 @@ public sealed class HouseholdAdministratorTests
         Assert.Equal(world.A.Spare.Id, own.Account.ProfileId);
         var guestPerson = Assert.Single(await world.Households.ListProfilesAsync((await world.Accounts.GetByIdAsync(guest.AccountId))!.HouseholdId!.Value));
         Assert.Equal(guestPerson.Id, (await world.Accounts.GetByIdAsync(guest.AccountId))!.ProfileId);
-        AssertSidesAgree(world);
     }
 
     [Fact]
@@ -218,11 +216,10 @@ public sealed class HouseholdAdministratorTests
         Assert.Equal(sentence, invite.Message);
         Assert.Null(await world.Accounts.GetByNormalizedEmailAsync("AGAIN@EXAMPLE.COM"));
         Assert.Null(await world.Accounts.GetByNormalizedEmailAsync("AGAIN.TOO@EXAMPLE.COM"));
-        AssertSidesAgree(world);
     }
 
     [Fact]
-    public async Task EveryAccessChange_IsWrittenToThePersonToo_AndRaisesTheirVersion()
+    public async Task EveryAccessChange_IsWrittenOnTheProfile_AndRaisesItsVersion()
     {
         await using var world = await World.CreateAsync();
         var mutations = world.Mutations;
@@ -250,11 +247,12 @@ public sealed class HouseholdAdministratorTests
         var ownerProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.A.Owner.Id))!.Value;
         Assert.True((await access.GetAdminFlagsAsync(ownerProfile))!.IsHouseholdAdministrator);
 
-        // The own sign-in follows the household's main sign-in, so changing that reaches the person's profile as well.
+        // Each profile holds its own access: changing the household owner's does not reach the person with their own sign-in.
+        var personBefore = (await access.GetFeatureGrantsAsync(world.A.Person.Id)).Select(feature => feature.Value).Order().ToArray();
         await mutations.ReplaceAccessAsync(world.ServerAdmin, world.A.Owner.Id,
             new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>());
-        Assert.Equal(new[] { "listen" }, (await access.GetFeatureGrantsAsync(world.A.Person.Id)).Select(feature => feature.Value));
-        AssertSidesAgree(world);
+        Assert.Equal(new[] { "listen" }, (await access.GetFeatureGrantsAsync(ownerProfile)).Select(feature => feature.Value));
+        Assert.Equal(personBefore, (await access.GetFeatureGrantsAsync(world.A.Person.Id)).Select(feature => feature.Value).Order());
     }
 
     [Fact]
@@ -290,8 +288,6 @@ public sealed class HouseholdAdministratorTests
             Assert.False(flags.IsServerAdministrator);
             Assert.False(flags.IsHouseholdAdministrator);
         }
-
-        AssertSidesAgree(world);
     }
 
     [Fact]
@@ -313,9 +309,6 @@ public sealed class HouseholdAdministratorTests
         await households.DeleteAsync(world.ServerAdmin, extra.Household.Id);
         Assert.Null(await world.Households.GetByIdAsync(extra.Household.Id));
     }
-
-    private static void AssertSidesAgree(World world) =>
-        Assert.Empty(ProfileAccessConsistency.FindDifferences(world.Database));
 
     [Fact]
     public async Task HouseholdAdministrator_NeedsTheAdministratorUnlock_WhenTheirPinProtectionIsOn()
@@ -341,7 +334,7 @@ public sealed class HouseholdAdministratorTests
         var command = new GrantAdminProtectionCommand(true, AdminUnlockMode.FixedDuration, 30);
 
         await world.Mutations.SetAdminProtectionAsync(world.AdminOfA, world.A.Owner.Id, ownerProfile, command);
-        var protection = await world.Accounts.GetAdminProtectionAsync(world.A.Owner.Id, ownerProfile);
+        var protection = await new ProfileAccessRepository(world.Database).GetAdminProtectionAsync(ownerProfile);
         Assert.True(protection!.IsEnabled);
 
         // Not another household's, not the server administrator's, not a plain member's.
@@ -362,12 +355,12 @@ public sealed class HouseholdAdministratorTests
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => world.Mutations.SetAdminProtectionAsync(
             world.AdminOfA, world.A.Owner.Id, ownerProfile, new GrantAdminProtectionCommand(true, AdminUnlockMode.FixedDuration, 30)));
         Assert.Contains("Set a PIN on this profile first", refused.Message, StringComparison.Ordinal);
-        Assert.False((await world.Accounts.GetAdminProtectionAsync(world.A.Owner.Id, ownerProfile))?.IsEnabled ?? false);
+        Assert.False((await new ProfileAccessRepository(world.Database).GetAdminProtectionAsync(ownerProfile))?.IsEnabled ?? false);
 
         // Off needs no PIN at all, so administrator functions keep working for a profile that never set one.
         await world.Mutations.SetAdminProtectionAsync(
             world.AdminOfA, world.A.Owner.Id, ownerProfile, new GrantAdminProtectionCommand(false, AdminUnlockMode.FixedDuration, 30));
-        Assert.False((await world.Accounts.GetAdminProtectionAsync(world.A.Owner.Id, ownerProfile))!.IsEnabled);
+        Assert.False((await new ProfileAccessRepository(world.Database).GetAdminProtectionAsync(ownerProfile))!.IsEnabled);
     }
 
     [Fact]
@@ -534,6 +527,7 @@ public sealed class HouseholdAdministratorTests
                 new ConfigurationAuthenticationPolicyProvider(world._configuration));
             world.Mutations = new AccountAccessMutationService(
                 world.Accounts,
+                        new ProfileAccessRepository(world._database),
                 identities,
                 profiles,
                 world._configuration,
@@ -579,10 +573,10 @@ public sealed class HouseholdAdministratorTests
                 ActiveProfileId: profileId,
                 SessionId: Guid.NewGuid(),
                 AccountEnabled: true,
-                GrantEnabled: true,
+                ActiveProfileInUserHousehold: true,
                 ActiveProfileIsRestricted: restricted,
-                AccountHouseholdId: account.HouseholdId,
-                AccountIsHouseholdAdmin: isHouseholdAdmin);
+                ActiveProfileHouseholdId: account.HouseholdId,
+                ActiveProfileIsHouseholdAdministrator: isHouseholdAdmin);
 
         public IReadOnlyList<ActionUnderTest> Actions() =>
         [
@@ -651,9 +645,8 @@ public sealed class HouseholdAdministratorTests
                 ActiveProfileId: profileId,
                 SessionId: Guid.NewGuid(),
                 AccountEnabled: true,
-                GrantEnabled: true,
-                AccountIsAdministrator: true,
-                GrantAdminEnabled: true);
+                ActiveProfileInUserHousehold: true,
+                ActiveProfileIsServerAdministrator: true);
 
         public ValueTask DisposeAsync()
         {

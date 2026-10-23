@@ -35,14 +35,14 @@ public sealed class ArtworkWorkspaceRouteAccessTests
     {
         // A paired Kids TV and a paired adult phone: delegated device tokens, never an administrator.
         ["kids-app"] = new(PrincipalKind.DelegatedUserClient, true, Account, KidsProfile, NativeApp, null, Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true, ActiveProfileIsRestricted: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true, ActiveProfileIsRestricted: true),
         ["adult-app"] = new(PrincipalKind.DelegatedUserClient, true, Account, AdultProfile, NativeApp, null, Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true),
         // The Dashboard: a signed-in administrator, a signed-in non-administrator, and a service Application.
         ["admin"] = new(PrincipalKind.Human, true, Account, AdultProfile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true),
         ["member"] = new(PrincipalKind.Human, true, Account, AdultProfile, null, Guid.NewGuid(), null,
-            AccountEnabled: true, GrantEnabled: true),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true),
         ["service"] = new(PrincipalKind.ServiceApplication, true, null, null, Guid.NewGuid(),
             ApplicationEnabled: true),
     };

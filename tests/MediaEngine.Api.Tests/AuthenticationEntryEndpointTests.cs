@@ -97,6 +97,7 @@ public sealed class AuthenticationEntryEndpointTests
         builder.Services.AddSingleton<IFirstPartyIdentityService>(identity);
         builder.Services.AddScoped<MediaEngine.Api.Services.Security.RecentSignInGuard>();
         builder.Services.AddSingleton<IAccountRepository>(_ => null!);
+        builder.Services.AddSingleton<IProfileAccessRepository>(_ => null!);
         builder.Services.AddSingleton<IIdentityRepository>(_ => null!);
         builder.Services.AddSingleton<IAccountExternalLoginService>(_ => null!);
         builder.Services.AddSingleton<IAccountSignInMethodRepository>(_ => null!);
@@ -104,7 +105,7 @@ public sealed class AuthenticationEntryEndpointTests
         builder.Services.AddSingleton<IRequestAuthorityResolver, AnonymousAuthorityResolver>();
         builder.Services.AddSingleton<IPasskeyHandler<Account>>(_ => null!);
         builder.Services.AddSingleton<UserManager<Account>>(_ => null!);
-        builder.Services.AddSingleton(new DashboardAuthorityProjector(null!, null!, null!));
+        builder.Services.AddSingleton(new DashboardAuthorityProjector(null!, null!, null!, null!));
         builder.Services.AddSingleton(new ExternalIdentityTransactionService(TimeProvider.System));
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<AuthenticationPolicyMutationGate>();

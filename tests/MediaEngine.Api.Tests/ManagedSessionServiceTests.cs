@@ -204,11 +204,12 @@ public sealed class ManagedSessionServiceTests
                 new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
                 TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(world._configuration));
             world._mutations = new AccountAccessMutationService(
-                world._accounts, world.Identities, world._profiles, world._configuration,
+                world._accounts,
+                        new ProfileAccessRepository(world._database), world.Identities, world._profiles, world._configuration,
                 new AllowAllDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit, world._identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
             world._setupActor = new RequestAuthority(
                 PrincipalKind.Human, true, Guid.NewGuid(), Guid.NewGuid(), SessionId: Guid.NewGuid(),
-                AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true);
+                AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true);
             world.Service = new ManagedSessionService(
                 world._accounts, world.Identities, world._profiles, new ScopedDecisions(),
                 world._identity, world.Audit, TimeProvider.System);
@@ -300,8 +301,8 @@ public sealed class ManagedSessionServiceTests
         private RequestAuthority Authority(Account account, AuthSession session,
             bool administrator = false, bool householdAdministrator = false) => new(
             PrincipalKind.Human, true, account.Id, session.ActiveProfileId, SessionId: session.Id,
-            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: administrator, GrantAdminEnabled: administrator,
-            AccountHouseholdId: account.HouseholdId, AccountIsHouseholdAdmin: householdAdministrator);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: administrator,
+            ActiveProfileHouseholdId: account.HouseholdId, ActiveProfileIsHouseholdAdministrator: householdAdministrator);
 
         public ValueTask DisposeAsync()
         {

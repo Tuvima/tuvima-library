@@ -272,8 +272,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
 
         var first = Assert.Single(await service.LoadWorksAsync(CancellationToken.None));
         Assert.Equal("Allowed book", first.Title);
-        await _accounts.ReplaceAccountAccessAsync(
-            accountId,
+        // The profile the sign-in opened holds the access.
+        await new ProfileAccessRepository(_database).ReplaceAccessAsync(
+            MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
             new HashSet<Guid> { newlyAllowedLibrary },
             DateTimeOffset.UtcNow);
@@ -1309,7 +1310,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         await InsertAssetForWorkAsync(denied.WorkId, denied.AssetId, Guid.Parse(denied.LibraryId!), "Denied", createWork: true);
         var context = HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
         using var services = new ServiceCollection()
-            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)))
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications))
             .AddSingleton(CreateService(context, new StubRawProjection([allowed, denied], [])))
             .BuildServiceProvider();
         context.RequestServices = services;
@@ -1565,7 +1566,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         DisplayWorkRow Row(Guid work, Guid asset) =>
             new() { WorkId = work, AssetId = asset, LibraryId = library.ToString("D"), MediaType = "TV" };
         using var services = new ServiceCollection()
-            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)))
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications))
             .AddSingleton(CreateService(context, new StubRawProjection(
                 [Row(combined.WorkId, combined.AssetId), Row(covered, combined.AssetId), Row(next.WorkId, next.AssetId)], [])))
             .BuildServiceProvider();
@@ -1626,7 +1627,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         var single = await InsertOwnedWorkWithIdAsync(library, "Movie night", "TV");
         var context = HumanContext(account, profile);
         using var services = new ServiceCollection()
-            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)))
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications))
             .AddSingleton(CreateService(context, new StubRawProjection(
                 [new() { WorkId = single.WorkId, AssetId = single.AssetId, LibraryId = library.ToString("D"), MediaType = "TV" }], [])))
             .BuildServiceProvider();
@@ -1649,10 +1650,10 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     {
         var accessor = new HttpContextAccessor { HttpContext = context };
         var unlocks = new GrantAdminUnlockService(
-            _accounts,
+            new ProfileAccessRepository(_database),
             new StubProfilePins(),
             TimeProvider.System);
-        var decisions = new AccountAccessDecisionService(_accounts, unlocks);
+        var decisions = new AccountAccessDecisionService(new ProfileAccessRepository(_database), unlocks);
         var evaluator = new AuthorizationEvaluator(
             decisions,
             _applications,
@@ -1662,8 +1663,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         return new AuthorizedDisplayProjectionReadService(
             raw,
             accessor,
-            new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)),
-            _accounts,
+            new RequestAuthorityResolver(_accounts, _applications),
+            new ProfileAccessRepository(_database),
             evaluator,
             _database);
     }
@@ -1672,14 +1673,14 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     {
         var accessor = new HttpContextAccessor { HttpContext = context };
         var decisions = new AccountAccessDecisionService(
-            _accounts,
+            new ProfileAccessRepository(_database),
             new GrantAdminUnlockService(
-                _accounts,
+                new ProfileAccessRepository(_database),
                 new StubProfilePins(),
                 TimeProvider.System));
         return new CatalogueResourceAuthorizationService(
             _database,
-            new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)),
+            new RequestAuthorityResolver(_accounts, _applications),
             decisions,
             new AuthorizationEvaluator(
                 decisions,

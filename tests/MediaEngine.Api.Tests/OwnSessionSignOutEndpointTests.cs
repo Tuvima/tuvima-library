@@ -205,6 +205,7 @@ public sealed class OwnSessionSignOutEndpointTests : IDisposable
         builder.Services.AddSingleton<IAccountExternalLoginService>(_ => null!);
         builder.Services.AddSingleton<ISelfServiceAuthorizationService>(_ => null!);
         builder.Services.AddSingleton<IAccountRepository>(_ => null!);
+        builder.Services.AddSingleton<IProfileAccessRepository>(_ => null!);
         builder.Services.AddSingleton<IPasskeyHandler<Account>>(_ => null!);
         builder.Services.AddSingleton<UserManager<Account>>(_ => null!);
         builder.Services.AddSingleton<IAccountSignInMethodRepository>(_ => null!);

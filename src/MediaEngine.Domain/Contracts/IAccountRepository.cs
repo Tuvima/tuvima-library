@@ -13,8 +13,14 @@ public interface IAccountRepository : IAccessRepository, IAccountAccessMutationR
     Task<bool> UpdateAsync(Account account, CancellationToken ct = default);
     Task GrantProfileAsync(AccountProfileGrant grant, CancellationToken ct = default);
     Task<bool> RevokeProfileAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
+    /// <summary>
+    /// True when the profile is one the user may act as: the profile it signs in as, or any other profile of the same household.
+    /// A profile of another household, a profile that does not exist and a user without a profile all answer false.
+    /// </summary>
     Task<bool> HasProfileAccessAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
+    /// <summary>The profiles the user may act as: its own first, then the rest of its household in the order they were made.</summary>
     Task<IReadOnlyList<Guid>> GetProfileIdsAsync(Guid accountId, CancellationToken ct = default);
+    /// <summary>The profile the user signs in as (the one it is attached to), or <see langword="null"/> when it has none.</summary>
     Task<Guid?> GetDefaultProfileIdAsync(Guid accountId, CancellationToken ct = default);
     Task InsertInvitationAsync(AccountInvitation invitation, CancellationToken ct = default);
     Task<AccountInvitation?> GetActiveInvitationAsync(string tokenHash, DateTimeOffset now, CancellationToken ct = default);

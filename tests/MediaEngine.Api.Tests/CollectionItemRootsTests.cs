@@ -812,10 +812,10 @@ public sealed class CollectionItemRootsTests : IDisposable
             ApplicationId: Guid.NewGuid(),
             DeviceId: Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
+            ActiveProfileInUserHousehold: true,
             ApplicationEnabled: true,
             AccountAuthorizationVersion: 1,
-            GrantAuthorizationVersion: 1,
+            ProfileAuthorizationVersion: 1,
             ApplicationAuthorizationVersion: 1);
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -832,6 +832,7 @@ public sealed class CollectionItemRootsTests : IDisposable
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AllowAuthorizationEvaluator>();
         builder.Services.AddScoped<CatalogueResourceAuthorizationService>();
         builder.Services.AddSingleton<IAccountRepository, AccountRepository>();
+        builder.Services.AddSingleton<IProfileAccessRepository, ProfileAccessRepository>();
         builder.Services.AddSingleton<IProfileRepository, ProfileRepository>();
         builder.Services.AddSingleton<ICollectionRepository, CollectionRepository>();
         builder.Services.AddSingleton<ISeriesManifestRepository, SeriesManifestRepository>();

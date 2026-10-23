@@ -16,6 +16,7 @@ public sealed class AccessRepositoryTests : IDisposable
     private readonly DatabaseConnection _database;
     private readonly AccountRepository _accounts;
     private readonly ProfileRepository _profiles;
+    private readonly ProfileAccessRepository _profileAccess;
     private readonly DateTimeOffset _now =
         new(2026, 9, 9, 12, 0, 0, TimeSpan.Zero);
 
@@ -28,10 +29,11 @@ public sealed class AccessRepositoryTests : IDisposable
         _database.RunStartupChecks();
         _accounts = new AccountRepository(_database);
         _profiles = new ProfileRepository(_database);
+        _profileAccess = new ProfileAccessRepository(_database);
     }
 
     [Fact]
-    public async Task Grants_EnforceMaximumDefaultAndFinalAdministratorTransactionally()
+    public async Task Grants_EnforceMaximumAndTheFinalAdministratorIsKeptOnTheProfileTransactionally()
     {
         var account = new Account
         {
@@ -64,25 +66,25 @@ public sealed class AccessRepositoryTests : IDisposable
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _accounts.UpsertGrantAsync(Grant(account.Id, ninthProfile)));
 
-        var newDefault = Grant(account.Id, profileIds[0], isDefault: true);
-        await _accounts.UpsertGrantAsync(newDefault);
+        // A sign-in signs in as the profile it is attached to; asking for another default does not move it.
+        await _accounts.UpsertGrantAsync(Grant(account.Id, profileIds[0], isDefault: true));
         var grants = await _accounts.GetGrantsAsync(account.Id);
         Assert.Single(grants, grant => grant.IsDefault);
-        Assert.Equal(profileIds[0], grants.Single(grant => grant.IsDefault).ProfileId);
+        Assert.Equal(Profile.SeedProfileId, grants.Single(grant => grant.IsDefault).ProfileId);
+        Assert.Equal(Profile.SeedProfileId, await _accounts.GetDefaultProfileIdAsync(account.Id));
 
-        var adminGrant = Grant(
-            account.Id,
-            Profile.SeedProfileId,
-            administrator: false);
+        // The administrator role is the profile's: the last one cannot be taken away, and saving the sign-in never changes it.
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _accounts.UpsertGrantAsync(adminGrant));
-        Assert.True((await _accounts.GetGrantAsync(account.Id, Profile.SeedProfileId))?.AdminEnabled);
+            _profileAccess.SetServerAdministratorAsync(Profile.SeedProfileId, false, _now.AddMinutes(1)));
+        Assert.True(grants.Single(grant => grant.ProfileId == Profile.SeedProfileId).AdminEnabled);
 
         account.IsAdministrator = false;
         account.UpdatedAt = _now.AddMinutes(1);
+        await _accounts.UpdateAccountAsync(account);
+        Assert.True((await _accounts.GetByIdAsync(account.Id))?.IsAdministrator);
+        account.IsEnabled = false;
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _accounts.UpdateAccountAsync(account));
-        Assert.True((await _accounts.GetByIdAsync(account.Id))?.IsAdministrator);
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _accounts.DeleteAccountAsync(account.Id));
     }
@@ -115,21 +117,23 @@ public sealed class AccessRepositoryTests : IDisposable
             AccountFeatureId.All.ToHashSet(),
             new HashSet<Guid>());
 
-        owner.IsAdministrator = false;
-        owner.UpdatedAt = _now.AddMinutes(1);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.UpdateAccountAsync(owner));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _profileAccess.SetServerAdministratorAsync(Profile.SeedProfileId, false, _now.AddMinutes(1)));
         Assert.True((await _accounts.GetByIdAsync(owner.Id))?.IsAdministrator);
     }
 
     [Fact]
-    public async Task PresentationRoleDoesNotReplaceAccountGrantProtectionForSoleUsableAdministrator()
+    public async Task TheProfileOfTheSoleUsableAdministrator_CannotBeDeleted_EvenWhenAnotherAdministratorHasNoSignInMethod()
     {
         var owner = NewAdministrator("owner@example.com");
+        var ownerProfile = NewProfile(Guid.NewGuid(), "Administration");
+        Assert.Equal(ProfileRole.StandardUser, ownerProfile.Role);
         await _accounts.CreateAccountAsync(
             owner,
-            Grant(owner.Id, Profile.SeedProfileId, isDefault: true),
+            Grant(owner.Id, ownerProfile.Id, isDefault: true, administrator: true),
             AccountFeatureId.All.ToHashSet(),
-            new HashSet<Guid>());
+            new HashSet<Guid>(),
+            newProfile: ownerProfile);
         await new IdentityRepository(_database).UpsertAccountCredentialAsync(new AccountCredential
         {
             Id = Guid.NewGuid(),
@@ -139,10 +143,6 @@ public sealed class AccessRepositoryTests : IDisposable
             CreatedAt = _now,
             UpdatedAt = _now,
         });
-        var managed = NewProfile(Guid.NewGuid(), "Administration");
-        Assert.Equal(ProfileRole.StandardUser, managed.Role);
-        await _accounts.CreateManagedProfileAsync(managed, Grant(owner.Id, managed.Id));
-        await _accounts.UpsertGrantAsync(Grant(owner.Id, managed.Id, administrator: true));
 
         var pending = NewAdministrator("pending@example.com");
         var pendingProfile = Guid.NewGuid();
@@ -154,8 +154,9 @@ public sealed class AccessRepositoryTests : IDisposable
             new HashSet<Guid>());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _accounts.DeleteManagedProfileAsync(managed.Id));
-        Assert.NotNull(await _profiles.GetByIdAsync(managed.Id));
+            _accounts.DeleteManagedProfileAsync(ownerProfile.Id));
+        Assert.NotNull(await _profiles.GetByIdAsync(ownerProfile.Id));
+        Assert.True((await _profiles.GetByIdAsync(ownerProfile.Id))!.IsServerAdministrator);
     }
 
     [Fact]
@@ -317,12 +318,12 @@ public sealed class AccessRepositoryTests : IDisposable
             Grant(target.Id, profile.Id));
 
         Assert.NotNull(await _profiles.GetByIdAsync(profile.Id));
-        Assert.NotNull(await _accounts.GetGrantAsync(target.Id, profile.Id));
+        Assert.True(await _accounts.HasProfileAccessAsync(target.Id, profile.Id));
         Assert.Single(await _accounts.GetAllAsync());
         await _accounts.DeleteManagedProfileAsync(profile.Id);
         Assert.Null(await _profiles.GetByIdAsync(profile.Id));
         Assert.NotNull(await _accounts.GetByIdAsync(target.Id));
-        Assert.Null(await _accounts.GetGrantAsync(target.Id, profile.Id));
+        Assert.False(await _accounts.HasProfileAccessAsync(target.Id, profile.Id));
     }
 
     [Fact]
@@ -350,12 +351,13 @@ public sealed class AccessRepositoryTests : IDisposable
 
         Assert.NotNull(await _accounts.GetByIdAsync(account.Id));
         Assert.Equal(profile.DisplayName, (await _profiles.GetByIdAsync(profile.Id))?.DisplayName);
-        Assert.True((await _accounts.GetGrantAsync(account.Id, profile.Id))?.IsDefault);
-        Assert.Null(await _accounts.GetGrantAsync(account.Id, Profile.SeedProfileId));
+        Assert.Equal(profile.Id, await _accounts.GetDefaultProfileIdAsync(account.Id));
+        Assert.True(await _accounts.HasProfileAccessAsync(account.Id, profile.Id));
+        Assert.False(await _accounts.HasProfileAccessAsync(account.Id, Profile.SeedProfileId));
     }
 
     [Fact]
-    public async Task AccessReplacement_IncrementsAccountAuthorizationVersion()
+    public async Task AccessReplacement_OnTheProfile_ChangesWhatThePersonMayUse_AndRaisesTheProfilesAuthorizationVersion()
     {
         var account = new Account
         {
@@ -373,20 +375,52 @@ public sealed class AccessRepositoryTests : IDisposable
             new HashSet<AccountFeatureId> { AccountFeatureId.Read },
             new HashSet<Guid>());
 
-        var before = (await _accounts.GetByIdAsync(account.Id))!.AuthorizationVersion;
+        var before = (await _profileAccess.GetAdminFlagsAsync(Profile.SeedProfileId))!.AuthorizationVersion;
+        await _profileAccess.ReplaceAccessAsync(
+            Profile.SeedProfileId,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Listen },
+            new HashSet<Guid>(),
+            _now.AddMinutes(1));
+
+        Assert.Equal(before + 1, (await _profileAccess.GetAdminFlagsAsync(Profile.SeedProfileId))!.AuthorizationVersion);
+        var features = await _profileAccess.GetFeatureGrantsAsync(Profile.SeedProfileId);
+        Assert.DoesNotContain(AccountFeatureId.Read, features);
+        Assert.Contains(AccountFeatureId.Listen, features);
+    }
+
+    [Fact]
+    public async Task AccountSideAccessReplacement_LeavesTheProfilesAccessAlone()
+    {
+        var account = new Account
+        {
+            Id = Guid.NewGuid(),
+            Email = "legacy@example.test",
+            NormalizedEmail = "LEGACY@EXAMPLE.TEST",
+            IsEnabled = true,
+            AuthorizationVersion = 1,
+            CreatedAt = _now,
+            UpdatedAt = _now,
+        };
+        await _accounts.CreateAccountAsync(
+            account,
+            Grant(account.Id, Profile.SeedProfileId, isDefault: true),
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read },
+            new HashSet<Guid>());
+        var versionBefore = (await _profileAccess.GetAdminFlagsAsync(Profile.SeedProfileId))!.AuthorizationVersion;
+
         await _accounts.ReplaceAccountAccessAsync(
             account.Id,
             new HashSet<AccountFeatureId> { AccountFeatureId.Listen },
             new HashSet<Guid>(),
             _now.AddMinutes(1));
 
-        Assert.Equal(before + 1, (await _accounts.GetByIdAsync(account.Id))!.AuthorizationVersion);
-        Assert.False(await _accounts.HasFeatureGrantAsync(account.Id, AccountFeatureId.Read));
-        Assert.True(await _accounts.HasFeatureGrantAsync(account.Id, AccountFeatureId.Listen));
+        // The profile holds the access; the sign-in's own rows are never read for a decision.
+        Assert.Equal([AccountFeatureId.Read], (await _profileAccess.GetFeatureGrantsAsync(Profile.SeedProfileId)).ToArray());
+        Assert.Equal(versionBefore, (await _profileAccess.GetAdminFlagsAsync(Profile.SeedProfileId))!.AuthorizationVersion);
     }
 
     [Fact]
-    public async Task AVaultLibrary_CanNeverBeGrantedToAnAccount_AndNothingIsChangedWhenItIsTried()
+    public async Task AVaultLibrary_CanNeverBeGrantedToASignInsAccessRows_AndTheProfileIsUnchangedWhenItIsTried()
     {
         var account = new Account
         {
@@ -418,7 +452,7 @@ public sealed class AccessRepositoryTests : IDisposable
             new HashSet<Guid> { ordinary, vault },
             _now.AddMinutes(1)));
 
-        Assert.Equal(new HashSet<Guid> { ordinary }, (await _accounts.GetLibraryGrantsAsync(account.Id)).ToHashSet());
+        Assert.Equal(new HashSet<Guid> { ordinary }, (await _profileAccess.GetLibraryGrantsAsync(Profile.SeedProfileId)).ToHashSet());
     }
 
     [Fact]
@@ -476,10 +510,9 @@ public sealed class AccessRepositoryTests : IDisposable
                 LastSeenAt = _now,
                 ExpiresAt = _now.AddHours(1),
             });
-            await _accounts.SetAdminUnlockAsync(new GrantAdminUnlock
+            await _profileAccess.SetAdminUnlockAsync(new ProfileAdminUnlock
             {
                 SessionId = sessionId,
-                AccountId = owner.Id,
                 ProfileId = Profile.SeedProfileId,
                 ProtectionVersion = 1,
                 Method = "pin",
@@ -492,8 +525,8 @@ public sealed class AccessRepositoryTests : IDisposable
             owner.Id, _now.AddMinutes(1), "password-changed", exceptSessionId: kept);
 
         Assert.Equal(1, changed);
-        Assert.Null(await _accounts.GetAdminUnlockAsync(revoked, owner.Id, Profile.SeedProfileId, _now.AddMinutes(2)));
-        Assert.NotNull(await _accounts.GetAdminUnlockAsync(kept, owner.Id, Profile.SeedProfileId, _now.AddMinutes(2)));
+        Assert.Null(await _profileAccess.GetAdminUnlockAsync(revoked, Profile.SeedProfileId, _now.AddMinutes(2)));
+        Assert.NotNull(await _profileAccess.GetAdminUnlockAsync(kept, Profile.SeedProfileId, _now.AddMinutes(2)));
     }
 
     private void InsertProfile(Profile profile)

@@ -18,8 +18,7 @@ public interface IRequestAuthorityResolver
 
 public sealed class RequestAuthorityResolver(
     IAccountRepository accounts,
-    IApplicationRepository applications,
-    IProfileRepository profiles) : IRequestAuthorityResolver
+    IApplicationRepository applications) : IRequestAuthorityResolver
 {
     public async ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default)
     {
@@ -42,32 +41,23 @@ public sealed class RequestAuthorityResolver(
         var account = accountId is { } accountKey
             ? await accounts.GetByIdAsync(accountKey, ct).ConfigureAwait(false)
             : null;
-        var grant = accountId is { } grantAccount && profileId is { } grantProfile
-            ? await accounts.GetGrantAsync(grantAccount, grantProfile, ct).ConfigureAwait(false)
+        // The profile being acted as, with its roles and version, only while it is in the user's own household. Roles and access
+        // come from this profile, never from the sign-in; a child (restricted) profile never gets administrator authority.
+        var activeProfile = accountId is { } profileAccount && profileId is { } activeProfileKey
+            ? await accounts.GetActiveProfileAccessAsync(profileAccount, activeProfileKey, ct).ConfigureAwait(false)
             : null;
         var application = applicationId is { } applicationKey
             ? await applications.GetApplicationAsync(applicationKey, ct).ConfigureAwait(false)
             : null;
 
-        // A child (restricted) profile never gets administrator authority, whatever its grant says.
-        var activeProfile = profileId is { } activeProfileKey
-            ? await profiles.GetByIdAsync(activeProfileKey, ct).ConfigureAwait(false)
-            : null;
-
         return new RequestAuthority(
             kind, true, accountId, profileId, applicationId, sessionId, deviceId,
-            account?.IsEnabled == true,
-            grant?.IsEnabled == true,
-            application?.IsEnabled == true,
-            account?.AuthorizationVersion ?? 0,
-            grant?.AuthorizationVersion ?? 0,
-            application?.AuthorizationVersion ?? 0,
-            account?.IsAdministrator == true,
-            grant?.AdminEnabled == true,
-            application?.IsAdministrator == true,
-            activeProfile?.Role == ProfileRole.RestrictedProfile,
-            account?.HouseholdId,
-            account?.HouseholdAdmin == true);
+            AccountEnabled: account?.IsEnabled == true,
+            ApplicationEnabled: application?.IsEnabled == true,
+            AccountAuthorizationVersion: account?.AuthorizationVersion ?? 0,
+            ApplicationAuthorizationVersion: application?.AuthorizationVersion ?? 0,
+            ApplicationIsAdministrator: application?.IsAdministrator == true)
+            .WithActiveProfile(activeProfile);
     }
 
     private static Guid? ClaimGuid(ClaimsPrincipal user, string type) =>
@@ -110,10 +100,10 @@ internal static class AuthorityValidity
         return authority.PrincipalKind switch
         {
             PrincipalKind.Human when authority.HasHumanContext &&
-                authority.AccountEnabled && authority.GrantEnabled => null,
+                authority.AccountEnabled && authority.ActiveProfileInUserHousehold => null,
             PrincipalKind.DelegatedUserClient when authority.HasHumanContext &&
                 authority.HasApplicationContext && authority.AccountEnabled &&
-                authority.GrantEnabled && authority.ApplicationEnabled => null,
+                authority.ActiveProfileInUserHousehold && authority.ApplicationEnabled => null,
             PrincipalKind.ServiceApplication when authority.HasApplicationContext &&
                 authority.ApplicationEnabled => null,
             PrincipalKind.Human or PrincipalKind.DelegatedUserClient or PrincipalKind.ServiceApplication =>
@@ -137,7 +127,7 @@ internal static class AuthorityValidity
 }
 
 public sealed class AccountAccessDecisionService(
-    IAccountRepository accounts,
+    IProfileAccessRepository profileAccess,
     IGrantAdminUnlockService unlocks) : IAccountAccessDecisionService, ISelfServiceAuthorizationService
 {
     public async ValueTask<AuthorizationDecision> EvaluateFeatureAsync(
@@ -156,7 +146,8 @@ public sealed class AccountAccessDecisionService(
             return AuthorizationDecision.Allow();
         }
 
-        return await accounts.HasFeatureGrantAsync(authority.AccountId!.Value, feature, ct).ConfigureAwait(false)
+        // Read/Watch/Listen/View come from the profile being acted as.
+        return (await profileAccess.GetFeatureGrantsAsync(authority.ActiveProfileId!.Value, ct).ConfigureAwait(false)).Contains(feature)
             ? AuthorizationDecision.Allow()
             : AuthorizationDecision.Deny(AuthorizationDenialReason.MissingFeatureGrant);
     }
@@ -177,7 +168,7 @@ public sealed class AccountAccessDecisionService(
             return AuthorizationDecision.Allow();
         }
 
-        return await accounts.HasLibraryGrantAsync(authority.AccountId!.Value, libraryId, ct).ConfigureAwait(false)
+        return (await profileAccess.GetLibraryGrantsAsync(authority.ActiveProfileId!.Value, ct).ConfigureAwait(false)).Contains(libraryId)
             ? AuthorizationDecision.Allow()
             : AuthorizationDecision.Deny(AuthorizationDenialReason.MissingLibraryGrant);
     }
@@ -400,7 +391,7 @@ public sealed class AuthorizationEvaluator(
 }
 
 public sealed class GrantAdminUnlockService(
-    IAccountRepository accounts,
+    IProfileAccessRepository profileAccess,
     IProfilePinVerifier profilePins,
     TimeProvider clock) : IGrantAdminUnlockService
 {
@@ -409,7 +400,7 @@ public sealed class GrantAdminUnlockService(
         CancellationToken ct = default)
     {
         var ids = RequireHuman(authority);
-        var protection = await accounts.GetAdminProtectionAsync(ids.Account, ids.Profile, ct).ConfigureAwait(false);
+        var protection = await profileAccess.GetAdminProtectionAsync(ids.Profile, ct).ConfigureAwait(false);
         if (protection?.IsEnabled != true)
         {
             return new(ids.Account, ids.Profile, false, AdminUnlockMode.FixedDuration, true, null,
@@ -422,8 +413,8 @@ public sealed class GrantAdminUnlockService(
             return new(ids.Account, ids.Profile, true, mode, false, null, protection.ProtectionVersion);
         }
 
-        var unlock = await accounts.GetAdminUnlockAsync(
-            sessionId, ids.Account, ids.Profile, clock.GetUtcNow(), ct).ConfigureAwait(false);
+        var unlock = await profileAccess.GetAdminUnlockAsync(
+            sessionId, ids.Profile, clock.GetUtcNow(), ct).ConfigureAwait(false);
         var valid = unlock is not null && unlock.ProtectionVersion == protection.ProtectionVersion;
         return new(ids.Account, ids.Profile, true, mode, valid, valid ? unlock!.ExpiresAt : null,
             protection.ProtectionVersion);
@@ -440,7 +431,7 @@ public sealed class GrantAdminUnlockService(
             throw new UnauthorizedAccessException("A human session is required.");
         }
 
-        var protection = await accounts.GetAdminProtectionAsync(ids.Account, ids.Profile, ct).ConfigureAwait(false);
+        var protection = await profileAccess.GetAdminProtectionAsync(ids.Profile, ct).ConfigureAwait(false);
         if (protection?.IsEnabled != true)
         {
             return await GetStateAsync(authority, ct).ConfigureAwait(false);
@@ -476,10 +467,9 @@ public sealed class GrantAdminUnlockService(
             AdminUnlockMode.UntilProfileSwitch => null,
             _ => throw new InvalidOperationException("Unsupported administrator unlock mode."),
         };
-        await accounts.SetAdminUnlockAsync(new GrantAdminUnlock
+        await profileAccess.SetAdminUnlockAsync(new ProfileAdminUnlock
         {
             SessionId = sessionId,
-            AccountId = ids.Account,
             ProfileId = ids.Profile,
             ProtectionVersion = protection.ProtectionVersion,
             Method = "GrantPin",
@@ -493,7 +483,7 @@ public sealed class GrantAdminUnlockService(
     {
         RequireHuman(authority);
         return authority.SessionId is { } sessionId
-            ? new ValueTask(accounts.ClearAdminUnlockAsync(sessionId, ct))
+            ? new ValueTask(profileAccess.ClearAdminUnlockAsync(sessionId, ct))
             : ValueTask.CompletedTask;
     }
 

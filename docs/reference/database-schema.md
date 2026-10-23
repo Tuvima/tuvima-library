@@ -26,7 +26,7 @@ Inspect the database tables, columns, and relationships that back Tuvima Library
 
 SQLite database located at `.data/database/library.db` (path set in `config/core.json`).
 
-Latest storage epoch: **guid-blob-v11-upgrade-steps**. The data structure is built by numbered upgrade
+Latest storage epoch: **guid-blob-v12-profile-held-access**. The data structure is built by numbered upgrade
 steps in `src/MediaEngine.Storage/Schema/Upgrades/`. Each step runs once at startup and is recorded in
 `data_store_upgrades`; a fresh data store runs them all, starting with `0001_baseline.sql`, which creates
 the whole structure. Every table below is created by that baseline step unless its notes say a later step
@@ -44,7 +44,7 @@ in place. To change the structure, see [Changing the data store](../develop/chan
 
 Startup safety:
 
-- Current databases record `storage_metadata.storage_epoch = guid-blob-v11-upgrade-steps`.
+- Current databases record `storage_metadata.storage_epoch = guid-blob-v12-profile-held-access`.
 - `storage_metadata` also holds server-wide flags as `key`/`value` rows.
 - Older epochs, including the legacy TEXT-GUID database and every earlier `guid-blob-` epoch, are
   rejected on startup.
@@ -886,7 +886,7 @@ One row per person who signs in. A sign-in that works away from this computer ha
 | `this_computer_only` | INTEGER | 1 for an account that was started on this computer without a password. It signs in without a password and, since Tuvima is open from the start, can be used from any device that reaches the server until a password or passkey is added (see Security). Defaults to 0. |
 | `must_change_password` | INTEGER | 1 while the password is one an administrator chose. The person can then do nothing except choose their own password, check their session and sign out; the Engine refuses everything else with 403 `password_change_required`. Defaults to 0. |
 | `temporary_password_expires_at` | TEXT | When an administrator-set temporary password stops working; null when none is set. Sessions of an account whose temporary password has run out stop validating. |
-| `profile_id` | BLOB | The profile this sign-in opens (a user is a sign-in attached to one profile; references `profiles`, deleting the profile deletes the sign-in). A unique partial index (`ux_accounts_profile`) allows at most one sign-in per profile. Null until the profile side is switched on for the account; setup attaches the first administrator to the profile it creates (users, profiles and households spec, step `0041_profile_held_access`). |
+| `profile_id` | BLOB | The profile this sign-in opens (a user is a sign-in attached to one profile; references `profiles`, deleting the profile deletes the sign-in). A unique partial index (`ux_accounts_profile`) allows at most one sign-in per profile. Signing in always opens this profile, and the sign-in may switch to any other profile of the same household (never another household's). Its roles (server administrator, household administrator) and its Read/Watch/Listen/View and library access are the profile's, not the sign-in's (users, profiles and households spec, steps `0041_profile_held_access` and `0042_storage_epoch_profile_held_access`). |
 | `household_admin` | INTEGER | 1 when the account looks after its own household (a **household administrator**). It never reaches another household or the server's settings. A person's own sign-in (`grants_inherit_from_account_id` set) can never have it. Defaults to 0, and a household's first main sign-in gets it when the household is created. |
 
 ### households
@@ -926,7 +926,7 @@ User profiles for multi-user support.
 | `is_household_admin` | INTEGER | 1 when the profile looks after its own household. Defaults to 0. Setup sets it on the first administrator's profile. |
 | `authorization_version` | INTEGER | Above zero, starts at 1, bumped on every change to the profile's administrator roles, feature and library access or admin PIN question, so open sessions re-check. |
 
-These three columns (and the four `profile_*` access tables below) were added by upgrade step `0041_profile_held_access`: the profile holds the person's access and a user (`accounts`) is only a sign-in. Until the Engine switches over, authority still reads the account side; the profile side is written alongside it at setup. A user file never carries the administrator columns, and a user import forces them to 0.
+These three columns (and the four `profile_*` access tables below) were added by upgrade step `0041_profile_held_access`: the profile holds the person's access and a user (`accounts`) is only a sign-in. Since step `0042_storage_epoch_profile_held_access` (storage epoch `guid-blob-v12-profile-held-access`) the Engine reads roles and access only from the profile being acted as, and writes them only there. The earlier account-side columns and tables (`accounts.is_administrator`, `accounts.household_admin`, `account_profile_grants.admin_enabled`, `account_feature_grants`, `account_library_grants`, `grant_admin_protections`, `grant_admin_unlocks`) are no longer read for any decision; a later step removes them. A new sign-in's profile is set up once from how the sign-in was created, and a person who already exists is never changed by getting a sign-in. A user file never carries the administrator columns, and a user import forces them to 0 (the person who starts a household by being imported becomes its household administrator on the profile their sign-in opens).
 
 The PIN is not stored on this row. It is the `profile_credentials` row described below.
 

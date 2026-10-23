@@ -211,7 +211,7 @@ public sealed class ApplicationEventDispatcherTests : IDisposable
         var permissions = new PermissionRegistry();
         var registry = new ApplicationEventRegistry(permissions);
         var authorizer = new ApplicationEventSubscriptionAuthorizer(
-            new AllowAuthorizationEvaluator(), _accounts, _applications, _clients, permissions, registry,
+            new AllowAuthorizationEvaluator(), _accounts, new ProfileAccessRepository(_database), _applications, _clients, permissions, registry,
             new ApplicationEventDeliveryAuthorizer(_applications, permissions, registry), TimeProvider.System);
         _services = new ServiceCollection().AddSingleton(authorizer).BuildServiceProvider();
         return new ApplicationEventDispatcher(

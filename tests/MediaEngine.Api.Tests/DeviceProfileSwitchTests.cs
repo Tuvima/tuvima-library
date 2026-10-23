@@ -69,7 +69,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
             TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(_configuration));
         var decisions = new RealAdministratorDecisions();
         var mutations = new AccountAccessMutationService(
-            _accounts, identities, profiles, _configuration, decisions, new AllowEvaluator(),
+            _accounts, new ProfileAccessRepository(_database), identities, profiles, _configuration, decisions, new AllowEvaluator(),
             new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
         _devices = new ClientAuthorizationRepository(_database);
         var applications = new ApplicationRepository(_database);
@@ -90,7 +90,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         {
             // The test library is not a catalogued one, so it is granted directly.
             connection.Execute(
-                "INSERT INTO account_library_grants (account_id, library_id, granted_at) VALUES (@account, @library, @now);",
+                "INSERT INTO profile_library_grants (profile_id, library_id, granted_at) SELECT profile_id, @library, @now FROM accounts WHERE id = @account;",
                 new { account = _homeOwner.Id, library = _library, now = DateTimeOffset.UtcNow.ToString("O") });
         }
 
@@ -102,6 +102,19 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
             new AddHouseholdPersonCommand(homeHousehold.Id, "Jim", null, false, null));
         _sam = await mutations.AddHouseholdPersonAsync(serverAdmin,
             new AddHouseholdPersonCommand(homeHousehold.Id, "Sam", null, true, null));
+
+        using (var connection = _database.CreateConnection())
+        {
+            // Each person holds their own access: Jim and Sam are given what Mary has.
+            connection.Execute("""
+                INSERT OR IGNORE INTO profile_library_grants (profile_id, library_id, granted_at)
+                SELECT p.id, g.library_id, g.granted_at FROM profile_library_grants g, profiles p
+                WHERE g.profile_id = @mary AND p.id IN (@jim, @sam);
+                INSERT OR IGNORE INTO profile_feature_grants (profile_id, feature_id, granted_at)
+                SELECT p.id, g.feature_id, g.granted_at FROM profile_feature_grants g, profiles p
+                WHERE g.profile_id = @mary AND p.id IN (@jim, @sam);
+                """, new { mary = _mary.Id, jim = _jim.Id, sam = _sam.Id });
+        }
 
         _paired = await PairPhoneAsync(applications);
         _phoneId = _paired.DeviceId;
@@ -127,13 +140,14 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ADisabledGrant_IsNeitherListedNorSwitchedTo()
+    public async Task APersonWhoLeftTheHousehold_IsNeitherListedNorSwitchedTo()
     {
+        // Who a device may switch to is the household of the signed-in person; moving Jim out of it takes him off the list.
         using (var connection = _database.CreateConnection())
         {
             connection.Execute(
-                "UPDATE account_profile_grants SET is_enabled = 0 WHERE account_id = @account AND profile_id = @profile;",
-                new { account = _homeOwner.Id, profile = _jim.Id });
+                "UPDATE profiles SET household_id = (SELECT household_id FROM profiles WHERE id = @bea) WHERE id = @profile;",
+                new { bea = _bea.Id, profile = _jim.Id });
         }
 
         var list = Assert.IsType<DeviceProfileListDto>((await _service.ListAsync(PhoneAuthority(_mary.Id))).Profiles);
@@ -806,7 +820,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         builder.Services.AddAuthorization();
         builder.Services.AddRateLimiter(_ => { });
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(
-            _accounts, new ApplicationRepository(_database), new ProfileRepository(_database)));
+            _accounts, new ApplicationRepository(_database)));
         builder.Services.AddSingleton(_service);
         builder.Services.AddSingleton(_authorization);
         builder.Services.AddSingleton<IConfigurationLoader>(_ => null!);
@@ -818,8 +832,8 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         // The offline download routes: the real access checks, so a Kids profile and a foreign variant are judged for real.
         var downloadAccessor = new HttpContextAccessor();
         var downloadDecisions = new AccountAccessDecisionService(
-            _accounts,
-            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System));
+            new ProfileAccessRepository(_database),
+            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System));
         var downloadApplications = new ApplicationRepository(_database);
         var downloadEvaluator = new AuthorizationEvaluator(
             downloadDecisions, downloadApplications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts), downloadAccessor);
@@ -827,7 +841,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         builder.Services.AddSingleton<IAuthorizationEvaluator>(downloadEvaluator);
         builder.Services.AddSingleton(new CatalogueResourceAuthorizationService(
             _database,
-            new RequestAuthorityResolver(_accounts, downloadApplications, new ProfileRepository(_database)),
+            new RequestAuthorityResolver(_accounts, downloadApplications),
             downloadDecisions,
             downloadEvaluator));
         builder.Services.AddSingleton(new MediaEngine.Api.Services.Playback.DeviceDownloadService(
@@ -1005,12 +1019,12 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
     {
         var accessor = new HttpContextAccessor { HttpContext = context };
         var decisions = new AccountAccessDecisionService(
-            _accounts,
-            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System));
+            new ProfileAccessRepository(_database),
+            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System));
         var applications = new ApplicationRepository(_database);
         return new CatalogueResourceAuthorizationService(
             _database,
-            new RequestAuthorityResolver(_accounts, applications, new ProfileRepository(_database)),
+            new RequestAuthorityResolver(_accounts, applications),
             decisions,
             new AuthorizationEvaluator(decisions, applications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts), accessor));
     }
@@ -1103,11 +1117,10 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
             ActiveProfileId: profileId,
             SessionId: Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
-            AccountIsAdministrator: serverAdmin,
-            GrantAdminEnabled: serverAdmin,
-            AccountHouseholdId: householdId,
-            AccountIsHouseholdAdmin: householdAdmin);
+            ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: serverAdmin,
+            ActiveProfileHouseholdId: householdId,
+            ActiveProfileIsHouseholdAdministrator: householdAdmin);
 
     private sealed class AuditRow
     {

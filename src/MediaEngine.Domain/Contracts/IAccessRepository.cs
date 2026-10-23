@@ -5,14 +5,20 @@ namespace MediaEngine.Domain.Contracts;
 
 public interface IAccessRepository
 {
-    Task<AccountProfileGrant?> GetGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
+    /// <summary>
+    /// What a user may act as: the profile it signs in as, and every other profile of its household (users, profiles and
+    /// households spec: a user switches inside its own household and never into another). One entry per profile, always enabled;
+    /// <c>IsDefault</c> marks the profile the user signs in as, <c>AdminEnabled</c> the profiles that hold the server administrator
+    /// role, and <c>AuthorizationVersion</c> is the profile's. Empty when the user does not exist.
+    /// </summary>
     Task<IReadOnlyList<AccountProfileGrant>> GetGrantsAsync(Guid accountId, CancellationToken ct = default);
-    Task<IReadOnlySet<AccountFeatureId>> GetFeatureGrantsAsync(Guid accountId, CancellationToken ct = default);
-    Task<IReadOnlySet<Guid>> GetLibraryGrantsAsync(Guid accountId, CancellationToken ct = default);
-    Task<bool> HasFeatureGrantAsync(Guid accountId, AccountFeatureId feature, CancellationToken ct = default);
-    Task<bool> HasLibraryGrantAsync(Guid accountId, Guid libraryId, CancellationToken ct = default);
-    Task<GrantAdminProtection?> GetAdminProtectionAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
-    Task<GrantAdminUnlock?> GetAdminUnlockAsync(Guid sessionId, Guid accountId, Guid profileId, DateTimeOffset now, CancellationToken ct = default);
+
+    /// <summary>
+    /// The profile a user is acting as, with its roles and version, or <see langword="null"/> when that profile does not exist or is
+    /// not in the household of the profile the user signs in as. Read fresh on every request; Read/Watch/Listen/View and library
+    /// access of the profile come from <see cref="IProfileAccessRepository"/>.
+    /// </summary>
+    Task<ActiveProfileAccess?> GetActiveProfileAccessAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
     Task WriteAuthorizationAuditAsync(AuthorizationAuditEvent auditEvent, CancellationToken ct = default);
 
     /// <summary>
@@ -30,10 +36,17 @@ public interface IAccessRepository
 
 public interface IAccountAccessMutationRepository
 {
+    /// <summary>
+    /// Creates a user attached to the profile named by <paramref name="initialGrant"/> (or to <paramref name="newProfile"/>, created
+    /// in the same step). The profile takes the roles and access described by the arguments, unless
+    /// <paramref name="preserveProfileAccess"/> is set: attaching a sign-in to a person who already exists never changes what that
+    /// person may do (their roles, features and libraries stay exactly as they are). A brand-new profile always takes the arguments.
+    /// </summary>
     Task CreateAccountAsync(Account account, AccountProfileGrant initialGrant,
         IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries,
         CancellationToken ct = default,
-        MediaEngine.Domain.Aggregates.Profile? newProfile = null);
+        MediaEngine.Domain.Aggregates.Profile? newProfile = null,
+        bool preserveProfileAccess = false);
     Task UpdateAccountAsync(Account account, CancellationToken ct = default);
     Task DeleteAccountAsync(Guid accountId, CancellationToken ct = default);
     /// <summary>
@@ -56,7 +69,8 @@ public interface IAccountAccessMutationRepository
         IReadOnlyList<AccountProfileGrant> grants,
         AccountInvitation invitation,
         CancellationToken ct = default,
-        MediaEngine.Domain.Aggregates.Profile? newProfile = null);
+        MediaEngine.Domain.Aggregates.Profile? newProfile = null,
+        bool preserveProfileAccess = false);
     /// <summary>
     /// Creates a person for an existing sign-in. <paramref name="accessFromProfileId"/> is the profile of whoever is creating them: the
     /// new person starts with that profile's Read/Watch/Listen/View access and libraries (View off and no libraries when it is in
@@ -86,16 +100,15 @@ public interface IAccountAccessMutationRepository
     Task UpsertGrantAsync(AccountProfileGrant grant, CancellationToken ct = default);
     Task RevokeGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
     Task ReplaceAccountAccessAsync(Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset changedAt, CancellationToken ct = default);
-    Task SetAdminProtectionAsync(GrantAdminProtection protection, CancellationToken ct = default);
     /// <summary>
     /// Makes an account the administrator of its household (or takes that away). Making one also names it the
     /// household's primary account when the household has none. Raises the account's authorization version.
     /// </summary>
     Task<bool> SetHouseholdAdminAsync(Guid accountId, bool isHouseholdAdmin, DateTimeOffset changedAt, CancellationToken ct = default);
 
-    /// <summary>True when any sign-in has "Ask for my PIN on admin pages" switched on for this profile.</summary>
+    /// <summary>True when "Ask for my PIN on admin pages" is switched on for this profile.</summary>
     Task<bool> HasEnabledAdminProtectionAsync(Guid profileId, CancellationToken ct = default);
-    Task SetAdminUnlockAsync(GrantAdminUnlock unlock, CancellationToken ct = default);
+    /// <summary>Ends the administrator unlock of a session (on sign-out, profile switch or when the session is revoked).</summary>
     Task ClearAdminUnlockAsync(Guid sessionId, CancellationToken ct = default);
 }
 

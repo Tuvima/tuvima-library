@@ -13,7 +13,7 @@ internal sealed class PersonalUiSettingsFilter : IEndpointFilter
         var authority = await http.RequestServices.GetRequiredService<IRequestAuthorityResolver>()
             .ResolveAsync(http, http.RequestAborted);
         if (authority.PrincipalKind != PrincipalKind.Human || !authority.IsAuthenticated ||
-            !authority.AccountEnabled || !authority.GrantEnabled || !authority.HasHumanContext)
+            !authority.AccountEnabled || !authority.ActiveProfileInUserHousehold || !authority.HasHumanContext)
         {
             return ApiErrors.NotFound("Profile not found.");
         }

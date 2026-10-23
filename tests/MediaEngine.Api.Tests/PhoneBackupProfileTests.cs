@@ -51,7 +51,8 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
             TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(_configuration));
         var decisions = new RealAdministratorDecisions();
         var mutations = new AccountAccessMutationService(
-            accounts, identities, profiles, _configuration, decisions, new AllowEvaluator(),
+            accounts,
+                        new ProfileAccessRepository(_database), identities, profiles, _configuration, decisions, new AllowEvaluator(),
             new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
         _devices = new ClientAuthorizationRepository(_database);
         _service = new PhoneBackupProfileService(_devices, accounts, profiles, _identity, decisions, new NoOpAudit(), TimeProvider.System);
@@ -282,11 +283,10 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
             ActiveProfileId: profileId,
             SessionId: Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
-            AccountIsAdministrator: serverAdmin,
-            GrantAdminEnabled: serverAdmin,
-            AccountHouseholdId: householdId,
-            AccountIsHouseholdAdmin: householdAdmin);
+            ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: serverAdmin,
+            ActiveProfileHouseholdId: householdId,
+            ActiveProfileIsHouseholdAdministrator: householdAdmin);
 
     /// <summary>Allows what the real rules allow: an effective server administrator, or an effective household administrator.</summary>
     private sealed class RealAdministratorDecisions : IAccountAccessDecisionService

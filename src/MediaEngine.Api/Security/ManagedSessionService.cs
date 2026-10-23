@@ -131,7 +131,7 @@ public sealed class ManagedSessionService(
             return null;
         }
 
-        if (!actor.IsEffectiveAdministrator && actor.AccountHouseholdId is { } household &&
+        if (!actor.IsEffectiveAdministrator && actor.ActiveProfileHouseholdId is { } household &&
             (await decisions.EvaluateHouseholdAdministratorAsync(actor, true, ct).ConfigureAwait(false)).IsAllowed)
         {
             return household;
@@ -157,16 +157,13 @@ public sealed class ManagedSessionService(
     }
 
     /// <summary>
-    /// The person an account opens: a person's own sign-in opens exactly one, any other account is named by its
-    /// default person. The flag says the account is a person's own sign-in.
+    /// The person an account opens (the profile it is attached to). The flag says the account is a person's own sign-in.
     /// </summary>
     private async Task<(string? Name, bool IsOwnSignIn)> PersonNameAsync(Account account, CancellationToken ct)
     {
-        var grants = (await accounts.GetGrantsAsync(account.Id, ct).ConfigureAwait(false))
-            .Where(grant => grant.IsEnabled).ToArray();
-        var isOwn = account.GrantsInheritFromAccountId is not null && !account.IsAdministrator && grants.Length == 1;
-        var grant = isOwn ? grants[0] : grants.FirstOrDefault(candidate => candidate.IsDefault) ?? grants.FirstOrDefault();
-        var profile = grant is null ? null : await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false);
+        // A sign-in is named by the person it opens: the profile it is attached to.
+        var isOwn = account.GrantsInheritFromAccountId is not null && !account.IsAdministrator;
+        var profile = account.ProfileId is { } ownId ? await profiles.GetByIdAsync(ownId, ct).ConfigureAwait(false) : null;
         return (profile?.DisplayName, isOwn && profile is not null);
     }
 }

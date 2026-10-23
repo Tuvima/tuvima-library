@@ -47,7 +47,7 @@ public sealed class LibraryItemMoveEndpointTests : IAsyncLifetime
         builder.Services.AddSingleton<IAuthorizationHandler, AdministratorOrApplicationHandler>();
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new CallerResolver());
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new AccountAccessDecisionService(
-            new AccountRepository(_world.Database), new NoUnlock()));
+            new ProfileAccessRepository(_world.Database), new NoUnlock()));
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator>(new DenyingEvaluator());
         // The other routes in the group are mapped but never reached by these requests; their services are only named so the group can be built.
         builder.Services.AddSingleton<IProfileRepository>(new ProfileRepository(_world.Database));
@@ -153,9 +153,8 @@ public sealed class LibraryItemMoveEndpointTests : IAsyncLifetime
             ActiveProfileId: profile,
             SessionId: Guid.NewGuid(),
             AccountEnabled: true,
-            GrantEnabled: true,
-            AccountIsAdministrator: administrator,
-            GrantAdminEnabled: administrator);
+            ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: administrator);
 
         return caller switch
         {

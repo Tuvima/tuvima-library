@@ -127,8 +127,8 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
             Event() with { Subject = Event().Subject with { FeatureId = AccountFeatureId.Read } }));
         using var connection = _database.CreateConnection();
         connection.Execute(
-            "DELETE FROM account_feature_grants WHERE account_id=@accountId AND feature_id='watch';",
-            new { accountId = _accountId });
+            "DELETE FROM profile_feature_grants WHERE profile_id=@profileId AND feature_id='watch';",
+            new { profileId = Profile.SeedProfileId });
 
         Assert.False(await fixture.Authorizer.CanDeliverDelegatedAsync(fixture.Subscriber, Event()));
     }
@@ -136,30 +136,28 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
     private async Task<Fixture> CreateSubscriptionAsync()
     {
         var now = _clock.GetUtcNow();
-        await _accounts.InsertAsync(new Account
-        {
-            Id = _accountId,
-            Email = "events@example.com",
-            NormalizedEmail = "EVENTS@EXAMPLE.COM",
-            IsEnabled = true,
-            AuthorizationVersion = 1,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-        await _accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = _accountId,
-            ProfileId = Profile.SeedProfileId,
-            IsDefault = true,
-            IsEnabled = true,
-            AuthorizationVersion = 1,
-            GrantedAt = now,
-        });
-        await _accounts.ReplaceAccountAccessAsync(
-            _accountId,
+        await _accounts.CreateAccountAsync(
+            new Account
+            {
+                Id = _accountId,
+                Email = "events@example.com",
+                NormalizedEmail = "EVENTS@EXAMPLE.COM",
+                IsEnabled = true,
+                AuthorizationVersion = 1,
+                CreatedAt = now,
+                UpdatedAt = now,
+            },
+            new AccountProfileGrant
+            {
+                AccountId = _accountId,
+                ProfileId = Profile.SeedProfileId,
+                IsDefault = true,
+                IsEnabled = true,
+                AuthorizationVersion = 1,
+                GrantedAt = now,
+            },
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid> { _libraryId },
-            now);
+            new HashSet<Guid> { _libraryId });
         await _applications.ReplacePermissionsAsync(
             BuiltInApplicationIds.NativeClient,
             Scopes.ToHashSet(),
@@ -197,14 +195,14 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
             PrincipalKind.DelegatedUserClient,
             true,
             identity.Account.Id,
-            identity.Grant.ProfileId,
+            identity.Profile.ProfileId,
             identity.Application.Id,
             DeviceId: identity.Device.Id,
             AccountEnabled: true,
-            GrantEnabled: true,
+            ActiveProfileInUserHousehold: true,
             ApplicationEnabled: true,
             AccountAuthorizationVersion: identity.Account.AuthorizationVersion,
-            GrantAuthorizationVersion: identity.Grant.AuthorizationVersion,
+            ProfileAuthorizationVersion: identity.Profile.AuthorizationVersion,
             ApplicationAuthorizationVersion: identity.Application.AuthorizationVersion);
         var consent = Scopes.ToHashSet();
         var subscriber = new ApplicationEventSubscriber(
@@ -221,6 +219,7 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
         var authorizer = new ApplicationEventSubscriptionAuthorizer(
             new AllowAuthorizationEvaluator(),
             _accounts,
+            new ProfileAccessRepository(_database),
             _applications,
             _clients,
             permissions,

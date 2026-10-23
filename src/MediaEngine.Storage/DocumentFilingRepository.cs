@@ -184,10 +184,8 @@ public sealed class DocumentFilingRepository(IDatabaseConnection database) : IDo
                         SELECT 1
                           FROM view_shared_library sl
                           JOIN profiles p ON p.id = r.owner_profile_id AND p.household_id = sl.household_id
-                                         AND p.role <> 'RestrictedProfile'
-                          JOIN account_profile_grants g ON g.profile_id = p.id AND g.is_enabled = 1
-                          JOIN accounts a ON a.id = g.account_id AND a.is_enabled = 1 AND a.household_admin = 1
-                                         AND a.household_id = sl.household_id
+                                         AND p.role <> 'RestrictedProfile' AND p.is_household_admin = 1
+                          JOIN accounts a ON a.profile_id = p.id AND a.is_enabled = 1
                          WHERE sl.library_id = @libraryId)))
              ORDER BY r.sort_order, r.created_at, r.id;
             """, new

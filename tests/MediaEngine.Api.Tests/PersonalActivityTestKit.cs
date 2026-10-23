@@ -235,12 +235,11 @@ internal sealed class PersonalActivityWorld : IAsyncDisposable
         ActiveProfileId: person.ProfileId,
         SessionId: session ?? Guid.NewGuid(),
         AccountEnabled: true,
-        GrantEnabled: true,
-        AccountIsAdministrator: person.IsServerAdmin,
-        GrantAdminEnabled: person.IsServerAdmin,
+        ActiveProfileInUserHousehold: true,
+        ActiveProfileIsServerAdministrator: person.IsServerAdmin,
         ActiveProfileIsRestricted: restricted,
-        AccountHouseholdId: person.Household,
-        AccountIsHouseholdAdmin: person.IsHouseholdAdmin);
+        ActiveProfileHouseholdId: person.Household,
+        ActiveProfileIsHouseholdAdministrator: person.IsHouseholdAdmin);
 
     internal sealed record Person(string Name, Guid AccountId, Guid ProfileId, Guid? Household, bool IsServerAdmin, bool IsHouseholdAdmin);
 

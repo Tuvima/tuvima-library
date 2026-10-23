@@ -3,6 +3,7 @@ using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Tools;
 using MediaEngine.Contracts.Notifications;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
@@ -317,16 +318,38 @@ public sealed class NotificationServiceTests : IDisposable
 
     private async Task AddAccountAsync(string? email, bool administrator, bool enabled = true)
     {
-        await _accounts.InsertAsync(new Account
+        // The administrator role is the profile's, so each sign-in opens a profile of its own.
+        var accountId = Guid.NewGuid();
+        var profile = new MediaEngine.Domain.Aggregates.Profile
         {
             Id = Guid.NewGuid(),
-            Email = email,
-            NormalizedEmail = email?.ToUpperInvariant(),
-            IsEnabled = enabled,
-            IsAdministrator = administrator,
+            DisplayName = email ?? "Administrator",
+            Role = MediaEngine.Domain.Enums.ProfileRole.StandardUser,
             CreatedAt = Start,
-            UpdatedAt = Start,
-        });
+        };
+        await _accounts.CreateAccountAsync(
+            new Account
+            {
+                Id = accountId,
+                Email = email,
+                NormalizedEmail = email?.ToUpperInvariant(),
+                IsEnabled = enabled,
+                IsAdministrator = administrator,
+                CreatedAt = Start,
+                UpdatedAt = Start,
+            },
+            new AccountProfileGrant
+            {
+                AccountId = accountId,
+                ProfileId = profile.Id,
+                IsDefault = true,
+                IsEnabled = true,
+                AdminEnabled = administrator,
+                GrantedAt = Start,
+            },
+            new HashSet<AccountFeatureId>(),
+            new HashSet<Guid>(),
+            newProfile: profile);
     }
 
     private sealed record SentMessage(OutgoingNotification Message, string[] Recipients);

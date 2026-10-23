@@ -20,6 +20,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     private readonly IdentityRepository _identities;
     private readonly AccountRepository _accounts;
     private readonly ProfileRepository _profiles;
+    private readonly ProfileAccessRepository _profileAccess;
     private readonly FirstPartyIdentityService _service;
     private readonly ManualTimeProvider _clock = new(new DateTimeOffset(2026, 9, 3, 12, 0, 0, TimeSpan.Zero));
     private readonly MutableAuthenticationPolicyProvider _policy = new();
@@ -32,6 +33,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         _identities = new IdentityRepository(_database);
         _accounts = new AccountRepository(_database);
         _profiles = new ProfileRepository(_database);
+        _profileAccess = new ProfileAccessRepository(_database);
         _service = new FirstPartyIdentityService(
             _identities,
             _accounts,
@@ -179,10 +181,9 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         Assert.NotNull(login.IssuedSession);
         Assert.NotNull(await _service.ValidateSessionAsync(login.IssuedSession.PlaintextToken));
 
-        await _accounts.SetAdminUnlockAsync(new GrantAdminUnlock
+        await _profileAccess.SetAdminUnlockAsync(new ProfileAdminUnlock
         {
             SessionId = login.IssuedSession.Session.Id,
-            AccountId = login.IssuedSession.Account.Id,
             ProfileId = login.IssuedSession.ActiveProfile.Id,
             ProtectionVersion = 1,
             Method = "GrantPin",
@@ -192,8 +193,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
 
         Assert.True(await _service.RevokeSessionAsync(login.IssuedSession.Session.Id, "test"));
         Assert.Null(await _service.ValidateSessionAsync(login.IssuedSession.PlaintextToken));
-        Assert.Null(await _accounts.GetAdminUnlockAsync(login.IssuedSession.Session.Id,
-            login.IssuedSession.Account.Id, login.IssuedSession.ActiveProfile.Id, _clock.GetUtcNow()));
+        Assert.Null(await _profileAccess.GetAdminUnlockAsync(login.IssuedSession.Session.Id, login.IssuedSession.ActiveProfile.Id, _clock.GetUtcNow()));
     }
 
     [Fact]
@@ -396,10 +396,9 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
             "browser-1", "Living room", "Dashboard");
         var current = (await _service.AuthenticatePasswordAsync(
             "owner@example.com", "correct horse battery staple", "browser-2", "Office", "Dashboard")).IssuedSession!;
-        await _accounts.SetAdminUnlockAsync(new GrantAdminUnlock
+        await _profileAccess.SetAdminUnlockAsync(new ProfileAdminUnlock
         {
             SessionId = first.Session.Id,
-            AccountId = first.Account.Id,
             ProfileId = first.ActiveProfile.Id,
             ProtectionVersion = 1,
             Method = "GrantPin",
@@ -413,8 +412,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         Assert.Equal(1, revoked);
         Assert.Null(await _service.ValidateSessionAsync(first.PlaintextToken));
         Assert.NotNull(await _service.ValidateSessionAsync(current.PlaintextToken));
-        Assert.Null(await _accounts.GetAdminUnlockAsync(
-            first.Session.Id, first.Account.Id, first.ActiveProfile.Id, _clock.GetUtcNow()));
+        Assert.Null(await _profileAccess.GetAdminUnlockAsync(first.Session.Id, first.ActiveProfile.Id, _clock.GetUtcNow()));
         using var connection = _database.CreateConnection();
         Assert.Equal(1, connection.ExecuteScalar<int>(
             "SELECT COUNT(*) FROM identity_audit_events WHERE event_type='other_sessions_revoked' AND succeeded=1;"));
@@ -707,21 +705,16 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     {
         var bootstrap = await _service.BootstrapAdministratorAsync(
             "owner@example.com", "correct horse battery staple", "Dad", "browser-1", "Server", "Dashboard");
-        await _accounts.SetAdminUnlockAsync(new GrantAdminUnlock
+        await _profileAccess.SetAdminUnlockAsync(new ProfileAdminUnlock
         {
             SessionId = bootstrap.Session.Id,
-            AccountId = bootstrap.Account.Id,
             ProfileId = bootstrap.Profile.Id,
             ProtectionVersion = 1,
             Method = "GrantPin",
             GrantedAt = _clock.GetUtcNow(),
             ExpiresAt = _clock.GetUtcNow().AddMinutes(30),
         });
-        Assert.NotNull(await _accounts.GetAdminUnlockAsync(
-            bootstrap.Session.Id,
-            bootstrap.Account.Id,
-            bootstrap.Profile.Id,
-            _clock.GetUtcNow()));
+        Assert.NotNull(await _profileAccess.GetAdminUnlockAsync(bootstrap.Session.Id, bootstrap.Profile.Id, _clock.GetUtcNow()));
 
         var child = new Profile
         {
@@ -750,11 +743,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
 
         await _service.SwitchActiveProfileAsync(bootstrap.PlaintextToken, child.Id, null);
         await _service.SwitchActiveProfileAsync(bootstrap.PlaintextToken, bootstrap.Profile.Id, null);
-        Assert.Null(await _accounts.GetAdminUnlockAsync(
-            bootstrap.Session.Id,
-            bootstrap.Account.Id,
-            bootstrap.Profile.Id,
-            _clock.GetUtcNow()));
+        Assert.Null(await _profileAccess.GetAdminUnlockAsync(bootstrap.Session.Id, bootstrap.Profile.Id, _clock.GetUtcNow()));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             _service.SwitchActiveProfileAsync(bootstrap.PlaintextToken, ungranted.Id, null));
     }

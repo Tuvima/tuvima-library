@@ -31,6 +31,22 @@ public interface IProfileAccessRepository
     /// </summary>
     Task<bool> SetAdminFlagsAsync(Guid profileId, bool isServerAdministrator, bool isHouseholdAdministrator, DateTimeOffset changedAt, CancellationToken ct = default);
 
+    /// <summary>
+    /// Makes the profile a server administrator, or takes that away, and raises its authorization version. Returns
+    /// <see langword="false"/> when the profile does not exist. Making one also marks the profile's household as the default household
+    /// when none is marked yet. Taking it away is refused (<see cref="InvalidOperationException"/>) when no other server administrator
+    /// profile would be left with an enabled user who can sign in. This is storage only; whether the profile may be an administrator
+    /// (default household, not a child profile) is decided by the caller.
+    /// </summary>
+    Task<bool> SetServerAdministratorAsync(Guid profileId, bool isServerAdministrator, DateTimeOffset changedAt, CancellationToken ct = default);
+
+    /// <summary>
+    /// Makes the profile a household administrator, or takes that away, and raises its authorization version. Returns
+    /// <see langword="false"/> when the profile does not exist. A household administrator always has a user: making one is refused
+    /// (<see cref="InvalidOperationException"/>) when no user is attached to the profile.
+    /// </summary>
+    Task<bool> SetHouseholdAdministratorAsync(Guid profileId, bool isHouseholdAdministrator, DateTimeOffset changedAt, CancellationToken ct = default);
+
     Task<ProfileAdminProtection?> GetAdminProtectionAsync(Guid profileId, CancellationToken ct = default);
 
     /// <summary>

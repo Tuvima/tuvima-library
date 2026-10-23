@@ -70,9 +70,11 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         using var conn = db.CreateConnection();
         var rows = conn.Query<AccountRow>("""
             SELECT id AS Id, email AS Email, normalized_email AS NormalizedEmail, is_enabled AS IsEnabled,
-                   is_administrator AS IsAdministrator, authorization_version AS AuthorizationVersion,
+                   COALESCE((SELECT p.is_server_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS IsAdministrator,
+                   authorization_version AS AuthorizationVersion,
                    created_at AS CreatedAt, updated_at AS UpdatedAt, household_id AS HouseholdId,
-                   household_admin AS HouseholdAdmin, grants_inherit_from_account_id AS GrantsInheritFromAccountId,
+                   COALESCE((SELECT p.is_household_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS HouseholdAdmin,
+                   grants_inherit_from_account_id AS GrantsInheritFromAccountId,
                    profile_id AS ProfileId
             FROM accounts WHERE household_id = @householdId
             ORDER BY created_at, id;

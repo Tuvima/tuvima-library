@@ -138,7 +138,7 @@ public sealed class ManagedClientDeviceService(
     /// </summary>
     private async Task<Guid?> HouseholdScopeAsync(RequestAuthority authority, CancellationToken ct) =>
         authority.PrincipalKind == PrincipalKind.Human && !authority.IsEffectiveAdministrator &&
-        authority.AccountHouseholdId is { } household &&
+        authority.ActiveProfileHouseholdId is { } household &&
         (await decisions.EvaluateHouseholdAdministratorAsync(authority, true, ct).ConfigureAwait(false)).IsAllowed
             ? household
             : null;

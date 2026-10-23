@@ -87,19 +87,18 @@ public sealed class UsableAdministratorService(
         AuthSettings policy, Account account, CancellationToken ct, AdministratorSignInLoss? loss = null)
     {
         // Signs in on this computer without a password, whatever the sign-in policy says, so policy changes can't lock it out.
-        // When checking an account change, it counts only while it keeps an administrator grant. That is deliberately
+        // When checking an account change, it counts only while it keeps its administrator profile. That is deliberately
         // stricter than the policy-change check above (HasUsableAdministratorSignInAsync, which counts it unconditionally):
-        // a policy change cannot take a grant away, but an account change can, and an administrator with no administrator
-        // grant is not an administrator.
+        // a policy change cannot take the profile's role away, but an account change can, and a user whose profile is no
+        // longer a server administrator is not an administrator.
         if (account.IsThisComputerOnly && loss is null)
         {
             return true;
         }
 
-        var grants = (await accounts.GetGrantsAsync(account.Id, ct).ConfigureAwait(false))
-            .Where(grant => grant.IsEnabled && grant.AdminEnabled && !IsLost(loss, grant))
-            .ToArray();
-        if (grants.Length == 0)
+        // A server administrator is a user attached to a server administrator profile (the roles live on the profile); the user
+        // is not an administrator while that profile is the one being lost.
+        if (account.ProfileId is null || IsLost(loss, account))
         {
             return false;
         }
@@ -134,8 +133,9 @@ public sealed class UsableAdministratorService(
         return false;
     }
 
-    // A grant is lost when the change names exactly that grant, or every grant to its profile.
-    private static bool IsLost(AdministratorSignInLoss? loss, AccountProfileGrant grant) => loss is { } change
-        && change.ProfileId == grant.ProfileId
-        && (change.AccountId is null || change.AccountId == grant.AccountId);
+    // The role is lost when the change names the profile the user opens, for this user or for every user of that profile.
+    private static bool IsLost(AdministratorSignInLoss? loss, Account account) => loss is { } change
+        && change.ProfileId is { } lostProfile
+        && lostProfile == account.ProfileId
+        && (change.AccountId is null || change.AccountId == account.Id);
 }

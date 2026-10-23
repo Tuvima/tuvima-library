@@ -16,7 +16,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     IRawDisplayProjectionReadService inner,
     IHttpContextAccessor http,
     IRequestAuthorityResolver authorities,
-    IAccountRepository accounts,
+    IProfileAccessRepository profileAccess,
     IAuthorizationEvaluator evaluator,
     IDatabaseConnection database,
     IConfigurationLoader? configuration = null,
@@ -247,8 +247,14 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return new(authority, true, true, new HashSet<Guid>(), AccountFeatureId.All.ToHashSet(), content);
         }
 
-        var features = await accounts.GetFeatureGrantsAsync(authority.AccountId!.Value, ct).ConfigureAwait(false);
-        var libraries = await accounts.GetLibraryGrantsAsync(authority.AccountId.Value, ct).ConfigureAwait(false);
+        // Read access follows the profile being acted as.
+        if (authority.ActiveProfileId is not { } actingProfile)
+        {
+            return new(authority, false, false, new HashSet<Guid>(), new HashSet<AccountFeatureId>(), ContentLimitFilter.Unrestricted);
+        }
+
+        var features = await profileAccess.GetFeatureGrantsAsync(actingProfile, ct).ConfigureAwait(false);
+        var libraries = await profileAccess.GetLibraryGrantsAsync(actingProfile, ct).ConfigureAwait(false);
         return new(authority, true, false, libraries, features, content);
     }
 

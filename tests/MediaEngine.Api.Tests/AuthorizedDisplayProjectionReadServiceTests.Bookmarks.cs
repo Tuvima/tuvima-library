@@ -18,7 +18,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         var context = VaultContext(account, session);
         var services = new ServiceCollection()
-            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)))
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications))
             .AddSingleton(CreateService(context, RealReaders()))
             .BuildServiceProvider();
         context.RequestServices = services;

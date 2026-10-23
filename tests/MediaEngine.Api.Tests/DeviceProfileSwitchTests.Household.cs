@@ -4,11 +4,11 @@ using MediaEngine.Contracts.Authentication;
 
 namespace MediaEngine.Api.Tests;
 
-/// <summary>A paired app switches only to people inside its account's own household, even when a grant reaches further.</summary>
+/// <summary>A paired app switches only to people inside its user's own household, whatever a sign-in's old grant rows say.</summary>
 public sealed partial class DeviceProfileSwitchTests
 {
     [Fact]
-    public async Task APersonOutsideTheAccountsHousehold_IsNeitherListedNorSwitchedTo_EvenWithAGrant()
+    public async Task APersonOutsideTheUsersHousehold_IsNeitherListedNorSwitchedTo_EvenWithAnOldGrantRow()
     {
         using (var connection = _database.CreateConnection())
         {
@@ -18,7 +18,7 @@ public sealed partial class DeviceProfileSwitchTests
                 """, new { account = _homeOwner.Id, profile = _bea.Id, now = DateTimeOffset.UtcNow.ToString("O") });
         }
 
-        Assert.True(await _accounts.HasProfileAccessAsync(_homeOwner.Id, _bea.Id));
+        Assert.False(await _accounts.HasProfileAccessAsync(_homeOwner.Id, _bea.Id));
         var list = Assert.IsType<DeviceProfileListDto>((await _service.ListAsync(PhoneAuthority(_mary.Id))).Profiles);
         var result = await SwitchAsAsync(_mary.Id, _bea.Id, null);
 

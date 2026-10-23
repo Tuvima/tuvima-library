@@ -504,7 +504,7 @@ public sealed class UserTransferServiceTests : IDisposable
     // ---------------------------------------------------------------------------------------------------------
 
     private static RequestAuthority Human(Guid account) =>
-        new(PrincipalKind.Human, true, AccountId: account, ActiveProfileId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true);
+        new(PrincipalKind.Human, true, AccountId: account, ActiveProfileId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true);
 
     private static async Task<MediaEngine.Contracts.Backups.UserImportPreviewDto> InspectAsync(UserTransferService service, Guid actor, byte[] file)
     {

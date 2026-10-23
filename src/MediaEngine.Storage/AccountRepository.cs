@@ -40,19 +40,15 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         db.ExecuteWriteAsync((conn, tx, token) =>
         {
             token.ThrowIfCancellationRequested();
-            var changed = conn.Execute("""
+            // The sign-in's own columns only. Administrator roles live on the profile and are changed through the profile access
+            // repository, so saving a sign-in read a moment ago can never put back a role that was just changed.
+            return conn.Execute("""
                 UPDATE accounts SET email = @Email, normalized_email = @NormalizedEmail,
                     is_enabled = @IsEnabled, is_administrator = @IsAdministrator,
                     this_computer_only = @ThisComputerOnly,
                     authorization_version = authorization_version + 1, updated_at = @UpdatedAt
                 WHERE id = @Id;
                 """, Parameters(account), tx) > 0;
-            if (changed)
-            {
-                SyncProfileFromAccount(conn, tx, account.Id);
-            }
-
-            return changed;
         }, ct);
 
     public Task<bool> SetTemporaryPasswordStateAsync(Guid accountId, bool mustChangePassword, DateTimeOffset? expiresAt, DateTimeOffset changedAt, CancellationToken ct = default)
@@ -101,7 +97,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 grant.AuthorizationVersion,
                 GrantedAt = grant.GrantedAt.ToString("O"),
             }, transaction);
-            SyncProfileFromAccount(conn, transaction, grant.AccountId);
         }, ct);
     }
 
@@ -109,24 +104,22 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         db.ExecuteWriteAsync((conn, tx, token) =>
         {
             token.ThrowIfCancellationRequested();
-            var removed = conn.Execute(
+            return conn.Execute(
                 "DELETE FROM account_profile_grants WHERE account_id = @accountId AND profile_id = @profileId;",
                 new { accountId, profileId }, tx) > 0;
-            if (removed)
-            {
-                SyncProfileFromAccount(conn, tx, accountId);
-            }
-
-            return removed;
         }, ct);
 
     public Task<bool> HasProfileAccessAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
-        return Task.FromResult(conn.ExecuteScalar<int>(
-            "SELECT COUNT(1) FROM account_profile_grants WHERE account_id = @accountId AND profile_id = @profileId AND is_enabled = 1;",
-            new { accountId, profileId }) > 0);
+        return Task.FromResult(conn.ExecuteScalar<int>("""
+            SELECT COUNT(1)
+            FROM accounts a
+            JOIN profiles own ON own.id = a.profile_id
+            JOIN profiles target ON target.id = @profileId
+            WHERE a.id = @accountId AND own.household_id IS NOT NULL AND target.household_id = own.household_id;
+            """, new { accountId, profileId }) > 0);
     }
 
     public Task<IReadOnlyList<Guid>> GetProfileIdsAsync(Guid accountId, CancellationToken ct = default)
@@ -134,8 +127,12 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
         var ids = conn.Query<Guid>("""
-            SELECT profile_id FROM account_profile_grants
-            WHERE account_id = @accountId AND is_enabled = 1 ORDER BY is_default DESC, granted_at;
+            SELECT p.id
+            FROM accounts a
+            JOIN profiles own ON own.id = a.profile_id
+            JOIN profiles p ON p.household_id = own.household_id
+            WHERE a.id = @accountId AND own.household_id IS NOT NULL
+            ORDER BY (p.id = a.profile_id) DESC, p.created_at, p.id;
             """, new { accountId }).ToList();
         return Task.FromResult<IReadOnlyList<Guid>>(ids);
     }
@@ -145,8 +142,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
         var value = conn.QueryFirstOrDefault<Guid?>("""
-            SELECT profile_id FROM account_profile_grants WHERE account_id = @accountId AND is_enabled = 1
-            ORDER BY is_default DESC, granted_at LIMIT 1;
+            SELECT p.id FROM accounts a JOIN profiles p ON p.id = a.profile_id WHERE a.id = @accountId;
             """, new { accountId });
         return Task.FromResult(value);
     }
@@ -171,10 +167,11 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     private const string Select = """
         SELECT id AS Id, email AS Email, normalized_email AS NormalizedEmail,
                is_enabled AS IsEnabled,
-               is_administrator AS IsAdministrator, authorization_version AS AuthorizationVersion,
+               COALESCE((SELECT p.is_server_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS IsAdministrator,
+               authorization_version AS AuthorizationVersion,
                created_at AS CreatedAt, updated_at AS UpdatedAt,
                household_id AS HouseholdId,
-               household_admin AS HouseholdAdmin,
+               COALESCE((SELECT p.is_household_admin FROM profiles p WHERE p.id = accounts.profile_id), 0) AS HouseholdAdmin,
                grants_inherit_from_account_id AS GrantsInheritFromAccountId,
                this_computer_only AS ThisComputerOnly,
                must_change_password AS MustChangePassword,
@@ -258,11 +255,35 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     }
     private sealed class InvitationRow { public Guid Id { get; set; } public Guid AccountId { get; set; } public string TokenHash { get; set; } = ""; public string CreatedAt { get; set; } = ""; public string ExpiresAt { get; set; } = ""; public string? ConsumedAt { get; set; } }
 
-    public Task<AccountProfileGrant?> GetGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
+    public Task<ActiveProfileAccess?> GetActiveProfileAccessAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
     {
-        ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
-        var row = conn.QueryFirstOrDefault<GrantRow>(GrantSelect + " WHERE account_id=@accountId AND profile_id=@profileId LIMIT 1;", new { accountId, profileId });
-        return Task.FromResult(row is null ? null : MapGrant(row));
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        var row = conn.QueryFirstOrDefault<ActiveProfileRow>("""
+            SELECT p.id AS ProfileId, p.household_id AS HouseholdId, p.role AS Role,
+                   p.is_server_admin AS IsServerAdministrator, p.is_household_admin AS IsHouseholdAdministrator,
+                   p.authorization_version AS AuthorizationVersion,
+                   EXISTS(SELECT 1 FROM accounts u WHERE u.profile_id = p.id AND u.is_enabled = 1) AS HasEnabledUser
+            FROM accounts a
+            JOIN profiles own ON own.id = a.profile_id
+            JOIN profiles p ON p.id = @profileId
+            WHERE a.id = @accountId AND own.household_id IS NOT NULL AND p.household_id = own.household_id;
+            """, new { accountId, profileId });
+        return Task.FromResult(row is null || row.HouseholdId is not { } household
+            ? null
+            : new ActiveProfileAccess(row.ProfileId, household, Enum.Parse<ProfileRole>(row.Role), row.IsServerAdministrator,
+                row.IsHouseholdAdministrator, row.HasEnabledUser, row.AuthorizationVersion));
+    }
+
+    private sealed class ActiveProfileRow
+    {
+        public Guid ProfileId { get; set; }
+        public Guid? HouseholdId { get; set; }
+        public string Role { get; set; } = string.Empty;
+        public bool IsServerAdministrator { get; set; }
+        public bool IsHouseholdAdministrator { get; set; }
+        public bool HasEnabledUser { get; set; }
+        public long AuthorizationVersion { get; set; }
     }
 
     public Task UpdateAccountAsync(Account account, CancellationToken ct = default) => db.ExecuteWriteAsync((conn, tx, token) =>
@@ -270,8 +291,10 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         token.ThrowIfCancellationRequested();
         var current = conn.QuerySingleOrDefault<AccountRow>(Select + " WHERE id=@Id;", account, tx)
             ?? throw new InvalidOperationException("Account not found.");
-        if (current.IsEnabled && current.IsAdministrator && (!account.IsEnabled || !account.IsAdministrator)
-           && !HasOtherUsableAdministratorAccount(conn, tx, account.Id))
+        // Switching a sign-in off must leave a server administrator who can still sign in. (Demoting is a change to the profile's
+        // role, made through the profile access repository, which keeps the same promise.)
+        if (current.IsEnabled && current.IsAdministrator && !account.IsEnabled
+           && !ProfileAccessRepository.HasUsableServerAdministratorWithoutAccount(conn, tx, account.Id))
         {
             throw new InvalidOperationException("The final effective administrator account cannot be disabled or demoted.");
         }
@@ -282,7 +305,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
 
         conn.Execute("UPDATE accounts SET email=@Email,normalized_email=@NormalizedEmail,is_enabled=@IsEnabled,is_administrator=@IsAdministrator,authorization_version=authorization_version+1,updated_at=@UpdatedAt WHERE id=@Id;", Parameters(account), tx);
-        SyncProfileFromAccount(conn, tx, account.Id);
     }, ct);
 
     public Task DeleteAccountAsync(Guid accountId, CancellationToken ct = default) =>
@@ -344,14 +366,12 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             Select + " WHERE id=@accountId;", new { accountId }, transaction)
             ?? throw new KeyNotFoundException("Account not found.");
         if (account.IsEnabled && account.IsAdministrator &&
-            !HasOtherUsableAdministratorAccount(connection, transaction, accountId))
+            !ProfileAccessRepository.HasUsableServerAdministratorWithoutAccount(connection, transaction, accountId))
         {
             throw new InvalidOperationException("The final effective administrator account cannot be deleted.");
         }
 
         // People whose access followed this account follow the household's next main sign-in instead.
-        var followers = connection.Query<Guid>(
-            "SELECT id FROM accounts WHERE grants_inherit_from_account_id=@accountId;", new { accountId }, transaction).ToList();
         connection.Execute("""
             UPDATE accounts SET grants_inherit_from_account_id=(
                 SELECT other.id FROM accounts other
@@ -370,49 +390,22 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             WHERE primary_account_id=@accountId;
             """, new { accountId }, transaction);
         connection.Execute("DELETE FROM accounts WHERE id=@accountId;", new { accountId }, transaction);
-        // Their profiles now hold the access of the sign-in they follow next (or none), the same as the account side.
-        foreach (var follower in followers)
-        {
-            SyncProfileFromAccount(connection, transaction, follower);
-        }
     }
 
     public Task<IReadOnlyList<AccountProfileGrant>> GetGrantsAsync(Guid accountId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
-        return Task.FromResult<IReadOnlyList<AccountProfileGrant>>(conn.Query<GrantRow>(GrantSelect + " WHERE account_id=@accountId ORDER BY is_default DESC, granted_at;", new { accountId }).Select(MapGrant).ToList());
-    }
-
-    public Task<IReadOnlySet<AccountFeatureId>> GetFeatureGrantsAsync(Guid accountId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
-        return Task.FromResult<IReadOnlySet<AccountFeatureId>>(conn.Query<string>("SELECT feature_id FROM account_feature_grants WHERE account_id=COALESCE((SELECT grants_inherit_from_account_id FROM accounts WHERE id=@accountId),@accountId);", new { accountId }).Select(x => new AccountFeatureId(x)).ToFrozenSet());
-    }
-
-    public Task<IReadOnlySet<Guid>> GetLibraryGrantsAsync(Guid accountId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
-        return Task.FromResult<IReadOnlySet<Guid>>(conn.Query<Guid>("SELECT library_id FROM account_library_grants WHERE account_id=COALESCE((SELECT grants_inherit_from_account_id FROM accounts WHERE id=@accountId),@accountId);", new { accountId }).ToFrozenSet());
-    }
-
-    public async Task<bool> HasFeatureGrantAsync(Guid accountId, AccountFeatureId feature, CancellationToken ct = default) =>
-        (await GetFeatureGrantsAsync(accountId, ct).ConfigureAwait(false)).Contains(feature);
-
-    public async Task<bool> HasLibraryGrantAsync(Guid accountId, Guid libraryId, CancellationToken ct = default) =>
-        (await GetLibraryGrantsAsync(accountId, ct).ConfigureAwait(false)).Contains(libraryId);
-
-    public Task<GrantAdminProtection?> GetAdminProtectionAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
-        var row = conn.QueryFirstOrDefault<ProtectionRow>("SELECT account_id AS AccountId, profile_id AS ProfileId, is_enabled AS IsEnabled, unlock_mode AS UnlockMode, unlock_minutes AS UnlockMinutes, protection_version AS ProtectionVersion, updated_at AS UpdatedAt FROM grant_admin_protections WHERE account_id=@accountId AND profile_id=@profileId;", new { accountId, profileId });
-        return Task.FromResult(row is null ? null : MapProtection(row));
-    }
-
-    public Task<GrantAdminUnlock?> GetAdminUnlockAsync(Guid sessionId, Guid accountId, Guid profileId, DateTimeOffset now, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
-        var row = conn.QueryFirstOrDefault<UnlockRow>("SELECT session_id AS SessionId, account_id AS AccountId, profile_id AS ProfileId, protection_version AS ProtectionVersion, method AS Method, granted_at AS GrantedAt, expires_at AS ExpiresAt FROM grant_admin_unlocks WHERE session_id=@sessionId AND account_id=@accountId AND profile_id=@profileId AND (expires_at IS NULL OR expires_at>@now);", new { sessionId, accountId, profileId, now = Iso(now) });
-        return Task.FromResult(row is null ? null : MapUnlock(row));
+        // What a user may act as is its own profile and the rest of its household; roles and versions are the profile's.
+        var rows = conn.Query<GrantRow>("""
+            SELECT a.id AS AccountId, p.id AS ProfileId, (p.id = a.profile_id) AS IsDefault, 1 AS IsEnabled,
+                   p.is_server_admin AS AdminEnabled, p.authorization_version AS AuthorizationVersion, p.created_at AS GrantedAt
+            FROM accounts a
+            JOIN profiles own ON own.id = a.profile_id
+            JOIN profiles p ON p.household_id = own.household_id
+            WHERE a.id = @accountId AND own.household_id IS NOT NULL
+            ORDER BY (p.id = a.profile_id) DESC, p.created_at, p.id;
+            """, new { accountId });
+        return Task.FromResult<IReadOnlyList<AccountProfileGrant>>(rows.Select(MapGrant).ToList());
     }
 
     public Task WriteAuthorizationAuditAsync(AuthorizationAuditEvent e, CancellationToken ct = default) => db.ExecuteWriteAsync((conn, tx, token) => { token.ThrowIfCancellationRequested(); InsertAuthorizationAudit(conn, tx, e); }, ct);
@@ -430,7 +423,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
 
     public Task CreateAccountAsync(Account account, AccountProfileGrant initialGrant,
         IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries,
-        CancellationToken ct = default, Profile? newProfile = null) =>
+        CancellationToken ct = default, Profile? newProfile = null, bool preserveProfileAccess = false) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -481,8 +474,12 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             InsertGrant(connection, transaction, initialGrant);
             ReplaceAccess(connection, transaction, account.Id, features, libraries, account.UpdatedAt);
             EnsureHouseholdPrimary(connection, transaction, account.Id);
-            // The profile now holds the same roles and access (a brand-new profile has no open sessions to re-check).
-            SyncProfileFromAccount(connection, transaction, account.Id, bumpVersion: newProfile is null);
+            // A brand-new profile (or one the caller asked to set up, like the administrator's first start) takes the roles and access
+            // this sign-in was created with. A person who already exists keeps exactly what they have.
+            if (newProfile is not null || !preserveProfileAccess)
+            {
+                SeedProfileFromAccount(connection, transaction, account.Id, bumpVersion: newProfile is null);
+            }
         }, ct);
 
     public Task CreateInvitedAccountAsync(
@@ -490,7 +487,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         IReadOnlyList<AccountProfileGrant> grants,
         AccountInvitation invitation,
         CancellationToken ct = default,
-        Profile? newProfile = null) =>
+        Profile? newProfile = null,
+        bool preserveProfileAccess = false) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -553,7 +551,10 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             }, transaction);
             // Someone invited from outside starts a household of their own and looks after it.
             EnsureHouseholdPrimary(connection, transaction, account.Id);
-            SyncProfileFromAccount(connection, transaction, account.Id, bumpVersion: newProfile is null);
+            if (newProfile is not null || !preserveProfileAccess)
+            {
+                SeedProfileFromAccount(connection, transaction, account.Id, bumpVersion: newProfile is null);
+            }
         }, ct);
 
     public Task CreateManagedProfileAsync(
@@ -877,30 +878,11 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
     }
 
-    /// <summary>Backstop: the last profile an administrator can sign in with cannot be deleted.</summary>
+    /// <summary>Backstop: the last server administrator profile with an enabled user who can sign in cannot be deleted.</summary>
     private static void RequireNotFinalAdministratorProfile(SqliteConnection connection, SqliteTransaction transaction, Guid profileId)
     {
-        var removesAdministrator = connection.ExecuteScalar<int>("""
-            SELECT COUNT(*) FROM account_profile_grants g JOIN accounts a ON a.id=g.account_id
-            WHERE g.profile_id=@profileId AND g.is_enabled=1 AND g.admin_enabled=1
-              AND a.is_enabled=1 AND a.is_administrator=1
-              AND (
-                EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
-                OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
-                OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
-              );
-            """, new { profileId }, transaction) > 0;
-        var administratorsRemaining = connection.ExecuteScalar<int>("""
-            SELECT COUNT(*) FROM account_profile_grants g JOIN accounts a ON a.id=g.account_id
-            WHERE g.profile_id<>@profileId AND g.is_enabled=1 AND g.admin_enabled=1
-              AND a.is_enabled=1 AND a.is_administrator=1
-              AND (
-                EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
-                OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
-                OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
-              );
-            """, new { profileId }, transaction);
-        if (removesAdministrator && administratorsRemaining == 0)
+        if (ProfileAccessRepository.IsUsableServerAdministrator(connection, transaction, profileId) &&
+            !ProfileAccessRepository.HasAnotherUsableServerAdministrator(connection, transaction, profileId))
         {
             throw new InvalidOperationException("The final effective administrator profile cannot be deleted.");
         }
@@ -927,18 +909,11 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             }
 
             var account = connection.QuerySingle<(bool IsEnabled, bool IsAdministrator)>(
-                "SELECT is_enabled AS IsEnabled,is_administrator AS IsAdministrator FROM accounts WHERE id=@AccountId;",
+                "SELECT is_enabled AS IsEnabled," + AdministratorSql + " AS IsAdministrator FROM accounts WHERE id=@AccountId;",
                 grant, transaction);
             if (grant.AdminEnabled && !account.IsAdministrator)
             {
                 throw new InvalidOperationException("Only administrator accounts can enable grant administration.");
-            }
-
-            if (prior?.IsEnabled == true && prior.AdminEnabled &&
-                (!grant.IsEnabled || !grant.AdminEnabled) && account.IsEnabled && account.IsAdministrator &&
-                !HasOtherEffectiveAdministrator(connection, transaction, grant.AccountId, grant.ProfileId))
-            {
-                throw new InvalidOperationException("The final effective administrator grant cannot be disabled.");
             }
 
             if (!grant.IsEnabled && account.IsEnabled && connection.ExecuteScalar<int>("""
@@ -963,7 +938,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             connection.Execute("""
                 UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now WHERE id=@id;
                 """, new { id = grant.AccountId, now = Iso(grant.GrantedAt) }, transaction);
-            SyncProfileFromAccount(connection, transaction, grant.AccountId);
         }, ct);
 
     public Task RevokeGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default) =>
@@ -971,7 +945,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         {
             token.ThrowIfCancellationRequested();
             var account = connection.QuerySingle<(bool IsEnabled, bool IsAdministrator)>(
-                "SELECT is_enabled AS IsEnabled,is_administrator AS IsAdministrator FROM accounts WHERE id=@accountId;",
+                "SELECT is_enabled AS IsEnabled," + AdministratorSql + " AS IsAdministrator FROM accounts WHERE id=@accountId;",
                 new { accountId }, transaction);
             var grant = connection.QuerySingleOrDefault<GrantRow>(
                 GrantSelect + " WHERE account_id=@accountId AND profile_id=@profileId;",
@@ -986,12 +960,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 throw new InvalidOperationException("An enabled account must retain an enabled profile grant.");
             }
 
-            if (account.IsEnabled && account.IsAdministrator && grant.AdminEnabled &&
-                !HasOtherEffectiveAdministrator(connection, transaction, accountId, profileId))
-            {
-                throw new InvalidOperationException("The final effective administrator grant cannot be removed.");
-            }
-
             connection.Execute("""
                 DELETE FROM account_profile_grants WHERE account_id=@accountId AND profile_id=@profileId;
                 """, new { accountId, profileId }, transaction);
@@ -1000,7 +968,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
                 WHERE id=@accountId;
                 """, new { accountId, now = Iso(DateTimeOffset.UtcNow) }, transaction);
-            SyncProfileFromAccount(connection, transaction, accountId);
         }, ct);
 
     public Task<Guid?> GetHouseholdPrimaryAccountIdAsync(Guid householdId, CancellationToken ct = default)
@@ -1040,7 +1007,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                     new { accountId, household = account.HouseholdId.Value }, transaction);
             }
 
-            SyncProfileFromAccount(connection, transaction, accountId);
             return changed > 0;
         }, ct);
 
@@ -1054,69 +1020,18 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
                 WHERE id=@accountId;
                 """, new { accountId, now = Iso(changedAt) }, transaction);
-            // The profile it signs in as, and the profiles of the people whose access follows this sign-in, hold the same access.
-            SyncProfileFromAccount(connection, transaction, accountId);
-        }, ct);
-    public Task SetAdminProtectionAsync(GrantAdminProtection protection, CancellationToken ct = default) =>
-        db.ExecuteWriteAsync((connection, transaction, token) =>
-        {
-            token.ThrowIfCancellationRequested();
-            connection.Execute("""
-                INSERT INTO grant_admin_protections
-                    (account_id,profile_id,is_enabled,unlock_mode,unlock_minutes,protection_version,updated_at)
-                VALUES(@AccountId,@ProfileId,@IsEnabled,@UnlockMode,@UnlockMinutes,@ProtectionVersion,@UpdatedAt)
-                ON CONFLICT(account_id,profile_id) DO UPDATE SET
-                    is_enabled=excluded.is_enabled,unlock_mode=excluded.unlock_mode,
-                    unlock_minutes=excluded.unlock_minutes,
-                    protection_version=grant_admin_protections.protection_version+1,
-                    updated_at=excluded.updated_at;
-                """, new
-            {
-                protection.AccountId,
-                protection.ProfileId,
-                IsEnabled = protection.IsEnabled ? 1 : 0,
-                protection.UnlockMode,
-                protection.UnlockMinutes,
-                protection.ProtectionVersion,
-                UpdatedAt = Iso(protection.UpdatedAt),
-            }, transaction);
-            connection.Execute("""
-                UPDATE account_profile_grants SET authorization_version=authorization_version+1
-                WHERE account_id=@AccountId AND profile_id=@ProfileId;
-                DELETE FROM grant_admin_unlocks WHERE account_id=@AccountId AND profile_id=@ProfileId;
-                """, protection, transaction);
-            SyncProtectionOntoProfile(connection, transaction, protection.AccountId, protection.ProfileId);
         }, ct);
 
     public Task<bool> HasEnabledAdminProtectionAsync(Guid profileId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
         return Task.FromResult(conn.ExecuteScalar<int>(
-            "SELECT EXISTS(SELECT 1 FROM grant_admin_protections WHERE profile_id=@profileId AND is_enabled=1);", new { profileId }) == 1);
+            "SELECT EXISTS(SELECT 1 FROM profile_admin_protections WHERE profile_id=@profileId AND is_enabled=1);", new { profileId }) == 1);
     }
-
-    public Task SetAdminUnlockAsync(GrantAdminUnlock unlock, CancellationToken ct = default) =>
-        db.ExecuteWriteAsync((connection, transaction, _) => connection.Execute("""
-            INSERT INTO grant_admin_unlocks
-                (session_id,account_id,profile_id,protection_version,method,granted_at,expires_at)
-            VALUES(@SessionId,@AccountId,@ProfileId,@ProtectionVersion,@Method,@GrantedAt,@ExpiresAt)
-            ON CONFLICT(session_id) DO UPDATE SET account_id=excluded.account_id,
-                profile_id=excluded.profile_id,protection_version=excluded.protection_version,
-                method=excluded.method,granted_at=excluded.granted_at,expires_at=excluded.expires_at;
-            """, new
-        {
-            unlock.SessionId,
-            unlock.AccountId,
-            unlock.ProfileId,
-            unlock.ProtectionVersion,
-            unlock.Method,
-            GrantedAt = Iso(unlock.GrantedAt),
-            ExpiresAt = unlock.ExpiresAt is null ? null : Iso(unlock.ExpiresAt.Value),
-        }, transaction), ct);
 
     public Task ClearAdminUnlockAsync(Guid sessionId, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, _) => connection.Execute(
-            "DELETE FROM grant_admin_unlocks WHERE session_id=@sessionId;",
+            "DELETE FROM profile_admin_unlocks WHERE session_id=@sessionId;",
             new { sessionId }, transaction), ct);
 
     private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,household_admin,grants_inherit_from_account_id,this_computer_only,must_change_password,temporary_password_expires_at,profile_id) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@HouseholdAdmin,@GrantsInheritFromAccountId,@ThisComputerOnly,@MustChangePassword,@TemporaryPasswordExpiresAt,@ProfileId);", Parameters(a), tx);
@@ -1160,39 +1075,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             c.Execute("UPDATE account_profile_grants SET is_default=1,authorization_version=authorization_version+1 WHERE rowid=(SELECT rowid FROM account_profile_grants WHERE account_id=@accountId AND is_enabled=1 ORDER BY granted_at LIMIT 1);", new { accountId }, tx);
         }
     }
-    private static bool HasOtherEffectiveAdministrator(
-        System.Data.IDbConnection connection,
-        System.Data.IDbTransaction transaction,
-        Guid accountId,
-        Guid profileId) => connection.ExecuteScalar<int>("""
-            SELECT COUNT(*)
-            FROM account_profile_grants g
-            JOIN accounts a ON a.id=g.account_id
-            WHERE a.is_enabled=1 AND a.is_administrator=1
-              AND g.is_enabled=1 AND g.admin_enabled=1
-              AND NOT(g.account_id=@accountId AND g.profile_id=@profileId)
-              AND (
-                EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
-                OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
-                OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
-              );
-            """, new { accountId, profileId }, transaction) > 0;
-
-    private static bool HasOtherUsableAdministratorAccount(
-        System.Data.IDbConnection connection,
-        System.Data.IDbTransaction transaction,
-        Guid accountId) => connection.ExecuteScalar<int>("""
-            SELECT COUNT(*)
-            FROM accounts a
-            JOIN account_profile_grants g ON g.account_id=a.id
-            WHERE a.id<>@accountId AND a.is_enabled=1 AND a.is_administrator=1
-              AND g.is_enabled=1 AND g.admin_enabled=1
-              AND (
-                EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
-                OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
-                OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
-              );
-            """, new { accountId }, transaction) > 0;
     private static void InsertProfileRow(
         System.Data.IDbConnection connection, System.Data.IDbTransaction transaction, Profile profile, Guid householdId)
     {
@@ -1275,19 +1157,14 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     internal const string ProfileAlreadyHasSignInMessage = "That profile already has a sign-in.";
 
     /// <summary>
-    /// Brings the profile a sign-in opens (<c>accounts.profile_id</c>) in line with the account side, in the caller's transaction:
-    /// <list type="bullet">
-    /// <item>server administrator: the account is an administrator and has administrator access switched on for its own profile;</item>
-    /// <item>household administrator: the account is one;</item>
-    /// <item>Read/Watch/Listen/View and library access: what the account holds, or what the main sign-in it follows holds;</item>
-    /// <item>a server administrator's household becomes the default household when there is none yet.</item>
-    /// </list>
-    /// The profile's authorization version goes up (unless <paramref name="bumpVersion"/> is off for a profile made in this same
-    /// step). The people whose access follows this sign-in are brought in line too. Does nothing for a sign-in with no profile.
-    /// This recomputes everything from the account side, so it can be called after any account-side access write.
+    /// Sets up the profile a new sign-in opens from what the sign-in was created with, in the caller's transaction (profile-held
+    /// access): the roles (server administrator when the account is an administrator with administrator access on its own profile,
+    /// household administrator when it is its household's first main sign-in), the Read/Watch/Listen/View and library access it was
+    /// given, and the server administrator's household as the default household when there is none yet. Only for a brand-new profile
+    /// or a first start; a person who already exists is never changed by getting a sign-in. Does nothing for a sign-in with no profile.
     /// </summary>
-    internal static void SyncProfileFromAccount(
-        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, bool bumpVersion = true, bool includeFollowers = true)
+    internal static void SeedProfileFromAccount(
+        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, bool bumpVersion = true)
     {
         var account = c.QueryFirstOrDefault<SyncRow>("""
             SELECT a.profile_id AS ProfileId, a.is_administrator AS IsAdministrator, a.household_admin AS HouseholdAdmin,
@@ -1296,42 +1173,33 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                           WHERE g.account_id=a.id AND g.profile_id=a.profile_id AND g.is_enabled=1 AND g.admin_enabled=1) AS OwnGrantAdmin
             FROM accounts a WHERE a.id=@accountId;
             """, new { accountId }, tx);
-        if (account?.ProfileId is { } profileId)
-        {
-            var server = account.IsAdministrator && account.OwnGrantAdmin;
-            c.Execute("""
-                UPDATE profiles
-                SET is_server_admin=@server, is_household_admin=@household, authorization_version=authorization_version+@bump
-                WHERE id=@profileId;
-                DELETE FROM profile_feature_grants WHERE profile_id=@profileId;
-                DELETE FROM profile_library_grants WHERE profile_id=@profileId;
-                INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at)
-                    SELECT @profileId,feature_id,granted_at FROM account_feature_grants WHERE account_id=@accessAccountId;
-                INSERT INTO profile_library_grants(profile_id,library_id,granted_at)
-                    SELECT @profileId,library_id,granted_at FROM account_library_grants WHERE account_id=@accessAccountId;
-                """, new
-            {
-                profileId,
-                accessAccountId = account.AccessAccountId,
-                server = server ? 1 : 0,
-                household = account.HouseholdAdmin ? 1 : 0,
-                bump = bumpVersion ? 1 : 0,
-            }, tx);
-            if (server && HouseholdOfProfile(c, tx, profileId) is { } householdId)
-            {
-                ProfileAccessRepository.MarkDefaultHouseholdIfNone(c, tx, householdId);
-            }
-        }
-
-        if (!includeFollowers)
+        if (account?.ProfileId is not { } profileId)
         {
             return;
         }
 
-        foreach (var follower in c.Query<Guid>(
-                     "SELECT id FROM accounts WHERE grants_inherit_from_account_id=@accountId;", new { accountId }, tx).ToList())
+        var server = account.IsAdministrator && account.OwnGrantAdmin;
+        c.Execute("""
+            UPDATE profiles
+            SET is_server_admin=@server, is_household_admin=@household, authorization_version=authorization_version+@bump
+            WHERE id=@profileId;
+            DELETE FROM profile_feature_grants WHERE profile_id=@profileId;
+            DELETE FROM profile_library_grants WHERE profile_id=@profileId;
+            INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at)
+                SELECT @profileId,feature_id,granted_at FROM account_feature_grants WHERE account_id=@accessAccountId;
+            INSERT INTO profile_library_grants(profile_id,library_id,granted_at)
+                SELECT @profileId,library_id,granted_at FROM account_library_grants WHERE account_id=@accessAccountId;
+            """, new
         {
-            SyncProfileFromAccount(c, tx, follower, bumpVersion: true, includeFollowers: false);
+            profileId,
+            accessAccountId = account.AccessAccountId,
+            server = server ? 1 : 0,
+            household = account.HouseholdAdmin ? 1 : 0,
+            bump = bumpVersion ? 1 : 0,
+        }, tx);
+        if (server && HouseholdOfProfile(c, tx, profileId) is { } householdId)
+        {
+            ProfileAccessRepository.MarkDefaultHouseholdIfNone(c, tx, householdId);
         }
     }
 
@@ -1342,29 +1210,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         public bool HouseholdAdmin { get; set; }
         public Guid AccessAccountId { get; set; }
         public bool OwnGrantAdmin { get; set; }
-    }
-
-    /// <summary>
-    /// Copies a sign-in's "ask for my PIN on admin pages" question onto the profile it signs in as, and clears that profile's earlier
-    /// unlocks. Only the sign-in's own profile counts: it is the only profile a sign-in can be a server administrator on.
-    /// </summary>
-    private static void SyncProtectionOntoProfile(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, Guid profileId)
-    {
-        if (c.ExecuteScalar<int>("SELECT COUNT(*) FROM accounts WHERE id=@accountId AND profile_id=@profileId;", new { accountId, profileId }, tx) == 0)
-        {
-            return;
-        }
-
-        c.Execute("""
-            INSERT INTO profile_admin_protections(profile_id,is_enabled,unlock_mode,unlock_minutes,protection_version,updated_at)
-                SELECT profile_id,is_enabled,unlock_mode,unlock_minutes,protection_version,updated_at
-                FROM grant_admin_protections WHERE account_id=@accountId AND profile_id=@profileId
-            ON CONFLICT(profile_id) DO UPDATE SET
-                is_enabled=excluded.is_enabled,unlock_mode=excluded.unlock_mode,unlock_minutes=excluded.unlock_minutes,
-                protection_version=excluded.protection_version,updated_at=excluded.updated_at;
-            DELETE FROM profile_admin_unlocks WHERE profile_id=@profileId;
-            UPDATE profiles SET authorization_version=authorization_version+1 WHERE id=@profileId;
-            """, new { accountId, profileId }, tx);
     }
 
     /// <summary>
@@ -1504,12 +1349,11 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             c.Execute("UPDATE profiles SET household_id=@accountHousehold WHERE id=@profileId;", new { accountHousehold, profileId }, tx);
         }
     }
+    /// <summary>SQL for "the profile this sign-in opens is a server administrator" (0 or 1), for use in a query over <c>accounts</c>.</summary>
+    private const string AdministratorSql = "COALESCE((SELECT p.is_server_admin FROM profiles p WHERE p.id = accounts.profile_id), 0)";
+
     private const string GrantSelect = "SELECT account_id AS AccountId,profile_id AS ProfileId,is_default AS IsDefault,is_enabled AS IsEnabled,admin_enabled AS AdminEnabled,authorization_version AS AuthorizationVersion,granted_at AS GrantedAt FROM account_profile_grants";
     private static AccountProfileGrant MapGrant(GrantRow r) => new() { AccountId = r.AccountId, ProfileId = r.ProfileId, IsDefault = r.IsDefault, IsEnabled = r.IsEnabled, AdminEnabled = r.AdminEnabled, AuthorizationVersion = r.AuthorizationVersion, GrantedAt = ParseRequired(r.GrantedAt) };
-    private static GrantAdminProtection MapProtection(ProtectionRow r) => new() { AccountId = r.AccountId, ProfileId = r.ProfileId, IsEnabled = r.IsEnabled, UnlockMode = r.UnlockMode, UnlockMinutes = r.UnlockMinutes, ProtectionVersion = r.ProtectionVersion, UpdatedAt = ParseRequired(r.UpdatedAt) };
-    private static GrantAdminUnlock MapUnlock(UnlockRow r) => new() { SessionId = r.SessionId, AccountId = r.AccountId, ProfileId = r.ProfileId, ProtectionVersion = r.ProtectionVersion, Method = r.Method, GrantedAt = ParseRequired(r.GrantedAt), ExpiresAt = Parse(r.ExpiresAt) };
     private static string Iso(DateTimeOffset v) => v.ToString("O", System.Globalization.CultureInfo.InvariantCulture); private static DateTimeOffset ParseRequired(string v) => DateTimeOffset.Parse(v, System.Globalization.CultureInfo.InvariantCulture); private static DateTimeOffset? Parse(string? v) => string.IsNullOrWhiteSpace(v) ? null : ParseRequired(v);
     private sealed class GrantRow { public Guid AccountId { get; set; } public Guid ProfileId { get; set; } public bool IsDefault { get; set; } public bool IsEnabled { get; set; } public bool AdminEnabled { get; set; } public long AuthorizationVersion { get; set; } public string GrantedAt { get; set; } = ""; }
-    private sealed class ProtectionRow { public Guid AccountId { get; set; } public Guid ProfileId { get; set; } public bool IsEnabled { get; set; } public string UnlockMode { get; set; } = ""; public int? UnlockMinutes { get; set; } public long ProtectionVersion { get; set; } public string UpdatedAt { get; set; } = ""; }
-    private sealed class UnlockRow { public Guid SessionId { get; set; } public Guid AccountId { get; set; } public Guid ProfileId { get; set; } public long ProtectionVersion { get; set; } public string Method { get; set; } = ""; public string GrantedAt { get; set; } = ""; public string? ExpiresAt { get; set; } }
 }

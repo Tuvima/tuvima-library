@@ -42,9 +42,8 @@ public sealed class CollectionPersonalMediaRemovalTests : IDisposable
             AccountId: Guid.NewGuid(),
             ActiveProfileId: _profile,
             AccountEnabled: true,
-            GrantEnabled: true,
-            AccountIsAdministrator: true,
-            GrantAdminEnabled: true);
+            ActiveProfileInUserHousehold: true,
+            ActiveProfileIsServerAdministrator: true);
         using var connection = _database.CreateConnection();
         connection.Execute("""
             INSERT INTO profiles (id, display_name, avatar_color, role, created_at)

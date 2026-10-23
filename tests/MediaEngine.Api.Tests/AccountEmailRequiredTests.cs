@@ -36,6 +36,7 @@ public sealed class AccountEmailRequiredTests
                         new ConfigurationAuthenticationPolicyProvider(configuration));
                     var mutations = new AccountAccessMutationService(
                         accounts,
+                        new ProfileAccessRepository(database),
                         identities,
                         profiles,
                         configuration,
@@ -52,9 +53,8 @@ public sealed class AccountEmailRequiredTests
                         ActiveProfileId: Guid.NewGuid(),
                         SessionId: Guid.NewGuid(),
                         AccountEnabled: true,
-                        GrantEnabled: true,
-                        AccountIsAdministrator: true,
-                        GrantAdminEnabled: true);
+                        ActiveProfileInUserHousehold: true,
+                        ActiveProfileIsServerAdministrator: true);
 
                     foreach (var missing in new string?[] { null, "", "   " })
                     {
@@ -148,6 +148,7 @@ public sealed class AccountEmailRequiredTests
                         new ConfigurationAuthenticationPolicyProvider(configuration));
                     var mutations = new AccountAccessMutationService(
                         accounts,
+                        new ProfileAccessRepository(database),
                         new IdentityRepository(database),
                         new ProfileRepository(database),
                         configuration,
@@ -164,9 +165,8 @@ public sealed class AccountEmailRequiredTests
                         ActiveProfileId: Guid.NewGuid(),
                         SessionId: Guid.NewGuid(),
                         AccountEnabled: true,
-                        GrantEnabled: true,
-                        AccountIsAdministrator: true,
-                        GrantAdminEnabled: true);
+                        ActiveProfileInUserHousehold: true,
+                        ActiveProfileIsServerAdministrator: true);
 
                     var owner = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
                         "owner@example.com",
@@ -241,6 +241,7 @@ public sealed class AccountEmailRequiredTests
                         new ConfigurationAuthenticationPolicyProvider(configuration));
                     var mutations = new AccountAccessMutationService(
                         accounts,
+                        new ProfileAccessRepository(database),
                         new IdentityRepository(database),
                         profiles,
                         configuration,
@@ -252,8 +253,8 @@ public sealed class AccountEmailRequiredTests
                         new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
                     var actor = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
-                        SessionId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true,
-                        AccountIsAdministrator: true, GrantAdminEnabled: true);
+                        SessionId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true,
+                        ActiveProfileIsServerAdministrator: true);
 
                     var child = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
                         "child@example.com", IsAdministrator: false, ProfileId: null,
@@ -327,14 +328,15 @@ public sealed class AccountEmailRequiredTests
                         new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
                         TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(configuration));
                     var mutations = new AccountAccessMutationService(
-                        accounts, new IdentityRepository(database), new ProfileRepository(database), configuration,
+                        accounts,
+                        new ProfileAccessRepository(database), new IdentityRepository(database), new ProfileRepository(database), configuration,
                         new AllowAdministratorDecisions(), new AllowEvaluator(),
                         new NoOpInvalidation(), new NoOpAudit(),
                         firstParty, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
                     var human = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
-                        SessionId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true,
-                        AccountIsAdministrator: true, GrantAdminEnabled: true);
+                        SessionId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true,
+                        ActiveProfileIsServerAdministrator: true);
 
                     CreateAccountAccessCommand Command(string email, bool administrator) => new(
                         email, administrator, null, new NewAccountProfileCommand(email, "#7C4DFF"),

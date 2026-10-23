@@ -155,8 +155,8 @@ public sealed class CastAccessGrantServiceTests : IDisposable
     [Theory]
     [InlineData("UPDATE accounts SET authorization_version = authorization_version + 1 WHERE id = @account")]
     [InlineData("UPDATE accounts SET is_enabled = 0 WHERE id = @account")]
-    [InlineData("UPDATE account_profile_grants SET authorization_version = authorization_version + 1 WHERE account_id = @account")]
-    [InlineData("UPDATE account_profile_grants SET is_enabled = 0 WHERE account_id = @account")]
+    [InlineData("UPDATE profiles SET authorization_version = authorization_version + 1 WHERE id = @profile")]
+    [InlineData("UPDATE profiles SET household_id = NULL WHERE id = @profile")]
     [InlineData("UPDATE applications SET authorization_version = authorization_version + 1 WHERE id = @application")]
     [InlineData("UPDATE applications SET is_enabled = 0 WHERE id = @application")]
     public async Task AnyAuthorisationChangeStopsTheGrant(string statement)
@@ -168,7 +168,7 @@ public sealed class CastAccessGrantServiceTests : IDisposable
 
         using (var connection = _database.CreateConnection())
         {
-            await connection.ExecuteAsync(statement, new { account = paired.Account.Id, application = paired.Application.Id });
+            await connection.ExecuteAsync(statement, new { account = paired.Account.Id, application = paired.Application.Id, profile = paired.Authority.ActiveProfileId });
         }
 
         Assert.Null(await service.ValidateAsync(grant.Value));
@@ -206,7 +206,7 @@ public sealed class CastAccessGrantServiceTests : IDisposable
         // A signed-in person (not a paired device) and a service application.
         var human = new RequestAuthority(
             PrincipalKind.Human, true, paired.Account.Id, Profile.SeedProfileId, SessionId: Guid.NewGuid(),
-            AccountEnabled: true, GrantEnabled: true);
+            AccountEnabled: true, ActiveProfileInUserHousehold: true);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             service.CreateAsync(assetId, null, human, paired.Token.Id, PlaybackRead, 3600));
         var serviceApp = new RequestAuthority(
@@ -351,9 +351,9 @@ public sealed class CastAccessGrantServiceTests : IDisposable
 
         var authority = new RequestAuthority(
             PrincipalKind.DelegatedUserClient, true, account.Id, Profile.SeedProfileId, application.Id,
-            DeviceId: device.Id, AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true,
+            DeviceId: device.Id, AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true,
             AccountAuthorizationVersion: account.AuthorizationVersion,
-            GrantAuthorizationVersion: accountGrant.AuthorizationVersion,
+            ProfileAuthorizationVersion: accountGrant.AuthorizationVersion,
             ApplicationAuthorizationVersion: application.AuthorizationVersion);
         return new Paired(account, application, device, token, authority);
     }

@@ -55,15 +55,16 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
         _settings = new UserPlaybackSettingsService(_database, _profileRepository);
 
         var decisions = new AccountAccessDecisionService(
-            _accounts,
-            new GrantAdminUnlockService(_accounts, new StubProfilePins(), TimeProvider.System));
+            new ProfileAccessRepository(_database),
+            new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System));
         _services = new ServiceCollection()
             .AddSingleton<IRequestAuthorityResolver>(
-                new RequestAuthorityResolver(_accounts, new ApplicationRepository(_database), _profileRepository))
+                new RequestAuthorityResolver(_accounts, new ApplicationRepository(_database)))
             .AddSingleton<IAccountAccessDecisionService>(decisions)
             .AddSingleton<ISelfServiceAuthorizationService>(decisions)
             .AddSingleton<IProfileService>(new ProfileService(_profileRepository))
             .AddSingleton<IAccountRepository>(_accounts)
+            .AddSingleton<IProfileAccessRepository>(new ProfileAccessRepository(_database))
             .BuildServiceProvider();
 
         SeedAsync().GetAwaiter().GetResult();
@@ -137,9 +138,8 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
     [Fact]
     public async Task HouseholdAdministrator_WithPinProtectionLocked_IsForbidden()
     {
-        await _accounts.SetAdminProtectionAsync(new GrantAdminProtection
+        await new ProfileAccessRepository(_database).SetAdminProtectionAsync(new ProfileAdminProtection
         {
-            AccountId = _householdOneAdmin.Id,
             ProfileId = _householdOneAdultProfile.Id,
             IsEnabled = true,
             UnlockMode = "FixedDuration",

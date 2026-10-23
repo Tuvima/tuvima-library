@@ -175,8 +175,8 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
     }
 
     private IntercomAudienceAuthorizer Authorizer() => new(
-        _identities, _accounts, new Resources(_vaultAsset, _vaultLibrary, _ordinaryAsset, _ordinaryLibrary),
-        new ProfileRepository(_database), TimeProvider.System,
+        _identities, _accounts, new ProfileAccessRepository(_database),
+        new Resources(_vaultAsset, _vaultLibrary, _ordinaryAsset, _ordinaryLibrary), TimeProvider.System,
         new VaultLibraryRepository(_database), new NsfwAccessRepository(_database),
         new VaultPathClassifier(new VaultLibraryRepository(_database), _configuration));
 
@@ -219,30 +219,28 @@ public sealed class IntercomAudienceVaultEventsTests : IDisposable
     private async Task SeedAsync(bool administrator)
     {
         var now = DateTimeOffset.UtcNow;
-        await _accounts.InsertAsync(new Account
-        {
-            Id = _accountId,
-            Email = "viewer@example.com",
-            NormalizedEmail = "VIEWER@EXAMPLE.COM",
-            IsEnabled = true,
-            IsAdministrator = administrator,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-        await _accounts.GrantProfileAsync(new AccountProfileGrant
-        {
-            AccountId = _accountId,
-            ProfileId = Profile.SeedProfileId,
-            IsDefault = true,
-            IsEnabled = true,
-            AdminEnabled = administrator,
-            GrantedAt = now,
-        });
-        await _accounts.ReplaceAccountAccessAsync(
-            _accountId,
+        await _accounts.CreateAccountAsync(
+            new Account
+            {
+                Id = _accountId,
+                Email = "viewer@example.com",
+                NormalizedEmail = "VIEWER@EXAMPLE.COM",
+                IsEnabled = true,
+                IsAdministrator = administrator,
+                CreatedAt = now,
+                UpdatedAt = now,
+            },
+            new AccountProfileGrant
+            {
+                AccountId = _accountId,
+                ProfileId = Profile.SeedProfileId,
+                IsDefault = true,
+                IsEnabled = true,
+                AdminEnabled = administrator,
+                GrantedAt = now,
+            },
             new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid> { _ordinaryLibrary },
-            now);
+            new HashSet<Guid> { _ordinaryLibrary });
         await _identities.InsertSessionAsync(new AuthSession
         {
             Id = _sessionId,
