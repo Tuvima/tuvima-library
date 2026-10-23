@@ -119,6 +119,7 @@ What happens:
 
 ## 8. Local checks
 
+- **L0.** An existing test data store is refused at start until it is reset (`TUVIMA_STORAGE_RESET=1`, which keeps a copy); then set up again.
 - **L1.** Shy's example on a small test Library: the two households, sign-ins, switching, the PIN, the deletes in section 2 steps 3 to 6, with the outcomes described there.
 - **L2.** Change an email, sign in with the new one: same profile, same progress and roles.
 - **L3.** Restore a backup and import a user export under a different user than the one that made them: the profiles are rebuilt with their progress.
@@ -128,3 +129,9 @@ What happens:
 
 - **Risks:** this changes who is allowed to do what across the whole Library (security review required on every packet); a reset of existing test Libraries; paired apps must follow the profile's access without re-pairing.
 - **Open questions:** none. Q1 to Q7 answered by Shy on 2026-10-23 (D11 to D17).
+
+## 10. Gaps and drift (as built, 2026-10-23)
+
+- **Built and matches the spec:** D1–D18; the walkthrough in section 2; Users and Sign-in for the server administrator; Profiles (roles, access, delete) for household administrators and the server administrator; Households with the password-first rule; the profile choice with your own profile pre-selected; exports for the server administrator only; imports under a chosen household and email; storage epoch v13 (steps 0041–0044).
+- **Built differently or settled while building:** household administrators can still reset a member's temporary password and two-step codes (managing a sign-in's recovery, not creating or deleting users); a household administrator can add or remove only the access their own profile holds, and access set by the server administrator stays as it is; "attach a sign-in to a profile" is Add a sign-in choosing a profile without one; there is no action to disable a sign-in (only delete); deleting a single profile still offers Move to Shared or Delete for its photos; removing an empty household from Households still refuses while its Shared photos hold anything; imports keep Read/Watch/Listen/View only when "Keep their access" is ticked and never carry libraries or roles.
+- **Not built (out of scope):** people registering themselves under a profile (a later spec).
