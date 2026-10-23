@@ -239,12 +239,13 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("<ManagedAccessUsers />", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Scope=", source, StringComparison.Ordinal);
         Assert.DoesNotContain("My household", source, StringComparison.Ordinal);
-        Assert.Contains("Profile access", users, StringComparison.Ordinal);
-        // People, households, renaming and PINs are looked after under Profiles, not in the accounts list.
+        // Access, people, households, renaming and PINs are looked after under Profiles, not in the sign-in list.
+        Assert.DoesNotContain("Profile access", users, StringComparison.Ordinal);
+        Assert.DoesNotContain("Edit permissions", users, StringComparison.Ordinal);
         Assert.DoesNotContain("Households", users, StringComparison.Ordinal);
         Assert.DoesNotContain("CreateManagedProfileResultAsync", users, StringComparison.Ordinal);
         Assert.DoesNotContain("SetGrantProtectionResultAsync", users, StringComparison.Ordinal);
-        Assert.Contains("Invite user", users, StringComparison.Ordinal);
+        Assert.Contains("Add a sign-in", users, StringComparison.Ordinal);
         Assert.DoesNotContain("external-logins", users, StringComparison.Ordinal);
         Assert.DoesNotContain("Owner Administrator\", \"library:read, ingest:write", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Access Rules", source, StringComparison.Ordinal);

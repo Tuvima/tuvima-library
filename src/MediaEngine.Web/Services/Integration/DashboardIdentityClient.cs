@@ -18,7 +18,7 @@ public sealed record IntercomTokenAttempt(IntercomTokenResponse? Token, HttpStat
 /// <summary>A file the Engine made for the person to keep (a user export): its bytes and the name the Engine gave it.</summary>
 public sealed record DashboardDownloadedFile(byte[] Content, string FileName);
 
-public sealed class DashboardIdentityClient(
+public sealed partial class DashboardIdentityClient(
     IHttpClientFactory clients,
     IHttpContextAccessor? contextAccessor = null,
     ILogger<DashboardIdentityClient>? logger = null,
@@ -1245,7 +1245,7 @@ public sealed class DashboardIdentityClient(
         return DashboardAccessMutationResult<T>.FailureResult(failure, response.StatusCode, fields, message);
     }
 
-    private async Task<DashboardAccessMutationResult> ReadMutationFailureAsync(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
+    private async Task<DashboardAccessMutationResult> ReadMutationFailureAsync(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false, bool readAnyEngineSentence = false)
     {
         if (await ApprovalResponses.TryReadAsync(response, logger, ct).ConfigureAwait(false) is { } approval)
         {
@@ -1254,10 +1254,10 @@ public sealed class DashboardIdentityClient(
         }
 
         var failure = await ClassifyFailureAsync(response, ct).ConfigureAwait(false);
-        var fields = failure == DashboardAccessMutationFailure.Validation
+        var fields = failure == DashboardAccessMutationFailure.Validation && !readAnyEngineSentence
             ? await ReadValidationFieldNamesAsync(response, ct).ConfigureAwait(false)
             : [];
-        var message = includeMessage ? await ReadPlainMessageAsync(response, failure, ct).ConfigureAwait(false) : null;
+        var message = includeMessage ? await ReadPlainMessageAsync(response, failure, ct, readAnyEngineSentence).ConfigureAwait(false) : null;
         return DashboardAccessMutationResult.FailureResult(failure, response.StatusCode, fields, message);
     }
 

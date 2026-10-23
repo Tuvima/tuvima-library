@@ -16,14 +16,16 @@ An account signs in. A profile holds personal history, preferences, and View Per
 ## Give someone access
 
 1. Open **Settings → Users and Sign-in → Users** (server administrators only).
-2. Choose **Invite someone outside your household**, enter the person's email, then pick how they will sign in for the first time: **Send an invitation** (the default) or **Set a temporary password**. They start a household of their own and look after it as its household administrator. Use **Invite user** to invite someone into profiles that already exist.
-3. Set the account's permitted Read, Watch, Listen, View, and catalogue libraries.
-4. Grant only the profiles that person should use. An account can have up to eight profile grants.
-5. Hand over what Tuvima shows you, through a trusted private channel. It is shown once.
+2. Choose **Add a sign-in**. Pick **A profile without a sign-in** to give an existing profile its own sign-in, or **A new person** to make their profile as well (a name, their household or **A new household**, and **Kids profile** if it should be one).
+3. Enter the person's email, then pick how they will sign in for the first time: **Send an invitation** (the default) or **Set a temporary password**.
+4. Hand over what Tuvima shows you, through a trusted private channel. It is shown once.
+5. Set what that person may see and do on their profile, under **Settings → Profiles**: the administrator roles, Read, Watch, Listen and View, and the libraries. A sign-in only opens a profile; the profile holds the access.
 
-Only administrators create accounts. There is no public sign-up, and Tuvima never sends email for this.
+Only server administrators create sign-ins. There is no public sign-up, and Tuvima never sends email for this. If Tuvima refuses (for example a second household while the server administrator has no password yet), it says why and nothing is created.
 
-On a phone, **Settings → Users and Sign-in** shows people and applications as read-only cards (name, role or kind, status and last active). Make changes on a computer or tablet.
+A sign-in can be changed later from its row's "..." menu: **Change email** keeps the profile and everything in it exactly as it was, **Set temporary password** and **Turn off two-step codes** help someone locked out, and **Delete sign-in** removes the sign-in only; the profile stays and a new sign-in can be added to it.
+
+On a phone, **Settings → Users and Sign-in** shows sign-ins and applications as read-only cards (email, the profile it opens and its household). Make changes on a computer or tablet.
 
 ### Invitation code
 
@@ -60,10 +62,9 @@ Library and lane access is not set per person. A person's own sign-in follows th
 
 Admin access requires both an eligible account and an active profile grant with admin access.
 
-1. Under **Settings → Users and Sign-in → Users**, open the account's row menu, choose **Profile access**, and switch on **Allow admin dashboard** only for the intended profile.
-2. Open that person's page under **Settings → Profiles**. A **PIN protection** group appears there.
-3. Make sure the profile has a PIN (**Profile details**). There is one PIN per profile; admin pages and Vault mode ask for that same PIN.
-4. Turn on **Ask for my PIN on admin pages** (it is off until you do) and choose how long an unlock lasts.
+1. Administrator roles belong to the profile. Open that person's page under **Settings → Profiles** and make sure only the intended profile is an administrator. A **PIN protection** group appears there.
+2. Make sure the profile has a PIN (**Profile details**). There is one PIN per profile; admin pages and Vault mode ask for that same PIN.
+3. Turn on **Ask for my PIN on admin pages** (it is off until you do) and choose how long an unlock lasts.
 
 The PIN lock protects settings after sign-in. It is separate from the account password. Switching profiles clears the active admin unlock. With the switch off, admin pages open without a PIN.
 

@@ -1,0 +1,57 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@* What Delete sign-in says before it deletes, from the Engine's preview: the sign-in goes and the profile stays, or (for the last
+   sign-in that can look after a household) the household goes with its profiles, and then what happens to their personal photos.
+   It only gathers the photo choice; the screen that shows it talks to the Engine and shows the Engine's refusal as it is. *@
+<div class="user-deletion" data-user-deletion>
+    @if (!string.IsNullOrWhiteSpace(Preview.RefusedReason))
+    {
+        <AppAlert Severity="AppSeverity.Error" data-user-deletion-refused>@Preview.RefusedReason</AppAlert>
+    }
+    else
+    {
+        <AppAlert Severity="@(Preview.RemovesHousehold ? AppSeverity.Warning : AppSeverity.Info)">@SignInDeletionText.Confirmation(Email, Preview.ProfileName, Household, Preview)</AppAlert>
+        @if (Preview.RemovesHousehold && Preview.HasPersonalPhotos)
+        {
+            <fieldset class="user-deletion__photos" disabled="@Busy" data-user-deletion-photos>
+                <legend>Their photos</legend>
+                <label class="user-deletion__choice">
+                    <AppNativeInput Type="radio" Name="user-deletion-photos" AriaLabel="Move their photos to Shared" Checked="@KeepPhotos" Disabled="@Busy" OnChange="Keep" />
+                    <span><strong>Move to Shared</strong><small>Kept in the Shared Library, tagged with their name and today's date.</small></span>
+                </label>
+                <label class="user-deletion__choice">
+                    <AppNativeInput Type="radio" Name="user-deletion-photos" AriaLabel="Delete their photos" Checked="@(!KeepPhotos)" Disabled="@Busy" OnChange="Delete" />
+                    <span><strong>Delete</strong><small>This can't be undone.</small></span>
+                </label>
+            </fieldset>
+        }
+    }
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <AppAlert Severity="AppSeverity.Error" data-user-deletion-error>@Error</AppAlert>
+    }
+</div>
+
+@code {
+    /// <summary>What the Engine says deleting the user would do.</summary>
+    [Parameter, EditorRequired] public UserDeletionPreviewResponse Preview { get; set; } = default!;
+
+    /// <summary>The sign-in's email, as the Users list shows it.</summary>
+    [Parameter, EditorRequired] public string Email { get; set; } = string.Empty;
+
+    /// <summary>The household the Users list shows for the user (the preview names it only when it would be removed).</summary>
+    [Parameter] public string? Household { get; set; }
+
+    /// <summary>True (the default) moves the removed profiles' photos to the Shared Library; false deletes them.</summary>
+    [Parameter] public bool KeepPhotos { get; set; } = true;
+    [Parameter] public EventCallback<bool> KeepPhotosChanged { get; set; }
+
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>The Engine's sentence for a refusal of the delete itself, shown as it is.</summary>
+    [Parameter] public string? Error { get; set; }
+
+    private Task Keep() => KeepPhotosChanged.InvokeAsync(true);
+
+    private Task Delete() => KeepPhotosChanged.InvokeAsync(false);
+}
