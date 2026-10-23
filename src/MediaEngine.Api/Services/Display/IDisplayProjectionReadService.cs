@@ -45,6 +45,19 @@ public interface IDisplayProjectionReadService
     /// one-row-per-work list, which never shows more than <see cref="LoadWorksAsync"/> does.
     /// </summary>
     Task<IReadOnlyList<DisplayWorkRow>> LoadWorkLibraryRowsAsync(CancellationToken ct) => LoadWorksAsync(ct);
+
+    // Unmatched files live only under the Unmatched filter (Library setup spec D64): the reads above leave out a work whose files in a
+    // library are all Unmatched, kept or not. These three are the filter's own, which keep it; nothing else asks for them. A source
+    // that does not answer gives the plain read, which never shows more.
+
+    /// <summary><see cref="LoadWorksAsync"/> with the works whose files are all Unmatched kept in, for the Unmatched filter.</summary>
+    Task<IReadOnlyList<DisplayWorkRow>> LoadWorksIncludingUnmatchedAsync(CancellationToken ct) => LoadWorksAsync(ct);
+
+    /// <summary><see cref="LoadVisibleWorkIdsAsync"/> with the works whose files are all Unmatched kept in, for the Unmatched filter.</summary>
+    Task<IReadOnlySet<Guid>> LoadVisibleWorkIdsIncludingUnmatchedAsync(CancellationToken ct) => LoadVisibleWorkIdsAsync(ct);
+
+    /// <summary><see cref="LoadWorkLibraryRowsAsync"/> with the works whose files are all Unmatched kept in, for the Unmatched filter.</summary>
+    Task<IReadOnlyList<DisplayWorkRow>> LoadWorkLibraryRowsIncludingUnmatchedAsync(CancellationToken ct) => LoadWorkLibraryRowsAsync(ct);
 }
 
 /// <summary>Whether a request may browse a library, given the library's id and the media type it holds.</summary>

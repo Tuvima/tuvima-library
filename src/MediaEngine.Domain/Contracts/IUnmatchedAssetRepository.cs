@@ -26,6 +26,13 @@ public interface IUnmatchedAssetRepository
     /// </summary>
     Task<IReadOnlyList<UnmatchedWorkFile>> ListOpenByWorksAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default);
 
+    /// <summary>
+    /// For each (work, library) among the given works that has at least one Unmatched file (kept ones included), whether every file the work
+    /// has there is Unmatched and whether those Unmatched files are all kept. Files that are gone or orphaned are left out. Reads only the
+    /// works asked for; a work with no Unmatched file is absent.
+    /// </summary>
+    Task<IReadOnlyList<UnmatchedWorkLibrary>> ListWorkLibrariesAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default);
+
     /// <summary>Removes the row (the file matched). Returns true when a row was removed.</summary>
     Task<bool> ClearAsync(Guid assetId, CancellationToken ct = default);
 

@@ -109,6 +109,32 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task MovingAMovieToTv_CarriesWhatPeopleDidWithTheMovieToTheEpisode()
+    {
+        var (assetId, movieWorkId) = await IngestMovieAsync();
+        var person = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("""
+                INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@person, 'Movie', @movieWorkId, '2026-10-01T00:00:00Z');
+                INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@person, 'Movie', @movieWorkId, 'Love', '2026-10-01T00:00:00Z');
+                INSERT INTO profile_work_preferences (profile_id, work_id, local_tags_json, revision, updated_at) VALUES (@person, @movieWorkId, '["rewatch"]', 1, '2026-10-01T00:00:00Z');
+                INSERT INTO user_states (user_id, asset_id, progress_pct, last_accessed) VALUES (@person, @assetId, 40, '2026-10-01T00:00:00Z');
+                """, new { person, movieWorkId, assetId });
+        }
+
+        var result = await _repository.ReassignToTvShowSpecialAsync(assetId, ShowName, null);
+
+        Assert.True(result.PreviousWorkRemoved);
+        using var conn = _db.CreateConnection();
+        var episode = result.EpisodeWorkId;
+        Assert.Equal(episode, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_saved_items WHERE profile_id = @person;", new { person }));
+        Assert.Equal(episode, conn.ExecuteScalar<Guid>("SELECT entity_id FROM profile_reactions WHERE profile_id = @person;", new { person }));
+        Assert.Equal("""["rewatch"]""", conn.ExecuteScalar<string>("SELECT local_tags_json FROM profile_work_preferences WHERE work_id = @episode;", new { episode }));
+        Assert.Equal(40, conn.ExecuteScalar<int>("SELECT progress_pct FROM user_states WHERE user_id = @person AND asset_id = @assetId;", new { person, assetId }));
+    }
+
+    [Fact]
     public async Task MovingAMovieToTv_WhenTheCollectionAlreadyHoldsTheEpisode_LeavesOneMembership()
     {
         var (first, _) = await IngestMovieAsync(@"C:\Temp\real_import\movies\a.mkv");

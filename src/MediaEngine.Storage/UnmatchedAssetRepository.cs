@@ -110,6 +110,46 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
             rows.Select(row => new UnmatchedWorkFile(row.WorkId, row.AssetId, row.LibraryId)).ToList());
     }
 
+    public Task<IReadOnlyList<UnmatchedWorkLibrary>> ListWorkLibrariesAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(workIds);
+        ct.ThrowIfCancellationRequested();
+        if (workIds.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyList<UnmatchedWorkLibrary>>([]);
+        }
+
+        using var connection = db.CreateConnection();
+        // Nothing Unmatched anywhere is the usual case: skip building the work list for it.
+        if (connection.ExecuteScalar<long>("SELECT EXISTS(SELECT 1 FROM unmatched_assets);") == 0)
+        {
+            return Task.FromResult<IReadOnlyList<UnmatchedWorkLibrary>>([]);
+        }
+
+        // The library is the file's own, upper case, the way the browse projection reports it; a file counts once per work even when
+        // the work lists it twice.
+        var rows = connection.Query<WorkLibraryRow>(
+            """
+            SELECT woa.work_id AS WorkId,
+                   UPPER(COALESCE(ma.library_id, '')) AS LibraryId,
+                   COUNT(DISTINCT ma.id) AS Files,
+                   COUNT(DISTINCT u.asset_id) AS UnmatchedFiles,
+                   COUNT(DISTINCT CASE WHEN u.kept_as_is = 1 THEN u.asset_id END) AS KeptFiles
+            FROM work_owned_assets woa
+            JOIN media_assets ma ON ma.id = woa.asset_id
+            LEFT JOIN unmatched_assets u ON u.asset_id = ma.id
+            WHERE ma.status = 'Normal' AND ma.is_orphaned = 0
+              AND woa.work_id IN (SELECT unhex(value) FROM json_each(@workIds))
+            GROUP BY woa.work_id, UPPER(COALESCE(ma.library_id, ''))
+            HAVING COUNT(DISTINCT u.asset_id) > 0;
+            """,
+            new { workIds = GuidSql.ToJsonHexArray(workIds.Distinct()) });
+        return Task.FromResult<IReadOnlyList<UnmatchedWorkLibrary>>(rows
+            .Select(row => new UnmatchedWorkLibrary(
+                row.WorkId, row.LibraryId, row.Files == row.UnmatchedFiles, row.KeptFiles == row.UnmatchedFiles))
+            .ToList());
+    }
+
     public Task<bool> ClearAsync(Guid assetId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -259,6 +299,15 @@ public sealed class UnmatchedAssetRepository(IDatabaseConnection db) : IUnmatche
         public Guid WorkId { get; set; }
         public Guid AssetId { get; set; }
         public string LibraryId { get; set; } = string.Empty;
+    }
+
+    private sealed class WorkLibraryRow
+    {
+        public Guid WorkId { get; set; }
+        public string LibraryId { get; set; } = string.Empty;
+        public long Files { get; set; }
+        public long UnmatchedFiles { get; set; }
+        public long KeptFiles { get; set; }
     }
 
     private sealed class CountRow
