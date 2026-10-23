@@ -1,6 +1,6 @@
 # Spec: Users, profiles and households
 
-> **Status:** In progress (Locked by Shy 2026-10-23) · **Version:** 3 · **Last updated:** 2026-10-23 · **Related docs:** [Product overview](../product/overview.md) · [Security model](../../docs/architecture/security.md) · [ADR 0007 Accounts own access; profiles own experience](../architecture/decisions/0007-accounts-and-profiles-access.md) (replaced by this spec) · [Backup and restore](backup-and-restore.md) D19, D20 · [Open from the start](archive/open-from-the-start.md) · [Profiles and setup redesign](archive/profiles-setup-redesign.md)
+> **Status:** In progress (Locked by Shy 2026-10-23) · **Version:** 4 · **Last updated:** 2026-10-23 · **Related docs:** [Product overview](../product/overview.md) · [Security model](../../docs/architecture/security.md) · [ADR 0007 Accounts own access; profiles own experience](../architecture/decisions/0007-accounts-and-profiles-access.md) (replaced by this spec) · [Backup and restore](backup-and-restore.md) D19, D20 · [Open from the start](archive/open-from-the-start.md) · [Profiles and setup redesign](archive/profiles-setup-redesign.md)
 
 ## 1. Goal
 
@@ -50,7 +50,7 @@ What happens:
 
 - **D1. The profile holds the person (Shy, 2026-10-22).** Roles (server administrator, household administrator, member, Kids), library choices, Read/Watch/Listen/View access, content limits, PIN, preferences and all personal state live on the profile. Replaces ADR 0007's "accounts own access".
 - **D2. A user is a sign-in only.** Email, password, passkeys, two-step, outside sign-ins, recovery codes, sessions and paired devices belong to the user. A user is attached to exactly one profile (its own). Changing the email changes nothing else.
-- **D3. Signing in opens your own profile; switching stays inside your household.** A user can switch to any profile of their own household (profile PIN when set); administrator rights apply only while on a profile that holds them (Mom switches to Shy's profile to act as server administrator).
+- **D3. Signing in pre-selects your own profile; switching stays inside your household (revised by Shy 2026-10-23).** Signing in with an email shows the household's profile choice with that sign-in's own profile already selected (Dad's email selects Dad, Mom's selects Mom). No profile is in use until the person clicks one (with its PIN when set). This is so people don't share passwords: everyone signs in with their own email and lands on their own choice. The device setting "always open as" is removed. A user can switch to any profile of their own household (profile PIN when set); administrator rights apply only while on a profile that holds them (Mom switches to Shy's profile to act as server administrator).
 - **D4. Only the server administrator creates and deletes users.** Household administrators manage the profiles of their household, not users.
 - **D5. Deleting a user removes only the sign-in.** The profile and its data stay; a new user can be attached to it later. Exception (D6).
 - **D6. A household cannot be left without an administrator who can sign in.** Deleting the last user attached to a household administrator profile in a non-default household removes that household with all its profiles, after a confirmation that lists them. The default household (the server administrator's) and the server administrator's profile and user can never be deleted.
@@ -63,14 +63,15 @@ What happens:
 - **D13. Switching is free unless a profile has a PIN (Q3).** Like Netflix: any profile of the household can switch to any other, Kids included; a profile with a PIN asks for it. Most people will not set one.
 - **D14. At most eight profiles per household (Q4).**
 - **D15. A household administrator always has a user (Q5).** A profile can be made a household administrator only when a user is attached to it. Deleting the user of a household administrator who is not the last one leaves the profile as an ordinary member (an administrator without a sign-in cannot exist). Deleting the user of the last household administrator of a non-default household removes the household (D6). Household administrators can make another profile of their household an administrator when it has a user.
-- **D16. Export my data (Q6).** Exports your own profile; a household administrator can also export the whole household; the server administrator can export anything.
+- **D16. Export (Q6, revised by Shy 2026-10-23).** Household administrators can't export anything for others: they manage their household's profiles and content only. Each person can export their own profile (Export my data); only the server administrator can export another person or a whole household.
 - **D17. Several server administrators (Q7).** More than one profile can be a server administrator, but only profiles in the default household with a user that has an email and password (for example mom@home.com \ Mom). The Library always keeps at least one. The server administrator is really "shy@tuvima.com \ Shy": the sign-in and its profile together.
+- **D18. Removing a household deletes its people's photos (Shy, 2026-10-23).** When the last household-administrator sign-in of a non-default household is deleted and the household goes, its people's personal photos and videos are deleted with it; the confirmation says so plainly first. They are never moved into another household's Shared photos (privacy).
 
 ## 5. UI behaviour
 
 | Situation | What the person sees |
 |---|---|
-| Sign in with email | Goes straight into their own profile; the profile switcher lists the other profiles of their household only. |
+| Sign in with email | The household's profile choice, with their own profile already selected; nothing opens until they click a profile (PIN when set). Only their household's profiles are listed. |
 | Switch to a profile with administrator rights | Asks for that profile's PIN if set; administrator screens appear only while on that profile. |
 | Server administrator: Users and Sign-in | One row per user: email, the profile it opens, the household. Actions: Invite (QR code and link, as today), Change email, Reset password and two-step, Attach to a profile, Delete user. No access settings here (they are on the profile). |
 | Delete user (normal) | "Delete the sign-in mom@home.com? Mom's profile and everything in it stay in Household 1. You can attach a new sign-in to it later." |
