@@ -33,6 +33,9 @@ public sealed class VisibilityAfterMoveEndpointTests
             AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
         ["household-member"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
             AccountEnabled: true, GrantEnabled: true, AccountHouseholdId: Household),
+        // An application that is itself an administrator has no person behind it, so it is no effective administrator.
+        ["administrator-application"] = new(PrincipalKind.ServiceApplication, true, null, null, Guid.NewGuid(), null, null,
+            ApplicationEnabled: true, ApplicationIsAdministrator: true),
         ["household-admin"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
             AccountEnabled: true, GrantEnabled: true, AccountHouseholdId: Household, AccountIsHouseholdAdmin: true),
     };
@@ -40,7 +43,8 @@ public sealed class VisibilityAfterMoveEndpointTests
     [Theory]
     [InlineData("household-member")]
     [InlineData("household-admin")]
-    public async Task TheRoute_RefusesAProfileThatIsNotAServerAdministrator(string principal)
+    [InlineData("administrator-application")]
+    public async Task TheRoute_RefusesAProfileOrApplicationThatIsNotAServerAdministrator(string principal)
     {
         await using var app = BuildApplication();
 

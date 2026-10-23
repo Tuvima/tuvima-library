@@ -55,7 +55,8 @@ public sealed class VisibilityAfterMoveReadService(
         var lost = new List<VisibilityLossDto>();
         foreach (var account in await accounts.GetAllAsync(ct).ConfigureAwait(false))
         {
-            if (account.IsAdministrator)
+            // An administrator sees everything; a disabled sign-in cannot sign in, so a line about what it would lose helps no one.
+            if (account.IsAdministrator || !account.IsEnabled)
             {
                 continue;
             }
@@ -96,6 +97,11 @@ public sealed class VisibilityAfterMoveReadService(
 
         if (request.AssetIds is { } assetIds)
         {
+            if (assetIds.Count == 0)
+            {
+                return (null, "Say which files to check: the list is empty.");
+            }
+
             return assetIds.Count > MaxAssetIds
                 ? (null, $"That is too many files to check at once (the most is {MaxAssetIds:N0}). Check a folder instead, or fewer files.")
                 : (await assets.CountByLibraryForAssetsAsync(assetIds, ct).ConfigureAwait(false), null);

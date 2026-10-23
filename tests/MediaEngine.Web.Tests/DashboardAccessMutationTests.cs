@@ -71,39 +71,73 @@ public sealed class DashboardAccessMutationTests
             };
         });
 
-        var result = await client.GetVisibilityAfterMoveAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), FolderPath: "/media/kids"));
+        var result = await client.GetVisibilityAfterMoveResultAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), FolderPath: "/media/kids"));
 
-        var sam = Assert.Single(result!.People);
+        Assert.True(result.Succeeded);
+        var sam = Assert.Single(result.Value!.People);
         Assert.Equal((account, "Sam", 40), (sam.AccountId, sam.DisplayName, sam.FileCount));
         Assert.Contains("\"folder_path\":\"/media/kids\"", body, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task VisibilityAfterMove_ReturnsNullOnAServerError_NeverAnEmptyList()
+    public async Task VisibilityAfterMove_KeepsTheEnginesPlainRefusal_SoACallerCanSayTooManyFiles()
     {
-        var client = Client(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
+        var client = Client(_ => new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent(
+                """{"title":"Bad Request","status":400,"detail":"That is too many files to check at once (the most is 5,000)."}""",
+                Encoding.UTF8, "application/problem+json"),
+        });
 
-        Assert.Null(await client.GetVisibilityAfterMoveAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), AssetIds: [Guid.NewGuid()])));
+        var result = await client.GetVisibilityAfterMoveResultAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), AssetIds: [Guid.NewGuid()]));
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Value);
+        Assert.Equal(DashboardAccessMutationFailure.Validation, result.Failure);
+        Assert.Equal("That is too many files to check at once (the most is 5,000).", result.Message);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task VisibilityAfterMove_OnAnyOtherFailure_IsNotASuccessAndCarriesNoPeople_SoItReadsAsCouldntCheck(HttpStatusCode status)
+    {
+        var client = Client(_ => new HttpResponseMessage(status));
+
+        var result = await client.GetVisibilityAfterMoveResultAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), AssetIds: [Guid.NewGuid()]));
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Value);
+        Assert.Null(result.Message);
+        Assert.NotEqual(DashboardAccessMutationFailure.Validation, result.Failure);
     }
 
     [Fact]
-    public async Task VisibilityAfterMove_ReturnsNullWhenTheEngineIsUnreachableOrRefusesTheCaller()
+    public async Task VisibilityAfterMove_WhenTheEngineIsUnreachable_IsATransientFailureNotAnEmptyList()
     {
-        Assert.Null(await Client(_ => throw new HttpRequestException("unavailable"))
-            .GetVisibilityAfterMoveAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), AssetIds: [Guid.NewGuid()])));
-        Assert.Null(await Client(_ => new HttpResponseMessage(HttpStatusCode.Forbidden))
-            .GetVisibilityAfterMoveAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), AssetIds: [Guid.NewGuid()])));
+        var client = Client(_ => throw new HttpRequestException("unavailable"));
+
+        var result = await client.GetVisibilityAfterMoveResultAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), AssetIds: [Guid.NewGuid()]));
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Value);
+        Assert.Equal(DashboardAccessMutationFailure.Transient, result.Failure);
     }
 
     [Fact]
-    public async Task VisibilityAfterMove_ReturnsNullWhenTheAnswerIsMalformed()
+    public async Task VisibilityAfterMove_WhenTheAnswerIsMalformed_IsAnInvalidResponseNotAnEmptyList()
     {
         var client = Client(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent("{broken", Encoding.UTF8, "application/json"),
         });
 
-        Assert.Null(await client.GetVisibilityAfterMoveAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), AssetIds: [Guid.NewGuid()])));
+        var result = await client.GetVisibilityAfterMoveResultAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), AssetIds: [Guid.NewGuid()]));
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(DashboardAccessMutationFailure.InvalidResponse, result.Failure);
     }
 
     [Fact]

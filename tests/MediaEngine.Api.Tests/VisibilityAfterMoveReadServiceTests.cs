@@ -148,6 +148,18 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ADisabledAccount_IsNotListed_EvenWhenItWouldLoseSight()
+    {
+        var sam = await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE accounts SET is_enabled = 0 WHERE id = @id;", new { id = sam.Id });
+        }
+
+        Assert.Empty((await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: AddAssets(Movies, 3)))).People!);
+    }
+
+    [Fact]
     public async Task AFileAlreadyInTheTarget_IsNotCounted()
     {
         await CreateAccountAsync("sam@example.test", "Sam", [AccountFeatureId.Watch], hidden: [Lectures]);
@@ -247,6 +259,15 @@ public sealed class VisibilityAfterMoveReadServiceTests : IDisposable
         Assert.Null(refused.People);
         Assert.Contains("too many", refused.Refusal, StringComparison.OrdinalIgnoreCase);
         Assert.Null(answered.Refusal);
+    }
+
+    [Fact]
+    public async Task AnEmptyListOfFiles_IsRefused_NotAnsweredWithAnEmptyList()
+    {
+        var result = await _service.GetAsync(new VisibilityAfterMoveRequest(Lectures, AssetIds: []));
+
+        Assert.Null(result.People);
+        Assert.NotNull(result.Refusal);
     }
 
     [Fact]

@@ -481,39 +481,15 @@ public sealed class DashboardIdentityClient(
         GetAsync<List<AccessLibraryOptionDto>>("/access/libraries", ct);
 
     /// <summary>
-    /// Who would stop seeing the named files if they moved into the target library (simpler access D13), or null when the Engine could not
-    /// say. Null means "couldn't check", never "nobody": a caller must not read it as an empty list and carry on as if no one is affected.
+    /// Who would stop seeing the named files if they moved into the target library (simpler access D13). A success carries the people
+    /// (an empty list means nobody is affected). A refusal the Engine explained (a list that is too long, a Vault target) comes back as
+    /// <see cref="DashboardAccessMutationFailure.Validation"/> with its plain sentence in <c>Message</c>, to show as it is. Any other failure
+    /// (unreachable, timed out, not allowed, a malformed answer) means "couldn't check": a caller must never read it as "nobody".
     /// </summary>
-    public async Task<VisibilityAfterMoveResponse?> GetVisibilityAfterMoveAsync(VisibilityAfterMoveRequest request, CancellationToken ct = default)
-    {
-        try
-        {
-            using var response = await Client.PostAsJsonAsync("/access/visibility-after-move", request, ct).ConfigureAwait(false);
-            return response.IsSuccessStatusCode
-                ? await response.Content.ReadFromJsonAsync<VisibilityAfterMoveResponse>(cancellationToken: ct).ConfigureAwait(false)
-                : null;
-        }
-        catch (HttpRequestException exception)
-        {
-            logger?.LogWarning(exception, "Dashboard visibility-after-move request could not reach the Engine");
-            return null;
-        }
-        catch (OperationCanceledException exception) when (!ct.IsCancellationRequested)
-        {
-            logger?.LogWarning(exception, "Dashboard visibility-after-move request timed out");
-            return null;
-        }
-        catch (JsonException exception)
-        {
-            logger?.LogWarning(exception, "Dashboard visibility-after-move response was malformed");
-            return null;
-        }
-        catch (NotSupportedException exception)
-        {
-            logger?.LogWarning(exception, "Dashboard visibility-after-move response had an unsupported content type");
-            return null;
-        }
-    }
+    public Task<DashboardAccessMutationResult<VisibilityAfterMoveResponse>> GetVisibilityAfterMoveResultAsync(
+        VisibilityAfterMoveRequest request, CancellationToken ct = default) =>
+        SendMutationAsync<VisibilityAfterMoveRequest, VisibilityAfterMoveResponse>(
+            HttpMethod.Post, "/access/visibility-after-move", request, ct, includeMessage: true, readAnyEngineSentence: true);
 
     public Task<DashboardAccessMutationResult<ManagedProfileResponse>> UpdateManagedProfileResultAsync(Guid profileId, UpdateManagedProfileRequest request, CancellationToken ct = default) =>
         SendMutationAsync<UpdateManagedProfileRequest, ManagedProfileResponse>(HttpMethod.Put, $"/access/profiles/{profileId:D}", request, ct);
@@ -1092,7 +1068,8 @@ public sealed class DashboardIdentityClient(
         string path,
         TRequest body,
         CancellationToken ct,
-        bool includeMessage = false)
+        bool includeMessage = false,
+        bool readAnyEngineSentence = false)
     {
         try
         {
@@ -1100,7 +1077,7 @@ public sealed class DashboardIdentityClient(
             using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                return await ReadMutationFailureAsync<TResponse>(response, ct, includeMessage).ConfigureAwait(false);
+                return await ReadMutationFailureAsync<TResponse>(response, ct, includeMessage, readAnyEngineSentence).ConfigureAwait(false);
             }
 
             try
