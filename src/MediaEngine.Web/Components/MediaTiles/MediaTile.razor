@@ -103,6 +103,13 @@
                     }
                 </div>
             }
+            @if (Item.IsKept)
+            {
+                @* A file kept as it is stays under the Unmatched filter, marked Kept (Library setup spec D65). *@
+                <div class="media-tile-group-indicators">
+                    <span class="media-tile-group-kind"><span>Kept</span></span>
+                </div>
+            }
             @if (ShowsAlbumTrackCount)
             {
                 @* An album is one tile however many songs it holds; the count is the only hint of that. *@
