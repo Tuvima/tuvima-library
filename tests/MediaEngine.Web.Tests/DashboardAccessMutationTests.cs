@@ -56,6 +56,57 @@ public sealed class DashboardAccessMutationTests
     }
 
     [Fact]
+    public async Task VisibilityAfterMove_PostsTheRequestAndReturnsThePeopleTheEngineNamed()
+    {
+        var account = Guid.NewGuid();
+        string? body = null;
+        var client = Client(request =>
+        {
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal("/access/visibility-after-move", request.RequestUri!.AbsolutePath);
+            body = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new VisibilityAfterMoveResponse([new VisibilityLossDto(account, "Sam", 40)])),
+            };
+        });
+
+        var result = await client.GetVisibilityAfterMoveAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), FolderPath: "/media/kids"));
+
+        var sam = Assert.Single(result!.People);
+        Assert.Equal((account, "Sam", 40), (sam.AccountId, sam.DisplayName, sam.FileCount));
+        Assert.Contains("\"folder_path\":\"/media/kids\"", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task VisibilityAfterMove_ReturnsNullOnAServerError_NeverAnEmptyList()
+    {
+        var client = Client(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
+
+        Assert.Null(await client.GetVisibilityAfterMoveAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), AssetIds: [Guid.NewGuid()])));
+    }
+
+    [Fact]
+    public async Task VisibilityAfterMove_ReturnsNullWhenTheEngineIsUnreachableOrRefusesTheCaller()
+    {
+        Assert.Null(await Client(_ => throw new HttpRequestException("unavailable"))
+            .GetVisibilityAfterMoveAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), AssetIds: [Guid.NewGuid()])));
+        Assert.Null(await Client(_ => new HttpResponseMessage(HttpStatusCode.Forbidden))
+            .GetVisibilityAfterMoveAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), AssetIds: [Guid.NewGuid()])));
+    }
+
+    [Fact]
+    public async Task VisibilityAfterMove_ReturnsNullWhenTheAnswerIsMalformed()
+    {
+        var client = Client(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{broken", Encoding.UTF8, "application/json"),
+        });
+
+        Assert.Null(await client.GetVisibilityAfterMoveAsync(new VisibilityAfterMoveRequest(Guid.NewGuid(), AssetIds: [Guid.NewGuid()])));
+    }
+
+    [Fact]
     public async Task Mutation_MalformedSuccessIsDistinctFromFailureResponse()
     {
         var client = Client(_ => new HttpResponseMessage(HttpStatusCode.OK)

@@ -480,6 +480,41 @@ public sealed class DashboardIdentityClient(
     public Task<List<AccessLibraryOptionDto>?> GetAccessLibrariesAsync(CancellationToken ct = default) =>
         GetAsync<List<AccessLibraryOptionDto>>("/access/libraries", ct);
 
+    /// <summary>
+    /// Who would stop seeing the named files if they moved into the target library (simpler access D13), or null when the Engine could not
+    /// say. Null means "couldn't check", never "nobody": a caller must not read it as an empty list and carry on as if no one is affected.
+    /// </summary>
+    public async Task<VisibilityAfterMoveResponse?> GetVisibilityAfterMoveAsync(VisibilityAfterMoveRequest request, CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await Client.PostAsJsonAsync("/access/visibility-after-move", request, ct).ConfigureAwait(false);
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<VisibilityAfterMoveResponse>(cancellationToken: ct).ConfigureAwait(false)
+                : null;
+        }
+        catch (HttpRequestException exception)
+        {
+            logger?.LogWarning(exception, "Dashboard visibility-after-move request could not reach the Engine");
+            return null;
+        }
+        catch (OperationCanceledException exception) when (!ct.IsCancellationRequested)
+        {
+            logger?.LogWarning(exception, "Dashboard visibility-after-move request timed out");
+            return null;
+        }
+        catch (JsonException exception)
+        {
+            logger?.LogWarning(exception, "Dashboard visibility-after-move response was malformed");
+            return null;
+        }
+        catch (NotSupportedException exception)
+        {
+            logger?.LogWarning(exception, "Dashboard visibility-after-move response had an unsupported content type");
+            return null;
+        }
+    }
+
     public Task<DashboardAccessMutationResult<ManagedProfileResponse>> UpdateManagedProfileResultAsync(Guid profileId, UpdateManagedProfileRequest request, CancellationToken ct = default) =>
         SendMutationAsync<UpdateManagedProfileRequest, ManagedProfileResponse>(HttpMethod.Put, $"/access/profiles/{profileId:D}", request, ct);
 

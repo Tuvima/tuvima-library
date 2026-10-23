@@ -197,4 +197,33 @@ public sealed class AccessContractTests
         Assert.False(JsonSerializer.Deserialize<AccessLibraryOptionDto>(
             $"{{\"id\":\"{id}\",\"display_name\":\"Books\",\"category\":null,\"area\":\"read\"}}")!.HiddenByPrimary);
     }
+
+    [Fact]
+    public void TheVisibilityAfterMoveRequest_NamesTheTargetAndEitherAFolderOrAList_InSnakeCase()
+    {
+        var target = Guid.NewGuid();
+        var asset = Guid.NewGuid();
+
+        var list = JsonSerializer.Serialize(new VisibilityAfterMoveRequest(target, AssetIds: [asset]));
+        var folder = JsonSerializer.Deserialize<VisibilityAfterMoveRequest>(
+            $"{{\"target_library_id\":\"{target}\",\"folder_path\":\"/media/kids\",\"library_id\":\"{target}\"}}")!;
+
+        Assert.Contains($"\"target_library_id\":\"{target}\"", list, StringComparison.Ordinal);
+        Assert.Contains($"\"asset_ids\":[\"{asset}\"]", list, StringComparison.Ordinal);
+        Assert.Equal(("/media/kids", target), (folder.FolderPath, folder.LibraryId));
+        Assert.Null(folder.SourceId);
+        Assert.Null(folder.AssetIds);
+    }
+
+    [Fact]
+    public void TheVisibilityAfterMoveResponse_ListsEachPersonWithTheirFileCount_InSnakeCase()
+    {
+        var account = Guid.NewGuid();
+
+        var json = JsonSerializer.Serialize(new VisibilityAfterMoveResponse([new VisibilityLossDto(account, "Sam", 40)]));
+        var roundTrip = JsonSerializer.Deserialize<VisibilityAfterMoveResponse>(json)!;
+
+        Assert.Equal($"{{\"people\":[{{\"account_id\":\"{account}\",\"display_name\":\"Sam\",\"file_count\":40}}]}}", json);
+        Assert.Equal(("Sam", 40), (roundTrip.People[0].DisplayName, roundTrip.People[0].FileCount));
+    }
 }
