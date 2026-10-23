@@ -73,6 +73,7 @@ public static class ImportUploadEndpoints
         group.MapPut("/{uploadId:guid}/pieces/{index:int}", async (
             Guid uploadId,
             int index,
+            Stream pieceBody,
             HttpContext http,
             IRequestAuthorityResolver resolver,
             ImportUploadService uploads,
@@ -93,7 +94,7 @@ public static class ImportUploadEndpoints
             try
             {
                 return ToResult(await uploads.WritePieceAsync(
-                    owner, uploadId, index, http.Request.ContentLength, http.Request.Body, ct));
+                    owner, uploadId, index, http.Request.ContentLength, pieceBody, ct));
             }
             catch (BadHttpRequestException ex)
             {
